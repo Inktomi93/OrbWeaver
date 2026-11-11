@@ -240,6 +240,26 @@ at `biome.json:36-38`). `pnpm format:docs` reports 0/625 to fix.
 Retracted during the unit: `@sentry/node` packageExtensions looked dead; they are live
 (27 lockfile mentions — the first grep ate the pattern with `rg -r`'s replacement flag).
 
+Cleanup applied (comment truthing per `.claude/rules/comments.md` rule 5 and the no-history budget):
+the undici comment now states the real state — the handoff is unpinned and the port is tracked here —
+instead of claiming a root mirror that does not exist and citing an untracked retired test path.
+The stale `lucide-react`/`vite` pin rationales and the scaffold-date line are deleted. The
+`tsconfig.base.json` incremental block keeps the trap and the re-enable proof, lost its dates,
+incident story, and issue-number citations (banned by the comment law). `tsconfig.node.json`'s
+`"packages/*/*"` got its one-line semantics comment. `.env.example` lost its `#301` citation.
+Verified: full `pnpm typecheck` exit 0; `comment-path-citations.repo.int.test.ts`,
+`root-development-dependencies.test.ts`, `node-heap.int.test.ts` pass; biome clean.
+
+- \[P2] `tests/tooling/doc/comment-path-citations.repo.int.test.ts:16` — `SCANNED_ROOTS` is
+  `["packages","tooling","tests"]`, so root configs and `scripts/` are never read and their comments
+  may cite deleted files forever — the exact rot just cleaned from `pnpm-workspace.yaml`.
+  `HASH_COMMENT_EXTS` already handles `.yaml`, so adding the roots is a set edit, not a parser edit.
+
+- \[P3] `pnpm-workspace.yaml` catalog comments keep dated archaeology elsewhere (`2026-09-20`,
+  `2026-08-14`, `F9 settled 2026-09-19`, and friends) that the comment law's no-history budget
+  refuses. Not rewritten here to keep this change reviewable; sweep the remaining date stamps in one
+  pass when triage touches the catalog.
+
 ## Findings index
 
 Triage fills this. Roll up per severity as units complete.

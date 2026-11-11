@@ -32,7 +32,6 @@ allowBuilds:
 
 # The one home for dependency versions: every package.json names "catalog:" (or "workspace:*"), never a
 # version. The toolchain pins pnpm reads only from the root package.json: `packageManager`.
-# Versions are the latest resolved at scaffold (2026-06) — "use whatever the latest is".
 catalog:
   # --- toolchain ---
   # cross-spawn: niced-exec.ts's win32 child spawn (proc.ts#spawnFullPriorityChild) — resolves and quotes
@@ -165,10 +164,10 @@ catalog:
   # 8.7.0). MAJOR-DRIFT IS A SECURITY BUG, NOT A CHORE: this package and node's bundled copy hand off
   # through the SHARED symbol `Symbol.for("undici.globalDispatcher.1")` — our copy WRITES it,
   # node's built-in `fetch` READS it. If that contract ever breaks, the firewall silently stops
-  # governing `fetch` and every gate stays green over an open SSRF surface. The tripwire that makes
-  # the break LOUD is `tests/legacy/server/infra/network/dispatcher-contract.suite.int.test.ts` — keep it passing,
-  # and re-run it on every node/undici bump. Mirrored into root devDependencies so that test can
-  # import this exact package (pnpm-strict hides a packages/server dep from tests/).
+  # governing `fetch` and every gate stays green over an open SSRF surface. A test must pin the
+  # handoff and re-run it on every node/undici bump; the suite that did was retired with the legacy
+  # tree and no in-repo test pins it yet — porting the replacement is tracked in
+  # docs/work/codebase-review/ledger.md.
   undici: ^8.12.3
   # --- foundation observability (Phase 4a — Tier-2-Foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
@@ -241,7 +240,6 @@ catalog:
   tailwind-merge: ^3.7.0
   ajv: 8.20.0
   ajv-formats: 3.0.1
-  # lucide-react: ^1.22 (not .23 — published <24h ago, blocked by minimumReleaseAge; bump when mature)
   lucide-react: ^1.61.0
   # TanStack Virtual ≥3.14.3: the directDomUpdates React-Compiler fix + core 3.16 chat APIs (D54).
   "@tanstack/react-virtual": ^3.14.21
@@ -341,8 +339,6 @@ catalog:
   "@vitest/eslint-plugin": 1.6.27
   eslint-plugin-regexp: 3.3.1
   eslint-plugin-drizzle: 0.2.3
-  # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
-  # caret auto-adopts 8.1.3 once it clears the 24h window. (Matches the lucide pin-reason style.)
   vite: ^8.3.5
   vite-plugin-checker: ^0.14.5
   # React Compiler (stable 1.0) runs FULL-compile from day one (D54). plugin-react v6 dropped internal
