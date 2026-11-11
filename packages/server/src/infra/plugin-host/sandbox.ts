@@ -115,9 +115,29 @@ const DEFAULT_LIMITS: PluginBudgets = {
 /** What a guest error or result reads as when the realm cannot serialize it (a string too large to escape). */
 const UNREADABLE_GUEST_VALUE = "plugin host: the guest's value is too large to read";
 
-function readError(marshal: GuestMarshal, handle: QuickJSHandle): GuestError {
+// A guest value read for the outcome. A realm failure during the read ends the invocation anyway, so its exception
+// is released here rather than handed back.
+function readOutcome(
+  marshal: GuestMarshal,
+  handle: QuickJSHandle,
+): { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly message: string } {
   const read = marshal.fromGuest(handle);
-  const dumped: unknown = read.ok ? read.value : UNREADABLE_GUEST_VALUE;
+  switch (read.kind) {
+    case "value":
+      return { ok: true, value: read.value };
+    case "thrown":
+      read.error.dispose();
+      return { ok: false, message: UNREADABLE_GUEST_VALUE };
+    default: {
+      const exhaustive: never = read;
+      throw new Error(`plugin host: unknown guest read ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+function readError(marshal: GuestMarshal, handle: QuickJSHandle): GuestError {
+  const read = readOutcome(marshal, handle);
+  const dumped: unknown = read.ok ? read.value : read.message;
   if (typeof dumped === "object" && dumped !== null) {
     const nameValue = ("name" in dumped ? dumped.name : null) ?? "Error";
     const messageValue = ("message" in dumped ? dumped.message : null) ?? "";
@@ -131,7 +151,7 @@ function readError(marshal: GuestMarshal, handle: QuickJSHandle): GuestError {
 
 /** The guest's return value as the host keeps it, or `null` when the realm cannot serialize it. */
 function serializeGuest(marshal: GuestMarshal, handle: QuickJSHandle): string | null {
-  const read = marshal.fromGuest(handle);
+  const read = readOutcome(marshal, handle);
   if (!read.ok) {
     return null;
   }

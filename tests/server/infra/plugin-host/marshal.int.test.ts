@@ -1,15 +1,28 @@
 // A string crosses the plugin boundary whole in both directions, NUL included: a guest's argument and return value
-// reach the host whole, and a host value, a nested value and an object key reach the guest whole. Each case is read on
-// the far side of the crossing it proves. A guest reports what it saw as its own JSON, which escapes a NUL, so the
-// report itself never depends on the crossing under test. Card data is stored as JSON text, so its round trip also
-// shows that store keeps a NUL; the text stores refuse one instead (`tests/server/domain/plugin/substrate/stored-text-nul.int.test.ts`).
+// reach the host whole, and a host value, a top-level host string, a nested value and an object key reach the guest
+// whole. Each case is read on the far side of the crossing it proves. A guest reports what it saw as its own JSON,
+// which escapes a NUL, so the report itself never depends on the crossing under test. Card data is stored as JSON
+// text, so its round trip also shows that store keeps a NUL; the text stores refuse one instead
+// (`tests/server/domain/plugin/substrate/stored-text-nul.int.test.ts`). A host error reaches the guest with its name
+// and message.
 // @subject packages/server/src/infra/plugin-host/marshal.ts
 import { spawn } from "node:child_process";
 import { createCharacterSchema } from "@orb/contracts/character";
-import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PluginCapabilityError, pluginManifestSchema } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestOps } from "@orb/testkit/node/composed";
-import { createServerHarness, guestRunner, installGuest, makePluginBundle } from "@orb/testkit/node/composed";
+import {
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_STRUCTURED_REPLIES,
+  CORPUS_TEXT_MODEL,
+  createCorpusProviderExecution,
+  createServerHarness,
+  guestRunner,
+  installGuest,
+  makePluginBundle,
+  seedCorpusActors,
+} from "@orb/testkit/node/composed";
 
 const NUL = "\0";
 const WITH_NUL = `head${NUL}tail`;
@@ -18,7 +31,39 @@ const OPS = {
   // `a.text` rides the command's JSON arguments, which already cross whole; the call under test is the guest's.
   log: "(h, room, a) => { h.log.info(a.text); return null; }",
   cardKeys: "async (h, room, a) => { await h.character.setCardData(a.card, a.data); return Object.entries(await h.character.getCardData(a.card)); }",
+  quiet: "(h) => h.llm.quiet('Answer.')",
+  hostError: "async (h) => { try { await h.storage.get('k'); return null; } catch (e) { return [e.name, e.message, e instanceof Error]; } }",
 } as const satisfies GuestOps;
+
+test("a host string with a NUL, a quiet generation's reply, reaches the guest whole", { tags: ["slow"] }, async () => {
+  const provider = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: WITH_NUL,
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+  });
+  await using root = await createServerHarness({ pluginSpawn: spawn, providerFetch: provider.execute });
+  const { owner } = await seedCorpusActors(root);
+  const pluginId = await installGuest(root, owner, { slug: "nul-listener", capabilities: ["llm.quiet"] }, OPS);
+  const caller = await root.internalCallerFor(owner.userId);
+  const text = (await caller.connection.list()).find(({ model }) => model === CORPUS_TEXT_MODEL);
+  if (text === undefined) {
+    throw new Error("the corpus actor has no text connection");
+  }
+  await caller.connection.setBinding({ task: "summarize", connectionId: text.id, actor: { kind: "plugin-grant", pluginId } });
+
+  expect(await guestRunner({ root, caller: owner, pluginId, chatId: null })("quiet")).toEqual({ ok: true, value: WITH_NUL });
+});
+
+test("a host error reaches the guest as an Error with the host error's name and message", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "ungranted", capabilities: [] }, OPS);
+  const refusal = new PluginCapabilityError("storage.kv");
+
+  expect(await guestRunner({ root, caller: owner, pluginId, chatId: null })("hostError")).toEqual({ ok: true, value: [refusal.name, refusal.message, true] });
+});
 
 test("a guest's string argument reaches the host whole", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });

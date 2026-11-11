@@ -21,6 +21,7 @@ import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import type { GuestMarshal } from "./marshal.ts";
+import { GuestCallFailure } from "./marshal.ts";
 import type { MembraneRuntime } from "./membrane.ts";
 import { attachMembrane } from "./membrane.ts";
 
@@ -138,7 +139,16 @@ function logText(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHand
     return ctx.getString(handle);
   }
   const read = marshal.fromGuest(handle);
-  return read.ok && typeof read.value === "string" ? read.value : "";
+  switch (read.kind) {
+    case "value":
+      return typeof read.value === "string" ? read.value : "";
+    case "thrown":
+      throw new GuestCallFailure(read.error);
+    default: {
+      const exhaustive: never = read;
+      throw new Error(`plugin realm: unknown guest read ${JSON.stringify(exhaustive)}`);
+    }
+  }
 }
 
 /** Build the host surface fresh (clean handle ownership — a plugin calls host(1) once). Every leaf host fn
@@ -157,23 +167,23 @@ function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHos
   // hand-owned. Scope-exit order is REVERSE-declaration = inner-fn-before-its-object, exactly the order the
   // hand-written disposals used.
   using clock = ctx.newObject();
-  using nowFn = ctx.newFunction("nowEpochMs", () => ctx.newNumber(seams.nowEpochMs()));
+  using nowFn = marshal.newHostFunction("nowEpochMs", () => ctx.newNumber(seams.nowEpochMs()));
   ctx.setProp(clock, "nowEpochMs", nowFn);
   ctx.setProp(surface, "clock", clock);
 
   using random = ctx.newObject();
-  using nextFn = ctx.newFunction("next", () => ctx.newNumber(seams.nextRandom()));
+  using nextFn = marshal.newHostFunction("next", () => ctx.newNumber(seams.nextRandom()));
   ctx.setProp(random, "next", nextFn);
   ctx.setProp(surface, "random", random);
 
   using ids = ctx.newObject();
-  using mintFn = ctx.newFunction("mint", () => marshal.toGuest(seams.mintId()));
+  using mintFn = marshal.newHostFunction("mint", () => marshal.newHostString(seams.mintId()));
   ctx.setProp(ids, "mint", mintFn);
   ctx.setProp(surface, "ids", ids);
 
   using logObj = ctx.newObject();
   for (const level of LOG_LEVELS) {
-    using fn = ctx.newFunction(level, (msgHandle?: QuickJSHandle) => {
+    using fn = marshal.newHostFunction(level, (msgHandle?: QuickJSHandle) => {
       log.push(level, msgHandle === undefined ? "" : logText(ctx, marshal, msgHandle));
     });
     ctx.setProp(logObj, level, fn);
@@ -185,7 +195,7 @@ function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHos
   // no capability and sits beside `log` in the determinism/utility floor. A non-string arg is estimated as the
   // empty string (0), the fail-safe projection the rest of this realm uses rather than a throw.
   using tokens = ctx.newObject();
-  using countFn = ctx.newFunction("count", (textHandle?: QuickJSHandle) =>
+  using countFn = marshal.newHostFunction("count", (textHandle?: QuickJSHandle) =>
     ctx.newNumber(estimateTokens(textHandle === undefined || ctx.typeof(textHandle) !== "string" ? "" : logText(ctx, marshal, textHandle))),
   );
   ctx.setProp(tokens, "count", countFn);
@@ -206,14 +216,15 @@ function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHos
 export function installRealm(ctx: QuickJSContext, host: RealmHost, membrane?: MembraneRuntime): void {
   const stubResult = ctx.evalCode(AMBIENT_STUBS);
   if (stubResult.error) {
-    const read = host.marshal.fromGuest(stubResult.error);
-    stubResult.error.dispose();
-    throw new Error(`plugin realm ambient-stub install failed: ${JSON.stringify(read.ok ? read.value : null)}`);
+    using failure = stubResult.error;
+    // No guest code has run yet, so the exception is the engine's own Error object, which reads as a value.
+    const read = host.marshal.fromGuest(failure);
+    throw new Error(`plugin realm ambient-stub install failed: ${JSON.stringify(read.kind === "value" ? read.value : read.kind)}`);
   }
   stubResult.value.dispose();
 
   using orb = ctx.newObject();
-  using hostFn = ctx.newFunction("host", (majorHandle?: QuickJSHandle) => {
+  using hostFn = host.marshal.newHostFunction("host", (majorHandle?: QuickJSHandle) => {
     const major = majorHandle === undefined ? Number.NaN : ctx.getNumber(majorHandle);
     if (!PLUGIN_HOST_VERSIONS.some((served) => served === major)) {
       // Throw the TYPED class (not a plain Error) so `.name` crosses the boundary as "HostVersionError" — a

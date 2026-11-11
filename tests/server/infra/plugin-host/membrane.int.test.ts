@@ -9,7 +9,13 @@ import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestOps, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/node/composed";
-import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, HOST_FN_RESULT_CAP_BYTES } from "#server/infra/plugin-host/budgets.ts";
+import {
+  HOST_CALLS_IN_FLIGHT_MAX,
+  HOST_FN_ARGS_MAX_BYTES,
+  HOST_FN_DEADLINE_MS,
+  HOST_FN_RESULT_CAP_BYTES,
+  PLUGIN_INVOCATION_CPU_MS,
+} from "#server/infra/plugin-host/budgets.ts";
 
 // Far past the membrane's dump depth guard, so the iterative pre-walk must refuse this argument.
 const PAST_DEPTH_GUARD = 1000;
@@ -109,6 +115,46 @@ test("a host call whose arguments pass the inbound byte budget is refused before
 
   expect(await run("readKey", { length: HOST_FN_ARGS_MAX_BYTES / 2 })).toEqual({ ok: true, value: null });
   expect(await run("readKey", { length: HOST_FN_ARGS_MAX_BYTES + 1 })).toEqual({ ok: false, name: Error.name });
+});
+
+// Each loop catches everything a host call throws and never ends on its own, so only the CPU interrupt ends it.
+// `refusalLoop` holds the in-flight cap, so all but the first calls are refused; `readLoop` passes a string each call.
+const LOOPS = {
+  busyLoop: "() => { for (;;) {} }",
+  refusalLoop: "(h) => { for (;;) { try { h.storage.get(); } catch (e) {} } }",
+  readLoop: "(h) => { for (;;) { try { h.log.info('x'); } catch (e) {} } }",
+  ping: "(h) => h.storage.get('k')",
+} as const satisfies GuestOps;
+// Each loop is interrupted more than once, because where the interrupt lands in a loop's iteration varies by run.
+const LOOP_RUNS = 4;
+// Every run ends within its invocation wall; the busy-loop control and a ping follow each.
+const LOOP_TEST_TIMEOUT_MS = (2 * LOOP_RUNS + 1) * (PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS);
+
+test("a guest looping host calls it catches past its CPU window ends as a busy loop does, then serves the next call and retires cleanly", {
+  tags: ["slow"],
+  timeout: LOOP_TEST_TIMEOUT_MS,
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "looper", capabilities: ["storage.kv"] }, LOOPS);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+  // A loop with no host call is ended by the interrupt alone: the outcome every loop below must share.
+  const interrupted: unknown = await run("busyLoop").catch((error: unknown) => error);
+  expect(interrupted).toBeInstanceOf(Error);
+  expect(await run("ping")).toEqual({ ok: true, value: null });
+
+  for (const loop of ["refusalLoop", "readLoop"] as const) {
+    for (let attempt = 0; attempt < LOOP_RUNS; attempt += 1) {
+      await expect(run(loop)).rejects.toEqual(interrupted);
+      // A clean call between loops also resets the crash count that would otherwise disable the plugin.
+      expect(await run("ping")).toEqual({ ok: true, value: null });
+    }
+  }
+
+  // Retirement: the runtime is torn down and a fresh one serves; a failed teardown also fails the harness close.
+  await root.services.plugin.setEnabled({ caller: owner, pluginId, enabled: false });
+  await root.services.plugin.setEnabled({ caller: owner, pluginId, enabled: true });
+  expect(await run("ping")).toEqual({ ok: true, value: null });
 });
 
 // Every place the storage and variables functions take a string, called once with an array there and once with the
