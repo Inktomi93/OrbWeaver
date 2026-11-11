@@ -21,6 +21,7 @@ import { CHAT_ADD_INJECTION_NAME, CHAT_REMOVE_INJECTION_NAME } from "#client/fea
 import { CHAT_INJECTION_CONTENT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
+import { runName } from "./support/run-names.ts";
 import { CASE_TWO_LIVE_TURNS_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
 /** From an open chat, reach the Injections editor. IA UPDATE (panel-redesign consolidation): the ⋯ menu's
@@ -86,7 +87,7 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
   await openOrCreateChat(page);
   await openInjectionsTab(page);
 
-  const marker = `e2e-inj-${Date.now()}`;
+  const marker = runName("e2e-inj");
 
   // ── Add: "Add injection" persists a blank row immediately; a new Content textarea appears. ──
   const addResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.setChatInjection") && r.status() < 500);

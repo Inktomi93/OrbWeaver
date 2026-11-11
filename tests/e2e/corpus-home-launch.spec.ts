@@ -1,13 +1,5 @@
 // Home on the committed corpus: the first-run gate stays shut, and rooms launch from Characters and the temp-chat tile.
-import {
-  BLANK_CHAT_NAME,
-  chatWithActionName,
-  NO_CHAT_SELECTED_TITLE,
-  START_NEW_CHAT_NAME,
-  START_TEMP_CHAT_NAME,
-  TEMPORARY_CHAT_BADGE,
-  testId,
-} from "@orb/client/lib";
+
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
@@ -16,7 +8,10 @@ import { z } from "zod";
 import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
+import { BLANK_CHAT_NAME, NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#client/lib/chat-launch-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { chatWithActionName } from "#client/lib/row-qualifiers.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
 import { assistantRows, charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";

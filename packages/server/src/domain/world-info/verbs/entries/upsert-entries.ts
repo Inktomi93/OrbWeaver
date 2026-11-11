@@ -9,8 +9,8 @@
 // WITHIN ONE REQUEST the title key holds too: the by-title map is folded forward after every write, so a
 // repeated title updates the row the earlier input left rather than inserting a second row under one key.
 
-import type { EntryMetadata, LoreEntryProvenance, UpsertLoreEntryInput, WorldInfoScope } from "@orb/contracts/world-info";
-import { entryMetadataSchema } from "@orb/contracts/world-info";
+import type { LoreEntryProvenance, UpsertLoreEntryInput, WorldInfoScope } from "@orb/contracts/world-info";
+import { entryMetadataSchema, narrowEntryMetadata } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryScope } from "@orb/kit/world-info";
@@ -58,13 +58,13 @@ async function upsertOne(
     if (handEdited(prior)) {
       return { outcome: "skip", entryId: prior.id, scope: "keyword", row: prior };
     }
-    const metadata = entryMetadataSchema.parse({ ...(prior.metadata ?? {}), provenance } satisfies EntryMetadata);
+    const metadata = narrowEntryMetadata({ ...prior.metadata, provenance });
     await ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata, updatedAt: at }).where(eq(worldEntries.id, prior.id));
     const row = { ...prior, content: input.content, keys, enabled: true, metadata, updatedAt: at };
     return { outcome: "update", entryId: prior.id, scope: resolveEntryScope(metadata, keys !== null), row };
   }
 
-  const metadata = entryMetadataSchema.parse({ provenance } satisfies EntryMetadata);
+  const metadata = narrowEntryMetadata({ provenance });
   const row: EntryRow = {
     id: ctx.newEntryId(),
     worldBookId: bookId,

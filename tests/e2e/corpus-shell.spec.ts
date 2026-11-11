@@ -1,6 +1,6 @@
 // The app shell on the committed corpus: boot readiness and focus, the lazy route's failure surface, the census
 // each screen prints, and the phone's tab bar, You sheet and push-and-Back navigation.
-import { CORPUS_MODE_LABELS, dataThemeOf, NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "@orb/client/lib";
+
 import { APPEARANCE_BOOT_AXES, DATA_THEME_ATTR } from "@orb/client/state";
 import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
 import { OS_PREFERENCE_MODES } from "@orb/contracts/settings";
@@ -15,9 +15,12 @@ import { z } from "zod";
 import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
+import { NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { CONTEXT_SHEET_BACK_NAME, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { dataThemeOf } from "#client/lib/resolve-theme-scope-tokens.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
 import {

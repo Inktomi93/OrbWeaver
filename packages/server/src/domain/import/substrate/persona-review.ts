@@ -4,6 +4,7 @@
 
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { IncomingPersona } from "@orb/contracts/persona";
+import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import { sha256Hex } from "#primitives/content-hash";
 import { decodePortableObject } from "#primitives/serde/lib";
 import type { UploadedFile } from "../contract/collection.ts";
@@ -30,7 +31,7 @@ export function incomingPersonasOf(files: readonly UploadedFile[]): IncomingPers
       out.push({
         name: parsed.name,
         description: parsed.description,
-        metadata: parsed.metadata,
+        metadata: narrowPersonaMetadata(parsed.metadata),
         artHash: avatar === undefined ? null : sha256Hex(avatar),
       });
     }

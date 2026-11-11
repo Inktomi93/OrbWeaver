@@ -1,7 +1,6 @@
 // The Corpus workbench on the committed corpus: its three modes, focus on each mode's landing, and state restoration
 // across the Insights drill and the Labels editor push.
 
-import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL, pruneConfirmLabel, testId } from "@orb/client/lib";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
@@ -9,8 +8,11 @@ import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL } from "#client/lib/corpus-modes.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
+import { pruneConfirmLabel } from "#client/lib/tag-model.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";

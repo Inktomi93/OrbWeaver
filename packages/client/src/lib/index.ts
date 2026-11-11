@@ -201,6 +201,7 @@ export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.t
 export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { createOpenRequestChannel, useOpenRequests } from "./open-request-channel.ts";
+export { OS_PREFERENCE_LABELS } from "./os-preference-labels.ts";
 export type { OverflowMenuForm, OverflowMenuItem } from "./overflow-menu-form.ts";
 export { BAND_OVERFLOW_LABEL, TRAIL_OVERFLOW_LABEL } from "./overflow-names.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";

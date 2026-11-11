@@ -36,7 +36,12 @@ through the app or an immutable copy.
 - A junction keyed only by parent and content-addressed asset id loses rows when two names share
   identical bytes. Key on parent, asset id, and name, with an empty-string sentinel, never null.
 - A JSON column typed `Record<string, unknown>` or `unknown` lets a reader outrun its producer.
-  Close the type with a shape both sides import.
+  Close the type with a shape both sides import; `JsonValue` from `@orb/kit/json` closes free-form JSON.
+  `tests/db/schema/json-columns-closed.test-d.ts` (node world, `pnpm typecheck tsconfig.node.json`)
+  names every column whose type still reaches an open type, including a column with no `$type`.
+- A JSON column whose writers must pass one narrowing function types it `NarrowedJsonObject` from `@orb/kit/json`.
+  tsc refuses a literal, a spread or a rest copy (`tests/db/schema/metadata-columns-narrowed.test-d.ts`).
+  `orb/narrowed-json-brand` (`tooling/src/eslint/narrowed-json.ts`) refuses `Object.assign` and an assertion.
 - A `Required<$inferInsert>` column allow-list names a column, not what is inside it. Give a JSON
   column its own exhaustive object-literal check with no spread.
 - Before stating a biconditional between two columns, enumerate every writer of both, including

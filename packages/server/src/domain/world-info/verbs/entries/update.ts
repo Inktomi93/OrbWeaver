@@ -4,8 +4,7 @@
 // `wiEntryScopeChanged` fans out only when a scope-affecting field (keys/enabled/metadata) changed —
 // title/description/content/priority/ignoreBudget-only edits emit nothing.
 
-import type { EntryMetadata } from "@orb/contracts/world-info";
-import { entryMetadataSchema } from "@orb/contracts/world-info";
+import { narrowEntryMetadata } from "@orb/contracts/world-info";
 import { worldBooks, worldEntries } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
 import { resolveEntryScope } from "@orb/kit/world-info";
@@ -20,14 +19,7 @@ const SCOPE_AFFECTING_FIELDS = ["keys", "enabled", "metadata"] as const;
 export function createUpdateEntry(ctx: WorldInfoContext): WorldInfoService["updateEntry"] {
   return async ({ principal, entryId, input }: UpdateEntryParams) => {
     const ownerId = principal.userId;
-    let metadata: EntryMetadata | null | undefined;
-    if (input.metadata === undefined) {
-      metadata = undefined;
-    } else if (input.metadata === null) {
-      metadata = null;
-    } else {
-      metadata = entryMetadataSchema.parse(input.metadata);
-    }
+    const metadata = input.metadata === undefined ? undefined : narrowEntryMetadata(input.metadata);
     const edits = stripUndefined({
       title: input.title,
       description: input.description,

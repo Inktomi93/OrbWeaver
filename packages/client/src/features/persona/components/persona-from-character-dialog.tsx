@@ -12,7 +12,6 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker, PickerDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
 import { usePersonaFromCharacter } from "../hooks/use-persona-mutations.ts";
 
 const SWAP_LABEL = "Swap {{char}}/{{user}} in the copied description";
@@ -31,7 +30,7 @@ export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: Pe
   const createFrom = usePersonaFromCharacter({ trpc, invalidation });
   const [swapMacros, setSwapMacros] = useState(true);
 
-  const onPick = (characterId: CharacterId, name: string): void => {
+  const onPick = (characterId: CharacterId): void => {
     if (createFrom.isPending) {
       return;
     }
@@ -39,7 +38,6 @@ export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: Pe
       { characterId, swapMacros },
       {
         onSuccess: (persona): void => {
-          notify.success(`Created “${persona.name}” from ${name}.`);
           onOpenChange(false);
           onCreated(persona.id);
         },

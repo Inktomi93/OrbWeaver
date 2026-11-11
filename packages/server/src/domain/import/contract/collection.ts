@@ -4,6 +4,7 @@ import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle } from "@orb/kit/ids";
+import type { JsonObject } from "@orb/kit/json";
 import type { ParsedChat } from "#primitives/serde/chat";
 import type { ParsedStTheme } from "#primitives/serde/theme";
 
@@ -13,7 +14,7 @@ export interface ParsedPersona {
   readonly description: string;
   readonly avatarFile: string;
   readonly isDefault: boolean;
-  readonly metadata: Record<string, unknown> | null;
+  readonly metadata: JsonObject | null;
 }
 
 /** One uploaded file: its path in the picked folder and its bytes. */

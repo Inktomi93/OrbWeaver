@@ -14,12 +14,12 @@
 //     `chat.listChats` resolved. The chats-LIST surface (`aria-label="Chats list"`) moved OFF `/` in the #102
 //     rework; it now lives on the Chats SECTION (reached via the Primary rail), not the landing.
 
-import { START_TEMP_CHAT_NAME } from "@orb/client/lib";
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { corpusReadInput } from "@orb/testkit/iso";
 import { CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
+import { START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";

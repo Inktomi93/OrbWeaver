@@ -7,7 +7,6 @@
 // SAME `listBooksWithUsage` cache the rows render from, which both mints the branded `WorldBookId` and gives
 // the GONE arm for free — another device deleting the open book leaves a sentence, not a 404 boundary.
 
-import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -30,6 +29,7 @@ import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } f
 import { BookDetailsDialog } from "../components/book-details-dialog.tsx";
 import { EntryEditor } from "../components/entry-editor.tsx";
 import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
+import type { WorldEntry } from "../lib/entry-editor-model.ts";
 import { WORLD_INFO_EDIT_DETAILS_NAME, WORLD_INFO_NEW_ENTRY_NAME, WORLD_INFO_NO_ENTRIES_TITLE, worldInfoNewEntryInName } from "../lib/world-info-names.ts";
 
 const NEW_ENTRY_CONTENT = "New lore.";
@@ -220,7 +220,7 @@ function EntryRow({
   onSelect,
   bodyRef,
 }: {
-  readonly entry: EntryView;
+  readonly entry: WorldEntry;
   readonly onSelect: (id: WorldEntryId) => void;
   readonly bodyRef: RefCallback<HTMLElement>;
 }): ReactElement {
