@@ -10,8 +10,9 @@
 // abort a 500-card sweep. On the on-demand path the pass IS one card, so that same containment handed the
 // editor a 200 carrying `{distilled: 0, failed: 1}` that no client reads — the button went quiet and the user
 // was told nothing. The narrow arm throws and the batch arm still reports counts. The narrow refusals and their
-// order are pinned by tests/server/domain/discovery/verbs/distill-refusals.int.test.ts; the batch counts by
-// tests/support/node/factories/discovery.int.test.ts.
+// order are pinned by tests/server/domain/discovery/verbs/distill-refusals.int.test.ts; the batch success counts
+// (`distilled` and `skipped`) by tests/support/node/factories/discovery.int.test.ts, which does not exercise a
+// contained per-card failure.
 //
 // TWO refusals on that narrow arm, and only one is minted here — the other is the house's:
 //   • the id resolves to no owned row → `DomainNotFoundError` (@orb/kit/errors) → NOT_FOUND, leak-free. The
