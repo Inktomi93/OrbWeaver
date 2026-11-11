@@ -18,7 +18,7 @@ A reviewer who cites the budget trims rulings out of headers, and a builder who 
 
 ## Done when
 
-One of the two sentences is amended so they agree, with the reason recorded. The two dead skill sections are deleted or shown live. `AGENTS.md` meets its budget.
+Decided: the header budget in `.claude/rules/comments.md` is amended to match `AGENTS.md`: a header holds the purpose line and every ruling, invariant or trap, with no line cap. Still owed: the two dead sections in `.claude/skills/lane/SKILL.md` are deleted or shown live.
 
 ## Evidence
 
