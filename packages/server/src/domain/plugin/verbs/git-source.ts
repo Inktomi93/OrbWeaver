@@ -1,5 +1,6 @@
 // Git source verbs — guarded shallow-clone bytes enter the same parse/install/upgrade funnel as every bundle.
 
+import { getLog } from "#foundation/observability";
 import { PluginGitPreviewStaleError, PluginGitSourceError, PluginNoGitSourceError, PluginNotFoundError } from "../contract/errors.ts";
 import type { InstallFromGitParams, PreviewFromGitParams, UpgradeFromStoredGitParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
@@ -10,6 +11,8 @@ async function cloneThroughGuard(ctx: PluginContext, url: string): Promise<{ rea
   try {
     return await ctx.gitSource.clone(url);
   } catch (cause) {
+    // The refusal is a client error the transport does not log and keeps the cause off the wire, so a failed clone is recorded here.
+    getLog(ctx.logger).warn({ err: cause }, "plugin: a git source clone failed");
     const error = new PluginGitSourceError();
     error.cause = cause;
     throw error;

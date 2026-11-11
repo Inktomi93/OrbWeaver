@@ -16,7 +16,7 @@ import { fetchBundleThroughGuard, hashPluginBundle, parseBundle } from "../subst
 
 export function createPreviewFromUrl(ctx: PluginContext): PluginService["previewFromUrl"] {
   return async ({ url }: PreviewFromUrlParams) => {
-    const bytes = await fetchBundleThroughGuard(ctx.fetchBundle, url);
+    const bytes = await fetchBundleThroughGuard(ctx.fetchBundle, url, ctx.logger);
     const { manifest } = parseBundle(bytes);
     return { manifest, bundleHash: hashPluginBundle(bytes) };
   };
