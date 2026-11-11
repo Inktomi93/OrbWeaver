@@ -10,15 +10,20 @@
 // the Node MAIN THREAD: no interrupt, no rejection, no crash counter, no auto-disable, and no recovery short
 // of a process restart. Reachable at activation, with only `storage.kv` and zero interaction after enable.
 //
-// So the handler lives for the context's lifetime and every guest-bytecode span OPENS A WINDOW:
+// So the handler lives for the context's lifetime and every call into the realm runs inside a span that OPENS A
+// WINDOW:
 //   - an invocation (`runToSettlement`) opens a CPU ACCOUNT holding the per-instance budget. Each span inside it —
-//     the synchronous run, each pump while the invocation awaits, the read of its result — opens a window at the
-//     account's remainder and charges the account the time it ran. The await between spans charges nothing, so a
-//     guest that waits seconds on a host call and then runs briefly is inside its budget (D346);
-//   - a pump outside any invocation opens a window of the whole budget for the duration of the pump.
+//     the synchronous run, each settlement and pump while the invocation awaits, the read of its result — opens a
+//     window at the account's remainder and charges the account the time it ran. The await between spans charges
+//     nothing, so a guest that waits seconds on a host call and then runs briefly is inside its budget (D346);
+//   - a settlement or pump outside any invocation opens a window of the whole budget for the duration of that span.
 // A span opened inside an open span adds nothing (the outer window already bounds it), and every pump inside an
 // invocation spends that invocation's account — so a nested pump can neither buy the invocation extra CPU nor blank
 // its bound on the way out.
+//
+// BETWEEN SPANS THE WINDOW IS CLOSED, not absent: it reads as already passed. Guest code reached outside a span is a
+// missed site, and the interrupt ends it at its first poll instead of never. Only the realm's build, before any
+// guest source runs, has no window.
 //
 // TWO BOUNDS, KEPT APART. The account bounds WORK. How long an invocation may HOLD its runtime, awaiting included, is
 // the settlement wall (`Sandbox.raceSettlement`, `cpuDeadlineMs + settleGraceMs`), which every invocation —
@@ -32,18 +37,23 @@
 // (`Sandbox.raceSettlement`), and no window here can see it.
 //
 // THE WINDOW IS NOT ABSOLUTE. QuickJS polls the interrupt only about every ten thousand calls and loop steps, and never
-// while the host works. So every host call also asks `cpuWindowPassed` at its entry, before any read
-// (`marshal.ts`, `newHostFunction`), and ends a guest past its window there. What that cannot bound — the one call
-// already running at the deadline, host work already admitted, result handling after settlement, memory — is D346's.
+// while the host works. So every host call also asks `cpuWindowPassed` at its entry, and again before each read or
+// write that can run a guest callback (`marshal.ts`), and ends a guest past its window there. What that cannot bound —
+// one poll period of guest work, the native call already running at the deadline, host work already admitted,
+// memory — is D346's.
 
 import { performance } from "node:perf_hooks";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { PLUGIN_INVOCATION_CPU_MS } from "./budgets.ts";
 
+/** The deadline before the first span opens: the realm is being built from host code only, so nothing to bound. */
+const BUILDING = Number.POSITIVE_INFINITY;
+/** The deadline between spans: already passed. Every host engine call that can reach guest code runs inside a span
+ *  (D346), so guest code here is a missed site, and the interrupt ends it at its first poll instead of never. */
+const CLOSED = Number.NEGATIVE_INFINITY;
+
 /** One context's guest-CPU state: the per-instance budget, plus the currently OPEN window as an ABSOLUTE
- *  monotonic ms. `Infinity` = no window open, which makes the installed handler inert (host-driven bytecode
- *  outside any span — e.g. the pristine `JSON.parse` of an inbound args payload — is bounded by the byte caps
- *  at its own seam, not by this). */
+ *  monotonic ms, or {@link BUILDING} or {@link CLOSED} when no window is open. */
 interface CpuGuard {
   budgetMs: number;
   deadlineAtMs: number;
@@ -74,14 +84,14 @@ function windowPassed(guard: CpuGuard): boolean {
 }
 
 function createGuard(ctx: QuickJSContext, budgetMs: number): CpuGuard {
-  const guard: CpuGuard = { budgetMs, deadlineAtMs: Number.POSITIVE_INFINITY, account: null };
+  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null };
   GUARDS.set(ctx, guard);
   ctx.runtime.setInterruptHandler(() => windowPassed(guard));
   return guard;
 }
 
-/** Whether the guest-CPU window open on `ctx` has passed — the same answer the interrupt handler gives. False when no
- *  window is open (or no guard was installed): host work outside any span is bounded at its own seams. */
+/** Whether the guest-CPU window on `ctx` has passed — the same answer the interrupt handler gives. True between spans
+ *  ({@link CLOSED}); false while the realm is being built, or when no guard was installed. */
 export function cpuWindowPassed(ctx: QuickJSContext): boolean {
   const guard = GUARDS.get(ctx);
   return guard !== undefined && windowPassed(guard);
@@ -132,19 +142,25 @@ export function openCpuWindow(ctx: QuickJSContext): () => void {
     if (account !== null) {
       account.remainingMs = Math.max(0, account.remainingMs - (performance.now() - openedAtMs));
     }
-    guard.deadlineAtMs = Number.POSITIVE_INFINITY;
+    guard.deadlineAtMs = CLOSED;
   };
 }
 
-/** Run the guest's pending jobs UNDER a window — the ONE spelling of the job pump. A runaway
- *  continuation is preempted with `InternalError: interrupted` (its own promise rejects guest-side, contained),
- *  and jobs the abort left QUEUED stay queued for the next pump, which opens its own window; a context with
- *  aborted jobs still queued disposes cleanly (measured against this runtime).
- *
- *  Inside an invocation a pump spends that invocation's account. After the invocation, not a bound on TOTAL guest
- *  CPU, and it does not claim to be: every late host-call settlement buys one window, so the aggregate stays bounded
- *  by the ≤32 in-flight cap × the per-instance budget rather than by one number.
- *  What it removes is the UNBOUNDED span — a single continuation that never yields the Node main thread. */
+/** Run `work` — host code that calls into the realm — inside a span of guest execution: a guest callback the engine
+ *  reaches from it (a `then` getter the promise resolve reads) is bounded by the window, and charged. */
+export function withinCpuWindow<T>(ctx: QuickJSContext, work: () => T): T {
+  const closeWindow = openCpuWindow(ctx);
+  try {
+    return work();
+  } finally {
+    closeWindow();
+  }
+}
+
+/** Run the guest's pending jobs inside a span — the ONE spelling of the job pump. A runaway continuation is
+ *  preempted with `InternalError: interrupted` (its own promise rejects guest-side, contained), and jobs the abort
+ *  left QUEUED stay queued for the next pump; a context with aborted jobs still queued disposes cleanly (measured
+ *  against this runtime). Inside an invocation a pump spends that invocation's account. */
 export function pumpGuestJobs(ctx: QuickJSContext): void {
   // A fire-and-forget host call can settle AFTER its instance was torn down (snippet end / deactivate);
   // touching a dead context is a use-after-free. The pump owns this guard so no call site can forget it.

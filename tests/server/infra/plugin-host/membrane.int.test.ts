@@ -5,10 +5,10 @@
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import type { PluginHostV1 } from "@orb/contracts/plugin";
-import { PLUGIN_HOST_VERSIONS, PluginCapabilityError, PluginHostDeadlineError } from "@orb/contracts/plugin";
+import { HOST_FUNCTION_CAPABILITY, HostVersionError, PLUGIN_HOST_VERSIONS, PluginCapabilityError, PluginHostDeadlineError } from "@orb/contracts/plugin";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import type { GuestOps, ServerTestHarness } from "@orb/testkit/node/composed";
+import type { GuestOps, GuestRun, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/node/composed";
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
@@ -16,6 +16,7 @@ import {
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
   PLUGIN_INVOCATION_CPU_MS,
+  SNIPPET_WALL_MS,
 } from "#server/infra/plugin-host/budgets.ts";
 
 // Far past the membrane's dump depth guard, so the iterative pre-walk must refuse this argument.
@@ -176,14 +177,30 @@ const PAST_WINDOW = {
     "async (h, room, a) => { globalThis.spent = 0; for (;;) { await h.storage.get('k'); for (let i = 0; i < a.spin; i++) { globalThis.spent++; } } }",
   counts: "() => [globalThis.alone, globalThis.spent]",
   callsFromFinally: "(h) => { for (;;) { try { for (;;) {} } finally { h.log.info('finally'); continue; } } }",
+  // One host call whose read runs many guest callbacks, each a heavy native in a loop, so one interrupt poll period
+  // is long: past the window, each callback the host still runs costs a whole period.
+  wideGetters:
+    "(h, room, a) => { const arr = new Array(a.width).fill(0); const o = {}; for (let i = 0; i < a.count; i++) { Object.defineProperty(o, 'k' + i, { get() { for (;;) arr.slice(); }, enumerable: true }); } return h.storage.get(o); }",
+  surfaceSetters:
+    "(h, room, a) => { const arr = new Array(a.width).fill(0); for (const key of a.keys) { Object.defineProperty(Object.prototype, key, { set(v) { for (;;) arr.slice(); }, configurable: true }); } orb.host(1); return null; }",
 } as const satisfies GuestOps;
+// A slice wide enough that one poll period of a slicing loop is a large part of a window.
+const SLICE_WIDTH = 10_000;
+// Enough slow callbacks that running every one past the window overruns the margin many times over.
+const SLOW_CALLBACKS = 60;
+// Every key the host sets while it builds the surface `orb.host(1)` returns, each a namespace or a function name.
+const SURFACE_KEYS = [...new Set(Object.keys(HOST_FUNCTION_CAPABILITY).flatMap((ref) => ref.split(".")))];
 const CALLBACK_STEPS = 300_000;
 const UNSERVED_HOST_VERSION = Math.max(...PLUGIN_HOST_VERSIONS) + 1;
 // What an invocation may run past its window: the one host call already running at the deadline, the step to the next
 // interrupt poll, and the broker round trip. One more window covers all three.
 const PAST_WINDOW_MARGIN_MS = PLUGIN_INVOCATION_CPU_MS;
+// The invocation wall bounds how long an invocation can hold its runtime, apart from the CPU account it spends: a guest
+// that only waits on host calls spends almost none of it.
+const INVOCATION_WALL_MS = PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS;
+const SNIPPET_INVOCATION_WALL_MS = SNIPPET_WALL_MS + HOST_FN_DEADLINE_MS;
 // A red run ends at its timeout instead; a green one needs about three invocation walls.
-const PAST_WINDOW_TEST_TIMEOUT_MS = 4 * (PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS);
+const PAST_WINDOW_TEST_TIMEOUT_MS = 4 * INVOCATION_WALL_MS;
 
 test.for([
   { name: "a loop of argument-cap values", op: "largeValues", args: { size: HOST_FN_ARGS_MAX_BYTES } },
@@ -196,6 +213,12 @@ test.for([
   { name: "a loop passing a host call an object with a slow valueOf", op: "slowValueOf", args: { spin: CALLBACK_STEPS, unserved: UNSERVED_HOST_VERSION } },
   { name: "a loop that catches the interrupt", op: "catchesInterrupt", args: {} },
   { name: "a loop that calls the host from finally", op: "callsFromFinally", args: {} },
+  { name: "one host call reading an argument with many slow getters", op: "wideGetters", args: { width: SLICE_WIDTH, count: SLOW_CALLBACKS } },
+  {
+    name: "one orb.host call building its surface under slow Object.prototype setters",
+    op: "surfaceSetters",
+    args: { width: SLICE_WIDTH, keys: SURFACE_KEYS },
+  },
 ] as const)(
   "$name ends within the margin of its CPU window as a busy loop does, then serves the next call and retires cleanly",
   { tags: ["slow"], timeout: PAST_WINDOW_TEST_TIMEOUT_MS },
@@ -219,6 +242,134 @@ test.for([
   },
 );
 
+// A `then` getter on `Object.prototype` that never returns: the host's settlement of any object result reads it.
+const ENDLESS_THEN = "Object.defineProperty(Object.prototype, 'then', { get() { for (;;) {} }, configurable: true });";
+const SETTLE_PATH = {
+  busyLoop: "() => { for (;;) {} }",
+  ping: "(h) => h.storage.get('k')",
+  // Awaits nothing, so its whole invocation runs in one turn of the broker and no settlement can land inside it.
+  idle: "() => null",
+  thenAwaited: `async (h, room) => { ${ENDLESS_THEN} await h.chat.listMessages(room); return null; }`,
+  thenFloated: `(h, room) => { ${ENDLESS_THEN} h.chat.listMessages(room); return null; }`,
+} as const satisfies GuestOps;
+
+// A snippet that only logs, and the lines it reads back: proof the snippet path still serves.
+const NEXT_SNIPPET = "orb.host(1).log.info('next');";
+const NEXT_SNIPPET_LINES = ["[info] next"];
+
+async function settlePathGuest(root: ServerTestHarness): Promise<{ readonly run: GuestRun; readonly retire: () => Promise<void> }> {
+  const owner = await root.principalFor(root.ownerId);
+  const room = (await (await root.internalCallerFor(root.ownerId)).chat.startChat({ characterIds: [] })).chat;
+  const pluginId = await installGuest(root, owner, { slug: "then-getter", capabilities: ["chat.read", "storage.kv"] }, SETTLE_PATH);
+  return {
+    run: guestRunner({ root, caller: owner, pluginId, chatId: room.id }),
+    retire: async (): Promise<void> => {
+      await root.services.plugin.setEnabled({ caller: owner, pluginId, enabled: false });
+      await root.services.plugin.setEnabled({ caller: owner, pluginId, enabled: true });
+    },
+  };
+}
+
+test("a resident guest awaiting a host result under an endless then getter is ended by its wall, then served and retired", {
+  tags: ["slow"],
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const { run, retire } = await settlePathGuest(root);
+
+  // An ended guest's failure, the shape the wall's must share.
+  const ended: unknown = await run("busyLoop").catch((error: unknown) => error);
+  if (!(ended instanceof Error && "code" in ended)) {
+    throw new Error("a busy loop ends in a coded guest failure");
+  }
+
+  // The interrupt stops the settlement inside the getter, so the guest's await never resumes and the wall ends it.
+  const started = performance.now();
+  await expect(run("thenAwaited")).rejects.toMatchObject({ name: ended.name, code: ended.code });
+  expect(performance.now() - started).toBeLessThan(INVOCATION_WALL_MS + PAST_WINDOW_MARGIN_MS);
+  await retire();
+  expect(await run("ping")).toEqual({ ok: true, value: null });
+});
+
+test("a resident guest that floats a host call under an endless then getter frees its runtime within a window", {
+  tags: ["slow"],
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const { run, retire } = await settlePathGuest(root);
+
+  const started = performance.now();
+  expect(await run("thenFloated")).toEqual({ ok: true, value: null });
+  // The floated call settles after the command returned; the next command waits at most for that settlement's span.
+  expect(await run("idle")).toEqual({ ok: true, value: null });
+  expect(performance.now() - started).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);
+  await retire();
+  expect(await run("ping")).toEqual({ ok: true, value: null });
+});
+
+test("a snippet awaiting a host result under an endless then getter is ended by its wall, and the next snippet runs", {
+  tags: ["slow"],
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const room = (await caller.chat.startChat({ characterIds: [] })).chat;
+
+  // The first snippet pays the broker's start, which no timed run below may carry.
+  expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
+
+  const started = performance.now();
+  const ended = await caller.plugin.runSnippet({
+    chatId: room.id,
+    code: `const h = orb.host(1); ${ENDLESS_THEN} (async () => { await h.chat.listMessages(h.chat.current()); })();`,
+  });
+  expect(ended.error).toBeDefined();
+  expect(performance.now() - started).toBeLessThan(SNIPPET_INVOCATION_WALL_MS + PAST_WINDOW_MARGIN_MS);
+  expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
+});
+
+test("a snippet building its surface under slow Object.prototype setters reports the refusal, never success", {
+  tags: ["slow"],
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const room = (await caller.chat.startChat({ characterIds: [] })).chat;
+  const code = `const arr = new Array(${String(SLICE_WIDTH)}).fill(0);
+for (const key of ${JSON.stringify(SURFACE_KEYS)}) { Object.defineProperty(Object.prototype, key, { set(v) { for (;;) arr.slice(); }, configurable: true }); }
+orb.host(1);`;
+
+  expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
+
+  const started = performance.now();
+  const result = await caller.plugin.runSnippet({ chatId: room.id, code });
+  expect(result.error).toBeDefined();
+  expect(performance.now() - started).toBeLessThan(SNIPPET_WALL_MS + PAST_WINDOW_MARGIN_MS);
+  expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
+});
+
+// Each guest reads a host refusal or a host read under accessors that count every call; reverting any of the three
+// reads that leave guest code alone (the host-built error, the log's kind-only text, the number-only version read)
+// makes a count non-zero.
+const NO_GUEST_CODE = {
+  errorAccessors:
+    "(h, room, a) => { let hits = 0; for (const key of ['message', 'name']) { Object.defineProperty(Error.prototype, key, { get() { hits++; return ''; }, set(v) { hits++; }, configurable: true }); } try { orb.host(a.unserved); return ['returned']; } catch (e) { return [Object.getOwnPropertyDescriptor(e, 'name')?.value ?? null, Object.getOwnPropertyDescriptor(e, 'message')?.value ?? null, hits]; } }",
+  logsObject: "(h) => { let calls = 0; h.log.info({ toString() { calls++; return 'x'; } }); return calls; }",
+  versionObject: "(h, room, a) => { let calls = 0; try { orb.host({ valueOf() { calls++; return a.unserved; } }); } catch (e) {} return calls; }",
+} as const satisfies GuestOps;
+
+test("a host refusal and the host's reads of a guest value run none of the guest's accessors", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "accessor-counter", capabilities: [] }, NO_GUEST_CODE);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+  const refusal = new HostVersionError(UNSERVED_HOST_VERSION, PLUGIN_HOST_VERSIONS);
+
+  expect(await run("errorAccessors", { unserved: UNSERVED_HOST_VERSION })).toEqual({ ok: true, value: [refusal.name, refusal.message, 0] });
+  expect(await run("logsObject")).toEqual({ ok: true, value: 0 });
+  expect(await run("versionObject", { unserved: UNSERVED_HOST_VERSION })).toEqual({ ok: true, value: 0 });
+});
+
 // Each span between awaits spends a share of the invocation's CPU account; ten callbacks' worth keeps the awaits a
 // small part of the run.
 const SPAN_STEPS = 10 * CALLBACK_STEPS;
@@ -234,17 +385,24 @@ test("a guest that spends its CPU across many awaits gets one account's work, no
   const pluginId = await installGuest(root, owner, { slug: "spender", capabilities: ["storage.kv"] }, PAST_WINDOW);
   const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
 
-  // Neither loop returns. The interrupt stops the continuation of the second inside a pump, which leaves its promise
-  // unsettled, so that invocation ends at the wall: its work, not its end, shows the account.
+  // Neither loop returns. The interrupt stops the continuation of the spender inside a pump, which leaves its promise
+  // unsettled, so that invocation ends at the wall: its work, not its end, shows the account. One run cannot carry
+  // both counts, because the first loop spends the account the second would be measured against; the baseline is
+  // taken on both sides of the spender instead, and the larger kept, so load that rises during one run cannot shrink it.
+  const counts = async (): Promise<readonly number[]> => {
+    const counted = await run("counts");
+    if (!(counted.ok && Array.isArray(counted.value))) {
+      throw new Error("the guest kept both counts");
+    }
+    return counted.value.map(Number);
+  };
   await run("countsAlone").catch(() => undefined);
+  const [aloneBefore = 0] = await counts();
   await run("spendsAcrossAwaits", { spin: SPAN_STEPS }).catch(() => undefined);
-  const counted = await run("counts");
-  if (!(counted.ok && Array.isArray(counted.value))) {
-    throw new Error("the guest kept both counts");
-  }
-  const [alone, spent] = counted.value;
+  await run("countsAlone").catch(() => undefined);
+  const [aloneAfter = 0, spent = 0] = await counts();
   expect(spent).toBeGreaterThan(0);
-  expect(Number(spent)).toBeLessThan(ACCOUNT_WORK_RATIO_MAX * Number(alone));
+  expect(spent).toBeLessThan(ACCOUNT_WORK_RATIO_MAX * Math.max(aloneBefore, aloneAfter));
   expect(await run("ping")).toEqual({ ok: true, value: null });
 });
 
@@ -357,10 +515,6 @@ test("a host call still running at the deadline rejects with the deadline error,
   expect(await run("status", { url: HELD_URL })).toEqual({ ok: false, name: PluginHostDeadlineError.name });
   expect(await run("status", { url: NOW_URL })).toEqual({ ok: true, value: 200 });
 });
-
-// The invocation wall bounds how long an invocation can hold its runtime, apart from the CPU account it spends: a guest
-// that only waits on host calls spends almost none of it.
-const INVOCATION_WALL_MS = PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS;
 
 test("a guest that only waits on host calls is ended at the invocation wall, and the next call is served", {
   tags: ["slow"],

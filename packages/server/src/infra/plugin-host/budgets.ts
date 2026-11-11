@@ -15,17 +15,13 @@ const BYTES_PER_MEBIBYTE = 1_048_576;
 const WASM_INITIAL_MEBIBYTES = 16;
 const WASM_MAX_MEBIBYTES = 48;
 
-/** Guest CPU budget for ONE SPAN of guest execution (installed plugin handler/tool/transform). Enforced by the
- *  QuickJS interrupt handler comparing REAL wall-time against the open window.
- *
- *  A SPAN, not an invocation: the same number bounds the invocation AND each POST-invocation job pump, because
- *  a guest continuation resumed when a fire-and-forget host call settles is guest bytecode too — and a pump
- *  that ran it with no handler installed is a whole-process DoS. `cpu-guard.ts` states the window
- *  mechanics (one context-lifetime handler, nested windows narrow and restore). The aggregate is therefore
- *  bounded by `HOST_CALLS_IN_FLIGHT_MAX` × this, not by this alone. */
+/** A resident instance's guest CPU account per invocation (installed plugin handler/tool/transform), spent by its
+ *  running spans of guest execution and never by its awaits. Enforced by the QuickJS interrupt handler and the
+ *  host-call entry check, comparing REAL monotonic time against the open window (`cpu-guard.ts`, D346). */
 export const PLUGIN_INVOCATION_CPU_MS = 1000;
 
-/** Inline snippet total wall-clock run — the whole snippet, not per-call. */
+/** An inline snippet's guest CPU account — the whole snippet, not per call. Its wall is this plus
+ *  {@link HOST_FN_DEADLINE_MS}. */
 export const SNIPPET_WALL_MS = 5000;
 
 /** QuickJS's LIVE guest-allocation accounting ceiling (= 32 MiB). This is NOT a WebAssembly or process RSS

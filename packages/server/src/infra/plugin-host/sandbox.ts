@@ -14,8 +14,9 @@ import { brandedId } from "@orb/kit/ids";
 // expiry the invocation returns `PluginInvocationEnded` and the hung guest is left INERT (see `endInvocation`).
 //
 // The BYTECODE bound is not invocation-scoped: it is a context-lifetime interrupt over a mutable window
-// (`cpu-guard.ts`), because guest bytecode also runs in the POST-invocation job pumps — `runToSettlement` opens
-// the invocation's window, and every pump opens its own. A pump that executed guest code with no handler
+// (`cpu-guard.ts`), because guest bytecode also runs in the POST-invocation job pumps and settlements. Every call
+// into the realm runs inside a span (D346): `runToSettlement` opens the invocation's account and its spans, and a
+// pump or settlement outside an invocation opens a span of its own. A pump that executed guest code with no handler
 // installed is a whole-process DoS.
 //
 // Ownership discipline (the sharp edge quickjs-emscripten demands): EVERY handle the host mints must be
@@ -52,6 +53,9 @@ import { installRealm, LogRing } from "./realm.ts";
 const PLUGIN_HANDLER_REF = brandedId("PluginHandlerRef");
 const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
 const FRAME_REGISTRATION_ARITY = 3;
+
+/** An invocation's first step: the guest call it makes, or a host refusal before the guest is touched. */
+type GuestProduce = () => ReturnType<QuickJSContext["evalCode"]> | { readonly refusal: string };
 
 /** The settlement-race sentinel — a unique symbol so a guest value can never impersonate the deadline arm. */
 const ENDED = Symbol("plugin-invocation-ended");
@@ -571,7 +575,7 @@ export class Sandbox implements Disposable {
   /** Drive one guest computation (an eval or a resident-handler call) under the per-invocation budget: pump the
    *  promise bridge to settlement, project the result to a string, contain any throw/deadline/OOM as `ok:false`.
    *  Shared by `evalGuest` + `invokeHandler`. */
-  private async runToSettlement(produce: () => ReturnType<QuickJSContext["evalCode"]>): Promise<EvalOutcome> {
+  private async runToSettlement(produce: GuestProduce): Promise<EvalOutcome> {
     if (!this.ctx.alive) {
       // A prior invocation hit its settlement wall and took the realm with it (see `endInvocation`). Report the
       // same contained failure rather than touching a dead context — the caller's FIFO advances, the crash
@@ -625,11 +629,14 @@ export class Sandbox implements Disposable {
   // The invocation's synchronous run, under a span of its CPU account: the produce, the promise bridge and the first
   // pump of its jobs. A synchronous throw is the outcome; otherwise the guest's promise and its host-side settlement.
   private startGuest(
-    produce: () => ReturnType<QuickJSContext["evalCode"]>,
+    produce: GuestProduce,
   ): { readonly outcome: EvalOutcome } | { readonly handle: QuickJSHandle; readonly native: Promise<VmCallResult<QuickJSHandle>> } {
     const closeSpan = openCpuWindow(this.ctx);
     try {
       const result = produce();
+      if ("refusal" in result) {
+        return { outcome: { ok: false, error: { name: "Error", message: result.refusal }, logs: [] } };
+      }
       if (result.error) {
         const error = readError(this.marshal, result.error);
         result.error.dispose();
@@ -686,14 +693,18 @@ export class Sandbox implements Disposable {
     if (Buffer.byteLength(argsJson, "utf8") > PLUGIN_INVOKE_ARGS_MAX_BYTES) {
       return { ok: false, error: { name: "Error", message: `plugin host: handler args exceed ${PLUGIN_INVOKE_ARGS_MAX_BYTES}-byte inbound cap` }, logs: [] };
     }
-    const parsed = this.parseArgs(argsJson);
-    if (typeof parsed === "string") {
-      // A CONTAINED refusal, before the guest is touched: the caller's payload is not a JSON document, so the
-      // JSON-only contract of this channel is broken and there is nothing safe to hand over.
-      return { ok: false, error: { name: "Error", message: parsed }, logs: [] };
-    }
-    using argHandle = parsed;
-    return await this.runToSettlement(() => this.ctx.callFunction(handler, this.ctx.undefined, argHandle));
+    // The parse is a call into the realm, so it runs in the invocation's first span: between spans the window is
+    // closed (D346).
+    return await this.runToSettlement(() => {
+      const parsed = this.parseArgs(argsJson);
+      if (typeof parsed === "string") {
+        // A CONTAINED refusal, before the guest is touched: the caller's payload is not a JSON document, so the
+        // JSON-only contract of this channel is broken and there is nothing safe to hand over.
+        return { refusal: parsed };
+      }
+      using argHandle = parsed;
+      return this.ctx.callFunction(handler, this.ctx.undefined, argHandle);
+    });
   }
 
   /** Marshal the caller's `argsJson` into a guest handle by CALLING the realm's pristine `JSON.parse` on it —

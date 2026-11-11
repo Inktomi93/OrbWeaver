@@ -25,7 +25,10 @@
 // A HOST CALL PAST THE WINDOW ENDS THE GUEST (D346). The interrupt is polled only about every ten thousand steps and
 // never while the host works, so a guest whose time goes into host calls, or into its own callbacks a host read runs,
 // can outlive its window without bound. Every host function therefore asks `cpuWindowPassed` (the interrupt's own
-// reading) before any read, and the depth walk asks again per node. Past the window the host runs a host-owned
+// reading) before any read, and again before every read or write that can run a guest callback (`readGuestProp`,
+// `setHostProp`, each step of the depth walk): the binding drops a callback's interrupt, so without a check per call
+// one host call could run many callbacks past the window, each a whole poll period. Past the window the host runs a
+// host-owned
 // endless step in the realm, which the interrupt stops at its first poll, and hands that exception back unchanged.
 // It is the engine's interrupt, the one exception a guest `catch` or `finally` cannot hold, so the invocation ends
 // exactly as a busy loop does; a host-built error would be caught and the loop would go on.
@@ -86,6 +89,13 @@ export interface GuestMarshal extends Disposable {
   /** Throw {@link GuestCallFailure} carrying the engine's interrupt when the guest's CPU window has passed. Call it
    *  inside a host function before a read that can run guest code. */
   readonly stopPastWindow: () => void;
+  /** Read a property of a guest object — which can run a guest getter or proxy trap — after the window check. The
+   *  caller owns the handle. */
+  readonly readGuestProp: (target: QuickJSHandle, key: string | QuickJSHandle) => QuickJSHandle;
+  /** Set a property on a host-made object the guest receives — which can run a guest setter on a prototype — after
+   *  the window check. `defineProp` would run none, but the binding cannot make it writable, and the surface stays
+   *  writable for the guest. */
+  readonly setHostProp: (target: QuickJSHandle, key: string, value: QuickJSHandle) => void;
 }
 
 /** The JSON text a host value crosses into the guest as — what the result cap measures, since it is what crosses.
@@ -229,6 +239,14 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
         }
       }),
     stopPastWindow,
+    readGuestProp: (target, key): QuickJSHandle => {
+      stopPastWindow();
+      return ctx.getProp(target, key);
+    },
+    setHostProp: (target, key, value): void => {
+      stopPastWindow();
+      ctx.setProp(target, key, value);
+    },
     [Symbol.dispose]: (): void => {
       owned.dispose();
     },
