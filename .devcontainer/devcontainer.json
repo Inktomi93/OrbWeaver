@@ -23,7 +23,7 @@
         // Run the Claude Code EXTENSION in permissive/bypass mode by default. The
         // extension defaults to "default" mode + a disabled dangerous-skip gate, so
         // it prompts even though this is a sandbox. These two keys flip both. The
-        // container + firewall are the boundary (owner ruling 2026-09-01: the point of
+        // container + firewall are the boundary (owner ruling: the point of
         // the dev container is to run without prompts); the host keeps prompting (these
         // are not in the committed .vscode/settings.json).
         "claudeCode.allowDangerouslySkipPermissions": true,
