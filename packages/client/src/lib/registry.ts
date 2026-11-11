@@ -18,7 +18,7 @@ export interface ContributorRegistry<Def extends { readonly id: string }> {
 
 /**
  * Assembles a total registry over a closed vocabulary tuple. `definitions` is a `Record<Id, Def>` —
- * tsc fails the build on a missing or extra member, so completeness is a compile fact, not a gate.
+ * tsc fails the build on a missing or extra member (`pnpm typecheck`), so completeness is a compile fact, not a gate.
  * `list()` preserves `ids` order.
  */
 export function createRegistry<Id extends string, Def>(name: string, ids: readonly Id[], definitions: Record<Id, Def>): Registry<Id, Def> {

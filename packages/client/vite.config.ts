@@ -795,8 +795,8 @@ export default defineConfig(({ mode }) => {
       // Vite generates index.html and Hono serves it as-is → no manifest needed. REVISIT if Hono ever
       // injects hashed asset tags server-side (then flip to true and read the manifest).
       manifest: false,
-      // The accepted entry is 3,137 kB; allow ~8% per-chunk headroom. check:boot-chunk separately
-      // enforces the 3,357,000-byte aggregate boot ceiling, including every modulepreloaded sibling.
+      // The accepted entry is 3,137 kB; allow ~8% per-chunk headroom. The aggregate boot ceiling is a separate
+      // 3,357,000 bytes, counting every modulepreloaded sibling.
       // Keep app sideEffects undeclared so effect-only imports, including the stylesheet, survive.
       chunkSizeWarningLimit: 3400,
       // The canonical bundle location: the server's SPA registrar (entry/http/spa.ts) serves this dir —

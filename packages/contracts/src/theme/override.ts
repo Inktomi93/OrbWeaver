@@ -93,7 +93,7 @@ export type ThemeOverride = z.infer<typeof themeOverrideSchema>;
 // key — so the field stays on the schema and the projection is what a card-sourced read runs through.
 //
 // Enforcement is a classification RECORD, not a second key list: every `ThemeOverride` key is classified
-// here or tsc fails, and the card projection derives from it (one home, no drift).
+// here or tsc fails (`pnpm typecheck`), and the card projection derives from it (one home, no drift).
 
 // Which plane a `ThemeOverride` key belongs to.
 const THEME_KEY_REACHES = ["card-embeddable", "viewer-sacred"] as const;

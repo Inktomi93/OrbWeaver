@@ -73,7 +73,8 @@ This section is the one home of the cite grammar for comments, `AGENTS.md`, `.cl
 | Directory | a rooted path with its trailing slash, `tests/server/infra/plugin-host/` | a directory that holds a tracked file |
 | Decision | `D<n>` | an ADR file in `docs/adr`, or a number in the reserved window `docs/adr/README.md` states |
 | Script | `` `pnpm <script>` `` in backticks | a `package.json` script or a pnpm built-in |
-| Lint rule | `orb/<rule>`, `` `<plugin>/<rule>` `` or `` `lint/<group>/<rule>` `` | a rule the composed ESLint, stylelint or Biome configuration holds |
+| Script name | `<family>:<name>`, such as `check:boot-chunk`, inside an enforcement claim | a script some workspace `package.json` declares |
+| Lint rule | `orb/<rule>`, `` `<plugin>/<rule>` `` or `` `lint/<group>/<rule>` `` | a rule the composed ESLint, stylelint or Biome configuration turns on for at least one file |
 | Dependency rule | `` policy `<name>` `` | a dependency-cruiser rule, including the extended preset's |
 | Checker name | a backticked kebab name or Biome `` `noX` `` inside an enforcement claim | a dependency-cruiser rule, a lint rule without its namespace, or a test file's stem |
 | Symbol | `{@link Name}` or `{@link Name.member}` | a name a declaration in the program carries, or a global |
@@ -82,4 +83,4 @@ Quoted text is an example and cites nothing. A glob, a placeholder and a build o
 
 ## Enforcement claims
 
-A sentence that says a test, a CT, a suite, a lint rule, ESLint, Biome, stylelint, dependency-cruiser, knip or a ratchet holds, pins, refuses or catches a fact names that checker in the same sentence, by a cite above. `orb/enforcement-claim-cites-checker` refuses a claim that names none, and the cite test refuses a claim whose cite names no checker. When no checker exists, state the rule and claim none; never drop the rule because nothing checks it. An instruction such as "a test must pin this" is not a claim. A claim about the test or rule the comment sits in ("this test", "the case below") names its own file.
+A sentence that says a test, a CT, a suite, a lint rule, ESLint, Biome, stylelint, dependency-cruiser, knip, a ratchet, the typecheck or `tsc` holds, pins, refuses or catches a fact names that checker in the same sentence, by a cite above. The cite must point at one checker: a test file or directory, a rule, or a script that runs one check. A whole-suite command such as `pnpm test` and a source file that holds no checker point at none. `orb/enforcement-claim-cites-checker` refuses a claim that names none, and the cite test refuses a claim whose cite resolves to nothing. When no checker exists, state the rule and claim none; never drop the rule because nothing checks it. An instruction such as "a test must pin this" is not a claim. A claim about the test or rule the comment sits in ("this test", "the case below") names its own file.

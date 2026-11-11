@@ -1,4 +1,4 @@
-// Dependencies can explicitly load Node declarations into browser programs; lint rejects their runtime globals.
+// Dependencies can explicitly load Node declarations into browser programs; lint rejects their runtime globals (`lint/style/noRestrictedGlobals`).
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";

@@ -5,10 +5,12 @@
 // Comments are read by each language's own parser: the TypeScript scanner's comment ranges for scripts, PostCSS comment
 // nodes (through stylelint) for sheets. A cite inside a string literal or JSX text is a fixture or copy, never a citation.
 // A law document also cites a directory-qualified path from the repo root, so a moved file turns its citation red.
+import { execFileSync } from "node:child_process";
 import { basename, dirname, extname, join, posix } from "node:path";
+import { execPath } from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import extractDepcruiseConfig from "dependency-cruiser/config-utl/extract-depcruise-config";
-import type { ESLint } from "eslint";
+import type { Linter } from "eslint";
 import type { Rule } from "stylelint";
 import stylelint from "stylelint";
 import ts from "typescript";
@@ -142,9 +144,15 @@ const ADR_FILE = /^docs\/adr\/(\d{4})-[^/]+\.md$/u;
 const ADR_INDEX = "docs/adr/README.md";
 // The window `docs/adr/README.md` reserves for rolled-back rulings whose surviving code still cites them.
 const RESERVED_WINDOW = /\bD(\d+)–D(\d+) are reserved\b/u;
-const BIOME_SCHEMA = "node_modules/@biomejs/biome/configuration_schema.json";
+const BIOME_BIN = "node_modules/@biomejs/biome/bin/biome";
+const BIOME_CONFIG = "biome.json";
+const BIOME_ENABLED_HEADING = "Enabled rules:";
+const BIOME_ENABLED_RULE = /^ {4}([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)$/gmu;
 const BIOME_NAMESPACE = "lint";
 const BIOME_GROUP_SETTINGS = new Set(["preset", "recommended", "all"]);
+const OFF = "off";
+const ROOT_MANIFEST = "package.json";
+const WORKSPACE_MANIFEST = /^(?:packages\/[^/]+|tooling)\/package\.json$/u;
 const TYPESCRIPT = /\.tsx?$/u;
 const CRUISER_CONFIG = ".dependency-cruiser.ts";
 const VIRTUAL_PROBE = join(REPO_ROOT, "cite-globals-probe.ts");
@@ -156,6 +164,8 @@ interface Universe {
   readonly minted: ReadonlySet<number>;
   readonly reserved: { readonly from: number; readonly to: number };
   readonly scripts: ReadonlySet<string>;
+  /** Every script any workspace `package.json` declares: a script named without `pnpm` may run in a package. */
+  readonly workspaceScripts: ReadonlySet<string>;
   readonly lintNamespaces: ReadonlySet<string>;
   readonly lintRules: ReadonlySet<string>;
   /** Biome's groups, each with its rule names. */
@@ -163,6 +173,11 @@ interface Universe {
   /** A checker named alone: a dependency-cruiser rule, an ESLint or stylelint rule without its namespace, a test file's stem. */
   readonly checkerNames: ReadonlySet<string>;
   readonly symbols: ReadonlySet<string>;
+}
+
+/** The part of `biome.json` that turns rules on for some files only. */
+interface BiomeConfig {
+  readonly overrides?: readonly { readonly linter?: { readonly rules?: Readonly<Record<string, unknown>> } }[];
 }
 
 /** A citing file and the comment spans, or for a law document the whole text, it cites from. */
@@ -180,42 +195,51 @@ function reservedWindow(index: string): Universe["reserved"] {
   return { from: Number(match?.[1] ?? Number.NaN), to: Number(match?.[2] ?? Number.NaN) };
 }
 
-/** Biome's rule catalog, from the schema its configuration validates against: each group's rule names. */
-function biomeRules(schema: string): Map<string, Set<string>> {
-  const defs = (JSON.parse(schema) as { readonly $defs: Readonly<Record<string, { readonly properties?: Readonly<Record<string, unknown>> }>> }).$defs;
-  const groups = Object.keys(defs["Rules"]?.properties ?? {}).filter((group) => !BIOME_GROUP_SETTINGS.has(group));
-  return new Map(
-    groups.map((group) => {
-      const rules = Object.keys(defs[`${group.charAt(0).toUpperCase()}${group.slice(1)}`]?.properties ?? {});
-      return [group, new Set(rules.filter((rule) => !BIOME_GROUP_SETTINGS.has(rule)))] as const;
-    }),
-  );
+/** The Biome rules the composed configuration turns on for at least one file, by group. Biome itself lists the root
+ *  configuration's enabled rules, preset members included (`biome rage --linter`); an override adds what it turns on. */
+function biomeEnabled(rage: string, config: BiomeConfig): Map<string, Set<string>> {
+  const listed = [...rage.slice(rage.indexOf(BIOME_ENABLED_HEADING)).matchAll(BIOME_ENABLED_RULE)].map(([, group = "", rule = ""]) => [group, rule] as const);
+  const enabled = new Map<string, Set<string>>();
+  for (const [group, rule] of [...listed, ...overrideRules(config)]) {
+    enabled.set(group, (enabled.get(group) ?? new Set<string>()).add(rule));
+  }
+  return enabled;
 }
 
-/** Every ESLint rule id the composed config sets or its plugins register. A core rule counts only when the config names
- *  it, so a claim cannot cite a core rule this repository never configured. */
-function eslintRuleIds(): { readonly namespaces: Set<string>; readonly rules: Set<string> } {
-  const namespaces = new Set(eslintConfig.flatMap((block) => Object.keys(block.plugins ?? {})));
-  const rules = new Set(
-    eslintConfig.flatMap((block) => [
-      ...Object.keys(block.rules ?? {}),
-      ...Object.entries(block.plugins ?? {}).flatMap(([prefix, plugin]: readonly [string, Pick<ESLint.Plugin, "rules">]) =>
-        Object.keys(plugin.rules ?? {}).map((rule) => `${prefix}/${rule}`),
+const biomeLevel = (setting: unknown): unknown => (typeof setting === "object" && setting !== null && "level" in setting ? setting.level : setting);
+
+/** Each `[group, rule]` an override turns on. */
+const overrideRules = (config: BiomeConfig): (readonly [string, string])[] =>
+  (config.overrides ?? []).flatMap((override) =>
+    Object.entries(override.linter?.rules ?? {}).flatMap(([group, rules]) =>
+      Object.entries(typeof rules === "object" && rules !== null ? rules : {}).flatMap(([rule, setting]) =>
+        BIOME_GROUP_SETTINGS.has(rule) || biomeLevel(setting) === OFF ? [] : [[group, rule] as const],
       ),
-    ]),
+    ),
   );
+
+const readBiomeRage = (): string =>
+  execFileSync(execPath, [join(REPO_ROOT, BIOME_BIN), "rage", "--linter"], { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+
+// An ESLint severity, alone or as the head of an options tuple.
+const eslintOn = (setting: unknown): boolean => {
+  const severity: unknown = Array.isArray(setting) ? setting[0] : setting;
+  return severity !== OFF && severity !== 0;
+};
+
+/** Every ESLint rule id some block of the composed config turns on, and every plugin namespace it loads. A rule a plugin
+ *  registers but no block turns on enforces nothing, so a cite of it is dead. */
+function eslintRuleIds(config: readonly Pick<Linter.Config, "plugins" | "rules">[]): { readonly namespaces: Set<string>; readonly rules: Set<string> } {
+  const namespaces = new Set(config.flatMap((block) => Object.keys(block.plugins ?? {})));
+  const rules = new Set(config.flatMap((block) => Object.entries(block.rules ?? {}).flatMap(([rule, setting]) => (eslintOn(setting) ? [rule] : []))));
   return { namespaces, rules };
 }
 
-/** Every stylelint rule the config sets and every rule its plugins register. */
+/** Every stylelint rule some block of the config turns on; `null` turns a rule off. */
 function stylelintRuleIds(): string[] {
-  const configured = [stylelintConfig, ...(stylelintConfig.overrides ?? [])].flatMap((block) => Object.keys(block.rules ?? {}));
-  const registered = [stylelintConfig.plugins]
-    .flat()
-    .flatMap((plugin: unknown) =>
-      typeof plugin === "object" && plugin !== null && "ruleName" in plugin && typeof plugin.ruleName === "string" ? [plugin.ruleName] : [],
-    );
-  return [...configured, ...registered];
+  return [stylelintConfig, ...(stylelintConfig.overrides ?? [])].flatMap((block) =>
+    Object.entries(block.rules ?? {}).flatMap(([rule, setting]) => (setting === null || (Array.isArray(setting) && setting[0] === null) ? [] : [rule])),
+  );
 }
 
 /** The names the TypeScript and DOM libs and `@types/node` declare globally, read off a checker over one empty file. */
@@ -291,6 +315,8 @@ function resolves(cite: Cite, citer: string, universe: Universe): boolean | unde
     }
     case "script":
       return universe.scripts.has(cite.token);
+    case "task":
+      return universe.workspaceScripts.has(cite.token);
     case "rule": {
       const [namespace = "", group = "", rule] = cite.token.split("/");
       if (namespace === BIOME_NAMESPACE) {
@@ -361,8 +387,11 @@ function citingSpans(tracked: Tracked): { readonly scripts: Source[]; readonly s
   };
 }
 
+const scriptsOf = (manifest: string): string[] =>
+  Object.keys((JSON.parse(readFromRepo(manifest)) as { readonly scripts?: Readonly<Record<string, string>> }).scripts ?? {});
+
 async function universeOf(tracked: Tracked, scripts: readonly Source[]): Promise<Universe> {
-  const eslint = eslintRuleIds();
+  const eslint = eslintRuleIds(eslintConfig);
   // The composed config: the preset `extends` names (`no-circular`) are rules a comment may cite.
   const cruiserConfig = await extractDepcruiseConfig(join(REPO_ROOT, CRUISER_CONFIG));
   const cruiser = (cruiserConfig.forbidden ?? []).flatMap(({ name }) => (name === undefined ? [] : [name]));
@@ -376,10 +405,11 @@ async function universeOf(tracked: Tracked, scripts: readonly Source[]): Promise
     directories: directoriesOf(tracked.paths),
     minted: mintedDecisions(tracked),
     reserved: reservedWindow(readFromRepo(ADR_INDEX)),
-    scripts: new Set(Object.keys((JSON.parse(readFromRepo("package.json")) as { readonly scripts: Readonly<Record<string, string>> }).scripts)),
+    scripts: new Set(scriptsOf(ROOT_MANIFEST)),
+    workspaceScripts: new Set([...tracked.paths].filter((path) => path === ROOT_MANIFEST || WORKSPACE_MANIFEST.test(path)).flatMap(scriptsOf)),
     lintNamespaces: namespaces,
     lintRules: rules,
-    biome: biomeRules(readFromRepo(BIOME_SCHEMA)),
+    biome: biomeEnabled(readBiomeRage(), JSON.parse(readFromRepo(BIOME_CONFIG)) as BiomeConfig),
     checkerNames: new Set([...cruiser, ...stems, ...[...rules].map((rule) => rule.slice(rule.lastIndexOf("/") + 1))]),
     symbols: new Set([...declaredNames(scripts), ...libGlobals()]),
   };
@@ -515,8 +545,9 @@ describe("the cite resolver", () => {
     tracked: { paths: new Set(["tests/tooling/real.test.ts", "packages/x/src/real.ts"]), basenames: new Set(["real.test.ts", "real.ts"]) },
     directories: directoriesOf(["tests/tooling/real.test.ts", "packages/x/src/real.ts"]),
     minted: new Set([141, 317]),
-    reserved: reservedWindow("Cite one as a bare `D<n>`. D79–D105 are reserved for main-era rulings."),
-    scripts: new Set(["test", "lint:eslint"]),
+    reserved: reservedWindow("A planted index: D10–D20 are reserved for a planted reason."),
+    scripts: new Set(["test", "lint:eslint", "knip"]),
+    workspaceScripts: new Set(["test", "lint:eslint", "knip", "surface:build"]),
     lintNamespaces: new Set(["orb", "@typescript-eslint"]),
     lintRules: new Set(["orb/commented-code", "@typescript-eslint/no-deprecated", "no-restricted-syntax"]),
     biome: new Map([["style", new Set(["useNamingConvention"])]]),
@@ -529,12 +560,12 @@ describe("the cite resolver", () => {
   });
 
   test("reads the reserved window from the index sentence, and a rephrased sentence reads no window", () => {
-    expect(universe.reserved).toStrictEqual({ from: 79, to: 105 });
-    expect(Number.isNaN(reservedWindow("D79 to D105 are kept back.").from)).toBe(true);
+    expect(universe.reserved).toStrictEqual({ from: 10, to: 20 });
+    expect(Number.isNaN(reservedWindow("D10 to D20 are kept back.").from)).toBe(true);
   });
 
   test("refuses a decision no ADR file or reserved number carries, and passes a minted one, a reserved one and a range announcement", () => {
-    const file = comments("packages/x/src/a.ts", "// D141 and D317 hold; D85 is reserved; D165+ is next\n// D346 and D9 name nothing\nexport {};\n");
+    const file = comments("packages/x/src/a.ts", "// D141 and D317 hold; D15 is reserved; D165+ is next\n// D346 and D9 name nothing\nexport {};\n");
     expect(deadCites([file], universe)).toStrictEqual(["packages/x/src/a.ts:2 D346", "packages/x/src/a.ts:2 D9"]);
   });
 
@@ -590,6 +621,88 @@ describe("the cite resolver", () => {
       "packages/x/src/a.ts:1 A CT pins the header to the column.",
       "packages/x/src/a.ts:2 The order is pinned by tests/tooling/gone.test.ts.",
       "packages/x/src/a.ts:3 dependency-cruiser bans the edge (`ghost-edge`).",
+    ]);
+  });
+
+  test("reads a claim with a bare subject, a plural subject, a fourth verb form, a will-future and a tool's own name", () => {
+    const file = comments(
+      "packages/x/src/a.ts",
+      [
+        "// Lint refuses the import.",
+        "// Tests pin the order.",
+        "// Our tests cover the reset.",
+        "// dependency-cruiser bars the edge.",
+        "// A CT will catch the drift.",
+        "// tsc refuses a missing case.",
+        "// The typecheck fails on a missing case.",
+        "// check:boot-chunk separately enforces the ceiling.",
+        "// `check:db-baseline` fails until the chain records it.",
+        "// surface:build holds the slot list (`pnpm knip`).",
+        "export {};",
+      ].join("\n"),
+    );
+    expect(unbackedClaims([file], universe)).toStrictEqual([
+      "packages/x/src/a.ts:1 Lint refuses the import.",
+      "packages/x/src/a.ts:2 Tests pin the order.",
+      "packages/x/src/a.ts:3 Our tests cover the reset.",
+      "packages/x/src/a.ts:4 dependency-cruiser bars the edge.",
+      "packages/x/src/a.ts:5 A CT will catch the drift.",
+      "packages/x/src/a.ts:6 tsc refuses a missing case.",
+      "packages/x/src/a.ts:7 The typecheck fails on a missing case.",
+      "packages/x/src/a.ts:8 check:boot-chunk separately enforces the ceiling.",
+      "packages/x/src/a.ts:9 `check:db-baseline` fails until the chain records it.",
+    ]);
+  });
+
+  test("passes a compound noun, an object a checker reads, a hyphenated adjective, reported speech, a denial, a relative clause and a heading", () => {
+    const file = comments(
+      "packages/x/src/a.ts",
+      [
+        "// The slot names the stage for the styles tier and the CT pin.",
+        "// The fixture is the item the content seeder suites assert on.",
+        "// These are the values a test asserts or sends.",
+        "// The arm is probe-verified in the CT chromium build.",
+        "// A comment sentence that claims a test holds a fact names it.",
+        "// No lint rule refuses a second one.",
+        "// Suites that prove a boot step take the grant here.",
+        "// Native ESLint guards for how tests are authored.",
+        "export {};",
+      ].join("\n"),
+    );
+    expect(unbackedClaims([file], universe)).toStrictEqual([]);
+  });
+
+  test("a whole-suite command, a source file that is no checker and a dead script name back no claim", () => {
+    const file = comments(
+      "packages/x/src/a.ts",
+      [
+        "// A test pins the order (`pnpm test`).",
+        "// A test pins the order, see packages/x/src/real.ts.",
+        "// A test pins the order (`check:gone`).",
+        "// A test pins the order (`pnpm knip`).",
+        "// A test pins the order (tests/tooling/real.test.ts).",
+        "export {};",
+      ].join("\n"),
+    );
+    expect(unbackedClaims([file], universe)).toStrictEqual([
+      "packages/x/src/a.ts:1 A test pins the order (`pnpm test`).",
+      "packages/x/src/a.ts:2 A test pins the order, see packages/x/src/real.ts.",
+      "packages/x/src/a.ts:3 A test pins the order (`check:gone`).",
+    ]);
+  });
+
+  test("a rule a plugin registers or a preset lists but no block turns on is no rule a cite may name", () => {
+    const eslint = eslintRuleIds([
+      { plugins: { p: {} }, rules: { "p/on": "error", "p/off": "off", "p/tuple-off": ["off", {}], "p/tuple-on": [1], "core-off": 0 } },
+    ]);
+    expect([...eslint.rules]).toStrictEqual(["p/on", "p/tuple-on"]);
+    const rage = "Linter:\n  Enabled rules:\n    style/useNamingConvention\n\nWorkspace:\n";
+    const biome = biomeEnabled(rage, {
+      overrides: [{ linter: { rules: { suspicious: { noOn: "error", noOff: "off", noLevelOff: { level: "off" } }, style: { recommended: true } } } }],
+    });
+    expect([...biome].map(([group, rules]) => [group, [...rules]])).toStrictEqual([
+      ["style", ["useNamingConvention"]],
+      ["suspicious", ["noOn"]],
     ]);
   });
 

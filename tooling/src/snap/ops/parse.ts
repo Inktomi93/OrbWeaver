@@ -339,7 +339,7 @@ export function parseSnapArgs(
   const scan = scanArgv(argv);
   const errors = scan.errors;
   // The RUN's own defaults; every ARM-owned field comes from `armArgDefaults()` below, and tsc refuses
-  // this assignment if the registry stops supplying one (contract/types.ts `ArmArgs`/`NonArmArgs`).
+  // this assignment (`pnpm typecheck`) if the registry stops supplying one (contract/types.ts `ArmArgs`/`NonArmArgs`).
   const runDefaults: NonArmArgs = {
     help: false,
     materializeDevToolsAssets: false,

@@ -1,6 +1,6 @@
 // The NON-ARM half of the flag summary/group registry (#1329). An arm flag carries its `summary`/`group`
 // on its own `ArmFlagSpec` row (contract/arms.ts) — required there, so tsc refuses a new arm flag with no
-// summary. The flags dispatched by `ops/flags-handlers.ts`/`ops/flags-session.ts`/`ops/flags-stage.ts` are
+// summary (`pnpm typecheck`). The flags dispatched by `ops/flags-handlers.ts`/`ops/flags-session.ts`/`ops/flags-stage.ts` are
 // plain `Record<string, Handler>` tables (house style for a hand-listed dispatch family), which gives no
 // literal-key union to hang a compile-time completeness check on without reshaping three established
 // tables. This module is therefore the closest available REQUIRED shape: a single flat map, completeness

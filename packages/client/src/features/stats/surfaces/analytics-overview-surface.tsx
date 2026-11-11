@@ -8,9 +8,8 @@
 // THE INSET LIVES ON THE SCROLLER, ONCE. Corpus puts its inset on its CONTENT-level owner
 // (`corpus-content.tsx`) because its surfaces carry no scroll of their own — Analytics' two surfaces are the
 // opposite: each owns
-// ITS OWN scroll axis independently (`h-full min-h-0 overflow-y-auto overscroll-contain`), pinned by the
-// containing-block CT below and mounted standalone in CT stories with no `analytics-content.tsx` wrapper
-// at all — so the inset goes on the same element that already owns the scroll here, not one level up.
+// ITS OWN scroll axis independently (`h-full min-h-0 overflow-y-auto overscroll-contain`) — so the inset
+// goes on the same element that already owns the scroll here, not one level up.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { formatSignedDelta, formatUsd, NO_VALUE } from "@orb/kit/strings";

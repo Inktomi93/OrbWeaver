@@ -40,6 +40,11 @@ test("an uncited claim is reported at the line its sentence starts on", async ()
   expect(found.map(({ line }) => line)).toEqual([2]);
 });
 
+test("a whole-suite command or a source file that is no checker backs no claim", async () => {
+  const source = "// A test pins the order (`pnpm test`).\n// A test pins the order (packages/kit/src/ids/index.ts).\nexport const x = 1;\n";
+  expect((await findings(source)).map(({ line }) => line)).toEqual([1, 2]);
+});
+
 test("a claim wrapped over line comments is one sentence, and a cite on its second line backs it", async () => {
   const wrapped = "// The gutter is 14px and a CT pins the\n// width on every surface.\nexport const x = 1;\n";
   expect((await findings(wrapped)).map(({ line }) => line)).toEqual([1]);

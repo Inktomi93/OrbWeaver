@@ -219,7 +219,7 @@ export const reportedTimeZoneSchema: z.ZodType<IanaTimeZone, string> = z.string(
 export type Clock = () => number;
 
 /** Injectable formatter config — production omits everything (browser locale/tz, real clock);
- *  tests pin all three for deterministic output across ICU builds. */
+ *  tests supply all three for deterministic output across ICU builds. */
 export interface TimeLibConfig {
   readonly now?: Clock;
   readonly locale?: string;
