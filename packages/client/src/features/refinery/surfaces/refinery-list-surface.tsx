@@ -46,6 +46,7 @@ import {
   setRefinerySearchQuery,
   useMobileViewport,
   useRefinerySearchQuery,
+  useSectionListMode,
   useSectionListSearchPlaceholder,
   useSelectedRefinerySessionId,
 } from "#state";
@@ -106,7 +107,7 @@ function readoutSubtitleOf(row: ResolvedRow): string {
 
 export function RefineryListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusListArrival(surfaceRef);
+  useFocusListArrival(surfaceRef, useSectionListMode("refinery") !== "collapsed");
   // The search is pane chrome above the boundary, so it stays on screen while the read is in flight. It is store
   // state because the chrome band's census names the lens the rows are read through.
   const search = useRefinerySearchQuery();

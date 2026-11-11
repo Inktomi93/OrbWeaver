@@ -48,6 +48,7 @@ import {
   useRefineryArmedRewriteId,
   useRefineryRequestedDoor,
   useRefineryViewedRunId,
+  useSectionListMode,
   useSelectedRefinerySessionId,
 } from "#state";
 import { ApplyOutcome } from "../components/apply-outcome.tsx";
@@ -79,7 +80,10 @@ type StagePreflightView = NonNullable<ReturnType<typeof useRefineryPreflight>["d
 export function RefineryContentSurface(): ReactElement {
   const sessionId = useSelectedRefinerySessionId();
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  // Arrival has one owner at a time: the sessions LIST while it is on screen (`RefineryListSurface`), this pane when it
+  // is not, which is Refinery's default on a desktop. This pane stays mounted across section visits and re-runs its
+  // effects on every reveal, so an unconditional claim would take focus from a list the user has docked.
+  useFocusOnMount(surfaceRef, useSectionListMode("refinery") === "collapsed");
   return (
     <Stack scroll="y" height="fill" focusTarget={true} ref={surfaceRef} tabIndex={-1}>
       {sessionId === null ? (

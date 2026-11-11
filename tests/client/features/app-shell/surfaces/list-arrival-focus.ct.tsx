@@ -164,14 +164,18 @@ for (const section of ROW_LISTS) {
   });
 }
 
-for (const section of ROW_LISTS) {
-  test(`returning to ${section} from Home by the rail lands focus on the band's control again`, async ({ mount, page }) => {
-    await seedShellState(page, { activeSection: "home" });
+// A section whose content pane stays mounted is revealed again on a return, and a surface that claims focus on reveal
+// would land it somewhere the first arrival did not: so every section's return lands where its first arrival does.
+for (const section of SECTION_IDS) {
+  const { label, lands } = ARRIVALS[section];
+  const away = ARRIVALS[startFor(section)].label;
+  test(`returning to ${section} from another section by the rail lands focus in its ${lands} again`, async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: startFor(section) });
     await mount<typeof AppShellStory>(STORY, {});
-    for (const name of [ARRIVALS[section].label, ARRIVALS.home.label, ARRIVALS[section].label]) {
+    for (const name of [label, away, label]) {
       await pressRail(page, name);
     }
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
-    await expect.poll(() => focusRegion(page)).toBe("band");
+    await expect.poll(() => focusRegion(page)).toBe(lands);
   });
 }
