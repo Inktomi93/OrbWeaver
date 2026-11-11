@@ -19,7 +19,7 @@ The same action is built twice and both copies report failure away from the cont
 
 ## Done when
 
-One avatar upload control in a shared home serves the persona editor and the character hero band. It opens the picker on click and accepts a dropped image, shows progress on the avatar while the upload runs, and shows an oversize or failed upload as an inline message linked to the control, with no toast. A component test per surface drops a file, holds the upload, fails it, and asserts each state through the production surface. A rendered review has read both at desktop and phone widths. The two per-feature copies are deleted in the same commit.
+One avatar upload control in a shared home serves the persona editor and the character hero band. It opens the picker on click and accepts a dropped image, shows progress on the avatar while the upload runs, and shows an oversize or failed upload as an inline message linked to the control, with no toast. It keeps the character control's rule for both surfaces: the new picture and its confirmation appear when the write commits, not when the upload completes, and a refused write keeps the old picture. A component test per surface drops a file, holds the upload, fails the upload, refuses the write, and asserts each state through the production surface. A rendered review has read both at desktop and phone widths. The two per-feature copies are deleted in the same commit.
 
 ## Evidence
 
