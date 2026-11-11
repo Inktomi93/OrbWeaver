@@ -9,6 +9,7 @@
 // Stamps: origin 'youtube', sourceUrl = the canonical watch URL, name = the video id (timedtext carries no title).
 
 import { decodeXmlText } from "@orb/kit/strings";
+import { getLog } from "#foundation/observability";
 import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeYoutubeParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
@@ -84,6 +85,8 @@ export function createScrapeYoutube(ctx: DatabankContext): DatabankService["scra
     try {
       bytes = await ctx.fetchUrl(captionUrl);
     } catch (err) {
+      // The refusal is a client error the transport does not log and carries the cause off the wire, so a broken fetch is recorded here.
+      getLog(ctx.logger).warn({ err }, "databank: a youtube caption fetch failed");
       // biome-ignore lint/style/useErrorCause: the cause IS forwarded — ScrapeFailedError assigns options.cause; biome can't see through the custom class (the scrapeWeb precedent).
       throw new ScrapeFailedError({ cause: err });
     }
