@@ -686,7 +686,7 @@ function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgme
             : "security: egress SSRF blocked (private or unreadable address)",
           context.log,
         );
-        resolved(new Error(`${SSRF_BLOCKED}: ${hostname} → ${blocked}`), address, family);
+        resolved(connectRefusal("private-address", `${hostname} → ${blocked}`), address, family);
         return;
       }
       resolved(null, address, family);
@@ -713,7 +713,7 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
     // refusing any zone mark here keeps a future input path from reaching loopback or link-local through one.
     if (options.hostname.includes(ZONE_MARK)) {
       securityEvent("egress_blocked", { hostname: options.hostname }, "security: egress SSRF blocked (zone-scoped host)", context.log);
-      callback(new Error(`${SSRF_BLOCKED}: ${options.hostname} (zone-scoped host)`), null);
+      callback(connectRefusal("ip-literal", `${options.hostname} (zone-scoped host)`), null);
       return;
     }
     // Port is available HERE (undici passes options.port to the connector) but NOT in the lookup override
@@ -731,7 +731,7 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
       shouldBlockEgress(literal, { hostname: options.hostname, port: effectiveHttpPort(options.protocol, options.port), allowlist, ranges })
     ) {
       securityEvent("egress_blocked", { hostname: options.hostname, address: literal }, "security: egress SSRF blocked (private literal address)", context.log);
-      callback(new Error(`${SSRF_BLOCKED}: ${options.hostname} → ${literal}`), null);
+      callback(connectRefusal("ip-literal", `${options.hostname} → ${literal}`), null);
       return;
     }
     connectTarget(options, callback, false);
@@ -824,17 +824,23 @@ export class EgressBlockedError extends Error {
 }
 
 /** Whether a failed fetch is a block the firewall already recorded as a security event: an {@link EgressBlockedError}
- *  that wrote one, or the connector's refusal for a private or zone-scoped address, which wrote its own. A caller that
- *  logs the cause of a failed fetch skips this one, so a blocked egress leaves one record. */
+ *  that wrote one anywhere in the cause chain, which includes the connector's refusal that fetch carries as its cause.
+ *  A caller that logs the cause of a failed fetch skips this one, so a blocked egress leaves one record. */
 export function isRecordedEgressBlock(err: unknown): boolean {
   const seen = new Set<unknown>();
   for (let link = err; link instanceof Error && !seen.has(link); link = link.cause) {
     seen.add(link);
-    if (link instanceof EgressBlockedError ? link.recorded : link.message.startsWith(SSRF_BLOCKED)) {
+    if (link instanceof EgressBlockedError && link.recorded) {
       return true;
     }
   }
   return false;
+}
+
+/** The refusal the connector hands back after it wrote the block's security event. Its message opens with
+ *  {@link SSRF_BLOCKED}, the mark callers and tests read on the cause fetch carries. */
+function connectRefusal(reason: EgressBlockReason, detail: string): EgressBlockedError {
+  return new EgressBlockedError(reason, `${SSRF_BLOCKED}: ${detail}`, { recorded: true });
 }
 
 /** Real DNS; a composition root passes it as `resolver`, and a test passes a scripted one. */
@@ -1026,8 +1032,8 @@ async function fetchImageBytesFor(context: EgressContext, url: string, maxBytes?
 // private-range denial STILL run per hop), the compose-bound `SafeFetchOp` impl. Unlike fetchImageBytes it does
 // NOT null-drop: it THROWS on any refusal (safeFetch's EgressBlockedError), a non-2xx, the byte cap, or a network
 // error, so the databank verb can collapse every failure into a leak-free typed ScrapeFailedError (the domain
-// never imports infra to branch — the extraction-error-in-contracts precedent). The byte cap is bound HERE, not
-// caller-suppliable.
+// never branches on the reason — the extraction-error-in-contracts precedent — and asks `isRecordedEgressBlock` only
+// whether to log the cause). The byte cap is bound HERE, not caller-suppliable.
 async function fetchWebDocumentFor(context: EgressContext, url: string): Promise<Uint8Array> {
   const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: DEFAULT_MAX_BYTES });
   if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
@@ -1049,8 +1055,9 @@ const PLUGIN_BUNDLE_FETCH_MAX_BYTES = 1_048_576;
 // compose-bound op the domain's `ctx.fetchBundle` is wired to. It is the ONLY egress a URL install performs, and
 // it is NEVER a bare `fetch` of an attacker-named URL. THROWS on any refusal (safeFetch's EgressBlockedError), a
 // non-2xx, the byte cap, or a network error, so the URL verbs collapse every failure into a leak-free
-// `PluginBundleFetchError` (the domain never imports infra to branch — the fetchWebDocument→ScrapeFailedError
-// precedent). The byte cap is bound HERE, not caller-suppliable.
+// `PluginBundleFetchError` (the domain never branches on the reason — the fetchWebDocument→ScrapeFailedError
+// precedent — and asks `isRecordedEgressBlock` only whether to log the cause). The byte cap is bound HERE, not
+// caller-suppliable.
 async function fetchPluginBundleFor(context: EgressContext, url: string): Promise<Uint8Array> {
   const res = await safeFetchFor(context, url, { allowedHosts: ANY_HOST, method: "GET", maxBytes: PLUGIN_BUNDLE_FETCH_MAX_BYTES });
   if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
