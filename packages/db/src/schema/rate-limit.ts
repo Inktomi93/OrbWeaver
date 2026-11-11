@@ -27,7 +27,7 @@ export const rateLimitBuckets = sqliteTable(
     // from the injectable `now()` + the window size — no DB default (it is window-relative, not insert-time).
     expiresAt: integer("expires_at").notNull(),
   },
-  // #1378 item 6 — this table IS a security control, so the floor under it is worth having physically. A
+  // This table IS a security control, so the floor under it is worth having physically. A
   // negative `count` is a bucket that can never reach its cap (the limiter compares `count >= cap`), i.e.
   // an unbounded scope wearing a limiter's clothes; a non-positive `expiresAt` is a window that is always
   // already expired, so the lazy sweep deletes the bucket on the very next touch and the cap never

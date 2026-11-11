@@ -23,7 +23,7 @@
 // Enum columns DERIVE their one canonical tuple (never re-spelled): `messages.role` /
 // `chat_injections.role` ← `MESSAGE_ROLES` (@orb/kit/message-role, D32); `messages.kind` ← `MESSAGE_KINDS`
 // (the row-PURPOSE axis — @orb/contracts/chat; orthogonal to role, see the table header); `chat_participants.kind` ←
-// `PARTICIPANT_KINDS` (`human`/`character` only post-rollback, 2026-07-25 purge — the DDL's `agent`/`observer`
+// `PARTICIPANT_KINDS` (`human`/`character` only post-rollback purge — the DDL's `agent`/`observer`
 // kind-shape CHECK arms below are dormant rebuild doorways, not live tuple members; docs/work/0048 tracks the graft),
 // `.role` ← `PARTICIPANT_ROLES`, `joinHistoryVisibility` ←
 // `JOIN_HISTORY_VISIBILITIES`; `chat_invites.status` ← `INVITE_STATUSES` (all @orb/contracts/chat).
@@ -37,7 +37,7 @@
 // insert via `(unixepoch() * 1000)`; caller-set timestamps are required `integer` numbers. JSON columns
 // are `$type<T>()` + read at the `@orb/db/query` parse-seam (`chats.metadata` lazy/fault-isolated sub-blobs;
 // `message_variants.params`/`promptSnapshot`/`metadata`). The `raw_request`/`raw_response` provider
-// envelopes are DELETED (2026-08-03): nothing ever wrote them and the wire inspector reads `promptSnapshot`.
+// envelopes are DELETED: nothing ever wrote them and the wire inspector reads `promptSnapshot`.
 
 import type {
   AssembledPrompt,
@@ -160,8 +160,7 @@ export const chats = sqliteTable(
     pendingHostUserId: text("pending_host_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
-    // The departing host's OPT-IN property offer, co-located with the nominee it qualifies (stickler
-    // 2026-08-03 §5): `nominateHostHandoff` writes it, `acceptHostHandoff` EXECUTES it and clears it in the
+    // The departing host's OPT-IN property offer, co-located with the nominee it qualifies: `nominateHostHandoff` writes it, `acceptHostHandoff` EXECUTES it and clears it in the
     // same statement that clears `pendingHostUserId` — the two are one nomination and can never outlive each
     // other. NULL = no offer = the built D64 drop, byte-identical. Typed JSON parsed at the `@orb/db/query`
     // read seam (`handoffOfferSchema`), never cast: a corrupt blob degrades to no-offer rather than
@@ -274,7 +273,7 @@ export const chatHandoffResumptions = sqliteTable(
 // swipe APPENDs a `message_variants` row and `selectVariant` flips `selectedVariantId` (pointer move, never
 // a copy). Attribution is slot-level. NO `parentId` (D27). `characterId` keys on `characters.id` (D28).
 //
-// THE ATTRIBUTION INVARIANT (owner-ordered schema-hardening, 2026-07-17; D82 delete/recreate sanction).
+// THE ATTRIBUTION INVARIANT (owner-ordered schema-hardening; D82 delete/recreate sanction).
 // Derived exhaustively from EVERY `messages` writer — the engine persist (engine.ts `buildCommitPlan`,
 // which supports a generic `new-slot role='user'` slot), the user-send (turn.ts `persistUserMessage`), the
 // greeting seed (start-chat.ts), the image message (generate-image.ts `role='user'`), the fork deep-copy (fork.ts, a
@@ -287,8 +286,8 @@ export const chatHandoffResumptions = sqliteTable(
 //                        leaves `characterId` NULL + `authorUserId` = the agent's user id.
 //   • role='system'    — NO current writer mints a system SLOT: `role='system'` lives only in prompt-assembly
 //                        injections, never a canon row. Attribution therefore unconstrained-by-writer here.
-//                        (TRUTH-REPAIR 2026-08-07: this line used to justify itself with "the narrator/
-//                        `postNarratorMessage` op is unbuilt". That op IS built — `verbs/post-narrator-message.ts`
+//                        (The narrator
+//                        `postNarratorMessage` op IS built — `verbs/post-narrator-message.ts`
 //                        — and it mints an ASSISTANT slot voiced by the synthetic group character, so it never
 //                        was the reason. The claim about system slots is unaffected and still holds.)
 // THE PURPOSE AXIS is `kind` (MESSAGE_KINDS), NOT this table's role/attribution pattern: the born kind per
@@ -304,8 +303,7 @@ export const chatHandoffResumptions = sqliteTable(
 // preserve the authored line for other members (D18/D26/D28). SQLite evaluates CHECKs during an FK
 // SET-NULL cascade, so a NOT-NULL-by-role CHECK would ABORT a legitimate user/character/persona delete;
 // fork.ts also copies an already-degraded row forward verbatim. The born (pre-degradation) NOT-NULL shape
-// is held by the writers alone, NOT by a DB CHECK. (This is the stickler's flagged looseness, now
-// figured out: not "import degradation" — import maps every human to the importer's own id — but the
+// is held by the writers alone, NOT by a DB CHECK. (This looseness is understood: not "import degradation" — import maps every human to the importer's own id — but the
 // SET-NULL history-preservation cascade.)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -323,7 +321,7 @@ export const messages = sqliteTable(
     // The role axis — derives MESSAGE_ROLES (@orb/kit/message-role, D32). The `enum` option is type-only;
     // the CHECK below is the SQL-level guard.
     role: text("role", { enum: MESSAGE_ROLES }).notNull(),
-    // THE PURPOSE AXIS (D26 rider; stickler 2026-08-08 canon-message-identity) — derives MESSAGE_KINDS
+    // THE PURPOSE AXIS (D26 rider) — derives MESSAGE_KINDS
     // (@orb/contracts/chat). ORTHOGONAL to `role` and to attribution: a narrator row is kind='narrator' AND
     // role='assistant'. It exists because purpose used to be INFERRED from columns designed to degrade — the
     // attribution FKs are all `onDelete: 'set null'`, so deleting the synthetic group character silently
@@ -417,7 +415,7 @@ export const messageVariants = sqliteTable(
     idx: integer("idx").notNull(),
     // The generation text (notNull; a streaming-in-progress variant starts as "").
     content: text("content").notNull(),
-    // ── RAW + FREEZE PROVENANCE (stickler 2026-08-08 §3 — the re-resolution substrate). ──
+    // ── RAW + FREEZE PROVENANCE (the re-resolution substrate). ──
     // `content` above stays the ONE canonical post-transform text every consumer reads (D51) — these two
     // columns are pure provenance and change no existing behavior. `rawContent` is the pre-freeze,
     // pre-regex authored text (the composer draft / the raw model output before the AI_OUTPUT regex,
@@ -441,7 +439,7 @@ export const messageVariants = sqliteTable(
     reasoning: text("reasoning"),
     // The model's reasoning BLOCKS with their per-wire provenance (`ChatReasoningPart` — the `reasoning` arm of `ChatContentPart`: the
     // Anthropic signature / redacted payload, OpenRouter's `reasoning_details`) — the REPLAY MATERIAL the next leg
-    // of a tool loop hands back so the provider verifies its own prior thinking (inference audit A1; the read
+    // of a tool loop hands back so the provider verifies its own prior thinking (the read
     // side is `carryReasoning`, §8.8). `reasoning` above stays the rendered TEXT a user reads; this column is
     // what the wire needs and is NULL when nothing replayable was emitted. Typed JSON, parsed at the read seam
     // (the converters refuse an unsigned block, so a malformed row degrades to "nothing to replay").
@@ -476,7 +474,7 @@ export const messageVariants = sqliteTable(
     // CHECK on the preset effort tuple (`EFFORT_LEVELS`, 7 members incl. `none`) — §5.3c class 1. The
     // APPLIED effort — what the wire actually carried in our vocabulary (`ChatResult.appliedEffort`), never the
     // requested intent (that lives in `params`): a transport that spells no effort field, a budget-mode turn or
-    // an SDK vocabulary drop records NULL; a disabled-thinking turn records `none` (inference audit B1).
+    // an SDK vocabulary drop records NULL; a disabled-thinking turn records `none`.
     reasoningEffort: text("reasoning_effort", { enum: EFFORT_LEVELS }).$type<EffortLevel>(),
     // ── Economics (all nullable — populated when the generation finishes). ──
     tokensIn: integer("tokens_in"),
@@ -486,7 +484,7 @@ export const messageVariants = sqliteTable(
     cacheWriteTokens: integer("cache_write_tokens"),
     // The reasoning share of `tokensOut` where the wire reports it (Anthropic `output_tokens_details.thinking_tokens`,
     // OpenRouter `completion_tokens_details.reasoning_tokens`, the agent-sdk `thinking_tokens` frame); NULL when
-    // unreported — never a fabricated 0 (inference audit B5).
+    // unreported — never a fabricated 0.
     reasoningTokens: integer("reasoning_tokens"),
     costUsd: real("cost_usd"),
     // WHERE `costUsd` came from — the SAME tuple as `token_provenance` (never a second vocabulary): `measured` =
@@ -496,7 +494,7 @@ export const messageVariants = sqliteTable(
     // The cost BREAKDOWN behind `costUsd` (§5.3c class 3 — a typed JSON sidecar whose ONE parser is
     // `costDetailsSchema` at every read seam, never a cast): the inference phase split when a wire reports one or
     // the estimated arm derives one, and on a BYOK OpenRouter turn the gateway-fee / upstream-charge pair that
-    // makes `costUsd` honest (OR's `cost` alone is the fee there, inference audit A4/B8). NULL when `costUsd` is.
+    // makes `costUsd` honest (OR's `cost` alone is the fee there). NULL when `costUsd` is.
     costDetails: text("cost_details", { mode: "json" }).$type<CostDetails>(),
     contextWindow: integer("context_window"),
     // The §8 history-budget fit-pass boundary: the earliest message actually included in the assembled
@@ -521,7 +519,7 @@ export const messageVariants = sqliteTable(
     toolCalls: text("tool_calls", { mode: "json" }).$type<readonly ToolCallRecord[]>(),
     // D46 runtime plane — the ordered variable ops THIS variant applied (`{{setvar}}`/`{{incvar}}`/…). The chat
     // domain folds these along the selected-variant chain (`foldVarOps`) into `chats.runtime_variables`, so a
-    // swipe/fork rewinds by re-folding (derive-don't-stamp — avoids the ST swipe-clobber issue #3263). Nullable JSON,
+    // swipe/fork rewinds by re-folding (derive-don't-stamp — a swipe never clobbers a value a later turn stamped). Nullable JSON,
     // parsed at the read seam with `variableDeltaSchema` (never cast); absent/null ⇒ this variant mutated no vars.
     variableDelta: text("variable_delta", { mode: "json" }).$type<readonly VarOp[]>(),
     // WAVE MU user-macro delivery — the per-turn random-pick draw record (macro → input → drawn value).
@@ -538,7 +536,7 @@ export const messageVariants = sqliteTable(
     genFinishedAt: integer("gen_finished_at"),
     // The PROVIDER's response id for this generation — OpenRouter's `gen-…` (the key `connection.generationCost`
     // settles the per-message cost with) or Anthropic's `msg_…` (the support handle a request is traced
-    // by; inference audit B7). §5.3c class 4: declared-OPAQUE provenance, never compared, switched on or joined.
+    // by). §5.3c class 4: declared-OPAQUE provenance, never compared, switched on or joined.
     // Null where the wire reports none (agent-sdk / a user-authored row). Never an orbweaver identity.
     generationId: text("generation_id").$type<ProviderGenerationId>(),
     // ── Continue-undo state (preContinue* + lastContinuation* + reasoning twins — Tier-1-DB.md §chat). ──
@@ -584,7 +582,7 @@ export const messageVariants = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// message_assets — #67 the STRUCTURAL chat-message ↔ asset link (producer: chat — the send verb writes it,
+// message_assets — the STRUCTURAL chat-message ↔ asset link (producer: chat — the send verb writes it,
 // like message_variants). A message body stores its inline images as `asset:<id>` TEXT refs (D51 — content
 // is a STRING, blocks parsed at render); the asset-reference collector (`domain/assets/persistence/
 // asset-refs`) reads that text as retaining only for the asset's OWNER seated in the room. THIS is the
@@ -681,10 +679,10 @@ export const chatParticipants = sqliteTable(
     // No duplicate human membership; the re-join `ON CONFLICT(chatId,userId) DO UPDATE` target. userId is
     // nullable, so SQLite's UNIQUE ignores the character rows (multiple null-userId rows coexist).
     uniqueIndex("chat_participants_chat_user_unique").on(t.chatId, t.userId),
-    // ONE present host per chat, as PHYSICS (#390). The host is the chat's single authority + funding
+    // ONE present host per chat, as PHYSICS. The host is the chat's single authority + funding
     // source (D18) and every host-keyed read (roster projection, export scoping, handoff targeting) assumes
     // exactly one — until this index that was writer discipline only, and a double-host row double-counted
-    // those reads (the #382 reader fix is the belt BELOW this; the index is the one above it, §2.3 — a
+    // those reads (the reader's own one-host guard is the belt BELOW this; the index is the one above it, §2.3 — a
     // prose-only boundary is a wish). PARTIAL by both arms: `role='host'` leaves members unconstrained,
     // `left_seq is null` leaves the DEPARTED-host history (every prior host of the chat) unconstrained.
     // Compatible with `acceptHostHandoffSwapStatements` precisely because its statement order is
@@ -703,7 +701,7 @@ export const chatParticipants = sqliteTable(
     index("chat_participants_active_persona_idx").on(t.activePersonaId),
     // The per-kind SHAPE CHECK (D60) — born at creation to REPLACE the 2-way
     // actor XOR once `agent` returns (userId-backed AND AI-driven — the bit a plain XOR can't carry). Only the
-    // `human`/`character` arms are LIVE post-rollback (2026-07-25 purge); the `agent`/`observer` arms are
+    // `human`/`character` arms are LIVE post-rollback; the `agent`/`observer` arms are
     // DORMANT rebuild doorways — no code path writes `kind='agent'`/`'observer'` today, and the DB does not
     // (and per the design would not) cross-verify `kind='agent' ⇒ users.kind='agent'` (SQLite has no
     // cross-table CHECK) — that's the future agent-seat chokepoint's job (D60,
@@ -860,7 +858,7 @@ export const chatInvites = sqliteTable(
     // (FK-index test).
     index("chat_invites_invited_user_idx").on(t.invitedUserId),
     check("chat_invites_status_check", sql.raw(`status in (${checkList(INVITE_STATUSES)})`)),
-    // #1378 item 7 — the redemption counters, physically. The `uses < max_uses` admission itself stays an
+    // The redemption counters, physically. The `uses < max_uses` admission itself stays an
     // application conditional-UPDATE (the comment above `chat_invites` states why: it must be atomic with
     // the seat write), and this does NOT replace it. What it closes is the shape that guard cannot see: a
     // NEGATIVE `uses` makes an exhausted invite redeemable again, and a `max_uses <= 0` is a cap that

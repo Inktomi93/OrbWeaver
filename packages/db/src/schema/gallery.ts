@@ -4,7 +4,7 @@
 // PROVENANCE (machine-written, one per generation) — curation is user-picked; conflating them would make
 // "remove from gallery" delete provenance.
 //
-// NO `ownerId` column — ownership DERIVES via `asset_id → assets.ownerId` (the owner ruling 2026-07-01; D23
+// NO `ownerId` column — ownership DERIVES via `asset_id → assets.ownerId` (the owner ruling; D23
 // derive-don't-stamp, the `character_tags`/`duplicate_pairs` precedent: a required FK to an owned row makes
 // the owner always derivable, and stamping creates a guardable mismatch). `ON DELETE CASCADE` from assets:
 // deleting the image erases its gallery rows; `subject_character_id SET NULL`: the item survives the
@@ -36,7 +36,7 @@ export const galleryItems = sqliteTable(
     // One curation row per (asset, subject). SQLite treats NULL subjects as DISTINCT under a unique index,
     // so this index alone covers only the character-scoped half.
     uniqueIndex("gallery_items_asset_subject_unique").on(t.assetId, t.subjectCharacterId),
-    // …and this PARTIAL unique index covers the other half (#1375): one un-charactered curation row per
+    // …and this PARTIAL unique index covers the other half: one un-charactered curation row per
     // asset. Without it, `addToGallery`'s conflict guard never fired for the ordinary "add to gallery, not
     // tied to a character" case and every repeat call inserted a duplicate — the verb's own docstring
     // ("a duplicate add returns the existing item (idempotent)") was false for the common path. The product

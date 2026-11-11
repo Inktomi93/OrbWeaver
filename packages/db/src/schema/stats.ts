@@ -51,11 +51,11 @@ const PROVIDER_FALLBACK = MODEL_PROVIDER_UNKNOWN;
 // only covers a bare insert). SQL `unixepoch()`, never a JS clock (the determinism gate).
 const NOW_MS = sql`(unixepoch() * 1000)`;
 
-// ── NO NON-NEGATIVE COUNTER CHECK HERE, AND THE PREMISE THAT ASKED FOR ONE IS REFUTED (#1378 item 8) ──
+// ── NO NON-NEGATIVE COUNTER CHECK HERE, AND THE PREMISE THAT ASKED FOR ONE IS REFUTED ──
 //
 // The finding was: ~40 additive counters across these four tables, zero `check(` references, so a
 // reconciliation bug could store a negative total and every reader would render it as fact. The whole
-// #1378 sweep rested on one stated premise — *"in every case the application layer currently prevents the
+// counter-check sweep rested on one stated premise — *"in every case the application layer currently prevents the
 // bad row"* — and for the stats rollups THAT IS FALSE. Measured, not reasoned:
 // `check("character_stats_counters_check", …)` was written, the baseline regenerated, and FOUR existing
 // integration tests went red on `SQLITE_CONSTRAINT: character_stats_counters_check` — ordinary chat
@@ -97,7 +97,7 @@ export const ownerStats = sqliteTable("owner_stats", {
     .$type<UserId>()
     .primaryKey()
     .references(() => users.id, { onDelete: "restrict" }),
-  // Owner-grain counts. `characters` live-undercounts until a drift-repair reconcile (esoteric #10).
+  // Owner-grain counts. `characters` live-undercounts until a drift-repair reconcile.
   characters: integer("characters").notNull().default(0),
   chats: integer("chats").notNull().default(0),
   userTurns: integer("user_turns").notNull().default(0),

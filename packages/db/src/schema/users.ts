@@ -7,7 +7,7 @@
 // esoteric #4): inbound `ownerId`/`userId` FKs inherit that plainness. It still carries a `.$type<UserId>()`
 // brand (type-safety), the brand is just not a `prefix_…` TypeID.
 //
-// AGENT PRINCIPALS (D60 — BUILD-STATE RIDER, 2026-08-03: design of record, NOT built; Spine-Identity-and-Auth.md
+// AGENT PRINCIPALS (D60 — BUILD-STATE RIDER: design of record, NOT built; Spine-Identity-and-Auth.md
 // §4 is the tree). `kind` (`human|agent`) + `ownerUserId` (self-FK CASCADE) are DORMANT DDL kept deliberately so
 // the rebuild needs no second migration. `kind` defaults `'human'` — every existing row is a valid human, so
 // there is no backfill; the CHECKs are free at creation and impossible to retrofit cheaply on a populated

@@ -3,7 +3,7 @@
 // drizzle column types and cannot be `@orb/kit`-pure: db/query is their home, exactly as `fetch-owned.ts` is
 // the home of the D23 single-owned scope predicate.
 //
-// WHY IT IS NOT INSIDE `domain/chat` (#1131). Two domains have to agree on these two facts and neither may
+// WHY IT IS NOT INSIDE `domain/chat`. Two domains have to agree on these two facts and neither may
 // import the other (constitution §2 — a sideways domain import is automatically wrong):
 //   · `domain/chat/persistence/queries.ts` — `listMemberChats`/`countMemberChats`, the chat library.
 //   · `domain/character/persistence/queries.ts` — the character library row's `lastChattedAt`/`chatCount`,
@@ -11,7 +11,7 @@
 //     `fewestChats` keysets ORDER BY.
 // They used to disagree by construction: the character list read `character_stats.last_activity_at` +
 // `character_stats.chats`, a STATS rollup, while the chat library, the editor header and the context pane
-// all counted canon. Measured on the dev library 2026-09-02: nine of ten characters had NO stats row at all
+// all counted canon. Measured on the dev library: nine of ten characters had NO stats row at all
 // (so the landing's "Recently chatted" shelf could show exactly one face), and the tenth read `chats = 0`
 // against a real seated chat — because the rollup's chat counter is bumped only for a room's FIRST founding
 // character (`chatCreatedDelta`, `claim-chat.ts`), while a later seat contributes message deltas only. A
@@ -69,7 +69,7 @@ export function memberVisibleChatScope(userId: UserId, lens: ChatVisibilityLens)
 }
 
 /**
- * THE ONE RECENCY CLOCK of the chat library (#150, owner-observed live 2026-08-17) — a room's newest
+ * THE ONE RECENCY CLOCK of the chat library (owner-observed live) — a room's newest
  * message time, falling back to its row stamp when it has no message: `coalesce(max(created_at), updated_at)`.
  *
  * IT IS THE DISPLAY KEY, IN SQL. Every surface DISPLAYS `lastMessageAt ?? updatedAt`; ordering on

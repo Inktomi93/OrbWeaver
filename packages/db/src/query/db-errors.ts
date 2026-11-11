@@ -21,7 +21,7 @@ export interface ConstraintViolation {
 
 // libSQL nests the original driver error under `.cause` (drizzle wraps it, the client wraps that). The
 // walk used to stop at FOUR levels — a number chosen off "every observed shape", which is not a bound, it
-// is a guess (#1377 item 4). Past it `isConstraintViolation` returned `undefined` and every caller that
+// is a guess. Past it `isConstraintViolation` returned `undefined` and every caller that
 // branches on `.kind` (e.g. `domain/tag/verbs/update.ts`) fell through to `throw err`, so a
 // deeply-wrapped constraint violation surfaced as a raw opaque error instead of a typed domain conflict.
 //
@@ -101,7 +101,7 @@ function classifyLevel(value: unknown): ConstraintViolation | undefined {
 
 /** Walk `err` and every `.cause` under it, outermost first. The `seen` set is the whole termination
  *  argument: a cause chain is finite unless it CYCLES, and a cycle revisits a link — so the walk ends
- *  when the chain runs out or when a link repeats, never at an arbitrary depth (#1377 item 4). */
+ *  when the chain runs out or when a link repeats, never at an arbitrary depth. */
 function* causeChain(err: unknown): Generator {
   const seen = new Set<unknown>();
   let current: unknown = err;

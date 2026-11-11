@@ -33,7 +33,7 @@ import { users } from "./users.ts";
 // never re-spelled here: `type in ('invite', …)`. Raw fragment — a CHECK is static DDL and cannot carry
 // bound parameters (users.ts pattern).
 //
-// #1379 item 3: this file used to hand-spell the member list, because the contract exported only the
+// This file used to hand-spell the member list, because the contract exported only the
 // derived TYPE and a DDL fragment needs VALUES. The db test then proved the two agreed by reaching into
 // zod's internal option shape. The tuple now lives at its one home, where a mapped-Record `satisfies`
 // makes completeness a `tsc` obligation rather than an assertion — so the respelling and the

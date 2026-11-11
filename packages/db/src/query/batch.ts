@@ -20,7 +20,7 @@
 // if another writer committed in between SQLite fails it with SQLITE_BUSY_SNAPSHOT — which `busy_timeout`
 // does NOT retry (it is an immediate error requiring rollback + replay, unlike plain SQLITE_BUSY).
 // A pure-write batch never reads, so it takes the write lock at its first statement and IS covered by
-// busy_timeout, making IMMEDIATE vs DEFERRED a no-op for it. Swept 2026-08-02: every `batchMany` call
+// busy_timeout, making IMMEDIATE vs DEFERRED a no-op for it. Swept: every `batchMany` call
 // site in `packages/server/src` batches writes ONLY — zero read statements — so the window is currently
 // unreachable. KEEP IT THAT WAY: do not batch a SELECT ahead of writes. If a drizzle bump ever surfaces
 // the mode param, "write" is the right value for these batches and this note is the reason.
@@ -57,7 +57,7 @@ export function batchStmt<TStmt extends BatchStmt>(stmt: TStmt): TStmt {
  * Bridge a plain array of statements into the non-empty tuple `Db.batch` wants — the ONE sanctioned
  * cast. Replaces the scattered inline `as BatchItem[]` casts.
  *
- * AN EMPTY LIST IS A NO-OP, NOT AN ERROR — and this doc used to claim the opposite (#1377 item 3). The
+ * AN EMPTY LIST IS A NO-OP, NOT AN ERROR — and this doc used to claim the opposite. The
  * previous sentence here asserted "`batch()` itself rejects an empty list at runtime"; MEASURED against a
  * real migrated libSQL db, `db.batch([])` RESOLVES with `[]`. So the lie was the CONTRACT, not the
  * behaviour: the type says non-empty, the runtime is total, and ~90 call sites hand this a computed array

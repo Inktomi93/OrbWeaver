@@ -8,7 +8,7 @@
 // and MUST stay complete — every schema file + relations. Reserved cross-cutting: users, audit,
 // relations. Wave-1 producers: everything else (currently stubs).
 //
-// ── `json_valid` ON THE JSON COLUMNS: DECIDED, AND THE DECISION IS NO (#1378 item 12) ────────────────
+// ── `json_valid` ON THE JSON COLUMNS: DECIDED, AND THE DECISION IS NO ────────────────
 // 72 `mode:"json"` columns across this package carry zero `json_valid(...)` CHECKs. The finding is real
 // and its mechanism is worth knowing: byte-level corruption throws inside DRIZZLE'S OWN `JSON.parse` on
 // read, BEFORE `kit/parsers.ts`'s zod `.catch()` recovery can see it — so that recovery only ever helps

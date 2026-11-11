@@ -6,7 +6,7 @@
 //
 // Two load-bearing facts (Tier-1-DB.md "Esoteric" #1/#2 — must survive):
 //   1. The stored bytes ARE libSQL's on-wire `F32_BLOB`, so we sidestep the drizzle `sql`vector32()``
-//      insert caveat (#3899): the query vector is wrapped `vector32(?)` in the search SQL, but stored
+//      insert caveat: the query vector is wrapped `vector32(?)` in the search SQL, but stored
 //      rows are the raw blob. There is no ANN/DiskANN shadow index — an exact `ORDER BY
 //      vector_distance_cos(...) LIMIT k` is sub-millisecond + 100% recall at this corpus scale.
 //   2. `fromDriver` MUST copy via `value.slice().buffer` BEFORE wrapping in a `Float32Array`. The driver

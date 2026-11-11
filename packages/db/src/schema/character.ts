@@ -45,7 +45,7 @@ export const characters = sqliteTable(
     // The `synthetic=true` hidden per-room group-memory identity (filtered from every user-facing query).
     synthetic: integer("synthetic", { mode: "boolean" }).notNull().default(false),
     // Tri-state: null = inherit the deployment default, true = forbid, false = allow — but the combine is
-    // TIGHTEN-ONLY (`contracts/chat::resolveRenderPolicy`, owner ruling 2026-08-01): the deployment "Block
+    // TIGHTEN-ONLY (`contracts/chat::resolveRenderPolicy`, owner ruling): the deployment "Block
     // external media" setting is an ABSOLUTE ceiling, so a stored `false` only takes effect while the
     // deployment itself allows external media. It is a restriction knob, never an escalation.
     forbidExternalMedia: integer("forbid_external_media", { mode: "boolean" }),
@@ -54,7 +54,7 @@ export const characters = sqliteTable(
     // force untrusted. Same tri-state SHAPE as `forbidExternalMedia`, but it resolves `override ?? global`
     // (a card-level escalation IS the design here — the deployment value is a default, not a ceiling).
     trustHtml: integer("trust_html", { mode: "boolean" }),
-    // The INTERACTIVE-CARD opt-in (#111 leg 1) — the TOP RUNG of the one ordered html-trust ladder
+    // The INTERACTIVE-CARD opt-in — the TOP RUNG of the one ordered html-trust ladder
     // (`contracts/chat::HTML_TRUST_STEPS`: untrusted < trusted < interactive), which the resolver folds out
     // of THIS column plus `trust_html`. Stored as a second column rather than an enum so the render step
     // keeps its two-tier `override ?? deployment` semantics unchanged; the LADDER is the presentation +
@@ -124,7 +124,7 @@ export const characters = sqliteTable(
     // Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields — the sibling of
     // `extensions` above, scoped to `data.*` instead of `data.extensions.*`. Genuinely-UNKNOWN vendor keys
     // only: the known ST-V3 fields (`nickname`/`source`/`creation_date`/`modification_date`) are now typed
-    // columns above. `creator_notes_multilingual` HAS no column and rides here verbatim (#266 D-1) — it also
+    // columns above. `creator_notes_multilingual` HAS no column and rides here verbatim — it also
     // feeds `creator_notes` when that is empty, but the map itself is preserved. `group_only_greetings` folds
     // into the `greetings` array as `groupOnly:true` entries (V3 promotion Phase B), so it does not ride here.
     residualData: text("residual_data", { mode: "json" }).$type<Record<string, unknown>>(),

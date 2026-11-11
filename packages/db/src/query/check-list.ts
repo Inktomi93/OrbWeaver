@@ -10,7 +10,7 @@
 // ASCII with hyphens/underscores; pinned in `tests/db/query/check-list.test.ts`). What it removes is the
 // trap: a future enum member containing an apostrophe rendered as `'it's'`, which terminates the literal
 // early and makes the whole CREATE TABLE unparseable — at migration time, in generated DDL nobody reads,
-// which is exactly the moment nothing is watching (#1377 item 2).
+// which is exactly the moment nothing is watching.
 
 /** SQLite's string-literal escape, and only it: a single quote is DOUBLED. A backslash is NOT an escape
  *  character in a SQLite literal, so touching one would corrupt a member that legitimately contains it. */

@@ -5,7 +5,7 @@
 // Note: the granular subpaths also resolve (`@orb/db/schema`, `@orb/db/query`) via the package.json
 // exports map; this top-level barrel re-exports the surface for the common single-import case.
 //
-// `./kit` is DELIBERATELY NOT re-exported here (2026-08-02). `Tier-1-DB.md` §Invariants #5 has always
+// `./kit` is DELIBERATELY NOT re-exported here. `Tier-1-DB.md` §Invariants #5 has always
 // said "`@orb/db/query` is also their documented IMPORT PATH", but the barrel re-export made the wrong path
 // compile, so half the tree reached `batchMany`/`fetchOwned`/`isConstraintViolation`/`parseStringArrayColumn`
 // through `@orb/db` — which reads as "a table-ish thing from the schema barrel" and blurs the one line between

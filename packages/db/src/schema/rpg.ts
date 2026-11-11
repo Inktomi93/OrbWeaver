@@ -130,7 +130,7 @@ export const rpgGames = sqliteTable(
 // at a turn flush; the NEXT user send's `onUserCommit` locks it to 1 (a hand row is born committed=1).
 // Ambient `clock`/`weather`/`calendarDate` are born nullable (§2.7).
 //
-// ── THE LINEAGE INVARIANT, stated (#1380) ─────────────────────────────────────────────────────────────
+// ── THE LINEAGE INVARIANT, stated ─────────────────────────────────────────────────────────────
 // A row's THREE references must meet at ONE chat: `game_id`'s game, `message_id`'s message and
 // `variant_id`'s variant all belong to the same `chats.id`. SQLite cannot express that as a constraint
 // (a CHECK cannot join, and the FKs point at three different tables), so it is NOT enforced by the
@@ -188,7 +188,7 @@ export const rpgSnapshots = sqliteTable(
     // `widget_values`, which keyed by widget LABEL against defs in a whole separate table — both gone.
     trackerValues: text("tracker_values", { mode: "json" }).$type<RpgTrackerValues>(),
     // The swipe-consistent quest plane (§2.5) — folded into the snapshot, clone-forward like inventory/cast.
-    // NULLABLE DESPITE THE `'[]'` DEFAULT, and that is ACCEPTED rather than a defect (#1378 item 10): a
+    // NULLABLE DESPITE THE `'[]'` DEFAULT, and that is ACCEPTED rather than a defect: a
     // writer that states the column explicitly can still store NULL, so readers pay a coalesce. They ALL
     // pay it, consistently and deliberately — `contract/service.ts`, `persistence/portability-write.ts` and
     // `persistence/snapshots.ts` each read `quests ?? []`. Making it NOT NULL would be the tidier shape and
@@ -274,7 +274,7 @@ export const rpgSheets = sqliteTable(
   ],
 );
 
-// The `rpg_hud_widgets` table is GONE (the tracked-field unification, owner-approved 2026-07-31). Custom
+// The `rpg_hud_widgets` table is GONE (the tracked-field unification, owner-approved). Custom
 // widgets were the game-subject arm of ONE concept whose other three arms lived in JSON blobs; they now ride
 // `config.trackers[]` with `subject:"game"`, and their values ride `rpg_snapshots.tracker_values`. Dropped at
 // the baseline regen (pre-launch squash) — no incremental migration, no compat read.
@@ -325,7 +325,7 @@ export const rpgJournal = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // rpg_turn_tool_calls — WHAT THE MODEL DID on a folded turn (TOOLCALLS-INVISIBLE, arm A). ONE row per
 // producing VARIANT, holding that turn's whole call list as JSON — or, when the round could not run at all,
-// an EMPTY list beside the `failure` sentence (#1468 item 2; see that column).
+// an EMPTY list beside the `failure` sentence (see that column).
 //
 // WHY AN RPG-OWNED TABLE AND NOT `message_variants.tool_calls`: that column is chat's, typed
 // `ToolCallRecord[]` and read by the transcript's existing tool renderer — exactly the right SHAPE, which is
@@ -342,7 +342,7 @@ export const rpgJournal = sqliteTable(
 // CASCADE on the variant, like `rpg_journal`'s model entries: a record whose swipe died is unreachable
 // forever, so keeping it is a leak rather than history.
 //
-// LINEAGE (#1380): `game_id`, `message_id` and `variant_id` must meet at ONE chat, exactly as on
+// LINEAGE: `game_id`, `message_id` and `variant_id` must meet at ONE chat, exactly as on
 // `rpg_snapshots` — and for the same reason it is not a constraint (a CHECK cannot join three tables).
 // Held by DERIVATION at every writer. `rpg_snapshots`'s header states
 // the rule in full; do not re-derive it, and do not add an accept-shaped writer without validating.
@@ -372,7 +372,7 @@ export const rpgTurnToolCalls = sqliteTable(
     // (`RpgRecordedToolCall`), produced by the ONE `recordToolCalls` projection the warn and the flight
     // recorder also read — so the row, the log and the ring cannot disagree about what was lost.
     calls: text("calls", { mode: "json" }).$type<readonly RpgRecordedToolCall[]>().notNull(),
-    // THE ROUND COULD NOT RUN (#1468 item 2) — the sentence saying why, NULL on every turn whose vehicle
+    // THE ROUND COULD NOT RUN — the sentence saying why, NULL on every turn whose vehicle
     // reached a verdict (including the quiet one). A TURN-level column and not a synthesized `calls` entry:
     // that array is "what the MODEL called, args verbatim" and a failed round has no call to report, so
     // fabricating one would put a tool call the model never made in front of the reader. This is the durable
@@ -403,7 +403,7 @@ export const rpgTurnToolCalls = sqliteTable(
 // (snapshot_id, snapshot_kind) against the snapshot's (id, kind), and `snapshot_kind` is CHECKed to
 // `bookmark`: pinning a turn or hand row fails at the database.
 //
-// LINEAGE (#1380): `game_id` and `snapshot_id`'s OWN `game_id` must be the same game — two FKs to two
+// LINEAGE: `game_id` and `snapshot_id`'s OWN `game_id` must be the same game — two FKs to two
 // tables, which SQLite cannot pair. Unlike the derive-only arms this pair IS caller-supplied on the
 // restore path, and it IS validated there: `verbs/checkpoint/restore-checkpoint.ts` compares
 // `checkpoint.gameId !== game.id` before use.
