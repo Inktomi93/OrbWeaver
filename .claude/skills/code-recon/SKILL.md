@@ -189,6 +189,10 @@ echo '<snippet>' | ast-grep scan --inline-rules '...' --stdin     # test on a sn
 - `language:` is per rule; TS needs a second run with `language: tsx`.
 - `scan` exits 0 whether or not it matched. Count `--json=stream | wc -l` or use
   `--files-with-matches`. `--max-results <N>` stops early.
+- `scan` DOES hard-fail on a bad rule, though: an unknown `kind` exits non-zero with
+  "Kind `x` is invalid" (verified on 0.45.0, exit 8). A rule that ran and matched nothing is
+  silent; a rule that never ran on a kind error is loud. Tell the two apart by reading stderr,
+  never by the count alone.
 - Run a new rule on a snippet with one known positive and one known negative before trusting
   its zero.
 
