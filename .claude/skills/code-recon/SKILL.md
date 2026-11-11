@@ -14,7 +14,7 @@ disagree, the CLI wins.
 ## Picking the tool
 
 | Question | Tool |
-|---|---|
+| - | - |
 | Shape of the repo | `tree -d --gitignore <path>` |
 | Which files exist | `git ls-files <path>`; outside git, `find <path> -type f -not -path '*/.git/*'` |
 | What's in a file or directory | `ast-grep outline` |
@@ -70,7 +70,7 @@ resolves no references, types, re-exports, or calls. It works beyond TS (C#, Rus
 pattern is parseable code; it ignores formatting and never matches inside strings or comments.
 
 | Syntax | Meaning |
-|---|---|
+| - | - |
 | `$VAR` | one named node; name must match `[A-Z_][A-Z0-9_]*` (`$foo`, `$1` match literally) |
 | `$$$`, `$$$ARGS` | zero or more nodes |
 | `$$VAR` | one unnamed node |
@@ -98,7 +98,7 @@ traversal skips `.gitignore`d, hidden, and parent-ignored paths. Exit codes: 0 m
 ### Languages
 
 | `-l` | Extensions walked in a directory |
-|---|---|
+| - | - |
 | `ts` | `.ts`, `.mts`, `.cts` (not `.tsx`) |
 | `tsx` | `.tsx` only |
 | `js` / `jsx` | one language: `.js`, `.jsx`, `.mjs`, `.cjs` |
@@ -115,7 +115,7 @@ the files you could not parse.
 ### Property reads
 
 | Source | Node | Pattern |
-|---|---|---|
+| - | - | - |
 | `x.foo` | `member_expression` | `$X.foo` |
 | `x?.foo` | `member_expression` + `optional_chain` | `$X?.foo` |
 | `x["foo"]` | `subscript_expression` | `$X["foo"]` |
