@@ -4,7 +4,8 @@
 // rule), read principal-BLIND across the whole deployment, newest-first, behind the debug gate. This is the
 // "why didn't my rule fire" answer for an OPERATOR: the owner-scoped `automation.listFires` verb answers it
 // per rule for the rule's author; a harness driving a live stage needs the whole log with no principal in
-// the path (the `chatListSummaries` / `characterPolicySweep` posture — `@owner-scope-ok`, D20).
+// the path (the `chatListSummaries` / `characterPolicySweep` posture — the un-principal-read ruling in
+// ./config.ts).
 //
 // The analysis arm's own diagnostic lines already flow through the root logger into the central ring
 // (`/api/_debug/logs`); this probe is the DURABLE half of that picture. Reads @orb/db DOWN (no port). The

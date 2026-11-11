@@ -221,7 +221,7 @@ Review before anything that trusts these results.
 
 | Unit | Path | Band | Status |
 | - | - | - | - |
-| server-foundation | packages/server/src/foundation/ | S | queued |
+| server-foundation | packages/server/src/foundation/ — later server units carry this unit's two standing items: the `packages/server` D141 archaeology cluster (one cross-cutting P3, filed in `units/server-foundation.md`) and `entry/auth/seam.ts:413`'s dead `@owner-scope-ok` cite (lands in server-entry); do not re-file | S | reviewed (4) |
 | server-primitives | packages/server/src/primitives/ | S | queued |
 | server-infra-core | infra/auth/, infra/crypto/, infra/network/ | M | queued |
 | server-infra-io | infra/storage/, infra/media/, infra/image/, infra/extraction/ | M | queued |
@@ -331,7 +331,7 @@ Triage fills this.
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
 | P2 | 19 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor, tooling-configs, tooling-doc |
-| P3 | 34 | 17 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired, tooling-codemods, tooling-doc |
+| P3 | 36 | 19 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired, tooling-codemods, tooling-doc, server-foundation |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -447,3 +447,19 @@ units); essentially every finding was in its prose and command surface — ghost
 ghost commands, doorless fixtures. Phase 3 opens the server, where findings so far predict the
 rot concentrates in the same places: comments, refusal messages, and committed data that cites
 dead things.
+
+The server-foundation unit confirmed the phase-3 prediction on arrival and added the dead-door
+dialect's THIRD spelling: dead MARKER tags. Beyond one deleted-exemplar cite (`posture.ts`, dead
+since the inference cut-over, invisible to the citation door because its bare-name idiom covers
+docs and test files but not bare source names) and the law doc's own probe enumeration drifting
+while the doc was being touched, the debug surface cited `@owner-scope-ok` as a live exemption
+twice — a marker grammar translated onto `@orb-waive owner-scoped-reads` (9dedb98b7e) whose
+consumer then died with the custom gates (821e8f8dff), while the marker-purge commit (18f2cee2f5)
+deleted markers and never their prose. The triage sweep must therefore diff comment MARKER
+grammars against the families live rules consume, not just policy names and commands. The unit is
+also the enforcement counterweight again: every door the tier law NAMES fires (dep-cruiser ×3, orb
+lint rules ×3, Biome `noProcessEnv` whose off-scope list is exactly the sole reader), the boot
+tables are union-drift-proof `satisfies` maps, and the 12 catches are all converts or owned
+null-as-answers. Its D141 cluster is the server package's standing item: 1,357 issue cites and 254
+dated receipts in `packages/server/src` — the repo's best receipt-keeping habit running directly
+against its own comment law (`comments.md:40`), to be re-homed, not deleted.

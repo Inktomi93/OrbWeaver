@@ -4,7 +4,8 @@
 // injected operation; the remaining DB probes read downward.
 //
 // THIS GATE IS THE ENTIRE BOUNDARY for every route below. The probes are deliberately principal-BLIND
-// whole-db reads (`@owner-scope-ok`, D20) — they take ids from QUERY PARAMS, never from auth — so whatever
+// whole-db reads (D17: the admitted set is the box operator, so per-caller scoping would filter nothing —
+// the ruling lives in `inspect/config.ts`) — they take ids from QUERY PARAMS, never from auth — so whatever
 // this middleware admits reads the whole deployment. Two credentials pass and nothing else: an OWNER
 // SESSION (`AdminAuthChecker`) or the `x-debug-token` operator secret. An un-credentialed caller must never
 // pass in any AUTH_MODE, with or without a configured token; that invariant's enforcers are
