@@ -2,8 +2,8 @@
 # scripts/dev/sandbox.sh — one-shot launcher for the Claude Code sandbox (.devcontainer/) WITHOUT
 # VS Code: ensures the dev container is built + running (devcontainers CLI, idempotent), then opens
 # a NEW terminal window shelled into it with Claude already started in permissive mode
-# (`--dangerously-skip-permissions` — the container + firewall are the boundary; owner ruling
-# 2026-09-01: the point of the dev container is to run without prompts). When Claude exits, the window
+# (`--dangerously-skip-permissions` — the container + firewall are the boundary; owner ruling:
+#  the point of the dev container is to run without prompts). When Claude exits, the window
 # drops to a zsh inside the container instead of closing (so contributor commands are one keystroke
 # away). HOST-side script — never run inside the container ($DEVCONTAINER guard).
 #
