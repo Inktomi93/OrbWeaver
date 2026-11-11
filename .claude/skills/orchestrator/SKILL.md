@@ -233,7 +233,7 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 
 ## The barrier
 
-CI runs the native application checks before release. Pre-push checks GitHub synchronization, Biome, dependency-cruiser, ESLint, knip and typecheck sequentially.
+CI runs the native application checks before release. Pre-push checks GitHub synchronization, Biome, dependency-cruiser, ESLint, knip, typecheck and the doc citation tests sequentially.
 
 1. Do not hand-run lint, typecheck or whole suites before a push. Pre-push and CI run them.
 2. Run only what neither covers: named e2e specs, live specs and rendered checks not established by lane evidence.

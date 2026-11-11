@@ -71,3 +71,7 @@ pre-push:
     typecheck:
       priority: 7
       run: pnpm typecheck
+    # The tests that hold law, rule and comment citations true. The other tooling tests stay hand-run.
+    doc-citations:
+      priority: 8
+      run: pnpm test:tools tests/tooling/doc/comment-path-citations.repo.int.test.ts tests/tooling/doc/dead-references.repo.int.test.ts tests/tooling/doc/law-directory-lists.repo.int.test.ts tests/tooling/law-rule-citations.test.ts

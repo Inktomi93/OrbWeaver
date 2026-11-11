@@ -148,7 +148,7 @@ export async function listCharacterBooks(db: Db, ownerId: UserId, characterId: C
  *
  *  BOTH ENDS are scoped, not just the book. The caller proves the BOOK is theirs (`loadOwnedBook`), but a
  *  junction row may name a character or persona owned by SOMEONE ELSE — `handoff-copy-write`'s header states
- *  such cross-owner junctions exist in practice, and the `duplicate-carry` gate is the same gate on the
+ *  such cross-owner junctions exist in practice, and `duplicate-carry` applies the same owner check to the
  *  mirror-image pair. Ownership is INHERITED through the FK chain (D18), so the target join carries the
  *  caller's `ownerId` too: an INNER JOIN, never a post-filter (a second source of truth for one predicate).
  *  A foreign target is dropped silently — this read is a roster, and its answer is the caller's own set. */
