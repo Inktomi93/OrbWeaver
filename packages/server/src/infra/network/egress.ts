@@ -678,15 +678,14 @@ function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgme
         }),
       );
       if (blocked !== undefined) {
-        securityEvent(
-          "egress_blocked",
-          { hostname, address: blocked },
-          judgment.declared
+        const refusal = connectRefusal("private-address", hostname, {
+          log: context.log,
+          fields: { hostname, address: blocked },
+          message: judgment.declared
             ? "security: egress SSRF blocked (allowlisted host resolved link-local/never-admissible or unreadable)"
             : "security: egress SSRF blocked (private or unreadable address)",
-          context.log,
-        );
-        resolved(connectRefusal("private-address", `${hostname} → ${blocked}`), address, family);
+        });
+        resolved(refusal, address, family);
         return;
       }
       resolved(null, address, family);
@@ -712,8 +711,12 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
     // to `@orb/kit/ip`, so neither gate below would judge it. WHATWG URL refuses a zone, so no URL carries one today;
     // refusing any zone mark here keeps a future input path from reaching loopback or link-local through one.
     if (options.hostname.includes(ZONE_MARK)) {
-      securityEvent("egress_blocked", { hostname: options.hostname }, "security: egress SSRF blocked (zone-scoped host)", context.log);
-      callback(connectRefusal("ip-literal", `${options.hostname} (zone-scoped host)`), null);
+      const refusal = connectRefusal("ip-literal", `${options.hostname} (zone-scoped host)`, {
+        log: context.log,
+        fields: { hostname: options.hostname },
+        message: "security: egress SSRF blocked (zone-scoped host)",
+      });
+      callback(refusal, null);
       return;
     }
     // Port is available HERE (undici passes options.port to the connector) but NOT in the lookup override
@@ -730,8 +733,12 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
       literal !== null &&
       shouldBlockEgress(literal, { hostname: options.hostname, port: effectiveHttpPort(options.protocol, options.port), allowlist, ranges })
     ) {
-      securityEvent("egress_blocked", { hostname: options.hostname, address: literal }, "security: egress SSRF blocked (private literal address)", context.log);
-      callback(connectRefusal("ip-literal", `${options.hostname} → ${literal}`), null);
+      const refusal = connectRefusal("ip-literal", options.hostname, {
+        log: context.log,
+        fields: { hostname: options.hostname, address: literal },
+        message: "security: egress SSRF blocked (private literal address)",
+      });
+      callback(refusal, null);
       return;
     }
     connectTarget(options, callback, false);
@@ -808,18 +815,32 @@ async function configuredEndpointPin(context: EgressContext, url: URL): Promise<
  *  hop — this can NEVER be spelled by passing `[]`, it must be named. Compose-bound into the ANY-host
  *  op wirings; never wire/caller-suppliable. */
 
-/** Thrown by {@link safeFetch} on any block; carries a typed reason for branching. The message NEVER
- *  echoes internal addressing (the resolved private IP) — only the caller-supplied host and the reason;
- *  the address goes to the securityEvent log, not the throw. */
+/** The `egress_blocked` security event a refusal writes as it is constructed: the record's fields and its log line. */
+interface EgressBlockRecord {
+  readonly log: Logger;
+  readonly fields: Readonly<Record<string, unknown>>;
+  readonly message: string;
+}
+
+/** Thrown by {@link safeFetch} and handed back by the firewall connector on a block; carries a typed reason for
+ *  branching. The message NEVER echoes internal addressing (the resolved private IP) — only the caller-supplied host
+ *  and the reason; the address goes to the security record, not the throw.
+ *
+ *  SECURITY: `recorded` tells a caller to skip its own log line, so it must never be true without the event. The only
+ *  way to set it is the `record` option, and constructing with a record writes that record's event. */
 export class EgressBlockedError extends Error {
   readonly reason: EgressBlockReason;
-  /** The block wrote its `egress_blocked` security event, so a caller's own log line would be a second record. */
+  /** This construction wrote the block's `egress_blocked` security event, so a caller's own log line would be a second record. */
   readonly recorded: boolean;
-  constructor(reason: EgressBlockReason, message: string, options?: ErrorOptions & { readonly recorded?: boolean }) {
+  constructor(reason: EgressBlockReason, message: string, options?: ErrorOptions & { readonly record?: EgressBlockRecord }) {
     super(message, options);
     this.name = "EgressBlockedError";
     this.reason = reason;
-    this.recorded = options?.recorded ?? false;
+    const record = options?.record;
+    if (record !== undefined) {
+      securityEvent("egress_blocked", record.fields, record.message, record.log);
+    }
+    this.recorded = record !== undefined;
   }
 }
 
@@ -837,10 +858,10 @@ export function isRecordedEgressBlock(err: unknown): boolean {
   return false;
 }
 
-/** The refusal the connector hands back after it wrote the block's security event. Its message opens with
- *  {@link SSRF_BLOCKED}, the mark callers and tests read on the cause fetch carries. */
-function connectRefusal(reason: EgressBlockReason, detail: string): EgressBlockedError {
-  return new EgressBlockedError(reason, `${SSRF_BLOCKED}: ${detail}`, { recorded: true });
+/** The refusal the connector hands back; constructing it writes the block's security record. Its message opens with
+ *  {@link SSRF_BLOCKED}, the mark callers and tests read on the cause fetch carries, and names only the caller's host. */
+function connectRefusal(reason: EgressBlockReason, host: string, record: EgressBlockRecord): EgressBlockedError {
+  return new EgressBlockedError(reason, `${SSRF_BLOCKED}: ${host}`, { record });
 }
 
 /** Real DNS; a composition root passes it as `resolver`, and a test passes a scripted one. */
@@ -931,9 +952,11 @@ async function openSafeFetchFor(context: EgressContext, url: string | URL, optio
     context.pending.delete(completion.promise);
     completion.resolve();
     if (deadlineHit()) {
-      securityEvent("egress_blocked", { reason: "deadline", hostname: start.hostname }, "security: safeFetch egress blocked (deadline)", context.log);
       // biome-ignore lint/style/useErrorCause: the cause IS forwarded — EgressBlockedError passes options to super(); biome can't see through the custom class.
-      throw new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, { cause: err, recorded: true });
+      throw new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, {
+        cause: err,
+        record: { log: context.log, fields: { reason: "deadline", hostname: start.hostname }, message: "security: safeFetch egress blocked (deadline)" },
+      });
     }
     throw err;
   }
@@ -1172,8 +1195,9 @@ interface EgressBlock {
 }
 
 function blockEgress(log: Logger, { reason, host, detail, fields = {} }: EgressBlock): never {
-  securityEvent("egress_blocked", { reason, hostname: host, ...fields }, `security: safeFetch egress blocked (${reason})`, log);
-  throw new EgressBlockedError(reason, detail, { recorded: true });
+  throw new EgressBlockedError(reason, detail, {
+    record: { log, fields: { reason, hostname: host, ...fields }, message: `security: safeFetch egress blocked (${reason})` },
+  });
 }
 
 /** Scheme + host-allowlist + IP-literal gate — runs on the start URL and re-runs on every redirect hop. */
