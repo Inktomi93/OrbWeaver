@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
-priority: P3
+priority: P2
 area: testing
+lane: wt/agent-a6c90fc66144ff360
 ---
 
 # Three extraction loaders have never run in a test

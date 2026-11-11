@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: security
+lane: wt/agent-a7cc72305cac667b5
 ---
 
 # The devcontainer firewall holds as the boundary the bypass-mode ruling names
