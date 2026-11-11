@@ -41,7 +41,8 @@ paths:
 - Do not `eval` a JSON string across the marshalling boundary. Call the realm's own `JSON.parse`
   on a string value, with the function handle captured before guest code runs.
 - Drain pending promises at dispose, before `ctx.dispose`, not only in settle handlers.
-- Build a host error for the guest with the marshal's `newHostError`: `ctx.newError()` plus `defineProp`. Never `ctx.newError(fields)`, which runs a guest setter. Assert `e.name`, never a message substring.
+- Build a host error for the guest with the marshal's `newHostError`: an object on the realm's `Error.prototype` plus `defineProp`. Never `ctx.newError`, whose stack capture runs the guest's `Error.prepareStackTrace` and whose field form runs a guest setter. Assert `e.name`, never a message substring.
+- Settle a guest value through the marshal's `settlementOf`, never `ctx.resolvePromise`, which reads the guest's global `Promise`.
 - Build every host function with the marshal's `newHostFunction`, which ends a guest past its CPU window before any read (D346). Never coerce a guest value with `getString` or `getNumber`, which run its `toString` or `valueOf`; read it through the marshal, or refuse a non-primitive.
 - Guest bytecode also runs in the two post-settle job pumps. Bound the interrupt handler for the
   context lifetime, not per invocation, and dispose every `executePendingJobs` handle.

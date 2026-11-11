@@ -85,7 +85,7 @@ import {
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import { pumpGuestJobs, withinCpuWindow } from "./cpu-guard.ts";
+import { pumpGuestJobs, settleInCpuWindow } from "./cpu-guard.ts";
 import type { GuestMarshal } from "./marshal.ts";
 import { GuestCallFailure, guestJson } from "./marshal.ts";
 
@@ -2033,20 +2033,33 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     settlement = running.then(releaseSlot, releaseSlot);
     inFlight.settlements?.add(settlement);
 
-    // the rejection arm builds the guest error (name preserved) and calls deferred.reject(err), so the guest promise receives the failure. The !ctx.alive guard drops it on purpose: the guest promise no longer exists and touching a disposed context is a use-after-free. Ends if a disposed context gains a safe late-failure sink.
+    // Settling runs guest code — the resolve reads `then` on the result, through any getter a guest put on a prototype
+    // — so it runs inside a span, bounded by the window and charged, or waits host-side while work outside an
+    // invocation has spent its account (D346). The deferred leaves `pending` only once settled or dropped, so a held
+    // one is still drained at teardown. The in-flight SLOT is deliberately not released here: see `releaseSlot` above.
+    const settleHeld = (settle: () => void): void => {
+      // A fire-and-forget guest call can outlive its invocation: the context is disposed (snippet end / deactivate)
+      // BEFORE this real-async host call settles. Touching a dead context (deferred/marshal) is a use-after-free that
+      // escapes as an unhandled rejection — drop the late result (the guest promise it would resolve no longer exists;
+      // leak-proof, the PluginInvocationEnded posture).
+      if (!ctx.alive) {
+        pending.delete(deferred);
+        return;
+      }
+      settleInCpuWindow(ctx, () => {
+        try {
+          settle();
+        } finally {
+          pending.delete(deferred);
+        }
+      });
+    };
+
+    // the rejection arm builds the guest error (name preserved) and calls deferred.reject(err), so the guest promise receives the failure. The !ctx.alive guard in settleHeld drops it on purpose: the guest promise no longer exists and touching a disposed context is a use-after-free. Ends if a disposed context gains a safe late-failure sink.
     void Promise.race([running, timeout])
       .then(
         (result) => {
-          // A fire-and-forget guest call can outlive its invocation: the context is disposed (snippet end /
-          // deactivate) BEFORE this real-async host call settles. Touching a dead context (deferred/marshal)
-          // is a use-after-free that escapes as an unhandled rejection — drop the late result (the guest promise
-          // it would resolve no longer exists; leak-proof, the PluginInvocationEnded posture).
-          if (!ctx.alive) {
-            return;
-          }
-          // Settling runs guest code — the resolve reads `then` on the result, through any getter a guest put on a
-          // prototype — so it runs inside a span: bounded by the window and charged (D346).
-          withinCpuWindow(ctx, () => {
+          settleHeld(() => {
             // The cap measures the very text that crosses, so it counts what the guest receives.
             const json = guestJson(result);
             if (Buffer.byteLength(json, "utf8") > HOST_FN_RESULT_CAP_BYTES) {
@@ -2067,9 +2080,6 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           });
         },
         (reason: unknown) => {
-          if (!ctx.alive) {
-            return;
-          }
           // Preserve the Error's NAME across the boundary (not just the message) — a typed membrane rejection
           // (`PluginCapabilityError`) must reach the guest with `e.name === "PluginCapabilityError"` so a plugin
           // feature-detects by type, not by a message substring. Nameless/non-Error reasons fall back
@@ -2077,15 +2087,12 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           // itself, so it leaks nothing.
           const error = reason instanceof Error ? reason : { name: "Error", message: String(reason) };
           const fields = reason instanceof PluginHostDeadlineError ? { hostFunction: reason.hostFunction } : {};
-          withinCpuWindow(ctx, () => {
+          settleHeld(() => {
             settleGuestPromise(spec, deferred, deferred.reject, marshal.newHostError(error, fields));
           });
         },
       )
       .finally(() => {
-        // The GUEST promise settled (or was dropped by the alive guard after a post-dispose drain) — no longer a
-        // teardown hazard. The in-flight SLOT is deliberately not released here: see `releaseSlot` above.
-        pending.delete(deferred);
         clearTimeout(timer);
       });
 

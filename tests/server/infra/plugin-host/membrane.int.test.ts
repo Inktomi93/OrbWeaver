@@ -5,7 +5,7 @@
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
-import type { PluginHostV1, PluginLogView } from "@orb/contracts/plugin";
+import type { PluginHostV1 } from "@orb/contracts/plugin";
 import { HOST_FUNCTION_CAPABILITY, HostVersionError, PLUGIN_HOST_VERSIONS, PluginCapabilityError, PluginHostDeadlineError } from "@orb/contracts/plugin";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -252,25 +252,26 @@ const SETTLE_PATH = {
   idle: "() => null",
   thenAwaited: `async (h, room) => { ${ENDLESS_THEN} await h.chat.listMessages(room); return null; }`,
   thenFloated: `(h, room) => { ${ENDLESS_THEN} h.chat.listMessages(room); return null; }`,
+  // A finite `then` getter longer than one interrupt poll: an honest, odd guest whose result must still settle.
+  thenFinite:
+    "async (h, room, a) => { Object.defineProperty(Object.prototype, 'then', { get() { for (let i = 0; i < a.steps; i++) {} return undefined; }, configurable: true }); return Array.isArray(await h.chat.listMessages(room)); }",
 } as const satisfies GuestOps;
 
 // A snippet that only logs, and the lines it reads back: proof the snippet path still serves.
 const NEXT_SNIPPET = "orb.host(1).log.info('next');";
 const NEXT_SNIPPET_LINES = ["[info] next"];
 
-// A resident guest, invoked in `chatId` when it has one; its log, read with no invocation; and its retirement: a
-// disable, timed, then an enable.
+// A resident guest, invoked in `chatId` when it has one, and its retirement: a disable, timed, then an enable.
 async function residentGuest(
   root: ServerTestHarness,
   plugin: Parameters<typeof installGuest>[2],
   ops: GuestOps,
   chatId: Parameters<typeof guestRunner>[0]["chatId"],
-): Promise<{ readonly run: GuestRun; readonly log: () => Promise<readonly PluginLogView[]>; readonly retire: () => Promise<number> }> {
+): Promise<{ readonly run: GuestRun; readonly retire: () => Promise<number> }> {
   const owner = await root.principalFor(root.ownerId);
   const pluginId = await installGuest(root, owner, plugin, ops);
   return {
     run: guestRunner({ root, caller: owner, pluginId, chatId }),
-    log: () => root.services.plugin.getLog({ caller: owner, pluginId }),
     retire: async (): Promise<number> => {
       const started = performance.now();
       await root.services.plugin.setEnabled({ caller: owner, pluginId, enabled: false });
@@ -321,6 +322,15 @@ test("a resident guest that floats a host call under an endless then getter free
   expect(performance.now() - started).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);
   await retire();
   expect(await run("ping")).toEqual({ ok: true, value: null });
+});
+
+test("a host result settles through a guest then getter that runs past one interrupt poll", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const { run } = await settlePathGuest(root);
+
+  // The settlement runs inside a span with the window open, so the getter finishes; a settlement in the closed window
+  // between spans would be ended at the getter's first poll and the await would never resume.
+  expect(await run("thenFinite", { steps: CALLBACK_STEPS })).toEqual({ ok: true, value: true });
 });
 
 test("a snippet awaiting a host result under an endless then getter is ended by its wall, and the next snippet runs", {
@@ -378,6 +388,13 @@ const NO_GUEST_CODE = {
     "(h, room, a) => { let hits = 0; for (const key of ['message', 'name']) { Object.defineProperty(Error.prototype, key, { get() { hits++; return ''; }, set(v) { hits++; }, configurable: true }); } try { orb.host(a.unserved); return ['returned']; } catch (e) { return [Object.getOwnPropertyDescriptor(e, 'name')?.value ?? null, Object.getOwnPropertyDescriptor(e, 'message')?.value ?? null, hits]; } }",
   logsObject: "(h) => { let calls = 0; h.log.info({ toString() { calls++; return 'x'; } }); return calls; }",
   versionObject: "(h, room, a) => { let calls = 0; try { orb.host({ valueOf() { calls++; return a.unserved; } }); } catch (e) {} return calls; }",
+  // A host error built by the engine's error constructor would capture a stack through the guest's hook. The refusal is
+  // taken as a handler argument, never thrown through guest frames, where the engine would build a backtrace for any
+  // error, the guest's own included.
+  stackHook:
+    "async (h, room, a) => { let calls = 0; Error.prepareStackTrace = () => { calls++; return ''; }; await new Promise((done) => { h.net.fetchAsset(a.url).catch(() => done(null)); }); return calls; }",
+  // The host settles the invocation's result through the realm's own promise statics, not the guest's globals.
+  promiseReplaced: "async () => { globalThis.Promise = function () { throw new Error('replaced'); }; return 7; }",
 } as const satisfies GuestOps;
 
 test("a host refusal and the host's reads of a guest value run none of the guest's accessors", { tags: ["slow"] }, async () => {
@@ -390,6 +407,8 @@ test("a host refusal and the host's reads of a guest value run none of the guest
   expect(await run("errorAccessors", { unserved: UNSERVED_HOST_VERSION })).toEqual({ ok: true, value: [refusal.name, refusal.message, 0] });
   expect(await run("logsObject")).toEqual({ ok: true, value: 0 });
   expect(await run("versionObject", { unserved: UNSERVED_HOST_VERSION })).toEqual({ ok: true, value: 0 });
+  expect(await run("stackHook", { url: HELD_URL })).toEqual({ ok: true, value: 0 });
+  expect(await run("promiseReplaced")).toEqual({ ok: true, value: 7 });
 });
 
 // Each span between awaits spends a share of the invocation's CPU account; ten callbacks' worth keeps the awaits a
@@ -600,44 +619,41 @@ const OUTSIDE = {
   busyLoop: "() => { for (;;) {} }",
   idle: "() => null",
   ping: "(h) => h.storage.get('k')",
-  // Each continuation logs a line, calls the host, then spins until the interrupt ends it.
+  // Each continuation counts itself, calls the host, then spins until the interrupt ends it.
   hostChain:
-    "(h, room, a) => { const loop = () => { h.log.info(a.line); h.storage.get('k').then(loop, loop); for (;;) {} }; h.storage.get('k').then(loop, loop); return null; }",
+    "(h) => { globalThis.cycles = 0; const loop = () => { globalThis.cycles++; h.storage.get('k').then(loop, loop); for (;;) {} }; h.storage.get('k').then(loop, loop); return null; }",
+  // Read before this command's own work, so it reports what ran while nothing invoked the guest.
+  cycles: "() => globalThis.cycles",
   // Each continuation calls a function the guest was not granted, whose refusal settles with no I/O.
   refusedChain: "(h, room, a) => { const loop = () => { h.net.fetchAsset(a.url).catch(loop); }; loop(); return null; }",
   // One continuation starts strands of microtasks that never call the host. The interrupt ends the strand it lands in,
   // so the rest stay queued for whichever pump comes next, and every other floated call's settlement pumps again.
   microtaskChain:
     "(h, room, a) => { const spin = () => { Promise.resolve().then(spin); }; h.storage.get('k').then(() => { for (let i = 0; i < a.pumps + 2; i++) { spin(); } }); for (let i = 0; i < a.pumps; i++) { h.storage.get('k'); } return null; }",
+  // Floated calls whose object results the host settles after the command returned, each through a slow `then` getter.
+  thenSettlements:
+    "(h, room, a) => { const arr = new Array(a.width).fill(0); Object.defineProperty(Object.prototype, 'then', { get() { for (;;) arr.slice(); }, configurable: true }); for (let i = 0; i < a.calls; i++) { h.storage.list(''); } return null; }",
 } as const satisfies GuestOps;
 // Settlements after the first that would each buy a fresh window without one account for work outside invocations.
 const EXTRA_PUMPS = 4;
 // Long enough for a chain charged a window per settlement to run several of them.
 const OUTSIDE_RUN_MS = 4 * PLUGIN_INVOCATION_CPU_MS;
-const CYCLE_LINE = "cycle";
 
-test("a chain of host calls after its command returns spends one budget, and the next invocation resumes it on its own account", {
+test("a chain of host calls after its command returns spends one budget per invocation", {
   tags: ["slow"],
   timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
 }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
-  const { run, log, retire } = await residentGuest(root, { slug: "host-chain", capabilities: ["storage.kv"] }, OUTSIDE, null);
-  const ended: unknown = await run("busyLoop").catch((error: unknown) => error);
-  if (!(ended instanceof Error && "code" in ended)) {
-    throw new Error("a busy loop ends in a coded guest failure");
-  }
+  const { run, retire } = await residentGuest(root, { slug: "host-chain", capabilities: ["storage.kv"] }, OUTSIDE, null);
 
-  expect(await run("hostChain", { line: CYCLE_LINE })).toEqual({ ok: true, value: null });
+  expect(await run("hostChain")).toEqual({ ok: true, value: null });
   await sleep(OUTSIDE_RUN_MS);
-  // One continuation spent the account and was interrupted. The call it made settled into a spent account, so the
-  // next continuation stays queued however long nothing invokes the guest.
-  expect((await log()).filter(({ message }) => message === CYCLE_LINE)).toHaveLength(1);
-
-  // The next invocation's own pump runs the queued continuation first, inside its synchronous run, which spends that
-  // invocation's account before the command's result can settle; the wall, which starts after that run, ends it.
-  const started = performance.now();
-  await expect(run("idle")).rejects.toMatchObject({ name: ended.name, code: ended.code });
-  expect(performance.now() - started).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + INVOCATION_WALL_MS + PAST_WINDOW_MARGIN_MS);
+  // One continuation spent the outside account and was interrupted. The call it made settled into a spent account, so
+  // its settlement waits host-side however long nothing invokes the guest.
+  expect(await run("cycles")).toEqual({ ok: true, value: 1 });
+  await sleep(OUTSIDE_RUN_MS);
+  // That command refilled the account and released the held settlement after answering: one more cycle, then held again.
+  expect(await run("cycles")).toEqual({ ok: true, value: 2 });
   expect(await retire()).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);
   expect(await run("ping")).toEqual({ ok: true, value: null });
 });
@@ -667,6 +683,23 @@ test("a microtask chain that never calls the host stops within one budget after 
   const started = performance.now();
   expect(await run("microtaskChain", { pumps: EXTRA_PUMPS })).toEqual({ ok: true, value: null });
   // The outside account's one budget, then this command's own, whose pump runs the parked strands on its account.
+  expect(await run("idle")).toEqual({ ok: true, value: null });
+  expect(performance.now() - started).toBeLessThan(2 * PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);
+  expect(await retire()).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);
+  expect(await run("ping")).toEqual({ ok: true, value: null });
+});
+
+test("settlements that arrive after the outside account is spent wait host-side instead of running the guest's then getter", {
+  tags: ["slow"],
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const { run, retire } = await residentGuest(root, { slug: "then-settlements", capabilities: ["storage.kv"] }, OUTSIDE, null);
+
+  const started = performance.now();
+  expect(await run("thenSettlements", { width: SLICE_WIDTH, calls: HOST_CALLS_IN_FLIGHT_MAX })).toEqual({ ok: true, value: null });
+  // The first settlement spends the outside account in the getter; the rest wait. This command settles one held
+  // settlement on its own account after its result, and the others stay held.
   expect(await run("idle")).toEqual({ ok: true, value: null });
   expect(performance.now() - started).toBeLessThan(2 * PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);
   expect(await retire()).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);

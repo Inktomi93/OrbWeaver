@@ -39,7 +39,7 @@ import type {
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
 import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import { installCpuGuard, openCpuInvocation, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
+import { installCpuGuard, openCpuInvocation, openCpuWindow, pumpGuestJobs, releaseParkedSettlements } from "./cpu-guard.ts";
 import type { GuestMarshal } from "./marshal.ts";
 import { createGuestMarshal } from "./marshal.ts";
 import type { InFlightCounter, MembraneRuntime } from "./membrane.ts";
@@ -623,6 +623,11 @@ export class Sandbox implements Disposable {
     } finally {
       // Unguarded on purpose — this touches no runtime, only the guard's own state, so a dead context is harmless.
       closeInvocation();
+      // Settlements held while work outside an invocation had spent its account run after this invocation answers, on
+      // the outside account its opening refilled: one macrotask later, so the answer leaves first (D346).
+      setImmediate(() => {
+        releaseParkedSettlements(this.ctx);
+      });
     }
   }
 
@@ -643,7 +648,7 @@ export class Sandbox implements Disposable {
         return { outcome: { ok: false, error, logs: this.log.drain() } };
       }
       const handle = this.take(result.value);
-      const native = this.ctx.resolvePromise(handle);
+      const native = this.marshal.settlementOf(handle);
       pumpGuestJobs(this.ctx);
       return { handle, native };
     } finally {

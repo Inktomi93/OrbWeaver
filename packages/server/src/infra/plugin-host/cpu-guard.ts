@@ -17,8 +17,9 @@
 //     window at the account's remainder and charges the account the time it ran. The await between spans charges
 //     nothing, so a guest that waits seconds on a host call and then runs briefly is inside its budget (D346);
 //   - a settlement or pump outside any invocation spends the instance's OUTSIDE account the same way. Only an
-//     invocation's opening refills it, so post-invocation work holds one budget in total, not one per span; when it
-//     is spent the pump parks the job queue until the next invocation (`pumpGuestJobs`).
+//     invocation's opening refills it, so post-invocation work holds one budget per invocation, not one per span; when
+//     it is spent the pump parks the job queue until the next invocation (`pumpGuestJobs`), and arriving settlements
+//     wait host-side until that invocation has answered (`settleInCpuWindow`, `releaseParkedSettlements`).
 // A span opened inside an open span adds nothing (the outer window already bounds it), and every pump inside an
 // invocation spends that invocation's account — so a nested pump can neither buy the invocation extra CPU nor blank
 // its bound on the way out.
@@ -64,6 +65,10 @@ interface CpuGuard {
   /** The instance's unspent budget for guest work outside any invocation. Only an invocation's opening refills it,
    *  and the host decides when an invocation opens, so a guest cannot buy itself more. */
   readonly outside: CpuAccount;
+  /** Settlements held host-side while the outside account is spent, oldest first. */
+  readonly parked: (() => void)[];
+  /** Whether a span is open; a span opened inside one adds nothing. */
+  spanOpen: boolean;
 }
 
 interface CpuAccount {
@@ -89,7 +94,7 @@ function windowPassed(guard: CpuGuard): boolean {
 }
 
 function createGuard(ctx: QuickJSContext, budgetMs: number): CpuGuard {
-  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null, outside: { remainingMs: budgetMs } };
+  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null, outside: { remainingMs: budgetMs }, parked: [], spanOpen: false };
   GUARDS.set(ctx, guard);
   ctx.runtime.setInterruptHandler(() => windowPassed(guard));
   return guard;
@@ -143,16 +148,52 @@ function spending(guard: CpuGuard): CpuAccount {
  *  left open would preempt the next unrelated span the moment its deadline passed. */
 export function openCpuWindow(ctx: QuickJSContext): () => void {
   const guard = guardOf(ctx);
-  if (Number.isFinite(guard.deadlineAtMs)) {
+  if (guard.spanOpen) {
     return (): void => undefined;
   }
   const account = spending(guard);
   const openedAtMs = performance.now();
+  guard.spanOpen = true;
   guard.deadlineAtMs = account.remainingMs > 0 ? openedAtMs + account.remainingMs : CLOSED;
   return (): void => {
     account.remainingMs = Math.max(0, account.remainingMs - (performance.now() - openedAtMs));
     guard.deadlineAtMs = CLOSED;
+    guard.spanOpen = false;
   };
+}
+
+/** Run `settle` — the settlement of a host call's guest promise, which can run a guest `then` getter — inside a span,
+ *  or hold it host-side while work outside an invocation has spent its account. A held settlement runs after the next
+ *  invocation, on the outside account it refilled ({@link releaseParkedSettlements}), in the order it arrived; until
+ *  then its guest promise stays pending, and teardown drains it as any other. */
+export function settleInCpuWindow(ctx: QuickJSContext, settle: () => void): void {
+  const guard = guardOf(ctx);
+  if (guard.account === null && guard.outside.remainingMs <= 0) {
+    guard.parked.push(settle);
+    return;
+  }
+  withinCpuWindow(ctx, settle);
+}
+
+/** Run held settlements, oldest first, in one span on the outside account, which an invocation has refilled since they
+ *  were held; stop once that window passes, and hold the rest again. Call it after an invocation, never inside one:
+ *  a held guest `then` getter must not spend the account of the invocation that released it. */
+export function releaseParkedSettlements(ctx: QuickJSContext): void {
+  if (!ctx.alive) {
+    return;
+  }
+  const guard = guardOf(ctx);
+  if (guard.account !== null || guard.outside.remainingMs <= 0 || guard.parked.length === 0) {
+    return;
+  }
+  withinCpuWindow(ctx, () => {
+    for (let settle = guard.parked.shift(); settle !== undefined; settle = guard.parked.shift()) {
+      settle();
+      if (windowPassed(guard)) {
+        return;
+      }
+    }
+  });
 }
 
 /** Run `work` — host code that calls into the realm — inside a span of guest execution: a guest callback the engine

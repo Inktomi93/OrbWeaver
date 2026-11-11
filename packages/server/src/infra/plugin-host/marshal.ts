@@ -16,11 +16,14 @@
 // it back unchanged (`GuestCallFailure` through `newHostFunction`), never as a new error: a guest that catches and
 // loops would otherwise meet every later interrupt inside a host call and run past its window without bound.
 //
-// HOST TEXT CROSSES WITHOUT GUEST CODE. A host refusal's `Error` and the host's own strings (the grant list, a
-// minted id, the chat token) are built with the binding's allocators and `defineProp`, which call no guest function
-// and no guest setter, so building one cannot fail on the guest's account. A host function's synchronous throw is
-// built the same way (`newHostFunction`): the binding's own path for it (`newError` through `setProp`) runs a guest
-// setter on `Error.prototype`, which loses the message and swallows the interrupt.
+// HOST VALUES CROSS WITHOUT GUEST CODE. A host refusal's error and the host's own strings (the grant list, a minted
+// id, the chat token) are built with the binding's allocators and `defineProp`, which call no guest function and no
+// guest setter, so building one cannot fail on the guest's account. A host error is an object on the realm's
+// `Error.prototype`, never `newError()`: the engine's error constructor captures a stack, which runs the guest's
+// `Error.prepareStackTrace`, and the binding's own path for a thrown error (`newError` through `setProp`) also runs a
+// guest setter. A guest result settles through `Promise.resolve` and `Promise.prototype.then` captured here, never
+// the guest's global `Promise`. An error the engine itself builds during a host call (a `JSON.parse` failure, the
+// interrupt) still runs `prepareStackTrace`; each such call is inside a span (D346).
 //
 // A HOST CALL PAST THE WINDOW ENDS THE GUEST (D346). The interrupt is polled only about every ten thousand steps and
 // never while the host works, so a guest whose time goes into host calls, or into its own callbacks a host read runs,
@@ -28,8 +31,7 @@
 // reading) before any read, and again before every read or write that can run a guest callback (`readGuestProp`,
 // `setHostProp`, each step of the depth walk): the binding drops a callback's interrupt, so without a check per call
 // one host call could run many callbacks past the window, each a whole poll period. Past the window the host runs a
-// host-owned
-// endless step in the realm, which the interrupt stops at its first poll, and hands that exception back unchanged.
+// host-owned endless step in the realm, which the interrupt stops at its first poll, and hands that exception back unchanged.
 // It is the engine's interrupt, the one exception a guest `catch` or `finally` cannot hold, so the invocation ends
 // exactly as a busy loop does; a host-built error would be caught and the loop would go on.
 //
@@ -82,6 +84,10 @@ export interface GuestMarshal extends Disposable {
   /** A guest promise already rejected with a host error, or the realm's own failure to make one — return it from a
    *  host function as it is. */
   readonly rejectedWith: (error: HostErrorFields) => VmCallResult<QuickJSHandle>;
+  /** The settlement of a guest value as a guest promise would settle it, through the realm's `Promise.resolve` and
+   *  `Promise.prototype.then` captured before guest code ran, never the guest's globals. The caller owns the handle it
+   *  settles with. Call it inside a span: resolving reads the value's own `then` and `constructor`. */
+  readonly settlementOf: (handle: QuickJSHandle) => Promise<VmCallResult<QuickJSHandle>>;
   /** A host function that ends a guest past its CPU window before it reads anything ({@link GuestMarshal.stopPastWindow}),
    *  hands a {@link GuestCallFailure}'s exception back to the guest unchanged, and builds any other throw with
    *  {@link GuestMarshal.newHostError}. Every host function the realm and the membrane install is built here. */
@@ -143,7 +149,8 @@ function isPromise(ctx: QuickJSContext, handle: QuickJSHandle): boolean {
   }
 }
 
-/** Capture the realm's own `JSON.stringify`, `JSON.parse`, `Promise` and `Promise.reject` for `ctx`. Call it once,
+/** Capture the realm's own `JSON.stringify`, `JSON.parse`, `Promise`, `Promise.reject`, `Promise.resolve`,
+ *  `Promise.prototype.then` and `Error.prototype` for `ctx`. Call it once,
  *  right after the context is created and before any guest source runs. */
 export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
   using captured = new DisposableStack();
@@ -152,6 +159,11 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
   const parse = captured.adopt(ctx.getProp(json, "parse"), (handle) => handle.dispose());
   const promise = captured.adopt(ctx.getProp(ctx.global, "Promise"), (handle) => handle.dispose());
   const reject = captured.adopt(ctx.getProp(promise, "reject"), (handle) => handle.dispose());
+  const resolve = captured.adopt(ctx.getProp(promise, "resolve"), (handle) => handle.dispose());
+  using promisePrototype = ctx.getProp(promise, "prototype");
+  const then = captured.adopt(ctx.getProp(promisePrototype, "then"), (handle) => handle.dispose());
+  using errorConstructor = ctx.getProp(ctx.global, "Error");
+  const errorPrototype = captured.adopt(ctx.getProp(errorConstructor, "prototype"), (handle) => handle.dispose());
   // A host-owned step that never returns on its own. No window is open yet, so evaluating it cannot be interrupted.
   const endless = captured.adopt(ctx.unwrapResult(ctx.evalCode("(() => { for (;;) {} })")), (handle) => handle.dispose());
   const owned = captured.move();
@@ -162,9 +174,12 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     ctx.defineProp(target, key, { value, configurable: true, enumerable: false });
   };
 
+  // An object on the realm's `Error.prototype`, not `newError()`: the engine's error constructor captures a stack, which
+  // runs the guest's `Error.prepareStackTrace`. The guest still reads it as an `Error` (`instanceof`, `name`,
+  // `message`, `String`); it has no `stack`.
   const newHostError = (error: HostErrorFields, fields: Readonly<Record<string, string>> = {}): QuickJSHandle => {
     using built = new DisposableStack();
-    const handle = built.adopt(ctx.newError(), (made) => made.dispose());
+    const handle = built.adopt(ctx.newObject(errorPrototype), (made) => made.dispose());
     defineText(handle, "name", error.name);
     defineText(handle, "message", error.message);
     for (const [key, text] of Object.entries(fields)) {
@@ -224,6 +239,29 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     rejectedWith: (error): VmCallResult<QuickJSHandle> => {
       using reason = newHostError(error);
       return ctx.callFunction(reject, promise, reason);
+    },
+    settlementOf: (handle): Promise<VmCallResult<QuickJSHandle>> => {
+      const resolved = ctx.callFunction(resolve, promise, handle);
+      if (resolved.error) {
+        return Promise.resolve({ error: resolved.error });
+      }
+      using settling = resolved.value;
+      return new Promise((settle) => {
+        // The engine keeps these two as the promise's reactions and never hands them to guest code, so they take no
+        // window check; each runs inside the pump that settles the promise.
+        using onFulfilled = ctx.newFunction("fulfilled", (value) => {
+          settle({ value: value.dup() });
+        });
+        using onRejected = ctx.newFunction("rejected", (reason) => {
+          settle({ error: reason.dup() });
+        });
+        const chained = ctx.callFunction(then, settling, onFulfilled, onRejected);
+        if (chained.error) {
+          settle({ error: chained.error });
+          return;
+        }
+        chained.value.dispose();
+      });
     },
     newHostFunction: (name, fn): QuickJSHandle =>
       ctx.newFunction(name, (...args) => {
