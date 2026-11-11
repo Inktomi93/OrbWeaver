@@ -11,8 +11,7 @@ way.
 ride in on imported SillyTavern cards, and that is exactly how you end up with dark grey text on a dark
 background. So the theme engine checks every text color against the surface it actually lands on. When a pair
 falls under WCAG AA (4.5:1), it re-derives the lightness and keeps the hue. Your theme still looks like your
-theme. You can just read it now. Every theme Orbweaver ships is also checked at build time: every text color,
-on every background it can sit on, clears 4.5:1 or the build fails.
+theme. You can just read it now. Every theme Orbweaver ships is also checked by the component tests that run in CI: `tests/ui/content/theme-scope/emitted-contrast.ct.tsx` measures the painted pixels, and every text color, on every background it can sit on, must clear 4.5:1 or the test fails.
 
 **Touch targets that fit a thumb.** On a touch screen every control has a hit area of at least 44px,
 checkboxes and icon buttons included. The hit area grows even when the visible box stays small. With a mouse

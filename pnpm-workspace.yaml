@@ -37,9 +37,9 @@ catalog:
   # --- toolchain ---
   # cross-spawn: niced-exec.ts's win32 child spawn (proc.ts#spawnFullPriorityChild) — resolves and quotes
   # a `.cmd`/`.bat` npm-bin shim correctly; a bare `spawn` there cannot resolve PATHEXT, and a
-  # hand-rolled quoting pass would be a second, narrower home for the same problem. Pinned exact so a
-  # transitive bump cannot silently change
-  # our own Windows escaping.
+  # hand-rolled quoting pass would be a second, narrower home for the same problem. Already in the lockfile
+  # as a transitive dependency of several dev tools; pinned exact so a transitive bump cannot silently
+  # change our own Windows escaping.
   cross-spawn: 7.0.6
   "@types/cross-spawn": ^6.0.6
   knip: ^6.42.1
@@ -49,7 +49,7 @@ catalog:
   typescript: npm:@typescript/typescript6@6.0.2
   "@biomejs/biome": 2.6.2
   lefthook: ^2.2.2
-  # The extractor runs on the TypeScript 7.1 native compiler.
+  # The 18.8 beta is the first release whose extractor runs on the TypeScript 7.1 native compiler (see packageExtensions).
   dependency-cruiser: 18.8.0-beta-1
   # D321: CSS policy uses Stylelint's native AST and its maintained value parser, never a private CSS reader.
   stylelint: 17.16.0
@@ -199,9 +199,9 @@ catalog:
   # openai-compatible provider's `transformRequestBody` post-convert hook, which is where the dialects do their
   # body work; the OpenRouter provider FORWARDS per-message `cache_control` as an implementation fact, not a
   # typed contract. A caret bump can move any of those under us silently, so every bump re-runs the
-  # full request-body pins before it is trusted: the minimal-turn cases in
-  # tests/inference/backends/anthropic-messages/chat-wire.int.test.ts and, for the openai-compatible and
-  # OpenRouter transports, tests/inference/backends/openai-compat/body-shaping.int.test.ts.
+  # request-body pins before it is trusted: tests/inference/backends/anthropic-messages/chat-wire.int.test.ts
+  # for the Anthropic wire, and tests/inference/backends/openai-compat/body-shaping.int.test.ts plus
+  # tests/inference/roles/openrouter-reasoning-wire.int.test.ts for the openai-compatible and OpenRouter transports.
   # `ai` is the peer the OpenRouter provider requires (`^7.0.0`); the `@ai-sdk/provider` pin must satisfy
   # every provider package's own `@ai-sdk/provider` dependency at install, so the stack moves together.
   ai: 7.0.148
@@ -226,8 +226,7 @@ catalog:
   react-dom: ^19.3.1
   "@types/react": ^19.3.0
   "@types/react-dom": ^19.3.0
-  # --- ui (@orb/ui — the sealed satellites; library deltas vs the law are ruled in
-  #     docs/law/ui-package-design.md §3) ---
+  # --- ui (@orb/ui — the sealed satellites; docs/law/ui-package-design.md §3 lists the directory that seals each) ---
   # Base UI v1 stable — the headless primitive (D42). NOT the dead rc-era @base-ui-components/react.
   "@base-ui/react": ^1.9.0
   # tailwind-variants: variants + slots + merge — subsumes cva/clsx (D54). DELTA vs D54: v3
@@ -417,17 +416,6 @@ overrides:
   sharp: "catalog:"
   # Keep tsdoc's transitive utilities on the parser family's TypeScript 6-compatible release.
   "@typescript-eslint/utils": "8.72.0"
-  # streamdown pins `mermaid: ^11.12.2`; the resolved copy carried advisories fixed by 11.16.1
-  # (prototype pollution x2, CSS injection, XY-chart + radar DoS).
-  # No diagram plugin is wired, so a mermaid fence in chat renders as inert code and this bump is
-  # defence in depth for the bundled dependency, not a reachable path. mermaid's own
-  # `dompurify: ^3.3.3` range covers the fixed 3.4.13, but pnpm resolves an older in-range copy
-  # (2 advisories, incl. an
-  # XSS via IN_PLACE hook removal), so both floors are forced here.
-  # Both ranges are satisfied by streamdown's own deps, so this is a
-  # pure resolution-bump, not an API-incompatible major.
-  mermaid: ">=11.16.1"
-  dompurify: ">=3.4.13"
   # rehype-katex 7 depends on katex ^0.16 while @orb/ui ships the katex stylesheet from the catalog.
   # One katex for both keeps the rendered markup and the stylesheet's class names in step (0.18 renamed
   # internal classes) and drops the 0.16 line, which carries the settings prototype-pollution advisory.
@@ -487,10 +475,11 @@ patchedDependencies:
   echarts@6.1.0: patches/echarts@6.1.0.patch
   # React 19 scopes JSX to React; remove when the wrapper imports that type.
   echarts-for-react@3.0.6: patches/echarts-for-react@3.0.6.patch
-  # Also carries an open upstream fix: with a test filter, a static mutant must be active before the module evaluates. A bump drops it once landed.
+  # Also carries an open upstream fix (https://github.com/stryker-mutator/stryker-js/pull/6293): with a test filter, a static mutant must be active before the module evaluates. A bump drops it once landed.
   '@stryker-mutator/core@10.1.1': patches/@stryker-mutator__core@10.1.1.patch
   # Two open upstream fixes; a bump drops each one that has landed: a run where no test reaches a
-  # selected mutant reports NoCoverage, not Survived; `vitest.dryRunMaxWorkers` runs the serial dry run on several workers.
+  # selected mutant reports NoCoverage, not Survived (https://github.com/stryker-mutator/stryker-js/pull/6275);
+  # `vitest.dryRunMaxWorkers` runs the serial dry run on several workers (https://github.com/stryker-mutator/stryker-js/pull/6312).
   '@stryker-mutator/vitest-runner@10.1.1': patches/@stryker-mutator__vitest-runner@10.1.1.patch
 
   # These declarations preserve each compiler world’s available host types.

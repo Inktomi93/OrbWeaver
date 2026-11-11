@@ -10,16 +10,16 @@ updated: 2026-11-02
 > restates it: the Discord/region model and settings taxonomy are `UI-Architecture-and-Layout.md`
 > §4.1–§4.3, the reuse primitives are `UI-Primitives-and-Reuse.md` §13, custom static enforcement is governed by D333.
 >
-> **Audience: a zero-context agent.** This document records client architecture law and examples. D333 retires custom static enforcement. Current checks live in native configs and tests; this document claims no blanket static certification.
+> **Audience: a zero-context agent.** This document records client architecture law and examples. Checks live in native configs and tests (D333); it claims no blanket static certification.
 
 **The one-sentence thesis:** composition drifted because a section/pane/tab was smeared across parallel static maps. Keep each definition with its owning feature and assemble it once at the composition root.
 
 ## 0. TL;DR — the non-negotiables (one screen)
 
 1. **Five tiers, one direction:** `@orb/ui` → `components/` → `{data,forms,state}/` → `lib/` → `features/`; routes + `main.tsx` compose on top. A feature imports DOWN only; features never import each other at runtime (dep-cruiser).
-2. **Ordinary features touch ZERO CSS.** Do not add `className`/`style` to a raw intrinsic element or add a feature stylesheet outside the shell-frame path (`orb/no-raw-intrinsic-paint` refuses `className`, `style` and spreads on a raw element in the client; the app shell's static shell.css class strings are its one exception). A `style` prop on an `@orb/ui` component carries only values computed at runtime from measurement or data; a static value is a primitive prop, a token utility or a variant (`orb/no-static-style-prop`). The CSS homes, their responsibilities, and that bounded exception live in §4; do not restate the vocabulary here.
+2. **Ordinary features touch ZERO CSS.** Do not add `className`/`style` to a raw intrinsic element or add a feature stylesheet outside the shell-frame path (`orb/no-raw-intrinsic-paint` refuses `className`, `style` and spreads on a raw element in the client; the app shell's static shell.css class strings are its one exception). A `style` prop on an `@orb/ui` component carries only values computed at runtime from measurement or data; a static value is a primitive prop, a token utility or a variant (`orb/no-static-style-prop`). §4 holds the CSS homes and that exception.
 3. **One registry primitive, no static maps.** Keep each section, settings pane, modal and contributor in one definition, assembled at the composition root. Do not add a parallel registry map. "Derive, don't re-declare."
-4. **The `/` route is a thin mount.** Do not add a sections map or feature imports to a route body. Assemble feature definitions and contributors at the composition door, and it is two modules: `main.tsx` (boot, assembles nothing) plus `packages/client/src/compose/` (the assemblies, behind the `/` route's lazy boundary). §7 states the split and why.
+4. **The `/` route is a thin mount.** Do not add a sections map or feature imports to a route body. Assemble feature definitions and contributors at the composition door: `main.tsx` (boot, assembles nothing) plus `packages/client/src/compose/` (the assemblies, behind the `/` route's lazy boundary). §7 has the split and why.
 5. **Cross-feature needs have exactly one channel each** — the decision table is §12: ephemeral client state (and navigation) → the `state/` commons; another feature's server data → `trpc.*` (cache-first — NOT a network round-trip when cached); **EXTENDING another feature's surface → a CONTRIBUTOR registry assembled at the door** (§12 row 4 lists the families; this is the graft channel); shapes → contracts/type-only; composites → `components/`; a feature's own Content↔Context → its editor-bridge (INTRA-feature only). Anything else is a violation.
 6. **Use shared client primitives.** Route mutations through `createEntityMutation`, paginated browsing through `createCollectionSurface`, multi-field forms through a form factory, and destructive confirms through `DestructiveAction` or a controlled `ConfirmDialog`. Call `createEntityMutation` in a hooks file (`hooks/`, `*-mutations.ts` or `data/`) and import the hook into the component (`orb/mutation-factory-in-hooks-file`).
 7. **Every suspending read sits in `QueryBoundary`; every surface ships designed empty/loading/error states** (§11). A bare spinner or an unhandled throw is a defect.
@@ -41,7 +41,7 @@ updated: 2026-11-02
 | a create, update or delete | `createEntityMutation` | Raw `useMutation` with cache surgery |
 | a destructive confirm | `#components` `DestructiveAction`, or a controlled `ConfirmDialog` when another surface opens it | Raw `@orb/ui/alert-dialog` in a feature |
 | a multi-field or saved form | `createAutosaveEntityForm` or `createSavedEntityForm` as appropriate | Hand-wired controlled form state |
-| a suspending read | `useSuspenseQuery` inside `QueryBoundary`, with `QueryErrorState` (§11) | A bare `useQuery` or `useGatedQuery` state ladder or spinner; `orb/no-query-state-ladder` refuses, in a component body, a branch that draws an element for an unsettled read; it does not judge a `use*` hook, even one that draws its own loading JSX |
+| a suspending read | `useSuspenseQuery` inside `QueryBoundary`, with `QueryErrorState` (§11) | A bare `useQuery` or `useGatedQuery` state ladder or spinner; `orb/no-query-state-ladder` refuses a component-body branch that draws an element for an unsettled read, and does not judge a `use*` hook |
 | another feature's server entity | `trpc.*` query options (§12) | Importing the feature or copying its data into a store |
 | active chat, section or selection | A `state/` commons hook | A query for client-side state |
 | cross-section navigation | An action from `#state` (`client-architecture-state-and-gates.md` §12 row 1) | Prop-drilling or importing the target feature |
@@ -67,15 +67,7 @@ The client is FIVE tiers, not "ui + features". A builder reaches DOWN this ladde
 Above the tiers: `routes/` composes features, never the reverse (`client-features-below-routes`), and
 `main.tsx` is the top nothing imports (`client-nothing-imports-main`). Their jobs are §7.
 
-**The composition-tier directory module.** The `client/src/dev/` directory sitting beside
-`main.tsx` is a sixth, door-owned residency class — not a tier. What earns it: dev-only glue that must
-compose feature front doors plus `#state` module actions and is injected into the agent bridge — the
-`dev/agent-nav/`, `dev/agent-seed/`, `dev/agent-rpg/`, `dev/agent-plugin/` and `dev/agent-handles/` modules (§7). They cannot
-live at tier 4 (`client-lib-floor` forbids the floor from importing `#state`/`#features`/`#data`), are not
-features (they own no registered definition), and are not routes (§7 names the route seams that may import a feature front door). Wall: `client-composition-tier-door-only` — only `main.tsx`
-imports them, with one exception: a sibling composition-tier module may compose another (they are all
-door glue), which is how `dev/agent-handles/` legally assembles the other four behind `main.tsx`'s dev-only
-dynamic import.
+**The composition-tier directory module.** `client/src/dev/`, beside `main.tsx`, is a sixth, door-owned residency class, not a tier. It holds dev-only glue that composes feature front doors plus `#state` module actions and is injected into the agent bridge: `dev/agent-nav/`, `dev/agent-seed/`, `dev/agent-rpg/`, `dev/agent-plugin/` and `dev/agent-handles/` (§7). It cannot live at tier 4 (`client-lib-floor` forbids the floor from importing `#state`/`#features`/`#data`), owns no registered definition (so it is no feature), and is no route (§7 names the route seams that may import a feature front door). Wall: `client-composition-tier-door-only` — only `main.tsx` imports them, except that a sibling composition-tier module may compose another; that is how `dev/agent-handles/` assembles the other four behind `main.tsx`'s dev-only dynamic import.
 
 **Bucket nesting is legal in every bucket, and it changes no rule.** A bucket may group its modules into
 sub-dirs. Grouping is presentation for the reader and never alters a file's role. Do not re-declare the bucket axis with group directories such as `components/hooks/` or `surfaces/anchors/`.
@@ -84,7 +76,7 @@ sub-dirs. Grouping is presentation for the reader and never alters a file's role
 duplicated per-feature — `UI-Primitives-and-Reuse.md` §13.0's bar (3+ and changing together) decides
 when to hoist. Review repeated composites before hoisting them; semantic near-duplicates need a design decision.
 
-**Composites are typed to be used right.** This is type law 5 ([Spine-TypeScript-and-Patterns.md](Spine-TypeScript-and-Patterns.md#the-type-laws)). A composite or primitive takes what its safe use needs as a required prop, so a wrong composition fails `tsc`. A lint rule covers only what a type cannot express; `orb/destructive-needs-confirm` judges each destructive control on its own confirmation or undo. Every dialog has a way out: `orb/dialog-via-composite` refuses the raw `Dialog` and `DialogPopup` in a feature and in `#components` outside the composites themselves, and each composite types it. `FormDialog` and `FormDialogPopup` require `submit` and own Cancel and the submit, `DismissDialog` requires a `dismissLabel` or a corner `closeButton`, `ContentDialog` and `FlowDialog` require `dismiss`, `ViewerDialog` and `PickerDialog` default it, and `RequiredFormDialog` is the one forced ask (D330), which `orb/required-dialog-home` holds to the first-run file. A status chip takes one member of a union and reads its tone and word from one total `#components` `StatusVocabulary`, so a wire word never paints. A member a schema author wrote, such as a custom refinery enum member, is authored content and not a wire word: it shows verbatim in the `reading` voice, never as a status word, a chip tone or system copy. A member the system pins, such as the analyze verdict, is a wire word and shows its display word.
+**Composites are typed to be used right.** This is type law 5 ([Spine-TypeScript-and-Patterns.md](Spine-TypeScript-and-Patterns.md#the-type-laws)). A composite or primitive takes what its safe use needs as a required prop, so a wrong composition fails `tsc`. A lint rule covers only what a type cannot express; `orb/destructive-needs-confirm` judges each destructive control on its own confirmation or undo. Every dialog has a way out: `orb/dialog-via-composite` refuses the raw `Dialog` and `DialogPopup` in a feature and in `#components` outside the composites, and each composite types it: `FormDialog` and `FormDialogPopup` require `submit` and own Cancel and the submit, `DismissDialog` requires a `dismissLabel` or a corner `closeButton`, `ContentDialog` and `FlowDialog` require `dismiss`, `ViewerDialog` and `PickerDialog` default it. `RequiredFormDialog` is the one forced ask (D330); `orb/required-dialog-home` holds it to the first-run file. A status chip takes one member of a union and reads its tone and word from one total `#components` `StatusVocabulary`, so a wire word never paints. A member a schema author wrote, such as a custom refinery enum member, is authored content and not a wire word: it shows verbatim in the `reading` voice, never as a status word, a chip tone or system copy. A member the system pins, such as the analyze verdict, is a wire word and shows its display word.
 
 **What is a feature:** a feature dir earns its existence by owning at least one registered definition — a rail section, a Corpus mode, a modal, a settings pane, a chrome widget, or a config collection. A feature whose whole product surface is a member library contributed to the Configuration workspace — the collection case — satisfies this with its `*-group.tsx` (the `ConfigGroupDefinition`) and additionally owns a `*-collection.tsx`, never a settings pane.
 
@@ -244,7 +236,7 @@ Every LIST pane is a `#components` `ListPage`, the one home for list search. A s
 The `SectionWithList` type requires `selection` and `useListHeader` with `list`, so `tsc` rejects a list with no band. `tests/client/state/section-registry.dom.test-d.ts` rejects an omitted inset declaration.
 The shape's law is the header of `packages/client/src/state/section-registry.ts` (§15).
 
-- One definition per section, co-located `features/<owner>/lib/<id>-section.ts`, exported on the front door. Section-id↔feature-name is not a mechanical mirror — ownership is declared by where the definition lives; Ownership follows the definition location, not the section name.
+- One definition per section, co-located `features/<owner>/lib/<id>-section.ts`, exported on the front door. Ownership follows where the definition lives, not the section name.
 - Definitions are self-contained: they read `#state` (selection pointers), `#data` (trpc/Query, `useInvalidation`), `#components`/`@orb/ui` directly, calling `#state` module actions themselves rather than receiving them as props.
 - `AppShell` stays domain-agnostic: it consumes the registry (`sections.get(active)`) instead of a `Partial<Record<…>>` prop; `panelDefaults` arrives from the registry.
 - **`SectionDefinition` is non-generic.** `context` is a `ContextDefinition` that has already applied its section's context-state type `S` (§6b) — `S` never crosses the shell seam.
@@ -266,7 +258,7 @@ them:
 5. **`dev/agent-nav/`'s vocabulary validation** — `__orb.nav` validates against `SECTION_IDS`.
 6. **`tests/support/browser/ct-door.ts`** — forwards production composition; isolated variants derive from its registries without a second table.
 7. **Mobile fate** — `RailEntry.mobile` is required by the `packages/client/src/state/section-registry.ts` contract. Rail chrome actions also require mobile curation; topbar actions may omit it and default to `"tab"`. The door preserves the rail-modal `"sheet"` default.
-8. **Chrome derivation** — `assembleChrome` reads `sections.list()`; an entry you had to hand-add is a a parallel map.
+8. **Chrome derivation** — `assembleChrome` reads `sections.list()`; an entry you had to hand-add is a parallel map.
 9. **Placeholder copy** — the real-registry test requires a distinct (title, description) per section.
 10. **The rail prose** — `UI-Architecture-and-Layout.md` §4.1's section list.
 
@@ -292,7 +284,7 @@ ResolvedContextTabs | null}` where `useResolved` is minted only by `defineContex
 law is the header of `packages/client/src/lib/registry-contracts.ts` (§15).
 
 - `S` is spelled once, at the mint call, checked against the published projection; the spec's `contributors` typechecks against the host's `S`, so a contributor reading a field the projection lacks is a compile error; the shell only ever sees the non-generic `ContextDefinition`. A consumer-side cast is a lie tsc can't check; a typed per-key `get` accessor reintroduces an id→S map and per-section recipes in app-shell.
-- Tab id, label, `when`, and body are one object — the object keeps the tab id, label, predicate and body together.
+- Tab id, label, `when` and body are one object.
 - **The resolved tab order is fixed:** `when`-filtered own tabs then contributors, in declared order — contributors merge in after a host's own tabs, under the same `when` gating (§6c).
 - **`ContextTabsPanel` resolves the active tab** as the store's `contextTab` if it names a visible tab, else the first tab whose `defaultTab` resolves true (first-true-wins), else the declared-order first tab. `defaultTab` lets a section override the plain first-tab default (a game chat lands on `rpg.status`, not the roster's Members) without a stored selection winning by continuity.
 
@@ -318,8 +310,7 @@ anchors carry `ChatRoomSurfaceState`; `message-footer` carries `ChatMessageSurfa
 props. `message-footer` mounts per committed message row only. Flank layout is the seam's responsibility:
 a `@container` query on the chat-content region's own inline size stacks the flank below the thread
 beneath `lg` (512px) so no consumer can crush the reading column. The flank row is always mounted and
-layout-neutral, so the room's height chain does not depend on whether any contributor is registered. With zero
-flank contributions the row holds the thread alone at full size.
+layout-neutral, so the room's height chain does not depend on whether any contributor is registered.
 
 Contributor contract types home in `packages/client/src/lib/registry-contracts.ts` (tier 4 — importable by chat and
 contributors without either importing the other).
@@ -355,13 +346,10 @@ singletons (QueryClient → tRPC client → toast manager, minted once in `packa
 nothing imports `main.tsx` (`client-nothing-imports-main`). `packages/client/src/compose/authed-app.tsx` mounts the lazy authenticated route.
 `packages/client/src/compose/authed-composition.tsx` owns its injected factory: feature definitions and contributors are imported and assembled
 (`createRegistry`/`createContributorRegistry` call sites live only under `packages/client/src/compose/`).
-`packages/client/src/compose/authed-providers.tsx` delivers the assembled registries to the `/` route's `AppRoot` and isolated component mounts. This is critical for
-one-directional flow: a contributor "registers" by being imported at the door, never by importing its
-host feature.
+`packages/client/src/compose/authed-providers.tsx` delivers the assembled registries to the `/` route's `AppRoot` and isolated component mounts. A contributor "registers" by being imported at the door, never by importing its host feature.
 
-**Boot and authenticated composition stay separate because assembly imports the feature graph,**
-which would parse the whole feature graph before the login form paints for a client that has not
-authenticated yet. `packages/client/src/routes/router.tsx` mounts the `/` component via `lazyRouteComponent`, so the
+**Boot and authenticated composition stay separate because assembly imports the whole feature graph,**
+which would parse before the login form paints for an unauthenticated client. `packages/client/src/routes/router.tsx` mounts the `/` component via `lazyRouteComponent`, so the
 assemblies and the feature graph under them are a separate chunk fetched during the route's load phase,
 after `requireAuthed()` passes. `client-compose-door-only` (dep-cruiser — only `main.tsx`,
 `packages/client/src/routes/router.tsx`, and a `compose/` sibling may import `compose/`) and `orb/registry-assembly-at-door-only` (ESLint — registry factories only under `packages/client/src/compose/`) keep this
@@ -384,8 +372,7 @@ never onto `main.tsx`'s static import list.
 
 **`app-root.tsx` is the `/` route, and it is a thin mount, never a god-map.** `AppShell` (the region
 frame) is the top structural component: shell on top, everything renders inside it. There is no "home
-page" concept — the no-selection landing is the chats section's content-none-selected state, a section
-state, not a page; a `home` section also exists (a rail entry and the persisted store's default, tiles
+page" concept — the no-selection landing is the chats section's content-none-selected state, not a page; a `home` section also exists (a rail entry and the persisted store's default, tiles
 assembled at the door, D121/D211), but a route that hand-assembles other features is still forbidden. `app-root.tsx` reads the section registry and
 stays trivial. What legitimately stays on it: the `useUserBus` mount (mounted at the root so no feature
 unmount can drop it), `AriaAnnouncer`, the `?join=` token capture plus `JoinInviteDialog`,

@@ -10,12 +10,15 @@
     // Incremental is off deliberately: the compiler decides a project is up to date from LOCAL file
     // hashes, so editing a root ambient `.d.ts` (`reset.d.ts`, `platform.d.ts`) does not invalidate
     // per-package state — a warm run reports green on a red tree. `tsc` here is noEmit-only, so
-    // incremental bought nothing but speed.
+    // incremental bought nothing but speed. The price is a cold full typecheck on every run, several times
+    // the warm cost. Upstream: https://github.com/microsoft/typescript-go/issues/2666 (stale incremental
+    // cache reports success over type errors) and https://github.com/microsoft/TypeScript/issues/36728
+    // (incremental ignores ambient-declaration changes).
     // RE-ENABLE ONLY WITH A PROOF: edit `platform.d.ts` to something that must red (deleting
     // `structuredClone` reds its ISO use sites), run typecheck WITHOUT clearing caches, and require a
     // non-zero exit. If restored: `${configDir}` is the tsconfig's own directory, so
-    // `tsconfig.json` and `tsconfig.tests-dom.json` at the repo root would share one cache file
-    // across two programs — give tests-dom its own `tsBuildInfoFile` first.
+    // `tsconfig.node.json`, `tsconfig.tests-dom.json` and `tsconfig.tests-iso.json` at the repo root would
+    // share one cache file across three programs — give each its own `tsBuildInfoFile` first.
     // tsc is the type oracle: never truncate a deep contracts/db type with `...` in a diagnostic.
     "noErrorTruncation": true,
     "skipLibCheck": false,

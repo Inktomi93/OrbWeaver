@@ -4,7 +4,7 @@ status: active
 updated: 2026-09-24
 ---
 
-# Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image)
+# Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image · extraction · media)
 
 **infra is a sealed executor.** Each adapter is a thin I/O handle a domain *injects* and calls. No adapter reaches UP into a domain, and none imports `@orb/db`; db-dependent steps are injected in. The providers execution tier lives in the `@orb/inference` package; its law is `docs/law/Tier-3b-Providers.md`.
 
@@ -14,9 +14,9 @@ Each sealed adapter is a factory returning an opaque handle. `entry/` constructs
 
 ### `infra/auth` — verification + the 4-mode dispatcher
 
-The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the loopback-peer-gated owner fallback). Owns:
+The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the peer-gated owner fallback). Owns:
 
-- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(peerIp, headers)` (a LOOPBACK TCP peer on a request with no relay tell, never the client `Host`: a proxy can rewrite `Host`, so it is not a fact about the network). ONE branch point; modes never import each other.
+- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(peerIp, headers, trustedPeers)` (a loopback or declared trusted TCP peer on a request with no relay tell, never the client `Host`: a proxy can rewrite `Host`, so it is not a fact about the network). ONE branch point; modes never import each other.
 - **JWT/JWKS verification** (`jwks.ts`) — `createOperatorKeys` (the key set from the operator's `FORWARD_AUTH_JWKS`, an https URL or a JWKS literal parsed at boot) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `packages/server/src/entry/lifecycle.ts`).
 - **The Host allowlist decision** (`host-allowlist.ts`) — `refusedHost` + the throttled `host_not_allowed` notice; `packages/server/src/entry/http/host-allowlist.ts` mounts it before the principal resolves. Deny-only (see "The Host allowlist refuses; it never admits").
 - **The pre-row `ResolvedIdentity`** — `{ externalId, handle, groups, email }` (`@orb/contracts/identity`); **NO `userId`** and NO `role` by design (infra must not know DB row ids).
@@ -46,6 +46,14 @@ The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) int
 
 `imageTransform` op injected into `domain/assets/verbs/resolve-variant` (width-snap = domain policy; sharp = infra I/O; the blob route never touches sharp). Strips ALL metadata (EXIF/GPS/XMP/ICC) while `.rotate()` bakes in orientation first; throws on non-image bytes (the validation seam assets leans on). Detail: `packages/server/src/infra/image/index.ts` header.
 
+### `infra/extraction` — the text-extraction adapter
+
+`createExtractText()` returns the one `ExtractTextOp`, `(bytes, declaredMime) → ExtractionResult`. `entry/compose` constructs it once and injects it into the databank domain, which depends only on `@orb/contracts/extraction`. Detail: `packages/server/src/infra/extraction/index.ts` header.
+
+### `infra/media` — the outbound video normalizer
+
+`createVideoPreparer(scheduleTimeout)` returns the `PrepareVideo` op that `entry/compose` injects into chat's `mediaProcessing`; it spawns the packaged ffmpeg to normalize outbound video. Detail: `packages/server/src/infra/media/index.ts` header.
+
 NOT owned: identity RESOLUTION + the `users` upsert (→ `domain/sessions`); the auth seam (→ `packages/server/src/entry/auth/seam.ts`); cookie I/O + mint routes (→ `packages/server/src/entry/http/auth-routes.ts`); the OIDC PKCE transaction store (db-backed `oidc_transactions` → `packages/server/src/domain/sessions/persistence/oidc-store.ts` — a db import CANNOT live in sealed infra); the AAD value (→ credentials); the assets INDEX/GC/variant policy (→ `domain/assets`); `isAssetHash` (a `@orb/kit/assets` pure guard storage imports DOWN as its path-traversal defense).
 
 ## The sealed-executor invariant
@@ -64,6 +72,8 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 | `refusedHost` + `createHostNotAllowedNotice` | `packages/server/src/entry/app.ts` via `packages/server/src/entry/http/host-allowlist.ts` | Hono chain, before the principal middleware |
 | `Cas` / `VariantCache` | `entry/` | `assets.context`, export, the blob route |
 | `imageTransform` | `entry/` | `assets.resolve-variant` |
+| `createExtractText()` | `packages/server/src/entry/compose/services.ts` | the databank domain's `extractText` |
+| `createVideoPreparer()` | `packages/server/src/entry/compose/services.ts` | chat's `mediaProcessing.prepareVideo` |
 | `resolve` + `ResolveDeps` | `packages/server/src/entry/auth/seam.ts` | the seam calls infra; deps injected into infra |
 
 ## Spine intersections
@@ -92,7 +102,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 **CSRF: infra PRODUCES the signal, the gate is SPLIT above it.** Infra yields `via` + `hasCsrfHeader`; enforcement lives at the seam + the route/procedure ladder, split by content-type: the four CORS-simple byte-ingest routes gate `via !== "header"` (cookie AND the loopback fallback both need `x-orb-csrf`), tRPC keys on `cookie` only. `SameSite=Lax` + the custom header is the whole CSRF story; that split and the OPEN tRPC finding live in `Spine-Identity-and-Auth.md` invariant 9, which is that gate's one home.
 
-**The owner-fallback gate reads the raw LOOPBACK TCP PEER, never the `Host` header.** `ownerFallbackAllowed(peerIp, headers)` (`dispatch.ts`) is true iff the socket peer is in `127.0.0.0/8`/`::1` — the unspoofable value the kernel reports — and the request carries no relay tell; `undefined` fails closed. It is ONE rule across all four modes, **`single-user` included: its fallback is not unconditional**, so a non-loopback caller in single-user authenticates nobody and 401s. The old Host/trusted-ranges gate and its TRUSTED_LOCAL_HOSTS env are deleted: a client-supplied `Host:` is never a fact about the network — a proxy/vite `changeOrigin` hop can launder a LAN request into a loopback-looking Host — so the gate must not read it.
+**The owner-fallback gate reads the raw TCP peer, never the `Host` header.** `ownerFallbackAllowed(peerIp, headers, trustedPeers = [])` (`packages/server/src/infra/auth/dispatch.ts`) is true iff the request carries no relay tell and the socket peer — the unspoofable value the kernel reports — is in `127.0.0.0/8`/`::1` or inside one of `trustedPeers`; `undefined` fails closed. `trustedPeers` is the launch-only `AUTH_FALLBACK_TRUSTED_PEERS` set (ADR 0255, `docs/law/container-deployment-security.md`): `resolve` passes `config.fallbackTrustedPeers`, and the empty default is the loopback-only rule. It is ONE rule across all four modes, **`single-user` included: its fallback is not unconditional**, so a caller outside the admitted set in single-user authenticates nobody and 401s. Three call sites pass no trusted peers and stay loopback-only: the `/healthz` build identity (`packages/server/src/entry/app.ts`, ADR 0076), the local first-run claim with its `localFirstRun` flag (`packages/server/src/entry/http/app.ts`), and the OIDC owner-claim proof (`ownerClaimProven` in `packages/server/src/entry/http/auth-routes.ts`, D258). A client-supplied `Host:` is never a fact about the network — a proxy/vite `changeOrigin` hop can launder a LAN request into a loopback-looking Host — so the gate must not read it.
 
 **A relayed request is never the operator.** A same-host proxy or tunnel (cloudflared, `tailscale serve`, Caddy or nginx on `127.0.0.1`) makes every external request a loopback peer. `forwarded.ts::hasForwardingHeader` refuses the fallback, on every peer and in every mode, when any of `forwarded`, `x-forwarded-for`, `x-real-ip`, `cf-connecting-ip`, `x-forwarded-proto` or `x-forwarded-host` is present; presence is the signal, never the value. The refusal logs one `owner_fallback_relayed` line per TCP peer per hour (`relay-notice.ts`), because a tunnel sends every visitor from one peer. The same predicate gates the local first-run owner-password claim and its `localFirstRun` flag. The dev vite proxy sends none of these, because it does not set http-proxy's `xfwd` option. The guard fails open for a relay that sends no forwarding header, which is why prod + an SSO mode + `AUTH_FALLBACK=owner` stays boot-fatal in `foundation/env` unless `AUTH_BREAK_GLASS=true`.
 

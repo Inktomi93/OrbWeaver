@@ -1,16 +1,13 @@
 // The "Add document" dialog — all three ingestion paths in ONE shell modal body, with a local mode toggle
 // (Upload · Paste · Link) swapping the body through a `Record<AddMode, ReactElement>` dispatch so a new mode
-// fails tsc (§5.5). Carried in SHAPE from `legacy-main:components/add-document-dialog.tsx`
-// ("the three-mode toggle + the conditional caption-language field is right"),
-// with the two named corrections the spec files against it:
+// fails tsc (§5.5). Two rules the spec files against it:
 //
-//  · THE UPLOAD CAP IS DERIVED, NEVER A LITERAL (§2.2). Legacy spelled `MAX_UPLOAD_BYTES = 20_971_520`,
-//    which was defensible then (`@orb/contracts/uploads` did not exist on legacy-main) and is wrong now:
+//  · THE UPLOAD CAP IS DERIVED, NEVER A LITERAL (§2.2). A literal byte cap is wrong:
 //    the caps catalog is served on `/api/auth/config` and an admin override may TIGHTEN it below the route
 //    ceiling. `useUploadCaps().databankUpload` is the live read.
 //  · `outcome:'duplicate'` IS SURFACED, NEVER SWALLOWED (§4). The server dedups on `(ownerId, importHash)`
-//    and returns the EXISTING document with `ingest:'skipped'`; legacy opened it as if freshly created, so
-//    re-adding a file you already had looked like a successful import that silently made no new row. Same
+//    and returns the EXISTING document with `ingest:'skipped'`; opening it as if freshly created would make
+//    re-adding a file you already had look like a successful import that silently made no new row. Same
 //    for `warning:'empty-extraction'` (a scanned image-only PDF): the row's derived `Empty` chip alone
 //    reads as a bug, so the moment of creation says it in words.
 //

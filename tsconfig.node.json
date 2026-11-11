@@ -17,7 +17,7 @@
     "stylelint-rules.ts",
     "stylelint-custom-properties.ts",
     // Depth-2 files only — a wildcard include matches files, not directory recursion: this names the
-    // per-package build and config scripts. Package `src` and `dist` enter the program via imports.
+    // per-package build and config scripts. Package `src` enters the program through imports.
     "packages/*/*",
     "scripts/**/*.ts",
     "scripts/**/*.mts",

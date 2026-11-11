@@ -57,15 +57,16 @@ Code comments cite the numbered invariants below as "invariant N":
    amends this clause's earlier wording). The seam resolves which row through `ownerHandles()`
    (resolution-tier policy, never verification's `DEFAULT_USER_HANDLE` placeholder) and reads
    `users.role` off that row through the same `createHostPrincipalResolver` the frozen-host bridge uses.
-   The security boundary is `ownerFallbackAllowed`, which gates on the raw loopback TCP peer — the
+   The security boundary is `ownerFallbackAllowed`, which gates on the raw TCP peer, loopback or inside the
+   launch-only `AUTH_FALLBACK_TRUSTED_PEERS` set (ADR 0255; empty by default) — the
    socket, never the client-supplied `Host` header — one rule across all four modes, including
    `single-user`. A `Host`-based gate would hand owner to anyone who can reach the port: forging
    `Host: 10.x.x.x` claims a trusted LAN range outright, and a proxy's `changeOrigin` can separately
    launder a LAN request into a loopback-looking `Host` header. Gating on the peer closes both routes,
-   so every proxied or LAN request must authenticate, and SSO is mandatory everywhere Caddy fronts. A
+   so every proxied or LAN request outside that set must authenticate, and SSO is mandatory everywhere Caddy fronts. A
    same-host proxy or tunnel still arrives on a loopback socket, so the gate also refuses any request
    that carries a relay tell (`packages/server/src/infra/auth/forwarded.ts`), on every peer and in every mode. The local
-   first-run owner-password claim and its `localFirstRun` flag use the same gate. The role is read, not stamped, so a request Principal and the frozen-host Principal for
+   first-run owner-password claim and its `localFirstRun` flag use the same predicate with no trusted peers, so they stay loopback-only; so do the `/healthz` build identity (ADR 0076) and the OIDC owner-claim proof (D258). The role is read, not stamped, so a request Principal and the frozen-host Principal for
    the same caller cannot disagree.
 8. **Sessions: the raw cookie token is never stored** (a peppered HMAC-SHA-256 `token_hash` is the
    validate lookup key); `sessions.validate` re-checks revoked/expired/`users.enabled` per request, so a

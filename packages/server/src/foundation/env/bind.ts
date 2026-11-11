@@ -1,6 +1,6 @@
 // The BIND POSTURE resolver — the deploy-mode invariant: A NON-PRODUCTION PROCESS MUST NOT BE REACHABLE
-// FROM AN UNTRUSTED NETWORK. Pure (raw values injected, no `process.env` read here), the `diagnostics.ts` /
-// `fallback-peers.ts` shape: a resolver + a refusal + a warning list, all unit-testable. `foundation/env` owns
+// FROM AN UNTRUSTED NETWORK. Pure (raw values injected, no `process.env` read here): a pure resolver plus a
+// warning list, both unit-testable. `foundation/env` owns
 // the ONE process.env read and calls this with its parsed floor; `entry/lifecycle` binds to the result.
 //
 // ── WHY THIS FILE EXISTS (the 2026-08-09 incident) ────────────────────────────────────────────────────────

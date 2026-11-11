@@ -653,7 +653,7 @@ const workloadsSchema = z
 const onboardingSchema = z
   .object({
     // NOTE: `personaWizardSeen` was DELETED (2026-07-26, Phase B ⑥ / D107): it was defined here but READ +
-    // WRITTEN by nothing (even in legacy-main). The first-run persona gate triggers on zero owned personas
+    // WRITTEN by nothing. The first-run persona gate triggers on zero owned personas
     // (features/persona/anchors/first-run-persona-dialog.tsx), never on a "seen" flag — the rateLimits.general
     // dead-field precedent. A stored blob's stale `personaWizardSeen` is stripped by zod (unknown key); the
     // sibling seeded-flags below are consumed.

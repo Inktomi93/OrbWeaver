@@ -65,7 +65,7 @@ kit ─┬─→ contracts ─┬─→ db ─→ server          (backend branc
 
 - **`@orb/ui` is domain-agnostic** — it knows `Button`/`Dialog`/`Chart`, NEVER `Character`/`Chat`. Domain-aware components (a `<CharacterCard>`, a `<MessageRow>`) live in `client/features`, built FROM `@orb/ui` primitives + `@orb/contracts` *types* (type-only). This is the seam.
 - **`@orb/client` imports** `@orb/ui` (runtime), `@orb/contracts` (type-only), `@orb/kit` (pure utils: ids, tokens, time).
-- **`#` subpath imports intra-package, package deps cross-package, ZERO `@/` aliases** (the shadcn `@/` tax is gone).
+- **`#` subpath imports intra-package, package deps cross-package, ZERO `@/` aliases**.
 
 #### 1.1 The headline win — neo's lint rules become package physics
 
@@ -140,7 +140,7 @@ packages/client/
     styles/ globals.css · test-ids.ts in lib/ (§11.5)
 ```
 
-- **Why not FSD:** `@orb/ui` already IS the shared-component layer; the `entities/` layer overlaps the feature concept and adds ceremony neo's flat slice never needed.
+- **Why not FSD:** `@orb/ui` already IS the shared-component layer; the `entities/` layer overlaps the feature concept and adds ceremony.
 
 ### 3. Tokens — DTCG single source, derived theme
 
@@ -151,7 +151,7 @@ The highest-leverage enforcement move, engine-agnostic:
 - The Tailwind theme is therefore **DERIVED, never hand-authored**; "add a token" has one home.
 - The scale includes a **container-breakpoint scale** (`--container-cq-<rem>`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D294 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
 - **STACKING ORDER lives in the `z` block of `tokens.json` and NOWHERE ELSE.** No other doc defines an ordering; the values are the law — `base 0 < raised 10 < overlay 40 < modal 50 < popover 65 < toast 68 < tooltip 70` — with each non-obvious rank carrying its reason in that token's own `$description` (see `z.toast`). Re-ranking a tier is a `tokens.json` edit + `pnpm --filter @orb/ui tokens:build`, never a per-component z override.
-- **STACKING SCOPE — where a tier may be used — is the second fact.** Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant. These placement constraints remain product architecture law.
+- **STACKING SCOPE — where a tier may be used — is the second fact.** Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant.
 - **A sheet `z-index` is a `--z-*` step, a one-step offset, or a `-1`/`0`/`1` pseudo-element layer.** `Z_INDEX_VALUES` in `stylelint-rules.ts` holds the forms. An offset names its neighbour in a comment. A pseudo-element's host is its own stacking scope, except a blend layer, which states why.
 
 **DEFERRED-with-a-default (token enforcement level):** default = Tailwind v4 + DTCG + the raw-value gates (sufficient). **Panda CSS `strictTokens`** (raw value = `tsc` error) is the deferred upgrade — adopt only if gate-bypass becomes a real, observed problem; the same DTCG source wires into Panda `theme.tokens`. (ledger D42.)
@@ -172,7 +172,7 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 - **Viewport `@media` is allowed ONLY in `app-shell`** (the shell tier). Capability and preference queries (`pointer`, `hover`, `prefers-*`) live in the token and shell layers (§4b axis 3). The `VIEWPORT_CLASSES` pattern in `eslint.config.ts` (`better-tailwindcss/no-restricted-classes`) also refuses viewport breakpoint class spellings outside `app-shell`.
 - **`@orb/ui/layout` owns `container-type`** — feature code never writes raw `container-type`/`-name` or the `@container` utility (`orb/no-raw-container-in-features`); it uses `<Container name size>`, or the `container` prop of `Section` and `Stack` (`container="size"` also contains the block axis). Default `container-type: inline-size`.
 - **A surface declares no container; an anchor always provides one.** `orb/surface-consumes-container` refuses `<Container>`, the `container` prop and an outer `Dialog`, `AlertDialog` or `Drawer` root in `surfaces/`. `orb/anchor-provides-container` requires each `anchors/` file to render a container owner, or the dialog box it anchors (a `*Dialog` or `*Drawer` element). Both rules resolve a JSX name through its import: an alias or a re-export counts, a same-named local component does not.
-- **An anchor sits inside its surface when the surface owns an outer box the container must measure inside.** The home grid, the persona popover, the extensions page and the room's thread-and-flank row each have a scroller inset, popup or page element of their own. Their anchor renders inside it, so the query reads the width left after that inset. The `anchors/` file still provides the container; the surface still declares none.
+- **An anchor sits inside its surface when the surface owns an outer box the container must measure inside.** The home grid, the persona popover, the extensions page and the room's thread-and-flank row each own such an element; their anchor renders inside it, so the query reads the width left after the inset. The `anchors/` file still provides the container; the surface still declares none.
 - **Density is a SEPARATE axis** from container size: `data-density="comfortable|compact"` (a user pref, attribute-driven) vs the container query (layout space). A component reads both; neither is a prop.
 
 #### 4.1 The shell — the rail + collapsible panels (D55)
@@ -188,7 +188,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             in view (`packages/client/src/features/app-shell/hooks/use-rail-sections-fit.ts`).
             `SECTION_IDS` (`packages/client/src/state/section-ids.ts`, re-exported by `shell-store.ts`) is the
             truth for which sections exist, and its ORDER is the rail's:
-            Home (the Weave glyph IS its affordance — the brand cell is a real named button; below 48rem the cell hides and home rides the mobile bar as its FIRST tab) | grouped by --spacing-section dividers: Chats · Characters · Corpus (primary; `corpus` is the SECTION/feature name — the owning DOMAIN is `discovery`; its Explore · Insights · Labels modes compose the `stats` and `tag` surfaces through the door) | Plugin pages · Databank · Presets · Refinery (authoring group, after the Configuration section, which sits at the rail foot — Configuration is the roster of the LIBRARIES the others are built from; Plugin pages is ONE entry for the whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty rather than hidden-until-populated, because a hidden entry makes the platform undiscoverable; Databank is the other library you author INTO — files/pages/pasted text, indexed for retrieval) → spacer → Settings (the Configuration section) · persona Identity. The CEILING is a rule about KIND, not a count (D121): a rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs, preferences and one-shots go to modals/settings.
+            Home (the Weave glyph IS its affordance — the brand cell is a real named button; below 48rem the cell hides and home rides the mobile bar as its FIRST tab) | grouped by --spacing-section dividers: Chats · Characters · Corpus (primary; `corpus` is the SECTION/feature name — the owning DOMAIN is `discovery`; its Explore · Insights · Labels modes compose the `stats` and `tag` surfaces through the door) | Plugin pages · Databank · Presets · Refinery (authoring group, after the Configuration section, which sits at the rail foot — Configuration is the roster of the LIBRARIES the others are built from; Plugin pages is ONE entry for the whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty rather than hidden-until-populated, because a hidden entry makes the platform undiscoverable) → spacer → Settings (the Configuration section) · persona Identity. The CEILING is a rule about KIND, not a count (D121): a rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs, preferences and one-shots go to modals/settings.
             The rail renders ONE assembled chrome registry
             (`assembleChrome` in `packages/client/src/compose/authed-composition.tsx` → `CHROME_ZONES`, zones-as-data off `RAIL_ZONES` in
             `section-registry.ts`): `rail.brand` = the Home brand cell, `rail.nav` = section entries derived from each `SectionDefinition.rail`,
@@ -242,7 +242,7 @@ Labels uses one visible word for manual labels. Its Usage rail retains the share
 
 - **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28).
 - **Each side panel has a 3-state model** in the shell store: **`docked`** · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`**. Per-panel, persisted, auto-`overlay` below a width breakpoint (the one app-shell `@media`).
-- **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** Each panel has its own toggle; nothing else hides both at once. A desktop panel opens and closes from one `PanelEdgeControl` (`packages/client/src/components/panel-edge-control.tsx`) at its header row's screen-edge corner. One node serves docked and collapsed, so it never moves under the pointer. The topbar carries no panel toggle on a desktop. On a desktop the control stays in place while its panel floats as a sheet and is that sheet's one dismiss. A phone sheet carries its own dismiss; a phone keeps its doors in the topbar. The control sits in the document beside its panel, so the keyboard reaches it where it is drawn. The §11.1 clamp-overlay is the `overlay` mechanism.
+- **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** Each panel has its own toggle; nothing else hides both at once. A desktop panel opens and closes from one `PanelEdgeControl` (`packages/client/src/components/panel-edge-control.tsx`) at its header row's screen-edge corner. One node serves docked, collapsed and floating-sheet states, so it never moves under the pointer, and it is the sheet's one dismiss. The topbar carries no panel toggle on a desktop. The control sits in the document beside its panel, so the keyboard reaches it where it is drawn. A phone sheet carries its own dismiss, and a phone keeps its doors in the topbar. The §11.1 clamp-overlay is the `overlay` mechanism.
 - **A migrating ST user loses nothing:** swipes · edit-in-place · branch/fork · italics-narration · hide-from-AI all live in the CONTENT thread, identical regardless of chrome.
 
 ##### 4.1a The shell's stacking contract — three things, and only one of them is a paint order
@@ -251,7 +251,7 @@ This subsection defines no ORDER (that is the `z` scale, §3) — only which of 
 
 1. **The PROVIDER layer is not a paint layer.** `TooltipProvider` and `PortalContainerContext` wrap the shell and render no element; `ThemeScope` renders one at `display: contents`; `RegionAnchor`'s dev `RenderProfiler` renders none. None generates a box, so none appears in the paint order — never draw a provider or a profiler into a z diagram.
 2. **The SHELL scope is isolated.** `.shell-grid` carries `isolation: isolate`, so every z-index written in `shell.css` orders that box's own children (rail · CONTENT · scrim · panels) and nothing outside it. The shell may therefore use only `in-context` and `app-frame` tiers; naming a `portal-float` token there mis-states the reach.
-3. **The PORTAL-FLOAT scope is where cross-boundary order is decided.** Dialogs, the ⌘K palette, menus, tooltips and toasts portal to `[data-slot="portal-root"]` — the grid's `display: contents` SIBLING — and paint in the document's own stacking context, above the whole shell. **A float escapes by MOUNT POSITION, never by z-index escalation.** The carrier stays box-less deliberately: giving it isolation or a z-index would mint a context the floats must then escape in turn. Its ordering-among-themselves is the token scale, and the reason the scale exists is that DOM/mount order alone does not survive a mount-order change — that is the mechanism to reach for when something must cover the frame.
+3. **The PORTAL-FLOAT scope is where cross-boundary order is decided.** Dialogs, the ⌘K palette, menus, tooltips and toasts portal to `[data-slot="portal-root"]` — the grid's `display: contents` SIBLING — and paint in the document's own stacking context, above the whole shell. **A float escapes by MOUNT POSITION, never by z-index escalation.** The carrier stays box-less deliberately: giving it isolation or a z-index would mint a context the floats must then escape in turn. Their order among themselves is the token scale, because mount order alone does not survive a mount-order change.
 
 #### 4.2 The region map — what lives where (ledger D62)
 
@@ -267,11 +267,8 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 | User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed) | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin · This install, the member-visible install version) + COLLECTIONS shelf (Regex scripts · World Info · **Rosters** — the ruled word for the saved seats+knobs+rules template; `ROSTER_COLLECTION_ID = "rosterPreset"`) + EXTENSIONS shelf (Plugins). Generation config is the Presets section, not settings. (No Account PANE — Account is the persona switcher's head and foot below.) |
 | Identity widget | persona `rail.end` chrome (`personaChrome` in `packages/client/src/features/persona/lib/persona-chrome.tsx`) | the persona switcher + Account strip; the account facts (handle · role · sign-out) are `PersonaAccountFoot` (`packages/client/src/features/persona/components/persona-account-foot.tsx`), NOT a settings pane and NOT a modal (§B, You ⊃ Identity) |
 
-Every non-collection group in the `config` SECTION is a `sections` SKIMMER over the D120 contribution seam.
-
 > \[!NOTE]
-> Ledger D66 (A1/A2) amends the LIST "header row": it is the shared `.shell-panel-header` band on the
-> `--dimension-chrome-row` baseline, and its create affordance is the panel's ONE `primary` **New** button, not a ghost `+`. D66 wins on conflict.
+> D66 (A1/A2) amends the LIST "header row": it is the shared `.shell-panel-header` band on the `--dimension-chrome-row` baseline, and its create affordance is the panel's ONE `primary` **New** button, not a ghost `+`. D66 wins on conflict.
 
 Per-section grid:
 
@@ -309,11 +306,11 @@ These are product rules. D333 ends custom static UI enforcement; native tests an
 5. **LIST finds; CONTENT does.** Every LIST panel composes header row → search → `ListRow`s.
 6. **Keyboard first.** ⌘K reaches every section/recent/create; Esc closes the top layer; focus is visible everywhere and lands correctly on open.
 7. **Perceived performance.** Optimistic send, shape-matched skeletons, streaming text as the arrival motion. Never a centered spinner; never layout shift on data arrival.
-8. **Empty, loading, error are designed states** — every surface ships all three (the `QueryBoundary` battery forces the slots; D62 makes them worth looking at).
+8. **Empty, loading, error are designed states** — every surface ships all three (the `QueryBoundary` battery forces the slots).
 9. **Chrome is quiet; content is loud.** Micro-caps muted section labels; mono data accents; the accent color on ≤10% of any viewport. If a screenshot's loudest element is chrome, the hierarchy is inverted.
 10. **Same action, same home** — this rule is the ONE HOME of the more-than-one-door IA class. One store action / verb per action regardless of entry point; identical label + icon everywhere (icon home = the registry). The structural half: one tRPC mutation invoked from more than one component inside a SINGLE rail section is the same verb wearing N doors on a plane the user sees whole — D333 ends custom multi-door enforcement and reviewed grants; keep the action and label consistent across controls. Cite THIS rule for the class; `client-architecture-state-and-gates.md` §13 is the event/sync spine, not this rule's home.
 
-**Voice table:** section labels = `Text` micro-caps (10.5px equiv token, weight 600, tracked) · data accents (scores, counts, timestamps, kbd) = mono · labels and chips sentence-case · one ellipsis character `…`, never three dots, and a search placeholder ends in it · a section's list-search placeholder is `listSearchPlaceholder` on its entry in the section registry (`packages/client/src/state/section-registry.ts`), read by that section's list, distinct per `SectionId` and asserted over the real registry in `tests/client/state/registry-definitions.dom.test.ts`; every other placeholder is owned by its feature · caps is a label voice and prose never borrows it: a clause that needs both splits into a caps label and a sentence-case gloss, and `Text` has no case axis. The Weave glyph appears at most ONCE per screen, only in empty states / loading / corpus.
+**Voice table:** section labels = `Text` micro-caps (10.5px equiv token, weight 600, tracked) · data accents (scores, counts, timestamps, kbd) = mono · labels and chips sentence-case · one ellipsis character `…`, never three dots, and a search placeholder ends in it · a section's list-search placeholder is `listSearchPlaceholder` on its entry in `packages/client/src/state/section-registry.ts`, distinct per `SectionId` (asserted in `tests/client/state/registry-definitions.dom.test.ts`); every other placeholder is owned by its feature · caps is a label voice and prose never borrows it: a clause that needs both splits into a caps label and a sentence-case gloss, and `Text` has no case axis. The Weave glyph appears at most ONCE per screen, only in empty states / loading / corpus.
 
 ### 4a. React 19 / 19.2 — platform leverage (use these, skip those)
 
@@ -325,10 +322,10 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 - **`<Activity>` for the single-route panes.** Keep a pane mounted-but-hidden on flip-away (chat ⇄ library) so returning is instant with scroll + form state intact (§4.2 interaction physics, rule 2), replacing unmount/remount. Two companion rules: (1) on `hidden→visible` restore focus to the pane's stable anchor (its header) — a WCAG obligation, since focus dies silently on hide; (2) hide-coupled DOM work (scroll-position capture, media pause) runs in `useLayoutEffect`, not a passive `useEffect` cleanup, which runs too late.
 - **`useEffectEvent` is THE fix for the effect footguns** — separates an effect's non-reactive part from its deps. Prefer it over ref-juggling.
 - **`useDeferredValue` for every search/filter-over-collection surface** (library grid · corpus search · tag/world-info filters): the input stays responsive while the filtered list lags a frame behind. Pass `initialValue`. `startTransition` wraps pane *switches*; `useDeferredValue` absorbs derived-*list* churn; neither is a debounce hack. (§13.2 row.)
-- **View Transitions API for single-route navigation** — hand-rolled `document.startViewTransition()` (the router's built-in VT fires only on the `/`↔`/login` commit, never on in-app section switches — §6.1 trap 2). Pairs with `<Activity>`; utilities live in `@orb/ui` styles. A dynamic `view-transition-name` must be a valid CSS custom-ident: `useId` output is safe (`_r_` prefix); an entity-id-derived name must be sanitized.
+- **View Transitions API for single-route navigation** — hand-rolled `document.startViewTransition()` (the router's built-in VT fires only on the `/`↔`/login` commit, never on in-app section switches — §6.1 trap 2). Utilities live in `@orb/ui` styles. A dynamic `view-transition-name` must be a valid CSS custom-ident: `useId` output is safe (`_r_` prefix); an entity-id-derived name must be sanitized.
 - **`ref` as a prop (no `forwardRef`)** — biome-enforced (`noReactForwardRef`).
 - **Resource preloading (`preload`/`preinit`) where the need is predictable** — preinit the palette CSS on theme switch (kills the FOUC), preload the code-editor/Shiki chunk when a code block is likely. Measured wins only, never speculative sprays.
-- **Chrome Performance Tracks (Scheduler + Components lanes) are the verification tool for this doc's priority claims** — confirm a pane switch renders in the Transition lane (not Blocking) and Stop stays responsive mid-stream.
+- **Chrome Performance Tracks (Scheduler + Components lanes) verify this doc's priority claims** — confirm a pane switch renders in the Transition lane (not Blocking) and Stop stays responsive mid-stream.
 
 **The View-Transition CONTRACT — what is captured, what stays live, and how long a float lives.**
 
@@ -342,7 +339,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 - **React 19 form Actions / `useActionState` / `useFormStatus`** — TanStack Form owns form state (§6.1).
 - **`useOptimistic`** — TanStack Query's optimistic flow owns it (§13.1). No second path.
 - **`<form action>` / server actions** — orbweaver is tRPC + Query.
-- **`use()` on raw promises** — `useSuspenseQuery`/`useSuspenseQueries` (§13.1) own suspend-on-async; `use()` over a hand-made fetch promise reinvents Query's cache with none of its invalidation. (Conditional `use(Context)` is legal React but rarely needed here.)
+- **`use()` on raw promises** — `useSuspenseQuery`/`useSuspenseQueries` (§13.1) own suspend-on-async; `use()` over a hand-made fetch promise reinvents Query's cache with none of its invalidation.
 
 **BASELINE (non-negotiable):** WCAG 2.2 AA (4.5:1 body contrast · visible focus · keyboard-operable · persistent labels — much of it free from Base UI), and `prefers-reduced-motion` respected on every transition/animation.
 
