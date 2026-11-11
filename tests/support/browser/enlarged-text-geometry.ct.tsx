@@ -1,8 +1,9 @@
 // @subject tests/support/browser/enlarged-text-geometry.ts
 // The probe's planted cases: a control under the boot veil or a closed dialog's leaving backdrop is read once the layer has left, a backdrop
 // that never leaves fails the probe by its path, a control under a standing panel or an open dialog still fails, a scroller that scrolls sideways names the descendant that widens it,
-// a control's own value cut with an ellipsis fails while a list row title the design truncates does not, and a declared overlay is
-// named apart while an undeclared one, or the declared control over a control the declaration does not cover, still fails.
+// a control's own value cut with an ellipsis fails while a list row title the design truncates does not, and an overlay both sides
+// declare is named apart while every other overlay still fails: one side or neither declared, two relations, a control outside the pair's
+// parent, two controls of one declaring box, and a declaring box's control over a plain control beside the pair.
 import { expect, test } from "@playwright/test";
 import type { ComponentProps } from "react";
 import { enlargedTextFindings, enlargedTextGeometry } from "./enlarged-text-geometry.ts";
@@ -183,27 +184,70 @@ test("the probe reports no sideways finding for a scroller its content fits", as
 const OVERLAY_STORY = "tests/support/browser/surface-design-fixtures/SurfaceDeclaredOverlayStory";
 const OVER_CELL = /^button "Covered cell" \[.*\] overlaps button "Corner control" \[.*\]/u;
 const OVER_NEXT = /^button "Corner control" \[.*\] overlaps button "Next cell" \[.*\]$/u;
+const DECLARED_OVER_CELL = new RegExp(`${OVER_CELL.source}, declared theme-menu-over-cell$`, "u");
+const UNDECLARED_OVER_CELL = new RegExp(`${OVER_CELL.source}$`, "u");
 
 test("the probe names a declared overlay by its relation and reports no finding for it", async ({ mount, page }) => {
-  await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { declare: "declared" });
+  await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { over: true, under: "same", layout: "corner" });
   await expect(page.getByRole("button", { name: "Corner control", exact: true })).toBeVisible();
   const geometry = await enlargedTextGeometry(page.getByRole("main"));
   expect(geometry.findings).toEqual([]);
-  expect(geometry.declaredOverlays).toEqual([expect.stringMatching(new RegExp(`${OVER_CELL.source}, declared theme-menu-over-cell$`, "u"))]);
+  expect(geometry.declaredOverlays).toEqual([expect.stringMatching(DECLARED_OVER_CELL)]);
 });
 
 test("the probe still fails the same overlay when no box declares it", async ({ mount, page }) => {
-  await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { declare: "none" });
+  await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { over: false, under: "none", layout: "corner" });
   await expect(page.getByRole("button", { name: "Corner control", exact: true })).toBeVisible();
   const geometry = await enlargedTextGeometry(page.getByRole("main"));
-  expect(geometry.findings).toEqual([expect.stringMatching(new RegExp(`${OVER_CELL.source}$`, "u"))]);
+  expect(geometry.findings).toEqual([expect.stringMatching(UNDECLARED_OVER_CELL)]);
   expect(geometry.declaredOverlays).toEqual([]);
 });
 
+// A declaration names both sides of the overlay: one side declared alone, or the two sides declaring different relations, is no design.
+for (const [over, under] of [
+  [false, "same"],
+  [true, "none"],
+  [true, "other"],
+] as const) {
+  test(`the probe still fails the overlay when the corner ${over ? "declares" : "does not declare"} and the cell declares ${under}`, async ({
+    mount,
+    page,
+  }) => {
+    await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { over, under, layout: "corner" });
+    await expect(page.getByRole("button", { name: "Corner control", exact: true })).toBeVisible();
+    const geometry = await enlargedTextGeometry(page.getByRole("main"));
+    expect(geometry.findings).toEqual([expect.stringMatching(UNDECLARED_OVER_CELL)]);
+    expect(geometry.declaredOverlays).toEqual([]);
+  });
+}
+
 test("the probe still fails a declared control over a control outside its declaring box's parent", async ({ mount, page }) => {
-  await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { declare: "foreign" });
+  await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { over: true, under: "same", layout: "foreign" });
   await expect(page.getByRole("button", { name: "Next cell", exact: true })).toBeVisible();
   const geometry = await enlargedTextGeometry(page.getByRole("main"));
   expect(geometry.findings).toEqual([expect.stringMatching(OVER_NEXT)]);
-  expect(geometry.declaredOverlays).toEqual([expect.stringMatching(new RegExp(`${OVER_CELL.source}, declared theme-menu-over-cell$`, "u"))]);
+  expect(geometry.declaredOverlays).toEqual([expect.stringMatching(DECLARED_OVER_CELL)]);
+});
+
+test("the probe still fails two controls of one declaring box that overlap each other", async ({ mount, page }) => {
+  await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { over: true, under: "same", layout: "twin" });
+  await expect(page.getByRole("button", { name: "Twin control", exact: true })).toBeVisible();
+  const geometry = await enlargedTextGeometry(page.getByRole("main"));
+  // The twin's hit area also takes the first control's centre; both readings name the same defect.
+  expect(geometry.findings).toEqual([
+    expect.stringMatching(/^button "Corner control" \[.*\] is covered at its centre by button "Twin control" /u),
+    expect.stringMatching(/^button "Corner control" \[.*\] overlaps button "Twin control" \[.*\]$/u),
+  ]);
+  expect(geometry.declaredOverlays).toEqual([
+    expect.stringMatching(DECLARED_OVER_CELL),
+    expect.stringMatching(/^button "Covered cell" \[.*\] overlaps button "Twin control" \[.*\], declared theme-menu-over-cell$/u),
+  ]);
+});
+
+test("the probe still fails a declaring box's second control over a control of the same parent that no box declares", async ({ mount, page }) => {
+  await mount<typeof SurfaceDeclaredOverlayStory>(OVERLAY_STORY, { over: true, under: "same", layout: "uncovered" });
+  await expect(page.getByRole("button", { name: "Second corner control", exact: true })).toBeVisible();
+  const geometry = await enlargedTextGeometry(page.getByRole("main"));
+  expect(geometry.findings).toEqual([expect.stringMatching(/^button "Plain cell" \[.*\] overlaps button "Second corner control" \[.*\]$/u)]);
+  expect(geometry.declaredOverlays).toEqual([expect.stringMatching(DECLARED_OVER_CELL)]);
 });

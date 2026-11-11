@@ -24,8 +24,8 @@ export interface Cohort {
   readonly defects?: Readonly<Record<string, readonly string[]>>;
   /** Values a ruling allows beside the majority: column to value to the cited ruling. They are no outlier. */
   readonly kept?: Readonly<Record<string, Readonly<Record<string, string>>>>;
-  /** Members a ruling allows to differ, whatever their value: column to member path to the cited ruling. They are no outlier and no defect. */
-  readonly keptSites?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /** One member per path a ruling allows to differ, whatever the majority: column to member path to the value it keeps. It is no outlier and no defect. */
+  readonly keptSites?: Readonly<Record<string, Readonly<Record<string, KeptSite>>>>;
   /** Rulings for named members of a file that holds many: column to the reads each ruling covers. They are no outlier and no defect. */
   readonly keptReads?: Readonly<Record<string, readonly KeptRead[]>>;
   /** Per column: read straight off the syntax, or inferred from it. A column absent here is unlabelled. */
@@ -42,10 +42,20 @@ export interface KeptRead {
   readonly reason: string;
 }
 
+/**
+ * A ruling for the first member, in line order, at its path that holds `value`.
+ *
+ * @remarks A member there with another value, or a second member with this one, is judged like any other.
+ */
+export interface KeptSite {
+  readonly value: string;
+  readonly reason: string;
+}
+
 /** A non-majority value, or one member's value, that a ruling allows, with the members it covers and the ruling's citation. */
 export interface KeptValue {
   readonly value: string;
-  /** The member's path for a site ruling; null for a value ruling. */
+  /** The member's `path:line` for a site or read ruling; null for a value ruling. */
   readonly at: string | null;
   readonly count: number;
   readonly reason: string;
@@ -72,7 +82,7 @@ export interface Comparison {
   readonly outliers: readonly Outlier[];
   /** Members holding a value the cohort names a defect, whatever the majority. */
   readonly defects: readonly Outlier[];
-  /** Non-majority values and members the cohort's `kept` and `keptSites` rulings allow; empty when it names none. */
+  /** Non-majority values and members the cohort's `kept`, `keptSites` and `keptReads` rulings allow; empty when it names none. */
   readonly kept: readonly KeptValue[];
   readonly informational: boolean;
   readonly basis: ColumnBasis | null;
@@ -92,15 +102,15 @@ function outlierOf(row: { readonly member: Member; readonly cell: Cell }): Outli
   return { at: `${row.member.path}:${row.cell.line}`, section: row.member.section, label: row.member.label, value: row.cell.value };
 }
 
-/** The rows each read ruling covers, the first `count` in line order, so a further matching read stays visible. */
-function keptByRead<Row extends { readonly member: Member; readonly cell: Cell }>(
+/** The rows each ruling covers, the first `count` in line order, so a further matching member stays visible. A null label matches any member at the path. */
+function keptByRuling<Row extends { readonly member: Member; readonly cell: Cell }, Ruling extends Omit<KeptRead, "label"> & { readonly label: string | null }>(
   rows: readonly Row[],
-  rulings: readonly KeptRead[],
-): ReadonlyMap<Row, KeptRead> {
-  const kept = new Map<Row, KeptRead>();
+  rulings: readonly Ruling[],
+): ReadonlyMap<Row, Ruling> {
+  const kept = new Map<Row, Ruling>();
   for (const ruling of rulings) {
     const covered = rows
-      .filter((row) => row.member.path === ruling.path && row.member.label === ruling.label && row.cell.value === ruling.value)
+      .filter((row) => row.member.path === ruling.path && (ruling.label === null || row.member.label === ruling.label) && row.cell.value === ruling.value)
       .toSorted((a, b) => a.cell.line - b.cell.line)
       .slice(0, ruling.count);
     for (const row of covered) {
@@ -125,19 +135,25 @@ function compareColumn(cohort: Cohort, column: string, informational = false): C
     return null;
   }
   const rulings = cohort.kept?.[column] ?? {};
-  const siteRulings = cohort.keptSites?.[column] ?? {};
   const differs = rows.filter((row) => row.cell.value !== top[0]);
   // A member ruling covers the member whatever the majority: a defect value can be the majority, and its ruled member is still no defect.
-  const bySite = rows.filter((row) => Object.hasOwn(siteRulings, row.member.path));
-  const byRead = keptByRead(
-    rows.filter((row) => !bySite.includes(row)),
+  const bySite = keptByRuling(
+    rows,
+    Object.entries(cohort.keptSites?.[column] ?? {}).map(([path, site]) => ({ path, label: null, value: site.value, count: 1, reason: site.reason })),
+  );
+  const byRead = keptByRuling(
+    rows.filter((row) => !bySite.has(row)),
     cohort.keptReads?.[column] ?? [],
   );
-  const byValue = differs.filter((row) => !(bySite.includes(row) || byRead.has(row)) && Object.hasOwn(rulings, row.cell.value));
+  const ruled = (row: (typeof rows)[number]): boolean => bySite.has(row) || byRead.has(row);
+  const byValue = differs.filter((row) => !ruled(row) && Object.hasOwn(rulings, row.cell.value));
   const keptValues = [...tally(byValue.map((row) => row.cell.value))].map(([value, count]) => ({ value, at: null, count, reason: rulings[value] ?? "" }));
-  const keptSites = bySite.map((row) => ({ value: row.cell.value, at: row.member.path, count: 1, reason: siteRulings[row.member.path] ?? "" }));
-  const keptReads = [...byRead].map(([row, ruling]) => ({ value: row.cell.value, at: `${row.member.path}:${row.cell.line}`, count: 1, reason: ruling.reason }));
-  const ruled = (row: (typeof rows)[number]): boolean => bySite.includes(row) || byRead.has(row);
+  const keptMembers = [...bySite, ...byRead].map(([row, ruling]) => ({
+    value: row.cell.value,
+    at: `${row.member.path}:${row.cell.line}`,
+    count: 1,
+    reason: ruling.reason,
+  }));
   return {
     cohort: cohort.name,
     column,
@@ -148,7 +164,7 @@ function compareColumn(cohort: Cohort, column: string, informational = false): C
     distribution: Object.fromEntries(ranked),
     outliers: informational ? [] : differs.filter((row) => !(ruled(row) || byValue.includes(row))).map(outlierOf),
     defects: rows.filter((row) => cohort.defects?.[column]?.includes(row.cell.value) === true && !ruled(row)).map(outlierOf),
-    kept: [...keptValues, ...keptSites, ...keptReads],
+    kept: [...keptValues, ...keptMembers],
     informational,
     basis: cohort.basis?.[column] ?? null,
   };

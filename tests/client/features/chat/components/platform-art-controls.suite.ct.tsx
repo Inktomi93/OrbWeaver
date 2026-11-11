@@ -1,10 +1,11 @@
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { enlargedTextGeometry, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -139,5 +140,52 @@ function registerCase(style: "echo" | "whisper" | "ripple", width: number): void
 for (const style of ["echo", "whisper", "ripple"] as const) {
   for (const width of [390, 1440]) {
     registerCase(style, width);
+  }
+}
+
+// Echo's tile and its swipe foot declare one overlay together: the tile's unnamed pointer sheet under a foot chevron. A header or
+// content control over the tile is no part of it.
+const ECHO_DECLARED = new RegExp(
+  `^button "" \\[.*\\] overlaps button "(?:${[VARIANT_PREV_NAME, VARIANT_NEXT_NAME, VARIANT_GENERATE_NAME].join("|")})" \\[.*\\], declared message-controls-over-art$`,
+  "u",
+);
+
+function registerEchoGeometryCase(width: number, scale: number): void {
+  test(`echo at ${width} and ${scale}x text: no message row control lies over another, and only the art and its foot are declared`, async ({
+    corpus,
+    corpusMedia,
+    mount,
+    page,
+  }) => {
+    const caller = await root.internalCallerFor(root.ownerId);
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    await caller.settings.updateUserSettingsSection({
+      section: "appearance",
+      patch: { chatStyle: "echo", showInChatAvatars: true, backgroundImageKind: "none" },
+    });
+    await page.setViewportSize({ width, height: 900 });
+    await using _textSize = await setPlatformTextSize(page, scale);
+    await seedShellState(page, { activeSection: "chats" });
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus, root.ownerId),
+      ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "rpg.getGame", "rpg.listTurnToolCalls"]),
+    });
+    await corpusMedia();
+    await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+    const rows = page.locator('[data-slot="message-row"]').filter({ has: page.locator('[data-slot="message-echo-art"]') });
+    // The control for the clean read: the pictured rows render their tile.
+    await expect(rows.first()).toBeVisible();
+    for (const row of await rows.all()) {
+      await row.scrollIntoViewIfNeeded();
+      const geometry = await enlargedTextGeometry(row);
+      expect(geometry.findings.filter((finding) => finding.includes(" overlaps "))).toEqual([]);
+      expect(geometry.declaredOverlays.filter((pair) => !ECHO_DECLARED.test(pair))).toEqual([]);
+    }
+  });
+}
+
+for (const width of [390, 1440]) {
+  for (const scale of PLATFORM_TEXT_SCALES.slice(1)) {
+    registerEchoGeometryCase(width, scale);
   }
 }

@@ -659,6 +659,28 @@ test("a chip's wire is literal, a lookup, a call, or a bare read that may be a r
   expect(chips?.defects?.["wire"]).toEqual(["bare"]);
 });
 
+test("a site ruling keeps the one chip it names: a second bare chip in the ruled file is still a defect", ({ scratch }) => {
+  const root = plantDir(scratch, "chip-kept-site");
+  plant(root, {});
+  plantFile(
+    root,
+    "packages/client/src/features/preset/components/template-drill-in.tsx",
+    [
+      'import { Badge } from "@orb/ui/badge";',
+      "export const Header = ({ def, job }) => (",
+      "  <>",
+      "    <Badge>{def.kind}</Badge>",
+      "    <Badge>{job.status}</Badge>",
+      "  </>",
+      ");",
+    ].join("\n"),
+  );
+  const wire = analyse(root, [], null).comparisons.find((entry) => entry.cohort === "copy:chip" && entry.column === "wire");
+  const ruled = "packages/client/src/features/preset/components/template-drill-in.tsx";
+  expect(wire?.kept.map((kept) => [kept.at, kept.value])).toEqual([[`${ruled}:4`, "bare"]]);
+  expect(wire?.defects.map((defect) => defect.at)).toEqual([`${ruled}:5`]);
+});
+
 test("a chip printing a wire spelling a display map has a word for is a raw wire; an authored value and the word are not", ({ scratch }) => {
   const root = plantDir(scratch, "chip-raw-wire");
   plant(root, {
