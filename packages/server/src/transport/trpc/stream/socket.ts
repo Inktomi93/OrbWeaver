@@ -102,6 +102,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   const { superviseSettled } = createDetachedSupervision(logger, traces);
   const socketId: SocketId = cell.socketId;
   const queue = createFrameQueue({
+    resumable: (ref) => roomSourceFor(ref).resumable,
     cursorFor: (key) => cell.rooms.get(key)?.cursor ?? null,
     // A `lag` shed heals HERE, server-side (see the header): the shed PAUSES the room; delivering the
     // `roomLagged` frame restarts it from the last-DELIVERED cursor, so the durable replay refills exactly
