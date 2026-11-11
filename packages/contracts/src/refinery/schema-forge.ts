@@ -1,5 +1,5 @@
-// @orb/contracts/refinery/schema-forge — the NL→schema forge's WIRE GRAMMAR (task #36; the owner's
-// 2026-08-09 structured-output VETO of the shipped beg-for-JSON draft: "asking the model to pretty-please
+// @orb/contracts/refinery/schema-forge — the NL→schema forge's WIRE GRAMMAR (the owner's
+// structured-output VETO of the shipped beg-for-JSON draft: "asking the model to pretty-please
 // output proper JSON is fragile as fuck… the prompt describes the task, the grammar owns the shape").
 //
 // WHAT THIS IS: a flat DESIGN LANGUAGE for payload schemas, plus the total transpiler that turns one into
@@ -11,7 +11,7 @@
 // z.unknown())}` — the grammar constrained the ENVELOPE and nothing inside it, which is the fragility the
 // veto names.
 //
-// WHY A LEAF LIST AND NOT "A JSON SCHEMA CONSTRAINING JSON SCHEMAS" — MEASURED, 2026-08-09, 23 live
+// WHY A LEAF LIST AND NOT "A JSON SCHEMA CONSTRAINING JSON SCHEMAS" — MEASURED, 23 live
 // OpenRouter calls with the owner's key. The obvious design (a meta-schema whose `properties` is an open
 // `additionalProperties:<node>` key map, recursive or depth-expanded) is NOT SERVABLE:
 //   • anthropic/claude-sonnet-5 — HTTP 200 and `{"properties":{},"required":[]}`. The open key map compiles
@@ -21,8 +21,8 @@
 //     key in properties", and under the all-required shape "11 levels of nesting exceeds limit of 10".
 //   • google/gemini-3.6-flash — 400 INVALID_ARGUMENT.
 //   • the forced-tool vehicle collapses the same map on OpenAI and Gemini (`"properties":{}` again).
-//   • `provider.require_parameters` changed NO cell of the 2026-08-09 matrix — TRUE THEN, FALSE NOW: OR's
-//     routing changed and by 2026-08-14 `require_parameters:true` 404s every hosted `response_format` call,
+//   • `provider.require_parameters` changed NO cell of that matrix — but OR's
+//     routing changed and `require_parameters:true` now 404s every hosted `response_format` call,
 //     so it is OMITTED on the structured wire (`backends/openrouter/index.ts`). Still orthogonal to the SHAPE
 //     variable this note is about — the leaf-list grammar below is what makes the schema servable.
 // The leaf list is arrays of CLOSED objects and nothing else: 200 on all three families under
@@ -71,7 +71,7 @@ import {
   RENDER_HINT_TONES,
 } from "./schema-authoring.ts";
 
-// ── the authoring ARMS (owner 2026-08-09: "it's a one-time setup for them so they pay it once, but we
+// ── the authoring ARMS (owner ruling: "it's a one-time setup for them so they pay it once, but we
 //    should have options") ──────────────────────────────────────────────────────────────────────────────
 
 /** How a forge call is decomposed. One member per PIPELINE SHAPE, dispatched exhaustively at the substrate
@@ -141,7 +141,7 @@ const forgeFieldRowSchema = z
       .optional(),
   })
   .strip()
-  // #1371 item 1 — `minimum`/`maximum` were independent optionals with no pairing check, and
+  // `minimum`/`maximum` were independent optionals with no pairing check, and
   // `writeNumericBounds` wrote both VERBATIM, so a design carrying `minimum: 10, maximum: 5` transpiled to
   // `{"type":"number","minimum":10,"maximum":5}` with an empty `dropped` list. That output becomes
   // `ResponseFormat.schema` for provider-constrained decoding, where an UNSATISFIABLE range leaves a
@@ -161,7 +161,7 @@ export type ForgeFieldRow = z.infer<typeof forgeFieldRowSchema>;
 
 /** The `single` arm's payload, and the `two-stage` arm's first call: a whole design.
  *
- *  `needsRaw` is the HONEST-REFUSAL arm (owner, 2026-08-09: "think about the people who want to do weird
+ *  `needsRaw` is the HONEST-REFUSAL arm (owner ruling: "think about the people who want to do weird
  *  scorings"). The leaf list is the GENERATOR's guaranteed-servable subset, not the product's expressiveness
  *  ceiling — the raw JSON-Schema door beside it takes the full liftable vocabulary (unions, heterogeneous
  *  arrays, deeper nesting) and the belt judges it there. When an ask needs one of those, the model says so
@@ -327,7 +327,7 @@ function hintOf(row: ForgeFieldRow | ForgeHintRow): Record<string, unknown> | nu
   // also claims `role:"hero"` is RE-ROLED here — the hero elevation is dropped, the field itself survives
   // as a plain bounded gauge — so a design never carries two headline numbers and the renderer's
   // order-dependent "first hero wins" can never demote the canonical `overallScore`. (Live custom-schema
-  // drive, 2026-08-14: the model designed its own 1-10 rating AND got the spliced core, both hinted hero,
+  // drive: the model designed its own 1-10 rating AND got the spliced core, both hinted hero,
   // and the demoted one was the canonical score.) Every other role (verdict/axis/prose/…) passes through.
   if (row.role !== undefined && row.role !== "hero") {
     hint["role"] = row.role;
@@ -469,14 +469,14 @@ function propagateRequired(root: Record<string, unknown>): void {
  * Transpile a designed leaf list into the stored JSON Schema — TOTAL: every row either lands or appears in
  * `dropped` with its reason. The stage's well-known core is spliced last so it always wins (header).
  *
- * OPEN BY CONSTRUCTION — DELIBERATE (task #41): the object nodes minted here carry NO `additionalProperties`.
+ * OPEN BY CONSTRUCTION — DELIBERATE: the object nodes minted here carry NO `additionalProperties`.
  * The `additionalProperties:false` pin has ONE home — `projectJsonSchema` (`@orb/kit/json-schema`) — which
  * every refinery WIRE send-site re-applies to this stored blob before it reaches a provider
  * (`domain/refinery/substrate/stage-resolution.ts` and `verbs/test-schema.ts` both do
  * `projectJsonSchema(liftJsonSchema(schema))`). Stamping the pin here too would be a SECOND source of truth
  * for the same invariant and would MASK a future send-site that forgot to project (the stored blob would be
  * incidentally-closed) — so wire-closure is proven at the projection choke point, not duplicated here. A
- * probe (#41) confirmed the hosted wire (`hosted-common`/`anthropic-format`) ships CLOSED via that path; on
+ * probe confirmed the hosted wire (`hosted-common`/`anthropic-format`) ships CLOSED via that path; on
  * the forced-tool hosted vehicle the pin is advisory regardless (grammar enforcement is guided-decoding only).
  */
 export function transpileForgeDesign(design: ForgeDesignEnvelope, stage: RefinerySchemaStage): ForgeTranspileResult {

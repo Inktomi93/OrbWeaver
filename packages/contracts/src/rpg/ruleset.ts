@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/ruleset — THE RULESET axis (#862, owner ruling 2026-08-30): one game mode, and the
+// @orb/contracts/rpg/ruleset — THE RULESET axis (owner ruling): one game mode, and the
 // ruleset is a SETTING. It replaced the start-time `freeform | d20` profile PICK — both doors used to mint
 // the identical `lite` game and differ only by which packaged profile they passed, so the choice was a
 // setting wearing a door's clothes. A game is now started directly (born `freeform`) and the host retunes
@@ -8,7 +8,7 @@
 // (`updateConfig`), and the client's dice-ask row (`RPG_RULESET_DICE` — a ruleset with no dice publishes NO
 // chips, which is what makes the setting visible; a profile-blind chip row was the dead-toggle finding).
 //
-// THE SWITCH IS ADDITIVE (OWNER RULING, #862): applying a ruleset ADDS its vocabulary — attributes,
+// THE SWITCH IS ADDITIVE (OWNER RULING): applying a ruleset ADDS its vocabulary — attributes,
 // skill map, seeded trackers — BESIDE what the game already carries. It never removes, never renames, never
 // asks for a confirmation, and switching back hides nothing (`freeform` adds nothing, so the d20 vocabulary
 // a host picked up stays). That is why the apply is a pure MERGE over contract data and lives here rather
@@ -58,7 +58,7 @@ export const RPG_RULESET_CONSEQUENCE: Readonly<Record<RpgRuleset, string>> = {
 /** The dice a ruleset offers in the Message tools menu. Notation is the server's own
  *  `NdM(+/-K)?` grammar (`domain/rpg/verbs/roll-dice.ts`); the row is capped to the band's four chips.
  *  `freeform` offers NONE — a freeform table rolls nothing, and four d20-family chips over a freeform game
- *  contradicted the door's own copy (side-eye 2026-08-30). An empty set publishes no controls at all, so the
+ *  contradicted the door's own copy. An empty set publishes no controls at all, so the
  *  band collapses (`empty:hidden`) exactly as it does on a plain chat. */
 export const RPG_RULESET_DICE: Readonly<Record<RpgRuleset, readonly string[]>> = {
   freeform: [],

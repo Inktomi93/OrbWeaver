@@ -12,8 +12,8 @@ import { z } from "zod";
 
 // Which storage owns a slot's override. Exactly one per slot — never a cascade (D132 clause A).
 //
-//  TWO storages, not three: the per-GAME home (`rpg_games.config.prose`) was RETIRED by the owner ruling of
-//  2026-08-08 ("we are putting everything in presets") and the whole rpg cohort re-homed to `preset`. A member
+//  TWO storages, not three: the per-GAME home (`rpg_games.config.prose`) was RETIRED by the owner ruling
+//  ("we are putting everything in presets") and the whole rpg cohort re-homed to `preset`. A member
 //  with no slot is dead vocabulary that invites the next author to re-open the storage this ruling closed, so
 //  it is deleted rather than parked (NO-LEGACY).
 const PROSE_HOMES = ["preset", "user"] as const;
@@ -62,7 +62,7 @@ export const PROSE_SLOT_IDS = [
   //    pre-PROSE-1 `promptConfig.compaction.instructions` field, not a `promptConfig.prose` row. ──
   "preset.compaction.instructions",
   // ── per-PRESET: the Rewrite modal's toggle fragments (census 53-59) — the templating fork ruled ARM B
-  //    (owner, 2026-08-09, D172): the fragment BYTES are prose slots
+  //    (owner ruling, D172): the fragment BYTES are prose slots
   //    resolved SERVER-side at the seam that already holds the preset blob, and the wire carries only the
   //    toggle KINDS. NOT legacy-adapted: their storage is `promptConfig.prose`, so each has a Templates-tab
   //    row. `macros:"none"`: a fragment is composed INTO the steer that becomes `{{input}}`
@@ -107,7 +107,7 @@ export const PROSE_SLOT_IDS = [
   "chat.memory.consolidationSystem",
   "chat.memory.consolidationLead",
   // ── per-PRESET: the group-round FRAMING prose (the S1b inline stragglers) — RE-HOMED user → preset by the
-  //    F4 ruling arm (a) + the D132(B) amendment (2026-08-08). They resolve during the MAIN turn's context
+  //    F4 ruling arm (a) + the D132(B) amendment. They resolve during the MAIN turn's context
   //    build where the preset IS in scope (`composeProse` at `assembly/context`), so `promptConfig.prose` is
   //    their storage and each has a Templates-tab `group`-kind row. ──
   "chat.group.characterHeading",
@@ -117,7 +117,7 @@ export const PROSE_SLOT_IDS = [
   "chat.group.roundNudge",
   "chat.group.narratorNudge",
   "chat.group.speakerTags",
-  // ── per-PRESET: the turn-wire FRAMINGS (owner ruling 2026-08-07 — "templates need to have one home in
+  // ── per-PRESET: the turn-wire FRAMINGS (owner ruling — "templates need to have one home in
   //    presets"). Authored in the preset Templates tab, stored in `promptConfig.prose`. ──
   "chat.injection.userNote",
   "chat.injection.assistantNote",
@@ -198,7 +198,7 @@ export const PROSE_SLOT_IDS = [
   //    cohort: several carry a PRE-SUBSTITUTION token vocabulary (this game's tracker catalogue, the worked
   //    example's keys, the resolved ref lists) which the seam splices as data — never the macro engine, which
   //    has no binding to offer an extraction prompt. Census 27 is `rpg.extract.stateTrackingGuide` — the owner
-  //    ruled decision 6 WIRE (2026-08-08), so the former dead `RPG_STATE_TRACKING_GUIDE` constant is now a slot
+  //    ruled decision 6 WIRE, so the former dead `RPG_STATE_TRACKING_GUIDE` constant is now a slot
   //    composed onto both write surfaces. 28/32 are structural labels, out by §2.11. ──
   "rpg.extract.deceptionSurface",
   "rpg.extract.party.resources",

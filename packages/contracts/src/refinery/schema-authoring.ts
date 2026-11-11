@@ -56,7 +56,7 @@ export type RenderHintTone = (typeof RENDER_HINT_TONES)[number];
 
 /** The hint roles — elevations over the structure-keyed floor. */
 export const RENDER_HINT_ROLES = ["hero", "verdict", "axis", "prose", "title", "score", "body", "badge"] as const;
-/** The member twin of `RENDER_HINT_ROLES` — the role-authoring surface (#73): the schema editor's
+/** The member twin of `RENDER_HINT_ROLES` — the role-authoring surface: the schema editor's
  *  render-hint picker (`render-hint-picker.tsx`, split out of `schema-editor-dialog.tsx`) imports this
  *  to type its `<Select>` state, so an author picks a role from the vocabulary instead of hand-typing
  *  one of 8 magic strings. WIRED with a live prod consumer — the tuple stays the runtime value both the
@@ -234,7 +234,7 @@ export const refinerySchemaDocumentSchema = z
 export type RefinerySchemaDocument = z.infer<typeof refinerySchemaDocumentSchema>;
 
 /** The schema-library wire row (the stage-config picker + the editor's library list). `version` bumps on
- *  every content update — the run log's provenance pin (P1-B). */
+ *  every content update — the run log's provenance pin. */
 // A server-trusted DB→wire projection (`schemaSummaryOf`) — nothing `.parse`s this schema at
 // runtime, but it is the one-home shape source for `RefinerySchemaSummary` (§7.4); the zod
 // literal IS the contract, consumed only through its inferred type.

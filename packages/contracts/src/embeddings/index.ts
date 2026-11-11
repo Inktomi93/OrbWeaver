@@ -74,7 +74,7 @@ export const VECTOR_SCOPES_BY_TASK: Readonly<Record<EmbeddingTask, readonly Vect
 // The enums are also the guided-decode grammar (`projectJsonSchema` → `responseFormat`), so the model is
 // CONSTRAINED to the vocabulary rather than trusted to stay inside it.
 //
-// PROVENANCE (2026-08-18, issue #164): before this module existed, both write sites stored
+// PROVENANCE: before this module existed, both write sites stored
 // `{ model: <summarizerModel> }` and NOTHING else, while the reader declared fourteen facet paths. The
 // tally therefore returned every array empty on a 101-image corpus, and `visualArchetypes` — whose label
 // prefers `artStyle · mood` — fell through to its `tone genre` arm and labelled PORTRAIT-embedding clusters
@@ -201,7 +201,7 @@ export const imageBreakdownSchema = z
   .strip();
 
 /** A stored `caption_meta` blob, read back from a column that outlives any one build: `model` has always been
- *  there, every facet is OPTIONAL because the 2026-08-18 backfill boundary means older rows carry none, and
+ *  there, every facet is OPTIONAL because the backfill boundary means older rows carry none, and
  *  unknown keys pass through (a future facet must not poison an old reader). */
 export const imageCaptionMetaSchema = imageBreakdownSchema.omit({ caption: true }).partial().extend({ model: z.string().optional() }).loose();
 /** Canonical reader fields; parsing still preserves unknown stored keys without exposing them as application fields. */

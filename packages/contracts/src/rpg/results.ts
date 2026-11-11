@@ -51,7 +51,7 @@ export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { 
  *      arm is an INFO line (a round that honestly found nothing is not an error). */
 export type PopulateResult = { readonly ok: true; readonly populated: boolean } | { readonly ok: false; readonly reason: string };
 
-/** THE PROMOTE VERDICT (`promoteActor`, #1449) — the HAND-DOOR grammar widened by ONE field: the mint clamps
+/** THE PROMOTE VERDICT (`promoteActor`) — the HAND-DOOR grammar widened by ONE field: the mint clamps
  *  an over-length model-authored identity `name` to the card wire's `CARD_FACE_LIMITS.nameMax`
  *  (`clampActorCardName`, `contracts/rpg/actor.ts`) rather than refusing the promotion, and `issues` is how the
  *  host learns it happened — a `HandDoorResult`-style `{ok:true}` with a silently shortened name would read as

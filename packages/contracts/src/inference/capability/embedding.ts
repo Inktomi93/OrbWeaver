@@ -33,7 +33,7 @@ export const embeddingCapabilitySchema = z
     output: z.tuple([z.literal("vector")]),
     /** Honours a per-task instruction prefix (the asymmetric query/document scaffold). */
     instructionAware: z.boolean(),
-    /** The served precision (`q8`, `fp16`) — part of the space tag when present (#2417). */
+    /** The served precision (`q8`, `fp16`) — part of the space tag when present. */
     dtype: z.string().min(1).optional(),
     /** The local encoder's lossless window/centroid recipe; changing it moves the vector generation. */
     localTextEncoding: localTextEncodingSchema.optional(),
@@ -64,8 +64,7 @@ export const EMBED_SPACE_FIELDS = ["providerId", "baseUrl", "model", "api", "dec
  *  old-space purge reclaimed the live rows, with no error on any path.
  *
  *  The dtype rides INSIDE the tag rather than in a column because a re-quantised encoder produces different
- *  vectors — it is a different space, and a flip must re-index through the model-change machinery (#2417,
- *  §10-2). `@` cannot occur in a HuggingFace repo id, so the tag never collides with a real model id.
+ *  vectors — it is a different space, and a flip must re-index through the model-change machinery (§10-2). `@` cannot occur in a HuggingFace repo id, so the tag never collides with a real model id.
  *
  *  The two sides read their dtype from two different facts (the deployment's served precision vs the curated
  *  capability row), which they are expected to agree on; `embeddings.store` refuses a write where they do

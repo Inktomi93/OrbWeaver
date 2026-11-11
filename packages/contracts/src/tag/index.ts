@@ -101,8 +101,8 @@ export interface TagWithUsage extends TagView {
   pendingSuggestions: number;
 }
 
-// TagAttachmentView DELETED (#1033 viewgap decision 1): test-only wire shape — no production consumer
-// existed, and the junction row is read through domain-specific projections instead.
+// No TagAttachmentView: a test-only wire shape with no production consumer;
+// the junction row is read through domain-specific projections instead.
 
 /** One PENDING auto/card tag suggestion staged on a character, joined to its tag row so the review UI
  *  can render the chip with its name + colors. Accept = `attachTag(status:'accepted')`; Reject = `detachTag`. */
@@ -123,7 +123,7 @@ export interface TagFilterVocabularyEntry {
   /** ST is_hidden_on_character_card — the chip rail drops these (they still filter, so they stay KNOWN). */
   isHiddenOnCard: boolean;
   /** How many of the owner's characters carry this tag ACCEPTED, over the WHOLE library (never a loaded
-   *  window, and never a pending suggestion — #839: this number decides whether a facet is OFFERED, so it
+   *  window, and never a pending suggestion — this number decides whether a facet is OFFERED, so it
    *  must count exactly what the library's `status = 'accepted'` tag filter can MATCH). */
   characters: number;
 }

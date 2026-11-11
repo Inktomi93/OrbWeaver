@@ -17,8 +17,7 @@ export const REFINERY_VERDICTS = ["ACCEPT", "NEEDS_REFINEMENT", "REGRESSION"] as
 export type RefineryVerdict = (typeof REFINERY_VERDICTS)[number];
 export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS) satisfies z.ZodType<RefineryVerdict>;
 
-// ── The MODEL-AUTHORED payload ceilings (security pass 2026-08-08 —
-// 2026-08-08 gap 1) ──────────────────────────────
+// ── The MODEL-AUTHORED payload ceilings ──────────────────────────────
 // A character card is UNTRUSTED text; a prompt-injected card can steer the model that AUTHORS these
 // payloads. The analyze payload is stamped into CANON (`characters.refinery.analysis`), rides every card
 // detail read AND every `character_snapshots` blob; the score/rewrite payloads land in append-only run
@@ -26,12 +25,12 @@ export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS) satisfies z.ZodTy
 // (measured: a 2 MB `summary` and a 5 000-entry array parsed clean). Every bound below is a NATIVE zod
 // keyword — so it survives `projectJsonSchema` as `maxLength`/`maxItems` and is GRAMMAR-ENFORCED on the
 // guided-decoding wire, while the hosted wires strip the KEYWORD, relay the bound to the model in that
-// node's `description` (`[Constraints: maxLength: 16000]`, task #40) and let the zod belt re-impose it on
+// node's `description` (`[Constraints: maxLength: 16000]`) and let the zod belt re-impose it on
 // the reply (`contracts/inference/wire-subset.ts` states that contract). Critique prose additionally carries the ONE
 // sanctioned refinement (the token cap — see the header).
 
 /** The product cap for one free-prose critique string (`summary`, `soulAssessment`, a per-field critique),
- *  in TOKENS. OWNER RULING 2026-08-08 — the cap was 4 000 CHARS (the `PROSE_MAX_CHARS` twin) and that was
+ *  in TOKENS. OWNER RULING — the cap is not 4 000 CHARS (the `PROSE_MAX_CHARS` twin) and that was
  *  the wrong UNIT for model-authored prose: "we are thinking in chars but it needs to be tokens ... 1000
  *  tokens is piddly, I have cards that are like 4k". Measured by `@orb/kit/tokens`, the ONE production
  *  estimator (never a re-implementation) — which makes this cap the same currency as every prompt budget

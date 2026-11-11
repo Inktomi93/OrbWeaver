@@ -9,7 +9,7 @@
 // conventions — "[ORIGINAL]/[REVISED]", "## Section" — die to the typed payloads); the shipped texts are
 // OWNER-SACRED and ship for the owner to sign/veto.
 //
-// HOME = per-USER (the security pass §3.G ruling: library-authoring prose beside the discovery cohort —
+// HOME = per-USER (the ruling: library-authoring prose beside the discovery cohort —
 // never per-preset generation voice, never a per-session home). The `USER_PROSE_SLOT_IDS` derivation puts
 // every slot in the Prose settings editor the commit this lands — zero client work.
 // MACRO MODE = "none" — LOAD-BEARING (the belt-5 by-construction posture, design §9.4): refinery prompts
@@ -17,7 +17,7 @@
 // inert text and rewritten text round-trips back into the card with its macros intact. Neutralizing here
 // would ZWSP-corrupt applied rewrites.
 //
-// THE JSON-SHAPE RESTATEMENT IS SPLICED, NOT BAKED (P2-D, pre-SF1). Each stage
+// THE JSON-SHAPE RESTATEMENT IS SPLICED, NOT BAKED. Each stage
 // SYSTEM slot carries the PRE-SUBSTITUTION token `{{shape}}` and the prompt substrate splices the ACTIVE
 // payload's restatement through `resolveProseText`'s token channel (a plain replace — never the macro
 // engine, which these slots do not run; the `{{person}}`/`{{base}}` guided precedent). Two reasons it
@@ -51,11 +51,11 @@ const CORE_TOKEN = "{{core}}";
 /** The schema-forge slot's second pre-substitution token: WHICH of the four forge calls this turn is (design
  *  the whole schema · plan the paths · finish one field · choose the display hints). The arms are a call-time
  *  fact — one owner-editable slot serves all four, and baking one call's job into the text would break the
- *  other three (task #36). */
+ *  other three. */
 const TASK_TOKEN = "{{task}}";
 
-// The NL→schema designer's system prompt (SF — NL design §4.6; REWRITTEN for task #36, the owner's
-// 2026-08-09 structured-output veto). It describes the DESIGN TASK and the display vocabulary, and NOTHING
+// The NL→schema designer's system prompt (SF — NL design §4.6, under the owner's
+// structured-output veto). It describes the DESIGN TASK and the display vocabulary, and NOTHING
 // about output format: the call rides an ENFORCED grammar (`#refinery`'s `forgeDesignEnvelopeSchema` and its
 // siblings), so shape-policing text here would be a second, weaker copy of a rule the wire already holds.
 // Every "respond with ONLY a JSON object" instruction the extension's corpus carried is deliberately gone.

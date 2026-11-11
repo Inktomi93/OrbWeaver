@@ -4,8 +4,8 @@
 // pre-resolved to ids by import (so the op is persona-agnostic). A cross-boundary shape shared by import +
 // chat → contracts (D34).
 //
-// VOCABULARY (#1773 / #914, vocabulary-map row 41): `BulkImportChatInput.characterIds` was `.roster` until
-// 2026-09-06. Row 41's word for the founding / seated CHARACTER IDS an import writes is `characterIds`, and
+// VOCABULARY (vocabulary-map row 41): `BulkImportChatInput.characterIds` is not `.roster`.
+// Row 41's word for the founding / seated CHARACTER IDS an import writes is `characterIds`, and
 // this is the wire field that carries them. `roster` remains RESERVED for the saved TEMPLATE concept
 // (`rosterPreset`, "Rosters" — row 48); the `SeatKnobs` import below still comes from `./roster.ts`, which
 // is separate row-44 residue and moves under its own row.
@@ -79,8 +79,8 @@ export interface BulkImportVariantInput {
   /** The variant's INPUT token count. An orb-native bundle carries the recorded usage figure. The ST jsonl
    *  arm supplies it for a `user`/`system` slot: ST has ONE `extra.token_count` — the count of the row's own
    *  TEXT, not an API usage split — so on a non-assistant row it is an inbound count and belongs here, not in
-   *  {@link tokensOut}. (Corrected by the 2026-08-08 import-fidelity audit; this doc previously claimed "ST
-   *  carries no inbound count", which was a claim about ST's FIELD NAMES, not about what the value means.) */
+   *  {@link tokensOut}. ("ST carries no inbound count" is a claim about ST's FIELD NAMES, not about what
+   *  the value means.) */
   readonly tokensIn?: number | null;
   /** R6 (orb-native only) — the swipe's runtime-variable ops (`message_variants.variable_delta`). Carrying
    *  the DELTAS is what lets a restore re-derive `chats.runtimeVariables`, which is a cache and therefore
@@ -91,7 +91,7 @@ export interface BulkImportVariantInput {
 }
 
 /** One `chat_injections` row carried by an importing chat. The per-chat prose plane: since the room-override
- *  author's-note twin was retired (owner ruling 2026-08-01) this LIST is the ONE prose door, for BOTH arms —
+ *  author's-note twin was retired (owner ruling) this LIST is the ONE prose door, for BOTH arms —
  *  an orb-native bundle carries the whole list verbatim, and the ST arm converts its single `note_prompt`
  *  (plus the `note_depth`/`note_position`/`note_role` knobs ST records beside it) into exactly one row. */
 export interface BulkImportInjectionInput {
@@ -136,7 +136,7 @@ export interface BulkImportMessageInput {
   readonly kind?: MessageKind;
 }
 
-/** One seat's KNOBS for a bulk-imported room, keyed by the seat it configures (#1687). Derived from
+/** One seat's KNOBS for a bulk-imported room, keyed by the seat it configures. Derived from
  *  {@link SeatKnobs} — the ONE home for what an AI seat's knobs ARE (D80) — rather than re-spelling
  *  `disabled`, so a knob added there travels here without a second vocabulary.
  *
@@ -174,7 +174,7 @@ export interface BulkImportChatInput {
    *  roster is host + the one primary character, byte-identically today's ST import. Every id is
    *  ownership-gated exactly like the primary before any row is written. */
   readonly characterIds?: readonly CharacterId[];
-  /** Per-seat knobs the founding roster rows are born with (#1687) — absent/empty ⇒ every seat takes the
+  /** Per-seat knobs the founding roster rows are born with — absent/empty ⇒ every seat takes the
    *  column defaults, byte-identically the pre-#1687 import. The live producer is the ST GROUP wave: ST's
    *  `disabled_members` is a per-member MUTE and orb has one too (`chat_participants.disabled`), so the flag
    *  now TRAVELS instead of being reported as lost. A knob for a character the room does not seat is refused
@@ -206,7 +206,7 @@ export interface BulkImportChatInput {
    *  whole `chat_injections` list; the ST arm supplies the single row it converted `note_prompt` + ST's
    *  recorded placement knobs into. Absent/empty ⇒ none. (This REPLACED a sibling `authorsNote: string|null`
    *  field, which could carry only the text: with ST's placement honored, a bare string could no longer say
-   *  where the note goes, and two spellings of one plane is exactly what the 2026-08-01 ruling unwound.) */
+   *  where the note goes, and two spellings of one plane is exactly what the owner ruling unwound.) */
   readonly injections?: readonly BulkImportInjectionInput[];
 }
 

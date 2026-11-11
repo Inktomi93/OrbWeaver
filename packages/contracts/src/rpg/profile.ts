@@ -30,7 +30,7 @@ type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
  *  key that governs it; `defaultAttribute`/`perceptionAttribute` name attribute keys; `resolution` is the
  *  reserved check-engine discriminant.
  *
- *  ── THE COHERENCE INVARIANTS ARE ENFORCED AT THE WRITE DOOR, NOT HERE (#1371 items 2/3) ──
+ *  ── THE COHERENCE INVARIANTS ARE ENFORCED AT THE WRITE DOOR, NOT HERE ──
  *  Four states this schema permits are incoherent: duplicate `attributes` keys, an inverted
  *  `range` (`min > max`), and a `defaultAttribute`/`perceptionAttribute` naming a key the profile does not
  *  declare. They are REFUSED — by `assertProfileMutable` in `domain/rpg/verbs/game/update-config.ts`,

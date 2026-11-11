@@ -14,7 +14,7 @@
 // U5 (seam 16) ADDED, each with its first consumer landing in the same change: the `page` + `dialog` anchors,
 // the `grid`/`masterDetail`/`searchBar` browse vocabulary, the `image` aspect, and the command + toast +
 // dialog-open vocabulary the host-mediated affordances speak (§4.5a/§4.5b).
-// #818 ADDED the `primary` button weight — SPELLABLE everywhere, HONOURED only where
+// The `primary` button weight is SPELLABLE everywhere, HONOURED only where
 // `PLUGIN_ANCHOR_PRIMARY_ALLOWED` says (page/dialog) and only once per anchor. It is the one rule in this file
 // that is deliberately NOT a compile-tier or parse-tier refusal: the anchor is not known until mount, so the
 // arbitration is the renderer's (`resolvePluginPrimaryButton`) and an over-claiming spec is DEMOTED, never
@@ -78,12 +78,12 @@ type PluginTextVoice = (typeof PLUGIN_TEXT_VOICES)[number];
 
 // A `badge` node's intent — a closed slice of the house Badge intents. `primary` is EXCLUDED and STAYS
 //  excluded: a badge is a static mark, not the surface's act, so it has no claim on the attention budget the
-//  #818 ruling reopened for `button` (see {@link PLUGIN_BUTTON_VARIANTS}). CONTENT's one primary is a CTA law.
+//  owner ruling reopened for `button` (see {@link PLUGIN_BUTTON_VARIANTS}). CONTENT's one primary is a CTA law.
 const PLUGIN_BADGE_INTENTS = ["neutral", "info", "success", "warning", "danger"] as const;
 type PluginBadgeIntent = (typeof PLUGIN_BADGE_INTENTS)[number];
 
-// A `button` node's weight. The two NEUTRAL weights are unconditional; `primary` is ADMITTED (owner ruling
-//  2026-08-30, #818) but only ARBITRATED — spellable everywhere, HONOURED only where
+// A `button` node's weight. The two NEUTRAL weights are unconditional; `primary` is ADMITTED (owner ruling)
+//  but only ARBITRATED — spellable everywhere, HONOURED only where
 //  {@link PLUGIN_ANCHOR_PRIMARY_ALLOWED} says so, and only once per anchor.
 //
 //  THE RULING SURVIVES — ITS INPUT CHANGED. The S1 one-primary law was minted for the chat CONTROL BAND, whose
@@ -108,7 +108,7 @@ type PluginButtonVariant = (typeof PLUGIN_BUTTON_VARIANTS)[number];
 const PLUGIN_IMAGE_ASPECTS = ["square", "portrait", "landscape"] as const;
 type PluginImageAspect = (typeof PLUGIN_IMAGE_ASPECTS)[number];
 
-// The `icon` node's GLYPH vocabulary (#799) — a CURATED closed slice of the sealed `@orb/ui` icon set
+// The `icon` node's GLYPH vocabulary — a CURATED closed slice of the sealed `@orb/ui` icon set
 //  (`packages/ui/src/primitives/icons/index.ts`), named in the lucide seal's own spelling, lower-camel. The
 //  client owns the ONE total `Record<PluginIconName, LucideIcon>`, so a member added here fails `tsc` until it
 //  is given a glyph — the same compile-tier discipline every axis in this file carries.
@@ -198,7 +198,7 @@ const PLUGIN_NODE_KINDS = [
   "grid",
   "masterDetail",
   "searchBar",
-  // #799 — the two VOCABULARY-REACH kinds the card-atlas visual review named (stickler 2026-08-29 §3): a
+  // The two VOCABULARY-REACH kinds the card-atlas visual review named: a
   // glyph vocabulary (the shelf's icon set had NO spelling at all) and a first-class one-of-N strip (a
   // source switcher rendered as a `select` reads as long-tail configuration, not as the page's own axis).
   "icon",
@@ -226,7 +226,7 @@ const PLUGIN_GRID_TILES_MAX = 64;
 /** The stage cap on a `masterDetail` node (U5) — a page arrangement, not a router. Two is the shape the genre
  *  needs (browse → detail); the headroom is for a plugin that splits browse by source. */
 const PLUGIN_PAGE_STAGES_MAX = 8;
-// The option cap on a `tabs` node (#799) — an order of magnitude under {@link PLUGIN_ROWS_MAX}, and the
+// The option cap on a `tabs` node — an order of magnitude under {@link PLUGIN_ROWS_MAX}, and the
 //  number IS the design: a segmented strip renders every option AT ONCE, so a strip that outgrows a single
 //  row stops being a strip and becomes a menu. A vocabulary bigger than this is a `select` — which the
 //  vocabulary already has, with a 64-option cap, for exactly that case.
@@ -273,10 +273,10 @@ export const PLUGIN_ANCHOR_TIERS = {
   // "lots of bits and bobs" extension needs client-immediate interaction on (U4 lands its guest), and a dialog
   // is a page-scale body in a modal shell. Neither multiplies per row.
   //
-  // `frame: true` for BOTH (#787 — the deliberate decision the U5×U7 merge deferred). §6.2 names `page` and
+  // `frame: true` for BOTH (the deliberate decision the U5×U7 merge deferred). §6.2 names `page` and
   // `dialog` among the hatch's anchors; the merge shipped them `frame: false` as a conservative default because a
   // frame tier an anchor admits with NO first-party mount to render it is the "empty labelled box" the flank law
-  // forbids (a listed-but-undrawn surface). #787 is the follow-up that default named: the client mount now exists
+  // forbids (a listed-but-undrawn surface). The client mount exists
   // at BOTH anchors — `ExtensionsPageSurface` renders a `page` frame inside its page-scale shell (the §9
   // impersonation band, the biggest canvas here), and `PluginDialogBody` renders a `dialog` frame inside the
   // house modal. So the anchor admits the tier WITH its occupant (root-slot-lands-with-occupant, one axis over),
@@ -337,14 +337,14 @@ const PLUGIN_FOOTER_NODE_KIND_ALLOWED = {
   grid: false,
   masterDetail: false,
   searchBar: false,
-  // #799: `icon` is DECORATION — the exact class this anchor admits (`badge`/`text`/`meter`/`image`), and a
+  // `icon` is DECORATION — the exact class this anchor admits (`badge`/`text`/`meter`/`image`), and a
   // glyph beside a per-row badge is the "adjacent decoration" §5.4 describes. `tabs` is INTERACTIVE (an
   // action round-trip per transcript row), so it falls under the first exclusion class above.
   icon: true,
   tabs: false,
 } as const satisfies Record<PluginNodeKind, boolean>;
 
-/** WHICH ANCHORS HONOUR A `primary` BUTTON — the #818 owner ruling, coded in the
+/** WHICH ANCHORS HONOUR A `primary` BUTTON — the owner ruling, coded in the
  *  {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} pattern one axis over (a TOTAL `Record<anchor, boolean>`, so a new
  *  {@link PLUGIN_SURFACE_ANCHORS} member fails `tsc` until someone DECIDES its attention budget rather than
  *  inheriting an answer from silence).
@@ -387,7 +387,7 @@ export const PLUGIN_ANCHOR_PRIMARY_ALLOWED = {
 // A frame body's HTML cap. The card frame's own proven bound (`contracts/chat/card-frame.ts`), reused rather than
 //  re-guessed: generous for self-contained interface code, and it bounds per-instance retention with the count cap
 //  below. STATED LIMIT: a bundle-shipped BINARY asset (a live2d/VRM model) does not fit here and is not meant to —
-//  large assets ride the bundle `ui/assets/` → installer-CAS route (seam 11), which LANDED with #820: install
+//  large assets ride the bundle `ui/assets/` → installer-CAS route (seam 11): install
 //  and upgrade unpack the bundle's `ui/assets/` IMAGES into the installer's CAS and an `image`/`hero`/tile node
 //  names one by path ({@link PluginImageNode.bundleAsset}). A live2d/VRM model still does not ride it — that
 //  route admits the four raster image formats the magic-byte sniff can prove and refuses everything else.
@@ -435,7 +435,7 @@ export interface PluginStateBinding {
 export type PluginBoundString = string | PluginStateBinding;
 /** A numeric value that MAY be a state binding. */
 export type PluginBoundNumber = number | PluginStateBinding;
-/** A boolean value that MAY be a state binding (#799) — minted for `grid.loading`, the first slot whose
+/** A boolean value that MAY be a state binding — minted for `grid.loading`, the first slot whose
  *  whole point is that it FLIPS between two publishes. */
 export type PluginBoundBoolean = boolean | PluginStateBinding;
 
@@ -524,13 +524,13 @@ export type PluginImageNode = PluginOneSource<
      *  Exactly ONE of `assetId`/`assetFrom`/`bundleAsset` (the spec-level belt enforces it): declared for an
      *  asset the SPEC knows, bound for one the STATE carries, bundle for one the plugin SHIPPED. */
     readonly assetId?: AssetId | undefined;
-    /** THE BOUND ARM (#774 ARM C): resolve the asset id from published state (`{ $state: "path" }`) — for an
+    /** THE BOUND ARM (ARM C): resolve the asset id from published state (`{ $state: "path" }`) — for an
      *  image whose subject is DATA, not structure (a photo plugin's detail view; a generated cover). The
      *  resolved value is UNTRUSTED STATE: it is format-validated at resolve (a non-TypeID string paints
      *  nothing) and then rides the SAME owner-scoped server resolve every declared `assetId` rides — a foreign
      *  owner's id yields no ref and the node renders its placeholder, NEVER another user's blob. */
     readonly assetFrom?: PluginStateBinding | undefined;
-    /** THE BUNDLE ARM (#820 seam 11): art the plugin SHIPPED, named by its zip path (`ui/assets/happy.png`).
+    /** THE BUNDLE ARM: art the plugin SHIPPED, named by its zip path (`ui/assets/happy.png`).
      *  It exists because the other two arms structurally cannot express it — a sprite pack's ids are minted by
      *  the CAS at INSTALL time, so the spec cannot know one and the guest is never told one.
      *
@@ -636,7 +636,7 @@ export interface PluginButtonNode {
    *  path that is missing or not a boolean reads as enabled. */
   readonly disabled?: PluginBoundBoolean | undefined;
 }
-/** A GLYPH from the curated {@link PLUGIN_ICON_NAMES} tuple (#799) — the vocabulary's icon reach, which was
+/** A GLYPH from the curated {@link PLUGIN_ICON_NAMES} tuple — the vocabulary's icon reach, which was
  *  previously NONE: a stat row could say "7.4k" but never mark it, and a source line could never carry its
  *  medium's glyph. It renders through the sealed `@orb/ui` `Icon` wrapper, so size/stroke/fill behave exactly
  *  as they do anywhere else in the app and a plugin still names a house primitive, never a package.
@@ -650,12 +650,12 @@ export interface PluginIconNode {
   readonly name: PluginIconName;
   readonly label?: string | undefined;
 }
-/** A ONE-OF-N SEGMENTED STRIP (#799) — the page's own axis, rendered ALL AT ONCE.
+/** A ONE-OF-N SEGMENTED STRIP — the page's own axis, rendered ALL AT ONCE.
  *
  *  IT IS NOT A SECOND `select`, and the difference is the whole reason it exists. A `select` is long-tail
  *  configuration: its vocabulary is hidden until you open it, which is the right shape for a sort order and
  *  the wrong shape for the axis a browse page is ORGANISED BY (the card-atlas hub picker spent a release
- *  collapsed under "Filters" — stickler 2026-08-29 §3 limit 5). A strip shows every option, so the page
+ *  collapsed under "Filters"). A strip shows every option, so the page
  *  states its own axis; that visibility is also why {@link PLUGIN_TABS_OPTIONS_MAX} is an order of magnitude
  *  under the select's cap.
  *
@@ -717,7 +717,7 @@ export type PluginGridTile = PluginOptionalSource<
     readonly badge?: PluginBoundString | undefined;
     /** The cover image — an asset in the INSTALLER's CAS (the `image` node's rule, one home for the wall). */
     readonly assetId?: AssetId | undefined;
-    /** …or an image the plugin's own bundle shipped, by zip path (#820 — the `image` node's bundle arm, same
+    /** …or an image the plugin's own bundle shipped, by zip path (the `image` node's bundle arm, same
      *  rule and same wall). At most one of the two; neither is the shape-matched placeholder this genre wants
      *  when a tile has no cover. */
     readonly bundleAsset?: string | undefined;
@@ -739,7 +739,7 @@ export type PluginGridTile = PluginOptionalSource<
  *  TWO TILE ARMS, exactly one per grid (the spec-level belt enforces it):
  *   - `tiles` — DECLARED: the tile set is spec structure, fixed at registration; per-tile fields may still
  *     bind values. Right when the collection is known up front (a fixed set of slots, a menu).
- *   - `tilesFrom` (#774 ARM C) — BOUND: the tile set is PUBLISHED STATE (`{ $state: "path" }` naming an array
+ *   - `tilesFrom` (ARM C) — BOUND: the tile set is PUBLISHED STATE (`{ $state: "path" }` naming an array
  *     of {@link PluginBoundGridTile}), so its CARDINALITY is data. This is the browse-genre arm — a search's
  *     results, a gallery that grows — which a registration-fixed tile count structurally cannot express (a
  *     12-slot grid with 3 results is 9 ghost tiles; the mined §4.5b failure list one shape over). Resolved by
@@ -760,7 +760,7 @@ export type PluginGridNode = PluginOneSource<
     /** What the grid says when it has no tiles — the three-states law reaching INTO the vocabulary. Absent ⇒ the
      *  host's own neutral line; a plugin that names one gets a teaching empty for free. */
     readonly empty?: string | undefined;
-    /** THE LOADING THIRD of the three-states law (#799), previously unreachable: `MediaTileGridSkeleton` has
+    /** THE LOADING THIRD of the three-states law, previously unreachable: `MediaTileGridSkeleton` has
      *  been on the shelf since U5 and nothing could spell it, so a browse grid mid-fetch sat on stale tiles or
      *  on its `empty` line — the state that is neither. Bound (or declared) TRUE ⇒ the grid renders the
      *  shape- and aspect-matched skeleton INSTEAD of tiles or the empty state, so the loading arm outranks
@@ -808,9 +808,9 @@ interface PluginPageStage {
 
 /** A detail stage's hero art. Exactly ONE of `assetId`/`assetFrom`/`bundleAsset` (the spec-level belt enforces
  *  it), the `image` node's rule one plane over: `assetId` is declared for art the SPEC knows, `assetFrom`
- *  (#774 ARM C / plugin-remote-image #798) BINDS the id from published state — for a hero whose subject is
+ *  (ARM C) BINDS the id from published state — for a hero whose subject is
  *  DATA (a hub cover a plugin just `net.fetchAsset`ed, a photo plugin's detail view) — and `bundleAsset`
- *  (#820) names art the plugin SHIPPED. No arm is a LOCATION: NO URL is ever
+ * names art the plugin SHIPPED. No arm is a LOCATION: NO URL is ever
  *  spellable here (the anti-exfil-pixel wall), and the bound arm's resolved value is UNTRUSTED STATE —
  *  format-validated at resolve (a non-TypeID string paints nothing) and then owner-scope-resolved server-side
  *  exactly like a declared id, so a foreign owner's id yields no ref and the hero renders nothing, never
@@ -819,7 +819,7 @@ export type PluginPageHero = PluginOneSource<
   {
     readonly assetId?: AssetId | undefined;
     readonly assetFrom?: PluginStateBinding | undefined;
-    /** …or the THIRD arm, the `image` node's bundle path (#820 seam 11) — hero art the plugin shipped with its
+    /** …or the THIRD arm, the `image` node's bundle path — hero art the plugin shipped with its
      *  own code. Same wall, same one-home rule: see {@link PluginImageNode.bundleAsset}. */
     readonly bundleAsset?: string | undefined;
     readonly alt?: string | undefined;
@@ -924,7 +924,7 @@ const boundBoolean: z.ZodType<PluginBoundBoolean> = z.union([z.boolean(), stateB
 const identSchema = z.string().regex(IDENT_RE);
 const labelSchema = z.string().min(1).max(LABEL_MAX);
 const gapSchema = z.enum(PLUGIN_GAP_TOKENS);
-/** A `bundleAsset` path (#820 seam 11) — the SAME anchored pattern the install funnel admitted the zip entry
+/** A `bundleAsset` path — the SAME anchored pattern the install funnel admitted the zip entry
  *  under, imported from its ONE home rather than re-spelled. That identity is what makes the arm safe to
  *  validate here at all: a path this schema accepts is, by construction, a path the funnel could have
  *  admitted, so the resolve is a lookup that either hits the plugin's own map or paints nothing. A second,
@@ -1073,11 +1073,11 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
       .refine((node): node is typeof node & PluginGridNode => node.tileAction === undefined || node.tilesFrom !== undefined, {
         error: PLUGIN_SOURCE_ERRORS.tileAction,
       }),
-    // #799 — the glyph leaf. `name` is the closed curated tuple, so an off-tuple glyph is a REGISTRATION
+    // The glyph leaf. `name` is the closed curated tuple, so an off-tuple glyph is a REGISTRATION
     // refusal rather than a runtime miss, and the client's total Record cannot be reached with a name it has
     // no component for.
     z.object({ kind: z.literal("icon"), name: z.enum(PLUGIN_ICON_NAMES), label: z.string().max(LABEL_MAX).optional() }).strip(),
-    // #799 — the one-of-N strip. The `select`'s grammar, with its own (much smaller) option cap: every
+    // The one-of-N strip. The `select`'s grammar, with its own (much smaller) option cap: every
     // option paints at once, so the bound is a LAYOUT bound, not just a DoS one.
     z
       .object({
@@ -1152,7 +1152,7 @@ const UTF8_FOUR_BYTES = 4;
 /** UTF-8 byte length WITHOUT `TextEncoder` — `@orb/contracts` is isomorphic (tsconfig lib=es2025, types=[]),
  *  so TextEncoder/Buffer are unavailable (the same kit-purity note `kit/cel` and `kit/png-card-chunk` carry).
  *
- *  TOTAL BY CONSTRUCTION, and that is a fix rather than a style choice (#1525): this used to be
+ *  TOTAL BY CONSTRUCTION, and that is a fix rather than a style choice: this used to be
  *  `encodeURIComponent(source).replace(…)`, and `encodeURIComponent` THROWS `URIError` on an unpaired UTF-16
  *  surrogate. That was survivable while its only caller measured `JSON.stringify(spec)` (which escapes lone
  *  surrogates to `\uD800`), but the byte cap now measures raw GUEST text — so a one-character plugin value
@@ -1242,7 +1242,7 @@ export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceNode> = pluginSurfa
 });
 
 // Strip mode: also reads plugin guest data.
-// ── BOUND-TILE resolution (#774 ARM C — the `tilesFrom` arm's trust gate) ────────────────────────────────────
+// ── BOUND-TILE resolution (ARM C — the `tilesFrom` arm's trust gate) ───────────────────────────────────────────
 
 // ONE bound tile as published state, validated at RESOLVE — the registration gate cannot see state, so this
 //  schema is where an untrusted entry is judged. `assetId` is FORMAT-validated exactly like the `image` node's
@@ -1322,7 +1322,7 @@ export function resolvePluginBoundSelectOptions(state: Record<string, unknown>, 
   return resolveBoundArray(state, binding, pluginBoundSelectOptionSchema, PLUGIN_ROWS_MAX);
 }
 
-/** Resolve a `tabs` node's `optionsFrom` binding (#799) — the select resolver's twin, differing ONLY in the
+/** Resolve a `tabs` node's `optionsFrom` binding — the select resolver's twin, differing ONLY in the
  *  clamp: a strip paints every option at once, so it clamps to {@link PLUGIN_TABS_OPTIONS_MAX}, the same
  *  bound its declared arm's schema enforces. State is never a loophole past a registration bound, and here
  *  the bound is the layout's. */
@@ -1330,7 +1330,7 @@ export function resolvePluginBoundTabOptions(state: Record<string, unknown>, bin
   return resolveBoundArray(state, binding, pluginBoundSelectOptionSchema, PLUGIN_TABS_OPTIONS_MAX);
 }
 
-/** Resolve a bindable BOOLEAN (#799 — `grid.loading`): a `{ $state }` binding read against published state,
+/** Resolve a bindable BOOLEAN (`grid.loading`): a `{ $state }` binding read against published state,
  *  else the literal. TRUE only on a real `true` — a missing path, a non-boolean, or a truthy string all
  *  resolve FALSE, because "loading" is a claim a plugin makes deliberately and a binding miss must never
  *  wedge a grid into a permanent skeleton (the binding-miss posture every `$state` slot has, pointed at the
@@ -1380,7 +1380,7 @@ export const pluginSurfaceIdSchema = z.string().regex(PLUGIN_SURFACE_ID_RE);
  *  `host-v1.ts` documents for it, before the host namespaces it to `plugin_<slug'>_<name>`). A surface names
  *  the tool the way its own `main.js` registered it; the WIRE name is derived host-side and never guessed
  *  client-side (`pluginToolWireName`, `registrations.ts` — the ONE mint). Length capped at
- *  {@link PLUGIN_TOOL_NAME_LOCAL_MAX} (`manifest.ts` — the wire-mint's byte budget, #1803): this is the
+ *  {@link PLUGIN_TOOL_NAME_LOCAL_MAX} (`manifest.ts` — the wire-mint's byte budget): this is the
  *  SAME grammar the membrane's `tools.register` trust boundary (`infra/plugin-host/membrane.ts`) enforces
  *  on the raw guest input, so a name too long is refused at the guest's own `tools.register` call, never
  *  merely at the `toolName` linkage above. */
@@ -1503,8 +1503,8 @@ export const pluginCommandPlacementSchema = z
   })
   .strip() satisfies z.ZodType<PluginCommandPlacement>;
 
-// ── TYPED ARG GRAMMAR (#791) — the deep half of the ST SlashCommandParser, cut to the CLEAN core ────────────────
-// U5 gave a command ONE opaque `args` remainder ("a command owns its own argument grammar"). #791 lets a command
+// ── TYPED ARG GRAMMAR — the deep half of the ST SlashCommandParser, cut to the CLEAN core ────────────────
+// U5 gave a command ONE opaque `args` remainder ("a command owns its own argument grammar"). A command may
 // DECLARE its arguments so the platform can collect + type + validate + AUTOCOMPLETE them at both surfaces (the
 // palette's typed input strip, the composer's `name=value` completion) before the guest ever runs. This is the
 // ST `SlashCommandArgument` ability — named/typed/enum/required args — carried on the SAME registration def and
@@ -1609,7 +1609,7 @@ export const pluginCommandArgSpecSchema = z
  *  boundary) and the exact descriptor `plugin.listCommands` projects to the client. The `onRun` handler is NOT
  *  here (it is a guest function kept as an opaque `PluginHandlerRef` on the collected registration).
  *
- *  `args` is the #791 TYPED-ARG grammar (absent ⇒ the U5 shape, a command with one opaque `args` remainder). Arg
+ *  `args` is the TYPED-ARG grammar (absent ⇒ the U5 shape, a command with one opaque `args` remainder). Arg
  *  NAMES must be unique within a command (a duplicate would make the values bag ambiguous) — a superRefine, the
  *  registration-refusal posture. */
 export const pluginCommandRegistrationMetaSchema = z
@@ -1837,7 +1837,7 @@ function unallowedFooterKinds(spec: PluginSurfaceNode): readonly PluginNodeKind[
   return [...offenders];
 }
 
-// ── The per-anchor PRIMARY arbitration (#818, the F3 ruling) ─────────────────────────────────────────────────
+// ── The per-anchor PRIMARY arbitration (the F3 ruling) ─────────────────────────────────────────────────
 
 /** What the renderer must do with every `variant: "primary"` button in ONE spec at ONE anchor
  *  ({@link resolvePluginPrimaryButton}). The nodes are IDENTITIES out of the caller's own validated tree, not
@@ -1852,7 +1852,7 @@ export interface PluginPrimaryArbitration {
   readonly refused: readonly PluginButtonNode[];
 }
 
-/** ARBITRATE the spec's `primary` buttons for the anchor it is mounted at (#818). PURE and total — the ONE home
+/** ARBITRATE the spec's `primary` buttons for the anchor it is mounted at. PURE and total — the ONE home
  *  for "who gets the primary", so the seven mount sites cannot each invent an answer.
  *
  *  WHY IT IS A RENDER RULE. A spec is registered once and could be mounted at any anchor, so admissibility

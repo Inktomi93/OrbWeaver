@@ -27,7 +27,7 @@ export const personaMetadataSchema = z.looseObject({
    *  It is the seeder's SECOND idempotency layer — the persona analogue of the character seeder's
    *  per-card handle-conflict tolerance, which is what kept the card pack single when the persisted
    *  `onboarding.defaultPersonaSeeded` latch was lost mid-life and the persona seeder minted a duplicate
-   *  (#461). Personas carry no unique key by design (same-named personas are supported, #458), so the
+   *. Personas carry no unique key by design (same-named personas are supported), so the
    *  seeder marks what it made instead of guessing from name/title copy. Users never write it; the seeder
    *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
   seededDefault: z.boolean().optional(),
@@ -37,7 +37,7 @@ export type PersonaMetadata = z.infer<typeof personaMetadataSchema>;
 // Write-side metadata guard: the blob stays a lenient open record, but known fields are validated when
 //  present so a typo'd `descriptionPosition`/`inject` is rejected at WRITE instead of silently no-op'ing.
 //
-//  WHY THE TWO HOPS AND NOT JUST `personaMetadataSchema` (audited 2026-08-02 — the loose schema alone accepts
+//  WHY THE TWO HOPS AND NOT JUST `personaMetadataSchema` (audited — the loose schema alone accepts
 //  the identical set): the OPAQUE `Record<string, unknown>` OUTPUT is the point. It keeps the wire input
 //  UNNARROWED so every writer — transport AND the import domain, which never crosses this schema — must go
 //  through the ONE narrowing seam (`domain/persona/substrate/metadata.ts` `normalizeWriteMetadata`, typed on
@@ -129,7 +129,7 @@ export interface PersonaDetail extends CardFace<string>, ResolvedCardFace<string
   readonly updatedAt: number;
 }
 
-/** The persona-side read of the character⇄persona junction (`listConnectedCharacters`, #866 S4 — the
+/** The persona-side read of the character⇄persona junction (`listConnectedCharacters` — the
  *  editor's "Connected characters" section). Deliberately a SUMMARY, not the character detail: the persona
  *  domain names only what its relation list renders (id to act on, name + title to display) — the full card
  *  stays behind the character domain's own verbs, so this view can never become a second character home. */

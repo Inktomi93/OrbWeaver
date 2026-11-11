@@ -39,7 +39,7 @@ const chatIdField = typeIdSchema(ID_PREFIX.chat);
 /** `createGame` — host-gated birth. `mode` rides the mode enum (`"full"` is wire-valid; the verb throws the
  *  typed PHASE refusal). `ruleset` is the game's born vocabulary (omit ⇒ `freeform`, the birth default).
  *
- *  THE `profile` ARM IS GONE (#862, owner ruling 2026-08-30): a start-time statProfile pick was the door
+ *  THE `profile` ARM IS GONE (owner ruling): a start-time statProfile pick was the door
  *  half of a choice that is now a SETTING — one start action, and the host retunes `ruleset` on the Game tab
  *  (additively). Pre-launch NO-LEGACY: replaced, not deprecated. */
 export const rpgCreateGameInputSchema = z.strictObject({
@@ -56,7 +56,7 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
   patch: z
     .strictObject({
       statProfile: rpgStatProfileSchema.optional(),
-      // THE RULESET SETTING (#862) — omit keeps. A CHANGED value applies that ruleset's vocabulary
+      // THE RULESET SETTING — omit keeps. A CHANGED value applies that ruleset's vocabulary
       // ADDITIVELY (owner ruling: adds attributes/skills/seeded trackers beside what exists, removes
       // nothing, needs no confirmation); re-sending the CURRENT value is a no-op, so a host who deleted a
       // packaged attribute never has it resurrected by an unrelated write.
@@ -87,7 +87,7 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       cyoa: z.boolean().optional(),
       cyoaChoiceBehavior: rpgCyoaChoiceBehaviorSchema.optional(),
       plotProgression: z.boolean().optional(),
-      // The FRONT-DOOR toggle (#40): `false` disengages the game from the turn assembly + hides the
+      // The FRONT-DOOR toggle: `false` disengages the game from the turn assembly + hides the
       // panel, state PRESERVED (reversible). The verb also re-writes the chat pointer mirror.
       engaged: z.boolean().optional(),
       // The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
@@ -99,11 +99,11 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       stateCaptureVehicle: z.enum(RPG_STATE_CAPTURE_VEHICLES).optional(),
       extractionWindowTokens: z.int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).optional(),
       reconcileEveryBeats: z.int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).optional(),
-      // WAVE MU (owner ruling #20's game half): the GAME's authored user macros — the whole set in ONE write
+      // WAVE MU (the owner ruling's game half): the GAME's authored user macros — the whole set in ONE write
       // (whole-list replace, the `trackers` semantics). Omit keeps the current set. The turn registers these
       // BESIDE the preset's, the game winning a name clash (`shadowPresetUserMacros`).
       userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).optional(),
-      // NO `prose` ARM (owner ruling 2026-08-08): the reminder teach/heading overrides are written through the
+      // NO `prose` ARM (owner ruling): the reminder teach/heading overrides are written through the
       // PRESET editor (`promptConfig.prose`), never this door — one home for authorable prompt text.
     })
     .optional(),
@@ -141,7 +141,7 @@ export const rpgPatchSheetInputSchema = z.strictObject({
 });
 
 /** `populateFromCharacter` — the HOST born-state round over ONE character's card + the room's opening (owner
- *  ruling 2026-08-01). Chat-scoped + actor-scoped; the verb resolves the HOST floor (a member can never trigger
+ *  ruling). Chat-scoped + actor-scoped; the verb resolves the HOST floor (a member can never trigger
  *  the host-principal model call) and refuses an actor with no card. No corpus/window args: the round reads the
  *  card + the opening message, both server-resolved — a caller cannot feed it prose. */
 export const rpgPopulateFromCharacterInputSchema = z.strictObject({
@@ -160,7 +160,7 @@ export const rpgPopulateFromCharacterInputSchema = z.strictObject({
  *  affordance ("let the model write this again"). Clearing rides the SAME verb (not a null on the lock path):
  *  a lock is snapshot-metadata, not a state leaf, so it clears via the `applyHandEdit` lock-DELTA, not a
  *  [merge-clear] null. Omit/`[]` = no release. A release may accompany an empty `patch` (release-only).
- *  `lockPaths` (#10 per-field pin) names the FINE dotted paths this edit stamps (the client knows exactly
+ *  `lockPaths` (the per-field pin) names the FINE dotted paths this edit stamps (the client knows exactly
  *  which value it edited — `actorState.user:<id>.pools.<name>`); omit ⇒ the coarse top-level-key default. */
 export const rpgEditSnapshotInputSchema = z.strictObject({
   chatId: chatIdField,
@@ -173,7 +173,7 @@ export const rpgEditSnapshotInputSchema = z.strictObject({
  *  member-own-volatile arm deferred at the verb). `ops` are applied IN ORDER against the TRUE resolved head,
  *  server-side (read-modify-write) — there is no client-authored image to go stale, so a model flush landing
  *  between the panel's read and this call survives every field the ops do not name. Each op stamps its own
- *  FINE lock path (`actorState.<ref>.<field>…`, the #10 pin) — the client no longer names lock paths at all.
+ *  FINE lock path (`actorState.<ref>.<field>…`, the per-field pin) — the client no longer names lock paths at all.
  *  `autoLock:false` is the ONE honest opt-out: a write to a field the MODEL CANNOT REACH (an item's host-picked
  *  `icon`) has nothing to pin, and stamping a lock there would only hand the host a pin to release. Refusals
  *  (an op naming an item/condition that isn't there, a merged state the write boundary rejects) are DATA. */
@@ -328,7 +328,7 @@ export const rpgListJournalInputSchema = z.strictObject({
  *  indexes the whole window by `variantId` to render per-row disclosures, so paging backward would only ever
  *  half-populate that index (see `ListTurnToolCallsParams`).
  *
- *  `turnLimit`, not `limit` — the field was RENAMED with its unit (2026-08-14) when the window stopped
+ *  `turnLimit`, not `limit` — the field was RENAMED with its unit when the window stopped
  *  counting rows and started counting turns; a silently re-denominated `limit` would have left every caller
  *  asking for something other than what it says. */
 export const rpgListTurnToolCallsInputSchema = z.strictObject({

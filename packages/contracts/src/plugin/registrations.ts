@@ -60,7 +60,7 @@ export interface PluginToolRegistration {
  *  it matches on and the prefix this mint emits are the same string by construction. */
 export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
 
-/** INJECTIVE, and the proof lives here because the whole app depends on it (#1391, owner ruling 2026-09-05).
+/** INJECTIVE, and the proof lives here because the whole app depends on it (owner ruling).
  *
  *  IT USED NOT TO BE. The transliteration was `-` → `_`, so a slug's hyphen and a tool name's underscore were
  *  indistinguishable once flattened: `("foo-bar","baz")` and `("foo","bar_baz")` both spelled
@@ -71,7 +71,7 @@ export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
  *
  *  THE PROOF. `SLUG_RE` (`manifest.ts`) is `^[a-z0-9][a-z0-9-]{1,N}$` and `PLUGIN_TOOL_NAME_RE` (`ui.ts`)
  *  is `^[a-z][a-z0-9_]{0,M}$` for whatever `N`/`M` the wire-mint budget (`manifest.ts` `PLUGIN_SLUG_MAX`/
- *  `PLUGIN_TOOL_NAME_LOCAL_MAX`, #1803) currently sets — the injectivity proof below depends only on the
+ *  `PLUGIN_TOOL_NAME_LOCAL_MAX`) currently sets — the injectivity proof below depends only on the
  *  CHARSETS, never the lengths, so it survives either cap moving: a slug contains NO `_` and never begins
  *  with `-`; a name never begins with `_`. Doubling each hyphen
  *  gives a flattened slug in which every maximal `_` run has EVEN length (exactly 2 per hyphen) and which
@@ -82,11 +82,11 @@ export const PLUGIN_TOOL_NAME_PREFIX = "plugin_";
  *  right, take the FIRST odd-length run; its LAST byte is the separator; everything before it is the
  *  flattened slug, `__` → `-`, and everything after it is the name). Decode is total on the image, so the
  *  mint is injective. It is stated rather than shipped: nothing in the app decodes a wire name — the client
- *  consumes the server's projected `toolWireName` and the #1391 data migration keys off the installed
+ *  consumes the server's projected `toolWireName` and the tool-name data migration keys off the installed
  *  plugins' own slugs — so a production decoder would be an unused second home for the rule. The rule is
  *  stated here, not executed.
  *
- *  LENGTH WAS A SEPARATE WALL that this change's own doubling made worse, and #1803 closed it at the
+ *  LENGTH WAS A SEPARATE WALL that this change's own doubling made worse, and it is closed at the
  *  INPUT boundaries instead of leaving it as a downstream refusal: `domain/tool-use`'s `TOOL_NAME_RE` caps
  *  a registry name at 64 bytes (`manifest.ts` `PLUGIN_TOOL_WIRE_NAME_MAX`, pinned to that regex by a
  *  cross-package test), and `manifest.ts`'s `PLUGIN_SLUG_MAX`/`PLUGIN_TOOL_NAME_LOCAL_MAX` are sized so

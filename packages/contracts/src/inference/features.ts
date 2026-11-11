@@ -5,7 +5,7 @@
 // a sleep/wake path pair and a rerank path.
 //
 // SCOPE, HONESTLY: this is the chat quirk schema plus the three fan-out/deadline knobs the non-chat surfaces
-// read. The non-chat surfaces' MEASURED behaviours (the ChatML wrap, the `dimensions` retry, the #165/#173
+// read. The non-chat surfaces' MEASURED behaviours (the ChatML wrap, the `dimensions` retry, the
 // window clamps, the `<think>` strip) stay CODE keyed off the resolved capability — a feature is a knob a
 // server dials, not a behaviour a wire carries.
 //
@@ -128,7 +128,7 @@ export const IMAGE_ARMS = ["images-api", "chat-modalities"] as const;
 
 /** How the output cap is spelled on this server's chat-completions body. The SDK writes `max_tokens`;
  *  OpenAI's reasoning models 400 on it (`unsupported_parameter … Use 'max_completion_tokens'`, measured
- *  2026-09-20 on gpt-5-mini) and every current OpenAI chat model takes the new word, so the `openai` row
+ *  on gpt-5-mini) and every current OpenAI chat model takes the new word, so the `openai` row
  *  declares it and the body shaper renames. Absent ⇒ the SDK's spelling stands. */
 export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as const;
 
@@ -176,7 +176,7 @@ export const endpointFeaturesSchema = z
     prefillSuppressesThinking: z.boolean().optional(),
     /** The stream-delta field(s) the server puts reasoning in, read IN ORDER. vLLM ships
      *  `["reasoning", "reasoning_content"]` (0.26 renamed it; a `reasoning_content`-only read silently dropped
-     *  every reasoning token, live-verified 2026-08-10). Applied by the transport's chunk reshaper. */
+     *  every reasoning token, live-verified). Applied by the transport's chunk reshaper. */
     reasoningKeys: z.array(z.string().min(1)).optional(),
     /** The key a sampler rides under on this server, where it differs from `DEFAULT_SAMPLER_KEYS` (llama.cpp
      *  reads `repeat_penalty`; KoboldCpp reads `typical`, `nsigma`, `rep_pen_range`, and on its OpenAI route
@@ -213,7 +213,7 @@ export const endpointFeaturesSchema = z
       })
       .strip()
       .optional(),
-    /** The #187 per-POST token ceiling + derived deadline on embed: item-count batching alone let a 128-item
+    /** The per-POST token ceiling + derived deadline on embed: item-count batching alone let a 128-item
      *  POST reach ~1M tokens and head-of-line-block every other caller. Server-specific, so a feature. */
     embedBatch: z.object({ maxTokens: z.int().positive(), floorTokensPerSec: z.number().positive() }).strip().optional(),
     /** The row's request deadline: the embed POST's deadline base, and the idle ceiling (the longest a turn may go
@@ -252,7 +252,7 @@ export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[
 // The request-body keys the wire OWNS on every endpoint we build the body for — a key here in a
 //  connection's `extras` is DROPPED with `custom_parameters_ignored{key}`, never merged (D311,
 //  unchanged — F21). EIGHT keys, each with its failure written down:
-//    `truncate_prompt_tokens` / `truncation_side` — the engine-side truncation that #165 measured as an
+//    `truncate_prompt_tokens` / `truncation_side` — the engine-side truncation measured as an
 //      unbounded hang; the belt clamps client-side instead.
 //    `stream` / `stream_options` — the stream reducer's contract with the wire.
 //    `model` — the resolved connection's identity (window math, cost attribution, the catalog).

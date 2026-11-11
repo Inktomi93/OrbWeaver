@@ -21,7 +21,7 @@ import type { MessageView } from "./messages.ts";
 import { messageViewSchema } from "./messages.ts";
 import { participantRoleSchema } from "./roster.ts";
 
-/** ONE character seat's face on a chat-list row (#192): the CAS portrait key plus the card name that backs
+/** ONE character seat's face on a chat-list row: the CAS portrait key plus the card name that backs
  *  its initials fallback and its accessible label (a stacked avatar needs both). `avatarHash` null = this
  *  seat has no portrait, which the row paints as its hue-seeded initials blob — never a broken image. */
 export interface ChatSeatPortrait {
@@ -39,7 +39,7 @@ interface ChatSummaryFields {
   readonly archived: boolean;
   /** The timestamp of the newest message (null for an empty just-created chat). With `updatedAt` it IS the
    *  list's sort key — every surface renders `lastMessageAt ?? updatedAt` and `listChats` orders on exactly
-   *  that expression in SQL (#150), so the row on top is the room whose stamp is the freshest. */
+   *  that expression in SQL, so the row on top is the room whose stamp is the freshest. */
   readonly lastMessageAt: number | null;
   /** When the VIEWER last spoke here: the newest visible message they authored, or null when they never have.
    *  Per-caller, so Home resumes the room this person was in, not the room someone else was busiest in. */
@@ -48,7 +48,7 @@ interface ChatSummaryFields {
   /** The SCENT line: the newest visible message flattened to plain text
    *  (`@orb/kit/content::projectBodyForPreview` — hidden-class spans + structured spans dropped, markdown
    *  flattened, word-boundary-capped at `PREVIEW_MAX_CHARS`). The budget is the WIDEST consumer's — home's
-   *  two-line hero, not the one-line chats-list row that clips it in CSS (#188 N-2). `null` when there is
+   *  two-line hero, not the one-line chats-list row that clips it in CSS. `null` when there is
    *  nothing this CALLER may see: an empty chat, a body that was
    *  all structure, or — the member-visibility arm — a viewer whose D16 history floor sits ABOVE the newest
    *  row (their whole readable window is empty, so a preview would be the one surface leaking pre-join canon).
@@ -56,11 +56,11 @@ interface ChatSummaryFields {
   readonly lastMessagePreview: string | null;
   /** The resolved present characters for the list card (names only — the heavy roster is `getChat`), PER-CALLER:
    *  the VIEWER'S OWN seat is suppressed while any other seat remains, so an untitled row reads "Niko", not
-   *  "You, Niko" (side-eye NR4 — the viewer is in every chat they can list, so their own name is a constant
+   *  "You, Niko" (the viewer is in every chat they can list, so their own name is a constant
    *  prefix that carries nothing and costs title width). A solo/self chat keeps its name, so the row never
    *  falls through to "Untitled chat". */
   readonly participantNames: readonly string[];
-  /** The row's own PORTRAITS — one entry per PRESENT character seat, in seat order (#192). The list row
+  /** The row's own PORTRAITS — one entry per PRESENT character seat, in seat order. The list row
    *  paints a face per seat (one seat = a portrait, two or more = an `AvatarStack`), and until now the
    *  client resolved those faces by fetching the WHOLE character library (`character.list {limit: 500}`)
    *  on every surface that shows a chat row, then indexing character ids into it — a whole-library read to
@@ -86,7 +86,7 @@ export type ChatSummary = ChatSummaryFields &
   ({ readonly isGame: true; readonly gamePaused: false } | { readonly isGame: false; readonly gamePaused: boolean });
 
 /** One KEYSET page of the caller's chat library (`listChats`) — newest-CONVERSATION first (ordered on the
- *  clock the rows DISPLAY, `lastMessageAt ?? updatedAt`; #150), filtered by the
+ *  clock the rows DISPLAY, `lastMessageAt ?? updatedAt`), filtered by the
  *  request's `characterId`/`includeArchived`. Mirrors the `items`/`nextCursor` shape of `character`'s own
  *  `ListCharactersResult` and ADDS the census.
  *
@@ -164,7 +164,7 @@ export interface ChatInjectionView extends ChatInjection {
  *  `getVariablePicks.values` (the pane's one read). */
 export type ChatVariables = Record<string, string>;
 
-/** One PICKABLE user macro as the picks pane sees it (#24) — the least-privilege projection of the active
+/** One PICKABLE user macro as the picks pane sees it — the least-privilege projection of the active
  *  preset's `UserMacroSpec`: identity + the typed INPUT declarations only. The macro BODY and its declared
  *  `args` are deliberately NOT projected — the body is prompt content (the same class `previewAssembly`
  *  is host-gated for), while this read is member-gated because a picker needs the
@@ -176,7 +176,7 @@ interface UserMacroPickDef {
   readonly name: string;
   readonly description: string;
   readonly inputs: readonly UserMacroInputDef[];
-  /** WHICH authoring home declared it (owner ruling #20's two homes) — `preset` = the chat's active preset,
+  /** WHICH authoring home declared it (the owner ruling's two homes) — `preset` = the chat's active preset,
    *  `game` = this chat's rpg game config. Derived from kit's own `MacroSourceRef.kind` (never a re-spelled
    *  union). The pane glosses a `game` macro so a picker can tell why a knob appeared with the game and will
    *  vanish with it; on a name clash the GAME def is the one projected (it is the one the turn resolves —
@@ -184,7 +184,7 @@ interface UserMacroPickDef {
   readonly source: MacroSourceRef["kind"];
 }
 
-/** The MU picks pane read (`getUserMacroPicks`, #24) — the chat's pickable user-macro declarations (the
+/** The MU picks pane read (`getUserMacroPicks`) — the chat's pickable user-macro declarations (the
  *  resolved preset's `userMacros` that declare at least one input; a macro with no inputs has nothing to
  *  pick) plus the persisted per-chat picks (`chats.user_macro_values`). Per-CHAT, not per-user: the picks
  *  are room state every member shares (the owner's Arm-A ruling — the `setVariables` sibling), and the

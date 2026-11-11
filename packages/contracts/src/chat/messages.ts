@@ -128,7 +128,7 @@ export const chatReasoningPartSchema = z
  *
  *  The column was an OPEN blob (`Record<string, unknown>`) until §5.3c class 3 closed it onto
  *  {@link variantMetadataSchema}, so nothing bound its writers to its readers — the exact shape that let this
- *  key be READ by three sites while only the ST import ever WROTE it (#184; the same column already cost one
+ *  key be READ by three sites while only the ST import ever WROTE it (the same column already cost one
  *  nested-shape fidelity bug, `server/primitives/serde/chat` §variantMetadata). The type is now the binding and this
  *  constant is the key's one spelling: the live turn's writer
  *  (`domain/chat/engine/engine.ts`) and the live stats mirror (`domain/chat/substrate/stats-delta.ts`) both
@@ -224,7 +224,7 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
  *  `claude-sub | plugin` and reading the subscription's own field off it did not compile. The inferred
  *  template type (`plugin:` + string) excludes the three named ids, so a reader narrows by the discriminator
  *  and lands on exactly one arm. The regex still runs — `templateLiteral` composes its parts' patterns, so
- *  `plugin:BAD`, `plugin:a/b/c` and a bare vendor name are all refused at the seam (probed 2026-09-20). */
+ *  `plugin:BAD`, `plugin:a/b/c` and a bare vendor name are all refused at the seam (probed). */
 const pluginProviderMetadataSchema = z
   .object({
     provider: z.templateLiteral(["plugin:", z.string().regex(/^[a-z0-9-]+\/[a-z0-9-]+$/u)]),
@@ -234,7 +234,7 @@ const pluginProviderMetadataSchema = z
 
 /** The per-provider OPAQUE-BY-DECLARATION sidecar a variant carries (§5.3c): a CLOSED union of NAMED shapes —
  *  a reader like the OpenRouter cost pill names a typed field or does not compile; a plugin provider's payload
- *  lands under `raw` with NO reader by key. Never `Record<ProviderId, unknown>` (the #164 open-bag class).
+ *  lands under `raw` with NO reader by key. Never `Record<ProviderId, unknown>` (the open-bag class).
  *
  *  TWO LAYERS, and the split is load-bearing rather than stylistic: a `z.discriminatedUnion` REQUIRES every
  *  option's discriminator to expose enumerable literal values, and the plugin arm's cannot. Carrying it as a
@@ -363,7 +363,7 @@ export const varOpSchema = z.discriminatedUnion("op", [
 export type VariableDelta = readonly VarOp[];
 export const variableDeltaSchema = z.array(varOpSchema).transform((ops): VariableDelta => ops) satisfies z.ZodType<VariableDelta>;
 
-/** ONE write-time precondition on a runtime-variable write (#1555): "I believe `key` currently reads
+/** ONE write-time precondition on a runtime-variable write: "I believe `key` currently reads
  *  `expected`" — `null` meaning "I believe the key is UNSET". The writer applies its ops only if EVERY
  *  precondition still holds against the fold it is writing over; otherwise nothing is written and the caller
  *  is told what the value actually is.
@@ -389,7 +389,7 @@ export const variablePreconditionsSchema = z
   .array(variablePreconditionSchema)
   .transform((preconditions): VariablePreconditions => preconditions) satisfies z.ZodType<VariablePreconditions>;
 
-/** What a runtime-variable write answers (#1555). `applied` = the ops landed. `stale` = at least one
+/** What a runtime-variable write answers. `applied` = the ops landed. `stale` = at least one
  *  {@link VariablePrecondition} did not hold, NOTHING was written, and `actual` carries the live value of every
  *  precondition key (`null` = unset) so the caller can re-derive and retry without a second read — which would
  *  reopen the very window the precondition closed.
@@ -434,7 +434,7 @@ export const macroFreezeSchema = z
   })
   .strip() satisfies z.ZodType<MacroFreeze>;
 
-/** The per-variant VOLATILE-FREEZE record (stickler 2026-08-08 §3 — the `macroDraws` idiom generalized).
+/** The per-variant VOLATILE-FREEZE record (the `macroDraws` idiom generalized).
  *
  *  WHY IT EXISTS: a `{{roll}}`/`{{random}}`/clock macro FREEZES at commit — destructively baked into the
  *  stored text (D51's one-post-transform-text rule) — and until this column it left NO record and NO

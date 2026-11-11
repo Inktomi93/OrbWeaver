@@ -1,5 +1,5 @@
 // @orb/contracts/rpg/actor — THE actor: its reference, its IDENTITY half, and its per-actor VOLATILE state
-// (the actor-state review R2). Wallet + inventory are FIRST-CLASS on EVERY actor
+// Wallet + inventory are FIRST-CLASS on EVERY actor
 // (character AND npc), present in lite (owner-CONFIRMED at ratification). `wallet` is a STORED
 // named-amount array, NOT legacy's derived currency-item total — lite has no loot engine to mint currency
 // items, so a derived wallet would be a permanently-empty dead doorway; full's loot engine later CREDITS the
@@ -20,7 +20,7 @@
 // was impossible and case variance minted sibling identities). Full ADDS the `{kind:"libraryNpc"}` arm
 // when the cross-game `rpg_npcs` library lands — an additive union member every `assertNever` consumer is
 // compile-forced to handle (shipping it now would mint a dead `RpgLibraryNpcId` brand FK-ing a nonexistent
-// table). The arm is spelled `libraryNpc`, not `npc`, because #906 spends the bare word on the SCENE npc
+// table). The arm is spelled `libraryNpc`, not `npc`, because the bare word is spent on the SCENE npc
 // above: a cross-game library ROW and a scene-only extra are two different addresses.
 
 import { stripHiddenSpans } from "@orb/kit/content";
@@ -37,7 +37,7 @@ import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker.ts";
 // ends, so "Sister Vesna" / "sister  vesna" / "Sister Vesna." all address ONE actor. The DISPLAY name is
 // never derived back from it — it rides `identity.name`.
 //
-// THE KEPT SET IS UNICODE (#1366). It used to be `[^a-z0-9]`, which is not "lossy", it is DESTRUCTIVE for
+// THE KEPT SET IS UNICODE. It used to be `[^a-z0-9]`, which is not "lossy", it is DESTRUCTIVE for
 // every script without ASCII letters: 李明, 田中太郎, محمد, Мария and 🐉 ALL folded to the empty string and
 // therefore to one fallback key, and `apply.ts` matches existing actor rows by exactly that key — so two
 // NPCs with different Chinese names resolved onto ONE row and the second overwrote the first's identity,
@@ -56,7 +56,7 @@ const NPC_SLUG_FALLBACK = "unnamed";
 
 /** The marker joining the fallback word to its code points. `+` is OUTSIDE the kept class, so the FOLD can
  *  never emit it — every real name's `+` becomes a `-`. That is what separates `rpgNpcSlug("🐉")` from
- *  `rpgNpcSlug("Unnamed 1f409")`, which used to be the SAME key (#1530): the fold reaches `unnamed-1f409`,
+ *  `rpgNpcSlug("Unnamed 1f409")`, which used to be the SAME key: the fold reaches `unnamed-1f409`,
  *  the fallback mints `unnamed+1f409`, and no name can fold into the second. */
 const NPC_SLUG_FALLBACK_MARK = "+";
 
@@ -79,7 +79,7 @@ const CODE_POINT_RADIX = 16;
  *  once. IDEMPOTENT by construction: `rpgNpcSlug(rpgNpcSlug(x)) === rpgNpcSlug(x)`, which is what makes it
  *  usable as the wire's own canonicality predicate.
  *
- *  NOT the same function as kit's `slugifyHandle`, and deliberately NOT unified here (#1366 / #1355). They
+ *  NOT the same function as kit's `slugifyHandle`, and deliberately NOT unified here. They
  *  encode one idea against opposite requirements: that one mints a USER-VISIBLE character handle living in a
  *  per-owner unique index and folds aggressively; this one mints an INTERNAL actor key whose only job is to
  *  never merge two people, so it NFC-PRESERVES (marks kept — in many scripts a mark is part of the letter)
@@ -162,7 +162,7 @@ export const rpgInventoryItemSchema = z
     quantity: z.int().min(1).default(1),
     location: z.string().default(""),
     type: z.string().default(""),
-    // #37 — the HOST-picked display icon (a curated `@orb/ui/icons` seal NAME from the client's
+    // The HOST-picked display icon (a curated `@orb/ui/icons` seal NAME from the client's
     // `ITEM_ICON_CHOICES` table). Host-set only (absent from `update_inventory`'s args + the extraction
     // schema — unwritable by the model); display falls back to the keyword resolver when unset.
     icon: z.string().optional(),
@@ -213,19 +213,19 @@ export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
 const NAME_CLAMP_SEGMENTER = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 const NAME_CLAMP_ELLIPSIS = "…";
 
-/** THE actor-identity → card-name BOUND (#1449, the #1386 class applied to `name` instead of `handle`).
+/** THE actor-identity → card-name BOUND (the handle bound's class applied to `name`).
  *  `rpgActorIdentitySchema.name` is `min(1)` with NO max — it is MODEL-AUTHORED at the extraction boundary
  *  (`update_scene.presentUpsert[].name`, folded onto the identity plane by `tools/apply.ts`'s
  *  `mergeNpcIdentity`) — while `promoteActor` hands that name straight to `cardFaceFields.name`
  *  (`CARD_FACE_LIMITS.nameMax` = 200). An over-length NPC name therefore minted a card the character wire
  *  refused, dropping a model-authored actor from canon over a name.
  *
- *  ORCHESTRATOR RULING (2026-09-05, #1449): CLAMP, never refuse — a refusal is a worse answer than a shortened
+ *  ORCHESTRATOR RULING: CLAMP, never refuse — a refusal is a worse answer than a shortened
  *  card name the host can rename. The bound is DERIVED from `CARD_FACE_LIMITS.nameMax` (one home in
  *  `contracts/card-face`, never a second literal) and the cut lands on a GRAPHEME boundary (never a torn
  *  surrogate/combining-mark pair) with a trailing ellipsis marking the cut as lossy. This is a PURE function,
  *  not a schema transform: `rpgActorIdentitySchema.name` stays unbounded (an identity's display name is not
- *  itself a card — only a PROMOTED one becomes one, #1386's own reasoning: the bound belongs on the
+ *  itself a card — only a PROMOTED one becomes one, so the bound belongs on the
  *  RECEIVING side's terms, applied at the mint, not baked into every npc's stored identity), and the
  *  caller (`promoteActor`) is the one place that both knows it is minting a card AND can report the
  *  truncation back to the host as data (`PromoteActorResult.issues`) instead of it vanishing silently. */
@@ -352,7 +352,7 @@ export type RpgActorEntry = z.infer<typeof rpgActorEntrySchema>;
 // could only SEE the plane in projections (the participant half + a bolted-on `castVolatile` map, never the
 // offstage rows — both retired by R2's one `RpgActorView`) to
 // re-author every actor's every field on every click. Three shipped defects and one latent clobber came out of
-// that one contract (the actor-state stickler review §2/§5 R1). The ops below replace it: one actor, one
+// that one contract. The ops below replace it: one actor, one
 // datum, per call — the server reads the TRUE head, applies the op, and writes back, so a model flush landing
 // between the panel's read and the human's click can no longer be overwritten by a stale image, and the
 // auto-lock lands on exactly the datum the human touched.

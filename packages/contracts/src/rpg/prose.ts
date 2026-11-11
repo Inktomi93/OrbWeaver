@@ -14,7 +14,7 @@
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle (the split's whole
 // reason; see `#prose-slot`'s header).
 //
-// STORAGE: the PRESET's `promptConfig.prose` (owner ruling 2026-08-08, "we are putting everything in presets" —
+// STORAGE: the PRESET's `promptConfig.prose` (owner ruling, "we are putting everything in presets" —
 // the standing per-PRESET home already recorded at `domain/chat/assembly/injections.ts`). These slots homed on
 // `rpg_games.config.prose` for exactly one merge (`29a3d8079e`); that spine — the config field, the
 // `updateConfig.patch.prose` write arm, the fork strip arm — is DELETED, and `home:"preset"` is what routes each
@@ -195,7 +195,7 @@ For example, a three-line sign is enough:
   // an extraction prompt is not a character context — there is no `{{user}}`/`{{char}}` binding to resolve, so
   // any other `{{…}}` in an override ships as literal braces rather than silently rendering empty.
   //
-  // ROW 27 IS NOW `rpg.extract.stateTrackingGuide` (owner ruling 2026-08-08 on spec §11 decision 6: WIRE it and
+  // ROW 27 IS NOW `rpg.extract.stateTrackingGuide` (owner ruling on spec §11 decision 6: WIRE it and
   // measure). It was the one row S4 deferred — a constant composed onto nothing, which is why slotting it then
   // would have handed a host an edit surface over bytes no model read. It is wired now, so it is a slot like its
   // siblings; see its own comment block below. Census rows 28 and 32 (the transcript role fallback, the three
@@ -438,7 +438,7 @@ For example, a three-line sign is enough:
   // ── The BE-THOROUGH state-tracking guide (census 27) ──
   // Appendix A's system-prompt addendum, the measured per-turn coverage lifter. It was authored long before the
   // registry and composed onto NOTHING for the whole of its life (`pnpm ast refs` found only its declaration);
-  // owner decision 6 (wire-or-delete) was ruled WIRE on 2026-08-08, so the constant became this row and
+  // owner decision 6 (wire-or-delete) was ruled WIRE, so the constant became this row and
   // `composePlaneTeaching` pushes it. Bytes VERBATIM from the retired `RPG_STATE_TRACKING_GUIDE` — a wire-and-
   // measure ruling is only measurable if what lands is the text the measurement was taken on.
   "rpg.extract.stateTrackingGuide": {
@@ -508,7 +508,7 @@ For example, a three-line sign is enough:
   },
   "rpg.extract.tool.updateInventory": {
     home: "preset",
-    // The FIRST-ACQUISITION rule, ported from `rpg.extract.plane.inventory` v4 (#118). The plane fragment
+    // The FIRST-ACQUISITION rule, ported from `rpg.extract.plane.inventory` v4. The plane fragment
     // reaches only the vehicles that compose an extraction SYSTEM PROMPT; the DEFAULT `folded` mode composes
     // none, so this description is the fold's ONLY write-surface teaching. Compressed (a description budget is
     // tighter than a system prompt's): the plane clause's "calls update_inventory with an add" collapses to
@@ -792,7 +792,7 @@ For example, a three-line sign is enough:
     fires: "Closes the ref block on every extraction prompt.",
   },
 
-  // ── The LATEST BEAT user-prompt block label (#578 — debt-prose burn) ──
+  // ── The LATEST BEAT user-prompt block label (debt-prose burn) ──
   "rpg.extract.userPrompt.latestBeatLabel": {
     home: "preset",
     version: 1,
@@ -803,7 +803,7 @@ For example, a three-line sign is enough:
     fires: "Closes the extraction user-turn body, on every `window`/`full` extraction call.",
   },
 
-  // ── The `roll_dice` tool description (#578 — debt-prose burn). Not an extraction-schema plane (roll_dice
+  // ── The `roll_dice` tool description (debt-prose burn). Not an extraction-schema plane (roll_dice
   // is zero-state, bake-once — see `domain/rpg/tools/index.ts` header), so it carries no per-game token; it
   // rides the SAME `buildRpgToolDescriptions`/`RPG_BASELINE_TOOL_DESCRIPTIONS` seam as its six siblings so the
   // registry's static registration and a future per-call render never disagree. ──

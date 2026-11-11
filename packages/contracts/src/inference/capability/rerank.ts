@@ -1,5 +1,5 @@
 // The RERANK capability — a cross-encoder's window and modalities. `maxInputTokens` bounds the query+doc
-// pair the #173 client-side clamp fits (rerank is scoring-only, nothing persisted, so clamping is
+// pair the client-side clamp fits (rerank is scoring-only, nothing persisted, so clamping is
 // legitimate); `input ∋ image` admits the multimodal data-URI body.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { pluginSurfaceIdSchema } from "./ui.ts";
 /** The `plugin.getLog` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
  *  precedent) — a plugin's execution log is a growing per-plugin catalog, so an over-bound ask is a
- *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
+ *  BAD_REQUEST rather than an unbounded log fetch. */
 
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 

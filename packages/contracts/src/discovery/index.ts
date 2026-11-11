@@ -30,7 +30,7 @@ export const duplicateRelationSchema = z.enum(RELATIONS) satisfies z.ZodType<Dup
  *  `topKeywords`, `cooccurringKeywords`, `characterKeywords`, `duplicate*`, `browseCharacters`), enforced at
  *  the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). These are top-N analytics over a
  *  GROWING library (characters/keywords/chats), and the domain verbs page an unbounded SQL `.limit()`, so an
- *  over-bound ask is a BAD_REQUEST rather than the #45-class unbounded fetch. Generous: clients ask ≤ ~40. */
+ *  over-bound ask is a BAD_REQUEST rather than an unbounded fetch. Generous: clients ask ≤ ~40. */
 export const DISCOVERY_LIST_MAX_LIMIT = 500;
 
 /** The node CEILING for the `similarityGraph` read (`maxNodes`), enforced at the transport trust boundary.
@@ -40,7 +40,7 @@ export const DISCOVERY_LIST_MAX_LIMIT = 500;
 export const DISCOVERY_GRAPH_MAX_NODES = 500;
 
 // ── The distilled-catalog BROWSE page (the corpus LIST pane's rest state) ────────────────────────────
-// KEYSET-PAGED, and that is A8's fix (side-eye corpus re-pass 2026-08-19). The read used to answer ONE
+// KEYSET-PAGED, and that is A8's fix. The read used to answer ONE
 // truncating array capped at 200: the pane's header printed `CORPUS 313` off `catalog.totalDistilled` while
 // the list below it ended at "Imai" with no load-more, so 113 of the owner's characters were unreachable and
 // nothing on the surface said so. Serving all 313 instead would have fixed today's library and re-broken at
@@ -49,7 +49,7 @@ export const DISCOVERY_GRAPH_MAX_NODES = 500;
 // character library's collection surface already consumes.
 
 // `recent` = collected-date descending; `name` = card name ascending. Discovery browse is content-only.
-//  Homed HERE rather than in the domain (it moved 2026-08-19 with the cursor): the cursor schema below is a
+//  Homed HERE rather than in the domain (it moved with the cursor): the cursor schema below is a
 //  WIRE shape discriminated on this axis, and re-spelling the two members beside it is exactly the doubling
 //  §5.5 forbids. The domain re-exports the type.
 const BROWSE_SORTS = ["recent", "name"] as const;
@@ -102,7 +102,7 @@ export type ComputeThemesWorkloadParams = z.infer<typeof computeThemesWorkloadPa
 export const findDuplicatesWorkloadParams = z.object({ threshold: z.number().min(0).max(1).optional() }).strip();
 export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkloadParams>;
 
-// Why a pass wrote nothing — the honest-accounting discriminator (issue #166).
+// Why a pass wrote nothing — the honest-accounting discriminator.
 //
 // A ZERO IS NOT A SUCCESS SENTENCE. `compute-themes` clusters MEMORY DIGESTS, and a library with none ran to
 // `succeeded` with `{scanned: 0, written: 0}` and a result line reading "0 rows · 0 written" — a pass that
@@ -113,12 +113,12 @@ export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkload
 // `no-digests` — the input plane is empty: memory has never been backfilled (or memory is disabled).
 // `no-solo-digests` — digests EXIST but every one belongs to a group room, and the passes that attribute a
 //   digest to a character read solo digests only: `compute-themes` clusters them and `compute-cooccurrence`
-//   credits their keywords (a group room's digests belong to the synthetic group character, #1467). "Run the
-//   backfill" is the wrong sentence there — it already ran (issue #558).
+//   credits their keywords (a group room's digests belong to the synthetic group character). "Run the
+//   backfill" is the wrong sentence there — it already ran.
 // `no-embeddings` — the EMBEDDINGS plane is empty: nothing has been indexed yet. `csls` scores card, digest, segment
 //   and image vectors, and `find-duplicates` compares card vectors + chat segment hashes, and all of those are written by the
 //   INDEX pass — a different job from the memory backfill the digest reasons point at, so it is a different
-//   sentence (issue #561).
+//   sentence.
 // `no-cards` — the owner's library has nothing to read yet.
 const ANALYTICS_EMPTY_REASONS = ["no-digests", "no-solo-digests", "no-embeddings", "no-cards"] as const;
 export type AnalyticsEmptyReason = (typeof ANALYTICS_EMPTY_REASONS)[number];
@@ -189,7 +189,7 @@ export interface BrowseCharacter {
 
 /**
  * ONE PAGE of the distilled catalog + the boundary to ask for the next one + the server's own census of the
- * whole filtered scope (A8, side-eye corpus re-pass 2026-08-19).
+ * whole filtered scope (A8).
  *
  * `totalCount` is a SEPARATE count over the same predicate, never `items.length`: the pane prints "how many
  * there are" beside a list that holds "how many are loaded", and deriving one from the other is exactly the
@@ -272,7 +272,7 @@ export interface CatalogStats {
   readonly tones: FacetCount[];
   readonly topTags: TagCount[];
   readonly totalDistilled: number;
-  /** THE BASE `totalDistilled` IS OUT OF (issue #535, the one-pass denominator rule). Every corpus surface
+  /** THE BASE `totalDistilled` IS OUT OF (the one-pass denominator rule). Every corpus surface
    *  that prints the distilled count reads THIS payload — the LIST band, the CONTEXT band, the browse
    *  view — and each printed a bare `313` beside an overview whose h1 said `320 characters`. Two true
    *  numbers of two different things, neither naming the other, in one frame. The catalog is the read all
@@ -380,7 +380,7 @@ export interface ForgottenGem {
   readonly lastActiveAt: number;
   /** `null` = NO output-token accounting exists for this character — either stats has no row for it at all,
    *  or every contributing generation remains unrecorded. NOT the same fact as a zero,
-   *  and the shelf renders the two differently (side-eye corpus re-pass B2). */
+   *  and the shelf renders the two differently. */
   readonly tokensOut: number | null;
   /** Origin of `tokensOut`; estimates remain approximate across the stats → discovery seam. */
   readonly tokensOutProvenance: TokenProvenance;
@@ -396,7 +396,7 @@ interface CorpusCoverage {
 /**
  * The corpus home view — index coverage + the scene/arc theme clusters + near-duplicate counts.
  *
- * THE THEME LISTS ARE COMPLETE, not a top-N (2026-08-18): they were `topSceneThemes`/`topArcThemes`, sliced
+ * THE THEME LISTS ARE COMPLETE, not a top-N: they were `topSceneThemes`/`topArcThemes`, sliced
  * to 8, beside a non-interactive bar chart that drew ALL of them. The chart is gone (it duplicated the rows
  * and could not be clicked), so the rows are now the ONE place a theme is met and a truncated list would
  * have deleted half of them from the surface. The list is bounded by the k-means k, not by the library.
@@ -500,7 +500,7 @@ export interface ImageFacets {
   /** Avatars carrying an actual breakdown — the denominator every distribution below is over. */
   readonly total: number;
   /** Avatars carrying a caption, analysed or not. `captioned > total` is the honest "captioned before the
-   *  breakdown pass existed" coverage state; the two were conflated until issue #164, which is how a
+   *  breakdown pass existed" coverage state; conflating the two is how a
    *  confident "79 images" printed above fourteen empty bar-lists. */
   readonly captioned: number;
   readonly artStyles: FacetCount[];

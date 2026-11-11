@@ -3,8 +3,8 @@
 // the picture SOURCE is carried (kind + the per-kind reference); fit / dim / blur stay the VIEWER's own
 // `appearance` treatment (ST `/lockbg` semantics — the chat locks the image, never the viewer's dimming).
 //
-// INVARIANT — `kind:"external"` is an INPUT-ONLY transient, never a persisted PAINTABLE state (side-eye
-// F-P0-2): a raw external URL can never paint (the CSP `img-src` allows only self/data/blob, by design), so
+// INVARIANT — `kind:"external"` is an INPUT-ONLY transient, never a persisted PAINTABLE state:
+// a raw external URL can never paint (the CSP `img-src` allows only self/data/blob, by design), so
 // every background WRITE path materializes an incoming `external` source server-side (safeFetch → image
 // magic-belt → CAS) into a `kind:"asset"` source carrying the original URL as `provenanceUrl`, OR refuses
 // with a typed error the caller toasts. NO write path persists a live external URL for painting; the URL
@@ -27,7 +27,7 @@ import { z } from "zod";
  *  is an OWNED background asset pinned by `assetId`/`assetHash` (GC-rooted via the asset-refs JSON
  *  live-sources for each carried location); `external` a URL, input-only per the INVARIANT above.
  *
- *  `seeded` — a slug into a static `public/`-served catalog of bundled plates — was RETIRED 2026-09-18
+ *  `seeded` — a slug into a static `public/`-served catalog of bundled plates — is RETIRED
  *  (owner ask, "the weird seeded backgrounds"). It was a parallel background channel no user-owned
  *  background could join: not in the library, not renameable, not deletable, not exportable, invisible to
  *  the CAS and to asset GC. The ten shipped scene plates are now seeded per user as ordinary

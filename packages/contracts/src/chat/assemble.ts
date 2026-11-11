@@ -188,14 +188,14 @@ export interface MemoryRecallCandidate {
    *  `verdict === "admitted"` in an embedding mode — a pure-assembly mode (mixA/tiered) runs no scan. */
   relevance?: number;
   /** 0-based position in the RETRIEVAL-admitted order (best-scoring first — the order this trace lists the
-   *  admitted candidates). NOTE (#330 P7): the `{{memory}}` TEXT itself renders the embedding-mode (mixB/mixC)
+   *  admitted candidates). NOTE: the `{{memory}}` TEXT itself renders the embedding-mode (mixB/mixC)
    *  blocks in CHRONOLOGICAL order for prompt readability, so this rank is the retrieval placement, not the
    *  text position; the pure-assembly modes (mixA/tiered) are chronological in both. ABSENT for every
    *  non-admitted verdict. */
   rank?: number;
 }
 
-/** WHAT `{{memory}}` FETCHED THIS TURN AND WHY (`AssembleTrace.memoryRecall`, #250) — the recall subsystem's
+/** WHAT `{{memory}}` FETCHED THIS TURN AND WHY (`AssembleTrace.memoryRecall`) — the recall subsystem's
  *  slice of the assembly trace, produced by `domain/chat/memory/recall/recall.ts` on EVERY recall call
  *  (including the early returns: a `mode: "off"` / empty-pool turn produces a slice saying exactly that,
  *  because "memory did nothing" is the answer a reader is most often hunting).
@@ -284,7 +284,7 @@ export interface AssembleTrace {
   matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
   compactSummaryIncluded: boolean;
   memoryIncluded: boolean;
-  /** WHAT memory fetched and why (#250) — the recall subsystem's slice, present whenever recall RAN this
+  /** WHAT memory fetched and why — the recall subsystem's slice, present whenever recall RAN this
    *  turn. `null` is the honest "no recall was performed": a hand-built / preview / non-chat assembly that
    *  never called the subsystem at all, which is a different fact from `memoryIncluded: false` (recall ran
    *  and the marker still delivered nothing). */
@@ -294,7 +294,7 @@ export interface AssembleTrace {
   macros?: MacroSlice;
   /** Whether the `{{databank}}` slot actually delivered retrieved document text this turn (DB6). Distinct from
    *  "documents are attached": a chat with a full bank still reads false when the active preset places no
-   *  databank section, which is exactly the invisible failure issue #80 was. */
+   *  databank section, which is exactly the invisible failure this refuses. */
   databankIncluded: boolean;
   guidedInstructionIncluded: boolean;
   /** Volatile macros that landed in the STATIC half — each busts prompt cache every turn. */
@@ -729,7 +729,7 @@ export interface AssembleContext {
   compactedThroughSeq?: number | null | undefined;
   /** Retrieved chat-history memory (the `{{memory}}` marker), pre-formatted by the memory subsystem. */
   memory?: string | null;
-  /** The recall EXPLANATION for {@link AssembleContext.memory} (#250) — staged by the same GATHER (and
+  /** The recall EXPLANATION for {@link AssembleContext.memory} — staged by the same GATHER (and
    *  re-staged by the engine's per-speaker witnessed re-run) that produced the text, copied verbatim onto
    *  {@link AssembleTrace.memoryRecall} by the BUILD walk. The `wiTrace` precedent: a trace input rides the
    *  ctx beside the value it explains, so the two can never describe different recalls. Absent ⇒ recall never

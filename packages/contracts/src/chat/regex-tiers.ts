@@ -1,7 +1,7 @@
 // contracts/chat/regex-tiers — the ROOM'S REGEX TIER vocabulary: the tier KEY every per-chat allow flag and
 // every rendered lever is addressed by, the per-seat character slice the resolver consumes, and the wire view
 // of the room's effective regex (`chat.listEffectiveRegex`). The design was
-// owner-approved 2026-09-05 (#1742).
+// owner-approved.
 //
 // WHY THE KEY IS ONE FLAT STRING and not a structured `{scope, characterId?}`: it is the identity of a SWITCH.
 // The section draws one lever per tier, the host's per-chat allow blob stores one boolean per tier, and the
@@ -17,7 +17,7 @@
 // {@link RegexTierAllow} is `Partial` and why {@link isRegexTierAllowed} exists rather than a `?? true` spelled
 // at each of the (server resolver, client lever, client count) readers.
 //
-// THE ALLOW DROP HAPPENS BEFORE DEDUP (the mock design §7.1, the stickler's F2): a script attached at BOTH a
+// THE ALLOW DROP HAPPENS BEFORE DEDUP (the mock design §7.1): a script attached at BOTH a
 // disallowed tier and an allowed one must still RUN — dropping after the dedup would let the disallowed tier's
 // earlier occurrence swallow the allowed one and silently kill a script the host never switched off. The
 // resolver (`server/domain/chat/substrate/regex-tier.ts`) is the one implementation; this file owns the shapes
@@ -126,7 +126,7 @@ export interface RegexTierGroupView {
   /** FALSE when the room switched this tier off. Independent of the master: the section shows both states. */
   readonly allowed: boolean;
   /**
-   * THE IDENTITY THE TIER KEY DOES NOT CARRY (#1754) — a NAME the server resolved, which the client renders
+   * THE IDENTITY THE TIER KEY DOES NOT CARRY — a NAME the server resolved, which the client renders
    * into the tier's label (`From the preset · <name>`, the mock design §3). Absent ⇒ the client says the bare
    * word (`From the preset`), never a guess.
    *

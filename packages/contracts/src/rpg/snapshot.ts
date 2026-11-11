@@ -130,8 +130,7 @@ const RPG_SNAPSHOT_STATE_PLANES: ReadonlySet<string> = new Set(
   Object.keys(rpgSnapshotStateSchema.shape).filter((key) => key !== ("fieldLocks" satisfies keyof RpgSnapshotState)),
 );
 
-/** THE OP-SHAPED PLANES — state planes that LEFT the `editSnapshot` image vocabulary (R1, the actor-state
- *  review §5): `actorState` is authored per-FIELD through `rpg.patchActor` and removed through
+/** THE OP-SHAPED PLANES — state planes that LEFT the `editSnapshot` image vocabulary (R1): `actorState` is authored per-FIELD through `rpg.patchActor` and removed through
  *  `rpg.dismissActor`. An image over this plane is unauthorable by construction — the client sees it only in
  *  projections (participant half + `castVolatile`, never the offstage rows), so every image it could build was
  *  partial, and the additive merge policy was the only thing standing between a hand click and data loss.
@@ -149,7 +148,7 @@ export function rpgActorLockBase(ref: RpgActorRef): string {
   return `${"actorState" satisfies keyof RpgSnapshotState}.${actorRefKey(ref)}`;
 }
 
-/** The #10 per-field lock-path BASE for one actor's VOLATILE half — `actorState.<actorRefKey>.volatile`. The
+/** The per-field lock-path BASE for one actor's VOLATILE half — `actorState.<actorRefKey>.volatile`. The
  *  fine paths append the op's field (`.status`, `.trackerValues.<key>`, `.wallet.<name>`, …). ONE home for a
  *  grammar with two readers: the server stamps these paths (the `patchActor` auto-lock) and the panel reads
  *  them back to render the pin + its Release. It is a REAL path segment, not a naming choice — the merge walks

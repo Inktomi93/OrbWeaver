@@ -22,7 +22,7 @@ import type { RegexTierAllow } from "./regex-tiers.ts";
 const OVERRIDE_FIELD_MAX = 100_000;
 const overrideField = z.string().max(OVERRIDE_FIELD_MAX);
 
-// RETIRED KEY — `authorsNote` (owner ruling 2026-08-01): the room author's note was a SECOND home for the
+// RETIRED KEY — `authorsNote` (owner ruling): the room author's note was a SECOND home for the
 // concept `chat_injections` already owns. Both landed as the same `in_chat` at-depth splice (operator
 // priority, budget-exempt); the note was just an injection with a default depth. ONE door survives — the
 // per-chat Injections list (a system note at depth 4 IS the author's note). Strictness therefore REJECTS a
@@ -121,7 +121,7 @@ const autoModeFields = {
   allowSelfResponses: z.boolean().catch(false).default(false),
 } as const;
 
-// RETIRED KEY — `groupCharacterId` (owner ruling 2026-08-08, the D107 dead-switch class): the synthetic
+// RETIRED KEY — `groupCharacterId` (owner ruling, the D107 dead-switch class): the synthetic
 // group character (Part III §10) is resolved by HANDLE (`__group__<chatId>`, a find-or-mint), so this key
 // never had a writer OR a reader — a dead switch that nevertheless travelled VERBATIM in the portability
 // bundle, where a foreign `CharacterId` resolves to nothing on the target box (the D136(C) class). Both arms
@@ -286,7 +286,7 @@ export const guidedSteerSchema = z.strictObject({
    *  injection — `input`/the action config are ignored. Enum-validated: the wire carries only the kind,
    *  never template text (a member cannot smuggle macros onto the trusted template side). */
   gameSteer: z.enum(GUIDED_GAME_STEER_KINDS).optional(),
-  /** The Rewrite modal's picked toggle KINDS (the templating fork, ARM B — owner 2026-08-09). Enum-validated
+  /** The Rewrite modal's picked toggle KINDS (the templating fork, ARM B — owner ruling). Enum-validated
    *  for the same reason `gameSteer` is: the wire carries the kind, the SERVER holds the bytes. Each id names
    *  a `preset.rewriteToggle.*` prose slot the assembly resolves against the turn's preset overrides and
    *  joins — in CATALOG order, never wire order — ahead of `input` (the host's own free text) into the ONE
@@ -323,7 +323,7 @@ export interface ChatMetadata {
    *  heals to absent at the parser (`.catch(undefined)`). Schema is rpg's (`ChatRpgPointer`) — the
    *  databankVisibility/background foreign-schema precedent. */
   rpg?: ChatRpgPointer;
-  /** D121-E display-tier HOST OPTION (owner ruling 2026-08-02). Absent/false ⇒ the default: display-tier
+  /** D121-E display-tier HOST OPTION (owner ruling). Absent/false ⇒ the default: display-tier
    *  regex is PER-USER — each viewer sees only their own scripts applied to the transcript, and nobody can
    *  restyle anybody else's reading. TRUE ⇒ the host opts this room in: the HOST's display scripts render
    *  for EVERY viewer here — a host staging shared visual effects on the transcript — and each viewer's
@@ -362,15 +362,15 @@ export interface ChatMetadata {
    *  `{enabled:false, groups:[]}` and `toggleReaction`/the react tool refuse — hidden is not the
    *  mechanism, refused is. */
   reactionsEnabled?: boolean;
-  /** #1742 — the room's regex MASTER — the section's "Run regex in this chat" switch.
+  /** The room's regex MASTER — the section's "Run regex in this chat" switch.
    *  Absent ⇒ ON, and that default is why it is not tri-state like its `offerChoices` neighbours:
    *  there is no per-user "do I run regex" default to inherit — the library IS the host's default, and this
    *  key exists only so the debugger can bisect ONE room without disturbing it. `false` drops the whole
    *  host-tier union for this chat (`substrate/regex-tier.ts`); the display leg is untouched by it, because
-   *  the display leg is viewer-library-wide and attachment-blind (the 2026-08-02 O-4 ruling). Host-set
+   *  the display leg is viewer-library-wide and attachment-blind (owner ruling). Host-set
    *  (`chat.setRegexAllow`); room-public on the read. */
   regexEnabled?: boolean;
-  /** #1742 — the room's per-TIER allows, a SPARSE override map keyed by {@link RegexTierKey} (`global` ·
+  /** The room's per-TIER allows, a SPARSE override map keyed by {@link RegexTierKey} (`global` ·
    *  `preset` · `character:<id>` per seat · `chat`). Absent, or a key absent, ⇒ that tier runs, so an
    *  existing room is byte-identical. Written by the same host-gated `chat.setRegexAllow` verb; READ by the
    *  host-tier resolver, which drops a disallowed tier's rows BEFORE the dedup (see the schema's header —

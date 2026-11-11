@@ -52,7 +52,7 @@ export const THEME_CSS_MAX = 65_536; // custom CSS is a text field, not a blob s
 //  which stamps no `[data-theme]` block. Exactly one row in a library carries it, and it is the client's
 //  ONLY handle on which row that is: the sentinel id that decides it is domain-internal by the ruling in
 //  `packages/server/src/domain/settings/constants.ts`, and identifying the row by its DISPLAY NAME instead
-//  is the #1667 defect this field exists to make impossible (one rename and the picker marks no card, or
+//  is the defect this field exists to make impossible (one rename and the picker marks no card, or
 //  the wrong one).
 const themeSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.theme),

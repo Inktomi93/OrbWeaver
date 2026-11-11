@@ -99,9 +99,9 @@ export interface RpgGameView {
    *  (`compose` = draft the composer; `send` = fire the turn), so it rides the MEMBER slice. */
   readonly publicConfig: {
     readonly statProfile: RpgGameConfig["statProfile"];
-    /** The RULESET setting (#862) — member-safe, and member-NEEDED: the dice in the Message tools menu
+    /** The RULESET setting — member-safe, and member-NEEDED: the dice in the Message tools menu
      *  publishes `RPG_RULESET_DICE[ruleset]`, so without it on the member slice the setting would have no
-     *  visible consequence for anyone but the host (the dead-toggle finding, side-eye 2026-08-30). */
+     *  visible consequence for anyone but the host (the dead-toggle finding). */
     readonly ruleset: RpgGameConfig["ruleset"];
     /** The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
      *  Member-safe display knob: the band + Scene ambient render the date arm by it. */
@@ -238,7 +238,7 @@ export interface RpgJournalEntryView {
  *  SWIPE-CORRECT BY CONSTRUCTION: the client indexes by `variantId`, so a row shows the calls of the swipe it
  *  is CURRENTLY showing — the same keying `rpg_snapshots`/`rpg_journal` use for the same reason. `messageId`
  *  is the slot, for a client that wants to group without walking its own variant map. */
-// WHY a call's args are not the model's verbatim bytes for this viewer (#1690). Declared as a tuple and
+// WHY a call's args are not the model's verbatim bytes for this viewer. Declared as a tuple and
 //  DERIVED (§5.5): a second reason is a member here and a `tsc` failure at every reader, never a free string.
 //  One member today — the args did not parse as JSON, so the hidden-span belt cannot be applied to them and
 //  the fail-closed answer is to serve none of them.
@@ -247,7 +247,7 @@ export type RpgToolCallWithholdReason = (typeof RPG_TOOL_CALL_WITHHOLD_REASONS)[
 
 /**
  * ONE recorded tool call AS A VIEWER MAY READ IT — the member-facing projection of the stored
- * `RpgRecordedToolCall` (#1690). A separate shape from the record on purpose: the RECORD is verbatim (it is
+ * `RpgRecordedToolCall`. A separate shape from the record on purpose: the RECORD is verbatim (it is
  * the durable row, the flight-recorder ring and the export bundle, all host/operator planes), while THIS is
  * per-viewer and may withhold.
  *
@@ -270,7 +270,7 @@ export interface RpgToolCallDisclosure {
   readonly withheld: RpgToolCallWithholdReason | null;
 }
 
-/** WHAT A READER IS TOLD when the turn's state round could not RUN (#1468 item 2) — one home, two renderings.
+/** WHAT A READER IS TOLD when the turn's state round could not RUN — one home, two renderings.
  *  The DURABLE row stores this sentence with the vehicle's own error appended (`<summary>: upstream 502 …`),
  *  which is what the host reads; every other viewer reads the summary BARE, because the tail is a provider
  *  diagnostic (endpoints, model ids, whatever the backend chose to put in an error body) and this read is
@@ -292,10 +292,10 @@ export interface RpgTurnToolCallsView {
 
 /** `getConfigView` (HOST-gated) — the Stats & Trackers editor surface: the full `statProfile` +
  *  `steeringNote` + the `gmPresetId`/`extractionMode` knobs (never on a member view — the host-read
- *  discipline). `extractionMode` is the delivery-model knob (the 2026-07-26 amendment). */
+ *  discipline). `extractionMode` is the delivery-model knob (D108). */
 export interface RpgConfigView {
   readonly statProfile: RpgGameConfig["statProfile"];
-  /** The RULESET setting (#862) — the Game tab's segmented control reads and writes THIS; the vocabulary
+  /** The RULESET setting — the Game tab's segmented control reads and writes THIS; the vocabulary
    *  above is what an apply merged into. */
   readonly ruleset: RpgGameConfig["ruleset"];
   readonly steeringNote: string;
@@ -316,7 +316,7 @@ export interface RpgConfigView {
   /** The per-custom-kind steering hints — relationship kinds + R4c custom journal types. */
   readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];
   readonly journalTypeHints: RpgGameConfig["features"]["journalTypeHints"];
-  /** WAVE MU (owner ruling #20's game half) — the GAME's authored user macros, the host editor's list. Written
+  /** WAVE MU (the owner ruling's game half) — the GAME's authored user macros, the host editor's list. Written
    *  back whole (`updateConfig({patch:{userMacros}})` is a whole-list replace). */
   readonly userMacros: RpgGameConfig["userMacros"];
   /** The NAMES the chat's active preset declares (the injected preset-macro read). Names only — the editor

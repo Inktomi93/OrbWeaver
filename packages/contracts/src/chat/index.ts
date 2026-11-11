@@ -19,7 +19,7 @@
 //   • reactions.ts      — the B6 reaction emoji vocabulary + the grouped read projection (MA-2)
 //   • visible-rooms.ts  — the leak-safe reverse-room read every usage roster shares (`VisibleRoomRef` +
 //                         `ResolveVisibleRoomsOp`, D18)
-//   • regex-tiers.ts    — the room's REGEX TIER vocabulary (#1742): the tier key, the per-chat allow blob,
+//   • regex-tiers.ts    — the room's REGEX TIER vocabulary: the tier key, the per-chat allow blob,
 //                         the per-seat character slice, and the `chat.listEffectiveRegex` view
 //
 // LAWS honored across these modules:

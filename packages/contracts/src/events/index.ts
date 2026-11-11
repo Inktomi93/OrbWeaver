@@ -14,11 +14,11 @@ import type { PubSub } from "@orb/kit/pubsub";
 // The discriminant axis (§7.5 one-union; a new event = a member here + a handler, nowhere else). The
 // agents/rpg domain-event mirrors (curated, id-only subsets
 // of those domains' own bus events so D46 Tier-1 automation could trigger on their activity) were purged
-// with the 2026-07-25 rollback — no `crew.*`/`rpg.*` members exist today. The rebuild grafts them back onto
+// with the rollback — no `crew.*`/`rpg.*` members exist today. The rebuild grafts them back onto
 // this union (+ the matching `DOMAIN_TRIGGER_TYPES` reservation in `@orb/contracts/automation`) if either
 // domain returns.
 // Native type assertions verify tuple totality; subscribers exhaust the union with assertNever.
-// GREW 2026-08-14 to four: `persona.updated` + `world-info.updated` are the entity→room member-freshness
+// HAS four: `persona.updated` + `world-info.updated` are the entity→room member-freshness
 // bridge's inputs. They have NO indexer consumer
 // — the embeddings subscriber names them as explicit no-op cases — and exist so ONE reach engine at the
 // composition root can fan a room event for every entity kind, instead of each domain growing its own
