@@ -71,6 +71,31 @@ export const jsonMemberSchema: z.ZodType<JsonValue> = z.custom<JsonValue>(
   { error: JSON_NOT_JSON },
 );
 
+// The private member makes a narrowed object nominal. A spread or a rest rebuild drops a class's methods, so a
+// literal, a spread or a rest copy cannot produce one; only the parse in `narrowJsonObject` can. The brand cannot
+// refuse an Object.assign intersection or an assertion; the ESLint rule `orb/narrowed-json-brand`
+// (`tooling/src/eslint/narrowed-json.ts`) refuses both. An `any`-typed value is the hole left, refused by
+// `@typescript-eslint/no-unsafe-assignment` and `no-unsafe-argument`.
+// The private member is a method because Playwright's Babel transform rejects any field on a `declare class`. The
+// brand is an interface over the class, so no value reads as a class instance; the `Name` key tells two owners apart.
+declare class JsonNarrowingMint {
+  private jsonNarrowing(): void;
+}
+declare const narrowedFor: unique symbol;
+interface JsonNarrowing<Name extends string> extends JsonNarrowingMint {
+  readonly [narrowedFor]: Name;
+}
+
+/** A JSON object its owner's schema parsed, marked for `Name`. A column typed with it takes only
+ *  {@link narrowJsonObject}'s output; the stored value is plain JSON. */
+export type NarrowedJsonObject<T, Name extends string> = T & JsonNarrowing<Name>;
+
+/** Parse `raw` with its owner's schema and mark the result narrowed for `Name`, the brand's one mint.
+ *  @throws ZodError when `raw` fails the schema. */
+export function narrowJsonObject<Name extends string, T>(schema: z.ZodType<T>, raw: Readonly<Record<string, unknown>>): NarrowedJsonObject<T, Name> {
+  return schema.parse(raw) as NarrowedJsonObject<T, Name>;
+}
+
 /** How deep {@link boundedJsonObjectSchema} walks before it refuses. A projected tool schema at the JSON Schema lift's
  *  own depth cap spends about two JSON levels per schema level, so this holds it with room to spare. */
 export const JSON_MAX_DEPTH = 128;

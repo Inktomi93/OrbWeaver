@@ -7,8 +7,8 @@
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
-import type { JsonObject } from "@orb/kit/json";
-import { jsonMemberSchema, jsonObjectSchema } from "@orb/kit/json";
+import type { JsonObject, NarrowedJsonObject } from "@orb/kit/json";
+import { jsonMemberSchema, jsonObjectSchema, narrowJsonObject } from "@orb/kit/json";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { z } from "zod";
 import type { CardFace, ResolvedCardFace } from "#card-face";
@@ -20,9 +20,8 @@ const TITLE_MAX_LENGTH = 200;
 // `swapMacros` are the non-lossy `createFromCharacter` provenance: a persona minted from a card can
 // re-derive its description if the card is edited.
 //
-// Unknown keys ride through as JSON (a stored row from another build keeps them). The brand makes this schema the
-// only producer of a value the `personas.metadata` column takes, so a writer cannot store an object it never
-// narrowed: see {@link narrowPersonaMetadata}.
+// Unknown keys ride through as JSON (a stored row from another build keeps them). The `personas.metadata` column takes
+// only {@link narrowPersonaMetadata}'s output, so a writer cannot store an object it never narrowed.
 export const personaMetadataSchema = z
   .object({
     descriptionPosition: z.enum(PERSONA_DESCRIPTION_POSITIONS).exactOptional(),
@@ -39,15 +38,17 @@ export const personaMetadataSchema = z
      *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
     seededDefault: z.boolean().exactOptional(),
   })
-  .catchall(jsonMemberSchema)
-  .brand<"PersonaMetadata">();
-export type PersonaMetadata = z.infer<typeof personaMetadataSchema>;
+  .catchall(jsonMemberSchema);
+/** Persona metadata as a read or a view carries it: parsed, not narrowed for the column. */
+export type ParsedPersonaMetadata = z.infer<typeof personaMetadataSchema>;
+/** The value the `personas.metadata` column takes: only {@link narrowPersonaMetadata} produces one. */
+export type PersonaMetadata = NarrowedJsonObject<ParsedPersonaMetadata, "PersonaMetadata">;
 
 /** The one narrowing of a written metadata object into {@link PersonaMetadata}. Every writer passes it: the write
- *  schema hands out a plain {@link JsonObject}, and the column takes only this function's branded output.
+ *  schema hands out a plain {@link JsonObject}, and the column takes only this function's output.
  *  @throws ZodError when a known field is out of shape, which the write schema already refused at the wire. */
 export function narrowPersonaMetadata(raw: JsonObject | null): PersonaMetadata | null {
-  return raw === null ? null : personaMetadataSchema.parse(raw);
+  return raw === null ? null : narrowJsonObject<"PersonaMetadata", ParsedPersonaMetadata>(personaMetadataSchema, raw);
 }
 
 // Write-side metadata guard: the blob stays an open JSON object, but known fields are validated when
@@ -140,7 +141,7 @@ export interface PersonaDetail extends CardFace<string>, ResolvedCardFace<string
   readonly id: PersonaId;
   /** Display subtitle for pickers/lists — never injected into the prompt. */
   readonly title: string | null;
-  readonly metadata: PersonaMetadata | null;
+  readonly metadata: ParsedPersonaMetadata | null;
   readonly updatedAt: number;
 }
 
@@ -197,7 +198,7 @@ export interface PersonaListView {
   readonly ownerId: UserId;
   readonly name: string;
   readonly description: string;
-  readonly metadata: PersonaMetadata | null;
+  readonly metadata: ParsedPersonaMetadata | null;
 }
 
 /** Resolve the presentation surface of personas a room's PARTICIPANTS consent to.

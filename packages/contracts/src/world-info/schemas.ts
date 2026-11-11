@@ -8,8 +8,8 @@
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
-import type { JsonObject } from "@orb/kit/json";
-import { jsonMemberSchema, jsonObjectSchema } from "@orb/kit/json";
+import type { JsonObject, NarrowedJsonObject } from "@orb/kit/json";
+import { jsonMemberSchema, jsonObjectSchema, narrowJsonObject } from "@orb/kit/json";
 import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
 import { z } from "zod";
 
@@ -69,8 +69,8 @@ export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 // unconditionally; the stale `crew` key would also persist beside the new `provenance`, since the
 // upsert spreads `prior.metadata` forward rather than stripping retired keys.)
 //
-// The brand makes this schema the only producer of a value the `world_entries.metadata` column takes, so a writer
-// cannot store an object it never narrowed: see {@link narrowEntryMetadata}.
+// The `world_entries.metadata` column takes only {@link narrowEntryMetadata}'s output, so a writer cannot store an
+// object it never narrowed.
 export const entryMetadataSchema = z
   .object({
     scopeMode: z.enum(ENTRY_SCOPE_MODES).exactOptional(),
@@ -81,16 +81,18 @@ export const entryMetadataSchema = z
     position: z.enum(ENTRY_POSITIONS).exactOptional(),
     provenance: loreEntryProvenanceSchema.exactOptional(),
   })
-  .catchall(jsonMemberSchema)
-  .brand<"EntryMetadata">();
-export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
+  .catchall(jsonMemberSchema);
+/** Entry metadata as a read or a view carries it: parsed, not narrowed for the column. */
+export type ParsedEntryMetadata = z.infer<typeof entryMetadataSchema>;
+/** The value the `world_entries.metadata` column takes: only {@link narrowEntryMetadata} produces one. */
+export type EntryMetadata = NarrowedJsonObject<ParsedEntryMetadata, "EntryMetadata">;
 
 /** The one narrowing of a written metadata object into {@link EntryMetadata}. Every writer passes it: the write
  *  schema hands out a plain {@link JsonObject} and the import serdes an object decoded from a file, and the
- *  column takes only this function's branded output.
+ *  column takes only this function's output.
  *  @throws ZodError when a known field is out of shape. */
 export function narrowEntryMetadata(raw: Readonly<Record<string, unknown>> | null): EntryMetadata | null {
-  return raw === null ? null : entryMetadataSchema.parse(raw);
+  return raw === null ? null : narrowJsonObject<"EntryMetadata", ParsedEntryMetadata>(entryMetadataSchema, raw);
 }
 
 // Write-side metadata guard: stays an open JSON object (unknown keys ride through), but the known fields are
@@ -174,7 +176,7 @@ export interface EntryView {
   priority: number;
   /** When true, this entry bypasses the per-turn WI token budget (must-have lore). */
   ignoreBudget: boolean;
-  metadata: EntryMetadata | null;
+  metadata: ParsedEntryMetadata | null;
 }
 
 /** Book-attachment view: the book's metadata + an optional `role` for `character` attachments. */

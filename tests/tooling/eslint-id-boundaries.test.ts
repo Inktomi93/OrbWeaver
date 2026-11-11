@@ -192,6 +192,13 @@ rows(WIRE_OBJECT, CONTRACTS, [
   ["an any catchall remainder", `${ZOD}export const s = z.object({ a: z.string() }).catchall(z.any());\n`, 1],
   ["a wrapped unknown catchall remainder", `${ZOD}export const s = z.object({ a: z.string() }).catchall(z.unknown().nullable());\n`, 1],
   ["an any nested in a catchall remainder", `${ZOD}export const s = z.object({ a: z.string() }).catchall(z.array(z.any()));\n`, 1],
+  ["an untyped custom catchall remainder", `${ZOD}export const s = z.object({ a: z.string() }).catchall(z.custom());\n`, 1],
+  ["an unchecked custom catchall remainder", `${ZOD}export const s = z.object({ a: z.string() }).catchall(z.custom<number>());\n`, 1],
+  [
+    "a typed and checked custom catchall remainder",
+    `${ZOD}export const s = z.object({ a: z.string() }).catchall(z.custom<number>((v) => typeof v === "number"));\n`,
+    0,
+  ],
   ["a declared catchall re-moded to strip", `${ZOD}export const s = z.object({ a: z.string() }).catchall(z.number()).strip();\n`, 1],
   ["a strict constructor re-moded by catchall", `${ZOD}export const s = z.strictObject({ a: z.string() }).catchall(z.number());\n`, 1],
   ["a declared strip re-moded to loose", `${ZOD}export const s = z.object({ a: z.string() }).strip().loose();\n`, 1],
