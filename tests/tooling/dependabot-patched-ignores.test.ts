@@ -5,10 +5,18 @@ import { parse } from "yaml";
 import { z } from "zod";
 
 // A version-keyed patch has to be ported before its package moves, and an unported patch fails installation, so
-// every patched package must be ignored by both npm update entries.
+// every patched package must be ignored by each npm update entry that updates the workspace lockfile (directory `/`).
+// An entry for another directory, such as the dev container's own lockfile, takes no workspace patches.
 const workspaceSchema = z.object({ patchedDependencies: z.record(z.string(), z.string()) });
 const dependabotSchema = z.object({
-  updates: z.array(z.object({ ["package-ecosystem"]: z.string(), ignore: z.array(z.object({ ["dependency-name"]: z.string() }).loose()).optional() })),
+  updates: z.array(
+    z.object({
+      ["package-ecosystem"]: z.string(),
+      directory: z.string().optional(),
+      directories: z.array(z.string()).optional(),
+      ignore: z.array(z.object({ ["dependency-name"]: z.string() }).loose()).optional(),
+    }),
+  ),
 });
 
 // `pnpm-workspace.yaml` keys read `name@version`; a scoped name starts with its own `@`.
@@ -26,14 +34,16 @@ function covers(pattern: string, name: string): boolean {
 const uncovered = (names: readonly string[], patterns: readonly string[]): string[] =>
   names.filter((name) => !patterns.some((pattern) => covers(pattern, name)));
 
-test("every patched dependency is ignored by both npm update entries", ({ repoRoot }) => {
+test("every patched dependency is ignored by every npm update entry for the workspace", ({ repoRoot }) => {
   const { patchedDependencies } = workspaceSchema.parse(parse(readFileSync(join(repoRoot, "pnpm-workspace.yaml"), "utf8")));
   const dependabot = dependabotSchema.parse(parse(readFileSync(join(repoRoot, ".github/dependabot.yml"), "utf8"), { maxAliasCount: 0 }));
   const names = Object.keys(patchedDependencies).map(patchedName);
-  const npm = dependabot.updates.filter((entry) => entry["package-ecosystem"] === "npm");
+  const npm = dependabot.updates.filter(
+    (entry) => entry["package-ecosystem"] === "npm" && (entry.directory === "/" || entry.directories?.includes("/") === true),
+  );
 
   expect(names.length).toBeGreaterThan(0);
-  expect(npm).toHaveLength(2);
+  expect(npm.length, "the config has an npm entry for the workspace").toBeGreaterThan(0);
   for (const entry of npm) {
     expect(
       uncovered(

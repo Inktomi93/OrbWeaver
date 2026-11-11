@@ -234,7 +234,7 @@ function ProseTemplateBody({
   );
 }
 
-/** The framing field's footer (§6.3 / §4.4) — the same signals the Prose settings cards carry, off the same
+/** The framing field's footer — the same signals the Prose settings cards carry, off the same
  *  shared `proseFooterState`. A framing's `{{note}}` is its PAYLOAD carrier: an override that drops it renders
  *  the wrapper with the injection's content gone, which is the one mistake an author cannot see in the field
  *  itself.

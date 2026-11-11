@@ -8,7 +8,7 @@
 //
 // WHY A DATA MIGRATION AND NOT A READ-COMPAT SHIM. `proseOverridesSchema`'s preprocess STRIPS any key that is
 // not a live `ProseSlotId` before the record schema sees it (it must — a retired id may not make a whole
-// stored blob unparseable, §4.4 rung 5). So the instant the id is renamed, an un-migrated override under the
+// stored blob unparseable). So the instant the id is renamed, an un-migrated override under the
 // old id does not fail loudly: it VANISHES at the parse seam, the shipped default rides, and the host's
 // authored narrator character heading is gone with no signal anywhere. That silent-loss shape is exactly what
 // #1649 ruled against, and the ruling recorded in the slot's own header (`contracts/chat/prose.ts`, 2026-08-30)

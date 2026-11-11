@@ -5,7 +5,8 @@ packages:
   # The test kit (@orb/testkit) — ABOVE the cake beside tooling; tests and scripts import it, packages and tooling never do.
   - tests/support
 
-# Enforce the Node floor declared by each workspace manifest; pnpm reads this setting here, not from .npmrc.
+# Enforce the Node floor. The root `engines` equals the `devEngines` pin and workspace manifests declare none, except the
+# plugin toolchain's published floor. pnpm reads this setting here, not from .npmrc.
 engineStrict: true
 
 # pnpm gates packages with postinstall build scripts. Approve the ones we need:
