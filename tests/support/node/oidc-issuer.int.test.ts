@@ -1,12 +1,12 @@
 // @subject tests/support/node/oidc-issuer.ts
 import { createHash } from "node:crypto";
+import { OIDC_BACKCHANNEL_LOGOUT_EVENT as LOGOUT_EVENT } from "@orb/contracts/identity";
 import { MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import { createRemoteJWKSet, customFetch, decodeJwt, jwtVerify } from "jose";
 import { expect, test } from "./fixtures.ts";
 import { CALLBACK, CLIENT_ID, CLIENT_SECRET, createNativeIssuer, ISSUER } from "./oidc-issuer.ts";
 
 const VERIFIER = "scripted-native-proof-verifier";
-const LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
 
 function authorization(state: string): string {
   const url = new URL("authorize", ISSUER);

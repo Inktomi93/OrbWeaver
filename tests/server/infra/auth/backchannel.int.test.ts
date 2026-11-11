@@ -1,12 +1,12 @@
 // Native logout verification is assembled by the real OIDC composition owner, not a private infra import.
 // @subject packages/server/src/infra/auth/backchannel.ts
+import { OIDC_BACKCHANNEL_LOGOUT_EVENT as BACKCHANNEL_EVENT } from "@orb/contracts/identity";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { test as base, expect } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { configureOidc, createServerHarness } from "@orb/testkit/node/composed";
 import { CLIENT_ID, createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "@orb/testkit/node/helpers";
 
-const BACKCHANNEL_EVENT = "http://schemas.openid.net/event/backchannel-logout";
 const SUBJECT = "authentik|alice";
 const KEY_URL = new URL("jwks", ISSUER).href;
 

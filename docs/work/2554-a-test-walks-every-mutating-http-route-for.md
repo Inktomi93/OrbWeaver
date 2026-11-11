@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-11-11
 priority: P2
 area: security
-lane: wt/agent-a0ae2810839caa54f
 plan: checked-law
 ---
 
@@ -12,15 +11,15 @@ plan: checked-law
 
 ## What
 
-The law census found two rulings in .claude/rules/server-edge.md with no checker. CSRF must cover every mutating route: tRPC has one central check, but the plain HTTP routes are guarded one at a time and no test enumerates the route table. A route that serves its own content security policy must be registered with the security headers module's servesOwnPolicy list; the census reports a third such route that is not registered, which is unverified. Source: the leg-one report under reports/law-census.
+A route that serves its own content security policy writes the header in its handler and is registered separately with the security headers module (packages/server/src/entry/http/security-headers.ts). When a route is not registered, the app policy overwrites the handler's policy before the response leaves, so the defect leaves no evidence on the wire and no test of responses can find it; the plugin frame asset route was in that state until it was registered. The CSRF half of this item is done: a test walks every mutating route in every auth mode, exemptions cite their ruling, and the byte-ingest routes require the header on every auth path. A single table of policies does not fit, because the card frame computes its policy on every request from the character's grant, the deployment ceiling and the viewer's script setting. Source: the route checker lane report under reports/lanes and its two security reviews under reports/review.
 
 ## Why
 
-A new mutating route with no CSRF check, or a route whose policy is overwritten or doubled, is a security defect that nothing fails on today.
+A policy written in one place and registered in another can be forgotten silently, and the route then ships the wrong policy with every test green.
 
 ## Done when
 
-A test enumerates the composed app's routes from production and fails for a mutating route that does not pass through the CSRF check, with a planted route as its control. A test fails for a route that sets its own policy and is not registered. The reported unregistered route is confirmed and fixed, or the census row is corrected with evidence.
+The security headers module exports one registrar that registers an own-policy route and exempts its path from the app policy in the same call; a handler returns its policy beside its body and status and only the registrar builds the response, so a plain route cannot return it. A native lint entry refuses the content security policy header name outside that module. The three own-policy routes use the registrar, the own-policy test stays green, and a planted handler that sets the header directly fails lint.
 
 ## Evidence
 

@@ -1,8 +1,8 @@
 // A5 — OpenID Connect Back-Channel Logout 1.0 `logout_token` VERIFY. Sealed infra crypto (jose), the same
 // shape as jwks.ts's forward-header verify: signature against the issuer JWKS + the full spec claim
 // checklist, fail-closed to null on ANY violation. The caller (entry/http/auth-routes) revokes every session
-// row for the returned subject. Ours needs NO Redis — a re-delivered token just re-revokes (idempotent), so
-// there is no jti replay cache to keep (OpenWebUI degrades to a no-op without Redis; we don't).
+// row for the returned subject. There is no jti replay cache (OIDC BCL makes one optional): a re-delivered token
+// revokes the subject's sessions again until its `exp`, including any signed in since the first delivery.
 //
 // The validation checklist mirrors OpenID Connect Back-Channel Logout 1.0 §2.4 (and OW oauth.py:2185-2239):
 //   1. signature verifies against the issuer JWKS with a PINNED asymmetric alg (jose also blocks alg:none);
@@ -12,6 +12,7 @@
 //   5. the token carries NO `nonce` (its presence means an ID token was replayed as a logout token);
 //   6. at least one of `sub` / `sid` is present.
 
+import { OIDC_BACKCHANNEL_LOGOUT_EVENT } from "@orb/contracts/identity";
 import type { JWTPayload } from "jose";
 import { errors, jwtVerify } from "jose";
 import { z } from "zod";
@@ -19,13 +20,11 @@ import type { Logger } from "#foundation/observability";
 import { securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, BackchannelVerifyArgs, JwksReader, LogoutTokenSubject } from "./contract.ts";
 
-// The back-channel-logout event URI the `events` claim MUST carry (OIDC BCL §2.4).
-const BACKCHANNEL_EVENT = "http://schemas.openid.net/event/backchannel-logout";
 // The same asymmetric alg pin jwks.ts uses for forward-header verify: jose already blocks alg:none and
 // key/alg-class confusion; pinning stops a future JWKS quirk widening what we accept (no RS256→HS256 downgrade).
 const PINNED_ALGS = ["RS256", "ES256"] as const;
 
-const backchannelEventsSchema = z.object({ [BACKCHANNEL_EVENT]: z.object({}).loose() });
+const backchannelEventsSchema = z.object({ [OIDC_BACKCHANNEL_LOGOUT_EVENT]: z.object({}).loose() });
 const logoutTokenIdSchema = z.string();
 const logoutSubjectSchema = z.object({ sub: z.string().optional(), sid: z.string().optional() });
 

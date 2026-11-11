@@ -31,7 +31,7 @@ import {
   signupResultSchema,
 } from "@orb/contracts/chat";
 import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity";
-import { externalIdSchema, handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
+import { externalIdSchema, handleSchema, MIN_PASSWORD_LENGTH, OIDC_LOGOUT_TOKEN_FIELD } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
@@ -75,7 +75,7 @@ import { addressThrottleKey, clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "#src/transport/rate-limit.ts";
 import { createRateLimiter } from "#src/transport/rate-limit.ts";
 import type { LiveBuses, SocketRegistry } from "#transport/trpc";
-import { readSessionCookie } from "../auth/index.ts";
+import { CSRF_EXEMPT_ROUTES, readSessionCookie } from "../auth/index.ts";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const UNAUTHORIZED = 401;
@@ -134,7 +134,6 @@ const SIGNUP_BODY_MAX_BYTES = SIGNUP_BODY_KIB * BYTES_PER_KIB;
 const OIDC_BACKCHANNEL_BODY_MAX_BYTES = OIDC_BACKCHANNEL_BODY_KIB * BYTES_PER_KIB;
 const OIDC_LOGIN_ROUTE = "/api/auth/oidc/login";
 const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
-const OIDC_BACKCHANNEL_LOGOUT_ROUTE = "/api/auth/oidc/backchannel-logout";
 // D259 — the signed-out pending join: the surface the callback lands on, and its two same-origin routes.
 const OIDC_PENDING_JOIN_SURFACE = "/login?pendingJoin=1";
 const OIDC_PENDING_PREVIEW_ROUTE = "/api/auth/oidc/pending/preview";
@@ -146,7 +145,6 @@ const OWNER_CLAIM_PARAM = "ownerClaim";
 const INVITE_PARAM_MAX_CHARS = 128;
 const HANDLE_FIELD = "handle";
 const PASSWORD_FIELD = "password";
-const LOGOUT_TOKEN_FIELD = "logout_token";
 // A7 — the SPA login route the callback lands the browser back on with a sanitized ?authError= code (never
 // raw JSON on a top-level navigation). The codes below are a fixed lowercase snake_case set LoginSurface
 // maps to copy; the IdP-supplied ones are already sanitized to the same shape.
@@ -1444,57 +1442,57 @@ function registerOidcPendingJoin(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, 
  *  the subject. A verified sid-only token is refused until session rows persist issuer+sid — accepting one
  *  without an actionable key would tell the IdP logout succeeded while leaving the session live. Returns
  *  200 on success, 400 on validation or unsupported-token failure (per spec), always no-store.
- *  Idempotent — a re-delivered token re-revokes nothing (no Redis replay cache needed). */
+ *  NO REPLAY CACHE: nothing records a token's `jti`, so a re-delivered token revokes every session its subject
+ *  holds at that moment, including one signed in after the first delivery, until the token's `exp`. It carries no
+ *  CSRF check because its outcome does not depend on an ambient credential, so it registers through its
+ *  `CSRF_EXEMPT_ROUTES` entry; reading the request's principal or session cookie here would void that exemption. */
 function registerBackchannelLogout(
   app: Hono<PrincipalEnv>,
   deps: AuthRoutesDeps,
   oidc: OidcRoutesDeps,
   bcl: NonNullable<OidcRoutesDeps["backchannelLogout"]>,
 ): void {
-  app.post(
-    OIDC_BACKCHANNEL_LOGOUT_ROUTE,
-    bodyLimit({ maxSize: OIDC_BACKCHANNEL_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }),
-    async (c) => {
-      c.header("Cache-Control", "no-store");
-      const body = await c.req.parseBody();
-      const logoutToken = typeof body[LOGOUT_TOKEN_FIELD] === "string" ? body[LOGOUT_TOKEN_FIELD] : "";
-      // Per OIDC BCL §2.7 a failed logout returns 400 with a JSON `error` (error_description is optional and
-      // omitted here — this is a server-to-server call, so a single machine code is enough and keeps the
-      // response body free of a snake_case wire field).
-      if (logoutToken.length === 0) {
-        return c.json({ error: "invalid_request" }, BAD_REQUEST);
-      }
-      const meta = (await oidc.getConfig()).serverMetadata();
-      const jwksUri = meta.jwks_uri;
-      if (typeof jwksUri !== "string" || jwksUri.length === 0) {
-        return c.json({ error: "server_error" }, BAD_REQUEST);
-      }
-      const subject = await bcl.verify({ logoutToken, jwks: jwksUri, issuer: meta.issuer, audience: bcl.clientId });
-      if (subject === null) {
-        // The verifier already emitted a securityEvent naming the exact violation.
-        return c.json({ error: "invalid_request" }, BAD_REQUEST);
-      }
-      if (subject.sub === null) {
-        securityEvent(
-          "oidc_backchannel_sid_unsupported",
-          { hasSid: subject.sid !== null },
-          "security: OIDC back-channel logout — refused sid-only token because sessions have no issuer/sid binding",
-          deps.logger,
-        );
-        return c.json({ error: "unsupported_logout_token" }, BAD_REQUEST);
-      }
+  const route = CSRF_EXEMPT_ROUTES.oidcBackchannelLogout;
+  app.on(route.method, route.path, bodyLimit({ maxSize: OIDC_BACKCHANNEL_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+    c.header("Cache-Control", "no-store");
+    const body = await c.req.parseBody();
+    const logoutToken = typeof body[OIDC_LOGOUT_TOKEN_FIELD] === "string" ? body[OIDC_LOGOUT_TOKEN_FIELD] : "";
+    // Per OIDC BCL §2.7 a failed logout returns 400 with a JSON `error` (error_description is optional and
+    // omitted here — this is a server-to-server call, so a single machine code is enough and keeps the
+    // response body free of a snake_case wire field).
+    if (logoutToken.length === 0) {
+      return c.json({ error: "invalid_request" }, BAD_REQUEST);
+    }
+    const meta = (await oidc.getConfig()).serverMetadata();
+    const jwksUri = meta.jwks_uri;
+    if (typeof jwksUri !== "string" || jwksUri.length === 0) {
+      return c.json({ error: "server_error" }, BAD_REQUEST);
+    }
+    const subject = await bcl.verify({ logoutToken, jwks: jwksUri, issuer: meta.issuer, audience: bcl.clientId });
+    if (subject === null) {
+      // The verifier already emitted a securityEvent naming the exact violation.
+      return c.json({ error: "invalid_request" }, BAD_REQUEST);
+    }
+    if (subject.sub === null) {
+      securityEvent(
+        "oidc_backchannel_sid_unsupported",
+        { hasSid: subject.sid !== null },
+        "security: OIDC back-channel logout — refused sid-only token because sessions have no issuer/sid binding",
+        deps.logger,
+      );
+      return c.json({ error: "unsupported_logout_token" }, BAD_REQUEST);
+    }
 
-      const { revoked, userIds } = await deps.sessions.revokeByExternalId(externalIdSchema.parse(subject.sub));
-      // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
-      // bound to more than one row. Idempotent with the revoke itself — a re-delivered logout token names no
-      // users and evicts nothing.
-      for (const userId of userIds) {
-        deps.sockets.evictUser(userId);
-      }
-      securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject", deps.logger);
-      return c.body(null, OK);
-    },
-  );
+    const { revoked, userIds } = await deps.sessions.revokeByExternalId(externalIdSchema.parse(subject.sub));
+    // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
+    // bound to more than one row. It evicts exactly the users whose sessions this delivery revoked, so a
+    // re-delivered token evicts nothing unless the subject signed in again since the last one.
+    for (const userId of userIds) {
+      deps.sockets.evictUser(userId);
+    }
+    securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject", deps.logger);
+    return c.body(null, OK);
+  });
 }
 
 /** THE group-name normalisation, shared by both claim shapes: trim each name, drop the
