@@ -8,36 +8,30 @@
 // for display. Archive's affordances for an open character live in the CONTEXT pane's `Character actions`
 // kebab (the `open` slice of `../lib/character-actions.ts`); the star lives on the list row.
 
-import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterDetail } from "@orb/contracts/character";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import { initialsFor } from "@orb/kit/initials";
-import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
-import { FileTrigger } from "@orb/ui/file-trigger";
 import { ChevronRight, Eye, EyeOff, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { PictureButton } from "@orb/ui/picture-button";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Swatch } from "@orb/ui/swatch";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { AvatarUpload, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useInvalidation, useUploadAsset, useUploadCaps } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation } from "#data";
 import type { AppFormInstance } from "#forms/editor";
-import { notify, oversizeUploadMessage } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
-import { CHARACTER_HERO_NAME_FIELD_NAME } from "../lib/character-names.ts";
+import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_PORTRAIT_NAME } from "../lib/character-names.ts";
 import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
 import { CharacterTagsRow } from "./character-tags-row.tsx";
@@ -144,78 +138,23 @@ export function CharacterHeroBand({
   );
 }
 
-/** The click-to-replace portrait — immediate commit (upload-complete = commit). A confirmation ring
- *  flashes on the portrait (no toast).
- *
- *  The trigger is a `PictureButton`, never a `square`: it sizes itself from its child, so the
- *  button box IS the portrait box. As a `square` the button stayed a 34px control while the 64px
- *  avatar would paint outside it — over the "Name" label — and the real click target would be the
- *  invisible control square. */
+/** The portrait's upload door: the shared control, with the character's own write. The write is an immediate
+ *  identity commit (`character.update` single-key patch); a refused one shows on the control's line, so the
+ *  mutation declares it and no toast repeats it. */
 function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; readonly trpc: Trpc }): ReactElement {
   const invalidation = useInvalidation();
-  const upload = useUploadAsset();
-  const uploadCaps = useUploadCaps();
-  const update = useUpdateCharacter({ trpc, invalidation });
-  const [previewHash, setPreviewHash] = useState<string | null>(detail.avatarHash);
-  const [confirming, setConfirming] = useState(false);
-
-  const onFile = async (file: File): Promise<void> => {
-    // `FileTrigger` (unlike `FileDropzone`) carries no size ceiling of its own — pre-check against the
-    // served route cap (`UploadCaps.assetUpload`) before the multipart POST, same pattern as the
-    // `.image`/`.databankUpload` FileDropzone consumers.
-    const oversize = oversizeUploadMessage(file, uploadCaps.assetUpload);
-    if (oversize !== undefined) {
-      notify.error(oversize);
-      return;
-    }
-    try {
-      const stored = await upload(file, "avatar");
-      // UPLOAD-COMPLETE IS NOT COMMIT. The blob landing in the CAS says nothing about the character row
-      // pointing at it: swapping the portrait on `.mutate` would leave a rejected `character.update`'s new
-      // face on screen — over a card that still wears the old one everywhere else. Both the preview and its
-      // confirmation are the WRITE's, not the upload's; a failure keeps the old portrait and speaks through
-      // the mutation's own errorToast.
-      update.mutate(
-        { characterId: detail.id, input: { avatarAssetId: stored.assetId } },
-        {
-          onSuccess: (): void => {
-            setPreviewHash(stored.hash);
-            // A static ring flash, no keyframe (reduced-motion-safe by construction); clears itself shortly after.
-            setConfirming(true);
-            globalThis.setTimeout((): void => setConfirming(false), CONFIRM_MS);
-          },
-        },
-      );
-    } catch {
-      notify.error("Couldn't upload the portrait.");
-    }
-  };
-
-  const avatarSrc = previewHash === null ? {} : { src: blobUrl(previewHash) };
-  // NO call-site radius. A `PictureButton` is `size-auto p-0`, so this button's border box IS the Avatar's: its
-  // confirm ring and hover fill trace the Avatar's own corner. The avatar is a circle (UI-Density-Law 2.1),
-  // so the button takes `shape="pill"`, the same full radius, and no second radius class is written here.
+  const update = useUpdateCharacter({ trpc, invalidation, failureShownInline: "the portrait control's line" });
   return (
-    <FileTrigger
-      accept="image/*"
-      onFilesSelected={([file]): void => {
-        if (file !== undefined) {
-          onFile(file).catch(() => notify.error("Couldn't upload the portrait."));
-        }
-      }}
-    >
-      {({ open }): ReactElement => (
-        <PictureButton aria-label="Replace portrait" className="relative shrink-0" confirming={confirming} variant="ghost" onClick={open} shape="pill">
-          <Avatar hueSeed={detail.id} size="hero" {...avatarSrc}>
-            {initialsFor(detail.name)}
-          </Avatar>
-        </PictureButton>
-      )}
-    </FileTrigger>
+    <AvatarUpload
+      avatarHash={detail.avatarHash}
+      commit={(stored): Promise<unknown> => update.mutateAsync({ characterId: detail.id, input: { avatarAssetId: stored.assetId } })}
+      hueSeed={detail.id}
+      initials={initialsFor(detail.name)}
+      name={CHARACTER_PORTRAIT_NAME}
+      size="hero"
+    />
   );
 }
-
-const CONFIRM_MS = 1500;
 
 /**
  * The card's OWN-LOOK marker — read-only; the theme control lives in the CONTEXT Options tab.

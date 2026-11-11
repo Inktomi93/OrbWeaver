@@ -1,0 +1,60 @@
+// The persona editor's avatar control, through the production editor in the Personas settings list: its write is `persona.update`,
+// and a refusal of it shows on the control's own line. The cases are shared with the character hero band.
+// @subject packages/client/src/components/avatar-upload.tsx
+
+import { oversizeUploadMessage } from "@orb/client/lib";
+import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { dropOn, watchToastMounts } from "@orb/testkit/browser/spec";
+import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { personaAvatarName } from "#client/features/persona/lib/persona-copy.ts";
+import type { AvatarSurface } from "../../../components/_avatar-upload-cases.ts";
+import { AVATAR_CASES } from "../../../components/_avatar-upload-cases.ts";
+import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
+
+const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
+const PERSONA_NAME = "Avatar witness";
+const EDITOR_READS = [
+  "sessions.me",
+  "settings.getUserSettings",
+  "persona.list",
+  "persona.get",
+  "worldInfo.listBooks",
+  "worldInfo.listForPersona",
+  "persona.listConnectedCharacters",
+  "preset.get",
+  "plugin.listMacros",
+] as const;
+
+const SURFACE: AvatarSurface = {
+  name: "the persona editor",
+  controlName: personaAvatarName(PERSONA_NAME),
+  stage: async ({ page, mount, caller, current, refuseWrite }) => {
+    const persona = await caller.persona.create({ input: { name: PERSONA_NAME, description: "Holds a picture." } });
+    await caller.persona.update({ personaId: persona.id, input: { avatarAssetId: current.assetId } });
+    const calls = await routeTrpc(page, {
+      ...serveCorpusProcedures(caller, EDITOR_READS),
+      ...serveCorpusProcedures(caller, ["persona.update"], () => (refuseWrite ? trpcError() : undefined)),
+    });
+    await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance: appearanceSettingsSchema.parse({}) });
+    await page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true }).focus();
+    await page.keyboard.press("Enter");
+    const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
+    return {
+      control: editor.getByRole("button", { name: personaAvatarName(persona.name), exact: true }),
+      writes: (): number => calls.count("persona.update"),
+      storedHash: async (): Promise<string | null> => (await caller.persona.get({ personaId: persona.id })).avatarHash,
+    };
+  },
+};
+
+test.use({ viewport: { width: 1440, height: 1000 } });
+
+for (const { title, run } of AVATAR_CASES) {
+  test(`${SURFACE.name}: ${title}`, async ({ corpus, mount, page }) => {
+    const context = { surface: SURFACE, client: { dropOn, oversizeUploadMessage, watchToastMounts }, signedInConfig: corpus.auth.signedInConfig, page, mount };
+    await run(context);
+    // Every case ends with the surface still mounted and its avatar control in reach.
+    await expect(page.getByRole("button", { name: SURFACE.controlName, exact: true })).toBeVisible();
+  });
+}

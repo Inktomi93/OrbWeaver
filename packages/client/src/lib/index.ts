@@ -11,6 +11,7 @@ export {
   clearAppearanceChannel,
   writeAppearanceChannel,
 } from "./appearance-carrier-manifest.ts";
+export { AVATAR_UPLOADING_NAME, AVATAR_WRITE_REFUSED, avatarUploadFailedLine } from "./avatar-upload-copy.ts";
 export type { BackgroundJob } from "./background-jobs.ts";
 export { BACKGROUND_JOB_LOGS } from "./background-jobs.ts";
 export { setBootReadPending } from "./boot-reads.ts";

@@ -113,7 +113,8 @@ function ImportPreflight({
   const nothingNote = nothingToSendNote(plan, preview);
   return (
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted. It takes focus on a
-    // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name.
+    // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name. A painted Card draws the house ring
+    // when handed focus (`focusable`); the unpainted regions below take `focusTarget` and draw none.
     <Card aria-label={title} data-slot="import-preflight" focusable={true} padding="none" role="group" shape="row" variant="outline" tabIndex={-1} ref={ref}>
       <Stack gap="field" padding="field">
         <Text voice="promoted">{title}</Text>
@@ -175,7 +176,7 @@ function ImportInFlight({
       ? `Upload ${String(state.batch.index + 1)} of ${String(state.batch.total)}: `
       : "";
   return (
-    <Stack aria-label="Import progress" gap="block" ref={ref} role="group" tabIndex={-1}>
+    <Stack aria-label="Import progress" focusTarget={true} gap="block" ref={ref} role="group" tabIndex={-1}>
       {state.status === "uploading" ? <Text voice="reading">{`Sending ${state.filename}…`}</Text> : null}
       {state.status === "running" ? (
         <>

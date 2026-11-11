@@ -1,5 +1,6 @@
 // components/ front door — client-shared composites over @orb/ui (UI-Arch §2.1: NOT @orb/ui itself —
 // ui stays parts-only; these are cross-feature composites with no single feature owner).
+export { AvatarUpload } from "./avatar-upload.tsx";
 export { BackgroundSourceField } from "./background-source-field.tsx";
 export type { BandProps } from "./band.tsx";
 export { Band } from "./band.tsx";
@@ -74,6 +75,8 @@ export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
 export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
+export type { FileDrop } from "./use-file-drop.ts";
+export { useFileDrop } from "./use-file-drop.ts";
 export { useFirstBootRows } from "./use-first-boot-rows.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
 export type { RowDeleteFocus } from "./use-row-delete-focus.ts";
