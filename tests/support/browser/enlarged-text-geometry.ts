@@ -298,8 +298,9 @@ interface SidewaysReach {
 /**
  * A column that scrolls sideways has stopped reflowing; a strip of tabs or chips is built to scroll that way. The finding names the
  * descendant whose content reaches furthest past the scroller's inner edge, the deepest one on a tie, as a structural path from the
- * scroller: that is the box that sets the overflow, where an ancestor only carries it. Content inside a box that clips or scrolls on x
- * never widens the scroller, so it is passed over.
+ * scroller: that is the box that sets the overflow, where an ancestor only carries it. Text directly in the scroller is named as its own
+ * text. Content inside a box that clips or scrolls on x never widens the scroller, so it is passed over. A pseudo-element's generated
+ * content has no node to measure, so a scroller widened only by one reads as having no descendant past its edge.
  */
 function sidewaysColumns(subject: Element, { strips, subpixel }: { readonly strips: string; readonly subpixel: number }): string[] {
   const clipsX = (element: Element): boolean => getComputedStyle(element).overflowX !== "visible";
@@ -316,10 +317,19 @@ function sidewaysColumns(subject: Element, { strips, subpixel }: { readonly stri
       const own = { path: at, reach: box.left + (clipsX(child) ? box.width : Math.max(box.width, child.scrollWidth)), depth };
       return clipsX(child) ? [own] : [own, ...reaches(child, at, depth + 1)];
     });
+  // Text directly in the scroller has no element box of its own: one unbreakable word in a message paragraph widens it. A range measures it.
+  const ownText = (scroller: Element): SidewaysReach[] =>
+    [...scroller.childNodes]
+      .filter((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "")
+      .map((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return { path: "its own text", reach: range.getBoundingClientRect().right, depth: 0 };
+      });
   const widening = (scroller: Element): string => {
     // The edge of the unscrolled content box, so a checkpoint read at a scroll position names the same descendant.
     const edge = scroller.getBoundingClientRect().left + scroller.clientLeft + scroller.clientWidth - scroller.scrollLeft;
-    const past = reaches(scroller, ":scope", 1).filter(({ reach }) => reach > edge + subpixel);
+    const past = [...ownText(scroller), ...reaches(scroller, ":scope", 1)].filter(({ reach }) => reach > edge + subpixel);
     const furthest = Math.max(...past.map(({ reach }) => reach));
     const found = past.filter(({ reach }) => reach >= furthest - subpixel).toSorted((left, right) => right.depth - left.depth)[0];
     return found === undefined ? "no descendant past its edge" : `${found.path} by ${String(Math.round(found.reach - edge))}`;

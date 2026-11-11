@@ -319,18 +319,23 @@ export function SurfaceLeavingCoverStory({ cover }: { readonly cover: "leaving" 
 const SIDEWAYS_SCROLLER_PX = 160;
 const SIDEWAYS_CHILD_PX = 480;
 
+// One word no line can break, far wider than the scroller at any text size.
+const UNBREAKABLE_WORD = "Unbreakable".repeat(8);
+
 /**
- * A sideways scroller holding a nested column: with `widened`, the column's second child is wider than the scroller. Beside it, inside
- * the same scroller, a declared strip holds content wider still, which its own clip keeps from widening the scroller.
+ * A sideways scroller holding a nested column: `child` makes the column's second child wider than the scroller, `text` puts one
+ * unbreakable word directly in the scroller, `none` leaves the column fitting. Beside it, inside the same scroller, a declared strip
+ * holds content wider still, which its own clip keeps from widening the scroller.
  */
-export function SurfaceSidewaysStory({ widened }: { readonly widened: boolean }): ReactElement {
+export function SurfaceSidewaysStory({ widened }: { readonly widened: "child" | "text" | "none" }): ReactElement {
   return (
     <CtIsolation subject="Enlarged-text sideways scroller" isolates="A fixed-pixel scroller and its planted children need no application services.">
       <main>
         <div data-planted="scroller" style={{ inlineSize: SIDEWAYS_SCROLLER_PX, overflowX: "auto" }}>
+          {widened === "text" ? UNBREAKABLE_WORD : null}
           <Stack>
             <Text>Short line</Text>
-            {widened ? <div data-planted="widening" style={{ inlineSize: SIDEWAYS_CHILD_PX, blockSize: 1 }} /> : null}
+            {widened === "child" ? <div data-planted="widening" style={{ inlineSize: SIDEWAYS_CHILD_PX, blockSize: 1 }} /> : null}
             <div data-sideways-strip={true} style={{ overflowX: "auto" }}>
               <div style={{ inlineSize: 2 * SIDEWAYS_CHILD_PX, blockSize: 1 }} />
             </div>

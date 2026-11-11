@@ -100,7 +100,7 @@ const SIDEWAYS_STORY = "tests/support/browser/surface-design-fixtures/SurfaceSid
 const WIDENED_BY = /^div .* scrolls sideways by \d+, widened by (?<path>:scope(?: > [^ ]+)+) by \d+$/u;
 
 test("the sideways finding names the descendant that widens its scroller by a path that resolves to it", async ({ mount, page }) => {
-  await mount<typeof SurfaceSidewaysStory>(SIDEWAYS_STORY, { widened: true });
+  await mount<typeof SurfaceSidewaysStory>(SIDEWAYS_STORY, { widened: "child" });
   const scroller = page.locator('[data-planted="scroller"]');
   await expect(scroller).toBeVisible();
   const findings = await enlargedTextFindings(page.getByRole("main"));
@@ -113,8 +113,18 @@ test("the sideways finding names the descendant that widens its scroller by a pa
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual(findings);
 });
 
+test("the sideways finding names a scroller's own text when one unbreakable word in it widens it", async ({ mount, page }) => {
+  await mount<typeof SurfaceSidewaysStory>(SIDEWAYS_STORY, { widened: "text" });
+  const scroller = page.locator('[data-planted="scroller"]');
+  await expect(scroller).toBeVisible();
+  const findings = await enlargedTextFindings(page.getByRole("main"));
+  expect(findings).toEqual([expect.stringMatching(/^div .* scrolls sideways by \d+, widened by its own text by \d+$/u)]);
+  // The finding attributes the cause without carrying the text itself.
+  expect(findings[0]).not.toContain(await scroller.evaluate((node) => node.firstChild?.textContent ?? ""));
+});
+
 test("the probe reports no sideways finding for a scroller its content fits", async ({ mount, page }) => {
-  await mount<typeof SurfaceSidewaysStory>(SIDEWAYS_STORY, { widened: false });
+  await mount<typeof SurfaceSidewaysStory>(SIDEWAYS_STORY, { widened: "none" });
   const scroller = page.locator('[data-planted="scroller"]');
   await expect(scroller).toBeVisible();
   // The control for the silence: the strip inside it does scroll, by its own declaration.
