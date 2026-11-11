@@ -1,5 +1,6 @@
 // The docs check on planted trees: the structural rules, the writing rules and
-// the reference check compose into one list; the clean tree passes; the real repository is clean.
+// the reference check compose into one list; the writing rules also read the instruction files; the
+// clean tree passes; the real repository is clean.
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -100,6 +101,56 @@ test("an id a landed item carried reds a later item that takes it, while a retit
   commit("reuse");
   expect(reuseFindings("docs/work/0001-other.md")).toEqual([
     "docs/work/0001-other.md: its id was also held by docs/work/0001-first.md, docs/work/0001-retitled.md — renumber this one with git mv and pnpm doc index",
+  ]);
+});
+
+const PLANTED_RULE = [
+  "---",
+  "paths:",
+  '  - "packages/**"',
+  "---",
+  "",
+  "# Planted",
+  "",
+  "Ruled on 2026-10-21.",
+  "It holds 12 rules.",
+  "Fixed in #1234.",
+  "The guard was believed sound.",
+  "A load-bearing step.",
+  "The bare reports/side-eye/2026-10-26-x.md path is prose.",
+  "Cite `reports/side-eye/2026-10-26-x.md` and [the report](reports/side-eye/2026-10-26-x.md).",
+  "D333 rules it on TypeScript 7.1.0-beta at port 5173.",
+  "Run `git log --since=2026-10-21` and `grep 12 rules #12`.",
+  "```text",
+  "2026-10-21: 12 rules, #12, used to",
+  "```",
+  "<!-- owner-voice -->",
+  "I used to say receipt on 2026-10-21.",
+  "<!-- /owner-voice -->",
+  "",
+].join("\n");
+
+test("the text rules read AGENTS.md and the .claude rules, skills and agents, but no worktree under .claude", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "docs/Mission.md": MISSION,
+    "AGENTS.md": "# Agents\n\nLanded 2026-10-21.\n",
+    ".claude/rules/planted.md": PLANTED_RULE,
+    ".claude/skills/s/reference/r.md": "# R\n\nIt holds 3 files.\n",
+    ".claude/agents/a.md": "# A\n\nThe old flag is retired.\n",
+    ".claude/worktrees/wt/AGENTS.md": "# Copy\n\nLanded 2026-10-21.\n",
+    ".claude/worktrees/wt/.claude/rules/planted.md": PLANTED_RULE,
+  });
+  // The planted docs tree has no generated indexes; its structural findings are other cases' subject.
+  expect(docLayerProblems(root).filter((line) => !line.startsWith("docs/"))).toEqual([
+    'AGENTS.md:3: a date ("2026-10-21")',
+    '.claude/agents/a.md:3: "retired" ("retired")',
+    '.claude/rules/planted.md:8: a date ("2026-10-21")',
+    '.claude/rules/planted.md:9: an inventory count ("12 rules")',
+    '.claude/rules/planted.md:10: an issue or PR number ("#1234")',
+    '.claude/rules/planted.md:11: "was believed" ("was believed")',
+    '.claude/rules/planted.md:12: banned word "load-bearing" ("load-bearing")',
+    '.claude/rules/planted.md:13: a date ("2026-10-26")',
+    '.claude/skills/s/reference/r.md:3: an inventory count ("3 files")',
   ]);
 });
 

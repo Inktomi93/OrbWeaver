@@ -1,7 +1,10 @@
-// VirtualList's own behaviour: the scope-reset handshake, the state-gated bottom fade and the unbounded-window tripwire.
+// VirtualList's own behaviour: the scope-reset handshake, the state-gated bottom fade, the growing window's floor and the
+// unbounded-window tripwire.
+import { resolvedLength } from "@orb/testkit/browser/spec";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { EdgeFadeStory, ResetHandshakeStory, UnboundedStory } from "./_virtual-list-stories.tsx";
+import type { EdgeFadeStory, ResetHandshakeStory, ShortWindowStory, UnboundedStory } from "./_virtual-list-stories.tsx";
 import { MANY_ROWS } from "./virtual-list-cases.ts";
 
 const STORIES = "tests/ui/primitives/virtual-list/_virtual-list-stories";
@@ -79,6 +82,23 @@ test("no fade is held when every row already fits the window", async ({ mount, p
   await mount<typeof EdgeFadeStory>(`${STORIES}/EdgeFadeStory`, { count: 3, fadeEdge: true });
   await expect(page.locator(SCROLL).getByRole("listitem")).toHaveCount(3);
   await expect(page.locator(SCROLL)).not.toHaveAttribute("data-more", /.*/);
+});
+
+test("a growing list under chrome taller than its parent keeps its floor of rows, and the parent scrolls to it", async ({ mount, page }) => {
+  await mount<typeof ShortWindowStory>(`${STORIES}/ShortWindowStory`, { count: MANY_ROWS });
+  const scroller = page.locator(SCROLL);
+  const host = page.locator('[data-slot="short-host"]');
+  const floor = await resolvedLength(page, `var(${TOKENS["height.scroll-sm"].cssVar})`, scroller);
+  const box = await scroller.boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(floor - 1);
+  // The host scrolls the window into view; the list's own rows scroll inside it.
+  expect(await host.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+  const firstRow = scroller.getByRole("button", { name: "row-0", exact: true });
+  await firstRow.focus();
+  await expect(firstRow).toBeFocused();
+  await expect(firstRow).toBeInViewport();
+  await page.keyboard.press("Tab");
+  await expect(scroller.getByRole("button", { name: "row-1", exact: true })).toBeFocused();
 });
 
 test("a list with no bounded height throws the unbounded-window tripwire at mount", async ({ mount, page }) => {

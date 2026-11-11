@@ -6,6 +6,7 @@ import type { Page } from "@playwright/test";
 import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
+import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL } from "#client/lib/corpus-modes.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
@@ -56,7 +57,7 @@ test.describe("committed corpus workbench", () => {
     const main = page.locator("main.shell-content");
     await expect(main.getByTestId(testId("analyticsCharacterSurface"))).toBeVisible();
     // One Back grammar across the modes: `Back to <mode>`.
-    await main.getByRole("button", { name: `Back to ${CORPUS_MODE_LABELS.insights}`, exact: true }).click();
+    await main.getByRole("button", { name: sectionBackName(CORPUS_MODE_LABELS.insights), exact: true }).click();
 
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     // Focus returns to the row that opened the drill, never to <body>.
@@ -85,7 +86,7 @@ test.describe("committed corpus workbench", () => {
     await expect(main.locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: tag.name })).toBeVisible();
     await expect(page.locator(".shell-topbar-title")).toHaveText(tag.name);
 
-    await page.getByRole("button", { name: `Back to ${CORPUS_MODE_LABELS.labels}`, exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(CORPUS_MODE_LABELS.labels), exact: true }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(filterBox).toHaveValue(filter);
     await expect(main.locator('[data-slot="tag-member-editor"]')).toHaveCount(0);
@@ -185,7 +186,7 @@ test.describe("committed corpus workbench", () => {
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.insights }).click();
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     // With nothing drilled the lead control is the list door, never a Back with nothing to go back from.
-    await expect(page.getByRole("button", { name: `Back to ${CORPUS_MODE_LABELS.insights}`, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: sectionBackName(CORPUS_MODE_LABELS.insights), exact: true })).toHaveCount(0);
     const door = page.locator(".shell-topbar").getByRole("button", { name: SECTION_LABELS.characters, exact: true });
     await door.click();
     await expect(list).toHaveAttribute("data-panel-mode", "overlay");
@@ -194,8 +195,8 @@ test.describe("committed corpus workbench", () => {
     await expect(main.getByTestId(testId("analyticsCharacterSurface"))).toBeVisible();
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
     // One Back on a phone: the topbar's. The drill draws no second one inside CONTENT.
-    await expect(main.getByRole("button", { name: /^Back to/u })).toHaveCount(0);
-    await page.getByRole("button", { name: `Back to ${CORPUS_MODE_LABELS.insights}`, exact: true }).click();
+    await expect(main.getByRole("button", { name: new RegExp(`^${sectionBackName("")}`, "u") })).toHaveCount(0);
+    await page.getByRole("button", { name: sectionBackName(CORPUS_MODE_LABELS.insights), exact: true }).click();
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     await expect(door).toBeVisible();
   });

@@ -67,6 +67,32 @@ export function EdgeFadeStory({ count, fadeEdge }: { readonly count: number; rea
   );
 }
 
+const SHORT_HOST_PX = 240;
+const CHROME_PX = 320;
+
+/** A growing list under chrome taller than its scrolling parent: the parent's free space is nothing. */
+export function ShortWindowStory({ count }: { readonly count: number }): ReactElement {
+  return (
+    <CtIsolation subject="VirtualList" isolates="A growing window under chrome that leaves its parent no free space">
+      <div data-slot="short-host" style={{ display: "flex", flexDirection: "column", height: SHORT_HOST_PX, overflowY: "auto" }}>
+        <div style={{ flexShrink: 0, height: CHROME_PX }}>Chrome</div>
+        <VirtualList
+          aria-label="Sample list"
+          estimateSize={(): number => ROW_HEIGHT_PX}
+          getItemKey={(item): string => item.id}
+          grow={true}
+          items={rowsOf(count)}
+          renderItem={(item): ReactNode => (
+            <button style={{ height: ROW_HEIGHT_PX }} type="button">
+              {item.id}
+            </button>
+          )}
+        />
+      </div>
+    </CtIsolation>
+  );
+}
+
 class Catcher extends Component<{ readonly children: ReactNode }, { readonly caught: Error | null }> {
   override state = { caught: null as Error | null };
   static getDerivedStateFromError(error: Error): { caught: Error } {

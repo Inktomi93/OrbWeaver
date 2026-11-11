@@ -9,3 +9,6 @@ export const ROSTER_ALL_NAME = "All rosters";
 
 /** The member editor's name field. */
 export const ROSTER_NAME_FIELD_NAME = "Name";
+
+/** The settings collection group, and so the Back that returns to it. */
+export const ROSTER_GROUP_LABEL = "Rosters";

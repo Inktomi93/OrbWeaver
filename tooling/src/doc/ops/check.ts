@@ -1,6 +1,7 @@
 // The docs check: the structural rules over the governed tree plus the writing charter (rules 1, 2, 4)
-// and the reference check over every governed doc. The minting verbs run the same composition over the
-// files they are about to write (`pendingDocProblems`), so a mint refuses what the check would red.
+// and the reference check over every governed doc, and the writing charter alone over the instruction
+// files. The minting verbs run the docs composition over the files they are about to write
+// (`pendingDocProblems`), so a mint refuses what the check would red.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -9,23 +10,34 @@ import { glossaryWords, proseFindings } from "../../floor/prose/prose-rules.ts";
 import type { DocEdit, GovernedDoc } from "../contract/types.ts";
 import { allItems } from "../lib/generated.ts";
 import { docProblems } from "../lib/rules.ts";
-import { commitOnMain, historicForeignHolders, readDoc, readDocTree, root } from "./tree.ts";
+import { commitOnMain, historicForeignHolders, instructionPaths, readDoc, readDocTree, root } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 
 const ALWAYS_ON_FILE = "AGENTS.md";
 
+function allowedWords(repoRoot: string): ReadonlySet<string> {
+  const glossary = join(repoRoot, ALWAYS_ON_FILE);
+  return glossaryWords(existsSync(glossary) ? readFileSync(glossary, "utf8") : "");
+}
+
 /** The writing-rule and reference findings over `docs`. */
 function textProblems(docs: readonly GovernedDoc[], repoRoot: string): readonly string[] {
-  const glossary = join(repoRoot, ALWAYS_ON_FILE);
-  const allowed = glossaryWords(existsSync(glossary) ? readFileSync(glossary, "utf8") : "");
+  const allowed = allowedWords(repoRoot);
   return docs.flatMap((doc) => [...proseFindings(doc.path, doc.source, allowed), ...referenceProblems(repoRoot, doc.path, doc.source)]);
 }
 
-/** Every finding over the governed docs tree, as operator-readable lines. Empty = clean. */
+/** The writing-rule findings over the instruction files. Their cited paths are
+ *  `tests/tooling/doc/comment-path-citations.repo.int.test.ts`'s to resolve, so the reference check stays on `docs`. */
+function instructionProblems(repoRoot: string): readonly string[] {
+  const allowed = allowedWords(repoRoot);
+  return instructionPaths(repoRoot).flatMap((path) => proseFindings(path, readDoc(path, repoRoot).source, allowed));
+}
+
+/** Every finding over the governed docs tree and the instruction files, as operator-readable lines. Empty = clean. */
 export function docLayerProblems(repoRoot = root): readonly string[] {
   const tree = readDocTree(repoRoot);
-  return [...docProblems(tree, historicForeignHolders(repoRoot)), ...textProblems(tree.docs, repoRoot)];
+  return [...docProblems(tree, historicForeignHolders(repoRoot)), ...textProblems(tree.docs, repoRoot), ...instructionProblems(repoRoot)];
 }
 
 /** The findings the check would report on `pending` once written (and `removed` once gone): the tree

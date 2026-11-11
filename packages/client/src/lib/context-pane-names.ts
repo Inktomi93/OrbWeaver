@@ -20,7 +20,7 @@ export function panelCloseName(paneLabel: string): string {
   return `Close ${paneLabel}`;
 }
 
-/** The phone topbar's back control, named for where it returns. */
+/** A back control, named for where it returns: the phone topbar's and a drilled member's. */
 export function sectionBackName(target: string): string {
   return `Back to ${target}`;
 }

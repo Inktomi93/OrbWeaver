@@ -15,6 +15,7 @@ import { absenceWindow, routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusP
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, createServerHarness } from "@orb/testkit/node/composed";
 import { IMPORT_RESULT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import { CARD_IMPORT_REFUSED_ONE } from "#client/lib/card-import-copy.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
@@ -72,7 +73,7 @@ for (const upload of UPLOADS) {
     await mount<typeof ImportPreviewStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
 
     await page.locator('input[type="file"]').first().setInputFiles(upload.file);
-    await page.getByRole("button", { name: /^Import(?! a (folder|backup))/u }).click();
+    await page.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true }).click();
 
     await expect(page.getByRole("alert")).toHaveCount(1);
     expect(sent).toBe(1);
@@ -112,7 +113,17 @@ test("a plain picture the server takes no card from is refused in the plain sent
   await mount<typeof ImportPreviewStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
 
   await page.locator('input[type="file"]').first().setInputFiles(PLAIN_PICTURE);
-  await page.getByRole("button", { name: /^Import(?! a (folder|backup))/u }).click();
+  // The confirm is pressed from the top of the page, with the place its outcome renders below the fold, so only the outcome's own
+  // scroll can bring the report into view.
+  const confirm = page.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true });
+  await page.evaluate(() => globalThis.scrollTo(0, 0));
+  await expect(confirm).not.toBeInViewport();
+  await confirm.evaluate((button) => {
+    if (button instanceof HTMLElement) {
+      button.focus({ preventScroll: true });
+    }
+  });
+  await page.keyboard.press("Enter");
 
   const report = page.getByTestId(testId("importReport"));
   await expect(report).toBeVisible();
