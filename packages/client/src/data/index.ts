@@ -74,7 +74,7 @@ export { requireQueryBoundary, useSuspenseInfiniteQuery, useSuspenseQueries, use
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
 export { UploadRefusedError } from "./upload-asset.ts";
-export { uploadDocument } from "./upload-document.ts";
+export { DocumentUploadRefusedError, uploadDocument } from "./upload-document.ts";
 export { useCardFrameSrc } from "./use-card-frame.ts";
 export { useCarriedAppearance } from "./use-carried-appearance.ts";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";

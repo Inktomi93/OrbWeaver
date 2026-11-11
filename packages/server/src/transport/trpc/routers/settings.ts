@@ -4,7 +4,7 @@
 // validate → `ctx.services.settings.<verb>` → map errors. Schemas derive from `@orb/contracts/settings` +
 // `@orb/kit/json`.
 
-import { importLandingSchema } from "@orb/contracts/portability";
+import { themeImportLandingSchema } from "@orb/contracts/portability";
 import {
   appSettingsSchema,
   appSettingsViewSchema,
@@ -149,7 +149,7 @@ export const settingsRouter = t.router({
   // same op the bundle restore calls. `filename` names an ST theme that carries no name of its own. The
   // refusal reason reaches the user as words.
   importThemeFile: authedProcedure
-    .output(importLandingSchema)
+    .output(themeImportLandingSchema)
     .input(z.strictObject({ fileText: z.string().max(MAX_THEME_FILE_CHARS), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
     .mutation(async ({ ctx, input }) => {
       const outcome = await ctx.services.settings.importThemeFile({
@@ -160,6 +160,6 @@ export const settingsRouter = t.router({
       if (!outcome.ok) {
         throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error });
       }
-      return { created: outcome.created, name: outcome.name, renamedFrom: outcome.renamedFrom };
+      return { created: outcome.created, name: outcome.name, renamedFrom: outcome.renamedFrom, unmapped: outcome.unmapped };
     }),
 });

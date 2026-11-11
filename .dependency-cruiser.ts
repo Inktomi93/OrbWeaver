@@ -129,6 +129,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
+  "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
   "^tests/ui/primitives/virtual-list/virtual-list-cases\\.ts$": "the long-list row count the virtual-list stories mount and their spec passes",
@@ -500,10 +501,19 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/world-info/lib/world-info-names.ts": "WORLD_INFO_NEW_BOOK_NAME and its siblings: the books library and entry editor names",
   "packages/client/src/features/regex/lib/regex-names.ts": "REGEX_FIND_PATTERN_NAME and its siblings: the regex editor, tester and pipeline names",
   "packages/client/src/features/databank/lib/databank-names.ts": "DATABANK_SEARCH_NAME and its siblings: the library, Home tile, add dialog and landing names",
+  "packages/client/src/features/databank/lib/databank-upload-copy.ts":
+    "DOCUMENT_UPLOAD_FAILURE: the add dialog's sentence for each refusal code of an uploaded file",
+  "packages/client/src/features/config/lib/theme-import-copy.ts":
+    "themeImportLeftoverTitle and its siblings: the Looks section's note for the settings an imported theme left behind",
+  "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
+    "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys of the Sizing section's settings, which the Looks note names by the same labels",
   "packages/client/src/features/preset/lib/preset-names.ts": "PRESET_DELETE_SECTION_TITLE: the section delete confirmation's title",
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and CORPUS_DISTILLED_CATALOG_NAME: the Corpus list and browse names",
+  "packages/client/src/lib/use-focus-on-mount.ts":
+    "PRESS_RENDER_WINDOW_MS: how long after a press a surface may still arrive from the body on that press's account",
+  "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",
   "packages/client/src/features/refinery/lib/refinery-names.ts":
     "REFINERY_VERSIONS_NAME, refineryCompareToggleName and REFINERY_VERSION_LOADING_TEXT: the context pane's version history names",
   "packages/client/src/features/refinery/lib/verdict.ts": "verdictWordOf: the display word the analyze verdict banner paints",
@@ -792,6 +802,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/app-shell/lib/appearance-select-items.ts": "OS_PREFERENCE_ITEMS: the mode words the section's segments print",
     "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
       "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys the section's three OS preference rows read",
+  },
+  "tests/client/features/config/lib/appearance-setting-label.dom.test.ts": {
+    "packages/client/src/features/config/lib/appearance-setting-label.ts":
+      "appearanceSettingLabel: the lookup the Looks note names each Appearance setting by, walked over every key a theme import can name",
   },
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":

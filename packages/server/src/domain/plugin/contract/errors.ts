@@ -171,7 +171,9 @@ class PluginActionFailedError extends DomainOperationError {
 
 /** A `plugin.uiHostCall` the relay refuses because the call was wrong: the plugin is off, the function is not
  *  proxyable or not granted, the arguments are not JSON or fail their schema, a chat scope is missing, or the answer
- *  is over the cap. The plugin author's mistake, not the server's: BAD_REQUEST with `data.reason` set to the code. */
+ *  is over the cap. The plugin author's mistake, not the server's: BAD_REQUEST with `data.reason` set to the code.
+ *  The storage write refuses a server guest's oversized key or value with it too, so a guest reads this `name`
+ *  where the relay answers the invalid-arguments code. */
 export class PluginUiHostCallRefusedError extends DomainOperationError {
   constructor(message: string, options: { readonly code: PluginUiHostCallCode; readonly cause?: unknown }) {
     super(options.code, message);

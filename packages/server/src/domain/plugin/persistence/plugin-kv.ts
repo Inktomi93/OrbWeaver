@@ -49,7 +49,7 @@ export async function getKv(db: Db, scope: KvScope, key: string): Promise<string
  *  with a foreign owner's row must move 0 rows rather than overwrite its value in place. That arm is
  *  structurally unreachable, which is why 0 rows is read as the cap refusal.
  *
- *  The value/key size CHECKs stay DDL (a violating write throws the constraint error, contained upstream). */
+ *  The caller refuses an oversized key or value before this runs; the size CHECKs stay DDL as a second line. */
 export async function upsertKvUnderCap(
   db: Db,
   scope: KvScope,

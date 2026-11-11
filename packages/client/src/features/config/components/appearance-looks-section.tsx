@@ -34,7 +34,8 @@
 // Export is CLIENT-SIDE over the row's own bytes ({name, override, css} JSON — the same values the theme
 // renders from). Import is the SERVER's `settings.importThemeFile` door, which reads that export back, an
 // orb.theme backup, or a raw SillyTavern theme through the one theme serde — so a non-theme file is refused
-// with words instead of landing as a blank theme.
+// with words instead of landing as a blank theme. The settings a raw SillyTavern theme carried that no field took
+// stay as a note beside the grid (`ThemeImportLeftovers`), because the success toast leaves.
 
 import type { Theme } from "@orb/contracts/theme";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -56,6 +57,8 @@ import { CONFIG_BACK_TO_LOOKS_NAME, CONFIG_IMPORT_THEME_FILE_NAME, newThemeName 
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 import { ThemeEditor } from "./theme-editor.tsx";
+import type { ThemeImportLeftoversProps } from "./theme-import-leftovers.tsx";
+import { ThemeImportLeftovers } from "./theme-import-leftovers.tsx";
 import { ThemeMiniSurface } from "./theme-mini-surface.tsx";
 import { ThemeRowMenu } from "./theme-row-menu.tsx";
 
@@ -138,6 +141,7 @@ function LooksBody(): ReactElement {
   const duplicateTheme = useDuplicateTheme({ trpc, invalidation });
   const removeTheme = useRemoveTheme({ trpc, invalidation });
   const [editing, setEditing] = useState<EditorSession | null>(null);
+  const [leftovers, setLeftovers] = useState<ThemeImportLeftoversProps | null>(null);
   const ids = useId();
 
   // ONE collection, in the SERVER's order — no client allowlist, no shipped/own split. WITH NO EXPLICIT
@@ -166,9 +170,15 @@ function LooksBody(): ReactElement {
   };
 
   const onImportFile = async (file: File): Promise<void> => {
+    // The note describes the last import, so starting a new one clears it whatever the outcome: a refusal leaves none behind either.
+    setLeftovers(null);
     try {
       const landed = await importTheme.mutateAsync({ fileText: await file.text(), filename: file.name });
       notify.success(importedThemeMessage(landed));
+      // The toast leaves; the note stays beside the grid until the next import starts.
+      if (landed.unmapped.length > 0) {
+        setLeftovers({ themeName: landed.name, created: landed.created, leftovers: landed.unmapped });
+      }
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Couldn't import the theme.");
     }
@@ -210,6 +220,9 @@ function LooksBody(): ReactElement {
                     )}
                   </FileTrigger>
                 </Row>
+                {leftovers === null ? null : (
+                  <ThemeImportLeftovers created={leftovers.created} leftovers={leftovers.leftovers} themeName={leftovers.themeName} />
+                )}
                 <RadioGroupPicker
                   aria-label="Theme"
                   data-slot="theme-collection"

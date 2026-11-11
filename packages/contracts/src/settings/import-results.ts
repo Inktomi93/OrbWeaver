@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { importLandingSchema, PortableImportOutcome } from "../portability/index.ts";
+import type { PortableImportOutcome, themeImportLandingSchema } from "../portability/index.ts";
 import type { BackgroundLibraryEntry } from "./appearance.ts";
 
 /** The `appearance` half of a foreign-profile import (today: the SillyTavern profile importer). Two planes in
@@ -21,8 +21,8 @@ export interface ImportedAppearanceOutcome {
   readonly patchedKeys: readonly string[];
 }
 
-/** Where one theme in a file landed ({@link importLandingSchema}). */
-export type ImportedThemeLanding = Readonly<z.output<typeof importLandingSchema>>;
+/** Where one theme in a file landed, and the keys it left behind ({@link themeImportLandingSchema}). */
+export type ImportedThemeLanding = Readonly<z.output<typeof themeImportLandingSchema>>;
 
 /** Never throws for a malformed file, so one bad entry can't abort a bundle. `landed` is the theme import's
  *  per-theme accounting (absent on the user-settings import). */

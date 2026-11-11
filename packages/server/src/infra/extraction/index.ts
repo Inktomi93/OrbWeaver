@@ -7,17 +7,19 @@
 // `textlike` loader is now `loaders/textlike.ts`, and the pdf/html loaders slotted in behind the same op.
 //
 // Error taxonomy: an unknown mime throws `UnsupportedDocTypeError` BEFORE any parse (never retried, never
-// wrapped); any loader failure is wrapped as `ExtractionFailedError(format, {cause})` (corrupt/encrypted/invalid
-// file — a corrupt zip for docx/epub included). Both are coded `DomainOperationError`s, so the transport answers
+// wrapped); a loader's size-budget refusal (`ExpansionBudgetError`) is wrapped as `ExtractionTooLargeError`, and any
+// other loader failure as `ExtractionFailedError(format, {cause})` (corrupt/encrypted/invalid
+// file — a corrupt zip for docx/epub included). All are coded `DomainOperationError`s, so the transport answers
 // them as client errors; the loader's own error rides only as the cause and never reaches the wire. Empty text
 // is NOT an error — the op returns it truthfully (`charCount` tells the story; the upload verb surfaces an
 // `empty-extraction` warning, not a throw).
 
 import type { DocFormat, ExtractionMeta, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
-import { docFormatForMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
+import { docFormatForMime, ExtractionFailedError, ExtractionTooLargeError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { RawExtraction } from "./contract.ts";
+import { ExpansionBudgetError } from "./contract.ts";
 import { LOADERS } from "./formats.ts";
 import { normalizeText } from "./normalize.ts";
 import { EXTRACTOR_VERSION } from "./version.ts";
@@ -65,7 +67,8 @@ export function createExtractText(log: Logger): ExtractTextOp {
       // The one place every caller's loader failure passes (upload, scrape, re-extract sweep), so each failure is
       // logged once. The refusal is a client error and is not logged by the transport; a broken loader looks the same.
       getLog(log).warn({ err: error, format }, "extraction: a loader failed to read the document");
-      throw new ExtractionFailedError(format, { cause: error });
+      // A size-budget refusal is an intact file the person can split; every other loader throw is a damaged one.
+      throw error instanceof ExpansionBudgetError ? new ExtractionTooLargeError(format, { cause: error }) : new ExtractionFailedError(format, { cause: error });
     }
     return toResult({ format }, raw);
   };

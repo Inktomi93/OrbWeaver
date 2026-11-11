@@ -20,7 +20,7 @@ export function createImportThemeFile(deps: { readonly importTheme: ImportThemeO
     if (first === undefined) {
       return { ok: false, error: "The file carries no theme." };
     }
-    return { ok: true, created: first.created, name: first.name, renamedFrom: first.renamedFrom };
+    return { ok: true, created: first.created, name: first.name, renamedFrom: first.renamedFrom, unmapped: first.unmapped };
   }
   return { importThemeFile };
 }
