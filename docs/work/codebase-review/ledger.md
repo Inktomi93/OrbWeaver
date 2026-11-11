@@ -168,7 +168,7 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 | root-dev-environment | .devcontainer/, .vscode/ — sandbox image, firewall, tool lock, editor pins | S | reviewed (6) |
 | scripts-patches | scripts/, patches/ | M | reviewed (3) |
 | instruction-files | AGENTS.md, .claude/rules/, .claude/hooks/, .claude/agents/, .claude/skills/, .codex/ | L | reviewed (4) |
-| root-docs | README.md, CONTRIBUTING.md, ACCESSIBILITY.md, SECURITY.md, CODE_OF_CONDUCT.md, LICENSE — pass for staleness against the ledger only | S | queued |
+| root-docs | README.md, CONTRIBUTING.md, ACCESSIBILITY.md, SECURITY.md, CODE_OF_CONDUCT.md, LICENSE — pass for staleness against the ledger only | S | reviewed (1) |
 
 ### Phase 1 — foundations
 
@@ -306,7 +306,7 @@ Triage fills this.
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
 | P2 | 12 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment |
-| P3 | 16 | 14 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment |
+| P3 | 17 | 14 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -320,3 +320,10 @@ root-lint-configs sharpened it: the gates themselves are derived, guarded and gr
 in the *sentences inside refusal messages* (`units/root-lint-configs.md`): a lint error can tell
 an author to import a specifier the resolver refuses or to trust a pin-test that was deleted.
 When reviewing any gate, read its message strings with the dead-path sweep, not just its rules.
+Phase 0 closed with root-docs and a sharpening, not a contradiction: human-facing docs were
+mechanically true on every checkable claim (`units/root-docs.md`) — they have a gate, the author
+re-reads them at ship time because a human audience reads them. The rot concentrates in prose
+embedded beside machinery (comments, refusal messages, hand-maintained lists) that no audience
+ever re-reads. Three confirmed instances of the closed-vocabulary-drift crime by phase 0's end:
+lint-rule-id proof obligations, dependabot ignore set vs patchedDependencies, devcontainer
+volumes vs pnpm-workspace packages. One fix shape serves all three: generate the list, diff it.
