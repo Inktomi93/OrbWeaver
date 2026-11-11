@@ -103,6 +103,10 @@ export const portableTextFileSchema = z.strictObject({ filename: z.string(), fil
  *  whether a row was minted (false = an owned entity with equal content was reused). */
 export const importLandingSchema = z.strictObject({ created: z.boolean(), name: z.string(), renamedFrom: z.string().nullable() });
 
+/** Where one imported theme landed, plus the SillyTavern keys the file carried that found no orb field (empty for an orb-native
+ *  file). They describe the file, so a reused theme states the same keys. */
+export const themeImportLandingSchema = importLandingSchema.extend({ unmapped: z.array(z.string()).readonly() });
+
 // ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
 // Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original
 // `PortableEnvelope` died unconsumed in `c1a8f726c7` because each serde re-spelled it structurally — the

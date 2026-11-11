@@ -35,6 +35,8 @@ interface LandingArgs {
   readonly theme: CanonicalTheme;
   readonly library: OwnedLibrary;
   readonly at: number;
+  /** The ST keys the file left behind; they describe the file, so a reused theme states them too. */
+  readonly unmapped: readonly string[];
 }
 
 /** A theme as it is stored: css that fails the validator degrades to null. */
@@ -44,18 +46,21 @@ function withSafeCss(theme: CanonicalTheme): CanonicalTheme {
 
 /** Decide where one parsed theme lands: reuse the owned row with equal content, else a fresh row under the
  *  next free name. Mutates `library` so the themes of one file collide against each other too. */
-function landTheme({ ctx, ownerId, theme, library, at }: LandingArgs): { readonly landing: ImportedThemeLanding; readonly row: ThemeInsertRow | null } {
+function landTheme({ ctx, ownerId, theme, library, at, unmapped }: LandingArgs): {
+  readonly landing: ImportedThemeLanding;
+  readonly row: ThemeInsertRow | null;
+} {
   const safe = withSafeCss(theme);
   const key = themeContentKey(safe);
   const existingName = library.nameByContentKey.get(key);
   if (existingName !== undefined) {
-    return { landing: { name: existingName, renamedFrom: null, created: false }, row: null };
+    return { landing: { name: existingName, renamedFrom: null, created: false, unmapped }, row: null };
   }
   const name = nextFreeName(safe.name, library.takenNames);
   library.takenNames.add(name);
   library.nameByContentKey.set(key, name);
   return {
-    landing: { name, renamedFrom: name === safe.name ? null : safe.name, created: true },
+    landing: { name, renamedFrom: name === safe.name ? null : safe.name, created: true, unmapped },
     row: { id: ctx.newThemeId(), ownerId, name, override: safe.override, css: safe.css, createdAt: at, updatedAt: at },
   };
 }
@@ -76,9 +81,11 @@ export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp
       takenNames: new Set(owned.map((row) => row.name)),
       nameByContentKey: new Map(owned.map((row) => [themeContentKey({ override: row.override, css: row.css }), row.name])),
     };
+    // Only a raw ST theme carries leftovers, and it is the file's one theme; an orb-native file leaves none behind.
+    const unmapped = parsed.stTheme?.unmapped.map(({ field }) => field) ?? [];
     const decided: { readonly landing: ImportedThemeLanding; readonly row: ThemeInsertRow | null }[] = [];
     for (const theme of parsed.value.themes) {
-      decided.push(landTheme({ ctx, ownerId, theme, library, at }));
+      decided.push(landTheme({ ctx, ownerId, theme, library, at, unmapped }));
     }
     const rows = decided.map((d) => d.row).filter((row): row is ThemeInsertRow => row !== null);
     const inserted = new Set(await insertThemes(ctx.db, rows));

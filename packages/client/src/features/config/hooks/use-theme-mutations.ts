@@ -4,7 +4,7 @@
 // themesChanged doesn't cover — it keeps only that uncovered key.
 
 import type { Theme } from "@orb/contracts/theme";
-import type { inferInput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
@@ -17,10 +17,7 @@ export const useCreateTheme = createEntityMutation<inferInput<Trpc["settings"]["
 /** The single-theme import door: the file's TEXT (an Orbweaver export, an Orbweaver backup or a raw
  *  SillyTavern theme) plus its name, through the same server op the backup restore calls. The server's
  *  refusal reason is what the caller renders. */
-export const useImportThemeFile = createEntityMutation<
-  inferInput<Trpc["settings"]["importThemeFile"]>,
-  { readonly created: boolean; readonly name: string; readonly renamedFrom: string | null }
->({
+export const useImportThemeFile = createEntityMutation<inferInput<Trpc["settings"]["importThemeFile"]>, inferOutput<Trpc["settings"]["importThemeFile"]>>({
   options: (trpc) => trpc.settings.importThemeFile.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't import the theme.",
