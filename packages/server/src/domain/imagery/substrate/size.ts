@@ -2,7 +2,7 @@
 // size set: the most constrained mainstream hosted editor gets exact passthrough; every other hosted model
 // snaps arbitrary dimensions to its own buckets anyway, so optimizing for the strictest wire wins.
 //
-// FORK 2 (doc 05, 2026-07-17): the substrate lands with I1; the REQUEST-passing (the runner reads `size`)
+// FORK 2 (doc 05): the substrate lands with I1; the REQUEST-passing (the runner reads `size`)
 // rides I2 in the same commit as the domain-mirror widening — so SIZE_PRESETS/defaultSizeFor have no I1
 // consumer yet (the born-compliant substrate posture, mirroring the INERT I0 contract widening).
 

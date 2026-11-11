@@ -2,7 +2,7 @@
 // is sort-discriminated: each sort has its own keyset, so a cursor minted under a different sort is
 // rejected rather than silently mis-applied (would return misordered/duplicated rows).
 //
-// EVERY LENS IS SERVER-SIDE (owner ruling 2026-08-13: "if i search then it should not just search on virtual
+// EVERY LENS IS SERVER-SIDE (owner ruling: "if i search then it should not just search on virtual
 // stuff yeah? same for sort etc"). Search, the favorites/archived toggles and the three-state tag chips are
 // all predicates on the SAME scope the keyset windows and `totalCount` counts — the library used to filter a
 // ≤150-row client window, so a term that matched nothing on the loaded pages read as "no matches" over a
@@ -82,7 +82,7 @@ export function createList(ctx: CharacterContext): CharacterService["list"] {
       ctx.db,
       rows.map((r) => r.character.id),
     );
-    // #517 — WHICH of this page's names collide, answered over the WHOLE library rather than the page. The
+    // WHICH of this page's names collide, answered over the WHOLE library rather than the page. The
     // row spends its handle as a disambiguator on exactly these, so the verdict has to be a library fact:
     // a per-page scan would make a name unique on page 1 and ambiguous on page 4, and the row's announced
     // identity would change under a screen-reader user as the keyset advanced. Deliberately NOT filtered by

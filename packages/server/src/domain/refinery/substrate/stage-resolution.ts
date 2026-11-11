@@ -54,7 +54,7 @@ export async function resolveStageResolution(
     // The session points at a deleted/foreign schema — leak-free NOT_FOUND; the Setup tab re-points it.
     throw new DomainNotFoundError("refinery schema", custom.data.schemaId);
   }
-  // WIRE-CLOSURE IS ENFORCED HERE, NOT IN THE STORED BLOB (task #41). A stored custom schema is OPEN by
+  // WIRE-CLOSURE IS ENFORCED HERE, NOT IN THE STORED BLOB. A stored custom schema is OPEN by
   // construction (the transpiler mints objects without `additionalProperties`, and the lift subset accepts an
   // absent one). `projectJsonSchema` is the ONE home of the `additionalProperties:false` pin, so a raw send of
   // `row.schema` would ship an OPEN object tree on the hosted wire — this projection is what closes it. That

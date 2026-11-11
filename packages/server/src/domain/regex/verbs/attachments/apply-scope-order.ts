@@ -11,7 +11,7 @@
 // id alone and its ownership IS the script's (D18-style) — so a bare `WHERE regexScriptId = id` would write
 // ANY owner's row. The global arm therefore PRE-GATES ownership of every ordered id (`loadOwnedScriptsByIds`,
 // the single attachGlobal/detachGlobal posture) and a foreign/absent id collapses to RegexNotFoundError BEFORE
-// any write (#708) — never a silent cross-tenant reorder. A stale id the caller STILL OWNS but no longer has
+// any write — never a silent cross-tenant reorder. A stale id the caller STILL OWNS but no longer has
 // attached stays dropped (it passes the ownership pre-gate, then matches no global row).
 //
 // The rewrite is ONE atomic `db.batch`: a half-applied reorder would leave two attachments claiming the same
@@ -33,7 +33,7 @@ import { loadOwnedScriptsByIds } from "#src/domain/regex/persistence/queries.ts"
  *  `global_regex_scripts` carries no owner column (its scope is the script's), so — exactly as the single
  *  `attachGlobal`/`detachGlobal` verbs do — ownership is proven on the SCRIPT via `loadOwnedScriptsByIds`. A
  *  foreign or absent id collapses to `RegexNotFoundError` (no foreign-existence oracle: "not yours" and "no
- *  such script" are one answer), so a stranger can never reorder another owner's global tier (#708). */
+ *  such script" are one answer), so a stranger can never reorder another owner's global tier. */
 async function ensureGlobalScriptsOwned(db: Db, ownerId: UserId, scriptIds: readonly RegexScriptId[]): Promise<void> {
   const owned = new Set((await loadOwnedScriptsByIds(db, ownerId, scriptIds)).map((s) => s.id));
   for (const scriptId of scriptIds) {
@@ -111,7 +111,7 @@ export function createApplyScopeOrder(ctx: RegexContext): RegexService["applySco
       at,
     );
     ctx.emitUserEvent(params.principal.userId, { type: "regexChanged" });
-    // #1733 — the CHAT arm's reorder is room state (the run order every member's turns assemble in), so it
+    // The CHAT arm's reorder is room state (the run order every member's turns assemble in), so it
     // fans the room plane too. The other three arms are owner-library state with no member-visible
     // projection of their own: their rooms hear it through the library-row fan when a row changes.
     if (params.scope.kind === "chat") {

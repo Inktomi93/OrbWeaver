@@ -48,7 +48,7 @@ function resolveText(key: string, descriptor: Extract<RulePresetKnobDescriptor, 
   if (typeof raw !== "string") {
     return refuse(key, "expected text");
   }
-  // The descriptor's OWN floor (#1387), not a hardcoded "non-empty": most text knobs feed an arm field
+  // The descriptor's OWN floor, not a hardcoded "non-empty": most text knobs feed an arm field
   // that is meaningless blank (`minLength: 1`), but a knob whose own semantics allow blank (`storyPacing`'s
   // "Standing direction", "" = none) declares `minLength: 0` and rides straight through.
   if (raw.length < descriptor.minLength) {
@@ -195,7 +195,7 @@ function spendProbeValue(descriptor: RulePresetKnobDescriptor): RulePresetKnobVa
 // Does this preset MINT A RECURRING CHARGE at its default knobs? DERIVED — the def's own builder is run and
 //  its emitted arms are tested against the contract's `SPEND_ARM_TYPES`, so the picker's spend signal cannot
 //  drift from what the mint actually creates. A hand-maintained `spends` flag on the def would be a boolean
-//  an author forgets to flip, on a money surface (#655).
+//  an author forgets to flip, on a money surface.
 //
 //  WHY THIS ONE RUNS THE BUILDER WHILE `ruleCount` STAYS DATA — the ruling survives, its input changed. That
 //  field is DATA precisely so the picker can say "(1/2)" before a build, and it can be: a preset's rule COUNT

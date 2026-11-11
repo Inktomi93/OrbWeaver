@@ -23,7 +23,7 @@ const AUTH_LOGOUT = "AUTH_LOGOUT";
 const SESSION_ENTITY = "session";
 
 /**
- * #141 — open the revoked row's sealed OIDC id_token for use as the logout `id_token_hint`, or `null`.
+ * Open the revoked row's sealed OIDC id_token for use as the logout `id_token_hint`, or `null`.
  *
  * A DECRYPT FAILURE MUST NEVER FAIL A LOGOUT. By the time this runs the session is ALREADY revoked — the
  * atomic UPDATE happened, the cookie is dead, the sockets are about to be evicted. The only thing at stake
@@ -67,7 +67,7 @@ export function createRevoke(
       },
       now,
     );
-    // WHICH session this logout ended (W7a) + its OIDC end-session hint (#141). The row is the only place
+    // WHICH session this logout ended (W7a) + its OIDC end-session hint. The row is the only place
     // the id exists — the caller holds a token, and the token is not an identity. Returning it is what lets
     // the logout ROUTE evict exactly this device's live sockets (F4 per-SESSION) instead of every device the
     // human is signed in on. `null` when the row was already revoked: nothing was ended here, so nothing is
@@ -106,7 +106,7 @@ export function createRevoke(
     return { revoked: revoked.length, userIds: [...new Set(revoked.map((row) => row.userId))] };
   }
 
-  // The UNEXECUTED kick-all (#1691). No log line here on purpose: nothing has been revoked yet — the count
+  // The UNEXECUTED kick-all. No log line here on purpose: nothing has been revoked yet — the count
   // only exists once the CALLER's batch commits, and its forensic record is the audit row that commits with
   // it. The executed `revokeAllForUser` above keeps the breadcrumb for the explicit admin kick verb.
   const revokeAllForUserStatement = (userId: UserId, revokedAt: number): StatementToken =>

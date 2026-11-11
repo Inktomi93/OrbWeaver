@@ -2,7 +2,7 @@
 // that must never disagree: what `preflight` PREDICTS a stage will emit, and what the stage engine actually
 // REQUESTS as that call's output cap.
 //
-// WHY THIS FILE EXISTS (live e2e, 2026-08-09 — the defect it was extracted to kill). The arithmetic used to
+// WHY THIS FILE EXISTS (live e2e — the defect it was extracted to kill). The arithmetic used to
 // live privately inside `verbs/preflight.ts` and the engine never read it: `runStage` re-resolved the posture
 // ladder on its own and asked for the static `refine_score` floor. So the surface could compute — and the
 // user could READ, in the fit line — `out ≈ 980 / 768 tok ⚠`, i.e. "this run is going to truncate", and the
@@ -48,7 +48,7 @@ const ENVELOPE_PER_ENTRY_TOKENS = 15;
 const REWRITE_HEADROOM = 1.15;
 /** One scored target's reply cost: THREE prose critique strings (`strengths`/`weaknesses`/`suggestions`)
  *  plus the number and the addressing keys. MEASURED, not assumed — a live full-mode score of an ordinary
- *  card (Elias Thorn, 7 targets, Qwen3-VL-8B, 2026-08-09) emitted 1 490 output tokens ⇒ ~213 per target.
+ *  card (Elias Thorn, 7 targets, Qwen3-VL-8B) emitted 1 490 output tokens ⇒ ~213 per target.
  *  The previous value was 140, which under-predicted that same run by a third; 220 states the measurement
  *  with the small round-up the sample size deserves. */
 const SCORE_TOKENS_PER_TARGET = 220;
@@ -111,7 +111,7 @@ export function outputEstimateOf(subject: StageEstimateSubject): number {
  *  stage (~21s of decode for no result, measured). That asymmetry is the whole argument for being generous
  *  here, and the window clamp below is what keeps generous from becoming reckless.
  *
- *  WHY 2× AND NOT A TIGHT FIT (measured, 2026-08-09, Qwen3-VL-8B over live cards). Actual output against
+ *  WHY 2× AND NOT A TIGHT FIT (measured, Qwen3-VL-8B over live cards). Actual output against
  *  the prediction: score runs landed 1 490 / 1 619 / 1 852 / 2 026 against a 1 740 prediction — a spread of
  *  0.86× to 1.16×, i.e. a tight 1.25× cap was already within one verbose card of truncating. Rewrite is
  *  worse and its sample is CENSORED: a run predicted at 3 885 hit a 4 857 cap at `finish_reason:"length"`
@@ -125,7 +125,7 @@ const OUTPUT_BUDGET_HEADROOM = 2;
  *  the prompt with the zod issues appended (a small fixed addition — the floor), and `estimateTokens`
  *  (QuadChars, advisory) UNDER-counts the true tokenization by a fraction that grows with input length.
  *
- *  RECEIPT (live score sweep, 2026-08-10): a ~31.5k-token card prompt estimated ~31 312 tokens but tokenized
+ *  RECEIPT (live score sweep): a ~31.5k-token card prompt estimated ~31 312 tokens but tokenized
  *  to 31 569 — a 257-token (0.82%) undercount, ONE more than the fixed 256 reserve — so the clamp landed the
  *  output cap exactly on the context boundary and the wire 400'd by a single token (`32769 > 32768`). A fixed
  *  reserve cannot cover an error that scales with input; the proportional band does. 5% is generous over the
@@ -181,14 +181,14 @@ export function resolveStageSampling(args: StageSamplingArgs): RolePresetParams 
   return resolveSideGenSampling({ ...posture, maxOutputTokens: floor }, presetParams);
 }
 
-// ── the RULED refusal (owner ruling on live-e2e 2026-08-09 open fork 1) ──────────────────────────────────
+// ── the RULED refusal (owner ruling) ────────────────────────────────────────────────────────────
 
 /**
  * The one arm where a number here DECIDES: a run whose caller has EXPLICITLY capped `maxOutputTokens` below
  * what this stage's payload needs is refused with the fit receipt, instead of proceeding to fail exactly as
  * predicted. Returns the receipt, or `null` when the run fits.
  *
- * WHY THIS IS NOT A SECOND WARNING (measured, live e2e 2026-08-09). The pre-ruling behaviour was: the fit
+ * WHY THIS IS NOT A SECOND WARNING (measured, live e2e). The pre-ruling behaviour was: the fit
  * line printed `out ≈ 980 / 768 tok ⚠`, the run went anyway, the first attempt AND the bounded structured
  * retry both came back `finish_reason:"length"`, and the stage 503'd after ~21s of paid decode. The payload-
  * aware floor above removed that outcome for the DEFAULT case; the remaining case is a cap the user set

@@ -1,4 +1,4 @@
-// verb: replaySince — the durable RESUME read the socket's `notifications` room pumps (#1459). Recipient-
+// verb: replaySince — the durable RESUME read the socket's `notifications` room pumps. Recipient-
 // scoped to `principal.userId` (the scope is in the persistence WHERE clause — there is no cross-user read),
 // dismissed excluded, `seq` strictly above the caller's watermark, OLDEST-first, clamped to the same shared
 // `NOTIFICATIONS_LIST_MAX_LIMIT` ceiling `list` uses.
@@ -26,7 +26,7 @@ export function createReplaySince(ctx: NotificationsContext): Pick<Notifications
   async function replaySince(params: ReplaySinceParams): Promise<readonly InboxView[]> {
     const limit = Math.min(params.limit ?? DEFAULT_LIMIT, NOTIFICATIONS_LIST_MAX_LIMIT);
     const rows = await selectInboxSince(ctx.db, params.principal.userId, params.afterSeq, limit);
-    // The SAME `actionable` stamp `list` applies (#1799) — a live arrival and a page load must agree about
+    // The SAME `actionable` stamp `list` applies — a live arrival and a page load must agree about
     // the dot, so both wires run one substrate.
     const asks = standingAsksOf(rows, params.principal.userId);
     const standing = asksNothing(asks) ? NO_STANDING_ASKS : await ctx.resolveStandingAsks(asks);

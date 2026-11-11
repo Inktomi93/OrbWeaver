@@ -34,11 +34,11 @@ interface SessionAdminPort {
   readonly listForUser: (userId: UserId) => Promise<readonly SessionAdminView[]>;
   readonly revoke: (sessionId: SessionId) => Promise<void>;
   readonly revokeAllForUser: RevokeAllSessionsForUserOp;
-  /** #1691 — the UNEXECUTED kick-all, so a credential/authority write can commit its own session kick in ONE
+  /** The UNEXECUTED kick-all, so a credential/authority write can commit its own session kick in ONE
    *  batch instead of awaiting it afterwards (a failed tail used to leave the NEW password live beside the
    *  OLD sessions). Canonical home `domain/sessions`; admin only orders the statements. */
   readonly revokeAllForUserStatement: (userId: UserId, revokedAt: number) => BatchStmt;
-  /** #1691 — W7a's live-socket half, split out of the executed `revokeAllForUser` wrapper because the DB
+  /** W7a's live-socket half, split out of the executed `revokeAllForUser` wrapper because the DB
    *  revoke now rides the caller's batch while the eviction can only happen AFTER it commits. The one tail
    *  that is NOT a DB write: a synchronous in-process registry walk
    *  (`transport/trpc/stream/socket-registry.ts` `evictUser`), injected as a port because a domain may not
@@ -93,7 +93,7 @@ export interface AdminContext {
   readonly now: Clock;
   readonly newUserId: () => UserId;
   readonly hashPassword: PasswordHasher["hash"];
-  /** #2481 / inference program §5.3b — the minted account's local-light vector floor, as an INJECTED op:
+  /** Inference program §5.3b — the minted account's local-light vector floor, as an INJECTED op:
    *  `domain/admin` may not import `domain/connection`. Called by `createUser` AFTER `commitAuditedWrite`'s
    *  batch commits, NEVER inside it — a failed convenience seed must not un-create an account (which is the
    *  exact inverse of the {@link AdminContext.auditStatementAfterWrite} bargain one field below, and the two
@@ -105,12 +105,12 @@ export interface AdminContext {
   /** The BEST-EFFORT audit channel (`logAudit`: suppress → count → drop) — correct for the read-ish and
    *  advisory verbs (`listSessions`/`revokeSession`/`embed`), where a degraded audit channel must not
    *  break the action. NOT for a privileged durable write: those take
-   *  {@link AdminContext.auditStatementAfterWrite} (#1691, and #1707 for `linkSsoIdentity` — an SSO BIND is
-   *  a durable identity write, so it left this channel). */
+   *  {@link AdminContext.auditStatementAfterWrite} (and so does `linkSsoIdentity` — an SSO BIND is
+   *  a durable identity write, so it is not on this channel). */
   readonly audit: AuditWiring["log"];
   /**
-   * #1691 — the ATOMIC audit channel for a privileged write (create/reset-password/set-role/set-enabled,
-   * + linkSsoIdentity since #1707):
+   * The ATOMIC audit channel for a privileged write (create/reset-password/set-role/set-enabled,
+   * + linkSsoIdentity):
    * an UNEXECUTED insert that rides the write's own `db.batch`, guarded so the row lands IF AND ONLY IF the
    * statement immediately before it changed a row.
    *

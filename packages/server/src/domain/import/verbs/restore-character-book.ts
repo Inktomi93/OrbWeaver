@@ -1,4 +1,4 @@
-// verb: restoreCharacterBook — THE RESTORE DOOR (#1598, owner ruling 2026-09-05). Re-asserts a card file's
+// verb: restoreCharacterBook — THE RESTORE DOOR (owner ruling). Re-asserts a card file's
 // EMBEDDED lorebook over the character those exact bytes imported as, replacing that character's primary
 // book wholesale.
 //

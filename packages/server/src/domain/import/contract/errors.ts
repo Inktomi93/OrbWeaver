@@ -35,7 +35,7 @@ export class ProfileImportLimitError extends DomainOperationError {
 }
 
 /** A filesystem/tooling failure (EACCES/EIO/ELOOP/…) while collecting a staged profile — NEVER the
- *  collector's documented "missing" (ENOENT) or "corrupt-format" (unparseable JSON) fallback (#763). Those
+ *  collector's documented "missing" (ENOENT) or "corrupt-format" (unparseable JSON) fallback. Those
  *  two ARE best-effort by design (a profile legitimately may not carry `settings.json`, or ST may have
  *  written a truncated one); an infrastructure fault reading a file that DOES exist is not the same claim —
  *  folding it into the same "treat as absent" path produces an import that silently drops data and still

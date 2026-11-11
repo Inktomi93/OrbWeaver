@@ -1,4 +1,4 @@
-// domain/rpg/trace — the RPG flight-recorder RUNTIME (R-OBS; the D55 `memoryTrace` precedent). A
+// domain/rpg/trace — the RPG flight-recorder RUNTIME (the D55 `memoryTrace` precedent). A
 // compose-created singleton (the `staging.ts` posture, NOT the module singleton `bus.ts` is): a bounded
 // in-memory ring of the per-turn {@link RpgTraceEvent} stream, with the injected {@link RpgTraceSink} that
 // records into it and the host-only read (`recent`) the `/api/_debug/rpg/traces` route tails.

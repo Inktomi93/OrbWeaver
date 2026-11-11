@@ -59,7 +59,7 @@ export type RuleRow = typeof automationRules.$inferSelect;
 /** One VALIDATED, ready-to-insert rule — everything `createRule` decides before it writes anything, with the
  *  id already minted so a caller can read the row back by id after the write.
  *
- *  `position` IS ABSENT ON PURPOSE (#1427). It is allocated by the INSERT itself, from a scalar subquery over
+ *  `position` IS ABSENT ON PURPOSE. It is allocated by the INSERT itself, from a scalar subquery over
  *  the rule's own scope, because a JS `max+1` read followed by a separate insert is two statements two
  *  concurrent creates can interleave inside — and they then pick the SAME position, in a column whose order
  *  is semantics (sibling arms mutate one shared write-through env in position order). */
@@ -233,7 +233,7 @@ export interface AutomationOps {
      *  through; wired to chat's `applyStandaloneVariableOps` at compose. Principal-free — the
      *  author's host authority was re-verified at the dispatch gate.
      *
-     *  `expect` is the OPTIONAL compare-and-set (#1555): with preconditions the write lands only while every
+     *  `expect` is the OPTIONAL compare-and-set: with preconditions the write lands only while every
      *  one still holds against the live fold, and otherwise refuses AS DATA having written nothing. The
      *  automation arms pass none (a rule's `set_variable` is an unconditional assignment) and read `applied`;
      *  the plugin membrane aliases this exact op and is the caller that uses it. */
@@ -344,7 +344,7 @@ export interface EnabledRuleIndex {
   readonly has: (chatId: ChatId) => boolean;
   /** Whether any enabled rule triggers on the domain bus — the domain-bus fast path. */
   readonly hasDomainRules: () => boolean;
-  /** #1431 — whether the snapshot is known BEHIND canon (a `refresh` failed). While true both reads above
+  /** Whether the snapshot is known BEHIND canon (a `refresh` failed). While true both reads above
    *  answer TRUE (fail open ⇒ canon decides) and the watcher front door rebuilds on the next event. */
   readonly isStale: () => boolean;
   /** Recompute both sets from canon, THROWING on failure — the BOOT call. */
@@ -399,7 +399,7 @@ export interface PromptTransformIndex {
    *  live closure the turn pipeline calls — so the latch's only remedy is the retry the watcher front door
    *  drives on the next event. See {@link PromptTransformIndex.isStale}. */
   readonly refresh: () => Promise<void>;
-  /** #1431 — whether the registered set is known BEHIND canon (a `refresh` failed). */
+  /** Whether the registered set is known BEHIND canon (a `refresh` failed). */
   readonly isStale: () => boolean;
 }
 
@@ -471,7 +471,7 @@ export type ArmOutcome =
    *  `paused`, and "a tool from a plugin that isn't enabled" is the only thing that can produce it. */
   | { readonly ok: false; readonly kind: "paused" };
 
-/** A rule's (or a confirmed stash's continuation's — #1553) arm RUN: the aborting arm's `arm_error` detail
+/** A rule's (or a confirmed stash's continuation's) arm RUN: the aborting arm's `arm_error` detail
  *  (`null` = no arm errored), plus the two terminal MODIFIERS an arm can raise — `suggested` (the S4 stash:
  *  the arm ASKED instead of acting) and `paused` (D146-d: the arm's contributor vanished mid-dispatch). Each
  *  changes the TERMINAL and nothing else. Homed here (not `engine/dispatch.ts`, where `runArms` computes
@@ -489,7 +489,7 @@ export interface ArmsResult {
  *  (`transform_draft` — pipeline-registered) + the reserved arms return a typed refusal, NOT a fabricated
  *  success.
  *
- *  `continuation` (#1553, OWNER RULING: STASH) is every arm AFTER this one in the rule's own action list —
+ *  `continuation` (OWNER RULING: STASH) is every arm AFTER this one in the rule's own action list —
  *  `runArms` computes it as `actions.slice(i + 1)` at each step and ALWAYS passes it; every other caller
  *  (a single-arm manual dispatch, a test harness) may omit it — it exists so a confirm-first arm can stash
  *  it onto the pending ask ({@link StashedArm.continuation}): the ruling is that the arms behind a raised
@@ -517,8 +517,8 @@ export type ArmDispatch = (action: AutomationAction, frame: DispatchFrame, conti
  *  cascade origin, the same `env` snapshot its templates would have rendered against. Re-deriving a frame at
  *  confirm would silently make a confirmed ask a DIFFERENT act from the one the host was shown.
  *
- *  `continuation` (#1553, OWNER RULING: STASH the continuation) is every arm that sat BEHIND this one in the
- *  rule's own action list at fire time — d11a0f6e9 (#1419) used to drop them; the ruling is that a confirmed
+ *  `continuation` (OWNER RULING: STASH the continuation) is every arm that sat BEHIND this one in the
+ *  rule's own action list at fire time — d11a0f6e9 used to drop them; the ruling is that a confirmed
  *  card completes the rule, so they wait on this same ask and run in order once the host says yes
  *  (`verbs/confirm-suggestion.ts::executeStashedArm`). Empty when this was the rule's LAST arm. */
 export interface StashedArm {

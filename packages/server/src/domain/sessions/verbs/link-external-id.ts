@@ -6,8 +6,8 @@
 // rule ("external identity → ONE linking site, stable-id only") forbids a second bind-once policy. So the
 // bind-once guard is reused verbatim (`isSubjectMismatch`) and no `externalId` write escapes this domain.
 //
-// THE CAPABILITY IS A PAIR, NOT A CALL (#1707). The bind is the durable half of a PRIVILEGED admin action,
-// and #1691 ruled that a privileged write and its audit row commit in ONE `db.batch` or neither does — so
+// THE CAPABILITY IS A PAIR, NOT A CALL. The bind is the durable half of a PRIVILEGED admin action,
+// and a privileged write and its audit row commit in ONE `db.batch` or neither does — so
 // this domain hands the caller the UNEXECUTED claim (`linkExternalIdStatement`, the
 // `revokeAllForUserStatement` shape) and admin orders it beside its guarded audit insert. The batch is the
 // only atomic unit available and it forbids a SELECT ahead of its writes, so there is no pre-read here:

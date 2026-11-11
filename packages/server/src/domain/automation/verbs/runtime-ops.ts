@@ -79,7 +79,7 @@ export function createAutomationRuntimeOps<TSet>(deps: AutomationRuntimeDeps<TSe
       }
       let set: TSet;
       try {
-        // Resolved on the RULE AUTHOR's own shelf (#677): a rule names a tool its author installed, and this
+        // Resolved on the RULE AUTHOR's own shelf: a rule names a tool its author installed, and this
         // resolve refuses anything else. Passing the author here is what makes that structural —
         // with N users' copies of the same plugin resident, a name-only resolve would hand the arm whichever
         // copy happened to register first, i.e. it would spend a stranger's grant on the author's rule.

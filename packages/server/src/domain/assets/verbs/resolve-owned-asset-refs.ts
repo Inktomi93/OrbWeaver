@@ -1,4 +1,4 @@
-// verb: resolveOwnedAssetRefs (#67) — resolve the `(assetId, hash)` pairs the OWNER owns among a requested
+// verb: resolveOwnedAssetRefs — resolve the `(assetId, hash)` pairs the OWNER owns among a requested
 // id set. TWO trusted callers share this ONE owner-scoped read:
 //   • the inline-image RENDER resolver (tRPC `assets.resolveBlobRefs`): a message body carries `asset:<id>`
 //     refs (D51), but the blob route is keyed by HASH (D21), so the client resolves id → hash to build

@@ -82,8 +82,8 @@ function parsePresetExtensions(raw: Record<string, unknown>): {
 
 /** Map an already-JSON-parsed ST chat-completion preset → the portable orb file + its unmapped-field list, or
  *  null when the object is not a recognizable chat-completion preset, OR when it maps to a config orb cannot
- *  store (#1363 — the mapper REFUSES rather than returning orb's default preset dressed as the import).
- *  Never throws: since #1580 the shared mapper ANSWERS both refusals as a typed outcome, so this reads the
+ *  store (the mapper REFUSES rather than returning orb's default preset dressed as the import).
+ *  Never throws: the shared mapper ANSWERS both refusals as a typed outcome, so this reads the
  *  refusal instead of catching one. Both arms are the same `null` here — a BULK import has no door to render
  *  a per-file reason at (the operator gets the not-imported report) — but the two are now distinguishable if
  *  that report ever grows a per-file reason. A refused preset is reported as not-imported, never as

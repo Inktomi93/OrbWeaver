@@ -315,7 +315,7 @@ export async function markStarted(
 export async function heartbeat(db: Db, id: WorkloadId, now: number, progress?: WorkloadProgress): Promise<void> {
   await db
     .update(workloads)
-    // A snapshot-carrying tick ALSO zeroes `respawns` (#529): the boot-respawn bound counts respawns that
+    // A snapshot-carrying tick ALSO zeroes `respawns`: the boot-respawn bound counts respawns that
     // produced NOTHING, so evidence of forward motion resets it. A bare lease tick must not — a run that
     // reports no progress at all can still crash-loop, which is exactly what the bound is for.
     .set(progress === undefined ? { updatedAt: now } : { updatedAt: now, progress, respawns: 0 })
@@ -554,8 +554,8 @@ export function scanRunnableWorkloads(input: QueueScanInput): Promise<WorkloadRu
   return scanRunnablePage(input, null);
 }
 
-/** EVERY in-flight row, projected for the BOOT reclaim (#529): id + kind + the respawn count + the lease
- *  column as it stands before the disposition (the reap sentence's observed lease age, #560 — `markTerminal`
+/** EVERY in-flight row, projected for the BOOT reclaim: id + kind + the respawn count + the lease
+ *  column as it stands before the disposition (the reap sentence's observed lease age — `markTerminal`
  *  overwrites it).
  *
  *  NO LEASE PREDICATE, deliberately — this is the one query where the heartbeat is not evidence. At boot,
@@ -583,7 +583,7 @@ export async function findActiveForBootSweep(db: Db): Promise<ActiveWorkloadRow[
   return rows.map((row) => ({ kind: row.kind, params: JSON.parse(row.params) }));
 }
 
-/** Put an orphaned in-flight row BACK IN THE QUEUE (#529) — the resumable disposition of the boot reclaim.
+/** Put an orphaned in-flight row BACK IN THE QUEUE — the resumable disposition of the boot reclaim.
  *  Status-guarded exactly like `markTerminal`, so a returning zombie is never re-queued out from under its
  *  own runner. `respawns` increments (the loop bound's counter); `error` is CLEARED because the row is no
  *  longer in a failure state, and `progress` is KEPT (a re-run's UI should not lose the last known position).
@@ -601,7 +601,7 @@ export async function requeueInFlight(db: Db, args: { id: WorkloadId; now: numbe
 
 /** In-flight rows whose lease went stale (`updatedAt < staleBefore`) — the reaper's sweep input.
  *
- *  RAW COLUMNS, NO VIEW (#1413) — the same reason `findInFlightForBootReclaim` reads raw, now applied to the
+ *  RAW COLUMNS, NO VIEW — the same reason `findInFlightForBootReclaim` reads raw, now applied to the
  *  steady-state half. This projected through `toView`, which returns `null` for a kind this build does not
  *  ship, and the sweep dropped those nulls: an unknown-kind in-flight row could never reach `markTerminal`
  *  and stayed `running`/`cancelling` forever, holding its kind's single-active slot. Only a restart cleared

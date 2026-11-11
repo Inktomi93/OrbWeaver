@@ -76,7 +76,7 @@ export interface ResolveEffectiveParams {
   readonly target?: CapabilityTarget | undefined;
 }
 
-/** Read one readable preset's BACKWARD bindings (#279). Carries the whole `Principal` for the same reason
+/** Read one readable preset's BACKWARD bindings. Carries the whole `Principal` for the same reason
  *  `ResolveEffectiveParams` does — its work is done by an injected op (`resolvePresetUsage`) whose room half
  *  is membership-scoped and therefore principal-shaped, with no caller-supplied user id to aim elsewhere. */
 export interface ListPresetUsageParams {

@@ -23,7 +23,7 @@ function sameJson(live: unknown, authored: unknown): boolean {
 }
 
 /** True when the live card still carries the shipped pack's authored content byte-for-byte: a card a crashed
- *  seed left half-dressed, safe to finish (#1444). Any difference (an edited field, a cleared field, an added
+ *  seed left half-dressed, safe to finish. Any difference (an edited field, a cleared field, an added
  *  greeting) means the row belongs to the user. EVERY FIELD IN {@link SeededCardContent} IS COMPARED. */
 export function matchesAuthoredContent(live: SeededCardContent, authored: SeededCardContent): boolean {
   return (

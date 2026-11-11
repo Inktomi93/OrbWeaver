@@ -31,8 +31,8 @@ async function characterSlices(ctx: RegexResolveContext, ownerId: UserId, charac
     .orderBy(asc(characterRegexScripts.position), asc(regexScripts.createdAt));
 
   // Regroup by the ROSTER's order, not the query's. WITHIN a character the query's ORDER BY already holds.
-  // The grouping is KEPT (#1742/F3): each seat is its own tier downstream — its own allow flag and its own
-  // group in the room's Regex section — and the `flatMap` this used to end with threw exactly that away.
+  // The grouping is KEPT (F3): each seat is its own tier downstream — its own allow flag and its own
+  // group in the room's Regex section — and a trailing `flatMap` would throw exactly that away.
   return characterIds.map((characterId) => ({
     characterId,
     scripts: rows.filter((row) => row.characterId === characterId).map((row) => toRow(row.script)),

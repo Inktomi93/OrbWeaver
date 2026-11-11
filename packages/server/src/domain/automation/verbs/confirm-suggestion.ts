@@ -211,7 +211,7 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
 
 /** Execute the STASHED arm and record the confirmed fire, stamped with who authorized it.
  *
- *  #1565 — ON THE CHAT'S OWN SERIAL LANE, the same one the bus door and "Run now" take
+ *  ON THE CHAT'S OWN SERIAL LANE, the same one the bus door and "Run now" take
  *  (`automationChatLaneKey` is the one home for the key). A confirmed arm is a real dispatch: it renders
  *  against the chat variable
  *  env, writes through it, and stamps the rule — so a host answering a card while a bus event was mid-arm
@@ -228,7 +228,7 @@ function runStashedArm(ctx: AutomationContext, pending: PendingSuggestion, rule:
   return ctx.serialLanes.run(automationChatLaneKey(pending.chatId), () => executeStashedArm(ctx, pending, rule, confirmer));
 }
 
-/** #1553 (OWNER RULING: STASH the continuation) — combine the confirmed arm's own outcome with its
+/** OWNER RULING: STASH the continuation — combine the confirmed arm's own outcome with its
  *  CONTINUATION's (the arms that sat behind it, run against the same frame once the confirmed arm
  *  succeeded), into ONE `ArmsResult`-shaped verdict — the exact terminal `engine/dispatch.ts::finalizeRule`
  *  would have reached had this all run as one fresh dispatch. `null` continuation-result = the confirmed
@@ -329,14 +329,14 @@ export function createConfirmSuggestion(ctx: AutomationContext): AutomationServi
     if (claimed === null) {
       throw new SuggestionNotFoundError(suggestionId);
     }
-    // #700 — RETIRE THE CARD ON EVERY ATTACHED HOST TAB. The claim just deleted the ask from the in-RAM store,
+    // RETIRE THE CARD ON EVERY ATTACHED HOST TAB. The claim just deleted the ask from the in-RAM store,
     // so it can never be answered again; emit here — BEFORE the origin re-checks — so even a refused confirm
     // retires the card (the ask is spent either way). The acting tab also drops it optimistically via the
     // mutation's onSuccess, but the host's OTHER tabs/devices have no query and no replay behind this
     // live-only room, so this host-only event is their only retirement channel (§3-S4 spec delta).
     //
-    // IT IS A RETIREMENT, NOT A TERMINAL, and the distinction is why it stays ahead of the re-checks (#1425
-    // read the position as "announcing the outcome early"). The payload is `{chatId, suggestionId}` — no
+    // IT IS A RETIREMENT, NOT A TERMINAL, and the distinction is why it stays ahead of the re-checks (the
+    // position is not "announcing the outcome early"). The payload is `{chatId, suggestionId}` — no
     // outcome, no verdict — and the client fold does exactly one thing with it: drop the ask with that id
     // (`features/automation/lib/apply-automation-bus-event.ts`). The OUTCOME is announced only after
     // execution, by `ruleFired`/`ruleErrored` plus the fire row. Moving this after the re-checks would leave a

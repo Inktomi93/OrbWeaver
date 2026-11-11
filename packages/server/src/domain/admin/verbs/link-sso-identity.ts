@@ -14,7 +14,7 @@
 // the injected sessions capability's — the ONE externalId-linking site (spine U1). This verb gates, orders
 // the batch, and maps the refusal vocabulary onto typed operation codes.
 //
-// THE BIND AND ITS AUDIT ROW ARE ONE BATCH (#1707, closing #1691's last hole). An SSO bind is a durable
+// THE BIND AND ITS AUDIT ROW ARE ONE BATCH. An SSO bind is a durable
 // identity write — it decides which IdP subject owns an account — and it used to run inside the sessions
 // capability with its audit tail on the best-effort `ctx.audit` (`logAudit`: suppress → count → drop), so a
 // degraded audit channel returned 200 for an account newly bound to an SSO identity with NO forensic row.

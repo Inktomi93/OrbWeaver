@@ -1,4 +1,4 @@
-// domain/admin/substrate — THE ONE SEAM THAT COMMITS A PRIVILEGED WRITE (#1691).
+// domain/admin/substrate — THE ONE SEAM THAT COMMITS A PRIVILEGED WRITE.
 //
 // Every admin verb that mints an account, rotates a credential, or moves authority routes its durable write
 // through here, and the reason is a failure mode that four verbs shared: the privileged UPDATE/INSERT ran

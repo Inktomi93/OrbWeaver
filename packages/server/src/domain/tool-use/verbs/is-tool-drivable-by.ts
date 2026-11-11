@@ -21,7 +21,7 @@ import { isDirectDrivableBy } from "../substrate/reachability.ts";
 
 export function createIsToolDrivableBy(registry: ToolRegistry): (name: string, userId: UserId) => boolean {
   return (name: string, userId: UserId): boolean => {
-    // Keyed straight onto THIS user's shelf (#677) — not `lookupForDriver`, which falls back to the first-party
+    // Keyed straight onto THIS user's shelf — not `lookupForDriver`, which falls back to the first-party
     // partition, and a builtin is never direct-drivable. So the lookup itself already answers "is this one of
     // yours"; `isDirectDrivableBy` stays as the belt that states the policy (and that a future third
     // `ToolSource` landing on a user's shelf must still satisfy).

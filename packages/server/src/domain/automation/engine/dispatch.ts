@@ -210,8 +210,8 @@ function holdsAuthority(rc: RuleCtx): Promise<boolean> {
 /** RULED F4 — the rate-refusal INVITATION. A `budget_refused` happens BEFORE the predicate and before the
  *  env exists, so there is no rendered arm to stash: the ask carries the RULE REFERENCE only, and its
  *  confirm is a fresh host run (R7). Raised only for a rule carrying a SPEND arm (the ruling's default —
- *  `substrate/suggestions.ts::invitesOnRefusal`) that has not OPTED OUT (B4's per-rule knob, landed
- *  2026-08-29), and never on a MANUAL run, which cannot reach this path at all (the manual gate skips the
+ *  `substrate/suggestions.ts::invitesOnRefusal`) that has not OPTED OUT (B4's per-rule
+ *  knob), and never on a MANUAL run, which cannot reach this path at all (the manual gate skips the
  *  rate cap) — so a host who confirms an invitation can never be handed another one by the run they just
  *  asked for. */
 function inviteOnRefusal(rc: RuleCtx, actions: readonly AutomationAction[], limitDetail: string): void {
@@ -293,9 +293,9 @@ const ARMS_START: ArmsResult & { i: number } = { i: 0, detail: null, suggested: 
  *
  *  WHAT THIS DOES NOT CHANGE: an arm BEFORE the confirm-first one has already acted, and the rule still lands
  *  on the `suggested` terminal for it (`finalizeRule` states why that is the honest terminal). THE ARMS
- *  BEHIND THE RAISED ONE are no longer dropped, though (#1553, OWNER RULING: STASH the continuation,
- *  superseding the two paragraphs' "dropped"/"next event dispatches the rule whole" — d11a0f6e9's #1419 fix
- *  survives, its CONTINUATION-lands-nowhere residue does not): `ctx.runArm` receives `actions.slice(i + 1)`
+ *  BEHIND THE RAISED ONE are no longer dropped, though (OWNER RULING: STASH the continuation,
+ *  not "dropped" and not "next event dispatches the rule whole" — the continuation never lands
+ *  nowhere): `ctx.runArm` receives `actions.slice(i + 1)`
  *  on every call, so a confirm-first arm can stash them onto the pending ask
  *  ({@link StashedArm.continuation}) and `verbs/confirm-suggestion.ts::executeStashedArm` runs them, in
  *  order, once the host confirms — through this SAME function, so a nested confirm-first arm inside the
@@ -361,7 +361,7 @@ async function envFor(rc: RuleCtx): Promise<AutomationCelEnv> {
  *      invitation authorizes ONE run past a ceiling the host themselves set; it launders past nothing.
  *  WHY EACH SKIP IS LOAD-BEARING, not convenience: F4's invitation is RAISED BY a `budget_refused`, so a
  *  confirm that re-ran the rate cap would refuse identically for the rest of the hour; and a cadence rule
- *  (`int(chat.messageCount) % N == 0`) or an on-demand-only rule (predicate `false` — catalogue #10's call-a-
+ *  (`int(chat.messageCount) % N == 0`) or an on-demand-only rule (predicate `false` — §4 #10's call-a-
  *  vote) would answer every "Run now" with `predicate_false`, which is the same affordance-that-does-nothing
  *  one screen over. The fire row records `runNow` + the invoking host, so the log never claims a rule fired
  *  on its own condition when a human overrode it. */

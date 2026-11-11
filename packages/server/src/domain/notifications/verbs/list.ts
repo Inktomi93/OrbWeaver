@@ -27,7 +27,7 @@ export function createList(ctx: NotificationsContext): Pick<NotificationsService
     if (state === "dismissed") {
       return { items: rows.map(asSettled), nextCursor };
     }
-    // `actionable` (#1799) — ONE cross-feature call per PAGE, skipped entirely when this page names no
+    // `actionable` — ONE cross-feature call per PAGE, skipped entirely when this page names no
     // chat-owned decision, and stamped through the same substrate `replaySince` uses so the two wires
     // carrying `InboxView` can never disagree about the bell's dot.
     const asks = standingAsksOf(rows, params.principal.userId);

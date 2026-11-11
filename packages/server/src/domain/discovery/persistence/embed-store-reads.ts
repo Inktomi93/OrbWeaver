@@ -527,7 +527,7 @@ interface Tier0DigestSpan {
 
 /** Every tier-0 digest with a theme assignment, mapped to its verbatim seq-span — the msgMidAt backfill input.
  *
- *  AGGREGATED PER DIGEST, for the same reason {@link readSegmentBlockSpans} aggregates per block (#172):
+ *  AGGREGATED PER DIGEST, for the same reason {@link readSegmentBlockSpans} aggregates per block:
  *  `chat_segments` holds N chunk rows for an over-window block, so a distinct row-per-chunk read handed the
  *  backfill several partial spans for ONE digest. `backfillMsgMidAt` UPDATEs by `digestId`, so the last row in
  *  an unordered result won — a chunked scene's story-time stamp was whichever chunk the planner emitted last,
@@ -634,7 +634,7 @@ type SegmentBlockSpan = Readonly<Pick<typeof chatSegments.$inferSelect, "chatId"
 /** The verbatim block grid of the given chats — each tier-0 block's seq-span. The tier-k backfill folds a
  *  digest's covered blockIdx range over these to derive its whole-span `[min(seqStart), max(seqEnd)]`.
  *
- *  AGGREGATED PER BLOCK (#172): `chat_segments` holds N chunk rows per block (an over-window block is chunked
+ *  AGGREGATED PER BLOCK: `chat_segments` holds N chunk rows per block (an over-window block is chunked
  *  rather than truncated), so the grid folds `min(seq_start)`/`max(seq_end)` per `(chat, block)`. A distinct
  *  row-per-chunk read would put several spans in one grid slot and the last one written would win — silently
  *  shrinking a chunked block's contribution to every tier-k digest that covers it. */
@@ -662,7 +662,7 @@ export async function readCorpusCoverage(db: Db, ownerId: UserId): Promise<{ cha
   return { characters: chars[0]?.n ?? 0 };
 }
 
-/** THE THEME-CLUSTER OWNER PREDICATE, shared by the two `themeDetail` reads (#1480 item 6). `theme_clusters`
+/** THE THEME-CLUSTER OWNER PREDICATE, shared by the two `themeDetail` reads. `theme_clusters`
  *  carries its own `ownerId` (D23 — the row's own key dimension), so the belt is a join on the cluster
  *  itself rather than a walk out to a chat host. Both reads take a caller-supplied `themeClusterId`:
  *  `verbs/views::themeDetail` resolves it from an owner-scoped list one hop earlier, which is derivation,
@@ -696,7 +696,7 @@ export async function readThemeClusterMembers(
     .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), eq(characters.synthetic, false)))
     .groupBy(chatDigests.scopedCharacterId, characters.name)
     // Total order: equal-count members were left in scan order, so the LIMIT cut a different set between two
-    // identical reads of one theme (#1467 item 4's family).
+    // identical reads of one theme.
     .orderBy(desc(sql`count(*)`), asc(characters.name))
     .limit(limit);
 }

@@ -10,7 +10,7 @@ import type { CollectedChat, CollectedGroup, ParsedPersona } from "./collection.
  *  plus an optional source label. `filename` feeds both the fallback character name (when the card JSON
  *  carries none) and the `importedFrom` provenance stamp.
  *
- *  `pluginId` is the OTHER provenance channel (#1702): a plugin's `character.ingest`/`ingestAsset` funnel
+ *  `pluginId` is the OTHER provenance channel: a plugin's `character.ingest`/`ingestAsset` funnel
  *  carries no filename (its wire shape is `{card: Record<string,unknown>}` / `{assetId}`, never a name), so
  *  without this the row's `importedFrom` stayed null and `characterProvenanceOf` misread every hub-ingested
  *  card as `authored`. Mutually exclusive with `filename` in practice (only the plugin funnel sets this) —
@@ -26,7 +26,7 @@ export interface ImportCharacterInput {
   readonly card: ImportCardInput;
 }
 
-/** `restoreCharacterBook` input (#1598) — the SAME card bytes the owner imported from, re-uploaded on
+/** `restoreCharacterBook` input — the SAME card bytes the owner imported from, re-uploaded on
  *  purpose. The card identifies its own character (the `(ownerId, importHash)` dedup oracle), so there is no
  *  caller-supplied character id to mis-aim: a restore can only ever land on the character those exact bytes
  *  imported as. */
@@ -36,7 +36,7 @@ export interface RestoreCharacterBookInput {
 
 /** `importOrphanCharacter` input — an ORPHAN chats/ directory (transcripts whose card PNG is absent from
  *  the profile) gets a MINIMAL placeholder character minted from the directory's own evidence, so its
- *  chats can import instead of being skipped (7 real dirs on the 2026-08-15 corpus run). `headerNames` are
+ *  chats can import instead of being skipped (7 real dirs on a measured corpus run). `headerNames` are
  *  the transcripts' parsed `character_name` headers — the only name signal beyond the dir name itself. */
 export interface ImportOrphanCharacterInput {
   /** The ORIGINAL chats/ directory name (provenance + the name fallback), e.g. `"Clover_Owl"`. */
@@ -61,7 +61,7 @@ export interface GroupChatInputDeps {
   readonly personaByUserName: Map<string, PersonaId>;
   /** The ADDITIONAL seats (the cast minus the primary), in ST's own member order. */
   readonly characterIds: readonly CharacterId[];
-  /** The seats ST had DISABLED, which the room seats MUTED (#1687) — a subset of the primary + `characterIds`, so
+  /** The seats ST had DISABLED, which the room seats MUTED — a subset of the primary + `characterIds`, so
    *  the write op's seat gate can never refuse one. Empty ⇒ every seat arrives at the column defaults. */
   readonly mutedSeats: readonly CharacterId[];
   /** Card FILENAME → seat: the identity match, keyed exactly as ST's `original_avatar` writes it. */

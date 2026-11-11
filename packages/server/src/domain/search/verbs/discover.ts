@@ -176,7 +176,7 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
         return { hits: [], standaloneSegments: [] };
       }
 
-      // RANK FIRST, COLLAPSE SECOND. Each block's chunk rows collapse to ONE (#172 — a block is N rows now):
+      // RANK FIRST, COLLAPSE SECOND. Each block's chunk rows collapse to ONE (a block is N rows now):
       // evidence and `matchCount` are per SCENE, and counting two chunks of one block twice would inflate a
       // character's rank on the strength of one long message. But `collapseSegmentChunks` is FIRST-WINS over an
       // already-ranked list, so the order it is handed IS the choice of which chunk represents the block —

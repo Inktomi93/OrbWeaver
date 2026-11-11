@@ -208,7 +208,7 @@ export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolHand
     }),
     ["roll_dice"]: rpgTool({
       name: "roll_dice",
-      // PROSE-1 slot (#578): `rpg.extract.tool.rollDice`, resolved to its shipped default at module load —
+      // PROSE-1 slot: `rpg.extract.tool.rollDice`, resolved to its shipped default at module load —
       // the same "no game, no preset in scope" posture as its six siblings (`RPG_BASELINE_TOOL_DESCRIPTIONS`).
       description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("roll_dice") ?? "",
       argsSchema: rollDiceArgsSchema,

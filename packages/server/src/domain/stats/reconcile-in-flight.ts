@@ -1,5 +1,5 @@
 // domain/stats/reconcile-in-flight — the per-user SINGLE-FLIGHT gate for the awaited `stats.reconcile` verb
-// (owner ruling 2026-08-02): a caller with a recompute in flight must not start another; it WAITS for the
+// (owner ruling): a caller with a recompute in flight must not start another; it WAITS for the
 // running one. The direct path has no cancel by design, so the honest answer to a second click (or a second
 // tab) is a refusal, not a second full rebuild-from-canon racing the first over the same rollup rows.
 //

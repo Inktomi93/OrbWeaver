@@ -2,8 +2,8 @@
 // system default"; owned writes scope on `ownerId = userId`. The system default's own lifecycle has its
 // dedicated key-on-sentinel queries. Timestamps arrive as params.
 //
-// THE CONFIG COLUMN HAS TWO WRITE SEAMS, split by PROVENANCE (#1026): `updatePresetRow` carries a patch
-// that DESCENDS FROM A READ of the row (the editor's whole-blob PUT) and is guarded by the #471 refusal;
+// THE CONFIG COLUMN HAS TWO WRITE SEAMS, split by PROVENANCE: `updatePresetRow` carries a patch
+// that DESCENDS FROM A READ of the row (the editor's whole-blob PUT) and is guarded by the intact refusal;
 // `replacePresetConfig` carries content independent of the row (the schema default, an imported file) and
 // is deliberately unguarded. Each function states its own half.
 
@@ -50,7 +50,7 @@ export async function insertPreset(db: Db, row: PresetInsert): Promise<void> {
  *  cannot both pass it. The pair stays non-unique in the SCHEMA because explicit new forks are legal
  *  (the update verb's `{mode:"new"}`); this statement narrows uniqueness to the two
  *  CONVERGING admission paths: the COW converge arm (`verbs/update.ts`) and the host-handoff copy
- *  (`handoff-copy-write.ts`, #1572). A refused caller reads the winner back with `findOwnedForkOf`. */
+ *  (`handoff-copy-write.ts`). A refused caller reads the winner back with `findOwnedForkOf`. */
 export async function insertConvergedPresetForkIfAbsent(db: Db, row: ConvergedPresetInsert): Promise<PresetRow | undefined> {
   const inserted = await db
     .insert(presets)
@@ -135,7 +135,7 @@ export async function findOwnedForkOf(db: Db, userId: UserId, sourceId: PresetId
 /** Patch an OWNED row (scoped on `ownerId = userId` — never matches the null-owner system default),
  *  RETURNING the updated row (undefined when nothing matched: missing or not the caller's).
  *
- *  THE #471 WRITE BOUNDARY, one hop out (#1026). This is the seam a READ-DERIVED patch crosses: the preset
+ *  THE INTACT WRITE BOUNDARY, one hop out. This is the seam a READ-DERIVED patch crosses: the preset
  *  editor GETs a config through the lenient read seam (`substrate/views.ts::toPresetDetail` →
  *  `parsePromptConfig`, which degrades an unreadable blob to `DEFAULT_PROMPT_CONFIG`) and PUTs the whole
  *  blob back, so a stored blob this build cannot read would come back as the stand-in and overwrite the
@@ -174,8 +174,8 @@ export async function updatePresetRow(db: Db, id: PresetId, userId: UserId, patc
  *  `DEFAULT_PROMPT_CONFIG` and the import verb's parsed backup file. Same owner scoping as
  *  {@link updatePresetRow}; RETURNS the row (undefined when nothing matched).
  *
- *  SEPARATE FROM `updatePresetRow` ON PURPOSE (#1026, Core-0-Architecture-and-Structure.md §6 "one folder, two jobs = split"): the
- *  #471 guard's premise is that the write DESCENDS FROM A READ of the row it replaces, and neither of these
+ *  SEPARATE FROM `updatePresetRow` ON PURPOSE (Core-0-Architecture-and-Structure.md §6 "one folder, two jobs = split"): the
+ *  intact guard's premise is that the write DESCENDS FROM A READ of the row it replaces, and neither of these
  *  callers reads it. Guarding them would refuse a reset/import over a corrupt preset — the user's own
  *  explicit repair, and the affordance the guarded editor path tells them to reach for — while preventing
  *  no silent loss. A future caller that merges onto the stored value belongs on the guarded

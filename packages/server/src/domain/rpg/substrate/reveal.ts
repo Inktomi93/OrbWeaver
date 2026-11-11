@@ -67,7 +67,7 @@ function buildStandingLies(messages: readonly RpgRevealedMessage[]): RpgRevealVi
       // A span with NEITHER a character NOR a truth carries no deception that can STAND, so it is not
       // inventory — it stays on its message's reveal row (the host still sees that something was concealed
       // there) and out of this list. Two shapes reach here that way: a literal attr-less `<lie/>`, and the
-      // OVER-CAP concealed span (#1352 — a registered hidden open too long to parse is concealed whole with
+      // OVER-CAP concealed span (a registered hidden open too long to parse is concealed whole with
       // `attrs:{}`). Without this they both projected every field as `""` and minted a phantom
       // `character:""` bucket, which then swallowed each other most-recent-wins: a blank row in the host's
       // standing inventory that names nobody and reveals nothing.

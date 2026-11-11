@@ -1,4 +1,4 @@
-// domain/automation/persistence/migrate-plugin-tool-wire-names — the #1391 rewrite of the `run_tool` arm's
+// domain/automation/persistence/migrate-plugin-tool-wire-names — the rewrite of the `run_tool` arm's
 // `name` inside `automation_rules.actions`, one prefix rename at a time.
 //
 // THE CHAT TWIN, one table over (`domain/chat/persistence/migrate-plugin-tool-wire-names.ts`) — read that
@@ -73,7 +73,7 @@ async function applyOneRename(db: Db, from: string, to: string): Promise<number>
 }
 
 /**
- * Re-prefix every `run_tool` arm that the #1391 injective mint renamed. `renames` is
+ * Re-prefix every `run_tool` arm that the injective mint renamed. `renames` is
  * `pluginToolWireNameRenames(...)`'s answer, handed down by the boot step; an empty array is a no-op and the
  * normal case. Returns the total number of arms rewritten; 0 on every boot after the first.
  */

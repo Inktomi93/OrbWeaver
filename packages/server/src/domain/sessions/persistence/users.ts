@@ -279,7 +279,7 @@ export async function updateUser(db: Db, id: UserId, patch: UserPatch): Promise<
  *
  *  UNEXECUTED and awaitable ({@link AwaitableBatchStmt}, the `revokeAllForUserStatement` shape): `await` it
  *  to run it standalone (`provisionIdentity`'s owner-flip bind), or hand it to a `db.batch` so the bind
- *  commits with its caller's other statements (#1707: the admin link's audit row). One statement either way
+ *  commits with its caller's other statements (the admin link's audit row). One statement either way
  *  — never a second spelling of the claim. */
 export function claimExternalIdIfUnbound(db: Db, id: UserId, externalId: ExternalId, updatedAt: number): AwaitableBatchStmt<{ id: UserId }[]> {
   return db

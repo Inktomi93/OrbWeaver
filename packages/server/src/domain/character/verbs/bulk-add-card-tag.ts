@@ -5,7 +5,7 @@
 // attached (the port returns `false` for an idempotent no-op). A blank tag name is a no-op. No
 // `character.updated` emit (a tag is not card content) — but `charactersChanged` still fires, see below.
 //
-// A PARTIAL BULK IS STILL DURABLE, SO IT IS STILL ANNOUNCED AND STILL NAMED (#1694). The per-character
+// A PARTIAL BULK IS STILL DURABLE, SO IT IS STILL ANNOUNCED AND STILL NAMED. The per-character
 // attaches are INDEPENDENT writes; under a bare `Promise.all` the first rejection would abandon the whole
 // verb before the audit/emit block, so the siblings that HAD committed would be left with no
 // `charactersChanged` — the client would keep rendering cards whose tags had changed on disk until

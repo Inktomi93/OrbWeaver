@@ -22,8 +22,8 @@ export interface SeedCard {
   /** The authored look MINUS the scene plate — `backgroundOverride` is resolved at SEED TIME, per user, from
    *  `backgroundSlug` (see below), because it now names an asset only that user owns. */
   readonly presentation: Pick<UpdateCharacterInput, "themeOverride">;
-  /** This card's shipped scene plate, by content slug (`<handle>-bg`). Until 2026-09-18 the pack spelled a
-   *  whole `kind:"seeded"` background here, because a plate was a static catalog slug every install resolved
+  /** This card's shipped scene plate, by content slug (`<handle>-bg`). The pack does not spell a
+   *  whole `kind:"seeded"` background here, as if a plate were a static catalog slug every install resolved
    *  to the same `public/` URL. A plate is now an OWNED asset per user, so the pack can only name WHICH
    *  plate; `resolveSeededBackground` turns that into the receiving user's own `kind:"asset"` ref at seed
    *  time. `null` ⇒ this card ships no plate (it seeds background-less rather than blank-referencing one). */
@@ -61,9 +61,9 @@ export type SeededCardContent = Pick<
 export interface DefaultCharacterSeederDeps {
   readonly logger: Logger;
   /** `update` applies each freshly-created card's `presentation` (the theme/background override arm); `getCard`
-   *  reads the live content a resumed seed compares against the shipped pack (#1444); `get` reads the DETAIL,
+   *  reads the live content a resumed seed compares against the shipped pack; `get` reads the DETAIL,
    *  the only projection carrying the carried-presentation columns, so a finished card keeps a look the user
-   *  chose (#1443). */
+   *  chose. */
   readonly characters: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard" | "get">;
   /** Attach one of a seeded card's native tags as a card/pending suggestion. Idempotent + never downgrades. */
   readonly attachCardTag: AttachSeedCardTag;

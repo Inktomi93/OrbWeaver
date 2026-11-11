@@ -57,14 +57,14 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    */
   readonly admissionKey?: (params: WorkloadParamsByKind[K]) => string;
   /**
-   * The ADMISSION PRECONDITION: may this row be enqueued AT ALL right now (#156)? Returns `null` to admit, or
+   * The ADMISSION PRECONDITION: may this row be enqueued AT ALL right now? Returns `null` to admit, or
    * the REASON — a sentence the person who hit it can act on — to refuse. Evaluated at every enqueue door
    * (`start`, `retry`) after the owner is resolved, so the refusal happens before a row exists instead of a
    * run producing a vacuous success.
    *
    * WHY THE PRECONDITION LIVES ON THE CONTRIBUTION, exactly like `admissionKey`: only the owning domain knows
    * when its work is meaningless (the queue spells no domain's vocabulary — D117). The measured case: memory
-   * backfill enqueued while the host has memory DISABLED, which the sweep then skips per-host (#54) and lands
+   * backfill enqueued while the host has memory DISABLED, which the sweep then skips per-host and lands
    * as "0 segments · 0 digests" success. ADMISSION, never execution — a job that structurally cannot produce
    * anything must not enter the queue.
    *

@@ -302,7 +302,7 @@ async function storeCollectedBackgrounds(
  *  patch) through the settings applier in ONE serialized write. Split out of the driver so the UNWIRED-applier
  *  arm has somewhere to live: with no applier there is no `backgroundLibrary` append, so the stored blobs are
  *  unreferenced — unreachable from the picker and reclaimed by the GC an hour later — which used to be
- *  entirely silent (neither counted nor reported, #1469). `storedFiles` is index-aligned to `entries`, so the
+ *  entirely silent (neither counted nor reported). `storedFiles` is index-aligned to `entries`, so the
  *  report names exactly the files that landed in the CAS and nowhere else. */
 async function landBackgroundsAndAppearance(
   deps: ProfileDirImportDeps,
@@ -651,7 +651,7 @@ async function attachBundleTags(
     tagNames.map((tagName) => deps.attachCardTag({ ownerId, characterId, tagName, source: "manual", status: "accepted" })),
   );
   // The `allSettled` result used to be DISCARDED into a `Promise<unknown>`, so a rejected attach vanished:
-  // the card imported with fewer labels than the profile carried and the report said nothing (#1469). The
+  // the card imported with fewer labels than the profile carried and the report said nothing. The
   // isolation stands — one bad tag still never loses the character; it is now a named row.
   const skipped: ImportSkippedCardTag[] = [];
   settled.forEach((outcome, i) => {

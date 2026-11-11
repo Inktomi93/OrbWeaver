@@ -3,7 +3,7 @@
 // is NEVER hauled (charCount is derived in SQL); chunk counts come from ONE grouped read over
 // `document_chunks` for the active model. A read: no audit.
 //
-// EVERY LENS IS SERVER-SIDE (owner ruling 2026-08-13, the `character.list` precedent): name search, the
+// EVERY LENS IS SERVER-SIDE (owner ruling, the `character.list` precedent): name search, the
 // origin facet and the ingest-PHASE scope are predicates on the SAME scope the keyset windows and
 // `totalCount` counts. The library used to filter a ≤150-row sliding window of loaded pages by name and by
 // phase, so a term — or a health chip a user had just clicked on the home tile — that matched nothing among

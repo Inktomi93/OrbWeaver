@@ -12,7 +12,7 @@ import type { BrowseCursor, BrowseFilter } from "../contract/params.ts";
 import type { BrowseCharacter, BrowseCharactersPage, CharacterFacets, FacetCount } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
 
-// KEYSET, NOT A CEILING (A8, side-eye corpus re-pass 2026-08-19). This verb used to answer one array capped
+// KEYSET, NOT A CEILING (A8). This verb used to answer one array capped
 // at 200 and call the truncation deliberate, on the reasoning that "the row set is a browse page, not a
 // count" — which is true and was never the defect. The defect is that a page with no CURSOR is a page with
 // no NEXT: the corpus pane printed `catalog.totalDistilled` (313) over a list that ended at 200 rows with no

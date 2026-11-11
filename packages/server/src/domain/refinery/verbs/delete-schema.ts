@@ -1,5 +1,5 @@
 // verb: deleteSchema — drop an owned schema row. Plain by construction: every PRIOR run EMBEDDED its
-// schema (P1-B), so history is untouched; a session still pointing here gets a leak-free NOT_FOUND at
+// schema, so history is untouched; a session still pointing here gets a leak-free NOT_FOUND at
 // its next run (the Setup tab re-points it). Nothing FKs schemas.
 
 import { refinerySchemas } from "@orb/db";

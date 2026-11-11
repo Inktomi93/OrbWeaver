@@ -30,7 +30,7 @@ const DEC = new TextDecoder();
 /** CASE-INSENSITIVE, exactly like the profile collector's own `JSONL_EXT` (`loader/collect.ts`): the two
  *  doors must agree on what an ST transcript is. A case-SENSITIVE `endsWith(".jsonl")` sent a perfectly
  *  readable `chat.JSONL` to the orb-native parser, which refused it by envelope ("the file is not JSON") —
- *  a valid transcript reported as a foreign file (#1469 item 3). */
+ *  a valid transcript reported as a foreign file. */
 const ST_TRANSCRIPT_EXT = /\.jsonl$/i;
 
 type CharacterResolution = { readonly ok: true; readonly characterId: CharacterId } | { readonly ok: false; readonly error: string };

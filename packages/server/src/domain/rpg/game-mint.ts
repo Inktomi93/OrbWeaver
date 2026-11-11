@@ -2,7 +2,7 @@
 // precedent): construct the born `rpg_games` row (NO born snapshot — the no-born-seed ruling). TWO callers
 // share the same plan (never a re-spell):
 //   • `verbs/game/create-game.ts` — commits the plan, writes the opaque chat pointer, emits `gameChanged`;
-//   • `chat-ops.planGameBirth` — the #40 DRAFT-TIME front door: `chat.startChat` folds RPG's statement and
+//   • `chat-ops.planGameBirth` — the DRAFT-TIME front door: `chat.startChat` folds RPG's statement and
 //     its own pointer into room birth, so turn 1 is already in-game (rpg steering rides the first beat).
 
 import type { ChatRpgGameBirthPlan } from "@orb/contracts/chat";
@@ -22,7 +22,7 @@ export function planLiteGameBirth(
   args: { readonly chatId: ChatId; readonly ruleset?: RpgRuleset | undefined },
 ): ChatRpgGameBirthPlan<StatementToken> {
   const now = ctx.now();
-  // #862 — the game is born with a RULESET (default `freeform`), and its vocabulary DERIVES from that one
+  // The game is born with a RULESET (default `freeform`), and its vocabulary DERIVES from that one
   // setting: `statProfile` + the seeded trackers are the ruleset's data, never a second stored choice.
   const ruleset = args.ruleset ?? RPG_RULESET_DEFAULT;
   const statProfile = RPG_RULESET_PROFILE[ruleset];

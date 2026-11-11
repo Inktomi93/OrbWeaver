@@ -8,7 +8,7 @@
 // accurate.
 //
 // SERIALIZED PER SCOPE at this door (`createHandleEvent`): same-chat events queue behind each other instead of
-// racing, unrelated chats stay parallel — and since #1554, unrelated OWNERS on the domain bus stay parallel
+// racing, unrelated chats stay parallel — and unrelated OWNERS on the domain bus stay parallel
 // too (see `handleDomainEvent`'s own header for why owner, never subject-id, is the key). Process-local by
 // construction — see the export's own comment for the keys and `substrate/serial-lanes.ts` for what a lane
 // does and does not promise.
@@ -45,7 +45,7 @@ function rulesInterested(ctx: AutomationContext, bus: AutomationTriggerBus | nul
   return chatId !== null && ctx.enabled.has(chatId);
 }
 
-/** #1431 — the STALE-INDEX retry. Both in-process indexes latch stale when a post-mutation refresh failed
+/** The STALE-INDEX retry. Both in-process indexes latch stale when a post-mutation refresh failed
  *  (the write committed, the snapshot did not follow); this is the "mandatory rebuild" that clears it. The
  *  watcher front door is the right place for it because it is the ONE path every bus event takes, so a stale
  *  latch survives at most one event — no timer, no process handle, and no clock this domain does not inject.
@@ -108,9 +108,9 @@ async function voidAsksOnLostAuthority(ctx: AutomationContext, chatId: ChatId): 
 }
 
 /** Run one already-loaded rule set to a dispatch summary, refreshing the enabled index when a fire disabled
- *  a rule (#1564: `refresh`, never `reload` — the auto-disable already committed, so a failed rebuild must
+ *  a rule (`refresh`, never `reload` — the auto-disable already committed, so a failed rebuild must
  *  latch stale rather than throw into whichever self-safe wrapper is holding this call). Shared by BOTH the
- *  chat arm (one call, the chat's own rules) and the domain arm (one call PER OWNER, #1554). */
+ *  chat arm (one call, the chat's own rules) and the domain arm (one call PER OWNER). */
 async function dispatchLoadedRules(ctx: AutomationContext, rules: readonly RuleRow[], resolved: ResolvedTrigger): Promise<void> {
   const summary = await runDispatch(ctx, rules, resolved);
   if (summary.anyDisabled) {
@@ -118,7 +118,7 @@ async function dispatchLoadedRules(ctx: AutomationContext, rules: readonly RuleR
   }
 }
 
-/** The CHAT-bus event path — UNCHANGED by #1554: a chat's rules already share exactly one lane (the chat
+/** The CHAT-bus event path — not owner-keyed: a chat's rules already share exactly one lane (the chat
  *  itself), so there is no head-of-line question here to answer. Runs entirely inside the caller's chat lane. */
 async function handleChatEvent(ctx: AutomationContext, event: BusEvent, chatId: ChatId): Promise<void> {
   await healStaleIndexes(ctx);
@@ -144,7 +144,7 @@ async function handleChatEvent(ctx: AutomationContext, event: BusEvent, chatId: 
         registry: ctx.pluginSubscribers,
         logger: ctx.logger,
         resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
-        // The D16 anchor resolver for a fact that REFERENCES canon without carrying it (#1428) — the same op
+        // The D16 anchor resolver for a fact that REFERENCES canon without carrying it — the same op
         // the message-shaped resolve already uses, so the gate adds no seam and no second canon reader.
         getMessageFact: ctx.ops.chat.getMessageFact,
       },
@@ -161,7 +161,7 @@ async function handleChatEvent(ctx: AutomationContext, event: BusEvent, chatId: 
   await dispatchLoadedRules(ctx, rules, resolved);
 }
 
-/** Group rule rows by their AUTHOR — the domain arm's own partition (#1554), never by subject id (see the
+/** Group rule rows by their AUTHOR — the domain arm's own partition, never by subject id (see the
  *  export's header for why). A plain `Map`, not a `Record`, because the key space is unbounded (any `UserId`
  *  that has ever authored an owner-global rule), which is exactly the shape a `Record` would misrepresent. */
 function groupRulesByOwner(rules: readonly RuleRow[]): Map<UserId, RuleRow[]> {
@@ -177,7 +177,7 @@ function groupRulesByOwner(rules: readonly RuleRow[]): Map<UserId, RuleRow[]> {
   return groups;
 }
 
-/** The DOMAIN-bus event path (#1554). Everything up to and including the rule LOAD is event-level work that
+/** The DOMAIN-bus event path. Everything up to and including the rule LOAD is event-level work that
  *  touches no state two domain events could contend over — index refreshes are idempotent, `resolveTrigger`
  *  and the rule read are both read-only — so it runs UNSERIALIZED, outside any lane; only the actual
  *  DISPATCH (a read-modify-write over a rule's AUTHOR's own variable plane) is keyed, and it is keyed per
@@ -239,7 +239,7 @@ async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Pr
  *
  *  Dispatch is written as if order were semantics (arms mutate a shared env; `runDispatch` recurses rather
  *  than loops; clock/callback presets count beats), but each event arrived DETACHED, so that promise held
- *  inside one event and nowhere between two: two same-chat (or same-owner, #1554) events read one variable
+ *  inside one event and nowhere between two: two same-chat (or same-owner) events read one variable
  *  snapshot, computed one increment, and wrote one value. Serializing here keeps the whole resolve → fan-out
  *  → dispatch sequence indivisible per key. It is PROCESS-LOCAL (`substrate/serial-lanes.ts`) — a second app
  *  process would still interleave, which is the separately-filed process-locality row, not something an

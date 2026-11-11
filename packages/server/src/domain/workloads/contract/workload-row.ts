@@ -30,7 +30,7 @@ interface WorkloadQueueFailure {
 export type WorkloadQueueFailureSink = (failure: WorkloadQueueFailure) => void;
 
 /** What a DISPOSITION path needs about one in-flight row, and nothing else — read by BOTH the boot reclaim
- *  (#529) and the steady-state stale sweep (#1413). Deliberately NOT a `WorkloadRowAnyKind`: a disposition
+ * and the steady-state stale sweep. Deliberately NOT a `WorkloadRowAnyKind`: a disposition
  *  decides from the kind's declared resume policy + the row's respawn count + its lease, never from params,
  *  so it must also dispose of rows whose params no longer parse (poison) — which the view path surfaces with
  *  `params: null` — and rows of a kind this build no longer ships, which the view path narrows away
@@ -44,7 +44,7 @@ export interface WorkloadInFlightRow {
   readonly kind: WorkloadKind;
   /** How many times boot has already re-queued this row without the run reporting progress since. */
   readonly respawns: number;
-  /** The lease column as it stands BEFORE any disposition — the reap sentence's observed lease age (#560).
+  /** The lease column as it stands BEFORE any disposition — the reap sentence's observed lease age.
    *  `markTerminal` overwrites it with the reap instant, so read here or lose it. */
   readonly updatedAt: number;
 }

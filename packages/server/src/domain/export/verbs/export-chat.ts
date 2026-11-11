@@ -189,7 +189,7 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
       userName,
       createDate: chat.createdAt,
       parentRef,
-      // ALWAYS null: the room author's-note override was retired (owner ruling 2026-08-01) — per-chat prose
+      // ALWAYS null: the room author's-note override was retired (owner ruling) — per-chat prose
       // is a `chat_injections` LIST now, and ST's single `note_prompt` slot has no unambiguous inverse for a
       // list. Import still lands an inbound `note_prompt` as an injection; the export leg is one-way.
       notePrompt: null,

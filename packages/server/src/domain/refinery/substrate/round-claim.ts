@@ -1,5 +1,5 @@
-// domain/refinery/substrate/round-claim — the LEASED in-flight claim on a refinery session (#1568, the
-// deferred serializing half of #1445). `iterate` takes it BEFORE it pays for a single model call and clears
+// domain/refinery/substrate/round-claim — the LEASED in-flight claim on a refinery session (the
+// serializing half of the round guard). `iterate` takes it BEFORE it pays for a single model call and clears
 // it on both the commit and the failure arm; a second round that cannot take it is refused typed and free.
 //
 // WHY A LEASE DEADLINE AND NOT A BOOLEAN. A flag says "busy" and nothing ever says otherwise if the process

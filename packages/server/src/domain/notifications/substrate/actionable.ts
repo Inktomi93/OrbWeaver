@@ -1,4 +1,4 @@
-// domain/notifications/substrate/actionable — the PURE half of `InboxView.actionable` (#1799): which
+// domain/notifications/substrate/actionable — the PURE half of `InboxView.actionable`: which
 // notification TYPES carry a decision at all, what each such row is waiting on, and how a resolved
 // still-standing set becomes the stamped view. Zero I/O — the one external read is the injected
 // `ResolveStandingAsks` op (`@orb/contracts/notifications`), which the two read verbs call around these functions.

@@ -16,7 +16,7 @@ export function createRpgRoundObservers(
 ): RpgRoundObservers {
   return {
     // The feature-root rpg bus emit (§4.9) — a verb/flush calls it after its durable write; fire-and-forget.
-    // R-OBS taps it in passing: what the turn ANNOUNCED to the live panel is the other half of "did the write
+    // The observer ring taps it in passing: what the turn ANNOUNCED to the live panel is the other half of "did the write
     // reach the user", beside what it wrote.
     emitBus: (event): void => {
       trace?.({ phase: "bus", chatId: event.chatId, type: event.type });
@@ -26,7 +26,7 @@ export function createRpgRoundObservers(
     // to the post-commit round still writes correct state — and silently pays the second call the fold exists
     // to delete. `warn` on a fallback (something to look at), `debug` when the knob got what it asked for.
     onStateRoundPath: (info): void => {
-      // R-OBS: the delivery FORK, per turn. A `folded` game quietly paying the second call forever is the
+      // The delivery FORK, per turn. A `folded` game quietly paying the second call forever is the
       // failure this event exists to make visible, and the ring is where it becomes queryable per chat.
       trace?.({ phase: "flush", chatId: info.chatId, turnId: info.turnId, path: info.path, fallbackReason: info.fallbackReason });
       const line = { event: "rpg.extraction.path", chatId: info.chatId, gameId: info.gameId, mode: info.mode, path: info.path };
@@ -61,7 +61,7 @@ export function createRpgRoundObservers(
         "rpg flush CANCELLED (the caller aborted the turn) — no snapshot, no journal, no emits",
       );
     },
-    // OBSERVABILITY (#1493): the WRITE BOUNDARY settled. `onStateRoundPath` above is a DISPATCH receipt, so
+    // OBSERVABILITY: the WRITE BOUNDARY settled. `onStateRoundPath` above is a DISPATCH receipt, so
     // until this event nothing in the trail — log or trace ring — said the extraction was over, and the e2e
     // barrier that polled the `flush` phase was racing the write it claimed to wait for. `debug`, because a
     // settle is the normal end of every turn; the interesting arms (drop, cancel, fallback) keep their own

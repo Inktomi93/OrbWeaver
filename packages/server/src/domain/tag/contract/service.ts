@@ -69,7 +69,7 @@ export interface TagService {
   /** The character library's filter-chip vocabulary: every owned tag projected to id/name/isHiddenOnCard/
    *  character-count, ranked most-used-first. A PROJECTION of the same rollup {@link listTagsWithUsage}
    *  serves the management screen, split off because that read shipped 433KB of five-junction rows to paint
-   *  eight chips (side-eye 2026-08-18 P2-6). Same owner scoping, same row set, four columns. */
+   *  eight chips. Same owner scoping, same row set, four columns. */
   readonly listTagFilterVocabulary: (params: ListTagFilterVocabularyParams) => Promise<TagFilterVocabularyEntry[]>;
   /** Enumerate the owner's staged (`status:'pending'`) character-tag suggestions — the Accept/Reject review
    *  queue. `characterId` narrows to one editor's suggestions; absent = the whole pending inbox. Read-only:

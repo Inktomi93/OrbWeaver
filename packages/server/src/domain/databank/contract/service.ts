@@ -120,7 +120,7 @@ export interface DatabankContext {
    * SCOPE — the OWNER's library, never the room's view. A chat/character/global attach also changes what a
    * PARTICIPANT sees (`listActiveForChat`); that half is member-visible state and fans to the ROOM on the
    * chat bus through the five room-fan ops below, never to one user (`membership-fan-guard`). This op
-   * announces the bank you own, and it is no longer the ONLY announcement a junction write makes (#2471).
+   * announces the bank you own, and it is no longer the ONLY announcement a junction write makes.
    *
    * FLAG[emit-is-total] — satisfied BY CONSTRUCTION, not by a classifier: the op is synchronous,
    * `void`-returning and non-throwing (transport's `publishUserEvent` → `defineBusChannel.publish`,
@@ -130,7 +130,7 @@ export interface DatabankContext {
    */
   readonly emitUserEvent: EmitUserEvent;
   /**
-   * THE ROOM PLANE (#2471, the entity→room bridge's `databank` kind). The per-chat rack
+   * THE ROOM PLANE (the entity→room bridge's `databank` kind). The per-chat rack
    * (`listActiveForChat`) is member-readable room-public prompt context, so a junction write is NOT an
    * owner-only event: every co-member sitting in a credited room is reading the set it just changed. Each op
    * below fans a live-only `roomEntityChanged{entity:"databank"}` to the rooms whose rack MOVED; the
@@ -196,7 +196,7 @@ export interface DatabankContext {
    *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
   readonly ensureChatMember: RequireParticipantOp;
   readonly resolveChatHost: ResolveChatHostOp;
-  /** The leak-safe reverse-room read `listAttachments` names its rooms through (#276) — chat's answer to "of
+  /** The leak-safe reverse-room read `listAttachments` names its rooms through — chat's answer to "of
    *  these rooms, which may this caller see, and what are they called". Injected for the same reason the two
    *  guards above are: D18 rooms scope on `chat_participants`, and databank reads neither the roster nor
    *  `chats`. The type is `@orb/contracts/chat`'s (shared with regex + preset); the ONE runtime is
@@ -291,7 +291,7 @@ export interface DatabankIngest {
 export interface DatabankWorkloadDeps {
   readonly databankIngest: DatabankIngest;
   /** Pin the target generation of every owner the pass is about to cover, BEFORE it re-embeds anything.
-   *  The ENUMERATION SCOPE is the argument (#2517): `null` = every corpus owner (the bulk arm), a `UserId` =
+   *  The ENUMERATION SCOPE is the argument: `null` = every corpus owner (the bulk arm), a `UserId` =
    *  exactly that owner — which is what keeps a per-owner catch-up's completion off a neighbour's space. */
   readonly beginDocumentVectorSweep: BeginDocumentVectorSweepOp;
   readonly purgeDocumentVectors: PurgeDocumentVectorsOp;

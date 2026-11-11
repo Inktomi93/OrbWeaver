@@ -1,5 +1,5 @@
 // domain/character/substrate/greeting-studio — the pure prompt-build shared by the two greeting-studio verbs
-// (audit §3). NO I/O: it turns an owned card + the caller's editable template + the picked transform kinds +
+//. NO I/O: it turns an owned card + the caller's editable template + the picked transform kinds +
 // the host's free text (+ the optional base greeting for a rewrite) into the ONE bounded-completion prompt
 // string. The steer COMPOSITION lives here too since the fork moved it server-side — see
 // `composeGreetingSteer`.
@@ -55,7 +55,7 @@ function cardMacroOptions(card: CharacterCard, clock: GreetingClock): ProcessMac
 /**
  * The steer text a greeting-studio request's `{{input}}` receives: the picked transform KINDS resolved to
  * their `preset.greetingTransform.*` prose sentences and joined — in CATALOG order — ahead of the host's own
- * free text (the templating fork's ARM B, owner 2026-08-09). No picks ⇒ the free text VERBATIM.
+ * free text (the templating fork's ARM B, owner ruling). No picks ⇒ the free text VERBATIM.
  *
  * The join is the SAME pure `composeRewriteSteer` the browser ran before the fork, over the same fragment
  * bytes (now the slots' shipped defaults), so an un-overridden preset composes a byte-identical steer. What

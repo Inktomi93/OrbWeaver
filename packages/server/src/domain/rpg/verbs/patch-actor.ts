@@ -1,4 +1,4 @@
-// domain/rpg/verbs/patch-actor — patchActor (the actor-state review §5 R1). THE op-shaped hand door for one
+// domain/rpg/verbs/patch-actor — patchActor (R1). THE op-shaped hand door for one
 // actor's volatile row, and the replacement for `editSnapshot`'s `actorState` IMAGE contract (which is now
 // refused there, `RPG_OP_SHAPED_PLANES`). Host-gated on the shared plane, exactly as the image door was.
 //
@@ -52,7 +52,7 @@ export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"
       // `autoLock:false` — a write to a field the MODEL CANNOT REACH (an item's host-picked `icon`) pins
       // nothing: there is no story write to stop, and a lock there is only a pin the host must release.
       const lock = params.autoLock === false ? [] : applied.lockPaths;
-      // The removal half of the symmetric grammar (#78): a dropped element's pins go with it. The applier is
+      // The removal half of the symmetric grammar: a dropped element's pins go with it. The applier is
       // pure, so it named PREFIXES; the expansion needs the stored locks, which only this side holds. The
       // batch's OWN pins are searched too — `[addItem, removeItem]` in one call must not leave the add's pin
       // behind (the delta applies `lock` before `clear`, so the release still wins).

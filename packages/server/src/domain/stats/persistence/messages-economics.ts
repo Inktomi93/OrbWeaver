@@ -6,10 +6,10 @@
 // Economics live on `message_variants`, not `messages` — the read aggregates the selected variant of each
 // assistant slot, so a swipe that isn't selected never double-counts. Owner scope derives via
 // `messages.character_id → characters.owner_id` PLUS the domain's one owner-chat definition
-// (`persistence/owner-chat-scope.ts`, #1477): a husk chat (`chats.started_at IS NULL`, e.g. an unclaimed
+// (`persistence/owner-chat-scope.ts`): a husk chat (`chats.started_at IS NULL`, e.g. an unclaimed
 // seeded greeting) is never one of the owner's chats, so its assistant generations must not enter these
-// sums either — #1791 found both reads here still scanning past that boundary after #1477 fixed
-// heatmap/momentum/latency/rebuild.
+// sums either — both reads here honour that boundary, as
+// heatmap/momentum/latency/rebuild do.
 
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";

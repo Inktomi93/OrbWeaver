@@ -108,7 +108,7 @@ async function untilCanonStable<T>(db: Db, ownerId: UserId, signal: AbortSignal 
 }
 
 // The owner's chats (membership, husk-excluding) is `persistence/owner-chat-scope.ts` — ONE home, shared with
-// the on-read scans (#1477). It is reused by every per-owner scan below (the message stream, the daily
+// the on-read scans. It is reused by every per-owner scan below (the message stream, the daily
 // chats-created histogram, the library totals); `loadChatMeta`'s per-character aggregate needs its own join
 // shape (it GROUPs by participant) and carries the same arm inline.
 //

@@ -53,11 +53,11 @@
 //     host-writable `recentBeatsKeepLast` — so every older beat is host-plane, and `keepLast: 0` means the
 //     member read NONE. See {@link keepBeatsForForker} for the full argument and the retracted rationale);
 //   • hidden-span prose ANYWHERE in the four cloned row planes — a PROPERTY OF THE COPY, not a field list
-//     (`stripHiddenForForker`, #1398): the walk belts every string in a cloned snapshot / journal / checkpoint
+//     (`stripHiddenForForker`): the walk belts every string in a cloned snapshot / journal / checkpoint
 //     / sheet row, so ambient location, an actor's mood/thoughts/status/inventory, quest + plot text, a
 //     journal title/label, a checkpoint label and a sheet's flavor are covered alongside the two fields that
-//     used to be hand-belted. The walk itself is `substrate/hidden-spans.ts` since #1528, because the SOURCE
-//     side now runs the same one: the member-facing reads (`getTrackerView`/`listJournal`/`listCheckpoints`)
+//     used to be hand-belted. The walk itself is `substrate/hidden-spans.ts`, because the SOURCE
+//     side runs the same one: the member-facing reads (`getTrackerView`/`listJournal`/`listCheckpoints`)
 //     strip for a non-host viewer, so this is no longer defense-in-depth over bytes the same human had already
 //     read in the panel — the two sides agree by construction. Same `stripHiddenSpans` as
 //     `verbs/fork.ts::copyVariantStmt`.
@@ -73,8 +73,8 @@
 // (`readsHidden === false` is the superset — a clamped forker is necessarily a non-host, `verbs/fork.ts` F2),
 // and the window IS what the source's own member-gated read served that person, floor or no floor:
 // `getTrackerView` resolves the CURRENT snapshot, which is one live state image rather than a per-turn
-// archive, so there is no pre-floor row in it to withhold (#1528 floored the plane that DOES keep per-turn
-// rows — `listJournal` — at the source). Flooring the fork harder would make it carry LESS than the panel
+// archive, so there is no pre-floor row in it to withhold (the plane that DOES keep per-turn
+// rows — `listJournal` — is floored at the source). Flooring the fork harder would make it carry LESS than the panel
 // showed the same human.
 // A `readsHidden` forker (the source host) copies verbatim — they already read every secret.
 
@@ -109,7 +109,7 @@ function stripConfigForForker(config: RpgGameConfig, readsHidden: boolean): RpgG
     // `extractionMode` is on `getGame`. The three extraction-DEPTH knobs are host-only but scalar (an enum and
     // two bounded numbers — no authored prose is representable, and blanking them re-tunes the fork's own game).
     engaged: config.engaged,
-    // `ruleset` (#862) is on `getGame`'s `publicConfig` — the dice row every member sees derives from it.
+    // `ruleset` is on `getGame`'s `publicConfig` — the dice row every member sees derives from it.
     ruleset: config.ruleset,
     statProfile: config.statProfile,
     trackers: config.trackers,
@@ -162,7 +162,7 @@ function stripFeaturesForForker(features: RpgGameFeatures): RpgGameFeatures {
 
 /** The `recentEvents` WINDOW for a non-host forker (identity for a host forker) — the host-plane arm, and the
  *  load-bearing one. The hidden-span half of this strip is no longer here: it is
- *  {@link stripHiddenForForker}'s, applied to the whole cloned row (#1398), so every surviving beat is belted
+ *  {@link stripHiddenForForker}'s, applied to the whole cloned row, so every surviving beat is belted
  *  by the same walk that belts the planes beside it.
  *
  *  `rpg_snapshots.recentEvents` is an APPEND-ONLY durable log spanning the whole game, but the only
@@ -182,7 +182,7 @@ function keepBeatsForForker(beats: readonly string[] | null, keepLast: number, r
 }
 
 /** The hidden-span belt for a cloned row, gated on the forker's read posture — the SHARED walk
- *  (`substrate/hidden-spans.ts`, hoisted there by #1528 so the member-facing READS that are the SOURCE of
+ *  (`substrate/hidden-spans.ts`, hoisted there so the member-facing READS that are the SOURCE of
  *  these bytes run the same one). A HOST forker already reads every hidden span through the reveal plane, so
  *  their clone is byte-identical.
  *
@@ -476,7 +476,7 @@ export async function forkGame(ctx: RpgContext, args: ForkGameArgs): Promise<For
   await ctx.db.batch(batchMany(stmts));
 
   // POINTER LAST — the crash-safety hinge: the pointer only goes live now that the game rows exist, so no
-  // path before here can leave a dangling pointer. `engaged` MIRRORS the cloned config (#40): a fork of a
+  // path before here can leave a dangling pointer. `engaged` MIRRORS the cloned config: a fork of a
   // DISENGAGED game is born disengaged (panel hidden, turn assembly clean) — the fork inherits the source's
   // front-door state, never silently re-engaging a game the source turned off.
   await ctx.setPointer(newChatId, { gameId: newGameId, engaged: config.engaged });

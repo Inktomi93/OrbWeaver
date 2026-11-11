@@ -29,12 +29,12 @@ export interface NotificationsService {
   /** Durable-first write: INSERT one closed event for its recipient with a db-driven monotonic `seq`,
    *  parsed through the union schema. Returns the stored `InboxView`. */
   record: (params: RecordParams) => Promise<InboxView>;
-  /** Correct a STANDING ASK's payload in place (#1041) — same recipient, same type, `seq`/`readAt`
+  /** Correct a STANDING ASK's payload in place — same recipient, same type, `seq`/`readAt`
    *  untouched, so a number that only got smaller never re-badges the bell. Returns the rows it changed;
    *  EMPTY when the reader has no active row of that type (they dismissed it — not a reason to insert).
    *  The GROWING case is `record` with `supersedeActiveOfSameType`, which DOES re-badge. */
   refreshStanding: (params: RefreshStandingParams) => Promise<readonly InboxView[]>;
-  /** Withdraw a STANDING ASK the producer no longer has (#1041): dismiss every active row of `type` for
+  /** Withdraw a STANDING ASK the producer no longer has: dismiss every active row of `type` for
    *  `recipientUserId`, idempotently, and return the rows actually flipped so the caller can publish them.
    *  Recipient-addressed like `record` — `dismiss` is the reader's caller-scoped act, this is the
    *  producer's. */
@@ -46,7 +46,7 @@ export interface NotificationsService {
   dismiss: (params: DismissParams) => Promise<InboxView>;
   /** The caller's own active inbox (dismissed excluded), newest-first, cursor-paged on `seq`. */
   list: (params: ListInboxParams) => Promise<ListInboxResult>;
-  /** The RESUME read behind the socket's `notifications` room (#1459): the caller's own active rows with
+  /** The RESUME read behind the socket's `notifications` room: the caller's own active rows with
    *  `seq > afterSeq`, ASCENDING, at most `limit` (clamped to the shared `NOTIFICATIONS_LIST_MAX_LIMIT`
    *  ceiling, exactly as `list` is). A short page means the log is exhausted.
    *

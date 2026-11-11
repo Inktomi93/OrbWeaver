@@ -1,20 +1,20 @@
-// verb: listTagGroups — the library's GROUP-BY-TAG census, over the SAME lens `list` pages (#1696).
+// verb: listTagGroups — the library's GROUP-BY-TAG census, over the SAME lens `list` pages.
 //
 // WHY IT EXISTS. The categorized view folds the LOADED rows into buckets, and at 312 characters that meant
 // grouping the 30 the keyset had paged in: measured on the owner's library, `Group by tag` produced
 // `ADVENTURE 1 · CAN BE WHOLESOME, CAN BE SEXY 2 · FANTASY 1 · UNCATEGORIZED 27` — four counts summing to
 // the page, presented as library facts, re-forming under the reader as scrolling pulled more rows. The
-// paged-lens law (owner ruling 2026-08-14) is that once a list is windowed, every lens on it is a server
+// paged-lens law (owner ruling) is that once a list is windowed, every lens on it is a server
 // query or it silently means "of whatever is loaded"; group-by-tag was the last client-side one.
 //
-// IT RE-OPENS A RECORDED REFUSAL, AND THE RULING SURVIVES — ITS INPUT CHANGED. #493 considered server-side
+// IT RE-OPENS A RECORDED REFUSAL, AND THE RULING SURVIVES — ITS INPUT CHANGED. An earlier pass considered server-side
 // group counts and refused them, in `character-categorized-list.tsx`'s own header, for two stated reasons:
 // the available census (`tag.listTagFilterVocabulary`) counts the WHOLE library rather than the current
 // search + chip lens, and there is no census at all for the Uncategorized bucket — "printing a lens-blind
 // census beside lens-filtered members would be a second wrong answer with more authority than the first".
 // Both disqualifiers are facts about THAT census, not about the idea, and this verb has neither: it counts
 // through `ownedCharacterScope`, the same predicate the page and `totalCount` share, and it answers the
-// uncategorized bucket as a first-class member. #493's honest-caveat arm is not discarded either — what
+// uncategorized bucket as a first-class member. That pass's honest-caveat arm is not discarded either — what
 // survives is the per-GROUP loaded-vs-total statement, which is now sayable per bucket rather than as one
 // blanket disclaimer over all of them.
 //

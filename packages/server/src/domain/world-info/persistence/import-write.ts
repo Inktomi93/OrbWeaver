@@ -4,8 +4,8 @@
 //
 // AN EXISTING PRIMARY IS REPLACED IN PLACE (header update + full entry delete+reinsert), keeping the same
 // worldBookId + attach. The header takes the card's book name under the D290 free-name rule: another owned
-// book holding that name numbers it, and the replaced row's own name never counts as taken. THAT IS THE RESTORE DOOR'S SEMANTIC, NOT THE RE-UPLOAD'S (owner ruling 2026-09-05,
-// #1598): re-uploading a card file the owner already imported must NOT revert their edits to the book it
+// book holding that name numbers it, and the replaced row's own name never counts as taken. THAT IS THE RESTORE DOOR'S SEMANTIC, NOT THE RE-UPLOAD'S (owner ruling):
+// re-uploading a card file the owner already imported must NOT revert their edits to the book it
 // carried, so the card-import verb asks `createHasPrimaryBook` first and skips this op when the seat is
 // taken. The one caller that WANTS the replace is the explicit restore verb
 // (`domain/import/verbs/restore-character-book.ts`), where "the card file is the source of truth" is the
@@ -74,7 +74,7 @@ async function findPrimaryBookId(db: Db, characterId: CharacterId): Promise<Worl
 }
 
 /**
- * The #1598 non-destructiveness oracle: does this character already hold a PRIMARY book? Owner-scoped by
+ * The non-destructiveness oracle: does this character already hold a PRIMARY book? Owner-scoped by
  * JOINING the character (a character that is not the caller's answers `false` rather than leaking that some
  * OTHER account's character holds a book). A READ in the import-write file on purpose: it reads exactly the
  * row {@link createBulkImportLorebook} would replace, off the same `findPrimaryBookId` seam, so the oracle

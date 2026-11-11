@@ -57,7 +57,7 @@ interface TransformArmSpec {
   readonly armIndex: number;
 }
 
-/** How far the error ledger of a chronically broken transform is allowed to climb (#1422). It is a WRITE
+/** How far the error ledger of a chronically broken transform is allowed to climb. It is a WRITE
  *  bound, not a disable threshold: past this the row already reads "this rule fails every turn", so further
  *  ticks buy nothing and would put one UPDATE per turn per broken transform on the pipeline's error path. */
 const TRANSFORM_ERROR_LEDGER_MAX = 20;
@@ -69,7 +69,7 @@ const TRANSFORM_ERROR_LEDGER_MAX = 20;
  *  template with `{{draft}}` = the current target text; a strict-arg render error passes the draft through
  *  UNCHANGED (a broken rule must never eat the user's message) and is recorded.
  *
- *  THE PASS-THROUGH STAYS AND THE SILENCE GOES (#1422). Returning the draft unchanged on any failure is the
+ *  THE PASS-THROUGH STAYS AND THE SILENCE GOES. Returning the draft unchanged on any failure is the
  *  ruling — prompt mutation is synchronous inside the turn, so a broken rule must never cost the user their
  *  message. But a transform-only rule is SKIPPED by `dispatch` before its `consecutive_errors` logic, so
  *  nothing else in the system could ever notice: a dynamically broken transform failed on every turn forever
@@ -153,7 +153,7 @@ export function createPromptTransformIndex(input: DbAssemblyInput<PromptTransfor
   const deps: PromptTransformIndexDeps = { ...input, db: databaseForOwner(input.db) };
   // ASSUMES(single-replica): the id set is a per-process snapshot, eventually-consistent within one reload.
   let registeredIds = new Set<string>();
-  // #1431 — the STALE latch, the enabled index's twin (that file's header carries the two-door argument).
+  // The STALE latch, the enabled index's twin (that file's header carries the two-door argument).
   let stale = false;
 
   const reconcile = async (): Promise<void> => {
@@ -182,7 +182,7 @@ export function createPromptTransformIndex(input: DbAssemblyInput<PromptTransfor
     refresh: async (): Promise<void> => {
       // DELIBERATE ABSORBER, the enabled index's twin
       // (`substrate/enabled-index.ts` carries the full argument). The owner is the stale latch plus the
-      // watcher front door's retry; propagating would reject a rule mutation that already committed (#1431).
+      // watcher front door's retry; propagating would reject a rule mutation that already committed.
       // Ends when a transform registration stops being reconcilable from canon.
       try {
         await reconcile();

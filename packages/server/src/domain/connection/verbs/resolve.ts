@@ -62,7 +62,7 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
     // defense in depth, but it throws a `ProviderError`, which no domain class covers, so it reaches the
     // wire as a raw provider failure rather than this domain's curated 404. It USED TO answer "not yours"
     // and "no such row" differently — an existence oracle for a foreign id (caught by the transport
-    // cross-tenant sweep, 2026-09-20); that belt now collapses both arms itself, so the two layers agree
+    // cross-tenant sweep); that belt now collapses both arms itself, so the two layers agree
     // and neither depends on the other for confidentiality. `ConnectionNotFoundError` is the domain's one
     // refusal for both, and it is what a client keys on.
     if ((await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId)) === null) {

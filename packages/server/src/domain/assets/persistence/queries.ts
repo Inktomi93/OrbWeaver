@@ -57,7 +57,7 @@ export async function ownedAssetCasRef(db: Db, ownerId: UserId, assetId: AssetId
 }
 
 /** The `(assetId, hash, mime)` triples owned by `ownerId` among `assetIds` — foreign/gone ids are simply
- *  absent. `mime` rides for the render-side element pick (#317 — `video/*` renders a `<video>`). */
+ *  absent. `mime` rides for the render-side element pick (`video/*` renders a `<video>`). */
 export async function selectOwnedAssetRefs(db: Db, ownerId: UserId, assetIds: readonly AssetId[]): Promise<AssetBlobRef[]> {
   if (assetIds.length === 0) {
     return [];
@@ -149,7 +149,7 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
       hash: put.hash,
       // Computed once here so the grid + variant pipeline never re-sniff.
       animated: sniffed?.animated ?? false,
-      // Header-parsed dimensions so the render side reserves the true box before the bytes arrive (#625).
+      // Header-parsed dimensions so the render side reserves the true box before the bytes arrive.
       // NULL for a non-image or an unparseable/truncated header — the renderer's `auto 16 / 9` fallback.
       width: sniffed?.width ?? null,
       height: sniffed?.height ?? null,
@@ -238,7 +238,7 @@ interface InsertGalleryItemInput {
   readonly now: number;
 }
 
-/** Insert a gallery item, upsert-guarded; idempotent on conflict — for BOTH subject shapes (#1375).
+/** Insert a gallery item, upsert-guarded; idempotent on conflict — for BOTH subject shapes.
  *
  *  TWO conflict targets because SQLite treats NULLs as DISTINCT: the composite unique index guards the
  *  character-scoped add, and it structurally cannot fire when `subjectCharacterId IS NULL` — which is the

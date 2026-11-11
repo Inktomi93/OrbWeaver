@@ -1,4 +1,4 @@
-// The D8 `session_entries` write-path (issue #71): the ONLY `@orb/db` touch this concern gets — the
+// The D8 `session_entries` write-path: the ONLY `@orb/db` touch this concern gets — the
 // agent-sdk backend is a sealed executor (never imports `@orb/db`/a domain, D8), so the connection domain,
 // which owns the connections these seats are keyed by, builds the real writes and the composition root injects
 // them DOWN into the inference runtime as a `SessionEntryWriter` (session/store.ts).

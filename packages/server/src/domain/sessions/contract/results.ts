@@ -31,7 +31,7 @@ export interface ValidatedSession {
 }
 
 /**
- * #141 — what a LOGOUT ended: which session row, and the OIDC end-session hint that row was carrying.
+ * What a LOGOUT ended: which session row, and the OIDC end-session hint that row was carrying.
  *
  * `sessionId` is the W7a socket-eviction key (unchanged — the caller holds a token, and a token is not an
  * identity, so only the row can name it). `oidcIdToken` is the DECRYPTED `id_token`, present only when this

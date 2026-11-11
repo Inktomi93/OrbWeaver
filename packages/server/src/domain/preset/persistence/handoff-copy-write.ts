@@ -7,7 +7,7 @@
 // excludes the shared system default on purpose — the recipient can already read that one, so "copying" it
 // would mint a pointless private duplicate of a row nobody needs a copy of.
 //
-// IDEMPOTENCE IS A PROPERTY OF THE WRITE, NOT OF A PRIOR READ (#1572). This used to look up the recipient's
+// IDEMPOTENCE IS A PROPERTY OF THE WRITE, NOT OF A PRIOR READ. This used to look up the recipient's
 // existing fork and only then insert — a find-before-mint whose window two concurrent accepts of one offer
 // both passed, handing the recipient two copies of one gift. The lineage claim now rides the INSERT's own
 // guard subquery (`insertConvergedPresetForkIfAbsent`), so a losing accept writes nothing and reads the

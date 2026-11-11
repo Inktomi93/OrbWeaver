@@ -10,7 +10,7 @@ import type { Sealed } from "#infra/crypto";
 // domain/sessions/persistence/sessions — all `sessions`-table access (queries only). Every timestamp
 // arrives as a param (no ambient Date.now()); the token is never stored, lookups key on `tokenHash`.
 //
-// #141 — THE SEALED OIDC id_token COLUMNS ARE WRITE-MOSTLY, and this file is the whole census. They are
+// THE SEALED OIDC id_token COLUMNS ARE WRITE-MOSTLY, and this file is the whole census. They are
 // SET once at insert, NULLed by every revoke path, and READ by exactly one query (`revokeByTokenHash`'s
 // RETURNING, which is the logout consuming its own end-session hint). No projection here selects them —
 // `selectForValidation` and `listForUser` both enumerate their columns explicitly, so the blob cannot be
@@ -29,7 +29,7 @@ interface SessionInsert {
   lastSeenAt: number;
   expiresAt: number;
   userAgent: string | null;
-  /** #141 — the sealed OIDC id_token (AAD = `id`), or null for every non-OIDC mint. */
+  /** The sealed OIDC id_token (AAD = `id`), or null for every non-OIDC mint. */
   oidcIdToken: Sealed | null;
 }
 
@@ -62,7 +62,7 @@ export async function insertSession(db: Db, row: SessionInsert): Promise<void> {
   });
 }
 
-/** #141 — reassemble the sealed blob from its three columns, or null when any part is absent (a non-OIDC
+/** Reassemble the sealed blob from its three columns, or null when any part is absent (a non-OIDC
  *  mint, a pre-#141 row, or an already-consumed hint). Partial ⇒ null: two thirds of a GCM seal is not a
  *  seal, and returning it would only produce a decrypt throw one layer up. */
 function sealedIdTokenOf(row: { oidcIdTokenCiphertext: string | null; oidcIdTokenIv: string | null; oidcIdTokenTag: string | null }): Sealed | null {
@@ -73,7 +73,7 @@ function sealedIdTokenOf(row: { oidcIdTokenCiphertext: string | null; oidcIdToke
   return { ciphertext, iv, tag };
 }
 
-/** #141 — the columns every revoke path clears alongside `revokedAt`. A revoked session must not keep its
+/** The columns every revoke path clears alongside `revokedAt`. A revoked session must not keep its
  *  end-session hint at rest: the row is dead, nothing will ever send the hint again, and sessions are never
  *  hard-deleted, so without this the blobs accumulate for the life of the deployment. */
 const CLEAR_OIDC_ID_TOKEN = { oidcIdTokenCiphertext: null, oidcIdTokenIv: null, oidcIdTokenTag: null } as const;
@@ -105,7 +105,7 @@ export async function slideExpiry(db: Db, sessionId: SessionId, lastSeenAt: numb
 
 /**
  * Flips revokedAt only on a still-live row, returning the owner so only the winning call audits — plus the
- * SEALED id_token that row was carrying (#141), which is the logout's end-session hint.
+ * SEALED id_token that row was carrying, which is the logout's end-session hint.
  *
  * THE CLEAR IS A SECOND STATEMENT ON PURPOSE, and it cannot be folded into the first: SQLite's `RETURNING`
  * reports the POST-update values, so a single `SET revokedAt, <cols>=NULL … RETURNING <cols>` would hand
@@ -134,7 +134,7 @@ export async function revokeByTokenHash(
     return;
   }
   const oidcIdToken = sealedIdTokenOf(row);
-  // UNCONDITIONAL (#1578). Gating this on `oidcIdToken !== null` asked the WRONG question: `sealedIdTokenOf`
+  // UNCONDITIONAL. Gating this on `oidcIdToken !== null` asked the WRONG question: `sealedIdTokenOf`
   // returns null for a HALF-written seal too, so a row carrying a ciphertext without its iv/tag kept that
   // stray column forever — against this file's own rule that a revoked session holds no end-session hint at
   // rest. The clear is idempotent (a non-OIDC row is already all-null), so the honest predicate is none.
@@ -154,8 +154,7 @@ export async function revokeById(db: Db, sessionId: SessionId, revokedAt: number
 }
 
 /** The UNEXECUTED kick-all — the same single atomic UPDATE {@link revokeAllForUser} runs, handed back so a
- *  caller whose OWN privileged write must not outlive the kick can commit both in one `db.batch` (#1691:
- *  a password reset whose revoke failed left the new credential live beside the old sessions). Awaitable on
+ *  caller whose OWN privileged write must not outlive the kick can commit both in one `db.batch` (a password reset whose revoke failed left the new credential live beside the old sessions). Awaitable on
  *  its own, so the executor below is the same statement, not a second spelling of it. */
 export function revokeAllForUserStatement(db: Db, userId: UserId, revokedAt: number): AwaitableBatchStmt<{ id: SessionId }[]> {
   return db

@@ -8,7 +8,7 @@
 // `IMAGE_FACET_NATURE_BY_KEY` and the drill resolves its json path through `IMAGE_FACET_DRILL_KEY`, so the
 // producer's vocabulary and this reader's cannot drift. They HAD drifted: this file declared fourteen facet
 // paths against a writer that only ever stored `{model}`, and the drift was invisible because an empty
-// distribution and an unproduced facet render identically (issue #164).
+// distribution and an unproduced facet render identically.
 //
 // `total` COUNTS ROWS THAT ACTUALLY CARRY A BREAKDOWN, not rows that carry a caption. Counting captions gave
 // the Visuals tab a confident "79 images" above fourteen empty bar-lists — the wall-of-nothing this surface's

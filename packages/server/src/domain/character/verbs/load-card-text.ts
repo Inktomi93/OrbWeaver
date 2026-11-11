@@ -15,7 +15,7 @@ export function createLoadCardText(ctx: CharacterContext): CharacterService["loa
     }
     // The token budget sizes off buildCardEmbedText's single-home env-floor window (VLLM_EMBED_MAX_MODEL_LEN);
     // the embed engine's runtime self-report is NOT threaded to this content-hash cap (a window change
-    // re-embeds, which is acceptable + rare) — see #14 report's deferred list.
+    // re-embeds, which is acceptable + rare) — a deliberate deferral.
     return buildCardEmbedText(cardOf(row));
   };
 }

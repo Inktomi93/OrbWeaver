@@ -8,7 +8,7 @@
 // host-only editSnapshot and defers the member-own-volatile arm with the doorway kept (it is a FORBIDDEN
 // refusal, not a missing feature).
 //
-// THE `actorState` IMAGE LEFT THIS DOOR (R1, the actor-state review §5). The per-actor volatile plane is
+// THE `actorState` IMAGE LEFT THIS DOOR (R1). The per-actor volatile plane is
 // op-shaped now — `rpg.patchActor` writes one field on one actor against the true head, `rpg.dismissActor`
 // removes an actor — because an image over a plane the client only sees in PROJECTIONS was the factory that
 // produced three shipped defects plus the latent stale-image clobber. A patch naming it comes back as a
@@ -63,7 +63,7 @@ export function createEditSnapshot(ctx: RpgContext): Pick<RpgService, "editSnaps
       };
     }
     // Auto-lock what the hand touched (manual-edit-wins). The caller may name the FINE paths it edited
-    // (#10 — `params.lockPaths`, e.g. `actorState.user:<id>.status`) so the pin lands on the specific
+    // (`params.lockPaths`, e.g. `actorState.user:<id>.status`) so the pin lands on the specific
     // datum; absent, the coarse default stamps every top-level patch key. `releaseLocks` clears the named
     // paths (the host's Release — "let the model write this again"; §12.3): the lock DELTA is `{lock,
     // clear}`, so a release-only call (empty patch) just drops the locks, and an edit-with-release does

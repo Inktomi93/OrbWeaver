@@ -12,7 +12,7 @@
 //     reads — the button went quiet and told the user nothing (the exact lying-empty-state the typed errors
 //     in `contract/errors.ts` exist to kill). Keep both arms; don't collapse them.
 //
-// THE CONTENT FLOOR runs through the same switch (owner ruling 2026-08-03): a card with no writing beyond its
+// THE CONTENT FLOOR runs through the same switch (owner ruling): a card with no writing beyond its
 // name is NOT distillable — the payload schema requires genre/tone/setting/pitch/overview/3-8 tags, so every
 // facet would be invented and staged as a pending tag suggestion. On-demand it is `CardNotDistillableError`
 // (after the ownership belt, never before); in the batch it is a counted `DistillStats.skipped`, which the
@@ -129,7 +129,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   // The on-demand arm: this pass is ONE named card the caller is waiting on, so a failure is theirs to see.
   const onDemand = opts.characterId !== undefined;
   signal?.throwIfAborted();
-  // `opts` IS the narrow (#1414 seam 1): `DistillCharactersOptions` intersects `DistillTargetNarrow`, so the
+  // `opts` IS the narrow: `DistillCharactersOptions` intersects `DistillTargetNarrow`, so the
   // `characterId`↔`ownerId` pairing is already carried by the type and the old key-by-key rebuild — which
   // could drop the owner while keeping the id — has nothing left to get wrong.
   const targets = await readCardDistillTargets(db, opts);
@@ -137,12 +137,12 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   // stranger's rejection is indistinguishable from a miss (the cross-tenant sweep enforces exactly this): any
   // verdict about the CARD's content would confirm the card exists, so this belt runs before all of them.
   if (onDemand && targets.length === 0) {
-    // No `?? ""` fallback: the two-arm narrow (#1414 seam 1) makes `onDemand` a real discriminant, so tsc
+    // No `?? ""` fallback: the two-arm narrow makes `onDemand` a real discriminant, so tsc
     // knows the id is present here. The old fallback was reachable-looking dead code that would have named
     // the empty string in the error.
     throw new DomainNotFoundError("character", opts.characterId);
   }
-  // THE CONTENT FLOOR (owner ruling 2026-08-03). A card with nothing but a name is not distillable: the
+  // THE CONTENT FLOOR (owner ruling). A card with nothing but a name is not distillable: the
   // payload schema REQUIRES genre/tone/setting/pitch/overview/3-8 tags, so the model would invent every facet
   // from the name and the invented tags would stage as pending suggestions. `text` can never be empty (it
   // always opens with `Name:`), so the readiness verdict is the read's own `hasContent` — not a length check.
@@ -246,7 +246,7 @@ async function buildDistillWrites(
     parsed.push(...waveParsed);
     // The WAVE is the only real progress tick this pass has: the summarize call is one batched round-trip
     // (nothing to count inside it), and parsing is where the per-card retries actually spend time. Reporting
-    // it turns a multi-minute indeterminate bar into `120 of 313` (issue #166 rider 3).
+    // it turns a multi-minute indeterminate bar into `120 of 313`.
     meta.onProgress?.(parsed.length, ready.length);
   }
   const stmts: BatchStmt[] = [];

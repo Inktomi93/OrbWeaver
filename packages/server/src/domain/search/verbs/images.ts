@@ -6,7 +6,7 @@
 // placeholder avatars outrank relevant matches). This verb ranks on raw cosine distance alone, never
 // cslsAdjust; hub_score exists on that table only for a future image↔image similarity verb.
 //
-// A HIT CARRIES ITS PICTURE AND ITS PLACE (side-eye corpus re-pass U4). `hash` rides off the assets row the
+// A HIT CARRIES ITS PICTURE AND ITS PLACE. `hash` rides off the assets row the
 // scan already joins, and the avatar's owning character is resolved for the returned page — an image result
 // that can be neither seen nor opened is a row pretending to be a result, which is exactly what shipped.
 
@@ -64,7 +64,7 @@ export function createImages(ctx: SearchContext): SearchService["images"] {
           ? await applyRerank(`${SCOPE_INSTRUCTIONS.images.rerank}\n${query}`, rerankPoolByScores(ranked, RERANK_POOL_FACTOR * topN), rc.rerank, topN)
           : ranked;
 
-      // A HIT IS A PICTURE AND A PLACE (side-eye corpus re-pass U4). The hash makes the result renderable; the
+      // A HIT IS A PICTURE AND A PLACE. The hash makes the result renderable; the
       // avatar owner makes it navigable. Resolved AFTER the slice, so the enrichment join is sized by what is
       // actually returned rather than by the overfetch pool.
       const hits = ordered.slice(0, topN);

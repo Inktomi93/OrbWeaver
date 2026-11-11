@@ -213,7 +213,7 @@ export function logCancelled(args: {
   );
 }
 
-/** THE STATE ROUND'S FAILURE SENTENCE (#1468 item 2) — the resync/populate `*_FAILED_REASON` precedent, one
+/** THE STATE ROUND'S FAILURE SENTENCE — the resync/populate `*_FAILED_REASON` precedent, one
  *  vehicle down. It rides `RpgStateDelta.failure` to the flush, which settles the turn `failed` and writes it
  *  onto the turn's durable record, where the person who just played the turn reads it under "Game actions on
  *  this turn". The SUMMARY half is `contracts/rpg`'s ({@link RPG_STATE_ROUND_FAILED_SUMMARY}) because the

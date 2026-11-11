@@ -39,7 +39,7 @@ import { applyLockedPatchTracked } from "./substrate/merge.ts";
 interface TurnBucket {
   state: RpgSnapshotState;
   readonly journal: StagedJournalEntry[];
-  /** The dotted paths this turn's writes lost to the base snapshot's hand LOCKS (#77). Collected where the
+  /** The dotted paths this turn's writes lost to the base snapshot's hand LOCKS. Collected where the
    *  drop happens (`substrate/merge.ts`) because a state diff after the fact cannot tell a lock from a model
    *  that never wrote; the flush hands them to the turn's tool-call record so the disclosure stops reporting
    *  `applied` about a write no state carries. Deduplicated across the turn's stages. */
@@ -80,7 +80,7 @@ export function createRpgStagingStore(): RpgStagingStore {
       // mutation of either would rewrite the history the fold replays). `bucket.state` here is EXACTLY the
       // state this patch's applier composed against — capturing it is what makes the entry self-describing.
       bucket.patches.push({ patch: clone(patch), base: clone(bucket.state) });
-      // THE FIRST OF THE TWO SUPPRESSION SITES (#77): the base carries the locks a hand edit stamped in an
+      // THE FIRST OF THE TWO SUPPRESSION SITES: the base carries the locks a hand edit stamped in an
       // EARLIER beat, so an ordinary turn writing a pinned path is dropped right here — before any snapshot
       // exists and long before the flush's fold, which only runs when a hand row lands mid-flight.
       const merged = applyLockedPatchTracked(bucket.state, patch, bucket.state.fieldLocks);

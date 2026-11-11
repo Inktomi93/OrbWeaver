@@ -17,7 +17,7 @@ export function createResolvePersonaSeedPointers(deps: PersonaSeedPointerDeps): 
         return persona.id;
       } catch (err) {
         // Only a genuinely stale/deleted persona id is optional — a database, I/O, or program failure
-        // must surface, never silently seat the room with no active persona (#760).
+        // must surface, never silently seat the room with no active persona.
         if (err instanceof PersonaNotFoundError) {
           return null;
         }
@@ -38,7 +38,7 @@ export function createResolvePersonaSeedPointers(deps: PersonaSeedPointerDeps): 
         return persona.id;
       } catch (err) {
         // Only a genuinely stale/deleted persona id is optional — a database, I/O, or program failure
-        // must surface, never silently seat the room with no active persona (#760).
+        // must surface, never silently seat the room with no active persona.
         if (err instanceof PersonaNotFoundError) {
           return null;
         }

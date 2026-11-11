@@ -1,4 +1,4 @@
-// verb: generateGreeting — greeting studio (audit §3). Owner-gated: generate a FRESH greeting under the
+// verb: generateGreeting — greeting studio. Owner-gated: generate a FRESH greeting under the
 // caller's `greeting_new` preset template + the composed steer, awaiting ONE bounded side-LLM completion.
 // RETURNS the text; NEVER writes (the client appends the accepted result to characters.greetings via
 // character.update). Leak-free NOT_FOUND for a non-owner — the owner gate (`loadOwnedCharacterRow`) fires

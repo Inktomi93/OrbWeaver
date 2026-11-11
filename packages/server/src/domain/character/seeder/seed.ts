@@ -4,7 +4,7 @@
 // A card is created through the real CharacterService.create verb (audit log, handle-conflict translation, the
 // character.updated emit — no raw SQL). A handle already taken resolves to the existing row instead of failing.
 //
-// A HALF-SEEDED CARD IS FINISHED, NOT ABANDONED (#1444). `create` landing while a later step throws leaves a row
+// A HALF-SEEDED CARD IS FINISHED, NOT ABANDONED. `create` landing while a later step throws leaves a row
 // the retry resolves through handle_conflict, i.e. `created: false`; the retry asks whether the row is still
 // exactly what we authored and finishes dressing it when it is. An edited card is the user's and is left alone.
 
@@ -24,7 +24,7 @@ function orNull<T>(value: T | null | undefined): T | null {
 }
 
 /** THIS pack's authored content for one card, read the way `verbs/create.ts#cardFromInput` stores it (every
- *  unspecified field lands as null) — the resumed-seed test's reference (#1444). */
+ *  unspecified field lands as null) — the resumed-seed test's reference. */
 function authoredCardContent(card: SeedCard): SeededCardContent {
   const input = card.input;
   return {
@@ -92,7 +92,7 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
     return outcome;
   }
 
-  /** THE RESUME TEST (#1444): a row at our handle whose every authored field still matches THIS pack is a card a
+  /** THE RESUME TEST: a row at our handle whose every authored field still matches THIS pack is a card a
    *  crashed run left undressed, so we finish it; one edited word makes it the user's. The re-dress is
    *  idempotent (the same presentation write, an upsert-guarded gallery add). A row we cannot read is not ours. */
   async function isUnfinishedOwnCard(principal: Principal, card: SeedCard, characterId: CharacterId): Promise<boolean> {
@@ -108,7 +108,7 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
 
   /** The card's LOOK for THIS user: the authored theme plus the scene plate resolved into their own owned
    *  asset. The plate is resolved per user rather than carried on the pack because a plate is an owned
-   *  `background` asset now, not a static catalog slug (2026-09-18) — `resolveSeededBackground` lifts the
+   *  `background` asset now, not a static catalog slug — `resolveSeededBackground` lifts the
    *  shipped bytes into the caller's CAS and hands back the `kind:"asset"` ref. Unwired or unresolvable ⇒
    *  the card is dressed theme-only, never with a dangling reference. */
   async function presentationFor(principal: Principal, card: SeedCard): Promise<SeedCard["presentation"] & { backgroundOverride?: ThemeBackground }> {

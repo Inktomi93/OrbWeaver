@@ -5,7 +5,7 @@
 // attachment for a room's rule, OWNERSHIP for a global one), the S5 analysis admission rows (≥1 route · ≤1
 // confirm-class route · the active-game fence), and `run_tool` tool reachability. Throws a
 // TYPED refusal (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never
-// stored. It also holds `assertFireRateCap`, the authoritative bound on the owner BUDGET plane (#1430): a
+// stored. It also holds `assertFireRateCap`, the authoritative bound on the owner BUDGET plane: a
 // belt's ceiling belongs beside the per-rule ceiling it has to cohere with, not only on the wire. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
 // first.
 //
@@ -49,7 +49,7 @@ export function assertRuleName(name: string): void {
   }
 }
 
-/** THE AUTHORITATIVE BOUND on the editable fire-rate BELT — the per-owner cap (`setOwnerBudgets`) — #1430.
+/** THE AUTHORITATIVE BOUND on the editable fire-rate BELT — the per-owner cap (`setOwnerBudgets`).
  *
  *  A rule's OWN `maxFiresPerHour` has been 0..240 since v1 (`validateRuleInput` below); the budget plane
  *  had no ceiling at all, and the wire's `int().min(0)` let an owner set a nine-digit "cap" that bounds nothing

@@ -25,8 +25,8 @@ import { foldRoundCalls, requestStructuredCalls, STRUCTURED_ROUND_VEHICLE, struc
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // RESYNC — the HOST deep-rebuild model call (crunchy-cluster §1.3). The ONE non-inherited rpg model call.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// UNLIKE the in-turn rounds (which ride the character turn's already-resolved connection + inherited consent,
-// stickler F1), the resync is a HOST-INITIATED interactive action: the consenting human is at the keyboard, so
+// UNLIKE the in-turn rounds (which ride the character turn's already-resolved connection + inherited
+// consent), the resync is a HOST-INITIATED interactive action: the consenting human is at the keyboard, so
 // it resolves the ROOM connection AS THE HOST FRESH at the verb (`resolveChat({principal: host})`) and consent
 // is the host's OWN — never a caller-injected foreign principal (the verb resolved host authority before this
 // op runs; `input.hostUserId` is the room host by ROLE, D19, never a caller-supplied id). The rebuild reads the
@@ -47,7 +47,7 @@ const RPG_RESYNC_MAX_TOKENS = 16_384;
 
 const RESYNC_FAILED_REASON = "the model call failed, so nothing was rebuilt:";
 
-// ── THE CATCH-UP ROUND IS A MULTI-CALL TOOL ROUND (owner ruling 2026-08-03) ───────────────────────────
+// ── THE CATCH-UP ROUND IS A MULTI-CALL TOOL ROUND (owner ruling) ───────────────────────────
 // The resync used to send the extraction schema as ONE monolithic structured payload, which is precisely the
 // shape both hosted grammar walls are made of (46 optional properties; four keyword classes outside the
 // documented subsets). A catch-up is a HOST-INITIATED, non-latency-sensitive action, so it can afford several

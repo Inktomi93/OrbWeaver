@@ -1,5 +1,5 @@
 // domain/preset/contract/handoff-copy — the `PresetHandoffCopyContext` DI bundle + op type for the
-// preset-OWNED generation-config copy the host-handoff property offer executes (stickler 2026-08-03 §5.7).
+// preset-OWNED generation-config copy the host-handoff property offer executes.
 //
 // WHY IT EXISTS. `rpg_games.gmPresetId` names the GM VOICE, and it is resolved under the ROOM HOST's
 // ownership (`resolvePresetOverride` → `preset.get`). The moment authority moves, a preset the new host does
@@ -13,7 +13,7 @@
 // naming its id, and `toUserId` is the nominee — never re-derived here.
 //
 // IDEMPOTENT VIA LINEAGE, NOT A SECOND KEY: the copy stamps `forkedFrom = <source>`, and a retried — or
-// CONCURRENT (#1572) — accept converges on the existing fork instead of minting a second. That is the same
+// CONCURRENT — accept converges on the existing fork instead of minting a second. That is the same
 // lineage column the copy-on-write update path already converges on, and the claim rides the INSERT's own
 // guard rather than a preceding read, so there is no window between "no fork yet" and the write.
 

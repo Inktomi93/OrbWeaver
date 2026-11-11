@@ -3,7 +3,7 @@
 // handle is an identity column, not card content — a rename refuses the reserved __group__* namespace.
 // The audit lists only fields that actually changed. An empty edit re-reads without writing.
 //
-// "ALWAYS SAFE; NO CAS" SURVIVES — ITS INPUT CHANGED (#1446). In-place is still unconditional for every
+// "ALWAYS SAFE; NO CAS" SURVIVES — ITS INPUT CHANGED. In-place is still unconditional for every
 // caller that reads the card and writes it back in one breath (the editor, the importer, the seeder): there
 // is no window for them to lose, and a version column on `characters` would tax every such write to protect
 // nobody. What the ruling never covered is a caller whose BASIS is old — the refinery's apply builds its
@@ -89,7 +89,7 @@ async function applyEdit(
     },
   );
   if (written === "stale") {
-    // #1446 — the caller declared the content it merged against and the card has moved since. TOTAL refusal:
+    // The caller declared the content it merged against and the card has moved since. TOTAL refusal:
     // nothing was written, so the other writer's edit stands and this caller re-reads and re-applies.
     throw new CharacterOperationError(
       CHARACTER_STALE_BASIS,
@@ -120,7 +120,7 @@ async function applyEdit(
 }
 
 /** Resolve a `kind:"external"` carried background on the incoming edit into an owned `kind:"asset"` source
- *  (BG-C invariant, F-P0-2): fetch → magic-belt → CAS-store, keeping the URL as `provenanceUrl`. A blank URL
+ *  (BG-C invariant): fetch → magic-belt → CAS-store, keeping the URL as `provenanceUrl`. A blank URL
  *  clears to `kind:"none"`; any non-external (or absent) override passes through untouched. A refusal throws a
  *  leak-free coded error. Returns the (possibly rewritten) input the rest of the verb persists. */
 async function resolveBackgroundOverride(
@@ -156,7 +156,7 @@ async function resolveBackgroundOverride(
 export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
   return async ({ principal, characterId, input: rawInput, expectedBasis }: UpdateCharacterParams) => {
     const ownerId = principal.userId;
-    // ORDER IS SECURITY-LOAD-BEARING (#1455): AUTHORIZE THE TARGET, THEN FETCH. `resolveBackgroundOverride`
+    // ORDER IS SECURITY-LOAD-BEARING: AUTHORIZE THE TARGET, THEN FETCH. `resolveBackgroundOverride`
     // drives an outbound fetch + image processing + a CAS/db write for any `kind:"external"` override, all
     // from caller-supplied values. Running it first meant a characterId the caller does not own (or one that
     // does not exist) still bought them that SSRF-sensitive boundary work, its cost, and a durable asset — on

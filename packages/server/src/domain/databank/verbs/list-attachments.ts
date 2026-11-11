@@ -2,7 +2,7 @@
 // detach UX). Owner-gated (`loadOwnedMeta` — you only see your own document's attachments); the reverse
 // `*_document_idx` on each junction serves the three lookups. A read: no audit.
 //
-// TWO SCOPES, TWO AUTHORITIES (#276). The character names come off the owner-scoped join in persistence —
+// TWO SCOPES, TWO AUTHORITIES. The character names come off the owner-scoped join in persistence —
 // the caller owns both sides of that junction. The rooms do NOT: chats carry no `ownerId` (D18) and
 // `attachToChat` is HOST authority, so a `chat_documents` row outlives the attacher's seat and a raw id
 // list would let this pane name rooms the caller was kicked out of. They go through chat's injected

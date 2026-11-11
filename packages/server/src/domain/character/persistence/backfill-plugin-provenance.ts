@@ -1,5 +1,5 @@
-// domain/character/persistence/backfill-plugin-provenance — the #1708 one-time DATA repair for cards
-// plugin-ingested BEFORE #1702 minted `importedFrom`. Those rows carry `importedFrom: null` and still read
+// domain/character/persistence/backfill-plugin-provenance — the one-time DATA repair for cards
+// plugin-ingested before provenance stamping minted `importedFrom`. Those rows carry `importedFrom: null` and still read
 // "Made here" (`characterProvenanceOf` collapses a null `importedFrom` to `authored`).
 //
 // THE CANDIDATE SET IS ALREADY TIGHT WITHOUT THE RESERVED KEY. `importHash` is stamped by the import funnel

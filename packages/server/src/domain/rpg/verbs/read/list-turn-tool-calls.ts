@@ -7,8 +7,8 @@
 // the opposite: it is the mechanical record of a turn everyone at the table just watched happen, and the
 // symptom this closes is that *the person playing* cannot see it.
 //
-// NOT CONTENT-SAFE BY CONSTRUCTION — this header used to claim it was, and the claim was false (#1690, the
-// #1528 class). It read: "the record carries tool NAMES + their ARGS, never prose". `args` is the RAW JSON
+// NOT CONTENT-SAFE BY CONSTRUCTION (the hidden-span class). It is false that "the record carries tool
+// NAMES + their ARGS, never prose". `args` is the RAW JSON
 // STRING the model sent (`contracts/rpg/extraction.ts`), and the state tools write PROSE — ambient
 // `location`/`weather`, an actor's mood and status, item and quest text, journal entries — so a `<lie …/>`
 // truth an extractor quoted into a scene field arrives here as a tool arg. The `issues` line carries model
@@ -17,7 +17,7 @@
 //
 // So the member gate above stays, and a SECOND question is answered beside it: not "may this caller act"
 // (that is `resolveMember`) but "what may this viewer SEE" — chat's ONE `resolveViewerVisibility` verdict,
-// the same op #1528's member-facing reads take (`get-tracker-view.ts`), never a re-derived `role === "host"`.
+// the same op the member-facing reads take (`get-tracker-view.ts`), never a re-derived `role === "host"`.
 // A viewer who does not read hidden gets the args parsed and belted leaf by leaf; the host reads verbatim.
 // The withhold arm for args that do not parse is the substrate's, and its reasoning lives there.
 //
@@ -54,7 +54,7 @@ export function createListTurnToolCalls(ctx: RpgContext): Pick<RpgService, "list
       variantId: r.variantId,
       messageId: r.messageId,
       calls: projectToolCallsForViewer(r.calls, readsHidden),
-      // The round-could-not-run sentence, host-verbatim / summary-only for everyone else (#1468 item 2) — the
+      // The round-could-not-run sentence, host-verbatim / summary-only for everyone else — the
       // same viewer verdict the args ride, for the same reason.
       failure: projectFailureForViewer(r.failure, readsHidden),
     }));

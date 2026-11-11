@@ -33,7 +33,7 @@ export interface RegisteredTool<E extends ToolExecutionContext = ChatToolExecuti
    *  by name" — the automation `run_tool` mint gate, its per-fire pause check, and the per-turn attach
    *  contribution all ask exactly that, and none of them is in a position to invoke first and see.
    *  `substrate/reachability.ts::isDirectDrivableBy` is the ONE predicate over it. It is ALSO the owner half of
-   *  the entry's {@link ToolRegistryKey} (#677) — the same fact, stored once, read two ways: the key decides
+   *  the entry's {@link ToolRegistryKey} — the same fact, stored once, read two ways: the key decides
    *  WHERE the entry lives, the predicate decides who may point at it. */
   readonly owner: UserId | null;
   readonly parameters: Record<string, unknown>;
@@ -63,7 +63,7 @@ declare const toolRegistryKeyBrand: unique symbol;
 
 /** The registry's key: an entry's `(owner, name)` pair, flattened by the ONE derivation in
  *  `substrate/partition.ts`. Branded so nothing else can mint one — a `registry.get(name)` keyed on a bare tool
- *  name is a TYPE ERROR, which is what keeps the per-installer partition (#677) from silently collapsing back
+ *  name is a TYPE ERROR, which is what keeps the per-installer partition from silently collapsing back
  *  into a global name shelf the first time someone adds a lookup. */
 export type ToolRegistryKey = string & { readonly [toolRegistryKeyBrand]: true };
 

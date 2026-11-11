@@ -90,7 +90,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   const prose = args.prose ?? {};
   const game: RpgGameRow | undefined = await findGameByChat(ctx.db, chatId);
   if (game === undefined || !game.config.engaged) {
-    // Non-game chat, or a DISENGAGED game (#40 front-door toggle OFF) — byte-identical no-op: no
+    // Non-game chat, or a DISENGAGED game (front-door toggle OFF) — byte-identical no-op: no
     // reminder, no state block, no steering, no macros/CEL, no tools. The rows are preserved untouched.
     return null;
   }

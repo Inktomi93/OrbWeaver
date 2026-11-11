@@ -1,7 +1,7 @@
 // domain/rpg/verbs/read/list-journal — listJournal (D58). The paged, lineage-projected journal
 // archive (a swipe changes the page's contents with zero writes — §2.5). Member-gated.
 //
-// TWO VISIBILITY BELTS, both off chat's ONE `resolveViewerVisibility` verdict (#1528):
+// TWO VISIBILITY BELTS, both off chat's ONE `resolveViewerVisibility` verdict:
 //
 //  • THE D16 HISTORY FLOOR. The journal is the rpg plane that keeps PER-TURN rows: a model entry stamps the
 //    slot it was distilled from (`sourceMessageId`), so a `from-join` member reading it unfloored reads a

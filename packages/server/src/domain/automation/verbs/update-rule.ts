@@ -37,7 +37,7 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
         authorUserId: rule.ownerId,
       },
     );
-    // S4 — THE VOID RUNS BEFORE THE WRITE (#1564, #1424's residue). Voiding only after `applyRuleUpdate` left a
+    // S4 — THE VOID RUNS BEFORE THE WRITE. Voiding only after `applyRuleUpdate` leaves a
     // real window: a confirm that claims the card in the gap re-checks a rule that exists, is enabled and is
     // still hosted by its author — all true — and then executes the STASHED PRE-EDIT arm against the edited
     // rule. Voiding first makes that unreachable. If the write below then fails, the cost is a dropped card for
@@ -68,7 +68,7 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
     if (row === undefined) {
       throw new Error(`updateRule: row ${params.ruleId} vanished immediately after update`);
     }
-    // THE SECOND VOID (#1424 · #1564), and it is not redundant: the one above the write closes the
+    // THE SECOND VOID, and it is not redundant: the one above the write closes the
     // confirm-in-the-gap window, this one closes its MIRROR — a dispatch that RAISED a card while the write was
     // in flight, whose stashed arm is the pre-edit one too. Both are an in-RAM scan of one rule's slots.
     // A pending card stores the arm as it RESOLVED at fire time and confirming executes that STASHED arm, which
@@ -77,7 +77,7 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
     // longer says what its card says is no card. `setRuleEnabled(false)` and `deleteRule` make the same call.
     ctx.suggestions.voidRule(params.ruleId);
     // An enabled rule's trigger BUS can change (chat↔domain) — refresh the pre-check's domain-rule flag.
-    // `refresh`, not `reload` (#1431): the row above is already written, so an index failure must not reject
+    // `refresh`, not `reload`: the row above is already written, so an index failure must not reject
     // an operation that SUCCEEDED — it latches stale and the watcher front door rebuilds on the next event.
     await ctx.enabled.refresh();
     // A rule edit can add/remove transform_draft arms or change their target/template/predicate/order.

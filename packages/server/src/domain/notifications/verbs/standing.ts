@@ -1,4 +1,4 @@
-// verbs: refreshStanding · retract — the two producer writes a STANDING ASK needs beyond `record` (#1041).
+// verbs: refreshStanding · retract — the two producer writes a STANDING ASK needs beyond `record`.
 // Both are recipient-ADDRESSED (a producer acts FOR a user, it is not the caller), where `dismiss` is
 // caller-scoped because dismissing is the READER's act.
 //
@@ -11,7 +11,7 @@
 //   · the ask SHRANK (one was answered)      → `refreshStanding` — the number is corrected IN PLACE, with
 //     `seq`/`readAt` untouched, so answering nine asks one at a time badges the bell ZERO extra times. A
 //     supersede here would re-badge on every grant, which is the re-prompt loop the aggregate exists to
-//     prevent (owner ruling on #924: "no dead end, no re-prompt loop").
+//     prevent (owner ruling: "no dead end, no re-prompt loop").
 //   · the ask is GONE (all answered)         → `retract`. Recording a `pendingCount: 0` row instead would
 //     be a lie the reader can only discover by acting on it, which is why the contract makes the count
 //     `.min(1)` and the zero case lands here.
@@ -33,13 +33,13 @@ export function createStanding(ctx: NotificationsContext): Pick<NotificationsSer
     // The same parse belt `record` runs: the stored payload is only ever a value the closed union produced,
     // whichever verb wrote it.
     const event = notificationEventSchema.parse(params.event);
-    // Still standing — a correction in place is never a settlement (#1799).
+    // Still standing — a correction in place is never a settlement.
     const corrected = await updateActivePayloadOfType(ctx.db, event.recipientUserId, event);
     return corrected.map(asRaised);
   }
 
   async function retract(params: RetractParams): Promise<readonly InboxView[]> {
-    // Retracted = settled: the producer no longer has the ask (#1799).
+    // Retracted = settled: the producer no longer has the ask.
     const withdrawn = await dismissActiveOfType(ctx.db, params.recipientUserId, params.type, ctx.now());
     return withdrawn.map(asSettled);
   }

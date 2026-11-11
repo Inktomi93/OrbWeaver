@@ -1,7 +1,7 @@
 // All db access for the feature (queries only). Every preset read is OWNERSHIP-scoped in the WHERE
 // (`ownerId = ?`), never a post-filter; member reads derive through the preset row (D23 — the junction
 // stamps no owner) AND carry that derivation as a JOIN PREDICATE, not as an assumption about the caller
-// (#1480 item 6 — see `loadMemberCardRows`). Member views join the LIVE card (name + avatar hash, the
+// (see `loadMemberCardRows`). Member views join the LIVE card (name + avatar hash, the
 // ParticipantView resolution posture — joined server-side, the client has no id→hash resolver): an INNER
 // join, because a deleted character CASCADEs its seat row out, so an unresolvable member is
 // unrepresentable, not a degrade arm.
@@ -65,7 +65,7 @@ export async function ownedPresetNameTaken(db: Db, ownerId: UserId, name: string
 /** The members of `presetIds` with their card joins, FLAT and ordered (presetId, position) — the
  *  per-preset grouping is the pure `groupMemberViews` in `substrate/members.ts` (persistence holds no Map).
  *
- *  OWNER-SCOPED ON BOTH AXES (#1480 item 6). `presetIds` is caller-supplied, and this is the feature's only
+ *  OWNER-SCOPED ON BOTH AXES. `presetIds` is caller-supplied, and this is the feature's only
  *  read that leaves the roster tables: a foreign presetId used to read back that preset's whole member list
  *  WITH each seated card's `name` and `avatarHash`. The two live callers resolve their ids one hop earlier
  *  from an owner-scoped read (`listOwnedPresetRows` in `verbs/list`, `loadOwnedPresetRow` in
@@ -150,7 +150,7 @@ export async function insertPresetWithMembers(
  *  `ensureAssetOwned` posture), and the owner predicate ALSO rides every write: the row UPDATE directly,
  *  and the junction DELETE through an owned-preset subquery. The junction has no ownerId by design
  *  (D23 derive-don't-stamp), so its belt IS the join — without it a verb-bypassing caller's bare
- *  presetId would no-op the row yet silently WIPE+replace a foreign preset's member list (stickler F2).
+ *  presetId would no-op the row yet silently WIPE+replace a foreign preset's member list.
  *  The gate precedes the batch, so the re-INSERT can never target a foreign preset either; ownership
  *  never transfers (no such verb exists), so gate-then-batch has no exploitable window. */
 export async function updatePresetWithMembers(

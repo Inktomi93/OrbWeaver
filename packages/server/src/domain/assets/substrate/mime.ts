@@ -2,7 +2,7 @@
 // the raw bytes, verify the bytes match the claim BEFORE they enter the CAS (the upload boundary's byte-level
 // defense; a mislabeled binary must fail here, never confusingly-late at extraction). Four families:
 //   • `image/*` → the shared magic-signature sniff (`@orb/kit/image-sniff`); the sniffed mime must equal the claim.
-//   • `video/*` → the container magic for the two we accept (BG-V video backgrounds AND #317 chat
+//   • `video/*` → the container magic for the two we accept (BG-V video backgrounds AND chat
 //     attachments): `video/mp4` = the ISO-BMFF `ftyp` box tag at byte 4; `video/webm` = the Matroska/WebM
 //     EBML header magic at byte 0. Kit's sniff is image-only, so these dispatch here (the DBK-A belt
 //     pattern — a signature check, never a conversion).
@@ -30,7 +30,7 @@ const WEBM_MIME = "video/webm";
 const PDF_MIME = "application/pdf";
 // The OOXML/OPF zip containers we recognize (docx/epub are DB8 fast-follows; the belt ships with the design).
 const ZIP_CONTAINER_MIMES = new Set(["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/epub+zip"]);
-// #709 (stored-XSS): active document/script mimes are NEVER a servable asset type — a stored blob is served
+// Stored-XSS: active document/script mimes are NEVER a servable asset type — a stored blob is served
 // from the app's own origin, where an HTML/SVG document runs scripts and a script type is `<script src>`-able
 // with the owner's cookies. Reject them at the store boundary rather than relying on a family arm to happen to
 // fail (text/html is valid UTF-8; an SVG carries no binary magic). The blob-serve route neutralizes the same
@@ -90,7 +90,7 @@ function startsWith(bytes: Uint8Array, signature: string): boolean {
   return matchesAt(bytes, 0, signature);
 }
 
-/** The `video/*` arm — the two container formats we accept (BG-V backgrounds + #317 chat attachments), by
+/** The `video/*` arm — the two container formats we accept (BG-V backgrounds + chat attachments), by
  *  their leading magic (never a decode/convert). */
 function assertVideoMagic(bytes: Uint8Array, base: string, claimedMime: string): void {
   if (base === MP4_MIME) {
@@ -124,7 +124,7 @@ function isValidUtf8(bytes: Uint8Array): boolean {
 /** The `image/*` arm — sniff the bytes and require they equal the claim, with the one animated-PNG edge.
  *
  *  AVIF IS REFUSED HERE ON PURPOSE, and the asymmetry with `infra/network/image-guard` is the policy, not an
- *  oversight (#1527). `@orb/kit/image-sniff` KNOWS AVIF — `sniffImageBytes` parses its `ispe` extents
+ *  oversight. `@orb/kit/image-sniff` KNOWS AVIF — `sniffImageBytes` parses its `ispe` extents
  *  structurally for the remote-fetch guard — but `sniffMime`'s union deliberately stops at PNG/JPEG/GIF/WebP,
  *  so a claimed `image/avif` upload fails the "no known image signature" arm above. The two belts answer
  *  different questions: this one is an ALLOW-LIST over bytes a user hands the CAS, where the accepted set is
@@ -157,7 +157,7 @@ function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string):
 export function assertMagicMatches(bytes: Uint8Array, claimedMime: string): void {
   const base = baseMime(claimedMime);
 
-  // #709: an active document/script type is never a servable asset — reject before any family check.
+  // An active document/script type is never a servable asset — reject before any family check.
   if (ACTIVE_MIMES.has(base)) {
     refuse("that file type can't be stored", `refusing an executable/document mime ${claimedMime} — not a servable asset type`);
   }

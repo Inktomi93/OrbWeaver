@@ -71,7 +71,7 @@ interface VisibilityDeps {
  * and that is exactly how a `from-join`-clamped member's plugin received the CONTENT of a pre-join canon row
  * (a host edit / re-voice of a pre-join slot resolves the selected variant's text into the fact) that every
  * direct read path withholds from that same member. So a fact ANCHORED to canon — carrying it (`fact.message`)
- * or merely referencing it (`fact.reaction.messageId`, #1428) — delivers only when its anchor seq is at or
+ * or merely referencing it (`fact.reaction.messageId`) — delivers only when its anchor seq is at or
  * above the caller's own floor. {@link isBelowHistoryFloor} owns that verdict.
  *
  * ACTIVITY-PLANE facts are NOT clamped, by the same ruling that lets id-only bus events ride through the
@@ -92,7 +92,7 @@ type FactVisibility = { readonly visible: false } | { readonly visible: true; re
  * `chat/substrate/auth::isBelowHistoryFloor`, and the rule is the same: the verdict is keyed on WHICH CARRIER
  * anchors the fact to canon, never on its trigger type.
  *
- * TWO CARRIERS TODAY, and a fact that references canon WITHOUT carrying it is still anchored (#1428). The
+ * TWO CARRIERS TODAY, and a fact that references canon WITHOUT carrying it is still anchored. The
  * `message` shape carries its own `seq`. The `reaction` shape (`reactionsChanged`) carries `messageId` but
  * NEVER a `message`, so the old `fact.message !== undefined` guard short-circuited and the gate fell back to
  * membership alone — more permissive than chat's OWN read of that plane, whose window is floored

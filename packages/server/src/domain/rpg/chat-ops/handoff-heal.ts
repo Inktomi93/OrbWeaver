@@ -72,7 +72,7 @@ export async function handoffHealStatements(ctx: RpgContext, args: HandoffHealAr
   return [...preset, ...sheets];
 }
 
-/** THE NOMINATE-SIDE DISCLOSURE (#1762): would an accepted `copyGmPreset` offer put a preset row in
+/** THE NOMINATE-SIDE DISCLOSURE: would an accepted `copyGmPreset` offer put a preset row in
  *  `nomineeUserId`'s library? It asks {@link gmPresetStatements}' own two questions — is there a knob, and
  *  can the nominee already read it — and answers without writing, because at nominate nobody has consented
  *  to anything yet.

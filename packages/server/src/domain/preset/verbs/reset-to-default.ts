@@ -27,8 +27,8 @@ export function createResetToDefault(ctx: PresetContext): Pick<PresetService, "r
     }
     const now = ctx.now();
     // `replacePresetConfig`, not `updatePresetRow`: the new content is DEFAULT_PROMPT_CONFIG, which does
-    // not descend from the row's stored blob — so the #471 refusal does not apply, and resetting stays
-    // available as the in-place repair for a preset the current build cannot read (#1026).
+    // not descend from the row's stored blob — so the intact refusal does not apply, and resetting stays
+    // available as the in-place repair for a preset the current build cannot read.
     const row = await replacePresetConfig(ctx.db, params.id, params.userId, {
       config: DEFAULT_PROMPT_CONFIG,
       schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,

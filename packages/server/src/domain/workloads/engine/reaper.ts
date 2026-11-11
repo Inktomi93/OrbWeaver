@@ -3,7 +3,7 @@
 // through the status-guarded markTerminal, so a returning zombie or already-moved row is not double-reaped.
 // now + the threshold are passed in — no ambient Date.now().
 //
-// THE MESSAGE IS THE FORENSIC RECORD (#560). The row keeps only `status = worker_died` plus this string:
+// THE MESSAGE IS THE FORENSIC RECORD. The row keeps only `status = worker_died` plus this string:
 // `markTerminal` overwrites `updatedAt`, the lease column, with the reap instant. So the message carries both
 // the caller's `reason` and the lease age OBSERVED before that overwrite. A single shared sentence (what
 // shipped before) makes a respawn kill and a genuine grace-window expiry indistinguishable on the row forever
@@ -11,7 +11,7 @@
 // themselves live in `reap-record.ts`, shared with the boot reclaim (the OTHER writer of `worker_died`), so
 // the two paths cannot drift into one wording; this sweep declares `heartbeat_stale`.
 //
-// IT DISPOSES, IT DOES NOT READ (#1413). The sweep reads RAW lifecycle columns (`findStaleInFlight` →
+// IT DISPOSES, IT DOES NOT READ. The sweep reads RAW lifecycle columns (`findStaleInFlight` →
 // `WorkloadInFlightRow`), never the params-narrowing `toView`, and therefore spells no domain vocabulary at
 // all — no `WorkloadContributions` reaches this file. That is not a simplification: projecting through the
 // view DROPPED every row whose kind this build does not ship (deploy skew, a kind rename), so such a row

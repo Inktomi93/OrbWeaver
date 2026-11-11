@@ -75,7 +75,7 @@ export interface ProfileDirImportDeps {
   readonly storeAvatar: StoreAvatarAsset;
   readonly attachCardTag: AttachCardTagByNameOp;
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
-  /** Travels with `importLorebook` (#1598 — the edited-primary guard). */
+  /** Travels with `importLorebook` (the edited-primary guard). */
   readonly hasPrimaryBook?: ImportWorldInfoPort["hasPrimaryBook"];
   readonly linkCarriedBooks?: ImportWorldInfoPort["linkCarriedBooks"];
   /** Card-carried scripts land through the same owner operation as upload and bundle import. */

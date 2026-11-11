@@ -40,7 +40,7 @@ export interface RpgRoundsDeps {
   readonly logger: Logger;
   readonly idSource: IdSource;
   readonly db: Db;
-  /** R-OBS — the rpg flight-recorder sink, present only when tracing is enabled. Absent is the default: every emit
+  /** The rpg flight-recorder sink, present only when tracing is enabled. Absent is the default: every emit
    *  site calls `deps.trace?.(…)`, so a traced-off turn never builds an event object. */
   readonly trace?: RpgTraceSink;
   readonly rpgChatOps: RpgRoundsChatOps;
@@ -66,7 +66,7 @@ export type RpgRoundsAssemblyDeps = DbAssemblyInput<RpgRoundsDeps>;
 
 /** The resolved per-call inputs every structured extraction consumes — the CHARACTER turn's resolved connection + its
  *  enforced consent verdict + the prompts + the ref-constrained response schema (R1). Bundled to keep each arm
- *  under the param-count gate. `conn` comes from `input.turnConnection` — never a re-resolve (stickler F1). */
+ *  under the param-count gate. `conn` comes from `input.turnConnection` — never a re-resolve. */
 export interface ExtractCtx {
   readonly conn: Resolved<"chat">;
   /** The chat this round belongs to — threaded onto the provider request PURELY as the wire-capture

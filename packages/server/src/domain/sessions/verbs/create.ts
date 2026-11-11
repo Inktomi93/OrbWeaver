@@ -9,7 +9,7 @@ import { insertSession } from "../persistence/sessions.ts";
 // mint is a login (local route + OIDC callback funnel here), so it audits AUTH_LOGIN; admin-initiated
 // revokes audit at the admin layer.
 //
-// #141 — an OIDC mint additionally carries the IdP `id_token`, sealed here (never written in the clear) so
+// An OIDC mint additionally carries the IdP `id_token`, sealed here (never written in the clear) so
 // this session's own logout can present it as `id_token_hint`. It is sealed AFTER the row id is minted,
 // because that id is the GCM AAD; nothing else in this verb touches it, and it reaches no log or audit
 // field — the audit row below records the session id, never the params.

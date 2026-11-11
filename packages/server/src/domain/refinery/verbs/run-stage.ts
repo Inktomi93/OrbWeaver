@@ -4,7 +4,7 @@
 // append the run row (with its stripped-keys itemization + provenance config) → stamp the signals half
 // this stage produces (F6: score runs stamp `score`, analyze runs stamp `analysis` — via the injected
 // character op, never a direct write) → touch the session. A double schema failure is the typed
-// RETRYABLE error — NEVER a fallback write (security pass §4.7).
+// RETRYABLE error — NEVER a fallback write.
 //
 // WHICH CARD EACH STAGE READS (the anti-drift geometry, study §1.2): SCORE always critiques the ORIGINAL
 // (the "before" that seeds rewrites); REWRITE works on the WORKING card (original overlaid with the
@@ -17,7 +17,7 @@
 // run — the D126 discipline; a deleted schema is a leak-free NOT_FOUND), lifts it (`liftJsonSchema` — the
 // stored blob is liftable by the save belt's invariant, re-lifted defensively here), and runs the SAME
 // engine: the lifted zod is the validator, the projection is the wire grammar, and the run row EMBEDS
-// `{schemaId, schemaVersion, schema}` so the append-only log never dereferences a live row (P1-B).
+// `{schemaId, schemaVersion, schema}` so the append-only log never dereferences a live row.
 // F6 under custom: score still stamps `overallScore` (the well-known core pins the 1-10 scale); analyze
 // does NOT stamp `analysis` — canon's `characters.refinery.analysis` is the TYPED fixed payload, so a
 // custom analyze lives in the run ledger only (stated in the Setup tab's copy).
@@ -26,7 +26,7 @@
 // session — the new analyze row appends with that run as its DAG parent, provenance stays true, nothing
 // mutates. Legal only with `stage:"analyze"`.
 //
-// THE OUTPUT CAP IS PAYLOAD-AWARE, AND IT IS RESOLVED PER ARM (live e2e, 2026-08-09). This engine used to
+// THE OUTPUT CAP IS PAYLOAD-AWARE, AND IT IS RESOLVED PER ARM (live e2e). This engine used to
 // request the stage's STATIC `SIDE_GEN_POSTURES` floor, resolved once in `resolveStagePass` before any
 // prompt existed. On the default selection of an ordinary card that floor (768 for score) was smaller than
 // the payload the stage asks the model to produce, so both the first attempt and the bounded retry came back

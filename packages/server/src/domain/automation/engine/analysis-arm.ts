@@ -8,7 +8,7 @@
 // volatility is irrelevant); the DURABLE-WRITE route reads a SETTLED span behind the protect tail, cursored
 // by the state row's HIGH-WATER MARK — advanced ONLY on a successful apply, so a failed or unconfirmed pass
 // re-covers its span (what makes C2's re-run idempotency mechanically true; the lore keys are span-stamped
-// so the re-covered write UPDATES its own titles). #1416 refined the SETTLED read's slice end: cold keeps
+// so the re-covered write UPDATES its own titles). The SETTLED read's slice end: cold keeps
 // the recorded freshest-slice posture, warm reads the earliest slice and covers only what it read — the
 // argument is at `readPassInputs`.
 //
@@ -21,7 +21,7 @@
 //     `neutralizeMacros`'d at THIS boundary (law 7), so a model-authored `{{getglobalvar}}` survives only
 //     as literal braces.
 //
-// THE NEEDLE WALL (§8b of the C1 design; RULED 2026-08-24): the ONLY analysis output that may reach the
+// THE NEEDLE WALL (§8b of the C1 design; RULED): the ONLY analysis output that may reach the
 // member-visible vars plane is the CLAMPED NUMERIC score, and only when the host authored `routes.vars`.
 // Three tiers: route absence removes `score` from BOTH the wire schema and the server-side zod (a stray key
 // from a non-enforcing vehicle is STRIPPED before any applier runs); the applier is gated on the authored
@@ -32,9 +32,9 @@
 // twists, guidance) are written ONCE at the end, and ONLY when no route hard-failed. A failed pass
 // therefore moves none of them — the retry re-runs the whole pass. The WATERMARK is not a conclusion and
 // does not follow that rule: it is monotonic, owned by `persistence/rule-state.ts`, and no writer on any
-// path may drag it backwards (#1543).
+// path may drag it backwards.
 //
-// WITH ONE EXCEPTION, AND IT IS THE ORIGINAL RULE'S OWN PREMISE FAILING (#1418). The discipline above was
+// WITH ONE EXCEPTION, AND IT IS THE ORIGINAL RULE'S OWN PREMISE FAILING. The discipline above was
 // justified by "the span-stamped lore keys make any already-landed entry write an UPDATE, not a duplicate".
 // That is true of an IDENTICAL key and false of a retry: the re-run is a fresh model call over the same span
 // and its differently-worded keys land BESIDE the originals. So the ONE route that commits durable bytes
@@ -302,7 +302,7 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
     if (!written.ok) {
       return { ok: false, detail: written.refused };
     }
-    // #1418 — THE COVERAGE RECORD RIDES WITH THE COMMIT. These bytes are now in a world book: another
+    // THE COVERAGE RECORD RIDES WITH THE COMMIT. These bytes are now in a world book: another
     // domain's store, reached through an injected op, with no transaction that could also carry this
     // domain's state row. Leaving the mark for the end of the pass meant any later failure — a card raise,
     // a variable write, the state write itself — aborted with the lore committed and the span still
@@ -380,7 +380,7 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
     const ops: readonly VarOp[] = [{ op: "set", key: route.key, value }];
     await deps.ops.chat.applyVariableOps(frame.chatId, ops);
     // The write-through law (`arm-executors.ts::writeArmVariable`), through the plane's OWN-key writer
-    // (#1564): a route key of `__proto__` written with property syntax lands nowhere at all.
+    //: a route key of `__proto__` written with property syntax lands nowhere at all.
     writeOwnKey(frame.env.vars, route.key, value);
     return ROUTE_OK;
   },
@@ -420,7 +420,7 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
   if (through === null || isSettledThrough(through, state.settledThroughSeq)) {
     return { state, fresh, settled: null, span: null, audited };
   }
-  // #1416 — THE RULING SURVIVES, ITS INPUT CHANGED. The recorded posture ("a cold start over a long chat
+  // THE RULING SURVIVES, ITS INPUT CHANGED. The recorded posture ("a cold start over a long chat
   // reads what is freshest and the watermark still advances over the whole span", `canon-reads.ts`) is kept
   // EXACTLY for a COLD start: no prior mark, an arbitrarily deep backlog, and the useful answer is the recent
   // arc rather than a distillation of a chat's first hour. But a WARM pass is a CURSOR, and the same slice
@@ -570,11 +570,11 @@ export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisA
   // 4. The ONE state write: the merged banks + the (possibly advanced) watermark + — when the steer route
   // applies DIRECT — the verbatim guidance ("" clears; each pass replaces it wholesale).
   //
-  // THROUGH `commitPassState`, NOT A FAITHFUL BLOB WRITE (#1543 — the other half of #1418). `routed.watermark`
+  // THROUGH `commitPassState`, NOT A FAITHFUL BLOB WRITE (the other half of the duplicate guard). `routed.watermark`
   // is seeded from the mark this pass READ at step 2, and the pass is long: a host who confirms a lore card
   // while the model call is in flight advances the mark through `advanceSettledWatermark`, and writing the
   // blob faithfully here silently REVERTED that confirm — the next pass then re-distilled a span the host had
-  // already accepted, which is the exact divergent-duplicate outcome #1418 exists to prevent. The banks and
+  // already accepted, which is the exact divergent-duplicate outcome this exists to prevent. The banks and
   // guidance still write wholesale (they are this pass's conclusions); only the mark takes `max(stored, ours)`.
   const merged = mergeAnalysisState(inputs.state, payload);
   const steerDirect = action.routes.steer !== undefined && action.routes.steer.apply === "direct" && payload.guidance !== undefined;

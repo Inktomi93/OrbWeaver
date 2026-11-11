@@ -18,7 +18,7 @@ export interface CreateSessionParams {
   userId: UserId;
   userAgent?: string | null;
   /**
-   * #141 — the RAW OIDC `id_token` from the code exchange, for ONE downstream use: the `id_token_hint` this
+   * The RAW OIDC `id_token` from the code exchange, for ONE downstream use: the `id_token_hint` this
    * session's own logout sends to the IdP's end-session endpoint. Supplied by the OIDC callback and by
    * nothing else (local login and first-run carry no IdP token, and omit it).
    *

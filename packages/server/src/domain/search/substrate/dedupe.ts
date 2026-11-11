@@ -4,7 +4,7 @@ import type { ChatId } from "@orb/kit/ids";
 
 /** Collapse a chat BLOCK's chunk rows to its best-scoring one. Input MUST be best-first.
  *
- *  `chat_segments` holds N rows per `(chat, block)` since #172 — a block too big for the embed window is
+ *  `chat_segments` holds N rows per `(chat, block)` — a block too big for the embed window is
  *  CHUNKED rather than truncated. Every caller of the verbatim scan reasons in BLOCKS (a `BlockKey` carries no
  *  chunk, the display credit resolves a block to its characters, discover counts one match per scene), so a
  *  raw chunk list would double-count one scene and hand back duplicate ids. Collapsing to the best chunk is

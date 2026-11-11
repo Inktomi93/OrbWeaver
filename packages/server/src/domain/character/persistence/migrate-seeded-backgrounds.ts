@@ -1,5 +1,5 @@
 // domain/character/persistence/migrate-seeded-backgrounds — the `kind:"seeded"` retirement's CARD half
-// (owner ask 2026-09-18). The `domain/settings` `migrate-seeded-background-picks` sibling, over
+// (owner ask). The `domain/settings` `migrate-seeded-background-picks` sibling, over
 // `characters.background_override` instead of `user_settings.config`.
 //
 // WHY IT READS RAW: `themeBackgroundSchema` heals an unknown kind to `none` at every parse, so a parsed read

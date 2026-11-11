@@ -16,7 +16,7 @@ interface NotificationActorParams {
 export interface RecordParams {
   readonly event: NotificationEvent;
   readonly coStatements?: readonly StatementToken[] | undefined;
-  /** SINGLETON DELIVERY (#1041): make this row the recipient's ONLY active row of its type — every active
+  /** SINGLETON DELIVERY: make this row the recipient's ONLY active row of its type — every active
    *  row of `event.type` is dismissed in the SAME batch as the insert. For a STANDING ASK whose text is a
    *  count ("N plugins are waiting"), a second row is not a second event, it is the same event said twice
    *  with an older number; stacking them is the inbox spam `AUTOMATION_NOTICE_COOLDOWN_SECONDS` exists to
@@ -53,7 +53,7 @@ export interface ListInboxParams extends NotificationActorParams {
   readonly state?: InboxState;
 }
 
-/** The socket's durable RESUME read (#1459) — the caller's own active rows ABOVE a watermark, oldest-first.
+/** The socket's durable RESUME read — the caller's own active rows ABOVE a watermark, oldest-first.
  *  `afterSeq` is a WATERMARK, not a page cursor: it is what the reader has already delivered, so a caller that
  *  consumes a partial page and re-asks with the last seq it delivered loses nothing and repeats nothing. */
 export interface ReplaySinceParams extends NotificationActorParams {

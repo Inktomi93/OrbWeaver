@@ -1,4 +1,4 @@
-// domain/rpg/verbs/dismiss-actor — dismissActor (the actor-state review §5 R1). THE removal gesture for the
+// domain/rpg/verbs/dismiss-actor — dismissActor (R1). THE removal gesture for the
 // actor plane, and the reason the plane's additive policy is now honest: `substrate/merge.ts` says an actor
 // "leaves the plane by a real gesture, never by going unmentioned" — until this verb there WAS no such
 // gesture. Nothing removed an `actorState` element: omission never removes (additive policy), no tool removes

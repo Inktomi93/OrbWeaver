@@ -144,7 +144,7 @@ function foldTokenSamples(acc: TokenSampleAccum, r: Pick<GenRow, "ti" | "tout" |
  *  THE PATH LITERAL: `'$.reasoning_duration'` in the persistence scans is the ONE key
  *  `VARIANT_METADATA_REASONING_MS_KEY` (`@orb/contracts/chat`) names — spelled inline because an
  *  interpolated value inside a `sql` template binds as a PARAMETER, not as a JSON path. Its live producer is
- *  the turn engine (#184); the ST import writes the same key on the import path. */
+ *  the turn engine; the ST import writes the same key on the import path. */
 function reasoningMsOf(r: GenRow): number {
   const d = Number(r.reasoningDur);
   return Number.isFinite(d) && d > 0 ? Math.round(d) : 0;
@@ -488,7 +488,7 @@ export function ownerExtrema(owner: OwnerAccum, meta: ChatMeta): void {
   owner.firstChatAt = first;
 }
 
-/** THE CENSUS POPULATION IS SEATS ∪ AUTHORSHIP (#1147): a character that HOLDS A SEAT in a started room
+/** THE CENSUS POPULATION IS SEATS ∪ AUTHORSHIP: a character that HOLDS A SEAT in a started room
  *  gets a row even when it never spoke (a greet-less card, an imported cast member, a member added but not
  *  yet prompted) — "seated here, never spoke" is a real library state and its zero-economics row is the
  *  honest answer, not an absent character. The authorship half stays because a character can author canon in

@@ -61,7 +61,7 @@ function candidateOf(record: ScriptRecord): SplitScript {
 type ScriptCopyTarget = { readonly kind: "existing"; readonly id: RegexScriptId } | { readonly kind: "mint"; readonly group: number };
 
 /** WHAT THE TRANSFER WOULD DO, decided once and read by both callers below — the writer turns it into
- *  statements, the #1762 disclosure counts its `mints`. Extracted rather than re-derived: the convergence
+ *  statements, the handoff disclosure counts its `mints`. Extracted rather than re-derived: the convergence
  *  rule (a content-equal row the nominee already owns is REUSED, and two content-equal sources land ONE row)
  *  is the difference between "3 scripts" and "1 script" in the nominee's confirm, and a second spelling of
  *  it is a number that lies about what the accept then does. */
@@ -148,7 +148,7 @@ export function createCopyHandoffRegexScripts(input: DbAssemblyInput<RegexPortab
   };
 }
 
-/** THE DISCLOSURE (#1762) — how many script rows an accepted offer would land in the nominee's library,
+/** THE DISCLOSURE — how many script rows an accepted offer would land in the nominee's library,
  *  off the copy's OWN plan. `db` only, and that is the point: the nomination happens before consent, so the
  *  op that answers "what would this cost me" must be structurally unable to write.
  *

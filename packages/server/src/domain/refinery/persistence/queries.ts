@@ -1,7 +1,7 @@
 // domain/refinery/persistence/queries — all read access for the feature. OWNERSHIP IS DERIVED
 // (D23): every session read JOINS `characters` and carries the owner predicate
 // IN THE WHERE (never a post-filter; the `ensureCharacterOwned` shape — reading the characters schema is
-// the sanctioned cross-table read, security pass §3.E). A run is reachable ONLY through its session's
+// the sanctioned cross-table read). A run is reachable ONLY through its session's
 // join — a run id alone never resolves a payload.
 //
 // Read seams: `original_card` retains historical bytes at rest and validates on projection;
@@ -105,7 +105,7 @@ export async function listOwnedSessionRows(db: Db, ownerId: UserId): Promise<Ref
 /** The session's full run log, oldest first (the CONTEXT Runs ledger reads it forward). Callers reach
  *  this ONLY with a session id that already passed {@link loadOwnedSessionRow}'s belt.
  *
- *  `id` IS THE TIE-BREAK, and it is a real one (#1445): a run id is a TypeID over a uuidv7, so its base32
+ *  `id` IS THE TIE-BREAK, and it is a real one: a run id is a TypeID over a uuidv7, so its base32
  *  suffix sorts by MINT TIME — two runs stamped inside the same millisecond (a frozen test clock, a coarse
  *  platform clock, the two halves of one `iterate` round) still order by when they were minted instead of
  *  by whatever order SQLite happened to scan. Without it "latest run" is nondeterministic exactly when the
@@ -140,7 +140,7 @@ export async function latestRunRowOf(db: Db, sessionId: RefinerySessionId, stage
 }
 
 /** The newest run of ONE stage that is NO NEWER than `cutoff` — the score/analyze run CORRELATED to a
- *  specific applied rewrite (#1519), never the session's head. A branch-off copy's signal stamps must
+ *  specific applied rewrite, never the session's head. A branch-off copy's signal stamps must
  *  describe the rewrite actually being copied: `latestRunRowOf` alone answers "what does the session know
  *  right now", which drifts the moment a newer score/analyze run lands after an OLDER named rewrite is
  *  applied (the §16.1 operate-back path). `cutoff` is the applied rewrite's own `(createdAt, id)` pair —
@@ -308,7 +308,7 @@ export function runViewOf(row: RefineryRunRow): RefineryRun | null {
     strippedKeys: strippedKeysParser.parse(row.strippedKeys),
     createdAt: row.createdAt,
   };
-  // A CUSTOM run re-parses its payload against the schema EMBEDDED in its own provenance (P1-B — never a
+  // A CUSTOM run re-parses its payload against the schema EMBEDDED in its own provenance (never a
   // live schema row). A corrupt embed OR a payload that no longer parses is the same observable drop.
   const custom = refineryCustomRunConfigSchema.safeParse(row.payloadConfig);
   if (custom.success && (row.stage === "score" || row.stage === "analyze")) {
@@ -433,14 +433,14 @@ export async function insertOwnedSchemaIfNameFree(db: Db, row: RefinerySchemaRow
 }
 
 /** Patch one owned schema only while no sibling has the requested case-folded name AND the row is still
- *  the one the caller merged its patch against (#1445 — `expected` is the OBSERVED row, not the written
+ *  the one the caller merged its patch against (`expected` is the OBSERVED row, not the written
  *  one). The verb reads-merges-writes a WHOLE document, so without the predicate two concurrent patches to
  *  DISJOINT fields both succeed off the same pre-edit snapshot and the second write silently drops the
  *  first. `undefined` therefore means name-taken OR stale OR gone — the caller re-reads to say which (no
  *  extra query on the happy path).
  *
  *  THE PREDICATE IS VERSION **AND** DESCRIPTION, and the second conjunct is not belt-and-braces: `version`
- *  is CONTENT provenance (P1-B — a prose-only edit deliberately does not bump it), so a description patch
+ *  is CONTENT provenance (a prose-only edit deliberately does not bump it), so a description patch
  *  that commits first leaves the version untouched and a concurrent content patch's stale snapshot would
  *  still match, writing the OLD description back over it. Every field the verb merges is therefore either
  *  covered by the version bump (name/stage/schema) or named here. */

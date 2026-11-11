@@ -68,7 +68,7 @@ function metadataFor(group: CollectedGroup): ChatMetadata {
   };
 }
 
-/** The roster-scoped display-name fallback map, with the AMBIGUOUS names withheld (#1469 item 5). A bare
+/** The roster-scoped display-name fallback map, with the AMBIGUOUS names withheld. A bare
  *  `.set(name, id)` over the cast collapsed two same-named cards onto whichever seat wrote last, so a
  *  pre-group-era line carrying only a name was attributed to the WRONG character — deterministically, and
  *  with no record. A name two seats share resolves to NOBODY (the write op's documented "absent ⇒ the run's
@@ -106,9 +106,9 @@ function speakerNamesOf(
   return { byName, ambiguous };
 }
 
-/** The members ST had DISABLED, resolved to the SEATS they became (#1687). THE SEATING IS THE RECORDED RULING
+/** The members ST had DISABLED, resolved to the SEATS they became. THE SEATING IS THE RECORDED RULING
  *  (`contract/collection.ts` on `ParsedStGroup.disabledMemberFiles`: "still seated — the room's cast is the cast")
- *  and it stands; what changed is its INPUT. #1469 item 4 could only REPORT the flag as lost because the
+ *  and it stands; what changed is its INPUT. A wire that could only REPORT the flag as lost was one where the
  *  bulk-import wire seated a flat `CharacterId[]` with no knob channel; the wire now carries `seatKnobs`, so
  *  the member is seated AND muted through orb's own per-seat knob and the report says the flag travelled.
  *

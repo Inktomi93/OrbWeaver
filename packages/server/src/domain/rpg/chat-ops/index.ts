@@ -27,7 +27,7 @@ import { handoffHealStatements, handoffRekeyActors, handoffWouldCopyGmPreset } f
  *  wired here. The gather + flush hold the extractionMode branch; the rest are thin ctx reads/writes. */
 export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
   const ctx = createRpgContext(input);
-  // #40 — the disengage chokepoint: a game whose front-door toggle is OFF behaves as NO GAME in every
+  // The disengage chokepoint: a game whose front-door toggle is OFF behaves as NO GAME in every
   // chat-op (gather/flush/preset/reasoning/commit) — the turn assembly is byte-identical to a non-game
   // chat while the rows stay preserved for re-enable.
   async function findEngagedGame(chatId: ChatId): Promise<Awaited<ReturnType<typeof findGameByChat>>> {
@@ -77,7 +77,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
   // cannot serve here.
   function onTurnCompleted({ chatId, messageId, variantId, turnId, turn }: RpgTurnCompletedParams<RpgTurnContext>): Promise<void> {
     const runFlush = async (signal: AbortSignal): Promise<void> => {
-      const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no state round, no snapshot write
+      const game = await findEngagedGame(chatId); // disengaged ⇒ no state round, no snapshot write
       if (game === undefined) {
         return;
       }
@@ -90,16 +90,16 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
   }
 
   return {
-    // #40 DRAFT-TIME birth (`chat.startChat` carried `startAsGame`): contribute RPG's row to the fresh room's
+    // DRAFT-TIME birth (`chat.startChat` carried `startAsGame`): contribute RPG's row to the fresh room's
     // atomic batch. The startChat caller IS the just-minted host (chat's verb is the authority gate), and the
     // game exists before the opening turn so turn 1's gather sees it.
     planGameBirth: (chatId, params) => planLiteGameBirth(ctx, { chatId, ruleset: params.ruleset }),
     gameBirthCommitted: (chatId): void => ctx.emitBus({ type: "gameChanged", chatId }),
     resolvePresetOverride,
-    // The GAME-authored user macros (MU §12A.5 / owner ruling #20's game half): `config.userMacros`, handed
+    // The GAME-authored user macros (MU §12A.5 / the owner ruling's game half): `config.userMacros`, handed
     // to chat as declarations for BOTH the per-turn macro registry and the picks-pane read. KNOB-DRIVEN and
     // mode-blind like `resolvePresetOverride` — a plain config read, no game logic. A non-game chat or a
-    // DISENGAGED game (#40) yields `[]`: the turn resolves preset macros only, byte-identical to no game.
+    // DISENGAGED game yields `[]`: the turn resolves preset macros only, byte-identical to no game.
     resolveUserMacros: async (chatId) => (await findEngagedGame(chatId))?.config.userMacros ?? [],
     // GATHER (§4.7): the depth-0 reminder injection + the resolved-mode tool set (cheap-with-tools) or none
     // (readonly). `args.pendingUserText`/`args.respondsToLatestUserTurn` tell the reminder the player rolled.
@@ -131,7 +131,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
     // P3 (§3.6): is the game DECEPTION-ACTIVE (`config.features.deception || omniscience`)? Drives the member
     // reasoning-host-only strip in chat. `false` for a non-game chat (no game row) / a game with neither channel.
     resolveReasoningHostOnly: async (chatId): Promise<boolean> => {
-      const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no reasoning strip
+      const game = await findEngagedGame(chatId); // disengaged ⇒ no reasoning strip
       return game !== undefined && isDeceptionActive(game.config.features);
     },
     // FORK CLONES THE GAME (§3.2): re-key the source game's whole vertical onto the fork through the fork's id
@@ -146,7 +146,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
     // chat ⇒ a plain-room handoff is byte-identical, and an offer-less accept is byte-identical to the
     // pre-offer heal.
     handoffHealStatements: async (args) => (await handoffHealStatements(ctx, args)).map(statementToken),
-    // HOST HANDOFF, the NOMINATE-side disclosure (#1762): the same knob/ownership gate the heal applies,
+    // HOST HANDOFF, the NOMINATE-side disclosure: the same knob/ownership gate the heal applies,
     // asked before the nominee has consented — so the inbox row can say whether the room's GM voice comes
     // with it. Reads only; `false` for a non-game chat.
     handoffWouldCopyGmPreset: (chatId, nomineeUserId): Promise<boolean> => handoffWouldCopyGmPreset(ctx, chatId, nomineeUserId),

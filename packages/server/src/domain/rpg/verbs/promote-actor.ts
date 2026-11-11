@@ -1,4 +1,4 @@
-// domain/rpg/verbs/promote-actor — promoteActor (the actor-state review §4.3 / §5 R4). THE promotion doorway,
+// domain/rpg/verbs/promote-actor — promoteActor (R4). THE promotion doorway,
 // and `dismissActor`'s exact opposite: dismissal FORGETS a known character, promotion KEEPS her forever. A
 // scene NPC the story kept bringing back stops being a scene annotation and becomes a CHARACTER — a
 // durable card in the host's library, a seat in the room the model can speak from, and one row on the tracker
@@ -21,7 +21,7 @@
 // and the slug key makes it safe). The card HANDLE collides in a different namespace (the host's own library)
 // where nothing addresses by it, so the compose impl uniquifies that one silently — and because that
 // namespace belongs to the character domain, the handle is minted by THAT namespace's engine
-// (`slugifyHandle`), never by the actor-key engine (#1386; the reasoning sits on the mint below).
+// (`slugifyHandle`), never by the actor-key engine (the reasoning sits on the mint below).
 //
 // WHAT DOES NOT SURVIVE, AND WHY IT IS NOT A LEAK: the identity HALF. A participant actor carries none by R2 law —
 // her name is the chat's and her standing prose the sheet's — so the durable content is carried onto the
@@ -63,8 +63,8 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     // The card's name and handle are what every member of the room sees of a seated character, and the handle is
     // an address: a hidden span in the story's name for her stays on the GM plane, never in either.
     const rawName = stripHiddenSpans(identity.name).content.trim();
-    // THE CARD-NAME BOUND (#1449) — clamped here, on the RECEIVING side's own terms, exactly like the handle
-    // above (#1386): `rawName` is model-authored at the extraction boundary with no max, and
+    // THE CARD-NAME BOUND — clamped here, on the RECEIVING side's own terms, exactly like the handle
+    // above: `rawName` is model-authored at the extraction boundary with no max, and
     // `cardFaceFields.name` caps at `CARD_FACE_LIMITS.nameMax`. A refusal here would drop a model-authored
     // actor from canon over a name, so the mint CLAMPS instead (`clampActorCardName`, `contracts/rpg/actor.ts`)
     // and reports the cut back as data (`issues`) rather than it vanishing silently into a shortened card.
@@ -80,7 +80,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       sourceActorKey: fromKey,
       participants,
       name,
-      // THE HANDLE IS THE CHARACTER NAMESPACE'S, SO ITS OWN ENGINE MINTS IT (#1386). `rpgNpcSlug` is the
+      // THE HANDLE IS THE CHARACTER NAMESPACE'S, SO ITS OWN ENGINE MINTS IT. `rpgNpcSlug` is the
       // ACTOR-KEY engine — its whole job is "never merge two people", so it is NFC-preserving, keeps every
       // mark and NEVER truncates. A card handle answers to different law: the per-owner
       // `characters_owner_handle_unique` index and the 200-char wire cap on `createCharacterSchema.handle`,

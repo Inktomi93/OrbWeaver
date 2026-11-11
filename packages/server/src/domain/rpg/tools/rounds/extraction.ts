@@ -13,9 +13,9 @@ import { extractStructured } from "./round-connection.ts";
 import { isCancelled, logCancelled, logExtractionOutcome, logStrippedKeys, roundFailure, safeJson } from "./round-log.ts";
 
 /** Build the STRUCTURED-OUTPUT extraction op (§4.6). No longer a delivery mode of its own (the `reliable` knob
- *  was deleted 2026-08-01 — owner ruling): it is the vehicle `runToolRound` degrades to on a connection that
+ *  is deleted — owner ruling): it is the vehicle `runToolRound` degrades to on a connection that
  *  cannot carry a forced tool round, and the vehicle the host resync drives. Rides the CHARACTER turn's ALREADY-RESOLVED connection +
- *  consent verdict (`input.turnConnection` — stickler F1: never a re-resolve of the host's global default, never
+ *  consent verdict (`input.turnConnection` — never a re-resolve of the host's global default, never
  *  a force-stamped consent), reads the beat, drives ONE structured-output call (`@orb/inference`'s
  *  `runStructuredChat`, one side-generation chat turn on any backend), and folds the parsed extraction
  *  into an `RpgStateDelta`. On any backend throw / parse failure it returns an EMPTY delta (the byte-identical
@@ -72,7 +72,7 @@ export function buildRunExtraction(deps: RpgRoundsDeps): RpgRunExtraction {
         return empty;
       }
       deps.logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg structured extraction failed");
-      // The tool round's twin (#1468 item 2) — and NOT an optional half of it: `runToolRound` DEGRADES to this
+      // The tool round's twin — and NOT an optional half of it: `runToolRound` DEGRADES to this
       // vehicle on every connection with no forced tool round, so a failure arm that stayed silent here would leave that whole class
       // of connection with the defect the tool round just lost.
       return { ...empty, failure: roundFailure(err) };

@@ -77,7 +77,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
     //    (the trigger-discipline mirror). A host-hidden document never enters the allowlist, so it never
     //    embeds, ranks, or reaches a prompt.
     //
-    //    HOISTED ABOVE THE SPACE READ (#2510). Both guards used to live INSIDE the `withActiveQuerySpace`
+    //    HOISTED ABOVE THE SPACE READ. Both guards used to live INSIDE the `withActiveQuerySpace`
     //    callback, so `requireQuerySpace` ran first and a bankless scope took the `search_space_reindexing` /
     //    `search_no_space` refusal on the way to a short-circuit that would have returned `[]`. That is what
     //    killed every chat turn on a databank-wired stack: the `{{databank}}` GATHER calls this verb once per

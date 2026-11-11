@@ -39,7 +39,7 @@ export async function runAnalysisConfirm(deps: AnalysisConfirmDeps, pending: Pen
       if (!written.ok) {
         throw new Error(written.refused);
       }
-      // The watermark advance the apply earns, as ONE statement (#1418): the read-then-merge this used to
+      // The watermark advance the apply earns, as ONE statement: the read-then-merge this used to
       // do could revert a concurrent pass's arc/twist bank, and it left a wider window between the
       // already-committed book write and the coverage record. `advanceSettledWatermark` touches exactly the
       // one JSON path, monotonically.

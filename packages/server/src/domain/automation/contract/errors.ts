@@ -53,7 +53,7 @@ export class RuleReorderError extends DomainOperationError {
 }
 
 /** `setOwnerBudgets` refused: the fire-rate ceiling is not an integer in
- *  `0..AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR` (#1430). The AUTHORITATIVE bound lives at the verb — the wire
+ *  `0..AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR`. The AUTHORITATIVE bound lives at the verb — the wire
  *  schema mirrors it — because the belt is loop safety and a caller reaching the domain from compose without
  *  the transport must meet the same ceiling an owner does. */
 export class BudgetValidationError extends DomainOperationError {

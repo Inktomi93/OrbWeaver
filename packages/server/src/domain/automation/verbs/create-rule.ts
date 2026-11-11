@@ -24,7 +24,7 @@ import { assertRuleName, validateRuleInput } from "../substrate/validate.ts";
 /**
  * The verb's WRITE-NOTHING half: validate the payload and mint the row it would insert. Split out so
  * `createRuleFromPreset` can validate a whole set before its first write and then commit it in ONE batch
- * (#1427) WITHOUT a second write path — it is injected there exactly as the whole verb used to be, since a
+ * WITHOUT a second write path — it is injected there exactly as the whole verb used to be, since a
  * verb may not import a sibling verb. The scope's authority gate is deliberately NOT here: it is per-SCOPE,
  * not per-rule, and a set shares one scope, so each caller runs it once (see the two call sites).
  */

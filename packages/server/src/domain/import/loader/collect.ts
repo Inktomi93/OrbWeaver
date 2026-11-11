@@ -201,7 +201,7 @@ function isInfraFailure(error: unknown): boolean {
   return typeof code === "string" && code !== "ENOENT";
 }
 
-/** The shared catch-arm guard for every best-effort staged-file read below (#763): a `ProfileImportLimitError`
+/** The shared catch-arm guard for every best-effort staged-file read below: a `ProfileImportLimitError`
  *  always rethrows (pre-existing), and now an fs INFRASTRUCTURE failure rethrows too — tagged with the
  *  affected `path` + `operation` so the caller sees WHERE the import broke instead of silently continuing
  *  with an incomplete result that still reports success. A genuinely missing file or an unparseable
@@ -833,8 +833,8 @@ export async function collectBundlesFromDir(
       bundles.push({ ...g.card, chats: g.chats });
     } else if (g.chats.length > 0) {
       orphanChatDirs.push(handle);
-      // The orphan wave's input: the transcripts WITH their evidence (dir name + parsed headers) — before
-      // 2026-08-15 these chats were counted, named in the report, and then thrown away. The map key IS the
+      // The orphan wave's input: the transcripts WITH their evidence (dir name + parsed headers) — without
+      // it these chats would be counted, named in the report, and then thrown away. The map key IS the
       // collect-time handle (the same parse `collectChatsForDir` minted it through).
       orphanBundles.push({ dirName: g.dirName ?? handle, handle: characterHandleSchema.parse(handle), chats: g.chats });
     }

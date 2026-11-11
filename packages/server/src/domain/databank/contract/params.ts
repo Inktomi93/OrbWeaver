@@ -60,7 +60,7 @@ export interface ScrapeWrite extends DocumentIngestionParams {
    *  this is what picks the loader, now and for every future extractor version. */
   readonly mime: string;
   /** The mime the raw bytes are STORED under, when it must differ from {@link mime}. The asset mime is a
-   *  SERVING concern; #709 refuses an active document/script type as a stored asset (stored-XSS), so a
+   *  SERVING concern; the stored-XSS guard refuses an active document/script type as a stored asset (stored-XSS), so a
    *  scraper whose canon mime is one of those declares a neutral, magic-verifiable storage mime here.
    *  Defaults to {@link mime}. Nothing is lost: the bytes are byte-identical and re-extraction reads the
    *  document row, not the asset. */
@@ -77,7 +77,7 @@ export interface GetDocumentParams extends DatabankActorParams {
   readonly includeText?: boolean;
 }
 
-/** The library list's read, with EVERY lens the pane offers resolved SERVER-SIDE (owner ruling 2026-08-13,
+/** The library list's read, with EVERY lens the pane offers resolved SERVER-SIDE (owner ruling,
  *  the `character.list` precedent): a keyset page can only ever search/filter what it has fetched, so a
  *  client-side predicate over the loaded window is a claim the surface has no standing to make. The pane used
  *  to filter a ≤150-row sliding window by name and by ingest phase, so a term (or a health chip) that matched

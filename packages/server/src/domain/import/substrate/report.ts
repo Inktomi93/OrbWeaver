@@ -68,9 +68,9 @@ function worldLines(report: ImportReport): string[] {
   });
 }
 
-/** The regex-plane accounting (the silent-gap sweep, 2026-08-15): every plane renders its count EVEN AT
+/** The regex-plane accounting (the silent-gap sweep): every plane renders its count EVEN AT
  *  ZERO, so "read and empty" is distinguishable from "never looked at" — this exact plane used to vanish
- *  with no line at all (measured: 15 real preset-scoped scripts silently ignored on the 2026-08-15 run). */
+ *  with no line at all (measured: 15 real preset-scoped scripts silently ignored on a measured run). */
 function regexLines(report: ImportReport): string[] {
   const lines = [
     `Card-carried scripts (\`data.extensions.regex_scripts\`): ${report.cardRegexScriptsLifted + report.cardRegexScriptsReused} attached (${report.cardRegexScriptsLifted} new library rows, ${report.cardRegexScriptsReused} matched existing)`,

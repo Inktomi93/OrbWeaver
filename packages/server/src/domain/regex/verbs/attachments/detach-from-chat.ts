@@ -1,6 +1,6 @@
 // verb: detachFromChat — remove a room's script attachment. ROOM authority and ONLY room authority (the
 // injected `requireChatHost`); the script's OWNER is deliberately not re-checked, so the sitting host can
-// always clean their room — e.g. after a host handoff left a PRIOR host's script attached (#1739).
+// always clean their room — e.g. after a host handoff left a PRIOR host's script attached.
 // Idempotent: an already-absent row is `{detached:false}`, not a throw.
 //
 // WHY THE OWNERSHIP RE-CHECK CAME OUT. A chat-tier row belongs to the ROOM (D18 — chats carry no ownerId, so
@@ -29,9 +29,9 @@ export function createDetachFromChat(ctx: RegexContext): RegexService["detachFro
     if (detached) {
       await ctx.audit({ actorUserId, action: "regex.detachFromChat", entityType: "regex_script", entityId: scriptId, metadata: { chatId } }, at);
       ctx.emitUserEvent(actorUserId, { type: "regexChanged", scriptId });
-      // #1733 — the room plane (see attach-to-chat). Inside the `detached` guard: a no-op detach moved
+      // The room plane (see attach-to-chat). Inside the `detached` guard: a no-op detach moved
       // nothing, so it announces nothing. It is also the ONLY plane that reaches a detached PRIOR host's
-      // script (#1739): `regexChanged` is per-USER and fires to the actor, who may not be the row's owner.
+      // script: `regexChanged` is per-USER and fires to the actor, who may not be the row's owner.
       ctx.emitRoomRegexChanged(chatId);
     }
     return { detached };

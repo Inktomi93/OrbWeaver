@@ -77,7 +77,7 @@ type ResolvedRulePresetKnobs<TKnobs extends RulePresetKnobSchema> = {
 /** A preset definition, generic in its own knob schema so the builder's reads are compile-checked. */
 export interface RulePresetDef<TKnobs extends RulePresetKnobSchema = RulePresetKnobSchema> {
   readonly id: RulePresetId;
-  /** C5 — WHERE this preset's rules live. Absent ⇒ `"chat"`, which is every catalogue row but #20: the
+  /** C5 — WHERE this preset's rules live. Absent ⇒ `"chat"`, which is every catalogue row but §4 #20: the
    *  default is the shape 18 of 19 presets have, and spelling it on all of them would only make the ONE
    *  interesting value harder to see. The mint DERIVES the chat from this rather than trusting a caller to
    *  pair a preset with a compatible scope. */
@@ -232,7 +232,7 @@ const ENTRY_KEY_MAX = 256;
 /** A preset-authored lore note is a paragraph, not the 8 KiB `contentTemplate` ceiling. */
 const LORE_NOTE_MAX = 2000;
 
-/** #10's predicate: a rule that NEVER fires on its own. A manual run skips the predicate (it is the
+/** §4 #10's predicate: a rule that NEVER fires on its own. A manual run skips the predicate (it is the
  *  whether-to-fire-BY-ITSELF gate), so this is the honest spelling of "on demand only" — as opposed to a
  *  trigger that fires rarely, which would still fire eventually and surprise the room. */
 const NEVER_ON_ITS_OWN = "false";
@@ -266,7 +266,7 @@ const LAST_BEAT_VAR_KEY = "lastBeatMs";
  *  the recap. A private key keeps the ordering that decides this preset INSIDE this preset, where the mint
  *  controls it. */
 const NUDGE_BEAT_VAR_KEY = "nudgeBeatMs";
-/** #16's threshold floor. 0 would mean "re-dress on every read", which is the knob saying nothing. */
+/** §4 #16's threshold floor. 0 would mean "re-dress on every read", which is the knob saying nothing. */
 const NEEDLE_THRESHOLD_MIN = 1;
 /** `set_chat_background`'s own `instruction` cap (`automationActionSchema`) — the bias is one sentence about
  *  what the pick should look like, not the 4 KiB guided-template class. */
@@ -285,7 +285,7 @@ const LORE_ENTRIES_MIN = 1;
 const LORE_ENTRIES_MAX = 20;
 /** §4 #18's rate belt. A `worldInfoActivated` reaction TURN is a heavy autonomous interjection, and its own
  *  reply re-runs assembly and can re-activate the same lore. The self-chain is bounded by the engine's
- *  cascade-depth guard since #704 — `worldInfoActivated` now carries the generating turn's `automationDepth`
+ *  cascade-depth guard — `worldInfoActivated` carries the generating turn's `automationDepth`
  *  on the event (`substrate/fact-resolver.ts` reads it, no longer hardcoded 0), so a reaction's re-activation
  *  escalates toward the hard cap like any cascade. The cooldown is COMPLEMENTARY, not the sole defence: within
  *  the depth cap it still bounds PACE — a wall-clock gate (`engine/budget-gate.ts` reads `last_fired_at`) that
@@ -301,7 +301,7 @@ const SCENE_BACKGROUND_COOLDOWN_SECONDS = 300;
  *  character/face/multimodal modes need a subject + an avatar and are the `/imagine` surface's, not a
  *  standing rule's.
  *
- *  `free` WAS OFFERED HERE AND COULD NOT RUN (#655). This preset's arm carries no `prompt` — `free` is the
+ *  `free` WAS OFFERED HERE AND COULD NOT RUN. This preset's arm carries no `prompt` — `free` is the
  *  prompt-VERBATIM mode, and `generatePicture` refuses it outright when none is supplied
  *  (`domain/imagery/verbs/generate-picture.ts:90-92`, `'imagery: "free" mode requires a prompt'`), so a
  *  host who picked it minted a rule that raised an `action_error` on every single fire. Adding a prompt
@@ -319,9 +319,9 @@ const ILLUSTRATE_MODE_LABELS = {
 } as const satisfies { readonly [TMode in (typeof ILLUSTRATE_MODES)[number]]: string };
 
 // ── the catalogue ─────────────────────────────────────────────────────────────────────────────────────
-// §4 rows #1/#3/#10 (confirm-first + suggestion riders) are A4's; #8 rides A2's per-choice `mode` field;
-// #11/#15/#16 ride C1's `run_analysis` arm (#16 also rides the vars read proc its meter renders through);
-// #2/#14/#20 ride later phases. Everything else here is A3-riding.
+// §4 rows 1, 3 and 10 (confirm-first + suggestion riders) are A4's; §4 row 8 rides A2's per-choice `mode`
+// field; §4 rows 11, 15 and 16 ride C1's `run_analysis` arm (§4 row 16 also rides the vars read proc its
+// meter renders through); §4 rows 2, 14 and 20 ride later phases. Everything else here is A3-riding.
 
 /** §4 #1 — welcome-back recap (class 1; the CONFIRM-FIRST card). TWO rules, and the pair is the point:
  *  R1 stamps the wall-clock of every beat into a chat var (a per-beat counter, hence law 4's explicit high
@@ -391,7 +391,7 @@ const AUTO_ADD_LORE = defineRulePreset({
   ruleCount: 1,
   confirmFirst: true,
   knobs: {
-    // AN ENTITY REFERENCE, and it carries NO DEFAULT — the recorded widening, now built (#630). A lore
+    // AN ENTITY REFERENCE, and it carries NO DEFAULT — the recorded widening, now built. A lore
     // rule without a book is not a rule, and no value is the right book, so there is nothing to default
     // TO: the picker renders this as a chooser over the books THIS CHAT has attached, and an absent
     // choice refuses at the knob in the host's own noun ("choose a world book") rather than as a `""`
@@ -790,7 +790,7 @@ const STORY_PACING = defineRulePreset({
       help: "Rides every pass — e.g. “slow burn”, “keep it cozy”. Leave empty for none.",
       default: "",
       // The one text knob whose OWN semantics allow blank ("" = none, said above and in the arm's own
-      // `.optional()` schema with no `.min()`) — #1387.
+      // `.optional()` schema with no `.min()`).
       minLength: 0,
       maxLength: STEER_TEXT_MAX,
     },
@@ -828,7 +828,7 @@ const STORY_PACING = defineRulePreset({
  *
  *  Knobs: the SPAN FLOOR (the cadence — how many beats accrue between distill passes, so the settled span the
  *  pass reads is at least this deep) and the TARGET BOOK (the `entityRef` chooser over this chat's attached
- *  books, #630). Mint REFUSES an unattached book (`substrate/validate.ts` — the attach gate follows the origin,
+ *  books). Mint REFUSES an unattached book (`substrate/validate.ts` — the attach gate follows the origin,
  *  re-checked at confirm) and an active-game chat (D109; both inherited from the arm's own admission rows). */
 const DISTILL_LORE = defineRulePreset({
   id: "distillLore",
@@ -906,7 +906,7 @@ const RUMOR_MILL = defineRulePreset({
   ],
 });
 
-/** §4 #16 — THE NEEDLE (class 1; RULED 2026-08-24: it SHIPS, OFF BY DEFAULT). TWO rules, and the pair is the
+/** §4 #16 — THE NEEDLE (class 1; RULED: it SHIPS, OFF BY DEFAULT). TWO rules, and the pair is the
  *  whole feature: R1 is a `run_analysis` pass carrying ONLY the `vars` route, so every N beats the quiet
  *  analyst scores the scene's tension 0..`ANALYSIS_SCORE_MAX` into the one chat variable the client meter
  *  reads; R2 fires on the SAME beat, past a threshold, and re-dresses the room's backdrop.
@@ -1223,7 +1223,7 @@ const LIVING_LIBRARY = defineRulePreset({
   ],
 });
 
-/** §4 #17 — ILLUSTRATE ON LORE REVEAL (class 1; OPTIONAL — owner 2026-08-24, "everything optional gets
+/** §4 #17 — ILLUSTRATE ON LORE REVEAL (class 1; OPTIONAL — owner ruling, "everything optional gets
  *  included"). When a lore reveal surfaces on `worldInfoActivated`, illustrate the current scene: a
  *  non-quiet `generate_image` in `scenario` mode, posted into the room.
  *
@@ -1265,16 +1265,16 @@ const ILLUSTRATE_ON_LORE_REVEAL = defineRulePreset({
   ],
 });
 
-/** §4 #18 — REACT TO LORE ACTIVATION (class 1; OPTIONAL — owner 2026-08-24). A lore reveal on
+/** §4 #18 — REACT TO LORE ACTIVATION (class 1; OPTIONAL — owner ruling). A lore reveal on
  *  `worldInfoActivated` steers a guided narrator turn, so the fiction acknowledges what just surfaced.
  *
  *  ONE KNOB, the spec's "guided text" — the standing direction the narrator's reaction rides. The predicate
  *  is law 1's `has()` on the fact projection and nothing more: any reveal is a reaction cue, and the
- *  significance filtering that #17 does by count is left off here on purpose — a reaction is cheap attention
+ *  significance filtering that §4 #17 does by count is left off here on purpose — a reaction is cheap attention
  *  compared with an image, and the COOLDOWN, not a count, is what keeps it from dominating.
  *
  *  THE COOLDOWN BOUNDS PACE; the cascade-depth cap bounds RECURSION. A reaction TURN re-runs assembly and can
- *  re-activate the very lore that triggered it — and since #704 the engine's cascade-depth guard DOES catch
+ *  re-activate the very lore that triggered it — and the engine's cascade-depth guard DOES catch
  *  that loop: `worldInfoActivated` carries the generating turn's `automationDepth` on the event
  *  (`substrate/fact-resolver.ts` reads it, no longer hardcoded 0), so the re-activation escalates toward the
  *  hard cap. The cooldown is complementary — a wall-clock gate (`engine/budget-gate.ts`) that, with the 30/hr
@@ -1305,7 +1305,7 @@ const REACT_TO_LORE_ACTIVATION = defineRulePreset({
   ],
 });
 
-/** §4 #19 — AUTO-SET SCENE BACKGROUND (class 1; OPTIONAL — owner 2026-08-24). As the scene moves, quietly
+/** §4 #19 — AUTO-SET SCENE BACKGROUND (class 1; OPTIONAL — owner ruling). As the scene moves, quietly
  *  re-dress the room's backdrop over the author's own library — the `set_chat_background` autobg pick, a
  *  QUIET model choice among owned backgrounds, biased by the one knob.
  *
@@ -1319,7 +1319,7 @@ const REACT_TO_LORE_ACTIVATION = defineRulePreset({
  *
  *  THE COOLDOWN is what makes it a re-DRESS rather than a per-message flicker: without it the pick would run
  *  on every committed message. `set_chat_background` is NOT `SPEND_ARM_TYPES` (the quiet pick is cheap, ruled
- *  at #16), so this preset reads as FREE in the picker — but a re-pick every message is still noise, and the
+ *  at §4 #16), so this preset reads as FREE in the picker — but a re-pick every message is still noise, and the
  *  cooldown spaces it to the pace scenes actually shift at. */
 const AUTO_SET_SCENE_BACKGROUND = defineRulePreset({
   id: "autoSetSceneBackground",

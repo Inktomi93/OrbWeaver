@@ -6,7 +6,7 @@
 //   • THIS runs once, at boot, before the worker loop starts. Single replica means no worker survived, so
 //     every in-flight row is orphaned BY DEFINITION and re-queueing cannot double-run anything.
 //
-// WHY IT EXISTS (#529): a respawn is the NORMAL case here, not a catastrophe — `node --watch` re-execs the
+// WHY IT EXISTS: a respawn is the NORMAL case here, not a catastrophe — `node --watch` re-execs the
 // server on any watched-source write, which a merge, a manual restart and a gate fixture plant all trigger
 // (three worker-kills by that one mechanism in a single day). Marking every orphan `worker_died` meant a
 // multi-hour resumable backfill could not survive ANY respawn. A kind that DECLARES itself re-runnable
@@ -25,7 +25,7 @@
 //
 // A RE-QUEUE IS NOT A REAP and carries no reason — the row stays alive and its `error` is cleared. The two
 // arms that DO terminal a row are reaps, and they take their sentence from the shared `reap-record` dispatch
-// the steady-state reaper uses (#560): `worker_restart` for an orphan this build cannot re-queue, and
+// the steady-state reaper uses: `worker_restart` for an orphan this build cannot re-queue, and
 // `respawn_loop` for one that burned the bound. Each records the lease age OBSERVED before `markTerminal`
 // overwrites that column, so a boot death and a grace-window expiry stay distinguishable on the row forever.
 

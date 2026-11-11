@@ -14,7 +14,7 @@
 // whoever named the ids. The portability twin (`link-carried-books`) carries the same two gates.
 //   • CHARACTERS: both ids must be the caller's own (`bothOwned`) — a foreign source or target carries
 //     nothing at all.
-//   • BOOKS (#1516): the source's junction rows may point at world_books owned by SOMEONE ELSE
+//   • BOOKS: the source's junction rows may point at world_books owned by SOMEONE ELSE
 //     (`handoff-copy-write.ts`'s header says such rows exist in practice), so the carry SELECTS THROUGH
 //     `worldBooks.ownerId` and copies only the caller's own books. Without that predicate, owning the two
 //     characters was enough to mint the caller a fresh, durable reference to a stranger's book — a reader

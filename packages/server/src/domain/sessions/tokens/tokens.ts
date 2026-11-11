@@ -10,7 +10,7 @@ import type { SessionsCryptoOps } from "../contract/service.ts";
 // The token's hash is stored, never the token: an HMAC-peppered digest means a DB leak alone can't forge a
 // session.
 //
-// It also derives the OIDC id_token cipher key (#141) — the SAME `SESSION_SECRET`, a DIFFERENT purpose.
+// It also derives the OIDC id_token cipher key — the SAME `SESSION_SECRET`, a DIFFERENT purpose.
 // That lives here, beside the hasher, for the D38 reason the hasher itself lives here: keying material
 // derived from SESSION_SECRET is a sessions-resolution concern, not `infra/crypto`'s (infra owns the
 // CIPHER; this subsystem owns which key each session purpose gets).
@@ -61,8 +61,8 @@ export function createTokenHasher(pepper: string | null | undefined): (token: st
 }
 
 /**
- * #141 — the AES-256-GCM box the OIDC `id_token` is sealed into at rest, keyed by HKDF-SHA256 over the
- * SAME `SESSION_SECRET` the token hasher peppers with (owner ruling 2026-08-30: reuse the existing secret,
+ * The AES-256-GCM box the OIDC `id_token` is sealed into at rest, keyed by HKDF-SHA256 over the
+ * SAME `SESSION_SECRET` the token hasher peppers with (owner ruling: reuse the existing secret,
  * mint no new one) under this subsystem's own purpose label.
  *
  * The cipher is the injected `createSecretBox` (`infra/crypto`, wired at the root); this subsystem only derives its key.
