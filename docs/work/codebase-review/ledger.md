@@ -214,7 +214,7 @@ Review before anything that trusts these results.
 | tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | reviewed (5) |
 | tooling-unwired | tooling/src/unwired/ | M | reviewed (2) |
 | tooling-codemods | tooling/src/codemods/ | M | reviewed (3) |
-| tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | queued |
+| tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | reviewed (3) |
 | tooling-ui-facts | tooling/src/ui-facts/ | S | queued |
 
 ### Phase 3 — server below domain
@@ -330,8 +330,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
-| P2 | 18 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor, tooling-configs |
-| P3 | 32 | 17 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired, tooling-codemods |
+| P2 | 19 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor, tooling-configs, tooling-doc |
+| P3 | 34 | 17 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired, tooling-codemods, tooling-doc |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -424,3 +424,17 @@ selectively — three codemod dirs deleted in git history while eight applied on
 extinct pre-shapes sit uncited. The integrity item now covers a third artifact class: generated
 or planned data files (census maps, plan snapshots) committed without a consumer, which the
 codemod skill itself bans ("keep the map out of the commit").
+
+The tooling-doc unit found the D333 amputation fully unsutured and taught the sweep a new
+search: the dead-command dialect also wears GHOST COMMAND spellings, not just backticked
+policy names. Three nonexistent commands (`check:agents`, `check:docs`, `check:ledgers-fresh`)
+live in ~10 doc-tool sites including a refusal message and the formatter's own printed verb
+name, and "the five-slot cap" cited by seven tool cli headers is the deleted
+`tooling-slot-template` gate — its home doc died with it in 821e8f8dff, provenance proved from
+the transcript oracle. ADR 0164/0222 still describe the deleted checker as live: the ledger
+contradicts itself (0164 rejected `pnpm doc check`, D333 deleted the checker, leaving zero
+checkers where the law says one). Meanwhile the rules engine's best prose in the sweep
+(measured, dated, receipted) verified true claim for claim, and its surviving door — every
+write verb re-runs the full composition pre-write — is the enforcement nobody's header
+advertises. Triage sweep rule addition: diff `pnpm check:\w+` mentions in living prose against
+defined package.json scripts.
