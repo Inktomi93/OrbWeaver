@@ -41,7 +41,7 @@ const LOG_LEVELS = PLUGIN_LOG_LEVELS;
  *  `mirror` is called for every ACCEPTED (post-cap, post-clamp) line at PUSH time — the moment the guest writes
  *  it, not the moment something drains it. This is how a guest line reaches the process-wide pino stream (file
  *  log + the `/api/_debug/logs` ring) with no read in the path, including lines a floated continuation writes
- *  between invocations (#806). Never throws back into the guest: the port's impl is a plain call on the root's logger. */
+ *  between invocations. Never throws back into the guest: the port's impl is a plain call on the root's logger. */
 export interface LogMirror {
   readonly mirror: (level: PluginLogLevel, message: string) => void;
 }
@@ -50,7 +50,7 @@ export interface LogMirror {
  *  the host log by flooding). `drain()` is DESTRUCTIVE: it hands back every line pushed since the previous
  *  drain and empties the ring (budget included), so an invocation's outcome carries its own lines and a
  *  floated continuation's later lines wait for the NEXT drain instead of being thrown away — the old
- *  `reset()` at invocation start destroyed exactly those (#806). There is no reset any more: every reader
+ *  `reset()` at invocation start destroyed exactly those. There is no reset any more: every reader
  *  is a drain, and every drained line is retained by `port`'s runtime ring.
  *
  *  The volume bound is HARD, including for one line: an oversized message is CLAMPED to what is left of the
@@ -104,7 +104,7 @@ export class LogRing {
 // and kills the reading; `timeOrigin` is dropped with it. A FUTURE quickjs-ng bump that adds `crypto` /
 // `Temporal` / `Atomics` needs the same stub.
 //
-// EXPORTED (2026-08-30, #805) so a realm-faithful GUEST harness can evaluate the SAME denial text in a bare
+// EXPORTED so a realm-faithful GUEST harness can evaluate the SAME denial text in a bare
 // `node:vm` context: the card-atlas offline harness once "proved the adapters correct" against a stub realm
 // with a live `Date`, and `Date` was exactly the axis the real realm diverged on. One home for the denial —
 // a harness that imports it cannot drift from the realm it stands in for.
@@ -160,7 +160,7 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
   ctx.setProp(surface, "log", logObj);
 
   // tokens.count(text) — a FREE (always-granted) namespace: the pure, isomorphic `estimateTokens` engine
-  // computed host-side (#788 F13). Zero reach — a deterministic function of the guest's OWN string — so it needs
+  // computed host-side. Zero reach — a deterministic function of the guest's OWN string — so it needs
   // no capability and sits beside `log` in the determinism/utility floor. A non-string arg is estimated as the
   // empty string (0), the fail-safe projection the rest of this realm uses rather than a throw.
   using tokens = ctx.newObject();

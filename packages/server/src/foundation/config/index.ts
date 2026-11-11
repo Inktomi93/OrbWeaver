@@ -2,7 +2,7 @@
 // effective-config/ subsystem (docs/law/Tier-2-Foundation.md "does NOT own"). This tier keeps only the outbound
 // app IDENTITY strings.
 //
-// `APP_VERSION` IS GONE (2026-09-18, the build-identity work). It read `packages/server/package.json`'s
+// `APP_VERSION` IS GONE (the build-identity work). It read `packages/server/package.json`'s
 // `version` — a workspace manifest nobody bumps, permanently `0.0.0` — while the release number the owner
 // tags lives in the ROOT manifest. Two homes for one concept, and the wrong one was the one the tracer and
 // the `/api/_debug/config` probe reported. Both now read `#foundation/version`, the single derivation that

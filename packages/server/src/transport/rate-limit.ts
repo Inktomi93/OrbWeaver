@@ -4,7 +4,7 @@
 // constructed at the entry/ composition root and threaded onto ctx.rateLimit.
 //
 // The per-member COUNT budget that also rode this table was DELETED with D17's "local compute shared with
-// authenticated principals, count-budgeted" clause (@orb/inference §14 F11, owner word 2026-09-19).
+// authenticated principals, count-budgeted" clause (@orb/inference §14 F11, owner word).
 //
 // This is the one sanctioned server-side @orb/db importer in transport/ (dep-cruiser exempts exactly this
 // file path — do not make it a directory).

@@ -2,12 +2,12 @@
 // worker survived the restart, so EVERY in-flight row/held lock is orphaned by definition — the
 // steady-state reaper's heartbeat grace is wrong here. rate_limit buckets are self-expiring, skipped.
 //
-// ORPHANED ≠ LOST (#529). The mechanism above is unchanged — every in-flight row IS orphaned — but the
+// ORPHANED ≠ LOST. The mechanism above is unchanged — every in-flight row IS orphaned — but the
 // DISPOSITION is no longer uniformly terminal: `reclaimInFlightOnBoot` re-queues the orphans whose kind
 // declares itself re-runnable and reaps the rest, bounded by a respawn counter. `node --watch` re-execs the
 // server on any watched-source write, so a merge, a manual restart or a gate fixture plant used to kill a
 // multi-hour backfill outright (three such kills in one day). The rows it DOES reap keep the restart-class
-// attribution (#560) — the reclaim stamps them through the same shared reap sentences the steady-state sweep
+// attribution — the reclaim stamps them through the same shared reap sentences the steady-state sweep
 // uses, so a boot death never reads as a stale heartbeat.
 
 import type { BootDatabaseHandle } from "@orb/db/wiring";

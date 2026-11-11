@@ -16,7 +16,7 @@
 // `owner` about it — the request principal and the frozen-host principal then disagreed about the same
 // caller, and the capability surface and the actual turn silently picked different models.
 //
-// THE CENSUS BEHIND THAT ABSOLUTE (re-derived 2026-08-07 over every `via:"fallback"` Principal literal in
+// THE CENSUS BEHIND THAT ABSOLUTE (re-derived over every `via:"fallback"` Principal literal in
 // `packages/server/src`, because an unqualified absolute is what the next cold agent trusts INSTEAD of
 // re-sweeping). Elevating stamps: NONE — `entry/compose/role-clients.ts` was the last one and now mints
 // through `createHostPrincipalResolver` (D135 clause G), and `entry/lifecycle.ts`'s boot-seed Principal
@@ -29,7 +29,7 @@
 // (`hasCsrfHeader`, spine invariant 9).
 //
 // The seam also owns ONE verdict beside the mint: `debugGateAdmits` — whether the /api/_debug door opens for
-// the principal this file already minted for the request. It RESOLVES NOTHING (#1193): a second, peer-less
+// the principal this file already minted for the request. It RESOLVES NOTHING: a second, peer-less
 // resolution at that door is what closed it to the owner's own dev session. It is OWNER-only, deliberately
 // narrower than every other privileged surface in the app (D17 — see the verdict's own doc).
 
@@ -60,7 +60,7 @@ export interface AuthSeamDeps {
   readonly config: AuthConfig;
   /**
    * Does THIS deployment's un-credentialed loopback owner fallback count as the operator's credential at the
-   * /api/_debug door (#1193)? The RULE is not decided here and has one home —
+   * /api/_debug door? The RULE is not decided here and has one home —
    * `foundation/env::resolveOwnerFallbackCredential` — because it is a fact about how the box was launched
    * (NODE_ENV × AUTH_FALLBACK), not about a request. `entry/lifecycle.ts` passes the resolved
    * value; a seam constructed without it (unit tests, the int harness, any future embedder) gets the STRICT
@@ -76,7 +76,7 @@ export interface AuthSeamDeps {
 }
 
 /** Per-request knobs. `peerIp` is the raw TCP peer socket address that TWO gates match against — the
- *  forward-header trusted-proxy gate AND, since #298 f2, the loopback gate on the un-credentialed owner
+ *  forward-header trusted-proxy gate AND the loopback gate on the un-credentialed owner
  *  fallback (`ownerFallbackAllowed`). Absent ⇒ BOTH fail closed (anti-spoof: never a forwarded header). */
 export interface PerRequestSeamDeps {
   readonly onSessionSlide?: (expiresAt: number) => void;
@@ -192,12 +192,12 @@ async function resolveHeaderOrFallbackPrincipal(
     return null;
   }
   if (res.via === "fallback") {
-    // The fallback ADMITS the owner (the LOOPBACK-peer gate is the security boundary — `ownerFallbackAllowed`,
-    // #298 f2); it does not GRANT a role. Ensure the owner's row exists, then mint through the same
+    // The fallback ADMITS the owner (the LOOPBACK-peer gate is the security boundary — `ownerFallbackAllowed`);
+    // it does not GRANT a role. Ensure the owner's row exists, then mint through the same
     // row→Principal mapper the frozen-host bridge uses, so both principals for one user read one column
     // (D135) — plus the `enabled` gate every REQUEST arm applies (`null` ⇒ anonymous ⇒ transport 401).
     //
-    // BREAK-GLASS (owner ruling 2026-08-19): production runs AUTH_MODE=oidc + AUTH_FALLBACK=deny, so this arm
+    // BREAK-GLASS (owner ruling): production runs AUTH_MODE=oidc + AUTH_FALLBACK=deny, so this arm
     // is OFF in daily use — the owner logs in via SSO (the owner row is seeded at boot by `entry/boot/seed-owner.ts`
     // at role=owner+enabled, so deny+oidc can never lock the owner out at first-run; it is claim-driven, not
     // fallback-driven). This arm is the on-box RECOVERY door for when SSO/Authentik is down: on the box, set
@@ -298,8 +298,8 @@ function createFallbackPrincipalResolver(sessions: Pick<SessionsService, "loadUs
 }
 
 /**
- * Which `Principal.via` provenances count as a CREDENTIAL at the debug gate (AUTHFIX-2, closed 2026-08-07;
- * amended for the fallback and header arms 2026-09-02, #1193).
+ * Which `Principal.via` provenances count as a CREDENTIAL at the debug gate (AUTHFIX-2, amended
+ * for the fallback and header arms).
  *
  * A POSITIVE allow-list, deliberately not a `via === "fallback"` negative check: the mapped `Record` is
  * exhaustive over the union, so a fourth provenance added later is a `tsc` ERROR here rather than silently
@@ -307,17 +307,17 @@ function createFallbackPrincipalResolver(sessions: Pick<SessionsService, "loadUs
  * built PER REQUEST rather than frozen at module scope because two of the three arms are facts about the
  * request/deployment, not about the word `via`.
  *
- * `fallback` — THE #1193 AMENDMENT. AUTHFIX-2's absolute ("an ORIGIN is not a credential") closed a hole
- * where anyone who could reach the port and forge `Host: 127.0.0.1` read the whole db; #298 f2 then re-based
+ * `fallback` — THE FALLBACK AMENDMENT. AUTHFIX-2's absolute ("an ORIGIN is not a credential") closed a hole
+ * where anyone who could reach the port and forge `Host: 127.0.0.1` read the whole db; the loopback gate re-bases
  * the arm on the raw LOOPBACK TCP PEER, which a forged header cannot reach. What was left was a door closed
  * to its only user: on a DEV box the fallback IS how the operator authenticates — the same request this gate
- * refused was already being served as `role:"owner"` on every tRPC surface (proven live 2026-09-02: an
+ * refused was already being served as `role:"owner"` on every tRPC surface (proven live: an
  * un-credentialed loopback GET of `sessions.me` answered `globalRole: "owner"` while `/api/_debug/info`
  * answered 401). The rule that decides WHERE that holds is not spelled here: it is
  * `foundation/env::resolveOwnerFallbackCredential`, arriving as `deps.ownerFallbackIsOperatorCredential`.
  * PRODUCTION always resolves `false` — `single-user` and break-glass included — because a same-host proxy
  * makes every external request a loopback peer there, and this door holds more than the app does.
- * DNS REBINDING on a dev box is an ACCEPTED POSTURE (owner ruling 2026-09-04, #1233): a page open in the
+ * DNS REBINDING on a dev box is an ACCEPTED POSTURE (owner ruling): a page open in the
  * operator's own browser is a loopback peer too, so it can drive the fallback arm (and this third arm)
  * cross-site. The loopback-only bind is the boundary; no `Host`/`Origin` check is added on the dev path.
  * PRODUCTION never mints the arm, so the posture is dev-only by construction, not by vigilance.
@@ -380,7 +380,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * every arm's WHY lives), and that credential's principal satisfies `can(p,'owner',global)` — i.e. `role`
    * is `owner` (D17), asked through the ONE kernel's boolean form.
    *
-   * IT IS OWNER-ONLY, NOT `isAdmin` (2026-09-20). This door is BOX-OPERATOR scope, and D17 splits the two
+   * IT IS OWNER-ONLY, NOT `isAdmin`. This door is BOX-OPERATOR scope, and D17 splits the two
    * global roles by exactly that: `owner` is the single box holder; `admin` is DELEGATED in-app authority
    * that cannot reach owner-only resources, and an actor's inference connections belong to the principal who
    * configured them with no owner credential inherited by another principal. What sits behind the gate is not
@@ -397,7 +397,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * over. The headless `x-debug-token` arm is untouched — that is the operator credential a deployment
    * hands out deliberately, and it never rides a browser's ambient cookie.
    *
-   * IT JUDGES, IT DOES NOT RESOLVE (#1193). The principal is the one `resolvePrincipal` already minted for
+   * IT JUDGES, IT DOES NOT RESOLVE. The principal is the one `resolvePrincipal` already minted for
    * this request in `entry/app.ts`'s middleware — spine invariant #2, "resolve once". The old shape re-ran
    * the whole resolution from bare headers with NO `PerRequestSeamDeps`, so the gate silently asked a
    * DIFFERENT question than the rest of the app: with no `peerIp`, `ownerFallbackAllowed` fail-closed and the
@@ -405,7 +405,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * dev session got 401 from a door meant for exactly that human. Keeping this a pure verdict over a
    * principal is what stops a second, peer-less resolution from ever growing back.
    *
-   * THE CREDENTIAL CONDITION IS LOAD-BEARING, NOT BELT-AND-BRACES (AUTHFIX-2, closed 2026-08-07). Without
+   * THE CREDENTIAL CONDITION IS LOAD-BEARING, NOT BELT-AND-BRACES (AUTHFIX-2). Without
    * any credential test this returned `true` for ANY resolvable principal, and since the arm runs BEFORE the
    * token check, `/api/_debug/*` served with no cookie and no `DEBUG_TOKEN` to anyone who could reach the
    * port and send `Host: 127.0.0.1`. Note what that means for the token: because the admin arm short-circuits

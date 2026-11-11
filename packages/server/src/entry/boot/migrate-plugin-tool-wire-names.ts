@@ -1,4 +1,4 @@
-// Boot step: the #1391 plugin tool WIRE-NAME migration (owner-ruled 2026-09-05) — the composition point for a
+// Boot step: the plugin tool WIRE-NAME migration (owner-ruled) — the composition point for a
 // rewrite whose knowledge and whose storage live in three different domains.
 //
 // THE ROW. `pluginToolWireName` flattened an install slug's `-` to `_`, which is not injective: `("foo-bar",
@@ -47,7 +47,7 @@ export interface MigratePluginToolWireNamesDeps {
 }
 
 /**
- * Re-prefix every persisted plugin tool wire name the #1391 injective mint renamed. Returns the total number
+ * Re-prefix every persisted plugin tool wire name the injective mint renamed. Returns the total number
  * of names rewritten across both tables — 0 on every boot after the first, on a box with no hyphen-slugged
  * plugin installed, and on one where every hyphenated slug is ambiguous.
  *

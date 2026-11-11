@@ -1,4 +1,4 @@
-// Boot step: the #1649 host-handoff offer vocabulary DATA migration (owner-ruled 2026-09-05, arm (a)).
+// Boot step: the host-handoff offer vocabulary DATA migration (owner-ruled, arm (a)).
 //
 // It is a boot step rather than a `0000_baseline.sql` line because the rename carries NO DDL — the column is
 // plain TEXT and only the JSON KEY inside it moved (`$.copyCast` → `$.copyCharacters`). A baseline regen

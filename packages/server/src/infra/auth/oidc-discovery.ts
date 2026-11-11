@@ -1,4 +1,4 @@
-// infra/auth/oidc-discovery — the SINGLE-FLIGHT issuer-discovery cache (#762, owner ruling 2026-08-30).
+// infra/auth/oidc-discovery — the SINGLE-FLIGHT issuer-discovery cache (owner ruling).
 //
 // Discovery is one unauthenticated HTTPS round-trip to the IdP's well-known document, memoized for the
 // life of the process. It lives here rather than at `entry/lifecycle.ts` because it is external I/O with a

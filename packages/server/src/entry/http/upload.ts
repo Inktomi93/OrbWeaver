@@ -5,7 +5,7 @@
 //   • POST /api/assets/upload — a single asset file → assets.store({ enforceMagic:true, maxBytes }).
 //   • POST /api/import — character-card file(s) → delegates to entry/import/run-profile-import.
 //   • POST /api/import/restore-card-lorebook — ONE card file → re-asserts its embedded lorebook over the
-//     character those bytes imported as (#1598; a plain re-upload keeps the owner's edited book instead).
+//     character those bytes imported as (a plain re-upload keeps the owner's edited book instead).
 //
 // The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
 
@@ -97,7 +97,7 @@ async function fileBytes(file: File): Promise<Uint8Array> {
 /** Auth-first + CSRF gate, run as middleware before the body-limit belt so an anonymous/cross-site caller
  *  is rejected before a single body byte is read.
  *
- *  CSRF keys on the AMBIENT-credential arms, `via !== "header"` (#300): both `cookie` (the browser auto-sends
+ *  CSRF keys on the AMBIENT-credential arms, `via !== "header"`: both `cookie` (the browser auto-sends
  *  the session cookie) and `fallback` (the loopback owner arm — the browser "auto-sends" its loopback socket)
  *  are forgeable by a cross-site page, so a mutation on either MUST carry the custom `x-orb-csrf` header a
  *  cross-origin `fetch` cannot set without a preflight the app never grants. Only `via:"header"` (a trusted
@@ -233,7 +233,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     }
   });
 
-  // #1598 — the explicit restore. ONE card file, the same belts as the batch import (auth → CSRF → body cap).
+  // The explicit restore. ONE card file, the same belts as the batch import (auth → CSRF → body cap).
   // Every refusal (unreadable card, no embedded book, no character imported from these exact bytes) comes back
   // as the verb's own operator-facing sentence with a 400, never a throw: the door renders what the domain said.
   app.post(PORTABILITY_ROUTES.restoreCardLorebook, authCsrfGuard, bodyCap(IMPORT_MAX_TOTAL_BYTES), async (c) => {

@@ -12,7 +12,7 @@
 // (redirect) → callback: binding cookie must match `state` (login CSRF) → consume the PKCE txn → the injected
 // code→token `exchange` → claims → provisionIdentity → mint cookie. Registered only when `OidcRoutesDeps` is
 // supplied. The two I/O round-trips (discovery and the token exchange) both arrive as INJECTED deps
-// (#762 / #867) — this file performs no HTTP to the IdP itself, which is what makes the whole callback
+// — this file performs no HTTP to the IdP itself, which is what makes the whole callback
 // drivable in-process by a test.
 //
 // Origin-flexible callback: the redirect_uri is derived per-request from the origin and accepted only if
@@ -183,7 +183,7 @@ type OidcExchangeResult =
   | {
       readonly ok: true;
       readonly claims: { readonly [claim: string]: unknown } | undefined;
-      /** #141 — the RAW verified ID token, carried straight to `sessions.create` which seals it at rest.
+      /** The RAW verified ID token, carried straight to `sessions.create` which seals it at rest.
        *  It is a SECRET: it is never logged, never put in a response body, and never held past the mint. */
       readonly idToken: string | null;
     }
@@ -193,13 +193,13 @@ type OidcExchangeResult =
  *  nonce / state mismatch, or a transient IdP/network fault) into a fail-closed result — never a 500 that
  *  leaks a stack path through the observability onError. On the error path the caller mints no session.
  *
- *  #867 — THE EXCHANGE ITSELF IS INJECTED (`OidcRoutesDeps.exchange`, wired to the real `openid-client`
+ *  THE EXCHANGE ITSELF IS INJECTED (`OidcRoutesDeps.exchange`, wired to the real `openid-client`
  *  `authorizationCodeGrant` at the composition root). THIS function keeps the fail-closed conversion and the
  *  sanitizer, so a test's fake exchange cannot route around either: whatever it throws lands in the same
  *  catch, and whatever code it carries is sanitized by the same `[a-z_]{1,64}` gate before it can reach a
  *  Location header.
  *
- *  The ID token comes back alongside the claims (#141) rather than being re-derived later: the exchange has
+ *  The ID token comes back alongside the claims rather than being re-derived later: the exchange has
  *  already validated the issuer, audience, nonce and code-flow checks, and this is the only moment the raw
  *  compact JWT exists in the process. */
 async function exchangeCodeForClaims(exchange: OidcExchange, config: Configuration, callbackUrl: URL, tx: OidcTransaction): Promise<OidcExchangeResult> {
@@ -321,7 +321,7 @@ const ID_TOKEN_HINT_PARAM = "id_token_hint";
 const POST_LOGOUT_REDIRECT_PARAM = "post_logout_redirect_uri";
 
 /**
- * #141 — the post-logout return target, derived from the ALREADY-VALIDATED OIDC callback origin.
+ * The post-logout return target, derived from the ALREADY-VALIDATED OIDC callback origin.
  *
  * This is an OPEN-REDIRECT-SHAPED parameter (we hand the IdP a URL and it navigates the user's browser
  * there), so it is never built from a raw request header. `deriveRedirectUri` resolves the request's origin
@@ -357,9 +357,8 @@ function postLogoutRedirectUri(headers: Headers, transport: RequestTransport, al
  * `post_logout_redirect_uri` is present AND the provider has ANY registered post-logout URI, a missing
  * `id_token_hint` raises `invalid_request`/`id_token_hint_missing` → a 400 page. That raise happens BEFORE
  * the flow planner, so the invalidation flow never runs: the IdP's access tokens are not deleted, the logout
- * stage never fires, and THE SSO SESSION SURVIVES (regression #437 — a redirect param alone is strictly
- * WORSE than sending nothing, which is what #141's first attempt, 76cf663ba4, shipped and why it was
- * reverted).
+ * stage never fires, and THE SSO SESSION SURVIVES (a redirect param alone is strictly
+ * WORSE than sending nothing).
  *
  * So there are exactly three shapes this returns, and no fourth is constructible here:
  *   • HINT + REDIRECT — the session carried an id_token AND the request origin is allowlisted. The IdP
@@ -395,7 +394,7 @@ async function resolveEndSessionUrl(
       return null;
     }
     if (hint === null) {
-      // No hint ⇒ BARE. Not "hint omitted, redirect kept" — that shape is the #437 regression.
+      // No hint ⇒ BARE. Not "hint omitted, redirect kept" — that shape keeps the SSO session alive.
       return endpoint;
     }
     const url = new URL(endpoint);
@@ -415,7 +414,7 @@ export interface AuthSessionsPort {
   /** Narrowed on purpose: the mint routes set the cookie from `token` and `expiresAt` and never read `sessionId`. */
   readonly create: (params: Parameters<SessionsService["create"]>[0]) => Promise<Pick<Awaited<ReturnType<SessionsService["create"]>>, "token" | "expiresAt">>;
   /** Returns WHICH session ended plus that session's OIDC end-session hint (`null` = already gone) so the
-   *  route can evict that session's sockets and build the `id_token_hint` end-session URL (#141). */
+   *  route can evict that session's sockets and build the `id_token_hint` end-session URL. */
   readonly revokeByToken: SessionsService["revokeByToken"];
   /** `options` carries the caller-resolved admission decisions (A1 JIT gate, A2 approval, the owner-claim proof).
    *  The OIDC callback resolves them; the verb stays mode-agnostic. */
@@ -433,7 +432,7 @@ export interface AuthSessionsPort {
  * at entry, rather than inside `domain/sessions` — the cake is one-directional and a domain may not import
  * transport; entry already holds both halves.
  *
- * TWO GRANULARITIES, both owner-ruled (F4, 2026-08-14):
+ * TWO GRANULARITIES, both owner-ruled (F4):
  *   • `evictSession` for LOGOUT — signing out on the phone must not close the desktop's stream. The cost of
  *     the granularity (threading a session identity from the seam to the socket cell) was put on the table
  *     explicitly and accepted; it is paid BESIDE the Principal, so D135's one-home role verdict is untouched.
@@ -489,7 +488,7 @@ export interface OidcClaimMap {
 export interface OidcRoutesDeps {
   readonly rolePolicy: SessionsRolePolicy;
   readonly getConfig: () => Promise<Configuration>;
-  /** #867 — the code→token exchange, injected so the callback's happy path is drivable without an IdP.
+  /** The code→token exchange, injected so the callback's happy path is drivable without an IdP.
    *  Production wires `infra/auth`'s `createOidcExchange(authorizationCodeGrant)` — the real grant — at
    *  `entry/http/oidc.ts`. REQUIRED, deliberately: an optional dep would make "no exchange configured"
    *  a silently loginless OIDC box, and a defaulted one would let a mis-wired root fall back to
@@ -988,7 +987,7 @@ export function registerAuthRoutes(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps
     // different token than the one that authenticated the request, leaving the live session un-killable.
     const transport = requestTransport(c, trustedProxies);
     const token = readSessionCookie(c.req.raw.headers, transport);
-    // #141 — the ended session's OIDC end-session hint, held ONLY long enough to build the URL below. It is
+    // The ended session's OIDC end-session hint, held ONLY long enough to build the URL below. It is
     // scoped to this handler and reaches no log, no audit field, and no response field of its own.
     let endSessionHint: string | null = null;
     if (token !== null) {
@@ -1003,7 +1002,7 @@ export function registerAuthRoutes(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps
       }
     }
     writeSetCookies(c, serializeClearedSessionCookies());
-    // #141 — this body can now carry the session's `id_token_hint` inside the end-session URL, so it is a
+    // This body can now carry the session's `id_token_hint` inside the end-session URL, so it is a
     // token-bearing response. POSTs are not cached by default, but say so explicitly rather than relying on
     // that: no shared cache, no disk copy, no back-button replay of a hint the row no longer holds.
     c.header("Cache-Control", "no-store");
@@ -1193,7 +1192,7 @@ function registerOidcRoutes(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, oidc:
     const session = await deps.sessions.create({
       userId: provisioned.userId,
       userAgent: c.req.header("user-agent") ?? null,
-      // #141 — the verified id_token rides into the session row (sealed by the verb) so THIS session's own
+      // The verified id_token rides into the session row (sealed by the verb) so THIS session's own
       // logout can present it as `id_token_hint`. An IdP that omitted it degrades to a bare end-session URL.
       oidcIdToken: login.idToken,
     });
@@ -1234,7 +1233,7 @@ function registerOidcRoutes(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, oidc:
       );
       return loginErrorRedirect(c, exchange.code);
     }
-    // #699 — the usable-identity gate refuses both no-username AND no-stable-subject logins (`oidcSessionIdentity`).
+    // The usable-identity gate refuses both no-username AND no-stable-subject logins (`oidcSessionIdentity`).
     const identity = oidcSessionIdentity(exchange.claims, oidc.claims, oidc.groupsSeparator, {
       governanceActive: oidc.rolePolicy.groupRoleGovernanceActive(),
       logger: deps.logger,
@@ -1493,7 +1492,7 @@ function registerBackchannelLogout(
   );
 }
 
-/** THE group-name normalisation, shared by both claim shapes (#1478 item 4): trim each name, drop the
+/** THE group-name normalisation, shared by both claim shapes: trim each name, drop the
  *  empties. It is ONE function because the CONFIG side is trimmed everywhere it is parsed (`csv()` for
  *  OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS / OWNER_HANDLES, and `isOwnerByPolicy` for OWNER_GROUP) and the
  *  comparison against it is EXACT — so a name normalised on one side and not the other silently matches
@@ -1507,8 +1506,8 @@ function cleanGroupNames(names: readonly string[]): string[] {
  *  configured separator (an authentik property mapping may emit a ';'-joined string) — a string with no
  *  separator is one group. Both shapes then go through {@link cleanGroupNames}. Anything else ⇒ []. Before
  *  A4, a joined string yielded [], which under `OIDC_ALLOWED_GROUPS` denied EVERY login (a fail-closed
- *  misconfiguration that reads like a broken IdP); before #1478 the ARRAY branch skipped the trim, so a
- *  padded member of an array-shaped claim matched no configured name either. */
+ *  misconfiguration that reads like a broken IdP); an ARRAY branch that skips the trim lets a
+ *  padded member of an array-shaped claim match no configured name either. */
 function normalizeGroups(raw: unknown, separator: string): string[] {
   if (Array.isArray(raw)) {
     return cleanGroupNames(raw.filter((g): g is string => typeof g === "string"));
@@ -1558,7 +1557,7 @@ function readClaimPath(claims: { readonly [claim: string]: unknown }, path: stri
  *  is absent/empty. Claim names are injected (`OidcClaimMap`) so a non-authentik IdP maps without a code
  *  change; each name may be a nested dot-path.
  *
- *  #34 — THIS IS ALSO THE CONFIG-TIER SIGNAL FOR A SILENTLY-DISABLED CONTROL. `externalId` is the identity
+ *  THIS IS ALSO THE CONFIG-TIER SIGNAL FOR A SILENTLY-DISABLED CONTROL. `externalId` is the identity
  *  key, and the bind-once takeover refusal (`isSubjectMismatch`, `domain/sessions/verbs/provision-identity`)
  *  is scoped to SUBJECT-BEARING logins on purpose — a null subject carries no claim that could contradict a
  *  row's binding, so the guard cannot fire and a handle match walks onto whatever row holds that handle. In
@@ -1567,7 +1566,7 @@ function readClaimPath(claims: { readonly [claim: string]: unknown }, path: stri
  *  `OIDC_UID_CLAIM` names a claim this IdP does not emit. This mapper is the oidc-only seam (forward-header
  *  resolves in `infra/auth/modes/forward-header.ts`), so the warn is mode-scoped by construction.
  *
- *  THE SECURITY EVENT IS OBSERVABILITY; THE REFUSAL LIVES AT THE CALLBACK (#699, 2026-08-25). This function
+ *  THE SECURITY EVENT IS OBSERVABILITY; THE REFUSAL LIVES AT THE CALLBACK. This function
  *  still returns a byte-identical identity with or without the warn — it must, because it is a pure mapper and
  *  refusing here would conflate the diagnosis with the decision. But the box no longer "runs guard-less for
  *  every login": the OIDC callback that owns this mapper now refuses a null-`externalId` identity outright
@@ -1615,7 +1614,7 @@ function identityFromClaims(
   }
   const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
   const groups = normalizeGroups(rawGroups, groupsSeparator ?? ";");
-  // #140 — the claim's ARRIVAL (or its absence) is recorded HERE, the last point at which "the IdP emitted
+  // The claim's ARRIVAL (or its absence) is recorded HERE, the last point at which "the IdP emitted
   // nothing" and "the IdP emitted an empty list" are still distinguishable; `ResolvedIdentity.groups` folds
   // both to `[]`.
   const usableGroups = groupsClaimIsUsable(rawGroups);
@@ -1650,10 +1649,10 @@ function identityFromClaims(
 }
 
 /**
- * #699 — THE OIDC CALLBACK'S USABLE-IDENTITY GATE, fail-closed. Returns the mapped identity ONLY when it can
+ * THE OIDC CALLBACK'S USABLE-IDENTITY GATE, fail-closed. Returns the mapped identity ONLY when it can
  * key a session, else `null`:
  *   • no usable username — `identityFromClaims` already returned `null` (no identity at all).
- *   • NO STABLE SUBJECT (`externalId === null`) — the #699 refusal. `externalId` is the identity key, and the
+ *   • NO STABLE SUBJECT (`externalId === null`) — the no-subject refusal. `externalId` is the identity key, and the
  *     bind-once takeover refusal (`isSubjectMismatch`, `domain/sessions/verbs/provision-identity`) is
  *     structurally inert for a null-subject login — it has no subject to contradict — so provisioning would
  *     fall through to a HANDLE match and authorize whatever row holds that handle, including one already bound

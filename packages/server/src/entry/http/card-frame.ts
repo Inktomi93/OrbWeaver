@@ -23,15 +23,15 @@
 //     D294 uses to grant the tierB sandbox).
 //     Both media grants are re-resolved on every SERVE and only ever narrowed (see the GET below).
 //   • the SCRIPT POSTURE ⇐ the TOP step of that same ladder AND the deployment `allowInteractiveCards`
-//     ceiling (#111 legs 1+3) AND the viewer's own `chat.runCardScripts` consent — `interactive` only when
+//     ceiling AND the viewer's own `chat.runCardScripts` consent — `interactive` only when
 //     ALL THREE say yes, `static` otherwise and on every selector failure. It selects which `CardFramePosture`
 //     the response policy is built through and is echoed as `granted.interactive`. Since leg 3 this is a real capability: the interactive arm emits
 //     `script-src 'unsafe-inline'` and the card's own scripts execute inside the opaque-origin sandbox.
 //     What that does and does NOT reach — including residual R1, an unclosable WebRTC beacon — is measured
 //     and recorded in `@orb/kit/card-frame`.
 //
-// ACCEPTED RESIDUAL, stated because it cannot be checked from here: a caller may name a TRUSTED (or, since
-// #111 leg 3, an INTERACTIVE) sibling character for a card actually authored by a lesser one in the SAME
+// ACCEPTED RESIDUAL, stated because it cannot be checked from here: a caller may name a TRUSTED (or an
+// INTERACTIVE) sibling character for a card actually authored by a lesser one in the SAME
 // room, and the frame is then built with the named character's policy. RE-WEIGHED at the leg-3 grant, since
 // the blast radius stopped being "an image load" and became "that card's scripts run":
 //   • no CHARACTER can reach it. Both live mint sites pass the message row's own `characterId` straight
@@ -163,7 +163,7 @@ async function resolvePolicy(
       // ladder, so an interactive card is a trusted card by construction and cannot lose the door.
       allowInlineData: rendersTrustedHtml(policy.htmlTrust),
     },
-    // THE PER-DOCUMENT POSTURE SELECTION (#111 leg 1), now a real capability (leg 3): the interactive arm
+    // THE PER-DOCUMENT POSTURE SELECTION, now a real capability (leg 3): the interactive arm
     // emits `script-src 'unsafe-inline'` and the card's own scripts RUN. Read through the ladder's one
     // predicate rather than a second boolean, off the server's own membership-gated roster value — the mint
     // body cannot name it (the request is a SELECTOR, never a policy, and `strictObject` rejects a smuggled

@@ -142,7 +142,7 @@ function shouldBlockEgress(address: string, target: Omit<ConnectJudgment, "decla
 // write): a removed entry closes by its ABSENCE from the next publish, never persisted into env, and a
 // replica that has not published yet fails CLOSED (empty admits nothing).
 //
-// THE PORT ARM — least privilege, strictly additive (2026-09-20). A BARE entry admits its subject at EVERY
+// THE PORT ARM — least privilege, strictly additive. A BARE entry admits its subject at EVERY
 // port, exactly as before: no deployment that never writes a port changes behaviour. An entry that DOES
 // name a port admits that host at those ports and no other, which is what an operator needs on a shared
 // box — admitting `127.0.0.1` so a member can reach Ollama also admits `:22` and `:5432` to anyone who can
@@ -1122,7 +1122,7 @@ function isIpLiteralHost(hostname: string): boolean {
  *
  *  COUPLED SITE — `netHostSchema` in `@orb/contracts/plugin` (manifest `netHosts`): (a) plugin manifests are
  *  validated with `z.hostname()`, which REFUSES the leading-dot form, so the wildcard arm below is reachable
- *  only from OUR OWN call sites, never from a plugin bundle (before 2026-08-02 a charset regex let a manifest
+ *  only from OUR OWN call sites, never from a plugin bundle (a charset regex would let a manifest
  *  declare `.com` and reach every `.com` host); (b) the `entry.toLowerCase()` here is what makes that schema's
  *  case-insensitivity safe — an uppercase manifest entry resolves to the same host as its lowercase spelling.
  *  Dropping either normalization means re-pinning the schema. */

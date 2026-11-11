@@ -20,7 +20,7 @@ const WASM_MAX_MEBIBYTES = 48;
  *
  *  A SPAN, not an invocation: the same number bounds the invocation AND each POST-invocation job pump, because
  *  a guest continuation resumed when a fire-and-forget host call settles is guest bytecode too — and a pump
- *  that ran it with no handler installed was #781, a whole-process DoS. `cpu-guard.ts` states the window
+ *  that ran it with no handler installed is a whole-process DoS. `cpu-guard.ts` states the window
  *  mechanics (one context-lifetime handler, nested windows narrow and restore). The aggregate is therefore
  *  bounded by `HOST_CALLS_IN_FLIGHT_MAX` × this, not by this alone. */
 export const PLUGIN_INVOCATION_CPU_MS = 1000;
@@ -113,11 +113,11 @@ export const HOST_FN_RESULT_CAP_BYTES = 1_048_576;
  *  as a CONTAINED result-cap refusal (never a leak). LEAN — tune against measured plugin API sizes. */
 export const PLUGIN_NET_MAX_BYTES = 1_000_000;
 
-/** `net.fetchAsset` download byte cap — SPLIT from {@link PLUGIN_NET_MAX_BYTES} (#801, the belt-split's size
+/** `net.fetchAsset` download byte cap — SPLIT from {@link PLUGIN_NET_MAX_BYTES} (the belt-split's size
  *  sibling). The 1 MiB net.fetch cap exists because that body crosses BACK INTO THE GUEST under the
  *  marshalling result cap; a fetched asset's bytes never do (the guest receives only an assetId), so the
  *  honest bound here is "what is a plausible cover/card image", not the wire cap. Real hub covers measured
- *  2026-08-29: RisuRealm serves full-size ~2.6 MB JPEGs with no resize variant (a 1 MiB cap rejected most of
+ *  RisuRealm serves full-size ~2.6 MB JPEGs with no resize variant (a 1 MiB cap rejected most of
  *  its art), and card-PNG downloads run to a few MB. 5 MiB admits those while the image guard's
  *  dimension/pixel caps keep holding the decompression-bomb wall. */
 export const PLUGIN_ASSET_MAX_BYTES = 5_242_880;
@@ -134,7 +134,7 @@ export const PLUGIN_QUIET_PROMPT_MAX_CHARS = 8192;
  *  back-pressure). Counted over real host work, NOT over un-timed-out guest promises: `HOST_FN_DEADLINE_MS`
  *  signals cooperative cancellation, but some transactional domain writes cannot safely stop mid-flight; so
  *  charging the slot to the deadline race would let a guest start 32 fresh installer-funded calls every 5 s
- *  while previous writes were still executing (P2-G). The scope is the INSTANCE, not the invocation, because
+ *  while previous writes were still executing. The scope is the INSTANCE, not the invocation, because
  *  non-cancellable work can outlive it — the accounting lives in
  *  `membrane.ts`'s `attachAsync`/`InFlightCounter`. Design 03 §3 spells this row "32 per invocation"; that
  *  spelling assumed its own `PluginInvocationEnded` clause disposed the outstanding host work, which nothing on
@@ -168,7 +168,7 @@ export const HOST_FN_ARGS_MAX_BYTES = 1_048_576;
  *  AND the ARGUMENTS of every async host fn (`attachAsync` dumps them before the arg-budget cap). `ctx.dump` walks
  *  the guest tree on the HOST call stack, so a deeply-nested guest value overflows it and CORRUPTS the shared WASM
  *  runtime — the `list_empty(&rt->gc_obj_list)` abort at dispose, a hard crash of EVERY co-resident plugin, not a
- *  contained refusal (measured 2026-08-25, #707: ~3000-deep spec via `ui.register`, ~12000-deep arg via any async
+ *  contained refusal (measured: ~3000-deep spec via `ui.register`, ~12000-deep arg via any async
  *  host fn with only `chat.read`). The recursive `z.lazy` spec parse has a TIGHTER cliff still — at ~2000 deep it
  *  throws a `RangeError` that ESCAPES `safeParse`, turning the §4.9 soft refusal into an activation-fatal throw.
  *  The SPEC's own semantic caps (`@orb/contracts/plugin/ui`: 256 nodes / depth 8 / 32 KiB) cannot stand in for
@@ -196,7 +196,7 @@ export const PLUGIN_DUMP_NODE_GUARD = 65_536;
 
 /** The RUNTIME log ring retained per RESIDENT instance — what `getPluginLog` reads. `LogRing` above is the
  *  per-drain staging ring (emptied by every drain — an invocation's, or the port's residue pickup of what a
- *  floated continuation logged since, #806); this is the rolling record across all of them, so a host can
+ *  floated continuation logged since); this is the rolling record across all of them, so a host can
  *  answer "what did this plugin just do?" instead of only "what did it print while starting up". Bounded on
  *  BOTH axes and evicted OLDEST-FIRST: one drain may hand over up to 256 lines, so a line bound alone would
  *  let one chatty run erase everything before it, and a char bound alone would let 16 KiB single-liners sit

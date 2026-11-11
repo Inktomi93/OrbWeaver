@@ -4,7 +4,7 @@
 // batch into a fresh unique dir under the staging root, sniffs the tree layout, and enqueues the matching
 // per-owner import workload (import-st for a SillyTavern profile tree, import-bundle for an orb backup tree),
 // replying 202 {workloadId}. The workload owns the staged tree's cleanup (its runner-env op removes it in a
-// finally), mirroring the staged-zip path — including its PER-UPLOADER staging root (#1534): the tree stages
+// finally), mirroring the staged-zip path — including its PER-UPLOADER staging root: the tree stages
 // under `<root>/<uploader userId>/`, the namespace the import contribution re-derives from its row's owner,
 // so the handle in `params.stagedDir`/`params.token` names bytes for exactly one account and authorizes
 // nothing on its own. One home for the derivation + the app-owned default root:
@@ -64,7 +64,7 @@ const ACCEPTED = 202;
 const OWNER_ONLY_DIR = 0o700;
 
 // Total batch cap — the ceiling on the whole multipart body (formData buffers it in memory). Raised to
-// 1 GiB (owner, 2026-08-08) for whole-ST-profile folder imports: a real SillyTavern default-user tree
+// 1 GiB (owner) for whole-ST-profile folder imports: a real SillyTavern default-user tree
 // runs 500 MiB–1 GiB (character-card PNGs + chat logs dominate), and the 256 MiB memory-DoS ceiling is a
 // MULTI-USER concern — on a single-owner self-hosted box the owner's own upload is not a threat. NOTE the
 // .zip/bundle route is NOT an escape hatch here: it caps at 256 MiB COMPRESSED and only accepts an ORB
@@ -102,7 +102,7 @@ class TreeRejected extends Error {
 /** Auth-first + CSRF gate, run BEFORE the body-limit belt so an anonymous/cross-site caller is rejected
  *  before a single body byte is read (identical to the sibling upload routes' guard). CSRF keys on the
  *  ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) because this is a
- *  CORS-"simple" multipart route with no preflight — see the WHY-block in upload.ts's authCsrfGuard (#300). */
+ *  CORS-"simple" multipart route with no preflight — see the WHY-block in upload.ts's authCsrfGuard. */
 const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next): ReturnType<MiddlewareHandler> => {
   const principal = c.get("principal");
   if (principal === null) {

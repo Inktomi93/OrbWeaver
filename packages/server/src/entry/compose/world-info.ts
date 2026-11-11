@@ -107,7 +107,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
       newBookId: minter(ID_PREFIX.worldBook, deps.idSource),
       newEntryId: minter(ID_PREFIX.worldEntry, deps.idSource),
     }),
-    // #1598: the seat oracle the card-import verb asks BEFORE the write above — it travels with it so no
+    // The seat oracle the card-import verb asks BEFORE the write above — it travels with it so no
     // composition can write the embedded book without being able to check whether that would replace a book
     // the owner has since edited.
     hasPrimaryBook: createHasPrimaryBook({ db }),

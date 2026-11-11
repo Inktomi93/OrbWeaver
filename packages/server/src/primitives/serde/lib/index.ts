@@ -29,7 +29,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
 const ENC = new TextEncoder();
-// FATAL DECODE (#1460) — the default `TextDecoder()` is `fatal: false`, which replaces a malformed UTF-8
+// FATAL DECODE — the default `TextDecoder()` is `fatal: false`, which replaces a malformed UTF-8
 // byte sequence with U+FFFD and keeps going: the corrupted string can still pass `JSON.parse`, so a
 // corrupted artifact "imports successfully" with silently altered text (names/content/metadata/secrets).
 // `fatal: true` makes a byte-level corruption THROW instead, which `decodeObject`'s catch turns into the
@@ -116,7 +116,7 @@ function refuse<T>(reason: PortableParseFailure): PortableParse<T> {
 }
 
 /** The bytes as a plain JSON object, or the reason they are not one. Byte fidelity is checked BEFORE JSON
- *  syntax (#1460): a fatal-decode failure (malformed UTF-8) is `invalid-encoding`, distinct from a
+ *  syntax: a fatal-decode failure (malformed UTF-8) is `invalid-encoding`, distinct from a
  *  well-formed-bytes-but-bad-syntax `not-json` — conflating them would report "not JSON" for bytes that
  *  never even reached `JSON.parse`, and would silently let a corrupted-but-decodable file through under
  *  the OLD non-fatal decoder (`DEC`'s header). */

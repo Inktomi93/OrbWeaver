@@ -264,7 +264,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     audit,
     emitUserEvent: deps.emitUserEvent,
     resolveChatCapability: deps.resolveChatCapability,
-    // The CONTEXT panel's backward-bindings read (#279): preset's rule over settings', rpg's and chat's facts.
+    // The CONTEXT panel's backward-bindings read: preset's rule over settings', rpg's and chat's facts.
     resolvePresetUsage: createResolvePresetUsage({
       loadUserSettings: deps.settings.loadUserSettings,
       listGmPresetChatIds: (presetId) => listGmPresetChatIds(db, presetId),
@@ -324,7 +324,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     logger: deps.logger,
     db,
     now,
-    // THE #1799 CROSS-FEATURE JOIN, made here and only here. The inbox needs to know which of a page's
+    // THE INBOX CROSS-FEATURE JOIN, made here and only here. The inbox needs to know which of a page's
     // decisions are still open; the answer lives in chat's `chat_invites.status` /
     // `chats.pending_host_user_id`. notifications declares the op TYPE it consumes
     // (`@orb/contracts/notifications`) and chat exports the runtime factory — neither imports the

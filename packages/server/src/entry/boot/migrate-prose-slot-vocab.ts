@@ -1,4 +1,4 @@
-// Boot step: the #1737 prose-slot id vocabulary DATA migration (owner-ruled 2026-09-05, arm (a)) — the
+// Boot step: the prose-slot id vocabulary DATA migration (owner-ruled, arm (a)) — the
 // `migrate-handoff-offer-vocab` sibling, over `presets.config`'s `promptConfig.prose` map.
 //
 // It is a boot step rather than a `0000_baseline.sql` line for the same reason its sibling is: the rename

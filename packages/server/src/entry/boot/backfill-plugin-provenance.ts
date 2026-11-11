@@ -1,8 +1,8 @@
-// Boot step: the #1708 pre-#1702 plugin-provenance DATA repair — the `migrate-prose-slot-vocab` /
+// Boot step: the plugin-provenance DATA repair — the `migrate-prose-slot-vocab` /
 // `migrate-handoff-offer-vocab` shape one table over.
 //
 // It is a boot step rather than a workload for the same reason those two are: a card ingested through a
-// plugin BEFORE #1702 shipped still reads "Made here" on EVERY read of that character until this runs, so
+// plugin before provenance stamping still reads "Made here" on EVERY read of that character until this runs, so
 // the repair is a floor a read needs under it, not an owner-scheduled sweep — the workloads engine's own
 // admission/lane machinery (`domain/workloads` header) exists for LONG, cancellable, per-owner passes, and
 // this is neither: it is a one-time, whole-table data repair that must be settled before any character read

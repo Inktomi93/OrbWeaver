@@ -3,8 +3,8 @@
 // crash-atomic on platforms that support directory fsync: temp file under rootDir → fsync fd → rename →
 // fsync dir.
 //
-// THE DIRECTORY-FSYNC DOWNGRADE (owner ruling 2026-09-19, #2410 — this paragraph REPLACES the win32-only
-// fence this header used to record). The fence said: EISDIR/EPERM/ENOTSUP is tolerated on win32 and every
+// THE DIRECTORY-FSYNC DOWNGRADE (owner ruling). A win32-only
+// fence would say: EISDIR/EPERM/ENOTSUP is tolerated on win32 and every
 // other platform propagates, because a supported platform's failure invalidates the crash-durable verdict.
 // That reasoning survives for a REAL I/O fault and is why EIO/EACCES/ENOSPC still reject the put. What it
 // got wrong is ENOTSUP: a FUSE mount, a network filesystem and some macOS volumes answer "this filesystem

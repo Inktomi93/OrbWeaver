@@ -107,7 +107,7 @@ export interface AutomationPluginComposeDeps {
   readonly imagery: Pick<ImageryService, "generatePicture">;
   readonly settings: Pick<SettingsService, "getUserSettings">;
   readonly assets: Pick<AssetsService, "store" | "loadAssetBytes" | "assetCasRefById" | "reapIfOrphan" | "readOwnedAssetBytes">;
-  /** #788 F1 — first-party retrieval for the plugin `search.query` read. `documents` is the owner-scoped RAG
+  /** First-party retrieval for the plugin `search.query` read. `documents` is the owner-scoped RAG
    *  verb; the membrane rides it under `scope: { ownerId: installer }`, so a plugin searches only its own corpus. */
   readonly search: Pick<SearchService, "documents">;
   /** The tool registry seam. `registerPluginTool` is the membrane's PL-A registrar; the other four are the
@@ -138,32 +138,32 @@ export interface AutomationPluginComposeDeps {
   readonly pluginMacros: PluginMacroRegistry;
   /** A user's Utility-role preset params (D299) — /autobg, rule analysis and plugin quiet calls. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
-  /** #679 U8 seam 15 — databank's canon-write op (`createFromText`), narrowed. The membrane's `databank.ingest`
+  /** Databank's canon-write op (`createFromText`), narrowed. The membrane's `databank.ingest`
    *  host fn rides it under the installer (compose resolves the Principal): a scraper plugin ingests into the
    *  installer's OWN library and the derived indexer auto-runs (the write enqueues the ingest workload). */
   readonly databankCreateFromText: DatabankService["createFromText"];
-  /** #679 U8 seam 17 — the character canon-write op, pre-built PER-INSTALLER at the composition root (it needs
+  /** The character canon-write op, pre-built PER-INSTALLER at the composition root (it needs
    *  the import-context wiring the root holds). Serializes the guest card to JSON bytes + runs the SAME
    *  `importCharacter` funnel a file upload takes (the ContentChanged-emitting path). Owner-scoped: the root
    *  resolves the installer's Principal and the import funnel re-gates ownership. */
   readonly ingestCharacterCard: (req: {
     readonly installerUserId: UserId;
     readonly card: Record<string, unknown>;
-    /** The calling plugin's own manifest id (#1702 provenance — see `domain/plugin/contract/ops.ts`'s
+    /** The calling plugin's own manifest id (provenance — see `domain/plugin/contract/ops.ts`'s
      *  `character.ingest` doc). */
     readonly pluginId: PluginId | null;
   }) => Promise<{
     readonly characterId: SandboxWireId<CharacterId>;
     readonly created: boolean;
   }>;
-  /** #798 — the remote-image "summon with art" op, pre-built PER-INSTALLER at the composition root (same
+  /** The remote-image "summon with art" op, pre-built PER-INSTALLER at the composition root (same
    *  import-context wiring `ingestCharacterCard` needs). Reads the PNG from the installer's OWN CAS (owner-gated,
    *  leak-free on foreign/absent) and runs the SAME `importCharacter` funnel — so the character arrives WITH its
    *  embedded avatar. */
   readonly ingestCharacterAsset: (req: {
     readonly installerUserId: UserId;
     readonly assetId: SandboxWireId<AssetId>;
-    /** See `ingestCharacterCard`'s `pluginId` (#1702 provenance). */
+    /** See `ingestCharacterCard`'s `pluginId` (provenance). */
     readonly pluginId: PluginId | null;
   }) => Promise<{
     readonly characterId: SandboxWireId<CharacterId>;

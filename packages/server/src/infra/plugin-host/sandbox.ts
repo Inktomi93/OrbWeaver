@@ -16,7 +16,7 @@ import { brandedId } from "@orb/kit/ids";
 // The BYTECODE bound is not invocation-scoped: it is a context-lifetime interrupt over a mutable window
 // (`cpu-guard.ts`), because guest bytecode also runs in the POST-invocation job pumps — `runToSettlement` opens
 // the invocation's window, and every pump opens its own. A pump that executed guest code with no handler
-// installed was #781, a whole-process DoS.
+// installed is a whole-process DoS.
 //
 // Ownership discipline (the sharp edge quickjs-emscripten demands): EVERY handle the host mints must be
 // disposed. Per-invocation handles are disposed at end-of-invocation and counted (`pendingHandles`) so a leak
@@ -203,10 +203,10 @@ export class Sandbox implements Disposable {
     ctx.runtime.setMaxStackSize(GUEST_MAX_STACK_BYTES);
     // The guest-CPU interrupt, installed BEFORE any guest source can run and kept for the context's lifetime.
     // It is INERT until a span opens a window — but it must be in place before the first pump, because a pump
-    // is precisely where an un-installed handler let guest bytecode run unbounded (#781).
+    // is precisely where an un-installed handler let guest bytecode run unbounded.
     installCpuGuard(ctx, resolved.cpuDeadlineMs);
     // ONE ring for the instance's lifetime — the invocation AND every post-settle job pump push into it, and
-    // `drain()` is destructive, so nothing here ever resets it (#806). The optional mirror is the port's
+    // `drain()` is destructive, so nothing here ever resets it. The optional mirror is the port's
     // per-line tap into the central log (`LogMirror`); absent ⇒ the ring alone.
     const log = new LogRing(opts.logMirror);
 
@@ -318,7 +318,7 @@ export class Sandbox implements Disposable {
   /** Every guest log line pushed since the last drain — the lines a FLOATED continuation wrote between
    *  invocations (a post-settle pump runs guest bytecode, and that bytecode logs). Destructive, like every
    *  drain: the port retains what this returns in the instance's runtime ring, so `readLog` and the next
-   *  `invoke` can each pick the residue up exactly once (#806). Safe on a dead context — the ring is host
+   *  `invoke` can each pick the residue up exactly once. Safe on a dead context — the ring is host
    *  memory, not a QuickJS handle. */
   drainLog(): readonly string[] {
     return this.log.drain();
@@ -546,22 +546,22 @@ export class Sandbox implements Disposable {
     // both outlive an invocation):
     //  • `this.log`. It used to be `reset()` on this line, which DESTROYED every line a floated continuation had
     //    pushed since the previous drain (a post-settle pump runs guest bytecode, and that bytecode logs) —
-    //    the one piece of evidence a parked hub search left behind read as "the guest never logged" (#806).
+    //    the one piece of evidence a parked hub search left behind read as "the guest never logged".
     //    `drain()` is destructive now, so an invocation's outcome still carries exactly its own lines, and
     //    the residue is picked up by the port (`drainLog`) before the next run / on the next read instead.
     //  • `state.inFlight`. It counts host-fn IMPLEMENTATIONS that have started and not settled, and those OUTLIVE
     //    an invocation (the host-fn deadline bounds a call without signalling cancellation cannot tear a
     //    transactional write in two, so some impls may still run). Zeroing it here let a straggler's release
     //    decrement a counter this invocation had already reset — the counter drifted NEGATIVE and admitted more
-    //    than `HOST_CALLS_IN_FLIGHT_MAX` concurrent host calls (measured 2026-08-24: 36 of a 40-call burst
+    //    than `HOST_CALLS_IN_FLIGHT_MAX` concurrent host calls (measured: 36 of a 40-call burst
     //    admitted). The counter is per-INSTANCE and self-healing by construction (one release per acquisition);
-    //    see `InFlightCounter` in membrane.ts for the full P2-G reasoning.
+    //    see `InFlightCounter` in membrane.ts for the full reasoning.
     // The DoS deadline reads a MONOTONIC real clock (performance.now), NOT the guest's injected seam: the
     // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE only —
     // host calls self-bound separately (membrane's attachAsync), and the whole invocation is bounded by the
     // settlement race below (the interrupt cannot see a guest that has stopped executing). The handler itself
     // is installed for the CONTEXT's lifetime (`cpu-guard.ts`); this only opens THIS invocation's window, so
-    // the post-invocation job pumps — which used to run guest bytecode with no handler at all (#781) — are
+    // the post-invocation job pumps — which used to run guest bytecode with no handler at all — are
     // bounded by the same mechanism instead of by nothing.
     const closeCpuWindow = openCpuWindow(this.ctx);
     try {
@@ -637,7 +637,7 @@ export class Sandbox implements Disposable {
    *  the payload crosses as a string VALUE, never as source. Returns the handle, or a refusal message.
    *
    *  WHY NOT `evalCode("(" + json + ")")` (what this replaces). That spelling was safe only by the goodwill of
-   *  its three callers (all `JSON.stringify` output — swept 2026-08-24: the tool-args, transform-draft and
+   *  its three callers (all `JSON.stringify` output — swept: the tool-args, transform-draft and
    *  event-fact producers), and it was wrong in three ways the moment one of them drifted:
    *   1. INJECTION SHAPE — a non-JSON payload EXECUTES in the guest realm with that plugin's grants. Measured:
    *      `(globalThis.x = 1, {})` set the guest global and the handler ran on the object literal.

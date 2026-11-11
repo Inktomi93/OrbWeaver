@@ -13,7 +13,7 @@
 // round-trips it (V2→V2, V3→V3). V3-native content is now DECOMPOSED into typed columns: `nickname`/`source`/
 // `creation_date`/`modification_date` are first-class card fields (read here, emitted by buildCardV3).
 // `creator_notes_multilingual` has NO typed column: it rides the `residualData` passthrough verbatim and only
-// FEEDS `creator_notes` when that is empty (#266 D-1 — it was promoted out of residual and never folded, so a
+// FEEDS `creator_notes` when that is empty (it was promoted out of residual and never folded, so a
 // map-only card imported with its notes destroyed; the `en`-first pick is a display fallback, not a locale
 // policy). `assets` remains on the `residualData` passthrough (preserved verbatim,
 // non-lossy) pending its own lane; `group_only_greetings` folds into the `greetings` array (`groupOnly:true`
@@ -223,7 +223,7 @@ const PROMOTED_DATA_KEYS = new Set([
   "group_only_greetings",
   // V3-additive `data.*` fields with a typed column now (were residual until the card-import expansion). Kept
   // out of `residualData` so they don't double-emit on a round-trip. `creator_notes_multilingual` is NOT here
-  // (#266 D-1): it has no typed column, so promoting it out DESTROYED it — it rides the residual passthrough
+  //: it has no typed column, so promoting it out DESTROYED it — it rides the residual passthrough
   // and only FEEDS `creatorNotes` as a fallback (see {@link foldMultilingualNotes}).
   "nickname",
   "source",
@@ -249,7 +249,7 @@ const PROMOTED_DATA_KEYS = new Set([
  *  {@link residualExtensions}, which only covers `data.extensions.*`). The known ST-V3 `data.*` fields
  *  (`nickname`/`source`/`creation_date`/`modification_date`) are promoted OUT via {@link PROMOTED_DATA_KEYS};
  *  what remains here is genuinely-unknown vendor residue PLUS the column-less V3 fields kept verbatim
- *  (`assets` pending its lane; `creator_notes_multilingual`, #266 D-1; `group_only_greetings` folds into the
+ *  (`assets` pending its lane; `creator_notes_multilingual`; `group_only_greetings` folds into the
  *  `greetings` array). Null when nothing is left. */
 function residualData(data: RawCard): Record<string, unknown> | null {
   const rest: Record<string, unknown> = {};
@@ -269,8 +269,8 @@ const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
 // preference (V3 says the app should pick the reader's language) is an owner call and would live in settings.
 const DEFAULT_NOTES_LANGUAGE = "en";
 
-/** V3 `data.creator_notes_multilingual` → the ONE note to display when `creator_notes` carries none (#266
- *  D-1 — a map-only card used to import with its notes destroyed). `en` first, else the first non-empty value
+/** V3 `data.creator_notes_multilingual` → the ONE note to display when `creator_notes` carries none (a
+ *  map-only card would otherwise import with its notes destroyed). `en` first, else the first non-empty value
  *  in key order; a malformed map yields "" and never throws (tolerant IN). The map itself is NOT consumed —
  *  it rides `residualData` verbatim and re-emits on export, so the fold is additive, never lossy. */
 function foldMultilingualNotes(raw: unknown): string {
@@ -335,7 +335,7 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
     postHistoryInstructions: nullIfEmpty(str(data.post_history_instructions)),
     depthPrompt: parseDepthPrompt(data.extensions?.depth_prompt),
     // The placeholder-stripped `creator_notes` is the one home; the V3 multilingual map only fills an EMPTY
-    // one (#266 D-1). The map survives regardless — it rides `residualData`.
+    // one. The map survives regardless — it rides `residualData`.
     creatorNotes: firstNonEmpty(
       str(data.creator_notes).replace(ST_CREATOR_NOTES_PLACEHOLDER, "").trim(),
       foldMultilingualNotes(data.creator_notes_multilingual),
@@ -373,7 +373,7 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
  *  differently before and after import and break the re-import content dedup). INCLUDED: the content a
  *  reader experiences.
  *
- *  IT IS A TUPLE, not an object literal, because the EXCLUSIONS are load-bearing to other code (#1560): a
+ *  IT IS A TUPLE, not an object literal, because the EXCLUSIONS are load-bearing to other code: a
  *  caller fencing a write on "the card I read" needs to know which fields this hash cannot witness, and
  *  deriving that from a list beats every reader re-transcribing the exclusion set (the refinery's
  *  stale-basis fence does exactly this, under a compile-forced type). Key ORDER is not semantic — the hash

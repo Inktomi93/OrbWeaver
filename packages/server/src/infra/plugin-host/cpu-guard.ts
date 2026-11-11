@@ -1,7 +1,7 @@
 // infra/plugin-host/cpu-guard — the guest-CPU interrupt, homed as ONE CONTEXT-LIFETIME handler reading a
 // MUTABLE window instead of a per-invocation install/remove pair.
 //
-// WHY THE LIFETIME SHAPE (#781 — a whole-process DoS, not a tuning choice). QuickJS executes guest bytecode in
+// WHY THE LIFETIME SHAPE (a whole-process DoS, not a tuning choice). QuickJS executes guest bytecode in
 // TWO places, not one: the invocation itself, and the POST-invocation job pump that resumes a guest
 // continuation when a fire-and-forget host call settles later (`membrane.attachAsync`'s detached pump). While
 // the interrupt was installed by `Sandbox.runToSettlement` and REMOVED in its
@@ -86,10 +86,10 @@ export function openCpuWindow(ctx: QuickJSContext): () => void {
   };
 }
 
-/** Run the guest's pending jobs UNDER a window — the ONE spelling of the job pump (#781). A runaway
+/** Run the guest's pending jobs UNDER a window — the ONE spelling of the job pump. A runaway
  *  continuation is preempted with `InternalError: interrupted` (its own promise rejects guest-side, contained),
  *  and jobs the abort left QUEUED stay queued for the next pump, which opens its own window; a context with
- *  aborted jobs still queued disposes cleanly (measured against this runtime, 2026-08-28).
+ *  aborted jobs still queued disposes cleanly (measured against this runtime).
  *
  *  Not a bound on TOTAL guest CPU, and it does not claim to be: every host-call settlement buys one window, so
  *  the aggregate stays bounded by the ≤32 in-flight cap × the per-instance budget rather than by one number.

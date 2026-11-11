@@ -88,7 +88,7 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
     // Auth-first + CSRF, ahead of the body-limit belt so an anonymous/cross-site caller is rejected before a
     // body byte is read (the sibling upload routes' belt order). Inline, so the ctx types come off `app`.
     // CSRF keys on the ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) —
-    // this is a CORS-"simple" multipart route with no preflight (#300; see upload.ts's authCsrfGuard WHY-block).
+    // this is a CORS-"simple" multipart route with no preflight (see upload.ts's authCsrfGuard WHY-block).
     async (c, next): ReturnType<MiddlewareHandler> => {
       const principal = c.get("principal");
       if (principal === null) {

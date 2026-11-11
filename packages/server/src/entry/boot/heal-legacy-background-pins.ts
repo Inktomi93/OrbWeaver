@@ -1,4 +1,4 @@
-// Boot step: the #1600 legacy-background-pin ONE-TIME DATA heal (heal, not narrow — the fork + its default
+// Boot step: the legacy-background-pin ONE-TIME DATA heal (heal, not narrow — the fork + its default
 // is recorded in `domain/settings/persistence/heal-legacy-background-pins.ts`'s header).
 //
 // It is a boot step rather than a `0000_baseline.sql` line for the usual reason: the fix carries no DDL —

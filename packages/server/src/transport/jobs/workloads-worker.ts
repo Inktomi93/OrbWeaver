@@ -148,7 +148,7 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
   try {
     // Boot reap — orphans from a prior lifetime (idempotent; the verb's status guard protects terminal rows).
     // This process just started, so anything still in flight died WITH the previous one: a restart, not a lease
-    // that aged out under a live worker (#560 — the two record different sentences on the row).
+    // that aged out under a live worker (the two record different sentences on the row).
     await reapOnce(deps, "worker_restart");
 
     // Periodic reap tick — the boot reap alone misses a fast crash-restart + a sibling replica's death. Errors

@@ -3,9 +3,9 @@
 // (`user_settings.config`, the `APP_SETTINGS_KEY` override row, `presets.config`) is read through a parse
 // seam that DEGRADES an unreadable blob to schema defaults. That degrade is correct for a read — a request
 // renders defaults instead of 500ing — and catastrophic for a write: the write persists the stand-in and
-// the user's real blob is gone, silently and permanently (#471; the proven cause of the #461 wipe).
+// the user's real blob is gone, silently and permanently (the proven cause of a real settings wipe).
 //
-// LIVES IN `@orb/server/primitives`, NOT in a domain (moved out of `domain/settings/substrate/` by #1026): two
+// LIVES IN `@orb/server/primitives`, NOT in a domain (not `domain/settings/substrate/`): two
 // domains now need it and a domain→domain VALUE import is dep-cruiser RED (`domain-no-cross-feature`;
 // type-only is the only exemption). `@orb/kit` cannot host it — it takes a `@orb/contracts` shape and kit
 // sits below contracts — so the server-only-pure tier is the one home both settings and preset reach
@@ -17,7 +17,7 @@
 //   degraded    — a row EXISTS and could not be read. The write REFUSES. Re-reading cannot help (the bytes
 //                 are what they are), so refusing is the only arm that preserves the data.
 //
-// WHAT THE GUARD IS FOR, AND WHAT IT IS NOT (the #1026 boundary): it protects a write that DESCENDS FROM A
+// WHAT THE GUARD IS FOR, AND WHAT IT IS NOT (the boundary): it protects a write that DESCENDS FROM A
 // READ of the row it is about to replace — the read-modify-write, including the round trip through a client
 // that GETs a leniently-parsed blob and PUTs the whole thing back. A write whose content is INDEPENDENT of
 // the stored blob (a packaged registry constant, the schema default a `reset` verb writes, an uploaded

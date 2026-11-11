@@ -50,7 +50,7 @@ export interface PortabilityDeps {
   readonly storeAvatar: StoreAvatarAsset;
   readonly attachCardTag: AttachCardTagByNameOp;
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
-  /** #1598 — the seat oracle that keeps a re-uploaded card from replacing an edited primary book. */
+  /** The seat oracle that keeps a re-uploaded card from replacing an edited primary book. */
   readonly hasPrimaryBook: ImportWorldInfoPort["hasPrimaryBook"];
   /** D121-E: the card LIFT — threaded into every per-owner `ImportContext` so a bundled character card's
    *  scripts land as library rows + a junction attachment (never a by-value copy on the character row). */

@@ -190,7 +190,7 @@ export interface ChatComposeInput {
 
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
-  /** #250 — the memory-recall flight recorder built at the composition root; its `sink` becomes
+  /** The memory-recall flight recorder built at the composition root; its `sink` becomes
    *  `ChatContext.recordRecall` so every `{{memory}}` recall lands in the ring `/api/_debug/memory/recalls`
    *  tails. OPTIONAL: absent ⇒ nothing records (an int test that builds chat without the recorder), and recall
    *  is byte-identical either way. */
@@ -206,7 +206,7 @@ export interface ChatComposeInput {
    *  admin flip reaches the next turn without a restart. Absent ⇒ the floor 0 (byte-identical no-op). */
   readonly promptCacheMinDepth?: PromptCacheMinDepthOp;
   readonly assets: AssetsService;
-  /** Materialize a user-pasted external carried-background URL into an owned CAS asset (side-eye F-P0-2) — the
+  /** Materialize a user-pasted external carried-background URL into an owned CAS asset — the
    *  shared compose-built op the `setChatBackground` verb runs for a `kind:"external"` source. */
   readonly materializeBackground: MaterializeBackgroundOp;
   /** §6.7's inline-reply picture store, built at the keystone (it needs the boot-level per-image byte cap) —
@@ -298,7 +298,7 @@ export interface ChatComposeResult extends AsyncDisposable {
    *  host is resolved from the room, and the four walls (depth/authority/budget/consent) enforce inside the verb
    *  + the engine belts. See {@link RequestTurnOp}. */
   readonly requestTurn: RequestTurnOp;
-  /** Is memory ON for this host (#156)? The admission gate's read, resolved through the SAME
+  /** Is memory ON for this host? The admission gate's read, resolved through the SAME
    *  `resolveMemoryConfig` merge the live turn and the corpus sweep use, so the gate cannot drift from the
    *  per-host skip it exists to pre-empt. */
   readonly isMemoryEnabled: ChatWorkloadDeps["isMemoryEnabled"];
@@ -445,7 +445,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolveChat: inferenceOps.resolveChat,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     resolveCharacterDistillates: createResolveOwnedDistillates(db),
-    // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write
+    // ── HOST-HANDOFF COPY — the four OWNING-domain write
     // factories the accepted property offer executes. Each lives in the domain that owns its tables and is
     // injected here, so chat never writes a `characters`, `world_books`, `regex_scripts` or `chat_digests`
     // row (Tier-1-DB.md §"Cross-tier composition"). All four are unreachable without a stored offer, so an offer-less handoff
@@ -456,7 +456,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       applyStatsDelta: stats.applyStatsDelta,
       now: input.now,
       newCharacterId: minter(ID_PREFIX.character, input.idSource),
-      // The picture RE-OWN, avatar AND carried background (#1426): `assets` is per-owner with an
+      // The picture RE-OWN, avatar AND carried background: `assets` is per-owner with an
       // `(owner_id, hash)` dedup (D21), so the copy cannot carry a source asset id verbatim — that would be a
       // pointer into a library the nominee cannot read AND a GC root holding the departed host's blob alive.
       // Content-addressing makes this cheap and idempotent (`created:false` when the recipient already has
@@ -476,7 +476,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       now: input.now,
       newScriptId: minter(ID_PREFIX.regexScript, input.idSource),
     }),
-    // …and their NOMINATE-side disclosure twins (#1762), each from the SAME domain file as its copy so the
+    // …and their NOMINATE-side disclosure twins, each from the SAME domain file as its copy so the
     // number the nominee is shown comes out of the plan the accept executes. `db` only: these run before
     // the nominee has consented to anything, so they are structurally unable to mint (no clock, no minter).
     countHandoffBooks: createCountHandoffBooks(input.db),
@@ -539,9 +539,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     ...(input.gatherDatabank !== undefined ? { gatherDatabank: input.gatherDatabank } : {}),
     ...memorySearch,
     log: (entry) => recordMemoryLog(entry, input.logger),
-    // #250 — absent recorder ⇒ the field stays unset ⇒ recall's `ctx.recordRecall?.()` is a no-op.
+    // Absent recorder ⇒ the field stays unset ⇒ recall's `ctx.recordRecall?.()` is a no-op.
     ...(input.recallRecorder !== undefined ? { recordRecall: input.recallRecorder.sink } : {}),
-    // #313 — the header brain-icon's live feed: recall (`recall/recall.ts`) BUILDS the `memoryRecall` event
+    // The header brain-icon's live feed: recall (`recall/recall.ts`) BUILDS the `memoryRecall` event
     // (the domain owns its bus literal, the `turnStarted` precedent); this only fans it on the LIVE-ONLY lane
     // (ephemeral per-turn state, never persisted). The room-public payload carries only the count — the digest
     // detail stays host-only (the popover reads the assembly preview for it).

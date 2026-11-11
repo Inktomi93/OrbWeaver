@@ -2,7 +2,7 @@
 // body each chat backend actually sends, keyed by chatId. Purpose: a four-layer round-trip fidelity harness
 // can prove a setting flipped at the FE propagates truthfully into the real wire (FE → assemble → WIRE → DB).
 //
-// GATING IS LOAD-BEARING — this is dev/test-only + prod-safe, mirroring the RPG flight recorder (R-OBS):
+// GATING IS LOAD-BEARING — this is dev/test-only + prod-safe, mirroring the RPG flight recorder:
 //   • THE REPLY TAP IS A SECOND, INDEPENDENT OPT-IN (`WIRE_CAPTURE_REPLY=on` in the root's env record, audit
 //     D2/D3). It adds the provider's literal reply bytes to each REQUEST entry. It is not
 //     folded into `WIRE_CAPTURE` because the request body is the operator's own prompt while the reply is the
@@ -42,7 +42,7 @@
 // at SEND time (a streamed response completes far later), so an outcome there would mean pre/post
 // correlation in every runner for the same data the engine already holds.
 //
-// THE FAULT ARM IS THE ROW A READER ACTUALLY HUNTS (added 2026-08-14 after a live 110s agent-sdk turn died
+// THE FAULT ARM IS THE ROW A READER ACTUALLY HUNTS (a live 110s agent-sdk turn once died
 // as an HTTP 500 with EVERY debug surface blank, reproduced
 // 3/3). Until then the recorder ran only after `runTurnPipeline` resolved, so a THROWN turn could not leave
 // a row BY CONSTRUCTION: the one comment claiming a "REFUSED turn still leaves the record that explains it"

@@ -89,7 +89,7 @@ import { jsToHandle } from "./marshal.ts";
  *  NEVER reset — it counts host-fn IMPLEMENTATIONS that have STARTED and not yet SETTLED, which is the only
  *  reading under which "≤32 concurrent host calls" is a bound on WORK rather than on promises.
  *
- *  WHY NOT PER-INVOCATION (the P2-G repair, measured 2026-08-24). Two facts make an invocation-scoped counter a
+ *  WHY NOT PER-INVOCATION (measured). Two facts make an invocation-scoped counter a
  *  lie: (1) not every domain write can cooperatively cancel — the deadline signals every call, but an impl that
  *  ignores it keeps running host-side, so releasing its slot when the RACE settles would admit 32 fresh
  *  installer-funded calls every `HOST_FN_DEADLINE_MS`, unbounded; and (2) a
@@ -582,7 +582,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       }
       // Validate the surfaceId against the SAME bounded grammar `ui.register` enforces (the trust boundary): the
       // domain state plane keys on `pluginId:surfaceId`, so an arbitrary/unbounded id would be an arbitrary map
-      // key — a fresh one per call is the unbounded-key DoS (#707 Finding B). The RE bounds each key; the store's
+      // key — a fresh one per call is the unbounded-key DoS. The RE bounds each key; the store's
       // per-plugin key cap bounds their COUNT.
       if (!PLUGIN_SURFACE_ID_RE.test(surfaceId)) {
         throw new Error("plugin host: ui.setState requires a valid surfaceId (/^[a-z][a-z0-9_]{0,40}$/)");
@@ -618,7 +618,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     // to the Sandbox on the collect path and is hand-disposed on every other, so it is never `using`.
     using nameH = ctx.getProp(defHandle, "name");
     using describeH = ctx.getProp(defHandle, "describe");
-    // #791 — the DECLARED typed args (absent ⇒ the U5 opaque-remainder shape). Dumped through the SAME deep-nesting
+    // The DECLARED typed args (absent ⇒ the U5 opaque-remainder shape). Dumped through the SAME deep-nesting
     // belt as every other guest def value; the schema (enum biconditional, unique names, the arg caps) is what
     // turns a malformed arg into a REGISTRATION refusal rather than a live-value surprise at invoke time.
     using argsH = ctx.getProp(defHandle, "args");
@@ -778,7 +778,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     },
   });
 
-  // listCharacters(chat) — the present CHARACTER roster of the ADMITTED chat (#788 F11). The bridge resolves the
+  // listCharacters(chat) — the present CHARACTER roster of the ADMITTED chat. The bridge resolves the
   // installer's membership and returns `[]` for a non-member; a forged/stale handle fails `resolveChat` first.
   attachAsync(ctx, chat, {
     name: "listCharacters",
@@ -816,7 +816,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
         throw new Error("plugin host: chat.applyVariableOps requires a list of variable ops");
       }
       const ops = args[1] as readonly VarOp[];
-      // The OPTIONAL compare-and-set (#1555). A malformed precondition would silently WEAKEN the guard it was
+      // The OPTIONAL compare-and-set. A malformed precondition would silently WEAKEN the guard it was
       // passed to strengthen, so it is PARSED, and a shape that does not parse is a loud refusal of the call (the
       // forged-handle arm's posture) rather than a write that quietly skipped its own check.
       const expect = parsePreconditions(args[2]);
@@ -873,7 +873,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
   ctx.setProp(surface, "chat", chat);
 }
 
-/** POSTURE 2, at the ONE place the membrane expresses it (interaction spec §3-S4, the #14 three-posture law:
+/** POSTURE 2, at the ONE place the membrane expresses it (interaction spec §3-S4, the three-posture law:
  *  standing authority ⇒ act; NO standing authority ⇒ a SUGGESTION the host confirms; the fourth posture —
  *  direct execution without standing authority — never exists).
  *
@@ -909,7 +909,7 @@ function buildQuickReplyChoices(raw: unknown): readonly { readonly label: string
   });
 }
 
-/** Parse the guest's OPTIONAL `chat.applyVariableOps` preconditions (#1555). `undefined` when the guest passed
+/** Parse the guest's OPTIONAL `chat.applyVariableOps` preconditions. `undefined` when the guest passed
  *  none (an unconditional write); a THROW when it passed something that is not a precondition list.
  *
  *  PARSED RATHER THAN PROJECTED, like {@link parseWorldEntry}, and the asymmetry is the point:
@@ -968,7 +968,7 @@ function parsePictureArgs(raw: unknown): GenerateImageActionArgs {
  *  lore writer under the installer. */
 function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using worldInfo = ctx.newObject();
-  // listBooks(chat) — the books ATTACHED to the admitted chat (#788 F12, worldinfo.read). The bridge resolves
+  // listBooks(chat) — the books ATTACHED to the admitted chat (worldinfo.read). The bridge resolves
   // the installer + member-gates the attachment list; a non-member gets `[]`.
   attachAsync(ctx, worldInfo, {
     name: "listBooks",
@@ -981,7 +981,7 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
       return await runtime.bridge.worldInfo.listBooks(chatId, invocationLiveness(signal));
     },
   });
-  // listEntries(chat, bookId) — the entries of ONE attached book (#788 F12, worldinfo.read). The guest supplies
+  // listEntries(chat, bookId) — the entries of ONE attached book (worldinfo.read). The guest supplies
   // the bookId; the bridge applies the ATTACHMENT gate before the read, so a book not attached to THIS chat
   // resolves to `[]`, leak-free. A non-string bookId is refused here rather than serialized into a bad query.
   attachAsync(ctx, worldInfo, {
@@ -1025,7 +1025,7 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   ctx.setProp(surface, "worldInfo", worldInfo);
 }
 
-/** assets.read(assetId) — capability assets.read (#788 seam-11 read half). The guest supplies ONLY the assetId
+/** assets.read(assetId) — capability assets.read. The guest supplies ONLY the assetId
  *  string; the bridge closes the installer over the read and reaches the assets domain's OWNER-GATED front door,
  *  so a guest can only read its OWN CAS and a foreign/absent id is the leak-free `null`. NO chat scope, NO host
  *  authority (a read of the installer's own store, the `storage`/`databank` posture). A non-string assetId is
@@ -1049,7 +1049,7 @@ function setAssets(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   ctx.setProp(surface, "assets", assets);
 }
 
-/** search.documents(queryText, opts?) — capability search.query (#788 F1). The guest supplies ONLY the query
+/** search.documents(queryText, opts?) — capability search.query. The guest supplies ONLY the query
  *  string + an optional limit; the bridge closes the installer's ownerId over the search scope, so a guest
  *  searches only its OWN corpus. NO chat scope, NO host authority (a read of the installer's own library, the
  *  `assets`/`databank` posture). The limit is CLAMPED here to `PLUGIN_SEARCH_RESULTS_MAX` (an unbounded page is
@@ -1170,7 +1170,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
       return null;
     },
   });
-  // The ATOMIC arm (#1442). `expected` is `null` for "the key must not exist", and anything that is not a
+  // The ATOMIC arm. `expected` is `null` for "the key must not exist", and anything that is not a
   // STRING dumps to that null — a guest passing `undefined` means "create", which is the only reading of an
   // absent precondition that is not a silent overwrite. The result is an object, so a lost race arrives as
   // DATA the guest branches on rather than a throw (three throws auto-disable a plugin, and losing a race is
@@ -1333,7 +1333,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     },
   });
 
-  // ingestAsset(assetId) — capability character.ingest (#798). The guest supplies ONLY an assetId string naming
+  // ingestAsset(assetId) — capability character.ingest. The guest supplies ONLY an assetId string naming
   // a PNG in the INSTALLER's OWN CAS (e.g. one `net.fetchAsset` just returned); the bridge closes the installer
   // over the op, reads that asset owner-gated (foreign/absent → leak-free rejection) and runs the SAME
   // importCharacter funnel `ingest` does — so the character arrives WITH its embedded avatar. Rides the SAME
@@ -1518,7 +1518,7 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
     // become a MODEL-VISIBLE function name. Bounding it HERE keeps the two spellings of one grammar
     // (registration and the card linkage) from admitting different names, and makes a bad name the guest's
     // own contained `tools.register` throw instead of a downstream registrar refusal that fails the whole
-    // activation. #1803: `PLUGIN_TOOL_NAME_RE`'s LENGTH (not just its charset) is also load-bearing here —
+    // activation. `PLUGIN_TOOL_NAME_RE`'s LENGTH (not just its charset) is also load-bearing here —
     // it is one half of the wire-mint's byte budget (`manifest.ts` `PLUGIN_TOOL_NAME_LOCAL_MAX`, the other
     // half is the manifest's `slug` cap), so a too-long name is refused right here, at the guest's own call,
     // rather than surfacing as a length failure at the registry two boundaries downstream.
@@ -1835,7 +1835,7 @@ function chargeValue(value: unknown, pending: unknown[]): number {
  *  A thrown/rejected impl (a capability/handle/host-authority refusal, or a bridge error) rejects the guest
  *  promise — errors-as-data, never a host crash.
  *
- *  THE TWO SETTLEMENTS ARE DIFFERENT EVENTS AND THEY RELEASE DIFFERENT THINGS — this is the whole of P2-G:
+ *  THE TWO SETTLEMENTS ARE DIFFERENT EVENTS AND THEY RELEASE DIFFERENT THINGS — this is the whole point:
  *   - the RACE settles when the guest's promise resolves/rejects (impl result, or the deadline). That is what
  *     deregisters `pending` (the guest promise is no longer a teardown hazard) and clears the timer.
  *   - the IMPL settles when the actual host work finishes. That — and ONLY that — releases the in-flight slot.
@@ -1843,7 +1843,7 @@ function chargeValue(value: unknown, pending: unknown[]): number {
  *  Domain writes that cannot safely cancel may ignore it, so charging the slot to the race would still count
  *  not-yet-timed-out PROMISES rather than real work. The slot therefore remains charged until the impl settles,
  *  and teardown joins those settlements before releasing resident admission. Note what
- *  this does NOT claim to be: a spend CEILING (the D46 2026-07-24 amendment retired the plugin spend tier
+ *  this does NOT claim to be: a spend CEILING (the D46 amendment retired the plugin spend tier
  *  deliberately). It is a concurrency bound, and it is now true. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
   const { name, inFlight, pending, impl, log } = spec;
@@ -1857,7 +1857,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
 
     // THE INBOUND DEPTH GUARD — checked BEFORE `ctx.dump` materializes the args, because a deeply-nested guest
     // arg overflows `ctx.dump` HOST-side and CORRUPTS the shared WASM runtime (the `list_empty` dispose abort, a
-    // crash of every co-resident plugin), which is NOT a contained refusal (#707 Finding C — reachable from any
+    // crash of every co-resident plugin), which is NOT a contained refusal (reachable from any
     // async host fn with any grant). Refuse as guest errors-as-data; settles synchronously, so no `pending`.
     const args: unknown[] = [];
     for (const handle of argHandles) {
@@ -1958,7 +1958,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
         clearTimeout(timer);
       });
 
-    // THE POST-INVOCATION PUMP (#781). When this host call settles LATER than the invocation that fired it,
+    // THE POST-INVOCATION PUMP. When this host call settles LATER than the invocation that fired it,
     // the guest's `.then` continuation runs HERE — bytecode outside any invocation, which until the
     // context-lifetime CPU guard landed executed with NO interrupt handler installed at all: one
     // `h.storage.get(k).then(function () { while (true) {} })` in `main.js` wedged the Node MAIN THREAD
