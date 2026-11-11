@@ -12,7 +12,6 @@ import {
   absenceWindow,
   holdServed,
   routeAuthConfig,
-  routeOrbSocket,
   routeTrpc,
   SECTION_PROCEDURES,
   SHELL_MOUNT_PROCEDURES,
@@ -24,6 +23,7 @@ import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { forwardUserEvent } from "../../../components/_forward-user-event.ts";
 import type { AppShellBusStory } from "../../app-shell/surfaces/_app-shell-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/surfaces/_app-shell-stories/AppShellBusStory";
@@ -57,37 +57,7 @@ async function prepareLibrary(page: Page, root: Root, holds: Holds, cleanup: Asy
     "stream.attach": ({ ref }) => (ref.channel === "user" ? null : trpcError({ code: "NOT_FOUND" })),
     "stream.detach": ({ ref }) => (ref.channel === "user" ? null : trpcError({ code: "NOT_FOUND" })),
   });
-  const stop = new AbortController();
-  const joined = Promise.withResolvers<void>();
-  let started = false;
-  cleanup.defer(async () => {
-    stop.abort();
-    if (started) {
-      await joined.promise;
-    }
-  });
-  await routeOrbSocket(page, {
-    awaitRooms: [{ channel: "user" }],
-    frames: async (signal) => {
-      started = true;
-      const events = root.app.liveBuses.user.subscribeUserEvents(root.ownerId, AbortSignal.any([signal, stop.signal]));
-      try {
-        for await (const event of events) {
-          if (event.type === "charactersChanged") {
-            return [{ channel: "user", event }];
-          }
-        }
-        return [];
-      } catch (error) {
-        if (!stop.signal.aborted) {
-          throw error;
-        }
-        return [];
-      } finally {
-        joined.resolve();
-      }
-    },
-  });
+  await forwardUserEvent(page, root, "charactersChanged", cleanup);
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
 }
 

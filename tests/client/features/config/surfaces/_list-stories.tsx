@@ -1,3 +1,4 @@
+import { useInvalidation, useOrbSocket, useUserBus } from "@orb/client/data";
 import type { ConfigGroupId } from "@orb/client/state";
 import { openConfigTo, useSectionRegistry } from "@orb/client/state";
 import { CtClientProviders } from "@orb/testkit/browser";
@@ -57,6 +58,22 @@ export function ConfigPanesStory(props: ConfigPanesProps): ReactElement {
   return (
     <CtClientProviders>
       <ConfigPanes {...props} />
+    </CtClientProviders>
+  );
+}
+
+function ConfigPanesWithBus(props: ConfigPanesProps): ReactElement {
+  const invalidation = useInvalidation();
+  useOrbSocket();
+  useUserBus({ invalidateUser: invalidation.invalidateUser, invalidateAllUserRoots: invalidation.invalidateAllUserRoots });
+  return <ConfigPanes {...props} />;
+}
+
+/** The production settings panes with the socket and the user bus the app root wires beside them, so a server event reaches the rows it changes. */
+export function ConfigPanesBusStory(props: ConfigPanesProps): ReactElement {
+  return (
+    <CtClientProviders>
+      <ConfigPanesWithBus {...props} />
     </CtClientProviders>
   );
 }
