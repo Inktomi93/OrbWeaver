@@ -1,5 +1,4 @@
-import { useInvalidation, useOrbSocket, useUserBus } from "@orb/client/data";
-import { CtClientProviders, configSections } from "@orb/testkit/browser";
+import { CtClientProviders, CtUserBus, configSections } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 
@@ -12,18 +11,13 @@ export function LooksImportStory(): ReactElement {
   );
 }
 
-function LooksWithBus(): ReactElement {
-  const invalidation = useInvalidation();
-  useOrbSocket();
-  useUserBus({ invalidateUser: invalidation.invalidateUser, invalidateAllUserRoots: invalidation.invalidateAllUserRoots });
-  return <Container>{configSections.get("appearance-looks").body("looks-import")}</Container>;
-}
-
 /** The Looks section with the socket and the user bus the app root wires beside it, so a server event reaches the themes it changes. */
 export function LooksBusStory(): ReactElement {
   return (
     <CtClientProviders>
-      <LooksWithBus />
+      <CtUserBus>
+        <Container>{configSections.get("appearance-looks").body("looks-import")}</Container>
+      </CtUserBus>
     </CtClientProviders>
   );
 }

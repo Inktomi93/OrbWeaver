@@ -17,14 +17,19 @@ import type { TagLibraryFact } from "../hooks/use-tag-library.ts";
 import { useTagLibrarySummary } from "../hooks/use-tag-library.ts";
 import { LABELS_LIBRARY_SLOT } from "../lib/labels-focus-targets.ts";
 
-/** `returning` marks an in-place swap back from the editor: the control that closed it (Back, merge, delete)
- *  just left the tree, so focus lands here unconditionally. A first arrival keeps the guarded mount focus. */
-export function LabelsLandingSurface({ returning = false }: { readonly returning?: boolean }): ReactElement {
+/** How the library mounts after an editor: `library` when merge or delete closed it, `row` when its Back handed focus to the
+ *  finder row the tag was opened from. */
+export type LabelsLandingReturn = "library" | "row";
+
+/** `returning` marks an in-place swap back from the editor: the control that closed it just left the tree. After a merge or
+ *  delete focus lands here unconditionally; after a Back the finder row holds it and the library stands down. A first arrival
+ *  (`null`) keeps the guarded mount focus. */
+export function LabelsLandingSurface({ returning = null }: { readonly returning?: LabelsLandingReturn | null }): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const phone = useMobileViewport();
   const listMode = useSectionListMode("corpus");
-  useFocusOnMount(surfaceRef, !returning && (!phone || listMode === "collapsed"));
-  useFocusOnSwap(surfaceRef, returning);
+  useFocusOnMount(surfaceRef, returning === null && (!phone || listMode === "collapsed"));
+  useFocusOnSwap(surfaceRef, returning === "library");
   const summary = useTagLibrarySummary();
   return (
     <Stack focusTarget={true} data-slot={LABELS_LIBRARY_SLOT} gap="section" ref={surfaceRef} tabIndex={-1}>

@@ -1,9 +1,9 @@
 // The regex-library BULK-SELECT store (REGX2) — the mode the config band's toggle enters and the
 // @orb/ui/selection-bar under the script rows acts on.
 //
-// EXTERNAL, not row-local, for the same reason `message-selection-store` is: past
-// COLLECTION_LARGE_GROUP the library renders through the sealed `VirtualList`, which has no keep-mounted
-// path, so a row-local checkbox state would drop the moment a selected row scrolled out of the window.
+// EXTERNAL, not row-local, for the same reason `message-selection-store` is: the library renders through
+// the sealed `VirtualList`, which has no keep-mounted path, so a row-local checkbox state would drop the
+// moment a selected row scrolled out of the window.
 //
 // It is also the reason the mode lives HERE rather than inside the rows component: the mode TOGGLE is band
 // chrome the config HOST renders (the `bulkSelect` contribution field), and the checkboxes + bar are the

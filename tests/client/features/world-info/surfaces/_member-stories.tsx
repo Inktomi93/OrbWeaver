@@ -1,6 +1,7 @@
 import { QueryBoundary } from "@orb/client/components";
 import { worldInfoGroup } from "@orb/client/features/world-info";
-import { clearWorldEntrySelection, selectWorldEntry, setMobileViewport, useMobileViewport } from "@orb/client/state";
+import { sectionBackName } from "@orb/client/lib";
+import { clearCollectionSelection, clearWorldEntrySelection, selectWorldEntry, setMobileViewport, useMobileViewport } from "@orb/client/state";
 import type { WorldEntryId } from "@orb/kit/ids";
 import { CtClientProviders, storyTestId } from "@orb/testkit/browser";
 import { Container, Stack } from "@orb/ui/layout";
@@ -41,7 +42,7 @@ function Member({ bookId, entryId, context, phone = false }: MemberProps): React
       <QueryBoundary resetKeys={[]} fallback={<Stack role="status">Loading book</Stack>}>
         {context && collection.context.kind === "body"
           ? collection.context.render({ memberId: bookId })
-          : collection.detail({ memberId: bookId, library: worldInfoGroup.label })}
+          : collection.detail({ memberId: bookId, back: { label: sectionBackName(worldInfoGroup.label), onClick: clearCollectionSelection } })}
       </QueryBoundary>
     </Container>
   );

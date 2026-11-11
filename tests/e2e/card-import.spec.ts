@@ -4,9 +4,11 @@ import type { CardImportResult } from "@orb/contracts/import";
 import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { isPlainObject } from "@orb/kit/guards";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page, Response } from "@playwright/test";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -42,7 +44,7 @@ function isFilteredLibraryRead(response: Response): boolean {
 async function openCharactersList(page: Page): Promise<void> {
   await charactersRailButton(page).click();
   const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
-  const back = page.getByRole("button", { name: "Back to Characters", exact: true });
+  const back = page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true });
   await expect(search.or(back).first()).toBeVisible();
   if (await back.isVisible()) {
     await back.click();

@@ -15,7 +15,7 @@ import { z } from "zod";
 import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
-import { CONTEXT_SHEET_BACK_NAME } from "#client/lib/context-pane-names.ts";
+import { CONTEXT_SHEET_BACK_NAME, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
@@ -507,7 +507,7 @@ test.describe("committed corpus shell", () => {
     await list.getByRole("button", { name: /World Info/u }).click();
     await expect(page.locator('[data-slot="collection-control-row"]')).toBeVisible();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
-    await expect(page.getByRole("button", { name: "Back to Settings" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.settings) })).toHaveCount(0);
     await expect(page.locator(".shell-topbar").getByRole("button", { name: LIST_TOGGLE })).toHaveCount(0);
     await expect(page.locator('[data-panel-edge="list"]').getByRole("button", { name: LIST_TOGGLE })).toBeVisible();
   });
@@ -570,7 +570,7 @@ test.describe("committed corpus shell on a phone", () => {
     await openHome(page);
     for (const { section, open } of walks) {
       await reachOnPhone(page, section);
-      const back = page.getByRole("button", { name: `Back to ${section}`, exact: true });
+      const back = page.getByRole("button", { name: sectionBackName(section), exact: true });
       await expect(listPanel(page)).toHaveAttribute("data-panel-mode", "docked");
       await expect(page.locator(MAIN)).toHaveAttribute("inert", "");
       await expect(back).toHaveCount(0);

@@ -31,10 +31,8 @@
 // and the pipeline stages ride the subtitle's own lead slot as glyphs carrying their labels
 // (`REGEX_PLACEMENT_GLYPHS`) instead of a line of prose.
 //
-// Two render arms by size, the tag-collection shape: the sealed `VirtualList` in a bounded box past
-// COLLECTION_LARGE_GROUP (with the host's filter), a LABELLED list below it — `role="list"` + `listitem`
-// children, the tag collection's own small-arm spelling, so the
-// arm that is not a `VirtualList` still announces its item count and boundaries.
+// ONE CONTAINER AT EVERY SIZE: the sealed `VirtualList`, so a row keeps its identity, and its focus, however many scripts
+// arrive or leave. Its window is the pane's free space, floored by the primitive itself when the chrome above leaves little.
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
@@ -45,6 +43,7 @@ import { Stack } from "@orb/ui/layout";
 import { selectActionName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
+import type { VirtualListHandle } from "@orb/ui/virtual-list";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement } from "react";
 import { useRef } from "react";
@@ -53,7 +52,6 @@ import { LibraryRow, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import {
-  COLLECTION_LARGE_GROUP,
   downloadTextFile,
   ESTIMATED_ROW_PX,
   notify,
@@ -76,6 +74,7 @@ import {
   useRegexBulkSelectedIds,
 } from "#state";
 import { useDuplicateRegexScript, useRemoveRegexScript } from "../hooks/use-regex-library.ts";
+import { REGEX_GROUP_LABEL } from "../lib/regex-names.ts";
 import { RegexBulkBar } from "./regex-bulk-bar.tsx";
 
 /** How many §12.2 cluster slots THIS list reserves per row: ONE — the kebab at rest, the bulk checkbox
@@ -134,14 +133,14 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
     timeLib.formatDateTime,
   );
   const qualifierById = new Map(filtered.map((script, index) => [script.id, qualifiers[index] ?? ""]));
-  // Where a delete's focus lands when no neighbouring row is mounted. The window is the library's, not the filter's, so
-  // a filter that leaves one row of a large library is still a window, and deleting that row leaves it with no neighbour.
-  // The root is one element around either arm, so the fallback exists whichever arm the library is in.
-  const windowed = scripts.length > COLLECTION_LARGE_GROUP;
+  // Where a delete's or a Back's focus lands when no row can take it: a filter that leaves one row, deleting that row, or a
+  // Back from a script deleted elsewhere.
   const listRootRef = useRef<HTMLDivElement>(null);
+  const windowRef = useRef<VirtualListHandle>(null);
   const rowFocus = useRowDeleteFocus(
     listRootRef,
     filtered.map((script) => script.id),
+    windowRef,
   );
 
   const renderRow = (script: RegexScriptRow): ReactElement => (
@@ -174,51 +173,29 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
         </Text>
       );
     }
-    if (windowed) {
-      return (
-        <VirtualList
-          aria-label="Regex scripts"
-          // THE PANE IS THE WINDOW (the mock design §5.4). The bound is the CONTENT pane's own
-          // `overflow-y-auto overscroll-contain` box,
-          // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
-          // pane, the list root below is `min-h-0 flex-1` in the landing and this is `min-h-0 flex-1` in the
-          // root. `min-h-0` is the required half — a flex
-          // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
-          // primitive's own unbounded-window throw.
-          className="min-block-0"
-          grow={true}
-          estimateSize={(): number => ESTIMATED_ROW_PX.subtitled}
-          // The cap is a fixed box and the rows are 51.5px, so the window ends MID-ROW every time; with
-          // overlay scrollbars that half-row is the only cue there is more, and it reads as clipping (the tag
-          // arm carries the same fade). The fade is state-gated on the live scroll position, so at the bottom it lifts.
-          fadeEdge={true}
-          gapToken="field"
-          getItemKey={(script): string => script.id}
-          items={filtered}
-          renderItem={renderRow}
-        />
-      );
-    }
-    // LIST SEMANTICS ARE EXPLICIT HERE, the tag collection's own small-arm spelling: the sibling arm above is
-    // a `VirtualList`, which announces "list, N items" of its own, so a bare `Stack` of buttons would make ONE
-    // library speak two a11y grammars depending only on its size.
     return (
-      <Stack aria-label="Regex scripts" gap="tight" role="list">
-        {filtered.map((script, index) => (
-          <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={script.id} role="listitem">
-            {renderRow(script)}
-          </Stack>
-        ))}
-      </Stack>
+      <VirtualList
+        aria-label={REGEX_GROUP_LABEL}
+        // THE PANE IS THE WINDOW (the mock design §5.4): the list takes the landing's free space inside the CONTENT pane's scroller.
+        grow={true}
+        estimateSize={(): number => ESTIMATED_ROW_PX.subtitled}
+        // The window ends mid-row; with overlay scrollbars that half-row is the only cue there is more, and it reads as
+        // clipping. The fade is state-gated on the live scroll position, so at the bottom it lifts.
+        fadeEdge={true}
+        gapToken="field"
+        getItemKey={(script): string => script.id}
+        items={filtered}
+        ref={windowRef}
+        renderItem={renderRow}
+      />
     );
   })();
 
   const checkedIds = Object.keys(selectedIds);
   return (
     <>
-      {/* THE LIST ROOT: one element around either arm, the delete's fallback focus. It carries the window's bound only when the
-          library is windowed; a short library's rows overflow it into the pane's own scroller. */}
-      <Stack focusTarget={true} grow={windowed} minHeight={windowed ? "shrinks" : undefined} ref={listRootRef} tabIndex={-1}>
+      {/* THE LIST ROOT: the fallback focus, and the landing's free space handed to the window. */}
+      <Stack focusTarget={true} grow={true} ref={listRootRef} tabIndex={-1}>
         {rows}
       </Stack>
       {/* THE BAR IS THE MODE'S ONLY VOICE WHILE NOTHING IS CHECKED — but it is not rendered then, and that

@@ -145,24 +145,27 @@ interface CollectionDetailView {
   readonly memberId: string;
 }
 
+/** A drilled member's way back: the button's whole accessible name and visible text, and what pressing it does. */
+export interface DrillBack {
+  readonly label: string;
+  readonly onClick: () => void;
+}
+
 /** What the host hands the member's EDITOR specifically ({@link CollectionContribution.detail}) — the
- *  detail view plus the ONE thing the editor needs and cannot know: which library it was drilled into from.
+ *  detail view plus the ONE thing the editor needs and cannot know: the way back to the library it was drilled into from.
  *
- *  ═══ WHY THE EDITOR GETS A FIELD THE CONTEXT ARM DOES NOT (#1747, the mock design §3.4) ═══════════════════
+ *  ═══ WHY THE EDITOR GETS A FIELD THE CONTEXT ARM DOES NOT (the mock design §3.4) ═══════════════════════
  *  The boards draw ONE drill row — `← Back to <library>` · the member's NAME · the member's own verbs — and
  *  the member surface is the only party that can draw it, because the NAME has exactly one author: every
- *  surface already renders it as its own `h2`, and a host heading over the four printed it twice (measured:
- *  two CTs red on a strict-mode heading match). So the exit's WORDS travel down to the surface instead of
- *  the name travelling up to the host. `library` is the group's own `label`, host-formatted nowhere else —
- *  the contribution never learns the group id and still never learns what a member IS.
+ *  surface renders it as its own `h2`. So the exit travels down to the surface instead of the name travelling up to
+ *  the host. The host builds the Back once, for its pending arm and for every member surface, so its words and its
+ *  focus return to the row cannot differ between them; the contribution never learns the group id and still never
+ *  learns what a member IS.
  *
  *  The CONTEXT arm keeps the bare {@link CollectionDetailView}: it draws no exit (the pane is beside the
  *  member, not a rung above it), and a field it cannot use would read as one it should. */
 export interface CollectionMemberView extends CollectionDetailView {
-  /** The library this member was drilled into from, in the host's own words (`ConfigGroupDefinition.label`
-   *  — "Tags", "World info"). The drill row spells `Back to ${library}`, which is that button's whole
-   *  accessible name. */
-  readonly library: string;
+  readonly back: DrillBack;
 }
 
 // A selected collection member explicitly has context content or its own explanatory empty state.
@@ -293,9 +296,9 @@ export interface CollectionContribution {
    *  FOR THE NEXT ADOPTER (tag, world-info): nothing here is regex-specific. Declare the field, own a mode
    *  flag, and render your own bar + checkbox rows inside `list` — the band half is already built. */
   readonly bulkSelect?: { readonly label: string; readonly useMode: () => { readonly active: boolean; readonly toggle: () => void } };
-  /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups, and
-   *  since #1747 the DRILL ROW above it: the surface draws `MemberDrillHeader` with the {@link
-   *  CollectionMemberView#library} it is handed, the member's name, and the member's own verbs (§3.4). */
+  /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups, and the
+   *  DRILL ROW above it: the surface draws `DetailHeader` with the {@link CollectionMemberView#back} it is handed, the
+   *  member's name, and the member's own verbs (§3.4). */
   readonly detail: (view: CollectionMemberView) => ReactNode;
   /** CONTEXT for a selected member of this kind (see {@link CollectionContext}). */
   readonly context: CollectionContext;

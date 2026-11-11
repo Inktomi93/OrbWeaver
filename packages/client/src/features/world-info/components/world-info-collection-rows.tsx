@@ -21,8 +21,8 @@
 // actually written. A rename-only second door bought a reader nothing the row click plus one pencil did not.
 // The row keeps every verb the editor does NOT own: Duplicate, Export, Delete.
 //
-// Two render arms by size, the tag/regex shape: the sealed `VirtualList` in a bounded box past
-// COLLECTION_LARGE_GROUP (with the host's filter), a plain stack below it.
+// ONE CONTAINER AT EVERY SIZE, the regex shape: the sealed `VirtualList`, so a row keeps its identity, and its focus, however
+// many books arrive or leave.
 
 import type { BookWithUsage } from "@orb/contracts/world-info";
 import type { WorldBookId } from "@orb/kit/ids";
@@ -31,12 +31,15 @@ import { Download, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
+import type { VirtualListHandle } from "@orb/ui/virtual-list";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement } from "react";
-import { LibraryRow } from "#components";
+import { useRef } from "react";
+import type { RowDeleteFocus } from "#components";
+import { LibraryRow, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, downloadTextFile, ESTIMATED_ROW_PX, notify, ROW_EXPORT_NAME } from "#lib";
+import { downloadTextFile, ESTIMATED_ROW_PX, notify, ROW_EXPORT_NAME } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useDuplicateWorldBook, useRemoveWorldBook } from "../hooks/use-world-info-mutations.ts";
 import { WORLD_BOOKS_LIST_NAME } from "../lib/world-books-list-name.ts";
@@ -88,8 +91,17 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
       });
   };
 
+  const listRootRef = useRef<HTMLDivElement>(null);
+  const windowRef = useRef<VirtualListHandle>(null);
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    filtered.map((book) => book.id),
+    windowRef,
+  );
+
   const renderRow = (book: BookWithUsage): ReactElement => (
     <WorldInfoCollectionRow
+      rowFocus={rowFocus}
       book={book}
       key={book.id}
       onDelete={onDelete}
@@ -116,44 +128,29 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
         </Text>
       );
     }
-    if (books.length > COLLECTION_LARGE_GROUP) {
-      return (
-        <VirtualList
-          aria-label={WORLD_BOOKS_LIST_NAME}
-          // THE PANE IS THE WINDOW (#1725, the mock design §5.4). This was the shared `max-h-(--height-scroll-lg)` cap — a flat 384px
-          // that existed to stop one library pushing its sibling BANDS below the fold in the LIST's shared
-          // scroll column. That column is gone, so the bound is the CONTENT pane's own `overflow-y-auto overscroll-contain` box,
-          // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
-          // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the load-bearing half — a flex
-          // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
-          // primitive's own unbounded-window throw.
-          className="min-block-0"
-          grow={true}
-          estimateSize={(): number => ESTIMATED_ROW_PX.compact}
-          // Same reason as the tag/regex arms (side-eye 2026-08-06 P2): a fixed cap over uniform rows ends
-          // mid-row, and under overlay scrollbars that sliver is the only "there is more" cue there is.
-          fadeEdge={true}
-          gapToken="field"
-          getItemKey={(book): string => book.id}
-          items={filtered}
-          renderItem={renderRow}
-        />
-      );
-    }
-    // Both small and windowed collections expose the same list/listitem grammar. A small-list CT is needed
-    // because a long library exercises only the VirtualList arm.
     return (
-      <Stack aria-label={WORLD_BOOKS_LIST_NAME} gap="tight" role="list">
-        {filtered.map((book, index) => (
-          <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={book.id} role="listitem">
-            {renderRow(book)}
-          </Stack>
-        ))}
-      </Stack>
+      <VirtualList
+        aria-label={WORLD_BOOKS_LIST_NAME}
+        // THE PANE IS THE WINDOW (the mock design §5.4): the list takes the landing's free space inside the CONTENT pane's scroller.
+        grow={true}
+        estimateSize={(): number => ESTIMATED_ROW_PX.compact}
+        // The window ends mid-row, and under overlay scrollbars that sliver is the only "there is more" cue there is.
+        fadeEdge={true}
+        gapToken="field"
+        getItemKey={(book): string => book.id}
+        items={filtered}
+        ref={windowRef}
+        renderItem={renderRow}
+      />
     );
   })();
 
-  return <>{rows}</>;
+  return (
+    // THE LIST ROOT: the fallback focus when no row can take it, and the landing's free space handed to the window.
+    <Stack focusTarget={true} grow={true} ref={listRootRef} tabIndex={-1}>
+      {rows}
+    </Stack>
+  );
 }
 
 interface WorldInfoCollectionRowProps {
@@ -163,11 +160,14 @@ interface WorldInfoCollectionRowProps {
   readonly onDelete: (id: WorldBookId) => void;
   readonly onDuplicate: (id: WorldBookId) => void;
   readonly onExport: (id: WorldBookId) => void;
+  /** Takes focus back by key: after a remount, or on the Back from the book this row opened. */
+  readonly rowFocus: RowDeleteFocus;
 }
 
-function WorldInfoCollectionRow({ book, selected, onSelect, onDelete, onDuplicate, onExport }: WorldInfoCollectionRowProps): ReactElement {
+function WorldInfoCollectionRow({ book, selected, onSelect, onDelete, onDuplicate, onExport, rowFocus }: WorldInfoCollectionRowProps): ReactElement {
   return (
     <LibraryRow
+      bodyRef={rowFocus.bodyRef(book.id)}
       actions={{
         name: book.name,
         // No `onRename` — the Book details dialog is naming's one home (#442, see the header). `LibraryRow`

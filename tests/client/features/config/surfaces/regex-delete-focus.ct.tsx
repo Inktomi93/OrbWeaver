@@ -1,9 +1,8 @@
 // A regex script deleted from its row's actions by keyboard hands focus to the row beside it, never the page body, once the row has left
-// the list: the row and its confirm unmount together, so Base UI has nothing to return focus to. That holds when the delete takes the
-// library across the size where the list stops being virtualized, because the rows then mount again in a new container, and when the
-// delete leaves a filter of a large library with no row. The settings list and its content are the production ones over a corpus root,
-// whose own scripts sit beside the ones made here through the production create verb, and the real server's own `regexChanged` event is
-// what removes the row.
+// the list: the row and its confirm unmount together, so Base UI has nothing to return focus to. That holds when the delete takes a
+// windowed library back under the large-group size, and when the delete leaves a filter of a large library with no row. The settings
+// list and its content are the production ones over a corpus root, whose own scripts sit beside the ones made here through the
+// production create verb, and the real server's own `regexChanged` event is what removes the row.
 // @subject packages/client/src/features/regex/components/regex-collection-rows.tsx
 import { COLLECTION_LARGE_GROUP, ROW_DELETE_NAME } from "@orb/client/lib";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
@@ -137,6 +136,11 @@ test("deleting the last script by keyboard moves focus to the row before it once
   await prepare(page, root, { corpus, viewer: corpusViewer.userId }, cleanup);
   await mount<typeof ConfigPanesBusStory>(STORY, { showList: true, initialGroup: "regex" });
   await expect(actionButtons(page).nth(2)).toBeVisible();
+  // The list is a window: scrolled to its end, the last row it mounts is the library's last.
+  await page.locator(`${LANDING} [data-slot="virtual-list-scroll"]`).evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(page.locator(`${LANDING} [data-slot="virtual-list-scroll"]`)).not.toHaveAttribute("data-more");
   const actions = await listedActions(page);
   const last = actions.at(-1);
   const before = actions.at(-2);
@@ -150,7 +154,12 @@ test("deleting the last script by keyboard moves focus to the row before it once
   await expect(bodyOfRowWith(page, before)).toBeFocused();
 });
 
-test("deleting a script that takes the library below the virtualized size leaves focus on the next row", async ({ corpus, corpusViewer, mount, page }) => {
+test("deleting a script that takes a windowed library back under the large-group size leaves focus on the next row", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
   await using root = await createCorpusHarness();
   await using cleanup = new AsyncDisposableStack();
   await seedScripts(root, COLLECTION_LARGE_GROUP + 1);

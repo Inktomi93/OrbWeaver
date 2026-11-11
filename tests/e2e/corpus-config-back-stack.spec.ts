@@ -1,12 +1,14 @@
 // The phone's Settings back stack on the committed corpus: each Back pops exactly one rung, entry to member to group to the list.
 import type { WorldBookId } from "@orb/kit/ids";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { WORLD_INFO_NEW_ENTRY_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 
-const SHELL_BACK = "Back to Settings";
+const SHELL_BACK = sectionBackName(SECTION_LABELS.settings);
 const CONTROL_ROW = '[data-slot="collection-control-row"]';
 const BOOK_EDITOR = '[data-slot="world-info-member-editor"]';
 const CONFIG_LIST = '[data-slot="config-list"]';
