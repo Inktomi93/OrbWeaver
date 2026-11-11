@@ -7,6 +7,7 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
+import type { AppearanceSettings } from "../settings/appearance.ts";
 import type { PortableSchemaKind } from "./envelope.ts";
 
 export {
@@ -103,9 +104,45 @@ export const portableTextFileSchema = z.strictObject({ filename: z.string(), fil
  *  whether a row was minted (false = an owned entity with equal content was reused). */
 export const importLandingSchema = z.strictObject({ created: z.boolean(), name: z.string(), renamedFrom: z.string().nullable() });
 
+/** The viewer's own Appearance settings a SillyTavern theme key names an equivalent of. Each is a key of the appearance
+ *  settings, so a rename there fails `tsc` here; the Looks note names each by its production label. */
+export const THEME_LEFTOVER_APPEARANCE_SETTINGS = [
+  "fontScale",
+  "chatWidthPct",
+  "avatarShape",
+  "avatarAspect",
+  "chatStyle",
+  "shadowEffects",
+  "blurSurfaces",
+  "blurStrength",
+  "showGenerationTimer",
+  "showTimestamps",
+  "showModelIcon",
+  "showMessageId",
+  "showInChatAvatars",
+  "showTokenCount",
+  "messageActions",
+  "reducedMotion",
+] as const satisfies readonly (keyof AppearanceSettings)[];
+export type ThemeLeftoverAppearanceSetting = (typeof THEME_LEFTOVER_APPEARANCE_SETTINGS)[number];
+
+/** Why a SillyTavern theme key was left behind, and so whether the person has anything to do: `appearance` is a display
+ *  choice the viewer sets themselves in Appearance (the settings it names), `no-equivalent` has no counterpart here, and
+ *  `faint-colour` is a text colour dropped because it would not be readable on its background. */
+export const themeLeftoverReasonSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("appearance"), settings: z.array(z.enum(THEME_LEFTOVER_APPEARANCE_SETTINGS)).min(1).readonly() }),
+  z.strictObject({ kind: z.literal("no-equivalent") }),
+  z.strictObject({ kind: z.literal("faint-colour") }),
+]);
+export type ThemeLeftoverReason = z.infer<typeof themeLeftoverReasonSchema>;
+
+/** One SillyTavern theme key the file carried that found no orb theme field: its own name and why it was left. */
+export const themeLeftoverSchema = z.strictObject({ key: z.string().min(1), reason: themeLeftoverReasonSchema });
+export type ThemeLeftover = z.infer<typeof themeLeftoverSchema>;
+
 /** Where one imported theme landed, plus the SillyTavern keys the file carried that found no orb field (empty for an orb-native
  *  file). They describe the file, so a reused theme states the same keys. */
-export const themeImportLandingSchema = importLandingSchema.extend({ unmapped: z.array(z.string()).readonly() });
+export const themeImportLandingSchema = importLandingSchema.extend({ unmapped: z.array(themeLeftoverSchema).readonly() });
 
 // ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
 // Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original

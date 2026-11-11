@@ -781,6 +781,14 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
       "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys the section's three OS preference rows read",
   },
+  "tests/client/features/config/surfaces/looks-import-leftovers.ct.tsx": {
+    "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
+      "APPEARANCE_SIZING_SUBCATEGORY: the label the Looks note names the Text size setting by, which the Sizing section also prints",
+  },
+  "tests/client/features/config/lib/appearance-setting-label.dom.test.ts": {
+    "packages/client/src/features/config/lib/appearance-setting-label.ts":
+      "appearanceSettingLabel: the lookup the Looks note names each Appearance setting by, walked over every key a theme import can name",
+  },
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":
       "commandShortcutLabel: the platform key hint the command chip's name and description spell",

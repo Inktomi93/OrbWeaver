@@ -23,6 +23,7 @@
 // NAMES ARE QUALIFIED (`Azure (SillyTavern)`): ST ships themes called `Dark Lite` and `Azure`, and the import
 // is additive by name, so an unqualified import would land beside an owner's own theme as a numbered copy.
 
+import type { ThemeLeftoverAppearanceSetting, ThemeLeftoverReason } from "@orb/contracts/portability";
 import type { StDroppedField } from "@orb/contracts/preset";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { Oklch } from "@orb/kit/theme-derivation";
@@ -37,7 +38,13 @@ export interface ParsedStTheme {
   readonly override: ThemeOverride;
   /** ST theme keys present with a meaningful value that orb's THEME model has no seat for — several are
    *  homed on the viewer's `appearance` namespace instead and import from `power_user` (see the reasons). */
-  readonly unmapped: readonly StDroppedField[];
+  readonly unmapped: readonly StThemeLeftover[];
+}
+
+/** A dropped ST key with the operator's prose reason and where the person finds what it stood for: `place` is the
+ *  structured half of the same fact, the one the Looks note groups by. */
+export interface StThemeLeftover extends StDroppedField {
+  readonly place: ThemeLeftoverReason;
 }
 
 /** One ST theme's parse: the converted palette, or the REASON it could not convert ("no base surface colour").
@@ -72,42 +79,85 @@ const ST_BORDER = "border_color";
  *  cannot drift between sixteen rows and the operator learns the ACTIVE value did travel. */
 const ERGONOMICS_SUFFIX = "; viewer ergonomics, not a theme — the ACTIVE value imports from `power_user`";
 
-const UNMAPPED_REASONS: readonly StDroppedField[] = [
-  { field: "underline_text_color", reason: "no underline-text token — orb colours body, dialogue and narration only" },
-  { field: ST_CHAT_SURFACE, reason: "used only as the compositing backdrop for the message/border tints — orb has no separate chat-panel surface token" },
-  { field: "shadow_color", reason: "text/panel shadow is the viewer's `appearance.shadowEffects` toggle, not a theme colour" },
-  { field: "shadow_width", reason: "text/panel shadow is the viewer's `appearance.shadowEffects` toggle, not a theme value" },
-  { field: "blur_strength", reason: "glass blur is the viewer's own `appearance.blurSurfaces` treatment, not a theme value" },
-  { field: "custom_css", reason: "ST custom CSS targets ST's own DOM (`#chat`, `.mes`, …), which orb never renders — it would be dead or hostile rules" },
+const NO_EQUIVALENT: ThemeLeftoverReason = { kind: "no-equivalent" };
+
+/** An ST key whose counterpart is the viewer's own Appearance setting(s). */
+function appearanceSettings(...settings: [ThemeLeftoverAppearanceSetting, ...ThemeLeftoverAppearanceSetting[]]): ThemeLeftoverReason {
+  return { kind: "appearance", settings };
+}
+
+const UNMAPPED_REASONS: readonly StThemeLeftover[] = [
+  { field: "underline_text_color", reason: "no underline-text token — orb colours body, dialogue and narration only", place: NO_EQUIVALENT },
+  {
+    field: ST_CHAT_SURFACE,
+    reason: "used only as the compositing backdrop for the message/border tints — orb has no separate chat-panel surface token",
+    place: NO_EQUIVALENT,
+  },
+  {
+    field: "shadow_color",
+    reason: "text/panel shadow is the viewer's `appearance.shadowEffects` toggle, not a theme colour",
+    place: appearanceSettings("shadowEffects"),
+  },
+  {
+    field: "shadow_width",
+    reason: "text/panel shadow is the viewer's `appearance.shadowEffects` toggle, not a theme value",
+    place: appearanceSettings("shadowEffects"),
+  },
+  {
+    field: "blur_strength",
+    reason: "glass blur is the viewer's own `appearance.blurSurfaces` treatment, not a theme value",
+    place: appearanceSettings("blurSurfaces", "blurStrength"),
+  },
+  {
+    field: "custom_css",
+    reason: "ST custom CSS targets ST's own DOM (`#chat`, `.mes`, …), which orb never renders — it would be dead or hostile rules",
+    place: NO_EQUIVALENT,
+  },
   // Ergonomics: real orb settings, on the VIEWER's `appearance` namespace rather than on a theme (D63/D71).
   // The ACTIVE values of these import from `settings.json` → `power_user` (substrate/appearance.ts), which is
   // what `ERGONOMICS_SUFFIX` points the operator at.
-  { field: "font_scale", reason: `type scale is \`appearance.fontScale\`, a reader's own choice${ERGONOMICS_SUFFIX}` },
-  { field: "chat_width", reason: `\`appearance.chatWidthPct\`${ERGONOMICS_SUFFIX}` },
-  { field: "avatar_style", reason: `\`appearance.avatarShape\`/\`avatarAspect\`${ERGONOMICS_SUFFIX}` },
-  { field: "chat_display", reason: `row anatomy is \`appearance.chatStyle\` (a theme may not force a row skin — D71/TD O-4)${ERGONOMICS_SUFFIX}` },
-  { field: "noShadows", reason: `\`appearance.shadowEffects\`${ERGONOMICS_SUFFIX}` },
-  { field: "timer_enabled", reason: `\`appearance.showGenerationTimer\`${ERGONOMICS_SUFFIX}` },
-  { field: "timestamps_enabled", reason: `\`appearance.showTimestamps\`${ERGONOMICS_SUFFIX}` },
-  { field: "timestamp_model_icon", reason: `\`appearance.showModelIcon\`${ERGONOMICS_SUFFIX}` },
-  { field: "mesIDDisplay_enabled", reason: `\`appearance.showMessageId\`${ERGONOMICS_SUFFIX}` },
-  { field: "hideChatAvatars_enabled", reason: `\`appearance.showInChatAvatars\`${ERGONOMICS_SUFFIX}` },
-  { field: "message_token_count_enabled", reason: `\`appearance.showTokenCount\`${ERGONOMICS_SUFFIX}` },
-  { field: "expand_message_actions", reason: `\`appearance.messageActions\`${ERGONOMICS_SUFFIX}` },
-  { field: "reduced_motion", reason: `\`appearance.reducedMotion\`${ERGONOMICS_SUFFIX}` },
+  { field: "font_scale", reason: `type scale is \`appearance.fontScale\`, a reader's own choice${ERGONOMICS_SUFFIX}`, place: appearanceSettings("fontScale") },
+  { field: "chat_width", reason: `\`appearance.chatWidthPct\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("chatWidthPct") },
+  {
+    field: "avatar_style",
+    reason: `\`appearance.avatarShape\`/\`avatarAspect\`${ERGONOMICS_SUFFIX}`,
+    place: appearanceSettings("avatarShape", "avatarAspect"),
+  },
+  {
+    field: "chat_display",
+    reason: `row anatomy is \`appearance.chatStyle\` (a theme may not force a row skin — D71/TD O-4)${ERGONOMICS_SUFFIX}`,
+    place: appearanceSettings("chatStyle"),
+  },
+  { field: "noShadows", reason: `\`appearance.shadowEffects\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("shadowEffects") },
+  { field: "timer_enabled", reason: `\`appearance.showGenerationTimer\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showGenerationTimer") },
+  { field: "timestamps_enabled", reason: `\`appearance.showTimestamps\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showTimestamps") },
+  { field: "timestamp_model_icon", reason: `\`appearance.showModelIcon\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showModelIcon") },
+  { field: "mesIDDisplay_enabled", reason: `\`appearance.showMessageId\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showMessageId") },
+  { field: "hideChatAvatars_enabled", reason: `\`appearance.showInChatAvatars\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showInChatAvatars") },
+  { field: "message_token_count_enabled", reason: `\`appearance.showTokenCount\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("showTokenCount") },
+  { field: "expand_message_actions", reason: `\`appearance.messageActions\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("messageActions") },
+  { field: "reduced_motion", reason: `\`appearance.reducedMotion\`${ERGONOMICS_SUFFIX}`, place: appearanceSettings("reducedMotion") },
   // ST-only affordances with no orb concept at all.
-  { field: "fast_ui_mode", reason: "ST's no-blur performance mode — orb's glass is per-surface (`appearance.blurSurfaces`), with no global switch" },
-  { field: "waifuMode", reason: "ST's full-screen visual-novel mode — no orb counterpart" },
-  { field: "zoomed_avatar_magnification", reason: "ST avatar-zoom behaviour — no orb counterpart" },
-  { field: "hotswap_enabled", reason: "ST's recent-character quick-swap bar — no orb counterpart" },
-  { field: "bogus_folders", reason: "ST's tag-as-folder browsing mode — orb tags are labels, never a folder tree" },
-  { field: "enableZenSliders", reason: "an ST sampler-UI mode — no orb counterpart" },
-  { field: "enableLabMode", reason: "an ST experimental-UI mode — no orb counterpart" },
-  { field: "compact_input_area", reason: "an ST composer layout toggle — no orb counterpart" },
-  { field: "show_swipe_num_all_messages", reason: "an ST swipe-counter toggle — no orb counterpart (the swipe DATA imports with each chat)" },
-  { field: "click_to_edit", reason: "an ST message-edit gesture — no orb counterpart" },
-  { field: "media_display", reason: "an ST inline-media layout toggle — no orb counterpart" },
-  { field: "toastr_position", reason: "ST toast placement — orb toasts have one placement" },
+  {
+    field: "fast_ui_mode",
+    reason: "ST's no-blur performance mode — orb's glass is per-surface (`appearance.blurSurfaces`), with no global switch",
+    place: NO_EQUIVALENT,
+  },
+  { field: "waifuMode", reason: "ST's full-screen visual-novel mode — no orb counterpart", place: NO_EQUIVALENT },
+  { field: "zoomed_avatar_magnification", reason: "ST avatar-zoom behaviour — no orb counterpart", place: NO_EQUIVALENT },
+  { field: "hotswap_enabled", reason: "ST's recent-character quick-swap bar — no orb counterpart", place: NO_EQUIVALENT },
+  { field: "bogus_folders", reason: "ST's tag-as-folder browsing mode — orb tags are labels, never a folder tree", place: NO_EQUIVALENT },
+  { field: "enableZenSliders", reason: "an ST sampler-UI mode — no orb counterpart", place: NO_EQUIVALENT },
+  { field: "enableLabMode", reason: "an ST experimental-UI mode — no orb counterpart", place: NO_EQUIVALENT },
+  { field: "compact_input_area", reason: "an ST composer layout toggle — no orb counterpart", place: NO_EQUIVALENT },
+  {
+    field: "show_swipe_num_all_messages",
+    reason: "an ST swipe-counter toggle — no orb counterpart (the swipe DATA imports with each chat)",
+    place: NO_EQUIVALENT,
+  },
+  { field: "click_to_edit", reason: "an ST message-edit gesture — no orb counterpart", place: NO_EQUIVALENT },
+  { field: "media_display", reason: "an ST inline-media layout toggle — no orb counterpart", place: NO_EQUIVALENT },
+  { field: "toastr_position", reason: "ST toast placement — orb toasts have one placement", place: NO_EQUIVALENT },
 ];
 
 /** A dropped key is "meaningful" (worth reporting) when it carries a real value — the preset wave's rule. */
@@ -141,14 +191,14 @@ function flatten(tint: SrgbColor | null, backdrop: SrgbColor): Oklch | null {
 }
 
 /** The ST keys that produced no orb token AND carried a meaningful value. */
-function droppedKeys(raw: Record<string, unknown>): StDroppedField[] {
+function droppedKeys(raw: Record<string, unknown>): StThemeLeftover[] {
   return UNMAPPED_REASONS.filter(({ field }) => isMeaningful(raw[field]));
 }
 
 /** An AUTHORED text colour is keepable iff it clears AA against the surface it will render on. Both sides
  *  are authored here, so the derivation cannot rescue the pair — the honest answer is to drop the token and
  *  let the base palette's own (derived, provably safe) text colour show through. */
-function safeText(text: Oklch | null, backdrop: Oklch, stKey: string, unmapped: StDroppedField[]): Oklch | null {
+function safeText(text: Oklch | null, backdrop: Oklch, stKey: string, unmapped: StThemeLeftover[]): Oklch | null {
   if (text === null) {
     return null;
   }
@@ -159,6 +209,7 @@ function safeText(text: Oklch | null, backdrop: Oklch, stKey: string, unmapped: 
   unmapped.push({
     field: stKey,
     reason: `dropped as unsafe — only ${ratio.toFixed(RATIO_PRECISION)}:1 against the surface it renders on in orb (WCAG AA needs ${AA_NORMAL_RATIO}:1); ST painted it over a background image orb does not reproduce`,
+    place: { kind: "faint-colour" },
   });
   return null;
 }

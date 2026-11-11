@@ -1,34 +1,71 @@
-// The note under the Looks import button for a SillyTavern theme that carried settings Orbweaver did not bring over.
-// The success toast says the theme landed and then leaves; this stays beside the grid where the theme appears, until
-// the next import replaces it or the section is left.
+// The note under the Looks import button for a SillyTavern theme that carried settings Orbweaver's themes have no field for.
+// The success toast says the theme landed and then leaves; this stays beside the grid where the theme appears, until the next
+// import starts. It says whether the person has anything to do: the display settings they choose themselves are named by their
+// labels in Appearance, the rest need nothing, and the raw SillyTavern names sit behind a disclosure as the secondary detail.
 
+import type { ThemeLeftover, ThemeLeftoverAppearanceSetting } from "@orb/contracts/portability";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { THEME_IMPORT_LEFTOVER_GLOSS, themeImportLeftoverTitle, themeImportLeftoverToggleName } from "../lib/theme-import-copy.ts";
+import { useConfigSectionRegistry } from "#state";
+import { appearanceSettingLabel } from "../lib/appearance-setting-label.ts";
+import {
+  THEME_IMPORT_ACTION,
+  THEME_IMPORT_GROUP_NOTE,
+  THEME_IMPORT_OUTCOME,
+  themeImportAppearanceLine,
+  themeImportLeftoverTitle,
+  themeImportLeftoverToggleName,
+} from "../lib/theme-import-copy.ts";
 
 export interface ThemeImportLeftoversProps {
   /** The landed theme's name, after any collision suffix. */
   readonly themeName: string;
-  /** The ST setting names the file carried that found no Orbweaver field. */
-  readonly keys: readonly string[];
+  /** Whether the import made a theme; false is a reuse of one the person already had. */
+  readonly created: boolean;
+  /** The SillyTavern keys the file carried that found no theme field, each with why. */
+  readonly leftovers: readonly ThemeLeftover[];
 }
 
-export function ThemeImportLeftovers({ themeName, keys }: ThemeImportLeftoversProps): ReactElement {
+/** The Appearance settings the leftovers stand for, each once, in the order the file listed them. */
+function appearanceSettingsOf(leftovers: readonly ThemeLeftover[]): readonly ThemeLeftoverAppearanceSetting[] {
+  const settings = leftovers.flatMap(({ reason }) => (reason.kind === "appearance" ? reason.settings : []));
+  return settings.filter((setting, index) => settings.indexOf(setting) === index);
+}
+
+export function ThemeImportLeftovers({ themeName, created, leftovers }: ThemeImportLeftoversProps): ReactElement {
+  const registry = useConfigSectionRegistry();
   const [open, setOpen] = useState(false);
+  const appearance = appearanceSettingsOf(leftovers);
+  const hasKind = (kind: ThemeLeftover["reason"]["kind"]): boolean => leftovers.some(({ reason }) => reason.kind === kind);
   return (
     <Stack gap="field" data-slot="theme-import-leftovers" role="note">
-      <Text voice="label">{themeImportLeftoverTitle(themeName, keys.length)}</Text>
+      <Text voice="label">{themeImportLeftoverTitle(themeName, leftovers.length, created)}</Text>
       <Text voice="quiet" cap="prose">
-        {THEME_IMPORT_LEFTOVER_GLOSS}
+        {`${THEME_IMPORT_OUTCOME[created ? "created" : "reused"]} ${THEME_IMPORT_ACTION[appearance.length > 0 ? "needed" : "none"]}`}
       </Text>
+      {appearance.length === 0 ? null : (
+        <Text voice="quiet" cap="prose">
+          {themeImportAppearanceLine(appearance.map((setting) => appearanceSettingLabel(registry, setting)))}
+        </Text>
+      )}
+      {hasKind("no-equivalent") ? (
+        <Text voice="quiet" cap="prose">
+          {THEME_IMPORT_GROUP_NOTE["no-equivalent"]}
+        </Text>
+      ) : null}
+      {hasKind("faint-colour") ? (
+        <Text voice="quiet" cap="prose">
+          {THEME_IMPORT_GROUP_NOTE["faint-colour"]}
+        </Text>
+      ) : null}
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger>{themeImportLeftoverToggleName(open)}</CollapsibleTrigger>
         <CollapsiblePanel>
           <Text voice="datumMono" wrap="anywhere">
-            {keys.join(", ")}
+            {leftovers.map(({ key }) => key).join(", ")}
           </Text>
         </CollapsiblePanel>
       </Collapsible>

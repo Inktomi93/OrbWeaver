@@ -1,18 +1,50 @@
-// What the Looks section says about the settings an imported SillyTavern theme carried that Orbweaver did not bring over.
-// A zero-import leaf, so a spec's node side reads the sentences without loading the component graph.
+// What the Looks section says about the settings an imported SillyTavern theme carried that Orbweaver's themes have no field for.
+// A leaf module, so a spec's node side reads the sentences without loading the component graph.
+//
+// The words follow what the person has to do. A display choice is theirs to set in Appearance (the settings it names, by their
+// own labels); a key with no counterpart here needs nothing; a text colour dropped as too faint is already covered by Orbweaver's
+// own readable colour. The sentence for each group is keyed on the wire's reason kind, so a new kind fails `tsc` until it has one.
 
-/** The note's heading: how many of the file's settings were left behind, and on which theme. */
-export function themeImportLeftoverTitle(themeName: string, count: number): string {
-  return count === 1
-    ? `1 SillyTavern setting in “${themeName}” wasn't brought over`
-    : `${String(count)} SillyTavern settings in “${themeName}” weren't brought over`;
+import type { ThemeLeftoverReason } from "@orb/contracts/portability";
+
+type LeftoverKind = ThemeLeftoverReason["kind"];
+
+function settingsCount(count: number): string {
+  return count === 1 ? "1 SillyTavern setting" : `${String(count)} SillyTavern settings`;
 }
 
-/** Why they were left and what survived, said once under the heading. */
-export const THEME_IMPORT_LEFTOVER_GLOSS =
-  "Orbweaver has no matching theme setting for them, or a text colour was too faint to read on its background. The rest of the theme imported.";
+/** The note's heading. An import that landed says what was left out of it; a reuse (nothing was created) says the file's settings
+ *  have no theme field, and never claims an import. */
+export function themeImportLeftoverTitle(themeName: string, count: number, created: boolean): string {
+  return created
+    ? `${settingsCount(count)} in “${themeName}” ${count === 1 ? "wasn't" : "weren't"} brought over`
+    : `${settingsCount(count)} in this file ${count === 1 ? "isn't" : "aren't"} part of a theme here`;
+}
 
-/** The disclosure trigger's name in each state. */
+/** The first line under the heading: what happened to the rest of the file. */
+export const THEME_IMPORT_OUTCOME: Record<"created" | "reused", string> = {
+  created: "The rest of the theme imported.",
+  reused: "Nothing changed, because you already have this theme.",
+};
+
+/** Whether the person has anything to do: they do when a display setting is among the leftovers. */
+export const THEME_IMPORT_ACTION: Record<"needed" | "none", string> = {
+  needed: "Some of these are display settings you can set yourself.",
+  none: "You don't need to do anything.",
+};
+
+/** The display-settings group: the Appearance settings the file's keys stand for, named by those settings' own labels. */
+export function themeImportAppearanceLine(labels: readonly string[]): string {
+  return `Set these yourself under Settings, Appearance: ${labels.join(", ")}.`;
+}
+
+/** The sentence for each group that needs nothing from the person. */
+export const THEME_IMPORT_GROUP_NOTE: Record<Exclude<LeftoverKind, "appearance">, string> = {
+  "no-equivalent": "These have no equivalent in Orbweaver, so there is nothing to set.",
+  "faint-colour": "These text colours were too faint to read on the theme's background, so Orbweaver keeps its own readable colour.",
+};
+
+/** The disclosure trigger's name in each state: the raw SillyTavern names are the secondary detail behind it. */
 export function themeImportLeftoverToggleName(open: boolean): string {
-  return open ? "Hide the settings" : "Show the settings";
+  return open ? "Hide the SillyTavern names" : "Show the SillyTavern names";
 }

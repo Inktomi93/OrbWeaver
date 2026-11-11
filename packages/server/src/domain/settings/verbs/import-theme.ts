@@ -36,7 +36,7 @@ interface LandingArgs {
   readonly library: OwnedLibrary;
   readonly at: number;
   /** The ST keys the file left behind; they describe the file, so a reused theme states them too. */
-  readonly unmapped: readonly string[];
+  readonly unmapped: ImportedThemeLanding["unmapped"];
 }
 
 /** A theme as it is stored: css that fails the validator degrades to null. */
@@ -82,7 +82,7 @@ export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp
       nameByContentKey: new Map(owned.map((row) => [themeContentKey({ override: row.override, css: row.css }), row.name])),
     };
     // Only a raw ST theme carries leftovers, and it is the file's one theme; an orb-native file leaves none behind.
-    const unmapped = parsed.stTheme?.unmapped.map(({ field }) => field) ?? [];
+    const unmapped = parsed.stTheme?.unmapped.map(({ field, place }) => ({ key: field, reason: place })) ?? [];
     const decided: { readonly landing: ImportedThemeLanding; readonly row: ThemeInsertRow | null }[] = [];
     for (const theme of parsed.value.themes) {
       decided.push(landTheme({ ctx, ownerId, theme, library, at, unmapped }));

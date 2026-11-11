@@ -177,7 +177,7 @@ function LooksBody(): ReactElement {
       notify.success(importedThemeMessage(landed));
       // The toast leaves; the note stays beside the grid until the next import starts.
       if (landed.unmapped.length > 0) {
-        setLeftovers({ themeName: landed.name, keys: landed.unmapped });
+        setLeftovers({ themeName: landed.name, created: landed.created, leftovers: landed.unmapped });
       }
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Couldn't import the theme.");
@@ -220,7 +220,9 @@ function LooksBody(): ReactElement {
                     )}
                   </FileTrigger>
                 </Row>
-                {leftovers === null ? null : <ThemeImportLeftovers keys={leftovers.keys} themeName={leftovers.themeName} />}
+                {leftovers === null ? null : (
+                  <ThemeImportLeftovers created={leftovers.created} leftovers={leftovers.leftovers} themeName={leftovers.themeName} />
+                )}
                 <RadioGroupPicker
                   aria-label="Theme"
                   data-slot="theme-collection"
