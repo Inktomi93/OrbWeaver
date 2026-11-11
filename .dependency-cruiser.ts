@@ -492,6 +492,8 @@ const TEST_CONSTANT_HOMES = {
     "DOCUMENT_UPLOAD_FAILURE: the add dialog's sentence for each refusal code of an uploaded file",
   "packages/client/src/features/config/lib/theme-import-copy.ts":
     "themeImportLeftoverTitle and its siblings: the Looks section's note for the settings an imported theme left behind",
+  "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
+    "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys of the Sizing section's settings, which the Looks note names by the same labels",
   "packages/client/src/features/preset/lib/preset-names.ts": "PRESET_DELETE_SECTION_TITLE: the section delete confirmation's title",
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
@@ -781,10 +783,6 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/app-shell/lib/appearance-select-items.ts": "OS_PREFERENCE_ITEMS: the mode words the section's segments print",
     "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
       "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys the section's three OS preference rows read",
-  },
-  "tests/client/features/config/surfaces/looks-import-leftovers.ct.tsx": {
-    "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
-      "APPEARANCE_SIZING_SUBCATEGORY: the label the Looks note names the Text size setting by, which the Sizing section also prints",
   },
   "tests/client/features/config/lib/appearance-setting-label.dom.test.ts": {
     "packages/client/src/features/config/lib/appearance-setting-label.ts":

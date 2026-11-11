@@ -129,7 +129,7 @@ export type ThemeLeftoverAppearanceSetting = (typeof THEME_LEFTOVER_APPEARANCE_S
 /** Why a SillyTavern theme key was left behind, and so whether the person has anything to do: `appearance` is a display
  *  choice the viewer sets themselves in Appearance (the settings it names), `no-equivalent` has no counterpart here, and
  *  `faint-colour` is a text colour dropped because it would not be readable on its background. */
-export const themeLeftoverReasonSchema = z.discriminatedUnion("kind", [
+const themeLeftoverReasonSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("appearance"), settings: z.array(z.enum(THEME_LEFTOVER_APPEARANCE_SETTINGS)).min(1).readonly() }),
   z.strictObject({ kind: z.literal("no-equivalent") }),
   z.strictObject({ kind: z.literal("faint-colour") }),
@@ -137,7 +137,7 @@ export const themeLeftoverReasonSchema = z.discriminatedUnion("kind", [
 export type ThemeLeftoverReason = z.infer<typeof themeLeftoverReasonSchema>;
 
 /** One SillyTavern theme key the file carried that found no orb theme field: its own name and why it was left. */
-export const themeLeftoverSchema = z.strictObject({ key: z.string().min(1), reason: themeLeftoverReasonSchema });
+const themeLeftoverSchema = z.strictObject({ key: z.string().min(1), reason: themeLeftoverReasonSchema });
 export type ThemeLeftover = z.infer<typeof themeLeftoverSchema>;
 
 /** Where one imported theme landed, plus the SillyTavern keys the file carried that found no orb field (empty for an orb-native
