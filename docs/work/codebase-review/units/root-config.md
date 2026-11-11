@@ -54,3 +54,14 @@ Suites that read these files (`comment-path-citations.repo.int.test.ts`,
 
 Retracted during the unit: `@sentry/node` packageExtensions looked dead; they are live
 (27 lockfile mentions — the first grep ate the pattern with `rg -r`'s replacement flag).
+
+## Program thesis after phase 0 (carry forward, re-derive if contradicted)
+
+Code has gates; prose does not. Four dead-reference findings in the first unit, all one crime:
+structure moved (D333 legacy retirement, suite renames) and the sentences pointing at it went
+false silently. In a repo whose design is that prose is the memory, stale prose is false memory,
+not a nit. Two of four were security tripwires (SSRF dispatcher, provider byte-pins) — now
+unpinned in-repo. Expect more wherever prose references moved structure: run the
+`rg tests/legacy` axis on every unit, and distrust any comment citing a path the citation gate
+cannot see. Secondary worry for phase 2: the enforcement layer's debt instruments
+("a bump must port it", 40+ version-keyed patches) pay out only if the bumper reads them.
