@@ -14,7 +14,7 @@ import { DismissDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter } from "#state";
-import { cardImportRefusalLine } from "../lib/character-import-copy.ts";
+import { cardImportPartialLine, cardImportRefusalLine } from "../lib/character-import-copy.ts";
 import { CHARACTER_IMPORT_NAME } from "../lib/character-names.ts";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";
@@ -25,20 +25,17 @@ interface ImportNotice {
   readonly message: string;
 }
 
-/** The toast line for one rejected card: the server's own reason, prefixed with the file it came from. */
-function cardFailureMessage(failure: CardImportResult["failed"][number]): string {
-  return failure.filename === null ? failure.error : `${failure.filename}: ${failure.error}`;
-}
-
 /** Derive the toast from the REAL per-file outcome (never from the uploaded filenames) of a batch that landed a card. */
 function importNotice({ imported, failed }: CardImportResult): ImportNotice {
-  const [firstFailure] = failed;
-  if (firstFailure === undefined) {
+  if (failed.length === 0) {
     return { kind: "success", message: imported.length === 1 ? "Card imported." : `${imported.length} cards imported.` };
   }
   return {
     kind: "info",
-    message: `${imported.length} of ${imported.length + failed.length} imported: ${cardFailureMessage(firstFailure)}`,
+    message: cardImportPartialLine(
+      imported.length,
+      failed.map(({ filename }) => filename),
+    ),
   };
 }
 

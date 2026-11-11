@@ -38,6 +38,7 @@ test("a folder with no SillyTavern library in it says what to pick instead, once
   await page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click();
   await (await chooserPromise).setFiles(folder);
 
+  await expect(page.getByRole("alert")).toHaveCount(1);
   await expect(page.getByRole("alert").getByText(IMPORT_FOLDER_WRONG_FOLDER, { exact: true })).toBeVisible();
   await absenceWindow(page, TOAST_WINDOW_MS);
   await expect(page.locator(TOAST_ROOT)).toHaveCount(0);

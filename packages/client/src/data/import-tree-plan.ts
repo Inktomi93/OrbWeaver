@@ -337,8 +337,7 @@ export class UnsupportedFolderLayoutError extends Error {
 
 /** Plan a picked folder's uploads against the served caps, charging each upload `framing` on top of its file
  *  bytes.
- *  @throws {@link UnsupportedFolderLayoutError} when the folder has no supported layout.
- *  @throws Error when the caps leave no room for any file. */
+ *  @throws {@link UnsupportedFolderLayoutError} when the folder has no supported layout. */
 export async function planTreeImport(files: readonly File[], caps: TreeImportCaps, framing: TreeUploadFraming = NO_FRAMING): Promise<TreeImportPlan> {
   const rawPaths = files.map(relativePathOf);
   const wrapper = commonWrapper(rawPaths);

@@ -16,3 +16,12 @@ export const CARD_IMPORT_REFUSED_MANY =
 export function cardImportRefusalLine(failed: number): string {
   return failed === 1 ? CARD_IMPORT_REFUSED_ONE : CARD_IMPORT_REFUSED_MANY;
 }
+
+/** The toast for a batch that landed some cards and refused others: how many came in, then the files that did not. */
+export function cardImportPartialLine(imported: number, failedFilenames: readonly (string | null)[]): string {
+  const total = imported + failedFilenames.length;
+  const names = failedFilenames.filter((name): name is string => name !== null);
+  const listing = names.length === 0 ? "" : `: ${names.join(", ")}`;
+  const refused = failedFilenames.length === 1 ? "One file isn't a character card" : "Some files aren't character cards";
+  return `${String(imported)} of ${String(total)} imported. ${refused} Orbweaver can read${listing}.`;
+}

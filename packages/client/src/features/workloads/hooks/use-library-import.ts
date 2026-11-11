@@ -149,10 +149,6 @@ function isZip(file: File): boolean {
   return file.name.toLowerCase().endsWith(ZIP_EXTENSION);
 }
 
-const IMPORT_FAILED_TOAST = "Import failed. Check the file and try again.";
-/** Said when the folder cannot be planned, before any file is sent: the inline line holds the reason. */
-const FOLDER_UNREADABLE_TOAST = "Couldn't read that folder.";
-
 /** The planner's view of the served caps. */
 function treeCaps(caps: ReturnType<typeof useUploadCaps>): TreeImportCaps {
   return { totalBytes: caps.importTreeTotal, fileBytes: caps.importTreeFile, files: caps.importTreeFiles };
@@ -291,15 +287,12 @@ export function useLibraryImport(): LibraryImport {
     }
   };
 
-  /** `toast: null` for a failure whose line is already on screen: the person is looking at it, so a toast would say it twice. */
-  const fail = (epoch: number, message: string, toast: string | null = IMPORT_FAILED_TOAST): void => {
+  /** A failure is one inline line where the person is looking; a toast beside it would say it twice. */
+  const fail = (epoch: number, message: string): void => {
     if (epoch !== requestEpoch.current) {
       return;
     }
     setState({ status: "error", message });
-    if (toast !== null) {
-      notify.error(toast);
-    }
   };
 
   const stageFiles = (files: readonly File[]): void => {
@@ -316,7 +309,7 @@ export function useLibraryImport(): LibraryImport {
     const epoch = ++requestEpoch.current;
     // The plan reads group definitions, so it is async; the picker's files are staged the moment it lands.
     // the .catch below calls fail(), whose
-    // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
+    // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
     planServedFolderImport(files, treeCaps(caps))
       .then(({ plan, collisions }) => {
         if (epoch === requestEpoch.current) {
@@ -331,10 +324,10 @@ export function useLibraryImport(): LibraryImport {
       })
       .catch((error: unknown) => {
         if (error instanceof UnsupportedFolderLayoutError) {
-          fail(epoch, IMPORT_FOLDER_WRONG_FOLDER, null);
+          fail(epoch, IMPORT_FOLDER_WRONG_FOLDER);
           return;
         }
-        fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error), FOLDER_UNREADABLE_TOAST);
+        fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error));
       });
   };
   const cancel = (): void => {
@@ -352,7 +345,7 @@ export function useLibraryImport(): LibraryImport {
     setState({ status: "uploading", filename: first.name });
     if (isZip(first)) {
       // the .catch below calls fail(), whose
-      // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
+      // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
       importBundle(first)
         .then(({ workloadId }) => {
           if (epoch === requestEpoch.current) {
@@ -363,7 +356,7 @@ export function useLibraryImport(): LibraryImport {
       return;
     }
     // the .catch below calls fail(), whose
-    // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
+    // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
     importCharacters(files)
       .then((result) => finish(epoch, summarizeCardImport(result)))
       .catch((error: unknown) => fail(epoch, errorMessage(error)));
@@ -379,7 +372,7 @@ export function useLibraryImport(): LibraryImport {
     }
     setState({ status: "uploading", filename: relativePathOf(first) });
     // the .catch below calls fail(), whose
-    // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
+    // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
     importTree(batch, run.choices, run.plan.layout)
       .then(({ workloadId }) => {
         if (run.epoch === requestEpoch.current) {
