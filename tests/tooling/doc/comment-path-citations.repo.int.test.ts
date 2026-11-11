@@ -10,7 +10,6 @@ import { basename, dirname, extname, join, posix } from "node:path";
 import { execPath } from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import extractDepcruiseConfig from "dependency-cruiser/config-utl/extract-depcruise-config";
-import type { Linter } from "eslint";
 import type { Rule } from "stylelint";
 import stylelint from "stylelint";
 import ts from "typescript";
@@ -175,6 +174,12 @@ interface Universe {
   readonly symbols: ReadonlySet<string>;
 }
 
+/** The part of a composed ESLint block a rule cite reads: the plugins it loads and the rules it sets. */
+interface EslintBlock {
+  readonly plugins?: Readonly<Record<string, unknown>>;
+  readonly rules?: Readonly<Record<string, unknown>>;
+}
+
 /** The part of `biome.json` that turns rules on for some files only. */
 interface BiomeConfig {
   readonly overrides?: readonly { readonly linter?: { readonly rules?: Readonly<Record<string, unknown>> } }[];
@@ -229,7 +234,7 @@ const eslintOn = (setting: unknown): boolean => {
 
 /** Every ESLint rule id some block of the composed config turns on, and every plugin namespace it loads. A rule a plugin
  *  registers but no block turns on enforces nothing, so a cite of it is dead. */
-function eslintRuleIds(config: readonly Pick<Linter.Config, "plugins" | "rules">[]): { readonly namespaces: Set<string>; readonly rules: Set<string> } {
+function eslintRuleIds(config: readonly EslintBlock[]): { readonly namespaces: Set<string>; readonly rules: Set<string> } {
   const namespaces = new Set(config.flatMap((block) => Object.keys(block.plugins ?? {})));
   const rules = new Set(config.flatMap((block) => Object.entries(block.rules ?? {}).flatMap(([rule, setting]) => (eslintOn(setting) ? [rule] : []))));
   return { namespaces, rules };
