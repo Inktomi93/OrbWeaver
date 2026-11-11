@@ -13,6 +13,16 @@ import type {
 import { PLUGIN_BRIDGE_OPERATIONS, PLUGIN_COMMAND_OPERATIONS, PLUGIN_SYNC_OPERATIONS } from "./contract/process-protocol.ts";
 
 export const PLUGIN_BROKER_SYNC_TIMEOUT_MS = 10_000;
+/** The error name of a refusal the host made for a reason the plugin did not cause: a broker that stopped answering,
+ *  a runtime replaced before the command ran, shutdown. The parent turns it into a refusal that is never a strike. */
+export const PLUGIN_HOST_UNAVAILABLE = "PluginHostUnavailable";
+/** The error name of an invocation the host ended: at its settlement wall, or by terminating its stuck Worker. */
+export const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
+/** The two Int32 slots a Worker shares with its broker to report its open span of guest work: a sequence number that
+ *  is 0 while no span is open, and the span's CPU window in ms. */
+export const SPAN_SEQUENCE_SLOT = 0;
+export const SPAN_WINDOW_SLOT = 1;
+export const SPAN_SLOTS_BYTES = 2 * Int32Array.BYTES_PER_ELEMENT;
 export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
 /** Largest inherited-channel JSON frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
@@ -242,6 +252,9 @@ function parseBrokerAuthorityReleased(value: Readonly<Record<string, unknown>>):
 function parseBrokerRuntimeMessage(kind: string, value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
   if (kind === "runtime-crashed") {
     return parseBrokerRuntimeCrashed(value);
+  }
+  if (kind === "runtime-ended") {
+    return typeof value["runtimeId"] === "string" ? { kind: "runtime-ended", runtimeId: value["runtimeId"] } : null;
   }
   if (kind === "log") {
     return parseBrokerLog(value);

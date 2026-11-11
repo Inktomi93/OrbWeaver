@@ -102,6 +102,9 @@ export type BrokerParentMessage =
   | { readonly kind: "bridge-cancel"; readonly id: string }
   | { readonly kind: "log"; readonly runtimeId: string; readonly label: string; readonly level: PluginLogLevel; readonly message: string }
   | { readonly kind: "runtime-crashed"; readonly runtimeId: string; readonly error: RpcError }
+  /** The broker terminated this runtime's Worker for running guest code past its window. The logical instance is not
+   *  crashed: its next call builds a fresh runtime. */
+  | { readonly kind: "runtime-ended"; readonly runtimeId: string }
   | { readonly kind: "authority-released"; readonly runtimeId: string; readonly authorityId: string };
 
 export type BrokerWorkerMessage =

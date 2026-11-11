@@ -192,11 +192,12 @@ function residentSandboxOptions(
   seams: LocalPluginHostSeams,
   log: Logger,
 ): Parameters<typeof Sandbox.create>[1] {
-  const { mirrorLog, netEgress } = seams;
+  const { mirrorLog, netEgress, spanReport } = seams;
   return {
     membrane: { grants, bridge: input.bridge, netEgress, log },
     ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
     ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog, log) } : {}),
+    ...(spanReport === undefined ? {} : { spanReport }),
   };
 }
 
@@ -359,6 +360,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
           // A snippet has no manifest, so its profile omits net.fetch; the forwarded egress is never reached.
           membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress, log },
           limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
+          ...(seams.spanReport === undefined ? {} : { spanReport: seams.spanReport }),
         });
         sandbox.setInvocationChat(input.chat);
         const outcome = await sandbox.evalGuest(input.code);

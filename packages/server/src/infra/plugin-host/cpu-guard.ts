@@ -48,6 +48,7 @@
 import { performance } from "node:perf_hooks";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { PLUGIN_INVOCATION_CPU_MS } from "./budgets.ts";
+import type { CpuSpanReport } from "./contract/port.ts";
 
 /** The deadline before the first span opens: the realm is being built from host code only, so nothing to bound. */
 const BUILDING = Number.POSITIVE_INFINITY;
@@ -69,6 +70,8 @@ interface CpuGuard {
   readonly parked: (() => void)[];
   /** Whether a span is open; a span opened inside one adds nothing. */
   spanOpen: boolean;
+  /** Where each outermost span is reported to the broker, or `null` outside a broker's Worker. */
+  readonly report: CpuSpanReport | null;
 }
 
 interface CpuAccount {
@@ -93,8 +96,8 @@ function windowPassed(guard: CpuGuard): boolean {
   return performance.now() > guard.deadlineAtMs;
 }
 
-function createGuard(ctx: QuickJSContext, budgetMs: number): CpuGuard {
-  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null, outside: { remainingMs: budgetMs }, parked: [], spanOpen: false };
+function createGuard(ctx: QuickJSContext, budgetMs: number, report: CpuSpanReport | null): CpuGuard {
+  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null, outside: { remainingMs: budgetMs }, parked: [], spanOpen: false, report };
   GUARDS.set(ctx, guard);
   ctx.runtime.setInterruptHandler(() => windowPassed(guard));
   return guard;
@@ -110,16 +113,17 @@ export function cpuWindowPassed(ctx: QuickJSContext): boolean {
 /** FAIL-CLOSED resolution: a span on an unregistered context gets the shared default budget rather than an
  *  unbounded run. This makes "a job pump with no CPU bound" unwritable by omission. */
 function guardOf(ctx: QuickJSContext): CpuGuard {
-  return GUARDS.get(ctx) ?? createGuard(ctx, PLUGIN_INVOCATION_CPU_MS);
+  return GUARDS.get(ctx) ?? createGuard(ctx, PLUGIN_INVOCATION_CPU_MS, null);
 }
 
-/** Install the context-lifetime interrupt with this instance's budget. Called ONCE per context at boot, before
- *  any guest source runs. Idempotent: a second call only re-budgets (it never stacks a second handler, which
- *  QuickJS could not hold anyway — `setInterruptHandler` REPLACES). */
-export function installCpuGuard(ctx: QuickJSContext, budgetMs: number): void {
+/** Install the context-lifetime interrupt with this instance's budget and, in a broker's Worker, the report its broker
+ *  watches for a stuck span (D347). Called ONCE per context at boot, before any guest source runs. Idempotent: a
+ *  second call only re-budgets (it never stacks a second handler, which QuickJS could not hold anyway —
+ *  `setInterruptHandler` REPLACES). */
+export function installCpuGuard(ctx: QuickJSContext, budgetMs: number, report: CpuSpanReport | null): void {
   const existing = GUARDS.get(ctx);
   if (existing === undefined) {
-    createGuard(ctx, budgetMs);
+    createGuard(ctx, budgetMs, report);
     return;
   }
   existing.budgetMs = budgetMs;
@@ -155,10 +159,12 @@ export function openCpuWindow(ctx: QuickJSContext): () => void {
   const openedAtMs = performance.now();
   guard.spanOpen = true;
   guard.deadlineAtMs = account.remainingMs > 0 ? openedAtMs + account.remainingMs : CLOSED;
+  guard.report?.opened(Math.ceil(account.remainingMs));
   return (): void => {
     account.remainingMs = Math.max(0, account.remainingMs - (performance.now() - openedAtMs));
     guard.deadlineAtMs = CLOSED;
     guard.spanOpen = false;
+    guard.report?.closed();
   };
 }
 

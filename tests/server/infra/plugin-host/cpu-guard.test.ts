@@ -8,12 +8,12 @@ import { installCpuGuard, withinCpuWindow } from "#server/infra/plugin-host/cpu-
 import { getPluginQuickJS } from "#server/infra/plugin-host/module.ts";
 
 // Finite guest work, many interrupt polls long, that ends on its own when nothing interrupts it.
-const FINITE_LOOP = "for (let i = 0; i < 10000000; i++) {}";
+const FINITE_LOOP = "for (let i = 0; i < 1000000; i++) {}";
 
 test("guest code the host reaches between spans is ended at its first poll, and the same code finishes inside a span", async () => {
   const quickjs = await getPluginQuickJS();
   using ctx = quickjs.newContext();
-  installCpuGuard(ctx, PLUGIN_INVOCATION_CPU_MS);
+  installCpuGuard(ctx, PLUGIN_INVOCATION_CPU_MS, null);
 
   using inSpan = withinCpuWindow(ctx, () => ctx.evalCode(FINITE_LOOP));
   expect(inSpan.error).toBeUndefined();

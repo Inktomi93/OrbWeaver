@@ -185,8 +185,12 @@ const PAST_WINDOW = {
   surfaceSetters:
     "(h, room, a) => { const arr = new Array(a.width).fill(0); for (const key of a.keys) { Object.defineProperty(Object.prototype, key, { set(v) { for (;;) arr.slice(); }, configurable: true }); } orb.host(1); return null; }",
 } as const satisfies GuestOps;
-// A slice wide enough that one poll period of a slicing loop is a large part of a window.
+// A slice wide enough that one poll period of a slicing loop is a large part of a window, for a run whose red is many
+// such periods in a row.
 const SLICE_WIDTH = 10_000;
+// A slice narrow enough that one poll period sits well inside the margin under load, for a run whose green may spend
+// one period past its window and whose red is one period per callback.
+const CALLBACK_SLICE_WIDTH = 2500;
 // Enough slow callbacks that running every one past the window overruns the margin many times over.
 const SLOW_CALLBACKS = 60;
 // Every key the host sets while it builds the surface `orb.host(1)` returns, each a namespace or a function name.
@@ -214,11 +218,11 @@ test.for([
   { name: "a loop passing a host call an object with a slow valueOf", op: "slowValueOf", args: { spin: CALLBACK_STEPS, unserved: UNSERVED_HOST_VERSION } },
   { name: "a loop that catches the interrupt", op: "catchesInterrupt", args: {} },
   { name: "a loop that calls the host from finally", op: "callsFromFinally", args: {} },
-  { name: "one host call reading an argument with many slow getters", op: "wideGetters", args: { width: SLICE_WIDTH, count: SLOW_CALLBACKS } },
+  { name: "one host call reading an argument with many slow getters", op: "wideGetters", args: { width: CALLBACK_SLICE_WIDTH, count: SLOW_CALLBACKS } },
   {
     name: "one orb.host call building its surface under slow Object.prototype setters",
     op: "surfaceSetters",
-    args: { width: SLICE_WIDTH, keys: SURFACE_KEYS },
+    args: { width: CALLBACK_SLICE_WIDTH, keys: SURFACE_KEYS },
   },
 ] as const)(
   "$name ends within the margin of its CPU window as a busy loop does, then serves the next call and retires cleanly",
@@ -361,7 +365,7 @@ test("a snippet building its surface under slow Object.prototype setters reports
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const caller = await root.internalCallerFor(root.ownerId);
   const room = (await caller.chat.startChat({ characterIds: [] })).chat;
-  const code = `const arr = new Array(${String(SLICE_WIDTH)}).fill(0);
+  const code = `const arr = new Array(${String(CALLBACK_SLICE_WIDTH)}).fill(0);
 for (const key of ${JSON.stringify(SURFACE_KEYS)}) { Object.defineProperty(Object.prototype, key, { set(v) { for (;;) arr.slice(); }, configurable: true }); }
 orb.host(1);`;
 

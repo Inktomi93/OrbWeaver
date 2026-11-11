@@ -663,6 +663,12 @@ const SERVER_TEST_REACHES = {
   "tests/server/entry/compose/scoped-timers.int.test.ts": {
     "domain/plugin": "pluginMacroName: no wire lists a plugin's registered macros, so the suite names the token by the plugin domain's own rule",
   },
+  // A stuck Worker must end before the parent's command timeout fires on production timers, and a lost broker must
+  // never add up to a disable.
+  "tests/server/infra/plugin-host/stuck-worker.int.test.ts": {
+    "domain/plugin": "PLUGIN_CRASH_DISABLE_THRESHOLD: the strikes a lost broker's refusals must never reach",
+    "infra/timers": "systemTimers: the production timers the parent's command timeout runs on",
+  },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
 
 // From the first dot of the last segment, so `.int.test.ts` goes whole: generated rule names read the bare suite.

@@ -38,7 +38,8 @@ test("a binding waiting for ready survives a delayed old-child exit and activate
   child.ref();
   expect(child.kill("SIGKILL")).toBe(true);
   await oldExit.reached;
-  await expect(victim.invoke("noop")).toThrowTRPCError("BAD_REQUEST");
+  // The lost broker is the host's failure, so the call is refused as host-unavailable, never a strike (D347).
+  await expect(victim.invoke("noop")).toThrowTRPCError("CONFLICT");
   const bystander = await installGuest(
     root,
     "new-connection",

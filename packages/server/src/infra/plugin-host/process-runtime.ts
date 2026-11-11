@@ -65,7 +65,16 @@ import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./cont
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
-import { fromRpcError, isBridgeOperation, parseBrokerParentMessage, parseMessageLine, rpcError, serializeMessage } from "./process-protocol.ts";
+import {
+  fromRpcError,
+  isBridgeOperation,
+  PLUGIN_HOST_UNAVAILABLE,
+  PLUGIN_INVOCATION_ENDED,
+  parseBrokerParentMessage,
+  parseMessageLine,
+  rpcError,
+  serializeMessage,
+} from "./process-protocol.ts";
 import type { WarmRuntimeLease } from "./warm-runtime-pool.ts";
 import { WarmRuntimePool } from "./warm-runtime-pool.ts";
 
@@ -116,6 +125,8 @@ type Binding = BindingLifetime & {
    *  event for it must not crash a binding it never touched. */
   dispatched: boolean;
   onCrash: (error: Error) => void;
+  /** The broker terminated this binding's runtime for overrunning its window; the binding stays usable. */
+  onEnded: () => void;
   catalog?: PluginInstance;
   retirement: { readonly runtimeId: string; readonly done: Promise<void> } | undefined;
 };
@@ -391,7 +402,9 @@ class BrokerClient {
     return await new Promise((resolve, reject) => {
       const timer = this.timers.timeout(() => {
         this.pending.delete(id);
-        const error = new Error(`plugin broker: ${operation} timed out`);
+        // The broker ends a stuck Worker itself, well inside this timeout; a command still unanswered here means the
+        // broker is the one not answering.
+        const error = new PluginHostUnavailableError(`plugin broker: ${operation} timed out`);
         reject(error);
         this.stopConnection(error);
       }, COMMAND_TIMEOUT_MS[operation]);
@@ -597,6 +610,10 @@ class BrokerClient {
       this.handleRuntimeCrash(message);
       return;
     }
+    if (message.kind === "runtime-ended") {
+      this.handleRuntimeEnded(message);
+      return;
+    }
     if (message.kind === "log") {
       this.handleLog(message);
       return;
@@ -627,8 +644,26 @@ class BrokerClient {
     if (message.ok) {
       pending.resolve(message.value);
     } else {
-      pending.reject(fromRpcError(message.error, "plugin broker command failed"));
+      pending.reject(
+        message.error.name === PLUGIN_HOST_UNAVAILABLE
+          ? new PluginHostUnavailableError(message.error.message)
+          : fromRpcError(message.error, "plugin broker command failed"),
+      );
     }
+  }
+
+  // The broker terminated this runtime's stuck Worker. The plugin's logical instance is not crashed: it is forgotten
+  // from the pool, so its next call cold-starts a fresh runtime from its durable source.
+  private handleRuntimeEnded(message: Extract<BrokerParentMessage, { readonly kind: "runtime-ended" }>): void {
+    const binding = this.bindings.get(message.runtimeId);
+    if (binding === undefined) {
+      return;
+    }
+    this.bindings.delete(message.runtimeId);
+    binding.runtimeId = undefined;
+    clearAuthorities(binding);
+    binding.invokeArgs.clear();
+    binding.onEnded();
   }
 
   private handleBridgeCancel(id: string): void {
@@ -737,7 +772,10 @@ class BrokerClient {
     }
   }
 
-  private onDisconnect(error: Error): void {
+  // A lost broker is the host's failure, never one plugin's: every command it held and every binding it served fails
+  // as host-unavailable, which the crash policy does not count as a strike (D347).
+  private onDisconnect(cause: Error): void {
+    const error = cause instanceof PluginHostUnavailableError ? cause : new PluginHostUnavailableError(cause.message);
     for (const [id, pending] of this.pending) {
       this.pending.delete(id);
       pending.timer();
@@ -779,10 +817,18 @@ class BrokerClient {
   }
 }
 
+/** A refusal the host made for a reason the plugin did not cause: its broker stopped answering or was lost, its
+ *  runtime was replaced before the command ran, or the host is shutting down. It is a conflict, which the domain's
+ *  crash policy never counts as a strike against the plugin (D347). */
+class PluginHostUnavailableError extends DomainConflictError {
+  constructor(message: string) {
+    super(message);
+    this.name = PLUGIN_HOST_UNAVAILABLE;
+  }
+}
+
 function unavailableError(): Error {
-  const error = new Error("plugin broker became unavailable; its RSS watchdog or a process failure stopped every resident runtime");
-  error.name = "PluginHostUnavailable";
-  return error;
+  return new PluginHostUnavailableError("plugin broker became unavailable; its RSS watchdog or a process failure stopped every resident runtime");
 }
 
 const PLUGIN_INSTANCE_KEYS = ["tools", "transforms", "events", "pubsub", "surfaces", "commands", "displayTransforms", "macros"] as const;
@@ -968,7 +1014,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
 
   const runOwned = async <T>(operation: () => Promise<T>): Promise<T> => {
     if (closed) {
-      throw new Error("plugin host: logical host is closed");
+      throw new PluginHostUnavailableError("plugin host: logical host is closed");
     }
     const completion = Promise.withResolvers<void>();
     pending.add(completion.promise);
@@ -1236,6 +1282,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       dispatched: false,
       retirement: undefined,
       onCrash: (error) => pool.fail(binding, error),
+      onEnded: () => pool.discard(binding),
       ...lifetime,
     };
     ownedBindings.add(binding);
@@ -1321,6 +1368,13 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
               value: { code: input.code, grants: input.grants, chat: input.chat },
             }),
           );
+        } catch (error) {
+          // The broker terminated this snippet's stuck Worker. The run started, so it answers as a snippet the wall
+          // ended does; its log lines died with the Worker.
+          if (error instanceof Error && error.name === PLUGIN_INVOCATION_ENDED) {
+            return { logLines: [], error: error.message, errorKind: "runtime" };
+          }
+          throw error;
         } finally {
           forgetRuntime(binding, runtimeId);
         }
@@ -1380,7 +1434,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
           }
         });
         cleanup.defer(() => poolResources.disposeAsync());
-        const failure = new Error("plugin host: logical host is closing");
+        const failure = new PluginHostUnavailableError("plugin host: logical host is closing");
         for (const binding of ownedBindings) {
           logicalBindings.delete(binding);
           binding.disposed = true;

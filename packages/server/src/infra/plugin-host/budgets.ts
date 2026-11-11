@@ -10,6 +10,7 @@
 // guest reads the seam.
 
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
+import { PLUGIN_BROKER_SYNC_TIMEOUT_MS } from "./process-protocol.ts";
 
 const BYTES_PER_MEBIBYTE = 1_048_576;
 const WASM_INITIAL_MEBIBYTES = 16;
@@ -23,6 +24,16 @@ export const PLUGIN_INVOCATION_CPU_MS = 1000;
 /** An inline snippet's guest CPU account — the whole snippet, not per call. Its wall is this plus
  *  {@link HOST_FN_DEADLINE_MS}. */
 export const SNIPPET_WALL_MS = 5000;
+
+/** How long a Worker may keep running one span of guest work past that span's CPU window before its broker terminates
+ *  that Worker alone (D347). One native call or one interrupt poll period has a length the guest picks, so the window
+ *  cannot end it; this does. It covers the longest honest overrun, a synchronous seam call that waits on the parent
+ *  inside the span, plus one invocation budget, and keeps a snippet's Worker well inside the parent's snippet command
+ *  timeout. */
+export const PLUGIN_WORKER_OVERRUN_MAX_MS = PLUGIN_BROKER_SYNC_TIMEOUT_MS + PLUGIN_INVOCATION_CPU_MS;
+
+/** How often the broker reads its Workers' span slots: a stuck Worker is terminated at most this much late. */
+export const PLUGIN_WORKER_SPAN_CHECK_MS = 250;
 
 /** QuickJS's LIVE guest-allocation accounting ceiling (= 32 MiB). This is NOT a WebAssembly or process RSS
  *  ceiling: the published Emscripten build may grow its allocator's linear-memory high-water mark while live

@@ -109,7 +109,8 @@ test("unexpected loss rejects a parked invocation and old callbacks before expli
   await exited;
   delivery.release();
   expect(await running).toMatchObject([{ status: "rejected" }]);
-  await expect(guest.invoke("noop")).toThrowTRPCError("BAD_REQUEST");
+  // The lost broker is the host's failure, so the call is refused as host-unavailable, never a strike (D347).
+  await expect(guest.invoke("noop")).toThrowTRPCError("CONFLICT");
   expect((await capturePluginRows(root.db, root.ownerId, guest.pluginId)).kv).toEqual([]);
   expect(edge.children).toHaveLength(1);
   await guest.disable();

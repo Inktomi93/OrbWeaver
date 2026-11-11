@@ -39,19 +39,19 @@ import type {
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
 import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
+import type { CpuSpanReport } from "./contract/port.ts";
 import { installCpuGuard, openCpuInvocation, openCpuWindow, pumpGuestJobs, releaseParkedSettlements } from "./cpu-guard.ts";
 import type { GuestMarshal } from "./marshal.ts";
 import { createGuestMarshal } from "./marshal.ts";
 import type { InFlightCounter, MembraneRuntime } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
+// An ended invocation's error is surfaced as DATA on the outcome (nothing crosses back into the guest: its realm is
+// torn down). The domain's crash policy sees it as a rejected `invoke`, so a hang counts toward the auto-disable.
+import { PLUGIN_INVOCATION_ENDED } from "./process-protocol.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
-/** The `name` an ENDED invocation's error carries — the design's `PluginInvocationEnded` (03 §3), surfaced as
- *  DATA on the outcome (nothing crosses back into the guest: its realm is torn down). The domain's crash policy
- *  sees it as a rejected `invoke`, so a hang finally counts toward the 3-strike auto-disable. */
 const PLUGIN_HANDLER_REF = brandedId("PluginHandlerRef");
-const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
 const FRAME_REGISTRATION_ARITY = 3;
 
 /** An invocation's first step: the guest call it makes, or a host refusal before the guest is touched. */
@@ -230,7 +230,10 @@ export class Sandbox implements Disposable {
   /** Boot a fresh guest instance: load the process module, mint an isolated context, cap its memory + stack,
    *  and install the injected-seam realm (+ the membrane, when `membrane` is supplied). Async because the WASM
    *  module loads once per process. */
-  static async create(seams: HostSeams, opts: { limits?: Partial<PluginBudgets>; membrane?: SandboxMembrane; logMirror?: LogMirror } = {}): Promise<Sandbox> {
+  static async create(
+    seams: HostSeams,
+    opts: { limits?: Partial<PluginBudgets>; membrane?: SandboxMembrane; logMirror?: LogMirror; spanReport?: CpuSpanReport } = {},
+  ): Promise<Sandbox> {
     const mod: QuickJSWASMModule = await getPluginQuickJS();
     const ctx = mod.newContext();
     const resolved: PluginBudgets = { ...DEFAULT_LIMITS, ...opts.limits };
@@ -241,7 +244,7 @@ export class Sandbox implements Disposable {
     // The guest-CPU interrupt, installed BEFORE any guest source can run and kept for the context's lifetime.
     // It is INERT until a span opens a window — but it must be in place before the first pump, because a pump
     // is precisely where an un-installed handler let guest bytecode run unbounded.
-    installCpuGuard(ctx, resolved.cpuDeadlineMs);
+    installCpuGuard(ctx, resolved.cpuDeadlineMs, opts.spanReport ?? null);
     // The marshal captures the realm's own `JSON` BEFORE the realm is installed or any guest source runs, so a guest
     // that later reassigns `JSON.parse` (or deletes `JSON`) cannot interpose on a value crossing either way.
     using construction = new DisposableStack();

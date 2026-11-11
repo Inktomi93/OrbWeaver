@@ -10,14 +10,26 @@ import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, Plugin
 import { z } from "zod";
 import { createRemoteBridge, createRemoteNetEgress } from "./bridge-rpc.ts";
 import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
-import type { CreateInstanceInputIn, LocalPluginHostSeams } from "./contract/port.ts";
+import type { CpuSpanReport, CreateInstanceInputIn, LocalPluginHostSeams } from "./contract/port.ts";
 import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { createLocalPluginHost } from "./port.ts";
-import { decodeProcessValue, fromRpcError, PLUGIN_BROKER_SYNC_RESULT_BYTES, PLUGIN_BROKER_SYNC_TIMEOUT_MS, rpcError } from "./process-protocol.ts";
+import {
+  decodeProcessValue,
+  fromRpcError,
+  PLUGIN_BROKER_SYNC_RESULT_BYTES,
+  PLUGIN_BROKER_SYNC_TIMEOUT_MS,
+  rpcError,
+  SPAN_SEQUENCE_SLOT,
+  SPAN_WINDOW_SLOT,
+} from "./process-protocol.ts";
+
+const INT32_MAX = 2_147_483_647;
 
 interface WorkerIdentity {
   readonly runtimeId: string;
   readonly logLevel: LocalPluginHostSeams["logLevel"];
+  /** The span slots this Worker shares with its broker (`SPAN_SLOTS_BYTES`). */
+  readonly spans: SharedArrayBuffer;
 }
 
 interface InvokeCommandValue {
@@ -58,6 +70,22 @@ if (permission?.has("worker") === true) {
 }
 
 const identity = workerData as WorkerIdentity;
+
+// The broker reads these slots from its own thread, which a stuck span cannot block: a span still open past its window
+// by `PLUGIN_WORKER_OVERRUN_MAX_MS` ends this Worker (D347). The window is stored before the sequence, so a broker
+// that sees a new sequence reads that span's window.
+const spans = new Int32Array(identity.spans);
+let spanSequence = 0;
+const spanReport: CpuSpanReport = {
+  opened: (windowMs) => {
+    spanSequence = spanSequence === INT32_MAX ? 1 : spanSequence + 1;
+    Atomics.store(spans, SPAN_WINDOW_SLOT, Math.min(windowMs, INT32_MAX));
+    Atomics.store(spans, SPAN_SEQUENCE_SLOT, spanSequence);
+  },
+  closed: () => {
+    Atomics.store(spans, SPAN_SEQUENCE_SLOT, 0);
+  },
+};
 const commandAuthority = new AsyncLocalStorage<string>();
 let nextRequest = 0;
 interface PendingBridgeCall {
@@ -211,6 +239,7 @@ const host = createLocalPluginHost({
   mirrorLog: (label, level, message) => post({ kind: "log", label, level, message }),
   netEgress: createRemoteNetEgress(callAsync),
   logLevel: identity.logLevel,
+  spanReport,
 });
 
 let instance: PluginInstance | undefined;

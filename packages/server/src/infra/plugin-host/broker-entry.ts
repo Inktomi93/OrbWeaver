@@ -1,20 +1,32 @@
 // infra/plugin-host/broker-entry — inherited parent channel and physical Worker owner.
 // ASSUMES(single-replica): these maps own live Workers inside one broker; a multi-replica replacement is a
 // DB-backed runtime lease and command queue, while each Worker remains owned by exactly one broker process.
+//
+// A STUCK WORKER ENDS ALONE (D347). One native call or one interrupt poll period has a length the guest picks, so the
+// guest-CPU window cannot end it, and nothing in that Worker's thread runs until it returns. The broker's thread
+// can: each Worker reports its open span of guest work in shared slots, and a span still open
+// `PLUGIN_WORKER_OVERRUN_MAX_MS` past its window terminates that Worker, well before the parent's command timeout
+// would kill this whole broker and every other owner's runtimes with it.
 
 import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
+import { PLUGIN_WORKER_OVERRUN_MAX_MS, PLUGIN_WORKER_SPAN_CHECK_MS } from "./budgets.ts";
 import type { BrokerBridgeResult, BrokerParentMessage, BrokerWorkerMessage, ParentBrokerMessage, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { parsePluginBrokerArguments } from "./process-argv.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import {
   encodeProcessValue,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
+  PLUGIN_HOST_UNAVAILABLE,
+  PLUGIN_INVOCATION_ENDED,
   parseMessageLine,
   parseParentBrokerMessage,
   parseWorkerBrokerMessage,
   rpcError,
+  SPAN_SEQUENCE_SLOT,
+  SPAN_SLOTS_BYTES,
+  SPAN_WINDOW_SLOT,
   serializeMessage,
 } from "./process-protocol.ts";
 import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./watchdog-policy.ts";
@@ -56,6 +68,10 @@ heartbeat.unref();
 interface Runtime {
   readonly worker: Worker;
   readonly pendingCommands: Map<string, Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"]>;
+  /** The Worker's span slots: the open span's sequence (0 when none) and its window. */
+  readonly spans: Int32Array;
+  /** The span this broker last saw open, and when it first saw it, on this broker's own clock. */
+  watched: { readonly sequence: number; readonly sinceMs: number };
   expectedExit: boolean;
   counted: boolean;
 }
@@ -150,6 +166,78 @@ function terminateDetached(worker: Worker): void {
   });
 }
 
+/** End a runtime whose Worker has run one span of guest work past its window by `PLUGIN_WORKER_OVERRUN_MAX_MS`.
+ *  Its bridge calls are cancelled at once, so an in-flight fetch aborts; a write the parent already started runs to
+ *  its end and its result is dropped. Only after the Worker has exited, and its slot is free for a replacement, does
+ *  the parent hear of it: first `runtime-ended`, so the logical instance is rebuilt on its next call rather than
+ *  crashed, then the commands. The oldest is the one the Worker was running or was blocked behind, and fails with the
+ *  ended invocation's refusal; any queued behind it never ran and fail as host-unavailable. */
+function endStuckRuntime(runtimeId: string, runtime: Runtime): void {
+  runtimes.delete(runtimeId);
+  runtime.expectedExit = true;
+  const [stuck, ...queued] = runtime.pendingCommands.keys();
+  runtime.pendingCommands.clear();
+  for (const [id, request] of pendingBridge) {
+    if (request.runtimeId !== runtimeId) {
+      continue;
+    }
+    pendingBridge.delete(id);
+    if (request.kind === "sync") {
+      clearTimeout(request.timer);
+    } else {
+      send({ kind: "bridge-cancel", id });
+    }
+  }
+  // the terminate rejection is rethrown inside queueMicrotask, which ends the broker; the watchdog sees the exit and the parent rejects pending work through onDisconnect. Ends if the queued rethrow is removed.
+  runtime.worker.terminate().then(
+    () => {
+      releaseWorkerSlot(runtime);
+      send({ kind: "runtime-ended", runtimeId });
+      if (stuck !== undefined) {
+        send({
+          kind: "response",
+          id: stuck,
+          ok: false,
+          error: {
+            name: PLUGIN_INVOCATION_ENDED,
+            message: `plugin host: invocation ended — its Worker ran guest code ${PLUGIN_WORKER_OVERRUN_MAX_MS}ms past its CPU window and was terminated`,
+          },
+        });
+      }
+      for (const id of queued) {
+        send({
+          kind: "response",
+          id,
+          ok: false,
+          error: { name: PLUGIN_HOST_UNAVAILABLE, message: "plugin broker: the runtime was replaced before this command ran" },
+        });
+      }
+    },
+    (error: unknown) => {
+      queueMicrotask(() => {
+        throw error;
+      });
+    },
+  );
+}
+
+// The broker's own clock decides how long a span has been open: it notes when it first saw each span's sequence, so
+// a Worker's clock is never trusted, and a span is ended at most one check late.
+const spanCheck = setInterval(() => {
+  const nowMs = performance.now();
+  for (const [runtimeId, runtime] of runtimes) {
+    const sequence = Atomics.load(runtime.spans, SPAN_SEQUENCE_SLOT);
+    if (sequence !== runtime.watched.sequence) {
+      runtime.watched = { sequence, sinceMs: nowMs };
+      continue;
+    }
+    if (sequence !== 0 && nowMs - runtime.watched.sinceMs > Atomics.load(runtime.spans, SPAN_WINDOW_SLOT) + PLUGIN_WORKER_OVERRUN_MAX_MS) {
+      endStuckRuntime(runtimeId, runtime);
+    }
+  }
+}, PLUGIN_WORKER_SPAN_CHECK_MS);
+spanCheck.unref();
+
 function resetAll(): void {
   for (const [runtimeId, runtime] of runtimes) {
     runtime.expectedExit = true;
@@ -173,13 +261,21 @@ function createRuntime(runtimeId: string): Runtime {
   if (physicalWorkerCount >= workerMaximum) {
     throw new Error(`plugin broker: physical Worker capacity (${workerMaximum}) exhausted`);
   }
+  const spans = new SharedArrayBuffer(SPAN_SLOTS_BYTES);
   const worker = new Worker(new URL("./worker-runtime.ts", import.meta.url), {
-    workerData: { runtimeId, logLevel },
+    workerData: { runtimeId, logLevel, spans },
     // Guest Workers receive no app environment or inherited IPC authority, so do not inherit
     // process.env across this trust boundary even though QuickJS itself has no ambient Node surface.
     env: { ["NODE_ENV"]: nodeEnvironment },
   });
-  const runtime: Runtime = { worker, pendingCommands: new Map(), expectedExit: false, counted: true };
+  const runtime: Runtime = {
+    worker,
+    pendingCommands: new Map(),
+    spans: new Int32Array(spans),
+    watched: { sequence: 0, sinceMs: 0 },
+    expectedExit: false,
+    counted: true,
+  };
   physicalWorkerCount += 1;
   peakPhysicalWorkers = Math.max(peakPhysicalWorkers, physicalWorkerCount);
   runtimes.set(runtimeId, runtime);
@@ -293,7 +389,10 @@ function handleCommand(message: Extract<ParentBrokerMessage, { readonly kind: "c
     const runtimeId = message.runtimeId;
     const runtime = message.operation === "create" || message.operation === "snippet" ? createRuntime(runtimeId) : runtimes.get(runtimeId);
     if (runtime === undefined) {
-      throw new Error("plugin broker: stale or unknown runtime id");
+      // A runtime this broker already ended or retired: the host's own lifecycle, not the plugin's doing.
+      const stale = new Error("plugin broker: stale or unknown runtime id");
+      stale.name = PLUGIN_HOST_UNAVAILABLE;
+      throw stale;
     }
     runtime.pendingCommands.set(message.id, message.operation);
     const workerMessage: BrokerWorkerMessage = {
