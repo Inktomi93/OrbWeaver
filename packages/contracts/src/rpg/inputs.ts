@@ -99,7 +99,7 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       stateCaptureVehicle: z.enum(RPG_STATE_CAPTURE_VEHICLES).optional(),
       extractionWindowTokens: z.int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).optional(),
       reconcileEveryBeats: z.int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).optional(),
-      // WAVE MU (the owner ruling's game half): the GAME's authored user macros — the whole set in ONE write
+      // The game half of the two-home macro rule (D345): the GAME's authored user macros — the whole set in ONE write
       // (whole-list replace, the `trackers` semantics). Omit keeps the current set. The turn registers these
       // BESIDE the preset's, the game winning a name clash (`shadowPresetUserMacros`).
       userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).optional(),

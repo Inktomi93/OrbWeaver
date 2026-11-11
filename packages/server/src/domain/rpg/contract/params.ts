@@ -233,7 +233,7 @@ export interface UpdateConfigParams {
         readonly stateCaptureVehicle?: RpgStateCaptureVehicle | undefined;
         readonly extractionWindowTokens?: number | undefined;
         readonly reconcileEveryBeats?: number | undefined;
-        // WAVE MU (the owner ruling's game half): the GAME's authored user macros — the whole set in ONE
+        // The game half of the two-home macro rule (D345): the GAME's authored user macros — the whole set in ONE
         // write (whole-list replace, the `trackers` semantics); omit keeps the current set.
         readonly userMacros?: readonly UserMacroSpec[] | undefined;
         // D132 — the per-GAME model-facing prose overrides (`slotId → {text, baseVersion}`);

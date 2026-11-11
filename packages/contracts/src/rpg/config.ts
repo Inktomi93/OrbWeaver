@@ -263,8 +263,8 @@ export const rpgGameConfigSchema = z
     // default parses `{}` through the sub-schema so EVERY inner default fills (a bare `{}` object literal
     // wouldn't satisfy the fully-required output type).
     features: rpgGameFeaturesSchema.default(() => rpgGameFeaturesSchema.parse({})),
-    // GAME-authored user macros (owner ruling) — the game half of the two-home
-    // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
+    // GAME-authored user macros — the game half of the two-home definition rule (D345;
+    // preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
     // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source
     // `{kind:"game"}` by the macro-feed threading (kit `registerUserMacros`).
     userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),

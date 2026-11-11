@@ -532,14 +532,14 @@ const VOICE_FOR_KIND: Record<TurnKind, TurnVoice> = {
  *  A top-level helper so its branch (rejected-log) stays OUT of `buildTurnContext`'s cognitive-complexity
  *  budget. `null` ⇒ the preset authored no user macros (the byte-identical singleton fast path).
  *
- *  Arm A (owner ruling): user-macro input VALUES live in a per-chat SIBLING typed column
+ *  User-macro input VALUES (D169) live in a per-chat SIBLING typed column
  *  (`chats.user_macro_values`, read via `loadStoredUserMacroValues`) — NOT the flat `chats.variableValues`
  *  (which can't hold the nested-typed `UserMacroValues`). Absent picks ⇒ `{}` ⇒ the defaults posture
  *  (unpicked inputs → per-kind defaults; random-pick pool → ALL options).
  *
- *  TWO DEF HOMES: the resolved preset's macros AND the game's (`ChatRpgOps.resolveUserMacros` — the injected
+ *  TWO DEF HOMES (D345): the resolved preset's macros AND the game's (`ChatRpgOps.resolveUserMacros` — the injected
  *  op, never a sideways rpg import). The game shadows the preset on a name clash; the builder owns that
- *  ruled policy (see `assembly/user-macros.ts`). */
+ *  policy (see `assembly/user-macros.ts`). */
 /** The turn's user-macro INPUT sides, both reads in one place (kept out of `buildTurnContext`'s
  *  cognitive-complexity budget): the GAME's declared defs (the second definition home — the injected rpg op,
  *  `[]` for a non-game/unwired chat) and the per-chat picks bag. The picks read is SKIPPED entirely when

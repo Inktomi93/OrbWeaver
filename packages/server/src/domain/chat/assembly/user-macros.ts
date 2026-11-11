@@ -47,7 +47,7 @@ const EMPTY_REGISTRATION: GroupRegistration = { registered: [], refused: [] };
 /** One source group's registration onto BOTH registries (the same defs + the same bindings, so the section
  *  walk and the freeze bake resolve identically). Reports the RENDER registry's outcome — a genuine
  *  authoring error (a bad name, or a name already taken); the volatile-only freeze registry carries fewer
- *  builtins, so ITS refusal set would under-report. The ruled preset↔game shadow was already applied by
+ *  builtins, so ITS refusal set would under-report. The preset↔game shadow (D345) was already applied by
  *  {@link shadowPresetUserMacros} and never surfaces here as a refusal. */
 function registerGroup<K extends MacroSourceKind>(
   registries: { readonly render: MacroRegistry; readonly freeze: MacroRegistry },

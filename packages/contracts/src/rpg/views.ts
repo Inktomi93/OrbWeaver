@@ -316,7 +316,7 @@ export interface RpgConfigView {
   /** The per-custom-kind steering hints — relationship kinds + R4c custom journal types. */
   readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];
   readonly journalTypeHints: RpgGameConfig["features"]["journalTypeHints"];
-  /** WAVE MU (the owner ruling's game half) — the GAME's authored user macros, the host editor's list. Written
+  /** The game half of the two-home macro rule (D345) — the GAME's authored user macros, the host editor's list. Written
    *  back whole (`updateConfig({patch:{userMacros}})` is a whole-list replace). */
   readonly userMacros: RpgGameConfig["userMacros"];
   /** The NAMES the chat's active preset declares (the injected preset-macro read). Names only — the editor

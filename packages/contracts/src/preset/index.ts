@@ -2317,7 +2317,7 @@ export type ChoiceBlockValues = z.infer<typeof choiceBlockValuesSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // User macros (the typed-input fold). The DEFINITION home is
-// preset/game CONFIG (owner ruling — never a global runtime): `promptConfig.userMacros` here and
+// preset/game CONFIG (D345 — never a global runtime): `promptConfig.userMacros` here and
 // `rpg_games.config.userMacros` (contracts/rpg/config.ts imports THIS schema — one shape, two homes).
 // The vocabulary (kinds/arg-types/name shape) derives from `@orb/kit/macro` — the engine half
 // (`registerUserMacros`/`resolveUserMacroInputs`, kit/macro/user-macros.ts) consumes exactly these

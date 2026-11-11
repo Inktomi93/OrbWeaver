@@ -291,3 +291,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D342 | [A dropped chat event append still fans live without a cursor](0342-a-dropped-chat-event-append-still-fans-live.md) | active |
 | D343 | [A rate measurement on a loaded box is labelled, not withheld](0343-a-rate-measurement-on-a-loaded-box-is-labelled-not-withheld.md) | active |
 | D344 | [A copy of a registry port that cannot import the registry stays hand-written](0344-a-copy-of-a-registry-port-outside-the-registry-stays-hand-written.md) | active |
+| D345 | [A user macro has two definition homes, the preset and the game](0345-a-user-macro-has-two-definition-homes-the-preset-and-the-game.md) | active |

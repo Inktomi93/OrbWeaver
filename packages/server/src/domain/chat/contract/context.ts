@@ -340,10 +340,10 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  before preset resolution so the turn assembles THAT preset instead of the host default. */
   readonly resolvePresetOverride: ResolvePresetOverrideOp;
   /** The GAME's authored user macros (`rpg_games.config.userMacros`) — the game half of the two-home
-   *  definition rule (owner ruling; the preset half is {@link ChatContext.resolvePromptUserMacros}). Empty for a
+   *  definition rule (D345; the preset half is {@link ChatContext.resolvePromptUserMacros}). Empty for a
    *  non-game / DISENGAGED chat (byte-identical to a non-game turn). Chat learns no rpg type: the
    *  return is contracts' own `UserMacroSpec`, the SAME shape the preset half returns, and chat merges the
-   *  two under the ruled collision policy (`shadowPresetUserMacros` — the game shadows the preset).
+   *  two under the collision policy (`shadowPresetUserMacros` — the game shadows the preset).
    *
    *  Its own op rather than a {@link ChatRpgGatherResult} field because the DECLARATIONS have two consumers
    *  with different shapes of work: the turn build (which runs the gather anyway) and the picks-pane read

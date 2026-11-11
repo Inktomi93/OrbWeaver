@@ -1183,7 +1183,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // IMGMAC — the chat's authored user-macro DEFS from BOTH homes, for imagery's mode-template extraction (the
   // late-bound thunk threaded into `buildImagery` above). Pure wiring: it reads the two existing front doors
   // (chat's active-preset macro declaration + rpg's game macros) and hands them over UNMERGED, because the
-  // preset↔game shadow is chat's ruled policy and has exactly one home (`shadowPresetUserMacros`).
+  // preset↔game shadow (D345) is chat's policy and has exactly one home (`shadowPresetUserMacros`).
   const resolveChatUserMacroDefs = createResolveChatUserMacroDefs(
     (chatId) => chatCompose.rpgChatOps.resolvePromptUserMacros(chatId),
     (chatId) => rpgOpsDelegate.resolveUserMacros(chatId),

@@ -96,7 +96,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
     planGameBirth: (chatId, params) => planLiteGameBirth(ctx, { chatId, ruleset: params.ruleset }),
     gameBirthCommitted: (chatId): void => ctx.emitBus({ type: "gameChanged", chatId }),
     resolvePresetOverride,
-    // The GAME-authored user macros (MU §12A.5 / the owner ruling's game half): `config.userMacros`, handed
+    // The GAME-authored user macros (the game half of the two-home rule, D345): `config.userMacros`, handed
     // to chat as declarations for BOTH the per-turn macro registry and the picks-pane read. KNOB-DRIVEN and
     // mode-blind like `resolvePresetOverride` — a plain config read, no game logic. A non-game chat or a
     // DISENGAGED game yields `[]`: the turn resolves preset macros only, byte-identical to no game.
