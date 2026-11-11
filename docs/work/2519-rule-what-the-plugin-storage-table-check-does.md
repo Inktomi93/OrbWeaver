@@ -18,7 +18,7 @@ A second line that measures differently from the first reads as a guarantee it d
 
 ## Done when
 
-A recorded decision: keep the CHECK as stated with the host check as the limit, or ship a numbered migration with a stated rule for rows past the new measure (delete or truncate), verified against a copy of the owner's database.
+Owner ruling: the CHECK stays as stated and the host check is the limit. The schema header in packages/db/src/schema/plugin.ts says so in one line, and no migration ships.
 
 ## Evidence
 

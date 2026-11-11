@@ -10,6 +10,7 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
+import { CARD_IMPORT_FAILED_DETAIL, cardImportRefusalLine } from "#lib";
 
 /** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card
  *  `skippedOverlays` (#1598/#1709) — the planes THIS file's import deliberately did not assert (e.g. "book
@@ -152,12 +153,15 @@ const UNNAMED_CARD = "Unnamed card";
 export function summarizeCardImport(result: CardImportResult): ImportSummary {
   const created = result.imported.filter((card) => card.created);
   const deduped = result.imported.filter((card) => !card.created);
+  // The server's sentence for a refused card is a technical one with nothing a person can act on, so the report says what the Characters
+  // import says: a short reason beside each refused file, and the one move that works, once, when no file landed.
+  const nothingLanded = result.imported.length === 0 && result.failed.length > 0;
   return {
     imported: created.length,
     skipped: deduped.length,
     merged: 0,
     failed: result.failed.length,
-    notes: [],
+    notes: nothingLanded ? [cardImportRefusalLine(result.failed.length)] : [],
     // A bare card writes no chat, so it offers no memory build.
     memoryScope: null,
     outcomes: [
@@ -183,7 +187,7 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
         (card): ImportOutcomeView => ({
           path: card.filename ?? UNNAMED_CARD,
           ok: false,
-          detail: card.error,
+          detail: CARD_IMPORT_FAILED_DETAIL,
         }),
       ),
     ],

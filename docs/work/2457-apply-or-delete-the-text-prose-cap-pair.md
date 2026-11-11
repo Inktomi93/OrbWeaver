@@ -19,7 +19,7 @@ A written rewrite that nobody applied is either unfinished UI work or a rejected
 
 ## Done when
 
-The rewrite is applied with a rendered check of the changed surfaces and the codemod is deleted in that commit, or the idea is rejected with its reason and the directory is deleted.
+Ruling: apply. A Text with the prose size and no prose measure runs a paragraph the full row, which is the line-length finding the design audit reports. The codemod is applied to every client site, a rendered check reads the changed surfaces at desktop and phone widths, and the codemod directory is deleted in the same commit. A lint rule or a Text prop type then refuses the prose size without the cap, so the pair cannot drift again.
 
 ## Evidence
 

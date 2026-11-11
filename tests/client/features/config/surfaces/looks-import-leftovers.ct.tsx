@@ -14,6 +14,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
+import { CONFIG_CUSTOMIZE_LOOK_NAME } from "#client/features/config/lib/config-control-names.ts";
 import {
   THEME_IMPORT_NOTHING_TO_DO,
   THEME_IMPORT_OUTCOME,
@@ -40,8 +41,12 @@ const LEFTOVER_KEYS = {
 } as const satisfies Record<ThemeLeftoverReasonKind, readonly string[]>;
 const LEFTOVERS = { ["custom_css"]: "#chat { color: red; }", ["font_scale"]: 1.2, ["chat_width"]: 60, ["main_text_color"]: "rgb(24, 40, 76)" };
 const ST_THEME = { name: "Azure", ["blur_tint_color"]: "rgb(16, 32, 64)", ...LEFTOVERS };
-// The labels the viewer finds those two settings under in Appearance, in the order the file lists them.
-const APPEARANCE_LABELS = [configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "fontScale"), configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "chatWidthPct")];
+// Where the viewer finds those two settings in Appearance, in the order the file lists them: both in Sizing & motion, which sits
+// behind the "Customize this look" disclosure.
+const APPEARANCE_PLACES = [
+  { label: configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "fontScale"), section: APPEARANCE_SIZING_SUBCATEGORY.label, folded: true },
+  { label: configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "chatWidthPct"), section: APPEARANCE_SIZING_SUBCATEGORY.label, folded: true },
+] as const;
 // A file whose only leftover needs nothing from the person.
 const NO_ACTION_THEME = { name: "Plain", ["blur_tint_color"]: "rgb(16, 32, 64)", ["custom_css"]: "#chat { color: red; }" };
 // An Orbweaver export: the row's own bytes, which no leftovers can come from.
@@ -74,8 +79,12 @@ test("a SillyTavern theme that left settings behind says each group under its ow
   // Each reason group has its own sentence, with its own subject and count: the display settings by the labels the Appearance
   // controls wear, the others by how many of them there are.
   await expect(note.locator(GROUP)).toHaveCount(THEME_LEFTOVER_REASON_KINDS.length);
+  // The display settings line says where each one is: the section that holds it, and the disclosure that section sits behind.
+  const where = note.locator(`${GROUP}[data-kind="appearance"]`);
+  await expect(where).toContainText(APPEARANCE_SIZING_SUBCATEGORY.label);
+  await expect(where).toContainText(CONFIG_CUSTOMIZE_LOOK_NAME);
   for (const kind of THEME_LEFTOVER_REASON_KINDS) {
-    await expect(note.locator(`${GROUP}[data-kind="${kind}"]`)).toHaveText(themeImportGroupLine(kind, LEFTOVER_KEYS[kind].length, APPEARANCE_LABELS));
+    await expect(note.locator(`${GROUP}[data-kind="${kind}"]`)).toHaveText(themeImportGroupLine(kind, LEFTOVER_KEYS[kind].length, APPEARANCE_PLACES));
   }
   // The raw names are one disclosure away, and inside it each group's names sit under that group's heading.
   await expect(note.locator(NAMES)).toBeHidden();

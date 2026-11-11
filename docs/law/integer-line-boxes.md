@@ -150,8 +150,7 @@ Fixed boxes make three classes of site wrong-by-vocabulary; each is re-paired to
 its CURRENT resolved value:
 
 1. **Tailwind default-scale leadings** (banned by the gate): `leading-tight` on micro voices →
-   `leading-micro` (`packages/ui/src/primitives/text/variants.ts` micro/kicker/gloss, `charts/scatter` count,
-   `compare-blocks` stateChip).
+   `leading-micro` (`packages/ui/src/primitives/text/variants.ts` micro/kicker/gloss, `charts/scatter` count).
 2. **Cross-pairs whose intent was a ratio:** `text-code leading-body` → `leading-label-relaxed`
    (Text `code` voice, `datumMono`, number-field `inline`); `text-label leading-body` →
    `leading-label-relaxed` (Text `prose` modifier, list-row `subtitleWrap`); `text-micro

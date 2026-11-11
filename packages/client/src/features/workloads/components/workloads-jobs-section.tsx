@@ -25,6 +25,7 @@ import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav.ts";
 import {
   groupWorkloadsByLane,
   isActiveWorkloadStatus,
+  UNRESOLVED_OWNER_HANDLE,
   WORKLOAD_FILTER_EMPTY_COPY,
   WORKLOAD_FILTER_EMPTY_NEXT_STEP,
   WORKLOAD_FILTER_LABELS,
@@ -110,7 +111,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
       return null;
     }
     // The handle list can lag or miss a removed account; a job that is not the viewer's is still labelled as someone else's.
-    return handleByUserId.get(workload.ownerId) ?? "another user";
+    return handleByUserId.get(workload.ownerId) ?? UNRESOLVED_OWNER_HANDLE;
   };
 
   return (

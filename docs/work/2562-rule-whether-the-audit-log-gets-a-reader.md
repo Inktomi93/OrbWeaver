@@ -18,7 +18,7 @@ A field or table nothing reads is a question about intent. Either it is a forens
 
 ## Done when
 
-A recorded decision: the audit log is a database-only forensic record with its retention stated, or an owner-facing view is planned with a work item. The table's header and the law agree with the decision.
+Owner ruling: the audit log is a database-only forensic record. The table's header and the law say so and state its retention, and no reader is planned.
 
 ## Evidence
 

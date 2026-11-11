@@ -17,6 +17,8 @@ export const CONFIG_ADVANCED_THEME_TOOLS_NAME = "Show advanced theme tools";
 /** The radio group of theme cards in Looks. */
 export const CONFIG_THEME_GROUP_NAME = "Theme";
 export const CONFIG_BACK_TO_LOOKS_NAME = "← Back to Looks";
+/** The disclosure on the Appearance pane that holds the fine-tuning sections under Looks. */
+export const CONFIG_CUSTOMIZE_LOOK_NAME = "Customize this look";
 /** The theme card menu's item that opens an owned theme in the builder. */
 export const CONFIG_EDIT_IN_BUILDER_NAME = "Edit in builder";
 

@@ -20,7 +20,7 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { MemberDrillBack } from "#components";
-import { EditorPage, MemberDrillHeader } from "#components";
+import { EditorPage, MemberDrillHeader, returnFocusToRow } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
@@ -45,7 +45,13 @@ export function RegexMemberSurface({ view }: { readonly view: CollectionMemberVi
   const trpc = useTRPC();
   const { data: scripts } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const row = scripts.find((script) => script.id === view.memberId);
-  const back = { label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() };
+  const back = {
+    label: `Back to ${view.library}`,
+    onClick: (): void => {
+      returnFocusToRow(view.memberId);
+      clearCollectionSelection();
+    },
+  };
   if (row === undefined) {
     // Reachable for real: another device deleted this script while it was open here (the regex verbs are
     // bus-driven, so the list refetches under the editor). The EXIT rides along (#1747): the drill row is
