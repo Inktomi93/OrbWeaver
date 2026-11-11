@@ -6,7 +6,7 @@
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { jsonObjectSchema } from "@orb/kit/json";
+import { boundedJsonObjectSchema, jsonObjectSchema } from "@orb/kit/json";
 import { nextFreeLabel } from "@orb/kit/strings";
 import { z } from "zod";
 import { chatApiSchema } from "./apis.ts";
@@ -37,7 +37,9 @@ const responseMapSchema = z
 export const connectionTransportSchema = z
   .object({
     headers: z.record(z.string(), z.string()).optional(),
-    includeBody: jsonObjectSchema.optional(),
+    // Checked in full: the editor reads this field from pasted YAML or `key=value` text, where `.inf`, `.nan` and an
+    // overflowing number decode to values the request would carry as null.
+    includeBody: boundedJsonObjectSchema.optional(),
     excludeBody: z.array(z.string()).optional(),
     responseMap: responseMapSchema.optional(),
   })

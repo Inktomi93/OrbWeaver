@@ -264,12 +264,18 @@ function residualData(data: CardDataJson | null): JsonObject | null {
 }
 
 /** The card's `data` block as the JSON it was decoded from, for the residue: the same container the typed reads
- *  use (`data` when it is an object or array, else the root). A V1 or Pygmalion card is rebuilt into promoted
- *  fields only, so it carries no residue and this is null for it. */
+ *  use (`data` when it is an object or array, else the root, an array root included). A V1 or Pygmalion card is
+ *  rebuilt into promoted fields only, so it carries no residue and this is null for it. */
 type CardDataJson = JsonObject | JsonValue[];
 function cardDataJson(raw: JsonValue, rebuilt: boolean): CardDataJson | null {
+  if (rebuilt) {
+    return null;
+  }
+  if (Array.isArray(raw)) {
+    return raw;
+  }
   const root = jsonObjectOf(raw);
-  if (rebuilt || root === null) {
+  if (root === null) {
     return null;
   }
   const nested = root["data"];

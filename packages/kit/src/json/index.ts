@@ -8,9 +8,13 @@ import { isPlainObject } from "#guards";
 //
 // TWO KINDS OF JSON VALUE, TWO CHECKS. A value decoded from JSON text (a wire body, a `mode: "json"` column, an
 // imported file) is JSON by construction, so it needs a type and at most a shallow shape guard: a deep re-walk
-// adds only a stack fault on deep input and refuses `1e400`, which JSON text decodes to `Infinity`. A value the
-// server must bound before it walks or stores it gets {@link boundedJsonObjectSchema}, whose walk is iterative
-// and capped.
+// adds only a stack fault on deep input and refuses `1e400`, which JSON text decodes to `Infinity`. Any other value
+// (one read from YAML or `key=value` text, or an object the code built) and a value the server must bound before a
+// recursive walk gets {@link boundedJsonObjectSchema}, whose walk is iterative and capped.
+//
+// SHARED NODES ARE LEGAL, CYCLES ARE NOT. A YAML alias or a built object can reference one node twice; serialised,
+// that is plain JSON with the node written out twice, so the bounded walk accepts it and visits it once. A cycle has
+// no JSON text at all, so the walk refuses it.
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
@@ -47,56 +51,112 @@ export function jsonObjectOf(value: JsonValue | undefined): JsonObject | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
 }
 
+/** Why a value fails {@link jsonObjectSchema}: it is not an object (an array, a scalar or null). */
+export const JSON_NOT_OBJECT = "json_not_object";
+
 /** A JSON object decoded from JSON text: a wire body field or a stored json column. Shallow by design (see the
  *  header): it checks the top is a plain object and passes the same reference through. */
 export const jsonObjectSchema: z.ZodType<JsonObject, Record<string, unknown>> = z.custom<JsonObject>((value) => isPlainObject(value), {
-  error: "expected a JSON object",
+  error: JSON_NOT_OBJECT,
 });
 
-/** How deep {@link boundedJsonObjectSchema} walks before it refuses. */
-export const JSON_MAX_DEPTH = 64;
+/** How deep {@link boundedJsonObjectSchema} walks before it refuses. A projected tool schema at the JSON Schema lift's
+ *  own depth cap spends about two JSON levels per schema level, so this holds it with room to spare. */
+export const JSON_MAX_DEPTH = 128;
 
 /** Why a value fails {@link boundedJsonObjectSchema}. */
-export const JSON_BOUND_REFUSALS = ["json_max_depth_exceeded", "json_not_json"] as const;
+export const JSON_BOUND_REFUSALS = ["json_max_depth_exceeded", "json_not_json", "json_cycle"] as const;
 type JsonBoundRefusal = (typeof JSON_BOUND_REFUSALS)[number];
-
-interface PendingNode {
-  readonly value: unknown;
-  readonly depth: number;
-}
 
 function leafIsJson(value: unknown): boolean {
   return value === null || typeof value === "string" || typeof value === "boolean" || (typeof value === "number" && Number.isFinite(value));
 }
 
-// The members of a JSON container, or null for a value that is no container.
-function containerMembers(value: unknown): readonly unknown[] | null {
-  if (Array.isArray(value)) {
-    return value;
-  }
-  return isPlainObject(value) && Object.getPrototypeOf(value) === Object.prototype ? Object.values(value) : null;
+interface JsonContainer {
+  readonly node: object;
+  readonly members: readonly unknown[];
 }
 
-// An explicit stack, never recursion, so no input depth reaches the V8 stack limit before the cap refuses it.
+// A JSON container and its members, or null for a value that is no container.
+function containerOf(value: unknown): JsonContainer | null {
+  if (Array.isArray(value)) {
+    return { node: value, members: value };
+  }
+  return isPlainObject(value) && Object.getPrototypeOf(value) === Object.prototype ? { node: value, members: Object.values(value) } : null;
+}
+
+// A node to open, or a container whose members are all walked and whose height can now be recorded.
+interface WalkFrame {
+  readonly value: unknown;
+  readonly depth: number;
+  readonly close: boolean;
+}
+
+interface Walk {
+  readonly pending: WalkFrame[];
+  // How far below each finished container its deepest member sits, so a shared container is walked once and its
+  // depth is still judged at every place it appears.
+  readonly heights: Map<object, number>;
+  // The containers on the path from the root to the frame being opened: meeting one again is a cycle.
+  readonly open: Set<object>;
+}
+
+function openFrame(walk: Walk, { value, depth }: WalkFrame): JsonBoundRefusal | null {
+  if (depth > JSON_MAX_DEPTH) {
+    return "json_max_depth_exceeded";
+  }
+  const container = containerOf(value);
+  if (container === null) {
+    return leafIsJson(value) ? null : "json_not_json";
+  }
+  const height = walk.heights.get(container.node);
+  if (height !== undefined) {
+    return depth + height > JSON_MAX_DEPTH ? "json_max_depth_exceeded" : null;
+  }
+  if (walk.open.has(container.node)) {
+    return "json_cycle";
+  }
+  walk.open.add(container.node);
+  walk.pending.push({ value, depth, close: true });
+  for (const member of container.members) {
+    walk.pending.push({ value: member, depth: depth + 1, close: false });
+  }
+  return null;
+}
+
+function closeFrame(walk: Walk, { value }: WalkFrame): void {
+  const container = containerOf(value);
+  if (container === null) {
+    return;
+  }
+  let height = 0;
+  for (const member of container.members) {
+    const child = containerOf(member);
+    height = Math.max(height, 1 + (child === null ? 0 : (walk.heights.get(child.node) ?? 0)));
+  }
+  walk.open.delete(container.node);
+  walk.heights.set(container.node, height);
+}
+
+// An explicit stack, never recursion, so no input depth reaches the V8 stack limit before the cap refuses it; each
+// distinct container is opened once, so the walk is linear in the value's distinct nodes and edges.
 function jsonBoundRefusal(root: unknown): JsonBoundRefusal | null {
-  const pending: PendingNode[] = [{ value: root, depth: 0 }];
-  for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
-    if (node.depth > JSON_MAX_DEPTH) {
-      return "json_max_depth_exceeded";
-    }
-    const members = containerMembers(node.value);
-    if (members === null && !leafIsJson(node.value)) {
-      return "json_not_json";
-    }
-    for (const member of members ?? []) {
-      pending.push({ value: member, depth: node.depth + 1 });
+  const walk: Walk = { pending: [{ value: root, depth: 0, close: false }], heights: new Map(), open: new Set() };
+  for (let frame = walk.pending.pop(); frame !== undefined; frame = walk.pending.pop()) {
+    if (frame.close) {
+      closeFrame(walk, frame);
+    } else {
+      const refusal = openFrame(walk, frame);
+      if (refusal !== null) {
+        return refusal;
+      }
     }
   }
   return null;
 }
 
-/** A JSON object the server bounds before it walks or keeps it: every member is JSON (finite numbers, plain objects,
- *  no `undefined`) and nothing nests deeper than {@link JSON_MAX_DEPTH}. A refusal carries its code from
+/** A JSON object checked in full: every member is JSON (finite numbers, plain objects, no `undefined`), nothing nests
+ *  deeper than {@link JSON_MAX_DEPTH}, and no container holds itself. A refusal carries its code from
  *  {@link JSON_BOUND_REFUSALS} as the issue message. The value passes through as the same reference. */
 export const boundedJsonObjectSchema = jsonObjectSchema.superRefine((value, ctx) => {
   const refusal = jsonBoundRefusal(value);

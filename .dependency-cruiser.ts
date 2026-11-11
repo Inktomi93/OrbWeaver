@@ -423,6 +423,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/chat/content-classes.ts": "CONTENT_CLASS_POLICY: the content-class projection table",
   "packages/contracts/src/chat/impersonation.ts": "impersonateStreamDeltaSchema: the impersonation delta parser",
   "packages/contracts/src/import/persona-collision.ts": "PERSONA_COLLISION_CHOICES: the collision choice vocabulary",
+  "packages/contracts/src/refinery/core.ts": "SCORE_MIN and SCORE_MAX: the score scale a custom score schema must keep",
   "packages/contracts/src/plugin/ui-host.ts": "PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX: the message read cap",
   "packages/contracts/src/plugin/view.ts": "PLUGIN_FANOUT_SKIP_REASONS: the fan-out skip vocabulary",
   "packages/contracts/src/prose-slot/index.ts": "proseOverrideFromLegacy: the legacy text lift",
@@ -779,6 +780,10 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/character/lib/facet-fill.dom.test.ts": {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
     "packages/client/src/features/character/lib/character-card-form-model.ts": "DEFAULT_CHARACTER_CARD_FORM: the empty form the facet model reads",
+  },
+  "tests/client/features/credentials/lib/include-body-overrides.dom.test.ts": {
+    "packages/client/src/features/credentials/lib/connection-editor-model.ts":
+      "parseIncludeBody and INCLUDE_BODY_SHAPE_REASON: the feature-private overrides reader and the refusal it shows",
   },
   "tests/client/lib/bug-report-bundle.dom.test.ts": {
     "packages/client/src/lib/bug-report-bundle.ts":

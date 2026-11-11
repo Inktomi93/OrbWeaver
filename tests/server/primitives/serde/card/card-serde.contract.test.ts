@@ -414,6 +414,8 @@ describe("cardContentHash identifies what the card says, not who it is attribute
 
 // The identity rows imported before the residue was typed carry for the own-`__proto__` card below; a re-import must find them.
 const PROTO_CARD_IMPORT_HASH = "d7a536741e303f81f7d0eca1dca9d7ad92cd635419837db0534903ea002e1402";
+// The identity rows imported before the residue was typed carry for a card file that is a JSON list.
+const LIST_CARD_IMPORT_HASH = "bcf985c2adea8a5282327ad2cd775c0c4de80925a874fd96392db3ad78fb1a6d";
 
 describe("cardImportHash is the import identity", () => {
   const harbor = (extraJson = "", spec = "chara_card_v3", version = "3.0"): CharacterCard =>
@@ -468,6 +470,12 @@ describe("cardImportHash is the import identity", () => {
     const card = cardFromJson(present(parseJsonText(text)), "Harbor");
     expect(JSON.stringify(card.extensions)).toBe(extensions);
     expect(cardImportHash(identity({ card }))).toBe(PROTO_CARD_IMPORT_HASH);
+  });
+
+  test("a card file that is one JSON list keeps its items as leftover fields, and the import identity is the one stored before", () => {
+    const card = cardFromJson(present(parseJsonText('["a",{"b":1}]')), "Harbor");
+    expect(JSON.stringify(card.residualData)).toBe('{"0":"a","1":{"b":1}}');
+    expect(cardImportHash({ card, book: null, artHash: null })).toBe(LIST_CARD_IMPORT_HASH);
   });
 
   test("a note, an embedded book or a script changes the identity even under one name", () => {
