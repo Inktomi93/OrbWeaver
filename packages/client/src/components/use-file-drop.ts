@@ -2,8 +2,10 @@
 // claimed the same way everywhere.
 //
 // DRAG DISCRIMINATION mirrors the app-shell stray-drop guard (`packages/client/src/features/app-shell/hooks/use-stray-file-drop-guard.ts`):
-// only a drag whose `dataTransfer.types` includes "Files" is claimed. A text or selection drag into a textarea is the
-// browser's own default action and cancelling it would break dropping text. Claiming a file drag also carves it out of that
+// by default only a drag whose `dataTransfer.types` includes "Files" is claimed. A text or selection drag into a textarea is the
+// browser's own default action and cancelling it would break dropping text. A surface that has no text to drop onto passes
+// `claimsAnyDrag`, so every drag is claimed and a drop with no file reaches `onFiles` as an empty list, for the surface to say
+// what it takes. Claiming a file drag also carves it out of that
 // window-level guard by construction: the guard skips an event that is already `defaultPrevented`, and these React handlers
 // preventDefault at the surface before the event reaches window. `dragover` must be cancelled too, or the drop event never
 // fires and the browser navigates the tab to the dropped file.
@@ -29,17 +31,19 @@ export interface FileDrop {
   readonly dropTargetProps: FileDropTargetProps;
 }
 
-function carriesFiles(types: readonly string[]): boolean {
-  return types.includes("Files");
+interface FileDropOptions {
+  /** Claim a drag that carries no file too; the drop then calls `onFiles` with an empty list. */
+  readonly claimsAnyDrag?: boolean;
 }
 
-export function useFileDrop(onFiles: (files: readonly File[]) => void): FileDrop {
+export function useFileDrop(onFiles: (files: readonly File[]) => void, { claimsAnyDrag = false }: FileDropOptions = {}): FileDrop {
   const [dragActive, setDragActive] = useState(false);
+  const claims = (types: readonly string[]): boolean => claimsAnyDrag || types.includes("Files");
   // Event bookkeeping the render never reads; only the derived `dragActive` boolean paints.
   const depth = useRef(0);
 
   const onDragEnter = (event: DragEvent<HTMLElement>): void => {
-    if (!carriesFiles(event.dataTransfer.types)) {
+    if (!claims(event.dataTransfer.types)) {
       return;
     }
     event.preventDefault();
@@ -47,7 +51,7 @@ export function useFileDrop(onFiles: (files: readonly File[]) => void): FileDrop
     setDragActive(true);
   };
   const onDragOver = (event: DragEvent<HTMLElement>): void => {
-    if (!carriesFiles(event.dataTransfer.types)) {
+    if (!claims(event.dataTransfer.types)) {
       return;
     }
     // Cancelling dragover is what makes this a drop target at all.
@@ -55,7 +59,7 @@ export function useFileDrop(onFiles: (files: readonly File[]) => void): FileDrop
     event.dataTransfer.dropEffect = "copy";
   };
   const onDragLeave = (event: DragEvent<HTMLElement>): void => {
-    if (!carriesFiles(event.dataTransfer.types)) {
+    if (!claims(event.dataTransfer.types)) {
       return;
     }
     event.preventDefault();
@@ -65,7 +69,7 @@ export function useFileDrop(onFiles: (files: readonly File[]) => void): FileDrop
     }
   };
   const onDrop = (event: DragEvent<HTMLElement>): void => {
-    if (!carriesFiles(event.dataTransfer.types)) {
+    if (!claims(event.dataTransfer.types)) {
       return;
     }
     event.preventDefault();

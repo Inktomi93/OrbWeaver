@@ -3,12 +3,20 @@
 // the feature's, injected as `commit`, because a persona and a character commit through different verbs.
 //
 // UPLOAD-COMPLETE IS NOT COMMIT. The blob landing in the content-addressed store says nothing about the row pointing at it.
-// The new picture and its confirmation ring appear when `commit` resolves; a refused write keeps the old picture and says so
-// on the control's own line. A newer pick or drop supersedes an older one still in flight, so a slow upload never lands over
-// the picture the person chose after it.
+// The new picture and its confirmation ring appear when `commit` resolves and only while that write is the newest; a refused
+// write keeps the old picture and says so on the control's own line.
 //
-// FAILURE SHOWS IN PLACE. An oversize file, a refused upload and a refused write are one line under the control, linked to
-// it with `aria-describedby`; the feature's mutation declares `failureShownInline` so no toast repeats the line.
+// WRITES ARE ORDERED. A newer pick or drop supersedes an older one: an older upload that finishes later is dropped, an older
+// write not yet sent is dropped, and an older write already in flight is followed by the newer write once it settles, whatever
+// its outcome. So the newest pick is always the last write the row receives, and nothing older is ever left as the picture.
+//
+// ONE ACCEPTANCE RULE for every way a file arrives (the picker and a drop): exactly one file, an image type, within the served
+// size cap. A refused entry says what is accepted on the control's own line, and nothing is uploaded.
+//
+// FAILURE SHOWS IN PLACE WHEN ITS PLACE IS ON SCREEN. An oversize file, a refused upload and a refused write are one line under
+// the control, linked to it with `aria-describedby`; the feature's mutation declares `failureShownInline` so no toast repeats the
+// line. Once the control is gone there is no place for the line, so an upload that fails after that toasts instead, and the
+// mutation toasts a write that fails after that.
 //
 // The button box IS the portrait box: a `PictureButton` sizes itself from its child, so the hit target, the confirm ring and
 // the drop ring all trace the avatar's own circle (`shape="pill"`, no call-site radius). Never a `square` button, which
@@ -26,9 +34,18 @@ import { PictureButton } from "@orb/ui/picture-button";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { UploadRefusedError, useUploadAsset, useUploadCaps } from "#data";
-import { AVATAR_UPLOADING_NAME, AVATAR_WRITE_REFUSED, avatarUploadFailedLine, oversizeUploadMessage } from "#lib";
+import {
+  AVATAR_DROP_A_FILE,
+  AVATAR_NOT_A_PICTURE,
+  AVATAR_ONE_AT_A_TIME,
+  AVATAR_UPLOADING_NAME,
+  AVATAR_WRITE_REFUSED,
+  avatarUploadFailedLine,
+  notify,
+  oversizeUploadMessage,
+} from "#lib";
 import { useFileDrop } from "./use-file-drop.ts";
 
 /** How long the confirmation ring stays on the portrait after the write commits. */
@@ -48,30 +65,36 @@ export interface AvatarUploadProps {
   readonly commit: (stored: StoredAsset) => Promise<unknown>;
 }
 
-interface Landing {
-  readonly upload: (file: File, kind: "avatar") => Promise<StoredAsset>;
-  readonly commit: AvatarUploadProps["commit"];
-  /** False once a newer pick or drop has taken over the control. */
-  readonly isCurrent: () => boolean;
+/** The line that refuses an entry, or undefined when it is one image within the cap. */
+function refusalLine(files: readonly File[], maxBytes: number): string | undefined {
+  const [file, ...rest] = files;
+  if (file === undefined) {
+    return AVATAR_DROP_A_FILE;
+  }
+  if (rest.length > 0) {
+    return AVATAR_ONE_AT_A_TIME;
+  }
+  if (!file.type.startsWith("image/")) {
+    return AVATAR_NOT_A_PICTURE;
+  }
+  return oversizeUploadMessage(file, maxBytes);
 }
 
-/** Upload then write. `undefined` when a newer attempt superseded this one, so it says nothing and shows nothing. */
-async function land(file: File, { upload, commit, isCurrent }: Landing): Promise<{ readonly landed: StoredAsset } | { readonly refused: string } | undefined> {
-  let stored: StoredAsset;
-  try {
-    stored = await upload(file, "avatar");
-  } catch (error) {
-    return isCurrent() ? { refused: avatarUploadFailedLine(error instanceof UploadRefusedError ? error.reason : undefined) } : undefined;
-  }
+/**
+ * Sends a write after every earlier one has settled, whatever their outcome, unless a newer pick has taken over by then:
+ * `undefined` means this write was dropped unsent.
+ */
+async function writeInTurn(previous: Promise<unknown>, send: () => Promise<unknown>, isCurrent: () => boolean): Promise<"committed" | "refused" | undefined> {
+  await previous;
   if (!isCurrent()) {
     return;
   }
   try {
-    await commit(stored);
+    await send();
+    return "committed";
   } catch {
-    return isCurrent() ? { refused: AVATAR_WRITE_REFUSED } : undefined;
+    return "refused";
   }
-  return isCurrent() ? { landed: stored } : undefined;
 }
 
 export function AvatarUpload({ name, hueSeed, initials, size, avatarHash, commit }: AvatarUploadProps): ReactElement {
@@ -83,49 +106,81 @@ export function AvatarUpload({ name, hueSeed, initials, size, avatarHash, commit
   const [working, setWorking] = useState(false);
   const [failure, setFailure] = useState<string | undefined>();
   const [confirming, setConfirming] = useState(false);
+  // Bookkeeping the render never reads: the newest pick's number, the tail of the write queue, whether the control is on
+  // screen, and the row's picture as of the latest render (the basis a committed picture is shown against).
   const attempt = useRef(0);
+  const writes = useRef<Promise<unknown>>(Promise.resolve());
+  const mounted = useRef(false);
+  const rowHash = useRef(avatarHash);
+  useEffect(() => {
+    rowHash.current = avatarHash;
+  }, [avatarHash]);
+  useEffect(() => {
+    mounted.current = true;
+    return (): void => {
+      mounted.current = false;
+    };
+  }, []);
 
   const shownHash = committed !== undefined && committed.basis === avatarHash ? committed.hash : avatarHash;
 
+  // The upload's failure shows on the line while the control is on screen, and by toast once there is no place for the line.
+  function reportUploadFailure(error: unknown): void {
+    const line = avatarUploadFailedLine(error instanceof UploadRefusedError ? error.reason : undefined);
+    if (mounted.current) {
+      setWorking(false);
+      setFailure(line);
+    } else {
+      notify.error(line);
+    }
+  }
+
   async function replace(file: File): Promise<void> {
     const mine = ++attempt.current;
-    const oversize = oversizeUploadMessage(file, uploadCaps.assetUpload);
-    setFailure(oversize);
-    setWorking(oversize === undefined);
-    if (oversize !== undefined) {
+    const isCurrent = (): boolean => mine === attempt.current;
+    setFailure(undefined);
+    setWorking(true);
+    const stored = await upload(file, "avatar").catch((error: unknown) => {
+      if (isCurrent()) {
+        reportUploadFailure(error);
+      }
+    });
+    if (stored === undefined || !isCurrent()) {
       return;
     }
-    const outcome = await land(file, { upload, commit, isCurrent: (): boolean => mine === attempt.current });
-    if (outcome === undefined) {
+    const turn = writeInTurn(writes.current, () => commit(stored), isCurrent);
+    writes.current = turn;
+    const outcome = await turn;
+    if (outcome === undefined || !isCurrent()) {
       return;
     }
     setWorking(false);
-    if ("refused" in outcome) {
-      setFailure(outcome.refused);
+    if (outcome === "refused") {
+      setFailure(AVATAR_WRITE_REFUSED);
       return;
     }
-    setCommitted({ basis: avatarHash, hash: outcome.landed.hash });
+    setCommitted({ basis: rowHash.current, hash: stored.hash });
     // A static ring flash, no keyframe (reduced-motion-safe by construction); clears itself shortly after.
     setConfirming(true);
     globalThis.setTimeout((): void => setConfirming(false), CONFIRM_MS);
   }
 
-  const { dragActive, dropTargetProps } = useFileDrop(([file]) => {
-    if (file !== undefined) {
-      replace(file).catch(globalThis.reportError);
+  function take(files: readonly File[]): void {
+    const refusal = refusalLine(files, uploadCaps.assetUpload);
+    const [file] = files;
+    if (refusal !== undefined || file === undefined) {
+      setFailure(refusal);
+      return;
     }
-  });
+    replace(file).catch(globalThis.reportError);
+  }
+
+  // A drag carrying no file is claimed too, so the drop can say what the control takes.
+  const { dragActive, dropTargetProps } = useFileDrop(take, { claimsAnyDrag: true });
   const src = shownHash === null ? {} : { src: blobUrl(shownHash) };
   return (
     <Stack align="start" cap="avatarHero" className="relative shrink-0" gap="tight">
-      <FileTrigger
-        accept="image/*"
-        onFilesSelected={([file]): void => {
-          if (file !== undefined) {
-            replace(file).catch(globalThis.reportError);
-          }
-        }}
-      >
+      <FileTrigger accept="image/*" onFilesSelected={take}>
         {({ open }): ReactElement => (
           <PictureButton
             {...dropTargetProps}

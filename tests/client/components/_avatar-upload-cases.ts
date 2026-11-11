@@ -1,7 +1,8 @@
 // The shared avatar control's cases, run once per surface that mounts it: the persona editor's identity row and the character
 // editor's hero band. A click opens the picker and a dropped image takes the same path; the upload shows progress on the
-// avatar; an oversize file, a refused upload and a refused write each say so on a line linked to the control, with no toast, and
-// a refused write keeps the picture the row already had. The writes reach a real server, and only the upload route is the test's:
+// avatar; an oversize file, a file that is not an image, several files, a drag with no file, a refused upload and a refused write
+// each say so on a line linked to the control, with no toast, and a refused write keeps the picture the row already had. Writes
+// run in pick order, so the newest pick is the picture the row ends on; a failure after the control is gone raises a toast. The writes reach a real server, and only the upload route is the test's:
 // it answers with a picture the server really holds, so a held, failed or superseded upload is the test's to script.
 //
 // A surface's CT file owns its mount (a feature suite runs only its own feature's door) and registers each case as a `test`;
@@ -9,16 +10,24 @@
 // @subject packages/client/src/components/avatar-upload.tsx
 
 import type { StoredAsset } from "@orb/contracts/assets";
-import { blobUrl, storedAssetSchema } from "@orb/contracts/assets";
+import { assetUploadRefusalSchema, blobUrl, storedAssetSchema } from "@orb/contracts/assets";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX } from "@orb/kit/ids";
 
-import { absenceWindow, routeAuthConfig } from "@orb/testkit/ct";
+import type { ServedHold } from "@orb/testkit/ct";
+import { absenceWindow, holdServed, routeAuthConfig } from "@orb/testkit/ct";
 import { expect } from "@orb/testkit/ct-corpus";
 import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
 import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
-import { AVATAR_UPLOAD_FAILED, AVATAR_UPLOADING_NAME, AVATAR_WRITE_REFUSED } from "#client/lib/avatar-upload-copy.ts";
+import {
+  AVATAR_DROP_A_FILE,
+  AVATAR_NOT_A_PICTURE,
+  AVATAR_ONE_AT_A_TIME,
+  AVATAR_UPLOAD_FAILED,
+  AVATAR_UPLOADING_NAME,
+  AVATAR_WRITE_REFUSED,
+} from "#client/lib/avatar-upload-copy.ts";
 
 const ROOT_OPTIONS = {
   env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
@@ -28,6 +37,8 @@ const ROOT_OPTIONS = {
 const UPLOAD_ROUTE = "/api/assets/upload";
 const BLOB_ROUTES = "**/api/blob/**";
 const TOAST_WINDOW_MS = 300;
+// By slot, because the toaster announces each toast again in a live region that shares its text.
+const TOAST_TITLE = '[data-slot="toast-title"]';
 // A cap under any real picture, so a tiny file is "oversize" without a huge buffer.
 const TINY_CAP_BYTES = 8;
 const OVERSIZE_FILE = { name: "huge.png", mimeType: "image/png", buffer: Buffer.alloc(TINY_CAP_BYTES * 4) } as const;
@@ -42,6 +53,10 @@ interface Staged {
   readonly control: Locator;
   readonly writes: () => number;
   readonly storedHash: () => Promise<string | null>;
+  /** Takes the control off the screen the way the surface does it: collapsing the persona row, closing the character editor. */
+  readonly unmount: () => Promise<void>;
+  /** Brings the control back, so a case can read what the row holds afterwards. */
+  readonly remount: () => Promise<void>;
 }
 
 interface StageArgs {
@@ -52,6 +67,8 @@ interface StageArgs {
   readonly current: StoredAsset;
   /** Script the surface's write to fail. */
   readonly refuseWrite: boolean;
+  /** Holds the first write until the case releases or fails it; the server answers every later write. */
+  readonly writeHold?: ServedHold;
 }
 
 export interface AvatarSurface {
@@ -117,8 +134,14 @@ async function expectLine(page: Page, control: Locator, line: string): Promise<v
 
 /** What the CT file passes in: this module is Node-rooted and reaches no DOM declaration, and the client door carries the DOM. */
 interface ClientSide {
-  /** Drops one file on `target`; whether the drop was claimed (its default cancelled). */
-  readonly dropOn: (target: Locator, transfer: { readonly file: string; readonly type: string }) => Promise<boolean>;
+  /** Drops `transfer` on `target`; whether the drop was claimed (its default cancelled). */
+  readonly dropOn: (
+    target: Locator,
+    transfer:
+      | { readonly file: string; readonly type: string }
+      | { readonly files: readonly { readonly file: string; readonly type: string }[] }
+      | { readonly text: string },
+  ) => Promise<boolean>;
   /** The production size pre-check the control runs, which words the oversize line. */
   readonly oversizeUploadMessage: (file: File, maxBytes: number) => string | undefined;
   /** Counts every toast the page mounts; call before `mount()`. */
@@ -139,6 +162,46 @@ type SignedInConfig = Exclude<Parameters<typeof routeAuthConfig>[1], string>;
 interface AvatarCase {
   readonly title: string;
   readonly run: (context: AvatarCaseContext) => Promise<void>;
+}
+
+/**
+ * A refused entry says why on the control's own line with no toast and sends nothing: no upload, no write, and the picture and
+ * the stored row stay as they were. `enter` is the gesture that hands the control its file; a `cap` serves a tiny upload limit.
+ */
+async function expectRefusedEntry(
+  { surface, client, signedInConfig, page, mount }: AvatarCaseContext,
+  enter: (control: Locator) => Promise<void>,
+  line: string,
+  cap?: number,
+): Promise<void> {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const current = await storePicture(root);
+  const uploadCaps =
+    cap === undefined ? signedInConfig : { ...signedInConfig, uploads: { ...DEFAULT_UPLOAD_CAPS, ...signedInConfig.uploads, assetUpload: cap } };
+  await routeAuthConfig(page, uploadCaps);
+  await routeBlobs(page, root);
+  const uploads = await routeUploads(page, () => served(current));
+  const toasts = await client.watchToastMounts(page);
+  const { control, writes, storedHash } = await surface.stage({ page, mount, caller, current, refuseWrite: false });
+  await expectPicture(control, current);
+
+  await enter(control);
+
+  await expectLine(page, control, line);
+  await absenceWindow(page, TOAST_WINDOW_MS);
+  expect(await toasts()).toBe(0);
+  expect(uploads()).toBe(0);
+  expect(writes()).toBe(0);
+  await expectPicture(control, current);
+  expect(await storedHash()).toBe(current.hash);
+}
+
+/** Reads one toast, and no second one, from the toast-mount count. */
+async function expectOneToast(page: Page, toasts: () => Promise<number>): Promise<void> {
+  await expect.poll(toasts).toBe(1);
+  await absenceWindow(page, TOAST_WINDOW_MS);
+  expect(await toasts()).toBe(1);
 }
 
 /** The cases every surface that mounts the avatar control runs. The CT file registers each as its own `test`, because
@@ -318,6 +381,249 @@ export const AVATAR_CASES: readonly AvatarCase[] = [
       await expectPicture(control, current);
       await expect(control).toHaveCSS("box-shadow", "none");
       expect(await storedHash()).toBe(current.hash);
+    },
+  },
+  {
+    title: "a write still in flight is followed by the newer pick's write, never overtaken, so the newer picture is the one the row ends on",
+    run: async ({ surface, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const [current, slow, quick] = [await storePicture(root), await storePicture(root), await storePicture(root)];
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const uploads = await routeUploads(page, (nth) => served(nth === 1 ? slow : quick));
+      const writeHold = holdServed();
+      const { control, writes, storedHash } = await surface.stage({ page, mount, caller, current, refuseWrite: false, writeHold });
+
+      await pick(page, control, PICKED_FILE);
+      await writeHold.requested;
+      await pick(page, control, PICKED_FILE);
+      await expect.poll(uploads).toBe(2);
+      await absenceWindow(page, TOAST_WINDOW_MS);
+      expect(writes()).toBe(1);
+
+      writeHold.release();
+
+      await expect.poll(storedHash).toBe(quick.hash);
+      await expectPicture(control, quick);
+      await absenceWindow(page, TOAST_WINDOW_MS);
+      expect(writes()).toBe(2);
+      expect(await storedHash()).toBe(quick.hash);
+      await expectPicture(control, quick);
+    },
+  },
+  {
+    title: "a write released before the newer pick's upload finishes is followed by that pick's write, so the newer picture is the one the row ends on",
+    run: async ({ surface, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const [current, slow, quick] = [await storePicture(root), await storePicture(root), await storePicture(root)];
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const gate = Promise.withResolvers<void>();
+      const uploads = await routeUploads(page, async (nth) => {
+        if (nth === 1) {
+          return served(slow);
+        }
+        await gate.promise;
+        return served(quick);
+      });
+      const writeHold = holdServed();
+      const { control, writes, storedHash } = await surface.stage({ page, mount, caller, current, refuseWrite: false, writeHold });
+
+      await pick(page, control, PICKED_FILE);
+      await writeHold.requested;
+      await pick(page, control, PICKED_FILE);
+      await expect.poll(uploads).toBe(2);
+      writeHold.release();
+      await expect.poll(storedHash).toBe(slow.hash);
+      expect(writes()).toBe(1);
+
+      gate.resolve();
+
+      await expect.poll(storedHash).toBe(quick.hash);
+      await expectPicture(control, quick);
+      await absenceWindow(page, TOAST_WINDOW_MS);
+      expect(writes()).toBe(2);
+      expect(await storedHash()).toBe(quick.hash);
+      await expectPicture(control, quick);
+    },
+  },
+  {
+    title: "an older write that is refused is still followed by the newer pick's write, and the control says nothing of the superseded one",
+    run: async ({ surface, client, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const [current, slow, quick] = [await storePicture(root), await storePicture(root), await storePicture(root)];
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const uploads = await routeUploads(page, (nth) => served(nth === 1 ? slow : quick));
+      const toasts = await client.watchToastMounts(page);
+      const writeHold = holdServed();
+      const { control, writes, storedHash } = await surface.stage({ page, mount, caller, current, refuseWrite: false, writeHold });
+
+      await pick(page, control, PICKED_FILE);
+      await writeHold.requested;
+      await pick(page, control, PICKED_FILE);
+      await expect.poll(uploads).toBe(2);
+      writeHold.fail();
+
+      await expect.poll(storedHash).toBe(quick.hash);
+      await expectPicture(control, quick);
+      await absenceWindow(page, TOAST_WINDOW_MS);
+      expect(writes()).toBe(2);
+      expect(await toasts()).toBe(0);
+      await expect(page.getByText(AVATAR_WRITE_REFUSED, { exact: true })).toHaveCount(0);
+    },
+  },
+  {
+    title: "an upload that fails after the control is gone raises one toast, because its own line has no place left",
+    run: async ({ surface, client, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const current = await storePicture(root);
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const gate = Promise.withResolvers<void>();
+      await routeUploads(page, async () => {
+        await gate.promise;
+        return { status: 500, body: { error: "scripted upload failure" } };
+      });
+      const toasts = await client.watchToastMounts(page);
+      const { control, writes, storedHash, unmount, remount } = await surface.stage({ page, mount, caller, current, refuseWrite: false });
+      await pick(page, control, PICKED_FILE);
+      await expect(control).toHaveAttribute("aria-busy", "true");
+      await unmount();
+      await expect(control).toHaveCount(0);
+
+      gate.resolve();
+
+      await expectOneToast(page, toasts);
+      await expect(page.locator(TOAST_TITLE, { hasText: AVATAR_UPLOAD_FAILED })).toBeVisible();
+      expect(writes()).toBe(0);
+      expect(await storedHash()).toBe(current.hash);
+      await remount();
+      await expectPicture(control, current);
+    },
+  },
+  {
+    title: "a write that is refused after the control is gone raises one toast, because its own line has no place left",
+    run: async ({ surface, client, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const [current, next] = [await storePicture(root), await storePicture(root)];
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const gate = Promise.withResolvers<void>();
+      await routeUploads(page, async () => {
+        await gate.promise;
+        return served(next);
+      });
+      const toasts = await client.watchToastMounts(page);
+      const { control, writes, storedHash, unmount, remount } = await surface.stage({ page, mount, caller, current, refuseWrite: true });
+      await pick(page, control, PICKED_FILE);
+      await expect(control).toHaveAttribute("aria-busy", "true");
+      await unmount();
+      await expect(control).toHaveCount(0);
+
+      gate.resolve();
+
+      await expectOneToast(page, toasts);
+      expect(writes()).toBe(1);
+      expect(await storedHash()).toBe(current.hash);
+      await remount();
+      await expectPicture(control, current);
+    },
+  },
+  {
+    title: "a dropped file that is not an image is refused on the control's own line before any upload",
+    run: async (context) => {
+      const enter = async (control: Locator): Promise<void> => {
+        expect(await context.client.dropOn(control, { file: "notes.txt", type: "text/plain" })).toBe(true);
+      };
+      await expectRefusedEntry(context, enter, AVATAR_NOT_A_PICTURE);
+    },
+  },
+  {
+    title: "a picked file that is not an image is refused by the same rule, because the picker's filter is only a hint",
+    run: async (context) => {
+      const enter = (control: Locator): Promise<void> =>
+        pick(context.page, control, { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("notes") });
+      await expectRefusedEntry(context, enter, AVATAR_NOT_A_PICTURE);
+    },
+  },
+  {
+    title: "a dropped image over the size cap is refused on the control's own line before any upload",
+    run: async (context) => {
+      const dropped = { file: "wide.png", type: "image/png" } as const;
+      const line = context.client.oversizeUploadMessage(new File([OVERSIZE_FILE.buffer], dropped.file), TINY_CAP_BYTES);
+      expect(line).toBeDefined();
+      const enter = async (control: Locator): Promise<void> => {
+        expect(await context.client.dropOn(control, dropped)).toBe(true);
+      };
+      await expectRefusedEntry(context, enter, line ?? "", TINY_CAP_BYTES);
+    },
+  },
+  {
+    title: "a drop of several files is refused on the control's own line, which says one picture at a time",
+    run: async (context) => {
+      const files = [
+        { file: "a.png", type: "image/png" },
+        { file: "b.png", type: "image/png" },
+      ];
+      const enter = async (control: Locator): Promise<void> => {
+        expect(await context.client.dropOn(control, { files })).toBe(true);
+      };
+      await expectRefusedEntry(context, enter, AVATAR_ONE_AT_A_TIME);
+    },
+  },
+  {
+    title: "a drag that carries no file is claimed and answered on the control's own line, which asks for a picture file",
+    run: async (context) => {
+      const enter = async (control: Locator): Promise<void> => {
+        expect(await context.client.dropOn(control, { text: "some dragged prose" })).toBe(true);
+      };
+      await expectRefusedEntry(context, enter, AVATAR_DROP_A_FILE);
+    },
+  },
+  {
+    title: "a file the server refuses shows its reason as one sentence on the control's own line",
+    run: async ({ surface, client, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const current = await storePicture(root);
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      let reason = "";
+      // The picked bytes are not a PNG, so the real upload route refuses them with its own reason.
+      await page.route(`**${UPLOAD_ROUTE}`, async (route) => {
+        const request = route.request();
+        const upload = request.postDataBuffer();
+        const answer = await root.http.request(UPLOAD_ROUTE, {
+          method: "POST",
+          headers: { ...(await request.allHeaders()), [CSRF_HEADER]: "1" },
+          body: upload === null ? null : new Uint8Array(upload),
+        });
+        const body = Buffer.from(await answer.arrayBuffer());
+        reason = assetUploadRefusalSchema.parse(JSON.parse(body.toString("utf8"))).error;
+        await route.fulfill({ status: answer.status, headers: Object.fromEntries(answer.headers), body });
+      });
+      const toasts = await client.watchToastMounts(page);
+      const { control, writes } = await surface.stage({ page, mount, caller, current, refuseWrite: false });
+
+      await pick(page, control, PICKED_FILE);
+
+      await expect.poll(() => reason).not.toBe("");
+      await expect(page.getByRole("alert")).toBeVisible();
+      const line = (await page.getByRole("alert").textContent()) ?? "";
+      // The server's reason is a clause, so the line carries it inside one sentence rather than starting a lowercase one after a period.
+      expect(line).toContain(reason);
+      expect(line).not.toMatch(/\. \p{Ll}/u);
+      await expect(control).toHaveAccessibleDescription(line);
+      await absenceWindow(page, TOAST_WINDOW_MS);
+      expect(await toasts()).toBe(0);
+      expect(writes()).toBe(0);
+      await expectPicture(control, current);
     },
   },
 ];

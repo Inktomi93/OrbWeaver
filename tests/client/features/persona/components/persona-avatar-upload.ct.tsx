@@ -29,21 +29,31 @@ const EDITOR_READS = [
 const SURFACE: AvatarSurface = {
   name: "the persona editor",
   controlName: personaAvatarName(PERSONA_NAME),
-  stage: async ({ page, mount, caller, current, refuseWrite }) => {
+  stage: async ({ page, mount, caller, current, refuseWrite, writeHold }) => {
     const persona = await caller.persona.create({ input: { name: PERSONA_NAME, description: "Holds a picture." } });
     await caller.persona.update({ personaId: persona.id, input: { avatarAssetId: current.assetId } });
+    let writeNumber = 0;
     const calls = await routeTrpc(page, {
       ...serveCorpusProcedures(caller, EDITOR_READS),
-      ...serveCorpusProcedures(caller, ["persona.update"], () => (refuseWrite ? trpcError() : undefined)),
+      ...serveCorpusProcedures(caller, ["persona.update"], () => {
+        writeNumber += 1;
+        if (refuseWrite) {
+          return trpcError();
+        }
+        return writeNumber === 1 ? writeHold : undefined;
+      }),
     });
     await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance: appearanceSettingsSchema.parse({}) });
-    await page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true }).focus();
+    const show = page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true });
+    await show.focus();
     await page.keyboard.press("Enter");
     const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
     return {
       control: editor.getByRole("button", { name: personaAvatarName(persona.name), exact: true }),
       writes: (): number => calls.count("persona.update"),
       storedHash: async (): Promise<string | null> => (await caller.persona.get({ personaId: persona.id })).avatarHash,
+      unmount: () => page.getByRole("button", { name: `Hide details for ${persona.name}`, exact: true }).click(),
+      remount: () => show.click(),
     };
   },
 };

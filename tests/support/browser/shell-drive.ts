@@ -90,7 +90,13 @@ export async function settledReadingRow(list: Locator): Promise<{ readonly id: s
  * Drag and drop a synthetic transfer onto `target` and report whether the drop's default was cancelled, which is
  * what stops the browser navigating the tab to a dropped file. The probe listens on window after the shell's own guard.
  */
-export async function dropOn(target: Locator, transfer: { readonly file: string; readonly type: string } | { readonly text: string }): Promise<boolean> {
+export async function dropOn(
+  target: Locator,
+  transfer:
+    | { readonly file: string; readonly type: string }
+    | { readonly files: readonly { readonly file: string; readonly type: string }[] }
+    | { readonly text: string },
+): Promise<boolean> {
   const page = target.page();
   await page.evaluate(() => {
     document.body.removeAttribute("data-drop-prevented");
@@ -100,6 +106,10 @@ export async function dropOn(target: Locator, transfer: { readonly file: string;
     const dt = new DataTransfer();
     if ("file" in data) {
       dt.items.add(new File(["dropped-bytes"], data.file, { type: data.type }));
+    } else if ("files" in data) {
+      for (const { file, type } of data.files) {
+        dt.items.add(new File(["dropped-bytes"], file, { type }));
+      }
     } else {
       dt.setData("text/plain", data.text);
     }

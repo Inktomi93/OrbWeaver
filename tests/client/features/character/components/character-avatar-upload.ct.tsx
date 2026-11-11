@@ -27,7 +27,7 @@ const EDITOR_READS = [
 const SURFACE: AvatarSurface = {
   name: "the character hero band",
   controlName: CHARACTER_PORTRAIT_NAME,
-  stage: async ({ page, mount, caller, current, refuseWrite }) => {
+  stage: async ({ page, mount, caller, current, refuseWrite, writeHold }) => {
     const character = await caller.character.create({
       input: createCharacterSchema.parse({
         handle: "avatar-witness",
@@ -36,15 +36,24 @@ const SURFACE: AvatarSurface = {
         avatarAssetId: current.assetId,
       }),
     });
+    let writeNumber = 0;
     const calls = await routeTrpc(page, {
       ...serveCorpusProcedures(caller, EDITOR_READS),
-      ...serveCorpusProcedures(caller, ["character.update"], () => (refuseWrite ? trpcError() : undefined)),
+      ...serveCorpusProcedures(caller, ["character.update"], () => {
+        writeNumber += 1;
+        if (refuseWrite) {
+          return trpcError();
+        }
+        return writeNumber === 1 ? writeHold : undefined;
+      }),
     });
-    await mount<typeof CharacterDraftStatusStory>(STORY, { characterId: character.id });
+    const component = await mount<typeof CharacterDraftStatusStory>(STORY, { characterId: character.id });
     return {
       control: page.getByRole("button", { name: CHARACTER_PORTRAIT_NAME, exact: true }),
       writes: (): number => calls.count("character.update"),
       storedHash: async (): Promise<string | null> => (await caller.character.get({ characterId: character.id })).avatarHash,
+      unmount: () => component.update({ characterId: character.id, mounted: false }),
+      remount: () => component.update({ characterId: character.id }),
     };
   },
 };

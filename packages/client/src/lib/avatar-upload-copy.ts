@@ -4,13 +4,24 @@
 /** The progress mark on the avatar while the upload and the write run. */
 export const AVATAR_UPLOADING_NAME = "Uploading the picture";
 
+const AVATAR_UPLOAD_FAILED_LEAD = "Couldn't upload the picture";
+
 /** The upload did not land and the server gave no reason of its own. */
-export const AVATAR_UPLOAD_FAILED = "Couldn't upload the picture.";
+export const AVATAR_UPLOAD_FAILED = `${AVATAR_UPLOAD_FAILED_LEAD}.`;
 
 /** The picture uploaded but the write that would give it to the card or persona was refused, so the old one stays. */
 export const AVATAR_WRITE_REFUSED = "Couldn't save the picture. The old one stays.";
 
-/** The upload failed; the server's own sentence follows when it refused the file for a reason the person can act on. */
+/** A picked or dropped file that is not an image. */
+export const AVATAR_NOT_A_PICTURE = "That file isn't a picture. Use an image file.";
+
+/** More than one file dropped at once. */
+export const AVATAR_ONE_AT_A_TIME = "One picture at a time. Drop a single image file.";
+
+/** A drag that carries no file. */
+export const AVATAR_DROP_A_FILE = "Drop a picture file here.";
+
+/** The upload failed; the server's own clause follows when it refused the file for a reason the person can act on. */
 export function avatarUploadFailedLine(reason: string | undefined): string {
-  return reason === undefined ? AVATAR_UPLOAD_FAILED : `${AVATAR_UPLOAD_FAILED} ${reason}`;
+  return reason === undefined ? AVATAR_UPLOAD_FAILED : `${AVATAR_UPLOAD_FAILED_LEAD}: ${reason}.`;
 }

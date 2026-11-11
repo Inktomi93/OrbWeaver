@@ -25,7 +25,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, Request } from "@playwright/test";
-import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_FOLDER_NAME, IMPORT_PROGRESS_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
   IMPORT_CONFIRM_NAMES,
@@ -389,7 +389,7 @@ test("Import hands focus to the progress region", async ({ mount, page, baseURL 
   const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
   await confirm.focus();
   await page.keyboard.press("Enter");
-  const progress = page.getByRole("group", { name: "Import progress", exact: true });
+  const progress = page.getByRole("group", { name: IMPORT_PROGRESS_NAME, exact: true });
   await expect(progress).toBeFocused();
   expect(await progress.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
   expect(await progress.evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("none");
