@@ -720,7 +720,7 @@ export async function readThemeClusterTimeline(db: Db, ownerId: UserId, themeClu
 }
 
 // ── image analytics (the AVATAR-lens reads; SHARED_AVATAR_MIN_REFS exclusion) ─
-// A shared/default avatar (one asset that is the current avatar of ≥ this many characters, via CAS dedup)
+// A shared/default avatar (one asset that is the current avatar of ≥ this many REAL characters, via CAS dedup; a synthetic group row never counts)
 // represents no one character and is excluded from cross-modal alignment + facet distributions.
 const SHARED_AVATAR_MIN_REFS = 3;
 
@@ -731,7 +731,7 @@ async function sharedAvatarAssetIds(db: Db, ownerId: UserId): Promise<AssetId[]>
   const rows = await db
     .select({ id: characters.avatarAssetId })
     .from(characters)
-    .where(and(eq(characters.ownerId, ownerId), isNotNull(characters.avatarAssetId)))
+    .where(and(ownedRealCharacters(ownerId), isNotNull(characters.avatarAssetId)))
     .groupBy(characters.avatarAssetId)
     .having(gte(sql<number>`count(*)`, SHARED_AVATAR_MIN_REFS));
   return rows.flatMap((r) => (r.id === null ? [] : [r.id]));
