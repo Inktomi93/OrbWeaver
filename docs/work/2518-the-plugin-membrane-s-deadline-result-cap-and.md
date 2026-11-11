@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: security
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # The plugin membrane's deadline, result cap and in-flight cap have no test
