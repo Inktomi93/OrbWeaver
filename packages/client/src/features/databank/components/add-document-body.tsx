@@ -255,14 +255,24 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  // Counts the refusals, so each one hands focus back to the File control the line describes (the Link arm's pattern).
+  const [refusals, setRefusals] = useState(0);
+  useEffect(() => {
+    if (refusals > 0) {
+      focusFirstInvalidFieldIn(fieldRef.current);
+    }
+  }, [refusals]);
 
   const onFilesSelected = ({ accepted }: FileDropzoneResult): void => {
+    // The newest pick owns the line: a refusal left from the last file would read as about this one, and the zone says its own
+    // refusal of an unaccepted pick beside it.
+    setError(null);
     const file = accepted[0];
     if (file === undefined || destination === null) {
       return;
     }
     setLoading(true);
-    setError(null);
     uploadDocument(file, undefined, destination).then(
       (result) => {
         // The raw multipart seam has no `createEntityMutation` to hang `invalidates` on — refresh the list
@@ -283,17 +293,21 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
         // The line is the server's code in the dialog's words; a rejection with no code (an over-size body, a network fault) gets the general line.
         setError(documentUploadFailureLine(failure instanceof DocumentUploadRefusedError ? failure.reason : null));
         setLoading(false);
+        setRefusals((count) => count + 1);
       },
     );
   };
 
   return (
     <ArmRegion>
-      <Field description={DOCUMENT_UPLOAD_FORMAT_HINT} error={error} label="File">
+      {/* The refusal is the zone's own alert line (`error`), the one home for every refusal the zone says, and `invalid`
+          marks the File control so the focus the Link arm's pattern returns to it has a control to find. */}
+      <Field description={DOCUMENT_UPLOAD_FORMAT_HINT} invalid={error !== null} label="File" ref={fieldRef}>
         {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
         <FileDropzone
           accept={DOC_UPLOAD_ACCEPT}
           disabled={destination === null}
+          error={error ?? undefined}
           isFileAccepted={(file): boolean => docUploadMime(file.type, file.name) !== undefined}
           loading={loading}
           maxSizeBytes={caps.databankUpload}

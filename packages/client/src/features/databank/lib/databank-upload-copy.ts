@@ -14,7 +14,8 @@ export const DOCUMENT_UPLOAD_GENERAL_FAILURE = "Couldn't add the document. Check
 /** The sentence for each extraction refusal: what happened to the file and the one move that gets the text in. */
 export const DOCUMENT_UPLOAD_FAILURE: Record<ExtractionOpCode, string> = {
   [EXTRACTION_OP_CODES.failed]: "That file couldn't be read. It may be damaged or locked with a password. Try a fresh copy, or paste its text instead.",
-  [EXTRACTION_OP_CODES.tooLarge]: "That file is too large once it's unpacked. Split it into smaller files, or paste the part you need as text.",
+  [EXTRACTION_OP_CODES.tooLarge]:
+    "That document holds more text than can be taken in at once, even though the file itself is small. Split it into smaller documents, or save it as plain text and add that instead.",
   [EXTRACTION_OP_CODES.unsupportedType]: "That file type isn't supported. Pick a supported format, or paste its text instead.",
 };
 
