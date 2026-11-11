@@ -60,12 +60,23 @@ export const jsonObjectSchema: z.ZodType<JsonObject, Record<string, unknown>> = 
   error: JSON_NOT_OBJECT,
 });
 
+// The refusal both the member guard and the bounded walk give a value no JSON text can hold.
+const JSON_NOT_JSON = "json_not_json";
+
+/** A member of a decoded JSON object (a stored column's open remainder, say): its kind is checked and its contents
+ *  are not walked, for the reason in the header. Refuses `undefined`, a function, a symbol, a bigint and a class
+ *  instance with the code `json_not_json`. */
+export const jsonMemberSchema: z.ZodType<JsonValue> = z.custom<JsonValue>(
+  (value) => value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean" || containerOf(value) !== null,
+  { error: JSON_NOT_JSON },
+);
+
 /** How deep {@link boundedJsonObjectSchema} walks before it refuses. A projected tool schema at the JSON Schema lift's
  *  own depth cap spends about two JSON levels per schema level, so this holds it with room to spare. */
 export const JSON_MAX_DEPTH = 128;
 
 /** Why a value fails {@link boundedJsonObjectSchema}. */
-export const JSON_BOUND_REFUSALS = ["json_max_depth_exceeded", "json_not_json", "json_cycle"] as const;
+export const JSON_BOUND_REFUSALS = ["json_max_depth_exceeded", JSON_NOT_JSON, "json_cycle"] as const;
 type JsonBoundRefusal = (typeof JSON_BOUND_REFUSALS)[number];
 
 function leafIsJson(value: unknown): boolean {
@@ -107,7 +118,7 @@ function openFrame(walk: Walk, { value, depth }: WalkFrame): JsonBoundRefusal | 
   }
   const container = containerOf(value);
   if (container === null) {
-    return leafIsJson(value) ? null : "json_not_json";
+    return leafIsJson(value) ? null : JSON_NOT_JSON;
   }
   const height = walk.heights.get(container.node);
   if (height !== undefined) {

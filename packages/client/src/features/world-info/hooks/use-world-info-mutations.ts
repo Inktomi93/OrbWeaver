@@ -1,8 +1,8 @@
-import type { EntryView } from "@orb/contracts/world-info";
 import type { InvalidateQueryFilters } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import type { WorldEntry } from "../lib/entry-editor-model.ts";
 
 // The world-info CRUD + attachment mutations, one createEntityMutation per verb. Attachment writes
 // (global/character/persona) are the "activation" surface: a book fires in a chat's per-turn pool when
@@ -91,7 +91,7 @@ export const useBackfillWorldTitles = createEntityMutation<inferInput<Trpc["worl
 export const useApplyEntryOrder = createEntityMutation<
   inferInput<Trpc["worldInfo"]["applyEntryOrder"]>,
   inferOutput<Trpc["worldInfo"]["applyEntryOrder"]>,
-  readonly EntryView[]
+  readonly WorldEntry[]
 >({
   options: (trpc) => trpc.worldInfo.applyEntryOrder.mutationOptions(),
   optimistic: {

@@ -29,7 +29,7 @@ export interface InjectionPlacement {
  *  write schema layers the prefill guard ON this, importing it down. */
 export const injectionDirectiveSchema = z.object({
   depth: z.number().int().min(0).max(MAX_INJECTION_DEPTH),
-  role: z.enum(MESSAGE_ROLES).optional(),
+  role: z.enum(MESSAGE_ROLES).exactOptional(),
 });
 const depthSchema = z.number().int().min(0).max(MAX_INJECTION_DEPTH);
 const roleSchema = z.enum(MESSAGE_ROLES);

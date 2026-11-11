@@ -37,7 +37,7 @@ import type {
   HasPrimaryBook,
   ImportStandaloneLorebook,
 } from "@orb/contracts/world-info";
-import { entryMetadataSchema } from "@orb/contracts/world-info";
+import { narrowEntryMetadata } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -106,7 +106,7 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
         enabled: e.enabled,
         priority: e.priority,
         ignoreBudget: e.ignoreBudget,
-        metadata: e.metadata === null ? null : entryMetadataSchema.parse(e.metadata),
+        metadata: narrowEntryMetadata(e.metadata),
         createdAt: at,
         updatedAt: at,
       }),
@@ -114,8 +114,8 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
   );
 }
 
-/** The incoming embedded book projected onto the dedup shape. `metadata` is SCHEMA-PARSED here so its
- *  canonical key matches the stored form (`entryStmts` stores `entryMetadataSchema.parse(raw)`); miss that
+/** The incoming embedded book projected onto the dedup shape. `metadata` is narrowed here so its
+ *  canonical key matches the stored form (`entryStmts` stores `narrowEntryMetadata(raw)`); miss that
  *  and a re-encoded identical book fails to match. `keys` collapse is deferred to the pure normalizer. */
 export function toDedupBook(book: BulkImportLorebookInput): DedupBook {
   return {
@@ -129,7 +129,7 @@ export function toDedupBook(book: BulkImportLorebookInput): DedupBook {
         enabled: e.enabled,
         priority: e.priority,
         ignoreBudget: e.ignoreBudget,
-        metadata: e.metadata === null ? null : entryMetadataSchema.parse(e.metadata),
+        metadata: narrowEntryMetadata(e.metadata),
       }),
     ),
   };

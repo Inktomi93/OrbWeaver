@@ -21,7 +21,6 @@
 // character editor; see `character-editor-surface.tsx`'s header for the full citation of why the
 // premise doesn't hold across a reload/crash mid-debounce.
 
-import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldEntryId } from "@orb/kit/ids";
 import { ENTRY_POSITIONS, ENTRY_SCOPE_MODES, inertActivationFields } from "@orb/kit/world-info";
 import { Button } from "@orb/ui/button";
@@ -39,7 +38,7 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 import { deleteConfirmTitle, MESSAGE_ROLE_ITEMS } from "#lib";
 import { useRemoveWorldEntry, useUpdateWorldEntry } from "../hooks/use-world-info-mutations.ts";
 import { entryDraftStore } from "../lib/entry-draft-store.ts";
-import type { EntryFormValues } from "../lib/entry-editor-model.ts";
+import type { EntryFormValues, WorldEntry } from "../lib/entry-editor-model.ts";
 import { entryFormFromEntity, entryUpdateInputFromForm, NEW_ENTRY_FORM } from "../lib/entry-editor-model.ts";
 import {
   WORLD_INFO_DEPTH_SWITCH_NAME,
@@ -80,7 +79,7 @@ const POSITION_ITEMS: SelectItems = ENTRY_POSITIONS.map((value) => ({
 }));
 
 export interface EntryEditorProps {
-  readonly entry: EntryView;
+  readonly entry: WorldEntry;
   /** Clear the entry selection after a delete (the surface's writer seam → back to the entry list). */
   readonly onDeleted: (id: WorldEntryId) => void;
 }
@@ -106,7 +105,7 @@ export function EntryEditor({ entry, onDeleted }: EntryEditorProps): ReactElemen
 }
 
 interface EntryEditorBodyProps {
-  readonly entry: EntryView;
+  readonly entry: WorldEntry;
   readonly session: AutosaveSession<EntryFormValues>;
   readonly onDeleted: (id: WorldEntryId) => void;
 }
@@ -250,7 +249,7 @@ function formatInertValue(value: unknown): string {
 /** The SillyTavern activation settings this entry carries that Orbweaver stores untouched and does not
  *  apply (owner ruling: keep every field, show it as kept and not active yet). Read-only; the save mapper
  *  preserves them, so nothing here is editable. Renders nothing for an entry that carries none. */
-function InertActivationList({ metadata }: { readonly metadata: EntryView["metadata"] }): ReactElement | null {
+function InertActivationList({ metadata }: { readonly metadata: WorldEntry["metadata"] }): ReactElement | null {
   const kept = inertActivationFields(metadata);
   if (kept.length === 0) {
     return null;

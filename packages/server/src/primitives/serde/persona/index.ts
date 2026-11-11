@@ -13,7 +13,7 @@
 
 import type { PersonaDifference } from "@orb/contracts/import";
 import type { PersonaDetail, PersonaMetadata } from "@orb/contracts/persona";
-import { personaBackupSchema, personaMetadataSchema } from "@orb/contracts/persona";
+import { narrowPersonaMetadata, personaBackupSchema } from "@orb/contracts/persona";
 import type { PortableParse } from "@orb/contracts/portability";
 import { PERSONA_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { PersonaId } from "@orb/kit/ids";
@@ -28,17 +28,6 @@ const PERSONA_SCHEMA_VERSION = 1;
  *  avatarAssetId (a binary asset reference can't ride a JSON backup). */
 export type PersonaBackup = Readonly<Pick<PersonaDetail, "name" | "title" | "description" | "starred" | "metadata">>;
 
-/** Narrow the validated metadata blob. Total by construction: `personaBackupSchema`'s write guard already
- *  refused anything `personaMetadataSchema` rejects, so the fallback is unreachable — it exists so parse
- *  keeps its never-throw contract without a cast. */
-function narrowMetadata(raw: unknown): PersonaMetadata | null {
-  if (raw === null || raw === undefined) {
-    return null;
-  }
-  const parsed = personaMetadataSchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
-}
-
 const personaSerde = defineJsonObjectSerde<PersonaBackup, ReturnType<typeof personaBackupSchema.parse>>({
   schemaKind: PERSONA_SCHEMA_KIND,
   schemaVersion: PERSONA_SCHEMA_VERSION,
@@ -50,7 +39,8 @@ const personaSerde = defineJsonObjectSerde<PersonaBackup, ReturnType<typeof pers
     title: body.title ?? null,
     description: body.description,
     starred: body.starred ?? false,
-    metadata: narrowMetadata(body.metadata),
+    // `personaBackupSchema`'s write guard already refused what the narrowing refuses, so parse keeps its never-throw contract.
+    metadata: narrowPersonaMetadata(body.metadata ?? null),
   }),
 });
 
