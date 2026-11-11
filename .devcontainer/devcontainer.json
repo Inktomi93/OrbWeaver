@@ -66,8 +66,8 @@
     "source=${localWorkspaceFolderBasename}-ui-node_modules,target=/workspace/packages/ui/node_modules,type=volume",
     "source=${localWorkspaceFolderBasename}-tests-support-node_modules,target=/workspace/tests/support/node_modules,type=volume",
     // pnpm's content-addressable store, persisted on a volume (so it survives rebuilds
-    // and stays off the bind-mounted host folder). The Dockerfile's pnpm wrapper points
-    // --store-dir here. Same device as the node_modules volumes, so hardlinks work.
+    // and stays off the bind-mounted host folder). `pnpm_config_store_dir` in containerEnv below
+    // points pnpm here. Same device as the node_modules volumes, so hardlinks work.
     "source=${localWorkspaceFolderBasename}-pnpm-store,target=/home/node/.local/share/pnpm,type=volume"
   ],
   "containerEnv": {

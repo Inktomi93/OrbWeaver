@@ -2,6 +2,7 @@
 // the member's password is reset to the fixture password, so the fixture login works instead of staying locked out.
 
 import { createServer } from "node:http";
+import { SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { nonEmpty } from "@orb/testkit/iso";
@@ -38,7 +39,7 @@ async function fakeServer(users: readonly { readonly id: string; readonly handle
       const bodies: Record<string, unknown> = {
         "/api/auth/config": { multiHumanCapable: true, mode: "local" },
       };
-      response.writeHead(200, { "content-type": "application/json", "set-cookie": "orb_session_insecure=minted; Path=/" });
+      response.writeHead(200, { "content-type": "application/json", "set-cookie": `${SESSION_COOKIE_NAMES.http}=minted; Path=/` });
       response.end(JSON.stringify(bodies[url] ?? { result: { data: proc === "admin.listUsers" ? users : null } }));
     });
   });

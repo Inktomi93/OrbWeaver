@@ -11,12 +11,12 @@ import { createQuietTimers, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
+import { SSRF_BLOCKED } from "#server/infra/network/contract/egress.ts";
 
 const IDP_HOST = "idp.lan";
 const PROXY_HOST = "proxy.lan";
 const LAN_ADDRESS = "192.168.1.20";
 const LOOPBACK_ADDRESS = "127.0.0.1";
-const SSRF_BLOCKED = "SSRF_BLOCKED";
 const REACHED = "reached";
 
 type EgressEnv = Parameters<typeof createTestEnv>[0];

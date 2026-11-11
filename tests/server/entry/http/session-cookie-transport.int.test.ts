@@ -1,7 +1,7 @@
 // Rule C and Rule E over real logins: the session cookie follows the request's transport, logout reads only that
 // transport's cookie behind its CSRF gate, and a plain-http mint from the public internet logs once per client hour.
 // @subject packages/server/src/entry/http/auth-routes.ts
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER, SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -20,8 +20,8 @@ const PUBLIC_PEER = "203.0.113.9";
 const OTHER_PUBLIC_PEER = "198.51.100.4";
 const LOOPBACK = "127.0.0.1";
 const PROXY_HTTPS = { "x-forwarded-proto": "https" };
-const SECURE_NAME = "__Host-orb_session";
-const INSECURE_NAME = "orb_session_insecure";
+const SECURE_NAME = SESSION_COOKIE_NAMES.https;
+const INSECURE_NAME = SESSION_COOKIE_NAMES.http;
 const PUBLIC_HTTP_EVENT = "session_minted_over_public_http";
 const PASSWORD = "session-cookie-transport-password";
 const HANDLE = "transport-member";

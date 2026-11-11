@@ -25,6 +25,10 @@ export const EGRESS_BLOCK_REASONS = [
 ] as const;
 export type EgressBlockReason = (typeof EGRESS_BLOCK_REASONS)[number];
 
+/** The mark that opens every connect-time firewall refusal's message: the error the global dispatcher and a
+ *  configured endpoint's connector hand back, which fetch carries as its `cause`. */
+export const SSRF_BLOCKED = "SSRF_BLOCKED";
+
 export interface SafeFetchOptions {
   /** REQUIRED. A host allowlist (exact "api.chub.ai" or a leading-dot suffix ".chub.ai" that matches
    *  any subdomain but NEVER the bare apex), checked case-insensitively at the start URL and on EVERY

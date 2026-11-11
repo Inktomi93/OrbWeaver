@@ -1,14 +1,15 @@
 // `loginFixtureUser` against a loopback server that answers the login form with the exact `Set-Cookie`
 // shapes the app writes: a mint under the transport's name plus a `Max-Age=0` clear of the other name.
 import { createServer } from "node:http";
+import { SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/tooling";
 import { loginFixtureUser } from "../../../../tooling/src/snap/ops/fixture.ts";
 import { listeningAddress } from "../../_server-address.ts";
 
-const HTTP_MINT = "orb_session_insecure=tok-http; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax";
-const HTTPS_MINT = "__Host-orb_session=tok-https; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax";
-const HTTPS_CLEAR = "__Host-orb_session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax";
-const HTTP_CLEAR = "orb_session_insecure=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax";
+const HTTP_MINT = `${SESSION_COOKIE_NAMES.http}=tok-http; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax`;
+const HTTPS_MINT = `${SESSION_COOKIE_NAMES.https}=tok-https; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Lax`;
+const HTTPS_CLEAR = `${SESSION_COOKIE_NAMES.https}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`;
+const HTTP_CLEAR = `${SESSION_COOKIE_NAMES.http}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`;
 
 /** Serve one login response carrying `setCookies`, run `loginFixtureUser` against it, then close. */
 async function loginAgainst(setCookies: readonly string[]): Promise<Awaited<ReturnType<typeof loginFixtureUser>>> {

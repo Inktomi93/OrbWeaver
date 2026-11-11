@@ -1,6 +1,6 @@
 // The auth mint routes + cookie I/O. This is the write side of the session cookie (the read side is the
 // seam + infra/auth); the cookie's NAME and attributes are `infra/auth/modes/cookie-session.ts`'s, one per
-// request transport (`infra/auth/transport.ts`): `__Host-orb_session` over https, `orb_session_insecure` over
+// request transport (`infra/auth/transport.ts`), the `__Host-` name over https and the prefix-less one over
 // plain http. Every write goes through `writeSetCookies` so the other name is CLEARED in the same response.
 // Never re-implements identity resolution: mints sessions via domain/sessions and writes the cookie;
 // resolution belongs to the seam.

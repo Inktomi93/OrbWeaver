@@ -1,6 +1,8 @@
 // The firewall reaches Node's built-in fetch only through the global dispatcher the npm undici package installs, and
 // Node reads it from its own bundled undici copy. A node or undici bump that breaks that handoff leaves every bare
 // fetch unguarded with no other test red, so this suite runs the platform fetch with no dispatcher in its init.
+// The install is a boot step, and no test root runs boot steps: the slot is process-global and shared by the worker.
+// So the suite calls the boot's own `installEgressFirewall` with the physical seams `createProcessSeams` hands it.
 // @subject packages/server/src/infra/network/egress.ts
 
 import { createRequire } from "node:module";
@@ -12,8 +14,7 @@ import { createTestLogger, servePhysicalPeer } from "@orb/testkit/node/composed"
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { z } from "zod";
-
-const SSRF_BLOCKED = "SSRF_BLOCKED";
+import { SSRF_BLOCKED } from "#server/infra/network/contract/egress.ts";
 
 /** A bare platform fetch, the path a provider SDK call takes, settled to the answered status or the refusal. */
 async function bareFetch(url: string): Promise<string> {

@@ -8,6 +8,7 @@ import {
   FORWARD_AUTH_TRUSTED_PROXIES_KEY,
   OIDC_ADMIN_GROUPS_KEY,
   OWNER_HANDLES_KEY,
+  SESSION_COOKIE_NAMES,
 } from "@orb/contracts/identity";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { Handle, UserId } from "@orb/kit/ids";
@@ -163,7 +164,7 @@ test("an https request ignores a planted insecure-name cookie; the same cookie a
   let peer = LAN_PEER;
   await using root = await local(() => peer);
   const planted = await signedInMember(root, castId<Handle>("planted-name"));
-  expect(planted.cookie).toMatch(/^orb_session_insecure=/u);
+  expect(planted.cookie.split("=")[0]).toBe(SESSION_COOKIE_NAMES.http);
   const validate = vi.spyOn(root.app.sessions, "validate");
   peer = PROXY_PEER;
   expect(await authMe(root, { cookie: planted.cookie, "x-forwarded-proto": "https" })).toEqual(ANONYMOUS);
@@ -177,7 +178,7 @@ test("an http request never reads the __Host- cookie", async () => {
   let peer = PROXY_PEER;
   await using root = await local(() => peer);
   const secure = await signedInMember(root, castId<Handle>("secure-only"), { "x-forwarded-proto": "https" });
-  expect(secure.cookie).toMatch(/^__Host-orb_session=/u);
+  expect(secure.cookie.split("=")[0]).toBe(SESSION_COOKIE_NAMES.https);
   const validate = vi.spyOn(root.app.sessions, "validate");
   peer = LAN_PEER;
   expect(await authMe(root, { cookie: secure.cookie })).toEqual(ANONYMOUS);
@@ -189,7 +190,7 @@ test("an http request never reads the __Host- cookie", async () => {
 test("a stale cookie is IGNORED outside cookie modes (forward-header never calls validate)", async () => {
   await using root = await forward(() => PROXY_PEER);
   const validate = vi.spyOn(root.app.sessions, "validate");
-  const me = await wireViewer(root, { cookie: "__Host-orb_session=leftover; orb_session_insecure=leftover", [FORWARD_USER_HEADER]: "bob" });
+  const me = await wireViewer(root, { cookie: `${SESSION_COOKIE_NAMES.https}=leftover; ${SESSION_COOKIE_NAMES.http}=leftover`, [FORWARD_USER_HEADER]: "bob" });
   expect(me).toMatchObject({ handle: "bob", globalRole: "user" });
   expect(me.userId).not.toBe(root.ownerId);
   expect(validate).not.toHaveBeenCalled();
