@@ -5,7 +5,7 @@
 // + eight (stage × mode) INSTRUCTION bodies — the source extension's 8 builtin
 // presets ARE the F4 modes, carried as individually-overridable slots (PROSE-1's one-override-per-slot is
 // the sanctioned tuning surface). Baselines are seeded from the extension corpus
-// (card-refinery `defaults.ts:35-233`) and adapted to orb's STRUCTURED output (the extension's markdown
+// (card-refinery's defaults) and adapted to orb's STRUCTURED output (the extension's markdown
 // conventions — "[ORIGINAL]/[REVISED]", "## Section" — die to the typed payloads); the shipped texts are
 // OWNER-SACRED and ship for the owner to sign/veto.
 //

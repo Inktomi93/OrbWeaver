@@ -1,5 +1,5 @@
-// ui-audit sample shapes — the RELATIONAL family (#978). Split from samples.ts for the tooling-size
-// cap, the same way samples-interactive.ts carries the interactive family.
+// ui-audit sample shapes — the RELATIONAL family (#978). Split from samples.ts
+// by family, the same way samples-interactive.ts carries the interactive family.
 //
 // WHY THIS FAMILY EXISTS. Every other sample here describes ONE element so a check can judge it against
 // a threshold. The defects a human reviewer actually reports are relational: "nine config-group rows are

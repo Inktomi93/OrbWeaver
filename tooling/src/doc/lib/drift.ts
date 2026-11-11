@@ -1,11 +1,11 @@
 // The orchestrator's drift nag as a pure rule over resolved git facts (`ops/tree.ts` gathers them). Seven
 // checks, each line carrying the exact fixing command; an empty result means the item and plan state and
-// the tree agree, and the SessionStart hook then prints nothing at all.
+// the tree agree. The orchestrator runs `pnpm doc drift`; no hook runs it.
 import type { Blocker, DriftFacts, PlanState, WorkItem } from "../contract/types.ts";
 import { itemEditCommand, parseBlocker } from "./items.ts";
 
 /** A lane is its EXACT branch name: live when a worktree is on that branch
- *  or the branch is not yet merged. A substring match read every `codex/*` corpse as a live lane. */
+ *  or the branch is not yet merged. A substring match would read any branch that contains the name as a live lane. */
 function laneIsLive(item: WorkItem, facts: DriftFacts): boolean {
   const lane = item.lane;
   if (lane === null) {

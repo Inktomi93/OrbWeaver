@@ -1,10 +1,8 @@
 // The rpg HUD BAND — the Waystone composite in the CONTEXT pane's HEAD slot on an engaged game chat (HUD-1
-// §3.1/§4/§7, re-shaped by the context bracket #860, owner-ruled 2026-08-30). This file was `rpg-hud.tsx`,
-// which owned the pane's WHOLE vertical composition — band → game rail → viewport → ground → admin rail —
-// because nobody else did (the F6 defects were unfixable while the band was the shell's, the strips the
-// shell's, the bodies the feature's). That column is the SHELL's now (`app-shell/components/context-bracket.tsx`),
+// §3.1/§4/§7, re-shaped by the context bracket #860, owner-ruled 2026-08-30). The pane's WHOLE vertical composition — band → game rail → viewport → ground →
+// admin rail — is the SHELL's (`app-shell/components/context-bracket.tsx`),
 // rendered for every tabs pane in every room; the rails and their cells moved with it
-// (`context-rail.tsx`, ex-`rpg-hud-rail.tsx`), and what rpg still owns is exactly the one slot a contributor
+// (`context-rail.tsx`), and what rpg still owns is exactly the one slot a contributor
 // may take: the head band. "One slot, three contents — never a second head" is structural, not a convention.
 //
 // What survives here, unchanged in mechanism:

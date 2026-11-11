@@ -9,7 +9,7 @@
 //
 // THE SPEAKER STRIPE IS GONE (rail sweep P2-5, 2026-08-17), and it was a LAW violation, not a taste call:
 // a 3px chromatic border on ONE edge of a rounded card is `side-tab` AND `border-accent-on-rounded` in
-// `design-audit-checks.ts` — the two impeccable accent-border rules, both absolute, and the audit's own
+// `tooling/src/ui-audit/lib/checks-decor.ts` — the two impeccable accent-border rules, both absolute, and the audit's own
 // detector missed it (routed as an audit-detector finding on the same sweep). The focal is now carried by
 // the two SANCTIONED carriers alone: the elevated island (`--radius-card` + `--shadow-overlay`, the Card
 // primitive's own opt-in) and the rationed `--shadow-glow` on a `::before` layer, resting at 0.6 rather

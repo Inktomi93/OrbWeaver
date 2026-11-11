@@ -3,7 +3,7 @@
 // here are only visible in the process tree:
 //
 //   1. `spawnNicedTranscript` had NO timeout at all — the promise settled only on `error`/`close`, so one
-//      wedged stage hung the entire `pnpm verify` run forever, with no verdict and no artifact.
+//      wedged stage hung its whole caller forever, with no verdict and no artifact.
 //   2. `spawnNiced`'s timeout called `child.kill("SIGKILL")` on the DIRECT child of a non-detached spawn,
 //      so a command that forks descendants left them RUNNING after the caller had already seen
 //      `timedOut: true` — orphans that go on to pollute a later run's measurements.

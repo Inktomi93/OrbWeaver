@@ -1,6 +1,5 @@
 // The appearance row's SURFACE DRIVE: reach the surface a row judges, and settle on that surface's own
-// subject. Split out of `appearance-invariant-runtime.ts` when #1104's refusal pushed that file over the
-// tooling-size cap — the drive is one question ("is this row's surface up?") and the runtime owner reads as
+// subject. Split out of `appearance-invariant-runtime.ts` — the drive is one question ("is this row's surface up?") and the runtime owner reads as
 // one call.
 import { instrumentRefusal, navResultShape, pageArray, pageNumber, pageObject } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";

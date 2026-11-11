@@ -1,5 +1,4 @@
-// The isolated-stage flag family, spread into ops/flags.ts's one dispatch table. Split out when that
-// table crossed the tooling line cap — one ops/ file per command
+// The isolated-stage flag family, spread into ops/flags.ts's one dispatch table: one ops/ file per command
 // family, and these flags are all about ONE subsystem: which source and sign-in mode the stage serves
 // (--isolated/--ref/--fresh/--dirty/--stage-auth) and the three admin modes that print and exit
 // (--stage-status/--stage-down/--stage-sweep, mutually exclusive — enforced in ops/parse.ts).

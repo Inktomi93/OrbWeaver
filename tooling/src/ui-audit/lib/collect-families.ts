@@ -1,7 +1,7 @@
 // The eight FAMILY CHECKERS the collect dispatcher runs — one function per `DesignAuditRuleFamily`,
 // each wiring its rules through the rung the RUNG ASSIGNMENT TABLE in collect.ts's header assigns them.
-// Split out of collect.ts (#1027) when that table grew a row per registered rule and the pair crossed
-// the tooling-size cap: collect.ts keeps the table and the closed dispatcher (the facts a reader comes
+// Split out of collect.ts (#1027) when that table grew a row per registered rule:
+// collect.ts keeps the table and the closed dispatcher (the facts a reader comes
 // to it for), this file keeps the wiring those facts describe.
 //
 // A FAMILY CHECKER NEVER DECIDES A RULE'S SEMANTICS. Thresholds, severities and the withheld/excluded

@@ -26,8 +26,8 @@ defect exists." Blind is worse than wrong: wrong is caught by a red; blind is ca
 ## The authoring checklist
 
 1. **Name the expression mechanism ON THE TREE, with a receipt.** Don't assume the obvious CSS spelling
-   (`:hover`, `rgb()`, a literal class string) is how this codebase actually authors the thing — grep or
-   `pnpm ast` the real call sites and cite `path:line`. A vendor/library choice (Base UI's `data-*`
+   (`:hover`, `rgb()`, a literal class string) is how this codebase actually authors the thing — `rg` or
+   `ast-grep` the real call sites and cite `path:line`. A vendor/library choice (Base UI's `data-*`
    state attributes instead of `:hover` — <https://base-ui.com/react/handbook/styling>) or a build-time
    transform (Tailwind's escaped `hover\:` class names, OKLCH color functions from the token vault) can
    make the "obvious" selector wrong for 100% of the real population.

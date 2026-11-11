@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: tooling
+lane: wt/agent-a30ee1d42d1997dfe
 ---
 
 # The review harness's direct edits to tracked files are reviewed

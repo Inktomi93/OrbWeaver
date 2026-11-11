@@ -1,5 +1,5 @@
 // The proof denominators that apply to the WHOLE ui-audit walker rather than one finding family.
-// Split from samples.ts at #976 so that file remains under Core-Tooling-Law's hard source-size cap.
+// A sibling of samples.ts, which re-exports it.
 
 /** ONE element that keeps the document from fitting the width it was laid out at, in the two shapes the
  *  walk can tell apart (ops/walker/census-frame.ts owns why one shape alone misses half the population):

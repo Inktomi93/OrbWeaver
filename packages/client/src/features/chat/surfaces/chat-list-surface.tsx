@@ -1,6 +1,6 @@
 // The chats-list surface: a search field and the caller's chats as list-row rows
 // (avatar/title/participants/relative time), select-to-open, with a per-row kebab menu. The title +
-// count + New action live in the LIST chrome band now (`chat-list-header.tsx`, north-star §4 N2), not
+// count + New action live in the LIST chrome band now (`hooks/use-chat-list-header.tsx`, north-star §4 N2), not
 // here.
 //
 // PAGED + VIRTUALIZED (2026-08-09). `chat.listChats` is a keyset page, read through the shared

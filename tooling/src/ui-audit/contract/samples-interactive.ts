@@ -1,8 +1,8 @@
 // The INTERACTIVE-CENSUS sample shapes: what the walker gathers about offered controls (tap targets,
 // accessible names, action doors, silhouettes) and how much of that population it reached.
 //
-// SPLIT OUT of contract/samples.ts (#797): that file sat EXACTLY at the 450-line tooling cap, so it had
-// no room for the truncated-extent fact these shapes needed. This is the §4.3 decomposition, by family —
+// SPLIT OUT of contract/samples.ts (#797) with the truncated-extent fact these shapes needed. This is the
+// decomposition by family —
 // samples.ts re-exports every name below, so no importer moves and `contract/samples.ts` remains the one
 // door onto the walker's sample vocabulary.
 

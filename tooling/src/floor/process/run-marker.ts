@@ -71,7 +71,7 @@ const MARKER_VALUE_RE = /^[^\0\s]+/u;
 
 /** How long a TERMed process may take to leave before the sweep escalates to KILL. Short by design — the
  *  processes this reaches are ALREADY orphans of a dead run, so the grace buys an orderly chromium exit,
- *  not a chance to finish work. Load-scaled like every wall clock in tooling (`tooling-clock-budget`). */
+ *  not a chance to finish work. Load-scaled like every wall clock in tooling, by convention; no lint rule checks it. */
 const SWEEP_GRACE_BASE_MS = 2000;
 
 export function mintRunMarker(pid: number = process.pid, mintedAtMs: number = Date.now()): string {

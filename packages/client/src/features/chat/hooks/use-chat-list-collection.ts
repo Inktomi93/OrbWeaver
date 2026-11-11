@@ -14,7 +14,7 @@
 //     the paging exists to kill. `null` is the unprojected library.
 //   • `search` — the chat search box (owner ruling 2026-08-09). Client-side filtering over a KEYSET list can
 //     only ever search what it has fetched, so the predicate moved to the server whole: title OR character
-//     seat name OR the newest message's body over the active server scope (`filter-chats.ts`, deleted). Pass the DEBOUNCED value —
+//     seat name OR the newest message's body over the active server scope. Pass the DEBOUNCED value —
 //     every distinct string here is a round trip. `""` is the unsearched list.
 //   • `beforeRecencyAt` — an exclusive ceiling over the row's displayed recency. `null` is the latest page.
 

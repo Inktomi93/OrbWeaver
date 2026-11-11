@@ -1,8 +1,8 @@
 // ui-audit in-page walker — segment: the ACCENT-EDGE family (impeccable side-tab /
 // border-accent-on-rounded), swept across BOTH spellings this codebase uses for an accent edge: the
 // element's own `border-*-width`, and a `::before`/`::after` BAR pinned to one edge of its box.
-// Split out of census-decor.ts (2026-09-05, #1103) on the census-glow.ts precedent — the pseudo sweep
-// took that file past the tooling-size cap, and an accent edge is one rule family, so it gets one file.
+// Split out of census-decor.ts (2026-09-05, #1103) on the census-glow.ts precedent: an accent edge
+// is one rule family, so it gets one file.
 //
 // THE PSEUDO BAR IS THE SPELLING THIS TREE ACTUALLY USES (#1103, tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md checklist step 1).
 // The census as born read `borderTopWidth/RightWidth/BottomWidth/LeftWidth` on the element and nothing

@@ -1,8 +1,6 @@
-// The docs half of `pnpm check:agents`: the structural rules over the governed tree plus the writing
-// charter (rules 1, 2, 4) and the reference check over every governed doc. `agent-sync` calls this
-// through the front door; the exit code and the summary line are its. The minting verbs run the same
-// composition over the files they are about to write (`pendingDocProblems`), so a mint refuses what the
-// check would red.
+// The docs check: the structural rules over the governed tree plus the writing charter (rules 1, 2, 4)
+// and the reference check over every governed doc. The minting verbs run the same composition over the
+// files they are about to write (`pendingDocProblems`), so a mint refuses what the check would red.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -13,7 +11,7 @@ import { allItems } from "../lib/generated.ts";
 import { docProblems } from "../lib/rules.ts";
 import { commitOnMain, historicForeignHolders, readDoc, readDocTree, root } from "./tree.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm check:agents");
+refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 
 const ALWAYS_ON_FILE = "AGENTS.md";
 
@@ -93,7 +91,7 @@ export function introducedDocProblems(edits: readonly DocEdit[], repoRoot = root
   });
 }
 
-/** How many governed docs the check read, for the summary line. */
+/** How many governed docs the check read. */
 export function docFileCount(repoRoot = root): number {
   return readDocTree(repoRoot).docs.length;
 }

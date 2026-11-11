@@ -51,7 +51,7 @@ import { RUN_PASS_LABEL, useUnderstandingPass, useUnderstandingPassTail } from "
 import { UnderstandingPassUtilityNote } from "./understanding-pass-utility-note.tsx";
 
 /** The rationed accent glow on the sanctioned ::before carrier (the hearth-hero precedent: a chromatic glow
- *  on an element's OWN box-shadow is the generated-UI tell `design-audit-checks.ts` classifies).
+ *  on an element's OWN box-shadow is the generated-UI tell `tooling/src/ui-audit/lib/checks-decor.ts` classifies).
  *
  *  ONE CARRIER, AT FULL STRENGTH (#244 P2-1). This island carried the same accent border-left + 30%-dimmed
  *  ring as the family map, and goes the same way for the same reasons — the stripe is `design-audit`'s

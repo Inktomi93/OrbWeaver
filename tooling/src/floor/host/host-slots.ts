@@ -20,7 +20,7 @@
 // live at twice the ceiling, the head takes the one further file, `overflow-2.lock`. That bounds the wait
 // behind a live but stuck run at one extra run per ceiling, and never more than two past the cap.
 //
-// STALE SLOTS SELF-HEAL, same shape as ct-runner-lock.ts: a killed holder leaves its file behind, and a
+// STALE SLOTS SELF-HEAL: a killed holder leaves its file behind, and a
 // slot nobody holds must never wedge the box, so an unheld slot is STOLEN with a printed note. A holder is
 // unheld when `kill(pid, 0)` says its pid is gone, or when its slot file's HEARTBEAT has stopped: a lease
 // rewrites its file with a fresh `beatMs` on a timer, so a live holder always reads fresh, and a pid the OS
@@ -50,7 +50,7 @@ import { budget } from "./load-budget.ts";
 
 export type { HostSlotHolder } from "./host-slot-records.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm test:ct <paths…>)");
+refuseDirectInvocation(import.meta.url, "pnpm test:ct <paths…>");
 
 /** One pool's identity: its directory suffix and printed name (`<runtime>/orb-<name>-slots/`), the label its
  *  slot file records so an operator sees WHAT holds a slot, and its size — from

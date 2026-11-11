@@ -1,5 +1,5 @@
-// The forced-state pass's PAGE→NODE seam validators, split from ops/hover.ts (2026-09-01, the
-// tooling-size cap) — one home for the discipline contract/samples-hover.ts documents: a cast across
+// The forced-state pass's PAGE→NODE seam validators, split from ops/hover.ts —
+// one home for the discipline contract/samples-hover.ts documents: a cast across
 // the page boundary has no compiler behind it (the pass's first defect was `JSON.parse(raw) as
 // number[]` over selector STRINGS, which silently disabled the restoration withholding), so every
 // shape the page hands back is VALIDATED here and a violation is a loud INSTRUMENT ERROR, never a

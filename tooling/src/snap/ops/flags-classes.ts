@@ -1,6 +1,5 @@
 // The four flag-class Sets ops/parse.ts's scanner validates argv against (required-value, optional inline
-// selector, optional inline name, page-targetable). Split out of ops/flags.ts alongside the handler table
-// when that file crossed the tooling line cap — these
+// selector, optional inline name, page-targetable). Split out of ops/flags.ts alongside the handler table — these
 // Sets are read-only classification data, distinct from the dispatch table they describe.
 //
 // THE ARM MEMBERS ARE DERIVED, NOT LISTED. Every arm flag

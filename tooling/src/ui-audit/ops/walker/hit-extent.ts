@@ -1,10 +1,10 @@
 // ui-audit in-page walker — segment: the COMPOSITOR HIT-EXTENT PROBE (what a control's real tap target is).
-// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
+// One IIFE, segmented by rule family: ops/walker.ts concatenates the
 // segments IN ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 //
-// SPLIT OUT of census-interactive.ts (#797) because that segment reached the 450-line tooling cap. The
+// SPLIT OUT of census-interactive.ts (#797). The
 // ownership vocabulary (ownsPoint / the ancestor-credit shapes / the composite walk / the probe frame)
 // is one subject and reads as one file; the census that CONSUMES it is another.
 //

@@ -22,6 +22,7 @@ import process from "node:process";
 import type { WireCapture } from "@orb/contracts/debug";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import type { WireOutcome } from "@orb/server/foundation/observability";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -30,6 +31,7 @@ import { UsageError } from "../../floor/cli/run-tool.ts";
 import { DEV_PORTS } from "../../floor/host/ports.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
+import { PORT_ENV } from "../../stack/index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
 
@@ -79,12 +81,12 @@ function parseCapturesArgs(argv: readonly string[]): CapturesArgs {
 }
 
 function baseUrl(): string {
-  const port = processEnvValue("PORT") ?? String(DEV_PORTS.server);
+  const port = processEnvValue(PORT_ENV) ?? String(DEV_PORTS.server);
   return processEnvValue("WIRE_TAP_BASE") ?? `http://127.0.0.1:${port}`;
 }
 
 function authHeaders(): Record<string, string> {
-  const token = processEnvValue("DEBUG_TOKEN");
+  const token = processEnvValue(DEBUG_TOKEN_ENV);
   return token === undefined || token === "" ? {} : { "x-debug-token": token };
 }
 

@@ -1,5 +1,4 @@
 // The verdict shapes of ui-audit: severity ladder + the Finding row every check returns.
-// Split from the pre-move design-audit-checks.ts monolith (P3 of #393); provenance: lib/collect.ts header.
 
 import type { DesignAuditRuleId, DesignAuditRuleSeverityById, DesignAuditSeverity } from "./rules.ts";
 import { DESIGN_AUDIT_SEVERITIES } from "./rules.ts";

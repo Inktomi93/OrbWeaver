@@ -88,7 +88,7 @@ function smallestSide(targets: readonly TapTarget[], match: string): number {
   return Math.min(...hits.map((t) => Math.min(t.width, t.height)));
 }
 
-// The fine-pointer floor the walker's consumers judge against (design-audit-checks.ts) — the slider row is
+// The fine-pointer floor the walker's consumers judge against — the slider row is
 // h-(--size-control-sm) (32px fine), so a correct measurement clears it and 22 does not.
 const FINE_POINTER_FLOOR = 24;
 

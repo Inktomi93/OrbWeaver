@@ -237,9 +237,7 @@ export async function confirmPendingJoin(
  *  now-revoked cookie and would keep rendering warm cache until something happened to fail — the cross-tab
  *  channel makes one sign-out land everywhere at once), then hard-redirect (a full document load drops every
  *  in-memory cache/store so a shared browser can't leak the prior user's data). Continues to the IdP
- *  end-session URL when the deployment is OIDC (else clicking Continue signs straight back in). Re-homed
- *  from the retired `account-surface.tsx` (#866 S4 — the account modal dissolved into the persona
- *  switcher's foot); THROWS on failure — the calling control owns the toast. */
+ *  end-session URL when the deployment is OIDC (else clicking Continue signs straight back in). THROWS on failure — the calling control owns the toast. */
 export async function signOut(): Promise<void> {
   const { endSessionUrl } = await logout();
   // A stashed invite belongs to the visitor who opened it, never to the next person on this tab (D259).

@@ -1,5 +1,5 @@
-// The typed console-annotation parser (#1372), moved out of run-finding-browser.ts to hold the 450-line
-// cap: the app's fixed console-line grammar and the finding drafts it produces from browser diagnostics.
+// The typed console-annotation parser (#1372), moved out of run-finding-browser.ts:
+// the app's fixed console-line grammar and the finding drafts it produces from browser diagnostics.
 import { exactScope } from "../../floor/artifacts/artifact-scope.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DiskSafeBrowserDiagnostic } from "../contract/browser-evidence-redaction.ts";

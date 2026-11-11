@@ -27,8 +27,7 @@
 // What cannot be proven here is a macOS/Windows BOOT — this box is Linux. The substitutes are `shell:
 // false` everywhere and platform-parameterised units for the win32 pnpm answer and the win32 stop signal.
 //
-// FULL PRIORITY, deliberately (policy `tooling-child-process-door`, reviewed grant
-// `tooling-child-process-door:stack-start`): the child spawned here IS the application serving the
+// FULL PRIORITY, deliberately: the child spawned here IS the application serving the
 // operator's requests. The niced doors are also structurally unavailable — they exec the POSIX `nice`
 // binary, which does not exist on Windows.
 import { hostname, networkInterfaces } from "node:os";

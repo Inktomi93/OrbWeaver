@@ -1,5 +1,4 @@
-// Snap's one argv-ordered browser-drive queue. Types stay separate from the larger run/result contract so
-// adding an action cannot push that contract back over tooling's hard source-size ceiling.
+// Snap's one argv-ordered browser-drive queue, kept apart from the larger run/result contract.
 import type { NavMethod } from "../../floor/instrument/nav.ts";
 import type { DiskSafeText, PrivateText } from "./disk-safe-argv.ts";
 

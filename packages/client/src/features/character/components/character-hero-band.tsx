@@ -1,8 +1,8 @@
 // The hero band — the editor's visual centerpiece. Mixes two commit models by design: the name is a draft
 // card field (bound to the form → save-bar), while the portrait is an immediate identity commit
 // (`character.update` single-key patches). The accent swatch is a read-only preview of the
-// resolved themeOverride — the theme control itself lives in the CONTEXT pane (`character-options-tab.tsx`
-// mounts `CharacterAppearanceTab`; the component name differs from the tab's).
+// resolved themeOverride — the theme control itself lives in the CONTEXT pane (`characters-section.tsx`
+// mounts `CharacterLookTab` from `character-appearance-tab.tsx`; the component name differs from the file's).
 //
 // The band renders NEITHER a star nor an archive control — `archived` arrives only as a prop the band reads
 // for display. Archive's affordances for an open character live in the CONTEXT pane's `Character actions`

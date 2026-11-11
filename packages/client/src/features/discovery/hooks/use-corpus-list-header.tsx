@@ -13,8 +13,8 @@
 // of the DISTILLED catalog the list below it browses — in the same frame as an overview h1 reading "327
 // characters". Two true numbers of two different things, one of them unlabelled, and the only reading
 // available to a user is that the app disagrees with itself about how many characters they own. `N of TOTAL`
-// is the band's own existing idiom for a count that is a subset (`chat-list-header.tsx`,
-// `characters-list-header.tsx`, `analytics-list-header.tsx` all print it), and `distilledCensus` is the one
+// is the band's own existing idiom for a count that is a subset (`use-analytics-list-header.tsx`
+// prints it), and `distilledCensus` is the one
 // home the CONTEXT band shares so the two cannot drift. The read itself moved to `hooks/use-corpus-census.ts`
 // with #1676 — see below.
 //

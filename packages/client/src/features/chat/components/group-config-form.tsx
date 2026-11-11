@@ -199,7 +199,7 @@ const GroupConfigFormBoundary = createAutosaveEntityForm<GroupConfigFormValues>(
 // mounts under `ContextTabsPanel`, which keys by TAB id only, so without the boundary a chat switch with
 // the tab open would keep the SAME FormApi and its frozen seed, and one field flip could autosave chat A's
 // group config into chat B. The boundary keys by `entityId` regardless of mount site, so BOTH mount arms
-// (the committed Group tab and the draft arm in `draft-context-tabs.tsx`) are protected.
+// (the committed Group tab and the draft arm) are protected.
 
 function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
   const factorySave = (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));

@@ -1,7 +1,7 @@
 // Every decision `pnpm start`'s setup makes, pure: when to ask, the defaults `.env` offers, and the `.env` edits each
 // answer makes. `@orb/kit/env-file` applies the edits in place, so every other byte of the file survives.
 import type { AuthMode } from "@orb/contracts/identity";
-import { authModeSchema, SETUP_COMMAND } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY, authModeSchema, SETUP_COMMAND } from "@orb/contracts/identity";
 import {
   ALLOWED_HOSTS_KEY,
   isAllowedHostEntry,
@@ -15,9 +15,7 @@ import type { EnvEdit } from "@orb/kit/env-file";
 import { DELETE_ENV_LINE } from "@orb/kit/env-file";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type { AnswerParse, SetupAnswers, SetupAudience, SetupDecision, SetupLogin, SetupMachine, SetupUrl, SetupValues } from "../contract/types.ts";
-
-export const PORT_KEY = "PORT";
-export const AUTH_MODE_KEY = "AUTH_MODE";
+import { PORT_ENV } from "./stack-plan.ts";
 
 /** The listen address key. Setup never writes a value to it; a network answer deletes it ({@link setupEnvEdits}). */
 export const BIND_HOST_KEY = "BIND_HOST";
@@ -90,7 +88,7 @@ export function currentAudience(fileEnv: Readonly<Record<string, string | undefi
 
 /** The answers the current settings already give; each question offers its one as the default. */
 export function setupDefaults(fileEnv: Readonly<Record<string, string | undefined>>, ambient: Readonly<Record<string, string | undefined>>): SetupAnswers {
-  const port = parsePortAnswer(declared(PORT_KEY, fileEnv, ambient) ?? "", DEV_PORTS.server);
+  const port = parsePortAnswer(declared(PORT_ENV, fileEnv, ambient) ?? "", DEV_PORTS.server);
   return {
     port: port.ok ? port.value : DEV_PORTS.server,
     ...MODE_ANSWERS[currentAuthMode(fileEnv, ambient)],
@@ -187,7 +185,7 @@ export function parseAddressAnswer(raw: string, known: readonly string[]): Answe
  *  `BIND_HOST`: a share from a `just-me` box pins the bind to loopback, and choosing the network opens it again. */
 export function setupEnvEdits(values: SetupValues): readonly EnvEdit[] {
   return [
-    { key: PORT_KEY, value: String(values.port) },
+    { key: PORT_ENV, value: String(values.port) },
     { key: AUTH_MODE_KEY, value: values.authMode },
     { key: ALLOWED_HOSTS_KEY, value: values.allowedHosts },
     { key: BIND_HOST_KEY, value: values.authMode === SINGLE_USER_MODE ? null : DELETE_ENV_LINE },

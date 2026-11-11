@@ -1,5 +1,5 @@
-// ui-audit sample shapes — the FORCED-STATE family (`hover-contrast`). Split from samples.ts because
-// that file is at the tooling-size boundary, and because this family is the only one whose samples do
+// ui-audit sample shapes — the FORCED-STATE family (`hover-contrast`). Its own module because
+// this family is the only one whose samples do
 // NOT come out of the single collectSamplesJs evaluation: a hover pair is unreadable from page JS
 // (Chromium exposes no way for a page to force its own `:hover`), so ops/hover.ts drives
 // `CSS.forcePseudoState` over CDP between two in-page passes. See that file's header for the bounded

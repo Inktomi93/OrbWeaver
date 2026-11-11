@@ -30,6 +30,7 @@ import { UsageError } from "../../floor/cli/run-tool.ts";
 import { DEV_PORTS } from "../../floor/host/ports.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
+import { PORT_ENV } from "../../stack/index.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
 
@@ -42,7 +43,7 @@ interface SseEnv {
 }
 
 function readEnv(): SseEnv {
-  const port = processEnvValue("PORT") ?? String(DEV_PORTS.server);
+  const port = processEnvValue(PORT_ENV) ?? String(DEV_PORTS.server);
   const base = processEnvValue("SSE_TAP_BASE") ?? `http://127.0.0.1:${port}`;
   const cookie = processEnvValue("SSE_TAP_COOKIE") ?? "";
   return { trpcUrl: `${base}/api/trpc`, cookie };

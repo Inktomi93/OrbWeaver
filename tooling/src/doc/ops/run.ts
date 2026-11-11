@@ -53,7 +53,7 @@ function report(verb: string, outcome: WriteOutcome): ExitCode {
 function runFormat(write: boolean, explicit: readonly string[]): ExitCode {
   const files = formatTargets(explicit);
   const outcome = formatDocs(files, write);
-  const verb = write ? "format:docs" : "check:docs";
+  const verb = write ? "doc format --write" : "doc format --check";
   if (outcome.refused.length > 0) {
     warn(`${verb} — ${outcome.refused.length} file(s) REFUSED: formatting them would LOSE CONTENT (repair the markdown, not the formatter):`);
     for (const refusal of outcome.refused) {
@@ -61,7 +61,7 @@ function runFormat(write: boolean, explicit: readonly string[]): ExitCode {
     }
   }
   if (write) {
-    print(`format:docs — formatted ${outcome.dirty.length}/${outcome.scanned} file(s)`);
+    print(`${verb} — formatted ${outcome.dirty.length}/${outcome.scanned} file(s)`);
     return outcome.refused.length > 0 ? EXIT.violations : EXIT.clean;
   }
   // BOTH CENSUSES, ALWAYS — a refusal must never SWALLOW the dirty list.
@@ -69,10 +69,10 @@ function runFormat(write: boolean, explicit: readonly string[]): ExitCode {
     if (outcome.refused.length > 0) {
       return EXIT.violations;
     }
-    print(`check:docs — ${outcome.scanned} file(s) formatted`);
+    print(`${verb} — ${outcome.scanned} file(s) formatted`);
     return EXIT.clean;
   }
-  warn(`check:docs — ${outcome.dirty.length} file(s) not formatted (run \`pnpm format:docs\`):`);
+  warn(`${verb} — ${outcome.dirty.length} file(s) not formatted (run \`pnpm format:docs\`):`);
   for (const file of outcome.dirty) {
     warn(`  ${file}`);
   }

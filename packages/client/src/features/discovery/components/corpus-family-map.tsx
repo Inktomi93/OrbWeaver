@@ -24,7 +24,7 @@ type VisualFamily = inferOutput<Trpc["discovery"]["visualArchetypes"]>[number];
 const FAMILY_FACE_SLOTS = 4;
 
 /** The rationed accent glow on the sanctioned ::before carrier (home's hearth precedent):
- *  `design-audit-checks.ts` classifies a chromatic glow on an element's OWN box-shadow as the generated-UI
+ *  `tooling/src/ui-audit/lib/checks-decor.ts` classifies a chromatic glow on an element's OWN box-shadow as the generated-UI
  *  tell, and `rounded-(--radius-card)` mirrors the radius the Card resolves from `tiers.css` so the halo
  *  tracks the edge it is a halo for.
  *

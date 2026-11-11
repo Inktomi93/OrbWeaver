@@ -1,4 +1,4 @@
-// The SnapRunIndex shape assertion, moved out of run-report.ts to hold the 450-line cap: every field
+// The SnapRunIndex shape assertion, moved out of run-report.ts: every field
 // group (identity, process, provenance, verdict, diagnostics, findings) validated strictly so a
 // malformed index refuses loudly instead of feeding a downstream reader `undefined`.
 import { basename, dirname, isAbsolute, resolve } from "node:path";

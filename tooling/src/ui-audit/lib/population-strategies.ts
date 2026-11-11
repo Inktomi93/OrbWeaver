@@ -1,5 +1,5 @@
 // Pure population-accounting strategies for ui-audit's collect dispatcher. Split from collect.ts
-// (#450-line cap headroom, 2026-09-01) — the four rungs a rule's checker is wired through.
+// — the four rungs a rule's checker is wired through.
 //
 // FOUR COLLECTION STRATEGIES (owner ruling 2026-09-01: no gate — rule shape is a judgment call a
 // checker can't make; the RUNG ASSIGNMENT table lives in collect.ts's header, because that is a

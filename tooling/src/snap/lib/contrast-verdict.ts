@@ -1,6 +1,5 @@
 // The PURE half of `--contrast`: colour parsing, the alpha composite, and the three refusals — every
-// state where a ratio would be a number rather than evidence. Split out of ops/contrast.ts when the
-// #466 exemption pushed that file past the tooling size cap; the browser half (the in-page fact script,
+// state where a ratio would be a number rather than evidence. Split out of ops/contrast.ts; the browser half (the in-page fact script,
 // pixel sampling) stays in ops/. The WCAG math is the fleet-shared kernel (floor/instrument/wcag.ts).
 import type { Rgb } from "../../floor/instrument/wcag.ts";
 import { MEASURABLE_OPACITY_MIN } from "../../floor/instrument/wcag.ts";

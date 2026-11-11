@@ -1,5 +1,5 @@
 // Pure, DOM-free classification AGGREGATION for ui-audit — collectAudit runs every sample family through
-// its family checker (lib/collect-families.ts). Split from the pre-move design-audit-checks.ts (P3 of #393).
+// its family checker (lib/collect-families.ts).
 //
 // WCAG contrast formula + large-text thresholds are standard WCAG 2.x math, not reinvented.
 //

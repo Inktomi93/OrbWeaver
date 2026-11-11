@@ -8,7 +8,7 @@
  * ratio nothing on screen has (3.16:1 measured where the real composite is 4.94:1 — 28 false P1s on one
  * transcript). snap already refused-and-pixel-sampled that case; design-audit fabricated a flat verdict.
  * The walker's own law says the two instruments "must not disagree about what is behind a glyph"
- * (design-audit-walker.ts, resolveBackdrop) — so the arithmetic and its constants live in ONE module
+ * (`resolveBackdrop` in `tooling/src/ui-audit/ops/walker/resolve.ts`) — so the arithmetic and its constants live in ONE module
  * rather than in two copies free to drift.
  *
  * THE RING, not the box: glyphs and icons sit in the box INTERIOR, so the outer ring is background by

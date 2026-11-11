@@ -1,5 +1,5 @@
 // The About group's nav entries: each `ConfigSubcategory` is shared by its contribution def and the section
-// body's `<Section>` anchor stamp, split out so neither imports the other (the `admin-engines-nav.ts` precedent).
+// body's `<Section>` anchor stamp, split out so neither imports the other.
 // The keywords are the words a person types when filing a bug or checking for a new release.
 
 import type { ConfigSubcategory } from "#state";

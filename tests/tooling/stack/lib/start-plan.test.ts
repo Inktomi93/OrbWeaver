@@ -19,6 +19,7 @@ import {
   decideStartBuild,
   effectiveAuthMode,
   OPEN_BROWSER_KEY,
+  PORT_ENV,
   parseStartArgv,
   restateFileEnv,
   singleUserFallbackEnv,
@@ -57,7 +58,7 @@ test("argv: --setup asks again, and --port takes one TCP port as the next word o
 });
 
 test("a --port override wins over .env for this launch only, and every other .env value still wins over the shell", () => {
-  const fileEnv = env(["PORT", "8788"], [AUTH_MODE_KEY, "local"]);
+  const fileEnv = env([PORT_ENV, "8788"], [AUTH_MODE_KEY, "local"]);
   const ambient = env([AUTH_MODE_KEY, "single-user"], ["PATH", "/bin"]);
   const overlay = restateFileEnv(fileEnv, env(["PORT", "9000"]));
   const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: ambient, launchEnv: overlay, logPath: "/l" });

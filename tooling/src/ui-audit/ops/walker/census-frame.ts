@@ -24,7 +24,7 @@
 // census-collision.ts: a subject straddling the fold whose in-frame centre hit-tested null never got the
 // reveal the off-frame branch already had. Height decided only WHICH element landed on the fold.
 //
-// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the segments
+// One IIFE, segmented by rule family: ops/walker.ts concatenates the segments
 // IN ORDER into collectSamplesJs. This one runs IMMEDIATELY after WALKER_CORE and before any census
 // that scrolls, which is load-bearing twice over: the frame is the page's RESTING layout, and this
 // segment reads only core's primitives (`allEls`, `isVisible`, `isDevChrome`, `describe`) so it carries

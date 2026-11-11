@@ -1,10 +1,8 @@
 // snap's PAGE→NODE seam validators (#1004) — every in-page read settled at the boundary instead of cast.
 //
 // The primitives and the argument live in `floor/browser/page-validate.ts`; this file declares WHAT each of
-// snap's page scripts must have returned. One file rather than a validator per ops module because three
-// of the hosts (`contrast.ts` 433, `materialize-devtools.ts` 422, `appearance-invariant-runtime.ts` 434)
-// sit within twenty lines of the 450-line tooling cap, and because collecting them makes the shared
-// discipline visible in one place.
+// snap's page scripts must have returned. One file rather than a validator per ops module, because collecting
+// them makes the shared discipline visible in one place.
 //
 // EACH ARM NAMES THE LIE IT PREVENTS — none of these is hypothetical:
 //   • contrast facts     — a union whose arms are told apart by the PRESENCE of a key (`offscreen`,

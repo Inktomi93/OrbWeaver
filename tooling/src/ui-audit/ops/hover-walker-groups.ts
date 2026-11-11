@@ -1,7 +1,7 @@
 // ui-audit in-page segment — the FORCED-STATE pass's DENOMINATOR and its force GROUPING: every visible
 // text-bearing element turned into one candidate per STATE QUESTION, then bucketed into the subject
-// groups Node drives. Split from ops/hover-walker.ts (2026-09-06, #1092) when the per-subject hover
-// keying took that file past the tooling-size cap — the same rule-family seam ops/hover-walker-read.ts
+// groups Node drives. Split from ops/hover-walker.ts (2026-09-06, #1092) for the per-subject hover
+// keying — the same rule-family seam ops/hover-walker-read.ts
 // came from, and the third segment of ONE function scope: ops/hover.ts concatenates STATE_PAINT +
 // HOVER_CENSUS + THIS + HOVER_FORCE_READ in order, so every `var` the pairing half initialized
 // (hoverPaintOf, attrPaintOf, the withheld marker maps, the counters) is live when these lines run and

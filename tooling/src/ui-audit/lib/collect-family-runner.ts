@@ -1,5 +1,5 @@
 // THE FAMILY-CHECKER RUNNER — the scaffolding every `*Findings(samples)` function in
-// `collect-families.ts` is written against, split out at the tooling 450-line cap. Nothing here knows a
+// `collect-families.ts` is written against. Nothing here knows a
 // RULE: it owns the mutable accumulator a family fills, the two ways a detector reports (one-or-none and
 // many), rung 2's total-judge door, the one place a never-capped census reads as 0, and the rung-4
 // authored-identity grouping key. The families stay next door; this is the vocabulary they share, so a

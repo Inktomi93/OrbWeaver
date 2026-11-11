@@ -15,7 +15,7 @@ export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
 export const FIRST_RESERVED_RULING = 79;
 export const LAST_RESERVED_RULING = 105;
 
-/** The trees the `doc` tool governs, checked by `pnpm check:agents`. The formatter owns them too
+/** The trees the `doc` tool governs, checked by `ops/check.ts`. The formatter owns them too
  *  (`ops/format.ts`). One home for the four paths. */
 export const DOC_TOOL_TREES = { adr: "docs/adr/", plans: "docs/plans/", work: "docs/work/", law: "docs/law/" } as const;
 export const DOC_TOOL_TREE_PREFIXES: readonly string[] = Object.values(DOC_TOOL_TREES);

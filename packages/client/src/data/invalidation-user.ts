@@ -188,9 +188,8 @@ export const USER_BUS_FILTERS: UserBusFilterMap = {
 };
 
 /** The viewer triple: the server identity (`sessions.me`) plus the two reads a composed
- *  current-persona derivation would need (`settings.getUserSettings`/`persona.list`; the retired
- *  `use-viewer.ts`, #73, composed exactly these three — this filter set outlives the hook because the
- *  three reads are each independently live). TWO callers share this ONE spelling — the `identityChanged`
+ *  current-persona derivation would need (`settings.getUserSettings`/`persona.list`; the three reads are each
+ *  independently live). TWO callers share this ONE spelling — the `identityChanged`
  *  row above (the cross-device driver; W7b retired this docblock's old "the map has NO identity member"
  *  note) and `invalidateIdentity()` in `invalidation.ts`, the recovery ladder's rung that fires with no event at all. */
 export function identityFilters(trpc: Trpc): readonly InvalidateQueryFilters[] {

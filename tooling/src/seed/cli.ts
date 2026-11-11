@@ -1,5 +1,5 @@
-// seed — the three DEV database seeders. Argv parse + dispatch ONLY (the five-slot cap); the programmatic
-// surface is ./index.ts.
+// seed — the three DEV database seeders. Argv parse + dispatch ONLY; the programmatic surface is
+// ./index.ts (dependency-cruiser `tooling-cli-via-index`).
 //
 //   pnpm seed:demo [--fresh] [--force]                 demo        the verifiable demo corpus
 //   node tooling/src/seed/cli.ts chat [--messages N]   chat        the heavy long-transcript fixture

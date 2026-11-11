@@ -1,5 +1,5 @@
 // Deterministic bounded assignment sampling for the private matrix engine. This is the cohesive seam
-// extracted before variant-matrix-engine.ts crossed the tooling-size cap; it does not own coverage,
+// extracted from variant-matrix-engine.ts; it does not own coverage,
 // minimization, or tool policy.
 
 import { instrumentRefusal } from "../browser/page-validate.ts";

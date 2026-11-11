@@ -17,17 +17,17 @@ Docs are markdown in git, in four homes plus the mission doc: `docs/law/` for st
 
 Agents write prose only. Every structural change goes through `pnpm doc` (`tooling/src/doc/`): numbering, status and supersession, work-item transitions and landing, archiving with link rewrites, and the generated indexes. The tool rewrites a file's frontmatter block or a whole generated file; it never edits inside prose.
 
-One checker, `pnpm check:agents`, covers the new tree: frontmatter schema per kind, required sections per kind, size caps per kind, allowed folders, generated-index freshness, dead links and paths, and the writing rules on history, counts and banned words. The rules live in `tooling/src/doc/lib/rules.ts` and `tooling/src/floor/prose/prose-rules.ts`; `.claude/rules/writing.md` is the one style law.
+No documentation checker command exists (D333). The `pnpm doc` writing verbs check what they write, and `tests/tooling/doc/ops/check.int.test.ts` audits the whole tree: frontmatter schema per kind, required sections per kind, size caps per kind, allowed folders, generated-index freshness, dead links and paths, and the writing rules on history, counts and banned words. The rules live in `tooling/src/doc/lib/rules.ts` and `tooling/src/floor/prose/prose-rules.ts`; `.claude/rules/writing.md` is the one style law.
 
 An ADR keeps the ledger's D number as its file number and earns a file only when the decision was contested or expensive to reverse. It is immutable: a change is a new ADR that supersedes the old one, and the tool writes both halves of that link. Status lives in frontmatter only.
 
-Freshness has two tiers. Hard: every cited path, symbol, heading and D id resolves, red at `pnpm check`. Soft: a doc is due for review when a repository path its body cites changed after the doc's `updated` date, reported by `pnpm doc due` as a warning and never red. Nothing is committed for freshness beyond `updated`; `pnpm doc review` sets it in batch.
+Freshness has two tiers. Hard: every cited path, symbol, heading and D id resolves, and a writing verb refuses a file that breaks it. Soft: a doc is due for review when a repository path its body cites changed after the doc's `updated` date, reported by `pnpm doc due` as a warning and never red. Nothing is committed for freshness beyond `updated`; `pnpm doc review` sets it in batch.
 
 Work items have four states (`open`, `doing`, `blocked`, `done`); any transition is legal and only the final shape is checked. Lanes never write item state: they add a `Closes:` trailer, and a post-merge hook on `main` lands the items with the merge commit as evidence. A plan's `tasks.md` is generated from its items.
 
 ## Consequences
 
-A new document costs its prose and nothing else: no lane row, no attestation, no regenerated catalog. The legacy catalog's hash-bound attestation is removed at once, not with the migration: its rows carry a path and an authority only, so a legacy prose edit reds nothing there either. A structural mistake is caught by the checker with the fixing command in the message. The legacy tree keeps its current checker until each folder migrates, and a migrated file must satisfy the new rules on landing; there is no grandfather exemption and no compatibility path, so the red is the to-do list.
+A new document costs its prose and nothing else: no lane row, no attestation, no regenerated catalog. The legacy catalog's hash-bound attestation is removed at once, not with the migration: its rows carry a path and an authority only, so a legacy prose edit reds nothing there either. A structural mistake is refused by the writing verb with the fixing command in the message. The legacy tree keeps its current checker until each folder migrates, and a migrated file must satisfy the new rules on landing; there is no grandfather exemption and no compatibility path, so the red is the to-do list.
 
 The ledger split is one commit that re-points the D-citation gate at the ADR tree; the five thousand bare `D<n>` citations in code do not move because the numbers do not change.
 
@@ -38,7 +38,7 @@ The ledger split is one commit that re-points the D-citation gate at the ADR tre
 - The proposal, design and tasks trio of spec-kit and OpenSpec: measured to cost two to three times the tokens for no better code.
 - Keeping the single ledger file: it is the mega-doc problem; one row per file keeps the numbers and lets a lane own a bounded batch.
 - Keeping GitHub Projects: throttled, rotted, and off the tree; in-flight state lives in the repo.
-- A second checker (`pnpm doc check`): one checker; the doc tool exports its rules and `pnpm check:agents` runs them.
+- A checker command (`pnpm doc check`): the writing verbs check what they write, and the whole-tree audit is a test.
 - A hash or commit pin per document for freshness: a whole-file hash reds on a one-line edit and a commit is orphaned by every rebase; a date is enough for a warning tier.
 - A union D-id resolver while the ledger splits: a shim; the split is one commit.
 - Extending the legacy catalog tool instead of a new `doc/` tool: the catalog is the model being removed; the survivor owns the verbs and only borrowed the catalog's frontmatter reader and formatter until those moved.

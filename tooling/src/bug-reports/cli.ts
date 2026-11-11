@@ -1,5 +1,5 @@
-// bug-reports — read the dev bug button's durable captures. Argv parse + dispatch ONLY (the five-slot cap);
-// the programmatic surface is ./index.ts.
+// bug-reports — read the dev bug button's durable captures. Argv parse + dispatch ONLY; the programmatic
+// surface is ./index.ts (dependency-cruiser `tooling-cli-via-index`).
 //
 //   pnpm bug:reports                       list every captured report, newest first
 //   pnpm bug:reports <id-or-unique-prefix> print that report's digest and name its JSON bundle

@@ -1,7 +1,7 @@
 // The structural rules for the governed docs tree, PURE over a `DocTree` snapshot: allowed folders,
 // per-kind frontmatter, required sections, size caps, flat trees and stray files, work-item shape and
 // id uniqueness, a parked plan's wake condition, ADR id uniqueness, and generated-file freshness.
-// `pnpm check:agents` runs them (through `ops/check.ts`); the writing rules 1, 2 and 4 over the same
+// `ops/check.ts` runs them; the writing rules 1, 2 and 4 over the same
 // docs come from `floor/prose/prose-rules.ts` and are composed there, not here.
 import type { DocTree, GovernedDoc, WorkItem } from "../contract/types.ts";
 import {

@@ -1,5 +1,5 @@
 // The foreground launchers' signal wiring and exit mirroring: pure over an injected registrar, spawns
-// nothing. Split out of ./proc.ts at its line cap; proc.ts re-exports these names, so importers keep their
+// nothing. Split out of ./proc.ts; proc.ts re-exports these names, so importers keep their
 // spelling, the same door discipline ./proc-contract.ts follows.
 import { constants as osConstants } from "node:os";
 import type { ChildExit, StopSignalTarget } from "./proc-contract.ts";

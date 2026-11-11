@@ -197,7 +197,7 @@ export interface RoomOverridesFormProps {
  * this editor mounts under `ContextTabsPanel`, which keys by TAB id only, so without the boundary a chat
  * switch with the tab open would keep the SAME FormApi and its frozen seed, and one keystroke could
  * autosave chat A's overrides into chat B. The boundary keys by `entityId` regardless of mount site, so
- * BOTH mount arms (the committed tab and the draft arm in `draft-context-tabs.tsx`) are protected.
+ * BOTH mount arms (the committed tab and the draft arm) are protected.
  */
 export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: RoomOverridesFormProps): ReactElement {
   // Adapt the surface's overrides-level `save` to the boundary's form-values-level persist fn — the

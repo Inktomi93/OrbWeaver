@@ -3,7 +3,7 @@
 // preset. A row click opens the preset in CONTENT (`selectPreset`); ACTIVATION is the row's own toggle
 // (redesign §9/D1) — the pane-level "Active for generation" Select is DELETED, not kept beside it, and the
 // built-in row's toggle is the `defaultPresetId === null` pick. CRUD composes existing verbs —
-// Duplicate/Delete/Export here, and New/Import in the LIST chrome band (`preset-list-header.tsx`,
+// Duplicate/Delete/Export here, and New/Import in the LIST chrome band (`hooks/use-preset-list-header.tsx`,
 // D66 A1/A2 — the band owns the pane's create verbs). The focus/QueryBoundary shell + search/empty body
 // come from the shared library-surface scaffold.
 //

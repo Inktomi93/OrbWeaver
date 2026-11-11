@@ -1,7 +1,7 @@
 // THE IN-PAGE FACT SCRIPT for `--contrast` — one raw-string IIFE that gathers the RAW facts a
 // verdict is formed from (colours as strings, box, size, weight, the paint classifiers) and
-// classifies NOTHING. Lifted out of ops/contrast.ts when the fill arm (#1111) pushed that file past
-// the 450-line tooling cap; it is a pure string builder, which is what lib/ is for.
+// classifies NOTHING. Lifted out of ops/contrast.ts
+// with the fill arm (#1111); it is a pure string builder, which is what lib/ is for.
 //
 // THE BACKDROP RESOLVER IS NOT SPELLED HERE ANY MORE (#1325). This file used to carry its own DOM-ANCESTOR
 // walk, and its own comment named the gap: "GENERIC GAP not covered: any app that paints a fixed sibling

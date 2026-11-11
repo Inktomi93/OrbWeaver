@@ -1,13 +1,16 @@
-// A law or rule file that names an enforcing rule names one that runs. Without this check a doc keeps citing a gate
-// that was renamed or never built, and a reader trusts a check that does not exist.
+// A law or rule file that names an enforcing rule names one that runs, and so does a code comment's `policy` cite.
+// Without this check a doc keeps citing a gate that was renamed or never built, and a reader trusts a check that does
+// not exist.
 import { globSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
 import dependencyCruiser from "../../.dependency-cruiser.ts";
 import eslintConfig from "../../eslint.config.ts";
 import stylelintConfig from "../../stylelint.config.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
+import type { Source } from "./doc/_sources.ts";
+import { readFromRepo, SCRIPT_KINDS, scriptComments, trackedFiles, VENDORED } from "./doc/_sources.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const LAW_FILES = [...globSync("docs/law/**/*.md", { cwd: ROOT }), ...globSync(".claude/rules/**/*.md", { cwd: ROOT })].toSorted();
@@ -107,4 +110,44 @@ test("every dependency-cruiser rule a law or rule file cites is a forbidden rule
   const rules = dependencyCruiser.forbidden.flatMap(({ name, severity }) => (name === undefined || severity === "ignore" ? [] : [name]));
   expect(rules.length).toBeGreaterThan(0);
   expect(missing(cruiserCitations(), rules)).toEqual([]);
+});
+
+const POLICY_ROOTS = ["tooling/src/", "packages/", "tests/"] as const;
+const POLICY_CITE = /policy `([\w@/-]+)`/gu;
+const POLICY_HINT = "policy `";
+
+/** Every dependency-cruiser rule name and every ESLint rule id the loaded configs set or their plugins register. */
+function lintRuleNames(): ReadonlySet<string> {
+  const cruiser = dependencyCruiser.forbidden.flatMap(({ name }) => (name === undefined ? [] : [name]));
+  const eslint = eslintConfig.flatMap((block) => [
+    ...Object.keys(block.rules ?? {}),
+    ...Object.entries(block.plugins ?? {}).flatMap(([prefix, plugin]: [string, ESLint.Plugin]) =>
+      Object.keys(plugin.rules ?? {}).map((rule) => `${prefix}/${rule}`),
+    ),
+  ]);
+  return new Set([...cruiser, ...eslint]);
+}
+
+function deadPolicyNames(sources: readonly Source[], rules: ReadonlySet<string>): string[] {
+  return sources.flatMap((source) => {
+    const kind = SCRIPT_KINDS[extname(source.path)];
+    return (kind === undefined ? [] : scriptComments(source, kind)).flatMap(({ line, text }) =>
+      [...text.matchAll(POLICY_CITE)].flatMap(([, name = ""]) => (rules.has(name) ? [] : [`${source.path}:${String(line)} policy ${name}`])),
+    );
+  });
+}
+
+test("every policy a code comment cites is a dependency-cruiser rule or an ESLint rule id", () => {
+  const rules = lintRuleNames();
+  expect([...rules]).toEqual(expect.arrayContaining(["tooling-cli-via-index", "orb/closed-vocabulary"]));
+  const sources = [...trackedFiles().paths]
+    .filter((path) => SCRIPT_KINDS[extname(path)] !== undefined && !path.startsWith(VENDORED) && POLICY_ROOTS.some((root) => path.startsWith(root)))
+    .map((path) => ({ path, text: readFromRepo(path) }))
+    .filter(({ text }) => text.includes(POLICY_HINT));
+  expect(deadPolicyNames(sources, rules)).toStrictEqual([]);
+});
+
+test("a policy cite names a loaded rule or is refused", () => {
+  const source: Source = { path: "tooling/src/a.ts", text: "// policy `tooling-cli-via-index` holds; policy `tooling-ghost` does not\nexport {};\n" };
+  expect(deadPolicyNames([source], new Set(["tooling-cli-via-index"]))).toStrictEqual(["tooling/src/a.ts:1 policy tooling-ghost"]);
 });

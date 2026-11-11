@@ -12,7 +12,7 @@
 //
 // THE GATE IS THE BAND'S OWN CONDITION, spelled three ways because all three have to hold:
 //   · `mobileViewport` — the desktop band is untouched and still carries these exact doors (#1669 rules
-//     only the phone; `characters-list-header.tsx` renders `CharacterImportDoor` and `CharacterNewDoor` there).
+//     only the phone; `use-characters-list-header.tsx` renders `CharacterImportDoor` and `CharacterNewDoor` there).
 //     NOT a mobile MODE: it is the same affordances, in the one place a phone has room for them.
 //   · the active section IS Characters — these are SECTION-scoped entries in a shell-global zone, and the
 //     registry's scoping vocabulary is `useVisible` (the `pluginTopbarChrome` / `contextToggleChrome`

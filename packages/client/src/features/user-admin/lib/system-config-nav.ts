@@ -2,8 +2,7 @@
 // — `system` merged INTO `admin`). Each `ConfigSubcategory` is the ONE home shared by its contribution def
 // and its `<Section>` anchor stamp, split out so neither imports the other (the rate-limits-nav precedent).
 //
-// The sub IDS and the search leaves are byte-identical to the retired `system-pane.tsx` (§7.1/§7.2 — a
-// section keeps its `(category, subId)` pair across a move). The CATEGORY half necessarily changed with the
+// A section keeps its `(category, subId)` pair across a move (§7.1/§7.2). The CATEGORY half necessarily changed with the
 // pane merge — that is the one anchor break §10 Q2 authorises, and it is total: no `config-anchor-system-*`
 // id survives anywhere.
 

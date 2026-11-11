@@ -3,16 +3,16 @@
 // in-place `.env` edit that must leave every line it does not own byte-for-byte alone.
 import type { NetworkInterfaceInfo, NetworkInterfaceInfoIPv4, NetworkInterfaceInfoIPv6 } from "node:os";
 import { parseEnv } from "node:util";
+import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { applyEnvEdits, DELETE_ENV_LINE } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/tooling";
 import type { SetupMachine, SetupValues } from "../../../../tooling/src/stack/index.ts";
 import {
-  AUTH_MODE_KEY,
   BIND_HOST_KEY,
   decideSetup,
   openUrls,
-  PORT_KEY,
+  PORT_ENV,
   parseAddressAnswer,
   parseChoiceAnswer,
   parsePortAnswer,
@@ -49,21 +49,21 @@ test("setup asks only when there is a terminal, and a missing .env with no termi
 
 test("the defaults are the current values: .env first, then the shell, then the built-in port and single-user", () => {
   expect(setupDefaults({}, {})).toEqual({ port: 8788, audience: "just-me", login: "password", allowedHosts: null });
-  expect(setupDefaults(env([PORT_KEY, "9000"], [AUTH_MODE_KEY, "local"]), {})).toEqual({
+  expect(setupDefaults(env([PORT_ENV, "9000"], [AUTH_MODE_KEY, "local"]), {})).toEqual({
     port: 9000,
     audience: "network",
     login: "password",
     allowedHosts: null,
   });
   expect(setupDefaults(env([AUTH_MODE_KEY, "oidc"]), env([AUTH_MODE_KEY, "local"]))).toMatchObject({ audience: "network", login: "sso", allowedHosts: null });
-  expect(setupDefaults({}, env([AUTH_MODE_KEY, "forward-header"], [PORT_KEY, "7000"]))).toEqual({
+  expect(setupDefaults({}, env([AUTH_MODE_KEY, "forward-header"], [PORT_ENV, "7000"]))).toEqual({
     port: 7000,
     audience: "network",
     login: "sso",
     allowedHosts: null,
   });
   // A value the server would refuse is not offered back as a default; the answer replaces it.
-  expect(setupDefaults(env([AUTH_MODE_KEY, "locall"], [PORT_KEY, "http"]), {})).toEqual({
+  expect(setupDefaults(env([AUTH_MODE_KEY, "locall"], [PORT_ENV, "http"]), {})).toEqual({
     port: 8788,
     audience: "just-me",
     login: "password",
@@ -124,9 +124,9 @@ test("a choice answer: Enter keeps the default, the number picks, and anything e
 
 test("a first run writes a new .env that holds the owned keys and parses to exactly the chosen values", () => {
   const text = applySetupValues(null, LOCAL);
-  expect({ ...parseEnv(text) }).toEqual(env([PORT_KEY, "9100"], [AUTH_MODE_KEY, "local"]));
+  expect({ ...parseEnv(text) }).toEqual(env([PORT_ENV, "9100"], [AUTH_MODE_KEY, "local"]));
   // Setup never writes a secret: they are generated as keyfiles beside the database.
-  expect(Object.keys(parseEnv(text)).sort()).toEqual([AUTH_MODE_KEY, PORT_KEY].sort());
+  expect(Object.keys(parseEnv(text)).sort()).toEqual([AUTH_MODE_KEY, PORT_ENV].sort());
 });
 
 test("an edit changes only the owned values: every other line, comment, blank and CRLF ending survives byte-for-byte", () => {
@@ -164,7 +164,7 @@ test("an owned key the file lacks is appended once, in the file's own line endin
 test("every assignment of an owned key is rewritten, so an earlier duplicate cannot come back as the value", () => {
   const after = applySetupValues("PORT=1\nPORT=2\n", LOCAL);
   expect(after).toBe("PORT=9100\nPORT=9100\nAUTH_MODE=local\n");
-  expect(parseEnv(after)[PORT_KEY]).toBe("9100");
+  expect(parseEnv(after)[PORT_ENV]).toBe("9100");
 });
 
 test("an edit is idempotent: the same values applied twice give the same bytes, from a new file or an old one", () => {

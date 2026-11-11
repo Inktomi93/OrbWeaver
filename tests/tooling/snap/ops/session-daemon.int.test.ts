@@ -799,7 +799,7 @@ test("attach — attachProbeSession drives the owner's LIVE page over the sessio
 });
 
 // ── #2504: a daemon inside a marked run may not take the run down with it ───────────────────────────
-// THE DEFECT, AT THE SEAM IT WAS REPORTED AT. `pnpm test:tooling` with `ORB_RUN_MARKER` set and its owner
+// THE DEFECT, AT THE SEAM IT WAS REPORTED AT. `pnpm test:tools` with `ORB_RUN_MARKER` set and its owner
 // alive: `Killed`, exit 137, 11 files, NO summary. Unset, same tree, same command: 556 files and a
 // published verdict. The killer was this suite's own daemons: reparented (so `selfAndAncestors` excludes
 // nothing) and sweeping the marker they had INHERITED, which every sibling vitest worker and the top-level

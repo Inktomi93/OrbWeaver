@@ -1,5 +1,5 @@
 // ui-audit sample shapes — complete rule-population census denominators (#984/#987). These stay separate from
-// samples-layout.ts because RawSamples is already at the tooling-size boundary; the population evidence
+// samples-layout.ts because the population evidence
 // is a cross-rule contract consumed by collection/reporting, not another rendered-layout fact.
 import type { RelationalCensusAccountingInput } from "./findings.ts";
 import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "./samples-grid.ts";

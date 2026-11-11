@@ -79,7 +79,7 @@ test("under runTool, a full-priority child stays at the caller's priority while 
   ].join("\n");
 
   // The AMBIENT priority this very test runs at is itself unpredictable (0 under a bare vitest run, 10
-  // under `pnpm test:scoped`, which now routes through niced-exec too) — read it fresh rather than
+  // under a niced launcher) — read it fresh rather than
   // assuming 0, and compare the subprocess's OWN pre-runTool priority to it, so the assertion holds either
   // way while still catching the defect (`runTool` unconditionally forcing 10 regardless of the ambient).
   const ambientPriority = execFileSync(process.execPath, ["-e", "process.stdout.write(String(require('node:os').getPriority(process.pid)))"], {

@@ -36,7 +36,7 @@ export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
  *  card field) from an identity-FLAG-only edit (star/archive/trustHtml/theme — `card-merge.ts:flagEdits`): the
  *  embeddings indexer re-embeds ONLY when `contentChanged` is true, so toggling a star never touches the model
  *  (owner ruling — starring is not a content change, backfill belongs to content events + the bulk sweep). The
- *  field is ADDITIVE: the multi-human chat-bus fan (`emit-character-updated.ts`) ignores it and fires on EVERY
+ *  field is ADDITIVE: the entity→room fan (`fanEntityEvent`, `packages/server/src/domain/chat/verbs/room-refresh.ts`) ignores it and fires on EVERY
  *  edit (a co-member's open room must hear a theme/flag change too — a different consumer with a different need). */
 export interface CharacterUpdatedEvent {
   readonly type: "character.updated";

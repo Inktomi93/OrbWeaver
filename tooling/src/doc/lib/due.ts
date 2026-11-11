@@ -1,7 +1,7 @@
 // The SOFT freshness tier (`pnpm doc due`) as a pure rule: a doc is due for review when a repository
 // path its body cites changed after the doc's `updated` date. The paths are the body's own backticked
 // citations, so nothing is committed for this beyond the date every doc already carries. A warning
-// tier only — it never enters `pnpm check`.
+// tier only: it never refuses a write.
 import { backtickedRepoPaths } from "../../floor/prose/prose-rules.ts";
 import type { DescribedDoc, GovernedDoc } from "../contract/types.ts";
 import { splitDocument } from "./frontmatter-write.ts";

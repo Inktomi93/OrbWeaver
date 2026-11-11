@@ -1,6 +1,5 @@
 // Private deterministic planning engine. The public contract stays in `variant-matrix.ts`; this file
-// owns validation, completion, coverage, and minimization so the shared door remains readable and both
-// files stay below the tooling-size law without weakening it.
+// owns validation, completion, coverage, and minimization so the shared door remains readable.
 
 import { instrumentRefusal } from "../browser/page-validate.ts";
 import type {

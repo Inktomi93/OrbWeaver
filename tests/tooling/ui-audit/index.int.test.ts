@@ -8,7 +8,7 @@
 // the ENVELOPE: `RESULT design-audit` is now `RESULT snap` carrying `design-audit=measured`, and the three
 // stage-flag refusals moved to the parser that owns those flags (see the ISOLATED STAGE block below).
 // The suite stays under `tests/tooling/ui-audit/` because the ENGINE it proves still lives there — the
-// same reason `tests/tooling/motion-audit/` outlived the retired `pnpm motion-audit`.
+// same reason `tests/tooling/motion-audit/` holds the motion engine's suite with no command of its own.
 //
 // The fixtures declare `data-app-ready` on <html> themselves so the readiness wait resolves instantly
 // (a file page never runs the app; without the attribute every case burns the full 10s ceiling), and
@@ -512,7 +512,7 @@ test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }
 // ── the ISOLATED STAGE mode (#678): a lane must be able to audit its OWN branch ─────────────────────────
 //
 // THE THREE ARGV REFUSALS MOVED WITH THE FLAGS (#1315). `--ref`/`--isolated`/`--dirty` are SNAP's — they
-// always were (Core-Tooling-Law §2.4: one lifecycle owner) — and the folded scan rides them like every
+// always were (one lifecycle owner) — and the folded scan rides them like every
 // other arm instead of re-deriving the conflict table. Their pins are `tests/tooling/snap/ops/parse.test.ts`
 // (an unresolvable ref, `--base` beside a stage flag, `--ref` beside `--dirty`), where they are asserted
 // against the parser that actually owns them. What stays HERE is the half that is about the AUDIT: the

@@ -1,8 +1,7 @@
 // The LOAD-EMULATION vocabulary: what `--network` and `--cpu-throttle` ask the browser for, and the two
 // wall-clock ceilings the resulting drive is judged against. Its own contract module rather than ./types.ts
-// because that door sits at the tooling-size cap and this is a self-contained family with one resolver
-// (lib/throttle.ts) and one applier (ops/session.ts `applyLoadEmulation`) — the split #1198 and #1231 both
-// already made for the overflow shapes, applied to the next family out.
+// because this is a self-contained family with one resolver
+// (lib/throttle.ts) and one applier (ops/session.ts `applyLoadEmulation`), the same shape as the overflow shapes.
 
 /** The `--network` vocabulary: Chrome DevTools' OWN predefined conditions, by their current DevTools
  *  names (`front_end/core/sdk/NetworkManager.ts`). "Fast 3G" is DevTools' retired name for "Slow 4G" and

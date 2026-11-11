@@ -5,7 +5,7 @@
 // nobody here has those boxes. Every platform-sensitive answer is a value computed from `{ platform,
 // ambient env }` rather than read from the ambient process, so the win32 answer is unit-provable on Linux.
 
-import { SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY, SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { MAX_TCP_PORT } from "../../floor/host/ports.ts";
@@ -20,18 +20,9 @@ import type {
   StartLaunch,
   StartParse,
 } from "../contract/types.ts";
-import {
-  AUTH_MODE_KEY,
-  BIND_HOST_KEY,
-  currentAudience,
-  currentAuthMode,
-  effectiveAuthMode,
-  PASSWORD_MODE,
-  PORT_KEY,
-  parsePortAnswer,
-  SINGLE_USER_MODE,
-} from "./setup-plan.ts";
+import { BIND_HOST_KEY, currentAudience, currentAuthMode, effectiveAuthMode, PASSWORD_MODE, parsePortAnswer, SINGLE_USER_MODE } from "./setup-plan.ts";
 import { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
+import { PORT_ENV } from "./stack-plan.ts";
 
 const SETUP_FLAG = "--setup";
 const PORT_FLAG = "--port";
@@ -202,7 +193,7 @@ function launchOverrides(
   fileEnv: Readonly<Record<string, string | undefined>>,
   ambient: Readonly<Record<string, string | undefined>>,
 ): Readonly<Record<string, string>> {
-  const port = invocation.port === null ? [] : [[PORT_KEY, String(invocation.port)] as const];
+  const port = invocation.port === null ? [] : [[PORT_ENV, String(invocation.port)] as const];
   const share = invocation.share ? shareOverrides(fileEnv, ambient) : [];
   return Object.fromEntries([...port, ...share]);
 }

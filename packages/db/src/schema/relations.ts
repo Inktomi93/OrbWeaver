@@ -17,6 +17,6 @@ import { users } from "./users.ts";
 
 // The owner root. KEPT deliberately (owner ruling 2026-08-03) — see the header: relations are CONSUMER-DRIVEN
 // runtime metadata handed to drizzle wholesale as `drizzle(client, { schema })`, so no code will ever name it.
-// @swallowed-ok: the `#schema` namespace is passed WHOLESALE to drizzle, which reads the relations config it is
+// The `#schema` namespace is passed WHOLESALE to drizzle, which reads the relations config it is
 // handed; the users root is the anchor this file grows from, per the header's consumer-driven law.
 export const usersRelations = relations(users, () => ({}));

@@ -208,8 +208,8 @@ export interface Args extends StageArgs {
   /** First-class post-settle assertions; selector assertions target visible/rendered matches by default. */
   assertions: Assertion[];
   /** `--design-audit`: the deterministic UI defect scan over the settled surface — the whole ui-audit
-   *  walker + rule engine, entered through that tool's front door (ops/arms/design-audit.ts). Folded in
-   *  at #1315; `pnpm design-audit` no longer exists. */
+   *  walker + rule engine, entered through that tool's front door (ops/arms/design-audit.ts). It has no
+   *  CLI of its own. */
   designAudit: boolean;
   /** `--fail-on <P0..P3>`: the severity `--design-audit` exits 1 at (default P1). Only that arm reads it. */
   failOn: DesignAuditSeverity;

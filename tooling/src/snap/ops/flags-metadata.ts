@@ -19,7 +19,7 @@
 // decoration: inside a code span `_` and `[` are literal, so the docs formatter leaves them alone. Written
 // bare they are correctly escaped to `\_\_orb` / `path\[,path]`, which renders identically and is
 // GREP-DEAD, and `__orb` is 255 tracked files' worth of vocabulary (measured on `main`) in the document a
-// lane reads to LEARN it. That escape is why the index sat outside `check:docs` until this row.
+// lane reads to LEARN it. That escape is why the index sat outside the docs format check until this row.
 //
 // THE `--help` BLOCK IS A DIFFERENT SURFACE AND IS DELIBERATELY NOT KEPT IDENTICAL. `contract/help.ts` is a
 // terminal render where a backtick is noise, and the two already diverge on their own terms — measured

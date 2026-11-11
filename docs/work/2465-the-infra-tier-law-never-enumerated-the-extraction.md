@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: docs
+lane: wt/agent-a30ee1d42d1997dfe
 ---
 
 # The infra tier law never enumerated the extraction and media adapters

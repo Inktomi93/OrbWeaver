@@ -318,12 +318,12 @@ export const BIOME_POLICY = {
               {
                 group: ["@orb/contracts/sessions", "@orb/contracts/sessions/**"],
                 message:
-                  "D12 (the contract namespace is `session` singular; there is no `sessions`). The ledger killed this specifier by name \u2014 a reintroduction is banned; drop it or contest the D-cite in its docs/adr/ decision. Pinned by tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts.",
+                  "D12 (the contract namespace is `session` singular; there is no `sessions`). The ledger killed this specifier by name \u2014 a reintroduction is banned; drop it or contest the D-cite in its docs/adr/ decision.",
               },
               {
                 group: ["dotenv", "dotenv/**", "dotenv-expand", "dotenv-expand/**"],
                 message:
-                  "dotenv was killed 2026-08-03 (node-26 adoption program \u00a73) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env.",
+                  "dotenv is not installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env.",
               },
             ],
           },
@@ -978,13 +978,13 @@ export const BIOME_POLICY = {
               level: "error",
               options: {
                 elements: {
-                  img: "Raw `<img>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                  img: "Raw `<img>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/message-media`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
                   video:
-                    "Raw `<video>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                    "Raw `<video>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/message-media`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
                   audio:
-                    "Raw `<audio>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                    "Raw `<audio>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/message-media`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
                   source:
-                    "Raw `<source>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                    "Raw `<source>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/message-media`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
                 },
               },
             },

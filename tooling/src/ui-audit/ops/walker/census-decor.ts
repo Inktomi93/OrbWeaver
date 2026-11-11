@@ -1,11 +1,11 @@
 // ui-audit in-page walker — segment: decor censuses: nested cards, gradient text, animated img-hover, bg patterns, icon tiles, static motion offenders.
 // The two GLOW families that used to sit between accent borders and bg patterns now live in
-// census-glow.ts (2026-09-01) — the pseudo-element sweep took this file past the tooling-size cap.
+// census-glow.ts (2026-09-01), with the pseudo-element sweep.
 // THE ACCENT-EDGE FAMILY LEFT TOO and this header claimed it for a day past the move (#1103,
 // truth-repaired 2026-09-06 under #1807): `accentBorders` is declared and filled ONLY in
 // census-accent.ts, which sweeps both the element's own border widths and the pseudo BAR spelling. This
 // file's only remaining accent business is the `artPane` context flag it shares with that census.
-// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
+// One IIFE, segmented by rule family: ops/walker.ts concatenates the
 // segments IN ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
@@ -334,8 +334,8 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
 
   // ── accent borders MOVED to ops/walker/census-accent.ts (2026-09-05, #1103) ──
   // The family grew a second collection channel — a \`::before\`/\`::after\` bar pinned to one edge, which
-  // is how this codebase actually paints an accent edge — and the pseudo sweep took this file past the
-  // tooling-size cap, exactly as the glow families did in 2026-09-01. WALKER_CENSUS_ACCENT declares
+  // is how this codebase actually paints an accent edge — so it moved to its own segment, as the glow families did.
+  // WALKER_CENSUS_ACCENT declares
   // \`accentBorders\` and runs immediately after this segment (ops/walker.ts), so the composed IIFE's
   // scope is unchanged and WALKER_RETURNS still reads the one array.
 

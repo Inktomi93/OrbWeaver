@@ -2,7 +2,7 @@
 // lib/setup-plan.ts makes every decision; this file only reads lines, prints, and writes the file.
 import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
-import { SETUP_COMMAND, SETUP_FRIENDS_ANSWER, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY, SETUP_COMMAND, SETUP_FRIENDS_ANSWER, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY, machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
 import { applyEnvEdits } from "@orb/kit/env-file";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -20,12 +20,10 @@ import type {
 import { SETUP_AUDIENCES, SETUP_LOGINS } from "../contract/types.ts";
 import { parseEnvText, readEnvText } from "../lib/env-file.ts";
 import {
-  AUTH_MODE_KEY,
   BIND_HOST_KEY,
   currentAuthMode,
   decideSetup,
   openUrls,
-  PORT_KEY,
   parseAddressAnswer,
   parseChoiceAnswer,
   parsePortAnswer,
@@ -35,6 +33,7 @@ import {
   setupEnvEdits,
   setupValues,
 } from "../lib/setup-plan.ts";
+import { PORT_ENV } from "../lib/stack-plan.ts";
 
 refuseDirectInvocation(import.meta.url, SETUP_COMMAND);
 
@@ -179,7 +178,7 @@ async function askAll(reader: LineReader, defaults: SetupAnswers, machine: Setup
 }
 
 function summaryLines(opts: SetupRunOpts, values: SetupValues, removedBindHost: boolean): readonly string[] {
-  const written = [`${PORT_KEY}=${values.port}`, `${AUTH_MODE_KEY}=${values.authMode}`];
+  const written = [`${PORT_ENV}=${values.port}`, `${AUTH_MODE_KEY}=${values.authMode}`];
   if (values.allowedHosts !== null) {
     written.push(`${ALLOWED_HOSTS_KEY}=${values.allowedHosts}`);
   }

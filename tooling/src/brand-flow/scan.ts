@@ -32,7 +32,7 @@ export interface BrandFlowOptions {
 
 /** The worlds that hold repository code: every package, the tooling program, and the test programs. */
 export function brandFlowWorlds(root: string): readonly string[] {
-  const configs = [...packageWorlds(root), ...pluginAuthorWorlds(root), "tooling/tsconfig.json", ...TEST_WORLDS, "tsconfig.tests-iso.json"];
+  const configs = [...packageWorlds(root), ...pluginAuthorWorlds(root), "tooling/tsconfig.json", ...TEST_WORLDS];
   return configs.filter((config) => existsSync(join(root, config)));
 }
 

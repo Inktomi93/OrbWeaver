@@ -1,5 +1,5 @@
 // NAVIGABILITY — the half of the a11y check family that judges whether a control can be NAMED, EXPLAINED
-// and REACHED, split out of `checks-a11y.ts` at the tooling 450-line cap. That file's header already named
+// and REACHED, split out of `checks-a11y.ts`. That file's header already named
 // the two concerns it carried ("CONTROL GEOMETRY + navigability"); this is the second one, on its own:
 // accessible names, the coarse-pointer reachability of a tooltip's explanation, the main landmark, the
 // positive-tabindex smell, and heading order. Pure; thresholds cited. Provenance: lib/collect.ts header.

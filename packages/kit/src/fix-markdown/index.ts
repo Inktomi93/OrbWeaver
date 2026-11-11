@@ -19,7 +19,7 @@ const SPACE_CLASS = "\\t \\u00a0\\u1680\\u2000-\\u200a\\u202f\\u205f\\u3000\\ufe
 const PAIR_SPACE = new RegExp(`^[${SPACE_CLASS}]$`);
 
 // A `<speaker` open-tag marker (case-insensitive, optional attrs). The narrator render
-// (parse-speaker-spans.ts) splits the body on well-formed `<speaker>Name</speaker>` markers; a
+// (`parseSpeakerSpans`, `packages/kit/src/speaker-label/index.ts`) splits the body on well-formed `<speaker>Name</speaker>` markers; a
 // streamed frame can land mid-marker. `holdTornSpeaker` strips from the last unclosed `<speaker` open
 // tag to the end so the frame holds it back until the close arrives in a later tick.
 const SPEAKER_OPEN_TAG = /<\s*speaker\b[^>]*>/gi;

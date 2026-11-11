@@ -4,7 +4,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "customConditions": ["orb-native-browser-types"],
-    "lib": ["es2025", "esnext.disposable", "esnext.temporal", "dom", "dom.iterable"],
+    "lib": ["es2025", "esnext.collection", "esnext.error", "esnext.disposable", "esnext.temporal", "dom", "dom.iterable"],
     "jsx": "react-jsx"
   },
   "files": []

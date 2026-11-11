@@ -315,7 +315,7 @@ export function MessageList<T>({
     // sum of paddingStart + Σ(size + gap). virtual-core already rounds MEASURED sizes (its own
     // `measureElement` does `Math.round(borderBoxSize)`), so the only fractional input is what the caller
     // supplies — and a caller's estimate is routinely fractional by construction: the chat transcript's is
-    // a calibrated `96 + chars * 0.28` (message-list-surface.ts, #1181). One unmeasured row above the
+    // a calibrated `96 + chars * 0.28` (`ESTIMATED_ROW_PX_PER_CHARACTER` in `packages/client/src/features/chat/surfaces/message-list-surface.tsx`). One unmeasured row above the
     // viewport therefore puts every row below it on a fraction of a pixel, which every resting transform
     // and promoted layer inside those rows inherits (in Chromium a backdrop-filter layer paints it in,
     // integer-line-boxes.md §10). Measured on the isolated stage before this rounding:

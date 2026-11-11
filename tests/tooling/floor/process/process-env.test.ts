@@ -1,5 +1,5 @@
-// The ambient-environment door's own pins — moved here with the door itself when `floor/process/proc.ts` hit its
-// 450-line cap (#1848) and the three env functions became `floor/process/process-env.ts`. The property under test
+// The ambient-environment door's own pins — moved here with the door itself when the three env functions left `floor/process/proc.ts`
+// for `floor/process/process-env.ts` (#1848). The property under test
 // is unchanged and is the reason the door exists at all: `withProcessEnv` is a WINDOW, so whatever it
 // exposed to a worker/subprocess protocol must be gone afterwards — an absent key restored as actual
 // ABSENCE (not as the string "undefined", which is what a naive restore leaves and what then reaches a

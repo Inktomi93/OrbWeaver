@@ -280,8 +280,8 @@ test("the arm roster names every capability snap advertises as an arm", () => {
     "cpu-profile",
     "boot-trace",
     "react-profile",
-    // #1315: the deterministic UI defect scanner is an ARM, not a sibling CLI — the retired `pnpm design-audit`
-    // ceased to exist and `pnpm snap <route> --design-audit` is its one spelling.
+    // The deterministic UI defect scanner is an ARM, not a sibling CLI: `pnpm snap <route> --design-audit`
+    // is its one spelling.
     "design-audit",
   ];
   expect([...ARMS].sort()).toEqual(roster.toSorted());

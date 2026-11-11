@@ -4,6 +4,7 @@
 // keepNames `__name` helper breaking serialized functions — died with the 2026-08-03 tsx shed;
 // the lib-mismatch reason stands alone.)
 
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import type { Browser, BrowserContext, CDPSession, devices, LaunchOptions, Page, PlaywrightWorkerOptions } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { warn } from "../cli/log.ts";
@@ -22,7 +23,7 @@ import { resolveProbeMedia } from "./browser-media.ts";
 export type { CapturedConsole, CapturedRequest } from "./browser-capture.ts";
 
 export const DEFAULT_BASE = processEnvValue("SNAP_BASE_URL") ?? `http://localhost:${DEV_PORTS.vite}`;
-export const DEFAULT_DEBUG_TOKEN = processEnvValue("DEBUG_TOKEN") ?? "";
+export const DEFAULT_DEBUG_TOKEN = processEnvValue(DEBUG_TOKEN_ENV) ?? "";
 
 const TRAILING_SLASH_RE = /\/$/u;
 
@@ -309,8 +310,8 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
 }
 
 /** ATTACH to a browser another connection owns — a stateful-session daemon's, over its debugging endpoint
- *  — the ONE attach site (policy `tooling-browser-door`,
- *  reviewed grant `browser-attach`). The returned session is shape-identical to a launched one so every consumer is oblivious, with
+ *  — the ONE attach site, by convention; no lint rule refuses a second.
+ *  The returned session is shape-identical to a launched one so every consumer is oblivious, with
  *  two deliberate differences: its context is `owned: false` (a disconnect is not a takeover — the owner's
  *  page survives `closeProbeSession`; the phase-0 spike's `second.close()` receipt), and the owner's shims
  *  and rings stay on the OWNER's connection while this session wires its own capture for the duration of

@@ -1,6 +1,6 @@
 // The argv-ordered action queue (navs + steps + mid-chain evals — the interleave IS the contract,
 // 2026-08-15/16) and the trailing-eval split that keeps a trailing `--eval` a settled-surface observer.
-// Split out of drive.ts (which owns navigation + app-readiness) to keep that file under the size cap.
+// Split out of drive.ts, which owns navigation + app-readiness.
 import { errorMessage } from "@orb/kit/error-message";
 import type { NavResultShape } from "@orb/tooling/floor/browser/page-validate";
 import { navResultShape } from "@orb/tooling/floor/browser/page-validate";

@@ -31,7 +31,7 @@ packages/server/src/entry/
 │                             + domain/sessions (resolve/validate/upsert) (per §7 D1)
 ├── boot/                     migrate.ts (backup → FK-off migrations → foreign_key_check) · seed-owner.ts ·
 │                             seed-credential.ts (env→DB-once) · seed-default-preset.ts ·
-│                             seed-default-characters.ts · seed-default-persona.ts ·
+│                             seed-user-content.ts ·
 │                             seed-themes.ts · reclaim-locks.ts. The default CONTENT the seeders lay
 │                             down is NOT here — avatars + demo-chat transcripts ship as
 │                             `@orb/default-content`, plugin bundles as `@orb/showcase-plugins` (D160)
@@ -41,7 +41,7 @@ packages/server/src/entry/
 │   │                         connection_bindings (Tier-3b §"The composition seam"; no boot-time binding)
 │   ├── chat.ts               the chat domain's slice of the graph
 │   ├── workload-contributions.ts  spreads every domain's WorkloadContribution factory into ONE exhaustive
-│   │                         registry (D117 — the former runner-env.ts hub is DELETED; D4 superseded)
+│   │                         registry (D117; D4 superseded)
 │   ├── event-bus.ts          constructs the in-process typed event bus over the `@orb/kit/pubsub` engine
 │   ├── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
 │   ├── room-reach.ts         cross-feature event-emit wiring (the entity→room reach table: a DomainEvent →
