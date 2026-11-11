@@ -105,8 +105,9 @@ Every unit gets the same axes so the rollup is rankable.
 
 ## Sweep commands
 
-Structural search has one authority: the global `code-recon` skill
-(`~/.claude/skills/code-recon/SKILL.md`) — load it before writing any pattern. It carries the
+Structural search has one authority: the `code-recon` skill, vendored at
+`.claude/skills/code-recon/SKILL.md` (upstream copy at `~/.claude/skills/code-recon` stays the
+author; re-copy after editing it there) — load it before writing any pattern. It carries the
 verified rules the commands below cannot: `ts` and `tsx` are separate languages, always run both
 and merge; `--inspect summary` prints the `scannedFileCount` receipt every negative claim needs;
 one-node-in-a-list questions (object keys, import specifiers) are positional traps as patterns
