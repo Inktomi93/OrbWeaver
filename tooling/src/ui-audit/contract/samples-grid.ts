@@ -1,6 +1,6 @@
 // ui-audit sample shapes — the DEVICE-PIXEL GRID family (docs/law/integer-line-boxes.md §9-§11, the
-// crispness doctrine's Laws 2-4). Separate from samples-populations.ts because RawSamples' join is already
-// at the tooling-size boundary, and separate from samples-layout.ts because these are RESOLVED-PIXEL
+// crispness doctrine's Laws 2-4). Separate from samples-layout.ts
+// because these are RESOLVED-PIXEL
 // landings, not rendered-layout relations.
 //
 // EVERY FRACTION IS IN DEVICE PIXELS, SIGNED, AND ALREADY NORMALIZED IN THE PAGE (ops/walker/census-grid.ts):

@@ -1,8 +1,8 @@
 // The one reference check every markdown checker shares: a relative markdown link, a backticked
 // repository path and a backticked relative path must name something that exists. A link target and a
 // relative span resolve against the file that holds them; a repository path resolves against the root.
-// Filesystem-touching, so it sits beside the pure rules in `prose-rules.ts` rather than inside them; the
-// instruction-layer walk and the docs walk are its two importers.
+// Filesystem-touching, so it sits beside the pure rules in `prose-rules.ts` rather than inside them. Its
+// importer is `tooling/src/doc/ops/check.ts`.
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, join, posix, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";

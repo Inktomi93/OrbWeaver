@@ -1,4 +1,4 @@
-// The docs half of `pnpm check:agents` on planted trees: the structural rules, the writing rules and
+// The docs check on planted trees: the structural rules, the writing rules and
 // the reference check compose into one list; the clean tree passes; the real repository is clean.
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";

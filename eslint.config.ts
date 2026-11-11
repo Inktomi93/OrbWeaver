@@ -2434,7 +2434,7 @@ export default [
       "no-restricted-imports": [
         "error",
         {
-          paths: [{ name: "vitest", importNames: ["test", "it"], message: "Use the shared @orb/testkit/node/fixtures.ts test entry." }],
+          paths: [{ name: "vitest", importNames: ["test", "it"], message: "Import test from @orb/testkit/node, the shared test entry." }],
           patterns: [
             {
               regex: "^(@orb/server(?:/|$)|#server/|.*packages/server/)",

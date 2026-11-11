@@ -227,7 +227,7 @@ export function resolvePointer(root: string, instrument: string, alias: string):
 }
 
 /** The repo-relative slot spelling a provenance line prints. Derived from the SAME path home the writer used
- *  (`reportsPath`), never a second `reports/…` literal (policy `tooling-artifact-path-home`). */
+ *  (`reportsPath`), never a second `reports/…` literal. */
 function relDirOf(root: string, instrument: string, runIdValue: string): string {
   return join(instrumentRunsDir(root, instrument), runIdValue).slice(root.length + 1);
 }

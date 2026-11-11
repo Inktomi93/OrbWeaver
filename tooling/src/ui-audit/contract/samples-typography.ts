@@ -1,9 +1,6 @@
 // The TYPOGRAPHY sample shapes — one censused text run's type decision (`TextStyleInput`) and the page's
 // own face + size census (`FontFaceInput`/`FontCensusInput`), judged by lib/checks-typography.ts and
-// lib/checks-font-census.ts. Split out of contract/samples.ts at #2487: that file was at the 450-line
-// `tooling-size` cap with ZERO headroom, which had already cost `RawSamples.documentFrame` its own doc
-// comment, a trade the cap never accepts. These three
-// are the largest single FAMILY the composition hub still spelled inline, and they move as a unit
+// lib/checks-font-census.ts. These three are one FAMILY and move as a unit
 // because `FontCensusInput` is a list of `FontFaceInput`.
 // Re-exported from contract/samples.ts, which composes them into `RawSamples`. Provenance: samples.ts.
 

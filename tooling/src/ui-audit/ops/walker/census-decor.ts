@@ -5,7 +5,7 @@
 // truth-repaired 2026-09-06 under #1807): `accentBorders` is declared and filled ONLY in
 // census-accent.ts, which sweeps both the element's own border widths and the pseudo BAR spelling. This
 // file's only remaining accent business is the `artPane` context flag it shares with that census.
-// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
+// One IIFE, segmented by rule family: ops/walker.ts concatenates the
 // segments IN ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.

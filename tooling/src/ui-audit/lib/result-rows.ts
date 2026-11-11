@@ -1,5 +1,5 @@
-/** The RESULT-line row formatters `ops/run.ts` prints — pure shapes over the run's inputs, homed here so the
- *  runner stays under the tooling-size cap (Core-Tooling-Law §4.3): surface-state DECLARE + ACCOUNT rows
+/** The RESULT-line row formatters `ops/run.ts` prints — pure shapes over the run's inputs, homed here rather
+ *  than in the runner: surface-state DECLARE + ACCOUNT rows
  *  (#148 item 2, the drive axis #1059) and the reach rows (#653/#797). */
 
 import type { CensusReachInput } from "../contract/samples.ts";

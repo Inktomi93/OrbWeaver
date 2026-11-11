@@ -1,7 +1,10 @@
 // The two-human fixture, pure: the env recipe that runs the dev stack as a real multi-human deployment
 // beside the operator's own (its own port pair, data root and run dir), and the credentials it seeds.
 import { join } from "node:path";
+import { AUTH_MODE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
+import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
 import { PORT_ENV, RUN_DIR_ENV, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "./stack-plan.ts";
 
@@ -56,12 +59,12 @@ export function fixtureEnv(repoRoot: string, ambient: Readonly<Record<string, st
  *  stage's own ports and data root, so a stage and the fixture seed the same humans. */
 export function fixtureIdentityEnv(serverPort: number): Readonly<Record<string, string>> {
   return Object.fromEntries([
-    ["AUTH_MODE", "local"],
-    ["SESSION_SECRET", "orbweaver-multi-user-fixture-session-secret-insecure"],
+    [AUTH_MODE_KEY, "local"],
+    [SESSION_SECRET_ENV, "orbweaver-multi-user-fixture-session-secret-insecure"],
     ["CREDENTIALS_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
-    ["LOCAL_INITIAL_PASSWORD", OWNER.password],
+    [LOCAL_INITIAL_PASSWORD_ENV, OWNER.password],
     [ENV_NO_FILE_KEY, "1"],
-    ["OWNER_HANDLES", OWNER.handle],
+    [OWNER_HANDLES_KEY, OWNER.handle],
     ["SEED_BASE_URL", `http://127.0.0.1:${String(serverPort)}`],
     ["FIXTURE_OWNER_HANDLE", OWNER.handle],
     ["FIXTURE_OWNER_PASSWORD", OWNER.password],

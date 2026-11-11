@@ -88,7 +88,7 @@ catalog:
   # puppeteer-core: NOT a second browser — the ATTACH surface. Lighthouse drives a puppeteer Page
   # (`page.target().createCDPSession()` + a wildcard protocol listener), so snap connects puppeteer to the
   # SAME chromium Playwright already launched, over its `--remote-debugging-port` endpoint, and hands
-  # Lighthouse the handle for the exact target being driven (tooling/src/snap/ops/lighthouse.ts). Already
+  # Lighthouse the handle for the exact target being driven (tooling/src/snap/ops/arms/lighthouse.ts). Already
   # in the tree as lighthouse's own dependency; PINNED EXACT TO LIGHTHOUSE'S RESOLUTION so the two share
   # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
   # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).

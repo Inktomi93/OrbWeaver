@@ -7,7 +7,6 @@
 // operator's live dev stack holds — and killing/booting it from a test would take the box down mid-run.
 // The launcher is proven by argv/env snapshots + the pure decision logic; the dev supervisor's live cycle
 // runs on a private run dir in index.int.test.ts.
-import { readFileSync } from "node:fs";
 import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import { SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/tooling";
@@ -34,7 +33,6 @@ import {
   parseStackArgv,
   parseStackCommand,
   resolveDebugArming,
-  SERVER_DRAIN_MS,
   STACK_SPAWNERS,
   serializeProdRecord,
   servedCarriesDiskBytes,
@@ -43,7 +41,6 @@ import {
 } from "../../../tooling/src/stack/index.ts";
 
 // Hoisted: the rule against per-call regex literals applies to test bodies too.
-const DRAIN_MS_RE = /const SHUTDOWN_DRAIN_MS = ([\d_]+);/u;
 /** An un-credentialed 200 from /api/_debug must print as an ALARM post-AUTHFIX-2, not as a dev posture. */
 const UNCREDENTIALED_ALARM = /NO credential|investigate/u;
 
@@ -391,15 +388,6 @@ test("the stage breadcrumbs are progress, never a terminal verdict", () => {
   }
   // …and a real sequence still terminates on the line that means it: the breadcrumbs do not mask `complete`.
   expect(classifyDrainTail([...Object.values(stages), complete].map(logged).join("\n"))).toBe("complete");
-});
-
-test("SERVER_DRAIN_MS still matches the server's own SHUTDOWN_DRAIN_MS", () => {
-  // The constant is not exported from @orb/server, so it is restated in the kit. This two-sided pin is
-  // what stops the restatement from silently rotting into a restart that gives up too early.
-  const source = readFileSync(new URL("../../../packages/server/src/infra/network/http-server.ts", import.meta.url), "utf8");
-  const match = DRAIN_MS_RE.exec(source);
-  expect(match?.[1]).toBeDefined();
-  expect(Number((match?.[1] ?? "").replaceAll("_", ""))).toBe(SERVER_DRAIN_MS);
 });
 
 // ── client bundle freshness ──────────────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
-// The `--theme` readiness gate's shape (#1227). Its own contract module because the argv-heavy Args door
-// (./types.ts) sits close to the tooling-size cap, and because this is the one thing the gate DECIDES:
+// The `--theme` readiness gate's shape (#1227). Its own contract module because this is the one thing the
+// gate DECIDES:
 // whether the stamp is predictable at all. The mechanism and both arms' reasons live in ops/theme-stamp.ts.
 import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 

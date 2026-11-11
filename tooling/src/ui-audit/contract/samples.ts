@@ -2,10 +2,8 @@
 // mirroring getComputedStyle/getBoundingClientRect. RawSamples at the bottom is the walker's return object.
 //
 // THIS FILE IS THE COMPOSITION HUB FOR A FAMILY OF `samples-*.ts` SIBLINGS, and that is the shape to keep:
-// a new sample family lands as a sibling re-exported from here, NEVER as another inline block. It sat at
-// the 450-line `tooling-size` cap with zero headroom until #2487, where the cap had already been paid in
-// the wrong currency — `documentFrame` lost its doc comment to fit, a trade the
-// cap never accepts; the typography family moved out to contract/samples-typography.ts to make the room.
+// a new sample family lands as a sibling re-exported from here, NEVER as another inline block. No tool
+// enforces a line cap, so never delete a comment to make room.
 import type { CoverStack, InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 // `Backdrop` MOVED to contract/backdrop.ts (see its header). Imported locally because the shapes below
 // USE it, and re-exported below so its consumers keep one import.
@@ -373,8 +371,7 @@ export interface RawSamples extends RelationalSamples {
   readonly obscuredScan?: ObscuredScanInput;
   /** Hover-painted texts measured in their FORCED `:hover` state, and that pass's own denominator
    *  (ops/hover.ts). Absent when the pass did not run — coarse pointer, a fixture set, a break — and
-   *  absent means NO accounting row at all, never a clean-looking zero. Inline imports: this file sits
-   *  ON the 450-line tooling cap with three lanes live in it, so these two fields cost no import line. */
+   *  absent means NO accounting row at all, never a clean-looking zero. */
   readonly hoverStates?: readonly import("./samples-hover.ts").HoverContrastInput[];
   readonly hoverScan?: import("./samples-hover.ts").HoverScanInput;
   readonly buriedRasters?: readonly import("./samples-media.ts").BuriedRasterInput[];
@@ -386,8 +383,6 @@ export interface RawSamples extends RelationalSamples {
   /** The page's own resting frame against the viewport the walk judged it at — REQUIRED for exactly
    *  `censusCaps`' reason above, since an absent-reads-as-fits field restores the silence the refusal
    *  exists to end. The full ruling (why the HEIGHT pair is carried and never judged, and why `worst` is
-   *  a bounded list beside a complete `total`) is on `DocumentFrameInput` in contract/samples-evidence.ts.
-   *  RESTORED at #2487: this comment was deleted to buy the one line the field cost when this file sat at
-   *  the 450-line cap, a trade the cap never accepts. */
+   *  a bounded list beside a complete `total`) is on `DocumentFrameInput` in contract/samples-evidence.ts. */
   readonly documentFrame: DocumentFrameInput;
 }

@@ -1,7 +1,10 @@
 // Every decision the dev supervisor makes before it spawns anything, pure over an env record: the pins a
 // host export wins over, the run dir, the port pair, the leader env and the log paths.
 import { isAbsolute, join, resolve } from "node:path";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
+import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import { pathOccurrences } from "../../floor/host/path-boundary.ts";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type { DevPinKey, DevPins, PinSource, StackContext, StackLogs } from "../contract/types.ts";
@@ -27,16 +30,16 @@ const LOG_FILES: StackLogs = { stack: "stack.log", server: "server.log", client:
  *  boots without ceremony, and the seed stamp that keeps the forced first-run persona ask a real-stack
  *  behaviour. INSECURE BY DESIGN, never for a real deploy. Env names, so the record is built from pairs. */
 const PIN_DEFAULTS: Readonly<Record<DevPinKey, string>> = Object.fromEntries([
-  ["AUTH_FALLBACK", "owner"],
-  ["AUTH_MODE", "single-user"],
-  ["SESSION_SECRET", "orbweaver-dev-only-session-secret-insecure"],
+  [AUTH_FALLBACK_KEY, "owner"],
+  [AUTH_MODE_KEY, "single-user"],
+  [SESSION_SECRET_ENV, "orbweaver-dev-only-session-secret-insecure"],
   ["CREDENTIALS_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
-  ["LOCAL_INITIAL_PASSWORD", "orbweaver-dev-password"],
+  [LOCAL_INITIAL_PASSWORD_ENV, "orbweaver-dev-password"],
   ["DEV_SEED", "on"],
-]) as Record<DevPinKey, string>;
+] satisfies readonly (readonly [DevPinKey, string])[]) as Record<DevPinKey, string>;
 
 /** The pins whose values `status` may print; the rest are secrets and print only their source. */
-export const PRINTABLE_PINS: readonly DevPinKey[] = ["AUTH_FALLBACK", "AUTH_MODE", "DEV_SEED"];
+export const PRINTABLE_PINS: readonly DevPinKey[] = [AUTH_FALLBACK_KEY, AUTH_MODE_KEY, "DEV_SEED"];
 
 /** A host export wins; the pin fills the gap. A key the supervisor already filled (`PINNED_KEYS_ENV`)
  *  keeps its `pinned` source in the leader, where it arrives as an ordinary export. */

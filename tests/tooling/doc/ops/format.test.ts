@@ -190,9 +190,7 @@ test("WIDENING: class 2 is admitted, and only the bytes this repo does not AUTHO
 });
 
 test("CLASS 3: every root entry point is admitted, including the always-on AGENTS.md", () => {
-  // Widened by PATH, not by enumeration, so a new root file is owned from birth. `AGENTS.md` is also read
-  // by the `check:agents` stage; asserting it is PRESENT stops an exclusion creeping in the next time the
-  // two stages disagree about its bytes.
+  // Widened by PATH, not by enumeration, so a new root file is owned from birth.
   const targets = formatTargets([]);
 
   // The REPO-RELATIVE spelling `git ls-files` emits, which is what `CLASS_3_ROOT` matches against.

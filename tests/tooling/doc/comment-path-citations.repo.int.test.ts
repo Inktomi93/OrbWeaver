@@ -13,7 +13,10 @@ import ts from "typescript";
 import { describe } from "vitest";
 
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
-const SCANNED_ROOTS = ["packages", "tooling", "tests"] as const;
+const SCANNED_ROOTS = ["packages", "tooling", "tests", "scripts"] as const;
+// The root config files: scripts, YAML and the JSONC tsconfigs.
+const ROOT_CONFIG = /^(?:[^/]+\.(?:[cm]?[jt]sx?|ya?ml|sh)|tsconfig[\w.-]*\.json)$/u;
+const JSONC_EXT = ".json";
 // Law that agents act on: the always-on core, the path rules and the law tree.
 const LAW_DOC = /^(?:AGENTS\.md|\.claude\/rules\/[^/]+\.md|docs\/law\/[^/]+\.md)$/u;
 const MARKDOWN = ".md";
@@ -132,6 +135,9 @@ function commentsOf(source: Source): Promise<Comment[]> {
   if (kind !== undefined) {
     return Promise.resolve(scriptComments(source, kind));
   }
+  if (ext === JSONC_EXT) {
+    return Promise.resolve(scriptComments(source, ts.ScriptKind.JSON));
+  }
   return Promise.resolve(HASH_COMMENT_EXTS.has(ext) ? hashComments(source) : []);
 }
 
@@ -164,16 +170,20 @@ function trackedFiles(): Tracked {
   return { paths: new Set(paths), basenames: new Set(paths.map((path) => basename(path))) };
 }
 
-/** Every tracked source under the scanned roots in a language this reads, that names a path anywhere in its text. */
-function candidateSources(tracked: Tracked): Source[] {
+const readFromRepo = (path: string): string => readFileSync(join(REPO_ROOT, path), "utf8");
+
+/** Every tracked source under the scanned roots or among the root config files, in a language this reads, that names a
+ *  path anywhere in its text. */
+function candidateSources(tracked: Tracked, read: (path: string) => string = readFromRepo): Source[] {
   const readable = (path: string): boolean =>
     LAW_DOC.test(path) ||
+    ROOT_CONFIG.test(path) ||
     (SCANNED_ROOTS.some((root) => path.startsWith(`${root}/`)) &&
       !path.startsWith(VENDORED) &&
       (SCRIPT_KINDS[extname(path)] !== undefined || extname(path) === CSS_EXT || HASH_COMMENT_EXTS.has(extname(path))));
   return [...tracked.paths]
     .filter(readable)
-    .map((path) => ({ path, text: readFileSync(join(REPO_ROOT, path), "utf8") }))
+    .map((path) => ({ path, text: read(path) }))
     .filter((source) => ANY_PATH.test(source.text.replaceAll(MODULE_SPECIFIER, "")));
 }
 
@@ -183,6 +193,9 @@ describe("the real tree", () => {
     const sources = candidateSources(tracked);
     // A read that missed a root or a language would pass every citation in it.
     expect(SCANNED_ROOTS.filter((root) => !sources.some((source) => source.path.startsWith(`${root}/`)))).toStrictEqual([]);
+    expect(sources.filter((source) => ROOT_CONFIG.test(source.path)).map((source) => extname(source.path))).toEqual(
+      expect.arrayContaining([".ts", ".yaml", JSONC_EXT]),
+    );
     expect([".ts", ".tsx", CSS_EXT, MARKDOWN].filter((ext) => !sources.some((source) => source.path.endsWith(ext)))).toStrictEqual([]);
     expect(await staleCitations(sources, tracked)).toStrictEqual([]);
   });
@@ -218,6 +231,28 @@ describe("the reader", () => {
       "tooling/run.sh:2 packages/x/src/gone.ts",
       "docs/law/Law.md:3 packages/x/src/gone.ts",
       "docs/law/Law.md:3 app-shell/lib/moved.ts",
+    ]);
+  });
+
+  test("reads the root config files and scripts, and only those outside the scanned roots", async () => {
+    const planted: Readonly<Record<string, string>> = {
+      "eslint.config.ts": "// see tests/tooling/gone.test.ts\nexport default [];\n",
+      "pnpm-workspace.yaml": "packages:\n  # pinned by tests/server/gone.int.test.ts\n  - packages/*\n",
+      "tsconfig.base.json": '{\n  // docs/law/Gone.md owns this\n  "compilerOptions": { "path": "docs/law/Quoted.md" }\n}\n',
+      "scripts/corpus-fixture.ts": "// moved to tooling/src/gone.ts\nexport {};\n",
+      "scripts/install.sh": "# see docs/law/Gone.md\necho ok\n",
+      ".github/ci.yml": "# docs/law/Gone.md\n",
+      "docker/compose.yaml": "# docs/law/Gone.md\n",
+      "package.json": '{ "description": "docs/law/Gone.md" }\n',
+    };
+    const files: Tracked = { paths: new Set(Object.keys(planted)), basenames: new Set() };
+    const sources = candidateSources(files, (path) => planted[path] ?? "");
+    expect(await staleCitations(sources, tracked)).toStrictEqual([
+      "eslint.config.ts:1 tests/tooling/gone.test.ts",
+      "pnpm-workspace.yaml:2 tests/server/gone.int.test.ts",
+      "tsconfig.base.json:2 docs/law/Gone.md",
+      "scripts/corpus-fixture.ts:1 tooling/src/gone.ts",
+      "scripts/install.sh:1 docs/law/Gone.md",
     ]);
   });
 

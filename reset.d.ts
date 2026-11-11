@@ -5,7 +5,6 @@
 //   • Response.json()/.text()  — return `unknown`, not `any`
 //   • Map/Set/.indexOf etc.    — assorted honest signatures
 //
-// One root file pulled into EVERY package's compilation via tsconfig.base.json's
-// `include` (`${configDir}/../../reset.d.ts` — every package lives at packages/<name>,
-// so the `../../` always lands here). Declaration-only: zero runtime cost, no emit.
+// tsconfig.base.json has no `include`: each program's own tsconfig lists this file in its `include`,
+// so a new tsconfig must list it too. Declaration-only, no emit.
 import "@total-typescript/ts-reset";

@@ -133,7 +133,7 @@ function isClass2File(path: string): boolean {
  * prose. It survives a format byte-for-byte (it is an ordinary paragraph to CommonMark, and nothing in the
  * serializer escapes a leading `@`), and the family test proves that against a file made dirty ELSEWHERE.
  *
- * Root `AGENTS.md` is also read by `check:agents` (its rule list and line budget). Both stages accept the
+ * Root `AGENTS.md` is also read by `ops/check.ts` (its glossary). Both accept the
  * same bytes because the file is hand-written canonical markdown; when a formatter and a generator
  * disagree about bytes, move the generator — an exclusion buys silence and costs coverage forever.
  */

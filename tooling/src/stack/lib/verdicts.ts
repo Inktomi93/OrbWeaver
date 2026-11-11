@@ -1,15 +1,11 @@
 // The three read-the-evidence classifiers: the shutdown drain, the client-bundle freshness, and the
 // /api/_debug arming posture. All pure — each turns an observation into a WORD the operator can act on.
-import { SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
+import { SHUTDOWN_DRAIN_MS, SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
 import type { DebugPosture, DistVerdict, DrainOutcome, ServedVerdict } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
 // ── Shutdown drain ───────────────────────────────────────────────────────────────────────────────────
 
-/** MIRRORS `SHUTDOWN_DRAIN_MS` in packages/server/src/infra/network/http-server.ts (not exported from the package,
- *  so it is restated here and PINNED by a test that reads that file — a drift makes the test red, not the
- *  operator's restart hang). */
-export const SERVER_DRAIN_MS = 10_000;
 /**
  * Margin over the server's own bounded drain before we escalate to SIGKILL.
  *
@@ -37,7 +33,7 @@ export const SERVER_DRAIN_MS = 10_000;
  * rejection), and extending on log growth alone would let a noisy wedged process defer SIGKILL forever.
  */
 export const DRAIN_MARGIN_MS = 5000;
-export const DRAIN_WATCH_MS = SERVER_DRAIN_MS + DRAIN_MARGIN_MS;
+export const DRAIN_WATCH_MS = SHUTDOWN_DRAIN_MS + DRAIN_MARGIN_MS;
 
 /** Classify the tail of the prod log written SINCE the SIGTERM. `deadline-hit` is a real outcome, not a
  *  failure: the drain force-closed a long-lived SSE stream at 10s and said so (a warn, because a client

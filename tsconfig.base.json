@@ -11,8 +11,8 @@
     // hashes, so editing a root ambient `.d.ts` (`reset.d.ts`, `platform.d.ts`) does not invalidate
     // per-package state — a warm run reports green on a red tree. `tsc` here is noEmit-only, so
     // incremental bought nothing but speed.
-    // RE-ENABLE ONLY WITH A PROOF: edit `platform.d.ts` to something that must red (property-style
-    // `getOrInsert` reds its use sites), run typecheck WITHOUT clearing caches, and require a
+    // RE-ENABLE ONLY WITH A PROOF: edit `platform.d.ts` to something that must red (deleting
+    // `structuredClone` reds its ISO use sites), run typecheck WITHOUT clearing caches, and require a
     // non-zero exit. If restored: `${configDir}` is the tsconfig's own directory, so
     // `tsconfig.json` and `tsconfig.tests-dom.json` at the repo root would share one cache file
     // across two programs — give tests-dom its own `tsBuildInfoFile` first.
@@ -22,20 +22,18 @@
 
     // --- language / module (TS 6 defaults made explicit) ---
     "target": "es2025",
-    // `esnext.disposable` on top of es2025: the runtime has
-    // explicit resource management — `using`/`await using` execute natively under node 26 — but TS's
-    // es2025 lib does not declare `Symbol.dispose`/`Disposable`, so the spelling W5 adopts is UNTYPED
-    // without this. `esnext.disposable` is the MINIMAL delta that takes it (probe-verified: switching the
-    // whole lib to `esnext` clears the same thing and nothing else we need). The browser-world
-    // template composes its lib array from this authoritative common list plus the DOM delta. The V8 14.6 surfaces TS ships in NO lib yet
-    // (Map.getOrInsert, Error.isError, Iterator.concat) come from the root platform.d.ts instead.
+    // `esnext.collection` and `esnext.error` declare the V8 14.6 surfaces the code uses (Map.getOrInsert,
+    // Error.isError). Not `es2026`: the classic TypeScript that typescript-eslint and dependency-cruiser load
+    // refuses that name (TS6046), and it would drop typed lint. `esnext.disposable`: `using`/`await using`
+    // execute natively under node 26, but no es lib declares `Symbol.dispose`/`Disposable`. The browser-world
+    // template composes its lib array from this common list plus the DOM delta.
     // `esnext.temporal`: `@orb/kit/time` runs on the platform `Temporal` API. Node 26 and
     // chromium ≥144 both ship it enabled by default, but no `es*` lib declares it — TS 6.0.3 and ts7
     // 7.0.2 BOTH carry `lib.esnext.temporal.d.ts`, so the lib entry is the whole type story and
     // `platform.d.ts` needs no block. Probe-verified with a planted negative control: drop this entry and
     // a `Temporal.Instant` reference reds `TS2304: Cannot find name 'Temporal'`. Cross-package types resolve
     // to SOURCE, so every program that sees kit needs it.
-    "lib": ["es2025", "esnext.disposable", "esnext.temporal"],
+    "lib": ["es2025", "esnext.collection", "esnext.error", "esnext.disposable", "esnext.temporal"],
     // NODENEXT on the node side is the ENFORCEMENT half of the
     // migration: under `bundler` the checker still ACCEPTS an extensionless relative import, so a missed
     // extension typechecks GREEN and then crashes at boot under node's type-stripping (which does no

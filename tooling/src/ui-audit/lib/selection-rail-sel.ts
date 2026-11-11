@@ -22,7 +22,7 @@
 //
 // A new carrier of `SELECTION_RAIL` owes a clause here, or the audit reports an owner ruling as a tell.
 //
-// This module is the ONE home for that telling: `ops/walker/core.ts` and `contract/samples.ts` both sit
-// against the 450-line `tooling-size` cap, so they carry the ruling sentence and a pointer here.
+// This module is the ONE home for that telling: `ops/walker/core.ts` and `contract/samples.ts` carry the
+// ruling sentence and a pointer here.
 export const SELECTION_RAIL_SEL =
   "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected],[data-slot='config-band'][data-selected]";

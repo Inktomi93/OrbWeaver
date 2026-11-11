@@ -5,8 +5,8 @@
 // swallowed error boundary, or a route that rendered nothing at all audits as the cleanest page in the
 // product. The census below is the denominator that verdict rests on.
 //
-// AT THE CAP (449/450): the next addition lands as a SIBLING module — evidence-viewport-frame.ts is the
-// precedent — never as an arm here, and never by deleting a comment to buy its line.
+// A new evidence family lands as a SIBLING module — evidence-viewport-frame.ts is the precedent. No tool
+// enforces a line cap, so never delete a comment to make room.
 
 import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling/floor/appearance/appearance";
 import type { ThemeRequest } from "@orb/tooling/floor/appearance/theme";

@@ -6,14 +6,14 @@ import { join } from "node:path";
 import process from "node:process";
 import { PassThrough } from "node:stream";
 import { parseEnv } from "node:util";
-import { AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { resolveBindPosture } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, vi } from "vitest";
 import type { SetupMachine } from "../../../../tooling/src/stack/index.ts";
-import { AUTH_MODE_KEY, PORT_KEY, runSetup } from "../../../../tooling/src/stack/index.ts";
+import { BIND_HOST_KEY, PORT_ENV, runSetup } from "../../../../tooling/src/stack/index.ts";
 
 interface Driven {
   readonly result: Awaited<ReturnType<typeof runSetup>>;
@@ -76,7 +76,7 @@ afterEach(() => {
 });
 
 /** The server keys a stray shell export could pin under the vitest worker, where `.env` only fills unset keys. */
-const SERVER_KEYS_UNDER_TEST = ["PORT", AUTH_MODE_KEY, "BIND_HOST", "ALLOW_DEV_PUBLIC_BIND", AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY] as const;
+const SERVER_KEYS_UNDER_TEST = [PORT_ENV, AUTH_MODE_KEY, BIND_HOST_KEY, "ALLOW_DEV_PUBLIC_BIND", AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY] as const;
 
 /** Boot the server's env module against `dir/.env` the way `pnpm start` launches it: cwd = the directory
  *  holding the file, NODE_ENV=production, and no ambient value for any key the assertions read. */
@@ -105,7 +105,7 @@ test("a first run in a terminal asks, writes .env with the answers, and writes o
   expect(shown.length).toBeGreaterThan(0);
   expect({ ...parseEnv(readFileSync(envPath, "utf8")) }).toEqual(
     Object.fromEntries([
-      [PORT_KEY, "9100"],
+      [PORT_ENV, "9100"],
       [AUTH_MODE_KEY, "local"],
     ]),
   );
