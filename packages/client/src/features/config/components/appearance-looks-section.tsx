@@ -48,7 +48,7 @@ import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, Tip, useFirstBootRows, useRowDeleteFocus } from "#components";
+import { ConfigTeachScope, QueryBoundary, returnFocusToRow, SettingRow, SettingRowGroup, Tip, useFirstBootRows, useRowDeleteFocus } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { downloadTextFile, notify, useFocusOnSwap } from "#lib";
 import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
@@ -158,6 +158,9 @@ function LooksBody(): ReactElement {
   const removeTheme = useRemoveTheme({ trpc, invalidation });
   const [editing, setEditing] = useState<EditorSession | null>(null);
   const [leftovers, setLeftovers] = useState<ThemeImportLeftoversProps | null>(null);
+  const [backToDoor, setBackToDoor] = useState(false);
+  const doorRef = useRef<HTMLButtonElement>(null);
+  useFocusOnSwap(doorRef, editing === null && backToDoor);
   const ids = useId();
   const gridRef = useRef<HTMLDivElement>(null);
   const rowFocus = useRowDeleteFocus(
@@ -208,7 +211,17 @@ function LooksBody(): ReactElement {
   return (
     <>
       {editing !== null ? (
-        <LooksBuilder onBack={(): void => setEditing(null)} session={editing} />
+        <LooksBuilder
+          onBack={(): void => {
+            // Back returns to what opened the builder: a card's menu (its card) or the door below the grid (a draft, which has a mint).
+            if (editing.mint === undefined) {
+              returnFocusToRow(editing.draft.id);
+            }
+            setBackToDoor(editing.mint !== undefined);
+            setEditing(null);
+          }}
+          session={editing}
+        />
       ) : (
         <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_LOOKS_SUBCATEGORY }}>
           {/* The two Looks rows are CANVAS rows — one collection, one builder door — so each takes
@@ -290,7 +303,7 @@ function LooksBody(): ReactElement {
 
             <SettingRow settingId="theme-builder" span={true}>
               <Row align="center" gap="row">
-                <Button variant="outline" onClick={openBuilderFromCurrent}>
+                <Button variant="outline" onClick={openBuilderFromCurrent} ref={doorRef}>
                   <Icon icon={Plus} size="sm" />
                   {/* The door names the row the collection says is CURRENT. An EMPTY collection has no
                       such row and no name to borrow — that arm opens the from-scratch draft above, so it

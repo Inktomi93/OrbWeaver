@@ -13,8 +13,8 @@ import { absenceWindow, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MO
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CARD_IMPORT_REFUSED_MANY, CARD_IMPORT_REFUSED_ONE, cardImportPartialLine } from "#client/features/character/lib/character-import-copy.ts";
 import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
+import { CARD_IMPORT_REFUSED_MANY, CARD_IMPORT_REFUSED_ONE, cardImportPartialLine } from "#client/lib/card-import-copy.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const ROOT_OPTIONS = {

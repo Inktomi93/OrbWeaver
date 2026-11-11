@@ -18,8 +18,8 @@ import { NumberField } from "@orb/ui/number-field";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
-import { useState } from "react";
+import type { ReactElement, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DIALOG_VERBS } from "#lib";
 import { clearPluginCommandArgs, closeModal, usePluginCommandArgsSubject } from "#state";
 import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-commands.ts";
@@ -40,6 +40,13 @@ function initialValues(specs: readonly PluginCommandArgSpec[]): Record<string, s
   return seed;
 }
 
+/** The two controls an argument's form can put focus on: the text or number box, and the switch or select trigger. The first
+ *  argument is handed these so arrival lands on it; the other arguments are given none. */
+interface LandingRefs {
+  readonly input: RefObject<HTMLInputElement | null>;
+  readonly button: RefObject<HTMLButtonElement | null>;
+}
+
 /** The arg's visible label — its name read as words, with a required marker so a person knows what blocks the run. */
 function argLabel(spec: PluginCommandArgSpec): string {
   const label = humanizeId(spec.name);
@@ -53,15 +60,21 @@ function ArgInput({
   spec,
   value,
   onChange,
+  landing,
 }: {
   readonly spec: PluginCommandArgSpec;
   readonly value: string;
   readonly onChange: (next: string) => void;
+  readonly landing: LandingRefs | undefined;
 }): ReactElement {
   if (spec.type === "boolean") {
     return (
       <Field description={spec.describe} label={argLabel(spec)} orientation="horizontal">
-        <Switch checked={value === "true"} onCheckedChange={(next): void => onChange(String(next))} />
+        <Switch
+          checked={value === "true"}
+          onCheckedChange={(next): void => onChange(String(next))}
+          {...(landing === undefined ? {} : { ref: landing.button })}
+        />
       </Field>
     );
   }
@@ -70,6 +83,7 @@ function ArgInput({
       <Field description={spec.describe} label={argLabel(spec)}>
         <NumberField
           aria-label={humanizeId(spec.name)}
+          {...(landing === undefined ? {} : { inputRef: landing.input })}
           onValueChange={(next): void => onChange(next === null ? "" : String(next))}
           value={value === "" ? null : Number(value)}
         />
@@ -90,6 +104,7 @@ function ArgInput({
           items={spec.enumValues.map((option) => ({ label: humanizeId(option), value: option }))}
           onValueChange={(next: string | null): void => onChange(next ?? "")}
           value={value}
+          {...(landing === undefined ? {} : { triggerRef: landing.button })}
         />
       </Field>
     );
@@ -99,7 +114,7 @@ function ArgInput({
       {/* No `aria-label` (#1587): the Field's label reaches this control through Base UI's `aria-labelledby`,
           which outranks it, so `spec.name` named nothing — the cell announces `argLabel(spec)`, the visible
           label including the required marker, which is the richer of the two anyway. */}
-      <Input onValueChange={onChange} value={value} />
+      <Input onValueChange={onChange} value={value} {...(landing === undefined ? {} : { ref: landing.input })} />
     </Field>
   );
 }
@@ -111,6 +126,13 @@ export function PluginCommandArgsBody(): ReactElement {
   const [errors, setErrors] = useState<readonly string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const commands = usePluginCommands();
+  // Arrival lands on the first argument, so a command's values are typed straight away.
+  const firstInputRef = useRef<HTMLInputElement>(null);
+  const firstButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    (firstInputRef.current ?? firstButtonRef.current)?.focus();
+  }, []);
+  const landing: LandingRefs = { input: firstInputRef, button: firstButtonRef };
 
   if (subject === undefined) {
     // The subject was cleared out from under an open modal — nothing to collect. The def's `onClose` normally
@@ -161,8 +183,14 @@ export function PluginCommandArgsBody(): ReactElement {
       <Text voice="gloss">{subject.describe}</Text>
       <Text voice="gloss">From {attribution}</Text>
       <Stack gap="field">
-        {subject.args.map((spec) => (
-          <ArgInput key={spec.name} onChange={(next): void => setValue(spec.name, next)} spec={spec} value={values[spec.name] ?? ""} />
+        {subject.args.map((spec, index) => (
+          <ArgInput
+            key={spec.name}
+            landing={index === 0 ? landing : undefined}
+            onChange={(next): void => setValue(spec.name, next)}
+            spec={spec}
+            value={values[spec.name] ?? ""}
+          />
         ))}
       </Stack>
       {errors.length === 0 ? null : (
