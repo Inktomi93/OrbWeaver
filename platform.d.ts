@@ -1,6 +1,7 @@
-// Ambient declarations for V8 14.6 surfaces TypeScript's libs do not ship yet (probe 2026-08-03:
-// absent even under lib:["esnext"] on ts7 7.0.2). DELETE each block when the lib catches up —
-// the duplicate-declaration error at that moment is the reminder.
+// Ambient declarations for V8 14.6 surfaces the repo's `lib` tuple does not ship yet (es2025 +
+// esnext.disposable + esnext.temporal). DELETE each block when the lib catches up — a
+// duplicate-declaration error at that moment is the reminder (method-style members merge as
+// overloads and stay silent, so the bump's `tsc` pass must include deleting them).
 //
 // ⚠️ THE Map/WeakMap MEMBERS ARE METHOD-STYLE ON PURPOSE, and the four suppressions below are the
 // price. This was landed method-style, "corrected" to property-style to satisfy
@@ -10,9 +11,10 @@
 //   `strictFunctionTypes`. Every OTHER member of lib.d.ts's `Map<K,V>` is method-style, which is
 //   exactly why `Map<CharacterId, string>` is assignable to `Map<string, string>` today. MERGING a
 //   strictly-checked member that mentions K and V makes the whole interface INVARIANT in both — so
-//   the augmentation silently revokes an assignability the standard library grants. Three real sites
-//   went red: export-chat.ts:58,59 (branded-key Map → plain-key Map) and
-//   rebuild-from-canon.ts:586 (widening value Map). Reverting to method style: 0 errors.
+//   the augmentation silently revokes an assignability the standard library grants. Three real
+//   sites went red, measured: the branded-key Map assignments in domain/export/verbs/export-chat.ts
+//   and the widening value Map in domain/stats/persistence/rebuild-from-canon.ts. Reverting to
+//   method style: 0 errors.
 //
 // So the rule's usual argument ("property style is stricter, therefore safer") inverts here. On an
 // AUGMENTATION of a bivariant standard interface, the strict spelling is the INCONSISTENT one — it

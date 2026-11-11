@@ -31,7 +31,24 @@ where the line is.
   repo's own standard for those is a fixture per claim. Direction: one fixture test with a
   widening projection (refuses) and a derived one (passes).
 
-## Verdict
+- \[P2] tooling/src/eslint/ (program-level, from the gate-graveyard dig) — the old verify runtime
+  made proof a *contract*: `defineGate` descriptors required the proof arrays (mustFlag/mustPass,
+  optional mustRefuse), reviewed-grant policies owed an authored grant witness with
+  wrong-subject/wrong-operation controls, ordinary policies owed a production-dispatched
+  waiver-identity test, and family evidence closed the six obligations; meta-gates
+  (`policy-proof-expectations`, `policy-soundness`, refusal-row sweeps) refused a policy with
+  missing, empty, or derived-from-the-finding proof rows. Work item 1041 replaced *detection*
+  with native enforcement — correct where types and native tools carry the claim — but `821e8f8dff`
+  retired the proof-obligation machinery with it, and for the ~156 rule ids that stayed custom the
+  successor is convention: ~60 `tests/tooling/eslint-*.test.ts` files plant positive and near-miss
+  sources against the real resolved config (quality verified: eslint-assumes-single-replica.test.ts),
+  but nothing refuses a new orb rule with zero tests. Exhibits: `closed-vocabulary` (row above) and
+  the dead "Pinned by tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts" message
+  (units/root-lint-configs.md). Work item 1041 is owner-parked ("resume only with explicit owner
+  authorization"), so this is the parked program's open tail, not a regression against the board.
+  Direction, in plan 6's own spirit: one repo-integrity test deriving the mounted `orb/` id set
+  from the config and the registry rule map, asserting every id appears as a planted-positive rule
+  name in at least one tests/tooling file — a machine-checked proof obligation, ~50 lines.
 
 (in-progress) Read so far: eslint.config.ts complete, index.ts complete, registry diff, DOM
 ledger diff, closed-vocabulary in full. The mounting layer is in its honest state: exemptions

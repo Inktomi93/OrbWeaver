@@ -51,21 +51,37 @@ Context you need to grade findings, not just find them:
 Operational traps already paid for — do not re-pay them:
 
 - `pnpm exec <tool>`, never `npx` (devEngines will refuse, loudly and rightly).
+
 - `git ls-files ... | xargs wc -l` prints a total PER BATCH; read the last line and you
   undercount by half. Use tokei (`tokei <path> -o json`).
+
 - `rg -r` takes a REPLACEMENT argument; it ate a search pattern once already. `-rn` is not
-  "recursive, line-numbered".
+  "recursive, line-numbered". Same family: `-E` is an ENCODING flag, not an extended-regex flag —
+  `-E 'a|b'` dies with "unknown encoding".
+
 - The doc formatter escapes `[P1]`-style brackets and stray asterisks in markdown; expect
   `\[P2]` in committed ledger text and match it when editing.
+
 - `tests/tooling/**` is excluded from `pnpm test`; run tooling suites with
   `pnpm vitest run --config=vitest.config.ts <path>` or `pnpm test:tools`.
+
 - The citation gate does not scan root files or `scripts/` (logged P2); re-point dead cites by
   hand and grep `tests/legacy` before closing any unit.
+
 - A zero from grep/ast-grep is not absence: print a scanned-file count and use a second method
   before any negative claim. A malformed ast-grep pattern exits the same as a no-match.
+
 - `codegraph callers/impact/affected` resolve only symbols declared in the tree. A vendor import
   (`setGlobalDispatcher`-class) answers "Symbol not found" — that means "declared outside the
   index", never "uncalled". Third-party call sites are `rg` work.
+
+- The pinned compilers are native (Go) builds: `@typescript/typescript6@6.0.2` (the catalog
+  `typescript`, for JS-API consumers like typescript-eslint) and
+  `@typescript/native`=`typescript@7.1.0-beta` (what `pnpm exec tsc` runs, and what
+  `scripts/typecheck.ts` drives) carry NO `lib/*.d.ts` on disk — the libs are embedded. Never
+  grep a lib file for a "does the lib have X" claim; compile a planted probe with
+  `pnpm exec tsc` and check the exit code. `rg` inside `node_modules` needs `--no-ignore`
+  (the repo ignore files eat it).
 
 Unit records live in `units/<id>.md`, where `<id>` is the Unit column below. The index holds
 status only; findings live in the unit file. Trust no summary from a previous session that is not
@@ -146,7 +162,7 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 | - | - | - | - |
 | root-config | package.json, pnpm-workspace.yaml, tsconfig\*{.base,.node,.tests-dom,.tests-iso,.world-browser,.world-node,.json}, .editorconfig, .gitattributes, .env.example | M | reviewed (7) |
 | root-lint-configs | biome.json, eslint.config.ts, eslint-plugins.d.ts, stylelint\*.{ts}, jscpd.json, knip.ts, .dependency-cruiser.ts, lefthook.yml, stryker.config.ts, vitest\*.ts, playwright\*.config.ts, codegraph.json, .mcp.json, .markdownlint.json | L | reviewed (7) |
-| root-dts | aggregator-assets.d.ts, platform\*.d.ts, reset.d.ts — loose ambient types at root | S | queued |
+| root-dts | aggregator-assets.d.ts, platform\*.d.ts, reset.d.ts — loose ambient types at root | S | reviewed (4) |
 | install-run | install.sh/.cmd, start.sh/.cmd, update.sh/.cmd, Dockerfile, docker-compose.yaml, .dockerignore, docker/ | M | queued |
 | scripts-patches | scripts/, patches/ | M | queued |
 | instruction-files | AGENTS.md, .claude/rules/, .claude/hooks/, .claude/agents/, .claude/skills/ | L | queued |
@@ -287,8 +303,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 0 | 0 | - |
-| P2 | 6 | 0 | root-config, root-lint-configs |
-| P3 | 3 | 5 | root-config, root-lint-configs |
+| P2 | 7 | 0 | root-config, root-dts, root-lint-configs |
+| P3 | 5 | 6 | root-config, root-dts, root-lint-configs |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
