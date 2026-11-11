@@ -10,20 +10,25 @@ import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 
 type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality" | "scenario" | "greetings">;
 
-// THE CAP IS MEASURED IN TOKENS, NOT IN A CHARS-PER-TOKEN RATIO. This file used to multiply the window by a
-// fixed 3.67 chars/token "measured" on English prose and cut UTF-16 units at that char count. The ratio is a
-// property of the TEXT, not of the model: CJK, emoji and dense code tokenize near 1 char/token, so a card in
-// those scripts produced up to ~3.7× the configured ceiling in tokens and was refused by the engine on every
-// indexing attempt — the cap silently did nothing for exactly the cards that needed it.
+// The cap is measured in tokens, never as a chars-per-token ratio: the ratio belongs to the text, not the model, and CJK,
+// emoji and dense code tokenize near one char per token. `@orb/kit/tokens` is the house seam for cutting text to a real
+// engine window; capping here keeps `content_hash` consistent with the bytes that reach the vector, so the cut lives at
+// this projection and not only at the provider surface.
 //
-// `@orb/kit/tokens` is the house seam for "cut this to fit a real engine window" (its header names the embed
-// clamp and the memory chunker as its callers; the vLLM embed surface sizes off the SAME pair). It counts
-// codepoints — every non-ASCII codepoint is one token — and `safeTokenWindow` carries the measured 1.4156×
-// headroom between that estimate and a real BPE tokenizer. Capping here still keeps `content_hash`
-// consistent with the bytes that actually reach the vector, which is why the cut lives at this projection
-// and not only at the provider surface.
-//
-// The window is the pooling-window floor, not a bare literal at the call site.
+// The cap is deliberately not threaded from the resolved engine. `EMBED_WINDOW_TOKENS` is the pooling engines' window;
+// the supported encoders run from the unknown-model floor through the curated windows in
+// `packages/inference/src/capability/sources/curated/embedders.ts`. This projection is keyed by card id alone (D20) and the
+// engine's window belongs to the owner's binding, not to the card. The shipped seed vectors substitute only for the
+// local-light encoder (`packages/server/src/domain/embeddings/substrate/seed-embedding.ts`), whose curated windows differ,
+// so a threaded cap would re-hash long cards and miss the seeds there. The hosted embed backends clamp what they send to
+// the resolved window and log the clamp (`packages/inference/src/backends/openai-compat/embed.ts`,
+// `packages/inference/src/backends/google/embed.ts`), so a card past a smaller window is embedded from its head, never
+// refused; the local-light encoder windows long text losslessly (`packages/inference/src/backends/local-light/text-windows.ts`).
+// `content_hash` is therefore a function of the card alone: a tail edit past a small window re-embeds to the same vector, and
+// a window change moves the generation (`capability` is in its identity), which re-embeds under the hash gate anyway.
+// A window above the cap leaves the card tail past the cap unembedded; raising the cap is a retrieval choice that
+// re-hashes every long card. `tests/server/domain/embeddings/verbs/card-embed-window.int.test.ts` measures how much of a
+// capped card the smallest window embeds.
 
 /** Strip HTML, collapse runs of whitespace/newlines, trim per line. */
 function cleanText(text: string): string {
@@ -47,7 +52,7 @@ const EMBED_WINDOW_TOKENS = 8192;
 /** What `{{user}}` projects to: a card is embedded without any viewer. */
 const USER_PLACEHOLDER_NAME = "User";
 
-/** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead. */
+/** Field order matters: last-token pooling weights later text less, so identity fields lead. */
 export function buildCardEmbedText(card: CardEmbedFields): string {
   const budget = safeTokenWindow(EMBED_WINDOW_TOKENS);
   const name = card.name;

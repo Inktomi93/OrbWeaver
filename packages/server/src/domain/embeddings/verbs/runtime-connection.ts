@@ -10,6 +10,7 @@ import type { EmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput } from "@orb/contracts/role-clients";
 import type { Resolved } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
+import { isUnresolvableBinding } from "#primitives/embedding-generation";
 import type { EmbeddingRuntime } from "../contract/runtime-connection.ts";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "../contract/service.ts";
 
@@ -21,8 +22,9 @@ function isResolvedTask<T extends Resolved["task"]>(candidate: Resolved, task: T
 }
 
 /**
- * An EXPLICIT `connectionId` that no longer resolves answers `null` (the generation's own connection is gone); an
- * implicit resolve rethrows, because "no binding" is the caller's typed refusal to surface, never a silent null.
+ * An EXPLICIT `connectionId` whose connection can no longer resolve answers `null` (the generation's own connection is
+ * gone); an implicit resolve rethrows, because "no binding" is the caller's typed refusal to surface, never a silent
+ * null. Any other failure rethrows on both forms.
  */
 export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, principalOf: (userId: UserId) => Promise<Principal>): ResolveEmbeddingConnection {
   // The funnel turns the caller's knobs into the wire's: dimensions, input type and instruction.
@@ -108,7 +110,7 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
         ...(opts?.previewConnection === undefined ? {} : { previewConnection: opts.previewConnection }),
       });
     } catch (error) {
-      if (connectionId === undefined || opts?.previewConnection !== undefined) {
+      if (connectionId === undefined || opts?.previewConnection !== undefined || !isUnresolvableBinding(error)) {
         throw error;
       }
       return null;

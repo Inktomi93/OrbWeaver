@@ -436,6 +436,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/inference/src/contract/errors.ts": "PROVIDER_ERROR_KINDS: the provider error vocabulary",
   "packages/inference/src/backends/wire/cache-control.ts":
     "ANTHROPIC_PROVIDER_NAME: the provider name an OpenRouter Claude request is pinned to, which no inference door forwards",
+  "packages/inference/src/backends/http/provider-log.ts": "EMBED_CLAMPED_EVENT: the log event both embed backends emit when they shorten an input",
   "packages/ui/src/content/immersive-card/control-labels.ts": "IMMERSIVE_CARD_LABELS: the card header's control names",
   "packages/ui/src/lib/reduced-motion-now.ts":
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
@@ -557,6 +558,10 @@ const SERVER_TEST_REACHES = {
   // A rule's image size must reach the provider as the preset's dimensions, which imagery owns.
   "tests/server/domain/automation/engine/dispatch.int.test.ts": {
     "domain/imagery": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
+  },
+  // A search that fails for an unrelated reason answers the wire with the fixed fault sentence, which the transport owns.
+  "tests/server/domain/search/verbs/space-binding-lookup.int.test.ts": {
+    "transport/trpc": "UNCLASSIFIED_FAULT_MESSAGE: the words the error formatter sends for every unclassified throw",
   },
   // A host who hands the seat off mid-invocation meets chat's host gate, and the guest sees that gate's error class.
   "tests/server/domain/plugin/substrate/guest-room-reads.suite.int.test.ts": {

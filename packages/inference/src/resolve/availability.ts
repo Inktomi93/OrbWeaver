@@ -12,12 +12,11 @@ import { canFund } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { abortableWait, RESOLUTION_ABORTED_MESSAGE, requireActiveSignal } from "../backends/http/abort-wait.ts";
 import type { BackendRegistry } from "../contract/backend.ts";
-import { ProviderError } from "../contract/errors.ts";
 import type { LocalLightModelCache } from "../contract/local-light.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { ReachabilityProbe } from "../contract/runtime.ts";
 import type { ResolveArgs, ResolverContext } from "../contract/task-resolution.ts";
-import { NoConnectionError, resolveTask } from "./resolve-task.ts";
+import { isResolveRefusal, NoConnectionError, resolveTask } from "./resolve-task.ts";
 
 /** What the endpoint probe can say about a row's server — the axis, homed ONCE (§7.5). */
 const UNAVAILABLE_RUNTIME: SendAvailability = { available: false, cause: "runtime-missing" };
@@ -43,13 +42,10 @@ async function resolveOrCause(ctx: ResolverContext, args: ResolveArgs): Promise<
   try {
     return (await resolveTask(ctx, args)).resolved;
   } catch (err) {
-    if (err instanceof NoConnectionError) {
-      return { available: false, cause: "no-connection" };
+    if (!isResolveRefusal(err)) {
+      throw err;
     }
-    if (err instanceof ProviderError && err.kind === "forbidden") {
-      return { available: false, cause: "requirement-unmet" };
-    }
-    throw err;
+    return { available: false, cause: err instanceof NoConnectionError ? "no-connection" : "requirement-unmet" };
   }
 }
 

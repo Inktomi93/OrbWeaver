@@ -7,7 +7,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { ExtractionRefs } from "@orb/contracts/rpg";
 import { composePopulateTeaching, constrainPopulateSchema, rpgGameConfigSchema, rpgPopulateSchema, salvagePopulate } from "@orb/contracts/rpg";
 import type { Resolved } from "@orb/inference";
-import { generationOf } from "@orb/inference";
+import { generationOf, isResolveRefusal } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -18,7 +18,7 @@ import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 import { hasStructuredWriter } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
 import { createExtractionMints } from "../mints.ts";
-import { extractStructured, isUnresolvable, roomWindowed } from "./round-connection.ts";
+import { extractStructured, roomWindowed } from "./round-connection.ts";
 import { logExtractionOutcome, safeJson } from "./round-log.ts";
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -85,7 +85,7 @@ async function resolveHostRoundConnection(
   try {
     conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
   } catch (err) {
-    if (isUnresolvable(err)) {
+    if (isResolveRefusal(err)) {
       deps.logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: the host's chat connection did not resolve — no round");
       return { ok: false, reason: POPULATE_UNRESOLVABLE_REASON };
     }

@@ -4,20 +4,14 @@
 
 import type { EmbeddingTask, EmbedMoveRefusal, PreviewTargetMoveOp } from "@orb/contracts/embeddings";
 import type { EmbedTargetRefusal, UserConnection } from "@orb/contracts/inference";
-import { NoConnectionError, ProviderError } from "@orb/inference";
-import { DomainNoCredentialError } from "@orb/kit/errors";
+import { ProviderError } from "@orb/inference";
 import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
+import { isUnresolvableBinding } from "#primitives/embedding-generation";
 import { EmbedFailedError } from "../contract/errors.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { landProvenTarget, pendingTargetMove, probeWidth, widthMismatchOf } from "../substrate/generation.ts";
 import { resolveImageSpace } from "../substrate/task-model.ts";
-
-/** A binding that cannot resolve yet: a revoked or missing key, or no usable connection. Its first write after it
- *  can resolve moves the target and owns the failure, so the sync leaves it alone. */
-function bindingUnresolvable(error: unknown): boolean {
-  return error instanceof DomainNoCredentialError || error instanceof NoConnectionError;
-}
 
 /** One target the sync may move: its task, and the role its vectors are embedded through. */
 interface SyncTarget {
@@ -53,7 +47,7 @@ async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget
     if (width !== null) {
       return { kind: "refused", refusal: { kind: "width", ...width, truncatable, assumed } };
     }
-    if (bindingUnresolvable(error)) {
+    if (isUnresolvableBinding(error)) {
       return { kind: "unresolved" };
     }
     const refusal = probeRefusal(ctx, error, { ownerId, task: target.task });
@@ -89,7 +83,7 @@ export function createPreviewTargetMove(ctx: EmbeddingsContext): PreviewTargetMo
 export function createSyncTargetGenerations(ctx: EmbeddingsContext): EmbeddingsService["syncTargetGenerations"] {
   return async (ownerId: UserId): Promise<EmbedMoveRefusal | null> => {
     const image = await resolveImageSpace(ctx, ownerId).catch((error: unknown) => {
-      if (bindingUnresolvable(error)) {
+      if (isUnresolvableBinding(error)) {
         return null;
       }
       throw error;

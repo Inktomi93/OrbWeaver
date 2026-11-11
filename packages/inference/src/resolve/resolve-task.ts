@@ -60,6 +60,12 @@ export class NoConnectionError extends ProviderError {
   }
 }
 
+/** The one definition of a resolve that ended in no usable row: no binding or no such row ({@link NoConnectionError}),
+ *  or a row whose kind cannot serve the task (`forbidden`). Any other failure of a resolve is a fault, not an answer. */
+export function isResolveRefusal(error: unknown): error is ProviderError {
+  return error instanceof NoConnectionError || (error instanceof ProviderError && error.kind === "forbidden");
+}
+
 /** THE ONE refusal TEXT every id-taking belt in this package answers a foreign or absent connection id with —
  *  `connectionFor` below and `requireOwned`/`ownedConnection` in the package root. It is a single literal on
  *  purpose: the two FACTS it stands for ("that row is someone else's" and "there is no such row") must be one

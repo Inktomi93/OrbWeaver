@@ -1,12 +1,14 @@
 // @subject packages/server/src/domain/embeddings/verbs/runtime-connection.ts
 // @subject packages/server/src/domain/embeddings/substrate/seed-embedding.ts
+// @subject packages/server/src/primitives/embedding-generation/binding.ts
 import { ENCODER_IDENTITY_NO_API, embedDimsOf, embedDtypeOf, embedSpaceOf, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
+import { userConnections } from "@orb/db";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { NoConnectionError, supportsManagedCompaction } from "@orb/inference";
 import { createResolveEmbeddingConnection, precomputedSeedEmbedding } from "@orb/server/domain/embeddings";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
+import { createServerHarness, SECRET_BOX_TEST_KEY, withheldTable } from "@orb/testkit/node/composed";
 
 test("runtime operation capabilities retain stateful chat and concrete embedding route behavior", async () => {
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
@@ -92,4 +94,26 @@ test("an explicit connection id that no longer resolves answers null, while the 
   expect(await resolveConnection(owner.userId, "embed", encoder.id)).toBeNull();
   await root.services.connection.setBinding({ principal: owner, task: "embed", connectionId: null });
   await expect(resolveConnection(owner.userId, "embed")).rejects.toBeInstanceOf(NoConnectionError);
+});
+
+test("an explicit connection id whose lookup fails for any reason but an unresolvable binding rethrows instead of answering null", async () => {
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
+  const owner = await root.principalFor(root.ownerId);
+  const resolveConnection = createResolveEmbeddingConnection(root.app.runtime, async () => owner);
+  const encoder = await root.services.connection.create({
+    principal: owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: "http://127.0.0.1:9999/v1",
+    model: "owned-encoder",
+    allowBackground: true,
+    declared: { kind: "embedding", embedding: { dims: 3 }, features: { detectServer: false } },
+  });
+  expect(await resolveConnection(owner.userId, "embed", encoder.id)).toMatchObject({ connectionId: encoder.id });
+
+  await using _fault = await withheldTable(root.db, userConnections);
+
+  await expect(resolveConnection(owner.userId, "embed", encoder.id)).rejects.toMatchObject({
+    cause: expect.objectContaining({ message: expect.stringContaining("no such table") }),
+  });
 });

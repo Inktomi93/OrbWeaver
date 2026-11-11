@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Real stored digests and a genuinely unbound reranker exercise scope and per-turn degradation episodes.
 import { createCharacterSchema } from "@orb/contracts/character";
+import { embedGenerations } from "@orb/db";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, ChatRootOptions, HeldStatement } from "@orb/testkit/node/composed";
@@ -14,14 +15,52 @@ import {
   freshHeldDb,
   SUMMARIZE_TRANSCRIPT_MARKER,
   summaryReply,
+  withheldTable,
 } from "@orb/testkit/node/composed";
+import { z } from "zod";
 
+const LOG_SCAN_LIMIT = 200;
+const TIME_ZONE = "Etc/UTC";
+const MISSING_TABLE = "no such table";
+const logRecordSchema = z.looseObject({ level: z.string(), err: z.looseObject({ message: z.string() }).optional() });
 const RECALL_INTENT = { maxContextTokens: 4096, maxOutputTokens: 64 } as const;
 const RETRIEVAL_ROWS = [
   { label: "scoped speakers", group: { output: "per-speaker", cardScope: "scoped", policy: "list", allowSelfResponses: true }, recalls: 3, speakers: 2 },
   { label: "merged speakers", group: { output: "per-speaker", cardScope: "merged", policy: "list", allowSelfResponses: true }, recalls: 1, speakers: 2 },
   { label: "narrator", group: { output: "narrator", policy: "list", allowSelfResponses: true }, recalls: 1, speakers: 1 },
 ] as const;
+
+/** Run the corpus workloads that give the owner a promoted encoder generation, then prove the room's digests answer a scoped query. */
+async function indexRecallCorpus(h: ChatRoot, signal: AbortSignal): Promise<void> {
+  const runAdmittedWorkload = h.root.runAdmittedWorkload;
+  if (runAdmittedWorkload === undefined) {
+    throw new Error("the actual recall fixture has no admitted-workload driver");
+  }
+  const admitted = [
+    await h.caller.workloads.start({ input: { kind: "index", params: { source: "text" } }, mode: "singular" }),
+    await h.caller.workloads.start({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
+    await h.caller.workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, mode: "singular" }),
+  ];
+  for (const job of admitted) {
+    await runAdmittedWorkload(job.id, signal);
+    const completed = await h.caller.workloads.get({ id: job.id });
+    if (completed.status !== "succeeded") {
+      throw new Error(`the actual recall corpus workload did not succeed: ${completed.kind} ${completed.status}`);
+    }
+  }
+  expect(await h.caller.search.spaceStatus()).toMatchObject({ paused: false, embed: false });
+  const queryable = await h.caller.search.search({
+    query: "orbital ledger",
+    over: "digests",
+    scope: { kind: "chat", chatId: h.chatId },
+    topN: 1,
+    rerank: false,
+  });
+  if (queryable.over !== "digests") {
+    throw new Error("the real scoped digest query returned a different search target");
+  }
+  expect(queryable.hits.length).toBeGreaterThan(0);
+}
 
 async function recallRoom(group: NonNullable<ChatRootOptions["group"]>, options: Pick<ChatRootOptions, "server"> = {}): Promise<ChatRoot> {
   const physical = createCorpusProviderExecution({
@@ -65,36 +104,9 @@ async function recallRoom(group: NonNullable<ChatRootOptions["group"]>, options:
     throw new Error("the actual recall warm-up aborted before building its canonical digests");
   }
   await h.root.settleBackground();
-  const runAdmittedWorkload = h.root.runAdmittedWorkload;
-  if (runAdmittedWorkload === undefined) {
-    throw new Error("the actual recall fixture has no admitted-workload driver");
-  }
   const workloadLifetime = new AbortController();
   construction.defer(() => workloadLifetime.abort());
-  const admitted = [
-    await h.caller.workloads.start({ input: { kind: "index", params: { source: "text" } }, mode: "singular" }),
-    await h.caller.workloads.start({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
-    await h.caller.workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, mode: "singular" }),
-  ];
-  for (const job of admitted) {
-    await runAdmittedWorkload(job.id, workloadLifetime.signal);
-    const completed = await h.caller.workloads.get({ id: job.id });
-    if (completed.status !== "succeeded") {
-      throw new Error(`the actual recall corpus workload did not succeed: ${completed.kind} ${completed.status}`);
-    }
-  }
-  expect(await h.caller.search.spaceStatus()).toMatchObject({ paused: false, embed: false });
-  const queryable = await h.caller.search.search({
-    query: "orbital ledger",
-    over: "digests",
-    scope: { kind: "chat", chatId: h.chatId },
-    topN: 1,
-    rerank: false,
-  });
-  if (queryable.over !== "digests") {
-    throw new Error("the real scoped digest query returned a different search target");
-  }
-  expect(queryable.hits.length).toBeGreaterThan(0);
+  await indexRecallCorpus(h, workloadLifetime.signal);
   const lifetime = construction.move();
   return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
@@ -191,4 +203,65 @@ test("one actual turn independently warns once for a degraded shared rerank and 
     boundary?.release();
     await settled;
   }
+});
+
+test("a retrieval failure that is not a space refusal fails the actual turn with the surfaced error, logged once, and reports no unavailable index", async () => {
+  using held = await freshHeldDb();
+  await using ownership = new AsyncDisposableStack();
+  const h = ownership.use(await recallRoom(RETRIEVAL_ROWS[0].group, { server: { db: held.db, logLevel: "error" } }));
+  const faultLogs = (): number =>
+    h.root.observability
+      .logLines(LOG_SCAN_LIMIT)
+      .map((line) => logRecordSchema.parse(JSON.parse(line)))
+      .filter((record) => record.level === "error" && record.err?.message.includes(MISSING_TABLE) === true).length;
+  const logsBefore = faultLogs();
+  const beforeEvent = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).length;
+  let boundary: HeldStatement | undefined;
+  const started = Promise.withResolvers<HeldStatement>();
+  ownership.defer(
+    h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+      if (event.chatId === h.chatId && event.type === "turnStarted" && boundary === undefined) {
+        boundary = held.hold(/^select .* from "chat_digests"/u);
+        started.resolve(boundary);
+      }
+    }),
+  );
+  const running = h.caller.chat.send({ chatId: h.chatId, content: "Recall the earlier ledger scene.", intent: RECALL_INTENT, timeZone: TIME_ZONE });
+  const settled = Promise.allSettled([running]);
+  try {
+    const gate = await started.promise;
+    await gate.reached;
+    gate.disarm();
+    // The shared recall already ran; the per-speaker retrieval reads its generation row after this point.
+    await using _fault = await withheldTable(h.root.db, embedGenerations);
+    gate.release();
+    await expect(running).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  } finally {
+    boundary?.release();
+    await settled;
+  }
+  expect(faultLogs() - logsBefore).toBe(1);
+  const events = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).slice(beforeEvent);
+  expect(events.filter(({ event }) => event.type === "warning" && event.code === "retrieval_index_unavailable")).toEqual([]);
+});
+
+test("an unbound encoder lets the actual turn complete without retrieval and warns once that the index is unavailable", async () => {
+  const physical = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+    chatText: "The keeper answers without recalling anything.",
+  });
+  await using h = await createChatRoot({ providerFetch: physical.execute, server: { startJobs: false } });
+  const ledger = await h.caller.databank.createFromText({ name: "Ledger", text: "The orbital ledger preserves the harbor witness." });
+  await h.caller.databank.attachToChat({ chatId: h.chatId, documentId: ledger.document.id });
+  await h.caller.connection.setBinding({ task: "embed", connectionId: null });
+  const beforeEvent = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).length;
+  const outcome = await h.caller.chat.send({ chatId: h.chatId, content: "Recall the earlier ledger scene.", intent: RECALL_INTENT, timeZone: TIME_ZONE });
+  expect(outcome.aborted).toBe(false);
+  expect(outcome.messages.filter((message) => message.role === "assistant")).toHaveLength(1);
+  const events = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).slice(beforeEvent);
+  expect(events.filter(({ event }) => event.type === "warning" && event.code === "retrieval_index_unavailable")).toHaveLength(1);
+  expect(events.filter(({ event }) => event.type === "turnCompleted")).toHaveLength(1);
 });

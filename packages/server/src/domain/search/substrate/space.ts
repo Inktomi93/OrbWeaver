@@ -4,7 +4,7 @@
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
-import { generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
+import { generationIdOf, isUnresolvableBinding, vectorSpaceFingerprint } from "#primitives/embedding-generation";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
 import type { ActiveQuerySpace, QueryEmbedConnection, SearchContext } from "../contract/service.ts";
 import { readActiveGeneration, readGeneration } from "../persistence/active-space.ts";
@@ -17,10 +17,13 @@ async function resolveConnection(
   task: EmbeddingTask,
   connectionId?: UserConnectionId,
 ): Promise<QueryEmbedConnection | null> {
-  // same leak-free collapse ownership as entry/http/plugin-frame.ts — by-id resolution fails closed and the public require*Space boundary turns null into a named SearchError. Ends if null can leave this module without that refusal.
+  // Only a binding that cannot resolve is an answer about the space; the public require*Space boundary turns the null into a named SearchError. Any other failure of the lookup surfaces as itself.
   try {
     return await ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
-  } catch {
+  } catch (error) {
+    if (!isUnresolvableBinding(error)) {
+      throw error;
+    }
     return null;
   }
 }
