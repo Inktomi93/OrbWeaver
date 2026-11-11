@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: kit
+lane: wt/agent-ad0e85a8b8ba4ff64
 ---
 
 # The handle-key Unicode table can be regenerated

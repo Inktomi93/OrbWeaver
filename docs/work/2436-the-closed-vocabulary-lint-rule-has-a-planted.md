@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: tooling
+lane: wt/agent-a3b00fac426662467
 ---
 
 # The closed-vocabulary lint rule has a planted test

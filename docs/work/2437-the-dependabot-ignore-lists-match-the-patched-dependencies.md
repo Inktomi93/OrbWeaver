@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: ci
+lane: wt/agent-ad0e85a8b8ba4ff64
 ---
 
 # The Dependabot ignore lists match the patched dependencies

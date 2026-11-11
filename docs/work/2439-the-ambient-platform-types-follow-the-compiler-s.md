@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: tooling
+lane: wt/agent-a3b00fac426662467
 ---
 
 # The ambient platform types follow the compiler's own library

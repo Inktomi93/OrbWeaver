@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: character
+lane: wt/agent-ad0e85a8b8ba4ff64
 ---
 
 # One malformed greeting no longer erases every greeting on read

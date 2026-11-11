@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: tooling
+lane: wt/agent-a3b00fac426662467
 ---
 
 # Stack tooling imports the server drain constant and the canonical env keys
