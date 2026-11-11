@@ -4,8 +4,8 @@
 // possible. Both writers (`set`, `compareAndSet`) are the one place a server guest's write and the UI relay's write
 // meet, so this layer owns every write cap and each refusal is a typed error the membrane contains as guest
 // errors-as-data and `plugin.uiHostCall` answers as a coded client error:
-//   - the key and value size caps, measured by the relay's own `pluginKvKeySchema` / `pluginKvValueSchema`. The
-//     table's CHECKs are only a second line: the key CHECK stops counting at a NUL, so it bounds nothing alone.
+//   - the key and value size caps and the NUL refusal, read from the relay's own `pluginKvKeySchema` /
+//     `pluginKvValueSchema`. The table's CHECKs are only a second line: the key CHECK stops counting at a NUL.
 //   - the 256-key cap, a count the DDL cannot read.
 // Pure of Principal (the bridge closed the scope over the installer); `db` is injected at compose.
 
@@ -24,20 +24,22 @@ import { PluginKvCapError, PluginUiHostCallRefusedError } from "../contract/erro
 import type { PluginHostOps } from "../contract/ops.ts";
 import { compareAndSetKv, deleteKv, getKv, listKv, upsertKvUnderCap } from "../persistence/plugin-kv.ts";
 
-/** Refuse a write whose key or any value is past its size cap, with the relay's own invalid-arguments refusal, so a
- *  server guest and a plugin UI get one answer for one mistake. A `null` value is a compare-and-set's absent key. */
-function assertWithinSizeCaps(key: string, values: readonly (string | null)[]): void {
-  const oversized = !pluginKvKeySchema.safeParse(key).success || values.some((value) => value !== null && !pluginKvValueSchema.safeParse(value).success);
-  if (oversized) {
+/** Refuse a write whose key or any value is past its size cap or holds a NUL, with the relay's own invalid-arguments
+ *  refusal, so a server guest and a plugin UI get one answer for one mistake. A `null` value is a compare-and-set's
+ *  absent key. A NUL is refused because the driver returns text cut at its first NUL, so it would read back as a
+ *  different string. */
+function assertStorable(key: string, values: readonly (string | null)[]): void {
+  const refused = !pluginKvKeySchema.safeParse(key).success || values.some((value) => value !== null && !pluginKvValueSchema.safeParse(value).success);
+  if (refused) {
     throw new PluginUiHostCallRefusedError(
-      `plugin storage.kv: a key holds 1 to ${PLUGIN_KV_KEY_MAX_CHARS} characters and a value at most ${PLUGIN_KV_VALUE_MAX_BYTES} UTF-8 bytes`,
+      `plugin storage.kv: a key holds 1 to ${PLUGIN_KV_KEY_MAX_CHARS} characters and a value at most ${PLUGIN_KV_VALUE_MAX_BYTES} UTF-8 bytes, neither with a NUL`,
       { code: PLUGIN_UI_HOST_CALL_CODES.argsInvalid },
     );
   }
 }
 
 /** Build the composed `storage.kv` op bundle (the `PluginHostOps.storage` shape). Both writers refuse a key or value
- *  past its size cap before the statement runs. `set` enforces the 256-key ceiling: an upsert of an EXISTING key
+ *  past its size cap or holding a NUL before the statement runs. `set` enforces the 256-key ceiling: an upsert of an EXISTING key
  *  always proceeds (no new slot); a NEW key past the cap is refused. `nowMs` stamps `updatedAt`. */
 export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number): PluginHostOps["storage"] {
   const db = databaseForOwner(handle);
@@ -48,7 +50,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
     // serialises them: the old read-count-then-upsert let two sets for DISTINCT new keys both see the last free
     // slot and both take it. This layer states the LIMIT; persistence carries it into the statement.
     set: async (pluginId: PluginId, ownerId: UserId, key: string, value: string): Promise<void> => {
-      assertWithinSizeCaps(key, [value]);
+      assertStorable(key, [value]);
       const admitted = await upsertKvUnderCap(db, { pluginId, ownerId }, { key, value, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
       if (!admitted) {
         throw new PluginKvCapError();
@@ -67,7 +69,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
       ownerId: UserId,
       entry: { readonly key: string; readonly expected: string | null; readonly next: string },
     ): Promise<{ applied: boolean; current: string | null }> => {
-      assertWithinSizeCaps(entry.key, [entry.expected, entry.next]);
+      assertStorable(entry.key, [entry.expected, entry.next]);
       const scope = { pluginId, ownerId };
       const outcome = await compareAndSetKv(db, scope, { key: entry.key, expected: entry.expected, value: entry.next, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
       if (entry.expected === null && !outcome.applied && outcome.current === null) {

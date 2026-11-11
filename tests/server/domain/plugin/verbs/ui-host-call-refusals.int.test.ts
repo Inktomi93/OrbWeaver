@@ -35,7 +35,7 @@ function ownerRoot(): Promise<ServerTestHarness> {
   });
 }
 
-/** An enabled plugin of the owner's whose grant covers the room reads and the key-value store. */
+/** An enabled plugin of the owner's whose grant covers the room reads, the key-value store and the global variables. */
 async function seedUiPlugin(root: ServerTestHarness): Promise<{ readonly pluginId: Awaited<ReturnType<typeof seedInstalledPlugin>>["outcome"]["id"] }> {
   const { owner: caller } = await seedCorpusActors(root);
   const manifest = pluginManifestSchema.parse({
@@ -46,7 +46,7 @@ async function seedUiPlugin(root: ServerTestHarness): Promise<{ readonly pluginI
     entry: PLUGIN_MAIN_ENTRY,
     uiEntry: PLUGIN_UI_ENTRY,
     description: "Bad host calls from a plugin surface",
-    capabilities: ["chat.read", "storage.kv", "ui.surface"],
+    capabilities: ["chat.read", "storage.kv", "global_vars", "ui.surface"],
   });
   const installed = await seedInstalledPlugin(root, {
     caller,
@@ -94,46 +94,65 @@ test("a storage write past the key cap answers a client error with the storage-c
 // A character that is three UTF-8 bytes, so a value of N of them is a third as many characters as bytes.
 const THREE_BYTE_CHAR = "中";
 const THREE_BYTE_CHAR_WIDTH = 3;
+// A NUL is refused because the driver returns stored text cut at its first NUL; the relay's JSON carries one intact.
 const NUL = "\0";
+const withNul = (text: string): string => `${text}${NUL}tail`;
+
+type Write = readonly [key: string, value: string];
 
 test.for([
   {
     name: "a key past the key cap",
+    fn: "storage.set",
     within: ["k".repeat(PLUGIN_KV_KEY_MAX_CHARS), "v"],
     past: ["k".repeat(PLUGIN_KV_KEY_MAX_CHARS + 1), "v"],
   },
   {
-    // The relay's JSON carries a NUL intact, and the key measure counts it like any character; the table's own
-    // character count stops at a NUL, so it cannot stand in for this.
-    name: "a NUL-led key past the key cap",
-    within: [`${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS - NUL.length)}`, "v"],
-    past: [`${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS)}`, "v"],
-  },
-  {
-    name: "a key with a NUL mid-key past the key cap",
-    within: [`head${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS - `head${NUL}`.length)}`, "v"],
-    past: [`head${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS - `head${NUL}`.length + 1)}`, "v"],
-  },
-  {
     // Fewer characters than the byte cap, more bytes than it: the cap is in bytes.
     name: "a value past the byte cap",
+    fn: "storage.set",
     within: ["key", THREE_BYTE_CHAR.repeat(Math.floor(PLUGIN_KV_VALUE_MAX_BYTES / THREE_BYTE_CHAR_WIDTH))],
     past: ["key", THREE_BYTE_CHAR.repeat(Math.floor(PLUGIN_KV_VALUE_MAX_BYTES / THREE_BYTE_CHAR_WIDTH) + 1)],
   },
-])("$name answers a client error with the invalid-arguments code and logs no error", { tags: ["slow"] }, async ({ within, past }) => {
-  await using root = await ownerRoot();
-  const { pluginId } = await seedUiPlugin(root);
-  const logged = errorRecords(root);
+  { name: "a storage key holding a NUL", fn: "storage.set", within: ["key", "v"], past: [withNul("key"), "v"] },
+  { name: "a storage value holding a NUL", fn: "storage.set", within: ["key", "v"], past: ["key", withNul("v")] },
+  { name: "a variable key holding a NUL", fn: "variables.set", within: ["key", "v"], past: [withNul("key"), "v"] },
+  { name: "a variable value holding a NUL", fn: "variables.set", within: ["key", "v"], past: ["key", withNul("v")] },
+] satisfies readonly { name: string; fn: "storage.set" | "variables.set"; within: Write; past: Write }[])(
+  "$name answers a client error with the invalid-arguments code, writes nothing and logs no error",
+  { tags: ["slow"] },
+  async ({ fn, within, past }) => {
+    await using root = await ownerRoot();
+    const { pluginId } = await seedUiPlugin(root);
+    const caller = await root.principalFor(root.ownerId);
+    const logged = errorRecords(root);
 
-  const stored = await relay(root, { pluginId, fn: "storage.set", argsJson: JSON.stringify(within) });
-  expect(stored.status).toBe(200);
-  await stored.arrayBuffer();
+    const stored = await relay(root, { pluginId, fn, argsJson: JSON.stringify(within) });
+    expect(stored.status).toBe(200);
+    await stored.arrayBuffer();
 
-  const refused = await relay(root, { pluginId, fn: "storage.set", argsJson: JSON.stringify(past) });
-  expect(refused.status).toBe(BAD_REQUEST);
-  expect(refusalSchema.parse(await refused.json()).error.data).toMatchObject({ code: "BAD_REQUEST", reason: PLUGIN_UI_HOST_CALL_CODES.argsInvalid });
-  expect(errorRecords(root)).toBe(logged);
-});
+    const refused = await relay(root, { pluginId, fn, argsJson: JSON.stringify(past) });
+    expect(refused.status).toBe(BAD_REQUEST);
+    expect(refusalSchema.parse(await refused.json()).error.data).toMatchObject({ code: "BAD_REQUEST", reason: PLUGIN_UI_HOST_CALL_CODES.argsInvalid });
+    expect(errorRecords(root)).toBe(logged);
+
+    // Only the write within the caps is held, in the row's own store: its key keeps its value, and a refused key
+    // that differs from it is absent.
+    const [withinKey, withinValue] = within;
+    const storageCall = async (call: string, args: readonly string[]): Promise<unknown> =>
+      JSON.parse((await root.services.plugin.uiHostCall({ caller, pluginId, fn: call, argsJson: JSON.stringify(args) })).resultJson);
+    const variable = (key: string): Promise<string | null> => root.services.automation.getGlobalVariable({ principal: caller, key });
+    const held = {
+      storage: { value: await storageCall("storage.get", [withinKey]), keys: await storageCall("storage.list", []) },
+      variable: { value: await variable(withinKey), refusedKey: await variable(past[0]) },
+    };
+    const inStorage = fn === "storage.set";
+    expect(held).toEqual({
+      storage: inStorage ? { value: withinValue, keys: [withinKey] } : { value: null, keys: [] },
+      variable: inStorage ? { value: null, refusedKey: null } : { value: withinValue, refusedKey: past[0] === withinKey ? withinValue : null },
+    });
+  },
+);
 
 test("a chat-scoped call with no room answers a client error with the scope code and logs no error", { tags: ["slow"] }, async () => {
   await using root = await ownerRoot();

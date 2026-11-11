@@ -1,12 +1,10 @@
 // A real guest's own storage write meets the same key and value caps the UI relay's schema applies, measured the same
 // way, and is refused with the relay's own coded refusal; nothing past a cap is written. Each case has an at-the-cap
-// control whose value reads back under its exact key.
+// control whose value reads back under its exact key. A guest string crosses whole, so a plain long key reaches the
+// measure as written; a NUL is refused before the measure (`tests/server/domain/plugin/substrate/stored-text-nul.int.test.ts`).
 //
-// How a NUL reaches the host: a key passed as a plain string is read only up to its first NUL, so a NUL-led one arrives
-// as the empty key. A key wrapped in an array used to cross whole, NUL included, and was stored past the cap; the
-// membrane now refuses a non-string key at the door, so those rows expect its refusal. No guest door delivers a NUL to
-// the size measure until a guest string crosses whole; the relay's refusal suite counts a NUL in full meanwhile. Keys are
-// read back with `get`, never `list`, because a key the host hands back to a guest is cut at its NUL too.
+// A key wrapped in an array once crossed whole while a plain string was cut at its NUL, and main stored a NUL-bearing
+// key that way far past the cap; the membrane now refuses a non-string key at the door, so those rows expect its refusal.
 // @subject packages/server/src/domain/plugin/substrate/storage.ts
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
@@ -20,7 +18,7 @@ import { PluginUiHostCallRefusedError } from "#server/domain/plugin/contract/err
  *  alias, not an interface: the guest runner takes JSON records, and only an alias is assignable to an index signature. */
 type Recipe = Readonly<{ head: string; fill: string; count: number; tail: string }>;
 
-// `a.wrap` passes the key as a one-element array, the spelling that carries a NUL into the host.
+// `a.wrap` passes the key as a one-element array, which the membrane refuses at the door.
 const KEY = "const b = (r) => r.head + r.fill.repeat(r.count) + r.tail; const k = a.wrap ? [b(a.key)] : b(a.key);";
 const STORAGE_OPS = {
   set: `async (h, room, a) => { ${KEY} await h.storage.set(k, b(a.value)); return null; }`,
@@ -65,14 +63,6 @@ const CASES: readonly SizeCase[] = [
     op: "set",
     refusal: SIZE_REFUSAL,
     past: { key: repeated("k", PLUGIN_KV_KEY_MAX_CHARS + 1), value: v, wrap: false },
-    atCap: { key: KEY_AT_CAP, value: v, wrap: false },
-  },
-  {
-    // Arrives as the empty key, which the table's CHECK stored; the relay always refused it.
-    name: "NUL-led key passed as a plain string",
-    op: "set",
-    refusal: SIZE_REFUSAL,
-    past: { key: repeated("k", FAR_PAST_KEY_CHARS, NUL), value: v, wrap: false },
     atCap: { key: KEY_AT_CAP, value: v, wrap: false },
   },
   {

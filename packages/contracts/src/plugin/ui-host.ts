@@ -1,7 +1,7 @@
 // Scripted UI relay arguments exclude room identity; the mount supplies membership-checked scope.
 // Strip mode: these schemas also read plugin guest data, which can carry keys this release does not declare.
 import { z } from "zod";
-import { GLOBAL_VARIABLE_VALUE_MAX_BYTES, globalVariableKeySchema } from "../automation/index.ts";
+import { GLOBAL_VARIABLE_VALUE_MAX_BYTES, globalVariableKeySchema, withoutNul } from "../automation/index.ts";
 import type { UiProxyableHostFunction } from "./host-v1.ts";
 import { PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_KV_VALUE_MAX_BYTES } from "./host-v1.ts";
 import { byteBoundedString } from "./ui.ts";
@@ -25,12 +25,13 @@ export const PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX = 50;
 // Each schema is at least as strict as the column it reaches, so a refusal is the relay's coded answer and never the
 // table's CHECK error: `storage.kv` keys and values read the plugin table's caps, variables read the global plane's.
 
-/** A `storage.kv` key, counted in UTF-16 units with a NUL counted like any other character. The relay parses its
- *  arguments with it and the host's storage write measures a server guest's key with it, so both doors refuse alike. */
-export const pluginKvKeySchema = z.string().min(1).max(PLUGIN_KV_KEY_MAX_CHARS);
-/** A `storage.kv` value, counted in UTF-8 bytes; read by the relay and the host's storage write, as {@link pluginKvKeySchema}. */
-export const pluginKvValueSchema = byteBoundedString(PLUGIN_KV_VALUE_MAX_BYTES);
-const variableValue = byteBoundedString(GLOBAL_VARIABLE_VALUE_MAX_BYTES);
+/** A `storage.kv` key, counted in UTF-16 units and holding no NUL. The relay parses its arguments with it and the
+ *  host's storage write checks a server guest's key with it, so both doors refuse alike. */
+export const pluginKvKeySchema = withoutNul(z.string().min(1).max(PLUGIN_KV_KEY_MAX_CHARS));
+/** A `storage.kv` value, counted in UTF-8 bytes and holding no NUL; read by the relay and the host's storage write,
+ *  as {@link pluginKvKeySchema}. */
+export const pluginKvValueSchema = withoutNul(byteBoundedString(PLUGIN_KV_VALUE_MAX_BYTES));
+const variableValue = withoutNul(byteBoundedString(GLOBAL_VARIABLE_VALUE_MAX_BYTES));
 const noArgs = z.tuple([]);
 const oneKey = z.tuple([pluginKvKeySchema]);
 const oneVariable = z.tuple([globalVariableKeySchema]);

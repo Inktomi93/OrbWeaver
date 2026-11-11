@@ -39,9 +39,10 @@ import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASM
 import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
+import type { GuestMarshal } from "./marshal.ts";
+import { createGuestMarshal } from "./marshal.ts";
 import type { InFlightCounter, MembraneRuntime } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
-
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
@@ -111,8 +112,12 @@ const DEFAULT_LIMITS: PluginBudgets = {
   settleGraceMs: HOST_FN_DEADLINE_MS,
 };
 
-function readError(ctx: QuickJSContext, handle: QuickJSHandle): GuestError {
-  const dumped: unknown = ctx.dump(handle);
+/** What a guest error or result reads as when the realm cannot serialize it (a string too large to escape). */
+const UNREADABLE_GUEST_VALUE = "plugin host: the guest's value is too large to read";
+
+function readError(marshal: GuestMarshal, handle: QuickJSHandle): GuestError {
+  const read = marshal.fromGuest(handle);
+  const dumped: unknown = read.ok ? read.value : UNREADABLE_GUEST_VALUE;
   if (typeof dumped === "object" && dumped !== null) {
     const nameValue = ("name" in dumped ? dumped.name : null) ?? "Error";
     const messageValue = ("message" in dumped ? dumped.message : null) ?? "";
@@ -124,14 +129,18 @@ function readError(ctx: QuickJSContext, handle: QuickJSHandle): GuestError {
   return { name: "Error", message: String(dumped) };
 }
 
-function serializeGuest(ctx: QuickJSContext, handle: QuickJSHandle): string {
-  const dumped: unknown = ctx.dump(handle);
+/** The guest's return value as the host keeps it, or `null` when the realm cannot serialize it. */
+function serializeGuest(marshal: GuestMarshal, handle: QuickJSHandle): string | null {
+  const read = marshal.fromGuest(handle);
+  if (!read.ok) {
+    return null;
+  }
   // A guest STRING return flows back VERBATIM (a tool handler's string IS the result, never
   // re-JSON-stringified: a handler that returns `JSON.stringify(x)` yields exactly that JSON to the model).
-  if (typeof dumped === "string") {
-    return dumped;
+  if (typeof read.value === "string") {
+    return read.value;
   }
-  return dumped === undefined ? "undefined" : JSON.stringify(dumped);
+  return read.value === undefined ? "undefined" : JSON.stringify(read.value);
 }
 
 /** The mutable per-instance state the membrane reads (shared between the realm-installed host fns and the
@@ -178,16 +187,16 @@ export class Sandbox implements Disposable {
   private readonly log: LogRing;
   private readonly limits: PluginBudgets;
   private readonly state: ResidentState;
-  /** The realm's PRISTINE `JSON.parse`, captured before any guest code ran — the inbound args channel
-   *  (`parseArgs`). Held for the instance lifetime, disposed with the context. */
-  private readonly jsonParse: QuickJSHandle;
+  /** The context's marshal: the realm's PRISTINE `JSON` handles, captured before any guest code ran, through which
+   *  every value crosses (`marshal.ts`). Held for the instance lifetime, released before the context. */
+  private readonly marshal: GuestMarshal;
 
-  private constructor(init: { ctx: QuickJSContext; log: LogRing; limits: PluginBudgets; state: ResidentState; jsonParse: QuickJSHandle }) {
+  private constructor(init: { ctx: QuickJSContext; log: LogRing; limits: PluginBudgets; state: ResidentState; marshal: GuestMarshal }) {
     this.ctx = init.ctx;
     this.log = init.log;
     this.limits = init.limits;
     this.state = init.state;
-    this.jsonParse = init.jsonParse;
+    this.marshal = init.marshal;
   }
 
   /** Boot a fresh guest instance: load the process module, mint an isolated context, cap its memory + stack,
@@ -205,6 +214,10 @@ export class Sandbox implements Disposable {
     // It is INERT until a span opens a window — but it must be in place before the first pump, because a pump
     // is precisely where an un-installed handler let guest bytecode run unbounded.
     installCpuGuard(ctx, resolved.cpuDeadlineMs);
+    // The marshal captures the realm's own `JSON` BEFORE the realm is installed or any guest source runs, so a guest
+    // that later reassigns `JSON.parse` (or deletes `JSON`) cannot interpose on a value crossing either way.
+    using construction = new DisposableStack();
+    const marshal = construction.use(createGuestMarshal(ctx));
     // ONE ring for the instance's lifetime — the invocation AND every post-settle job pump push into it, and
     // `drain()` is destructive, so nothing here ever resets it. The optional mirror is the port's
     // per-line tap into the central log (`LogMirror`); absent ⇒ the ring alone.
@@ -234,6 +247,7 @@ export class Sandbox implements Disposable {
             bridge: opts.membrane.bridge,
             netEgress: opts.membrane.netEgress,
             log: opts.membrane.log,
+            marshal,
             currentChat: (): InvocationChat | null => state.chat,
             currentToken: (): string | null => state.token,
             inFlight: state.inFlight,
@@ -299,13 +313,11 @@ export class Sandbox implements Disposable {
               log.push("warn", message);
             },
           };
-    installRealm(ctx, seams, log, membrane);
-    // Capture `JSON.parse` HERE — after the realm is installed and BEFORE any guest source runs. The inbound
-    // args channel calls this handle, so a guest that later reassigns `JSON.parse` (or deletes `JSON`) cannot
-    // interpose on the host's marshalling of the next invocation's arguments.
-    using jsonNamespace = ctx.getProp(ctx.global, "JSON");
-    const jsonParse = ctx.getProp(jsonNamespace, "parse");
-    return new Sandbox({ ctx, log, limits: resolved, state, jsonParse });
+    installRealm(ctx, { seams, log, marshal }, membrane);
+    const sandbox = new Sandbox({ ctx, log, limits: resolved, state, marshal });
+    // The Sandbox owns the marshal from here and releases it before its context (`dispose`).
+    construction.move();
+    return sandbox;
   }
 
   /** Handles minted-but-not-yet-disposed by this sandbox's invocations. MUST be 0 between invocations — the
@@ -567,7 +579,7 @@ export class Sandbox implements Disposable {
     try {
       const result = produce();
       if (result.error) {
-        const error = readError(this.ctx, result.error);
+        const error = readError(this.marshal, result.error);
         result.error.dispose();
         return { ok: false, error, logs: this.log.drain() };
       }
@@ -582,13 +594,16 @@ export class Sandbox implements Disposable {
 
       if (settled.error) {
         const wrapped = this.take(settled.error);
-        const error = readError(this.ctx, settled.error);
+        const error = readError(this.marshal, settled.error);
         this.drop(wrapped);
         return { ok: false, error, logs: this.log.drain() };
       }
       const wrapped = this.take(settled.value);
-      const value = serializeGuest(this.ctx, settled.value);
+      const value = serializeGuest(this.marshal, settled.value);
       this.drop(wrapped);
+      if (value === null) {
+        return { ok: false, error: { name: "Error", message: UNREADABLE_GUEST_VALUE }, logs: this.log.drain() };
+      }
       return { ok: true, value, logs: this.log.drain() };
     } finally {
       // Restore the enclosing window (`Infinity` at the top level) rather than removing the handler: the
@@ -650,10 +665,9 @@ export class Sandbox implements Disposable {
    *  The parse runs inside the guest, so its cost is bounded by the instance's own memory + stack caps
    *  (a pathological nesting depth is a contained guest `RangeError`, reported here as the refusal). */
   private parseArgs(json: string): QuickJSHandle | string {
-    using arg = this.ctx.newString(json);
-    const result = this.ctx.callFunction(this.jsonParse, this.ctx.undefined, arg);
+    const result = this.marshal.parseIntoGuest(json);
     if (result.error) {
-      const detail = readError(this.ctx, result.error);
+      const detail = readError(this.marshal, result.error);
       result.error.dispose();
       return `plugin host: handler args must be a JSON document (${detail.message})`;
     }
@@ -677,7 +691,7 @@ export class Sandbox implements Disposable {
     if (this.ctx.alive) {
       // BEFORE the context: a handle disposed after `ctx.dispose()` is a use-after-free, and gating both on
       // `alive` is what keeps this method re-entrant (`[Symbol.dispose]` + an explicit `dispose()`).
-      this.jsonParse.dispose();
+      this.marshal[Symbol.dispose]();
       this.ctx.dispose();
     }
   }

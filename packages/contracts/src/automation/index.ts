@@ -170,7 +170,20 @@ export const AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR = 30;
 export const GLOBAL_VARIABLE_KEY_MAX_CHARS = 128;
 export const GLOBAL_VARIABLE_VALUE_MAX_BYTES = 65_536; // 64 KiB
 
-export const globalVariableKeySchema = z.string().min(1).max(GLOBAL_VARIABLE_KEY_MAX_CHARS);
+const NUL = "\u0000";
+
+/** Whether `text` holds a NUL. A store whose text a guest or plugin UI writes refuses one: the database driver
+ *  returns TEXT cut at its first NUL, so a stored NUL would read back as a different string. */
+export function containsNul(text: string): boolean {
+  return text.includes(NUL);
+}
+
+/** `schema` refusing a string that holds a NUL ({@link containsNul}). */
+export function withoutNul<S extends z.ZodType<string, string>>(schema: S): S {
+  return schema.refine((text) => !containsNul(text), { error: "must not contain a NUL character" });
+}
+
+export const globalVariableKeySchema = withoutNul(z.string().min(1).max(GLOBAL_VARIABLE_KEY_MAX_CHARS));
 
 /** The server-side projection read while building the CEL environment and by the test-rule verb. Never carries
  *  `ownerId` — the plane is single-owned, so a view is always the caller's own. */

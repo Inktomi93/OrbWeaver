@@ -758,14 +758,16 @@ interface PluginHostV1 {
     documents: (queryText: string, opts?: { limit?: number }) => Promise<readonly PluginSearchHit[]>;
   };
 
-  /** The installing user's global `{{getglobalvar}}` namespace. capability: global_vars */
+  /** The installing user's global `{{getglobalvar}}` namespace. A key or value holding a NUL character is refused:
+   *  stored text reads back cut at its first NUL. capability: global_vars */
   readonly variables: {
     get: (key: string) => Promise<string | null>;
     set: (key: string, value: string) => Promise<void>;
     delete: (key: string) => Promise<void>;
   };
 
-  /** Your plugin-PRIVATE KV (per plugin × installer): ≤ 256 keys, ≤ 64 KiB per value. capability: storage.kv */
+  /** Your plugin-PRIVATE KV (per plugin × installer): ≤ 256 keys, ≤ 64 KiB per value. A key or value holding a NUL
+   *  character is refused: stored text reads back cut at its first NUL. capability: storage.kv */
   readonly storage: {
     get: (key: string) => Promise<string | null>;
     set: (key: string, value: string) => Promise<void>;
