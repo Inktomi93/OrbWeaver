@@ -137,7 +137,7 @@ packages/client/
       time.ts           #   THE date/time seam: server sends epoch-UTC numbers; client formats to browser-local tz
                         #     via memoized Intl.*; `now` is INJECTED (determinism §11.5). Never store/send formatted
                         #     dates or a tz; localization happens ONCE here at the display edge.
-    styles/ globals.css (the typed test-id registry is packages/client/src/lib/test-ids.ts, §11.5)
+    styles/ globals.css · test-ids.ts in lib/ (§11.5)
 ```
 
 - **Why not FSD:** `@orb/ui` already IS the shared-component layer; the `entities/` layer overlaps the feature concept and adds ceremony neo's flat slice never needed.

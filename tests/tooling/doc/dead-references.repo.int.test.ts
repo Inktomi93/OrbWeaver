@@ -292,13 +292,16 @@ describe("the readers", () => {
 
   test("a missing pnpm script is refused in a string, a backticked comment, a run line and a law fence, and prose passes", () => {
     const known = new Set(["test", "exec", "lint"]);
+    // The planted commands are spliced around the runner name, so this file's own string literals name no command and
+    // the real-tree check above, which reads this file too, does not flag its fixtures.
+    const run = "pnpm";
     const sources: Source[] = [
       {
         path: "tooling/src/a.ts",
-        text: 'const hint = "run `pnpm check:docs` first";\nconst note = "a child of pnpm and its workers";\n// the top-level pnpm and its workers; `pnpm lint` then `pnpm verify`, never `pnpm sdk:*-probe`\nexport {};\n',
+        text: `const hint = "run \`${run} check:docs\` first";\nconst note = "a child of ${run} and its workers";\n// the top-level ${run} and its workers; \`${run} lint\` then \`${run} verify\`, never \`${run} sdk:*-probe\`\nexport {};\n`,
       },
-      { path: ".github/workflows/w.yml", text: "jobs:\n  a:\n    steps:\n      - run: pnpm test:scoped x && pnpm exec tsc\n" },
-      { path: "docs/law/Law.md", text: "Run `pnpm test x`.\n\n```bash\npnpm ghost\n```\n" },
+      { path: ".github/workflows/w.yml", text: `jobs:\n  a:\n    steps:\n      - run: ${run} test:scoped x && ${run} exec tsc\n` },
+      { path: "docs/law/Law.md", text: `Run \`${run} test x\`.\n\n\`\`\`bash\n${run} ghost\n\`\`\`\n` },
     ];
     expect(deadPnpmCommands(sources, known)).toStrictEqual([
       "tooling/src/a.ts:1 pnpm check:docs",
