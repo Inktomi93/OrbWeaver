@@ -18,7 +18,7 @@ A NUL in pasted or imported text, or in a model reply, silently shortens what th
 
 ## Done when
 
-A recorded decision chooses one rule for the whole app: text is refused or stripped of NUL at the write boundaries where it enters (the contracts schemas for user, import and model text), or text columns are read as bytes by one column type or driver setting in packages/db. The rule is built in that one home, a test writes a NUL-bearing string through a real write path and reads it back by the chosen rule, and a scan of the owner's database copy reports any existing row that holds a NUL.
+Owner ruling: text is stripped of NUL at the write boundaries where it enters. The contracts schemas for user, import and model text strip it in one shared home, a test writes a NUL-bearing string through a real write path and reads back the stripped text, and a scan of the owner's database copy reports any existing row that holds a NUL.
 
 ## Evidence
 
