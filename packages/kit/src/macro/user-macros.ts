@@ -75,8 +75,8 @@ export interface UserMacroInputDef {
 }
 
 /** One preset/game-authored macro definition — the shape `@orb/contracts/preset.userMacroSchema`
- *  produces (defined THERE as zod, typed HERE so kit needs no contracts import; the contract test pins
- *  the assignability). `args` are the SAME `MacroArgDef` contract builtins declare — `checkMacroArgs`
+ *  produces (defined THERE as zod, typed HERE so kit needs no contracts import).
+ *  `args` are the SAME `MacroArgDef` contract builtins declare — `checkMacroArgs`
  *  enforces them identically. */
 export interface UserMacroDef {
   readonly name: string;

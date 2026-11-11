@@ -139,8 +139,8 @@ const PLUGIN_TOOL_WIRE_NAME_MAX = 64;
 /** `PLUGIN_TOOL_NAME_PREFIX.length` (`registrations.ts`, the literal `"plugin_"`) restated as a number so
  *  the arithmetic below reads as arithmetic rather than a bare `7`. A same-package import here would reach
  *  BACK into `registrations.ts`, which itself type-imports `./ui.ts` — this file's own downstream
- *  consumer — so the tie is a literal, PINNED by the cross-package test named above rather than a second
- *  import edge. */
+ *  consumer — so the tie is a literal rather than a second
+ *  import edge. Keep it equal to that prefix length. */
 const PLUGIN_TOOL_WIRE_NAME_PREFIX_LEN = 7;
 // The install slug's hard cap. Every showcase plugin's slug is ≤ 17 bytes
 //  (`research-familiar`, `packages/showcase-plugins/bundles/research-familiar/manifest.json`); 20 clears

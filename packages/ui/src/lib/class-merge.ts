@@ -253,7 +253,7 @@ function conflictAxis(loser: string, winner: string): string {
 // The broader reading is unusable: a custom token overriding a CORE keyword on the same axis (`gap-block`
 // over `gap-0`, `h-(--size-control-sm)` over `h-auto`, `rounded-control` over `rounded-none`, `leading-body` over
 // `leading-tight`) also has a token on exactly one side, and every one of those is a LEGITIMATE override
-// this repo's suite pins by name. What cannot be legitimate is an eviction between a color utility and a
+// tests/ui/class-merge-trace.test.ts pins by name. What cannot be legitimate is an eviction between a color utility and a
 // non-color one: Tailwind's color groups (text-color, bg-color, border-color, …) conflict only with
 // themselves, so if the merger made one evict the other it has put them in one group by mistake.
 //

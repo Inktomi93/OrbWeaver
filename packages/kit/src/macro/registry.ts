@@ -833,7 +833,7 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("lastCharMessage", (_args, ctx) => ctx.lastCharMessage ?? "", volChat);
 
   // Backfill DX metadata for every builtin above — one loop, off the register() calls so they
-  // stay churn-free. A completeness test asserts every registered name is covered here.
+  // stay churn-free. Every registered name must be covered here.
   for (const [name, input] of Object.entries(BUILTIN_MACRO_METADATA)) {
     registry.setMetadata(name, input);
   }

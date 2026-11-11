@@ -152,7 +152,7 @@ const forgeFieldRowSchema = z
   // schema is also what the AUTHORING belt validates through, so the author is the one who should hear
   // about it. Lives on the ROW rather than on each envelope so all three call arms (design, per-field,
   // and the belt) inherit one check. `.refine` on a zod-4 object keeps the object class and its `shape`,
-  // so `projectJsonSchema` still walks it — pinned in the suite.
+  // so `projectJsonSchema` still walks it.
   .refine((row) => row.minimum === undefined || row.maximum === undefined || row.minimum <= row.maximum, {
     error: "minimum must be less than or equal to maximum",
     path: ["maximum"],
@@ -231,7 +231,7 @@ export const forgeHintEnvelopeSchema = z.object({ hints: z.array(forgeHintRowSch
 
 /** The stage's canonical core NODE + its property name — injected into every transpiled design so the
  *  belt's well-known-core refusal is unreachable from the forge (header). Byte-compatible with what
- *  `coreIssueOf` (./schema-authoring.ts) demands; the contract test pins the correspondence. */
+ *  `coreIssueOf` (./schema-authoring.ts) demands. */
 /** The verdict banner's tints. Built from `REFINERY_VERDICTS` by INDEX rather than written as an object
  *  literal: the keys are the enum's own uppercase member spellings, and spelling them as identifiers would
  *  both re-declare the vocabulary and read as a naming-convention violation to every linter. */

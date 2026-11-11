@@ -101,7 +101,7 @@ export interface ImportProfileDeps {
   /** The IANA zone SillyTavern's zone-less wall-clock timestamps (`send_date`'s human forms, the filename /
    *  header `create_date`) were written against — ST builds them off the local `Date` of the box it ran on.
    *  INJECTED, never read ambiently down in the parser: the composition root resolves it (`hostTimeZone()`,
-   *  correct whenever a corpus is imported on the box that produced it) and a test pins it. Absent ⇒ the
+   *  correct whenever a corpus is imported on the box that produced it). Absent ⇒ the
    *  serde's `"UTC"` default. */
   readonly stWallClockZone?: string;
   readonly personaByUserName: Map<string, PersonaId>;

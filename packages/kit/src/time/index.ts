@@ -93,7 +93,7 @@ function naiveIsoMs(value: string): number | null {
  *  five forms that now read `null` — reduced precision (`2026`, `2026-07`), ISO week (`2026-W27-5`),
  *  ISO ordinal (`2026-185`) and end-of-day (`…T24:00:00`). Deliberate and fail-closed: the sole
  *  consumer (`server/primitives/serde/chat` parseStDate) feeds it ST timestamps containing `T`, which are
- *  plain date-times, and every one of the five is pinned in the suite so a re-widening is a decision.
+ *  plain date-times, and every one of the five stays rejected so a re-widening is a decision.
  *  A SPACE separator (`2026-07-03 12:00:00`) stays rejected — Temporal accepts it as an extension,
  *  luxon did not, and this function's contract is ISO. */
 export function isoToMs(value: string): number | null {
@@ -128,7 +128,7 @@ const END_OF_DAY_HOUR = 24;
 /** A zone-less wall-clock reading (1-based `month`) resolved in `zone` → epoch ms; null when the parts
  *  or the zone name are invalid. DST-aware per instant (a corpus spanning a transition gets each arm's
  *  real offset, which a single fixed offset cannot express) — a spring-forward GAP reading shifts
- *  forward and a fall-back AMBIGUOUS one takes the earlier offset, both pinned in the suite.
+ *  forward and a fall-back AMBIGUOUS one takes the earlier offset.
  *
  *  `zone` must be an IANA name or a numeric `±HH:MM` offset; the luxon parser this replaced also took
  *  the non-IANA `UTC+2` spelling, which now reads null (no producer emits it — every live caller passes

@@ -10,7 +10,7 @@
 //   • the ON-DEMAND single card (`suggestCharacterTags`, the editor's "Suggest tags") THROWS. That pass IS
 //     one card, so containing its failure returned a 200 carrying `{distilled: 0}` that no client
 //     reads — the button went quiet and told the user nothing (the exact lying-empty-state the typed errors
-//     in `contract/errors.ts` exist to kill). Both arms are pinned by tests; don't collapse them.
+//     in `contract/errors.ts` exist to kill). Keep both arms; don't collapse them.
 //
 // THE CONTENT FLOOR runs through the same switch (owner ruling 2026-08-03): a card with no writing beyond its
 // name is NOT distillable — the payload schema requires genre/tone/setting/pitch/overview/3-8 tags, so every

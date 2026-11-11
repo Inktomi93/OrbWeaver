@@ -63,3 +63,4 @@ Exported API uses `/** */` TSDoc; a non-exported helper uses `//`. The `tsdoc/sy
 - `FLAG[<name>]` marks a deliberate design. Do not remove it.
 - Tracked debt is a `docs/work` item, not a comment marker. File it there and cite the item id or path.
 - A repo path in a comment, a doc or a test file, must name a tracked file; `tests/tooling/doc/comment-path-citations.repo.int.test.ts` checks it. Move or delete a cited file and repoint its citers in the same commit.
+- A comment that says a test, a lint rule or another check enforces something names it by tracked path or rule id. When no check exists, state the rule and claim none.

@@ -5,7 +5,7 @@
 //
 // THERE IS ONE PARSER LEFT (#1315). The family tables were the accepted-vocabulary source for Snap AND
 // its four sibling CLIs; the siblings are folded into Snap arms and their argv doors are gone, so this
-// file is now Snap's own enforcement input plus the two tests that pin the vocabulary. It is kept rather
+// file is now Snap's own enforcement input plus the vocabulary that tests/tooling/floor/instrument/instrument-argv.test.ts pins. It is kept rather
 // than inlined because the FAMILY is the contract: `instrumentFamilyRosterErrors` still makes a missing
 // shared member fail loud before a browser boots, which is what caught a parser that quietly stopped
 // accepting `--isolated`.

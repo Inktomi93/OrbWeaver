@@ -188,7 +188,7 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean; reado
       // BOTH ARMS carry it. Dev's `'unsafe-eval'` already subsumes wasm compilation, so naming it there changes
       // nothing a browser does — but a directive that differs between dev and prod is a directive that gets
       // debugged in the wrong environment, and the whole point of this pair is that they differ ONLY in the two
-      // HMR loosenings the test pins.
+      // HMR loosenings.
       scriptSrc: opts.dev ? [SELF, "'unsafe-inline'", "'unsafe-eval'", WASM_EVAL] : [SELF, WASM_EVAL],
       // blob: workers/SharedWorkers fall back to script-src without an explicit worker-src (which lacks blob:).
       // Dev AND prod — the worker-backed feature runs in both.

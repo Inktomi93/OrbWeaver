@@ -7,7 +7,6 @@
 //        • explicit `null` ⇒ leaf CLEAR (write null)
 //        • a non-empty plain object over a plain-object base ⇒ recurse
 //        • anything else (array / primitive / object-over-nonobject) ⇒ replace
-//      (The transition test pins the `{}`-noop vs `null`-clear seam.)
 //
 //   2. LOCK HONORING (manual-edit-wins) — `applyLockedPatch` drops any patch path present in `fieldLocks`
 //      (a presence-key `Record<dottedPath, true>`). Only `editSnapshot` (the hand-edit verb, W1b) WRITES

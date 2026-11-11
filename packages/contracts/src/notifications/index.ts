@@ -79,7 +79,7 @@ export const PLUGIN_NOTIFICATION_RECIPIENTS = ["host", "all_members"] as const s
 export type PluginNotificationRecipient = (typeof PLUGIN_NOTIFICATION_RECIPIENTS)[number];
 
 // The discriminant strings ARE the db `notifications.type` column values. Closed: a new delivery
-// reason is a member here + its chat producer; the contract test's exhaustiveness guard catches drift.
+// reason is a member here + its chat producer.
 export const notificationEventSchema = z.discriminatedUnion("type", [
   z
     .object({

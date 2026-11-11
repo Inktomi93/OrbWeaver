@@ -87,7 +87,7 @@ const RESPONSE_FORMAT_NAME = "run_analysis";
 /** A card's quoted-text preview cap — the summary is one line of host prose, not a document. */
 const CARD_QUOTE_MAX = 120;
 
-// ── the pass prompts (pure — the golden test pins them) ───────────────────────────────────────────────
+// ── the pass prompts (pure) ───────────────────────────────────────────────
 // The CLAUSES are PROSE-1 slots (`contracts/automation/prose.ts`, the `automation.analysis.*` family):
 // shipped defaults authored FRESH against the legacy director's PROVEN semantics (narrator-not-players ·
 // optional-scaffolding/soft-tensions · retire-on-payoff · empty-is-the-common-case · when-in-doubt-do-less),

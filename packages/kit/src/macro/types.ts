@@ -104,7 +104,7 @@ export type MacroSourceOf<K extends MacroSourceKind> = Extract<MacroSourceRef, {
  *  These declarations are the RUNTIME contract too — the evaluator pads a missing optional
  *  arg with its `default` before the handler runs, and `type` is enforced in the execution path
  *  (violations degrade per `MacroArgViolation`, never throw). Optional args form a CONTIGUOUS SUFFIX
- *  after the required ones (the arity check counts on it; a metadata-shape test pins the builtins). */
+ *  after the required ones (the arity check counts on it). */
 export interface MacroArgDef {
   readonly name: string;
   readonly type: MacroArgType;

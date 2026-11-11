@@ -7,7 +7,7 @@
 //
 // `kind` DERIVES the canonical `ASSET_KINDS` tuple from `@orb/contracts/assets` (the ONE home — the db
 // enum, the upload route, and the client all derive from it; §7.5); the column
-// never re-spells the union, and a tuple-built CHECK enforces it at the SQL level (a test-mirror pins db
+// never re-spells the union, and a tuple-built CHECK enforces it at the SQL level (tests/db/schema/enum-tuples.suite.test.ts pins db
 // === contracts).
 
 import { ASSET_KINDS } from "@orb/contracts/assets";

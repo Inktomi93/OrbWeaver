@@ -21,7 +21,7 @@
 //     from `creator` + `importedFrom` at the READ seam; this pack's only lever is `creator`, and it spends it
 //     on the shared `AUTHORED_CARD_CREATOR` marker so all ten read `shipped`. A card here that carried a
 //     `source` URL list (the V3 upstream-provenance field) while reading `shipped` would be exactly the
-//     impossible pair #893 found in a fixture — so `source` stays null, pinned in the contract suite.
+//     impossible pair #893 found in a fixture — so `source` stays null.
 //   · The CARRIED BACKGROUND is computed, not typed — see {@link seededBackground}.
 // The two hand-authored fields that DO ride a derivation's output are `creator` (above) and the scene plate.
 //
@@ -751,8 +751,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
 
 /** The shipped pack. The authored literals above carry the CONTENT and the palette; the scene plate's SLUG
  *  is attached HERE, from each card's own handle, so the card ↔ plate coupling is structural rather than a
- *  convention ten literals have to keep (#900 — a fixture/seed field the product derives is derived, and the
- *  contract suite pins the result against the shipped `SEED_BACKGROUND_PLATES` manifest). */
+ *  convention ten literals have to keep (#900 — a fixture/seed field the product derives is derived). */
 export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = AUTHORED_CARDS.map(
   (card): SeedCard => ({ ...card, backgroundSlug: backgroundSlugFor(card.input.handle) }),
 );

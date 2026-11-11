@@ -1,5 +1,5 @@
 // The cross-domain joint-batch ops the ledger rules, by ruling, each with the domain that builds it. An op is the
-// member or the type that names it, as D337's table writes it. A test holds the D337 group equal to that table and
+// member or the type that names it, as D337's table writes it. tests/tooling/unwired/ruled-ops.test.ts holds the D337 group equal to that table and
 // the D259 group to D337's citation; a handle pass no entry names reports as `db-handle-review`.
 
 export const JOINT_BATCH_RULINGS = [

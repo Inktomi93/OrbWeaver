@@ -67,7 +67,7 @@ async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<R
  * verbatim for the caller's own empty-skip guard).
  *
  * The vLLM summarize surface is DELIBERATELY all-or-nothing (a per-item throw rejects the whole batch — a
- * contract chat-turn callers depend on and a pinned test asserts). So a batch rejection here keeps the items the
+ * contract chat-turn callers depend on and tests/inference/roles/side-gen.int.test.ts asserts). So a batch rejection here keeps the items the
  * batch finished (`ProviderError.partialItems`) and falls back to ISOLATED per-item calls for the rest: a POISON
  * item then loses only itself and the rest still build (the content-hash self-heal retries the dropped item next
  * pass). The fallback runs only on failure, so the happy path stays a single batched call.
