@@ -4,6 +4,10 @@ import { runInNewContext } from "node:vm";
 import { expect, plantFile, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
+import { scaledBudget } from "./_load-budget.ts";
+
+// Each case spawns the native compiler twice (showConfig, then the probe); a cold program takes seconds on a busy box.
+const COMPILE_BUDGET_MS = scaledBudget(30_000);
 
 const effectiveConfigSchema = z.object({ files: z.array(z.string()).optional() });
 
@@ -148,7 +152,7 @@ for (const [name, project, source] of [
   ["Node", "tsconfig.world-node.json", NODE],
   ["browser", "tsconfig.world-browser.json", BROWSER],
 ] as const) {
-  test(`${name} host types preserve the production world's boundaries`, ({ repoRoot, scratch }) => {
+  test(`${name} host types preserve the production world's boundaries`, { timeout: COMPILE_BUDGET_MS }, ({ repoRoot, scratch }) => {
     const result = compileHost(repoRoot, scratch, project, { source });
     expect(result.status, result.stdout || result.stderr).toBe(0);
   });
@@ -158,14 +162,14 @@ for (const [project, source, home, diagnostic] of [
   ["packages/kit/tsconfig.json", ISO, "platform-iso.d.ts", "Cannot find name 'URL'"],
   ["tsconfig.world-node.json", NODE, "platform-node.d.ts", "Cannot find namespace 'WebAssembly'"],
 ] as const) {
-  test(`removing ${home} restores the missing host type failure`, ({ repoRoot, scratch }) => {
+  test(`removing ${home} restores the missing host type failure`, { timeout: COMPILE_BUDGET_MS }, ({ repoRoot, scratch }) => {
     const result = compileHost(repoRoot, scratch, project, { source, omitHome: join(repoRoot, home) });
     expect(result.status).not.toBe(0);
     expect(result.stdout).toContain(diagnostic);
   });
 }
 
-test("the native compiler reaches planted source errors", ({ repoRoot, scratch }) => {
+test("the native compiler reaches planted source errors", { timeout: COMPILE_BUDGET_MS }, ({ repoRoot, scratch }) => {
   const result = compileHost(repoRoot, scratch, "tsconfig.world-node.json", { source: 'export const invalid: number = "wrong";' });
   expect(result.status).not.toBe(0);
   expect(result.stdout).toContain("TS2322");

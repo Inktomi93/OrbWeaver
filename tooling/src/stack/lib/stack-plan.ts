@@ -3,7 +3,7 @@
 import { isAbsolute, join, resolve } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
-import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import { CREDENTIALS_KEY_ENV, SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
 import type { EnvKey } from "@orb/server/foundation/env/record";
 import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import { pathOccurrences } from "../../floor/host/path-boundary.ts";
@@ -34,7 +34,7 @@ const PIN_DEFAULTS: Readonly<Record<DevPinKey, string>> = Object.fromEntries([
   [AUTH_FALLBACK_KEY, "owner"],
   [AUTH_MODE_KEY, "single-user"],
   [SESSION_SECRET_ENV, "orbweaver-dev-only-session-secret-insecure"],
-  ["CREDENTIALS_KEY" satisfies EnvKey, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
+  [CREDENTIALS_KEY_ENV, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
   [LOCAL_INITIAL_PASSWORD_ENV, "orbweaver-dev-password"],
   ["DEV_SEED", "on"],
 ] satisfies readonly (readonly [DevPinKey, string])[]) as Record<DevPinKey, string>;

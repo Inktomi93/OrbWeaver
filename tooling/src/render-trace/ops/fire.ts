@@ -26,7 +26,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { errorMessage } from "@orb/kit/error-message";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import type { RequestTrace } from "@orb/server/foundation/observability";
 import { budgets } from "@orb/tooling/floor/host/load-budget";
 import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
@@ -106,24 +108,25 @@ async function waitForReady(baseUrl: string, deadlineMs: number): Promise<void> 
 }
 
 function serverEnv(port: number, dbPath: string, debugToken: string): NodeJS.ProcessEnv {
-  return inheritedProcessEnv({
+  const serverKeys = {
     PORT: String(port),
     DEBUG_TOKEN: debugToken,
     // The probe's OWN data root beside its db, so its secrets, caches and reports never land in — and its
     // boot never migrates — the checkout's real `data/`.
     DATA_DIR: dirname(dbPath),
     DATABASE_URL: `file:${dbPath}`,
-    // Skip the operator's `.env` ENTIRELY and declare the identity contract explicitly (mirrors
-    // tests/e2e/support/modes.ts's HARNESS_OWNER_HANDLE) — an env-file OWNER_HANDLES once seeded the
-    // throwaway DB with the operator's owner identity, so identity/role-shaped routes answered per-box.
-    ORB_ENV_NO_FILE: "1",
+    // Declare the identity contract explicitly (mirrors tests/e2e/support/modes.ts's HARNESS_OWNER_HANDLE) —
+    // an env-file OWNER_HANDLES once seeded the throwaway DB with the operator's owner identity, so
+    // identity/role-shaped routes answered per-box.
     OWNER_HANDLES: "owner",
     // single-user: the probe debugs server behaviour, not auth flows — no IdP ceremony.
     AUTH_MODE: "single-user",
     // No embedder spin-up for a one-shot probe (same pin as vitest.config.ts).
     CORPUS_AUTOINDEX: "false",
     LOG_LEVEL: "warn",
-  });
+  } satisfies Partial<Record<EnvKey, string>>;
+  // Skip the operator's `.env` ENTIRELY; the launcher's own switch is no server key, so it stays outside the typed object.
+  return inheritedProcessEnv({ ...serverKeys, [ENV_NO_FILE_KEY]: "1" });
 }
 
 interface FiredBatch {

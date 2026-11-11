@@ -21,7 +21,7 @@ import { scanArgv } from "./parse-scan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-// ALIAS_REFUSALS (§4.3, floor/instrument/instrument-argv.ts): snap owns the real targets (--full/--every/
+// ALIAS_REFUSALS (floor/instrument/instrument-argv.ts): snap owns the real targets (--full/--every/
 // --shot-of/--out), so an asked-for --full-page/--watch-every/--screenshot/--name refuses BY NAME here.
 type ValidationPair = readonly [boolean, string];
 

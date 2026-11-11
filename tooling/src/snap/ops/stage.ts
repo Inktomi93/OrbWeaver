@@ -67,6 +67,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
@@ -143,27 +144,30 @@ function stageIdentityEnv(root: string, ports: StagePorts, auth: StageAuthMode, 
 }
 
 function bootStage(paths: StagePaths, ports: StagePorts, inherited: Record<string, string>): void {
-  const env = inheritedProcessEnv({
-    // The band's address, the same env the teardown's `stack down` resolves its ports from. It also skips
-    // the repo-root .env entirely, so the operator's DEBUG_TOKEN/WIRE_CAPTURE/OIDC_* never arm a second
-    // /api/_debug/* surface behind a copy of the dev DB; the keys the copied DB needs are declared below.
-    ...stageBandEnv(ports),
+  const serverKeys = {
     // ONE root for the stage's db, assets, secrets and caches; the server derives every path from it, and
     // `seedStageData` filled it from the same derivation.
     DATA_DIR: paths.dataDir,
     // A stage is a render target that never embeds. The background model load stalls the server's event
     // loop for about a minute on a loaded box, so every API read times out and the stage reads BOOT-DEAD.
     LOCAL_LIGHT_PREFETCH: "off",
-    // The DB-BOUND keys, and ONLY those — see STAGE_INHERITED_ENV_KEYS for the per-key reason. The stage's
-    // DB is a COPY of the dev DB, so a value the copied rows are bound to (the owner row's handle, the
-    // credential ciphertext's key) must come across or the stage boots against data it cannot read. An
-    // absent key falls through to the schema's own default, exactly like an unset key always has.
-    ...inherited,
     // Minted per stage boot (like `tooling/src/render-trace/ops/fire.ts`) rather than inherited — the operator's real token must
     // never arm a second, less-guarded /api/_debug/* surface. WIRE_CAPTURE stays at its schema default
     // (off) under ORB_ENV_NO_FILE; a caller who wants the wire-capture surface on the stage can still
     // export WIRE_CAPTURE=on in their own shell (ambient environment above), same as any other opt-in.
     DEBUG_TOKEN: randomBytes(DEBUG_TOKEN_BYTES).toString("hex"),
+  } satisfies Partial<Record<EnvKey, string>>;
+  const env = inheritedProcessEnv({
+    // The band's address, the same env the teardown's `stack down` resolves its ports from. It also skips
+    // the repo-root .env entirely, so the operator's DEBUG_TOKEN/WIRE_CAPTURE/OIDC_* never arm a second
+    // /api/_debug/* surface behind a copy of the dev DB; the keys the copied DB needs are declared below.
+    ...stageBandEnv(ports),
+    ...serverKeys,
+    // The DB-BOUND keys, and ONLY those — see STAGE_INHERITED_ENV_KEYS for the per-key reason. The stage's
+    // DB is a COPY of the dev DB, so a value the copied rows are bound to (the owner row's handle, the
+    // credential ciphertext's key) must come across or the stage boots against data it cannot read. An
+    // absent key falls through to the schema's own default, exactly like an unset key always has.
+    ...inherited,
   });
   // Resolved, not hardcoded (#447): an older `--ref` stage ships a shell launcher where the current tree
   // ships the stack cli. A ref with neither is refused BY NAME here rather than spawning a path that does

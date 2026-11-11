@@ -24,7 +24,7 @@ import { trimEndWhile } from "@orb/kit/strings";
 import { SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import type { DataLayout } from "#foundation/data-layout";
-import { DATABASE_URL_KEY, DEFAULT_DATA_DIR, resolveDataLayout, SESSION_SECRET_ENV } from "#foundation/data-layout";
+import { CREDENTIALS_KEY_ENV, DATABASE_URL_KEY, DEFAULT_DATA_DIR, resolveDataLayout, SESSION_SECRET_ENV } from "#foundation/data-layout";
 import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "../allowed-hosts.ts";
 import { resolveBindPosture } from "../bind.ts";
@@ -431,7 +431,7 @@ const envObjectSchema = z.object({
 
   // 32 random bytes for AES-256-GCM (hex or base64). Unset ⇒ `<DATA_DIR>/secrets/credentials_key` is
   // generated on first boot and reused (`infra/crypto/key.ts`); an explicit value always wins.
-  CREDENTIALS_KEY: z.string().optional(),
+  [CREDENTIALS_KEY_ENV]: z.string().optional(),
 
   // Required iff AUTH_MODE=oidc. OIDC_REDIRECT_URIS is a comma-list allowlist of the full callback URLs;
   // the login route derives the callback from the request origin and accepts it only on exact match.
