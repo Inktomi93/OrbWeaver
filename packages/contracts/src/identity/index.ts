@@ -62,6 +62,10 @@ export const adminUserViewSchema = z.strictObject({
  *  server gate keys on it. `SameSite=Lax` + this header is the whole CSRF story. */
 export const CSRF_HEADER = "x-orb-csrf";
 
+/** The event URI an identity provider's back-channel logout token carries in its `events` claim (OIDC
+ *  Back-Channel Logout §2.4). Cross-boundary wire fact: the provider writes it and the server's verifier requires it. */
+export const OIDC_BACKCHANNEL_LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
+
 /** The cleartext local-password floor. The hashing boundary, the env's initial password and the admin verbs
  *  all enforce this one value. */
 export const MIN_PASSWORD_LENGTH = 8;

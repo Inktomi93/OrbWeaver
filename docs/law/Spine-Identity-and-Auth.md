@@ -75,31 +75,34 @@ Code comments cite the numbered invariants below as "invariant N":
    in its own resolver — its row read (`loadUserById`) deliberately gates nothing, so the frozen-host
    bridge can still resolve a disabled-or-offline host's authority. That bridge keeping no gate is the
    intended divergence, not an oversight.
-9. **CSRF gates on `hasCsrfHeader`, keyed to the ambient-credential paths.** Only `via:"header"` (a
-   trusted proxy asserts the identity; a browser cannot forge the proxy's headers) is CSRF-immune by
-   construction. The cookie path and the loopback owner fallback path are both ambient — the browser
-   auto-attaches the cookie, and the fallback rides the loopback socket — so a cross-site page can drive
-   either. The gate splits by content-type: the byte-ingest routes (`packages/server/src/entry/http/upload.ts`, which
-   registers `/api/assets/upload`, `/api/databank/upload` and `/api/import`, plus `import-tree.ts`,
-   `import-chat.ts`, and `import.ts`'s `/api/import/bundle`) accept a CORS-simple content-type, so they
-   gate on `via !== "header"` — cookie and fallback both need the `x-orb-csrf` header. tRPC
-   (`packages/server/src/transport/trpc/trpc.ts`) keys on `cookie` only, which the un-cookied loopback dev tooling relies on.
-   The OIDC back-channel logout route carries no CSRF check because it reads no ambient credential: the
-   issuer-signed `logout_token` is its only authentication. A route that reads an ambient credential is never
-   exempt. Each exempt route registers through its entry in `CSRF_EXEMPT_ROUTES`
-   (`packages/server/src/entry/auth/csrf-exemptions.ts`), and every other exemption needs its own law or ledger line.
+9. **CSRF gates on `hasCsrfHeader` or on a JSON-only content type, and every credential path is ambient.**
+   A cross-site page can send a CORS-simple request with any of the three credentials attached. The browser
+   auto-attaches the session cookie. The loopback owner fallback rides the socket a browser on the box
+   already speaks from. A forward-auth proxy stamps its identity header (`via:"header"`) on any request that
+   carries the proxy's own login credential, and that credential can be ambient too: a `SameSite=None`
+   proxy cookie, a sibling service on the same site, or HTTP Basic. The byte-ingest routes
+   (`packages/server/src/entry/http/upload.ts`, which registers `/api/assets/upload`, `/api/databank/upload`,
+   `/api/import` and `/api/import/restore-card-lorebook`, plus `import-tree.ts`, `import-chat.ts`, and
+   `import.ts`'s `/api/import/bundle`) accept a CORS-simple content type, so each refuses a mutation without
+   the `x-orb-csrf` header on every credential path (403).
 
-   That tRPC exemption holds only because of the content-type guard at the mount (`packages/server/src/entry/app.ts`); the
-   guard is required, not defense in depth. `@trpc/server`'s `getContentTypeHandler` also matches
-   `multipart/form-data` and `application/octet-stream` as mutations, and `multipart/form-data` is
-   CORS-simple — so without the guard, a plain cross-site `<form>` could reach the mount with no
-   preflight and no CORS grant. Wherever `AUTH_FALLBACK=owner` is live (every `single-user` box, every
-   dev stack, any break-glass session), a page loaded in the box's own browser could drive an
-   input-less loopback-owner mutation cross-site on that route family. The guard refuses any POST to
-   `/api/trpc/*` whose content-type does not select tRPC's JSON handler (415), on every path, while
-   `application/json` (with or without `; charset=utf-8`) still runs on every path. Only the cookie
-   path is refused (403) when `x-orb-csrf` is missing; the fallback path with `application/json` and no
-   `x-orb-csrf` still runs (200) — the un-cookied loopback dev tooling relies on that. GET is untouched —
+   `POST /api/auth/oidc/backchannel-logout` carries no CSRF check, because its outcome does not depend on
+   an ambient credential: the issuer-signed `logout_token` is its only authentication. A route whose
+   outcome depends on an ambient credential is never exempt. Each exempt route registers through its entry
+   in `CSRF_EXEMPT_ROUTES` (`packages/server/src/entry/auth/csrf-exemptions.ts`), which cites the law or
+   ledger line that rules it; this paragraph rules the back-channel route.
+
+   tRPC (`packages/server/src/transport/trpc/trpc.ts`) needs only the content-type guard at its mount
+   (`packages/server/src/entry/app.ts`), on every credential path. The guard refuses any POST to
+   `/api/trpc/*` whose content type does not select tRPC's JSON handler (415). `application/json` is not
+   CORS-simple and the app mounts no CORS middleware, so a cross-site page cannot send it without a
+   preflight the app never answers. The guard is required, not defense in depth: `@trpc/server`'s
+   `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` as mutations,
+   and `multipart/form-data` is CORS-simple, so without the guard a plain cross-site `<form>` reaches the
+   mount on any ambient credential. `application/json` (with or without `; charset=utf-8`) runs on every
+   path. tRPC's own gate also refuses a cookie mutation without `x-orb-csrf` (403); the fallback and proxy
+   paths with `application/json` and no `x-orb-csrf` still run (200), which the un-cookied loopback dev
+   tooling relies on. GET is untouched —
    tRPC's method map admits GET for queries and subscriptions only. The external legacy source contains a test of the non-JSON refusal through the real mount. It is reference-only. The runtime content-type guard remains required because `application/json` is not a CORS-simple content-type and this app mounts no CORS middleware.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The

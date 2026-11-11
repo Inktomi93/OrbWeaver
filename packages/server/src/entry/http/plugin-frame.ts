@@ -97,7 +97,7 @@ const PLUGIN_FRAME_MEDIA: CardFrameMediaPolicy = { allowExternalMedia: false, al
  *  EVERY response on this route pair — the serve arm, the 401 arm and the miss arm alike, so no reply from this
  *  doorway is ever un-policied. There is no per-request variation to express: unlike a card, a plugin frame's
  *  policy depends on nothing a request can select. */
-const PLUGIN_FRAME_CSP = buildCardFrameCsp(PLUGIN_FRAME_MEDIA, "document", "interactive");
+export const PLUGIN_FRAME_CSP = buildCardFrameCsp(PLUGIN_FRAME_MEDIA, "document", "interactive");
 
 // A not-found read is the leak-free miss every frame route answers alike; any other failure of the read is a fault.
 function notFoundAsNull(error: unknown): null {
@@ -129,15 +129,20 @@ export interface PluginFrameDeps {
   readonly now: Clock;
 }
 
+/** The served asset's own policy: an image needs no source, and a direct navigation to it lands sandboxed. */
+export const PLUGIN_FRAME_ASSET_CSP = "default-src 'none'; sandbox";
+/** The opaque-origin frame loads the asset cross-origin, so only the successful asset reply carries this. */
+export const PLUGIN_FRAME_ASSET_RESOURCE_POLICY = "cross-origin";
+
 function assetHeaders(mime: string, byteLength: number): Record<string, string> {
   return {
     "Content-Type": mime,
     "Content-Length": String(byteLength),
-    "Content-Security-Policy": "default-src 'none'; sandbox",
+    "Content-Security-Policy": PLUGIN_FRAME_ASSET_CSP,
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
-    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Cross-Origin-Resource-Policy": PLUGIN_FRAME_ASSET_RESOURCE_POLICY,
   };
 }
 

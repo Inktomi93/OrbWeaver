@@ -3,8 +3,8 @@
 // infra/auth PRODUCES the signal; every GATE that reads it lives at the route tier, and there is no
 // single via-keying any more (Spine-Identity-and-Auth invariant 9 — the gate is split by CONTENT-TYPE PHYSICS):
 //   · the four byte-ingest registrars (`entry/http/upload.ts`, `import.ts`, `import-tree.ts`,
-//     `import-chat.ts`) accept a CORS-SIMPLE content-type, so they gate `via !== "header"` — cookie AND
-//     the loopback owner fallback both must carry the header;
+//     `import-chat.ts`) accept a CORS-SIMPLE content-type, so every `via` must carry the header — the
+//     cookie, the loopback owner fallback and the proxy's header arm can each be ambient;
 //   · the tRPC ladder (`transport/trpc/trpc.ts`) gates `via === "cookie"` only, because `entry/app.ts`'s
 //     content-type belt already refuses every non-`application/json` POST to the mount — which is what
 //     keeps the un-cookied loopback dev tooling working without the header.

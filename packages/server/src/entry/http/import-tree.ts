@@ -10,7 +10,7 @@
 // nothing on its own. One home for the derivation + the app-owned default root:
 // `domain/import/substrate/staging.ts`.
 //
-// Belt order mirrors the sibling upload routes: auth (401 before the body is read) → CSRF (403 on a cookie
+// Belt order mirrors the sibling upload routes: auth (401 before the body is read) → CSRF (403 on any
 // mutation missing the custom header) → a hono/body-limit total-bytes cap (413) → per-file + count caps
 // (413) → fail-closed path sanitization (400, WHOLE upload rejected, nothing staged) → resolve-escape check
 // (never trust string filtering alone) → layout admission (400 on an unrecognized/ambiguous tree, or on a
@@ -100,15 +100,15 @@ class TreeRejected extends Error {
 }
 
 /** Auth-first + CSRF gate, run BEFORE the body-limit belt so an anonymous/cross-site caller is rejected
- *  before a single body byte is read (identical to the sibling upload routes' guard). CSRF keys on the
- *  ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) because this is a
- *  CORS-"simple" multipart route with no preflight — see the WHY-block in upload.ts's authCsrfGuard. */
+ *  before a single body byte is read (identical to the sibling upload routes' guard). CSRF needs the header
+ *  on every `via`, because this is a CORS-"simple" multipart route with no preflight and every credential can
+ *  be ambient — see the WHY-block in upload.ts's authCsrfGuard. */
 const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next): ReturnType<MiddlewareHandler> => {
   const principal = c.get("principal");
   if (principal === null) {
     return c.body(null, UNAUTHORIZED);
   }
-  if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
+  if (!hasCsrfHeader(c.req.raw.headers)) {
     return c.body(null, FORBIDDEN);
   }
   await next();

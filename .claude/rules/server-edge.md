@@ -23,7 +23,7 @@ paths:
   attribute string. Give each cookie name its own attribute string, and read only the request transport's name.
 - Never send `post_logout_redirect_uri` to the OIDC end-session endpoint without `id_token_hint`
   (`packages/server/src/entry/http/auth-routes.ts`). Authentik 400s before invalidating the session.
-- CSRF protection must cover every mutating route, including requests authenticated by ambient sessions.
+- CSRF protection must cover every mutating route on every credential path. The forward-auth proxy's header can be ambient too (Spine-Identity-and-Auth invariant 9).
   `tests/server/entry/http/csrf-route-coverage.int.test.ts` drives every mutating route the composed app serves.
   Only a route in `CSRF_EXEMPT_ROUTES` (`packages/server/src/entry/auth/csrf-exemptions.ts`) skips the check.
 - A route serving a response with its own CSP adds its path pattern to `servesOwnPolicy`

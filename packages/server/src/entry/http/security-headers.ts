@@ -84,12 +84,15 @@ import { requestTransport } from "#infra/auth";
 const CARD_FRAME_DOC_PREFIX = `${CARD_FRAME_ROUTE}/`;
 const PLUGIN_FRAME_ASSET_SUFFIX = "/asset";
 const NO_SUFFIX = "";
-/** Each own-policy route as its registered pattern: a contract prefix, one `:id` segment, then a fixed tail. */
-const OWN_POLICY_ROUTES = [
-  { prefix: CARD_FRAME_DOC_PREFIX, suffix: NO_SUFFIX },
-  { prefix: PLUGIN_FRAME_DOC_PREFIX, suffix: NO_SUFFIX },
-  { prefix: PLUGIN_FRAME_DOC_PREFIX, suffix: PLUGIN_FRAME_ASSET_SUFFIX },
-] as const;
+/** Each own-policy route as its registered pattern: a contract prefix, one `:id` segment, then a fixed tail.
+ *  `tests/server/entry/http/own-policy-routes.int.test.ts` keys one case per member, so a new member with no case
+ *  fails `tsc`. */
+export const OWN_POLICY_ROUTES = {
+  cardFrameDocument: { prefix: CARD_FRAME_DOC_PREFIX, suffix: NO_SUFFIX },
+  pluginFrameDocument: { prefix: PLUGIN_FRAME_DOC_PREFIX, suffix: NO_SUFFIX },
+  pluginFrameAsset: { prefix: PLUGIN_FRAME_DOC_PREFIX, suffix: PLUGIN_FRAME_ASSET_SUFFIX },
+} as const;
+const OWN_POLICY_PATTERNS = Object.values(OWN_POLICY_ROUTES);
 
 /**
  * THE EXEMPTION IS A ROUTE-PATTERN MATCH, NEVER A PREFIX TEST. Every own-policy route is registered
@@ -117,7 +120,7 @@ const OWN_POLICY_ROUTES = [
  * sharing that one string, or an app-level `getPath` OPTION overriding it — we set neither.
  */
 function servesOwnPolicy(path: string): boolean {
-  return OWN_POLICY_ROUTES.some(({ prefix, suffix }) => {
+  return OWN_POLICY_PATTERNS.some(({ prefix, suffix }) => {
     if (!(path.startsWith(prefix) && path.endsWith(suffix) && path.length > prefix.length + suffix.length)) {
       return false;
     }

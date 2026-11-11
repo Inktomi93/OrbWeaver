@@ -81,7 +81,7 @@ for (const credential of ["fallback", "cookie"] as const) {
   });
 }
 
-test("the real trusted proxy-header identity reaches every ingest cap without ambient CSRF", async () => {
+test("the real trusted proxy-header identity needs the CSRF header before any ingest reads a byte, then reaches every cap", async () => {
   await using root = await createServerHarness({
     env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32" },
     physicalPeer: () => "127.0.0.1",
@@ -89,13 +89,21 @@ test("the real trusted proxy-header identity reaches every ingest cap without am
   const headers = { "x-authentik-username": "body-cap-proxy", "x-authentik-uid": "body-cap-proxy-subject" };
   expect(authMeSchema.parse(await (await root.http.request("/api/auth/me", { headers })).json()).authenticated).toBe(true);
   for (const route of INTAKE_ROUTES) {
+    using forgedInput = observedBody(route.bytes);
+    const forged = await bodyRequest(root, route.path, forgedInput.body, headers);
+    expect(forged.status, route.path).toBe(403);
+    await forged.arrayBuffer();
+    expect(forgedInput.snapshot().bytes, route.path).toBe(0);
     using input = observedBody(0);
-    const response = await bodyRequest(root, route.path, input.body, { ...headers, "content-length": String(route.bytes) });
+    const response = await bodyRequest(root, route.path, input.body, { ...headers, ...CSRF_HEADERS, "content-length": String(route.bytes) });
     expect(response.status, route.path).toBe(413);
     await response.arrayBuffer();
     expect(input.snapshot().pulls).toBe(0);
   }
-  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers, body: "" });
+  const forged = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers, body: "" });
+  expect(forged.status).toBe(403);
+  await forged.arrayBuffer();
+  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { ...headers, ...CSRF_HEADERS }, body: "" });
   expect(response.status).toBe(202);
   await response.arrayBuffer();
 });

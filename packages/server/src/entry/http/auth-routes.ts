@@ -145,7 +145,8 @@ const OWNER_CLAIM_PARAM = "ownerClaim";
 const INVITE_PARAM_MAX_CHARS = 128;
 const HANDLE_FIELD = "handle";
 const PASSWORD_FIELD = "password";
-const LOGOUT_TOKEN_FIELD = "logout_token";
+/** The back-channel logout request's form field that carries the IdP's signed token (OIDC BCL §2.5). */
+export const LOGOUT_TOKEN_FIELD = "logout_token";
 // A7 — the SPA login route the callback lands the browser back on with a sanitized ?authError= code (never
 // raw JSON on a top-level navigation). The codes below are a fixed lowercase snake_case set LoginSurface
 // maps to copy; the IdP-supplied ones are already sanitized to the same shape.
@@ -1443,9 +1444,10 @@ function registerOidcPendingJoin(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, 
  *  the subject. A verified sid-only token is refused until session rows persist issuer+sid — accepting one
  *  without an actionable key would tell the IdP logout succeeded while leaving the session live. Returns
  *  200 on success, 400 on validation or unsupported-token failure (per spec), always no-store.
- *  Idempotent — a re-delivered token re-revokes nothing (no Redis replay cache needed). It carries no CSRF
- *  check because it reads no ambient credential, so it registers through its `CSRF_EXEMPT_ROUTES` entry; reading
- *  the request's principal or session cookie here would void that exemption. */
+ *  NO REPLAY CACHE: nothing records a token's `jti`, so a re-delivered token revokes every session its subject
+ *  holds at that moment, including one signed in after the first delivery, until the token's `exp`. It carries no
+ *  CSRF check because its outcome does not depend on an ambient credential, so it registers through its
+ *  `CSRF_EXEMPT_ROUTES` entry; reading the request's principal or session cookie here would void that exemption. */
 function registerBackchannelLogout(
   app: Hono<PrincipalEnv>,
   deps: AuthRoutesDeps,

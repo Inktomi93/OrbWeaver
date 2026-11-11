@@ -108,7 +108,7 @@ export interface CardFrameDeps {
 
 /** The floor policy, used for every non-serving response so no card-frame reply is ever un-policied. Static
  *  posture: a miss serves OUR expiry notice, which is not any character's card and inherits no opt-in. */
-const FLOOR_CSP = buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static");
+export const CARD_FRAME_FLOOR_CSP = buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static");
 
 /** A body for the miss arm — a blank 404 inside an iframe reads as a broken card; this reads as a stale one.
  *  Identical for unknown / foreign / expired ids by construction (no existence leak). */
@@ -241,7 +241,7 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     const id = c.req.param("id");
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
-      return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(FLOOR_CSP));
+      return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(CARD_FRAME_FLOOR_CSP));
     }
     // THE REVOCATION. The client memoizes a handle per card body for the tab's life, so a grant decided
     // only at mint would outlive an admin switching interactive cards or external media off, a host moving

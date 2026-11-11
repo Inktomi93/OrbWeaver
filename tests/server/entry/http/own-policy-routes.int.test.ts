@@ -1,8 +1,9 @@
 // @subject packages/server/src/entry/http/security-headers.ts
 // Each registered own-policy route keeps the Content-Security-Policy its handler wrote on the arm that writes one,
-// and an arm that writes none leaves with the app document policy. The plugin frame's passive asset is the arm
-// that also needs its own `Cross-Origin-Resource-Policy` to survive. This covers the registered routes only: a
-// route whose own policy is never registered is overwritten before the response leaves, so no request can see it.
+// and an arm that writes none leaves with the app document policy. The cases are keyed by the production
+// registration, `OWN_POLICY_ROUTES`, so a member with no case fails `tsc`, and each expected policy is the
+// production constant its route writes. This covers the registered routes only: a route whose own policy is never
+// registered is overwritten before the response leaves, so no request can see it.
 import { spawn } from "node:child_process";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
@@ -15,11 +16,13 @@ import {
   pluginFrameMintResponseSchema,
   pluginManifestSchema,
 } from "@orb/contracts/plugin";
-import { CARD_FRAME_SANDBOX } from "@orb/kit/card-frame";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, makePluginBundle } from "@orb/testkit/node/composed";
+import { CARD_FRAME_FLOOR_CSP } from "#server/entry/http/card-frame.ts";
+import { PLUGIN_FRAME_ASSET_CSP, PLUGIN_FRAME_ASSET_RESOURCE_POLICY, PLUGIN_FRAME_CSP } from "#server/entry/http/plugin-frame.ts";
+import { OWN_POLICY_ROUTES } from "#server/entry/http/security-headers.ts";
 
 const POLICY = "content-security-policy";
 const RESOURCE_POLICY = "cross-origin-resource-policy";
@@ -28,6 +31,8 @@ const MINT_HEADERS = { [CSRF_HEADER]: "1", "content-type": "application/json" } 
 const RELAYED = { "x-forwarded-for": "203.0.113.9" } as const;
 const SURFACE_ID = "ledger";
 const ASSET_PATH = `${PLUGIN_UI_ASSETS_DIR}ledger.png`;
+// The asset route's grammar admits rasters only, so this path is refused with a bare 404 that writes no policy.
+const REFUSED_ASSET_PATH = `${PLUGIN_UI_ASSETS_DIR}ledger.svg`;
 const GUEST = `orb.host(1).ui.registerFrame({ id: ${JSON.stringify(SURFACE_ID)}, anchor: "page", title: "Ledger", html: "<p>ledger</p>" });`;
 const OK = 200;
 const UNAUTHORIZED = 401;
@@ -77,6 +82,7 @@ async function mintPluginFrame(root: ServerTestHarness): Promise<string> {
   return pluginFrameMintResponseSchema.parse(await minted.json()).url;
 }
 
+/** A card frame minted with no character selector, which the route serves at the floor policy. */
 async function mintCardFrame(root: ServerTestHarness): Promise<string> {
   const principal = await root.principalFor(root.ownerId);
   const chatId = (await root.services.chat.startChat({ principal, characterIds: [], opening: "none" })).chat.id;
@@ -89,31 +95,65 @@ async function mintCardFrame(root: ServerTestHarness): Promise<string> {
   return cardFrameMintResponseSchema.parse(await minted.json()).url;
 }
 
+interface Minted {
+  readonly cardUrl: string;
+  readonly pluginUrl: string;
+  readonly pluginHandle: string;
+}
+
+/** One registered route: the success arm and the policy its handler writes there, and an arm that writes none. */
+interface OwnPolicyCase {
+  readonly pattern: (typeof OWN_POLICY_ROUTES)[keyof typeof OWN_POLICY_ROUTES];
+  readonly url: string;
+  readonly policy: string;
+  /** The resource policy the success arm carries; the documents write none. */
+  readonly resourcePolicy: string | null;
+  readonly refusal: { readonly url: string; readonly headers: Readonly<Record<string, string>>; readonly status: number };
+}
+
+const CASES: { readonly [Key in keyof typeof OWN_POLICY_ROUTES]: (minted: Minted) => OwnPolicyCase } = {
+  cardFrameDocument: ({ cardUrl }) => ({
+    pattern: OWN_POLICY_ROUTES.cardFrameDocument,
+    url: cardUrl,
+    policy: CARD_FRAME_FLOOR_CSP,
+    resourcePolicy: null,
+    refusal: { url: cardUrl, headers: RELAYED, status: UNAUTHORIZED },
+  }),
+  pluginFrameDocument: ({ pluginUrl }) => ({
+    pattern: OWN_POLICY_ROUTES.pluginFrameDocument,
+    url: pluginUrl,
+    policy: PLUGIN_FRAME_CSP,
+    resourcePolicy: null,
+    refusal: { url: pluginUrl, headers: RELAYED, status: UNAUTHORIZED },
+  }),
+  pluginFrameAsset: ({ pluginHandle }) => ({
+    pattern: OWN_POLICY_ROUTES.pluginFrameAsset,
+    url: pluginFrameAssetUrl(pluginHandle, ASSET_PATH),
+    policy: PLUGIN_FRAME_ASSET_CSP,
+    resourcePolicy: PLUGIN_FRAME_ASSET_RESOURCE_POLICY,
+    refusal: { url: pluginFrameAssetUrl(pluginHandle, REFUSED_ASSET_PATH), headers: {}, status: NOT_FOUND },
+  }),
+};
+
 test("each own-policy route keeps its handler's policy on the arm that writes one, and every other arm gets the app policy", { tags: ["slow"] }, async () => {
   await using root = await openRoot();
   const app = await served(root, "/healthz");
   expect(app.status).toBe(OK);
   expect(app.policy).not.toBeNull();
-  expect(app.resourcePolicy).toBe("same-origin");
 
-  const cardUrl = await mintCardFrame(root);
   const pluginUrl = await mintPluginFrame(root);
-  const handle = pluginUrl.split("/").at(-1) ?? "";
-  const assetUrl = pluginFrameAssetUrl(handle, ASSET_PATH);
-
-  for (const url of [cardUrl, pluginUrl]) {
-    const document = await served(root, url);
-    expect(document.status, url).toBe(OK);
-    expect(document.policy, url).not.toBe(app.policy);
-    expect(document.policy?.split("; "), url).toContain(`sandbox ${CARD_FRAME_SANDBOX.document}`.trim());
-    expect(await served(root, url, RELAYED), url).toEqual({ ...app, status: UNAUTHORIZED });
+  const minted: Minted = { cardUrl: await mintCardFrame(root), pluginUrl, pluginHandle: pluginUrl.split("/").at(-1) ?? "" };
+  expect(Object.keys(CASES).toSorted()).toEqual(Object.keys(OWN_POLICY_ROUTES).toSorted());
+  for (const [key, build] of Object.entries(CASES)) {
+    const routeCase = build(minted);
+    const { prefix, suffix } = routeCase.pattern;
+    const { pathname } = new URL(routeCase.url, "http://own-policy.invalid");
+    // The case drives the route its key registers: the pattern's prefix, one id segment, then its tail.
+    expect(pathname.startsWith(prefix) && pathname.endsWith(suffix) && !pathname.slice(prefix.length, pathname.length - suffix.length).includes("/"), key).toBe(
+      true,
+    );
+    expect(await served(root, routeCase.url), key).toEqual({ status: OK, policy: routeCase.policy, resourcePolicy: routeCase.resourcePolicy });
+    expect(routeCase.policy, key).not.toBe(app.policy);
+    expect(await served(root, routeCase.refusal.url, routeCase.refusal.headers), key).toEqual({ ...app, status: routeCase.refusal.status });
   }
-
-  const asset = await served(root, assetUrl);
-  expect(asset.status).toBe(OK);
-  expect(asset.policy).not.toBe(app.policy);
-  expect(asset.policy?.split("; ")).toContain("sandbox");
-  expect(asset.resourcePolicy).toBe("cross-origin");
-  // A path the asset grammar refuses answers a bare 404 that writes no policy, so the app's lands, CORP included.
-  expect(await served(root, pluginFrameAssetUrl(handle, `${PLUGIN_UI_ASSETS_DIR}ledger.svg`))).toEqual({ ...app, status: NOT_FOUND });
 });

@@ -8,7 +8,7 @@
 // re-links an ST transcript by the display name its header carries, the name the user sees. A transcript
 // naming a character this account doesn't have is a per-file failure with the reason, never a silent orphan.
 //
-// Belts mirror the sibling ingest routes: auth (401 before the body is read) → CSRF (403 on a cookie
+// Belts mirror the sibling ingest routes: auth (401 before the body is read) → CSRF (403 on any
 // mutation missing the custom header) → a hono/body-limit total cap (413). Per-file failures are ISOLATED
 // into `failed[]` (one bad transcript never fails the batch), matching POST /api/import's card contract.
 
@@ -87,14 +87,14 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
     PORTABILITY_ROUTES.importChat,
     // Auth-first + CSRF, ahead of the body-limit belt so an anonymous/cross-site caller is rejected before a
     // body byte is read (the sibling upload routes' belt order). Inline, so the ctx types come off `app`.
-    // CSRF keys on the ambient-credential arms `via !== "header"` (cookie + the loopback owner fallback) —
-    // this is a CORS-"simple" multipart route with no preflight (see upload.ts's authCsrfGuard WHY-block).
+    // CSRF needs the header on every `via`: this is a CORS-"simple" multipart route with no preflight, and every
+    // credential can be ambient (see upload.ts's authCsrfGuard WHY-block).
     async (c, next): ReturnType<MiddlewareHandler> => {
       const principal = c.get("principal");
       if (principal === null) {
         return c.body(null, UNAUTHORIZED);
       }
-      if (principal.via !== "header" && !hasCsrfHeader(c.req.raw.headers)) {
+      if (!hasCsrfHeader(c.req.raw.headers)) {
         return c.body(null, FORBIDDEN);
       }
       await next();
