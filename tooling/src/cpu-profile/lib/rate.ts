@@ -18,7 +18,7 @@ export function perfRateDisposition(acceleration: BrowserAccelerationEvidence, r
   }
   const load = judgeRateLoad("Snap --perf per-step timing columns", read);
   if (load.disposition === "load-suspect") {
-    // MEASURED AND ANNOUNCED, never skipped (#1616): the columns below are printed and the reader is told
+    // MEASURED AND ANNOUNCED, never skipped (D343): the columns below are printed and the reader is told
     // in the same breath that they are a reading about a loaded box.
     print(`LOAD-SUSPECT (${load.reason})`);
   }
@@ -30,7 +30,7 @@ export function perfRatePair(load: MeasurementVerdict | null): ResultPair {
   return load === null ? ["perf", "off"] : ["perf", load.disposition === "complete" ? "measured" : load.disposition];
 }
 
-/** THE NO-PROMOTION RULE, in the one place the arm can change an exit code (#1616 done-criterion 2): only
+/** THE NO-PROMOTION RULE, in the one place the arm can change an exit code (D343): only
  *  a `withheld` rate — a run with NO number, i.e. an unproven browser — is exit-2 class. A `load-suspect`
  *  number exists and is printed, so it must not move the exit in EITHER direction: the run exits on
  *  whatever the other members decided. */

@@ -16,12 +16,9 @@
 //     `load-suspect` above the SAME boundary (`judgeMeasurementLoad`). Load does not scale a rate, it
 //     destroys it: measured on identical code, motion-audit's mobile arm read 47.54% dropped frames at
 //     per-core 1.04, then 10%, then clean — so the number above the boundary is NOT a verdict and
-//     can never be promoted. The OWNER RULING decides what we do about it:
-//     "LABEL, DON'T WITHHOLD". The old arm DECLINED TO VOTE, and since our steady state is lanes + engines
-//     (per-core ≥ 1.0 means loadavg ≥ 24 on this 16c/24t box) that made every rate arm unavailable most of
-//     the day — the owner, on a snap withheld at loadavg 26-31: "that's dumb." So the arm now RUNS, reports
-//     its number, and stamps `load-suspect` on it; the number is readable, and every promotion path stays
-//     shut (§7.1). Still never widened, never red.
+//     can never be promoted. D343 rules what a rate arm does about it: label, don't withhold. The arm
+//     RUNS, reports its number, and stamps `load-suspect` on it; the number is readable, and every
+//     promotion path stays shut (§7.1). Still never widened, never red.
 //   IDLE — session/stage TTLs: NOT a budget. Idle is not load; a TTL is never scaled and never withheld.
 //
 // THE THRESHOLD IS NOT A SECOND CONSTANT. Both consequences key off `computeLoadFactor`'s own quiet/
@@ -57,9 +54,8 @@ export const LOAD_KILL_MARKER = "ORB-LOAD-KILL";
  *  load-suspect number is one that WAS measured and cannot be promoted. Conflating them would make "this
  *  reading is about the box" read as "the instrument failed", and every summary has to tell them apart.
  *
- *  NOT a withhold marker: under the owner ruling the
- *  arm does not withhold, so a marker that says WITHHOLD would be the lie this module exists to prevent.
- *  Every spelling moved in the same commit — the old token appears nowhere on the tree. */
+ *  NOT a withhold marker: under D343 the arm does not withhold, so a marker that says WITHHOLD would be
+ *  the lie this module exists to prevent. */
 export const LOAD_SUSPECT_MARKER = "ORB-LOAD-SUSPECT";
 
 /** The vitest `task.meta` key a load-suspect arm stamps on its own task (the reporter-visible channel — a
@@ -322,13 +318,13 @@ export function hasMeasurement(verdict: MeasurementVerdict): boolean {
 /** PURE. Is this box quiet enough for a measured RATE to be a verdict about the code? The threshold is not
  *  a new constant: a measurement is `load-suspect` exactly when `computeLoadFactor` leaves 1 — the same
  *  boundary that starts stretching wall clocks. Below it the factor is exactly 1 and solo behaviour is
- *  untouched. IT NEVER RETURNS `withheld`: under the owner ruling load labels, it does not withhold. */
+ *  untouched. IT NEVER RETURNS `withheld`: under D343 load labels, it does not withhold. */
 //  DELIBERATE: this judge stays on LOADAVG ALONE and does not take `throttleFactor`.
 //  The throttle counters are CUMULATIVE over a session scope that lives for hours, so they are a PRIOR
 //  about how fenced this session is — fine for stretching a wall clock (which may only ever grow), and
 //  wrong for a rate arm, which needs a statement about the box DURING the measurement. Folding it in here
 //  would mark essentially every rate arm in every fenced lane `load-suspect` forever, which is the
-//  withhold-everything failure the owner ruling reversed.
+//  withhold-everything failure D343 rules out.
 export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementVerdict {
   // The SAME stamped figure the RESULT pairs carry: a `load-suspect` reason taken under a planted
   // box used to read exactly like a live-box sentence, and this string is what a reader sees FIRST.

@@ -14,7 +14,7 @@ import { snapRatePostureSchema } from "./rate-posture.ts";
 export type SnapCurrentScope = InstrumentCurrentScope;
 
 export const SNAP_RUN_RESULTS_VERSION = 1;
-/** `load-suspect` joined 2026-09-05 (#1616, owner ruling): a rate arm on a loaded box MEASURES and reports
+/** `load-suspect` (D343): a rate arm on a loaded box MEASURES and reports
  *  its number, so it is neither `passed` (nothing may promote that number) nor `withheld` (a number DOES
  *  exist). Every consumer of this tuple dispatches through a mapped `Record`, so the member is a compile
  *  error until each one decides what it means. */
