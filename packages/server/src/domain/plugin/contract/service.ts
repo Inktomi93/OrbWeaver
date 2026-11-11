@@ -303,8 +303,8 @@ export interface PluginContext {
   readonly gitSource: Readonly<Pick<PluginGitSource, "clone" | "head">>;
   /** The SHOWCASE bundles this build ships — the SECOND byte source an update can come from, beside
    *  `fetchBundle`'s remembered URL. Injected rather than imported for the same reason every other byte source
-   *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and the domain tier does not touch the
-   *  filesystem: external I/O belongs in infra adapters, so the domain reads bytes through an injected port (the `domain/import` staging seam is the same call). Wired at compose to
+   *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and this op reaches those files through
+   *  the injected port, never a filesystem import of its own. Wired at compose to
    *  that package's `packShowcaseBundle`/`readShowcaseManifest` — the SAME reader the boot seeder's
    *  `packBundle`/`bundledVersion` ops use, so an update offered here and an auto-upgrade at boot can never
    *  disagree about what ships.
