@@ -14,6 +14,8 @@ export const CONFIG_CUSTOM_CSS_NAME = "Custom CSS";
 export const CONFIG_IMPORT_THEME_FILE_NAME = "Import a theme file";
 export const CONFIG_MORE_LIBRARY_ACTIONS_NAME = "More library actions";
 export const CONFIG_ADVANCED_THEME_TOOLS_NAME = "Show advanced theme tools";
+/** The radio group of theme cards in Looks. */
+export const CONFIG_THEME_GROUP_NAME = "Theme";
 export const CONFIG_BACK_TO_LOOKS_NAME = "← Back to Looks";
 /** The theme card menu's item that opens an owned theme in the builder. */
 export const CONFIG_EDIT_IN_BUILDER_NAME = "Edit in builder";

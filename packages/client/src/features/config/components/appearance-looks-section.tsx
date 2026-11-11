@@ -53,7 +53,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTR
 import { downloadTextFile, notify, useFocusOnSwap } from "#lib";
 import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
-import { CONFIG_BACK_TO_LOOKS_NAME, CONFIG_IMPORT_THEME_FILE_NAME, newThemeName } from "../lib/config-control-names.ts";
+import { CONFIG_BACK_TO_LOOKS_NAME, CONFIG_IMPORT_THEME_FILE_NAME, CONFIG_THEME_GROUP_NAME, newThemeName } from "../lib/config-control-names.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 import { ThemeEditor } from "./theme-editor.tsx";
@@ -238,7 +238,7 @@ function LooksBody(): ReactElement {
                   <ThemeImportLeftovers created={leftovers.created} leftovers={leftovers.leftovers} themeName={leftovers.themeName} />
                 )}
                 <RadioGroupPicker
-                  aria-label="Theme"
+                  aria-label={CONFIG_THEME_GROUP_NAME}
                   data-slot="theme-collection"
                   ref={gridRef}
                   tabIndex={-1}

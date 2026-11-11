@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS, DIALOG_VERBS, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
+import { CORPUS_MODE_LABELS, DIALOG_VERBS, sectionBackName, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
 import { clearLabelSelection, useSelectedLabelId } from "#state";
 import { useTagName } from "../hooks/use-tag-library.ts";
 import { LabelsLandingSurface } from "../surfaces/labels-landing-surface.tsx";
@@ -31,7 +31,7 @@ export function LabelsContent(): ReactElement {
   if (tagId !== null && !editorWasOpen) {
     setEditorWasOpen(true);
   }
-  const exit = <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection }} />;
+  const exit = <MemberDrillHeader back={{ label: sectionBackName(CORPUS_MODE_LABELS.labels), onClick: clearLabelSelection }} />;
   return (
     <Container className="min-block-0" height="fill">
       <Stack scroll="y" height="fill" paddingBlock="section" data-slot="labels-content">

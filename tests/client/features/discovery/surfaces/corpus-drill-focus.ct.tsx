@@ -2,7 +2,7 @@
 // character drill and the Labels tag editor. The finder row is not removed, so the surface's own arrival is all that moves the reader
 // off it. The shell, the Corpus section and its surfaces are the production ones over a corpus root.
 // @subject packages/client/src/features/stats/surfaces/analytics-character-surface.tsx
-import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
+import { CORPUS_MODE_LABELS, sectionBackName, testId } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -84,7 +84,7 @@ test("opening a forgotten-gem character by keyboard lands focus on the dossier's
   await page.keyboard.press("Enter");
 
   await expect(
-    page.getByTestId(testId("corpusDossierSurface")).getByRole("button", { name: `Back to ${CORPUS_MODE_LABELS.explore}`, exact: true }),
+    page.getByTestId(testId("corpusDossierSurface")).getByRole("button", { name: sectionBackName(CORPUS_MODE_LABELS.explore), exact: true }),
   ).toBeFocused();
 });
 
@@ -96,5 +96,5 @@ test("opening a model route by keyboard lands focus on the artifact's Back", asy
   await route.focus();
   await page.keyboard.press("Enter");
 
-  await expect(page.getByRole("button", { name: `Back to ${CORPUS_MODE_LABELS.explore}`, exact: true })).toBeFocused();
+  await expect(page.getByRole("button", { name: sectionBackName(CORPUS_MODE_LABELS.explore), exact: true })).toBeFocused();
 });

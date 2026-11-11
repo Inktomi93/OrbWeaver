@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS, testId, timeLib, useFocusOnMount } from "#lib";
+import { CORPUS_MODE_LABELS, sectionBackName, testId, timeLib, useFocusOnMount } from "#lib";
 import { useMobileViewport } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
 import {
@@ -96,7 +96,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             phone ? null : (
               <Button variant="outline" size="sm" onClick={onBack}>
                 <Icon icon={ArrowLeft} size="sm" />
-                {`Back to ${CORPUS_MODE_LABELS.insights}`}
+                {sectionBackName(CORPUS_MODE_LABELS.insights)}
               </Button>
             )
           }
@@ -112,7 +112,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
     <Stack gap="section">
       {/* The drill row Labels and the config collections draw: Back inline with the name. The phone's topbar carries
           the one Back, and the row stands down there. */}
-      <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.insights}`, onClick: onBack }} title={stats.name} />
+      <MemberDrillHeader back={{ label: sectionBackName(CORPUS_MODE_LABELS.insights), onClick: onBack }} title={stats.name} />
       <Stack gap="tight">
         <Text voice="gloss" role="note">
           This character · Aggregate only

@@ -7,7 +7,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { MemberDrillHeader, TagEditorBody } from "#components";
 import { useSuspenseQuery, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS } from "#lib";
+import { CORPUS_MODE_LABELS, sectionBackName } from "#lib";
 import { clearLabelSelection, useLabelNameFocus } from "#state";
 
 // Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): TagEditorBody owns editor arrival focus via useFocusOnMount; tag-member-surface CT pins the Name-field arrival for creation.
@@ -16,7 +16,7 @@ export function TagMemberSurface({ tagId }: { readonly tagId: TagId }): ReactEle
   const { data: tags } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
   const creating = useLabelNameFocus() === tagId;
   const tag = tags.find((row) => row.id === tagId);
-  const back = { label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection };
+  const back = { label: sectionBackName(CORPUS_MODE_LABELS.labels), onClick: clearLabelSelection };
   if (tag === undefined) {
     // action={null}: Back in the preceding drill header exits this deleted member; ends if the surface loses that exit.
     return (
