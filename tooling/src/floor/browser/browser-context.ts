@@ -85,7 +85,7 @@ export function probeSession(
 
 async function openOwnedContext(args: BuildContextArgs): Promise<BrowserContext> {
   const { browser, opts, deviceDescriptor, ownedContexts, persistentContext } = args;
-  // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile while the shared size resolver
+  // ONE SIZE ANSWER: the descriptor supplies touch/DPR/UA/isMobile while the shared size resolver
   // composes viewport + screen, so the launch options and environment receipt cannot disagree.
   const sizing = {
     ...(deviceDescriptor ?? {}),
@@ -101,10 +101,10 @@ async function openOwnedContext(args: BuildContextArgs): Promise<BrowserContext>
   return context;
 }
 
-/** The dev server's own HUD, hidden in EVERY probe context (#2429 item 2). `vite-plugin-checker` mounts a
+/** The dev server's own HUD, hidden in EVERY probe context. `vite-plugin-checker` mounts a
  *  `<vite-plugin-checker-error-overlay>` custom element at the viewport's bottom-right corner
  *  (`overlay.position: "br"`, packages/client/vite.config.ts) whose collapsed badge paints rgb(255,85,85) —
- *  measured live 2026-09-19 sitting ON TOP of the composer under the Light theme, where it entered the
+ *  measured live sitting ON TOP of the composer under the Light theme, where it entered the
  *  `--contrast` fill arm's surround band and decided the verdict. It is DEV-SERVER chrome, not app pixels:
  *  every instrument that samples the framebuffer (contrast, fill, edge, design-audit, a screenshot) would
  *  otherwise be measuring vite's badge and calling it the product.

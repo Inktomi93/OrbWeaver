@@ -15,7 +15,7 @@ import type { DevToolsAssetPin, DevToolsAssetServer } from "./devtools-assets.ts
 import { verifyDevToolsAssets } from "./devtools-assets.ts";
 import { startDevToolsAssetServer } from "./devtools-assets-server.ts";
 
-// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base. The DevTools
+// A CEILING, load-scaled through the one policy: the literal is the QUIET-BOX base. The DevTools
 // frontend is a large first-party bundle served off a local revision pin — on a contended box its first
 // paint legitimately runs long, and a fixed 30s made that read as a broken pin.
 const FRONTEND_NAV_BASE_MS = 30_000;
@@ -93,7 +93,7 @@ function validateInputs(inputs: readonly DevToolsCascadeInput[]): void {
 
 async function targetIdentity(page: Page, pin: DevToolsAssetPin, profileDir: string): Promise<{ readonly id: string; readonly port: number }> {
   const session = await page.context().newCDPSession(page);
-  // The port read is ../browser/debugging-endpoint.ts's — the one reader of `DevToolsActivePort` (#1231).
+  // The port read is ../browser/debugging-endpoint.ts's — the one reader of `DevToolsActivePort`.
   const [target, version, port] = await Promise.all([session.send("Target.getTargetInfo"), session.send("Browser.getVersion"), readDebuggingPort(profileDir)]);
   if (
     version.revision !== `@${pin.chromiumRevision}` ||
@@ -143,7 +143,7 @@ async function restoreMediaAfterObserver(page: Page, expected: ProbeMedia): Prom
   throw new Error(`DevTools observer did not restore stable media: expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`);
 }
 
-/** THE SUBJECT MAY BE A PSEUDO CARRIER (#2431). The selector arrives as CSS spells it
+/** THE SUBJECT MAY BE A PSEUDO CARRIER. The selector arrives as CSS spells it
  *  (`.shell-panel::before`); the bridge needs the HOST for `dom.querySelectorAll` — which cannot select a
  *  pseudo — plus Chromium's own pseudo-type key to walk from that host node to its generated-box node,
  *  whose matched AND computed styles are the ones a carrier's declarations live on. The full selector

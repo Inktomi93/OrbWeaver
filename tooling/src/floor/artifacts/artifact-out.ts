@@ -1,4 +1,4 @@
-// The `--out` FILING layer (#1164): which file an instrument's artifact lands in, and which RUN owns it.
+// The `--out` FILING layer: which file an instrument's artifact lands in, and which RUN owns it.
 // One layer above ./artifacts.ts (run slots + the reports/ path home + the RESULT line), which it imports
 // and never imports back. The seam is real, not cosmetic: `artifacts.ts` answers "where do runs live", this answers "where does THIS artifact go".
 import { createHash } from "node:crypto";
@@ -12,15 +12,15 @@ import { instrumentCurrentScopeSchema } from "./artifact-scope.ts";
 import type { RunAlias, RunSlot } from "./artifacts.ts";
 import { openRunSlot, print, publishRunSlot, REPO_ROOT, reportsPath } from "./artifacts.ts";
 
-// ── THE RENDERED INSTRUMENTS' RUN (#1164) ────────────────────────────────────────────────────────────
-// #1029 slotted the VERDICT instruments (verify, structure, test, ct) and deliberately left the
+// ── THE RENDERED INSTRUMENTS' RUN ────────────────────────────────────────────────────────────
+// The run-slot machinery slots the VERDICT instruments (verify, structure, test, ct) and deliberately left the
 // `--out`-keyed families — `snaps/`, `design-audit/`, `traces/`, `recordings/`, `perf-meter/`,
 // `motion-audit/` — writing straight into their fixed shared dirs, on the reasoning that a caller names
-// those artifacts. Measured 2026-09-02 (#1164): lane-unique `--out` names are a BRIEF CONVENTION, not a
-// mechanism. Two side-eye lanes on one checkout both took the default name and produced a `root.png`
-// neither could claim; a third read a sibling's `design-audit` report as its own (#1114 R-3).
+// those artifacts. Measured: lane-unique `--out` names are a BRIEF CONVENTION, not a
+// mechanism. Two review lanes on one checkout both took the default name and produced a `root.png`
+// neither could claim; a third read a sibling's `design-audit` report as its own.
 //
-// THE MECHANISM is #1029's, with ONE difference that the `--out` keying forces. A verdict instrument
+// THE MECHANISM is the verdict slots', with ONE difference that the `--out` keying forces. A verdict instrument
 // publishes a FIXED alias set (`reports/verify.json`, …) known before the run; a rendered instrument's
 // alias set is whatever it wrote, so `finishInstrumentRun` ENUMERATES the slot and publishes one pointer
 // per artifact file. That keeps `reports/snaps/` a real DIRECTORY of per-artifact pointers rather than
@@ -30,7 +30,7 @@ import { openRunSlot, print, publishRunSlot, REPO_ROOT, reportsPath } from "./ar
 //
 // RETENTION is therefore reference-aware (`pruneRuns` in ./artifacts.ts): a slot any published pointer
 // still resolves into is never pruned. Without that the 10-run ring would delete the evidence corpus out
-// from under the pointers inside one side-eye session.
+// from under the pointers inside one review session.
 //
 // A CRASHED run publishes NOTHING — its slot keeps the bytes and its `.inflight` marker outlives its pid,
 // which is exactly the `abandonedRuns` tell. A RED run publishes normally: a failing verdict is still a
@@ -82,17 +82,17 @@ const nullableCountSchema = nonnegativeCountSchema.nullable();
  *  in the same unit (snap/lib/filmstrip-buffer.ts). Integer-ness was never a property of the field, only of
  *  the units that happen to be discrete, so demanding `.int()` here made a CORRECT over-cap
  *  `snap --filmstrip` run exit 2 with `malformed artifact declaration` on `original: 15837.811772000005`
- *  (#1643). Finite + nonnegative is the real invariant — zod 4's `z.number()` already rejects NaN/Infinity —
+ *. Finite + nonnegative is the real invariant — zod 4's `z.number()` already rejects NaN/Infinity —
  *  and it is what the shape's two other homes always spelled (`floor/browser/browser-evidence-ring.ts`,
  *  `snap/contract/heap.ts`). `records` stays a COUNT: a record is discrete by construction. */
 const limitQuantitySchema = z.number().nonnegative();
 const nullableLimitQuantitySchema = limitQuantitySchema.nullable();
-/** THE ONE SCHEMA HOME for `InstrumentArtifactLimitEvent`/`InstrumentArtifactLimitReceipt` (#1652) — the
+/** THE ONE SCHEMA HOME for `InstrumentArtifactLimitEvent`/`InstrumentArtifactLimitReceipt` — the
  *  ring (`browser-evidence-ring.ts`) and the heap contract (`snap/contract/heap.ts`) import these two
  *  rather than re-spelling them, so a negative `omitted` or an empty `kind`/`path` refuses at all three
- *  readers instead of only here. Before #1652 they diverged on sign and emptiness (bare `z.number()`/
- *  `z.string()` at the other two homes) — a defect the "one home" claim after #1643 (fractional quantities)
- *  did not actually close, because #1643 fixed only the ONE axis it was about. */
+ *  readers instead of only here. Two re-spellings at the other homes (bare `z.number()`/
+ *  `z.string()`) diverged on sign and emptiness, and a "one home" claim that fixes only ONE axis
+ *  does not close that. */
 export const artifactLimitEventSchema = z.object({
   kind: z.string().min(1),
   path: z.string().min(1),
@@ -300,7 +300,7 @@ export async function withInstrumentRun(
 
 /** Resolve (and create) this run's `<kind>/` artifact directory.
  *
- *  With an instrument run open (`beginInstrumentRun`, #1164) that is the run's OWN slot dir — the
+ *  With an instrument run open (`beginInstrumentRun`) that is the run's OWN slot dir — the
  *  published `reports/<kind>/<artifact>` pointers are minted from it at finish. With no run open — a
  *  library caller, a test, a CT screenshot path — it is `reports/<kind>/` exactly as it always was. */
 export async function artifactDir(kind: string): Promise<string> {

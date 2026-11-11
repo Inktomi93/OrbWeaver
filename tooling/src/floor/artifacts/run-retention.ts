@@ -1,4 +1,4 @@
-// THE RUN RING'S RETENTION POLICY (#1341): which slots may be deleted, and the bounded ledger of the ones
+// THE RUN RING'S RETENTION POLICY: which slots may be deleted, and the bounded ledger of the ones
 // that were. Split out of ./artifacts.ts; the seam is real — this
 // module decides POLICY over a directory of run ids and never learns what a run slot is, while artifacts.ts
 // owns the slot machinery and hands the census in.
@@ -6,8 +6,8 @@
 // THE DEFECT THIS EXISTS FOR. Retention used to be COUNT-ONLY: the ten newest slots per instrument, plus any
 // slot a published pointer still resolved into. A `--no-shot` / `--eval` / `--text` run publishes NO
 // pointer, so it was unreferenced and died the moment ten newer runs landed — while its end card had
-// already printed `EVIDENCE <abs run.json>` as the receipt a review cites. Measured 2026-09-04 (cold-agent
-// dogfood on /chats): side-eye cited `main-1723882-…T15-36-25-462Z` and `main-1726501-…T15-37-04-376Z` for a
+// already printed `EVIDENCE <abs run.json>` as the receipt a review cites. Measured (cold-agent
+// dogfood on /chats): a review cited `main-1723882-…T15-36-25-462Z` and `main-1726501-…T15-37-04-376Z` for a
 // P1, and twenty minutes later neither directory existed — so the finding was unfalsifiable. 135 slots
 // survived on disk that day: the ones carrying pointers.
 //

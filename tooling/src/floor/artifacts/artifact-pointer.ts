@@ -1,4 +1,4 @@
-// THE READ SIDE of the run-slot layout (#2502) — "which run is this `reports/…` pointer actually serving?"
+// THE READ SIDE of the run-slot layout — "which run is this `reports/…` pointer actually serving?"
 //
 // ./artifacts.ts owns the WRITE side: a run writes into `reports/runs/<instrument>/<runId>/` and, at
 // completion only, publishes the well-known paths the constitution names as relative symlinks into that
@@ -7,9 +7,9 @@
 // therefore always a COMPLETE run — just not necessarily the run the reader meant.
 //
 // THE DEFECT THIS CLOSES. The write side was centralized and the read side was not, so every reader
-// re-derived "whose run is this" for itself or — more often — never asked. Measured 2026-09-20: three
+// re-derived "whose run is this" for itself or — more often — never asked. Measured: three
 // separate misattributions in one day, ALL of them hand-paths of `reports/verify/<stage>.log`, plus
-// `reports/test-report-tooling.json` sitting on a 2026-09-13 slot for a week while every `tests:tooling`
+// `reports/test-report-tooling.json` sitting on a week-old slot while every `tests:tooling`
 // verdict was read as a run that had happened. Not one of the three was a rendering problem; all three were
 // RESOLUTION failures, which is why this module is a resolver and the renderers stay per-instrument (a
 // single renderer would need the union of every instrument's display vocabulary — `--gate`/`--file` for
@@ -59,8 +59,8 @@ export interface SlotCensusRow {
    *  writes an explicit `[]` for a run that FINISHED and deliberately published nothing — a fixture-mode or
    *  gate-scoped `check:structure` (ops/structure.ts:352) — and such a run never spoke for the instrument,
    *  so it must not be the "newest complete run" another pointer is called stale against. Measured while
-   *  building this: without the distinction, every `check:structure --family <x>` floor run of the #1584
-   *  program would have made `reports/check-structure.json` read STALE. */
+   *  building this: without the distinction, every `check:structure --family <x>` floor run of a per-family
+   *  conversion would have made `reports/check-structure.json` read STALE. */
   readonly publishedCount: number | null;
 }
 
@@ -87,7 +87,7 @@ export interface PointerResolution {
    *  a read of this alias is ambiguous: the answer the caller wants may be about to be published. */
   readonly inFlight: readonly SlotCensusRow[];
   /** Runs that DIED after the resolved slot ran — "your last run never finished and you are about to read an
-   *  older verdict as its result" (the #410 tell, re-rooted onto slots by #1029). */
+   *  older verdict as its result" (the killed-run tell, read from slots). */
   readonly abandoned: readonly SlotCensusRow[];
 }
 
@@ -305,12 +305,12 @@ function readdirSafe(dir: string): readonly string[] {
   }
 }
 
-/** THE POINTER INVENTORY (deliverable 4, #2502): every published VERDICT alias on this checkout, resolved.
+/** THE POINTER INVENTORY (deliverable 4): every published VERDICT alias on this checkout, resolved.
  *
  *  THE FENCE IS DEPTH ONE, and it is not arbitrary. A verdict instrument publishes a FIXED alias set known
  *  before the run — the paths the constitution names, all direct children of `reports/` — while the
  *  `--out`-keyed rendered families (`snaps/`, `design-audit/`, `traces/`, …) publish ONE POINTER PER
- *  ARTIFACT FILE under a `<kind>/` dir, and those are older than the newest run BY DESIGN (#1164: each names
+ *  ARTIFACT FILE under a `<kind>/` dir, and those are older than the newest run BY DESIGN (each names
  *  its own run and retention keeps them alive deliberately). Walking into them would bury the one finding
  *  this view exists for under thousands of by-design-stale rows. Every reader of this list is told the fence
  *  and the scanned count, so an empty answer is never mistaken for "nothing is stale". */

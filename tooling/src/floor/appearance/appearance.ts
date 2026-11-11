@@ -2,15 +2,15 @@
 // TWO AXES ride the SAME interception, because the app reads both out of ONE response:
 //   • APPEARANCE (`--appearance '<json>'`, `--appearance-preset`, `--full-motion`) — this file, below.
 //   • the ACTIVE THEME (`--theme <name|id|none>`) — `_kit/theme.ts` owns what a theme request means and how
-//     a name resolves to a real id; this file owns the interception it rides on (#225).
+//     a name resolves to a real id; this file owns the interception it rides on.
 //
-// WHY THIS EXISTS (owner ruling 2026-08-18): the dev account's SERVER-side `appearance.reducedMotion` is
+// WHY THIS EXISTS (owner ruling): the dev account's SERVER-side `appearance.reducedMotion` is
 // `true`, so every probe drive against the dev stack reviews the REDUCED arm — motion audits have been
 // judging the app with its motion off, and a "the entry animation is fine" verdict was a claim about a
 // surface whose animations the app itself had frozen. The probes needed a way to render as if a setting
 // were different WITHOUT writing the owner's settings row.
 //
-// THE MECHANISM (verified against the live wire 2026-08-18): the client's tRPC link is `httpBatchLink` with
+// THE MECHANISM (verified against the live wire): the client's tRPC link is `httpBatchLink` with
 // NO transformer (packages/client/src/data/trpc.ts), so `settings.getUserSettings` answers on a plain GET at
 // `/api/trpc/<proc>[,<proc>…]?batch=1&input=…` with `[{"result":{"data":{…,"config":{…,"appearance":{…}}}}}]`
 // — one array element per procedure, IN PATH ORDER. So the shim intercepts the request, fetches the REAL
@@ -202,7 +202,7 @@ export function applySettingsToBody(body: unknown, index: number, patch: Setting
  *  envelope this shim is already fetching. Pure, so it is unit-testable without a browser.
  *
  *  It exists because the appearance matrix's only paintable `backgroundImageKind` arm is now `asset`: the
- *  static `kind:"seeded"` catalog that used to complete that axis was retired 2026-09-18, and an owned
+ *  static `kind:"seeded"` catalog that used to complete that axis is retired, and an owned
  *  background is per-user state no tool can name from a constant. `null` ⇒ the account carries no background
  *  asset at all, which the matrix reports as an instrument refusal rather than silently measuring `none`. */
 export function readBackgroundCapability(body: unknown, index: number): BackgroundCapability | null {
@@ -338,7 +338,7 @@ export interface SettingsShimEvidence {
   /** The authenticated catalog used for resolution, including derived source/polarity capabilities. */
   themeCatalog: readonly ThemeEntry[] | null;
   /** The account's first `appearance.backgroundLibrary` entry — the matrix's only paintable background arm
-   *  since `kind:"seeded"` retired (2026-09-18). Null until a settings read is intercepted, and null on an
+   *  since `kind:"seeded"` retired. Null until a settings read is intercepted, and null on an
    *  account with no background asset, which the matrix refuses on rather than measuring `none` twice. */
   backgroundLibraryFirst: BackgroundCapability | null;
 }

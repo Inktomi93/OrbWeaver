@@ -162,7 +162,7 @@ function binaryMedia<T extends string>(first: boolean, firstName: T, second: boo
   return second ? secondName : "no-preference";
 }
 
-/** THE ONE ANSWER TO "what size is this context" (#1668), read by the two context-options spreads and by
+/** THE ONE ANSWER TO "what size is this context", read by the two context-options spreads and by
  *  the contract below so a receipt can never describe a size the browser did not get.
  *
  *  A device descriptor carries its own viewport, and it wins — EXCEPT when the caller explicitly spelled a
@@ -195,10 +195,10 @@ export function effectiveContextSize(
 export function resolveBrowserEnvironmentContract(
   input: {
     readonly viewport: Viewport;
-    /** See {@link effectiveContextSize} — an explicit size override survives a device (#1668). */
+    /** See {@link effectiveContextSize} — an explicit size override survives a device. */
     readonly viewportExplicit?: boolean;
     readonly device?: string | null;
-    /** A caller-raised context DPR (snap's `--scale <n>`, #915). The APPLIED contract must carry it, or
+    /** A caller-raised context DPR (snap's `--scale <n>`). The APPLIED contract must carry it, or
      *  identityMismatches reports "DPR expected 1 but observed 2" for a density the caller asked for —
      *  blinding that check instead would be the banned direction. A `device` descriptor supersedes it
      *  (snap refuses the combination at parse time rather than picking a winner here). */
@@ -232,7 +232,7 @@ export function resolveBrowserEnvironmentContract(
       },
     };
   }
-  // The size the context ACTUALLY got: the descriptor's, unless the caller overrode it (#1668). Reading
+  // The size the context ACTUALLY got: the descriptor's, unless the caller overrode it. Reading
   // `descriptor.viewport` unconditionally here is what would make `identityMismatches` red a run for
   // obeying its own argv — and, worse, make `scale=` on the RESULT line state a size nobody rendered.
   return {
@@ -254,7 +254,7 @@ export function resolveBrowserEnvironmentContract(
  *  created it, an attached sibling's did not, and Playwright never backfills that record from the live
  *  browser. The rendered CSS viewport (`window.innerWidth/innerHeight`, already read for `innerViewport`)
  *  is the same ground truth either way, so it is the fallback rather than a second "unavailable" leg
- *  every attach would trip on its first environment check (#1285). A launched page's local record is
+ *  every attach would trip on its first environment check. A launched page's local record is
  *  never null, so this changes nothing on that path — `observedViewport === viewport` always. */
 function observedViewport(viewport: Viewport | null, innerViewport: Viewport): Viewport {
   return viewport ?? innerViewport;
@@ -319,7 +319,7 @@ function mediaMismatches(applied: BrowserEnvironmentApplied, runtime: RuntimeObs
   return mismatches;
 }
 
-/** THE LIVE ENVIRONMENT READ, settled at the page boundary (#1004, `floor/browser/page-validate.ts`). This
+/** THE LIVE ENVIRONMENT READ, settled at the page boundary (`floor/browser/page-validate.ts`). This
  *  read is the one that decides whether the probe measured the environment it ASKED for, so a malformed
  *  answer is the worst possible silent failure here: `mediaMismatches` compares `=== true`, so an absent
  *  boolean reads as "the page says no" and either invents a mismatch or — for the arms whose contract

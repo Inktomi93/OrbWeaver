@@ -3,13 +3,13 @@
 // app routes only `/` and `/login`; sections, modals, config groups, context tabs, open chats and the
 // SHELL PANEL LAYOUT are all client state).
 //
-// WHY THIS MODULE EXISTS (2026-08-17, issue #148 item 1): the bridge call was hand-spelled in snap.ts and
+// WHY THIS MODULE EXISTS: the bridge call was hand-spelled in snap.ts and
 // again in design-audit.ts, and `motion-audit`/`perf-meter` — the two probes that answer "is this surface
 // SMOOTH / RESPONSIVE" — had no nav flags at all. That was not a missing convenience: a chat room needs
 // 2+ hops, so the chat context panel was STRUCTURALLY unmeasurable by both, and a throttled INP number for
 // a 208ms keydown could not be taken at all. One vocabulary, four probes, identical semantics.
 //
-// `panel` (2026-08-31, #148 item 2 — the same gap one level out): panels docked/collapsed
+// `panel` (the same gap one level out): panels docked/collapsed
 // were not an axis ANY probe could reach — not an arm, not a matrix cell, nothing enumerated the states — so
 // a report of text flush to a panel edge or a clipped rounded button could not be told apart from "lives in
 // a state no instrument visits". For motion-audit specifically a panel toggle is not only a state to reach
@@ -100,7 +100,7 @@ export function buildNavScript(method: NavMethod, target: string): string {
 /** `{ ok: true }` or a stated reason — the NavResult shape the bridge itself returns. */
 export type NavOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
-// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+// A CEILING, load-scaled through the one policy: the literal is the QUIET-BOX base.
 const CEILINGS_MS = budgets({ readyTimeout: 10_000 });
 
 /** Await app-readiness + the bridge, then run one nav action. Never throws: a thrown evaluate (no bridge,
@@ -111,7 +111,7 @@ export async function runNav(page: Page, method: NavMethod, target: string): Pro
     await page.locator("html[data-app-ready]").waitFor({ state: "attached", timeout: CEILINGS_MS.readyTimeout });
     // the readiness ping is advisory and the bridge call below it is the check: a missing bridge or a navigation mid-call comes back from runNav as { ok: false, reason }, which motion-nav prints as NAV FAILED. Ends if the ping becomes the only readiness check.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
-    // #1004: the bridge's answer is VALIDATED at the seam, not asserted. An absent `ok` used to read as
+    // The bridge's answer is VALIDATED at the seam, not asserted. An absent `ok` used to read as
     // falsy and report a nav failure that never happened; a truthy non-boolean read as success.
     const result = navResultShape(await page.evaluate(buildNavScript(method, target)), `nav ${method} ${target}`);
     return result.ok ? { ok: true } : { ok: false, reason: result.reason ?? "rejected" };

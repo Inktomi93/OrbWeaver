@@ -49,7 +49,7 @@ function holderRecord(): string {
 let releaseSeq = 0;
 
 /** Physically release a lock directory: RENAME it off its live name first, then remove the renamed copy.
- *  The rename is the atomic step (#1732) — a concurrent `mkdirSync(path)` either lands on the fresh
+ *  The rename is the atomic step — a concurrent `mkdirSync(path)` either lands on the fresh
  *  (post-rename) name outright, or still sees the live directory and fails EEXIST; it can never observe
  *  a half-removed directory. Before this, `rmSync(path, { recursive: true, force: true })` ran directly
  *  against the LIVE name: its internal readdir→unlink→rmdir sequence is not atomic against a concurrent

@@ -4,13 +4,13 @@
 // reading, split out of it: the budget math stays there, the two once-per-process
 // filesystem walks live here, and the direction is one-way — this module imports nothing from
 // `load-budget.ts`. Why the denominator and the wall-clock stretch honour the limit at all:
-// `cgroupQuotaCores` below (#1985) and `load-budget.ts#throttleFactor` (#2206).
+// `cgroupQuotaCores` below and `load-budget.ts#throttleFactor`.
 import { readFileSync } from "node:fs";
 import { cpus } from "node:os";
 import process from "node:process";
 import { cgroupFiles } from "./platform-probes.ts";
 
-/** THE KERNEL'S OWN RECORD OF THE LIMIT BITING (#2206). `cpu.stat` counts scheduling PERIODS and how many
+/** THE KERNEL'S OWN RECORD OF THE LIMIT BITING. `cpu.stat` counts scheduling PERIODS and how many
  *  of them ended with this tree THROTTLED — i.e. the quota, not the machine, stopped the work. */
 export interface CpuThrottleSample {
   readonly periods: number;
@@ -38,7 +38,7 @@ function cpuMaxCores(body: string | undefined): number | undefined {
 /** PURE (given the reader): THE CGROUP v2 QUOTA CEILING on this process tree in whole-CPU units, or
  *  `undefined` when the tree is unbounded (no cgroup v2, an unreadable path, every `cpu.max` reading `max`).
  *
- *  WHY IT IS AN INPUT TO THE DENOMINATOR AND NOT A CURIOSITY (#1985, measured 2026-09-12). A cgroup CPU
+ *  WHY IT IS AN INPUT TO THE DENOMINATOR AND NOT A CURIOSITY (measured). A cgroup CPU
  *  quota — a systemd `CPUQuota=` on the session's scope, a container's CPU limit — bounds the cores this
  *  tree may use, and `cpus().length` cannot see it. Under an 800% quota (EIGHT of a 24-thread box)
  *  `computeLoadFactor` divided a box-wide loadavg by cores this process tree is FORBIDDEN to use, and

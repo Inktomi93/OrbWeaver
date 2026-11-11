@@ -1,9 +1,9 @@
-// A CSS subject may be a PSEUDO-ELEMENT CARRIER, and this is the one place that says so (#2431). Both
+// A CSS subject may be a PSEUDO-ELEMENT CARRIER, and this is the one place that says so. Both
 // rendered readers — the DevTools-SDK cascade bridge and the appearance census — take their subject as a
 // selector STRING, and neither could address `.shell-panel::before`: `querySelectorAll` cannot select a
 // pseudo (it answers population 0, measured) and `getComputedStyle(el)` with no second argument reads the
-// HOST. That blind spot is not hypothetical — #1154 deliberately moved both of the shell panes' glass
-// declarations off `.shell-panel` onto `.shell-panel::before`, so from that commit the appearance row
+// HOST. That blind spot is not hypothetical — a deliberate move put both of the shell panes' glass
+// declarations on `.shell-panel::before` instead of `.shell-panel`, so from that move the appearance row
 // `light-art-scrim-glass-elevation` asked the pane for a declaration the pane no longer carries and the
 // matrix cell refused with "declaration population is zero: backdrop-filter".
 //

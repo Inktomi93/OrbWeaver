@@ -1,4 +1,4 @@
-// HOST-WIDE SLOT POOLS (#1835) — the one mechanism behind "at most N of these may run ON THIS BOX at once".
+// HOST-WIDE SLOT POOLS — the one mechanism behind "at most N of these may run ON THIS BOX at once".
 //
 // WHY IT IS HOST-WIDE AND NOT PER-WORKTREE. Every cap the fleet had was written per checkout: one CT runner
 // lock per worktree, one verify run per checkout, one biome pool under `<root>/node_modules/.cache/`. Six
@@ -129,7 +129,7 @@ function slotPath(dir: string, slot: number): string {
 }
 
 /** The poll timer is deliberately NOT `unref()`d. An unref'd timer does not hold the event loop open, so a
- *  process whose ONLY pending work is this wait EXITS — measured 2026-09-06 driving the real verify door:
+ *  process whose ONLY pending work is this wait EXITS — measured driving the real verify door:
  *  node printed "Detected unsettled top-level await" and the queued run ended with exit 0 having run
  *  NOTHING. A verify that reports clean without running is the lying-tool shape this repo fixes on sight,
  *  so waiting keeps the process alive, exactly like the work it is waiting to do. */

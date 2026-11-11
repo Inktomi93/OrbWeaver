@@ -1,4 +1,4 @@
-// ZERO HYGIENE (#409) — the fleet's one home for "absent evidence is never a verdict".
+// ZERO HYGIENE — the fleet's one home for "absent evidence is never a verdict".
 //
 // The rule the ast scan ledger already speaks for a zero-scan run ("a zero-scan run is a TOOL ERROR,
 // never a clean no-results") said for every measuring instrument here:

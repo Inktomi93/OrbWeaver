@@ -1,4 +1,4 @@
-// The DIRECT-INVOCATION refusal (#509). An `ops/*.ts` module is a LIBRARY — the program is `cli.ts <verb>`
+// The DIRECT-INVOCATION refusal. An `ops/*.ts` module is a LIBRARY — the program is `cli.ts <verb>`
 // (eleven pnpm rows point at the cli, nothing points into ops/). A
 // module with no main that is RUN loads, executes nothing and exits 0 — a green that never ran a check, and
 // the legacy gate-authoring guide prescribed exactly that spelling for months. A bare zero must mean "I could not

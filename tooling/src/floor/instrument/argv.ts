@@ -66,7 +66,7 @@ function spanEnd(raw: string, open: number): number {
 
 /** Playwright's built-in SELECTOR ENGINES. The `engine=body` form puts an `=` INSIDE the selector, so the
  *  pair split must step over it — `--fill 'role=textbox[name="Content"]=hello'` is a selector plus a
- *  value, not `role` plus everything else (#826: `ARG ERROR --fill selector "role" can never match`, on a
+ *  value, not `role` plus everything else (`ARG ERROR --fill selector "role" can never match`, on a
  *  live review, whose only workaround was `:nth-match(textarea, 2)=value`).
  *
  *  A CLOSED SET, deliberately: the shape regex `^[A-Za-z_][\w-]*=` also matches `input=hello`, so a
@@ -111,14 +111,14 @@ function topLevelEqIndex(raw: string): number | null {
 /** The SELECTOR-headed pair split: the first `=` that is not inside an attribute selector or a quoted
  *  string (`--fill '[data-testid=cast-name]=hello'`).
  *
- *  THE #686 RULING SURVIVES — ITS INPUT CHANGED (#816). `--fill` splits on the FIRST `=` because its
+ *  THE SPLIT-ON-FIRST-`=` RULING SURVIVES — ITS INPUT CHANGED. `--fill` splits on the FIRST `=` because its
  *  VALUE is a JS literal that routinely contains one (`--fill '[data-composer]=const a = 1;'`), and that
  *  is still exactly what this does. What the ruling assumed was that a SELECTOR never carries an `=`;
  *  an attribute selector does, so the plain first-`=` split cut `[data-testid` off from `cast-name]` and
  *  made every attribute selector unusable (paid live: a review had to tag its input through `--eval`
- * first — 2026-08-29 §9). Depth-aware, so both hold at once.
+ * first — §9). Depth-aware, so both hold at once.
  *
- *  THE SAME RULING, ITS INPUT CHANGED AGAIN (#826): a Playwright ENGINE prefix (`role=`, `text=`, …) is
+ *  THE SAME RULING, ITS INPUT CHANGED AGAIN: a Playwright ENGINE prefix (`role=`, `text=`, …) is
  *  also part of the selector, so the scan steps over the `=` that ends an engine name. Consequence worth
  *  knowing: `text=hello` with no second `=` now reads as a whole SELECTOR and returns null (the flag
  *  refuses "expects sel=value"), which is what the caller meant — Playwright would have read it as the
@@ -163,11 +163,11 @@ export function splitPageSuffix(tok: string): { flag: string; page: number } {
  *  rail SECTION; `config:<group>[.<sub>[.<setting>]]` opens the Configuration section on a config group, its
  *  subcategory, and one setting LEAF (the bridge method is `openConfig`); `modal:<slot>` opens a rail modal.
  *
- *  THE PREFIX WAS `settings:` UNTIL #2447. It had kept its word when the settings modal retired into the
- *  section (#866 S1), and the owner's 2026-09-19 ruling — "settings migrated to config; settings should be
+ *  THE PREFIX IS NOT `settings:`. That word stayed when the settings modal retired into the
+ *  section, and the owner's ruling — "settings migrated to config; settings should be
  *  gone" — took the last of that word with it: there is no settings feature, no settings modal and no
  *  Settings section, only `features/config` hosting the Configuration section. No alias and no migration
- *  door (the no-retirement-doors ruling, 2026-09-04): an unlaunched product greps its own spellings. */
+ *  door (the no-retirement-doors ruling): an unlaunched product greps its own spellings. */
 export type GotoTarget =
   | { readonly method: "section"; readonly arg: string }
   | { readonly method: "openConfig"; readonly arg: string; readonly sub?: string; readonly setting?: string }
@@ -176,8 +176,8 @@ export type GotoTarget =
 const CONFIG_PREFIX = "config:";
 const MODAL_PREFIX = "modal:";
 /** The config address is THREE parts, verbatim the vocabulary `openConfigTo(group, sub?, setting?)` and the
- *  `/config?to=g.s.l` copy-link grammar carry (packages/client/src/state/config-link.ts). #1176 widened the
- *  bridge to the leaf; until #1639 this parser stopped at two, so a drive asking for one knob was decoded
+ *  `/config?to=g.s.l` copy-link grammar carry (packages/client/src/state/config-link.ts). The
+ *  bridge reaches the leaf; a parser that stops at two segments means a drive asking for one knob was decoded
  *  as its section and the run reported success. */
 const GOTO_CONFIG_GRAMMAR = "config:<group>[.<sub>[.<setting>]]";
 /** A `<word>:` head is a NAMESPACE, and only these two exist. No rail SECTION id carries a colon
@@ -187,7 +187,7 @@ const GOTO_CONFIG_GRAMMAR = "config:<group>[.<sub>[.<setting>]]";
  *  `settings:` spelling, and it catches a typo the same way — it is the GRAMMAR failing closed, not an alias
  *  table. */
 const GOTO_NAMESPACE_RE = /^[a-z][a-z-]*:/u;
-/** THE WHOLE TARGET GRAMMAR IN ONE HOME (#2482). Both refusals below AND `--goto`'s flag summary
+/** THE WHOLE TARGET GRAMMAR IN ONE HOME. Both refusals below AND `--goto`'s flag summary
  *  (`snap/ops/flags-metadata.ts`, which `pnpm snap --help` and the generated flag index both render) read
  *  this string, so the help cannot document a form the parser refuses. It did: the summary promised "a
  *  dotted settings address group.sub.setting" — the pre-#2447 `settings:` word, minus its namespace — and a
@@ -225,7 +225,7 @@ export function parseGotoTarget(target: string): GotoTarget {
   if (namespace !== undefined) {
     throw new Error(`--goto "${target}" opens the unknown namespace "${namespace}"; the targets are ${GOTO_TARGET_GRAMMAR}`);
   }
-  // A DOTTED BARE TARGET NAMES THE GATE IT MISSED, NOT A SECTION (#2482). No rail section id contains a dot
+  // A DOTTED BARE TARGET NAMES THE GATE IT MISSED, NOT A SECTION. No rail section id contains a dot
   // (`packages/client/src/state/section-ids.ts`, pinned as text by tests/tooling/floor/instrument/argv.test.ts —
   // tooling may not import the client package, so the lens reads the tuple's source rather than claiming the
   // property), so a dotted target is an ADDRESS whose namespace was left off. Falling through to `section`

@@ -26,7 +26,7 @@ interface PresetFile {
 /** Refuse keys the shared schema strips and values its `.catch()` clauses would silently replace. A
  * probe arm is evidence about the requested value, so schema self-healing here would be a false receipt.
  *
- * `safeParse`, not `.parse` (#1509): this function's whole contract is the `{ error }` shape its callers
+ * `safeParse`, not `.parse`: this function's whole contract is the `{ error }` shape its callers
  * turn into an ARG ERROR at EXIT.misuse, and neither caller catches — a throw here would leave a raw
  * ZodError as the CLI's last word. Measured on the tree, the schema is total for every plain object (every
  * leaf carries a `.catch`), so the throwing arm is reachable only for a NON-object; both current callers

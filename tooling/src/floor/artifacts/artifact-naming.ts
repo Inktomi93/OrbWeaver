@@ -3,7 +3,7 @@
 // called. Keeping it beside the slot machinery meant one module answering two unrelated questions, and the
 // cap is what made that legible.
 //
-// IMPORTERS NAME THIS MODULE DIRECTLY, and that is not a preference — it is forced (#2258). The intent when
+// IMPORTERS NAME THIS MODULE DIRECTLY, and that is not a preference — it is forced. The intent when
 // this split landed was for `./artifacts.ts` to re-export all four names so importers kept their spelling,
 // citing its `PrunedRun` re-export from ./run-retention.ts as the precedent. **That analogy is false and the
 // re-export never existed.** `PrunedRun` survives only because it is a TYPE, and biome allows a type-only
@@ -38,7 +38,7 @@ export function isOutPath(out: string): boolean {
 /** The final file path for an `--out` value + the extension this artifact is written with. PURE (the
  *  caller supplies the already-created `reports/<kind>/` dir) so the whole naming contract is unit-testable.
  *
- *  THE DEFECT THIS EXISTS FOR (2026-08-17): every call site spelled `join(await artifactDir(k), name + ext)`
+ *  THE DEFECT THIS EXISTS FOR: every call site spelled `join(await artifactDir(k), name + ext)`
  *  by hand, so `--out /abs/shot.png` — a path a lane pasted from its own scratch dir — was JOINED UNDER the
  *  reports dir and re-suffixed: `reports/snaps/abs/shot.png.png`. The run still exited 0, so the caller
  *  believed the file it named existed. A refusal would have been honest; landing where NAMED is better. */
@@ -49,9 +49,9 @@ export function artifactFilePath(baseDir: string, out: string, ext: string): str
 
 /** A bare-relative `--out` ALREADY spelled from the repo root INTO this kind's dir (`reports/snaps/foo.png`)
  *  names the very file the prefixing would produce — so its `reports/<kind>/` prefix is STRIPPED instead of
- *  being prefixed AGAIN into `reports/snaps/reports/snaps/foo.png` (#209, 2026-08-18; a lane pasted back the
+ *  being prefixed AGAIN into `reports/snaps/reports/snaps/foo.png` (a lane pasted back the
  *  path snap itself had just printed). The check is a prefix strip rather than a `resolve(baseDir, "..", "..")`
- *  because since #1164 `baseDir` may be a RUN SLOT (`reports/runs/snap/<runId>/snaps`), where two levels up is
+ *  because `baseDir` may be a RUN SLOT (`reports/runs/snap/<runId>/snaps`), where two levels up is
  *  not the repo root and the old form silently stopped recognizing the very path snap prints. It stays PURE —
  *  no `process.cwd()`. A bare name that lands anywhere else (`home/tiles`, another kind's dir) is still an
  *  artifact BASE and keeps the prefix. */

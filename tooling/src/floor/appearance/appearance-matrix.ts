@@ -236,7 +236,7 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
 /** Read the client-owned live bridge. Tool consumers do not import the client manifest or copy this
  *  evaluation body; the page is the source of truth for the contract it actually rendered. */
 export async function readRuntimeAppearanceContract(page: Page): Promise<RuntimeAppearanceContract> {
-  // #1004 — the contract is the DENOMINATOR for every axis this tool plans, so a malformed read is a
+  // The contract is the DENOMINATOR for every axis this tool plans, so a malformed read is a
   // silently smaller matrix, not an error. Counts and the two row lists are settled here; the per-row
   // shape is already re-derived and cross-checked by `deriveAppearanceContract` above.
   return runtimeAppearanceContractSchema.parse(await page.evaluate(READ_APPEARANCE_MATRIX_CONTRACT));
