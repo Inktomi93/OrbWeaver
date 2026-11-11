@@ -174,7 +174,7 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 
 | Unit | Path | Band | Status |
 | - | - | - | - |
-| kit | packages/kit/ | M | queued |
+| kit | packages/kit/ | M | reviewed (3) |
 | contracts | packages/contracts/ | L | queued |
 | db | packages/db/ incl. migrations | S | queued |
 
@@ -305,8 +305,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
-| P2 | 12 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment |
-| P3 | 17 | 14 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs |
+| P2 | 13 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit |
+| P3 | 19 | 15 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
