@@ -437,7 +437,7 @@ For example, a three-line sign is enough:
 
   // ── The BE-THOROUGH state-tracking guide (census 27) ──
   // Appendix A's system-prompt addendum, the measured per-turn coverage lifter. It was authored long before the
-  // registry and composed onto NOTHING for the whole of its life (`pnpm ast refs` found only its declaration);
+  // registry and composed onto NOTHING for the whole of its life;
   // owner decision 6 (wire-or-delete) was ruled WIRE, so the constant became this row and
   // `composePlaneTeaching` pushes it. Bytes VERBATIM from the retired `RPG_STATE_TRACKING_GUIDE` — a wire-and-
   // measure ruling is only measurable if what lands is the text the measurement was taken on.

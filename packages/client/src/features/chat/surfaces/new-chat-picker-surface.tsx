@@ -35,8 +35,7 @@
 // whose own `useFocusOnSwap` lands the caret when the ROWS mount — the case Base UI's dialog initial-focus
 // cannot serve, because at open time this body is still the suspense fallback with nothing tabbable in it.
 // The "the two would fight over the caret" note on that prop is retired by the same move: nothing here
-// claims focus any more.
-// The `orb/surface-a11y-focus` home that records this decision is in eslint.config.js; the reason is on `NewChatPicker` below.
+// claims focus any more. The reason is on `NewChatPicker` below.
 //
 // A SHORT DIALOG IS ONE BOX WITH ONE SCROLLER. `dialog-short` fires when the pinned footer cannot sit over a row of the
 // list (primitives.css has the steps). There the picker is a column that shares what the dialog leaves: the command box
@@ -111,7 +110,7 @@ function selectionStatusFor(count: number): string {
   return count === 0 ? "No characters selected" : `${count} character${count === 1 ? "" : "s"} selected`;
 }
 
-// Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): the picker BODY owns arrival focus — `CharacterPicker`'s own `autoFocusSearch` lands the caret in the search combobox when the rows mount, and a `useFocusOnMount` here is exactly the defect #440 fixed (it parked focus on a dead wrapper and swallowed every keystroke). Ends when this surface stops delegating to `CharacterPicker`, or when that prop stops taking focus.
+// Arrival focus lives in another pane: the picker BODY owns arrival focus — `CharacterPicker`'s own `autoFocusSearch` lands the caret in the search combobox when the rows mount, and a `useFocusOnMount` here is exactly the defect #440 fixed (it parked focus on a dead wrapper and swallowed every keystroke). Ends when this surface stops delegating to `CharacterPicker`, or when that prop stops taking focus.
 export function NewChatPicker(): ReactElement {
   const [selected, setSelected] = useState<ReadonlySet<CharacterId>>(() => new Set<CharacterId>());
   // The creation parameters this open was PRE-ARMED with (the home temp-chat tile's `temporary: true`).

@@ -4,11 +4,10 @@
 // plain `Record<string, Handler>` tables (house style for a hand-listed dispatch family), which gives no
 // literal-key union to hang a compile-time completeness check on without reshaping three established
 // tables. This module is therefore the closest available REQUIRED shape: a single flat map, completeness
-// asserted at runtime by `nonArmFlagMeta()` below (thrown before any row is produced) and pinned by a
-// committed test that fails the instant a new non-arm flag ships without an entry here — the same "cannot
-// ship without its row" guarantee `ArmDef.help` gives arms. That test is
-// `tests/tooling/snap/ops/cli-truth.suite.int.test.ts` ("descriptor-owned help grammar covers every public
-// accepted spelling exactly once"): it calls `snapFlagDescriptors()`, which this module's completeness
+// asserted at runtime by `nonArmFlagMeta()` below (thrown before any row is produced) and pinned by
+// `tests/tooling/snap/ops/cli-truth.suite.int.test.ts`, which fails the instant a new non-arm flag ships without
+// an entry here — the same "cannot ship without its row" guarantee `ArmDef.help` gives arms. Its case
+// ("descriptor-owned help grammar covers every public accepted spelling exactly once") calls `snapFlagDescriptors()`, which this module's completeness
 // throw runs inside.
 //
 // `group` names match the section headings in `.claude/skills/snap-driving/reference/flags.md` (the ONE

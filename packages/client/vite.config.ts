@@ -697,7 +697,7 @@ export default defineConfig(({ mode }) => {
             nativeTypecheck(WORKSPACE_ROOT),
             reportWorkerFailures(),
             // Native TypeScript and typed ESLint retain terminal and browser diagnostics without duplicate JS programs.
-            // enableBuild:false — `pnpm check` owns gate-time. eslint auto-discovers the root eslint.config.js.
+            // enableBuild:false — the push hook and CI own whole-tree checks (D317). ESLint discovers the root eslint.config.ts.
             checker({
               eslint: {
                 useFlatConfig: true,

@@ -15,7 +15,7 @@
 //   fixturePath  — compose a path below an owned root and REFUSE lexical or symlink escape.
 //   plantFile / plantDir / plantLink / removePlanted — the only write door a gate family test has: each
 //                  refuses a root that is not an invocation-owned temp dir (never the checkout) and composes
-//                  through fixturePath. The `orb/no-raw-fs-write-in-gate-tests` lint rule bans the raw fs verbs.
+//                  through fixturePath. A gate family test never calls the raw fs write verbs.
 import { existsSync, lstatSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

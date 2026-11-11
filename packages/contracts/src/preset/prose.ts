@@ -97,7 +97,7 @@ export const PRESET_PROSE_SLOTS = {
   "preset.format.impersonateNudge": {
     home: "preset",
     version: 1,
-    // The voice-lock measured by the IMP-1 probe harness (`scripts/probes/impersonate/`): the "Ignore all
+    // The voice-lock measured by the IMP-1 probe harness: the "Ignore all
     // previous instructions" lead + the explicit write-only-{{user}}/never-{{char}} constraint held the
     // user's voice 6/6 on the weak 8B at full production sampling. The probe harness — not a hand edit — is
     // the instrument for revising these bytes; a revision bumps `version` in the same commit.

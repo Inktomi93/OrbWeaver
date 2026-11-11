@@ -42,10 +42,11 @@ Keep owner-voice sections in the owner's own words. Do not rewrite them into pla
 ## Structure
 
 7. One home per rule. Other files link to it and never restate it. Two copies that disagree are a bug.
-8. Cite a file by its full repo path. `tests/tooling/doc/comment-path-citations.repo.int.test.ts` fails a
-   law doc, rule or `AGENTS.md` that cites a missing or unrooted path.
+8. Cite a file by its full repo path. Every cite follows the grammar in `.claude/rules/comments.md`, and
+   `tests/tooling/doc/comment-path-citations.repo.int.test.ts` fails a law doc, rule or `AGENTS.md` that cites a
+   missing or unrooted target.
 9. Law states rulings, not build status. Track unbuilt work in a `docs/work` item and link the item.
-10. State product and architecture rules clearly. Name enforcement only when a retained native tool or test provides it.
+10. State product and architecture rules clearly. Name enforcement only when a retained native tool or test provides it, and cite that checker (`.claude/rules/comments.md`, enforcement claims).
 11. Keep a rule only when it solves a real problem and its reason is clear.
 12. Add a rule only when a mistake repeats. A one-off gets fixed in code.
 13. Edit in place. Deleting is normal. Never write a correction beside the original.

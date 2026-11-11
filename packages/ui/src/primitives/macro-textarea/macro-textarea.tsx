@@ -214,8 +214,7 @@ function resolveSuggestions(trigger: MacroTrigger | null, suggestions: readonly 
  * `section-body.tsx`'s `TemplatedMarkerBody`, both passing `aria-label` directly because a `<Field label>`
  * here would repeat a heading the surrounding drill-in already renders (side-eye F-32). For THOSE mounts
  * the `aria-label` prop forwarded onto the control below is the ONLY name source — there is no Field to
- * fall back to — which is why `FieldlessGhostStory` + its CT pin exist: they are the one place a
- * fall-through at the control is actually exposed.
+ * fall back to — so the prop must reach the control.
  */
 export function MacroTextarea({
   value,

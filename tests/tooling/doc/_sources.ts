@@ -1,5 +1,5 @@
-// The tracked tree and the text a reference check reads: comments and string literals by the TypeScript scanner, and the
-// repo-rooted path pattern. Both reference tests in this directory read the tree through here.
+// The tracked tree and the text a reference check reads: comments and string literals by the TypeScript scanner. The
+// reference tests in this directory read the tree through here; the cite spellings live in `tooling/src/eslint/cites.ts`.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -21,16 +21,6 @@ export const SCRIPT_KINDS: Readonly<Record<string, ts.ScriptKind>> = {
   ".mjs": ts.ScriptKind.JS,
   ".cjs": ts.ScriptKind.JS,
 };
-export const CITED_EXT = "(?:md|tsx?|[cm]?js|css|json|ya?ml|sh)";
-// A repo-rooted path. The lookbehind keeps a URL's own segment and a relative path's tail out; the lookahead drops a
-// directory or a glob, whose next character continues the path.
-export const ROOTED = new RegExp(
-  String.raw`(?<![\w./*@-])(?:docs|packages|tooling|tests|scripts|docker|\.claude|\.github)\/[\w./+@-]*\w\.${CITED_EXT}(?![\w*{/-])`,
-  "gu",
-);
-export const URL_RE = /\bhttps?:\/\/\S+/gu;
-// A glob, brace, placeholder or elision is a prose pattern, never a literal cite.
-export const NON_LITERAL = /[*{}<>…]|\.\.\.|NNNN/u;
 
 export interface Tracked {
   readonly paths: ReadonlySet<string>;

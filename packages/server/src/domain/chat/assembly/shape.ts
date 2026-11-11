@@ -720,7 +720,7 @@ export function shape(input: ShapeInput): ShapeOutput {
  * So a null-stamped row may borrow the turn's `{{user}}` ONLY when it is that same human's OWN row —
  * the server twin of the client's render rule (`client/features/chat/lib/attribution.ts`
  * `resolveUserAttribution`: the `authorUserId === viewerUserId` gate, "fail closed: name nobody rather than
- * name wrongly"). Everyone else gets {@link UNRESOLVED_USER_NAME}, the same word the reader sees on screen.
+ * name wrongly"). Everyone else gets {@link DEFAULT_PERSONA_NAME}, the same word the reader sees on screen.
  *
  * The key is the human whose persona `speakers.user` is (`AssembleContext.activePersonaUserId`, the room's
  * anchor human), never the trigger, so a row's label does not change with who pressed send. Fail-closed on

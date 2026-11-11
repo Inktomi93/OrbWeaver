@@ -2333,6 +2333,11 @@ export default [
     rules: { "orb/commented-code": "error" },
   },
   {
+    files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/enforcement-claim-cites-checker": "error" },
+  },
+  {
     files: rootSources("@server", "@inference"),
     ignores: ["packages/server/src/**/persistence/**"],
     plugins: { orb: localPlugin },

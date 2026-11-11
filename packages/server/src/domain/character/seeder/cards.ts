@@ -22,7 +22,7 @@
 //     on the shared `AUTHORED_CARD_CREATOR` marker so all ten read `shipped`. A card here that carried a
 //     `source` URL list (the V3 upstream-provenance field) while reading `shipped` would be exactly the
 //     impossible pair a fixture once held — so `source` stays null.
-//   · The CARRIED BACKGROUND is computed, not typed — see {@link seededBackground}.
+//   · The CARRIED BACKGROUND is computed, not typed — see {@link backgroundSlugFor}.
 // The two hand-authored fields that DO ride a derivation's output are `creator` (above) and the scene plate.
 //
 // SEEDING: each card is one item of the seed manifest (`@orb/default-content`, D263), keyed by its handle.

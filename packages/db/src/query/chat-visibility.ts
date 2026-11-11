@@ -21,7 +21,8 @@
 //
 // THE ENFORCER (constitution §2 — a placement names the tier that REDs its violation). The one-directional
 // package cake is the enforcer of the HOME: `db` sits below both `server` domains, so `character` reaching
-// for `chat`'s copy of these predicates would be a sideways domain import that dependency-cruiser reds, and
+// for `chat`'s copy of these predicates would be a sideways domain import that dependency-cruiser reds
+// (policy `domain-no-cross-feature`), and
 // `chat` reaching UP for anything does not resolve at all. What the cake CANNOT catch is a domain quietly
 // RE-SPELLING the four arms inline instead of importing them — that is the thing to grep for
 // (`chats.temporary` / `chats.startedAt` / `chatParticipants.leftSeq` outside this file and

@@ -1,8 +1,8 @@
 // domain/assets — composition root: wires the verbs over the DI bundle (zero logic). Injects no guard
 // (every surface is ownership-scoped off principal.userId, never admin/owner-gated). Maintenance/DR verbs
 // (backfillAvatars, collectGarbage, reapIfOrphan, fsck, rebuildFromTree) run over the asset-ref registry
-// (persistence/asset-refs.ts — the one list of asset-bearing columns, coverage proven by a schema-
-// introspection test) so a new asset-bearing FK cannot silently become GC-eligible.
+// (persistence/asset-refs.ts — the one list of asset-bearing columns) so a new asset-bearing FK cannot
+// silently become GC-eligible; a new asset-bearing column must join that list.
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";

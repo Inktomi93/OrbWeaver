@@ -88,7 +88,7 @@ export function MessageActionsCluster({
 
 /** The streaming row's stand-in for the action cluster: the same cluster, hidden and inert. A settled card is as
  *  wide as its header, actions included, so the streaming card reserves that footprint and a short reply does not
- *  reflow when it commits. A parity CT holds the two rows to the same boxes. */
+ *  reflow when it commits. The two rows keep the same boxes. */
 export function GhostActionsFootprint({ chatId, generationCredit }: { readonly chatId: ChatId; readonly generationCredit: boolean }): ReactElement {
   const reactionsEnabled = useReactionsEnabled(chatId);
   return (

@@ -1,5 +1,5 @@
 // domain/rpg/contract/op-codes — the `DomainOperationError.code` strings rpg verbs throw. ONE home, zero imports,
-// so the verbs that throw them and the suites that assert them read the same literal.
+// so the verbs that throw them and the tests that read them share one literal.
 
 export const RPG_OP_CODES = {
   badDiceNotation: "rpg_bad_dice_notation",

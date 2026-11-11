@@ -1,5 +1,5 @@
 // What a finished report says. Zero killed gets its own exit: a sandbox that escaped to unmutated code and a
-// file whose tests catch nothing look identical from here, and neither may read as a clean run.
+// file whose every mutant survives look identical from here, and neither may read as a clean run.
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { MutantStatus, ReportMutant } from "../../mutation-arid/index.ts";
 import { MUTANT_STATUSES } from "../../mutation-arid/index.ts";

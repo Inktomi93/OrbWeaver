@@ -15,9 +15,7 @@
 // exactly ONCE, here, and everything upstream stays `content: string`. D51's CONVERT step lives in
 // this substrate module rather than `engine/pipeline.ts` — the ruling
 // survives, its input changed: still one producer, still the request seam's conversion, now reachable by the
-// read verb that has to price the same rows. ENFORCER: the `orb/content-part-seam` restriction in
-// `eslint.config.js`, whose `homes` entry names this path and must follow it if it moves again.
-//
+// read verb that has to price the same rows.//
 // `engine/` → `substrate/` is the legal downward edge; nothing here imports `engine/` or `assembly/` beyond
 // the `assembly-access.ts` DI seam this directory already owns.
 //
