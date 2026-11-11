@@ -6,7 +6,7 @@ import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inferenc
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
-import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
@@ -35,7 +35,7 @@ export async function resolveTargetGeneration(
   ownerId: UserId,
   task: EmbeddingTask,
   via: EmbeddingTask = task,
-): Promise<PinnedGeneration | null> {
+): Promise<PinnedGeneration> {
   return await ctx.withStableEmbeddingBinding(ownerId, () => resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven: undefined, attempt: 0 }));
 }
 
@@ -48,7 +48,7 @@ export async function resolveImageTargetGeneration(ctx: EmbeddingsContext, owner
       return null;
     }
     const generation = await resolveTargetGenerationAttempt({ ctx, ownerId, task: "imageEmbed", via: space.via, proven: undefined, attempt: 0 });
-    return generation === null ? null : { space, generation };
+    return { space, generation };
   });
 }
 
@@ -59,7 +59,7 @@ export async function landProvenTarget(
   ownerId: UserId,
   target: { readonly task: EmbeddingTask; readonly via: EmbeddingTask },
   proven: EmbedGenerationId,
-): Promise<PinnedGeneration | null> {
+): Promise<PinnedGeneration> {
   return await resolveTargetGenerationAttempt({ ctx, ownerId, ...target, proven, attempt: 0 });
 }
 
@@ -141,8 +141,8 @@ interface PendingTargetMove {
 }
 
 /**
- * Would the owner's stored target move to what `via` resolves to now, or through `connectionId` as if it were bound?
- * Read-only. `null` when nothing resolves. `cachedFacts` answers from the server facts already cached, dialing nothing.
+ * Would the owner's stored target move to what `via` resolves to now, or to `previewConnection` as if it were bound?
+ * Read-only. A binding that cannot resolve throws.
  */
 export async function pendingTargetMove(
   ctx: Pick<TargetResolveCtx, "db" | "resolveEmbeddingConnection">,
@@ -150,19 +150,14 @@ export async function pendingTargetMove(
     readonly ownerId: UserId;
     readonly task: EmbeddingTask;
     readonly via: EmbeddingTask;
-    readonly connectionId?: UserConnectionId | undefined;
-    readonly cachedFacts?: boolean | undefined;
     readonly previewConnection?: UserConnection | undefined;
   },
-): Promise<PendingTargetMove | null> {
-  const { ownerId, task, via, connectionId } = args;
-  const connection = await ctx.resolveEmbeddingConnection(ownerId, via, connectionId, {
-    cachedFacts: args.cachedFacts,
-    previewConnection: args.previewConnection,
-  });
-  if (connection === null) {
-    return null;
-  }
+): Promise<PendingTargetMove> {
+  const { ownerId, task, via, previewConnection } = args;
+  const connection =
+    previewConnection === undefined
+      ? await ctx.resolveEmbeddingConnection(ownerId, via)
+      : await ctx.resolveEmbeddingConnection(ownerId, via, previewConnection.id, { previewConnection });
   const candidate = candidateOf(ownerId, task, via, connection);
   return { id: candidate.id, moves: movesTarget(await readTarget(ctx, ownerId, task), candidate.id), connection, dims: candidate.dims };
 }
@@ -178,24 +173,15 @@ interface ResolveAttempt {
 
 /** What `via` resolves to now. Resolution can span provider/catalog work, so it is read twice and the later answer
  *  wins: an older slow resolver cannot land after a newer binding and reset the target backwards. */
-async function resolveCurrentConnection(ctx: TargetResolveCtx, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
+async function resolveCurrentConnection(ctx: TargetResolveCtx, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot> {
   const first = await ctx.resolveEmbeddingConnection(ownerId, via);
-  if (first === null) {
-    return null;
-  }
   const current = await ctx.resolveEmbeddingConnection(ownerId, via);
-  if (current === null) {
-    return null;
-  }
   return first.connectionId === current.connectionId && connectionFingerprint(first) === connectionFingerprint(current) ? first : current;
 }
 
-async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven, attempt }: ResolveAttempt): Promise<PinnedGeneration | null> {
+async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven, attempt }: ResolveAttempt): Promise<PinnedGeneration> {
   const prior = await readTarget(ctx, ownerId, task);
   const connection = await resolveCurrentConnection(ctx, ownerId, via);
-  if (connection === null) {
-    return null;
-  }
   const { id, space, dims } = candidateOf(ownerId, task, via, connection);
   const moves = movesTarget(prior, id);
   const fingerprint = vectorSpaceFingerprint(connection);

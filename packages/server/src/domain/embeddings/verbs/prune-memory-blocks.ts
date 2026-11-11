@@ -25,10 +25,10 @@ function assertNever(value: never): never {
 export function createPruneMemoryBlocks(ctx: EmbeddingsContext): EmbeddingsService["pruneMemoryBlocks"] {
   return async (params: PruneMemoryBlocksParams): Promise<void> => {
     const ownerId = await ctx.loadChatHostUserId(params.chatId);
-    const generation = ownerId === null ? null : await resolveTargetGeneration(ctx, ownerId, "embed");
-    if (generation === null) {
+    if (ownerId === null) {
       return;
     }
+    const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
     switch (params.lens) {
       case "digest": {
         await pruneChatDigests(ctx.db, params.chatId, params.scopedCharacterId, {

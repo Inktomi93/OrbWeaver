@@ -20,7 +20,7 @@ test("each data frame retains exactly its routing identity, durable cursor and c
   expectTypeOf<StreamDataFrame>().toEqualTypeOf<
     | { readonly channel: "user"; readonly event: UserBusEvent }
     | { readonly channel: "notifications"; readonly seq: number; readonly event: InboxView }
-    | { readonly channel: "chat"; readonly chatId: ChatId; readonly seq: number; readonly event: ChatBusEvent }
+    | { readonly channel: "chat"; readonly chatId: ChatId; readonly seq: number | null; readonly event: ChatBusEvent }
     | { readonly channel: "rpg"; readonly chatId: ChatId; readonly event: RpgBusEvent }
     | { readonly channel: "automation"; readonly chatId: ChatId; readonly event: AutomationBusEvent }
     | { readonly channel: "workloads"; readonly workloadId: WorkloadId; readonly event: WorkloadEvent }

@@ -636,10 +636,10 @@ export type ChatBusEvent =
  *    • the client's central invalidation seam (`packages/client/src/data/invalidation.ts`) + the landing
  *      switch (`data/bus/apply-chat-bus-event.ts`) — a member with no filter row is a wire that reaches the
  *      device and refreshes nothing.
- *    • a server emit site — declared, never emitted, is dead wire (review holds this).
- *    • a NON-DURABLE member (never appended to `chat_events`) must also join `NON_DURABLE_EXEMPT` in
- *      `data/bus/chat-event-seq-guard.ts`, or the seq dedup drops it forever; a DURABLE turn-lifecycle
- *      member must NOT (it replays from zero on subscription churn and needs the seq guard). */
+ *    • a server emit site, or the stream source's attach synthesis for `chatOpened` and `historyTruncated` — declared, never
+ *      emitted, is dead wire (review holds this; no check claims it).
+ *    • a DURABLE member needs its row in `DROPPED_APPEND_FANS` (below; `tsc` forces it), which decides whether a
+ *      dropped append still fans live. */
 export const CHAT_BUS_EVENT_TYPES = {
   delta: true,
   messageCommitted: true,
@@ -682,9 +682,9 @@ export const CHAT_BUS_EVENT_TYPES = {
  *  so appending a live-only member is a COMPILE ERROR, not a review catch. The db CHECK derives from the
  *  same durable subset (`packages/db/src/schema/chat.ts`), so the column can never hold one either.
  *
- *  Consequences a member of this tuple accepts: no replay (a device dark through the fan never receives it —
- *  the heal is the attach synthesis), and a mandatory seat in the client's `NON_DURABLE_EXEMPT` set (a
- *  non-advancing seq is dropped by the seq guard otherwise).
+ *  Consequence a member of this tuple accepts: no replay (a device dark through the fan never receives it —
+ *  the heal is the attach synthesis). Its frame carries `seq: null`, which the client seq guard admits without
+ *  moving its high-water mark.
  *
  *  THE THREE MEMBERS JOIN FOR DIFFERENT REASONS, and each is stated so a fourth is classified rather than
  *  guessed: `roomEntityChanged` is live-only as an ECONOMY (a durable row per seated room per card edit buys
@@ -706,6 +706,60 @@ export type LiveOnlyChatEventType = (typeof LIVE_ONLY_CHAT_EVENT_TYPES)[number];
  *  lane. The type both durable emit surfaces accept (see {@link LIVE_ONLY_CHAT_EVENT_TYPES}). */
 export type DurableChatBusEvent = Exclude<ChatBusEvent, { type: LiveOnlyChatEventType }>;
 
-/** The complement: a `ChatBusEvent` fanned WITHOUT a durable append — the only thing the transport's
- *  `seq: null` arm and `entry/compose/services::emitChatEventLive` accept. */
+/** The complement: a `ChatBusEvent` fanned WITHOUT a durable append — what
+ *  `entry/compose/services::emitChatEventLive` accepts. */
 export type LiveOnlyChatBusEvent = Extract<ChatBusEvent, { type: LiveOnlyChatEventType }>;
+
+/** Whether a durable event whose append the bus dropped still fans live with `seq: null` (D342). `true` unless a row
+ *  below says why not: a dropped event that does not fan leaves an attached device or an automation rule (the watcher
+ *  reads this same live fan) wrong, with nothing to recover it. `messageCommitted` carries a committed canon row, never
+ *  token text, and outside a turn nothing else tells other devices. */
+const DROPPED_APPEND_FANS = {
+  // Token text the log never held would break replay-equals-live; the turn's terminal invalidates canon instead.
+  delta: false,
+  messageCommitted: true,
+  messageEdited: true,
+  messageHidden: true,
+  variantSelected: true,
+  messagesDeleted: true,
+  messagesReordered: true,
+  reasoningEdited: true,
+  reasoningCleared: true,
+  // The client no-ops on it and no rule keys on it, so nothing reads it live.
+  reasoningStreamDone: false,
+  // `turnStarted` opens the same slot and the terminal closes it; no rule keys on it.
+  turnAccepted: false,
+  turnStarted: true,
+  turnCompleted: true,
+  turnAborted: true,
+  // A notice the user would never see: warnings are not canon, so no read brings one back.
+  warning: true,
+  worldInfoActivated: true,
+  personaSwitched: true,
+  reactionsChanged: true,
+  wiBookAttached: true,
+  wiBookDetached: true,
+  wiEntryAttached: true,
+  wiEntryDetached: true,
+  wiEntryScopeChanged: true,
+  // No audience: a fork announces its new room through `emit` before any device attaches to it or any rule can be
+  // scoped to it (a global rule watches no chat event), and its list row rides `emitChatChanged`. `startChat`
+  // appends it in the creation batch, which never fans a failure.
+  chatCreated: false,
+  // Attach syntheses: the pump yields them per subscription and never appends them.
+  chatOpened: false,
+  historyTruncated: false,
+  chatUpdated: true,
+} as const satisfies Record<DurableChatBusEvent["type"], boolean>;
+
+type DroppedAppendFanType = {
+  [Type in keyof typeof DROPPED_APPEND_FANS]: (typeof DROPPED_APPEND_FANS)[Type] extends true ? Type : never;
+}[keyof typeof DROPPED_APPEND_FANS];
+
+/** A durable event that still fans live when its append was dropped (see {@link DROPPED_APPEND_FANS}). */
+export type DroppedAppendFanEvent = Extract<DurableChatBusEvent, { type: DroppedAppendFanType }>;
+
+/** Narrow a dropped event to one that still fans live, read off {@link DROPPED_APPEND_FANS}. */
+export function fansWhenDropped(event: DurableChatBusEvent): event is DroppedAppendFanEvent {
+  return DROPPED_APPEND_FANS[event.type];
+}

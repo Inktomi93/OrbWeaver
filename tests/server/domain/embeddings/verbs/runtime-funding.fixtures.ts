@@ -373,13 +373,10 @@ export async function pinGeneration(
   harness: Fixtures["harness"],
   task: EmbeddingTask,
   connectionId: Resolved["connectionId"],
-): Promise<NonNullable<Awaited<ReturnType<Fixtures["app"]["embeddings"]["resolveGeneration"]>>>> {
+): Promise<Awaited<ReturnType<Fixtures["app"]["embeddings"]["resolveGeneration"]>>> {
   await harness.services.connection.setBinding({ principal: await harness.principalFor(harness.ownerId), task, connectionId });
   await harness.settleBackground();
   const generation = await harness.app.embeddings.resolveGeneration(harness.ownerId, task);
-  if (generation === null) {
-    throw new Error("the real bound encoder did not produce a pinned generation");
-  }
   await harness.settleBackground();
   return generation;
 }

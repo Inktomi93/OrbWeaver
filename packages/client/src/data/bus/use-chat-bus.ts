@@ -15,8 +15,8 @@
 // → stuck Stop. (It used to be worse: the draft-promotion `sinceSeq: 0` seed replayed the whole log FROM
 // ZERO on any churn; that seed is gone with draft mode, the guard is not.) The one process `seqGuard`
 // drops every durable-log event that does not advance its chat's high-water mark, making delivery
-// exactly-once (full rationale + the chatOpened/historyTruncated EXEMPTION-BY-TYPE in
-// `chat-event-seq-guard.ts`). A real gap-fill (a seq beyond the mark) is unaffected.
+// exactly-once (full rationale, and the frames that bypass the mark, in `chat-event-seq-guard.ts`). A real
+// gap-fill (a seq beyond the mark) is unaffected.
 //
 // THE ATTACH CURSOR FLOOR (R3 — the fresh-context verifier's R1-2, a real message-loss window).
 //
@@ -98,14 +98,15 @@ export function useChatBus(chatId: ChatId, deps: ChatBusDeps): void {
         // TYPE (it must always invalidate on reopen), so it can never climb the mark — but its seq IS the
         // server's statement of "your room's durable log stands here as of your attach", which is exactly
         // the cursor a reconnect needs before this client has applied a durable frame. Monotonic client-side
-        // too: a later attach never lowers it.
-        if (frame.event.type === "chatOpened") {
+        // too: a later attach never lowers it. The attach synthesis always carries a cursor; only a no-row
+        // frame carries `null`.
+        if (frame.event.type === "chatOpened" && frame.seq !== null) {
           attachFloor.current = Math.max(attachFloor.current ?? 0, frame.seq);
         }
         // Drop a stale re-delivery (a from-zero replay on re-attach) before it reaches the reducer — a
         // re-replayed terminal/turnStarted would otherwise re-open a completed slot (see the header note).
-        // Attach-synthesized signals (chatOpened/historyTruncated) are exempt BY TYPE inside the guard.
-        if (!seqGuard.admit(frame.event, String(frame.seq))) {
+        // A no-cursor frame and the attach syntheses bypass the mark inside the guard.
+        if (!seqGuard.admit(frame)) {
           return;
         }
         applyChatBusEvent(frame.event, deps);

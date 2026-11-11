@@ -45,13 +45,17 @@ test("a resumable room that outruns its reader is told it lagged and then receiv
     }
     const committedIds = (): readonly MessageId[] => device.frames.flatMap(({ event }) => (event.type === "messageCommitted" ? [event.messageId] : []));
 
-    await device.waitFor(() => device.lags.length > 0 && missed.every((id) => committedIds().includes(id)));
-
-    // The notice names the seq of the last frame the device was handed before it, and every missed message arrives
-    // after the notice, once, by replay.
+    // The notice names the cursor of the last frame the device was handed before it that carried one: a no-row frame
+    // carries `seq: null` and moves no cursor (D342). Read before the replay, because that cursor is where it restarts.
+    await device.waitFor(() => device.lags.length > 0);
     const [lag] = device.lags;
+    const handed = device.frames.slice(0, present(lag).chatFramesBefore);
+    expect(handed.at(-1)?.seq).toBeNull();
+    expect(present(lag).cursor).toBe(handed.findLast(({ seq }) => seq !== null)?.seq);
+
+    // Every missed message arrives after the notice, once, by replay.
+    await device.waitFor(() => missed.every((id) => committedIds().includes(id)));
     expect(device.lags).toHaveLength(1);
-    expect(present(lag).cursor).toBe(present(device.frames[present(lag).chatFramesBefore - 1]).seq);
     expect(missed).toHaveLength(MISSED_MESSAGES);
     expect(committedIds().filter((id) => missed.includes(id))).toHaveLength(MISSED_MESSAGES);
     for (const id of missed) {
@@ -83,6 +87,39 @@ test("a live-only room that outruns its reader folds repeated events into the ne
     expect(device.userEvents.length).toBeLessThan(FLOOD);
     expect(device.userEvents.at(-1)).toEqual({ type: "tagsChanged", tagId: newest });
     expect(device.lags).toEqual([]);
+  } finally {
+    await device.close();
+  }
+}, 20_000);
+
+test("a shed after a cursor-less attach and a live-only frame replays from the attach point, not from the start", async () => {
+  await using room = await openRoom();
+  const commit = async (content: string): Promise<readonly MessageId[]> =>
+    (await room.root.services.chat.commitMessage({ principal: room.host, chatId: room.chatId, content })).messages.map(({ id }) => id);
+  const held = [...(await commit("Held before the attach.")), ...(await commit("Also held before the attach."))];
+  const device = await openDevice(room, room.hostSeat);
+  try {
+    await device.attach();
+    await device.waitFor((frames) => frames.some(({ event }) => event.type === "chatOpened"));
+    const attachSeq = present(device.frames.find(({ event }) => event.type === "chatOpened")).seq;
+    // The attach point is past the rows the device already holds, so a replay from zero is told apart from one from here.
+    expect(attachSeq).toBeGreaterThan(0);
+
+    // A live-only frame reaches the device before the shed: the cursor must not move for it.
+    room.root.app.liveBuses.chat.publishChatEvent({ seq: null, event: { type: "chatDeleted", chatId: room.chatId } });
+    await device.waitFor((frames) => frames.some(({ event }) => event.type === "chatDeleted"));
+
+    for (let index = 0; index < FLOOD; index += 1) {
+      room.root.app.liveBuses.chat.publishChatEvent({ seq: null, event: { type: "chatDeleted", chatId: room.chatId } });
+    }
+    await flush();
+    const later = await commit("Arrives after the shed.");
+    const committedIds = (): readonly MessageId[] => device.frames.flatMap(({ event }) => (event.type === "messageCommitted" ? [event.messageId] : []));
+    await device.waitFor(() => device.lags.length > 0 && later.every((id) => committedIds().includes(id)));
+
+    expect(present(device.lags[0]).cursor).toBe(attachSeq);
+    expect(committedIds().filter((id) => held.includes(id))).toEqual([]);
+    expect(committedIds().filter((id) => later.includes(id))).toHaveLength(later.length);
   } finally {
     await device.close();
   }

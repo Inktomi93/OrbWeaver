@@ -68,7 +68,8 @@ function sawReply(values: readonly StreamValue[]): boolean {
  *  sees deltas verbatim, so the raw opener bytes are findable there). Resuming AT this seq puts a reader's
  *  first delta squarely inside the still-open tag. */
 function openerSeq(values: readonly StreamValue[]): number | undefined {
-  return values.find((value) => textDeltaOf(value)?.includes(OPENER_MARKER))?.seq;
+  // A delta never fans without its row (D342), so its frame always carries a cursor.
+  return values.find((value) => textDeltaOf(value)?.includes(OPENER_MARKER))?.seq ?? undefined;
 }
 
 test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never receives its tail; the HOST does", async ({ baseURL }) => {

@@ -9,7 +9,7 @@ import type { UserMacroSpec } from "#preset";
 import type { RegexScriptRow } from "#regex";
 import type { TagView } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
-import type { DurableChatBusEvent, LiveOnlyChatBusEvent, PromptTransform, TurnInitiator } from "./bus.ts";
+import type { DroppedAppendFanEvent, DurableChatBusEvent, LiveOnlyChatBusEvent, PromptTransform, TurnInitiator } from "./bus.ts";
 import type { GuidedSteer } from "./metadata.ts";
 import type { CharacterRegexSlice } from "./regex-tiers.ts";
 import type { HistoryFloorSeq, RenderPolicy } from "./roster.ts";
@@ -171,8 +171,10 @@ export interface StoreSegmentParams {
   readonly contentHash: string;
 }
 
-/** A live-only event has no durable cursor; publishers must preserve that distinction. */
-export type ChatLivePublish = { readonly seq: number; readonly event: DurableChatBusEvent } | { readonly seq: null; readonly event: LiveOnlyChatBusEvent };
+/** `seq: null` has no durable cursor: a live-only event, or a dropped append that still fans (D342). */
+export type ChatLivePublish =
+  | { readonly seq: number; readonly event: DurableChatBusEvent }
+  | { readonly seq: null; readonly event: LiveOnlyChatBusEvent | DroppedAppendFanEvent };
 
 export interface TurnRetrievalEvents {
   readonly onRerankUnavailable: () => void;

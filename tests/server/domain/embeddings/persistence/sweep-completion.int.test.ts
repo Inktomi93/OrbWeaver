@@ -57,9 +57,6 @@ test("actual owned and bulk vector sweeps complete exactly their covered owners 
   const generations = new Map<UserId, GenerationReceipt>();
   for (const principal of [owner, neighbor]) {
     const generation = await root.app.embeddings.resolveGeneration(principal.userId, "embed");
-    if (generation === null) {
-      throw new Error("the real corpus owner has no embedding generation");
-    }
     const { id, task, via, epoch, space } = generation;
     generations.set(principal.userId, { id, task, via, epoch, space });
   }
