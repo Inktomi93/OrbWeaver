@@ -359,7 +359,8 @@ function exportedDoors(pkg: string, exports: Readonly<Record<string, unknown>>):
 // Every server door: a module's index.ts, and each subpath the package's exports map declares.
 const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server", serverPackage.exports)];
 // The production files a suite may import directly for a Spine-Testing §9 import: a constant, limit, id, error class
-// or pure rule that production executes. A door forwards only what production consumes through it, so `pnpm knip:prod`
+// or pure rule that production executes, or a class or function its own module's unit suite drives directly when no
+// door runs the behavior it pins. A door forwards only what production consumes through it, so `pnpm knip:prod`
 // fails a door forward whose only importers are tests; the suite reads the symbol from its owning file here instead.
 // One entry per owning file, naming its symbols. The compile-time registries knip.ts trusts are read here too.
 // A suite of another module still needs its reach line below.
@@ -406,8 +407,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read the span suites assert through",
   "packages/server/src/primitives/serde/databank/index.ts": "DATABANK_SCHEMA_KIND: the sibling envelope kind a chat bundle refuses as foreign",
   "packages/server/src/infra/plugin-host/budgets.ts": "PLUGIN_ASSET_MAX_BYTES: the fetched-asset byte cap the image-cap suite sends one byte past",
-  "packages/server/src/infra/plugin-host/cpu-guard.ts": "installCpuGuard and withinCpuWindow: the CPU guard its unit suite drives on a raw context",
-  "packages/server/src/infra/plugin-host/module.ts": "getPluginQuickJS: the engine module the CPU guard's unit suite takes a raw context from",
+  "packages/server/src/infra/plugin-host/cpu-guard.ts":
+    "installCpuGuard and withinCpuWindow: the CPU guard its unit suite drives on a raw context, to plant the missed site no door can reach",
+  "packages/server/src/infra/plugin-host/module.ts": "getPluginQuickJS: the engine module that unit suite takes its raw context from",
   "packages/server/src/infra/plugin-host/process-argv.ts": "formatPluginBrokerArguments: the watchdog's broker launch the permission-drop suite repeats",
   "packages/server/src/infra/plugin-host/process-channel.ts":
     "parsePluginIpcMessage: the envelope parser the permission-drop suite reads a real broker through",

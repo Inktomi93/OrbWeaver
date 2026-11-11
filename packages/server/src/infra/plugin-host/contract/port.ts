@@ -58,7 +58,8 @@ export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotoni
 export interface CpuSpanReport {
   /** A span opened with `windowMs` left on its account (0 when the account is spent). */
   readonly opened: (windowMs: number) => void;
-  readonly closed: () => void;
+  /** The open span closed after running `spentMs`. */
+  readonly closed: (spentMs: number) => void;
 }
 
 /** Instance data plus the app-owned operation bridge; no domain import crosses the infra boundary. */

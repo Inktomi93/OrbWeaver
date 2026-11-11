@@ -19,6 +19,7 @@ import {
   PLUGIN_BROKER_SYNC_RESULT_BYTES,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
   rpcError,
+  SPAN_CLOSED_TOTAL_SLOT,
   SPAN_SEQUENCE_SLOT,
   SPAN_WINDOW_SLOT,
 } from "./process-protocol.ts";
@@ -71,18 +72,24 @@ if (permission?.has("worker") === true) {
 
 const identity = workerData as WorkerIdentity;
 
-// The broker reads these slots from its own thread, which a stuck span cannot block: a span still open past its window
-// by `PLUGIN_WORKER_OVERRUN_MAX_MS` ends this Worker (D347). The window is stored before the sequence, so a broker
-// that sees a new sequence reads that span's window.
+// The broker reads these slots from its own thread, which a stuck span cannot block: a span still open past its window,
+// or spans summed past the budget of the command they serve, by `PLUGIN_WORKER_OVERRUN_MAX_MS` end this Worker (D347).
+// The window is stored before the sequence, so a broker that sees a new sequence reads that span's window; the closed
+// total is stored before the sequence clears, so no span's time is missed between the two.
 const spans = new Int32Array(identity.spans);
 let spanSequence = 0;
+let closedTotalMs = 0;
 const spanReport: CpuSpanReport = {
   opened: (windowMs) => {
     spanSequence = spanSequence === INT32_MAX ? 1 : spanSequence + 1;
     Atomics.store(spans, SPAN_WINDOW_SLOT, Math.min(windowMs, INT32_MAX));
     Atomics.store(spans, SPAN_SEQUENCE_SLOT, spanSequence);
   },
-  closed: () => {
+  closed: (spentMs) => {
+    // Summed exactly and stored whole: rounding each span up would count a chain of thousands of sub-millisecond spans
+    // as seconds. The store wraps the total to an Int32, which the broker reads across one wrap.
+    closedTotalMs += spentMs;
+    Atomics.store(spans, SPAN_CLOSED_TOTAL_SLOT, Math.trunc(closedTotalMs));
     Atomics.store(spans, SPAN_SEQUENCE_SLOT, 0);
   },
 };

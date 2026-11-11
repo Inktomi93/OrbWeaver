@@ -1952,10 +1952,11 @@ function settleGuestPromise(spec: AsyncFnSpec, deferred: QuickJSDeferredPromise,
 }
 
 /** Build + attach ONE async host function: guest args via `fromGuest`, the impl races a real-time deadline, the
- *  JSON-safe result crosses back as JSON text (size-capped on that text) inside a span, and settled guest jobs are
- *  pumped inside a span (`cpu-guard.ts` — inside an invocation both spend its CPU account; the pump runs guest
- *  continuations, so it is bounded like an invocation is). ≤ 32 concurrent host calls per instance — call 33 rejects
- *  (back-pressure).
+ *  JSON-safe result crosses back as JSON text, size-capped on that text as it arrives and settled inside a span or
+ *  held while the account is spent, and settled guest jobs are pumped inside a span (`cpu-guard.ts` — inside an
+ *  invocation both spend its CPU account; the pump runs guest continuations, so it is bounded like an invocation is).
+ *  At most `HOST_CALLS_IN_FLIGHT_MAX` host calls per instance are running or awaiting their settlement; one more
+ *  rejects (back-pressure).
  *  A thrown/rejected impl (a capability/handle/host-authority refusal, or a bridge error) rejects the guest
  *  promise — errors-as-data, never a host crash.
  *
@@ -1996,7 +1997,10 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
       return marshal.rejectedWith({ name: "Error", message: `plugin host: ${name} arguments exceed the ${HOST_FN_ARGS_MAX_BYTES}-byte inbound cap` });
     }
 
-    if (inFlight.count >= HOST_CALLS_IN_FLIGHT_MAX) {
+    // Two counts under one cap: host work still running, and guest promises not yet settled, a settlement held while
+    // the account is spent included. The second bounds what held settlements keep in memory to the cap's number of
+    // capped results.
+    if (inFlight.count >= HOST_CALLS_IN_FLIGHT_MAX || pending.size >= HOST_CALLS_IN_FLIGHT_MAX) {
       return marshal.rejectedWith({ name: "Error", message: `plugin host: too many concurrent host calls (>${HOST_CALLS_IN_FLIGHT_MAX})` });
     }
     // `deferred` is deliberately NOT `using`: its lifetime ESCAPES this scope (its `.handle` is the guest's
@@ -2034,8 +2038,8 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     inFlight.settlements?.add(settlement);
 
     // Settling runs guest code — the resolve reads `then` on the result, through any getter a guest put on a prototype
-    // — so it runs inside a span, bounded by the window and charged, or waits host-side while work outside an
-    // invocation has spent its account (D346). The deferred leaves `pending` only once settled or dropped, so a held
+    // — so it runs inside a span, bounded by the window and charged, or waits host-side while the account it would
+    // spend is spent (D346). The deferred leaves `pending` only once settled or dropped, so a held
     // one is still drained at teardown. The in-flight SLOT is deliberately not released here: see `releaseSlot` above.
     const settleHeld = (settle: () => void): void => {
       // A fire-and-forget guest call can outlive its invocation: the context is disposed (snippet end / deactivate)
@@ -2059,10 +2063,12 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     void Promise.race([running, timeout])
       .then(
         (result) => {
+          // The cap measures the very text that crosses, so it counts what the guest receives. It is taken as the
+          // result arrives, so a held settlement keeps at most the capped text, never the raw result.
+          const json = guestJson(result);
+          const crossing = Buffer.byteLength(json, "utf8") > HOST_FN_RESULT_CAP_BYTES ? null : json;
           settleHeld(() => {
-            // The cap measures the very text that crosses, so it counts what the guest receives.
-            const json = guestJson(result);
-            if (Buffer.byteLength(json, "utf8") > HOST_FN_RESULT_CAP_BYTES) {
+            if (crossing === null) {
               settleGuestPromise(
                 spec,
                 deferred,
@@ -2071,7 +2077,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
               );
               return;
             }
-            const parsed = marshal.parseIntoGuest(json);
+            const parsed = marshal.parseIntoGuest(crossing);
             if (parsed.error) {
               settleGuestPromise(spec, deferred, deferred.reject, parsed.error);
               return;

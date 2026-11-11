@@ -161,20 +161,22 @@ export function openCpuWindow(ctx: QuickJSContext): () => void {
   guard.deadlineAtMs = account.remainingMs > 0 ? openedAtMs + account.remainingMs : CLOSED;
   guard.report?.opened(Math.ceil(account.remainingMs));
   return (): void => {
-    account.remainingMs = Math.max(0, account.remainingMs - (performance.now() - openedAtMs));
+    const spentMs = performance.now() - openedAtMs;
+    account.remainingMs = Math.max(0, account.remainingMs - spentMs);
     guard.deadlineAtMs = CLOSED;
     guard.spanOpen = false;
-    guard.report?.closed();
+    guard.report?.closed(spentMs);
   };
 }
 
 /** Run `settle` — the settlement of a host call's guest promise, which can run a guest `then` getter — inside a span,
- *  or hold it host-side while work outside an invocation has spent its account. A held settlement runs after the next
- *  invocation, on the outside account it refilled ({@link releaseParkedSettlements}), in the order it arrived; until
- *  then its guest promise stays pending, and teardown drains it as any other. */
+ *  or hold it host-side while the account it would spend is spent, an invocation's as well as the outside one. Held,
+ *  an invocation that awaits it stops running guest work, so its settlement wall can fire. A held settlement runs after
+ *  the next invocation answers, on the outside account that invocation refilled ({@link releaseParkedSettlements}), in
+ *  the order it arrived; until then its guest promise stays pending, and teardown drains it as any other. */
 export function settleInCpuWindow(ctx: QuickJSContext, settle: () => void): void {
   const guard = guardOf(ctx);
-  if (guard.account === null && guard.outside.remainingMs <= 0) {
+  if (spending(guard).remainingMs <= 0) {
     guard.parked.push(settle);
     return;
   }

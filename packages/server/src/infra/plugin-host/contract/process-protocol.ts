@@ -103,8 +103,8 @@ export type BrokerParentMessage =
   | { readonly kind: "log"; readonly runtimeId: string; readonly label: string; readonly level: PluginLogLevel; readonly message: string }
   | { readonly kind: "runtime-crashed"; readonly runtimeId: string; readonly error: RpcError }
   /** The broker terminated this runtime's Worker for running guest code past its window. The logical instance is not
-   *  crashed: its next call builds a fresh runtime. */
-  | { readonly kind: "runtime-ended"; readonly runtimeId: string }
+   *  crashed: its next call builds a fresh runtime. `error` is the ended refusal when no pending command carried it. */
+  | { readonly kind: "runtime-ended"; readonly runtimeId: string; readonly error?: RpcError }
   | { readonly kind: "authority-released"; readonly runtimeId: string; readonly authorityId: string };
 
 export type BrokerWorkerMessage =

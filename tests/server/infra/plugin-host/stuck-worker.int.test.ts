@@ -11,8 +11,16 @@ import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { systemTimers } from "@orb/server/infra/timers";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import type { GuestRun, NativeServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/node/composed";
-import { PLUGIN_INVOCATION_CPU_MS, PLUGIN_WORKER_OVERRUN_MAX_MS, PLUGIN_WORKER_SPAN_CHECK_MS, SNIPPET_WALL_MS } from "#server/infra/plugin-host/budgets.ts";
+import {
+  HOST_CALLS_IN_FLIGHT_MAX,
+  PLUGIN_COMMAND_TIMEOUT_MS,
+  PLUGIN_INVOCATION_CPU_MS,
+  PLUGIN_WORKER_OVERRUN_MAX_MS,
+  PLUGIN_WORKER_SPAN_CHECK_MS,
+  SNIPPET_WALL_MS,
+} from "#server/infra/plugin-host/budgets.ts";
 import {
   BASE_GRANTS,
   createPluginProcessEdge,
@@ -38,6 +46,33 @@ const ENABLED = "enabled" satisfies PluginStatus;
 const NEXT_SNIPPET = "orb.host(1).log.info('next');";
 const NEXT_SNIPPET_LINES = ["[info] next"];
 
+// A root on production timers, so the parent's command timeout is the one that would kill the broker, and a second
+// owner whose resident plugin answers a ping and reports its status.
+async function rootWithBystander(): Promise<
+  AsyncDisposable & {
+    readonly root: NativeServerTestHarness;
+    readonly ping: () => ReturnType<GuestRun>;
+    readonly bystanderStatus: () => Promise<PluginStatus | undefined>;
+  }
+> {
+  await using stack = new AsyncDisposableStack();
+  const seed = stack.use(await createServerHarness({ startJobs: false }));
+  const bystanderId = await seed.app.sessions.ensureUser(BYSTANDER_HANDLE);
+  const root = stack.use(
+    await createServerHarness({ db: seed.db, ownerId: seed.ownerId, idSource: createIdSource(), startJobs: false, pluginSpawn: spawn, time: NATIVE_TIME }),
+  );
+  const bystander = await root.principalFor(bystanderId);
+  const pluginId = await installGuest(root, bystander, { slug: "bystander", capabilities: ["storage.kv"] }, { ping: "(h) => h.storage.get('k')" });
+  const run = guestRunner({ root, caller: bystander, pluginId, chatId: null });
+  const owned = stack.move();
+  return {
+    root,
+    ping: () => run("ping"),
+    bystanderStatus: async () => (await root.services.plugin.list({ caller: bystander })).find(({ id }) => id === pluginId)?.status,
+    [Symbol.asyncDispose]: () => owned.disposeAsync(),
+  };
+}
+
 test.for([
   { name: "one native call", code: NATIVE_STALL },
   { name: "one long interrupt poll period", code: POLL_GAP_STALL },
@@ -45,23 +80,11 @@ test.for([
   "a snippet stuck in $name ends alone at its deadline, and another owner's resident plugin answers during and after, still enabled",
   { tags: ["slow"], timeout: STALL_TEST_TIMEOUT_MS },
   async ({ code }) => {
-    // The broker and the parent run on production timers: the parent's command timeout is what would kill the broker.
-    await using seed = await createServerHarness({ startJobs: false });
-    const bystanderId = await seed.app.sessions.ensureUser(BYSTANDER_HANDLE);
-    await using root = await createServerHarness({
-      db: seed.db,
-      ownerId: seed.ownerId,
-      idSource: createIdSource(),
-      startJobs: false,
-      pluginSpawn: spawn,
-      time: NATIVE_TIME,
-    });
-    const bystander = await root.principalFor(bystanderId);
-    const pluginId = await installGuest(root, bystander, { slug: "bystander", capabilities: ["storage.kv"] }, { ping: "(h) => h.storage.get('k')" });
-    const ping = guestRunner({ root, caller: bystander, pluginId, chatId: null });
-    expect(await ping("ping")).toEqual({ ok: true, value: null });
+    await using owners = await rootWithBystander();
 
-    const member = await root.internalCallerFor(root.ownerId);
+    expect(await owners.ping()).toEqual({ ok: true, value: null });
+
+    const member = await owners.root.internalCallerFor(owners.root.ownerId);
     const room = (await member.chat.startChat({ characterIds: [] })).chat;
     // A busy loop's snippet ends at its window: its time carries the same Worker start and load as the stalled run.
     const busyStarted = performance.now();
@@ -71,17 +94,88 @@ test.for([
     const started = performance.now();
     const stuck = member.plugin.runSnippet({ chatId: room.id, code });
     await sleep(SNIPPET_WALL_MS);
-    expect(await ping("ping")).toEqual({ ok: true, value: null });
+    expect(await owners.ping()).toEqual({ ok: true, value: null });
     const ended = await stuck;
     expect(ended.error).toBeDefined();
     expect(ended).toMatchObject({ logLines: [], errorKind: "runtime" });
     expect(performance.now() - started).toBeLessThan(busyMs + END_MARGIN_MS);
 
-    expect(await ping("ping")).toEqual({ ok: true, value: null });
+    expect(await owners.ping()).toEqual({ ok: true, value: null });
     expect(await member.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
-    expect((await root.services.plugin.list({ caller: bystander })).find(({ id }) => id === pluginId)).toMatchObject({ status: ENABLED });
+    expect(await owners.bystanderStatus()).toBe(ENABLED);
   },
 );
+
+// One string search that runs several seconds with one interrupt poll, sized by its haystack.
+const searchFor = (haystack: number): string => `'a'.repeat(${String(haystack)}).indexOf('a'.repeat(20000) + 'b');`;
+// About 8 s, 12 s, 4 s and half a second on this box: each settlement's getter, each run's own stall.
+const SNIPPET_GETTER_SEARCH = searchFor(120_000);
+const SNIPPET_MAIN_SEARCH = searchFor(170_000);
+const COMMAND_GETTER_SEARCH = searchFor(70_000);
+const COMMAND_MAIN_SEARCH = searchFor(26_000);
+// Floated host calls whose results settle through the getter: enough that their spans, each under the one-span bound,
+// add up past the command's budget.
+const SNIPPET_FLOATED_CALLS = 4;
+
+test("a snippet that stacks settlement spans, each under the one-span bound, ends before the parent's timeout, and another owner's resident plugin answers during and after", {
+  tags: ["slow"],
+  timeout: STALL_TEST_TIMEOUT_MS,
+}, async () => {
+  await using owners = await rootWithBystander();
+  expect(await owners.ping()).toEqual({ ok: true, value: null });
+  const member = await owners.root.internalCallerFor(owners.root.ownerId);
+  const room = (await member.chat.startChat({ characterIds: [] })).chat;
+  const code = `const h = orb.host(1);
+Object.defineProperty(Object.prototype, 'then', { get() { ${SNIPPET_GETTER_SEARCH} return undefined; }, configurable: true });
+const calls = Array.from({ length: ${String(SNIPPET_FLOATED_CALLS)} }, () => h.chat.listMessages(h.chat.current()));
+${SNIPPET_MAIN_SEARCH}
+Promise.all(calls).then(() => undefined);`;
+
+  const started = performance.now();
+  const stacked = member.plugin.runSnippet({ chatId: room.id, code });
+  await sleep(SNIPPET_WALL_MS);
+  expect(await owners.ping()).toEqual({ ok: true, value: null });
+  // The snippet answers as one the host ended, not as a broker the parent killed.
+  expect(await stacked).toMatchObject({ logLines: [], errorKind: "runtime" });
+  expect(performance.now() - started).toBeLessThan(PLUGIN_COMMAND_TIMEOUT_MS.snippet);
+
+  expect(await owners.ping()).toEqual({ ok: true, value: null });
+  expect(await owners.bystanderStatus()).toBe(ENABLED);
+});
+
+const STACKED_OPS = {
+  busyLoop: "() => { for (;;) {} }",
+  mark: "() => { globalThis.mark = true; return null; }",
+  marked: "() => globalThis.mark === true",
+  stacked: `(h, room, a) => { Object.defineProperty(Object.prototype, 'then', { get() { ${COMMAND_GETTER_SEARCH} return undefined; }, configurable: true }); const calls = Array.from({ length: a.calls }, () => h.storage.list('')); ${COMMAND_MAIN_SEARCH} return Promise.all(calls).then(() => null); }`,
+} as const;
+
+test("a resident command that stacks settlement spans ends as an ended invocation before the parent's timeout, and another owner's resident plugin answers after", {
+  tags: ["slow"],
+  timeout: STALL_TEST_TIMEOUT_MS,
+}, async () => {
+  await using owners = await rootWithBystander();
+  const owner = await owners.root.principalFor(owners.root.ownerId);
+  const pluginId = await installGuest(owners.root, owner, { slug: "stacked", capabilities: ["storage.kv"] }, STACKED_OPS);
+  const run = guestRunner({ root: owners.root, caller: owner, pluginId, chatId: null });
+  // An ended guest's failure, the shape the stacked command's must share.
+  const ended: unknown = await run("busyLoop").catch((error: unknown) => error);
+  if (!(ended instanceof Error && "code" in ended)) {
+    throw new Error("a busy loop ends in a coded guest failure");
+  }
+
+  expect(await run("mark")).toEqual({ ok: true, value: null });
+
+  const started = performance.now();
+  await expect(run("stacked", { calls: HOST_CALLS_IN_FLIGHT_MAX })).rejects.toMatchObject({ name: ended.name, code: ended.code });
+  expect(performance.now() - started).toBeLessThan(PLUGIN_COMMAND_TIMEOUT_MS.invoke);
+  // The settlements waited once the invocation's account was spent, so its own wall ended it and its runtime stayed: the
+  // mark set before is still there. Only a Worker the broker had to terminate comes back without it.
+  expect(await run("marked")).toEqual({ ok: true, value: true });
+
+  expect(await owners.ping()).toEqual({ ok: true, value: null });
+  expect(await owners.bystanderStatus()).toBe(ENABLED);
+});
 
 const NET_HOST = "peer.test";
 const HELD_URL = `https://${NET_HOST}/held`;

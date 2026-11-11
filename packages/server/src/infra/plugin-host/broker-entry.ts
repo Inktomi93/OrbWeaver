@@ -11,7 +11,7 @@
 import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
-import { PLUGIN_WORKER_OVERRUN_MAX_MS, PLUGIN_WORKER_SPAN_CHECK_MS } from "./budgets.ts";
+import { PLUGIN_COMMAND_CPU_BUDGET_MS, PLUGIN_WORKER_OVERRUN_MAX_MS, PLUGIN_WORKER_SPAN_CHECK_MS } from "./budgets.ts";
 import type { BrokerBridgeResult, BrokerParentMessage, BrokerWorkerMessage, ParentBrokerMessage, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { parsePluginBrokerArguments } from "./process-argv.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
@@ -24,6 +24,7 @@ import {
   parseParentBrokerMessage,
   parseWorkerBrokerMessage,
   rpcError,
+  SPAN_CLOSED_TOTAL_SLOT,
   SPAN_SEQUENCE_SLOT,
   SPAN_SLOTS_BYTES,
   SPAN_WINDOW_SLOT,
@@ -72,6 +73,8 @@ interface Runtime {
   readonly spans: Int32Array;
   /** The span this broker last saw open, and when it first saw it, on this broker's own clock. */
   watched: { readonly sequence: number; readonly sinceMs: number };
+  /** The oldest pending command as this broker first saw it, with the Worker's closed-span total at that moment. */
+  command: { readonly id: string; readonly closedTotalAtStartMs: number } | undefined;
   expectedExit: boolean;
   counted: boolean;
 }
@@ -166,8 +169,8 @@ function terminateDetached(worker: Worker): void {
   });
 }
 
-/** End a runtime whose Worker has run one span of guest work past its window by `PLUGIN_WORKER_OVERRUN_MAX_MS`.
- *  Its bridge calls are cancelled at once, so an in-flight fetch aborts; a write the parent already started runs to
+/** End a runtime whose Worker has run guest work past its budget by `PLUGIN_WORKER_OVERRUN_MAX_MS`: one span past its
+ *  window, or the spans of the command it serves past that command's budget. Its bridge calls are cancelled at once, so an in-flight fetch aborts; a write the parent already started runs to
  *  its end and its result is dropped. Only after the Worker has exited, and its slot is free for a replacement, does
  *  the parent hear of it: first `runtime-ended`, so the logical instance is rebuilt on its next call rather than
  *  crashed, then the commands. The oldest is the one the Worker was running or was blocked behind, and fails with the
@@ -189,20 +192,18 @@ function endStuckRuntime(runtimeId: string, runtime: Runtime): void {
     }
   }
   // the terminate rejection is rethrown inside queueMicrotask, which ends the broker; the watchdog sees the exit and the parent rejects pending work through onDisconnect. Ends if the queued rethrow is removed.
+  const ended = {
+    name: PLUGIN_INVOCATION_ENDED,
+    message: `plugin host: invocation ended — its Worker ran guest code ${PLUGIN_WORKER_OVERRUN_MAX_MS}ms past its CPU budget and was terminated`,
+  };
   runtime.worker.terminate().then(
     () => {
       releaseWorkerSlot(runtime);
-      send({ kind: "runtime-ended", runtimeId });
+      // With no command pending, the stall ran after its command returned: the ended refusal rides on this notice, so
+      // the plugin's next invocation carries it and the plugin still takes the strike.
+      send(stuck === undefined ? { kind: "runtime-ended", runtimeId, error: ended } : { kind: "runtime-ended", runtimeId });
       if (stuck !== undefined) {
-        send({
-          kind: "response",
-          id: stuck,
-          ok: false,
-          error: {
-            name: PLUGIN_INVOCATION_ENDED,
-            message: `plugin host: invocation ended — its Worker ran guest code ${PLUGIN_WORKER_OVERRUN_MAX_MS}ms past its CPU window and was terminated`,
-          },
-        });
+        send({ kind: "response", id: stuck, ok: false, error: ended });
       }
       for (const id of queued) {
         send({
@@ -221,17 +222,39 @@ function endStuckRuntime(runtimeId: string, runtime: Runtime): void {
   );
 }
 
-// The broker's own clock decides how long a span has been open: it notes when it first saw each span's sequence, so
-// a Worker's clock is never trusted, and a span is ended at most one check late.
+// Whether the command the Worker serves has run past its kind's CPU budget, summed over every span since this broker
+// first saw it as the oldest pending: the Worker's total of closed spans, which a stuck Worker cannot move but host code
+// alone writes, plus the open span's age on this broker's clock. A chain of spans each under the one-span bound ends
+// here (D347).
+function commandOverran(runtime: Runtime, openMs: number): boolean {
+  const [oldest] = runtime.pendingCommands;
+  if (oldest === undefined) {
+    runtime.command = undefined;
+    return false;
+  }
+  const [id, operation] = oldest;
+  const closedTotalMs = Atomics.load(runtime.spans, SPAN_CLOSED_TOTAL_SLOT);
+  if (runtime.command?.id !== id) {
+    runtime.command = { id, closedTotalAtStartMs: closedTotalMs };
+  }
+  // The total wraps as an Int32; the difference stored back into an Int32 is right across one wrap.
+  const [closedSinceStartMs = 0] = Int32Array.of(closedTotalMs - runtime.command.closedTotalAtStartMs);
+  const spentMs = closedSinceStartMs + openMs;
+  return spentMs > PLUGIN_COMMAND_CPU_BUDGET_MS[operation] + PLUGIN_WORKER_OVERRUN_MAX_MS;
+}
+
+// Two bounds, each ending this Worker alone and each read on this broker's clock (D347): one span still open past its
+// window, timed from when the broker first saw its sequence so a Worker's clock is never trusted for an open span; and
+// the spans of the command the Worker serves, summed past the command's budget. Each is reached at most one check late.
 const spanCheck = setInterval(() => {
   const nowMs = performance.now();
   for (const [runtimeId, runtime] of runtimes) {
     const sequence = Atomics.load(runtime.spans, SPAN_SEQUENCE_SLOT);
     if (sequence !== runtime.watched.sequence) {
       runtime.watched = { sequence, sinceMs: nowMs };
-      continue;
     }
-    if (sequence !== 0 && nowMs - runtime.watched.sinceMs > Atomics.load(runtime.spans, SPAN_WINDOW_SLOT) + PLUGIN_WORKER_OVERRUN_MAX_MS) {
+    const openMs = sequence === 0 ? 0 : nowMs - runtime.watched.sinceMs;
+    if (openMs > Atomics.load(runtime.spans, SPAN_WINDOW_SLOT) + PLUGIN_WORKER_OVERRUN_MAX_MS || commandOverran(runtime, openMs)) {
       endStuckRuntime(runtimeId, runtime);
     }
   }
@@ -273,6 +296,7 @@ function createRuntime(runtimeId: string): Runtime {
     pendingCommands: new Map(),
     spans: new Int32Array(spans),
     watched: { sequence: 0, sinceMs: 0 },
+    command: undefined,
     expectedExit: false,
     counted: true,
   };

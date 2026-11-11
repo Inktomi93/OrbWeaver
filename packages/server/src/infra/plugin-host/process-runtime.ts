@@ -54,6 +54,7 @@ import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyn
 import {
   PLUGIN_AUTHORITY_TAIL_CALLS_MAX,
   PLUGIN_AUTHORITY_TAIL_MS,
+  PLUGIN_COMMAND_TIMEOUT_MS,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
@@ -78,12 +79,6 @@ import {
 import type { WarmRuntimeLease } from "./warm-runtime-pool.ts";
 import { WarmRuntimePool } from "./warm-runtime-pool.ts";
 
-const COMMAND_TIMEOUT_MS = {
-  create: 30_000,
-  invoke: 120_000,
-  snippet: 30_000,
-  dispose: 30_000,
-} as const;
 const CONNECT_TIMEOUT_MS = 10_000;
 
 /** A logical instance can restart from its runtime config. A snippet holds an admission until release. */
@@ -119,6 +114,9 @@ type Binding = BindingLifetime & {
   chars: number;
   suppressLogs: boolean;
   crashed: Error | null;
+  /** An ended invocation's refusal that no command carried, because the broker ended this binding's runtime with
+   *  none pending; the next invoke rejects with it once. */
+  owedRefusal: Error | null;
   disposed: boolean;
   /** Set once this binding's first command has actually reached a live broker connection. A binding still
    *  waiting on `ensureConnected()` was never served by the connection that just died and a belated exit
@@ -402,12 +400,14 @@ class BrokerClient {
     return await new Promise((resolve, reject) => {
       const timer = this.timers.timeout(() => {
         this.pending.delete(id);
-        // The broker ends a stuck Worker itself, well inside this timeout; a command still unanswered here means the
-        // broker is the one not answering.
-        const error = new PluginHostUnavailableError(`plugin broker: ${operation} timed out`);
-        reject(error);
-        this.stopConnection(error);
-      }, COMMAND_TIMEOUT_MS[operation]);
+        // The broker ends a stuck Worker itself, well inside this timeout, so a command still unanswered here means the
+        // broker is not answering, and it is killed. The command that ran out of time is its own plugin's to answer
+        // for: a strike. Every other command and binding the broker held is a host loss, never a strike (D347).
+        const ended = new Error(`plugin broker: ${operation} timed out`);
+        ended.name = PLUGIN_INVOCATION_ENDED;
+        reject(ended);
+        this.stopConnection(new PluginHostUnavailableError(`plugin broker: stopped answering; a ${operation} command timed out`));
+      }, PLUGIN_COMMAND_TIMEOUT_MS[operation]);
       this.pending.set(id, { resolve, reject, timer });
       try {
         sender.send({ kind: "frame", generation, frame: serialized });
@@ -663,6 +663,11 @@ class BrokerClient {
     binding.runtimeId = undefined;
     clearAuthorities(binding);
     binding.invokeArgs.clear();
+    // The stall ran after its command returned, so no command answered for it: the plugin's next invocation does, once,
+    // as the ended refusal it would have carried, and that is the strike (D347).
+    if (message.error !== undefined) {
+      binding.owedRefusal = fromRpcError(message.error, "plugin worker ended");
+    }
     binding.onEnded();
   }
 
@@ -1278,6 +1283,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       chars: 0,
       suppressLogs: false,
       crashed: null,
+      owedRefusal: null,
       disposed: false,
       dispatched: false,
       retirement: undefined,
@@ -1337,6 +1343,11 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
       if (binding.crashed !== null) {
         throw binding.crashed;
+      }
+      const owed = binding.owedRefusal;
+      if (owed !== null) {
+        binding.owedRefusal = null;
+        throw owed;
       }
       const generation = binding.lifecycleGeneration;
       const lease = await pool.acquire(binding, { signal });

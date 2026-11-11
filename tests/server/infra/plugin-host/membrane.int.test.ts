@@ -637,7 +637,15 @@ const OUTSIDE = {
   // Floated calls whose object results the host settles after the command returned, each through a slow `then` getter.
   thenSettlements:
     "(h, room, a) => { const arr = new Array(a.width).fill(0); Object.defineProperty(Object.prototype, 'then', { get() { for (;;) arr.slice(); }, configurable: true }); for (let i = 0; i < a.calls; i++) { h.storage.list(''); } return null; }",
+  // One settlement whose `then` getter spends the outside account in one native call, longer than the window and
+  // shorter than the overrun allowance, then finishes, so the settlement completes and its continuation waits to run.
+  parkedContinuation:
+    "(h, room, a) => { globalThis.resumed = 0; Object.defineProperty(Array.prototype, 'then', { get() { if (!globalThis.spent) { globalThis.spent = true; 'a'.repeat(a.haystack).indexOf('a'.repeat(20000) + 'b'); } return undefined; }, configurable: true }); h.storage.list('').then(() => { globalThis.resumed += 1; }); return null; }",
+  // Read before this command's own work.
+  resumed: "() => globalThis.resumed",
 } as const satisfies GuestOps;
+// A string search that runs past one window, about two seconds on this box, and well under the overrun allowance.
+const PAST_WINDOW_SEARCH_HAYSTACK = 45_000;
 // Settlements after the first that would each buy a fresh window without one account for work outside invocations.
 const EXTRA_PUMPS = 4;
 // Long enough for a chain charged a window per settlement to run several of them.
@@ -693,6 +701,22 @@ test("a microtask chain that never calls the host stops within one budget after 
   expect(await run("ping")).toEqual({ ok: true, value: null });
 });
 
+test("a continuation whose settlement spent the outside account waits for the next invocation, which runs it", {
+  tags: ["slow"],
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const { run } = await residentGuest(root, { slug: "parked-continuation", capabilities: ["storage.kv"] }, OUTSIDE, null);
+
+  expect(await run("parkedContinuation", { haystack: PAST_WINDOW_SEARCH_HAYSTACK })).toEqual({ ok: true, value: null });
+  // Time for the floated call to come back and its settlement to start; the next command waits behind it.
+  await sleep(PLUGIN_INVOCATION_CPU_MS);
+  // The settlement finished on a spent account, so its pump parked the continuation: not run when this command starts.
+  expect(await run("resumed")).toEqual({ ok: true, value: 0 });
+  // That command's own pump ran the parked continuation on its account.
+  expect(await run("resumed")).toEqual({ ok: true, value: 1 });
+});
+
 test("settlements that arrive after the outside account is spent wait host-side instead of running the guest's then getter", {
   tags: ["slow"],
   timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
@@ -702,8 +726,8 @@ test("settlements that arrive after the outside account is spent wait host-side 
 
   const started = performance.now();
   expect(await run("thenSettlements", { width: SLICE_WIDTH, calls: HOST_CALLS_IN_FLIGHT_MAX })).toEqual({ ok: true, value: null });
-  // The first settlement spends the outside account in the getter; the rest wait. This command settles one held
-  // settlement on its own account after its result, and the others stay held.
+  // The first settlement spends the outside account in the getter; the rest wait. After this command answers, the host
+  // releases them on the account it refilled until that window passes, and the others stay held.
   expect(await run("idle")).toEqual({ ok: true, value: null });
   expect(performance.now() - started).toBeLessThan(2 * PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);
   expect(await retire()).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);

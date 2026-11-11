@@ -10,6 +10,7 @@
 // guest reads the seam.
 
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
+import type { PluginCommandOperation } from "./contract/process-protocol.ts";
 import { PLUGIN_BROKER_SYNC_TIMEOUT_MS } from "./process-protocol.ts";
 
 const BYTES_PER_MEBIBYTE = 1_048_576;
@@ -25,15 +26,34 @@ export const PLUGIN_INVOCATION_CPU_MS = 1000;
  *  {@link HOST_FN_DEADLINE_MS}. */
 export const SNIPPET_WALL_MS = 5000;
 
-/** How long a Worker may keep running one span of guest work past that span's CPU window before its broker terminates
- *  that Worker alone (D347). One native call or one interrupt poll period has a length the guest picks, so the window
- *  cannot end it; this does. It covers the longest honest overrun, a synchronous seam call that waits on the parent
- *  inside the span, plus one invocation budget, and keeps a snippet's Worker well inside the parent's snippet command
- *  timeout. */
+/** How far a Worker's guest work may run past its CPU budget before its broker terminates that Worker alone (D347):
+ *  past one span's window, or past the budget of the command it is serving, summed over every span. One native call or
+ *  one interrupt poll period has a length the guest picks, so the window cannot end it; this does. It covers the
+ *  longest honest overrun, a synchronous seam call that waits on the parent inside a span, plus one invocation budget. */
 export const PLUGIN_WORKER_OVERRUN_MAX_MS = PLUGIN_BROKER_SYNC_TIMEOUT_MS + PLUGIN_INVOCATION_CPU_MS;
 
 /** How often the broker reads its Workers' span slots: a stuck Worker is terminated at most this much late. */
 export const PLUGIN_WORKER_SPAN_CHECK_MS = 250;
+
+/** How long the parent waits for the broker to answer one command before it kills the broker as unresponsive. Every
+ *  kind's broker bound ends a stuck Worker well before this: `tests/server/infra/plugin-host/broker-bounds.test.ts`. */
+export const PLUGIN_COMMAND_TIMEOUT_MS = {
+  create: 30_000,
+  invoke: 120_000,
+  snippet: 30_000,
+  dispose: 30_000,
+} as const satisfies Record<PluginCommandOperation, number>;
+
+/** The guest CPU one command may spend across all its spans, the spans of guest work that run while it waits its turn
+ *  included: the activation and the work outside it for `create`, one invocation for `invoke`, the snippet's account for
+ *  `snippet`, and the work outside an invocation a `dispose` waits behind. The broker ends the Worker once the spans
+ *  summed since the command reached it pass this plus {@link PLUGIN_WORKER_OVERRUN_MAX_MS} (D347). */
+export const PLUGIN_COMMAND_CPU_BUDGET_MS = {
+  create: 2 * PLUGIN_INVOCATION_CPU_MS,
+  invoke: 2 * PLUGIN_INVOCATION_CPU_MS,
+  snippet: SNIPPET_WALL_MS,
+  dispose: PLUGIN_INVOCATION_CPU_MS,
+} as const satisfies Record<PluginCommandOperation, number>;
 
 /** QuickJS's LIVE guest-allocation accounting ceiling (= 32 MiB). This is NOT a WebAssembly or process RSS
  *  ceiling: the published Emscripten build may grow its allocator's linear-memory high-water mark while live
