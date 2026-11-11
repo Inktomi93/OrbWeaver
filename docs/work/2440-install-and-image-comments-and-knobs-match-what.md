@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: release
+lane: wt/agent-ad0e85a8b8ba4ff64
 ---
 
 # Install and image comments and knobs match what the scripts do

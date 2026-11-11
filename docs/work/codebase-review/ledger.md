@@ -213,9 +213,9 @@ Review before anything that trusts these results.
 | tooling-floor | tooling/src/floor/ | M | reviewed (4) |
 | tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | reviewed (5) |
 | tooling-unwired | tooling/src/unwired/ | M | reviewed (2) |
-| tooling-codemods | tooling/src/codemods/ | M | queued |
-| tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | queued |
-| tooling-ui-facts | tooling/src/ui-facts/ | S | queued |
+| tooling-codemods | tooling/src/codemods/ | M | reviewed (3) |
+| tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | reviewed (3) |
+| tooling-ui-facts | tooling/src/ui-facts/ | S | reviewed (0) |
 
 ### Phase 3 — server below domain
 
@@ -330,8 +330,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
-| P2 | 18 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor, tooling-configs |
-| P3 | 29 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired |
+| P2 | 19 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor, tooling-configs, tooling-doc |
+| P3 | 34 | 17 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired, tooling-codemods, tooling-doc |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -413,3 +413,37 @@ one-step drift (a world list that claims to equal typecheck's set while typechec
 world; a half-adopted verb word), and it ships the sweep's second ledger-facing generate-and-diff
 door (`ruled-ops.test.ts` parses ADR 0337's table against the rulings tuple) — the enum-tuples
 habit reaching the decision record, which is the triage item's exact direction.
+
+The tooling-codemods unit found the dead door in its mildest form and one new blind spot worth
+the triage item: 45/45 fixture suites are genuinely green (hand-ran the full matrix, language
+per fixture extension) but no script, hook or workflow ever runs `codemod jssg test` — knip's own
+comment names a runner no door invokes. `codemod workflow validate` checks structure, not
+identity: `vars-to-infer-input/codemod.yaml` shipped trpc-error-code's name and description
+through the green door (re-pointed in-unit). And the skill's delete-after-apply law is obeyed
+selectively — three codemod dirs deleted in git history while eight applied one-shots with
+extinct pre-shapes sit uncited. The integrity item now covers a third artifact class: generated
+or planned data files (census maps, plan snapshots) committed without a consumer, which the
+codemod skill itself bans ("keep the map out of the commit").
+
+The tooling-doc unit found the D333 amputation fully unsutured and taught the sweep a new
+search: the dead-command dialect also wears GHOST COMMAND spellings, not just backticked
+policy names. Three nonexistent commands (`check:agents`, `check:docs`, `check:ledgers-fresh`)
+live in ~10 doc-tool sites including a refusal message and the formatter's own printed verb
+name, and "the five-slot cap" cited by seven tool cli headers is the deleted
+`tooling-slot-template` gate — its home doc died with it in 821e8f8dff, provenance proved from
+the transcript oracle. ADR 0164/0222 still describe the deleted checker as live: the ledger
+contradicts itself (0164 rejected `pnpm doc check`, D333 deleted the checker, leaving zero
+checkers where the law says one). Meanwhile the rules engine's best prose in the sweep
+(measured, dated, receipted) verified true claim for claim, and its surviving door — every
+write verb re-runs the full composition pre-write — is the enforcement nobody's header
+advertises. Triage sweep rule addition: diff `pnpm check:\w+` mentions in living prose against
+defined package.json scripts.
+
+Phase 2 (tooling) closed with tooling-ui-facts: reviewed (0), the sweep's first clean unit —
+a maintained, daily-consumed engine whose dense headers all resolve, the neglect mechanism
+confirmed a third time. The phase's shape: the enforcement CODE is derived, tested and green
+(7/7 ui-facts suites, 138 tests; the lint plugin and dep-cruiser layers verified in their own
+units); essentially every finding was in its prose and command surface — ghost gate names,
+ghost commands, doorless fixtures. Phase 3 opens the server, where findings so far predict the
+rot concentrates in the same places: comments, refusal messages, and committed data that cites
+dead things.

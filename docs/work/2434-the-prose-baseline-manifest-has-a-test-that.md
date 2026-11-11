@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: contracts
+lane: wt/agent-ad0e85a8b8ba4ff64
 ---
 
 # The prose baseline manifest has a test that reads it
