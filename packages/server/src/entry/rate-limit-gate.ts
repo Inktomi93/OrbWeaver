@@ -1,5 +1,5 @@
 // The composition-root adapter that turns the DB-backed limiter primitive into the `RateLimitGate` the
-// tRPC ladder reads off `ctx.rateLimit`. Three buckets keyed on the RESOLVED admin config (env floor ⊕
+// tRPC ladder reads off `ctx.rateLimit`. Four buckets; the first three key on the RESOLVED admin config (env floor ⊕
 // AppSettings override), read fresh per request so a mid-session admin edit is LIVE (updateAppSettings →
 // reloadEffectiveConfig rebuilds the effective-config cache; every consume reads the current cap the same
 // way the maxImageBytes consumer does):
@@ -10,8 +10,8 @@
 //   - restart    — a fixed per-user bucket for `admin.restart`, not an admin knob; it also debits general.
 //
 // The `general` SCOPE literal is kept (existing bucket rows + the inversion suite key on `general:`); its
-// cap is `rateLimits.authed` — the "authed per-user" bucket the design doc (Tier-4-Transport §"buckets")
-// names "general". Window is env-only (`RATE_LIMIT_WINDOW_MS` in the root's record, no AppSettings override — a
+// cap is `rateLimits.authed` — the "authed per-user" bucket the transport law
+// (docs/law/Tier-4-Transport.md, the rate-limit paragraph) names "general". Window is env-only (`RATE_LIMIT_WINDOW_MS` in the root's record, no AppSettings override — a
 // fixed-window size, not a cap).
 //
 // NOTE — the `general` SCOPE literal (below) is the AUTHED per-user bucket; its cap is `rateLimits.authed`.
@@ -37,8 +37,8 @@ const AI_TURN_SCOPE = "ai-turn";
 
 // The chat router's $/GPU-spending verb paths — every path here fires inference or image generation, so it
 // debits the STRICTER ai-turn bucket on top of the general request bucket. ONE home: the typed map below
-// IS the declaration and the union derives from its keys (Tier-4-Transport §"aiTurn": "derives from a
-// typed map of the chat router's $-spending verbs") — a new spending verb is classified by adding (or
+// IS the declaration and the union derives from its keys (docs/law/Tier-4-Transport.md, the rate-limit
+// paragraph) — a new spending verb is classified by adding (or
 // deliberately omitting) its key here, never a silent free-turn leak. The generating verbs are the ones
 // the chat turn front-door (domain/chat/verbs/turn.ts header) drives through the engine: send / swipe /
 // continueTurn / impersonateStream / generate / forceCharacterTurn, plus the imagery generateImage.

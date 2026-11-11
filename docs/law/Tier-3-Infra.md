@@ -4,7 +4,7 @@ status: active
 updated: 2026-09-24
 ---
 
-# Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image · extraction · media)
+# Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image · extraction · media · acme · relay · plugin-host · plugin-source · tasks · timers · upstream-update)
 
 **infra is a sealed executor.** Each adapter is a thin I/O handle a domain *injects* and calls. No adapter reaches UP into a domain, and none imports `@orb/db`; db-dependent steps are injected in. The providers execution tier lives in the `@orb/inference` package; its law is `docs/law/Tier-3b-Providers.md`.
 
@@ -54,6 +54,34 @@ The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) int
 
 `createVideoPreparer(scheduleTimeout)` returns the `PrepareVideo` op that `entry/compose` injects into chat's `mediaProcessing`; it spawns the packaged ffmpeg to normalize outbound video. Detail: `packages/server/src/infra/media/index.ts` header.
 
+### `infra/acme` — the IP certificate's I/O
+
+`createOwnedAcmeIssuer`, its HTTP-01 responder and `createCertificateStore`; `packages/server/src/entry/compose/share.ts` builds them and injects them into `domain/share`'s certificate controller (D275). Detail: `packages/server/src/infra/acme/index.ts` header.
+
+### `infra/relay` — the share relay's I/O
+
+The pinned cloudflared on disk (download, sha256 check, unpack) and the quick-tunnel process, behind `createOwnedRelayLauncher`; `packages/server/src/entry/compose/share.ts` injects the launcher into `domain/share`. Detail: `packages/server/src/infra/relay/index.ts` header.
+
+### `infra/plugin-host` — the plugin sandbox runtime
+
+The QuickJS-ng WASM sandbox (D46) behind `createPluginHost`, handed its host-function ops at compose (`packages/server/src/entry/compose/automation-plugin.ts`); it imports no domain. Detail: `packages/server/src/infra/plugin-host/index.ts` header.
+
+### `infra/plugin-source` — the plugin directory packer
+
+`packPreparedPluginDir` packs a private Git materialization's admitted built entries into the zip the one bundle validator reads, and never compiles or executes repository source; `packages/server/src/infra/network/plugin-git.ts` calls it. Detail: `packages/server/src/infra/plugin-source/pack-plugin-dir.ts` header.
+
+### `infra/tasks` — background work
+
+`createBackgroundWork` owns cancellation and settlement of work that outlives its initiating request; `packages/server/src/entry/compose/services.ts` builds it and injects it as `background`. Detail: `packages/server/src/infra/tasks/background.ts`.
+
+### `infra/timers` — the timer scheduler
+
+`systemTimers` is the one real `setTimeout` and `setInterval` scheduler, wired in `packages/server/src/entry/compose/process-seams.ts`; `createScopedTimers` wraps it in `services.ts` so disposing the scope cancels every pending timer. Detail: `packages/server/src/infra/timers/scope.ts`.
+
+### `infra/upstream-update` — the upstream version probes
+
+`createUpstreamFetches` makes fixed anonymous GitHub GETs through `safeFetch`; foreign payloads and network failures become named refusals. `packages/server/src/entry/compose/update-check.ts` injects it as the probe source. Detail: `packages/server/src/infra/upstream-update/adapter.ts` header.
+
 NOT owned: identity RESOLUTION + the `users` upsert (→ `domain/sessions`); the auth seam (→ `packages/server/src/entry/auth/seam.ts`); cookie I/O + mint routes (→ `packages/server/src/entry/http/auth-routes.ts`); the OIDC PKCE transaction store (db-backed `oidc_transactions` → `packages/server/src/domain/sessions/persistence/oidc-store.ts` — a db import CANNOT live in sealed infra); the AAD value (→ credentials); the assets INDEX/GC/variant policy (→ `domain/assets`); `isAssetHash` (a `@orb/kit/assets` pure guard storage imports DOWN as its path-traversal defense).
 
 ## The sealed-executor invariant
@@ -74,6 +102,12 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 | `imageTransform` | `entry/` | `assets.resolve-variant` |
 | `createExtractText()` | `packages/server/src/entry/compose/services.ts` | the databank domain's `extractText` |
 | `createVideoPreparer()` | `packages/server/src/entry/compose/services.ts` | chat's `mediaProcessing.prepareVideo` |
+| `createOwnedAcmeIssuer()` / `createCertificateStore()` | `packages/server/src/entry/compose/share.ts` | `domain/share`'s certificate controller |
+| `createOwnedRelayLauncher()` | `packages/server/src/entry/compose/share.ts` | `domain/share` |
+| `createPluginHost()` | `packages/server/src/entry/compose/automation-plugin.ts` | the plugin runtime |
+| `createBackgroundWork()` | `packages/server/src/entry/compose/services.ts` | `background` |
+| `systemTimers` / `createScopedTimers()` | `packages/server/src/entry/compose/process-seams.ts`, `services.ts` | `timers` |
+| `createUpstreamFetches()` | `packages/server/src/entry/compose/update-check.ts` | the cached upstream probes |
 | `resolve` + `ResolveDeps` | `packages/server/src/entry/auth/seam.ts` | the seam calls infra; deps injected into infra |
 
 ## Spine intersections

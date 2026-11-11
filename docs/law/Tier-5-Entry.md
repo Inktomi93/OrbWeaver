@@ -59,8 +59,8 @@ packages/server/src/entry/
 │   │                         history fallback (registered LAST; /api/* misses never get HTML;
 │   │                         CLIENT_DIST_DIR missing → prod boot-fatal, dev skipped)
 │   └── healthz.ts            liveness + credentials_key_mismatch / shutdown-503 signals
-└── import/                  the bulk-import composition drivers (run-profile-import · run-bundle-import ·
-                              build-import-context) — the upload route + the import-st runner
+└── import/                  the bulk-import composition drivers: the one place that constructs the per-owner
+                              ImportService and wires the character/assets cross-feature ops
 ```
 
 Inventory lists are illustrative — the tree on disk is the truth.
@@ -83,7 +83,7 @@ Keep the split: **only `seedOwner` runs pre-compose**, because compose binds the
 1. **`installEgressFirewall()`** — the FIRST boot step (swaps undici's global dispatcher before anything else can open a socket; `docs/law/Tier-3-Infra.md`).
 2. **env** (`foundation/env`) — the one `process.env` read (at module load); `superRefine` boot-fatality per `AUTH_MODE`; the data slots resolve from `DATA_DIR` through `foundation/data-layout` and ride the frozen env as `DATA_LAYOUT`.
 3. **data layout** (`packages/server/src/entry/boot/migrate-data-layout.ts`) — before any file under the data root opens: a legacy flat data dir is renamed into the layout's tree under a journal (a snapshot of the db into `backups/` first; a legacy path whose target holds data is a refusal). Then the boot secrets' pre-db phase (`infra/crypto`): an explicit value or an existing keyfile; a missing keyfile stays `absent`; a cookie mode with an unusable pepper refuses here.
-4. **migrate** — `backupBeforeMigrate` into the layout's `backups/` → chain-aware baseline drift check (boot-FATAL on a db whose applied migration is in no shipped journal entry — D163; `pnpm seed:demo --fresh` is the only wipe) → migrations → `assertReferentialIntegrity`. Then the boot secrets settle (`packages/server/src/entry/boot/boot-secrets.ts`): an `absent` keyfile is generated only when no row depends on it, else the boot refuses and names the file.
+4. **migrate** — chain-aware baseline drift check (boot-FATAL on a db whose applied migration is in no shipped journal entry — D163; `pnpm seed:demo --fresh` is the only wipe) → `backupBeforeMigrate` into the layout's `backups/`, taken only when a migration is pending, so a no-op boot copies nothing → migrations → `assertReferentialIntegrity` → the backup retention sweep, run only on a boot that took a backup. Then the boot secrets settle (`packages/server/src/entry/boot/boot-secrets.ts`): an `absent` keyfile is generated only when no row depends on it, else the boot refuses and names the file.
 5. **seed-owner (pre-compose)** — resolves the owner id the compose graph binds against, via a TRANSIENT sessions service (compose owns the real one). The ONLY pre-compose seed.
 6. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
 7. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).
