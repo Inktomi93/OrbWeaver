@@ -69,7 +69,28 @@ test.for([
 
 const UPSTREAM_FAULT = "connection reset by the scrape upstream";
 const LOG_SCAN_LIMIT = 500;
-const logRecordSchema = z.looseObject({ level: z.string(), err: z.looseObject({ message: z.string() }).optional() });
+const logRecordSchema = z.looseObject({ level: z.string(), security: z.boolean().optional(), err: z.looseObject({ message: z.string() }).optional() });
+
+test.for([
+  { name: "a private DNS answer", url: `https://${PRIVATE_HOST}/page` },
+  { name: "a private IP literal", url: `https://${PRIVATE_ADDRESS}/page` },
+] as const)("$name leaves one warning record, the firewall's security event", async ({ url }) => {
+  await using root = await createServerHarness({
+    logLevel: "warn",
+    networkExecution: {
+      resolver: (hostname) => Promise.resolve([hostname === PRIVATE_HOST ? PRIVATE_ADDRESS : PUBLIC_PEER_ADDRESS]),
+      fetch: () => Promise.resolve(new Response(PAGE, { headers: { "content-type": "text/html" } })),
+    },
+  });
+  const principal = await root.principalFor(root.ownerId);
+  await expect(root.services.databank.scrapeWeb({ principal, url })).rejects.toMatchObject({ code: "scrape_failed" });
+
+  const warnings = root.observability
+    .logLines(LOG_SCAN_LIMIT)
+    .map((line) => logRecordSchema.parse(JSON.parse(line)))
+    .filter((record) => record.level === "warn");
+  expect(warnings.map((record) => record.security)).toEqual([true]);
+});
 
 test("a fetch that breaks off is refused as a scrape failure and the operator's log keeps the cause", async () => {
   let fetches = 0;

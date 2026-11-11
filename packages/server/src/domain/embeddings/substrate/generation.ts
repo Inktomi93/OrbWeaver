@@ -7,16 +7,16 @@ import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
-import type { ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#primitives/embedding-generation";
-import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
+import { SpaceMismatchError } from "../contract/errors.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
 import { markGenerationComplete, switchTargetGeneration } from "../persistence/space-state.ts";
+import { embedFailure } from "./embed-failure.ts";
 import { resolveImageSpace } from "./task-model.ts";
 
-type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved" | "scheduleTimeout">;
+type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved" | "scheduleTimeout" | "logger">;
 
 /** Record one scope of `generation` complete for its owner, and announce the promotion when this completion made it. */
 export async function completeGenerationScope(
@@ -67,9 +67,14 @@ export async function landProvenTarget(
 const WIDTH_PROBE_TEXT = "width check";
 
 /** Prove the new space's width within the runtime's route-specific bound before publishing or purging a generation. */
-export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: EmbeddingTask, dims: number, scheduleTimeout: ScheduleOp): Promise<void> {
+export async function probeWidth(
+  ctx: Pick<EmbeddingsContext, "scheduleTimeout" | "logger">,
+  connection: EmbeddingConnectionSnapshot,
+  via: EmbeddingTask,
+  dims: number,
+): Promise<void> {
   const bound = new AbortController();
-  const cancelTimer = scheduleTimeout(() => bound.abort(), connection.execution.widthProbeTimeoutMs);
+  const cancelTimer = ctx.scheduleTimeout(() => bound.abort(), connection.execution.widthProbeTimeoutMs);
   const opts = { signal: bound.signal };
   const result = await (via === "embed"
     ? connection.embed(WIDTH_PROBE_TEXT, opts)
@@ -77,7 +82,7 @@ export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: E
   ).finally(cancelTimer);
   const vector = result.vectors[0];
   if (vector === null || vector === undefined) {
-    throw new EmbedFailedError("width probe", result.model);
+    throw embedFailure(ctx, "width probe", result.model);
   }
   if (vector.length !== dims) {
     throw new SpaceMismatchError(result.model, dims, vector.length);
@@ -207,7 +212,7 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven,
     // The owner's writes are serialized, so this resolve lands what the proof probed. Anything else (an endpoint's
     // facts re-read in between) is probed here: no purge happens on an unprobed width.
     if (proven !== id) {
-      await probeWidth(connection, via, dims, ctx.scheduleTimeout);
+      await probeWidth(ctx, connection, via, dims);
     }
     // The switch emptied the old index; whoever moved it owes the owner the sweep that refills it, whatever the
     // caller was (a write, a sweep, a sync after a re-point).

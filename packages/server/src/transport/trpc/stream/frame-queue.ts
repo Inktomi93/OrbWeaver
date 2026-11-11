@@ -14,7 +14,8 @@
 //   • `collapse` — keep at most ONE pending frame per (room, event type), newest payload wins, FIFO position
 //                  preserved. Legal only for a channel whose client handler is a pure INVALIDATION trigger
 //                  (N identical `chatsChanged` invalidate exactly like 1). A channel that carries CONTENT
-//                  must be resumable, so that it lags.
+//                  must be resumable, so that it lags. The bound is the whole queue's: a collapse push for a new
+//                  (room, type) that finds it full announces the lag too, with no cursor.
 // That "pure invalidation trigger" property is not expressible to tsc: it is the review question for any new
 // room source that declares `resumable: false`.
 //
@@ -22,6 +23,10 @@
 // exactly what a saturated socket must still deliver, and it is what an UNRELATED room's client is waiting
 // on. Repeat `roomLagged` for a room already announcing one collapses (one notice per burst), so the
 // control lane cannot grow with the flood that triggered it.
+//
+// The lag policy and the collapse's folding of repeats run end to end, through a real socket whose reader falls
+// behind, in `tests/server/transport/trpc/stream/frame-queue-overflow.int.test.ts`. The collapse's announce-at-the-bound
+// branch has no test: the bound is private, and a live-only room alone holds one frame per type, so it cannot fill the queue.
 
 import type { StreamControlFrame, StreamDataFrame, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";

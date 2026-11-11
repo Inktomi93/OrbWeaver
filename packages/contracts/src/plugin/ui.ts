@@ -910,7 +910,7 @@ const stateBindingSchema = z.object({ $state: z.string().min(1).max(STATE_PATH_M
  *  length never EXCEEDS UTF-8 byte length, so nothing under the cap was ever wrongly rejected), which is also
  *  why the `.max()` stays in front: it can only reject what the byte check would reject anyway, and it keeps
  *  the measurement — which allocates — off an arbitrarily long guest string. */
-const byteBoundedString = (max: number): z.ZodType<string> =>
+export const byteBoundedString = (max: number): z.ZodType<string, string> =>
   z
     .string()
     .max(max)

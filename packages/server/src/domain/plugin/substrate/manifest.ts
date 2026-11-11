@@ -65,6 +65,7 @@ import { unzipSync } from "fflate";
 import { z } from "zod";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
+import { isRecordedEgressBlock } from "#infra/network";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PluginBundleAssetBytes } from "../contract/bundle-assets.ts";
 import { HostVersionUnservedError, ManifestInvalidError, PluginBundleFetchError } from "../contract/errors.ts";
@@ -344,14 +345,17 @@ export function isVersionNewer(remote: string, installed: string): boolean {
  *  original `cause` stays server-side: `safeFetch`'s own error carries the block REASON (`"private-address"` vs
  *  `"host-not-allowed"`), and a serialized cause would re-leak exactly the SSRF oracle the collapse exists to
  *  close, so it rides the error as `cause` (which the transport never serializes) and is logged here. The domain
- *  never imports `#infra/network` to branch (the `fetchWebDocument`→`ScrapeFailedError` precedent) — infra
- *  performs the guarded fetch and throws; this catches. */
+ *  never branches on the block reason (the `fetchWebDocument`→`ScrapeFailedError` precedent) — infra performs the
+ *  guarded fetch and throws; this catches, and only asks whether the block is already on record. */
 export async function fetchBundleThroughGuard(fetchBundle: (url: string) => Promise<Uint8Array>, url: string, log: Logger): Promise<Uint8Array> {
   try {
     return await fetchBundle(url);
   } catch (cause) {
-    // A modeled refusal is not logged by the transport, so a failed fetch is recorded here.
-    getLog(log).warn({ err: cause }, "plugin: a bundle fetch failed");
+    // A modeled refusal is not logged by the transport, so a failed fetch is recorded here, unless the firewall
+    // already wrote its security event for the block.
+    if (!isRecordedEgressBlock(cause)) {
+      getLog(log).warn({ err: cause }, "plugin: a bundle fetch failed");
+    }
     throw new PluginBundleFetchError(url, { cause });
   }
 }

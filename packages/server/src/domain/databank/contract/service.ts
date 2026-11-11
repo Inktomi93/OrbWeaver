@@ -183,7 +183,8 @@ export interface DatabankContext {
   readonly extractorVersion: string;
   /** The web-document fetch (DB7 scrapeWeb) — the ANY_HOST safeFetch guard, allowlist + cap compose-bound.
    *  THROWS on any refusal or fetch failure; the verb collapses that to a leak-free `ScrapeFailedError` without
-   *  importing infra to branch. The scraper adds ZERO guard logic of its own. */
+   *  branching on why it failed (it asks infra only whether the firewall already recorded the block, so one refusal
+   *  leaves one log record). The scraper adds ZERO guard logic of its own. */
   readonly fetchUrl: ScopedEgress["fetchWebDocument"];
   readonly getActiveEmbedSpace: (ownerId: UserId) => Promise<ActiveEmbedSpace | null>;
   readonly getDatabankSettings: GetDatabankSettingsOp;

@@ -1,5 +1,5 @@
 // Real invitations, host fork and offered handoff exercise the native game's authority and identity planes.
-import { DomainError } from "@orb/kit/errors";
+import { DomainError, DomainInternalFaultError } from "@orb/kit/errors";
 import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import type { seedCorpusRpgRecursion } from "./corpus-rpg-recursion.ts";
 import { seedImportedChatRows } from "./factories/rows/chat.ts";
@@ -63,7 +63,7 @@ async function captureRefusal<T>(operation: Promise<T>): Promise<DomainError | u
     await operation;
     return undefined;
   } catch (error) {
-    if (!(error instanceof DomainError)) {
+    if (!(error instanceof DomainError) || error instanceof DomainInternalFaultError) {
       throw error;
     }
     return error;

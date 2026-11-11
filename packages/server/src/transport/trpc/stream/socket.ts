@@ -65,19 +65,18 @@ const ROOM_FAULT_MESSAGE = "The room stopped unexpectedly.";
  *  genuine bug and collapses to a generic INTERNAL_SERVER_ERROR — internals never reach a subscriber. */
 function roomFailure(err: unknown): { readonly code: StreamErrorCode; readonly message: string } {
   const mapped = classifyDomainError(err);
-  if (mapped === null) {
-    return { code: "INTERNAL_SERVER_ERROR", message: ROOM_FAULT_MESSAGE };
-  }
   // `@orb/contracts` cannot depend on `@trpc/server`, so the wide tRPC code union narrows onto our closed
   // vocabulary HERE — the one mapper seam. The classifier is kept inside that vocabulary by its own
   // header, so a miss means the two drifted.
   //
-  // A MISS TAKES THE COLLAPSED MESSAGE TOO, and that is the whole point of this arm rather than a bare
-  // `?? "INTERNAL_SERVER_ERROR"`: the frame would otherwise say INTERNAL_SERVER_ERROR while carrying a
-  // classified error's real text, which is exactly the "a 500 must never carry a real message" rule the
-  // procedure path enforces at its formatter. Code and message move together or not at all.
-  const code = STREAM_ERROR_CODES.find((known) => known === mapped.code);
-  return code === undefined ? { code: "INTERNAL_SERVER_ERROR", message: ROOM_FAULT_MESSAGE } : { code, message: mapped.message };
+  // EVERY INTERNAL_SERVER_ERROR TAKES THE ROOM SENTENCE: an unclassified throw, a classified internal fault
+  // (its mapped message is the procedure sentence, which reads wrong for a dying room) and a code outside the
+  // vocabulary all collapse together. A 500 must never carry a real message, so code and message move as one.
+  const code = mapped === null ? undefined : STREAM_ERROR_CODES.find((known) => known === mapped.code);
+  if (mapped === null || code === undefined || code === "INTERNAL_SERVER_ERROR") {
+    return { code: "INTERNAL_SERVER_ERROR", message: ROOM_FAULT_MESSAGE };
+  }
+  return { code, message: mapped.message };
 }
 
 export interface RunSocketArgs {
@@ -114,7 +113,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   const pendingPumps = new Set<Promise<void>>();
 
   async function pumpRoom(ref: StreamRoomRef, cursor: number | null, control: AbortController): Promise<void> {
-    // a non-abort failure is logged with getLog(logger).warn, pushed to the
+    // a non-abort failure is logged (error for an internal fault, warn otherwise), pushed to the
     // subscriber as a roomFailed control frame, and the room detaches; the early return is teardown after our own
     // abort. Ends if any of those three steps is removed or the abort return stops being teardown-only.
     try {
@@ -130,7 +129,14 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
         return; // teardown (detach / socket close), not a fault
       }
       const failure = roomFailure(err);
-      getLog(logger).warn({ err, channel: ref.channel, userId: principal.userId }, "stream: room pump failed");
+      // An internal fault is ours to fix (error); a classified refusal is the room's own state (warn).
+      const log = getLog(logger);
+      const record = { err, channel: ref.channel, userId: principal.userId };
+      if (failure.code === "INTERNAL_SERVER_ERROR") {
+        log.error(record, "stream: room pump hit an internal fault");
+      } else {
+        log.warn(record, "stream: room pump failed");
+      }
       queue.pushControl({ channel: "control", type: "roomFailed", ref, ...failure });
       registry.detach(principal.userId, socketId, ref);
     }

@@ -8,7 +8,7 @@
 
 import { createRequire } from "node:module";
 import process from "node:process";
-import { installEgressFirewall, systemConnector, systemFetch, systemResolver } from "@orb/server/infra/network";
+import { installEgressFirewall, isRecordedEgressBlock, systemConnector, systemFetch, systemResolver } from "@orb/server/infra/network";
 import { createQuietTimers } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger, servePhysicalPeer } from "@orb/testkit/node/composed";
@@ -58,6 +58,11 @@ test("the installed firewall refuses a private literal on a fetch that names no 
     });
 
     expect(await bareFetch(`${refused.origin}/after`)).toBe(SSRF_BLOCKED);
+    // The connector wrote the block's security event, so a caller that logs a failed fetch's cause skips it; a broken
+    // connection is no block and stays the caller's to log.
+    const refusal = await systemFetch(`${refused.origin}/again`).catch((rejection: unknown) => rejection);
+    expect(isRecordedEgressBlock(refusal)).toBe(true);
+    expect(isRecordedEgressBlock(new TypeError("fetch failed", { cause: new Error("read ECONNRESET") }))).toBe(false);
     expect(await bareFetch(`${admitted.origin}/after`)).toBe("200");
     expect(received).toEqual(["refused /before", "admitted /after"]);
   } finally {

@@ -55,6 +55,9 @@ export {
   PLUGIN_ASSET_READ_MAX_BYTES,
   PLUGIN_CARD_DATA_FIND_MAX,
   PLUGIN_CONTINUATION_WINDOW_MS,
+  PLUGIN_KV_KEY_MAX_CHARS,
+  PLUGIN_KV_MAX_KEYS,
+  PLUGIN_KV_VALUE_MAX_BYTES,
   PLUGIN_LOG_CHARS_MAX,
   PLUGIN_LOG_LEVELS,
   PLUGIN_LOG_LINES_MAX,
@@ -218,7 +221,8 @@ export {
   resolvePluginBoundTiles,
   resolvePluginPrimaryButton,
 } from "./ui.ts";
-export { pluginUiHostArgsSchemas } from "./ui-host.ts";
+export type { PluginUiHostCallCode } from "./ui-host.ts";
+export { PLUGIN_UI_HOST_CALL_CODES, pluginUiHostArgsSchemas } from "./ui-host.ts";
 export type {
   DistributedPluginView,
   PluginBundleAssetView,

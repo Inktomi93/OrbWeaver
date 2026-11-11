@@ -4,7 +4,8 @@
 // membrane's guest-observable `PluginCapabilityError`/`HostVersionError` (`@orb/contracts/plugin`) — these are
 // host-side lifecycle failures a CALLER sees, never a guest.
 
-import type { PluginSlug } from "@orb/contracts/plugin";
+import type { PluginSlug, PluginUiHostCallCode } from "@orb/contracts/plugin";
+import { PLUGIN_KV_MAX_KEYS, PLUGIN_UI_HOST_CALL_CODES } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainError, DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 import type { CharacterId, PluginId } from "@orb/kit/ids";
 
@@ -26,8 +27,8 @@ export class ManifestInvalidError extends DomainOperationError {
  *  refusal, a non-2xx, or a network error — and that is the security property, not laziness: `safeFetch`'s own
  *  `EgressBlockedError.reason` distinguishes "private-address" from "host-not-allowed", and surfacing that
  *  distinction to the caller would turn this into an SSRF ORACLE (an attacker learns their URL resolved private).
- *  The domain never imports `#infra/network` to branch on the reason (the `fetchWebDocument`→`ScrapeFailedError`
- *  precedent — infra performs the guarded fetch and THROWS; the verb collapses every throw here). The message
+ *  The domain never branches on the reason (the `fetchWebDocument`→`ScrapeFailedError` precedent — infra performs
+ *  the guarded fetch and THROWS; the verb collapses every throw here). The message
  *  names the caller-supplied URL and nothing about what it resolved to. Thrown BEFORE anything persists.
  *  Maps to BAD_REQUEST. */
 export class PluginBundleFetchError extends DomainOperationError {
@@ -168,8 +169,29 @@ class PluginActionFailedError extends DomainOperationError {
   }
 }
 
+/** A `plugin.uiHostCall` the relay refuses because the call was wrong: the plugin is off, the function is not
+ *  proxyable or not granted, the arguments are not JSON or fail their schema, a chat scope is missing, or the answer
+ *  is over the cap. The plugin author's mistake, not the server's: BAD_REQUEST with `data.reason` set to the code. */
+export class PluginUiHostCallRefusedError extends DomainOperationError {
+  constructor(message: string, options: { readonly code: PluginUiHostCallCode; readonly cause?: unknown }) {
+    super(options.code, message);
+    if (options.cause !== undefined) {
+      this.cause = options.cause;
+    }
+  }
+}
+
+/** A `storage.kv` write that would create a key past {@link PLUGIN_KV_MAX_KEYS}. A server guest contains it as a
+ *  caught error; through `plugin.uiHostCall` it reaches the caller as BAD_REQUEST with the storage-cap code. */
+export class PluginKvCapError extends DomainOperationError {
+  constructor() {
+    super(PLUGIN_UI_HOST_CALL_CODES.storageCap, `plugin storage.kv cap: at most ${PLUGIN_KV_MAX_KEYS} keys per plugin`);
+  }
+}
+
 /** The error a guest invoke's rejection surfaces as: a guest's own throw becomes {@link PluginActionFailedError};
- *  a host DomainError keeps its own mapping. */
+ *  a host DomainError keeps its own mapping. An internal fault passes through too, on purpose: the transport answers
+ *  it with a fixed sentence, whereas wrapping it would put its text in a client-facing message. */
 export function asPluginActionError(error: unknown): DomainError {
   return error instanceof DomainError ? error : new PluginActionFailedError(`plugin action failed: ${error instanceof Error ? error.message : String(error)}`);
 }
