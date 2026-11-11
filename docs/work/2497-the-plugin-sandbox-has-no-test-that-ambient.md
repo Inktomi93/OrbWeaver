@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: security
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # The plugin sandbox has no test that ambient globals stay absent or that the guest's reachable names are an allow-list

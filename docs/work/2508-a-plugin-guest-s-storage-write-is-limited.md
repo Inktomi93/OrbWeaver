@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: security
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # A plugin guest's storage write is limited by a table check a NUL in the key gets past

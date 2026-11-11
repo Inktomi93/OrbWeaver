@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: security
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # Nothing tests that the egress connector writes its security event when it refuses
