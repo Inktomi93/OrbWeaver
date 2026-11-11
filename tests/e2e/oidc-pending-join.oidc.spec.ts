@@ -7,6 +7,7 @@ import { ownerActor } from "./support/actors.ts";
 import { E2E_SSO_GROUPS, OIDC_CLIENT, oidcIssuerTls } from "./support/modes.ts";
 import type { OidcIssuer } from "./support/oidc-issuer.ts";
 import { stageIssuerIdentity, startOidcIssuer } from "./support/oidc-issuer.ts";
+import { serverNow } from "./support/server-clock.ts";
 import { WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
 const INVITE_TTL_MS = 10 * 60_000;
@@ -49,7 +50,7 @@ test("leaving an OIDC pending join retires its invite and preserves other query 
   try {
     const invite = await owner.trpc.invites.createInvite.mutate({
       chatId: started.chat.id,
-      input: { allowSignup: true, maxUses: 1, expiresAt: Date.now() + INVITE_TTL_MS },
+      input: { allowSignup: true, maxUses: 1, expiresAt: (await serverNow(baseURL ?? "")) + INVITE_TTL_MS },
     });
     const joiner = `oidc-joiner-${randomBytes(JOINER_SUFFIX_BYTES).toString("hex")}`;
     await stageIssuerIdentity(issuer.url, { sub: joiner, preferredUsername: joiner, groups: [E2E_SSO_GROUPS.member] }, oidcIssuerTls().cert);

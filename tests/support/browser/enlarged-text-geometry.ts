@@ -1,7 +1,7 @@
 // Enlarged-text geometry probes: controls a user cannot press, text cut with no ellipsis, overlapping controls,
 // columns that scroll sideways and collapsed scrollers. The platform text-scale suites and the surface walk share them.
 import { OVERLAY_RELATION_ATTRIBUTE } from "@orb/ui/lib";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 /** Layout rounding can read a box a fraction past its container with nothing clipped; a one-pixel box is a screen-reader span. */
 export const LAYOUT_SUBPIXEL_PX = 1;
@@ -15,6 +15,9 @@ const TRANSIENT_CHROME = '[data-slot="toast-root"], [data-slot="jump-to-latest"]
 // The boot veil lies over everything while it holds and dissolves after the app is ready, so a probe that runs under it reads the veil as every
 // control's cover. Its layout is not the resting one; the probes wait for it to leave.
 const BOOT_VEIL = '[data-slot="weave-veil"]';
+// A Base UI part that is animating out carries `data-ending-style` until it unmounts or rests closed: the backdrop of a dialog closed a
+// moment ago is portaled outside any scope and still takes the hit tests over it. The probes wait for every leaving part to go.
+const LEAVING_LAYER = "[data-ending-style]";
 // The text a control carries that the design truncates on purpose: a row's title and subtitle (the row's accessible name keeps the whole of
 // it) and a facet row's one-line preview. A control in a row's actions slot, or any other text in the row, is judged.
 const TRUNCATED_BY_DESIGN = [
@@ -285,8 +288,73 @@ function cutControlValues(
     });
 }
 
-/** A column that scrolls sideways has stopped reflowing; a strip of tabs or chips is built to scroll that way. */
+// How far one box or run of text overshoots its scroller's end edge, found at a structural path from the scroller.
+interface SidewaysReach {
+  readonly path: string;
+  readonly overshoot: number;
+  readonly depth: number;
+  // The element the box is, or the element whose own text the run is.
+  readonly owner: Element;
+}
+
+/**
+ * A column that scrolls sideways has stopped reflowing; a strip of tabs or chips is built to scroll that way. The finding names the box
+ * whose border box, or the run of text, reaches furthest past the scroller's unscrolled end edge (the left edge in a right-to-left
+ * scroller), as a structural path from the scroller. On a tie the shallowest box is named: a box that fills a fixed-width parent only
+ * carries the width its parent sets. Text directly in an element is measured with a range, so one unbreakable word names its paragraph's
+ * text, or the scroller's own text. Content inside a box that clips or scrolls on x never widens the scroller, so it is passed over. A
+ * pseudo-element's generated content has no node to measure, so a scroller widened only by one reads as having no descendant past its edge.
+ *
+ * A scroller whose sole content is one tablist or toolbar, and which that strip widens, is the strip degraded to a scroll: it lets the list
+ * keep its measured width and its focus halo, and is not a finding.
+ *
+ * `sidewaysReach` in `tests/support/browser/sideways-reach.ts` is a second measure on purpose: it lists every leaf widener with its text
+ * for a CT's failure message over fixture content, where this one names a single cause with no owner text in a walk finding.
+ */
 function sidewaysColumns(subject: Element, { strips, subpixel }: { readonly strips: string; readonly subpixel: number }): string[] {
+  const clipsX = (element: Element): boolean => getComputedStyle(element).overflowX !== "visible";
+  const step = (element: Element): string => {
+    const slot = element.getAttribute("data-slot");
+    const index = element.parentElement === null ? 1 : [...element.parentElement.children].indexOf(element) + 1;
+    return `${element.tagName.toLowerCase()}:nth-child(${String(index)})${slot === null ? "" : `[data-slot="${slot}"]`}`;
+  };
+  const textOf = (element: Element): Text[] =>
+    [...element.childNodes].filter((node): node is Text => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "");
+  const cause = (scroller: Element): SidewaysReach | undefined => {
+    const box = scroller.getBoundingClientRect();
+    const rtl = getComputedStyle(scroller).direction === "rtl";
+    // The edge of the unscrolled padding box, so a checkpoint read at a scroll position names the same cause.
+    const edge = rtl ? box.left + scroller.clientLeft - scroller.scrollLeft : box.left + scroller.clientLeft + scroller.clientWidth - scroller.scrollLeft;
+    const overshoot = ({ left, right }: DOMRect): number => (rtl ? edge - left : right - edge);
+    const texts = (element: Element, path: string, depth: number): SidewaysReach[] =>
+      textOf(element).map((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return { path: element === scroller ? "its own text" : `${path} text`, overshoot: overshoot(range.getBoundingClientRect()), depth, owner: element };
+      });
+    const reaches = (element: Element, path: string, depth: number): SidewaysReach[] =>
+      [...element.children].flatMap((child) => {
+        const at = `${path} > ${step(child)}`;
+        const own = { path: at, overshoot: overshoot(child.getBoundingClientRect()), depth, owner: child };
+        return clipsX(child) ? [own] : [own, ...texts(child, at, depth + 0.5), ...reaches(child, at, depth + 1)];
+      });
+    const past = [...texts(scroller, ":scope", 0), ...reaches(scroller, ":scope", 1)].filter((reach) => reach.overshoot > subpixel);
+    const furthest = Math.max(...past.map((reach) => reach.overshoot));
+    return past.filter((reach) => reach.overshoot >= furthest - subpixel).toSorted((left, right) => left.depth - right.depth)[0];
+  };
+  const noGenerated = (element: Element): boolean =>
+    ["::before", "::after"].every((pseudo) => ["none", "normal"].includes(getComputedStyle(element, pseudo).content));
+  const degradedStrip = (scroller: Element, found: SidewaysReach | undefined): boolean => {
+    const [only, ...rest] = [...scroller.childNodes].filter((node) => node.nodeType !== Node.TEXT_NODE || (node.textContent ?? "").trim() !== "");
+    return (
+      found !== undefined &&
+      rest.length === 0 &&
+      only instanceof Element &&
+      only.matches('[role="tablist"], [role="toolbar"]') &&
+      only.contains(found.owner) &&
+      noGenerated(scroller)
+    );
+  };
   return [subject, ...subject.querySelectorAll("*")]
     .filter((element) => {
       const scrolls = /auto|scroll/u.test(getComputedStyle(element).overflowX);
@@ -294,10 +362,16 @@ function sidewaysColumns(subject: Element, { strips, subpixel }: { readonly stri
         scrolls && !element.matches(strips) && element.checkVisibility({ visibilityProperty: true }) && element.scrollWidth > element.clientWidth + subpixel
       );
     })
-    .map(
-      (element) =>
-        `${element.tagName.toLowerCase()} ${element.getAttribute("data-slot") ?? element.className} scrolls sideways by ${String(element.scrollWidth - element.clientWidth)}`,
-    );
+    .flatMap((element) => {
+      const found = cause(element);
+      if (degradedStrip(element, found)) {
+        return [];
+      }
+      const widened = found === undefined ? "no descendant past its edge" : `${found.path} by ${String(Math.round(found.overshoot))}`;
+      return [
+        `${element.tagName.toLowerCase()} ${element.getAttribute("data-slot") ?? element.className} scrolls sideways by ${String(element.scrollWidth - element.clientWidth)}, widened by ${widened}`,
+      ];
+    });
 }
 
 /** A scroller holding content in a box shorter than one line of it: touch cannot reach what it holds. */
@@ -323,8 +397,46 @@ export interface EnlargedTextGeometry {
   readonly declaredOverlays: readonly string[];
 }
 
+// Each leaving part as a structural path from the body, so a failure names it without carrying the owner's text.
+function leavingPaths(leaving: string): string[] {
+  const step = (element: Element): string => {
+    const slot = element.getAttribute("data-slot");
+    const index = element.parentElement === null ? 1 : [...element.parentElement.children].indexOf(element) + 1;
+    return `${element.tagName.toLowerCase()}:nth-child(${String(index)})${slot === null ? "" : `[data-slot="${slot}"]`}`;
+  };
+  return [...document.querySelectorAll(leaving)].map((element) => {
+    const steps: string[] = [];
+    for (let at: Element | null = element; at !== null && at !== document.body; at = at.parentElement) {
+      steps.unshift(step(at));
+    }
+    return `body > ${steps.join(" > ")}`;
+  });
+}
+
+/** Every Base UI part still carrying `data-ending-style`, as a structural path from the body. */
+export async function leavingLayers(page: Page): Promise<string[]> {
+  return await page.evaluate(leavingPaths, LEAVING_LAYER);
+}
+
+async function waitOutLeavingLayers(page: Page): Promise<void> {
+  try {
+    await page.waitForFunction((leaving) => document.querySelector(leaving) === null, LEAVING_LAYER);
+  } catch (error) {
+    // A part whose close is held and never released keeps its attribute; the bare timeout would name neither the part nor the wait.
+    const stuck = await leavingLayers(page);
+    if (stuck.length === 0) {
+      throw error;
+    }
+    throw new Error(`enlarged-text geometry: a part never finished leaving: ${stuck.join("; ")}`, { cause: error });
+  }
+}
+
+/**
+ * @throws When a part carrying `data-ending-style` stays past the page's timeout; the message names each one by structural path.
+ */
 export async function enlargedTextGeometry(scope: Locator): Promise<EnlargedTextGeometry> {
   await scope.page().locator(BOOT_VEIL).waitFor({ state: "detached" });
+  await waitOutLeavingLayers(scope.page());
   const controls = await scope.evaluate(controlGeometry, {
     reachable: REACHABLE,
     subpixel: LAYOUT_SUBPIXEL_PX,

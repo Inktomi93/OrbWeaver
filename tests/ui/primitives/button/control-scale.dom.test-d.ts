@@ -59,10 +59,10 @@ test("stretch owns the label's start and, for a line, the width, and a square ta
 test("a square is icon-only, so it carries its own name", () => {
   // @ts-expect-error a square leaves no room for a text child to name it
   createElement(Button, { square: true }, "x");
-  // @ts-expect-error a computed square might be icon-only, so it states its name
-  createElement(Button, { square: Math.random() > 0.5 }, "x");
   createElement(Button, { square: true, "aria-label": "Send" });
   createElement(Button, { square: false }, "x");
   expectTypeOf<{ square: true; children: "x" }>().not.toExtend<ButtonProps>();
+  // A computed square might be icon-only, so it states its name.
+  expectTypeOf<{ square: boolean; children: "x" }>().not.toExtend<ButtonProps>();
   expectTypeOf<{ square: true; "aria-label": "Send" }>().toExtend<ButtonProps>();
 });

@@ -5,7 +5,9 @@ import type { Page } from "@playwright/test";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
+import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { CORPUS_MODEL_ROUTES_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 
@@ -38,10 +40,10 @@ const SECTION_WITNESSES = {
       .getByRole("listitem")
       .filter({ has: page.getByText("Keywords", { exact: true }) })
       .getByText("none found", { exact: true }),
-    page.getByRole("list", { name: "Model routes", exact: true }).getByRole("listitem").first(),
+    page.getByRole("list", { name: CORPUS_MODEL_ROUTES_NAME, exact: true }).getByRole("listitem").first(),
   ],
   config: (page): Witnesses => [
-    page.locator('[data-slot="config-content"]').getByRole("radiogroup", { name: "Theme", exact: true }).getByRole("radio").first(),
+    page.locator('[data-slot="config-content"]').getByRole("radiogroup", { name: CONFIG_THEME_GROUP_NAME, exact: true }).getByRole("radio").first(),
     page.locator('[data-slot="config-content"]').getByRole("switch", { name: "Color quoted speech", exact: true }),
   ],
   extensions: (page): Witnesses => [
@@ -58,7 +60,7 @@ const SECTION_WITNESSES = {
 
 const GROUP_WITNESSES = {
   personas: (page): Witnesses => [page.getByRole("button", { name: "New persona", exact: true })],
-  appearance: (page): Witnesses => [page.getByRole("radiogroup", { name: "Theme", exact: true }).getByRole("radio").first()],
+  appearance: (page): Witnesses => [page.getByRole("radiogroup", { name: CONFIG_THEME_GROUP_NAME, exact: true }).getByRole("radio").first()],
   "chat-behavior": (page): Witnesses => [page.getByRole("switch", { name: "Enter to send", exact: true })],
   workloads: (page): Witnesses => [
     page.getByRole("tablist", { name: "Filter jobs", exact: true }),

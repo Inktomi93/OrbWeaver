@@ -37,6 +37,7 @@ import {
   REGEX_TEXT_GOING_IN_NAME,
 } from "#client/features/regex/lib/regex-names.ts";
 import { ROSTER_NAME_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
+import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   WORLD_INFO_BOOK_DESCRIPTION_NAME,
@@ -359,21 +360,23 @@ async function groupDetails(flow: SurfaceWalk, id: ConfigGroupId): Promise<void>
   }
 }
 
+// Each Admin section's Save names its section but shows the same visible label, so the census must still tell them apart by structure.
 async function sameLabelCensusControl(flow: SurfaceWalk): Promise<void> {
-  const saves = flow.page.locator(CONTENT).getByRole("button", { name: DIALOG_VERBS.save, exact: true });
+  const saveName = namePattern(adminSaveName(ADMIN_SAVE_LABEL, NAME_HOLE));
+  const saves = flow.page.locator(CONTENT).getByRole("button", { name: saveName });
   const buttons = await saves.all();
   expect(buttons.length, "The actual Admin sections must supply repeated Save controls for this census control").toBeGreaterThanOrEqual(2);
   const targets: string[] = [];
   for (const button of buttons) {
     expect(await button.evaluate((node) => node.id), "This positive control must exercise id-less production buttons").toBe("");
-    await expect(button).toHaveAccessibleName(DIALOG_VERBS.save);
+    await expect(button).toHaveText(ADMIN_SAVE_LABEL);
     targets.push(await controlIdentity(button));
   }
   expect(new Set(targets).size, "The actual same-label controls must not coalesce in the census Set").toBe(buttons.length);
   for (const target of targets) {
     const resolved = flow.page.locator(target);
     await expect(resolved).toHaveCount(1);
-    await expect(resolved).toHaveAccessibleName(DIALOG_VERBS.save);
+    await expect(resolved).toHaveAccessibleName(saveName);
   }
   await attachNativeFile(flow.info, flow.info, "config-same-label-structural-census-control", {
     body: JSON.stringify({ count: buttons.length, targets }),
@@ -569,7 +572,7 @@ async function groupJourney(flow: SurfaceWalk, id: ConfigGroupId): Promise<void>
 }
 
 async function regex(flow: SurfaceWalk): Promise<void> {
-  const name = `Surface regex ${flow.pass} ${Date.now()}`;
+  const name = `Surface regex ${flow.pass} ${flow.ids.uuid()}`;
   try {
     await category(flow, "regex");
     const content = flow.page.locator(CONTENT);
@@ -673,7 +676,7 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     );
   }
 
-  const name = `Surface ${flow.pass} ${Date.now()}`;
+  const name = `Surface ${flow.pass} ${flow.ids.uuid()}`;
   try {
     await category(flow, "worldInfo");
     const content = flow.page.locator(CONTENT);

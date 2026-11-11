@@ -34,6 +34,7 @@ Run `pnpm test:ct:webkit <paths>` for the platform suites (`platform-*.suite.ct.
 - Use `route.abort("aborted")`, never a bare `route.abort()`.
 - Assert accessible names with `textContent`, `ariaSnapshot`, or `getByRole(..., { exact: true })`, never
   `innerText` or a raw attribute read. `aria-labelledby` outranks `aria-label`.
+- `BROWSER_TEST_TRAPS` in `eslint.config.ts` refuses every `innerText` or `allInnerTexts` read and a bare `route.abort()` in every test class, page drivers included. Its header names the abort shapes it cannot see.
 - `getComputedStyle` reports the declared value even under `display: none`; suppress the exact property a
   test measures, not the element's display.
 - Follow `Spine-Testing.md` §7 for native gallery authoring, execution mode and lifecycle.
@@ -79,6 +80,6 @@ Run `pnpm test:ct:webkit <paths>` for the platform suites (`platform-*.suite.ct.
 - Live e2e turns need Playwright's own stack, not the dev stack. The orchestrator stops the dev
   stack; a lane does not stop it.
 - The node-side e2e transform loads the full `@orb/client/lib` barrel, including `.tsx` re-exports.
-  Import accessible-name builders directly.
+  Import each name from its module, `#client/lib/<module>.ts`. The `e2e-no-client-lib-barrel` rule in `.dependency-cruiser.ts` refuses the barrel under `tests/e2e`.
 - A route interceptor reading a tRPC batch mutation body must read it as an index-keyed dict, not an
   array, or a missing field reads as a silently null request.

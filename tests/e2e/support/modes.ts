@@ -61,6 +61,8 @@ if (runToken === undefined || !/^[1-9]\d*-[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9
 if (E2E_RUN_IS_OWNER) {
   exportProcessEnv(RUN_TOKEN_ENV, runToken);
 }
+/** This run's token: the runner and every worker it starts read the same value. */
+export const E2E_RUN_TOKEN = runToken;
 const rawPortOffset = process.env[E2E_PORT_OFFSET_ENV];
 if (rawPortOffset !== undefined && !/^\d+$/u.test(rawPortOffset)) {
   throw new Error(`${E2E_PORT_OFFSET_ENV} must be a non-negative integer, got ${JSON.stringify(rawPortOffset)}`);

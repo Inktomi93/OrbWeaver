@@ -120,6 +120,7 @@ const ROOT_FILES_TESTS_LOAD = {
 const MOUNT_SUPPORT_FILES = {
   "^tests/support/browser/(?:index|ct-door|ct-runtime|ct-isolation)\\.ts$": "the browser testkit door and the CT mount runtime it forwards",
   "^tests/support/browser/(?:ct-data-providers|ct-isolated-subject)\\.tsx$": "the section and isolated-subject mounts stories render through",
+  "^tests/support/browser/leaving-cover\\.ts$": "the release event and backdrop the leaving-cover story holds and its specs drive",
 } as const satisfies Readonly<Record<string, string>>;
 // Feature test helpers a story imports; each stays free of Node imports so the story can load it.
 const MOUNT_HELPER_FILES = {
@@ -1275,6 +1276,14 @@ const TEST_WORLDS = [
     to: { path: ["^tests/support/node/composed\\.ts$", `${SRV}foundation/env/index\\.ts$`], dependencyTypesNot: ["type-only", "type-import"] },
   },
   {
+    name: "e2e-no-client-lib-barrel",
+    comment:
+      "The node-side e2e transform loads the whole @orb/client/lib barrel, including its .tsx re-exports, so a spec or helper imports each name from its own module (#client/lib/<module>.ts) instead (.claude/rules/browser-tests.md).",
+    severity: "error",
+    from: { path: "^tests/e2e/" },
+    to: { path: "^packages/client/src/lib/index\\.ts$" },
+  },
+  {
     name: "testkit-no-env-loader",
     comment:
       "The server env module loads the operator `.env` into every process that imports it, and the process seams import it, so testkit reaches the parsed record (foundation/env/record) instead. The two children exist to load that module in a process of their own. This rule reads each file's own imports: a reachable rule would follow the lazy loaders in the tooling doors, so tests/e2e/support/runner-env.int.test.ts holds the transitive reach by collecting both runners under a canary `.env`.",
@@ -1525,6 +1534,14 @@ const SERVER_AUTHORITY = [
       path: "^(node:)?(fs|fs/promises|net|http|https|http2|child_process|dgram|dns|dns/promises|tls|cluster|worker_threads|readline|readline/promises|module|vm|os|process|inspector|inspector/promises|sqlite)$",
       dependencyTypesNot: ["type-only"],
     },
+  },
+  {
+    name: "domain-no-default-content",
+    comment:
+      "The composition root closes over the default-content readers and injects them, so seeders never learn where bytes come from (D160). A type the domain needs is declared in its own contract, so type-only imports are refused too.",
+    severity: "error",
+    from: { path: `${SRV}domain/` },
+    to: { path: "^packages/default-content/" },
   },
   {
     name: "infra-no-db",

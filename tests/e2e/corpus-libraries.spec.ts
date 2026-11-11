@@ -1,11 +1,13 @@
 // Collection edits retain native grammar, relationships and persistence across a browser reload.
 
-import { COLLECTION_LARGE_GROUP, connectionSummary, ITEM_ENABLED_SETTING, itemSwitchName } from "@orb/client/lib";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { WORLD_BOOKS_LIST_NAME } from "#client/features/world-info/lib/world-books-list-name.ts";
 import { WORLD_INFO_BOOK_DETAILS_NAME, WORLD_INFO_EDIT_DETAILS_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import { COLLECTION_LARGE_GROUP } from "#client/lib/collection-contracts.ts";
+import { connectionSummary } from "#client/lib/connection-roles.ts";
+import { ITEM_ENABLED_SETTING, itemSwitchName } from "#client/lib/item-switch-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";

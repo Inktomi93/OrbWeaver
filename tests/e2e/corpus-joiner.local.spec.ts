@@ -1,11 +1,11 @@
 // An invite joiner reaches the join dialog only once they can speak; the room, invite and account are real local-mode rows.
 import { randomBytes } from "node:crypto";
-import { testId } from "@orb/client/lib";
 import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Browser, Page, TestInfo } from "@playwright/test";
 import { devices } from "@playwright/test";
+import { testId } from "#client/lib/test-ids.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { loginLocal } from "./support/actors.ts";
 import { expect, test } from "./support/corpus-test.ts";

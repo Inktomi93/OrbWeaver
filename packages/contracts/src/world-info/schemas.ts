@@ -83,7 +83,7 @@ export const entryMetadataSchema = z
   })
   .catchall(jsonMemberSchema);
 /** Entry metadata as a read or a view carries it: parsed, not narrowed for the column. */
-export type ParsedEntryMetadata = z.infer<typeof entryMetadataSchema>;
+type ParsedEntryMetadata = z.infer<typeof entryMetadataSchema>;
 /** The value the `world_entries.metadata` column takes: only {@link narrowEntryMetadata} produces one. */
 export type EntryMetadata = NarrowedJsonObject<ParsedEntryMetadata, "EntryMetadata">;
 
