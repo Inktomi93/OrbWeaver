@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: security
+lane: wt/agent-a7cc72305cac667b5
 ---
 
 # The session cookie names have one home in the identity contract
