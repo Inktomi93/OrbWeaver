@@ -17,6 +17,9 @@
 //      only prior bound on an argument was the 32 MiB instance heap, retained per call across the ≤32 ceiling);
 //      ≤ 32 concurrent host calls per INSTANCE (the reentrancy footgun, 03 §3) — counted over
 //      STARTED-AND-UNSETTLED host work, which is what makes the cap a bound on work rather than on promises.
+// `tests/server/infra/plugin-host/membrane.int.test.ts` drives each through a real guest: the refused grant, a
+// fabricated, raw-id and ended-invocation handle, and the inbound argument budget. The deadline, the result cap and
+// the in-flight cap have no case there.
 
 import { randomUUID } from "node:crypto";
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
@@ -131,9 +134,8 @@ export interface MembraneRuntime {
    *  so the dispose-drain frees it (fire a host call, never await it, end the invocation = a guest-REACHABLE host
    *  crash otherwise). Today `attachAsync` below is the ONLY live constructor of such a promise and it obeys this
    *  (the cap-reject arm settles synchronously, so it deliberately does NOT register). A NEW async host-fn that
-   *  calls `ctx.newPromise()` without threading `pending` is the bug this invariant exists to catch;
-   *  the escape suite's multi-pending dispose-drain test + port.test's fire-and-forget cases are its regression
-   *  floor (a static gate cannot verify the dataflow — flagged for a review-time follow-up). */
+   *  calls `ctx.newPromise()` without threading `pending` is the bug this invariant exists to catch. No test
+   *  drives a multi-pending dispose drain, and no static check can follow the dataflow; review owns it. */
   readonly pending: Set<QuickJSDeferredPromise>;
   readonly collectTool: (reg: Omit<PluginToolRegistration, "handler">, handler: QuickJSHandle) => void;
   /** Collect a D50 transform registration — the SYNC activation-time mirror of `collectTool`. The

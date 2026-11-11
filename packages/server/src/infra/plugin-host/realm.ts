@@ -5,7 +5,9 @@
 // process / require are already absent from a bare QuickJS-ng context (spike-verified — no timers, no I/O, no
 // ambient authority); they must stay absent. What a guest CAN still enumerate is an explicit ALLOW-LIST:
 // "absent from a bare context" is not a property this file can
-// assume, it must be asserted by name (that assumption is exactly how `performance` shipped live).
+// assume, it must be asserted by name (that assumption is exactly how `performance` shipped live). The reviewed list
+// and that assertion live in `tests/server/infra/plugin-host/realm.int.test.ts`, which a name added by a runtime
+// upgrade turns red, and which also reads the injected clock and PRNG against the throwing stubs.
 //
 // SCOPE: the surface `orb.host(1)` returns is the DETERMINISM FLOOR only — clock/random/ids/log +
 // version negotiation. The full `PluginHostV1` (chat/worldInfo/tools/net/…) is the membrane's contract
