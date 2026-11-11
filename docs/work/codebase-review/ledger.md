@@ -175,7 +175,7 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 | Unit | Path | Band | Status |
 | - | - | - | - |
 | kit | packages/kit/ | M | reviewed (3) |
-| contracts | packages/contracts/ | L | queued |
+| contracts | packages/contracts/ | L | reviewed (3) |
 | db | packages/db/ incl. migrations | S | queued |
 
 ### Phase 2 — tooling law enforcement
@@ -305,8 +305,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
-| P2 | 13 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit |
-| P3 | 19 | 15 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit |
+| P2 | 14 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts |
+| P3 | 21 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -327,3 +327,12 @@ embedded beside machinery (comments, refusal messages, hand-maintained lists) th
 ever re-reads. Three confirmed instances of the closed-vocabulary-drift crime by phase 0's end:
 lint-rule-id proof obligations, dependabot ignore set vs patchedDependencies, devcontainer
 volumes vs pnpm-workspace packages. One fix shape serves all three: generate the list, diff it.
+
+Phase 1's kit and contracts units found the thesis's nastiest subclass so far: **dead doors** —
+prose shaped like machinery pointing at a mechanism that no longer exists. Both died the same
+death: the verify-CLI removal (821e8f8dff) deleted the checker but not the sentence that promised
+it (`kit/handle-key/unicode-data.ts` cites its generator; `contracts/src/prose` calls
+`prose-baseline.json` "enforced by"/"gated by" while nothing reads it). The removal program left
+at least two orphaned manifests whose whole purpose was a proof obligation. At triage the
+integrity-test item should cover the class, not just the instances: every committed data file or
+GENERATED header that claims a producer or consumer must have that door resolvable in-tree.

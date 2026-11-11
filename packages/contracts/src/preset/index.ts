@@ -5,9 +5,12 @@
 // redundant and consumer-less.
 // preset = GENERATION config, NOT the connection (`{api, source, model}` is `contracts/connection`'s axis).
 //
-// Sibling module (D15 directory-module law: internals flat, this index re-exports):
+// Sibling modules (D15 directory-module law: internals flat, this index re-exports):
 //   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
 //     template + format string this file's schema defaults read.
+//   • response-cache.ts — the complete-response-replay settings (bounds + schema).
+//   • owner-ops.ts — the owner-operation types other domains inject (the preset domain implements them).
+//   • portability.ts — the preset import outcome exposed by transport.
 
 import type { Branded, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
