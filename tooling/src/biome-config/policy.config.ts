@@ -722,6 +722,7 @@ export const BIOME_POLICY = {
         "packages/client/src/features/chat/lib/imagery-templates-model.ts",
         "packages/client/src/features/workloads/lib/workloads-model.ts",
         "packages/client/src/features/refinery/lib/reason-copy.ts",
+        "packages/client/src/lib/card-import-copy.ts",
       ],
       linter: {
         rules: {

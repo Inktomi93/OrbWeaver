@@ -6,8 +6,8 @@ import { z } from "zod";
 import { PORTABLE_DIRECTORIES } from "../portability/index.ts";
 import { encodePersonaCollisionChoices, PERSONA_COLLISION_CHOICES, PERSONA_COLLISION_FIELD } from "./persona-collision.ts";
 
-export type { CardImportResult, FailedCard, ImportedCard } from "./card-result.ts";
-export { cardImportResultSchema } from "./card-result.ts";
+export type { CardImportResult, FailedCard, FailedCardReason, ImportedCard } from "./card-result.ts";
+export { CARD_REFUSAL_CODES, cardImportResultSchema, FAILED_CARD_REASONS } from "./card-result.ts";
 export type { ChatImportResult } from "./chat-result.ts";
 export { chatImportResultSchema } from "./chat-result.ts";
 export type { CardLorebookRestoreResult } from "./lorebook-restore.ts";

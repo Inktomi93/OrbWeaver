@@ -531,6 +531,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/config/lib/theme-row-names.ts": "themeActionsName: the name of a Looks theme row's actions menu",
   "packages/client/src/features/workloads/lib/import-folder-copy.ts":
     "IMPORT_FOLDER_WRONG_FOLDER: the sentence the SillyTavern folder import prints when the folder is not a user folder",
+  "packages/client/src/lib/avatar-upload-copy.ts":
+    "AVATAR_UPLOAD_FAILED and its siblings: the lines the shared avatar upload control prints for a failed upload and a refused write",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
   "packages/client/src/lib/use-focus-on-mount.ts":

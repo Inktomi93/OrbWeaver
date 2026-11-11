@@ -38,7 +38,7 @@ import { useUploadCaps } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
-import { IMPORT_FOLDER_NAME, IMPORT_RESULT_NAME } from "../lib/import-library-names.ts";
+import { IMPORT_FOLDER_NAME, IMPORT_PROGRESS_NAME, IMPORT_RESULT_NAME } from "../lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES, IMPORT_CONSEQUENCE, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportPreviewSummary } from "./import-preview-summary.tsx";
@@ -113,7 +113,8 @@ function ImportPreflight({
   const nothingNote = nothingToSendNote(plan, preview);
   return (
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted. It takes focus on a
-    // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name.
+    // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name. A painted Card draws the house ring
+    // when handed focus (`focusable`); the unpainted regions below take `focusTarget` and draw none.
     <Card aria-label={title} data-slot="import-preflight" focusable={true} padding="none" role="group" shape="row" variant="outline" tabIndex={-1} ref={ref}>
       <Stack gap="field" padding="field">
         <Text voice="promoted">{title}</Text>
@@ -175,7 +176,7 @@ function ImportInFlight({
       ? `Upload ${String(state.batch.index + 1)} of ${String(state.batch.total)}: `
       : "";
   return (
-    <Stack aria-label="Import progress" gap="block" ref={ref} role="group" tabIndex={-1}>
+    <Stack aria-label={IMPORT_PROGRESS_NAME} focusTarget={true} gap="block" ref={ref} role="group" tabIndex={-1}>
       {state.status === "uploading" ? <Text voice="reading">{`Sending ${state.filename}…`}</Text> : null}
       {state.status === "running" ? (
         <>

@@ -16,7 +16,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createSeededIds, nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
+import { IMAGE_EDIT_INSTRUCTION_NAME, IMAGE_EDIT_NAME, IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
 import { PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { groupScenario, modalScenario, sectionScenario } from "./_surface-scenarios.ts";
@@ -179,7 +179,7 @@ for (const group of CONFIG_GROUP_IDS) {
 const SEEDED_MODALS = ["imagine", "imageDetail", "imageEdit", "pluginDialog"] as const;
 
 // The control that shows the real form rendered, not the "nothing selected" arm.
-const IMAGE_FORM = { imageDetail: ["button", "Edit image"], imageEdit: ["textbox", "Edit instruction"] } as const;
+const IMAGE_FORM = { imageDetail: ["button", IMAGE_EDIT_NAME], imageEdit: ["textbox", IMAGE_EDIT_INSTRUCTION_NAME] } as const;
 
 function corpusChatId(corpus: CorpusWire): ChatId {
   const chatId = corpus.reads["chat.listChats"][0]?.output.items[0]?.id;
