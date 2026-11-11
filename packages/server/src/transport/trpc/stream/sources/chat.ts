@@ -55,12 +55,11 @@
 // and yields with `seq: null`, which moves neither the socket's room cursor nor the client's seq mark. Loss
 // semantics are stated, not accidental: a device dark through it never replays it — the heal is the
 // per-attach `chatOpened`.
-// THE SYNTHETIC-ENVELOPE RULE, carried onto the frame: a synthetic's `seq` is the CURRENT resume cursor
-// (`cursor ?? 0`), never a fresh/durable one, so it cannot advance the room's cursor past a row that was
-// never delivered — a reconnect replays from the exact same durable point. (`cursor ?? 0` on a cursor-less
-// attach reproduces the per-proc wire exactly: the synthetic's tracked id was `String(resumeSeq ?? 0)`, which
-// tRPC's client stored as `Last-Event-ID`, so a reconnect replayed from 0 there too — the from-zero re-replay
-// the client's `chat-event-seq-guard` exists to dedup.) The truncation predicate reads the retained window's
+// THE SYNTHETIC-ENVELOPE RULE, carried onto the frame: a synthetic's `seq` is the resume point, never a fresh
+// durable row's seq, so it cannot advance the room's cursor past a row that was never delivered — a reconnect
+// or a shed replays from the exact same durable point. A resuming attach's resume point is its own cursor; a
+// cursor-less attach's is the room's high-water at the attach (`attachSynthesesAndReplay`). A `seq: null` frame
+// never touches the cursor, so a live-only frame cannot move it back. The truncation predicate reads the retained window's
 // floor off the SAME member-gated `chatEventBounds` probe the membership gate already runs (`minSeq` =
 // earliest retained row) — no extra persistence read: an EMPTY replay is NOT the signal (a caught-up cursor
 // also replays empty); truncation is `resumeSeq < minSeq - 1`.
