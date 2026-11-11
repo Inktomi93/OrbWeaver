@@ -40,8 +40,8 @@ test("runtime operation capabilities retain stateful chat and concrete embedding
   const resolved = (await app.runtime.resolve({ principal: ownerPrincipal, task: "chat", connectionId: stateful.id, cachedFacts: true })).resolved;
   expect(supportsManagedCompaction(resolved)).toBe(true);
   const snapshot = createResolveEmbeddingConnection(app.runtime, async () => ownerPrincipal);
-  const remoteSnapshot = await snapshot(ownerPrincipal.userId, "embed", remote.id, { cachedFacts: true });
-  const localSnapshot = await snapshot(ownerPrincipal.userId, "embed", local.id, { cachedFacts: true });
+  const remoteSnapshot = await snapshot(ownerPrincipal.userId, "embed", remote.id);
+  const localSnapshot = await snapshot(ownerPrincipal.userId, "embed", local.id);
   expect(remoteSnapshot).toMatchObject({ api: ENCODER_IDENTITY_NO_API, wire: "openai-compat", execution: { widthProbeTimeoutMs: 4321, seedVectors: false } });
   expect(localSnapshot).toMatchObject({ api: ENCODER_IDENTITY_NO_API, wire: "local-light", execution: { widthProbeTimeoutMs: 600_000, seedVectors: true } });
   if (remoteSnapshot === null) {
@@ -85,12 +85,11 @@ test("an explicit connection id that no longer resolves answers null, while the 
     allowBackground: true,
     declared: { kind: "embedding", embedding: { dims: 3 }, features: { detectServer: false } },
   });
-  const options = { cachedFacts: true };
-  expect(await resolveConnection(owner.userId, "embed", encoder.id, options)).toMatchObject({ connectionId: encoder.id });
+  expect(await resolveConnection(owner.userId, "embed", encoder.id)).toMatchObject({ connectionId: encoder.id });
 
   await root.services.connection.remove({ principal: owner, connectionId: encoder.id });
 
-  expect(await resolveConnection(owner.userId, "embed", encoder.id, options)).toBeNull();
+  expect(await resolveConnection(owner.userId, "embed", encoder.id)).toBeNull();
   await root.services.connection.setBinding({ principal: owner, task: "embed", connectionId: null });
-  await expect(resolveConnection(owner.userId, "embed", undefined, options)).rejects.toBeInstanceOf(NoConnectionError);
+  await expect(resolveConnection(owner.userId, "embed")).rejects.toBeInstanceOf(NoConnectionError);
 });

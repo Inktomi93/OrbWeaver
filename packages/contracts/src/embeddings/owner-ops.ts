@@ -137,14 +137,12 @@ export type PreviewTargetMoveOp = (
 ) => Promise<{ readonly kind: "move" | "skip" | "unresolved" } | { readonly kind: "refused"; readonly refusal: EmbedTargetRefusal }>;
 
 interface ResolveEmbeddingConnectionOpts {
-  readonly cachedFacts?: boolean | undefined;
   readonly previewConnection?: UserConnection | undefined;
 }
 
 /** Resolve the owner's encoder for `task` into a connection snapshot. Only an explicit `connectionId` that no longer
  *  resolves answers `null`; the binding form and a previewed connection throw instead, so their snapshot is never
- *  `null`. `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only preview). The
- *  snapshot's call closures take an AbortSignal, so each domain types its own connection. */
+ *  `null`. The snapshot's call closures take an AbortSignal, so each domain types its own connection. */
 export interface ResolveEmbeddingConnectionOp<TConnection> {
   (ownerId: UserId, task: EmbeddingTask, connectionId?: undefined, opts?: ResolveEmbeddingConnectionOpts): Promise<TConnection>;
   (

@@ -25,60 +25,53 @@ import { existingSegmentHash, upsertChatSegment } from "../persistence/queries.t
 import { embedFailure } from "../substrate/embed-failure.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";
 
-/** An input that survived the hash gate, carrying its position in the caller's list (results are
- *  index-aligned to the input, so a noop and a write are told apart per item). */
-interface PendingSegment {
+/** An input with its position in the caller's list (results are index-aligned to the input, so a noop and a write
+ *  are told apart per item) and its owner's target generation. */
+interface PlacedSegment {
   readonly index: number;
   readonly params: SegmentStoreParams;
   readonly generation: PinnedGeneration;
 }
 
-/** Each owner's target generation for this batch — resolved once per owner, read by the gate and the receipts. */
-async function targetGenerations(
-  ctx: EmbeddingsContext,
-  params: readonly SegmentStoreParams[],
-  signal?: AbortSignal,
-): Promise<ReadonlyMap<UserId, PinnedGeneration>> {
-  const generations = new Map<UserId, PinnedGeneration>();
-  for (const ownerId of new Set(params.map((p) => p.ownerId))) {
+/** Every input placed in its owner's target generation for this batch — resolved once per owner, in the order the
+ *  owners first appear, read by the gate and the receipts. */
+async function placeSegments(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[], signal?: AbortSignal): Promise<readonly PlacedSegment[]> {
+  const resolved = new Map<UserId, PinnedGeneration>();
+  const placed: PlacedSegment[] = [];
+  for (const [index, p] of params.entries()) {
     signal?.throwIfAborted();
-    generations.set(ownerId, await resolveTargetGeneration(ctx, ownerId, "embed"));
+    let generation = resolved.get(p.ownerId);
+    if (generation === undefined) {
+      generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
+      resolved.set(p.ownerId, generation);
+    }
+    placed.push({ index, params: p, generation });
   }
-  return generations;
+  return placed;
 }
 
 /** The receipt fields `store` stamps too: the memory sweep records its completion from them, so a noop names
  *  the generation it was gated against, not only a write. */
-function receiptOf(generation: PinnedGeneration | undefined): StoreGenerationReceipt {
-  return generation === undefined ? {} : { generationId: generation.id, generationEpoch: generation.epoch, generationVia: generation.via };
+function receiptOf(generation: PinnedGeneration): StoreGenerationReceipt {
+  return { generationId: generation.id, generationEpoch: generation.epoch, generationVia: generation.via };
 }
 
 /** The hash gate: read each chunk's stored `content_hash` for `(chatId, blockIdx, chunkIdx, model)` and keep
  *  only the ones that differ. The reads run CONCURRENTLY — they are independent point lookups, and the
  *  serialized version was one of the round trips this verb exists to remove. */
-async function gate(
-  ctx: EmbeddingsContext,
-  params: readonly SegmentStoreParams[],
-  generations: ReadonlyMap<UserId, PinnedGeneration>,
-): Promise<PendingSegment[]> {
+async function gate(ctx: EmbeddingsContext, placed: readonly PlacedSegment[]): Promise<PlacedSegment[]> {
   const existing = await Promise.all(
-    params.map((p) => {
-      const generation = generations.get(p.ownerId);
-      return generation === undefined
-        ? Promise.resolve(undefined)
-        : existingSegmentHash(ctx.db, { chatId: p.chatId, blockIdx: p.blockIdx, chunkIdx: p.chunkIdx, generationId: generation.id });
-    }),
+    placed.map(({ params: p, generation }) =>
+      existingSegmentHash(ctx.db, { chatId: p.chatId, blockIdx: p.blockIdx, chunkIdx: p.chunkIdx, generationId: generation.id }),
+    ),
   );
-  return params.flatMap((p, index) => {
-    const generation = generations.get(p.ownerId);
-    return generation === undefined || existing[index] === p.contentHash ? [] : [{ index, params: p, generation }];
-  });
+  return placed.filter((item, position) => existing[position] !== item.params.contentHash);
 }
 
 /** The produced vector for one pending item, or the typed failure: the family filtered the input (`null`), the
  *  flood came back short, or the vector is not as wide as the owner's generation. `model` is THIS item's
  *  owner's answer, never the batch's — see `flood`. */
-function vectorFor(ctx: EmbeddingsContext, vector: Float32Array | null | undefined, item: PendingSegment, model: string): Float32Array {
+function vectorFor(ctx: EmbeddingsContext, vector: Float32Array | null | undefined, item: PlacedSegment, model: string): Float32Array {
   if (vector === null || vector === undefined) {
     throw embedFailure(ctx, item.params.lens, model);
   }
@@ -99,10 +92,10 @@ function vectorFor(ctx: EmbeddingsContext, vector: Float32Array | null | undefin
  *  row with whichever owner's flood happened to run last -- a silent cross-owner mis-tagging of the same
  *  class the space-tag derivation (`embedSpaceOf`) exists to make impossible. */
 async function flood(
-  pending: readonly PendingSegment[],
+  pending: readonly PlacedSegment[],
   signal: AbortSignal | undefined,
 ): Promise<Map<number, { readonly model: string; readonly vector: Float32Array | null }>> {
-  const byOwner = new Map<UserId, PendingSegment[]>();
+  const byOwner = new Map<UserId, PlacedSegment[]>();
   for (const item of pending) {
     const bucket = byOwner.get(item.params.ownerId);
     if (bucket === undefined) {
@@ -131,14 +124,10 @@ async function flood(
 export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["storeSegments"] {
   return async (params: readonly SegmentStoreParams[], signal?: AbortSignal): Promise<readonly StoreResult[]> => {
     signal?.throwIfAborted();
-    const generations = await targetGenerations(ctx, params, signal);
+    const placed = await placeSegments(ctx, params, signal);
     signal?.throwIfAborted();
-    const results: StoreResult[] = params.map((p) => ({
-      outcome: "noop",
-      model: p.model,
-      ...receiptOf(generations.get(p.ownerId)),
-    }));
-    const pending = params.length === 0 ? [] : await gate(ctx, params, generations);
+    const results: StoreResult[] = placed.map(({ params: p, generation }) => ({ outcome: "noop", model: p.model, ...receiptOf(generation) }));
+    const pending = await gate(ctx, placed);
     signal?.throwIfAborted();
     if (pending.length === 0) {
       return results;

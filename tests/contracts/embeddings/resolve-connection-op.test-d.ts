@@ -15,7 +15,6 @@ declare const previewConnection: UserConnection;
 
 test("only an explicit connection id with no previewed connection may answer null", () => {
   expectTypeOf(resolve(ownerId, "embed")).toEqualTypeOf<Promise<Snapshot>>();
-  expectTypeOf(resolve(ownerId, "embed", undefined, { cachedFacts: true })).toEqualTypeOf<Promise<Snapshot>>();
   expectTypeOf(resolve(ownerId, "embed", connectionId, { previewConnection })).toEqualTypeOf<Promise<Snapshot>>();
   expectTypeOf(resolve(ownerId, "embed", connectionId)).toEqualTypeOf<Promise<Snapshot | null>>();
   expectTypeOf(resolve(ownerId, "embed", maybeConnectionId)).toEqualTypeOf<Promise<Snapshot | null>>();

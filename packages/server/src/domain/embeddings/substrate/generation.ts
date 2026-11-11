@@ -142,7 +142,7 @@ interface PendingTargetMove {
 
 /**
  * Would the owner's stored target move to what `via` resolves to now, or to `previewConnection` as if it were bound?
- * Read-only. A binding that cannot resolve throws. `cachedFacts` answers from the server facts already cached, dialing nothing.
+ * Read-only. A binding that cannot resolve throws.
  */
 export async function pendingTargetMove(
   ctx: Pick<TargetResolveCtx, "db" | "resolveEmbeddingConnection">,
@@ -150,15 +150,14 @@ export async function pendingTargetMove(
     readonly ownerId: UserId;
     readonly task: EmbeddingTask;
     readonly via: EmbeddingTask;
-    readonly cachedFacts?: boolean | undefined;
     readonly previewConnection?: UserConnection | undefined;
   },
 ): Promise<PendingTargetMove> {
-  const { ownerId, task, via, cachedFacts, previewConnection } = args;
+  const { ownerId, task, via, previewConnection } = args;
   const connection =
     previewConnection === undefined
-      ? await ctx.resolveEmbeddingConnection(ownerId, via, undefined, { cachedFacts })
-      : await ctx.resolveEmbeddingConnection(ownerId, via, previewConnection.id, { cachedFacts, previewConnection });
+      ? await ctx.resolveEmbeddingConnection(ownerId, via)
+      : await ctx.resolveEmbeddingConnection(ownerId, via, previewConnection.id, { previewConnection });
   const candidate = candidateOf(ownerId, task, via, connection);
   return { id: candidate.id, moves: movesTarget(await readTarget(ctx, ownerId, task), candidate.id), connection, dims: candidate.dims };
 }
