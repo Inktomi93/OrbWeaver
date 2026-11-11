@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: testing
+lane: wt/agent-a06d7ca7c655446af
 ---
 
 # The card-apply refusal axis is server-untested — eight of nine refusal reasons are never asserted

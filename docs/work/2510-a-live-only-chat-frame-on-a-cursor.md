@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: chat
+lane: wt/agent-a06d7ca7c655446af
 ---
 
 # A live-only chat frame on a cursor-less attach resets the socket cursor to zero
