@@ -13,7 +13,7 @@ import { z } from "zod";
 import { fetchEndpointModels, fetchOpenRouterCatalog } from "#catalog";
 import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ProviderScrubSet, Resolved } from "#contract";
 import { ProviderError } from "#contract";
-import type { DiagnosticsDeps, InspectDeps } from "../../contract/openai-backend.ts";
+import type { DiagnosticsDeps, InspectDeps } from "#src/contract/openai-backend.ts";
 import { authHeaders, bodyByteReader, fetchJson, openAiPath } from "../http/fetch-json.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
@@ -300,4 +300,4 @@ async function inspectionOf(observed: Observed, secrets: ProviderScrubSet): Prom
   };
 }
 
-export type { DiagnosticsDeps, InspectDeps } from "../../contract/openai-backend.ts";
+export type { DiagnosticsDeps, InspectDeps } from "#src/contract/openai-backend.ts";

@@ -38,7 +38,7 @@
 // exposes no post-convert hook: the request body is parsed ONCE, shaped, captured, re-serialised.
 import type { ProviderScrubSet, ResponseMap } from "#contract";
 import { ProviderError } from "#contract";
-import type { WrapFetchArgs } from "../../contract/v4.ts";
+import type { WrapFetchArgs } from "#src/contract/v4.ts";
 import { encodeSseData, parseOpenAiSse, SSE_DONE_LINE } from "../http/sse.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 
@@ -453,4 +453,4 @@ export function wrapFetch(args: WrapFetchArgs): typeof fetch {
   };
 }
 
-export type { WrapFetchArgs } from "../../contract/v4.ts";
+export type { WrapFetchArgs } from "#src/contract/v4.ts";

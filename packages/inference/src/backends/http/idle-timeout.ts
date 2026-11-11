@@ -11,7 +11,7 @@
 // composes it with the idle timer; it does not re-implement it.
 
 import type { ScheduleOp } from "@orb/kit/time";
-import type { IdleAbort } from "../../contract/http.ts";
+import type { IdleAbort } from "#src/contract/http.ts";
 import { foldAbortInto } from "./abort-flatten.ts";
 
 /** Max time a streaming HTTP call may go WITHOUT a received chunk before the socket is treated as stalled
@@ -87,4 +87,4 @@ export function turnAbortSignal(external: AbortSignal | undefined, idleWindowMs:
   return { signal: controller.signal, reset, dispose };
 }
 
-export type { IdleAbort } from "../../contract/http.ts";
+export type { IdleAbort } from "#src/contract/http.ts";

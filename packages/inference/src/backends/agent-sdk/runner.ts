@@ -40,11 +40,11 @@ import type {
   ToolCallInput,
 } from "#contract";
 import { agentSdkSessionIdSchema, normalizeFinishReason, ProviderError } from "#contract";
+import type { AgentSdkDeps, AgentSdkLog, SeededSessionDecision, TurnStreamContext } from "#src/contract/agent-sdk-backend.ts";
+import type { IdleAbort } from "#src/contract/http.ts";
+import type { PlannedResponseFormat } from "#src/contract/structured.ts";
+import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { normalizeStructuredValue, requireStructuredPlan } from "#structured";
-import type { AgentSdkDeps, AgentSdkLog, SeededSessionDecision, TurnStreamContext } from "../../contract/agent-sdk-backend.ts";
-import type { IdleAbort } from "../../contract/http.ts";
-import type { PlannedResponseFormat } from "../../contract/structured.ts";
-import type { NormalizeImageBytes } from "../../contract/wire.ts";
 import { classifyHttpStatus } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { isIdleTrip, turnAbortSignal } from "../http/idle-timeout.ts";

@@ -64,7 +64,9 @@ const MODULE_LOADER_RESOLVERS = {
 } as const satisfies Readonly<Record<string, string>>;
 const GROUPING_DIRS = {
   server: ["entry", "transport", "domain", "infra", "foundation", "primitives"],
-  inference: ["backends"],
+  // Each `contract/` file is its own module, as each ui `lib/` file is: the package's internal type home is its files,
+  // and the barrel stays the deliberate subset the package root forwards.
+  inference: ["backends", "contract"],
   client: ["features"],
   ui: ["*"],
   db: [],
@@ -188,6 +190,16 @@ const SUBPATH_LEAF_IMPORTERS = [
   // The lib barrel deliberately omits these development-only leaves.
   "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
   "packages/client/src/features/chat/components/message-row.tsx",
+  "packages/client/src/dev/agent-handles/index.ts",
+  "packages/client/src/dev/agent-nav/index.ts",
+  "packages/client/src/dev/agent-nav/panel-request.ts",
+  "packages/client/src/dev/agent-nav/resolve-config-target.ts",
+  "packages/client/src/dev/agent-nav/resolve-context-tab.ts",
+  "packages/client/src/dev/agent-plugin/index.ts",
+  "packages/client/src/dev/agent-plugin/ui.ts",
+  "packages/client/src/dev/agent-rpg/index.ts",
+  "packages/client/src/dev/agent-seed/index.ts",
+  "packages/client/src/dev/agent-seed/retry-attempt.ts",
   // The components barrel omits the ConfirmedAction mint, so only its homes reach it (orb/confirmed-action-mint).
   ...Object.keys(CONFIRMED_ACTION_MINT_HOMES),
 ].map((path) => `^${path.replaceAll(".", "\\.")}$`);
@@ -1849,6 +1861,14 @@ const TOOLING_BOUNDARIES = [
     severity: "error",
     from: { path: SUBPATH_IMPORTER, pathNot: SUBPATH_LEAF_IMPORTERS },
     to: { dependencyTypes: ["aliased-subpath-import"], path: SUBPATH_INTERNALS, pathNot: ["^$1/", "/index\\.ts$"] },
+  },
+  {
+    name: "package-parent-climb",
+    comment:
+      "Inside a package's src, a relative import climbs at most one directory; a deeper target is named by `#src/` or its module's front door (Core-0 §1). `$1` is the src root and `$1$2` the importer's grandparent directory, so a target outside src is outside the rule.",
+    severity: "error",
+    from: { path: "^(packages/[^/]+/src/)(.*/|)[^/]+/[^/]+$" },
+    to: { dependencyTypes: ["local"], dependencyTypesNot: ["aliased-subpath-import"], path: "^$1", pathNot: "^$1$2" },
   },
 ] satisfies IForbiddenRuleType[];
 

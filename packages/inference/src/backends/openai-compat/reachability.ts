@@ -7,7 +7,7 @@
 import { toError } from "@orb/kit/error-message";
 import type { Reachability } from "#contract";
 import { ProviderError } from "#contract";
-import type { ProbeTarget, ReachabilityDeps, ReachabilityProber, SleepTarget } from "../../contract/openai-backend.ts";
+import type { ProbeTarget, ReachabilityDeps, ReachabilityProber, SleepTarget } from "#src/contract/openai-backend.ts";
 import { deadlineSignal } from "../http/abort-flatten.ts";
 import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../http/sanitize.ts";
@@ -222,4 +222,4 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
   return { probe, asleep, wake };
 }
 
-export type { ReachabilityDeps, ReachabilityProber } from "../../contract/openai-backend.ts";
+export type { ReachabilityDeps, ReachabilityProber } from "#src/contract/openai-backend.ts";

@@ -6,6 +6,7 @@ import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
 import type { MessagePort, Transferable } from "node:worker_threads";
 import { parentPort, workerData } from "node:worker_threads";
+import type { LocalLightModelCache } from "#src/contract/local-light.ts";
 import type {
   LocalLightHostMessage,
   LocalLightLogLevel,
@@ -15,7 +16,6 @@ import type {
   LocalLightWorkerValue,
 } from "#src/contract/local-light-worker.ts";
 import type { InferenceLog } from "#src/deps.ts";
-import type { LocalLightModelCache } from "../../contract/local-light.ts";
 import { toWorkerFailure } from "./worker-cache.ts";
 
 // While idle, the worker collects garbage this often: a finished model load keeps allocating for tens of seconds.

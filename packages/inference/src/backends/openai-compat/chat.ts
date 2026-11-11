@@ -17,12 +17,12 @@ import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest, RateLimitSnapshot, Resolved, ResolvedChatKnobs } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat, templateThinkingFor } from "#funnel";
+import type { ProviderLogger } from "#src/contract/http.ts";
+import type { ModelCall, OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";
+import type { StructuredPlan } from "#src/contract/structured.ts";
+import type { ResultContext, StreamDrain, WirePlan } from "#src/contract/v4.ts";
+import type { ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
-import type { ProviderLogger } from "../../contract/http.ts";
-import type { ModelCall, OpenAiCompatChatDeps } from "../../contract/openai-backend.ts";
-import type { StructuredPlan } from "../../contract/structured.ts";
-import type { ResultContext, StreamDrain, WirePlan } from "../../contract/v4.ts";
-import type { ExplicitCachePlan, OpenRouterRouting } from "../../contract/wire.ts";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
@@ -855,4 +855,4 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   return turn;
 }
 
-export type { OpenAiCompatChatDeps } from "../../contract/openai-backend.ts";
+export type { OpenAiCompatChatDeps } from "#src/contract/openai-backend.ts";

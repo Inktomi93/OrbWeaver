@@ -11,7 +11,7 @@ import { toolCallIdSchema } from "@orb/contracts/chat";
 import { JsonSchemaLiftError, liftJsonSchema } from "@orb/kit/json-schema";
 import type { ZodRawShape } from "zod";
 import type { ToolCallInput, WireTool } from "#contract";
-import type { AgentSdkLog } from "../../contract/agent-sdk-backend.ts";
+import type { AgentSdkLog } from "#src/contract/agent-sdk-backend.ts";
 import { TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 
 const TERMINAL_TOOL_PREFIX = `mcp__${TERMINAL_MCP_NAMESPACE}__`;

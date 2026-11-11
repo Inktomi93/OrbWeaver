@@ -9,8 +9,8 @@ import { z } from "zod";
 import { endpointTokensKey, endpointTokensPrefix } from "#catalog";
 import type { Resolved, ResolvedSampling } from "#contract";
 import { ProviderError } from "#contract";
+import type { TokenLexicon, TokenTarget } from "#src/contract/openai-backend.ts";
 import type { SnapshotStore } from "#src/deps.ts";
-import type { TokenLexicon, TokenTarget } from "../../contract/openai-backend.ts";
 import { authHeaders, fetchJson, serverRootOf } from "../http/fetch-json.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 
@@ -222,4 +222,4 @@ export async function resolveWordBias(args: {
   return { ...sampling, logitBias: ids };
 }
 
-export type { TokenLexicon, TokenTarget } from "../../contract/openai-backend.ts";
+export type { TokenLexicon, TokenTarget } from "#src/contract/openai-backend.ts";

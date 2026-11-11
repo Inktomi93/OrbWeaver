@@ -23,7 +23,7 @@ import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { GeneratedImage, ReasoningContentPart, ToolCallInput } from "#contract";
 import { ProviderError } from "#contract";
-import type { DrainCallbacks, StreamDrain } from "../../contract/v4.ts";
+import type { DrainCallbacks, StreamDrain } from "#src/contract/v4.ts";
 
 const BASE64 = "base64";
 const IMAGE_PREFIX = "image/";
@@ -320,4 +320,4 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
   };
 }
 
-export type { DrainCallbacks, StreamDrain } from "../../contract/v4.ts";
+export type { DrainCallbacks, StreamDrain } from "#src/contract/v4.ts";

@@ -23,9 +23,10 @@ boundaries are physics, not policy.
    (`#domain`, `#primitives`, …) inside a package; workspace package names across packages. **No tsconfig
    `paths`** anywhere (that was neo-tavern's `@/` shadcn tax). One resolution model, all native.
    Another module is entered only through its front door, `#<module>`. `#src/<path>` names a file in the
-   importer's own module and never crosses into another one. A parent-relative import climbs at most one
-   directory; review holds this. Dep-cruiser `package-subpath-crossing` refuses a subpath import into
-   another module's internals.
+   importer's own module and never crosses into another one. A file directly under a grouping directory is its
+   own module, and `#src/<file>` is its front door. Inside a package's `src`, a parent-relative import climbs at most one
+   directory; a target outside `src` is outside this rule. Dep-cruiser `package-parent-climb` refuses a deeper
+   climb, and `package-subpath-crossing` refuses a subpath import into another module's internals.
 3. **Name by role; no `_` junk drawers.** Folders are named for what they are (`foundation`, `infra`,
    `primitives`, `contract`, `query`, `http`). Only the `@orb/kit` package is called `kit`; a package-local
    helper folder is named by its role. There is **no `_shared` services drawer** — cross-feature *services*

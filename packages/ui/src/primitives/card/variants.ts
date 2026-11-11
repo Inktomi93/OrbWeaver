@@ -1,5 +1,5 @@
 import { CAP, COLOR_MOTION, FOCUS_RING, HEIGHT, TONE_ARMS, TONE_TINT_HOVER, tv, WIDTH } from "#lib";
-import { ART_DECORATION } from "../../lib/art-decoration.ts";
+import { ART_DECORATION } from "#src/lib/art-decoration.ts";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
 // compose it (ui-package-design §6.1).

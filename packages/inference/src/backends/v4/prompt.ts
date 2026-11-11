@@ -22,7 +22,7 @@ import type {
 } from "@ai-sdk/provider";
 import type { ChatContentPart, ReasoningPartMeta } from "@orb/contracts/chat";
 import type { ChatHistoryMessage } from "#contract";
-import type { BuildPromptArgs, OutboundMedia, PlanRow, WirePlan } from "../../contract/v4.ts";
+import type { BuildPromptArgs, OutboundMedia, PlanRow, WirePlan } from "#src/contract/v4.ts";
 import { chatHistoryText } from "../wire/history.ts";
 
 const PROMPT_JOINER = "\n\n";
@@ -312,4 +312,4 @@ export function withMessageOptions(prompt: LanguageModelV4Prompt, key: string, p
   });
 }
 
-export type { BuildPromptArgs, OutboundMedia, WirePlan } from "../../contract/v4.ts";
+export type { BuildPromptArgs, OutboundMedia, WirePlan } from "#src/contract/v4.ts";

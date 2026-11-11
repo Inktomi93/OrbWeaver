@@ -6,9 +6,9 @@
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, messages } from "@orb/db";
 import { count, desc, eq } from "drizzle-orm";
-import type { CharacterListRow, ChatListRow } from "../../contract/inspect.ts";
+import type { CharacterListRow, ChatListRow } from "#src/foundation/observability/contract/inspect.ts";
 
-export type { CharacterListRow, ChatListRow } from "../../contract/inspect.ts";
+export type { CharacterListRow, ChatListRow } from "#src/foundation/observability/contract/inspect.ts";
 
 /** Every chat with its participant + message counts, newest-updated first. Two grouped COUNT subqueries
  *  keep it one round-trip per table rather than N+1 per chat. */

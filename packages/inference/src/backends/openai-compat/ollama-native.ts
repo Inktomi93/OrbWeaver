@@ -7,7 +7,7 @@ import type { ResolvedWarning } from "@orb/contracts/inference";
 import { z } from "zod";
 
 import { ProviderError } from "#contract";
-import type { NativeThink } from "../../contract/openai-backend.ts";
+import type { NativeThink } from "#src/contract/openai-backend.ts";
 import { bodyByteReader, serverRootOf } from "../http/fetch-json.ts";
 import { encodeSseData, SSE_DONE_LINE } from "../http/sse.ts";
 
@@ -521,4 +521,4 @@ export function ollamaNativeFetch(inner: typeof fetch, args: { readonly baseUrl:
     await inner(urlOf(input).endsWith(CHAT_COMPLETIONS_SUFFIX) ? `${serverRootOf(args.baseUrl)}${NATIVE_CHAT_PATH}` : input, init);
 }
 
-export type { NativeThink } from "../../contract/openai-backend.ts";
+export type { NativeThink } from "#src/contract/openai-backend.ts";

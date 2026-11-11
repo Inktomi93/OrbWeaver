@@ -32,12 +32,12 @@ import type {
 } from "#contract";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy, resolveChat } from "#funnel";
+import type { AnthropicCall, AnthropicChatDeps } from "#src/contract/anthropic-backend.ts";
+import type { ProviderLogger } from "#src/contract/http.ts";
+import type { StructuredPlan } from "#src/contract/structured.ts";
+import type { StreamDrain, WirePlan } from "#src/contract/v4.ts";
+import type { ExplicitCachePlan } from "#src/contract/wire.ts";
 import { requireStructuredPlan, structuredChatResult } from "#structured";
-import type { AnthropicCall, AnthropicChatDeps } from "../../contract/anthropic-backend.ts";
-import type { ProviderLogger } from "../../contract/http.ts";
-import type { StructuredPlan } from "../../contract/structured.ts";
-import type { StreamDrain, WirePlan } from "../../contract/v4.ts";
-import type { ExplicitCachePlan } from "../../contract/wire.ts";
 import { providerErrorFromHttp, withSchemaRejection } from "../http/error-classify.ts";
 import { observeChatResult } from "../http/generation-observation.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
@@ -519,4 +519,4 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   return turn;
 }
 
-export type { AnthropicChatDeps } from "../../contract/anthropic-backend.ts";
+export type { AnthropicChatDeps } from "#src/contract/anthropic-backend.ts";

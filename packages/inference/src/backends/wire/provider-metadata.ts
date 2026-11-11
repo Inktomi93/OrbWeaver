@@ -26,7 +26,7 @@ import type { VariantProviderMetadata } from "@orb/contracts/chat";
 import { variantProviderMetadataSchema } from "@orb/contracts/chat";
 import { isPluginProviderId } from "@orb/contracts/inference";
 import { z } from "zod";
-import type { AgentSdkTurnFacts } from "../../contract/wire.ts";
+import type { AgentSdkTurnFacts } from "#src/contract/wire.ts";
 
 /** The registry ids with a first-party arm. Bound to the union by the returns below: misspell one and the
  *  constructed object stops matching `VariantProviderMetadata`, so `tsc` refuses a switch key that can never
@@ -156,4 +156,4 @@ export function agentSdkVariantMetadata(providerId: string, facts: AgentSdkTurnF
   };
 }
 
-export type { AgentSdkTurnFacts } from "../../contract/wire.ts";
+export type { AgentSdkTurnFacts } from "#src/contract/wire.ts";

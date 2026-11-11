@@ -16,7 +16,7 @@
 // D19/D16 payload rules that keep prompt bytes off the bus apply to it for the same reason.
 
 import type { AddSpanEvent, ChatResult } from "#contract";
-import type { TurnCacheSpan } from "../../contract/http.ts";
+import type { TurnCacheSpan } from "#src/contract/http.ts";
 
 /** Emit the turn's timeline events. Absent `addSpanEvent` ⇒ nothing happens (no span in scope), which is the
  *  same posture every other consumer of the dep takes. `firstDeltaAt` is absent on a turn that streamed no
@@ -59,4 +59,4 @@ export function emitTurnSpanEvents(args: {
   });
 }
 
-export type { TurnCacheSpan } from "../../contract/http.ts";
+export type { TurnCacheSpan } from "#src/contract/http.ts";
