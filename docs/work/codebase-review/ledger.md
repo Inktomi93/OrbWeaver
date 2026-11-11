@@ -166,7 +166,7 @@ Review before anything that trusts these results.
 
 | Unit | Path | Band | Status |
 | - | - | - | - |
-| tooling-eslint | tooling/src/eslint/ | L | queued |
+| tooling-eslint | tooling/src/eslint/ | L | in-progress |
 | tooling-floor | tooling/src/floor/ | M | queued |
 | tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | queued |
 | tooling-unwired | tooling/src/unwired/ | M | queued |
