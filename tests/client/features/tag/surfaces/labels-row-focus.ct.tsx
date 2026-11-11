@@ -2,14 +2,17 @@
 // a tag made elsewhere takes the library past the drag cap: in a derived order the rows were always in the window, and in
 // manual order the drag list gives way to the window, so the row must re-attach focused in the new container. Back from a
 // tag lands on the finder row it was opened from, past the first window and in manual order; when the tag was deleted
-// elsewhere while open, focus lands on the finder's list, never the page. The finder and the content are the production
-// corpus-mode panes with the app root's user bus over a corpus root; a tag made or deleted elsewhere goes through the
-// production verb and reaches the page as the real server's own `tagsChanged` event.
+// elsewhere while open, focus lands on the finder's list, never the page; when the shell has collapsed the finder's pane, the
+// finder cannot take focus and the library landing takes it. The finder and the content are the production corpus-mode panes
+// with the app root's user bus over a corpus root, and the production shell for the collapsed pane; a tag made or deleted
+// elsewhere goes through the production verb and reaches the page as the real server's own `tagsChanged` event.
 // @subject packages/client/src/features/tag/components/tag-collection-rows.tsx
 
 import type { TagSortMode } from "@orb/client/lib";
-import { COLLECTION_LARGE_GROUP, CORPUS_MODE_LABELS, sectionBackName, tagSortItems } from "@orb/client/lib";
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { COLLECTION_LARGE_GROUP, CORPUS_MODE_LABELS, LIST_PANEL_NOUN, panelEdgeName, sectionBackName, tagSortItems } from "@orb/client/lib";
+import type { ShellAmbientStory } from "@orb/testkit/browser";
+import { seedShellState } from "@orb/testkit/browser/spec";
+import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -18,6 +21,7 @@ import { forwardUserEvent } from "../../../components/_forward-user-event.ts";
 import type { LabelsPanesBusStory } from "./_labels-list-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_labels-list-stories/LabelsPanesBusStory";
+const SHELL_STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const SERVED = [
   "sessions.me",
   "settings.getUserSettings",
@@ -167,4 +171,34 @@ test("Back from a tag deleted elsewhere while it was open lands on the finder's 
   const focused = page.locator(":focus");
   await expect(focused).toHaveCount(1);
   await expect(focused.getByRole("list", { name: TAG_LIST_NAME, exact: true })).toHaveCount(1);
+});
+
+test("Back from a tag while the shell has collapsed the finder's pane lands on the library, not the page", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.tag.createTag({ input: { name: "Aa collapsed finder tag" } });
+  await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES, ...SERVED]));
+  await seedShellState(page, { activeSection: "corpus" });
+  await mount<typeof ShellAmbientStory>(SHELL_STORY, {});
+  await page.getByRole("radio", { name: CORPUS_MODE_LABELS.labels, exact: true }).click();
+  await chooseOrder(page, "alpha");
+  const target = row(page, "Aa collapsed finder tag");
+  await target.focus();
+  await page.keyboard.press("Enter");
+  const back = page.getByRole("button", { name: BACK_TO_LABELS, exact: true });
+  await expect(back).toBeVisible();
+
+  await page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, true), exact: true }).click();
+  // Positive control: the shell collapsed the finder's pane, which stays mounted and inert, so its row cannot take focus.
+  const pane = page.locator('.shell-panel[data-panel-side="list"]');
+  await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(pane.getByRole("button", { name: "Aa collapsed finder tag", exact: true, includeHidden: true })).toHaveCount(1);
+  await back.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(back).toHaveCount(0);
+  // The library landing is the focused box that carries the Labels heading.
+  const focused = page.getByRole("main").locator(":focus");
+  await expect(focused).toHaveCount(1);
+  await expect(focused.getByRole("heading", { level: 2, name: CORPUS_MODE_LABELS.labels, exact: true })).toHaveCount(1);
 });

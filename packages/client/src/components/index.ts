@@ -75,7 +75,7 @@ export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 export { useFirstBootRows } from "./use-first-boot-rows.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
 export type { RowDeleteFocus } from "./use-row-delete-focus.ts";
-export { returnFocusToRow, useRowDeleteFocus } from "./use-row-delete-focus.ts";
+export { returnFocusToRow, useReturnToRowOnClose, useRowDeleteFocus } from "./use-row-delete-focus.ts";
 export { useRerankModel, useUtilityModel } from "./use-utility-model.ts";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
 export type { UserMacrosFormValues } from "./user-macro-editor-model.ts";

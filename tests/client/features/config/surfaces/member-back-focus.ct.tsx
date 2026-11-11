@@ -1,8 +1,10 @@
 // The settings collections keep a focused row and hand focus back to it. A focused row keeps focus when a member made
 // elsewhere takes the library past the size where the list once swapped its container. Back from a drilled member lands
 // on the row it was opened from: when that row is outside the list's window, the list brings it in first; when the
-// member was deleted elsewhere while open, focus lands on the list itself, never the page; and the Back the host draws
-// while the member's read is pending does the same as the loaded one. Every case runs the production settings content
+// member was deleted elsewhere while open, focus lands on the list itself, never the page, even when the list first
+// remounts with the deleted row still in its cache; and the Back the host draws while the member's read is pending does
+// the same as the loaded one. A world-info entry deleted elsewhere while its editor holds focus closes the editor and
+// hands focus to the book's entry list. Every case runs the production settings content
 // with the app root's user bus over a corpus root; a member made or deleted elsewhere goes through the production verb
 // and reaches the page as the real server's own user-bus event.
 // @subject packages/client/src/components/use-row-delete-focus.ts
@@ -127,6 +129,15 @@ async function pressBack(page: Page, label: string): Promise<void> {
   await page.keyboard.press("Enter");
 }
 
+/** Focus sits on the list's own root: the one focused element in the settings content is the box that holds the rows. */
+async function expectFocusOnList(page: Page): Promise<void> {
+  // Positive control: the list is back and holds rows, so focus on its root is the named fallback, not an empty pane.
+  await expect(rows(page).first()).toBeVisible();
+  const focused = page.locator('[data-slot="config-content"] :focus');
+  await expect(focused).toHaveCount(1);
+  await expect(focused.locator(ROW_BODY).first()).toBeVisible();
+}
+
 test.use({ viewport: { width: 1440, height: 900 } });
 
 test("a focused regex row keeps focus when a script made elsewhere takes the library past the old container size", async ({ mount, page }) => {
@@ -203,11 +214,7 @@ test("Back from a regex script deleted elsewhere while it was open lands on the 
   await expect(page.locator('[data-slot="config-drill-header"]').getByRole("heading")).toHaveCount(0);
   await pressBack(page, REGEX_GROUP_LABEL);
 
-  // Positive control: the list is back and holds rows, so focus on its root is the named fallback, not an empty pane.
-  await expect(rows(page).first()).toBeVisible();
-  const focused = page.locator('[data-slot="config-content"] :focus');
-  await expect(focused).toHaveCount(1);
-  await expect(focused.getByRole("list", { name: REGEX_GROUP_LABEL, exact: true })).toHaveCount(1);
+  await expectFocusOnList(page);
 });
 
 test("Back from a world book returns focus to its row", async ({ mount, page }) => {
@@ -299,4 +306,68 @@ test("Back from a saved roster returns focus to its row", async ({ mount, page }
 
   await expect(page.locator(ROSTER_EDITOR)).toHaveCount(0);
   await expect(row).toBeFocused();
+});
+
+test("Back from a world book deleted elsewhere while it was open lands on the book list, not the page", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const doomed = await caller.worldInfo.createBook({ input: { name: "Doomed book" } });
+  await mountPanes((props) => mount<typeof ConfigPanesBusStory>(STORY, props), { page, root, cleanup, group: "worldInfo" });
+  await openByKeyboard(page, rows(page).filter({ hasText: "Doomed book" }), BOOK_EDITOR);
+
+  await caller.worldInfo.removeBook({ bookId: doomed.id });
+  await expect(page.locator('[data-slot="config-drill-header"]').getByRole("heading")).toHaveCount(0);
+  await pressBack(page, WORLD_INFO_GROUP_LABEL);
+
+  await expect(rows(page).filter({ hasText: "Doomed book" })).toHaveCount(0);
+  await expectFocusOnList(page);
+});
+
+test("Back from a saved roster deleted elsewhere lands on the roster list, not the page, after the stale row leaves", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const second = (await caller.rosterPreset.list())[1];
+  if (second === undefined) {
+    throw new Error("The corpus holds fewer than two saved rosters");
+  }
+  await mountPanes((props) => mount<typeof ConfigPanesBusStory>(STORY, props), { page, root, cleanup, group: "rosterPreset" });
+  await openByKeyboard(page, rows(page).filter({ hasText: second.name }), ROSTER_EDITOR);
+
+  // The roster list has no reader while the member is open, so it remounts from a cache that still holds this row.
+  await caller.rosterPreset.remove({ presetId: second.id });
+  await pressBack(page, ROSTER_GROUP_LABEL);
+
+  await expect(page.locator(ROSTER_EDITOR)).toHaveCount(0);
+  await expect(rows(page).filter({ hasText: second.name })).toHaveCount(0);
+  await expectFocusOnList(page);
+});
+
+test("a world-info entry deleted elsewhere while its editor holds focus hands focus to the book's entry list", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const book = await caller.worldInfo.createBook({ input: { name: "Entry book" } });
+  await caller.worldInfo.createEntry({ bookId: book.id, input: { title: "Kept entry", content: "Lore." } });
+  const doomed = await caller.worldInfo.createEntry({ bookId: book.id, input: { title: "Doomed entry", content: "Lore." } });
+  await mountPanes((props) => mount<typeof ConfigPanesBusStory>(STORY, props), { page, root, cleanup, group: "worldInfo" });
+  await openByKeyboard(page, rows(page).filter({ hasText: "Entry book" }), BOOK_EDITOR);
+  const editor = page.locator(BOOK_EDITOR);
+  await editor.locator(ROW_BODY).filter({ hasText: "Doomed entry" }).focus();
+  await page.keyboard.press("Enter");
+  const back = page.getByRole("button", { name: sectionBackName("Entry book"), exact: true });
+  await expect(back).toBeVisible();
+  const field = editor.getByRole("textbox").first();
+  await field.focus();
+  await expect(field).toBeFocused();
+
+  await caller.worldInfo.removeEntry({ entryId: doomed.id });
+
+  await expect(back).toHaveCount(0);
+  const kept = editor.locator(ROW_BODY).filter({ hasText: "Kept entry" });
+  await expect(kept).toBeVisible();
+  const focused = page.locator(`${BOOK_EDITOR} :focus`);
+  await expect(focused).toHaveCount(1);
+  await expect(focused.locator(ROW_BODY).filter({ hasText: "Kept entry" })).toHaveCount(1);
 });

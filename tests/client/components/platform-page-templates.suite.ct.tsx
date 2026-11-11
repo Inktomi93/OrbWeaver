@@ -105,7 +105,7 @@ for (const coarse of [false, true]) {
       for (const { caseId: id } of TEMPLATE_CASES) {
         const cell = root.locator(`[data-case="${id}"]`);
         await expect(cell.getByRole("heading", { level: 2, name: "Elias Thorn", exact: true }), id).toHaveCount(1);
-        const name = cell.locator('[data-shell-identity="defer"]');
+        const name = cell.locator('[data-shell-identity="name"]');
         expect(await px(name, "font-size"), `${id}: the name is at the title step`).toBe(await resolved(cell, TOKENS["text.title"].cssVar));
         const verb = cell.getByRole("button", { name: REFINERY_EDIT_SCOPE_NAME, exact: true });
         expect(Math.round((await box(verb)).x + (await box(verb)).width), `${id}: the verbs end at the header's edge`).toBe(
@@ -120,7 +120,7 @@ for (const coarse of [false, true]) {
       await expect(masthead.locator("[data-shell-identity]")).toHaveCount(0);
 
       const narrow = root.locator('[data-case="narrow"]');
-      const narrowName = narrow.locator('[data-shell-identity="defer"]');
+      const narrowName = narrow.locator('[data-shell-identity="name"]');
       const firstVerb = narrow.getByRole("button", { name: "Open card", exact: true });
       expect((await box(firstVerb)).y, "a narrow header wraps its verbs below the name").toBeGreaterThan((await box(narrowName)).y);
       expect((await box(narrowName)).width).toBeGreaterThanOrEqual(await resolved(narrow, TOKENS["width.title-floor"].cssVar));

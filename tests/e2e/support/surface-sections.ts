@@ -1080,7 +1080,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
       await row.getByRole("button").click();
     },
     ready: async () => {
-      await expect(statsBody.locator('[data-shell-identity="defer"]')).toHaveText(stats.name);
+      await expect(statsBody.locator('[data-shell-identity="name"]')).toHaveText(stats.name);
     },
   });
   await walkScope(journey, statsBody, `corpus/insights/character/${subject.characterId}`);
@@ -1241,7 +1241,7 @@ type ListedPreset = Awaited<ReturnType<SurfaceFlow["client"]["preset"]["list"]["
 async function expectPresetIdentity(journey: Journey, name: string): Promise<void> {
   const editor = journey.page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
   const identities = [
-    editor.locator('[data-shell-identity="defer"]'),
+    editor.locator('[data-shell-identity="name"]'),
     journey.page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title'),
   ];
   await expect

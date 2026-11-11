@@ -38,7 +38,8 @@ export function LabelsContent(): ReactElement {
   const tagId = useSelectedLabelId();
   // Once an editor has been open, the library only ever returns by closing it (Back, merge, delete).
   const [editorWasOpen, setEditorWasOpen] = useState(tagId !== null);
-  // A Back hands focus to the finder row the tag was opened from, so the library it returns to stands down.
+  // A Back hands focus to the finder row the tag was opened from, so the library it returns to stands down; a finder that
+  // cannot take focus (collapsed, or a released overlay) declines, and the library keeps the landing.
   const [backToRow, setBackToRow] = useState(false);
   // Reset on the open itself: the Back's own render still carries the tag, and must keep the flag it just set.
   const [shownTagId, setShownTagId] = useState(tagId);
@@ -52,10 +53,7 @@ export function LabelsContent(): ReactElement {
   const back: DrillBack = {
     label: sectionBackName(CORPUS_MODE_LABELS.labels),
     onClick: (): void => {
-      if (tagId !== null) {
-        returnFocusToRow(tagId);
-      }
-      setBackToRow(true);
+      setBackToRow(tagId !== null && returnFocusToRow(tagId));
       clearLabelSelection();
     },
   };

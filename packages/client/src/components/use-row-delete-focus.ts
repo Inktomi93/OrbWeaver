@@ -14,7 +14,12 @@
 // A member's Back (`returnFocusToRow`). The member's editor may replace its list, so the row may not be mounted when Back is
 // pressed. The list that knew the key answers: a mounted row takes focus; a row outside the list's window is brought into it
 // and takes focus as it mounts; a key the list no longer holds lands on the list's root. A list that is not mounted answers when
-// it mounts. Mounted lists register in module state, because the member asking is not inside the list it asks.
+// it mounts, and a list that cannot take focus (inert, or not rendered) declines, so the host's own landing keeps its job.
+// Mounted lists register in module state, because the member asking is not inside the list it asks. A member that closes
+// while it holds focus without its Back, because it was deleted elsewhere, asks the same way (`useReturnToRowOnClose`).
+//
+// Gone means the list's root, never the page: a row that held focus, or that a Back is waiting for, and leaves the list for
+// any reason (a delete here or elsewhere, a filter, a refetch that drops a stale row) hands focus to the list's root.
 
 import type { VirtualListHandle } from "@orb/ui/virtual-list";
 import type { RefCallback, RefObject } from "react";
@@ -61,6 +66,8 @@ function startFollow(followed: FollowHolder, key: string): void {
 interface ReturnTarget {
   /** Whether the list has ever rendered this key. */
   readonly knew: (key: string) => boolean;
+  /** Whether focus can reach the list now: its root is rendered and not inside an inert pane. */
+  readonly canTakeFocus: () => boolean;
   /** Focus the row, bring it into the window, or land on the root when the key is gone. */
   readonly answer: (key: string) => void;
 }
@@ -72,17 +79,38 @@ let returnAskedFrom: Element | null = null;
 const mountedLists = new Set<ReturnTarget>();
 
 /** Ask for focus on the row `key`, the one a member was opened from. Call it from the Back's own handler, right before the
- *  member closes. A mounted list that rendered the key answers now; otherwise the next list to mount answers. The request ends
- *  at the person's next press, key or focus. */
-export function returnFocusToRow(key: string): void {
+ *  member closes. A mounted list that rendered the key and can take focus answers now; otherwise the next list to mount
+ *  answers. The request ends at the person's next press, key or focus.
+ *  @returns Whether a mounted list took the request: `false` leaves where focus lands to the host. */
+export function returnFocusToRow(key: string): boolean {
   returnAskedFrom = document.activeElement;
   startFollow(returning, key);
   for (const list of mountedLists) {
-    if (list.knew(key)) {
+    if (list.knew(key) && list.canTakeFocus()) {
       list.answer(key);
-      return;
+      return true;
     }
   }
+  return false;
+}
+
+/** Ask for focus on the row `key` when the member drawn in `memberRef` closes while it holds focus, as its Back would. Use it
+ *  for a member that closes itself when its subject is deleted elsewhere. */
+export function useReturnToRowOnClose(memberRef: RefObject<HTMLElement | null>, key: string): void {
+  useLayoutEffect(() => {
+    const member = memberRef.current;
+    // A layout cleanup runs before the member's nodes leave the document, so focus inside it can still be read.
+    return (): void => {
+      if (member?.contains(document.activeElement) === true) {
+        returnFocusToRow(key);
+      }
+    };
+  }, [memberRef, key]);
+}
+
+// A rendered root inside no inert pane; a collapsed pane stays mounted but inert, and a hidden one has no boxes.
+function canFocusWithin(root: HTMLElement | null): boolean {
+  return root !== null && root.closest("[inert]") === null && root.getClientRects().length > 0;
 }
 
 function bodyHoldsFocus(): boolean {
@@ -113,6 +141,16 @@ export function useRowDeleteFocus(
   // Before any effect reads them: a Back's request answered in this commit reads the keys this render shows.
   useLayoutEffect(() => {
     shown.current = keys;
+    const lost = followed.current?.key;
+    if (lost !== undefined && !keys.includes(lost) && bodyHoldsFocus()) {
+      listRootRef.current?.focus();
+      endFollow(followed);
+    }
+    const asked = returning.current?.key;
+    if (asked !== undefined && seen.current.has(asked) && !keys.includes(asked) && returnMayTakeFocus()) {
+      listRootRef.current?.focus();
+      endFollow(returning);
+    }
     for (const key of keys) {
       seen.current.add(key);
     }
@@ -132,11 +170,11 @@ export function useRowDeleteFocus(
         endFollow(returning);
       }
     };
-    const target: ReturnTarget = { knew: (key) => seen.current.has(key), answer };
+    const target: ReturnTarget = { knew: (key) => seen.current.has(key), canTakeFocus: () => canFocusWithin(listRootRef.current), answer };
     mountedLists.add(target);
     // A request made while no list that knew its row was mounted: this list mounted as the member closed.
     const pending = returning.current?.key;
-    if (pending !== undefined && returnMayTakeFocus()) {
+    if (pending !== undefined && returnMayTakeFocus() && target.canTakeFocus()) {
       answer(pending);
     }
     return (): void => {

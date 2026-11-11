@@ -19,9 +19,9 @@ import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
-import type { ReactElement, RefCallback } from "react";
+import type { ReactElement, RefCallback, RefObject } from "react";
 import { useRef, useState } from "react";
-import { DetailHeader, EditorPage, returnFocusToRow, useRowDeleteFocus } from "#components";
+import { DetailHeader, EditorPage, returnFocusToRow, useReturnToRowOnClose, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionMemberView, DrillBack } from "#lib";
 import { sectionBackName, useFocusOnMount } from "#lib";
@@ -72,7 +72,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   const backfill = useBackfillWorldTitles({ trpc, invalidation });
   const reorder = useApplyEntryOrder({ trpc, invalidation });
   const [detailsOpen, setDetailsOpen] = useState(false);
-  // The entry list unmounts under an open entry and mounts again on its Back, which hands focus back to the entry's row.
+  // The entry list unmounts under an open entry and mounts again when the entry closes, which hands focus back to its row.
   const entryListRef = useRef<HTMLDivElement>(null);
   const entryFocus = useRowDeleteFocus(
     entryListRef,
@@ -112,25 +112,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   };
 
   if (selectedEntry !== null) {
-    return (
-      <EditorPage focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
-        {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
-              two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
-              book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
-              nothing else on this rung did: `EntryEditor` carries a Title FIELD, not a heading. */}
-        <DetailHeader
-          back={{
-            label: sectionBackName(book.name),
-            onClick: (): void => {
-              returnFocusToRow(selectedEntry.id);
-              clearWorldEntrySelection();
-            },
-          }}
-          title={selectedEntry.title}
-        />
-        <EntryEditor entry={selectedEntry} onDeleted={(): void => clearWorldEntrySelection()} />
-      </EditorPage>
-    );
+    return <EntryMember bookName={book.name} entry={selectedEntry} pageRef={surfaceRef} />;
   }
 
   return (
@@ -175,21 +157,21 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
         {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
       </Text>
 
-      {entries.length === 0 ? (
-        <EmptyState
-          action={
-            <Button aria-label={worldInfoNewEntryInName(book.name)} disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
-              {WORLD_INFO_NEW_ENTRY_NAME}
-            </Button>
-          }
-          description="Add an entry: a piece of lore that fires into the prompt when its keywords come up."
-          icon={<Icon icon={BookOpen} size="lg" />}
-          title={WORLD_INFO_NO_ENTRIES_TITLE}
-        />
-      ) : (
-        // handle mode: only the grip drags, so each row's own click (drill into the editor) stays live. The root is where an
-        // entry's Back lands when that entry is gone.
-        <Stack focusTarget={true} ref={entryListRef} tabIndex={-1}>
+      {/* The root is where focus lands when an open entry is gone, so it stands with no entries left as well. */}
+      <Stack focusTarget={true} ref={entryListRef} tabIndex={-1}>
+        {entries.length === 0 ? (
+          <EmptyState
+            action={
+              <Button aria-label={worldInfoNewEntryInName(book.name)} disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
+                {WORLD_INFO_NEW_ENTRY_NAME}
+              </Button>
+            }
+            description="Add an entry: a piece of lore that fires into the prompt when its keywords come up."
+            icon={<Icon icon={BookOpen} size="lg" />}
+            title={WORLD_INFO_NO_ENTRIES_TITLE}
+          />
+        ) : (
+          // handle mode: only the grip drags, so each row's own click (drill into the editor) stays live.
           <SortableList
             getItemKey={(entry): SortableItemKey => entry.id}
             handle={true}
@@ -200,8 +182,8 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
               <EntryRow bodyRef={entryFocus.bodyRef(entry.id)} entry={entry} onSelect={(id): void => selectWorldEntry(id)} />
             )}
           />
-        </Stack>
-      )}
+        )}
+      </Stack>
 
       <BookDetailsDialog
         currentDescription={book.description}
@@ -210,6 +192,40 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
         onSave={(patch): void => update.mutate({ bookId, input: patch })}
         open={detailsOpen}
       />
+    </EditorPage>
+  );
+}
+
+/** The open entry: its own page, so it leaves as one piece when Back pops it or when it is deleted elsewhere, and either
+ *  way hands focus back to the entry list. */
+function EntryMember({
+  bookName,
+  entry,
+  pageRef,
+}: {
+  readonly bookName: string;
+  readonly entry: WorldEntry;
+  /** The book's page ref, so an arrival straight into an entry takes the book's mount focus. */
+  readonly pageRef: RefObject<HTMLDivElement | null>;
+}): ReactElement {
+  useReturnToRowOnClose(pageRef, entry.id);
+  return (
+    <EditorPage focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={pageRef} tabIndex={-1}>
+      {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
+            two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
+            book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
+            nothing else on this rung did: `EntryEditor` carries a Title FIELD, not a heading. */}
+      <DetailHeader
+        back={{
+          label: sectionBackName(bookName),
+          onClick: (): void => {
+            returnFocusToRow(entry.id);
+            clearWorldEntrySelection();
+          },
+        }}
+        title={entry.title}
+      />
+      <EntryEditor entry={entry} onDeleted={(): void => clearWorldEntrySelection()} />
     </EditorPage>
   );
 }

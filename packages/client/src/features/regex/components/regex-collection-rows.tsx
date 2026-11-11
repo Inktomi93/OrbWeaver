@@ -323,9 +323,8 @@ const glyphNode = (stage: RegexPlacement): ReactElement => (
 /** ONE `<Icon>` element per placement, built ONCE at module scope.
  *
  *  A React element is an immutable description, so the same objects can appear in every row's strip — and
- *  the strip is the one thing on this surface that multiplies: the regex band is the NON-virtualized arm, so
- *  expanding it would otherwise construct an element per stage per row synchronously inside the same tick
- *  as the disclosure. The claim is structural: the elements are built once per module instead of once per
+ *  the strip is the one thing on this surface that multiplies, so expanding the band would otherwise construct
+ *  an element per stage per mounted row synchronously inside the same tick as the disclosure. The claim is structural: the elements are built once per module instead of once per
  *  rendered stage. The `key` is baked into
  *  each element because these are rendered from a `.map` — an element carrying its own key is exactly how a
  *  hoisted node stays legal in a list.

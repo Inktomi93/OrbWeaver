@@ -1,8 +1,10 @@
 // The CONTENT pane's identity row for one subject, and for a drilled member: its Back, its name, the state marks beside it and
 // its own verbs. One template serves both, because both draw one role and differ only in how they stand down where the shell's
-// narrow topbar already prints the name and the way back: the Back and the visible name wear the shell's identity defer mark,
-// and the shell's stylesheet hides them there (`features/app-shell/surfaces/shell/chrome.css`). The heading stays in the outline
-// and the verbs stay on screen at every width.
+// topbar already prints them. Each half wears the shell's identity mark and stands down on the one decision that draws its twin
+// (`features/app-shell/surfaces/shell/chrome.css`): the visible name where the topbar's narrow identity prints the name (the
+// content column's width), the Back where the topbar's lead slot draws the way back (the shell's published `backToList`). The
+// two differ on a phone with a wide column, which shows the topbar's Back and this row's name. The heading stays in the
+// outline and the verbs stay on screen at every width.
 //
 // A drilled member's Back sits outside the member's suspense boundary: its host draws this row with the Back alone while the
 // member's read is pending or failed, so the exit is never missing. No lifecycle chrome on the row (D212): Delete stays on the
@@ -21,7 +23,8 @@ import type { DrillBack } from "#lib";
 /** `title`: a document's or a member's name. `masthead`: a workbench's one opening statement, at the display step. */
 const NAME_VOICE = { title: "promoted", masthead: "masthead" } as const;
 
-const SHELL_IDENTITY_DEFER = "defer";
+/** The shell identity mark's values, one per half, each keyed by its own stand-down rule in the shell's stylesheet. */
+const SHELL_IDENTITY = { name: "name", back: "back" } as const;
 
 export interface DetailHeaderProps {
   /** The subject's name: the pane's `h2` and its visible name. Omitted only while there is no subject to name: a drilled
@@ -36,22 +39,14 @@ export interface DetailHeaderProps {
   readonly meta?: ReactNode;
   /** The subject's own verbs, at the row's trailing edge. */
   readonly actions?: ReactNode;
-  /** The visible name and the Back stand down where the shell's narrow topbar already prints them. */
+  /** The visible name and the Back stand down where the shell's topbar already prints them. */
   readonly deferToShell?: boolean;
   /** Lines under the name: a gloss, a remedy, a credit. */
   readonly children?: ReactNode;
 }
 
 /** The name as the outline's `h2` and, hidden from assistive technology so the subject is named once, as the visible line. */
-function DetailName({
-  title,
-  step,
-  defer,
-}: {
-  readonly title: string;
-  readonly step: keyof typeof NAME_VOICE;
-  readonly defer: typeof SHELL_IDENTITY_DEFER | undefined;
-}): ReactElement {
+function DetailName({ title, step, defer }: { readonly title: string; readonly step: keyof typeof NAME_VOICE; readonly defer: boolean }): ReactElement {
   return (
     <>
       <Heading className="sr-only" level={2}>
@@ -63,7 +58,7 @@ function DetailName({
         className="min-inline-0"
         wrap={step === "title" ? undefined : "word"}
         truncate={step === "title"}
-        data-shell-identity={defer}
+        data-shell-identity={defer ? SHELL_IDENTITY.name : undefined}
         voice={NAME_VOICE[step]}
       >
         {title}
@@ -74,7 +69,6 @@ function DetailName({
 
 /** `[back] [kicker] name meta … actions` over the subject's own lines. */
 export function DetailHeader({ title, step = "title", back, kicker, meta, actions, deferToShell = true, children }: DetailHeaderProps): ReactElement {
-  const defer = deferToShell ? SHELL_IDENTITY_DEFER : undefined;
   const drilled = back !== undefined;
   const verbs =
     actions === undefined ? null : (
@@ -97,12 +91,20 @@ export function DetailHeader({ title, step = "title", back, kicker, meta, action
         {kicker === undefined ? null : <Text voice="kicker">{kicker}</Text>}
         <Row align="baseline" className="min-inline-0" wrap={true} gap="row">
           {back === undefined ? null : (
-            <Button className="shrink-0" data-shell-identity={defer} variant="ghost" onClick={back.onClick} size="sm" wrap={true} type="button">
+            <Button
+              className="shrink-0"
+              data-shell-identity={deferToShell ? SHELL_IDENTITY.back : undefined}
+              variant="ghost"
+              onClick={back.onClick}
+              size="sm"
+              wrap={true}
+              type="button"
+            >
               <Icon icon={ArrowLeft} size="sm" />
               {back.label}
             </Button>
           )}
-          {title === undefined ? null : <DetailName defer={defer} step={step} title={title} />}
+          {title === undefined ? null : <DetailName defer={deferToShell} step={step} title={title} />}
           {meta}
           {step === "masthead" ? verbs : null}
         </Row>
