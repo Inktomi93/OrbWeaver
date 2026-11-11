@@ -35,9 +35,9 @@ allowBuilds:
 catalog:
   # --- toolchain ---
   # cross-spawn: niced-exec.ts's win32 child spawn (proc.ts#spawnFullPriorityChild) — resolves and quotes
-  # a `.cmd`/`.bat` npm-bin shim correctly; a bare `spawn` there cannot resolve PATHEXT, and our own hand
-  # rolled quoting was a second, narrower home for the same problem. Already in the lockfile as a
-  # transitive dependency of several dev tools; pinned exact so a transitive bump cannot silently change
+  # a `.cmd`/`.bat` npm-bin shim correctly; a bare `spawn` there cannot resolve PATHEXT, and a
+  # hand-rolled quoting pass would be a second, narrower home for the same problem. Pinned exact so a
+  # transitive bump cannot silently change
   # our own Windows escaping.
   cross-spawn: 7.0.6
   "@types/cross-spawn": ^6.0.6
@@ -48,7 +48,7 @@ catalog:
   typescript: npm:@typescript/typescript6@6.0.2
   "@biomejs/biome": 2.6.2
   lefthook: ^2.2.2
-  # 18.8 beta: first release that extracts with the TypeScript 7.1 native compiler.
+  # The extractor runs on the TypeScript 7.1 native compiler.
   dependency-cruiser: 18.8.0-beta-1
   # D321: CSS policy uses Stylelint's native AST and its maintained value parser, never a private CSS reader.
   stylelint: 17.16.0
@@ -77,13 +77,12 @@ catalog:
   # Pin the native runner so installation and execution use the same Chromium revision.
   "@playwright/test": 1.64.1
   # --- rendered instruments ---
-  # lighthouse: the audit ENGINE the retired chrome-devtools MCP wrapped (#1195/#1198). WHY THE DEPENDENCY
-  # IS WORTH IT (every dependency is a liability): the retirement census
-  # counted 41 `lighthouse_audit` MCP calls in 14 days and it was the ONLY MCP tool producing findings
-  # snap could not — axe's `label-content-name-mismatch` (3 nodes on the plugins pane) and `target-size`.
+  # lighthouse: the audit ENGINE snap runs in-process. WHY THE DEPENDENCY
+  # IS WORTH IT (every dependency is a liability): it is the only audit surface producing findings
+  # snap could not otherwise — axe's `label-content-name-mismatch` and `target-size`.
   # Owning the engine retires a whole MCP server for one dev-only @orb/tooling dep that ships to nobody.
   # The caret is deliberate but NOT free: snap reads audit ids and the `details.items[].node.selector`
-  # shape, so a minor bump owes a re-run of tests/tooling/snap/ops/lighthouse.int.test.ts (it pins the
+  # shape, so a minor bump owes a re-run of tests/tooling/snap/ops/arms/lighthouse.int.test.ts (it pins the
   # audit BY NAME) before it is trusted.
   lighthouse: ^13.5.0
   # puppeteer-core: NOT a second browser — the ATTACH surface. Lighthouse drives a puppeteer Page
@@ -94,7 +93,7 @@ catalog:
   # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
   # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).
   "puppeteer-core": 25.15.0
-  # chrome-devtools-mcp: PARSER ENGINE ONLY for Snap's heap arm (#1300). Snap never imports or starts
+  # chrome-devtools-mcp: PARSER ENGINE ONLY for Snap's heap arm. Snap never imports or starts
   # the MCP server, transport, Puppeteer page, or browser launcher. One adapter deep-imports the bundled
   # browser-free HeapSnapshotManager so retained sizes, dominators, native-context attribution and
   # retaining paths use the same official DevTools algorithms instead of a home-grown graph parser.
@@ -165,9 +164,8 @@ catalog:
   # through the SHARED symbol `Symbol.for("undici.globalDispatcher.1")` — our copy WRITES it,
   # node's built-in `fetch` READS it. If that contract ever breaks, the firewall silently stops
   # governing `fetch` and every gate stays green over an open SSRF surface. A test must pin the
-  # handoff and re-run it on every node/undici bump; the suite that did was retired with the legacy
-  # tree and no in-repo test pins it yet — porting the replacement is tracked in
-  # docs/work/codebase-review/ledger.md.
+  # handoff and re-run it on every node/undici bump; no in-repo test pins it yet — porting the
+  # replacement is tracked in docs/work/codebase-review/ledger.md.
   undici: ^8.12.3
   # --- foundation observability (Phase 4a — Tier-2-Foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
@@ -190,24 +188,23 @@ catalog:
   node-av: 6.1.1
   # --- infra/providers backends (Phase 4b-ii-b — Tier-3b-Providers.md) ---
   # @anthropic-ai/claude-agent-sdk: the agent-sdk backend (the Max sub + the OR-Anthropic skin + agent
-  # mode). Its env firewall is the load-bearing credential seam (Tier-3b-Providers.md Esoteric §1).
+  # mode). Its env firewall is the credential seam (Tier-3b-Providers.md Esoteric §1).
   # Exact pin: the native-child observer patch preserves this bundled transport; any bump must rederive it.
   "@anthropic-ai/claude-agent-sdk": 0.3.306
   # Supply the agent SDK peer and its public Anthropic API declarations explicitly.
   "@anthropic-ai/sdk": ^1.0.0
-  # --- @orb/inference — the Vercel AI SDK provider layer (inference program §8.0; F9 settled 2026-09-19) ---
+  # --- @orb/inference — the Vercel AI SDK provider layer (inference program §8.0) ---
   # EXACT PINS, deliberately: the two hosted wires are built against provider spec V4
   # (`LanguageModelV4.doStream` / `EmbeddingModelV4.doEmbed` / `ImageModelV4.doGenerate`) and the
   # openai-compatible provider's `transformRequestBody` post-convert hook, which is where the dialects do their
   # body work; the OpenRouter provider FORWARDS per-message `cache_control` as an implementation fact, not a
   # typed contract. A caret bump can move any of those under us silently, so every bump re-runs the
-  # wire-capture byte pins under `tests/legacy/inference/backends/{anthropic-messages,openai-compat}/chat.test.ts`
-  # before it is trusted. `ai` is the peer the OpenRouter provider requires (`^7.0.0`); the
-  # `@ai-sdk/provider` pin must satisfy every provider
-  # package's own `@ai-sdk/provider` dependency at install (4.0.21 on 2026-10-03), so the stack moves together:
-  # @ai-sdk/anthropic 4.0.67 is the first with `claude-sonnet-5-5` and the `between_tools` thinking type.
-  # @openrouter/ai-sdk-provider 3.1.0 cleared the 24h minimumReleaseAge floor on 2026-09-20; the exact
-  # per-transport byte pins guard its request conversion alongside the Vercel SDK providers.
+  # wire-capture byte pins for the anthropic-messages and openai-compat chat transports before it is
+  # trusted; no in-repo suite holds these pins yet, and porting them is tracked in
+  # docs/work/codebase-review/ledger.md. `ai` is the peer the OpenRouter provider requires (`^7.0.0`);
+  # the `@ai-sdk/provider` pin must satisfy every provider package's own `@ai-sdk/provider` dependency
+  # at install, so the stack moves together. The exact per-transport byte pins guard the OpenRouter
+  # provider's request conversion alongside the Vercel SDK providers.
   ai: 7.0.148
   "@ai-sdk/provider": 4.0.31
   "@ai-sdk/openai-compatible": 3.0.75
@@ -230,8 +227,8 @@ catalog:
   react-dom: ^19.3.1
   "@types/react": ^19.3.0
   "@types/react-dom": ^19.3.0
-  # --- ui (@orb/ui — the sealed satellites; versions verified against the registry 2026-07-02,
-  #     deltas vs the docs recorded in proposed/ui-package-design.md §3) ---
+  # --- ui (@orb/ui — the sealed satellites; library deltas vs the law are ruled in
+  #     docs/law/ui-package-design.md §3) ---
   # Base UI v1 stable — the headless primitive (D42). NOT the dead rc-era @base-ui-components/react.
   "@base-ui/react": ^1.9.0
   # tailwind-variants: variants + slots + merge — subsumes cva/clsx (D54). DELTA vs D54: v3
@@ -262,26 +259,25 @@ catalog:
   "@shikijs/langs": ^4.5.0
   codemirror: ^6.0.2
   "@codemirror/lang-css": ^6.3.1
-  # jsdiff (docs said v8+; current major is 9 — same modern TS surface).
   diff: ^9.0.0
-  # @codemirror/lint: A5 diagnostics layer (code-editor seal) — pinned direct (was transitive) so the
+  # @codemirror/lint: A5 diagnostics layer (code-editor seal) — pinned direct so the
   #   seal imports it without a phantom dependency (biome noUndeclaredDependencies).
   "@codemirror/lint": ^6.9.7
-  # @codemirror/state: pinned direct (was transitive, same reasoning) — the code-editor seal reaches
+  # @codemirror/state: pinned direct, same reasoning — the code-editor seal reaches
   #   it directly for EditorState.readOnly (state-gates paste/drop/command inserts; EditorView.editable
   #   alone only toggles contentEditable).
   "@codemirror/state": ^6.7.6
-  # @codemirror/autocomplete: pinned direct (was transitive via `codemirror`'s basicSetup, same
-  #   @codemirror/lint reasoning) — WS3 exposes a `completions` prop on the code-editor seal
+  # @codemirror/autocomplete: pinned direct, the @codemirror/lint reasoning — WS3 exposes a
+  #   `completions` prop on the code-editor seal
   #   (autocompletion/completionSource) for the theme editor's CSS var inline autocomplete.
   "@codemirror/autocomplete": ^6.20.4
-  # cmdk: the command-palette seal (primitives/command/). 1.1.1 (2025-03-14, mature).
+  # cmdk: the command-palette seal (primitives/command/).
   cmdk: ^1.1.1
-  # @dnd-kit/react + helpers: the MODERN rewrite (0.5.0, 2026-06-11) for the sortable seal. NEVER
+  # @dnd-kit/react + helpers: the current-generation stack for the sortable seal. NEVER
   #   @dnd-kit/core|sortable|utilities — the dead legacy stack (biome-banned).
   "@dnd-kit/react": ^0.5.1
   "@dnd-kit/helpers": ^0.5.1
-  # @dnd-kit/dom: pinned direct (was transitive, the @codemirror/lint precedent) — the sortable
+  # @dnd-kit/dom: pinned direct, the @codemirror/lint precedent — the sortable
   #   seal reaches past @dnd-kit/react's public surface for the `Feedback` plugin class (not
   #   re-exported there) to configure the reduced-motion drop-animation override.
   "@dnd-kit/dom": ^0.5.1
@@ -289,7 +285,7 @@ catalog:
   #   imports only (echarts/core + used charts/components/renderers) — never `import "echarts"` whole.
   echarts: ^6.1.0
   "echarts-for-react": ^3.0.6
-  # minisearch: the macro-textarea fuzzy-match seal (carve-out item 18).
+  # minisearch: the macro-textarea fuzzy-match seal.
   minisearch: ^7.2.0
   # toPlainText: markdown→plaintext previews via the same unified pipeline as Streamdown (D54).
   remark: ^15.0.1
@@ -297,7 +293,7 @@ catalog:
   # (tablePipeAlign:false) — the style is .claude/rules/writing.md §Markdown.
   "remark-frontmatter": ^5.0.0
   "remark-gfm": ^4.0.1
-  # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
+  # DTCG token codegen (ESM/async, DTCG first-class).
   style-dictionary: ^5.7.0
   # Standards CSS Color 4 parsing/gamut mapping for the isomorphic ThemeScope derivation boundary.
   colorjs.io: 0.7.1
@@ -341,7 +337,7 @@ catalog:
   eslint-plugin-drizzle: 0.2.3
   vite: ^8.3.5
   vite-plugin-checker: ^0.14.5
-  # React Compiler (stable 1.0) runs FULL-compile from day one (D54). plugin-react v6 dropped internal
+  # React Compiler (stable 1.0) runs FULL-compile (D54). plugin-react v6 dropped internal
   # babel for oxc, so the compiler runs as a @rolldown/plugin-babel preset that MUST precede react().
   babel-plugin-react-compiler: ^1.0.0
   "@rolldown/plugin-babel": ^0.2.4
@@ -349,8 +345,7 @@ catalog:
   # Babel 8 the compiler skips every component with a destructured default parameter, silently.
   # tests/client/react-compiler-contract.test.ts compiles such a component through the installed pair.
   "@babel/core": ^7.29.0
-  # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
-  #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
+  # --- client data/forms/state (primitives per UI-Primitives-and-Reuse.md §13.1; caret-adopted) ---
   "@tanstack/react-query": ^5.104.5
   "@tanstack/react-form": ^1.33.5
   zustand: ^5.0.15
@@ -359,7 +354,6 @@ catalog:
   "@trpc/tanstack-react-query": ^11.23.0
   # @tanstack/react-router: the KEPT runtime (UI-Arch KEEP list "Router-minimal") — committed
   # production stack, used MINIMALLY (~3 hand-written code-based routes: / · /login · /admin/*).
-  # 1.170.17 is <24h-blocked; ^1.170.16 is the latest mature (caret adopts newer once mature).
   # NB: the FILE-BASED codegen (@tanstack/router-plugin + @tanstack/router-cli + routeTree.gen.ts) is
   # DELIBERATELY DROPPED (UI-Arch §6.1): hand-written code-based
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
@@ -424,16 +418,15 @@ overrides:
   sharp: "catalog:"
   # Keep tsdoc's transitive utilities on the parser family's TypeScript 6-compatible release.
   "@typescript-eslint/utils": "8.72.0"
-  # DEPLOCK 2026-08-14: streamdown@2.5.0 pins `mermaid: ^11.12.2`, resolved-stale at 11.16.0 —
-  # 5 advisories fixed in 11.16.1 (prototype pollution x2, CSS injection, XY-chart + radar DoS).
+  # streamdown pins `mermaid: ^11.12.2`; the resolved copy carried advisories fixed by 11.16.1
+  # (prototype pollution x2, CSS injection, XY-chart + radar DoS).
   # No diagram plugin is wired, so a mermaid fence in chat renders as inert code and this bump is
   # defence in depth for the bundled dependency, not a reachable path. mermaid's own
-  # `dompurify: ^3.3.3` range already covers the fixed 3.4.13 (was resolved-stale at 3.4.11) — bumping mermaid alone drags dompurify along; no separate
-  # dompurify override needed. Both ranges are satisfied by streamdown's own deps, so this is a
-  # pure resolution-bump, not an API-incompatible major. Even after the mermaid bump, pnpm kept
-  # resolving dompurify to the pre-fix 3.4.11 (satisfies mermaid's `^3.3.3` range but is not the
-  # newest satisfying version) — force it to the fixed 3.4.13 explicitly (2 advisories, incl. an
-  # XSS via IN_PLACE hook removal).
+  # `dompurify: ^3.3.3` range covers the fixed 3.4.13, but pnpm resolves an older in-range copy
+  # (2 advisories, incl. an
+  # XSS via IN_PLACE hook removal), so both floors are forced here.
+  # Both ranges are satisfied by streamdown's own deps, so this is a
+  # pure resolution-bump, not an API-incompatible major.
   mermaid: ">=11.16.1"
   dompurify: ">=3.4.13"
   # rehype-katex 7 depends on katex ^0.16 while @orb/ui ships the katex stylesheet from the catalog.
@@ -470,7 +463,7 @@ patchedDependencies:
   libsql@0.6.0-pre.43: patches/libsql@0.6.0-pre.43.patch
   node-av@6.1.1: patches/node-av@6.1.1.patch
   chrome-devtools-mcp@1.11.0: patches/chrome-devtools-mcp@1.11.0.patch
-  # #0081: clone packs are attacker-controlled. This exact-version patch bounds object count, declared and
+  # Clone packs are attacker-controlled. This exact-version patch bounds object count, declared and
   # actual inflation, aggregate work, delta depth, and pre-concat delta output. A dependency bump must port it.
   isomorphic-git@1.44.3: patches/isomorphic-git@1.44.3.patch
   # cmdk's group sort looked a group up by its heading text but keyed it by its internal id, so groups never
@@ -495,10 +488,10 @@ patchedDependencies:
   echarts@6.1.0: patches/echarts@6.1.0.patch
   # React 19 scopes JSX to React; remove when the wrapper imports that type.
   echarts-for-react@3.0.6: patches/echarts-for-react@3.0.6.patch
-  # Also carries open upstream stryker-js#6209 (PR 6293): with a test filter, a static mutant must be active before the module evaluates. A bump drops it once landed.
+  # Also carries an open upstream fix: with a test filter, a static mutant must be active before the module evaluates. A bump drops it once landed.
   '@stryker-mutator/core@10.1.1': patches/@stryker-mutator__core@10.1.1.patch
-  # Two open upstream fixes; a bump drops each one that has landed. stryker-js#6256 (PR 6275): a run where no test reaches a
-  # selected mutant reports NoCoverage, not Survived. PR 6312: `vitest.dryRunMaxWorkers` runs the serial dry run on several workers.
+  # Two open upstream fixes; a bump drops each one that has landed: a run where no test reaches a
+  # selected mutant reports NoCoverage, not Survived; `vitest.dryRunMaxWorkers` runs the serial dry run on several workers.
   '@stryker-mutator/vitest-runner@10.1.1': patches/@stryker-mutator__vitest-runner@10.1.1.patch
 
   # These declarations preserve each compiler world’s available host types.

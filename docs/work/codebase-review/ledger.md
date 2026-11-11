@@ -255,10 +255,22 @@ Verified: full `pnpm typecheck` exit 0; `comment-path-citations.repo.int.test.ts
   may cite deleted files forever — the exact rot just cleaned from `pnpm-workspace.yaml`.
   `HASH_COMMENT_EXTS` already handles `.yaml`, so adding the roots is a set edit, not a parser edit.
 
-- \[P3] `pnpm-workspace.yaml` catalog comments keep dated archaeology elsewhere (`2026-09-20`,
-  `2026-08-14`, `F9 settled 2026-09-19`, and friends) that the comment law's no-history budget
-  refuses. Not rewritten here to keep this change reviewable; sweep the remaining date stamps in one
-  pass when triage touches the catalog.
+- \[P3] FIXED in the comment sweep: dated archaeology elsewhere in the catalog (`2026-09-20`,
+  `2026-08-14`, `F9 settled 2026-09-19`, and friends). Whole-yaml pass applied: dates, issue numbers
+  (`#1195`, `#1300`, `#0081`, stryker PR ids), inventory counts ("41 calls in 14 days"), "docs said
+  v4" comparisons, "was transitive" history voice, and a banned `load-bearing` are gone; every
+  rationale kept. Dead-path cites fixed while in there: `proposed/ui-package-design.md` →
+  `docs/law/ui-package-design.md`, and `tests/tooling/snap/ops/lighthouse.int.test.ts` →
+  `tests/tooling/snap/ops/arms/lighthouse.int.test.ts` (moved path). Verified: full violation grep
+  empty, biome clean, the suites that read the yaml plus the citation gate pass.
+
+- \[P2] `pnpm-workspace.yaml` inference block (before the sweep) — same disease as undici, one layer
+  up: the catalog says every provider bump "re-runs the wire-capture byte pins under
+  `tests/legacy/inference/backends/{anthropic-messages,openai-compat}/chat.test.ts` before it is
+  trusted", but those suites exist only in the reference-only legacy pile; no in-repo suite holds the
+  per-transport byte pins. The brace in the path would also read as a prose pattern even to the
+  citation gate. The comment now states the real state and points here; porting the byte-pin suites
+  is the open work, together with the undici tripwire.
 
 ## Findings index
 
