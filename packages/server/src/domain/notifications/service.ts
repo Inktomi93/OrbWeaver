@@ -16,8 +16,8 @@ import { createRecord } from "./verbs/record.ts";
 import { createReplaySince } from "./verbs/replay-since.ts";
 import { createStanding } from "./verbs/standing.ts";
 
-/** What the composition root needs: the db handle + the injected clock (epoch-ms) + the D60 recipient belt
- *  (`isAgentRecipient` — the sanctioned `users.kind` read the entry root supplies; contract/service.ts). */
+/** What the composition root needs: the db handle, the injected clock (epoch-ms), the id source, the logger and
+ *  the standing-ask resolver. D60's agent-recipient guard is design-of-record under its build-state rider, not a dependency here. */
 interface NotificationsServiceDeps {
   db: DatabaseHandle;
   now: Clock;

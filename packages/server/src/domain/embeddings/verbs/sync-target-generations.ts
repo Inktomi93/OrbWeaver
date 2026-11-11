@@ -49,7 +49,7 @@ async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget
     const { capability } = move.connection;
     truncatable = capability.kind === "embedding" && capability.embedding.mrl;
     assumed = capability.kind === "embedding" && capability.embedding.dimsEstimated === true;
-    await probeWidth(move.connection, target.via, move.dims, ctx.scheduleTimeout);
+    await probeWidth(ctx, move.connection, target.via, move.dims);
     return { kind: "move", generationId: move.id };
   } catch (error) {
     const width = widthMismatchOf(error);
@@ -59,16 +59,30 @@ async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget
     if (bindingUnresolvable(error)) {
       return { kind: "unresolved" };
     }
-    if (error instanceof ProviderError && error.kind === "auth_failed") {
-      getLog(ctx.logger).warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe was refused its key; the write is refused");
-      return { kind: "refused", refusal: { kind: "auth" } };
+    const refusal = probeRefusal(ctx, error, { ownerId, task: target.task });
+    if (refusal === null) {
+      throw error;
     }
-    if (error instanceof ProviderError || error instanceof EmbedFailedError) {
-      getLog(ctx.logger).warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe got no answer; the write is refused");
-      return { kind: "refused", refusal: { kind: "unreachable" } };
-    }
-    throw error;
+    return { kind: "refused", refusal };
   }
+}
+
+/** The refusal a failed width probe becomes, or `null` for a failure that is not the probe's answer. The provider's
+ *  own failure is logged here; the probe's empty answer is already on record (`embedFailure` logged it where it was
+ *  thrown). */
+function probeRefusal(ctx: EmbeddingsContext, error: unknown, scope: { readonly ownerId: UserId; readonly task: EmbeddingTask }): EmbedTargetRefusal | null {
+  if (error instanceof EmbedFailedError) {
+    return { kind: "unreachable" };
+  }
+  if (!(error instanceof ProviderError)) {
+    return null;
+  }
+  if (error.kind === "auth_failed") {
+    getLog(ctx.logger).warn({ err: error, ...scope }, "embeddings: a re-point's width probe was refused its key; the write is refused");
+    return { kind: "auth" };
+  }
+  getLog(ctx.logger).warn({ err: error, ...scope }, "embeddings: a re-point's width probe got no answer; the write is refused");
+  return { kind: "unreachable" };
 }
 
 export function createPreviewTargetMove(ctx: EmbeddingsContext): PreviewTargetMoveOp {

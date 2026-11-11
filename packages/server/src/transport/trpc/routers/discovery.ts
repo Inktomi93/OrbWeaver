@@ -55,7 +55,7 @@ import { authedProcedure, t } from "../trpc.ts";
 export const discoveryRouter = t.router({
   // write-half, on-demand: distill ONE owned character into `character_summaries` + staged `pending`
   // tag suggestions (the editor "Suggest tags" button). Owner-scoped — `ownerId` is the resolved principal
-  // (audit #1: no caller-supplied owner), so a foreign/missing character is a no-op (never a cross-owner write).
+  // (no caller-supplied owner), so a foreign or missing character answers NOT_FOUND and never writes across owners.
   // The whole-library batch is the `distill-characters` workload (not tRPC). Returns the pass summary.
   suggestCharacterTags: authedProcedure
     .output(distillStatsSchema)

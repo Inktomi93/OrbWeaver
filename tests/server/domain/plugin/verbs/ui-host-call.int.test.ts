@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
-import { PLUGIN_MAIN_ENTRY, PLUGIN_UI_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_MAIN_ENTRY, PLUGIN_UI_ENTRY, PLUGIN_UI_HOST_CALL_CODES, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { jsonValueSchema } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, makePluginBundle, seedCorpusActors, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { strToU8 } from "fflate";
-import { z } from "zod";
+import type { z } from "zod";
 import { PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX } from "#contracts/plugin/ui-host.ts";
 
 const VARIABLE_KEY = "relayWitness";
@@ -16,7 +16,7 @@ h.ui.registerCommand({name:"seed",describe:"Seed the relay witness",onRun:async(
   await h.chat.applyVariableOps(h.chat.current(),[{op:"set",key:${JSON.stringify(VARIABLE_KEY)},value:${JSON.stringify(VARIABLE_VALUE)}}]);
 }});`;
 
-test("scripted chat reads use admitted mount scope, reject main-host argument shapes and preserve private CAS", async () => {
+test("scripted chat reads use admitted mount scope, reject main-host argument shapes and preserve private CAS", { tags: "slow" }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const { owner: caller, secondUserId } = await seedCorpusActors(root);
   const manifest = pluginManifestSchema.parse({
@@ -54,9 +54,10 @@ test("scripted chat reads use admitted mount scope, reject main-host argument sh
     expect.objectContaining({ id: committed.messages[0]?.id, role: "user", content: "Mounted transcript witness." }),
   ]);
   expect(jsonValueSchema.parse(JSON.parse((await relay("chat.listMessages", [])).resultJson))).toHaveLength(1);
-  await expect(relay("chat.getVariables", [chatId])).rejects.toBeInstanceOf(z.ZodError);
-  await expect(relay("chat.listMessages", [chatId, { limit: 1 }])).rejects.toBeInstanceOf(z.ZodError);
-  await expect(relay("chat.listMessages", [{ limit: PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX + 1 }])).rejects.toBeInstanceOf(z.ZodError);
+  const argsInvalid = { code: PLUGIN_UI_HOST_CALL_CODES.argsInvalid };
+  await expect(relay("chat.getVariables", [chatId])).rejects.toMatchObject(argsInvalid);
+  await expect(relay("chat.listMessages", [chatId, { limit: 1 }])).rejects.toMatchObject(argsInvalid);
+  await expect(relay("chat.listMessages", [{ limit: PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX + 1 }])).rejects.toMatchObject(argsInvalid);
 
   expect(jsonValueSchema.parse(JSON.parse((await relay("storage.compareAndSet", ["cell", null, "first"])).resultJson))).toEqual({
     applied: true,
@@ -73,5 +74,7 @@ test("scripted chat reads use admitted mount scope, reject main-host argument sh
   await expect(
     root.services.plugin.uiHostCall({ caller, pluginId, chatId: foreignRoom.chat.id, fn: "chat.listMessages", argsJson: "[]" }),
   ).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(root.services.plugin.uiHostCall({ caller, pluginId, fn: "chat.getVariables", argsJson: "[]" })).rejects.toThrow("needs a chat scope");
+  await expect(root.services.plugin.uiHostCall({ caller, pluginId, fn: "chat.getVariables", argsJson: "[]" })).rejects.toMatchObject({
+    code: PLUGIN_UI_HOST_CALL_CODES.scopeRequired,
+  });
 });

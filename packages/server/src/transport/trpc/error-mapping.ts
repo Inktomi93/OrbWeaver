@@ -191,6 +191,8 @@ export function classifyDomainError(err: unknown): TRPCError | null {
   // import-write, character/card, imagery and workloads. Every one of them classified by its CAUSE — which
   // is usually unmodelled — so the domain's curated sentence was discarded and the caller got a 500.
   // The loop below already skips a non-modelled wrapper, so the deref bought nothing the walk did not.
+  // The walk stops at ANY domain error, the internal-fault base included: its own arm below answers the fixed
+  // fault sentence, which a deeper cause must not replace.
   let cause: unknown = err;
   const seen = new Set<unknown>();
   while (cause instanceof Error && !(cause instanceof DomainError) && !(cause instanceof ProviderError) && cause.cause !== undefined && !seen.has(cause)) {

@@ -89,7 +89,7 @@ Each domain lives at `packages/server/src/domain/<name>/` and follows the folder
 | `settings` | app and user setting tiers |
 | `share` | the owner's share surface: the relay and IP certificate controllers over `infra/relay` and `infra/acme` |
 | `stats` | turn economics only: tokens, cost, cache, timing |
-| `tag` | one tag namespace and per-entity junctions; "proposed" is a status |
+| `tag` | one tag namespace and per-entity junctions; `pending` (a suggestion awaiting accept) is a status |
 | `tool-use` | the tool registry, resolve and execute; chat owns the loop |
 | `workloads` | the per-user job engine; it knows no domain |
 | `world-info` | one books and entries store with scope junctions |

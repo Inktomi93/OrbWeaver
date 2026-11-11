@@ -1,5 +1,5 @@
-// The Utility role's preset choice (D299), beside its connection in Model roles. A background task takes only the
-// chosen preset's generation params, never its prompts, so the copy says sampling, not "preset behaviour".
+// The Utility role's preset choice (D304), beside its connection in Model roles. A background task takes only the
+// chosen preset's generation params and its reasoning tag pair, never its prompts, so the copy says sampling, not "preset behaviour".
 
 import type { RolePresetChoice } from "@orb/contracts/settings";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";

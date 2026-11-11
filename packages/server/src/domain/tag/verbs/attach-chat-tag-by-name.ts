@@ -4,7 +4,7 @@
 // owner's tag by name (try-insert, fall back to the existing row on conflict), then insert the junction.
 //
 // TWO DIFFERENCES FROM THE CARD SIBLING, both D30 rather than taste:
-//   • no `status` — `chat_tags` has no proposed/accepted surface. A chat label is placed by the person who
+//   • no `status` — `chat_tags` has no pending/accepted surface. A chat label is placed by the person who
 //     wants it, so there is nothing to stage and nothing to review.
 //   • the junction carries the TAGGER (`ownerId`) as part of its PK, so "already attached" means already
 //     attached BY THIS USER; a co-member's identical label is a different row and is left alone.

@@ -12,8 +12,9 @@ import { z } from "zod";
 const UPSTREAM_FAULT = "connection reset by the plugin source";
 const BUNDLE_URL = "https://plugins.example.test/ledger.zip";
 const GIT_URL = "https://git.example.test/ledger.git";
+const PRIVATE_ADDRESS = "192.168.1.50";
 const LOG_SCAN_LIMIT = 500;
-const logRecordSchema = z.looseObject({ level: z.string(), err: z.looseObject({ message: z.string() }).optional() });
+const logRecordSchema = z.looseObject({ level: z.string(), security: z.boolean().optional(), err: z.looseObject({ message: z.string() }).optional() });
 
 async function rootWithBrokenSource(): Promise<Awaited<ReturnType<typeof createServerHarness>>> {
   return await createServerHarness({
@@ -38,6 +39,24 @@ test("a bundle URL that cannot be fetched is a BAD_REQUEST and the log keeps the
   expect(recordedCauses(root)).toBe(0);
   await expect(rpc.plugin.previewFromUrl({ url: BUNDLE_URL })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   expect(recordedCauses(root)).toBe(1);
+});
+
+test("a bundle URL that resolves to a private address is refused and leaves one warning, the firewall's security event", async () => {
+  await using root = await createServerHarness({
+    logLevel: "warn",
+    networkExecution: {
+      resolver: () => Promise.resolve([PRIVATE_ADDRESS]),
+      fetch: () => Promise.reject(new Error(UPSTREAM_FAULT)),
+    },
+  });
+  const rpc = await root.internalCallerFor(root.ownerId);
+  await expect(rpc.plugin.previewFromUrl({ url: BUNDLE_URL })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+  const warnings = root.observability
+    .logLines(LOG_SCAN_LIMIT)
+    .map((line) => logRecordSchema.parse(JSON.parse(line)))
+    .filter((record) => record.level === "warn");
+  expect(warnings.map((record) => record.security)).toEqual([true]);
 });
 
 test("a git source that cannot be cloned is a BAD_REQUEST and the log keeps the cause", async () => {

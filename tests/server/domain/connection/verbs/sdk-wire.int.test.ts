@@ -25,7 +25,7 @@ const probeReportSchema = z.object({
   ),
 });
 
-test("native SDK numeric accounting preserves two real model costs without coercion", async () => {
+test("native SDK numeric accounting preserves two real model costs without coercion", { tags: "slow" }, async () => {
   await using root = await rootFor("valid");
   const connection = await savedConnection(root);
   const observed: (number | null)[] = [];
@@ -46,7 +46,7 @@ test("native SDK numeric accounting preserves two real model costs without coerc
   expect(observed).toEqual([3]);
 });
 
-test("the mounted tool server keeps the namespace every tool name is prefixed with, and answers the runtime's handshake", async () => {
+test("the mounted tool server keeps the namespace every tool name is prefixed with, and answers the runtime's handshake", { tags: "slow" }, async () => {
   await using root = await rootFor("mcp-probe");
   const connection = await savedConnection(root);
   const calls: ToolCallInput[] = [];
@@ -77,28 +77,32 @@ test("the mounted tool server keeps the namespace every tool name is prefixed wi
   expect(calls).toEqual([{ toolCallId: "mcp_probe_1", name: "probe", arguments: '{"label":"wire"}' }]);
 });
 
-test.each(["bad-cost", "bad-tokens", "bad-text"])("native SDK %s refuses before a malformed terminal can reach the observer", async (mode) => {
-  await using root = await rootFor(mode);
-  const connection = await savedConnection(root);
-  const observed: (number | null)[] = [];
-  await expect(
-    root.app.runtime.executor.runChatTurn(
-      toChatRequest({
-        connection,
-        params: {},
-        systemPrompt: { static: "", dynamic: "" },
-        history: [{ role: "user", content: [{ type: "text", text: "wire control" }] }],
-        onObservedResult: (value) => {
-          observed.push(value.usage.costUsd);
-          return Promise.resolve();
-        },
-      }),
-    ),
-  ).rejects.toThrow("malformed external message fields");
-  expect(observed).toEqual([]);
-});
+test.each(["bad-cost", "bad-tokens", "bad-text"])(
+  "native SDK %s refuses before a malformed terminal can reach the observer",
+  { tags: "slow" },
+  async (mode) => {
+    await using root = await rootFor(mode);
+    const connection = await savedConnection(root);
+    const observed: (number | null)[] = [];
+    await expect(
+      root.app.runtime.executor.runChatTurn(
+        toChatRequest({
+          connection,
+          params: {},
+          systemPrompt: { static: "", dynamic: "" },
+          history: [{ role: "user", content: [{ type: "text", text: "wire control" }] }],
+          onObservedResult: (value) => {
+            observed.push(value.usage.costUsd);
+            return Promise.resolve();
+          },
+        }),
+      ),
+    ).rejects.toThrow("malformed external message fields");
+    expect(observed).toEqual([]);
+  },
+);
 
-test("native SDK model discovery parses the actual valid control response", async () => {
+test("native SDK model discovery parses the actual valid control response", { tags: "slow" }, async () => {
   await using root = await rootFor("valid");
   const connection = await savedConnection(root);
   const principal = await root.principalFor(root.ownerId);
@@ -106,7 +110,7 @@ test("native SDK model discovery parses the actual valid control response", asyn
   expect(listing).toMatchObject({ listed: true, models: [{ id: MODEL }] });
 });
 
-test.each(["valid", "bad-account"])("native SDK %s account diagnostics retain the existing best-effort policy", async (mode) => {
+test.each(["valid", "bad-account"])("native SDK %s account diagnostics retain the existing best-effort policy", { tags: "slow" }, async (mode) => {
   await using root = await rootFor(mode);
   const connection = await savedConnection(root);
   const principal = await root.principalFor(root.ownerId);
@@ -116,7 +120,7 @@ test.each(["valid", "bad-account"])("native SDK %s account diagnostics retain th
   expect(verified.account).toEqual(mode === "bad-account" ? undefined : { email: "native@example.test" });
 });
 
-test("native SDK metadata projects actual events and deltas without changing paid-result accounting", async () => {
+test("native SDK metadata projects actual events and deltas without changing paid-result accounting", { tags: "slow" }, async () => {
   await using root = await rootFor("metadata");
   const connection = await savedConnection(root);
   const caller = await root.internalCallerFor(root.ownerId);
@@ -153,7 +157,7 @@ test.each([
   "bad-meta-limit",
   "bad-meta-auth",
   "bad-meta-delta",
-])("native SDK %s refuses before its invalid event or terminal observation", async (mode) => {
+])("native SDK %s refuses before its invalid event or terminal observation", { tags: "slow" }, async (mode) => {
   await using root = await rootFor(mode);
   const connection = await savedConnection(root);
   const caller = await root.internalCallerFor(root.ownerId);
@@ -183,7 +187,7 @@ test.each([
   expect(observed).toEqual([]);
 });
 
-test("native SDK malformed property paths never survive in error serialization or the actual logger", async ({ ids }) => {
+test("native SDK malformed property paths never survive in error serialization or the actual logger", { tags: "slow" }, async ({ ids }) => {
   await using root = await rootFor("bad-secret-path");
   const connection = await savedConnection(root);
   const observed: (number | null)[] = [];

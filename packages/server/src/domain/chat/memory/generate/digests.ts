@@ -52,7 +52,7 @@ interface GenerateDigestsArgs {
 }
 
 /** The summarize call options for the FUNDER's memory build: their Utility-role preset params folded over the
- *  `memory_digest` posture (D299). The posture always carries an output cap, which hard-caps a looping model and
+ *  `memory_digest` posture (D304). The posture always carries an output cap, which hard-caps a looping model and
  *  is the SAME value `outputReserve` fits the input against. Read per call, so a changed choice applies next. */
 async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<RolePresetParams> {
   const resolved = resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, await ctx.resolveUtilityPresetParams(funderUserId));

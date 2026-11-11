@@ -35,7 +35,7 @@ export const TAG_FOLDER_TYPES = ["NONE", "OPEN", "CLOSED"] as const;
 export type TagFolderType = (typeof TAG_FOLDER_TYPES)[number];
 export const tagFolderTypeSchema = z.enum(TAG_FOLDER_TYPES) satisfies z.ZodType<TagFolderType>;
 
-/** The proposed/accepted surface for a `character_tags` junction row. `pending` = a suggestion awaiting
+/** The pending/accepted surface for a `character_tags` junction row. `pending` = a suggestion awaiting
  *  "Accept"; `accepted` = the live tag; export reads `accepted` rows. Only `character_tags` carries a
  *  status — the other four junctions are accept-on-attach. */
 export const TAG_STATUSES = ["pending", "accepted"] as const;

@@ -3,7 +3,7 @@
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { workloadSchedules } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainInternalFaultError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { expect, test } from "@orb/testkit/node";
@@ -11,6 +11,8 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { seedWorkloadScheduleRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
+
+class TripwireError extends DomainInternalFaultError {}
 
 async function schedule(
   root: ServerTestHarness,
@@ -106,6 +108,23 @@ test("the actual tick selects only enabled due schedules, not future or disabled
   expect(rows.find((row) => row.id === due.id)?.lastRunAt).toBe(root.clock.now());
   expect(rows.find((row) => row.id === disabled.id)?.lastRunAt).toBeNull();
   expect(rows.find((row) => row.id === future.id)?.lastRunAt).toBeNull();
+});
+
+test("a modeled refusal from the enqueue still advances the schedule, but an internal fault stops the tick and leaves it due", async () => {
+  await using root = await createServerHarness({ startJobs: false });
+  const refused = await schedule(root);
+  root.clock.advance(CADENCE_INTERVAL_MS.daily);
+  const tick = (start: () => Promise<never>): Promise<void> =>
+    tickWorkloadSchedules({ db: databaseHandle(root.db), logger: root.logger, now: root.clock.now, start });
+  const lastRunAt = async (): Promise<number | null | undefined> =>
+    (await root.services.workloads.listSchedules({ caller: await root.principalFor(root.ownerId) })).find((row) => row.id === refused.id)?.lastRunAt;
+
+  await tick(() => Promise.reject(new DomainOperationError("enqueue_refused", "the enqueue was refused")));
+  expect(await lastRunAt()).toBe(root.clock.now());
+
+  root.clock.advance(CADENCE_INTERVAL_MS.daily);
+  await expect(tick(() => Promise.reject(new TripwireError("the enqueue broke an invariant")))).rejects.toBeInstanceOf(TripwireError);
+  expect(await lastRunAt()).toBe(root.clock.now() - CADENCE_INTERVAL_MS.daily);
 });
 
 test("the actual tick advances the next due instant and stamps lastRunAt", async () => {

@@ -16,6 +16,7 @@ export {
   createScopedEgress,
   EgressBlockedError,
   installEgressFirewall,
+  isRecordedEgressBlock,
   systemConnector,
   systemFetch,
   systemResolver,

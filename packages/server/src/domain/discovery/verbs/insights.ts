@@ -10,6 +10,7 @@ import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, notExists, sql } from "drizzle-orm";
 import type { ThemeDriftBucket, ThemeDriftTheme } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
+import { ownedRealCharacters } from "../persistence/character-scope.ts";
 import { storyTimeBucketStart } from "../persistence/embed-store-reads.ts";
 
 export function createInsights(ctx: DiscoveryContext): Pick<DiscoveryService, "themeDrift" | "unusedCharacters"> {
@@ -61,8 +62,7 @@ async function unusedCharacters(db: Db, ownerId: UserId): Promise<ArchetypeMembe
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
     .where(
       and(
-        eq(characters.ownerId, ownerId),
-        eq(characters.synthetic, false),
+        ownedRealCharacters(ownerId),
         notExists(
           db
             .select({ one: sql`1` })

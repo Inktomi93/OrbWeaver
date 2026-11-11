@@ -10,6 +10,7 @@
 // any upload; the old one stays until removed — no in-place overwrite of canon another chat may have retrieved).
 
 import { getLog } from "#foundation/observability";
+import { isRecordedEgressBlock } from "#infra/network";
 import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeWebParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
@@ -36,8 +37,11 @@ export function createScrapeWeb(ctx: DatabankContext): DatabankService["scrapeWe
       bytes = await ctx.fetchUrl(url);
     } catch (err) {
       // The refusal is a client error the transport does not log, and it carries the cause only as `cause`, so a
-      // broken fetch (DNS, reset, timeout, upstream status) is recorded here.
-      getLog(ctx.logger).warn({ err }, "databank: a web scrape fetch failed");
+      // broken fetch (DNS, reset, timeout, upstream status) is recorded here. A firewall block already wrote its
+      // security event, which holds the address this line would not.
+      if (!isRecordedEgressBlock(err)) {
+        getLog(ctx.logger).warn({ err }, "databank: a web scrape fetch failed");
+      }
       // biome-ignore lint/style/useErrorCause: the cause IS forwarded — ScrapeFailedError assigns options.cause; biome can't see through the custom class (the egress.ts EgressBlockedError precedent).
       throw new ScrapeFailedError({ cause: err });
     }

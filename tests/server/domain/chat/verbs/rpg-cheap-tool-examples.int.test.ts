@@ -54,7 +54,7 @@ async function recordedScene(root: Awaited<ReturnType<typeof createCorpusHarness
   throw new Error("The corpus must contain a host-readable narrated RPG scene update.");
 }
 
-test("only a direct Anthropic cheap round sends the state tool examples and requests their beta", async () => {
+test("only a direct Anthropic cheap round sends the state tool examples and requests their beta", { tags: "slow" }, async () => {
   const captured: { endpoint: string; beta: string; body: z.infer<typeof requestSchema> }[] = [];
   let replay: RecordedScene | undefined;
   const corpus = createCorpusProviderExecution({

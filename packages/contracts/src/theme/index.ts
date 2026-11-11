@@ -24,7 +24,7 @@ export type {
   MaterializeBackgroundOp,
   MaterializeBackgroundResult,
 } from "./materialize.ts";
-export { backgroundMaterializeMessage } from "./materialize.ts";
+export { BACKGROUND_UNAVAILABLE_OP_CODE, backgroundMaterializeMessage } from "./materialize.ts";
 export type {
   CardEmbeddableTheme,
   ThemeChatStyle,

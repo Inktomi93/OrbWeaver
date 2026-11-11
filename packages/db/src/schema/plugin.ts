@@ -6,12 +6,12 @@
 // uninstall deletes row-then-asset in one verb). `status`/`origin` DERIVE their CHECK from the ONE-home
 // contract tuples (`@orb/contracts/plugin` — no re-spell, the ASSET_KINDS precedent). `plugin_kv` is the
 // `storage.kv` plane: PK (plugin_id, key), a denormalized `owner_id` guard column (belt: WHERE both), the
-// 128-char key / 64 KiB value caps as tuple-shared CHECK-DDL. `plugin_assets` is the plugin ASSET register —
+// key / value caps as CHECK-DDL read from the contract constants the UI relay's argument schema reads too. `plugin_assets` is the plugin ASSET register —
 // the FK column that makes a `net.fetchAsset` cover or a bundle-shipped `ui/assets/` image
 // VISIBLE to the asset-GC ref registry; `bundle_path` distinguishes the two and resolves a UI node's path.
 
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
-import { PLUGIN_ORIGINS, PLUGIN_STATUSES, PLUGIN_UI_ASSETS_DIR } from "@orb/contracts/plugin";
+import { PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_KV_VALUE_MAX_BYTES, PLUGIN_ORIGINS, PLUGIN_STATUSES, PLUGIN_UI_ASSETS_DIR } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
@@ -22,8 +22,6 @@ import { users } from "./users.ts";
 // CHECK lists derived from the canonical contract tuples (NOT re-spelled).
 const STATUS_CHECK_LIST = checkList(PLUGIN_STATUSES);
 const ORIGIN_CHECK_LIST = checkList(PLUGIN_ORIGINS);
-const KV_KEY_MAX_CHARS = 128;
-const KV_VALUE_MAX_BYTES = 65_536; // 64 KiB
 
 export const plugins = sqliteTable(
   "plugins",
@@ -301,8 +299,8 @@ export const pluginKv = sqliteTable(
     // The denormalized owner guard is ALSO an FK: a user hard-delete cascades these rows, and `ownerId` is
     // not the PK's leading column, so the delete scanned every KV row (FK-index test).
     index("plugin_kv_owner_idx").on(t.ownerId),
-    check("plugin_kv_key_check", sql.raw(`length(key) <= ${KV_KEY_MAX_CHARS}`)),
-    // ≤ 64 KiB of BYTES — length() on TEXT counts characters, so cast to BLOB for the byte cap.
-    check("plugin_kv_value_check", sql.raw(`length(cast(value as blob)) <= ${KV_VALUE_MAX_BYTES}`)),
+    check("plugin_kv_key_check", sql.raw(`length(key) <= ${PLUGIN_KV_KEY_MAX_CHARS}`)),
+    // A cap in BYTES — length() on TEXT counts characters, so cast to BLOB for the byte cap.
+    check("plugin_kv_value_check", sql.raw(`length(cast(value as blob)) <= ${PLUGIN_KV_VALUE_MAX_BYTES}`)),
   ],
 );

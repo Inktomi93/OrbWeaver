@@ -39,9 +39,9 @@
 // server guest, so there is exactly one implementation of each and this file cannot drift from it.
 
 import type { UiProxyableHostFunction } from "@orb/contracts/plugin";
-import { HOST_FUNCTION_CAPABILITY, isUiProxyableHostFunction, PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES } from "@orb/contracts/plugin";
+import { HOST_FUNCTION_CAPABILITY, isUiProxyableHostFunction, PLUGIN_UI_HOST_CALL_CODES, PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import { PluginNotFoundError } from "../contract/errors.ts";
+import { PluginNotFoundError, PluginUiHostCallRefusedError } from "../contract/errors.ts";
 import type { UiHostCallParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
@@ -62,16 +62,18 @@ async function authorize(
   }
   // (2) STATUS — a disabled/errored plugin runs nothing, through any door.
   if (existing.status !== "enabled") {
-    throw new Error("plugin host: this plugin is not enabled — its UI cannot call the host");
+    throw new PluginUiHostCallRefusedError("plugin host: this plugin is not enabled — its UI cannot call the host", {
+      code: PLUGIN_UI_HOST_CALL_CODES.notEnabled,
+    });
   }
   // (3) PROXYABILITY — the closed tuple, not the spelling.
   if (!isUiProxyableHostFunction(fn)) {
-    throw new Error(`plugin host: '${fn}' is not callable from a plugin UI`);
+    throw new PluginUiHostCallRefusedError(`plugin host: '${fn}' is not callable from a plugin UI`, { code: PLUGIN_UI_HOST_CALL_CODES.notProxyable });
   }
   // (4) GRANT — off the row, this call, every call.
   const capability = HOST_FUNCTION_CAPABILITY[fn];
   if (!existing.grantedCapabilities.includes(capability)) {
-    throw new Error(`plugin host: this plugin has not been granted ${capability}`);
+    throw new PluginUiHostCallRefusedError(`plugin host: this plugin has not been granted ${capability}`, { code: PLUGIN_UI_HOST_CALL_CODES.notGranted });
   }
   // (5) ROOM — the claim, verified. `undefined` means the guest named no room, which is legal for the seven
   // room-less functions and a typed refusal for the two that need one (the dispatch raises it).
@@ -91,7 +93,10 @@ export function createUiHostCall(ctx: PluginContext): PluginService["uiHostCall"
     try {
       args = JSON.parse(argsJson);
     } catch (err) {
-      throw new Error("plugin host: uiHostCall arguments must be a JSON document", { cause: err });
+      throw new PluginUiHostCallRefusedError("plugin host: uiHostCall arguments must be a JSON document", {
+        code: PLUGIN_UI_HOST_CALL_CODES.argsNotJson,
+        cause: err,
+      });
     }
     // (7) CONCURRENCY — claimed AFTER every authority gate (a caller who may not reach this plugin must not be
     // able to consume its slots probing) and released in a `finally` so a throwing op always returns its slot.
@@ -110,7 +115,9 @@ export function createUiHostCall(ctx: PluginContext): PluginService["uiHostCall"
       if (Buffer.byteLength(resultJson, "utf8") > PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES) {
         // The outbound mirror of the inbound cap, and a REFUSAL rather than a truncation: a truncated JSON
         // document is not a smaller answer, it is an unparseable one.
-        throw new Error(`plugin host: uiHostCall result exceeds the ${PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES}-byte cap`);
+        throw new PluginUiHostCallRefusedError(`plugin host: uiHostCall result exceeds the ${PLUGIN_UI_HOST_CALL_RESULT_MAX_BYTES}-byte cap`, {
+          code: PLUGIN_UI_HOST_CALL_CODES.resultTooLarge,
+        });
       }
       return { resultJson };
     } finally {

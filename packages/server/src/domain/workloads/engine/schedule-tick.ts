@@ -1,11 +1,12 @@
 // domain/workloads/engine/schedule-tick — the scheduler tick: find every `enabled` schedule with
 // `next_run_at <= now`, enqueue each via the injected `start`, then advance it. A single-active collision
-// is a benign skip (still advances); other domain errors log + advance (a poison schedule can't wedge the
-// tick); a non-domain throw propagates to the driver's per-tick guard (no advance, retried next tick).
+// is a benign skip (still advances); other domain refusals log + advance (a poison schedule can't wedge the
+// tick); a non-domain throw or an internal fault is a bug, not a refusal, so it propagates to the driver's
+// per-tick guard (no advance, retried next tick).
 
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
-import { DomainConflictError, DomainError } from "@orb/kit/errors";
+import { DomainConflictError, DomainError, DomainInternalFaultError } from "@orb/kit/errors";
 import { getLog } from "#foundation/observability";
 import type { ScheduleTickDeps, WorkloadScheduleRow } from "../contract/schedule.ts";
 import { advanceSchedule, findDueSchedules } from "../persistence/schedule-queries.ts";
@@ -29,7 +30,7 @@ async function enqueueDue(deps: ScheduleTickDeps, schedule: WorkloadScheduleRow)
     if (err instanceof DomainConflictError) {
       return;
     }
-    if (err instanceof DomainError) {
+    if (err instanceof DomainError && !(err instanceof DomainInternalFaultError)) {
       log.warn({ scheduleId: schedule.id, kind: schedule.kind, err: err.message }, "schedule-tick: enqueue rejected (advancing anyway)");
       return;
     }

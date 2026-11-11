@@ -182,7 +182,7 @@ export const QUALITY_SAMPLING: Record<Quality, { readonly temperature?: number }
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Side-generation postures — each background task's own sampling (D299).
+// Side-generation postures — each background task's own sampling (D304).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // A side-generation call resolves its sampling through `@orb/inference`'s `resolveSideGenSampling`: the
@@ -551,7 +551,7 @@ export const userIntentSchema = z.strictObject({
 });
 export type UserIntent = z.infer<typeof userIntentSchema>;
 
-// What a non-chat model role takes from its preset (D299): generation params plus its inline reasoning tag pair,
+// What a non-chat model role takes from its preset (D304): generation params plus its inline reasoning tag pair,
 // which splits a prose reply; never other prompt structure.
 // The two tuples partition `UserIntent`'s keys ,
 // so a new intent field reaches background tasks only after someone lists it here. A sampler knob is a role

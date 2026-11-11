@@ -294,16 +294,17 @@ export interface PluginContext {
    *  seam 15 — the URL-install funnel). Wired at compose to `infra/network`'s `fetchPluginBundle`: `safeFetch`
    *  with the arbitrary-URL (`ANY_HOST`) posture — https-only, per-hop private-range/IP-literal denial (the SSRF
    *  wall), a redirect budget, and a byte cap that bounds the download BEFORE `parseBundle` ever sees it. NEVER a
-   *  bare `fetch`. It THROWS on any refusal/non-2xx/network error (the domain never imports infra to branch —
-   *  the `fetchWebDocument`→`ScrapeFailedError` precedent); the URL verbs collapse every throw to a single
+   *  bare `fetch`. It THROWS on any refusal/non-2xx/network error (the domain never branches on why —
+   *  the `fetchWebDocument`→`ScrapeFailedError` precedent — and asks infra only whether the firewall already recorded
+   *  the block); the URL verbs collapse every throw to a single
    *  leak-free {@link PluginBundleFetchError}, so no SSRF oracle crosses the boundary. */
   readonly fetchBundle: ScopedEgress["fetchPluginBundle"];
   /** Git I/O stays in outer tiers; the domain retains lifecycle and install policy. */
   readonly gitSource: Readonly<Pick<PluginGitSource, "clone" | "head">>;
   /** The SHOWCASE bundles this build ships — the SECOND byte source an update can come from, beside
    *  `fetchBundle`'s remembered URL. Injected rather than imported for the same reason every other byte source
-   *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and the domain tier does not touch the
-   *  filesystem (`domain-no-node-fs`; the `domain/import` staging seam is the same call). Wired at compose to
+   *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and this op reaches those files through
+   *  the injected port, never a filesystem import of its own. Wired at compose to
    *  that package's `packShowcaseBundle`/`readShowcaseManifest` — the SAME reader the boot seeder's
    *  `packBundle`/`bundledVersion` ops use, so an update offered here and an auto-upgrade at boot can never
    *  disagree about what ships.

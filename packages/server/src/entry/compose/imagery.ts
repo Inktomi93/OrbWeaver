@@ -38,7 +38,7 @@ export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolve
   readonly roleClientsFor: CaptionImageDeps["roleClientsFor"];
   /** The row-derived host Principal (`createHostPrincipalResolver`), so a run-as principal carries its real role. */
   readonly resolveHostPrincipal: ImageryRoomAccessDeps["resolveHostPrincipal"];
-  /** A user's Utility-role preset params (D299), for caption and extract-quiet. */
+  /** A user's Utility-role preset params (D304), for caption and extract-quiet. */
   readonly resolveUtilityPresetParams: ExtractQuietDeps["resolveUtilityPresetParams"];
   /** IMGMAC — late-bound (chat + rpg both compose after imagery): the chat's authored user-macro defs from
    *  BOTH homes, so an imagery mode template resolves `{{house_style}}` the way a turn does. Deref'd only at

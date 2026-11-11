@@ -51,7 +51,7 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
    `vector_distance_cos` SQL appears solely in `search/persistence/`). All-pairs in-RAM analytics =
    `discovery` only (`pairwiseCosineCooperative` in `@orb/kit/vector-math`). `memory` holds ZERO cosine of either kind —
    it delegates the scan to the injected `searchDigests` op (wired at `packages/server/src/entry/compose/chat.ts`). Note:
-   discovery does NOT call `search` in the built slice — analytics is not retrieval.
+   discovery's analytics never route through `search`: the all-pairs cosine stays in-RAM. Its one search dependency is the injected `similar` seam, bound to search's `similarCharacters` at `packages/server/src/entry/compose/search-discovery.ts` and called by `characterDossier` for the top-k neighbours; a delegated top-k read is `search` performing search, as memory's `searchDigests` is.
 3. **The `hub_score` seam:** `discovery` computes the values (`packages/server/src/domain/discovery/verbs/compute-hub-scores.ts`) →
    `embeddings.writeHubScores` performs the write (the only write that touches `hub_score`) → `search`
    reads it (`cslsAdjust`). A vector write (`store`) NEVER sets or nulls `hub_score` — the column is

@@ -1,4 +1,4 @@
-// The pure fold for a side-generation call's sampling (D299). A non-chat role contributes its preset's generation
+// The pure fold for a side-generation call's sampling (D304). A non-chat role contributes its preset's generation
 // params (`ROLE_PRESET_FIELDS`) and inline reasoning tag pair, never other prompt structure or chat-only intent;
 // both inputs are projected here, so a caller that hands in a whole `UserIntent` cannot leak a chat-only field.
 
