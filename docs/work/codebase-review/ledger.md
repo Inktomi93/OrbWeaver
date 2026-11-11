@@ -53,6 +53,13 @@ Context you need to grade findings, not just find them:
   `*/tool-results/`). `rg -o '.{0,200}KEYPHRASE.{0,300}'` over both dirs finds the decision
   moments; check the hit's date against the death commit before trusting it as post-ruling
   evidence (pre-deletion sessions enforce, they don't decide).
+- Fix directions about MISSING machinery must pass the ledger before being written down: grep
+  `docs/adr/` titles and the cited-ADR text first. A retired gate is usually retired BY RULING
+  (D333 deletes the Verify gates, agent-sync and baseline ledgers and bans "equivalent
+  replacements"), and a finding that recommends re-homing what the ledger banned is a re-decision
+  smuggled in as hygiene. The honest shapes are "the ledger ruled X dead; the prose still
+  promises it" or "no ledger row found; owner call". This exact save happened on the tooling-size
+  cap after the finding was already committed with the wrong fix direction.
 
 Operational traps already paid for — do not re-pay them:
 
@@ -63,7 +70,16 @@ Operational traps already paid for — do not re-pay them:
 
 - `rg -r` takes a REPLACEMENT argument; it ate a search pattern once already. `-rn` is not
   "recursive, line-numbered". Same family: `-E` is an ENCODING flag, not an extended-regex flag —
-  `-E 'a|b'` dies with "unknown encoding".
+  `-E 'a|b'` dies with "unknown encoding". The cluster forms (`-rn`, `-rln`) have now caused this
+  SIX times, always silently, always printing plausible rewritten output ("the n", "450-n").
+  Prescription: spell `--count`, `--files-with-matches`, `--line-number` out long-form in this
+  sweep. A short flag here costs seconds; a silent replace costs a wrong finding.
+
+- "Does gate/rule X still exist?" has two answers and you need the second: config-grep says where
+  it's *written*, a planted probe says whether it *fires*. Write the violating artifact (a 600-line
+  clean file for a size cap, a planted error file for a compiler rule), run the real door
+  (`pnpm exec biome check`, `pnpm exec tsc`), read the diagnostics. Proved the tooling-size cap
+  dead this way after a config sweep had only proved it unfound.
 
 - The doc formatter escapes `[P1]`-style brackets and stray asterisks in markdown; expect
   `\[P2]` in committed ledger text and match it when editing.
