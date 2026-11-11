@@ -301,10 +301,10 @@ export interface PluginContext {
   readonly fetchBundle: ScopedEgress["fetchPluginBundle"];
   /** Git I/O stays in outer tiers; the domain retains lifecycle and install policy. */
   readonly gitSource: Readonly<Pick<PluginGitSource, "clone" | "head">>;
-  /** The SHOWCASE bundles this build ships (#1740) — the SECOND byte source an update can come from, beside
+  /** The SHOWCASE bundles this build ships — the SECOND byte source an update can come from, beside
    *  `fetchBundle`'s remembered URL. Injected rather than imported for the same reason every other byte source
    *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and the domain tier does not touch the
-   *  filesystem (`domain-no-node-fs`; the `domain/import` staging seam is the same call). Wired at compose to
+   *  filesystem: external I/O belongs in infra adapters, so the domain reads bytes through an injected port (the `domain/import` staging seam is the same call). Wired at compose to
    *  that package's `packShowcaseBundle`/`readShowcaseManifest` — the SAME reader the boot seeder's
    *  `packBundle`/`bundledVersion` ops use, so an update offered here and an auto-upgrade at boot can never
    *  disagree about what ships.
