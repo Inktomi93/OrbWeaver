@@ -93,7 +93,7 @@ export interface CheckForUpdatesParams {
 }
 
 /** `upgradeFromStoredUrl` — the TRUE one-click upgrade (U8 2b): re-fetch from the URL the
- *  plugin was installed from (`plugins.source_url`) and run it through the EXISTING `upgrade` verb, so #615's
+ *  plugin was installed from (`plugins.source_url`) and run it through the EXISTING `upgrade` verb, so the
  *  reach-widening→disabled re-consent wall applies UNCHANGED — never a silent auto-update. Owner-scoped: the
  *  plugin's OWN row is loaded (foreign/missing ⇒ leak-free NOT_FOUND) BEFORE any fetch, exactly like
  *  {@link InstallFromUrlParams}; the difference is the URL is the REMEMBERED one, not a caller echo, so the
@@ -105,10 +105,10 @@ export interface UpgradeFromStoredUrlParams {
   readonly expectedBundleHash: PluginBundleHash;
 }
 
-/** `upgradeFromShowcase` — the same one-click upgrade for a SEEDED showcase install (#1740). The byte source is
+/** `upgradeFromShowcase` — the same one-click upgrade for a SEEDED showcase install. The byte source is
  *  the bundle this build SHIPS (`@orb/showcase-plugins`, injected as `ctx.showcase.bundle`) rather than a
  *  remembered URL, and everything else is the stored-url verb's shape exactly: owner-scoped row load FIRST
- *  (foreign/missing ⇒ leak-free NOT_FOUND), then delegate to the REAL `upgrade` verb so #615's
+ *  (foreign/missing ⇒ leak-free NOT_FOUND), then delegate to the REAL `upgrade` verb so the
  *  reach-widening→disabled re-consent wall applies unchanged. A row this build ships no bundle for is a typed
  *  `PluginNotShowcaseError`.
  *
@@ -171,7 +171,7 @@ export interface GetPluginLogParams {
   readonly limit?: number;
 }
 
-/** `installForAllUsers` — the ONE admin-gated verb in this domain (D147 clause (d), resolved 2026-08-24).
+/** `installForAllUsers` — the ONE admin-gated verb in this domain (D147 clause (d)).
  *  PUBLISH `bundle` to the deployment: record it in the distribution set, then FAN OUT one ordinary per-user
  *  install to every existing user. `caller` is the publishing admin — their `can(caller,"admin",{kind:"global"})`
  *  is checked before anything is validated or written, and their CAS holds the published bytes.
@@ -230,7 +230,7 @@ export interface ListSurfacesParams {
 /** `getSurfaceState` — one surface's published state, for a plugin the caller OWNS. Owner-scoped on `pluginId`
  *  (leak-free NOT_FOUND); the v1 invariant is viewer == installer, so the state's one legitimate reader is
  *  exactly this owner. */
-/** `listBundleAssets` — the owned plugin whose bundle-shipped image map to read (#820 seam 11). `pluginId` is
+/** `listBundleAssets` — the owned plugin whose bundle-shipped image map to read. `pluginId` is
  *  the ONLY input and it is not authority: the verb's owner-scoped row load is the gate. */
 export interface ListBundleAssetsParams {
   readonly caller: Principal;
@@ -241,7 +241,7 @@ export interface GetSurfaceStateParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;
   readonly surfaceId: string;
-  /** The ROOM the read is scoped to (row 777). Absent ⇒ the plugin-wide row. Present ⇒ a CLIENT CLAIM, and it
+  /** The ROOM the read is scoped to. Absent ⇒ the plugin-wide row. Present ⇒ a CLIENT CLAIM, and it
    *  is verified: the verb resolves the caller's own chat authority and refuses NOT_FOUND when they cannot read
    *  the room, so a claimed chatId can never turn this into a probe for rooms the caller is not in. */
   readonly chatId?: ChatId;
@@ -325,7 +325,7 @@ export interface InvokeUiActionParams {
   readonly surfaceId: string;
   readonly actionId: string;
   readonly values: Record<string, string>;
-  /** The ROOM the action was taken in (row 777). Absent ⇒ the handler runs with no chat scope and receives
+  /** The ROOM the action was taken in. Absent ⇒ the handler runs with no chat scope and receives
    *  `chat: null` (the U1 settings-panel shape, unchanged). Present ⇒ a CLIENT CLAIM that is MEMBERSHIP-VERIFIED
    *  before it becomes an invocation scope: the verb resolves the caller's own chat authority (leak-free
    *  NOT_FOUND when they cannot read it) and hands the guest the host-minted opaque handle for exactly that
@@ -358,7 +358,7 @@ export interface InvokeUiCommandParams {
   readonly pluginId: PluginId;
   readonly name: string;
   readonly args: string;
-  /** The TYPED arg bag (#791) the surfaces collected against the command's declared `args` — `{}` (or absent, the
+  /** The TYPED arg bag the surfaces collected against the command's declared `args` — `{}` (or absent, the
    *  U5 raw-remainder callers) for a command that declared none. The verb RE-VALIDATES these against the RESIDENT
    *  command's own specs at the membrane (a client is untrusted): a bag missing a required arg, mistyping one, or
    *  naming an off-enum value is a typed refusal BEFORE the guest runs, never a malformed value handed to `onRun`.

@@ -114,7 +114,7 @@ export const workloadsRouter = t.router({
 
   // Also the cross-tenant sweep's IDOR probe target (an id-taking read is what proves owner-scoping). It
   // carried an `@test-fixture` exemption while the sweep was its ONLY consumer; the import tracker's
-  // reconnect gap-heal reads it for real now (#248 — one run to resolve, no list to drive off), so the
+  // reconnect gap-heal reads it for real now (one run to resolve, no list to drive off), so the
   // exemption is deleted rather than left standing as a false claim about who calls this.
   get: authedProcedure
     .output(workloadRowAnyKindSchema)

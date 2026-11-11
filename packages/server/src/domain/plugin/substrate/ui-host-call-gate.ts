@@ -10,7 +10,7 @@
 // records that the counter must be per-INSTANCE and self-healing, learned the hard way when a reset drifted the
 // count NEGATIVE and admitted 36 of a 40-call burst). Tier C opens a SECOND door onto the same ops from a
 // surface that can re-render at animation rate, so it gets the same belt from birth rather than after the first
-// flood — the D46 review's P2-F lesson ("the throttle applies to `invokeUiAction`/`uiHostCall` from birth").
+// flood — the D46 review's lesson ("the throttle applies to `invokeUiAction`/`uiHostCall` from birth").
 //
 // IT IS A COUNTER, NOT A QUEUE, and that is deliberate: the N+1 call is REFUSED with a rate-limit error (a 429
 // the guest can see and back off from), never parked. A queue here would convert a hostile flood into unbounded host
@@ -46,7 +46,7 @@ export function createUiHostCallGate(): UiHostCallGate {
       inFlight.set(pluginId, current + 1);
       // ONE release per acquisition, idempotent: a double-released slot would drift the counter DOWN and
       // eventually admit past the ceiling — the exact negative-drift defect the server-side counter's header
-      // records (measured 2026-08-24: 36 of a 40-call burst admitted). The flag makes a stray second `finally`
+      // records (measured: 36 of a 40-call burst admitted). The flag makes a stray second `finally`
       // harmless rather than corrupting.
       let released = false;
       return (): void => {

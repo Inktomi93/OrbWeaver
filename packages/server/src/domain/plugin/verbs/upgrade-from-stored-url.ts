@@ -1,6 +1,6 @@
 // verb: upgradeFromStoredUrl — the TRUE one-click upgrade (U8 2b). Re-fetch the bundle
 // from the URL the plugin was INSTALLED from (`plugins.source_url`, remembered by the `url`-origin install) and
-// run it through the EXISTING `upgrade` verb — so #615's re-consent wall applies UNCHANGED: `upgrade` lands the
+// run it through the EXISTING `upgrade` verb — so the re-consent wall applies UNCHANGED: `upgrade` lands the
 // row DISABLED pending re-consent whenever the new bundle WIDENS reach (a capability the prior grant never
 // confirmed, OR a `netHosts` entry the prior manifest never declared), and carries a strict NARROWING forward
 // silently. There is NO silent auto-update: the fetch is re-paste-free (the URL is remembered, not re-typed),

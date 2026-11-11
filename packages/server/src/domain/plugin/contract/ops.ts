@@ -127,7 +127,7 @@ export interface PluginHostOps {
     /** The SHARED, hand-edit-safe world-info writer (the ONE write path) — automation's injected type verbatim. */
     readonly upsertEntries: UpsertEntriesOp;
   };
-  /** The `assets.read` capability's READ op (#788 seam-11 read half). Read one asset from the INSTALLER's OWN
+  /** The `assets.read` capability's READ op. Read one asset from the INSTALLER's OWN
    *  CAS — wired at compose to the assets domain's OWNER-GATED `readOwnedAssetBytes` under the installer's
    *  Principal (resolved by ROW READ, so a `UserId` arriving here carries no authority). Owner-scoped by
    *  construction: a guest names only the id and can read only its own. A foreign/absent id is the leak-free
@@ -135,7 +135,7 @@ export interface PluginHostOps {
    *  oracle); an owned asset over the read cap returns metadata with `dataBase64: null`. */
   readonly assets: {
     readonly read: PluginAssetReadOps["read"];
-    /** The `net.fetch_asset` capability's CAS-WRITE op (#798). Write ALREADY-FETCHED-AND-VALIDATED image bytes
+    /** The `net.fetch_asset` capability's CAS-WRITE op. Write ALREADY-FETCHED-AND-VALIDATED image bytes
      *  into the INSTALLER's OWN CAS — wired at compose to the assets domain's `store` under the installer's own
      *  Principal (resolved by ROW READ, so a `UserId` here carries no authority; the store re-verifies the mime
      *  against the magic bytes). Infra performed the fetch + the SSRF egress wall + the remote-image guard and
@@ -143,7 +143,7 @@ export interface PluginHostOps {
      *  realm. Owner-scoped by construction (the bridge closes the installer over it; a guest names no owner).
      *  Returns the new (or content-addressed-deduped) asset id.
      *
-     *  It also RECORDS the fetch in `plugin_assets` (#802), which is why this op needs the `pluginId` the read
+     *  It also RECORDS the fetch in `plugin_assets`, which is why this op needs the `pluginId` the read
      *  half does not: the stored blob has no other referencing row anywhere (the surface that displays it is a
      *  JSON state blob), so without that link the asset-GC ref registry cannot see it and the scheduled sweep
      *  reaps a live cover one grace window later. The pluginId costs no new refusal — the same call already
@@ -157,7 +157,7 @@ export interface PluginHostOps {
       readonly assetId: SandboxWireId<AssetId>;
     }>;
   };
-  /** The `search.query` capability's READ op (#788 F1). Semantic document search over the INSTALLER's OWN
+  /** The `search.query` capability's READ op. Semantic document search over the INSTALLER's OWN
    *  corpus — wired at compose to search's `documents` with `scope: { ownerId: installerUserId }`, so a guest
    *  searches only its own library (owner-scoped by construction — a guest names only the query + limit). The
    *  limit is clamped to `PLUGIN_SEARCH_RESULTS_MAX` at the membrane. Returns ranked reduced hits (content
@@ -174,7 +174,7 @@ export interface PluginHostOps {
   readonly storage: {
     readonly get: (pluginId: PluginId, ownerId: UserId, key: string) => Promise<string | null>;
     readonly set: (pluginId: PluginId, ownerId: UserId, key: string, value: string) => Promise<void>;
-    /** The ATOMIC arm (#1442) — `set` with a precondition on the current value (`null` = the key must be
+    /** The ATOMIC arm — `set` with a precondition on the current value (`null` = the key must be
      *  absent). Same caps, same scope; the predicate rides the write, so it is safe under the concurrency
      *  `set` is not. */
     readonly compareAndSet: (
@@ -263,7 +263,7 @@ export interface PluginHostOps {
     readonly voidForPlugin: VoidPluginSuggestions;
   };
   /** The declarative UI-surface state seam (`host.ui.setState`, capability `ui.surface`
-   *  U1; the chatId dimension is row 777). `setState` publishes a surface's whole replacement state: the compose
+   *  U1, plus the chatId room dimension). `setState` publishes a surface's whole replacement state: the compose
    *  op writes the per-(pluginId, surfaceId, chatId?) in-memory state row (the S4-suggestion-store precedent —
    *  respawn wipes; durable state is the plugin's own `storage.kv` job) and emits the per-user
    *  `pluginSurfaceStateChanged` freshness poke so the INSTALLER's own client refetches. Keyed by `pluginId` AND
@@ -277,7 +277,7 @@ export interface PluginHostOps {
       readonly pluginId: PluginId;
       readonly installerUserId: UserId;
       readonly surfaceId: string;
-      /** `null` = the plugin-wide row every room shares; a chat id = that room's own row (row 777). ALREADY
+      /** `null` = the plugin-wide row every room shares; a chat id = that room's own row. ALREADY
        *  ADMITTED — the membrane resolved the guest's opaque handle against the invocation's one token, so the
        *  domain never re-derives which rooms a guest may name. */
       readonly chatId: ChatId | null;
@@ -316,14 +316,14 @@ export interface PluginHostOps {
       readonly card: Record<string, unknown>;
       /** The CALLING plugin's own manifest id, closed over by the bridge (never guest-supplied) — the
        *  unspoofable identity `importedFrom` provenance mints from when the card carries no filename
-       *  (#1702). `null` for the (currently unreachable — no snippet grant profile carries this capability)
+       *. `null` for the (currently unreachable — no snippet grant profile carries this capability)
        *  transient-snippet path. */
       readonly pluginId: PluginId | null;
     }) => Promise<{
       readonly characterId: SandboxWireId<CharacterId>;
       readonly created: boolean;
     }>;
-    /** The remote-image "summon with art" op (`character.ingestAsset`, capability `character.ingest` — #798).
+    /** The remote-image "summon with art" op (`character.ingestAsset`, capability `character.ingest`).
      *  Read a PNG asset from the INSTALLER's OWN CAS (owner-gated `readOwnedAssetBytes` — a foreign/absent id
      *  rejects leak-free) and run the SAME `importCharacter` funnel a file upload takes over those bytes, so the
      *  created character arrives WITH its embedded avatar (the plain `card`-JSON path cannot carry it). Same
@@ -528,7 +528,7 @@ export interface PluginBelts {
   readonly notify: NotifyFloor;
   /** The `net.fetch` hourly egress ceiling — the only bound on egress RATE (the D46 review's tracked finding). */
   readonly egress: PluginRateFloor;
-  /** The `net.fetchAsset` hourly ceiling — SPLIT from `egress` (#801) so an art grid's honest cover spend
+  /** The `net.fetchAsset` hourly ceiling — SPLIT from `egress` so an art grid's honest cover spend
    *  (~30 per fresh browse page) can never starve text egress; the GET-to-allowlist channel prices
    *  differently from `net.fetch`'s POST-capable one. */
   readonly assetEgress: PluginRateFloor;

@@ -119,7 +119,7 @@ export const personaRouter = t.router({
       }),
     ),
 
-  // The junction read from the PERSONA side (#866 S4 — the editor's "Connected characters" section).
+  // The junction read from the PERSONA side (the editor's "Connected characters" section).
   listConnectedCharacters: authedProcedure
     .output(z.array(connectedCharacterViewSchema))
     .input(personaIdInputSchema)

@@ -7,6 +7,7 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
+import type { AppearanceSettings } from "../settings/appearance.ts";
 import type { PortableSchemaKind } from "./envelope.ts";
 
 export {
@@ -103,9 +104,54 @@ export const portableTextFileSchema = z.strictObject({ filename: z.string(), fil
  *  whether a row was minted (false = an owned entity with equal content was reused). */
 export const importLandingSchema = z.strictObject({ created: z.boolean(), name: z.string(), renamedFrom: z.string().nullable() });
 
+/** The viewer's own Appearance settings a SillyTavern theme key names an equivalent of. Each is a key of the appearance
+ *  settings, so a rename there fails `tsc` here; the Looks note names each by its production label. */
+export const THEME_LEFTOVER_APPEARANCE_SETTINGS = [
+  "fontScale",
+  "chatWidthPct",
+  "avatarShape",
+  "avatarAspect",
+  "chatStyle",
+  "shadowEffects",
+  "blurSurfaces",
+  "blurStrength",
+  "showGenerationTimer",
+  "showTimestamps",
+  "showModelIcon",
+  "showMessageId",
+  "showInChatAvatars",
+  "showTokenCount",
+  "messageActions",
+  "reducedMotion",
+] as const satisfies readonly (keyof AppearanceSettings)[];
+export type ThemeLeftoverAppearanceSetting = (typeof THEME_LEFTOVER_APPEARANCE_SETTINGS)[number];
+
+/** Why a SillyTavern theme key was left behind, and so whether the person has anything to do: `appearance` is a display
+ *  choice the viewer sets themselves in Appearance (the settings it names), `no-equivalent` has no counterpart here, and
+ *  `faint-colour` is a text colour dropped because it would not be readable on its background. A consumer that says
+ *  something for each maps over this tuple, so a new kind fails `tsc` where it is missing. */
+export const THEME_LEFTOVER_REASON_KINDS = ["appearance", "no-equivalent", "faint-colour"] as const;
+export type ThemeLeftoverReasonKind = (typeof THEME_LEFTOVER_REASON_KINDS)[number];
+const [APPEARANCE_KIND, NO_EQUIVALENT_KIND, FAINT_COLOUR_KIND] = THEME_LEFTOVER_REASON_KINDS;
+
+const themeLeftoverReasonSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal(APPEARANCE_KIND), settings: z.array(z.enum(THEME_LEFTOVER_APPEARANCE_SETTINGS)).min(1).readonly() }),
+  z.strictObject({ kind: z.literal(NO_EQUIVALENT_KIND) }),
+  z.strictObject({ kind: z.literal(FAINT_COLOUR_KIND) }),
+]);
+export type ThemeLeftoverReason = z.infer<typeof themeLeftoverReasonSchema>;
+
+/** One SillyTavern theme key the file carried that found no orb theme field: its own name and why it was left. */
+const themeLeftoverSchema = z.strictObject({ key: z.string().min(1), reason: themeLeftoverReasonSchema });
+export type ThemeLeftover = z.infer<typeof themeLeftoverSchema>;
+
+/** Where one imported theme landed, plus the SillyTavern keys the file carried that found no orb field (empty for an orb-native
+ *  file). They describe the file, so a reused theme states the same keys. */
+export const themeImportLandingSchema = importLandingSchema.extend({ unmapped: z.array(themeLeftoverSchema).readonly() });
+
 // ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
-// Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original
-// `PortableEnvelope` died unconsumed in `c1a8f726c7` because each serde re-spelled it structurally — the
+// Every orb-NATIVE portable file carries this header. It has consumers (an unconsumed
+// envelope dies because each serde re-spells it structurally — the
 // drift that let world-info spell the version key `version` and persona ship no envelope at all): the ONE
 // consumer is `@orb/server/primitives/serde/lib`, the spine every orb-native JSON serde is defined through, so a
 // family can no longer re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by
@@ -122,7 +168,7 @@ export interface PortableEnvelope {
 // Why a portable file did not parse. One axis for every orb-native family, so the per-file import outcome
 //  can say "written by a newer orbweaver" instead of the old uniform "not a valid X file".
 //
-//  `invalid-encoding` (#1460) is DISTINCT from `not-json`: the shared decode boundary
+//  `invalid-encoding` is DISTINCT from `not-json`: the shared decode boundary
 //  (`@orb/server/primitives/serde/lib`'s `decodeObject`) used a non-fatal `TextDecoder`, so malformed UTF-8 bytes
 //  silently became U+FFFD and the corrupted string still passed `JSON.parse` — a corrupted artifact "imported
 //  successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a file that

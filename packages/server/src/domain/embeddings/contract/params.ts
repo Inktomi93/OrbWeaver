@@ -57,7 +57,7 @@ export interface ImageCaptionedStoreParams extends EmbedAbortParams {
  *  `(chatId, blockIdx, chunkIdx, model)`.
  *
  *  Segments are written through {@link EmbeddingsService.storeSegments} (a BATCH), never through the single
- *  `store` — a block over the embed window becomes N chunks (#172), and the corpus sweep submits every chat's
+ *  `store` — a block over the embed window becomes N chunks, and the corpus sweep submits every chat's
  *  chunks as ONE embed flood (owner batching ruling: batch by phase, let vLLM's scheduler own concurrency). */
 export interface SegmentStoreParams {
   readonly lens: "segment";
@@ -104,7 +104,7 @@ export interface DigestStoreParams extends EmbedAbortParams {
 export interface DocumentChunkStoreParams extends DocumentChunkStoreInput, EmbedAbortParams {}
 
 /** The single write path's input — discriminated on `lens`. `segment` is NOT an arm: verbatim segments are
- *  written in BATCHES through `storeSegments` (#172), the one place their corpus-wide embed flood lives. */
+ *  written in BATCHES through `storeSegments`, the one place their corpus-wide embed flood lives. */
 export type StoreParams = CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams | DigestStoreParams | DocumentChunkStoreParams;
 
 /** `embedCorpus` / `embedAssets` input — the resumable, `content_hash`-gated bulk sweep. `force` re-embeds
@@ -120,6 +120,6 @@ export interface EmbedPassParams {
   readonly ownerId: UserId | null;
   /** Per-item position, for the caller's progress surface: called after each item with how many of the
    *  enumerated total are done. Absent = a silent pass (every non-workload caller). The pass is the ONLY
-   *  place that knows its denominator — the workload wrapper enumerates nothing (issue #166 rider 3). */
+   *  place that knows its denominator — the workload wrapper enumerates nothing. */
   readonly onProgress?: ((done: number, total: number) => void) | undefined;
 }

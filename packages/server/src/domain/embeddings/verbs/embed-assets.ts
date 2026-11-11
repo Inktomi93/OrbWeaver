@@ -38,7 +38,7 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsS
     const failedAssets: AssetId[] = [];
     // `ownerId` scopes the sweep to one owner; `null` = every owner. The enumeration is materialised BEFORE
     // the loop because it is also the progress DENOMINATOR — the workload wrapper around this pass cannot
-    // know it (issue #166: a sweep that only ever reported a sentence left the card an indeterminate bar
+    // know it (a sweep that only ever reported a sentence left the card an indeterminate bar
     // through a 350-image run).
     const assetIds = await ctx.listImageAssetIds(ownerId);
     // Every owner the sweep resolved, with the image space it embedded into — the purge set.

@@ -1,5 +1,5 @@
-// verb: getSurfaceState — one owned surface's published state (U1; the room dimension is
-// row 777). TWO gates, and they answer two different questions:
+// verb: getSurfaceState — one owned surface's published state (U1, plus the room
+// dimension). TWO gates, and they answer two different questions:
 //
 //  1. OWNER SCOPE — the `getById(db, caller.userId, pluginId)` load IS the gate for the PLUGIN (a foreign
 //     pluginId reads absent → leak-free NOT_FOUND, never an existence oracle), the SAME authority model every

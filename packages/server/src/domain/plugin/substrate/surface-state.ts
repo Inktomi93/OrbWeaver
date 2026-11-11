@@ -1,5 +1,5 @@
 // domain/plugin/substrate/surface-state — the in-memory per-(pluginId, surfaceId, chatId?) UI-surface STATE
-// plane (U1; the chatId dimension is row 777). `host.ui.setState` writes it (through the
+// plane (U1, plus the chatId room dimension). `host.ui.setState` writes it (through the
 // bridge → the compose op); `plugin.getSurfaceState` reads it (the U1 read verb). The S4-suggestion-store
 // precedent: process-wide, ONE per service, `ASSUMES(single-replica)`, and RESPAWN WIPES — durable state is the
 // plugin's own `storage.kv` job, never this. Keyed by pluginId AND surfaceId AND the optional chatId, so one
@@ -8,7 +8,7 @@
 // publication. Cleared per-plugin — across every room — on deactivate/uninstall (no ghost state outlives a
 // disabled plugin).
 //
-// THE ROOM DIMENSION IS A KEY, NOT A FILTER (row 777). `chatId: null` and a concrete chat id name DIFFERENT
+// THE ROOM DIMENSION IS A KEY, NOT A FILTER. `chatId: null` and a concrete chat id name DIFFERENT
 // rows and neither falls back to the other. A plugin publishing room-wide ("your latest reading, taken across
 // your rooms") and one publishing per-room ("this room's reading") are making different claims, and quietly
 // serving the shared row to a room-scoped read would turn the second claim into a lie the first time a plugin
@@ -29,15 +29,15 @@ const SURFACE_STATE_MAX_BYTES = 16_384;
 /** The per-plugin ceiling on the number of DISTINCT state keys the plane holds (the storage.kv 256-key
  *  discipline, but SMALL). Without it a resident plugin could loop `host.ui.setState(mint(), <16 KiB blob>)`
  *  with a fresh surfaceId each call and grow THIS Map without bound in the DOMAIN's Node/V8 heap (NOT the guest
- *  WASM heap — the 32 MiB sandbox cap does not reach it), a host OOM affecting every tenant (#707 Finding B). A
+ *  WASM heap — the 32 MiB sandbox cap does not reach it), a host OOM affecting every tenant. A
  *  NEW key past the cap is refused; an existing-key overwrite always proceeds (only a new key consumes a slot).
  *  `64 × 16 KiB ≈ 1 MiB` bounds one plugin's plane.
  *
- *  ROW 777 CONSEQUENCE, stated rather than silently widened: a key is now `(surfaceId, chatId?)`, so a
+ *  THE ROOM-KEY CONSEQUENCE, stated rather than silently widened: a key is now `(surfaceId, chatId?)`, so a
  *  room-anchored widget consumes ONE SLOT PER ROOM it publishes into and a plugin in 64 rooms refuses the 65th.
  *  That refusal is CONTAINED (a rejected guest promise + the log line below) and the 1 MiB heap bound is exactly
- *  the one #707 bought, so this lane does NOT widen a DoS belt to make a feature roomier. The priced revision —
- *  per-plugin byte budget rather than key count, or an LRU over rooms — is board row 778, parked until a real
+ *  the measured DoS bound, so this lane does NOT widen a DoS belt to make a feature roomier. The priced revision —
+ *  per-plugin byte budget rather than key count, or an LRU over rooms — waits until a real
  *  plugin hits this. Until then the refusal must be VISIBLE: a per-room widget that silently stopped updating
  *  with no trace would violate §4.9's diagnosability posture, so the throw carries the plugin AND the room. */
 const PLUGIN_SURFACE_STATE_MAX_KEYS = 64;
@@ -72,7 +72,7 @@ export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStat
       const key = stateKey(pluginId, surfaceId, chatId);
       // Only a NEW key consumes a slot — an existing-key overwrite always proceeds (the storage.kv discipline).
       // A fresh key past the cap is REFUSED, so a `setState(mint(), …)` loop cannot grow the plane unbounded
-      // (#707 Finding B). The count is a prefix scan over the shared Map; the cap is small so the scan stays
+      //. The count is a prefix scan over the shared Map; the cap is small so the scan stays
       // tiny (at most PLUGIN_SURFACE_STATE_MAX_KEYS keys per plugin).
       if (!states.has(key)) {
         const prefix = `${pluginId}:`;
@@ -83,7 +83,7 @@ export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStat
           }
         }
         if (count >= PLUGIN_SURFACE_STATE_MAX_KEYS) {
-          // LOUD, not silent (row 777 / §4.9): with the room dimension this cap is reachable by a legitimate
+          // LOUD, not silent (§4.9): with the room dimension this cap is reachable by a legitimate
           // per-room widget in a 65th room, and a widget that just stops updating with no trace is exactly the
           // undiagnosable failure the plugin log exists to prevent. The guest sees the rejection; an operator
           // sees WHICH plugin and WHICH room, which is what a board-row-778 decision would be made from.
@@ -115,7 +115,7 @@ export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStat
  *  the member's producer (the same reason every domain verb constructs its own `emitUserEvent`
  *  event rather than letting compose do it). Compose injects the store + `publishUserEvent`.
  *
- *  THE POKE STAYS COARSE, and that is a preserved ruling rather than an oversight (row 777). The bus member's
+ *  THE POKE STAYS COARSE, and that is a preserved ruling rather than an oversight. The bus member's
  *  own home (`@orb/contracts/user-bus`) records the decision: this member carries a `pluginId` hint and no
  *  finer one, because the client's filter path-invalidates `plugin.getSurfaceState` WHOLE
  *  (`data/invalidation.ts`) — every input, chat-keyed rows included — so a `chatId` on the event would target

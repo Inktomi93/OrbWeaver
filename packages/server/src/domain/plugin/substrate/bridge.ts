@@ -109,7 +109,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         }
         return await ops.chat.getVariables(chatId);
       },
-      // THE ROSTER READ (#788 F11) — the SAME viewer choke `listMessages` uses. Resolve the installer's
+      // THE ROSTER READ — the SAME viewer choke `listMessages` uses. Resolve the installer's
       // membership FIRST; a non-member (a chat that raced a kick/leave between admission and this call) ⇒ `[]`,
       // never a read of a room the caller is no longer in. Membership confirmed, the read is the room's own
       // present character seats (reduced to id/name/avatar) — the room's member-visible state, so no owner filter
@@ -139,7 +139,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       },
     },
     worldInfo: {
-      // THE LORE READ (#788 F12) — the read symmetry of the write below, owner-scoped + attachment-gated the
+      // THE LORE READ — the read symmetry of the write below, owner-scoped + attachment-gated the
       // SAME way. `listBooks` reads world-info's own MEMBER-gated `listForChat` under the installer, so a
       // non-member gets `[]` and only books attached to THIS room are named.
       listBooks: (chatId): Promise<readonly PluginWorldBookView[]> => ops.worldInfo.listBooksForChat(installerUserId, chatId),
@@ -216,24 +216,24 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       set: (key, value) => ops.variables.set(installerUserId, key, value),
       delete: (key) => ops.variables.delete(installerUserId, key),
     },
-    // THE CAS ASSET READ (#788 seam-11 read half). Closed over the INSTALLER only — a guest names an id and can
+    // THE CAS ASSET READ. Closed over the INSTALLER only — a guest names an id and can
     // name no owner, so a cross-owner read is structurally impossible (the `variables`/`storage` pattern). The
     // compose op reads through the assets domain's OWNER-GATED front door and collapses a foreign/absent id to
     // the leak-free `null`; NO `requirePluginId` (the read keys nothing on the pluginId — it is the installer's
     // own reach, the `databank`/`variables` posture). The capability gate is the membrane-tier wall.
     assets: {
       read: (assetId) => ops.assets.read({ installerUserId, assetId }),
-      // #798 — the `net.fetch_asset` CAS write. Closed over the INSTALLER only (a guest names no owner), the
+      // The `net.fetch_asset` CAS write. Closed over the INSTALLER only (a guest names no owner), the
       // `read`/`variables`/`databank` owner-closure. Infra performed the fetch + SSRF wall + remote-image guard
       // and hands ONLY validated bytes + the sniffed mime; the bytes cross THIS seam, never the guest realm.
-      // `requirePluginId` HERE (unlike `read`) because the write is RECORDED against the plugin — the #802
+      // `requirePluginId` HERE (unlike `read`) because the write is RECORDED against the plugin — the
       // `plugin_assets` link is what makes the fetched blob visible to the asset-GC ref registry, and its
       // retention unit is the install. It adds no refusal a live path can reach: this same call already claimed
       // `admitAssetEgress` above, which requires the identical durable identity (and a snippet holds neither the
       // capability nor an id).
       storeFetched: (bytes, mime) => ops.assets.storeFetched({ pluginId: requirePluginId("net.fetchAsset"), installerUserId, bytes, mime }),
     },
-    // FIRST-PARTY RETRIEVAL (#788 F1). Closed over the INSTALLER only — the guest supplies the query text + the
+    // FIRST-PARTY RETRIEVAL. Closed over the INSTALLER only — the guest supplies the query text + the
     // (already host-clamped) limit and can name no owner, so the compose op's `scope: { ownerId: installer }`
     // makes a cross-owner search structurally impossible (the `assets`/`databank` owner-closure pattern).
     // Query embedding may spend the installer's hosted credential, so claim this plugin's hourly slot first.
@@ -313,7 +313,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     admitEgress: (): void => {
       belts.egress.admit(requirePluginId("net.fetch"));
     },
-    // The `net.fetchAsset` claim rides its OWN belt (#801 split — see the contract's member header): same
+    // The `net.fetchAsset` claim rides its OWN belt (see the contract's member header): same
     // closure mechanics, different ceiling, so covers never starve text egress.
     admitAssetEgress: (): void => {
       belts.assetEgress.admit(requirePluginId("net.fetchAsset"));
@@ -351,12 +351,12 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       ingest: (doc) => ops.databank.ingest({ installerUserId, name: doc.name, text: doc.text }),
     },
     character: {
-      // `pluginId` rides along for PROVENANCE only (#1702) — the ingest/ingestAsset ops key no per-plugin
+      // `pluginId` rides along for PROVENANCE only — the ingest/ingestAsset ops key no per-plugin
       // belt on it (see the file-header note above this block), so it is the already-derived closure var,
       // never `requirePluginId` (which would newly refuse the — currently unreachable — transient-snippet
       // path this capability's fixed grant profile already excludes).
       ingest: (card) => ops.character.ingest({ installerUserId, card, pluginId }),
-      // #798 — the remote-image "summon with art" arm. Closed over the INSTALLER only (a guest names no owner);
+      // The remote-image "summon with art" arm. Closed over the INSTALLER only (a guest names no owner);
       // the compose op reads the PNG from the installer's OWN CAS (owner-gated, leak-free on foreign/absent) and
       // runs the SAME importCharacter funnel `ingest` does. Rides the SAME `character.ingest` grant.
       ingestAsset: (assetId) => ops.character.ingestAsset({ installerUserId, assetId, pluginId }),

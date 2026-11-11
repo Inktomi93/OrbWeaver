@@ -11,7 +11,7 @@ export interface ExamplePluginSeederDeps {
   readonly slugs: readonly string[];
   /** Pack one example's source directory into installable bundle bytes; `null` when the pack ships no such
    *  slug. A missing example skips ONE plugin and does not fail the pass (the other slugs still install) —
-   *  but it does BLOCK THE LATCH (#1411), so the skip is retried rather than made permanent. */
+   *  but it does BLOCK THE LATCH, so the skip is retried rather than made permanent. */
   readonly packBundle: (slug: string) => Promise<Uint8Array | null>;
   /** The version the SHIPPED bundle declares, read off its own manifest (`readShowcaseManifest`) and never
    *  re-spelled anywhere. `null` when the package ships no such slug — the same absence `packBundle` reports,

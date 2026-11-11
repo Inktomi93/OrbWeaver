@@ -1,7 +1,7 @@
 // domain/plugin/persistence/plugin-assets — the `plugin_assets` register: which assets an installed plugin
 // holds. TWO provenances share the table (see its schema header): a cover pulled at RUNTIME through
-// `net.fetchAsset` (#802, `bundlePath: ""`), and an image unpacked at INSTALL time from the bundle's
-// `ui/assets/` directory (#820, `bundlePath: "ui/assets/<name>"`). Both exist to be SEEN by the asset-GC ref
+// `net.fetchAsset` (`bundlePath: ""`), and an image unpacked at INSTALL time from the bundle's
+// `ui/assets/` directory (`bundlePath: "ui/assets/<name>"`). Both exist to be SEEN by the asset-GC ref
 // registry (`domain/assets/persistence/asset-refs.ts#ASSET_REFS`); the bundle rows are additionally the
 // path → assetId RESOLUTION source a UI `image`/hero/tile node is rendered through.
 // Queries only. The fetched write is called from the `storeFetched` host op after the CAS store has minted the
@@ -36,7 +36,7 @@ export async function recordPluginFetchedAsset(db: Db, pluginId: PluginId, asset
     .onConflictDoUpdate({ target: [pluginAssets.pluginId, pluginAssets.assetId, pluginAssets.bundlePath], set: { fetchedAt } });
 }
 
-/** The statement that links ONE bundle-shipped asset (#820) to its plugin at `bundlePath`. Returned
+/** The statement that links ONE bundle-shipped asset to its plugin at `bundlePath`. Returned
  *  UNEXECUTED so install/upgrade can batch every link with the `plugins` row write itself — the links and the
  *  row land together or not at all, because a row whose links half-landed renders permanent placeholders and
  *  leaves the missing blobs to the GC. Upserts on the triple: re-installing the same bundle over the same

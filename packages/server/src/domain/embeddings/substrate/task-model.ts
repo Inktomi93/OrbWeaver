@@ -4,7 +4,7 @@
 //
 // THE TAG IS `embedSpaceOf`, NOT `resolved.model` (§10-2). The connection row's `model` column names the
 // weights; the SPACE additionally carries the served precision, because a re-quantised encoder produces
-// different vectors (#2417). The backend stamps that same tag on its `EmbedResult.model`, so deriving only
+// different vectors. The backend stamps that same tag on its `EmbedResult.model`, so deriving only
 // the bare column here wrote every row into `<model>@<dtype>` while every read filtered on `<model>` —
 // silently empty search, and an old-space purge that reclaimed the live corpus.
 //

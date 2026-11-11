@@ -19,7 +19,7 @@ Silent truncation is data loss a plugin author cannot see, and key aliasing lets
 
 ## Done when
 
-A string of any content crosses the boundary whole in both directions, by a length-aware read and write, with a real-guest round-trip test for an argument, a return value, a nested value and an object key each holding a NUL. A recorded decision settles the coercing functions: they refuse a non-string where the contract says string, with the documented compareAndSet mapping kept or restated, and the refusal is the coded one the relay uses. The storage size tests still deliver a NUL to the size check by a path that exists after the change.
+A string of any content crosses the boundary whole in both directions, travelling inside the engine's own JSON encoding, with a real-guest round-trip test for an argument, a return value, a nested value and an object key each holding a NUL. The storage and variables functions refuse a non-string where the contract says string, with the plain membrane refusal the handle, URL and id checks use; compareAndSet keeps its documented mapping of null or an omitted precondition to a create. The storage size tests deliver a NUL to the size check through the plain string path.
 
 ## Evidence
 

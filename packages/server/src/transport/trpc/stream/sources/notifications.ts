@@ -1,5 +1,5 @@
 // Room source: `notifications` — the per-user durable inbox stream (SSE-1 §4.2/S3), MOVED from
-// `routers/notifications.ts::notifications` (`notificationStream`; the newest-first `collectSince` became the ascending `replaySince` pump in #1459). The
+// `routers/notifications.ts::notifications` (`notificationStream`; the newest-first `collectSince` became the ascending `replaySince` pump). The
 // durable-first ordering is unchanged; only the transport underneath moved and the resume cursor moved from
 // the tracked envelope's id onto the frame's own `seq` (§3.3 — the socket's tracked id is a per-socket
 // ordinal, so a durable cursor has to travel INSIDE the frame).
@@ -13,7 +13,7 @@
 // attach would be a second copy of a read it just did. That is the same first-subscribe-vs-reconnect
 // asymmetry `lastEventId` expressed before the fold.
 //
-// AUTHZ — AUTHED IS THE WHOLE GATE (#1627, 2026-09-05). There is nothing left to refuse here: the channel
+// AUTHZ — AUTHED IS THE WHOLE GATE. There is nothing left to refuse here: the channel
 // key IS `principal.userId` (never client input — the `notifications` room ref carries no field that could
 // widen it), the durable resume read is caller-scoped inside the verb, and `stream.attach`/`connect` are
 // `authedProcedure`. So this room takes the `user` room's posture: `authorizeAttach` is a no-op and there is
@@ -58,7 +58,7 @@ export const notificationsRoomSource: RoomSourceDef<"notifications"> = {
     const live = liveBuses.notifications.subscribeNotifications(principal.userId, signal);
     let maxSeq = cursor ?? 0;
 
-    // THE WATERMARK NEVER PASSES A ROW THAT WAS NOT YIELDED, by construction (#1459). Every page is read
+    // THE WATERMARK NEVER PASSES A ROW THAT WAS NOT YIELDED, by construction. Every page is read
     // ASCENDING from `maxSeq` — which is the last row this pump actually YIELDED — so the delivered set is a
     // contiguous prefix of the log at every instant, and the next page begins exactly one row above it. A
     // pump that stops anywhere (an abort, a `lag` shed, a socket death) therefore resumes without a gap;

@@ -1,13 +1,15 @@
 // A signed-in person posts a docx or an epub to the databank upload route. A file that is not a document is refused
-// as a client error that names the failed extraction and stores nothing; a valid file of the same format lands and
-// reads back as its text. The files carry the zip signature the store checks, so the refusal comes from the loader,
-// and the root's log ring holds one warn record with the loader's cause for it and none for the valid file.
+// as a client error that names the failed extraction, carries its code and stores nothing; a valid file of the same
+// format lands and reads back as its text. The files carry the zip signature the store checks, so the refusal comes
+// from the loader, and the root's log ring holds one warn record with the loader's cause for it and none for the valid
+// file. An archive that would unpack past a loader's size budget is refused under its own code, not as a damaged file,
+// and a type the route does not accept carries its code too.
 // @subject packages/server/src/entry/http/upload.ts
 // @subject packages/server/src/infra/extraction/index.ts
 
-import { uploadResultSchema } from "@orb/contracts/databank";
-import { ExtractionFailedError } from "@orb/contracts/extraction";
-import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
+import { documentUploadRefusalSchema, uploadResultSchema } from "@orb/contracts/databank";
+import { EXTRACTION_OP_CODES, ExtractionFailedError, ExtractionTooLargeError } from "@orb/contracts/extraction";
+import { DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES, DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
 import { createAuthModeRoot, ownerSubject, signIn } from "@orb/testkit/node/auth";
 import { strToU8, unzipSync, zipSync } from "fflate";
@@ -84,7 +86,7 @@ test.for(FORMATS)(
     const cut = truncated(valid);
     const refused = await post(cut);
     expect(refused.status).toBe(400);
-    expect(await refused.json()).toEqual({ error: new ExtractionFailedError(format).message });
+    expect(await refused.json()).toEqual({ error: new ExtractionFailedError(format).message, reason: EXTRACTION_OP_CODES.failed });
     expect((await root.services.databank.list({ principal })).items).toEqual([]);
     // The operator keeps the loader's own text: one warn record names the format and carries the cause.
     expect(extractionWarnings()).toMatchObject([{ format, err: { message: openingFailure(cut) } }]);
@@ -99,3 +101,61 @@ test.for(FORMATS)(
     expect(extractionWarnings()).toHaveLength(1);
   },
 );
+
+// A zip of zeros deflates to almost nothing, so the upload stays far under the route cap while its headers declare more
+// output than a loader admits: the case a size budget exists for. The sizes derive from the aggregate budget, which
+// exceeds every per-part cap, so either guard refuses them.
+const ZEROS = new Uint8Array(DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES);
+const ZEROS_QUARTER = ZEROS.subarray(0, DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES / 4);
+const BOMB_LEVEL = 1;
+const EPUB_ENTRIES = 5;
+
+function bomb(parts: Readonly<Record<string, Uint8Array>>): Uint8Array {
+  return zipSync(parts, { mtime: ZIP_MTIME, level: BOMB_LEVEL });
+}
+
+interface OverBudgetCase {
+  readonly filename: string;
+  readonly format: ExtractionTooLargeError["format"];
+  readonly bytes: Uint8Array;
+}
+
+// One docx part past the per-part cap, and an epub whose entries each fit but sum past the aggregate budget.
+const OVER_BUDGET: readonly OverBudgetCase[] = [
+  { filename: "ledger.docx", format: "docx", bytes: bomb({ "word/document.xml": ZEROS }) },
+  {
+    filename: "road.epub",
+    format: "epub",
+    bytes: bomb(Object.fromEntries(Array.from({ length: EPUB_ENTRIES }, (_, index) => [`chapter-${String(index)}.xhtml`, ZEROS_QUARTER]))),
+  },
+];
+
+test.for(OVER_BUDGET)(
+  "$filename that unpacks past the size budget is refused as too large, not damaged, and stores nothing",
+  async ({ filename, format, bytes }) => {
+    await using root = await createAuthModeRoot("local", { logLevel: "warn" });
+    const { headers, principal } = await signIn(root, await ownerSubject(root));
+    const form = new FormData();
+    form.set("file", new File([new Uint8Array(bytes)], filename));
+    const refused = await root.http.request(DATABANK_UPLOAD_ROUTE, { method: "POST", headers: { ...headers, ...CSRF_HEADERS }, body: form });
+
+    expect(refused.status).toBe(400);
+    expect(documentUploadRefusalSchema.parse(await refused.json())).toEqual({
+      error: new ExtractionTooLargeError(format).message,
+      reason: EXTRACTION_OP_CODES.tooLarge,
+    });
+    expect((await root.services.databank.list({ principal })).items).toEqual([]);
+  },
+);
+
+test("a type the route does not accept is refused with the unsupported-type code and stores nothing", async () => {
+  await using root = await createAuthModeRoot("local", { logLevel: "warn" });
+  const { headers, principal } = await signIn(root, await ownerSubject(root));
+  const form = new FormData();
+  form.set("file", new File([new Uint8Array([1, 2, 3])], "ledger.csv", { type: "text/csv" }));
+  const refused = await root.http.request(DATABANK_UPLOAD_ROUTE, { method: "POST", headers: { ...headers, ...CSRF_HEADERS }, body: form });
+
+  expect(refused.status).toBe(415);
+  expect(documentUploadRefusalSchema.parse(await refused.json())).toMatchObject({ reason: EXTRACTION_OP_CODES.unsupportedType });
+  expect((await root.services.databank.list({ principal })).items).toEqual([]);
+});

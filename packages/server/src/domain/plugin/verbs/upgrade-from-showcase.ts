@@ -1,6 +1,6 @@
-// verb: upgradeFromShowcase — the one-click upgrade for a SEEDED SHOWCASE install (#1740), the twin of
+// verb: upgradeFromShowcase — the one-click upgrade for a SEEDED SHOWCASE install, the twin of
 // `upgrade-from-stored-url.ts` with the bundled copy as the byte source instead of a remembered URL. Everything
-// that makes an upgrade safe is UNCHANGED because the bytes go through the SAME `upgrade` verb: #615's wall
+// that makes an upgrade safe is UNCHANGED because the bytes go through the SAME `upgrade` verb: the re-consent wall
 // lands the row DISABLED pending re-consent whenever the new bundle WIDENS reach, carries a strict narrowing
 // forward silently, and keeps the grant at prior ∩ newly-declared. There is no second install path and no
 // second consent story here — this file only decides WHICH bytes and WHOSE row.

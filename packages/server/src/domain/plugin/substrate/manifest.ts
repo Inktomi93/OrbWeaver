@@ -7,7 +7,7 @@
 //
 // Unzip hardening is NON-optional: (a) STRICT ENTRY ALLOW-LIST
 // — a bundle is `manifest.json` + `main.js`, plus the OPTIONAL `ui.js` (the Tier-C client guest,
-//  U4 §4.6) and the OPTIONAL `ui/assets/<name>` image entries (#820 seam 11); any
+//  U4 §4.6) and the OPTIONAL `ui/assets/<name>` image entries; any
 // extra/unknown/traversal entry name is a refusal, so path traversal is impossible by construction (three
 // exact names plus ONE anchored, flat, alphanumeric-led pattern — all four spellings are the ONE home in
 // `@orb/contracts/plugin` rather than literals that could drift out of step with the manifest schema); (b)
@@ -35,7 +35,7 @@
 // admitted set is exactly png/jpeg/gif/webp and everything else is the unrecognized sentinel.
 // SVG IS REFUSED, and it is refused twice over: it carries no binary signature so it can never sniff to an
 // admitted mime, and `domain/assets/substrate/mime.ts`'s ACTIVE_MIMES refuses `image/svg+xml` at the store
-// boundary anyway (#709 — a stored blob is served from our OWN origin, where an SVG's embedded script runs
+// boundary anyway (a stored blob is served from our OWN origin, where an SVG's embedded script runs
 // with the owner's cookies). A bundle-shipped SVG would be plugin-authored script bytes taking a route the
 // CSP-isolated `ui.frame` hatch exists to make explicit; the refusal names it so nobody re-adds it as a
 // convenience.
@@ -84,7 +84,7 @@ const MANIFEST_ENTRY = PLUGIN_MANIFEST_ENTRY;
 const MAIN_ENTRY = PLUGIN_MAIN_ENTRY;
 const UI_ENTRY = PLUGIN_UI_ENTRY;
 /** The three legal NAMED bundle entries. `ui.js` is OPTIONAL (U4); the other two are required. The fourth
- *  entry class — `ui/assets/<name>` (#820) — is a PATTERN, not a name, and is admitted by
+ *  entry class — `ui/assets/<name>` — is a PATTERN, not a name, and is admitted by
  *  {@link isBundleAssetEntry} instead. */
 const ALLOWED_ENTRIES: readonly string[] = [MANIFEST_ENTRY, MAIN_ENTRY, UI_ENTRY];
 
@@ -114,7 +114,7 @@ const MAX_MANIFEST_JSON_BYTES = PLUGIN_MANIFEST_ENTRY_MAX_BYTES;
 /** The validated bundle: the parsed manifest + the guest entry sources + the bundle-shipped images. `uiJs` is
  *  present iff the manifest declares `uiEntry` AND the zip carried `ui.js` (the biconditional is enforced
  *  below); `uiAssets` is simply whatever admitted `ui/assets/` entries the zip carried (empty for every
- *  bundle that ships none, which is every bundle written before #820). Substrate-internal (the verb
+ *  bundle that ships none). Substrate-internal (the verb
  *  destructures `parseBundle`'s output) — not a domain type home, so it stays unexported. */
 interface PluginBundle {
   readonly manifest: PluginManifest;
@@ -136,7 +136,7 @@ function capFor(entryName: string): number {
   return MAX_MAIN_JS_BYTES;
 }
 
-/** Is this entry admitted at all — one of the three exact names, or an `ui/assets/` image path (#820)? */
+/** Is this entry admitted at all — one of the three exact names, or an `ui/assets/` image path? */
 function isAllowedEntry(name: string): boolean {
   return ALLOWED_ENTRIES.includes(name) || isBundleAssetEntry(name);
 }

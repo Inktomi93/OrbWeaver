@@ -2,9 +2,9 @@
 // `onAssetCreated` and the bulk asset pass so the prompt/grammar/behaviour never drifts between the on-write
 // and catch-up paths. Homed in indexer/ (it calls the injected summarize role op), not substrate/.
 //
-// IT RETURNS A SENTENCE **AND** A STRUCTURED BREAKDOWN, from ONE look at one image (issue #164). Before
-// 2026-08-18 this asked for prose only and the caller stored `caption_meta: { model }` — so the fourteen
-// facet paths `domain/discovery/image-analytics` reads had no producer at all, every facet distribution came
+// IT RETURNS A SENTENCE **AND** A STRUCTURED BREAKDOWN, from ONE look at one image. Prose
+// alone with `caption_meta: { model }` stored leaves the fourteen facet paths
+// `domain/discovery/image-analytics` reads with no producer at all: every facet distribution came
 // back empty on a 101-image corpus, and `visualArchetypes` fell through to labelling PORTRAIT clusters with
 // CARD-TEXT genre/tone (three of eight families rendered the identical "wholesome slice-of-life"). Splitting
 // the breakdown into a second call would double the GPU cost of every avatar on a whole-corpus backfill, and
@@ -23,7 +23,7 @@
 // the backfill pre-check in `verbs/embed-assets` uses to find work, so inventing more of them would make the
 // catch-up pass unable to see its own backlog.
 //
-// "RETRY NEXT SWEEP" IS FOR A FAILURE ABOUT THIS IMAGE — NEVER FOR ONE ABOUT THE MODEL (#2422). Two verdicts
+// "RETRY NEXT SWEEP" IS FOR A FAILURE ABOUT THIS IMAGE — NEVER FOR ONE ABOUT THE MODEL. Two verdicts
 // are the same for every asset in the corpus, so they are decided BEFORE the call and remembered for the
 // root (`substrate/avatar-analysis-availability`, the root's `latches.avatarAnalysis`):
 //   - the resolved summarize model declares no image input (`roleClients.summarizerVision`) — nobody may hand
@@ -62,7 +62,7 @@ const ANALYSIS_USER_PROMPT = "Describe and classify this image.";
 
 const ANALYSIS_RESPONSE_FORMAT: ResponseFormat = { name: "image_breakdown", schema: projectJsonSchema(imageBreakdownSchema) };
 
-/** The side-gen posture FLOOR for avatar analysis (#1816): near-deterministic because this is a
+/** The side-gen posture FLOOR for avatar analysis: near-deterministic because this is a
  *  classification, and a warm sampler on a closed vocabulary only adds jitter between two equally-allowed
  *  labels. The floor defers to the owner's preset params through `resolveSideGenSampling` when available. */
 const ANALYSIS_FLOOR: RolePresetParams = SIDE_GEN_POSTURES.caption;
@@ -145,7 +145,7 @@ export async function analyzeAvatarImage(
     return { caption, captionMeta: { model, ...facets } };
   } catch (error) {
     // THE MODEL ITSELF IS NOT THERE - a verdict about the MODEL, identical for every asset, so it latches for
-    // the root and no later asset spends a call (or a wake) to rediscover it (#2422). The latch is the
+    // the root and no later asset spends a call (or a wake) to rediscover it. The latch is the
     // short-circuit at the top of this function; reaching this arm a second time means a CONCURRENT asset was
     // already in flight when the first one latched, which is a bounded handful, never the whole sweep.
     const unservable = error instanceof ProviderError && error.kind === "model_unavailable";

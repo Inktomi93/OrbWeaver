@@ -2,13 +2,16 @@
 // A LIST surface under a band lands on the band's first control, so a forward Tab runs the band's New (inline in every pane
 // width: a band folds its other actions first), then the search field, then the rows. Each case arrives through the rail the
 // way a keyboard user does, on the production section registry.
+import { LIST_PANEL_NOUN, panelEdgeName } from "@orb/client/lib";
 import type { SectionId } from "@orb/client/state";
 import { SECTION_IDS } from "@orb/client/state";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { REFINERY_START_SESSION_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { REFINERY_LIST_TITLE } from "#client/features/refinery/lib/refinery-section-label.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -19,6 +22,9 @@ const BAND = `${LIST} .shell-panel-header`;
 const CONTENT = ".shell-content";
 // The most forward Tabs from arrival to a row: the Chats band, its filter chips and the search sit ahead of its rows.
 const MAX_TAB_STOPS = 14;
+
+// The LIST pane is one place whether focus rests on its band's control or on the rest of it.
+const LIST_PANE = /^(?:band|list)$/u;
 
 const REGIONS = ["body", "rail", "band", "list", "content", "elsewhere"] as const;
 type Region = (typeof REGIONS)[number];
@@ -164,14 +170,93 @@ for (const section of ROW_LISTS) {
   });
 }
 
-for (const section of ROW_LISTS) {
-  test(`returning to ${section} from Home by the rail lands focus on the band's control again`, async ({ mount, page }) => {
-    await seedShellState(page, { activeSection: "home" });
+// A section whose content pane stays mounted is revealed again on a return, and a surface that claims focus on reveal
+// would land it somewhere the first arrival did not: so every section's return lands where its first arrival does.
+for (const section of SECTION_IDS) {
+  const { label, lands } = ARRIVALS[section];
+  const away = ARRIVALS[startFor(section)].label;
+  test(`returning to ${section} from another section by the rail lands focus in its ${lands} again`, async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: startFor(section) });
     await mount<typeof AppShellStory>(STORY, {});
-    for (const name of [ARRIVALS[section].label, ARRIVALS.home.label, ARRIVALS[section].label]) {
+    for (const name of [label, away, label]) {
       await pressRail(page, name);
     }
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
-    await expect.poll(() => focusRegion(page)).toBe("band");
+    await expect.poll(() => focusRegion(page)).toBe(lands);
   });
 }
+
+// Refinery opens with its list collapsed, so the defaults above land in content. Once the user docks the list with its own
+// control, the list is the pane on screen and owns arrival: first on that visit and again on a return.
+test("a Refinery whose list the user docked lands focus in the list on a return from another section", async ({ mount, page }) => {
+  await seedShellState(page, { activeSection: "home" });
+  await mount<typeof AppShellStory>(STORY, {});
+  await pressRail(page, ARRIVALS.refinery.label);
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "refinery");
+  await page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true }).click();
+  await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+
+  for (const name of [ARRIVALS.home.label, ARRIVALS.refinery.label]) {
+    await pressRail(page, name);
+  }
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "refinery");
+  await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+  await expect.poll(() => focusRegion(page)).toBe("list");
+});
+
+// The Refinery list's focus target is the pane's own frame, and a screen reader announces it on arrival: it carries the name of what
+// the pane holds, as the Extensions list's does.
+test("the Refinery list pane's focus target is a region named for what the pane holds", async ({ mount, page }) => {
+  await seedShellState(page, { activeSection: "home" });
+  await mount<typeof AppShellStory>(STORY, {});
+  await pressRail(page, ARRIVALS.refinery.label);
+  await page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true }).click();
+  await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+
+  await expect(page.locator(LIST).getByRole("region", { name: REFINERY_LIST_TITLE, exact: true })).toBeVisible();
+});
+
+// A phone shows one pane at a time: with nothing open, the list IS the screen, so it owns arrival in both sections. A jump from
+// the You sheet closes the sheet in the render that opens the section, so focus is on the body when the surface arrives. Each
+// landing is the surface's own target, named from production, so a section that loses its claim falls to the shell's body-focus
+// rescue (app-shell.tsx), the bare pane frame, and fails here on the first arrival as well as on the return.
+const PHONE_LIST_SECTIONS = ["refinery", "extensions"] as const satisfies readonly SectionId[];
+const SHEET = '[data-slot="drawer-popup"]';
+
+// Refinery's list band carries its start control; Extensions' band has none on a phone, so its surface frame, a region named for the
+// section, takes the focus.
+const PHONE_LANDINGS = {
+  refinery: (page: Page): Locator => page.locator(LIST).getByRole("button", { name: REFINERY_START_SESSION_NAME, exact: true }),
+  extensions: (page: Page): Locator => page.locator(LIST).getByRole("region", { name: SECTION_LABELS.extensions, exact: true }),
+} as const satisfies Record<(typeof PHONE_LIST_SECTIONS)[number], (page: Page) => Locator>;
+
+/** Opens a section from the You sheet, where the phone's bar sends the sections it has no tab for. */
+async function openFromYouSheet(page: Page, label: string): Promise<void> {
+  await page.locator(RAIL).getByRole("button", { name: "You", exact: true }).click();
+  await page.locator(SHEET).getByRole("button", { name: label, exact: true }).click();
+  await expect(page.locator(SHEET)).toHaveCount(0);
+}
+
+test.describe("on a phone", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  for (const section of PHONE_LIST_SECTIONS) {
+    test(`arriving in ${section} with nothing open lands focus in its list screen, and a return lands there again`, async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "home" });
+      await mount<typeof AppShellStory>(STORY, {});
+      const { label } = ARRIVALS[section];
+      await openFromYouSheet(page, label);
+      await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
+      await expect(page.locator(LIST)).toBeVisible();
+      await expect.poll(() => focusRegion(page)).toMatch(LIST_PANE);
+      await expect(PHONE_LANDINGS[section](page)).toBeFocused();
+
+      await pressRail(page, ARRIVALS.home.label);
+      await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
+      await openFromYouSheet(page, label);
+      await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
+      await expect.poll(() => focusRegion(page)).toMatch(LIST_PANE);
+      await expect(PHONE_LANDINGS[section](page)).toBeFocused();
+    });
+  }
+});

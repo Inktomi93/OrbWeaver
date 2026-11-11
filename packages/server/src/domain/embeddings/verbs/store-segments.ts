@@ -1,7 +1,7 @@
 // The VERBATIM-SEGMENT write path — the batch sibling of `store.ts` (still the one vector write path,
 // Knowledge-Cluster inv 1; the physical insert stays in `persistence/queries.ts`).
 //
-// WHY A BATCH (#172, owner batching ruling: "batch by phase … toss it all at vLLM, its scheduler can handle
+// WHY A BATCH (owner batching ruling: "batch by phase … toss it all at vLLM, its scheduler can handle
 // it, I promise"). Segments are the one lens whose producer has the whole corpus's work in hand at once: the
 // memory sweep plans every chat before it commits anything. Written one-at-a-time, each block's embed was an
 // awaited round trip interleaved with db reads — a client-side round-robin that keeps the engine's continuous

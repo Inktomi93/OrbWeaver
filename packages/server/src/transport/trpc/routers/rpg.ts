@@ -19,7 +19,7 @@
 // a client is attached), then the `chatEventBounds` probe re-run PER YIELD so a kicked member stops
 // receiving. It gained per-room fault isolation on the way: a throw from that probe is now a `roomFailed`
 // control frame on a surviving socket instead of a terminal frame that ends the stream. This is also the
-// stream whose third-always-on-connection cost caused the measured 2026-08-01 starvation incident; at one
+// stream whose third-always-on-connection cost caused the measured starvation incident; at one
 // socket per tab that class no longer exists.
 
 import {

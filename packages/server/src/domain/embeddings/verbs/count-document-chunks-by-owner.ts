@@ -3,7 +3,7 @@
 // rows have" for a page whose rows are already chosen, this one answers the same question for a caller that
 // has not chosen its rows yet.
 //
-// ITS CONSUMERS ARE DATABANK'S LIBRARY PHASE LENS AND ITS BANK-HEALTH CENSUS (owner ruling 2026-08-13 — every
+// ITS CONSUMERS ARE DATABANK'S LIBRARY PHASE LENS AND ITS BANK-HEALTH CENSUS (owner ruling — every
 // lens a paged list offers, and every health claim a surface makes about the bank, is resolved server-side).
 // A document's ingest PHASE derives from its canon length, its chunk state and a stall clock; the first and
 // third are columns on `documents`, the second lives in `document_chunks`, which databank may not read (D20 /

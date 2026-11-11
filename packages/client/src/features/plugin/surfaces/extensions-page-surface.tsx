@@ -184,9 +184,10 @@ function PageBody({ page }: { readonly page: PluginPageView }): ReactElement | n
 
 export function ExtensionsPageSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  // A drill-down CONTENT pane manages focus on mount: on a phone this IS the pushed frame, and landing a
-  // keyboard/AT user back at the document root after a page swap is the defect the rule exists to stop.
-  useFocusOnMount(surfaceRef);
+  // Arrival has one owner at a time: the switcher LIST while it is on screen (`ExtensionsSwitcherSurface`), this pane
+  // when it is not (a drilled-in phone frame, a hand-collapsed list). This pane stays mounted across section visits and
+  // re-runs its effects on every reveal, so an unconditional claim would take focus from the list on a return.
+  useFocusOnMount(surfaceRef, useSectionListMode("extensions") === "collapsed");
   const trpc = useTRPC();
   const key = usePluginPageKey();
   const pages = usePluginPages();

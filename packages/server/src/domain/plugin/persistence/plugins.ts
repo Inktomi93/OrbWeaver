@@ -33,7 +33,7 @@ function parsePluginRow(row: PluginRow): PluginRow {
   };
 }
 
-/** WHO CAN SERVE THE NEXT VERSION for one row (#1740) — never how the bytes arrived. The `url` arm reads
+/** WHO CAN SERVE THE NEXT VERSION for one row — never how the bytes arrived. The `url` arm reads
  *  straight off the `source_url` the install recorded; the `showcase` arm is membership in the SHIPPED slug set.
  *
  *  `url` IS TESTED FIRST, deliberately: a user's OWN url install of a slug we also ship keeps its remembered
@@ -56,7 +56,7 @@ function updateSourceFor(row: PluginRow, showcaseSlugs: ReadonlySet<string>): Pl
  *  manifest declared none.
  *
  *  `showcaseSlugs` is the SHIPPED slug set (`ctx.showcase.slugs`, injected — this tier does not import content)
- *  and is what makes `updateSource` answerable at all (#1740): a seeded example arrives as an `upload` and is
+ *  and is what makes `updateSource` answerable at all: a seeded example arrives as an `upload` and is
  *  indistinguishable from a hand-uploaded plugin by column, so the only honest oracle is "does this build ship a
  *  bundle under that slug". A REQUIRED parameter rather than an optional one, so every call site is forced to
  *  say where its set comes from — a defaulted `new Set()` would silently project every seeded row as
@@ -107,11 +107,11 @@ interface InsertPluginRow {
 }
 
 /** Insert the row AND, atomically with it, the `plugin_assets` links for every image the bundle shipped
- *  (#820). ONE `db.batch` and not two awaits: a row whose links half-landed would render permanent
+ *. ONE `db.batch` and not two awaits: a row whose links half-landed would render permanent
  *  placeholders for the missing paths while its blobs quietly aged into the GC's candidate set, and there is
  *  no self-heal for that — nothing re-reads the zip after install. (`db.transaction()` is banned repo-wide —
  *  the `:memory:` connection-replacement trap; `batchMany` is the sanctioned atomic write.)
- *  `bundleAssets` is empty for every bundle that ships none, which is every bundle written before #820, and
+ *  `bundleAssets` is empty for every bundle that ships none, which includes every bundle written before bundle assets existed, and
  *  the batch then carries exactly the one statement it always did. */
 export async function insertPlugin(db: Db, row: InsertPluginRow, bundleAssets: readonly PluginBundleAssetLink[] = []): Promise<void> {
   const insertRow = buildInsertPluginStatement(db, row);
@@ -188,7 +188,7 @@ export async function isPluginEnabledFor(handle: DatabaseHandle, ownerId: UserId
   return rows[0]?.status === "enabled";
 }
 
-/** How many of ONE owner's plugins are standing on their consent (#1041) — the number the aggregate inbox
+/** How many of ONE owner's plugins are standing on their consent — the number the aggregate inbox
  *  ask spends, counted in the db rather than folded off `listOwned` so the producer never pulls nine
  *  manifests to learn one integer. Owner-scoped like every other read here. */
 export async function countPendingConsent(db: Db, ownerId: UserId): Promise<number> {
@@ -220,7 +220,7 @@ export async function listOwned(db: Db, ownerId: UserId): Promise<PluginRow[]> {
  *
  *  WHY IT EXISTS AT ALL: `PluginRegistry` is in-process and respawn-wiped, so after every restart an
  *  `enabled` row has no resident instance and contributes no surfaces, tools, transforms or subscriptions
- *  (#1865). The row is the record and the registry is a view of it (`activation/activate.ts`); this read is
+ *. The row is the record and the registry is a view of it (`activation/activate.ts`); this read is
  *  how boot re-derives the view. Ordered by `installedAt` so a restore pass is deterministic. */
 export async function listEnabledAcrossOwners(handle: BootDatabaseHandle): Promise<readonly { readonly pluginId: PluginId; readonly ownerId: UserId }[]> {
   const db = bootDatabaseForOwner(handle);
@@ -269,12 +269,11 @@ interface UpgradePluginRow {
 }
 
 /** The upgrade write. See {@link buildApplyUpgradeStatement} for the owner-scope exemption — the unscoped
- *  `update` moved there when this function became a batch (#820), and the marker moved with it. */
+ *  `update` moved there when this function became a batch, and the marker moved with it. */
 export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePluginRow, bundleAssets: readonly PluginBundleAssetLink[] = []): Promise<void> {
-  // ONE atomic batch: the row swap, then the bundle-asset link set REPLACED wholesale (clear-then-insert,
-  // #820). Replacement rather than merge is the point — an upgrade that DROPPED a sprite must leave no
+  // ONE atomic batch: the row swap, then the bundle-asset link set REPLACED wholesale (clear-then-insert). Replacement rather than merge is the point — an upgrade that DROPPED a sprite must leave no
   // resolvable path behind, and a merge would keep the old link alive as a reference the reap can never
-  // clear. The clear touches only `bundle_path <> ''`, so runtime-fetched covers (#802) are untouched by an
+  // clear. The clear touches only `bundle_path <> ''`, so runtime-fetched covers are untouched by an
   // upgrade, which is correct: they belong to the INSTALL, not to the bundle version.
   await db.batch(
     batchMany([

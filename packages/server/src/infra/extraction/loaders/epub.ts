@@ -15,13 +15,15 @@
 // archive of individually legal entries expanded without bound, and the upload route caps only the COMPRESSED
 // body (`@orb/contracts/uploads` DATABANK_UPLOAD_MAX_BYTES) — the amplification between the two is exactly the
 // gap the aggregate budget closes. The running total is a CLOSURE per `unzipSync` call, never module state: a
-// module-level counter would carry one document's bytes into the next and refuse an innocent upload.
+// module-level counter would carry one document's bytes into the next and refuse an innocent upload. Both refusals are
+// `ExpansionBudgetError`s, which the dispatch answers as too large rather than damaged.
 // Empty text is truthful (a spine of empty chapters).
 
 import { DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES } from "@orb/contracts/uploads";
 import { decodeXmlText } from "@orb/kit/strings";
 import { strFromU8, unzipSync } from "fflate";
 import type { RawExtraction } from "../contract.ts";
+import { ExpansionBudgetError } from "../contract.ts";
 import { loadHtml } from "./html.ts";
 
 const CONTAINER_PATH = "META-INF/container.xml";
@@ -65,11 +67,11 @@ function createEntryCapFilter(): (file: { readonly originalSize: number; readonl
   let totalBytes = 0;
   return (file): boolean => {
     if (file.originalSize > MAX_ENTRY_BYTES) {
-      throw new Error(`epub entry ${file.name} exceeds the ${MAX_ENTRY_BYTES}-byte cap`);
+      throw new ExpansionBudgetError(`epub entry ${file.name} exceeds the ${MAX_ENTRY_BYTES}-byte cap`);
     }
     totalBytes += file.originalSize;
     if (totalBytes > DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES) {
-      throw new Error(`epub exceeds the ${DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES}-byte aggregate decompressed budget at entry ${file.name}`);
+      throw new ExpansionBudgetError(`epub exceeds the ${DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES}-byte aggregate decompressed budget at entry ${file.name}`);
     }
     return true;
   };

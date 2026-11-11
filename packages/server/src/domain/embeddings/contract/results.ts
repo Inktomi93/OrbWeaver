@@ -20,7 +20,7 @@ export interface StoredImageAnalysis {
 /** What the catch-up sweep needs to decide whether an asset's CAPTIONED lens is current: the bytes' hash and
  *  whether the stored `caption_meta` carries an actual facet breakdown.
  *
- *  `hasFacets` is `false` for every row written before the 2026-08-18 VL breakdown landed — those carry
+ *  `hasFacets` is `false` for every row written before the VL breakdown existed — those carry
  *  `{model}` only, and that is the ONLY signal a backfill has for finding them (the bytes hash still matches,
  *  so a hash-only currency test declares them current and the facet columns stay empty forever). */
 export interface ExistingCaptionedRow {
@@ -44,7 +44,7 @@ export interface ImageAdmissionVerdict {
 const IMAGE_SPACE_DEGRADES = ["no-image-embed-connection", "image-embed-model-takes-no-image-input"] as const;
 /** WHY an owner's images fell back to the captioned-text lens (§10-3): either no `imageEmbed` connection is
  *  bound at all, or the bound one resolves to a model that declares no `image` input. Two causes, one
- *  behaviour, and both are said out loud — the pre-#10-3 indexer logged a debug line and dropped the image. */
+ *  behaviour, and both are said out loud — an indexer that logs a debug line and drops the image hides both. */
 export type ImageSpaceDegrade = (typeof IMAGE_SPACE_DEGRADES)[number];
 
 /** WHERE an owner's pictures are embedded, and WHICH role op embeds into that space — the joint-space rule's

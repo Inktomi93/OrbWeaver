@@ -43,7 +43,7 @@ export const documentIdSchema = typeIdSchema(ID_PREFIX.document) satisfies z.Zod
 /** The page `databank.list` serves when a caller names no `limit` — the verb's default, promoted here
  *  because the CLIENT has to know it too. A surface that summarizes the returned rows ("46 documents")
  *  is reporting a PAGE, and it can only say so honestly ("100+ documents") if it can tell a full page from
- *  a whole bank (side-eye 2026-08-08 P2-d). Two spellings of this number would make that "+" a lie the day
+ *  a whole bank. Two spellings of this number would make that "+" a lie the day
  *  either moved.
  *
  *  It is the default page for a caller that pages ONCE and summarizes (the home tile, the list band's
@@ -51,14 +51,14 @@ export const documentIdSchema = typeIdSchema(ID_PREFIX.document) satisfies z.Zod
  *  rest — so it is not bounded by this number. */
 export const DATABANK_LIST_DEFAULT_LIMIT = 100;
 
-// ── the ingest PHASE axis (a WIRE lens as of 2026-08-14) ──────────────────────────────────────────────────
+// ── the ingest PHASE axis (a WIRE lens) ──────────────────────────────────────────────────────────────────
 // The phase a document's ingest is in. It is DERIVED, never stamped — there is no status column:
 // `empty` = extracted to nothing · `indexing` = canon but no chunks yet ·
 // `embedding` = chunks exist that are not all embedded · `ready` = every chunk embedded · `stalled` = an
 // in-flight phase whose `updatedAt` stopped moving ({@link STALE_INGEST_MS}).
 //
 // THE VOCABULARY LIVES HERE, not in the client, because the phase became a LIST LENS the SERVER resolves
-// (owner ruling 2026-08-13, `paged-list-lenses-go-server-side`): `databank.list` takes it as an input and
+// (owner ruling, `paged-list-lenses-go-server-side`): `databank.list` takes it as an input and
 // narrows the whole bank by it, so it is cross-boundary shape. It previously homed in the client's
 // `databank-filter-store`, whose header reasoned "ingest phase is a CLIENT DERIVATION over counts the list
 // already returns … No server read changes" — true of a client-side scope over a loaded window, and exactly
@@ -88,13 +88,13 @@ export const STALE_INGEST_MS = 300_000;
 /** The bank's ingest health, COUNTED (the home tile's D-7 line + its attention chips). Every number is a
  *  census over the caller's whole bank, which is what makes the chips honest: they used to be derived from
  *  the tile's ONE loaded page, so "12 stalled" meant "12 stalled among your newest 100 documents" — the same
- *  blind-lens class as a client-side list filter, wearing a tile (owner ruling 2026-08-14).
+ *  blind-lens class as a client-side list filter, wearing a tile (owner ruling).
  *
  *  It is a SEPARATE read from `databank.list`, deliberately: resolving it costs a bank-wide chunk read, and
  *  folding that into the paged list would pay it on every page fetch of a library the user is scrolling.
  *
  *  `passages` (embedded) and `chunks` (existing) are two numbers because the line prints both — a bare
- *  "286 passages indexed" reads as a complete count (side-eye 2026-08-08 P2-e). In the current substrate a
+ *  "286 passages indexed" reads as a complete count. In the current substrate a
  *  chunk row exists only AFTER a successful embed, so the two are equal; they are not one field because the
  *  day a partial embed becomes representable is the day the line has something to say. */
 export interface BankHealthView {
@@ -329,7 +329,7 @@ export interface DocumentCharacterRef {
  * Reverse of the scope junctions: where a document is attached (the CONTEXT panel's "Active in" roster +
  * detach UX). `global` is a boolean (single-owned personal bank).
  *
- * NAMES, NOT IDS (#276, 2026-08-19). This used to hand back `chatIds`/`characterIds`, which is why the pane
+ * NAMES, NOT IDS. This used to hand back `chatIds`/`characterIds`, which is why the pane
  * above it could only render two integers and why its no-selection copy had to downgrade its promise. The
  * two scopes resolve differently and the difference is the whole design:
  *   • CHARACTERS are a cheap owner-scoped join — the caller owns both sides of that junction.
@@ -380,8 +380,7 @@ export interface ListDocumentsResult {
   readonly nextCursor: DocumentListCursor | null;
   /** How many documents match the SAME lens this page is a window into — a real `COUNT`, never `items.length`.
    *  It is what retired the surfaces' `100+` reading: the band header and the home tile used to print a full
-   *  first PAGE as the bank's size-floor because a page was the only number they had (side-eye 2026-08-08
-   *  P2-d). A census is a different question from "how many rows this page happened to carry", and both
+   *  first PAGE as the bank's size-floor because a page was the only number they had. A census is a different question from "how many rows this page happened to carry", and both
    *  surfaces print the census. */
   readonly totalCount: number;
 }
@@ -431,6 +430,12 @@ export const uploadResultSchema = z
     warning: z.literal("empty-extraction").optional(),
   })
   .transform(({ warning, ...result }): UploadResult => ({ ...result, ...(warning === undefined ? {} : { warning }) })) satisfies z.ZodType<UploadResult>;
+
+/** The body of a refused `POST /api/databank/upload` that carries a reason. `error` is the server's sentence; `reason` is the
+ *  refusal's code, the same value a tRPC refusal sends on `data.reason`, so a client keys on it and never on `error`. Absent
+ *  when the refusal has no code (the route's own 400 and an uncoded domain refusal). */
+export const documentUploadRefusalSchema = z.strictObject({ error: z.string().min(1), reason: z.string().min(1).optional() });
+export type DocumentUploadRefusal = z.infer<typeof documentUploadRefusalSchema>;
 
 export const listDocumentsResultSchema = z.strictObject({
   items: z.array(documentViewSchema).readonly(),

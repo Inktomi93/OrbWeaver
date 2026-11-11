@@ -1,8 +1,8 @@
 // verb: resetUserConfig — replace this user's WHOLE settings blob with the contract defaults at the current
 // schema version. Scoped to `params.principal.userId` (a user resets ONLY their own row; no id is accepted).
 //
-// WHY IT EXISTS (#1771, from #1716): before it, an unreadable `user_settings.config` had NO way out. The
-// #471/#1026 guard refuses every write that DESCENDS FROM A READ of the row, and on this table that was
+// WHY IT EXISTS: without it, an unreadable `user_settings.config` has NO way out. The
+// intact guard refuses every write that DESCENDS FROM A READ of the row, and on this table that was
 // every write there was — the section autosave (`updateUserSettingsSection`), the per-leaf "Reset to its
 // default" (which writes through that same verb), and even the backup restore (`import-user-settings.ts`
 // read-merges the file onto the current blob). The refusal is correct; the missing door was the defect.

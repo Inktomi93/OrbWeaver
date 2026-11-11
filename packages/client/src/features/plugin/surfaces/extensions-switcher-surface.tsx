@@ -32,6 +32,7 @@ import {
   setExtensionsSearchQuery,
   useExtensionsSearchQuery,
   usePluginPageKey,
+  useSectionListMode,
   useSectionListSearchPlaceholder,
 } from "#state";
 import { ExtensionsAwaitingRows } from "../components/extensions-awaiting-consent.tsx";
@@ -112,7 +113,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
   const search = useExtensionsSearchQuery();
   const searchPlaceholder = useSectionListSearchPlaceholder("extensions");
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusListArrival(surfaceRef);
+  useFocusListArrival(surfaceRef, useSectionListMode("extensions") !== "collapsed");
   return (
     // The arrival target names the pane it moved focus into. A child row's name cannot name this node for
     // assistive technology; the Presets list uses the same named-region convention for the same hook.

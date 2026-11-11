@@ -31,7 +31,7 @@
 //   • FOREIGN prose — a reflected upstream body (`providerErrorFromHttp`, `fetchJson`), a vendor `refusal`
 //     string, an SDK error. Scrubbed of secrets by value and sanitized, but it is still someone else's text.
 //   • ENVIRONMENTAL text — a node errno, a spawn failure, a filesystem path. Two live examples were found
-//     while this was being built (2026-09-20): `local-light/model-cache.ts` put the ABSOLUTE host cache dir
+//     while this was being built: `local-light/model-cache.ts` put the ABSOLUTE host cache dir
 //     plus the mkdir errno on the wire, and `kit/fetch-json.ts` mints upstream prose with no
 //     `sanitizeApiError` at all (no cap, no control-char strip, no markup strip). Both are fixed at their
 //     mint sites in the same commit — and both were `kind: "server"`, which is exactly the point: nobody
@@ -53,15 +53,15 @@
 //   2. every upstream-derived message is `sanitizeApiError(redactSecretsFromText(…))` — true of
 //      `providerErrorFromHttp` always, and of `fetchJson` only as of this commit. A THIRD upstream-prose
 //      path added without that composition re-opens this,
-//   3. the by-value scrub set is branded (`ProviderScrubSet`, #1599), so a credential-bearing boundary
+//   3. the by-value scrub set is branded (`ProviderScrubSet`), so a credential-bearing boundary
 //      cannot omit it.
 //
 // ── WHY `forbidden` DOES NOT, EVEN THOUGH ALL THREE OF ITS MINT SITES ARE OURS ───────────────────────────
 // `requireOwned` (`packages/inference/src/index.ts`) throws `forbidden` with "connection <id> is not the
 // caller's", while the missing-row arm one function over throws `invalid` with "connection <id> no longer
 // exists". Carrying that message under a clean 403 would mint a cross-tenant EXISTENCE ORACLE — the exact
-// defect `domain/connection/verbs/resolve.ts::createCapabilities` pre-gated away with
-// `ConnectionNotFoundError` on 2026-09-20. The domain pre-gates every door today, so this is defence in
+// defect `domain/connection/verbs/resolve.ts::createCapabilities` pre-gates away with
+// `ConnectionNotFoundError`. The domain pre-gates every door today, so this is defence in
 // depth; fail-closed still wins on a tenancy boundary. Collapsing `requireOwned` onto the not-found
 // spelling at its own mint site is the better long-run fix and is a follow-up, not this lane.
 //
@@ -183,9 +183,8 @@ function classifyProviderError(err: ProviderError): TRPCError | null {
  * formatter substitutes a fixed sentence for its message).
  */
 export function classifyDomainError(err: unknown): TRPCError | null {
-  // START AT `err`, NOT AT `err.cause` (fixed 2026-09-20, caught by this lane's own policy pin). The first
-  // line used to be `(err as { cause?: unknown }).cause ?? err` — an UNCONDITIONAL one-level deref meant to
-  // skip tRPC's wrapper. It also skipped any modelled error that CARRIES a cause, which is exactly the
+  // START AT `err`, NOT AT `err.cause` . `(err as { cause?: unknown }).cause ?? err`
+  // — an UNCONDITIONAL one-level deref to skip tRPC's wrapper — would also skip any modelled error that CARRIES a cause, which is exactly the
   // house idiom for a leak-free collapse: `ScrapeFailedError({ cause: err })` (the SSRF refusal whose whole
   // point is "The web page could not be scraped." with the resolved private address staying server-side),
   // `RefineryRunFailedError(msg, { cause })`, and the `unavailable.cause = err` sites in chat/fork,

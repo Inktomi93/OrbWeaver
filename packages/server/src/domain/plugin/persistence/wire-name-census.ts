@@ -1,5 +1,5 @@
 // domain/plugin/persistence/wire-name-census — the ONE cross-owner read the plugin domain holds, and it
-// exists for exactly one caller: the #1391 boot migration of persisted `plugin_…` wire names.
+// exists for exactly one caller: the boot migration of persisted `plugin_…` wire names.
 //
 // WHY IT IS NOT IN `persistence/plugins.ts`, WHICH IS THE INTERESTING PART. That file's header rules, in
 // terms: "there is deliberately NO un-owner-scoped read here for an 'admin may manage any row' branch to
