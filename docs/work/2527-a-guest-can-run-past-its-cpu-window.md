@@ -6,7 +6,7 @@ priority: P2
 area: security
 ---
 
-# The plugin CPU window does not bound host-side marshal work
+# A guest can run past its CPU window, and without end, through host calls
 
 ## What
 
