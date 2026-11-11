@@ -1,7 +1,7 @@
 ---
-kind: decision
+kind: work
 status: open
-updated: 2026-11-08
+updated: 2026-11-11
 priority: P3
 area: client
 plan: cross-surface-consistency

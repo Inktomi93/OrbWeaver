@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-11-10
+status: blocked
+updated: 2026-11-11
 priority: P3
 area: ui
+blocked: on 1401
 plan: cross-surface-consistency
 ---
 
