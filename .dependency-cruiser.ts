@@ -1525,6 +1525,14 @@ const SERVER_AUTHORITY = [
     },
   },
   {
+    name: "domain-no-default-content",
+    comment:
+      "The composition root closes over the default-content readers and injects them, so seeders never learn where bytes come from (D160). A type the domain needs is declared in its own contract, so type-only imports are refused too.",
+    severity: "error",
+    from: { path: `${SRV}domain/` },
+    to: { path: "^packages/default-content/" },
+  },
+  {
     name: "infra-no-db",
     comment: "Adapters receive database operations by injection rather than acquiring query authority.",
     severity: "error",

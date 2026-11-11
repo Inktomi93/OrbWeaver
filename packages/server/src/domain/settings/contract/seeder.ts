@@ -14,14 +14,21 @@ import type { StoreSeedPlate } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { BackgroundLibraryEntry, NewBackgroundEntryId, ResolveSeededPlateOp } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { SeedBackgroundPlate } from "@orb/default-content";
 import type { UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
+
+/** One shipped plate as the seeder reads it: the content `slug` its bytes are keyed by and the library entry's
+ *  display `label`. Declared here because no domain module imports the content package (D160); the composition
+ *  root passes the package's plate list, which satisfies this shape. */
+export interface SeedPlate {
+  readonly slug: string;
+  readonly label: string;
+}
 
 export interface DefaultBackgroundSeederDeps {
   readonly logger: Logger;
   /** The shipped pack, in the order the library entries are appended. */
-  readonly plates: readonly SeedBackgroundPlate[];
+  readonly plates: readonly SeedPlate[];
   /** Lift ONE plate's shipped bytes into an owned `background` asset (CAS-deduped). `null` ⇒ the pack ships
    *  no such plate / the store refused it, so the caller skips ONE plate instead of failing the seed. */
   readonly storePlate: StoreSeedPlate;
