@@ -19,7 +19,7 @@
 //     noise, never rendered as raw garbage), kept VERBATIM on the wire (the transcript is honest). A
 //     NON-command shape (a bare `<br/>`, a non-self-closing `<div class="x">`, a stray `:::`) stays literal.
 //
-// THE §3.2.1 ROBUSTNESS CONTRACT (the marinara-audit D1 adopt — model-output parsing, not happy-path):
+// THE §3.2.1 ROBUSTNESS CONTRACT (model-output parsing, not happy-path):
 //   1. QUOTE/ESCAPE-AWARE BALANCED WALKING — attr values are `"…"` with `\` escapes, so JSON-in-attributes
 //      and a quoted `/>` or `:::` never false-close; a nested `:::name` open inside a fence body increments
 //      depth so an inner directive line doesn't false-close the outer fence.
@@ -219,7 +219,7 @@ function tokenizeImages(text: string): ContentSpan[] {
 const MAX_TAG_SCAN = 4096;
 // The same bound RAISED, for a REGISTERED HIDDEN tag only (§3.6). The general cap is about walk COST; a
 // hidden tag that outruns it is a CONFIDENTIALITY question, because an unrecognised `<lie …/>` degrades to
-// literal text and hands the member its `truth` attr verbatim (#1352 — measured: a 4269-byte tag leaked on
+// literal text and hands the member its `truth` attr verbatim (measured: a 4269-byte tag leaked on
 // BOTH planes and reported `hadHidden=false`). So the hidden walker escalates to this bound before any
 // verdict, and PAST it the run is concealed rather than released — fail-closed, never fail-open.
 // WHY 16 KiB and not "unbounded": the mid-stream scrubber re-walks the held run on every delta, so the
@@ -400,7 +400,7 @@ function scanLooseHiddenOpen(content: string, start: number): TagScanOutcome {
   return content[equals] === "=" ? { kind: "loose", tag } : TAG_MALFORMED;
 }
 
-/** The strict walk, WITH the §3.6 hidden escalation (#1352). A REGISTERED hidden name capped at the
+/** The strict walk, WITH the §3.6 hidden escalation. A REGISTERED hidden name capped at the
  *  general bound is re-walked at `MAX_HIDDEN_TAG_SCAN` before any verdict, so an oversized-but-well-formed
  *  `<lie …/>` is recognised (and therefore stripped from members, and counted by `hadHidden`) instead of
  *  released verbatim. Still capped past the hidden bound ⇒ the verdict STAYS `capped`, and both callers
@@ -429,7 +429,7 @@ const BROKEN_HIDDEN_POSTURES = ["literal", "body"] as const;
  *  scan. */
 type BrokenHiddenPosture = (typeof BROKEN_HIDDEN_POSTURES)[number];
 
-/** Does this verdict conceal the rest of its text? An over-cap open does for every reader (#1352). */
+/** Does this verdict conceal the rest of its text? An over-cap open does for every reader. */
 function concealsRest(outcome: TagScanOutcome, posture: BrokenHiddenPosture): outcome is Extract<TagScanOutcome, { kind: "capped" | "truncated" | "loose" }> {
   return outcome.kind === "capped" || (posture === "body" && (outcome.kind === "truncated" || outcome.kind === "loose"));
 }
@@ -477,7 +477,7 @@ function parseFenceAttrs(rest: string, lenient: boolean): Record<string, string>
     }
     const pair = scanAttrPair(rest, i, rest.length);
     // A fence-open line is walked to its own end, so `truncated` here means an unterminated quote on the
-    // line — not-a-directive-open exactly like malformed bytes (the fence grammar is unchanged by #1352).
+    // line — not-a-directive-open exactly like malformed bytes (the hidden-tag scan cap leaves the fence grammar unchanged).
     if (pair.kind !== "pair") {
       return lenient && FENCE_OPEN_TAG_CLOSE_RE.test(rest.slice(i)) ? attrs : null;
     }
@@ -813,12 +813,12 @@ function scanTags(text: string, brokenHidden: BrokenHiddenPosture): Expanded[] {
   let i = text.indexOf("<");
   while (i !== -1) {
     const outcome = scanSelfClosingTag(text, i);
-    // FAIL-CLOSED (#1352): a registered hidden open too long to parse, or unclosed or loose on the hidden scan, cannot
+    // FAIL-CLOSED: a registered hidden open too long to parse, or unclosed or loose on the hidden scan, cannot
     // be literal text — that is the `truth` attr reaching the member verbatim — so it becomes ONE hidden span running
     // to the end of this text run. The member strip drops it and `hadHidden` stops lying. Its attrs are deliberately
     // empty: nothing here is a trustworthy parse of the whole tag.
     //
-    // WHAT THE HOST GETS, stated exactly (#1526 — an earlier note here overclaimed it). `raw` carries the
+    // WHAT THE HOST GETS, stated exactly (an earlier note here overclaimed it). `raw` carries the
     // bytes, but the rpg reveal's wire shape (`RpgRevealedSpan`) projects only the registry's LABELLED
     // FIELDS and has no `raw`, so the host sees a labelled-but-empty reveal row on that message — "something
     // was concealed here" — and NOT the bytes. That is deliberate: the host already read those bytes
@@ -1255,7 +1255,7 @@ export function scanHiddenSpans(content: string): readonly HiddenContentSpan[] {
 // Allocation-sane: the held buffer is bounded by the hidden-tag scan and the fragment chain, and a run that outgrows the
 // hidden-tag scan bound stops being buffered at all (it is CONCEALED — see below), never the whole ghost.
 
-// THE OVER-CAP RUN (#1352 — this replaces a force-RELEASE). A hold-back run that outgrows `MAX_HIDDEN_TAG_SCAN`
+// THE OVER-CAP RUN (this replaces a force-RELEASE). A hold-back run that outgrows `MAX_HIDDEN_TAG_SCAN`
 // is indeed model garbage rather than a keyed secret field — but "garbage" is a claim about the tag's SHAPE,
 // never a licence to emit its bytes, and the bytes past `truth="` are the secret whatever their length. The
 // old branch released the whole run, opening tag included, so a 4269-byte `<lie truth="…"/>` reached every
@@ -1385,7 +1385,7 @@ function settleDelta(buffer: string): { readonly emit: string; readonly held: st
  *  subscriber per turn; a host subscriber never constructs one (they read the stream verbatim). */
 export interface HiddenSpanStreamScrubber {
   /** Feed a text-channel delta; returns the substring safe to forward to the member this tick (may be `""`).
-   *  Once an over-cap hidden open is seen this returns `""` for the rest of the turn (#1352) — the run cannot
+   *  Once an over-cap hidden open is seen this returns `""` for the rest of the turn — the run cannot
    *  be parsed and must not be released, and the member's committed view conceals the same bytes. */
   readonly push: (text: string) => string;
   /** Turn/stream end: no more bytes are coming, so the held tail takes the commit strip's verdict. */
@@ -1423,7 +1423,7 @@ export function createHiddenSpanStreamScrubber(): HiddenSpanStreamScrubber {
 // into ordered text / forming-card / card segments. Markdown code-fence regions are excluded exactly like
 // the committed grammar (a ```-shown fence stays text).
 //
-// THE TWO CARD ARMS ARE THE §4.5 TRUST LINE, MADE STRUCTURAL (2026-08-14 — the granularity fix). A card
+// THE TWO CARD ARMS ARE THE §4.5 TRUST LINE, MADE STRUCTURAL (the granularity fix). A card
 // that is still FORMING carries NO bytes on its segment at all, so a renderer CANNOT paint partial HTML
 // even by mistake; a card whose fence has CLOSED carries its `body`, because those bytes are final:
 //
@@ -1559,7 +1559,7 @@ export function projectBodyForSummary(content: string): string {
 /**
  * The default preview width (`ChatSummary.lastMessagePreview`).
  *
- * IT IS A TWO-LINE BUDGET, not a list-row line (#188 N-2, 2026-08-17). 120 was sized for the chats-list
+ * IT IS A TWO-LINE BUDGET, not a list-row line. 120 was sized for the chats-list
  * row, which shows the preview on ONE CSS-truncated line — but the SAME field is the home hero's scent
  * line, rendered into a 644px `line-clamp-2` measure, and 120 chars filled barely one of those two lines:
  * the hero showed a server-truncated "…she's und…" with ~420px of its own measure empty, because a
@@ -1632,7 +1632,7 @@ function collapseMarkdownLinks(text: string): string {
  *
  *  The marker group REPEATS: markdown stacks these (`> ### heading inside a quote`, `- > nested`), and a
  *  single-marker pass stripped the outer one and rendered the inner one as literal syntax — measured on the
- *  corpus Scenes snippets, which are raw transcript prose (side-eye re-pass 2026-08-19, C1). */
+ *  corpus Scenes snippets, which are raw transcript prose (C1). */
 // A code-fence line consumes the rest of its line, so it can only end the chain.
 const PREVIEW_BLOCK_PREFIX_RE = /^[ \t]*(?:(?:(?:[>#\-*+]|\d+[.)])[ \t]*)+(?:```[^\n]*)?|```[^\n]*)/gm;
 

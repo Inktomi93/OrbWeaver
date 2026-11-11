@@ -1,7 +1,7 @@
 // Exact-value credential scrubbing for every diagnostic boundary. The replacement itself must be safe:
 // a fixed word can contain a short credential and recreate the value it was meant to remove.
 //
-// SPELLINGS (#1785) — several callers SERIALIZE before they scrub (the custom-byo wire capture, the "Test
+// SPELLINGS — several callers SERIALIZE before they scrub (the custom-byo wire capture, the "Test
 // endpoint" inspector's surfaced request, the bug-report bundle) and others scrub bytes an upstream
 // serialized for them (an echoing endpoint's body, a provider's JSON error). `JSON.stringify` ESCAPES `"`
 // and `\`, so a credential holding either is present in those bytes ONLY as `a\"b` — a spelling a search for
@@ -9,7 +9,7 @@
 // every literal enters the scrub set in BOTH spellings, expanded HERE: the rule has one home, and no call
 // site can hold half of it.
 // DELIBERATELY NOT ADDED: URL-encoded and base64 spellings. No caller encodes a credential either way before
-// scrubbing (audited 2026-09-05 across the providers tier, `infra/network`, and `foundation/observability` —
+// scrubbing (audited across the providers tier, `infra/network`, and `foundation/observability` —
 // the only base64 there is image payloads, and no credential reaches a query string), and a belt for a shape
 // nothing produces is pure over-redaction. A caller that starts emitting one widens this function, not itself.
 // STATED LIMIT: exactly ONE level of escaping. A document serialized TWICE (a JSON string nested inside a JSON

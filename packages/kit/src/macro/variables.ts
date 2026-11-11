@@ -1,7 +1,7 @@
 // kit/macro/variables — the runtime variable delta model (D46). The macro mutation handlers record their
 // mutations here as ordered `VarOp`s; the chat domain persists that log per message-variant and REPLAYS it
 // (`foldVarOps`) along the selected-variant chain to derive the current runtime state — derive-don't-stamp,
-// so a swipe/fork rewinds by re-folding (avoids the ST swipe-clobber issue #3263). `applyVarOp` is the ONE home for
+// so a swipe/fork rewinds by re-folding and never clobbers a value a later turn stamped. `applyVarOp` is the ONE home for
 // mutation semantics: BOTH the live handlers (registry.ts) and the fold call it, so record-time and
 // replay-time can never diverge. A variable key is checked only for length, so `__proto__` and `constructor`
 // are legal names: every read and write of a plane, here and in automation, uses `#objects` own-key access.
@@ -16,8 +16,8 @@ export function macroValueText(value: unknown): string {
 }
 
 /** A COMPLETE DECIMAL integer spelling, or null — the ONE parser for both the macro engine's `inc`/`dec` and
- *  the automation `set_variable` arm (`arm-executors.ts` imports it; its former local copy was retired at the
- *  #1557 fold, 2026-09-07). Minted for #1420, aligned here by OWNER RULING (#1557, 2026-09-05): one engine, one behavior. `Number.parseInt` is a PREFIX parser (`"5cats"` → 5, `"3.9"` → 3) that silently
+ *  the automation `set_variable` arm (`arm-executors.ts` imports it and keeps no
+ *  local copy). Aligned here by OWNER RULING: one engine, one behavior. `Number.parseInt` is a PREFIX parser (`"5cats"` → 5, `"3.9"` → 3) that silently
  *  applied a value the author never wrote to a counter later predicates read; a bare `Number()` is too
  *  generous the OTHER way (`"0x10"` → 16, `"1e3"` → 1000). Leading/trailing whitespace is trimmed (a
  *  rendered template legitimately carries it) but the empty string is not a zero — "nothing rendered" is a
@@ -36,7 +36,7 @@ export function parseCompleteInteger(text: string): number | null {
 /** Apply one {@link VarOp} to `env` IN PLACE — the single source of runtime-variable mutation semantics.
  *  Every read and write goes through the own-key accessors above. Returns whether the op actually mutated
  *  the env: `set`/`add`/`delete` always succeed; `inc`/`dec` REFUSE (leave `env` untouched) when the
- *  variable's CURRENT value is not a complete integer (#1557, OWNER RULING: align with #1420's
+ *  variable's CURRENT value is not a complete integer (OWNER RULING: align with the
  *  complete-bounded-integer refusal — a non-numeric counter used to silently rebase to 0 instead of
  *  surfacing the corruption). An ABSENT variable is still a fresh counter at 0, not a refusal: the read
  *  below defaults to `"0"` before the parse runs. The refusal is UNIFORM for both callers — the live
@@ -82,7 +82,7 @@ export function foldVarOps(deltas: readonly (readonly VarOp[])[]): Record<string
     }
   }
   // `fromEntries` DEFINES each property, so a `__proto__` key that survived the fold above survives the
-  // stringification too (#1564) — a loop of `out[key] = …` dropped it here even when the env held it, which
+  // stringification too — a loop of `out[key] = …` dropped it here even when the env held it, which
   // is the second half of the same hole and the one that reaches `chats.runtime_variables`.
   return Object.fromEntries(Object.entries(env).map(([key, value]) => [key, macroValueText(value ?? "")]));
 }

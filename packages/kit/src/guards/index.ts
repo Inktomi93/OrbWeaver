@@ -17,7 +17,7 @@ export function isPrimitive(value: unknown): value is PrimitiveValue {
  * True for a non-null, non-array object. Narrows `unknown` to `Record<string, unknown>` so a value
  * coming off `JSON.parse` / a stored blob can be treated as an object map without a cast.
  *
- * THE LOOSE CHECK IS THE CONTRACT, not an oversight (#1360 item 7, re-derived on the tree). The name
+ * THE LOOSE CHECK IS THE CONTRACT, not an oversight (re-derived on the tree). The name
  * promises "plain", so the obvious tightening is a prototype test
  * (`Object.getPrototypeOf(v) === Object.prototype || null`), which would also exclude `Date`, `Map` and
  * class instances. **That would break a live caller**: `@orb/db`'s `db-errors.ts` walks an ERROR's `cause` chain through this guard

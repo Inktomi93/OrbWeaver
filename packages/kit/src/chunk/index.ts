@@ -39,7 +39,7 @@ export interface TextChunk {
 
 const PERCENT = 100;
 
-/** The floor for `chunkSize`. TWO, not one (#1359): at size 1 the surrogate-pair guard in
+/** The floor for `chunkSize`. TWO, not one: at size 1 the surrogate-pair guard in
  *  `splitRecursive` cannot run — there is no second code unit left to keep a pair together — so an astral
  *  character splits into lone surrogates, and the trade is FORCED once 1 is accepted (no cut value
  *  satisfies both the stated bound and the totality guarantee). Accepting 1 was a chosen gap, not a

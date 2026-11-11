@@ -3,10 +3,10 @@
 // projection rule, one golden. Uses zod v4's native z.toJSONSchema, then pins additionalProperties:false on
 // every object node.
 //
-// WHAT THE PIN ACTUALLY BUYS (probed on zod 4.4.3 — the pre-2026-08-02 header claimed the parse rejects extra
+// WHAT THE PIN ACTUALLY BUYS (probed on zod 4.4.3 — an earlier header claimed the parse rejects extra
 // keys, which is FALSE): the pin is a GRAMMAR-LEVEL PREVENTION only on a wire that COMPILES a grammar, and we
 // drive exactly one — vLLM/xgrammar guided decoding (`vllm/surfaces/chat.ts`). It is ADVISORY everywhere else.
-// (The pre-2026-08-03 header also named "an OpenRouter `strict` tool" as an enforcing wire: NO SUCH TOOL EXISTS
+// (An earlier header also named "an OpenRouter `strict` tool" as an enforcing wire: NO SUCH TOOL EXISTS
 // in this tree — `WireTool` is `{name, description, parameters}` with no `strict` field
 // (`providers/contract/chat.ts`), and the OpenRouter structured vehicle is a FORCED TOOL CALL, which compiles
 // no grammar and therefore enforces nothing. Its schema is a prompt-shaped hint; the salvage parse is the
@@ -38,7 +38,7 @@ declare const wireReadyBrand: unique symbol;
 
 /** A JSON Schema that has provably been through {@link projectJsonSchema} — `additionalProperties:false`
  *  pinned on every object node, ready for a provider wire (D79). It is the ONLY value `ResponseFormat.schema`
- *  accepts, which turns "every structured-output send projects first" from a doc-note (task #41) into a
+ *  accepts, which turns "every structured-output send projects first" from a doc-note into a
  *  COMPILE-TIME invariant: a raw {@link Unprojected} at a send-site fails `tsc`. A `WireReady` is still a
  *  `Record<string, unknown>` (the brand is phantom), so every downstream consumer that reads `.schema` as a
  *  plain record — the per-wire subset scrubbers, the wire request builders — keeps working unchanged. */

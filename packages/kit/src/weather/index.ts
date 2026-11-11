@@ -13,7 +13,7 @@
 // lost — it rides the ambient weather's free `label` beside the type ("torrential sleet" · `snow`), the
 // relationship-kind `{kind, label}` precedent.
 //
-// `indoors` is the OCCLUSION member (owner ladder, 2026-08-07, dogfood SCENE-DROPPED): the eight sky states
+// `indoors` is the OCCLUSION member (owner ladder): the eight sky states
 // could only describe a sky the scene can SEE, so an interior scene had no legal value — and `update_scene`
 // is a single-schema call, so one unwritable field cost the whole scene write (location, recentEvent and all)
 // until the EXT-4a per-field salvage landed. Even after salvage it left a standing

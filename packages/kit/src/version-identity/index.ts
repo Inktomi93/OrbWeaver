@@ -1,5 +1,5 @@
 // THE BUILD IDENTITY SHAPE + its pure derivations — "what exactly is this running Orbweaver?", in the ONE
-// home every consumer can reach (owner ask 2026-09-18: "a versioning system to stay in sync with github and
+// home every consumer can reach (owner ask: "a versioning system to stay in sync with github and
 // to help with bug reports").
 //
 // WHY `kit` AND NOT `contracts`, even though this crosses server→client: the block is also a FIELD of

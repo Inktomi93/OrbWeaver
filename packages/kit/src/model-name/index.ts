@@ -5,7 +5,7 @@
 // (`Qwen/Qwen3-30B-A3B-Instruct-2507`), and a LOCAL WEIGHTS PATH from a self-hosted engine
 // (`/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token`,
 // 106 characters). Every surface that names a model has to answer the same question, and the last shape is
-// the one that breaks layouts: the preset panel restated that path twice, ~100px apart (#115). Pure,
+// the one that breaks layouts: the preset panel restated that path twice, ~100px apart. Pure,
 // zero-I/O, zero-domain, multiple consumers ⇒ `kit` by the placement rule; isomorphic because the CLIENT is
 // the surface that renders it.
 //

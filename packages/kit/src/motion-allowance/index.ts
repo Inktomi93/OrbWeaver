@@ -1,6 +1,6 @@
 // THE RATIFIED-MOTION ALLOWANCE — the ONE home of "which non-compositor animation is sanctioned", shared
-// by the two instruments that judge the same population from opposite sides of the cake (#1069, minted
-// with #953's Base UI height allowance):
+// by the two instruments that judge the same population from opposite sides of the cake (minted
+// with the Base UI height allowance):
 //   · PUSH — `packages/client/src/lib/motion-flaggers.ts`'s `[anim]` channel, which prints a console
 //     verdict at `animationstart`/`transitionstart`.
 //   · PULL — `tooling/src/motion-audit/lib/animations.ts`, whose dirty-animation budget gates an exit code.
@@ -77,7 +77,7 @@ export function baseUiAttributionMismatch(animation: SanctionableAnimation): str
   return `${animation.target} claimed owner=${SANCTIONED_ANIMATION_OWNER} mechanism=${animation.attribution.mechanism} phase=${animation.attribution.phase ?? "absent"}, but bound launch state was ${stateText}; a library-owned allowance requires one exact transition-run lifecycle state and its matching CSS-transition phase`;
 }
 
-/** true ⇒ this dirty animation is the owner-accepted Base UI lifecycle one (#953) and leaves the budget.
+/** true ⇒ this dirty animation is the owner-accepted Base UI lifecycle one and leaves the budget.
  *  A compositor-clean animation is never "sanctioned" — it was never accused. */
 export function isSanctionedLibraryAnimation(animation: SanctionableAnimation): boolean {
   return (

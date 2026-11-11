@@ -15,7 +15,7 @@ import { MACRO_MAX_DEPTH } from "./types.ts";
 // prompts are tiny compared to 1 MB / 64 levels — so legitimate usage never trips.
 const MAX_OUTPUT_BYTES = 1_000_000;
 
-// Defense-in-depth INPUT belt (2026-08-09 DoS audit). The parser is now O(n) (parser.ts spanFrom), but the
+// Defense-in-depth INPUT belt against a denial of service. The parser is now O(n) (parser.ts spanFrom), but the
 // engine must not TRUST that all ~10 call sites capped their input — a caller that forgets its schema cap
 // would hand an unbounded string straight to the parser. Every legitimate macro input is tiny; the largest
 // a write-boundary schema admits is a 100 KB card field / world-info `content` (TEXT_MAX = CONTENT_MAX =

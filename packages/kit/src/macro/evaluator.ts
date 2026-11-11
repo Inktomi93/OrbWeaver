@@ -53,7 +53,7 @@ function flagString(flags: MacroFlags | undefined): string {
 
 // Re-emit an unrecognized inline/block-open macro as TYPED. `raw` is the original source span —
 // reconstructing from parsed args normalized `{{x:one,two}}` → `{{x::one::two}}`, changing
-// passthrough bytes (review V10-10); the raw path also carries the flag run verbatim.
+// passthrough bytes; the raw path also carries the flag run verbatim.
 // Fallback reconstruction only for hand-built AST nodes that lack `raw`.
 function reconstruct(name: string, args: string[], raw: string | undefined, flags: MacroFlags | undefined): string {
   const argSuffix = args.length > 0 ? `::${args.join("::")}` : "";
@@ -219,7 +219,7 @@ function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: M
   try {
     return evaluateKnownBlock({ handler, node, metadata: meta, options, resolvedArgs, context: ctx });
   } catch (err) {
-    // FAIL-OPEN, and #1360 item 5 is what "open" has to mean for a BLOCK. This used to return the open
+    // FAIL-OPEN, and this is what "open" has to mean for a BLOCK. This used to return the open
     // tag alone, and the comment justified it as "the same fail-open policy as inline calls" — but those
     // are opposite outcomes wearing one name: for an inline macro fail-open means the reader sees the
     // literal macro text and loses nothing, while for a block it DELETED the author's body and closing

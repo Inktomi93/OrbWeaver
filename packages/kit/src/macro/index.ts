@@ -40,7 +40,7 @@ export type {
 // MACRO_FLAG_DEFS: the ONE reserved-flags vocabulary — the parser derives from it, the macro
 // browser documents from it.
 export { MACRO_ARG_TYPES, MACRO_FLAG_DEFS, MACRO_SOURCE_KINDS } from "./types.ts";
-// The #24 typed-input fold: preset/game-authored user macros as first-class registry entries + the typed
+// The typed-input fold: preset/game-authored user macros as first-class registry entries + the typed
 // choice-block input vocabulary and its pure values-bag resolution (random-pick draws freeze-at-commit).
 export {
   findOffVocabularyPicks,

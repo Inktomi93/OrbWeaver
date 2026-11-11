@@ -216,7 +216,7 @@ function liftEnum(values: readonly unknown[], path: string): RuntimeGeneratedSch
  *
  *  · `string` — `z.enum`, any member count. Projects `{type:"string", enum:[…]}`.
  *  · `number` / `boolean` — zod 4's MULTI-VALUE `z.literal`, which projects `{type:<t>, enum:[…]}` exactly
- *    (measured, not assumed). Widened 2026-09-07 (#1865): refusing an ordinary `{type:"number", enum:[4,6,8]}`
+ *    (measured, not assumed). Widened: refusing an ordinary `{type:"number", enum:[4,6,8]}`
  *    was a real gap that cost the story-clocks example its whole activation, and the exact round-trip the
  *    doctrine demands before any widening was available for it.
  *  · A SINGLE number/boolean member is REFUSED: `z.literal([6])` projects to `const`, not `enum`, so it cannot

@@ -74,7 +74,7 @@ function collectCardChunks(data: Uint8Array, want: string): CardChunkCandidate[]
       break; // truncated → stop walking
     }
     const type = latin1Decode(data.subarray(offset + LENGTH_FIELD_BYTES, offset + LENGTH_AND_TYPE));
-    // IEND is the LOGICAL END OF THE IMAGE (#1360 item 2). The walk used to run to the end of the byte
+    // IEND is the LOGICAL END OF THE IMAGE. The walk used to run to the end of the byte
     // array, so a card chunk APPENDED PAST IEND — bytes no PNG decoder will ever look at, and the easiest
     // place for a hostile or merely broken producer to hide one — was read as if it were part of the file.
     // Stop here; a card that is not inside the image is not this image's card.
@@ -93,8 +93,8 @@ function collectCardChunks(data: Uint8Array, want: string): CardChunkCandidate[]
 /** The card-chunk candidate at `offset`, or `null` when this chunk is not one: a wrong type, a wrong
  *  keyword, a missing NUL separator, an undefined zTXt compression method — or a FAILED CRC.
  *
- *  THE CRC ARM IS #1360 item 2: the reader ignored CRCs entirely, so corrupt metadata was collected as if
- *  it were authentic and then either exploded downstream or, worse, decoded into something that parses. A
+ *  THE CRC ARM: a reader that ignores CRCs collects corrupt metadata as if
+ *  it were authentic, and it then either explodes downstream or, worse, decodes into something that parses. A
  *  bad CRC makes the chunk not-a-candidate, exactly like an undecodable one — the precedence rule above
  *  already says a later intact `chara`/`ccv3` wins, so this just adds "corrupt bytes" to the list of
  *  things that stop a chunk counting. Only the chunks this module READS are verified; verifying IDAT would
@@ -154,7 +154,7 @@ interface ChunkCursor {
 /** True when the chunk at `offset` carries the CRC-32 the PNG spec says it must (computed over
  *  `type + data`, stored in the 4 bytes after the payload).
  *
- *  #1360 item 2: the reader IGNORED CRCs entirely, so a corrupt card chunk was handed back as if it were
+ *  The reader IGNORED CRCs entirely, so a corrupt card chunk was handed back as if it were
  *  authentic — it then either exploded further downstream or, worse, decoded into something that parses.
  *  Only the chunks this module actually READS are verified: verifying IDAT would be image-integrity work
  *  this module does not do and could not act on. */
@@ -267,7 +267,7 @@ export function stripCardChunks(png: Uint8Array): Uint8Array {
 /** Walk `png` up to IEND, dropping stale `chara`/`ccv3` card chunks of BOTH types and separating IEND from
  *  everything else kept. Anything AFTER IEND is returned VERBATIM as `trailing`.
  *
- *  #1360 item 2 — the walk used to run to the end of the byte array and push post-IEND chunks onto `kept`,
+ *  The walk used to run to the end of the byte array and push post-IEND chunks onto `kept`,
  *  which the rewrite then RELOCATED to before IEND. That takes bytes a PNG decoder ignores and splices them
  *  into the image stream, which is corruption rather than preservation; and a post-IEND `chara` chunk was
  *  promoted into a real card chunk on every rewrite. Preserving the tail WHERE IT ALREADY WAS is the honest
@@ -300,7 +300,7 @@ function splitChunks(png: Uint8Array): { kept: Uint8Array[]; iend: Uint8Array | 
 
 /** True when a text chunk's keyword is `chara`/`ccv3` (a previously embedded card to be replaced).
  *
- *  APPLIED TO `zTXt` AS WELL AS `tEXt`, and that is the whole of finding #1353's write half: a `zTXt` body is
+ *  APPLIED TO `zTXt` AS WELL AS `tEXt`, and that is the whole of the stale-card write rule: a `zTXt` body is
  *  `keyword\0<method><zlib>`, so the keyword split is byte-identical and no inflation is needed to decide
  *  staleness — but the drop used to test `tEXt` only. A card imported from a compressing exporter therefore
  *  KEPT its old compressed card, which `writeCardChunk` re-emitted BEFORE the fresh chunks, and the read
@@ -541,7 +541,7 @@ const CRC32_POLYNOMIAL = 0xed_b8_83_20;
 const CRC32_INIT = 0xff_ff_ff_ff;
 const CRC_TABLE_SIZE = 256;
 
-// Per-byte CRC table, built once. Used by the writer (every chunk it emits) AND, since #1360, by the
+// Per-byte CRC table, built once. Used by the writer (every chunk it emits) AND by the
 // reader's `chunkCrcValid` for the tEXt/zTXt chunks it actually consumes.
 const CRC_TABLE: Uint32Array = ((): Uint32Array => {
   const table = new Uint32Array(CRC_TABLE_SIZE);

@@ -124,7 +124,7 @@ function parseKeyPattern(raw: string): { pattern: string; flags: string } {
 
 /** The boundary class a LITERAL key is bounded by: the shared {@link UNICODE_WORD_CHARS} plus `_`.
  *
- *  The class is `#strings`' (#1543) rather than a local spelling — this was the FOURTH copy of the same
+ *  The class is `#strings`' rather than a local spelling — this was the FOURTH copy of the same
  *  question, and the only one still missing `\p{M}`, so `keyRegex("ann").test("caféann")` was TRUE when the
  *  é was decomposed (`cafe`+U+0301): a combining mark satisfied the "not a word character" lookbehind and a
  *  world-info entry keyed `ann` activated on a word that does not contain it. `_` is world-info's OWN
@@ -204,7 +204,7 @@ const REGEX_FLAG_LETTERS = /^[dgimsuvy]*$/;
  *  {@link matchEntryKeys} already compiles under `keyMode: "regex"`, asked as a question so an importer can DERIVE the mode
  *  for a source format that carries no explicit flag.
  *
- *  Owner ruling 2026-08-19 (#268 arm (a)): ST's NATIVE world file (`worlds/*.json`) has no `use_regex` field
+ *  Owner ruling: ST's NATIVE world file (`worlds/*.json`) has no `use_regex` field
  *  at all, so for THAT format the delimited form IS the regex marker; card-embedded books keep flag-only
  *  semantics. The sole consumer is `domain/import/substrate/world` — this is deliberately NOT applied in the
  *  shared entry mapper, and stored data is never re-interpreted.
@@ -226,7 +226,7 @@ export function isDelimitedKeyPattern(key: string): boolean {
  *  executor's `applyReplace`. Default (see {@link matchEntryKeys}): native `.test` with NO timeout — the
  *  browser's lot, guarded only by the pre-compile complexity heuristic. The server injects a node:vm-sandboxed
  *  version with a per-call budget so a catastrophic-backtracking USER key throws (→ treated as a non-match +
- *  reported) instead of hanging the event loop for every user on the process (#710 ReDoS). Isomorphic —
+ *  reported) instead of hanging the event loop for every user on the process (a ReDoS). Isomorphic —
  *  RegExp+string in, boolean out, no `node:*` — so kit stays browser-safe and the timeout lives server-side. */
 export type TestKeyRegex = (regex: RegExp, haystack: string) => boolean;
 
@@ -256,7 +256,7 @@ export function matchEntryKeys(keys: readonly string[], haystack: string, option
     // (`(a|a)+$`, `(a+)+$`), so the actual `.test` runs under the injected budget (`testRegex`). A throw from
     // it (the server watchdog's timeout, or any executor error) is caught HERE — the key is treated as a
     // NON-match (fail-closed on the pathological key) and reported through `onKeyCompileFailure`, exactly as a
-    // bad compile is; the turn proceeds fail-open on the remaining keys rather than hanging or crashing (#710).
+    // bad compile is; the turn proceeds fail-open on the remaining keys rather than hanging or crashing.
     const testRegex = options.testRegex ?? nativeTestKeyRegex;
     return keys.filter((key) => {
       if (key.trim().length === 0) {

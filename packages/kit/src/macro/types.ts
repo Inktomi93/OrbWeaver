@@ -320,7 +320,7 @@ export interface MacroContext {
   // THREADS the parent context UNCHANGED — same injected ctx.random/nowMs (never re-seeded, never a
   // child PRNG), same opLog, same MacroBudget (depth + output fire on the lazy path identically) — so
   // lazy resolution draws in document order, byte-identical to eager (the determinism-through-nesting
-  // invariant, owner-ratified #19). `trim: true` applies the trimContent body normalization (the
+  // invariant, owner-ratified). `trim: true` applies the trimContent body normalization (the
   // resolveContent seam the evaluator's content-as-last-arg delivery rides).
   resolve: (content: string | MacroAST, opts?: MacroResolveOptions) => string;
   // Optional post-processing hook for macro values (e.g. escaping regex chars)
@@ -394,7 +394,7 @@ interface MacroResolveOptions {
  *  (`tripped` latches true) so subsequent expansions short-circuit instead of partially rendering.
  *  INTERNAL to the engine: threaded through `MacroContext.__budget`, and macro authors never construct one
  *  directly. Said in prose rather than a TSDoc release tag: this repo runs no API extractor, so the tag
- *  decided nothing, while knip reads every JSDoc tag and reds one its `tags` config never acts on (#1847). */
+ *  decided nothing, while knip reads every JSDoc tag and reds one its `tags` config never acts on. */
 export interface MacroBudget {
   depth: number;
   maxDepth: number;

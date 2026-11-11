@@ -25,7 +25,7 @@ const FLAG_KEY_BY_CHAR: ReadonlyMap<string, MacroFlagKey> = new Map(MACRO_FLAG_D
 
 // Amortized-O(1) line/col derivation. The OLD `spanAt(text, offset)` re-scanned from index 0 on EVERY
 // recognized tag (once per `{{…}}`), making the parser O(tags·length) = O(L²) over a macro-dense input:
-// a 100 KB card field of `{{a}}` macros blocked the shared event loop ~4.4 s (2026-08-09 DoS audit) — a
+// a 100 KB card field of `{{a}}` macros blocked the shared event loop ~4.4 s (measured) — a
 // full-instance denial-of-service on any input that reaches assembly's `renderMacros` (card fields,
 // greetings, world-info `content` — all capped at 100 KB, all attacker-influenceable via an imported ST
 // card / shared lorebook / member persona). Because the scanner only ever requests spans at
@@ -75,7 +75,7 @@ const NOT_FOUND = -1;
 // STICKY (`y`), not anchored (`^`): the scanner matches the identifier at an OFFSET into the full string
 // (`readTag`), and a sticky match at `lastIndex` avoids allocating a fresh `text.slice(pos)` tail on every
 // tag — that slice was the SECOND O(n²) parse source (alongside the old spanAt), together ~4.4 s on a
-// 100 KB macro-dense field (2026-08-09 DoS audit). Sticky exec is used with an explicit `lastIndex` set on
+// 100 KB macro-dense field (measured). Sticky exec is used with an explicit `lastIndex` set on
 // every call, so its statefulness is deterministic (parse is synchronous and non-reentrant).
 const MACRO_IDENT = /[a-zA-Z][\w-]*/y;
 
@@ -380,7 +380,7 @@ function reconstructWithoutComments(ast: MacroAST): string {
 
 /** Remove every `{{// … }}` comment span from `text`, returning the author text the engine would render
  *  minus macro RESOLUTION — the transform the preset token estimate strips with so a non-LLM-visible
- *  comment costs zero tokens (#302). Built on the ONE {@link parseMacros}: a comment produces no AST node,
+ *  comment costs zero tokens. Built on the ONE {@link parseMacros}: a comment produces no AST node,
  *  so reconstructing source from the AST drops exactly the comments and nothing else. It therefore CANNOT
  *  drift from the engine's comment recognition — the depth-aware close scan (a nested `{{…}}` inside the
  *  comment doesn't close it early), the `\{{` escape (an escaped opener is literal, never a comment), and
@@ -462,7 +462,7 @@ interface StackFrame {
 // `parent.children.push(open, ...children)`, called in a loop; because each revert re-copied the
 // accumulating tail one frame up, unwinding K frames was O(K²). For a flat run of inline macros
 // (`{{a}}{{a}}…` — the DoS shape, or a wide crossing like `{{a}}{{b}}…{{b}}{{/a}}`) K = the tag count, so
-// the unwind alone was ~2 s on a 100 KB field (2026-08-09 audit; the OTHER half was `spanAt`). A full
+// the unwind alone was ~2 s on a 100 KB field (measured; the OTHER half was `spanAt`). A full
 // unwind is just each frame's `open` followed by its own children, concatenated in order after the target's
 // existing prefix — one pass, O(total nodes). Byte-identical AST to the cascade.
 function flushFrames(target: StackFrame, frames: readonly StackFrame[]): void {

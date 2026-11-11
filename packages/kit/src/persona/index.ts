@@ -4,7 +4,7 @@ import { resolveInjectionPlacement } from "#injection";
 import type { MessageRole } from "#message-role";
 
 /**
- * THE ONE SPELLING of the default `{{user}}` identity — "Traveler", not "You" (owner ruling 2026-08-03).
+ * THE ONE SPELLING of the default `{{user}}` identity — "Traveler", not "You" (owner ruling).
  *
  * It answers ONE question in four places that must never disagree: *what is this human called when we have
  * no persona for them?* Boot seeds the auto-created default persona with it; the client's row attribution

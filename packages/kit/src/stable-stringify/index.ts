@@ -4,7 +4,7 @@
 // the forms layer's draft-baseline hash (`hashServerBaseline`) — all three needed the SAME primitive, so
 // it lives here instead of three times.
 //
-// ── THE CANONICALISATION, and where it stops (#1360 item 1) ────────────────────────────────────────
+// ── THE CANONICALISATION, and where it stops ────────────────────────────────────────
 // This function decides IDENTITY for two persisted hashes, so what it collapses is a correctness
 // question, not a formatting one.
 //

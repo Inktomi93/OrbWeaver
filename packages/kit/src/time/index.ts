@@ -7,7 +7,7 @@
 //
 // The zone/calendar math is the PLATFORM `Temporal` API (node ≥26 ships it enabled by default; the
 // browser arm is chromium ≥144 — probe-verified in the CT chromium 149 before this port landed). It
-// replaced luxon here 2026-08-21; the port is pinned by a differential corpus (63 of 70 inputs
+// replaced luxon here; the port is pinned by a differential corpus (63 of 70 inputs
 // byte-identical, every DST/calendar edge among them) whose deliberate deltas are stated on the two
 // parsers below. luxon SURVIVES in `macro/registry.ts` alone, where `{{datetimeformat::FORMAT}}`
 // exposes luxon's format-token vocabulary to users as a documented contract — that is a user-data
@@ -43,7 +43,7 @@ export function epochToMs(value: number): number | null {
 /** A value KNOWN to be epoch seconds → ms. For documented-seconds fields (Agent SDK rate-limit
  *  `resetsAt`, OpenRouter `created`). Passes through undefined so it composes with optional fields.
  *
- *  A NEGATIVE reading is undefined too (#1359): every caller is a provider SDK field contractually
+ *  A NEGATIVE reading is undefined too: every caller is a provider SDK field contractually
  *  documented as a forward epoch, so a pre-1970 instant is a corrupt payload rather than a date, and
  *  {@link epochToMs} right next door already refuses `<= 0`. The two parsers now agree on the sign. `0`
  *  still passes — it is a real (if degenerate) epoch and no caller reads it as a sentinel. */
@@ -322,7 +322,7 @@ const RELATIVE_HORIZON_DAYS = 7;
 const RELATIVE_HORIZON_MS = RELATIVE_HORIZON_DAYS * MS_PER_DAY;
 const DAYS_PER_WEEK = 7;
 /** A week in ms. EXPORTED because "within the last week" is a span a display surface asks about directly
- *  (the Characters landing's week's-additions foot line, #864) and the alternative is every caller
+ *  (the Characters landing's week's-additions foot line) and the alternative is every caller
  *  re-spelling `7 * 24 * 60 * 60 * 1000` — the unit ladder has exactly one home, and this is it. */
 export const MS_PER_WEEK = DAYS_PER_WEEK * MS_PER_DAY;
 /** Weeks before a compact stamp switches to years — 52w is where "how many weeks?" stops being readable. */
