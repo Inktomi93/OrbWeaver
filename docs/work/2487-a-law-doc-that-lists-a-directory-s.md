@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: docs
+lane: wt/agent-a6f4f2c6b78ab727e
 ---
 
 # A law doc that lists a directory's members is checked against the directory

@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: docs
+lane: wt/agent-a6f4f2c6b78ab727e
 ---
 
 # A comment that claims a test names the test file

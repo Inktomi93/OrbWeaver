@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: server
+lane: wt/agent-a06d7ca7c655446af
 ---
 
 # Every error class the contracts export is one the transport maps to a client answer
