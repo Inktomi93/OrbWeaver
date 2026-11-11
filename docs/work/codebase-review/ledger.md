@@ -176,7 +176,7 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 | - | - | - | - |
 | kit | packages/kit/ | M | reviewed (3) |
 | contracts | packages/contracts/ | L | reviewed (3) |
-| db | packages/db/ incl. migrations | S | queued |
+| db | packages/db/ incl. migrations | S | reviewed (1) |
 
 ### Phase 2 — tooling law enforcement
 
@@ -306,7 +306,7 @@ Triage fills this.
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
 | P2 | 14 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts |
-| P3 | 21 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts |
+| P3 | 22 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -336,3 +336,11 @@ it (`kit/handle-key/unicode-data.ts` cites its generator; `contracts/src/prose` 
 at least two orphaned manifests whose whole purpose was a proof obligation. At triage the
 integrity-test item should cover the class, not just the instances: every committed data file or
 GENERATED header that claims a producer or consumer must have that door resolvable in-tree.
+
+The db unit found the thesis's counterexample and the fix-shape precedent in one package:
+`tests/db/schema/enum-tuples.suite.test.ts` is a shipped closed-vocabulary door (dynamic census
+of every contracts+kit string-tuple export, member-equality against every enum column), and
+`query/batch.ts` shows prose kept honest by MEASUREMENT — it caught its own false empty-batch
+contract and made the sentence true instead of narrowing the runtime. Where prose has a proof
+obligation, db already knows how to discharge it; the triage item is about extending db's habit,
+not importing a new shape.
