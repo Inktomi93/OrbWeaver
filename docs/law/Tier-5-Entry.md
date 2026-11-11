@@ -27,7 +27,7 @@ packages/server/src/entry/
 │                             transport declares only the port — docs/law/Tier-4-Transport.md §"rate-limit").
 │                             Second policy site: packages/server/src/entry/http/auth-routes.ts owns its own login-IP throttle,
 │                             adjacent to the route it guards.
-├── packages/server/src/entry/auth/seam.ts              THE AUTH SEAM — the ONE Principal construction site: wires infra/auth (verify)
+├── auth/                     seam.ts is THE AUTH SEAM — the ONE Principal construction site: wires infra/auth (verify)
 │                             + domain/sessions (resolve/validate/upsert) (per §7 D1)
 ├── boot/                     migrate.ts (backup → FK-off migrations → foreign_key_check) · seed-owner.ts ·
 │                             seed-credential.ts (env→DB-once) · seed-default-preset.ts ·
