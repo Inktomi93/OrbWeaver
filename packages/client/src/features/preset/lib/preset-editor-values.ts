@@ -2,9 +2,9 @@
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { z } from "zod";
+import type { UserMacrosFormValues } from "#components";
+import { admitUserMacroValues, macroRowIdsMatch } from "#components";
 import { formValuesEqual } from "#forms";
-import type { UserMacrosFormValues } from "../../../components/user-macro-editor-model.ts";
-import { admitUserMacroValues, macroRowIdsMatch } from "../../../components/user-macro-editor-model.ts";
 
 const variableRowIdsSchema = z.object({ id: z.uuid(), options: z.array(z.uuid()) });
 const metadataSchema = z.object({ variableRowIds: variableRowIdsSchema.array() });

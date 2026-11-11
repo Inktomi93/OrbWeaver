@@ -6,7 +6,7 @@
 // sees a Principal or a roster), and the JSON-safe result crosses back via `jsToHandle`. The bridge is
 // authority-AGNOSTIC by construction: it only ever receives an already-admitted `ChatId`.
 //
-// The three enforcement mechanisms this file owns (the escape-suite pins them — 04 §P4):
+// The three enforcement mechanisms this file owns (04 §P4):
 //   1. capability gate — a function whose `PluginCapability` is not in `grants` REJECTS (the guest sees a
 //      thrown `PluginCapabilityError`); uniform, so a guest feature-detects via try/catch or `host.grants`.
 //   2. opaque handle — `chat.current()` returns the ONE host-minted token for the admitted invocation chat;

@@ -7,8 +7,8 @@
 // model VERBATIM as inert text (the distill precedent), and a rewritten field round-trips back into the
 // card with its macros intact. `neutralizeMacros` here would ZWSP-corrupt applied rewrites (the model
 // echoes the split braces; `applyFields` writes them into canon; the card's macros die at chat time).
-// The substrate test pins BOTH drift directions: a seeded `{{char}}` reaches the assembled prompt
-// unresolved AND un-neutralized. Do not "harden" this file with either without re-reading the ruling.
+// A seeded `{{char}}` must reach the assembled prompt
+// unresolved AND un-neutralized, in both drift directions. Do not "harden" this file with either without re-reading the ruling.
 //
 // ANTI-DRIFT: `buildAnalyzePrompt` takes the session's ORIGINAL card as its comparison anchor — never a
 // previous rewrite (a steered rewrite must not bootstrap itself across iterations). The rewrite stage

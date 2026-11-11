@@ -20,7 +20,7 @@ import type { ScheduleOp } from "@orb/kit/time";
  *  `addSpanEvent` in through the backend deps, and a test that passes none gets a silent no-op. */
 import type { AddSpanEvent } from "#contract";
 import { ProviderError } from "#contract";
-import type { RetryOptions } from "../../contract/http.ts";
+import type { RetryOptions } from "#src/contract/http.ts";
 
 const NO_SPAN_EVENT: AddSpanEvent = () => undefined;
 
@@ -129,4 +129,4 @@ export async function runWithPreCommitRetry<T>(
   throw lastError;
 }
 
-export type { RetryOptions } from "../../contract/http.ts";
+export type { RetryOptions } from "#src/contract/http.ts";

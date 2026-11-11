@@ -1,5 +1,6 @@
 // cache-check's programmatic front door: the run the cli fronts, and the pure verdict, argv and fixture its
-// tests pin.
+// tests pin: tests/tooling/cache-check/lib/verdict.test.ts, tests/tooling/cache-check/lib/argv.test.ts and
+// tests/tooling/cache-check/lib/fixture.test.ts.
 
 export type { CardSpec, CasePlan, Measure, ProbeStep, RoomKind, RoomRun, RoomSpec } from "./contract/plan.ts";
 export { MEASURES, ROOM_KINDS } from "./contract/plan.ts";

@@ -79,6 +79,7 @@ import {
   DomainConflictError,
   DomainError,
   DomainForbiddenError,
+  DomainInternalFaultError,
   DomainNoCredentialError,
   DomainNotFoundError,
   DomainOperationError,
@@ -86,6 +87,7 @@ import {
   DomainUnavailableError,
 } from "@orb/kit/errors";
 import { TRPCError } from "@trpc/server";
+import { UNCLASSIFIED_FAULT_MESSAGE } from "./fault-copy.ts";
 
 /**
  * One provider kind's wire treatment. Both `null`s are deliberate and mean different things:
@@ -217,6 +219,11 @@ export function classifyDomainError(err: unknown): TRPCError | null {
   if (cause instanceof DomainUnavailableError) {
     return new TRPCError({ code: "SERVICE_UNAVAILABLE", message: cause.message, cause });
   }
+  // A tripwire is a modelled fault, not an unmodelled one: it carries the fixed fault sentence instead of its own
+  // text (a frame built from `message` toasts it verbatim), and the callers that log find it by `internalFaultOf`.
+  if (cause instanceof DomainInternalFaultError) {
+    return new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: UNCLASSIFIED_FAULT_MESSAGE, cause });
+  }
   // Reached only when the OUTERMOST modelled error on the chain was a ProviderError: a DomainError
   // wrapping a provider fault stopped the walk above and classified by the domain's own framing, which is
   // what we want — the domain knows why it caught, the runtime only knows what failed.
@@ -255,4 +262,10 @@ export function domainDetail(error: { cause?: unknown }): DomainOperationDetail 
  *  message most kinds no longer put on the wire exists ONLY in that log now. `null` for everything else. */
 export function providerFaultOf(error: { cause?: unknown }): ProviderError | null {
   return error.cause instanceof ProviderError ? error.cause : null;
+}
+
+/** The tripwire a mapped `TRPCError` was built from, for the caller that owes it an error-level log line: its message
+ *  never reaches the wire. `null` for everything else. */
+export function internalFaultOf(error: { cause?: unknown }): DomainInternalFaultError | null {
+  return error.cause instanceof DomainInternalFaultError ? error.cause : null;
 }

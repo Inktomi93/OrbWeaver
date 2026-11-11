@@ -2,12 +2,14 @@
 // prefixes its lines with this so timing reads at a glance without opening the Performance panel.
 // This is console instrumentation, never render output.
 
+import { timeLib } from "./time.ts";
+
 const PAD_UNIT = 2;
 const PAD_MS = 3;
 
 /** HH:MM:SS.mmm local wall-clock tag for dev console lines. */
 export function logClock(): string {
-  const d = new Date(performance.timeOrigin + performance.now());
+  const d = new Date(timeLib.now());
   const p = (n: number, w: number = PAD_UNIT): string => String(n).padStart(w, "0");
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), PAD_MS)}`;
 }

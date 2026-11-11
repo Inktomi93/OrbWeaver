@@ -13,7 +13,7 @@
 // boot untouched, on ITS layer 2: per-card handle-conflict tolerance against the db's own uniqueness).
 // Personas carry no unique key by design (same-named personas are supported, #458), so the artifact marker is
 // the persona analogue of that handle. Layer 2 is deliberately NOT "the user owns any persona": owning
-// UNRELATED personas has never suppressed the seed, and that arm is pinned by its own test.
+// UNRELATED personas has never suppressed the seed, and tests/server/domain/persona/seeder/default.int.test.ts holds that arm.
 //
 // THE AUTO-CREATE ARM IS CONDITIONAL (owner ruling, 2026-08-03 — the forced-first-run redesign). Auto-seeding
 // a persona is what made the shipped `FirstRunPersonaDialog` dead by construction: its trigger is "the viewer

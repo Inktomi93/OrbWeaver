@@ -29,7 +29,7 @@ import type { AppFormInstance } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { isTemplatedMarker, sectionEnabledSwitchName, sectionGlyphIcon, sectionKind, triggersPillLabel } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
-import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
+import type { PresetEditorValues } from "#src/features/preset/lib/preset-editor-values.ts";
 import { estimateSectionTokens } from "./estimate-tokens.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 

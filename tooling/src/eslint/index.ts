@@ -142,7 +142,7 @@ export {
 } from "./port-ownership/restated-port.ts";
 export { JOINT_BATCH_RULINGS, jointBatchRulingOf } from "./port-ownership/ruled-ops.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
-export { homeReasons, homes } from "./syntax.ts";
+export { homeReasons, homes, memberNamed } from "./syntax.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
 export { OWNED_ROOT_ACQUISITIONS } from "./test-owners.ts";
 export { conflicts, survives } from "./ui-classes/class-conflict.ts";

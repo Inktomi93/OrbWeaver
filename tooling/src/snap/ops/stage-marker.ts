@@ -188,7 +188,7 @@ export function readBands(home: string): readonly StageRow[] {
   }
 }
 
-/** Exported beside `readBands` because the pair IS the cross-checkout contract (#108): the suite proves a
+/** Exported beside `readBands` because the pair IS the cross-checkout contract (#108): tests/tooling/snap/ops/stage-marker.int.test.ts proves a
  *  table written under one checkout's `markerRoot` is read back under another's. */
 export function writeBands(home: string, rows: readonly StageRow[]): void {
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });

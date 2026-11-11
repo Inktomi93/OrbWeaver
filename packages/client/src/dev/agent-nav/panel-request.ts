@@ -2,11 +2,11 @@
 // `agent-nav/index.ts` and re-exported from it so every import path keeps resolving. `buildAgentNav` still composes ONE call (`resolvePanelRequest`); nothing about the arm's
 // contract changed by moving files.
 
+import type { NavResult } from "#src/lib/agent-bridge.ts";
+import { panelAvailability } from "#src/lib/agent-bridge.ts";
+import { markAgentNavigation } from "#src/lib/motion-stats.ts";
 import type { PanelName } from "#state";
 import { collapseListPanel, dockListPanel, hideContextPanel, revealContextPanel, setOpenOverlayPanel } from "#state";
-import type { NavResult } from "../../lib/agent-bridge.ts";
-import { panelAvailability } from "../../lib/agent-bridge.ts";
-import { markAgentNavigation } from "../../lib/motion-stats.ts";
 
 /** The full `__orb.nav.panel` name vocabulary (`PanelName` has no runtime tuple of its own — it is a
  *  two-member literal union, not a registry-backed axis). */

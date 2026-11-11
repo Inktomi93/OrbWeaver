@@ -10,8 +10,8 @@
 // throws — a bad target is data the caller renders, exactly like every other closed-vocabulary arm here.
 
 import type { ContributorRegistry } from "#lib";
+import type { NavResult } from "#src/lib/agent-bridge.ts";
 import type { ConfigGroupId, ConfigSectionContribution } from "#state";
-import type { NavResult } from "../../lib/agent-bridge.ts";
 
 const OK: NavResult = { ok: true };
 

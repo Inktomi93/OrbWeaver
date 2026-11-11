@@ -20,8 +20,8 @@ import type {
 } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
-import type { AgentSdkBackend, AgentSdkBackendDeps, AgentSdkDeps, AgentToolSpec, ClaudeRuntimeOverrides } from "../../contract/agent-sdk-backend.ts";
-import type { NormalizeImageBytes } from "../../contract/wire.ts";
+import type { AgentSdkBackend, AgentSdkBackendDeps, AgentSdkDeps, AgentToolSpec, ClaudeRuntimeOverrides } from "#src/contract/agent-sdk-backend.ts";
+import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../wire/model-listing.ts";
@@ -121,4 +121,4 @@ export function createAgentToolServer(opts: { readonly name: string; readonly ve
   return createSdkMcpServer({ name: opts.name, version: opts.version, tools: sdkTools });
 }
 
-export type { AgentSdkBackend, AgentSdkBackendDeps, AgentToolSpec } from "../../contract/agent-sdk-backend.ts";
+export type { AgentSdkBackend, AgentSdkBackendDeps, AgentToolSpec } from "#src/contract/agent-sdk-backend.ts";

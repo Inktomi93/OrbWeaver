@@ -81,6 +81,7 @@ export { useRowDeleteFocus } from "./use-row-delete-focus.ts";
 export { useRerankModel, useUtilityModel } from "./use-utility-model.ts";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
 export type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
+export { admitUserMacroValues, canonicalUserMacroValues, macroRowIdsMatch, newMacroRowIds } from "./user-macro-editor-model.ts";
 export { USER_ROLE_STATUS } from "./user-role-status.ts";
 export { RerankModelDoor, UtilityModelDoor } from "./utility-model-door.tsx";
 export { ViewerDialog } from "./viewer-dialog.tsx";

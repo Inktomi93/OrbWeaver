@@ -1,7 +1,7 @@
 // schema/users — the identity root. Every single-owned table FKs `users.id`; it is reserved
 // cross-cutting (no single producing domain). The `role` enum DERIVES the canonical `USER_ROLES` tuple
 // from `@orb/contracts/identity` (D17 — owner|admin|user); the column never re-spells the union, and a
-// CHECK built from the same tuple enforces it at the SQL level (a test-mirror pins db === contracts).
+// CHECK built from the same tuple enforces it at the SQL level (tests/db/schema/enum-tuples.suite.test.ts pins db === contracts).
 //
 // `users.id` is DELIBERATELY a PLAIN `Branded<"UserId">` nanoid, NOT a prefix-validated TypeID (Tier-1-DB.md
 // esoteric #4): inbound `ownerId`/`userId` FKs inherit that plainness. It still carries a `.$type<UserId>()`

@@ -87,12 +87,10 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   // scope. \`accNameOwnText\` moved there at #1324 so snap's surface map could compose the key without
   // composing this census: two homes for one accessible name is what put \`aria-label\` ahead of
   // \`aria-labelledby\` in both of them.
-  // issue #252 — the RUNTIME half of the dual-home detector. The static gate (duplicate-action-doors)
-  // censuses tRPC call sites per rail section and is blind by construction to a REGISTRY-RENDERED action:
-  // one call site behind N rendered slots, which is exactly how the founding "new chat lives in three
-  // places" complaint escapes it. This census is the other lens: the same (role, accessible name) offered
-  // more than once on one rendered plane. Both together close the class — the static arm catches one verb
-  // under N different labels, this arm catches one label rendered N times from one verb.
+  // The dual-home detector. A REGISTRY-RENDERED action is one call site behind N rendered slots (the founding
+  // "new chat lives in three places" complaint), so only the rendered page shows it: this census judges the
+  // same (role, accessible name) offered more than once on one rendered plane. No static check covers one verb
+  // under N different labels.
   var actionDoors = [];
   // PER-DATUM REPETITION IS THE WHOLE FALSE-POSITIVE CLASS: twelve "Open" buttons in a chat list are twelve
   // different chats, not twelve doors to one action. The discriminator is STRUCTURAL PATH, not a twin-sibling

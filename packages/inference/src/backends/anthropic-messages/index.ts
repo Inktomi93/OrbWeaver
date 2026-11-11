@@ -19,8 +19,8 @@ import type {
 } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
-import type { AnthropicBackendDeps, AnthropicTransportDeps } from "../../contract/anthropic-backend.ts";
-import type { NormalizeImageBytes } from "../../contract/wire.ts";
+import type { AnthropicBackendDeps, AnthropicTransportDeps } from "#src/contract/anthropic-backend.ts";
+import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { fetchJson } from "../http/fetch-json.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
@@ -124,4 +124,4 @@ export function createAnthropicBackend(deps: AnthropicBackendDeps): ProviderBack
   };
 }
 
-export type { AnthropicBackendDeps } from "../../contract/anthropic-backend.ts";
+export type { AnthropicBackendDeps } from "#src/contract/anthropic-backend.ts";

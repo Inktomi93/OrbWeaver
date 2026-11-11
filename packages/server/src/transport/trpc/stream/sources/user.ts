@@ -16,7 +16,8 @@ import type { StreamDataFrame } from "@orb/contracts/stream";
 import type { RoomSourceDef } from "../room-source.ts";
 
 export const userRoomSource: RoomSourceDef<"user"> = {
-  // LIVE-ONLY: no durable log, no cursor — the client's blanket gap-heal is this room's recovery.
+  // LIVE-ONLY: no durable log, no cursor — the client's blanket gap-heal is this room's recovery. Overflow
+  // collapses, which is legal because every member is a coarse invalidation trigger (`USER` in `data/invalidation.ts`).
   resumable: false,
   authorizeAttach: () => Promise.resolve(),
   async *run({ principal, liveBuses, signal }): AsyncGenerator<StreamDataFrame> {

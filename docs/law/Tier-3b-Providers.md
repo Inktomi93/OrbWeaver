@@ -89,7 +89,7 @@ packages/inference/src/
 ├── funnel/           resolve-chat.ts · resolve-embed.ts — (intent × capability) → wire knobs
 ├── roles/            executor.ts · role-clients.ts · diagnostics.ts
 └── backends/         openai-compat/ · anthropic-messages/ · google/ · agent-sdk/ (+ session/) · local-light/ ·
-                      v4/ (the Vercel-AI-SDK v4 seam) · kit/ (the shared pure wire helpers)
+                      v4/ (the Vercel-AI-SDK v4 seam) · http/ and wire/ (the shared transport and pure wire helpers)
 ```
 
 ## 6. Contract homes (one home, one direction)

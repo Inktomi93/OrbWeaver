@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: settings
+lane: wt/agent-ab272ed4fef9cc84a
 ---
 
 # A single imported SillyTavern theme reports the keys it could not place

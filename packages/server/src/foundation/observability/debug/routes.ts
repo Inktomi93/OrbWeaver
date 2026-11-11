@@ -40,7 +40,7 @@ import { versionIdentity } from "#foundation/version";
 import type { DebugAuthOptions, DebugRoutesOptions } from "../contract/debug.ts";
 import type { Logger } from "../contract/logging.ts";
 import { securityEvent } from "../logger.ts";
-import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
+import { mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
 import {
   automationFireRows,
   characterDetailRow,
@@ -277,6 +277,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     auth = options.env.DEBUG_TOKEN,
     log,
     rings,
+    now,
   } = options;
   const db = handle === undefined ? undefined : databaseForOwner(handle);
   const authConfig = debugAuthConfigOf(auth);
@@ -336,7 +337,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
       if (!parsed.success) {
         return c.json({ error: "invalid bug report", issues: z.prettifyError(parsed.error) }, BAD_REQUEST);
       }
-      const capturedAt = new Date(captureNowMs());
+      const capturedAt = new Date(now());
       const repoRoot = process.cwd();
       const record: BugReportRecord = {
         id: mintBugReportId(),

@@ -2,7 +2,7 @@
 // row = one backend = N roles. The `provider` enum DERIVES the canonical `CRED_PROVIDERS` tuple from
 // `@orb/contracts/credentials` (D31 — the broader STORAGE axis `openrouter|anthropic|openai|
 // custom_openai`, NOT the narrower dispatch `CRED_SOURCES`); the column never re-spells
-// the union, and a CHECK built from the same tuple enforces it at the SQL level (a test-mirror pins
+// the union, and a CHECK built from the same tuple enforces it at the SQL level (tests/db/schema/enum-tuples.suite.test.ts pins
 // db === contracts). `anthropic`/`openai` are storable forward-compat slots with no
 // resolver arm yet — a row may persist under them.
 //

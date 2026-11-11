@@ -3,12 +3,11 @@
 
 import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
+import type { IntegrityReport } from "#src/foundation/observability/contract/inspect.ts";
 import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import { getLog } from "#src/foundation/observability/logger.ts";
 
-import type { IntegrityReport } from "../../contract/inspect.ts";
-
-export type { IntegrityReport } from "../../contract/inspect.ts";
+export type { IntegrityReport } from "#src/foundation/observability/contract/inspect.ts";
 
 /** Run both integrity pragmas; a finding warns through the request's logger or else the root's `base`. */
 export async function integrityProbe(db: Db, base: Logger): Promise<IntegrityReport> {

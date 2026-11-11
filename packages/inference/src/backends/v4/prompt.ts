@@ -22,7 +22,7 @@ import type {
 } from "@ai-sdk/provider";
 import type { ChatContentPart, ReasoningPartMeta } from "@orb/contracts/chat";
 import type { ChatHistoryMessage } from "#contract";
-import type { BuildPromptArgs, OutboundMedia, PlanRow, WirePlan } from "../../contract/v4.ts";
+import type { BuildPromptArgs, OutboundMedia, PlanRow, WirePlan } from "#src/contract/v4.ts";
 import { chatHistoryText } from "../wire/history.ts";
 
 const PROMPT_JOINER = "\n\n";
@@ -66,7 +66,7 @@ function mediaOf(content: readonly ChatContentPart[]): OutboundMedia[] {
 function toolInput(raw: string): unknown {
   try {
     return JSON.parse(raw);
-    // malformed model-emitted arguments are replayed as the raw string in the tool-call `input` (`toolCallPart`), so the model's bytes reach the wire instead of the call being dropped; the v4 prompt test pins that arm. Ends if raw stops being sent.
+    // malformed model-emitted arguments are replayed as the raw string in the tool-call `input` (`toolCallPart`), so the model's bytes reach the wire instead of the call being dropped. Ends if raw stops being sent.
   } catch {
     return raw;
   }
@@ -312,4 +312,4 @@ export function withMessageOptions(prompt: LanguageModelV4Prompt, key: string, p
   });
 }
 
-export type { BuildPromptArgs, OutboundMedia, WirePlan } from "../../contract/v4.ts";
+export type { BuildPromptArgs, OutboundMedia, WirePlan } from "#src/contract/v4.ts";

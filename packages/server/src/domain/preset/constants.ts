@@ -4,7 +4,7 @@
 import type { PresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 
-// MUST NOT change — a unit test pins this literal as a valid preset id; the seed insert, the COW guard,
+// MUST NOT change — this literal is a valid preset id; the seed insert, the COW guard,
 // the remove guard, and the boot-reseed comparison all pivot on it simultaneously.
 export const SYSTEM_DEFAULT_PRESET_ID: PresetId = typeIdSchema(ID_PREFIX.preset).parse("preset_00000000000000000000000000");
 

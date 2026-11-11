@@ -63,6 +63,8 @@ import { compareSemver } from "@orb/kit/semver";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
+import type { Logger } from "#foundation/observability";
+import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PluginBundleAssetBytes } from "../contract/bundle-assets.ts";
 import { HostVersionUnservedError, ManifestInvalidError, PluginBundleFetchError } from "../contract/errors.ts";
@@ -339,16 +341,17 @@ export function isVersionNewer(remote: string, installed: string): boolean {
  *  ANY_HOST: https-only, per-hop private-range/IP-literal denial, redirect budget, byte cap), then hand them to
  *  `parseBundle`. The two-line body is a SECURITY choke: it collapses EVERY fetch failure — an SSRF block, a
  *  scheme/redirect refusal, a non-2xx, a network error — to ONE leak-free {@link PluginBundleFetchError}. The
- *  original `cause` is deliberately DROPPED rather than attached: `safeFetch`'s own error carries the block
- *  REASON (`"private-address"` vs `"host-not-allowed"`), and a serialized cause would re-leak exactly the SSRF
- *  oracle the collapse exists to close. The domain never imports `#infra/network` to branch (the
- *  `fetchWebDocument`→`ScrapeFailedError` precedent) — infra performs the guarded fetch and throws; this catches. */
-export async function fetchBundleThroughGuard(fetchBundle: (url: string) => Promise<Uint8Array>, url: string): Promise<Uint8Array> {
+ *  original `cause` stays server-side: `safeFetch`'s own error carries the block REASON (`"private-address"` vs
+ *  `"host-not-allowed"`), and a serialized cause would re-leak exactly the SSRF oracle the collapse exists to
+ *  close, so it rides the error as `cause` (which the transport never serializes) and is logged here. The domain
+ *  never imports `#infra/network` to branch (the `fetchWebDocument`→`ScrapeFailedError` precedent) — infra
+ *  performs the guarded fetch and throws; this catches. */
+export async function fetchBundleThroughGuard(fetchBundle: (url: string) => Promise<Uint8Array>, url: string, log: Logger): Promise<Uint8Array> {
   try {
     return await fetchBundle(url);
   } catch (cause) {
-    // `cause` is forwarded to the SERVER LOG only (never the client — see the error class): the client sees the
-    // generic leak-free message, so the SSRF block REASON the cause carries is not an oracle a caller can read.
+    // A modeled refusal is not logged by the transport, so a failed fetch is recorded here.
+    getLog(log).warn({ err: cause }, "plugin: a bundle fetch failed");
     throw new PluginBundleFetchError(url, { cause });
   }
 }

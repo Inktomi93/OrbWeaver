@@ -5,6 +5,7 @@ import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { afterEach, vi } from "vitest";
+import { z } from "zod";
 
 const PRIVATE_ADDRESS = "192.168.1.50";
 const PRIVATE_HOST = "private-scrape.test";
@@ -64,4 +65,36 @@ test.for([
   expect(dialed).toEqual([]);
   expect(ambient).not.toHaveBeenCalled();
   expect((await root.services.databank.list({ principal })).items).toEqual([]);
+});
+
+const UPSTREAM_FAULT = "connection reset by the scrape upstream";
+const LOG_SCAN_LIMIT = 500;
+const logRecordSchema = z.looseObject({ level: z.string(), err: z.looseObject({ message: z.string() }).optional() });
+
+test("a fetch that breaks off is refused as a scrape failure and the operator's log keeps the cause", async () => {
+  let fetches = 0;
+  await using root = await createServerHarness({
+    logLevel: "warn",
+    networkExecution: {
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
+      fetch: () => {
+        fetches += 1;
+        return fetches === 1 ? Promise.resolve(new Response(PAGE, { headers: { "content-type": "text/html" } })) : Promise.reject(new Error(UPSTREAM_FAULT));
+      },
+    },
+  });
+  const principal = await root.principalFor(root.ownerId);
+  const causes = (): (string | undefined)[] =>
+    root.observability
+      .logLines(LOG_SCAN_LIMIT)
+      .map((line) => logRecordSchema.parse(JSON.parse(line)))
+      .filter((record) => record.level === "warn" && record.err?.message.includes(UPSTREAM_FAULT) === true)
+      .map((record) => record.err?.message);
+
+  // The first fetch lands, so a quiet log below is the log of a working scrape and not a dead logger.
+  await root.services.databank.scrapeWeb({ principal, url: PUBLIC_URL });
+  expect(causes()).toEqual([]);
+
+  await expect(root.services.databank.scrapeWeb({ principal, url: `${PUBLIC_URL}-again` })).rejects.toMatchObject({ code: "scrape_failed" });
+  expect(causes()).toHaveLength(1);
 });

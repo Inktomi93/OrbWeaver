@@ -9,9 +9,8 @@
 //   • `type`    — the discriminant column (denormalized `payload.type`), so the inbox can filter/index by
 //                 reason without parsing JSON. It IMPORTS the union's member set: `NOTIFICATION_TYPES`
 //                 comes from `@orb/contracts/notifications`, where a mapped-Record `satisfies` makes the
-//                 tuple provably the WHOLE union at compile time in both directions. It used to be a local
-//                 respelling checked by a test that read zod's internal option shape (#1379 item 3) —
-//                 one home, and `tsc` instead of an assertion. Column enum + a tuple-derived CHECK.
+//                 tuple provably the WHOLE union at compile time in both directions. One home, and `tsc`
+//                 checks it. Column enum + a tuple-derived CHECK.
 //   • `payload` — the full `NotificationEvent` JSON, branded `$type<NotificationEvent>()`. The union is the
 //                 phishing/exfil belt: it is built from `z.object` members that STRIP unknown keys (no
 //                 `.loose()`/`.catchall()`/`z.unknown()`), so credentials / baseUrls are TYPE-LEVEL

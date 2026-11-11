@@ -12,7 +12,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { clampToTokenBudget } from "@orb/kit/tokens";
 import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "#contract";
 import { ProviderError } from "#contract";
-import type { LocalLightModelCache } from "../../contract/local-light.ts";
+import type { LocalLightModelCache } from "#src/contract/local-light.ts";
 import { abortableWait } from "../http/abort-wait.ts";
 import { normalizeVector, throwIfAborted } from "./model-cache.ts";
 

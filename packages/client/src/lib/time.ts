@@ -22,7 +22,8 @@ const VIEWER_TIME_ZONE = hostTimeZone();
 
 const baseTimeLib = createTimeLib({ timeZone: VIEWER_TIME_ZONE });
 
-/** The production instance — browser locale + timezone, real clock (defaulted inside the kit seam);
+/** The production instance — browser locale + timezone, real clock (defaulted inside the kit seam). Its `now` is the
+ *  client's one clock (Spine-Testing §3); a `PerformanceEntry` offset becomes an instant by anchoring to a `now` read;
  *  ALL THREE relative forms freeze to a fixed placeholder under `pnpm snap --probe` (see header). */
 export const timeLib: TimeLib = {
   ...baseTimeLib,

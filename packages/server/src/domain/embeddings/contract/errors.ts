@@ -1,34 +1,36 @@
+import { DomainInternalFaultError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 import type { AssetId } from "@orb/kit/ids";
 
 /** The stored file of an asset row is gone (`cas.read` ENOENT). The sweep fails that asset alone; nothing else
  *  that goes wrong while indexing it is this error. */
-export class AssetFileMissingError extends Error {
+export class AssetFileMissingError extends DomainUnavailableError {
   readonly assetId: AssetId;
-  constructor(assetId: AssetId, options?: ErrorOptions) {
-    super(`embeddings: the stored file of asset ${assetId} is missing`, options);
-    this.name = "AssetFileMissingError";
+  constructor(assetId: AssetId, options?: { readonly cause?: unknown }) {
+    super(`embeddings: the stored file of asset ${assetId} is missing`);
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
     this.assetId = assetId;
   }
 }
 
 /** The stored file of an asset row is not an image: its bytes carry no known image signature (truncated or
  *  corrupt). The sweep fails that asset alone, like {@link AssetFileMissingError}. */
-export class AssetFileCorruptError extends Error {
+export class AssetFileCorruptError extends DomainOperationError {
   readonly assetId: AssetId;
   constructor(assetId: AssetId) {
-    super(`embeddings: the stored file of asset ${assetId} is not a readable image`);
-    this.name = "AssetFileCorruptError";
+    super("asset_file_corrupt", `embeddings: the stored file of asset ${assetId} is not a readable image`);
     this.assetId = assetId;
   }
 }
 
-/** A genuine producer failure: the caller decides retry vs skip; store never silently writes a null vector. */
-export class EmbedFailedError extends Error {
+/** A genuine producer failure: the caller decides retry vs skip; store never silently writes a null vector. A
+ *  route that lets it escape answers SERVICE_UNAVAILABLE, because the embedder gave nothing to store. */
+export class EmbedFailedError extends DomainUnavailableError {
   readonly lens: string;
   readonly model: string;
   constructor(lens: string, model: string) {
     super(`embeddings.store: embed produced no vector for lens '${lens}' (model '${model}')`);
-    this.name = "EmbedFailedError";
     this.lens = lens;
     this.model = model;
   }
@@ -36,13 +38,12 @@ export class EmbedFailedError extends Error {
 
 /** Store-time space tripwire: throwing here stops a mis-tagged row from ever landing, so search/memory
  *  never compare across spaces by accident. */
-export class SpaceMismatchError extends Error {
+export class SpaceMismatchError extends DomainInternalFaultError {
   readonly model: string;
   readonly expectedDim: number;
   readonly actualDim: number;
   constructor(model: string, expectedDim: number, actualDim: number) {
     super(`embeddings.store: vector dim mismatch for model '${model}' — declared space dim ${expectedDim}, embedder returned ${actualDim}`);
-    this.name = "SpaceMismatchError";
     this.model = model;
     this.expectedDim = expectedDim;
     this.actualDim = actualDim;

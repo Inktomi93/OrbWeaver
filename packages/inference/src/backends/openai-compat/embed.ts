@@ -22,8 +22,8 @@ import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/to
 import { z } from "zod";
 import type { EmbedRequest, Resolved } from "#contract";
 import { embedRequestTimeoutMs, ProviderError } from "#contract";
-import type { EmbedDeps, ModelCall } from "../../contract/openai-backend.ts";
-import type { VectorFit } from "../../contract/wire.ts";
+import type { EmbedDeps, ModelCall } from "#src/contract/openai-backend.ts";
+import type { VectorFit } from "#src/contract/wire.ts";
 import { deadlineSignal } from "../http/abort-flatten.ts";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
 import { providerLogger } from "../http/provider-log.ts";
@@ -260,4 +260,4 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
   return { vectors, model: connection.model };
 }
 
-export type { EmbedDeps } from "../../contract/openai-backend.ts";
+export type { EmbedDeps } from "#src/contract/openai-backend.ts";

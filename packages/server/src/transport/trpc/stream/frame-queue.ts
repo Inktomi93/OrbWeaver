@@ -3,53 +3,32 @@
 // consumer for N producers — a slow client (or a background tab) accumulates on THIS side, not upstream
 // (each pump's `on(emitter, …)` still buffers exactly as it does today; this spec bounds the socket half).
 //
-// OVERFLOW IS NEVER A SILENT DROP. Each channel's policy is derived from that channel's EXISTING healing
-// story, and both policies ANNOUNCE:
+// OVERFLOW IS NEVER A SILENT DROP. A room's policy is its source's `resumable` property (the socket hands it in
+// as `FrameQueueOptions.resumable`), so a resumable room lags and a live-only room collapses, and no second
+// table can disagree. Both policies ANNOUNCE:
 //   • `lag`      — drop the room's pending live tail, emit `roomLagged{cursor}`, KEEP the room attached, and
 //                  tell the socket to RESTART that room's pump from the shed room's last-delivered cursor
-//                  (`onShed`). Legal only for a DURABLE room, and the restart is what makes it legal: the
+//                  (`onShed`). Legal only for a DURABLE (resumable) room, and the restart is what makes it legal: the
 //                  pump's own high-water mark has already passed the shed rows, so nothing but a replay from
 //                  the delivered cursor can refill them — with the identical per-viewer verdict.
 //   • `collapse` — keep at most ONE pending frame per (room, event type), newest payload wins, FIFO position
 //                  preserved. Legal only for a channel whose client handler is a pure INVALIDATION trigger
 //                  (N identical `chatsChanged` invalidate exactly like 1). A channel that carries CONTENT
-//                  must pick `lag`.
-// That "pure invalidation trigger" property is not expressible to tsc, so it lives as a documented row in a
-// total `Record<StreamChannel, OverflowPolicy>` plus a unit test per policy.
+//                  must be resumable, so that it lags.
+// That "pure invalidation trigger" property is not expressible to tsc: it is the review question for any new
+// room source that declares `resumable: false`.
 //
 // CONTROL FRAMES ARE NEVER DROPPED and never wait behind a full queue — a room's degradation notice is
 // exactly what a saturated socket must still deliver, and it is what an UNRELATED room's client is waiting
 // on. Repeat `roomLagged` for a room already announcing one collapses (one notice per burst), so the
 // control lane cannot grow with the flood that triggered it.
 
-import type { StreamChannel, StreamControlFrame, StreamDataFrame, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
+import type { StreamControlFrame, StreamDataFrame, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 
 /** Ratified hygiene bound (§14.6). Not load-bearing — it is the point where a room starts announcing that
  *  the client should heal instead of the socket growing without limit. */
 const FRAME_QUEUE_CAPACITY = 512;
-
-const OVERFLOW_POLICY_VALUES = ["lag", "collapse"] as const;
-// Overflow labels stay internal to the queue policy.
-type OverflowPolicy = (typeof OVERFLOW_POLICY_VALUES)[number];
-
-/** Per-channel overflow policy — total over ROOMS (control is not a room channel). Each row cites the
- *  property that makes it safe; see the file header for why `collapse` is not universally legal. */
-const OVERFLOW_POLICIES: Record<StreamChannel, OverflowPolicy> = {
-  /** every member is a coarse invalidation trigger (`data/invalidation.ts` USER map) */
-  user: "collapse",
-  /** durable inbox + ascending `replaySince` replay (#1459) */
-  notifications: "lag",
-  /** durable chat log + `replayChatEvents` — carries CONTENT, so never collapse */
-  chat: "lag",
-  /** `RPG_BUS_FILTERS` are path invalidations */
-  rpg: "collapse",
-  /** ephemeral chips by design — no durable row */
-  automation: "collapse",
-  /** the durable `progress` COLUMN is the truth a `workloads.list` read re-renders (D117 (10)) — a live frame
-   *  is a redraw trigger, and a progress snapshot is absolute, so the newest of a type is the whole story */
-  workloads: "collapse",
-};
 
 interface QueuedFrame {
   /** `roomKey(ref)` for a data frame; `null` for a control frame (never room-dropped). */
@@ -60,6 +39,8 @@ interface QueuedFrame {
 }
 
 export interface FrameQueueOptions {
+  /** Whether the room's source can resume from a cursor. A resumable room's overflow is `lag`, a live-only room's is `collapse`. */
+  readonly resumable: (ref: StreamRoomRef) => boolean;
   /** The room's last DELIVERED durable seq (`null` for a live-only room) — what a `roomLagged` carries. */
   readonly cursorFor: (key: string) => number | null;
   /**
@@ -171,11 +152,11 @@ export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
       return;
     }
     const key = roomKey(ref);
-    if (OVERFLOW_POLICIES[ref.channel] === "collapse") {
-      pushCollapsing(ref, key, frame);
+    if (opts.resumable(ref)) {
+      pushLagging(ref, key, frame);
       return;
     }
-    pushLagging(ref, key, frame);
+    pushCollapsing(ref, key, frame);
   }
 
   /** Park until `bump()` — the ONE await in the drain loop. Declared outside it so the resolver capture is

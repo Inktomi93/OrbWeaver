@@ -9,7 +9,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { AgentSdkSessionId, AgentSdkSessionTotals, AgentSeedBlock } from "#contract";
 import { AGENT_PROMPT_TAIL_JOINER, agentSdkSessionIdSchema } from "#contract";
-import type { SeedTurn } from "../../../contract/agent-sdk-backend.ts";
+import type { SeedTurn } from "#src/contract/agent-sdk-backend.ts";
 
 // Session-only stub, never persisted to canon: a greeting has no preceding user turn, but a session must
 // start user-first to resume cleanly.
@@ -363,4 +363,4 @@ export function savedSessionTotals(entries: readonly SessionStoreEntry[], sessio
   return totals;
 }
 
-export type { SeedTurn } from "../../../contract/agent-sdk-backend.ts";
+export type { SeedTurn } from "#src/contract/agent-sdk-backend.ts";

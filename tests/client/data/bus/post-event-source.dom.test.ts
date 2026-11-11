@@ -13,7 +13,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { STREAM_INACTIVITY_TIMEOUT_MS, streamConnectInputSchema } from "@orb/contracts/stream";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
+import { createSeededIds, FIXTURE_ID_CURSOR, FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TRPCClientError } from "@trpc/client";
 import { afterEach, vi } from "vitest";
@@ -294,5 +294,24 @@ test("a stream idle past the inactivity deadline is cancelled and retried, a rec
   } finally {
     subscription.unsubscribe();
     controller.error(new Error("the inactivity fixture is closing"));
+  }
+});
+
+test("a Retry-After HTTP date holds the reconnect until that instant on the civil clock", async () => {
+  // Past the first backoff's jittered ceiling, so only the server's date can explain the wait.
+  const retryAfterMs = 20_000;
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"], now: FROZEN_AT_MS });
+  const retryAt = new Date(FROZEN_AT_MS + retryAfterMs).toUTCString();
+  const requests = scriptFetch((_request, attempt) =>
+    attempt === 1 ? new Response("busy", { status: 503, headers: { "retry-after": retryAt } }) : new Response(CONNECTED, { headers: SSE_HEADERS }),
+  );
+  const subscription = createTrpcClient(CLIENT_URL).stream.connect.subscribe(INPUT, {});
+  try {
+    await vi.advanceTimersByTimeAsync(retryAfterMs - 1);
+    expect(requests).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(requests).toHaveLength(2);
+  } finally {
+    subscription.unsubscribe();
   }
 });

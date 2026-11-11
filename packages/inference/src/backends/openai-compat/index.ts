@@ -7,9 +7,9 @@
 import type { ChatRequest, ChatResult, OpenAiCompatChatRequest, StructuredRequest, SummarizeRequest } from "#contract";
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
-import type { DiagnosticRequestCommon } from "../../contract/diagnostics.ts";
-import type { OpenAiCompatBackend, OpenAiCompatBackendDeps, ReachabilityProber, TransportDeps } from "../../contract/openai-backend.ts";
-import type { NormalizeImageBytes } from "../../contract/wire.ts";
+import type { DiagnosticRequestCommon } from "#src/contract/diagnostics.ts";
+import type { OpenAiCompatBackend, OpenAiCompatBackendDeps, ReachabilityProber, TransportDeps } from "#src/contract/openai-backend.ts";
+import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { runOpenAiCompatChatTurn } from "./chat.ts";
 import { inspectOpenAiCompatEndpoint, listOpenAiCompatModels, openRouterCredits, openRouterGenerationCost, probeOpenAiCompat } from "./diagnostics.ts";
@@ -118,4 +118,4 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
   };
 }
 
-export type { OpenAiCompatBackend, OpenAiCompatBackendDeps } from "../../contract/openai-backend.ts";
+export type { OpenAiCompatBackend, OpenAiCompatBackendDeps } from "#src/contract/openai-backend.ts";

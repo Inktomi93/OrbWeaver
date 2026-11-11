@@ -24,7 +24,7 @@
 
 import type { ProviderScrubSet } from "#contract";
 import { ProviderError } from "#contract";
-import type { FetchJsonArgs, FetchJsonResult } from "../../contract/http.ts";
+import type { FetchJsonArgs, FetchJsonResult } from "#src/contract/http.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "../wire/openai-body.ts";
 import { classifyHttpStatus } from "./error-classify.ts";
 import { sanitizeApiError } from "./sanitize.ts";
@@ -174,4 +174,4 @@ export function serverRootOf(baseUrl: string): string {
   return baseUrl.replace(TRAILING_SLASH_RE, "").replace(V1_SUFFIX_RE, "");
 }
 
-export type { FetchJsonArgs, FetchJsonResult } from "../../contract/http.ts";
+export type { FetchJsonArgs, FetchJsonResult } from "#src/contract/http.ts";

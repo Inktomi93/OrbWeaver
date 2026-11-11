@@ -12,7 +12,7 @@
 
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { sniffMime } from "@orb/kit/image-sniff";
-import type { ImageToPng, NormalizeImageBytes } from "../../contract/wire.ts";
+import type { ImageToPng, NormalizeImageBytes } from "#src/contract/wire.ts";
 
 const BASE64 = "base64";
 const DATA_URL_PREFIX = "data:";
@@ -47,4 +47,4 @@ export async function toImageUrl(image: ImageInput, normalize: NormalizeImageByt
   return `${DATA_URL_PREFIX}${mediaType};base64,${Buffer.from(bytes).toString(BASE64)}`;
 }
 
-export type { ImageToPng, NormalizeImageBytes } from "../../contract/wire.ts";
+export type { ImageToPng, NormalizeImageBytes } from "#src/contract/wire.ts";

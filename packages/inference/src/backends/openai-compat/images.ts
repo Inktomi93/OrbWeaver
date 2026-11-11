@@ -14,9 +14,9 @@ import type { ImageInput } from "@orb/contracts/role-clients";
 import { z } from "zod";
 import type { GeneratedImage, ImageGenerateRequest, ImageGenerateResult, ProviderScrubSet } from "#contract";
 import { ProviderError } from "#contract";
-import type { ImagesDeps, ModelCall } from "../../contract/openai-backend.ts";
-import type { MeasuredCost } from "../../contract/v4.ts";
-import type { NormalizeImageBytes } from "../../contract/wire.ts";
+import type { ImagesDeps, ModelCall } from "#src/contract/openai-backend.ts";
+import type { MeasuredCost } from "#src/contract/v4.ts";
+import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
 import { responseCacheOf } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
@@ -277,4 +277,4 @@ export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, de
   }
 }
 
-export type { ImagesDeps } from "../../contract/openai-backend.ts";
+export type { ImagesDeps } from "#src/contract/openai-backend.ts";

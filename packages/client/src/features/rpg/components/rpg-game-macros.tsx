@@ -31,12 +31,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { UserMacrosFormValues } from "#components";
-import { EntryListEditor, MacroBrowser, UserMacroEditorDialog } from "#components";
+import { admitUserMacroValues, canonicalUserMacroValues, EntryListEditor, MacroBrowser, newMacroRowIds, UserMacroEditorDialog } from "#components";
 import { seedPresetId, useInvalidation, usePluginMacroPlanes, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { macroCatalog, notify, presetNamesPlane } from "#lib";
-import { admitUserMacroValues, canonicalUserMacroValues, newMacroRowIds } from "../../../components/user-macro-editor-model.ts";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
 // The autosave macro-list form. Module scope (stable identity — the D54 §13.1 factory pattern); keyed by the

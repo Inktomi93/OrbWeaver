@@ -3,12 +3,16 @@
 // an ungranted host-function call, and a version negotiation the host cannot serve. Distinct from
 // the `domain/plugin` lifecycle errors (ManifestInvalid/HostVersionUnserved/PluginCrashed etc.),
 // which never reach a guest.
+//
+// Each class sits in the domain error tree so the transport classifier answers it as a client or availability
+// error if one ever escapes toward a route, instead of an unmodeled server error. The guest reads only `name`.
 
+import { DomainConflictError, DomainForbiddenError, DomainUnavailableError } from "@orb/kit/errors";
 import type { PluginCapability } from "./manifest.ts";
 
 /** Thrown UNIFORMLY by every capability-gated host function when its capability is not in `grants`
  *  — so a guest can feature-detect by try/catch or by reading `host.grants`. */
-export class PluginCapabilityError extends Error {
+export class PluginCapabilityError extends DomainForbiddenError {
   readonly capability: PluginCapability;
   constructor(capability: PluginCapability) {
     super(`plugin capability not granted: ${capability}`);
@@ -30,7 +34,7 @@ export class PluginCapabilityError extends Error {
  *
  *  It is NOT a security boundary and must not be read as one: the boundary is the host-authority check that
  *  produced it. This is what the guest is TOLD about that check's outcome. */
-export class PluginSuggestedError extends Error {
+export class PluginSuggestedError extends DomainConflictError {
   /** Which act was stashed — the `PluginSuggestedAct` kind, so a guest can branch without parsing prose. */
   readonly act: string;
   constructor(act: string) {
@@ -43,7 +47,7 @@ export class PluginSuggestedError extends Error {
 /** A host call outlived the host's real-time bound. The call is NOT cancelled when the host stops waiting for
  *  it (a started turn or a paint keeps running), so a guest reads this name as "no answer yet", never as a
  *  refusal. `name` crosses the QuickJS boundary intact, so a guest matches `e.name === "PluginHostDeadlineError"`. */
-export class PluginHostDeadlineError extends Error {
+export class PluginHostDeadlineError extends DomainUnavailableError {
   /** The host function that outlived the bound, the bare property name, e.g. `getVariables`. */
   readonly hostFunction: string;
   constructor(hostFunction: string, deadlineMs: number) {
@@ -55,7 +59,7 @@ export class PluginHostDeadlineError extends Error {
 
 /** Thrown by `orb.host(requestedMajor)` when the host does not serve that major — at ACTIVATION, loudly,
  *  so a V2-compiled plugin never half-runs on V1 (and, when V2 ships without a V1 adapter, symmetrically). */
-export class HostVersionError extends Error {
+export class HostVersionError extends DomainConflictError {
   readonly requested: number;
   readonly served: readonly number[];
   constructor(requested: number, served: readonly number[]) {

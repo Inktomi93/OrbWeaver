@@ -2,7 +2,7 @@ import type { EmbeddingCapability } from "@orb/contracts/inference";
 import { l2Normalize } from "@orb/kit/vector-math";
 import type { EmbedRequest } from "#contract";
 import { ProviderError } from "#contract";
-import type { VectorFit } from "../../contract/wire.ts";
+import type { VectorFit } from "#src/contract/wire.ts";
 
 /** Cookbook instructions (Qwen3-VL-Embedding, asymmetric retrieval). */
 export const DOC_INSTRUCTION = "Represent the user's input.";
@@ -40,4 +40,4 @@ export function embeddingPrompt(text: string, req: EmbedRequest, capability: Emb
   return capability.instructionAware && req.instruction !== undefined ? `${req.instruction} ${text}` : text;
 }
 
-export type { VectorFit } from "../../contract/wire.ts";
+export type { VectorFit } from "#src/contract/wire.ts";

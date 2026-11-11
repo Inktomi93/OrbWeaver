@@ -20,8 +20,7 @@ export interface SaveCircuitBreakerConfig {
   readonly limit: number;
   /** The sliding window (ms) the `limit` count applies over. */
   readonly windowMs: number;
-  /** Injected clock (tests). @defaultValue Date.now */
-  readonly now?: Clock;
+  readonly now: Clock;
 }
 
 export interface SaveCircuitBreaker {
@@ -36,7 +35,7 @@ export interface SaveCircuitBreaker {
 }
 
 export function createSaveCircuitBreaker(config: SaveCircuitBreakerConfig): SaveCircuitBreaker {
-  const now = config.now ?? Date.now;
+  const { now } = config;
   // Timestamps of edit-free submits still inside the window. An edit clears it; a submit appends + prunes.
   let editFreeSubmits: number[] = [];
 

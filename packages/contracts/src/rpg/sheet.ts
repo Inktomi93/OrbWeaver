@@ -27,7 +27,7 @@ export const rpgSheetSchema = z
     flavor: z.string().default(""),
     // `level` — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:
     // the panel renders nothing, never a phantom "Level 0"). It is IDENTITY (like className), NOT a beat-driven
-    // fact — so it is ABSENT from the extraction schema + every tool arg (unwritable BY PLAY, proven by test): a
+    // fact — so it is ABSENT from the extraction schema + every tool arg (unwritable BY PLAY): a
     // model bumping "level" off a vibe is the progression-inflation footgun the no-`update_stats` posture exists
     // to prevent, and matching marinara's restraint there is the honest call.
     // TWO write doors, both host-driven and neither of them a turn (owner ruling 2026-08-01): `patchSheet` (the

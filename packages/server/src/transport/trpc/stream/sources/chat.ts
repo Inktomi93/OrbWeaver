@@ -39,7 +39,7 @@
 // `<lie …/>` open is still in flight allocates a scrubber that never saw the opener, finds no `<` in the
 // continuation, and forwards the secret's tail. Under the multiplex a pump restarts far more often than a
 // subscription used to, so the leak was easier to hit here than anywhere. §5.5's two-room isolation is now
-// TRUE BY CONSTRUCTION (there is no per-pump state to bleed): what the tests pin is that the pump forwards
+// TRUE BY CONSTRUCTION (there is no per-pump state to bleed): the pump forwards
 // the stamp verbatim, per room, and withholds an UNSTAMPED delta fail-closed.
 //
 // SUBSCRIPTION-SIDE SYNTHESES. Two `ChatBusEvent` members are synthesized HERE, per
@@ -71,7 +71,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { ChatService } from "#domain/chat";
 import { eventViewMessageId, isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember, withViewPosition } from "#domain/chat";
-import type { LiveBuses } from "../../contract/live-buses.ts";
+import type { LiveBuses } from "#src/transport/trpc/contract/live-buses.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
 /** What the member-gated `chatEventBounds` attach probe returns (derived off the service type — no new

@@ -11,8 +11,8 @@ import type { ImageEmbedInput, ImageEmbedPair } from "@orb/contracts/role-client
 import { z } from "zod";
 import type { ImageEmbedRequest } from "#contract";
 import { ProviderError } from "#contract";
-import type { ImageEmbedDeps } from "../../contract/openai-backend.ts";
-import type { NormalizeImageBytes } from "../../contract/wire.ts";
+import type { ImageEmbedDeps } from "#src/contract/openai-backend.ts";
+import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { authHeaders, fetchJson, openAiPath } from "../http/fetch-json.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { embeddingCostOf } from "../wire/embedding-cost.ts";
@@ -151,4 +151,4 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
   return { vectors, model: connection.model };
 }
 
-export type { ImageEmbedDeps } from "../../contract/openai-backend.ts";
+export type { ImageEmbedDeps } from "#src/contract/openai-backend.ts";

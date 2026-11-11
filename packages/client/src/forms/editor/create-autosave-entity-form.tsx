@@ -5,6 +5,7 @@
 import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
+import { timeLib } from "#lib";
 // The NON-JSX HALF (the seam law, the session surface, and the three module-scope pure helpers) is the
 // `-model.ts` sibling — this JSX module carries the factory and its closure components (the
 // capped-field-model precedent).
@@ -226,7 +227,7 @@ export function createAutosaveEntityForm<TValues extends object>(
       // change happened"; a values change the driver itself did NOT cause (the debounce fired, save
       // echoed, the store moved) still arrives here, but every arrival is preceded by a user edit in the
       // healthy case — an oscillation is the case where submits recur with the count never cleared.
-      const breaker = breakerRef.current ?? createSaveCircuitBreaker({ ...DEFAULT_SAVE_BREAKER, now: () => performance.timeOrigin + performance.now() });
+      const breaker = breakerRef.current ?? createSaveCircuitBreaker({ ...DEFAULT_SAVE_BREAKER, now: timeLib.now });
       breakerRef.current = breaker;
       let prevValues = form.store.state.values;
       const attemptSave = (): void => {

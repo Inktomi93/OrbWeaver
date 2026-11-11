@@ -10,7 +10,7 @@
 import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
 import { HOST_OWNED_CLAUDE_ENV_KEYS, isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
 import { ProviderError } from "#contract";
-import type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "../../contract/agent-sdk-backend.ts";
+import type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "#src/contract/agent-sdk-backend.ts";
 
 // The documented headless subscription credential env (`claude setup-token`).
 const CLAUDE_OAUTH_TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";
@@ -175,4 +175,4 @@ export function buildClaudeSdkEnv(args: ClaudeSdkEnvArgs): Record<string, string
   };
 }
 
-export type { ClaudeSdkEnvArgs } from "../../contract/agent-sdk-backend.ts";
+export type { ClaudeSdkEnvArgs } from "#src/contract/agent-sdk-backend.ts";

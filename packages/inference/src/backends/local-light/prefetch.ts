@@ -5,7 +5,7 @@
 // It keeps no readable state and has NO tRPC route (owner ruling 2026-09-20, §8.3): the prefetch is a latency
 // optimisation whose failure path is automatic, so there is no user-actionable state to render.
 // ONE attempt per slot per boot; a failure is a WARN, never a crash — the lazy path is untouched.
-import type { LocalLightPrefetchDeps, LocalLightPrefetchHandle, LocalLightPrefetchTarget } from "../../contract/local-light.ts";
+import type { LocalLightPrefetchDeps, LocalLightPrefetchHandle, LocalLightPrefetchTarget } from "#src/contract/local-light.ts";
 
 export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLightPrefetchHandle {
   let stopped = false;
@@ -44,4 +44,4 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
   };
 }
 
-export type { LocalLightPrefetchDeps, LocalLightPrefetchHandle } from "../../contract/local-light.ts";
+export type { LocalLightPrefetchDeps, LocalLightPrefetchHandle } from "#src/contract/local-light.ts";

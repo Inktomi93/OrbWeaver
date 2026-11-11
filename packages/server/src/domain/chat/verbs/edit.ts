@@ -28,7 +28,7 @@
 // `messages_attribution_shape` CHECK permits `role='assistant'` + a non-null `author_user_id` — so a future
 // producer stamping an author onto a generated row would silently turn these returns into a member-reachable
 // reasoning/hidden-span leak. The belt makes the boundary hold on the CALLER's role instead of on that
-// convention. The invariant itself is separately named by a test (engine.int: a reasoning-carrying assistant
+// convention. The invariant itself is separately named by a test (tests/server/domain/chat/engine/core-reasoning.int.test.ts: a reasoning-carrying assistant
 // slot is authorUserId-null), so a violating write is caught by a red test, not by a leak.
 //
 // The EMITTED bus event deliberately carries the UNSTRIPPED view: the bus fan-out strips per-SUBSCRIBER

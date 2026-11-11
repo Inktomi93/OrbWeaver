@@ -22,7 +22,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { BlockKey } from "@orb/kit/recall";
 import { blockKeyStr, computeBridge, formatMemory, inLiveWindow } from "@orb/kit/recall";
 import type { ChatContext } from "#src/domain/chat/contract/context.ts";
-import type { RecallMemoryArgs } from "../../contract/memory.ts";
+import type { RecallMemoryArgs } from "#src/domain/chat/contract/memory.ts";
 import { resolveCfg } from "../constants.ts";
 import { spanWitnessed } from "../generate/substrate/witnessing.ts";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";

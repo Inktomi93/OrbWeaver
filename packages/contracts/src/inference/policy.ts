@@ -3,7 +3,7 @@
 // `connectionTasks`; whether a task may spend a row unattended is `canFund`; whether the row's model can do
 // the job is `requirementMet` (capability/reads). A hand row like `generateImage: ["openrouter"]` is
 // reproduced by DATA: openrouter's `serves` is the whole wire set, openai's names `generateImage`, no other
-// built-in hosted row does — and the table test pins that the derivation is not wider than the belt it
+// built-in hosted row does — and the derivation is no wider than the belt it
 // replaced.
 
 import type { ConnectionApi } from "./connection.ts";

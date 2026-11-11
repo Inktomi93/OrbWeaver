@@ -304,7 +304,7 @@ export const chatHandoffResumptions = sqliteTable(
 // preserve the authored line for other members (D18/D26/D28). SQLite evaluates CHECKs during an FK
 // SET-NULL cascade, so a NOT-NULL-by-role CHECK would ABORT a legitimate user/character/persona delete;
 // fork.ts also copies an already-degraded row forward verbatim. The born (pre-degradation) NOT-NULL shape
-// is a test-tier belt over the writers, NOT a DB CHECK. (This is the stickler's flagged looseness, now
+// is held by the writers alone, NOT by a DB CHECK. (This is the stickler's flagged looseness, now
 // figured out: not "import degradation" — import maps every human to the importer's own id — but the
 // SET-NULL history-preservation cascade.)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -963,7 +963,7 @@ export const chatEvents = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 // The injection-position tuple — tied to the contract `ChatInjection["position"]` (compile-time validity).
-// No `z`-schema home exists for a runtime mirror, so the test asserts the column's `.enumValues`.
+// No `z`-schema home exists for a runtime mirror, so tests/db/schema/enum-tuples.suite.test.ts asserts the column's `.enumValues`.
 const INJECTION_POSITIONS = ["before_prompt", "in_static", "in_prompt", "in_chat"] as const satisfies readonly ChatInjectionWire["position"][];
 
 export const chatInjections = sqliteTable(

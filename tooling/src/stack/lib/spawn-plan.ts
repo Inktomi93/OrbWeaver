@@ -1,7 +1,7 @@
 // NO SERVER BUILD STEP, EVER. node 26 runs `.ts` source directly (native type stripping; tsx was shed
 // 2026-08-03). This plan therefore emits `node --disable-sigusr1 <repo>/packages/server/src/entry/index.ts` and nothing
 // else — no loader flag, no emit, no bundle, no dist path for the SERVER. The only build artifact in this
-// repo is @orb/client's `vite build` output. An argv snapshot test pins that.
+// repo is @orb/client's `vite build` output. tests/tooling/stack/index.test.ts pins that with an argv snapshot.
 import { join } from "node:path";
 import type { EnvKey } from "@orb/server/foundation/env/record";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../floor/process/server-entry.ts";

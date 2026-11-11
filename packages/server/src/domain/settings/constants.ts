@@ -4,12 +4,12 @@
 // NAME — and was RESTORED by #1671 rather than reversed: the view gained a second derived flag,
 // `isDefault` (`substrate/theme-views.ts`, the one reader of THEME_HEARTH_ID outside the seeder), so a
 // derived flag is again what crosses. The ruling survived; its input changed.
-// MUST NOT change — a test pins these literals as valid theme ids, and the RETIRED ids below are the only
+// MUST NOT change — tests/server/domain/settings/seed-theme-pairing.suite.test.ts pins these literals as the shipped ids, and the RETIRED ids below are the only
 // handle the converge-seeder has on rows that already shipped.
 //
 // Ids 01–03 are the shipped set (D62): Hearth · Mocha · Light. Each non-Hearth palette pairs with an
-// `@orb/ui` value-set at `src/tokens/themes/<lowercased name>.json` — the pairing suite asserts that
-// set-equality BOTH ways, so a palette added here without its json (or the reverse) goes red.
+// `@orb/ui` value-set at `src/tokens/themes/<lowercased name>.json` — tests/server/domain/settings/seed-theme-pairing.suite.test.ts
+// asserts each override equals its value set, so a palette added here without its json goes red.
 //
 // Ids 04–13 were the default-character pack's palettes, published as installable app themes. They are
 // RETIRED (owner ruling, TD/O-9): a character's palette is the CARD's identity, carried into the room by
