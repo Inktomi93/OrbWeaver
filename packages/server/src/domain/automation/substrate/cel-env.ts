@@ -15,8 +15,8 @@ import { listGlobalVariables } from "../persistence/queries.ts";
 
 /** The author's per-user globals as the CEL `global` map.
  *
- *  BUILT WITH `Object.fromEntries`, NOT A LOOP OF ASSIGNMENTS. The global-variable key schema is
- *  length-bounded and nothing else (`globalVariableKeySchema`), so a user may legitimately name a global
+ *  BUILT WITH `Object.fromEntries`, NOT A LOOP OF ASSIGNMENTS. The global-variable key schema bounds the
+ *  length and refuses only a NUL (`globalVariableKeySchema`), so a user may legitimately name a global
  *  `__proto__` — and `out[row.key] = row.value` for that name hits the setter INHERITED from
  *  `Object.prototype`, creating no own property. The row existed, `get`/`list` showed it, and CEL could not
  *  see it: a variable that reads as set everywhere except where it is used. `fromEntries` DEFINES each

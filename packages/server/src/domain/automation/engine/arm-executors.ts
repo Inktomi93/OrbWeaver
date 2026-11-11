@@ -40,6 +40,7 @@ import type { VarOp } from "@orb/kit/macro";
 import { parseCompleteInteger } from "@orb/kit/macro";
 import { readOwnKey, writeOwnKey } from "@orb/kit/objects";
 import type { RunAnalysisAction } from "../contract/analysis.ts";
+import { GlobalVariableInvalidError } from "../contract/errors.ts";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
 import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
@@ -128,7 +129,16 @@ async function writeArmVariable(
     writeOwnKey(frame.env.vars, key, value);
     return OK;
   }
-  await upsertGlobalVariable(deps.db, { ownerId: frame.authorUserId, key, value, updatedAt: frame.now });
+  // The plane's write guard refuses what it cannot store whole (a NUL a plugin tool returned, an over-cap value)
+  // before writing; that refusal is this arm's typed `arm_error`, like every other unrunnable write here.
+  try {
+    await upsertGlobalVariable(deps.db, { ownerId: frame.authorUserId, key, value, updatedAt: frame.now });
+  } catch (error) {
+    if (error instanceof GlobalVariableInvalidError) {
+      return armError(error.message);
+    }
+    throw error;
+  }
   return OK;
 }
 

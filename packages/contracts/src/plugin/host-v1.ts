@@ -301,7 +301,8 @@ export interface PluginHostV1 {
 
   readonly variables: {
     /** The INSTALLING PRINCIPAL's per-user global KV — reads/writes are fetchOwned under that
-     *  principal. capability: global_vars */
+     *  principal. A key or value holding a NUL character is refused: stored text reads back cut at its first
+     *  NUL. capability: global_vars */
     get: (key: string) => Promise<string | null>;
     set: (key: string, value: string) => Promise<void>;
     delete: (key: string) => Promise<void>;
@@ -309,7 +310,8 @@ export interface PluginHostV1 {
 
   readonly storage: {
     /** Plugin-PRIVATE KV (per plugin × installing owner — the plugin_kv table). Distinct from
-     *  `variables` (the USER's namespace, shared with macros/CEL). capability: storage.kv */
+     *  `variables` (the USER's namespace, shared with macros/CEL). A key or value holding a NUL character is
+     *  refused: stored text reads back cut at its first NUL. capability: storage.kv */
     get: (key: string) => Promise<string | null>;
     set: (key: string, value: string) => Promise<void>; // ≤ 64 KiB value, ≤ 256 keys/plugin
     delete: (key: string) => Promise<void>;

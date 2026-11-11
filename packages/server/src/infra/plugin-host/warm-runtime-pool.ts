@@ -277,14 +277,14 @@ export class WarmRuntimePool<T extends object> implements AsyncDisposable {
     try {
       await this.retire(candidate);
     } catch (error) {
-      // biome-ignore lint/nursery/useDisposables: this catch shares and propagates a rejection without acquiring its ownership; local using would dispose another operation's fault.
+      // The failure is the CANDIDATE's: its runtime could not be retired. It is recorded the way a removed
+      // runtime's is (its own next acquire rejects with it, and close reports it), and the drain goes on: the
+      // retirement released the slot either way (the runtime binding is forgotten), so the head request and
+      // everything queued behind it — other plugins' calls, other owners' — still get served.
+      // biome-ignore lint/nursery/useDisposables: this catch records a rejection without acquiring its ownership; local using would dispose another operation's fault.
       const failure = error instanceof Error ? error : new Error("plugin host: failed to retire an idle runtime");
       this.cancelled.set(candidate, failure);
-      if (this.requests[0] === request) {
-        this.requests.shift();
-        request.reject(failure);
-      }
-      throw failure;
+      this.retirementFailures.push(failure);
     } finally {
       this.retiring -= 1;
     }

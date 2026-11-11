@@ -20,6 +20,8 @@ import type { RandomSource } from "@orb/kit/macro";
 import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
+import type { GuestMarshal } from "./marshal.ts";
+import { GuestCallFailure } from "./marshal.ts";
 import type { MembraneRuntime } from "./membrane.ts";
 import { attachMembrane } from "./membrane.ts";
 
@@ -122,11 +124,41 @@ export const AMBIENT_STUBS = `
   })();
 `;
 
+/** What the realm's host functions run against: the injected seams, the instance's log ring and the context's
+ *  marshal, every value crossing through the last. */
+export interface RealmHost {
+  readonly seams: HostSeams;
+  readonly log: LogRing;
+  readonly marshal: GuestMarshal;
+}
+
+// A guest string read whole through the marshal. Any other value keeps the realm's own `ToString`: dumping it
+// would materialize a guest object here with no depth guard, and a deep one corrupts the shared WASM runtime.
+function logText(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHandle): string {
+  if (ctx.typeof(handle) !== "string") {
+    return ctx.getString(handle);
+  }
+  const read = marshal.fromGuest(handle);
+  switch (read.kind) {
+    case "value":
+      return typeof read.value === "string" ? read.value : "";
+    case "thrown":
+      throw new GuestCallFailure(read.error);
+    // Only a string reaches this read, and a string is never a promise.
+    case "promise":
+      return "";
+    default: {
+      const exhaustive: never = read;
+      throw new Error(`plugin realm: unknown guest read ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
 /** Build the host surface fresh (clean handle ownership — a plugin calls host(1) once). Every leaf host fn
  *  bridges to an injected seam or the log ring; the returned object handle transfers to the VM. When a
  *  `membrane` is supplied, the capability-gated namespaces (chat/variables/worldInfo/imagery/tools + `grants`)
  *  are attached onto the same surface (membrane.ts) — else it is the determinism-floor-only shape. */
-function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, membrane: MembraneRuntime | undefined): QuickJSHandle {
+function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHost, membrane: MembraneRuntime | undefined): QuickJSHandle {
   const surface = ctx.newObject();
 
   ctx.setProp(surface, "version", ctx.newNumber(1));
@@ -138,24 +170,24 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
   // hand-owned. Scope-exit order is REVERSE-declaration = inner-fn-before-its-object, exactly the order the
   // hand-written disposals used.
   using clock = ctx.newObject();
-  using nowFn = ctx.newFunction("nowEpochMs", () => ctx.newNumber(seams.nowEpochMs()));
+  using nowFn = marshal.newHostFunction("nowEpochMs", () => ctx.newNumber(seams.nowEpochMs()));
   ctx.setProp(clock, "nowEpochMs", nowFn);
   ctx.setProp(surface, "clock", clock);
 
   using random = ctx.newObject();
-  using nextFn = ctx.newFunction("next", () => ctx.newNumber(seams.nextRandom()));
+  using nextFn = marshal.newHostFunction("next", () => ctx.newNumber(seams.nextRandom()));
   ctx.setProp(random, "next", nextFn);
   ctx.setProp(surface, "random", random);
 
   using ids = ctx.newObject();
-  using mintFn = ctx.newFunction("mint", () => ctx.newString(seams.mintId()));
+  using mintFn = marshal.newHostFunction("mint", () => marshal.newHostString(seams.mintId()));
   ctx.setProp(ids, "mint", mintFn);
   ctx.setProp(surface, "ids", ids);
 
   using logObj = ctx.newObject();
   for (const level of LOG_LEVELS) {
-    using fn = ctx.newFunction(level, (msgHandle?: QuickJSHandle) => {
-      log.push(level, msgHandle === undefined ? "" : ctx.getString(msgHandle));
+    using fn = marshal.newHostFunction(level, (msgHandle?: QuickJSHandle) => {
+      log.push(level, msgHandle === undefined ? "" : logText(ctx, marshal, msgHandle));
     });
     ctx.setProp(logObj, level, fn);
   }
@@ -166,8 +198,8 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
   // no capability and sits beside `log` in the determinism/utility floor. A non-string arg is estimated as the
   // empty string (0), the fail-safe projection the rest of this realm uses rather than a throw.
   using tokens = ctx.newObject();
-  using countFn = ctx.newFunction("count", (textHandle?: QuickJSHandle) =>
-    ctx.newNumber(estimateTokens(textHandle === undefined || ctx.typeof(textHandle) !== "string" ? "" : ctx.getString(textHandle))),
+  using countFn = marshal.newHostFunction("count", (textHandle?: QuickJSHandle) =>
+    ctx.newNumber(estimateTokens(textHandle === undefined || ctx.typeof(textHandle) !== "string" ? "" : logText(ctx, marshal, textHandle))),
   );
   ctx.setProp(tokens, "count", countFn);
   ctx.setProp(surface, "tokens", tokens);
@@ -184,24 +216,25 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
  *  Date/Math.random). `log` is the instance's ONE ring — every `orb.host(1).log.*` call from any span of
  *  guest execution (an invocation or a post-settle job pump) lands in it. Returns nothing — mutation is the
  *  effect. */
-export function installRealm(ctx: QuickJSContext, seams: HostSeams, log: LogRing, membrane?: MembraneRuntime): void {
+export function installRealm(ctx: QuickJSContext, host: RealmHost, membrane?: MembraneRuntime): void {
   const stubResult = ctx.evalCode(AMBIENT_STUBS);
   if (stubResult.error) {
-    const dump: unknown = ctx.dump(stubResult.error);
-    stubResult.error.dispose();
-    throw new Error(`plugin realm ambient-stub install failed: ${JSON.stringify(dump)}`);
+    using failure = stubResult.error;
+    // No guest code has run yet, so the exception is the engine's own Error object, which reads as a value.
+    const read = host.marshal.fromGuest(failure);
+    throw new Error(`plugin realm ambient-stub install failed: ${JSON.stringify(read.kind === "value" ? read.value : read.kind)}`);
   }
   stubResult.value.dispose();
 
   using orb = ctx.newObject();
-  using hostFn = ctx.newFunction("host", (majorHandle?: QuickJSHandle) => {
+  using hostFn = host.marshal.newHostFunction("host", (majorHandle?: QuickJSHandle) => {
     const major = majorHandle === undefined ? Number.NaN : ctx.getNumber(majorHandle);
     if (!PLUGIN_HOST_VERSIONS.some((served) => served === major)) {
       // Throw the TYPED class (not a plain Error) so `.name` crosses the boundary as "HostVersionError" — a
       // guest feature-detects by `e.name`, and `served` rides along as data.
       throw new HostVersionError(major, PLUGIN_HOST_VERSIONS);
     }
-    return buildHostSurface(ctx, seams, log, membrane);
+    return buildHostSurface(ctx, host, membrane);
   });
   ctx.setProp(orb, "host", hostFn);
   ctx.setProp(ctx.global, "orb", orb);
