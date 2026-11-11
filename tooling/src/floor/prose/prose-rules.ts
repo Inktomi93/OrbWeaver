@@ -24,6 +24,7 @@ const HISTORY_RULES: readonly { readonly label: string; readonly pattern: RegExp
   { label: "an issue or PR number", pattern: /(?<![\w&/#])#\d+\b/u },
   { label: '"used to"', pattern: /(?<!\b(?:is|are|be|been|being|get|gets|got)\s)\bused to\b/iu },
   { label: '"retired"', pattern: /\bretired\b/iu },
+  { label: '"was believed"', pattern: /\bwas believed\b/iu },
 ];
 
 /** Rule 2: an inventory count in prose — a number followed by one of the nouns the charter names. A
@@ -46,13 +47,10 @@ export function proseOnly(source: string): string {
       out.push(blankText(line));
       continue;
     }
-    if (line.includes(OWNER_VOICE_OPEN)) {
-      inOwnerVoice = true;
-    }
-    if (inOwnerVoice) {
-      if (line.includes(OWNER_VOICE_CLOSE)) {
-        inOwnerVoice = false;
-      }
+    // A marker quoted in code is a sample, not a section: an unclosed one would exempt the rest of the file.
+    const spans = line.replace(INLINE_CODE_PATTERN, (match) => blankText(match));
+    if (inOwnerVoice || (!inFence && spans.includes(OWNER_VOICE_OPEN))) {
+      inOwnerVoice = !spans.includes(OWNER_VOICE_CLOSE);
       out.push(blankText(line));
       continue;
     }
@@ -61,7 +59,7 @@ export function proseOnly(source: string): string {
       out.push(blankText(line));
       continue;
     }
-    out.push(inFence ? blankText(line) : line.replace(INLINE_CODE_PATTERN, (match) => blankText(match)));
+    out.push(inFence ? blankText(line) : spans);
   }
   return out.join("\n");
 }

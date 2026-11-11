@@ -12,7 +12,7 @@ import type { RunNicedSyncResult } from "../../floor/process/proc.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import type { CommitOutcome, DocsRootEntry, DocTree, GitFailure, GovernedDoc, StageOutcome } from "../contract/types.ts";
-import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
+import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES, INSTRUCTION_PATHS } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
 import { foreignHolders } from "../lib/id-holders.ts";
 import { isGeneratedPath } from "../lib/indexes.ts";
@@ -68,6 +68,13 @@ function governedFiles(repoRoot = root): readonly string[] {
 export function governedPaths(repoRoot = root): readonly string[] {
   const paths = governedFiles(repoRoot).filter((path) => path.endsWith(".md"));
   return existsSync(join(repoRoot, MISSION_PATH)) ? [...paths, MISSION_PATH] : paths;
+}
+
+/** The markdown instruction files, from the filesystem like the governed trees, so an uncommitted rule is judged too. */
+export function instructionPaths(repoRoot = root): readonly string[] {
+  return INSTRUCTION_PATHS.flatMap((path) => (path.endsWith("/") ? walkFiles(repoRoot, path) : [path])).filter(
+    (path) => path.endsWith(".md") && existsSync(join(repoRoot, path)),
+  );
 }
 
 export function readDoc(path: string, repoRoot = root): GovernedDoc {

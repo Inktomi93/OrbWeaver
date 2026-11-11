@@ -100,7 +100,7 @@ Run a rewrite that a census can list as one workflow. The census is the plan and
 - Stop a run with `failStep` when the plan and the tree disagree. Report a skipped site with `warn`.
 - Migrate a `component.axis` recipe owner with `pnpm migrate-owner <owner>`: a dry run that plans and previews. Add `--apply` to rewrite, format, prove and typecheck. The workflow is `tooling/src/codemods/class-token-to-prop/workflow.yaml`.
 - The workflow refuses `apply=yes` without the marker `pnpm migrate-owner` passes. A workflow has no step that runs after a failure, so the command owns the transaction: its dry run stops a plan that disagrees with the tree before any write, the real recipes judge each changed element before the apply is accepted, and a failed or interrupted apply restores every planned file.
-- Prove a move before you plan it. `tooling/src/ui-facts/move-proof.ts` states the rule: nothing that renders after the axis's slot conflicts with the class, and the arm does exactly what the class did.
+- Prove a move before you plan it. `tooling/src/ui-facts/move-proof.ts` states the rule: nothing that renders after the axis's slot conflicts with the class, and the variant value the prop selects does exactly what the class did.
 
 ## Gotchas
 
