@@ -82,13 +82,13 @@ export function widenedNetHosts(newlyDeclared: readonly string[], priorDeclared:
  *  the enforcer and the re-consent trigger already share, so "the same host" means the same thing here as it
  *  does in `hostAllowed`.
  *
- *  WHY THIS EXISTS (the hole it closes, 2026-08-24). `setEnabled` deliberately grants nothing and activates on
+ *  WHY THIS EXISTS (the hole it closes). `setEnabled` deliberately grants nothing and activates on
  *  the STORED grant — and for capability NAMES that is airtight, because an unconfirmed capability was never
  *  written into `granted_capabilities`. It was NOT airtight for `net.fetch`, whose reach is parameterized by
  *  the manifest rather than by the grant: a v2 that keeps `net.fetch` and merely bolts a destination onto
  *  `netHosts` lands `disabled` + `pending_reconsent` with the grant INTACT, and activation forwarded the NEW
  *  manifest's list verbatim — so one toggle of a switch the surface leaves live armed `safeFetch` at a host
- *  nobody confirmed, while the row still said "asked for more than you allowed". That is the exact P3-H
+ *  nobody confirmed, while the row still said "asked for more than you allowed". That is the exact host-swap
  *  asymmetry `widenedNetHosts` was minted for, one tier further down: consent is about REACH, so REACH is what
  *  an unanswered re-consent has to withhold. Withholding (rather than refusing the enable) keeps the two owner
  *  decisions separate — "you may have these powers" and "run" — and keeps the partial-consent path from

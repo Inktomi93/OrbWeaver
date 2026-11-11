@@ -1,11 +1,11 @@
-// THE PRESENCE DISCLOSURE SEAM (#1039) — the ONE place that decides who may learn that someone is online.
+// THE PRESENCE DISCLOSURE SEAM — the ONE place that decides who may learn that someone is online.
 //
 // `presence-registry.ts` is the MECHANISM (a ref-count over open SSE connections, D16: "presence →
 // transport"); this file is the POLICY, kept apart on purpose so the audience question has one legible home
 // instead of being a condition buried in a router body.
 //
 // ── THE V1 AUDIENCE, AND WHY IT IS DELIBERATELY WIDE ─────────────────────────────────────────────────────
-// OWNER RULING (2026-09-01, #1039), verbatim: "everyone can see who is online — for now at least." Any
+// OWNER RULING, verbatim: "everyone can see who is online — for now at least." Any
 // AUTHENTICATED caller may ask about any user id; there is no per-room membership filter in v1. "For now" is
 // the load-bearing half — the read is shaped so a later tightening is an edit to `readPresenceDisclosure`
 // below (plus the one argument its single call site passes), never a rebuild:

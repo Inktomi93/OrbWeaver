@@ -31,7 +31,7 @@ const MAX_THEME_FILE_CHARS = 1_000_000;
 const MAX_FILENAME_CHARS = 512;
 
 export const settingsRouter = t.router({
-  // ── build identity (owner ask 2026-09-18) — the two DEPLOYMENT-GLOBAL reads behind Settings → This install.
+  // ── build identity (owner ask) — the two DEPLOYMENT-GLOBAL reads behind Settings → This install.
   //    `getVersion` is `authedProcedure`: the version string is what a bug report quotes, so anyone who can
   //    file one must be able to read it. `checkForUpdate` is `adminProcedure`: its one outbound GET spends
   //    GitHub's anonymous budget, which is per source IP and shared by the whole box, so a member must not be
@@ -62,14 +62,14 @@ export const settingsRouter = t.router({
       }),
     ),
 
-  // The whole-blob repair door (#1771, from #1716) — resets this user's settings to the contract defaults.
+  // The whole-blob repair door — resets this user's settings to the contract defaults.
   // NO INPUT, deliberately: the verb is scoped to `principal.userId` and there is no id to accept, so
   // "reset another user's settings" is not a request the wire can express (the cross-tenant surface is
-  // absent by construction, not by a check). It is the ONE settings write that runs while the #471 guard is
+  // absent by construction, not by a check). It is the ONE settings write that runs while the intact guard is
   // refusing everything else, because its content is a contract constant rather than a read of the row.
   resetUserConfig: authedProcedure.output(userSettingsViewSchema).mutation(({ ctx }) => ctx.services.settings.resetUserConfig({ principal: ctx.auth })),
 
-  // F-P0-2: materialize a user-pasted external image URL into an owned CAS asset, returning a ready
+  // Materialize a user-pasted external image URL into an owned CAS asset, returning a ready
   // BackgroundLibraryEntry the client appends to appearance.backgroundLibrary via the autosave form. Owner-
   // scoped (`principal.userId`) — the asset is stored under the caller. A pasted URL never persists paintable.
   addExternalBackground: authedProcedure

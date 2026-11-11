@@ -104,15 +104,15 @@ export function createPluginService(
     ...gitSource,
     // U8 seam 15 — the URL-install/update funnel. `previewFromUrl` returns the consent manifest plus exact-byte
     // identity; `installFromUrl` requires that identity, re-fetch through the egress guard, and
-    // delegate only after it matches. Upgrade keeps #615's reach-widening→disabled wall.
+    // delegate only after it matches. Upgrade keeps the reach-widening→disabled wall.
     previewFromUrl: createPreviewFromUrl(ctx),
     installFromUrl: createInstallFromUrl(ctx, { install }),
     // U8 2b — the auto update-check returns exact-byte identity for the true one-click upgrade (re-paste-free,
     // from the STORED sourceUrl). Both ride `ctx.fetchBundle`; the upgrade delegates only after an identity
-    // match, keeping #615's wall.
+    // match, keeping the re-consent wall.
     checkForUpdates: createCheckForUpdates(ctx),
     upgradeFromStoredUrl: createUpgradeFromStoredUrl(ctx, { upgrade }),
-    // …and its SEEDED-EXAMPLE twin (#1740): the same one-click, sourced from the bundle this build ships
+    // …and its SEEDED-EXAMPLE twin: the same one-click, sourced from the bundle this build ships
     // (`ctx.showcase`) instead of a remembered URL, so a DIVERGED showcase install — the one the boot
     // auto-upgrade deliberately leaves alone — has a way for its owner to take a newer bundle on purpose.
     // Same `upgrade` delegate, so the consent wall is one story, not two.
@@ -131,7 +131,7 @@ export function createPluginService(
     // registry the lifecycle owns; getSurfaceState reads the shared surface-state plane off the context.
     listSurfaces: createListSurfaces(ctx, registry),
     getSurfaceState: createGetSurfaceState(ctx),
-    // #820 seam 11 — the bundle-shipped image map the renderer resolves a node's `ui/assets/` path through.
+    // The bundle-shipped image map the renderer resolves a node's `ui/assets/` path through.
     listBundleAssets: createListBundleAssets(ctx),
     // U7 — the frame doorway's ONE read. Same registry, same owner-scoped gate, plus a per-call re-check of the
     // row's live `ui.frame` grant (a resident instance outlives a re-grant).

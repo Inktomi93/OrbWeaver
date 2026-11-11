@@ -19,7 +19,7 @@ import type { PluginContext, PluginRegistry, PluginService } from "../contract/s
 import { listOwned } from "../persistence/plugins.ts";
 
 function toView(pluginId: PluginId, slug: string, pluginName: string, command: PluginCommandRegistration): PluginCommandView {
-  // `args` is projected verbatim (the #791 typed-arg grammar) — empty when the command declared none, so a
+  // `args` is projected verbatim (the typed-arg grammar) — empty when the command declared none, so a
   // client can build its input strip / completion off exactly what the guest registered. The `onRun` handle
   // stays server-side (never projected), exactly as before.
   return {

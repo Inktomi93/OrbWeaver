@@ -6,7 +6,7 @@
 // WHY IT IS A LATCH AND NOT A "MISSING PLUGINS" HEAL. The verb it drives (`plugin.applyDistributedPlugins`) is
 // idempotent by slug, so re-running it is harmless — but running it on EVERY request would resurrect a
 // distributed plugin the moment its recipient uninstalled it, which is the deletion-respect failure the
-// example-plugin seeder's latch exists to prevent (#461). So the latch is the authority: once a user has been
+// example-plugin seeder's latch exists to prevent. So the latch is the authority: once a user has been
 // offered the published set, later withdrawals of their copy are THEIR decision, and only a new publish
 // (which fans out directly) reaches them again.
 //

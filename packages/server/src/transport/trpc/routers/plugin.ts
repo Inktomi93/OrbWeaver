@@ -16,12 +16,12 @@
 // The client wave landed: `packages/client/src/features/plugin` is the install/list/grant pane and it calls
 // `trpc.plugin.*` for real. `upgrade`/`setGrant`/`setEnabled`/`uninstall` are PROBED by the cross-tenant sweep
 // as a stranger holding another user's real pluginId; `install`/`list` are exempt there because neither takes
-// a foreign id (install mints the caller's own row, list takes no input at all). #0081's Git
+// a foreign id (install mints the caller's own row, list takes no input at all). The Git
 // self-scoped procedures are classified beside them; the stored-Git upgrade is probed like stored-URL.
 //
 // The UI-surface READ side: `getSurfaceState`/`invokeUiAction` join the PROBED set
 // (both take a foreign pluginId; the service gates each on the owner-scoped `getById`); `listSurfaces` is
-// exempt like `list` (no input — the caller's own enabled plugins). Row 777 adds an optional `chatId` to the
+// exempt like `list` (no input — the caller's own enabled plugins). The room dimension adds an optional `chatId` to the
 // first two: a SECOND foreign id on the same procs, gated by a SECOND leak-free check (the service resolves the
 // caller's own chat authority and refuses NOT_FOUND on the chat), so their sweep classification is unchanged
 // and strictly stronger.
@@ -196,7 +196,7 @@ export const pluginRouter = t.router({
       ctx.services.plugin.upgradeFromStoredGit({ caller: ctx.auth, pluginId: input.pluginId, expectedCommit: input.expectedCommit }),
     ),
 
-  // ── THE SEEDED-EXAMPLE TWIN (#1740). `upgradeFromShowcase` sources the bytes from the bundle this build
+  // ── THE SEEDED-EXAMPLE TWIN. `upgradeFromShowcase` sources the bytes from the bundle this build
   //    SHIPS rather than from a URL, so it triggers NO egress at all — it stays a mutation because it WRITES
   //    (it swaps a row's bundle through the same `upgrade` verb), which is the ordinary reason, not the egress
   //    one above. It takes a FOREIGN pluginId and joins the PROBED sweep set exactly like its stored-url twin:
@@ -290,7 +290,7 @@ export const pluginRouter = t.router({
   //    repeat crash rides the 3-strike auto-disable.
   listSurfaces: authedProcedure.output(listedSurfacesSchema).query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
 
-  // #820 seam 11 — the bundle-shipped image map for ONE owned plugin (`ui/assets/<name>` → CAS id), read by
+  // The bundle-shipped image map for ONE owned plugin (`ui/assets/<name>` → CAS id), read by
   // the renderer when a spec names a bundle path. It takes a FOREIGN pluginId, so it joins the PROBED sweep
   // set beside `getSurfaceState`: the service's owner-scoped `getById` load is the gate, and a stranger
   // holding owner A's real id gets the same leak-free NOT_FOUND every other per-row plugin read gives.
@@ -340,7 +340,7 @@ export const pluginRouter = t.router({
   //    can WRITE (the KV arms), tRPC queries are GET-shaped and cacheable, and the CSRF belt on this router only
   //    covers mutations — a read-shaped door onto a write op would be exactly the hole that belt exists for.
   //    RATE: the authed per-user `general` bucket (`entry/rate-limit-gate.ts`) bounds calls per window, and the
-  //    domain's `UiHostCallGate` bounds how many run at once — the two together are the flood story (D46 P2-F).
+  //    domain's `UiHostCallGate` bounds how many run at once — the two together are the flood story (D46).
   //    `reportUiCrash` also takes a foreign id and is PROBED.
   uiHostCall: authedProcedure
     .input(
@@ -402,7 +402,7 @@ export const pluginRouter = t.router({
         pluginId: pluginIdSchema,
         name: z.string().regex(PLUGIN_COMMAND_NAME_RE),
         args: z.string().max(PLUGIN_COMMAND_ARGS_MAX),
-        // The #791 TYPED-ARG bag — a COARSE shape gate here (the ident-key grammar, the scalar union, the declared
+        // The TYPED-ARG bag — a COARSE shape gate here (the ident-key grammar, the scalar union, the declared
         // arg-count cap); the SEMANTIC gate (required/type/enum against the resident command's own specs) is the
         // service's `pluginCommandArgsSchema` re-validation. Defaulted so a caller sending only `args` is unchanged.
         values: z

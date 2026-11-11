@@ -18,7 +18,7 @@
 // plugin back on would silently widen its authority to whatever the current manifest asks for. `setEnabled`
 // still reads the STORED grant, untouched.
 //
-// APPROVAL MAY IMPLY ENABLE, AND ONLY WHEN THE CALLER SAYS SO (owner ruling, item 573). The owner's approval is
+// APPROVAL MAY IMPLY ENABLE, AND ONLY WHEN THE CALLER SAYS SO (owner ruling). The owner's approval is
 // the act that runs the plugin, so `enable` activates on exactly the grant this call just wrote and withholds
 // the same unanswered hosts `setEnabled` would. It grants nothing `setGrant` followed by `setEnabled` could not,
 // and it stays on the owner-scoped row load, so it is the owner's own act under D147(b). Without `enable` a
@@ -123,8 +123,8 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consent
       // holds, at the SAME `refusal.hosts` set (empty on a COVERING grant → full reach restored; non-empty on
       // a PARTIAL one → the still-unanswered destinations stay off the wall). A COVERING grant is exactly the
       // case that clears the delta, so the common "you allowed the whole ask" path restores full reach here as
-      // it always did. What this closes is the divergence a uniform-withholding audit found (#698 follow-up): a
-      // PARTIAL re-grant of an already-ENABLED row used to reactivate with `[]` — restoring reach to a host the
+      // it always did. What this closes is the divergence a uniform-withholding review found: a
+      // PARTIAL re-grant of an already-ENABLED row reactivating with `[]` — restoring reach to a host the
       // owner echoed but had NOT fully consented to (another capability of the same update still pending) —
       // while a partial re-grant of a DISABLED row, then enable, withheld it. Same consent state, different
       // reach, decided only by whether the row happened to be on. Fail-closed and uniform: a standing
@@ -132,7 +132,7 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consent
       await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: granted, withheldNetHosts: refusal.hosts });
     }
 
-    // THE ASK IS ANNOUNCED WHERE IT IS RAISED AND ANSWERED (#1041). This verb is BOTH ends of the consent
+    // THE ASK IS ANNOUNCED WHERE IT IS RAISED AND ANSWERED. This verb is BOTH ends of the consent
     // loop — the seeder's empty re-grant is what puts a fresh install into the pending state, and a covering
     // grant is what takes it out — so it is also where the owner's ONE aggregate inbox row is brought into
     // line. `raised` is this row's own transition into pending: only that deserves a new row and a new badge

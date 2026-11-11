@@ -1,5 +1,5 @@
 // domain/embeddings/contract/handoff-restamp — the `EmbeddingsHandoffRestampContext` DI bundle + op type for
-// the embeddings-owned digest re-stamp the host-handoff property offer executes (stickler 2026-08-03 §5.5).
+// the embeddings-owned digest re-stamp the host-handoff property offer executes.
 //
 // WHY IT EXISTS. The room's derived memory addresses characters BY ID in two places, and both CASCADE on a
 // `characters` delete: `chat_digests.scopedCharacterId` (the egocentric bucket key — the row IS keyed by whose

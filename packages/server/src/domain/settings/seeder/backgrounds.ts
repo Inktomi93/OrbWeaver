@@ -4,7 +4,7 @@
 //
 // WHAT IT LANDS. The ten shipped character plates (`@orb/default-content`'s `backgrounds/<handle>-bg.jpg`)
 // become ordinary OWNED backgrounds: each one CAS-stored as a `background`-kind asset and appended to
-// `appearance.backgroundLibrary`. Until 2026-09-18 they were a static slug catalog in
+// `appearance.backgroundLibrary`. They are not a static slug catalog in
 // `@orb/contracts/theme` served as vite `public/` URLs behind a `BACKGROUND_IMAGE_KINDS` member of their
 // own (`kind:"seeded"`) — a parallel channel a user could not rename, delete, export or pick beside their
 // uploads, and one the CAS and asset GC could not see at all. Seeding them is what retires that kind.
@@ -17,7 +17,7 @@
 //      — no slug column, no marker field, nothing to go stale. A crash mid-run therefore re-runs cleanly
 //      instead of appending ten duplicate rows.
 //
-// THE LATCH IS WRITTEN LAST (`createPersonaSeedLatch`'s #1412 order law): an interruption must leave the
+// THE LATCH IS WRITTEN LAST (`createPersonaSeedLatch`'s order law): an interruption must leave the
 // latch FALSE so the next touch re-enters and finishes, rather than committing "this user is seeded" ahead
 // of it being true.
 //

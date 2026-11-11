@@ -63,7 +63,7 @@ const kickSchema = z.strictObject({
 
 const chatScopedSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
-// The nomination + the departing host's OPTIONAL property offer (stickler 2026-08-03 §5). `offer` absent =
+// The nomination + the departing host's OPTIONAL property offer. `offer` absent =
 // no offer = the built D64 drop: the wire's DEFAULT is give-nothing, so a client that never learned about the
 // arm can never accidentally transfer someone's library.
 const nominateSchema = z.strictObject({

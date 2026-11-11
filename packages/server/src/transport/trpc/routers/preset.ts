@@ -102,7 +102,7 @@ export const presetRouter = t.router({
       ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id, ...(input.target !== undefined ? { target: input.target } : {}) }),
     ),
 
-  // The CONTEXT panel's backward bindings (#279) — principal-carrying like `resolveEffective`, because its
+  // The CONTEXT panel's backward bindings — principal-carrying like `resolveEffective`, because its
   // room half is membership-scoped (D18) and is resolved for the ACTING caller, never a supplied user id.
   listUsage: authedProcedure
     .output(presetUsageViewSchema)

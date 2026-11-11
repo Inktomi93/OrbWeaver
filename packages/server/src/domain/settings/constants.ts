@@ -1,9 +1,9 @@
 // domain/settings/constants — fixed sentinel TypeIDs for the seed palettes. Not cross-boundary (the view's
 // derived isSeed flag is what the client reads), so this lives here, not @orb/contracts.
-// That sentence went briefly false — #1667 found the client identifying the default palette by its DISPLAY
-// NAME — and was RESTORED by #1671 rather than reversed: the view gained a second derived flag,
+// A client that identifies the default palette by its DISPLAY NAME breaks that sentence; the view
+// therefore carries a second derived flag,
 // `isDefault` (`substrate/theme-views.ts`, the one reader of THEME_HEARTH_ID outside the seeder), so a
-// derived flag is again what crosses. The ruling survived; its input changed.
+// derived flag is what crosses.
 // MUST NOT change — tests/server/domain/settings/seed-theme-pairing.suite.test.ts pins these literals as the shipped ids, and the RETIRED ids below are the only
 // handle the converge-seeder has on rows that already shipped.
 //

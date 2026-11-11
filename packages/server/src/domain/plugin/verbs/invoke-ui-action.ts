@@ -1,5 +1,5 @@
-// verb: invokeUiAction — the Tier-S guest-action round-trip (U1, §4.4; the room dimension
-// is row 777). A button on a rendered surface submits its `actionId` + the collected form `values`; this
+// verb: invokeUiAction — the Tier-S guest-action round-trip (U1, §4.4, plus the room
+// dimension). A button on a rendered surface submits its `actionId` + the collected form `values`; this
 // re-enters the surface's `onAction` handler in the resident guest.
 //
 // THE AUTHORITY GATE, in the order a hostile caller meets it — this verb takes a FOREIGN pluginId, so the
@@ -12,7 +12,7 @@
 //  3. SURFACE + HANDLER — the surfaceId must name a surface THIS instance registered, and it must carry an
 //     `onAction` (a display-only surface has none). A miss is the caller's own plugin, so a plain refusal is
 //     safe — no foreign existence is revealed.
-//  4. MEMBERSHIP (row 777) — a `chatId` is a CLIENT CLAIM about which room the action was taken in, and it
+//  4. MEMBERSHIP — a `chatId` is a CLIENT CLAIM about which room the action was taken in, and it
 //     becomes the guest's INVOCATION SCOPE, so it is the one input that could hand a guest a room. It is
 //     verified, never trusted: `resolveChatAuthority` (the leak-free `loadPresentRole` seam) must admit the
 //     CALLER as a reader of that room, else NOT_FOUND on the chat. `canWrite` comes from the SAME answer's host
@@ -24,7 +24,7 @@
 // throwing/hung handler bumps `consecutive_crashes` toward the 3-strike auto-disable exactly like a tool or
 // event handler — and a rejected invoke propagates to the mutation as a typed refusal the client toasts. The
 // guest receives ONE `{ actionId, values, chat }` object (the single-arg host→guest seam); `chat` is the
-// invocation's OPAQUE HANDLE (row 777 — `null` only when the surface names no room), which is why the args are
+// invocation's OPAQUE HANDLE (`null` only when the surface names no room), which is why the args are
 // built by a CLOSURE rather than a string — the token is minted inside the runtime when the scope is set, so it
 // does not exist until the moment it is applied (`PluginInvokeArgs`). The handler's return is DISCARDED — the
 // surface's effect is whatever state it publishes via `host.ui.setState`, whose bus poke refreshes the caller's

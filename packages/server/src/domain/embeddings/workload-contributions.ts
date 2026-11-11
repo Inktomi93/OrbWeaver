@@ -76,7 +76,7 @@ async function runPasses({ deps, ctx, params, report, signal }: IndexRun, force:
   if (params.source === "image" || params.source === "all") {
     const label = params.embedderChanged === true ? EMBEDDER_CHANGED_LABEL : assetLabel(force);
     report({ message: label });
-    // N-of-M (issue #166 rider 3): the pass owns the denominator, so it hands each position back and
+    // N-of-M: the pass owns the denominator, so it hands each position back and
     // this is the only place that can turn it into a progress row. Without it a 350-image VL sweep
     // showed one sentence and an indeterminate bar for its whole runtime.
     const result = await deps.embeddings.embedAssets({

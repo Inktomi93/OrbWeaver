@@ -1,4 +1,4 @@
-// verb: addExternalBackground (side-eye F-P0-2) — the DISCRETE server action behind the Appearance surface's
+// verb: addExternalBackground — the DISCRETE server action behind the Appearance surface's
 // "add a background from a URL" affordance. A pasted external URL can never paint (CSP `img-src`), so the
 // server materializes it: fetch through the SSRF-safe egress belt → magic-verify it is a real image → store
 // under the caller's CAS (the injected `materializeBackground` op), then return a ready `BackgroundLibraryEntry`

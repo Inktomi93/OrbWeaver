@@ -1,27 +1,27 @@
-// domain/settings/persistence/heal-legacy-background-pins — the #1600 ONE-TIME DATA heal.
+// domain/settings/persistence/heal-legacy-background-pins — the background-pin ONE-TIME DATA heal.
 //
-// THE DEFECT. #1478.1 (`bfd43e0a4e`) added the ownership+kind guard: every pinned background id must name an
+// THE TRAP. The ownership+kind guard: every pinned background id must name an
 // asset this user owns AND whose `kind` is `background`. `writeUserConfig` is the ONE whole-blob writer, so a
-// user whose STORED blob already pins an asset that predates that guard — dev data seeded before #1478, or
+// user whose STORED blob already pins an asset that predates that guard — dev data seeded before the guard, or
 // any asset whose `kind` was never `background` — now fails EVERY settings write for that user, not only a
 // background edit: the round-trip write carries the unchanged stale pointer forward, and the guard refuses it
 // on every field the user touches.
 //
-// HEAL, NOT NARROW (the fork; #1600 body, stated default): the write guard could instead be narrowed to
+// HEAL, NOT NARROW (the fork's stated default): the write guard could instead be narrowed to
 // only re-check a pinned id that CHANGED relative to the stored row (comparing old vs new pinned sets), which
 // would let a round-trip of an already-dirty blob through untouched. That fork was NOT taken here — it
-// complicates the write guard's already-delicate atomicity (#1577 folded the first-write path into ONE
+// complicates the write guard's already-delicate atomicity (the first-write path is ONE
 // guarded statement; diffing old-vs-new pins would need the OLD blob's ids threaded into that guard too,
-// widening the surface #1577 just closed) for a defect whose population is bounded and one-shot: no live
-// writer can PRODUCE a non-background pin post-#1478 (every writer of `backgroundAssetId` /
+// widening that closed surface) for a defect whose population is bounded and one-shot: no live
+// writer can PRODUCE a non-background pin under the guard (every writer of `backgroundAssetId` /
 // `backgroundLibrary` stores exactly `kind: "background"`, per `queries.ts`'s `BACKGROUND_ASSET_KIND`
 // comment), and nothing mutates an asset's `kind` after creation — so the dirty population is exactly
-// "rows written before #1478.1 shipped" and a boot heal exhausts it once. Ends if a future writer needs to
+// "rows written before the guard" and a boot heal exhausts it once. Ends if a future writer needs to
 // tolerate a MID-LIFE kind change (nothing does today) — then the narrow arm is the one to build.
 //
 // SKIPS UNREADABLE ROWS ON PURPOSE: a row this heal cannot parse is not this heal's job — `#primitives/stored-config`
-// already refuses any write over it (#471), and healing would mean building the next blob from a degraded
-// read, which is exactly the wipe #471 exists to prevent. An unreadable row surfaces at the user's own next
+// already refuses any write over it, and healing would mean building the next blob from a degraded
+// read, which is exactly the wipe the intact guard exists to prevent. An unreadable row surfaces at the user's own next
 // write attempt via the ordinary `stored_config_unreadable` refusal.
 
 import type { UserSettings } from "@orb/contracts/settings";
@@ -79,13 +79,13 @@ async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: U
 
 /** Clear every legacy background pin whose asset is missing or is not `kind: "background"`, across every
  *  `user_settings` row. Idempotent — a no-op on every boot after the first, and on a db seeded entirely
- *  post-#1478. Returns the number of rows rewritten. */
+ *  under the guard. Returns the number of rows rewritten. */
 export async function healLegacyBackgroundPins(handle: BootDatabaseHandle): Promise<number> {
   const db = bootDatabaseForOwner(handle);
   const rows = await db.select({ userId: userSettings.userId, config: userSettings.config, schemaVersion: userSettings.schemaVersion }).from(userSettings);
   let healed = 0;
   for (const row of rows) {
-    // an unreadable row is #471's territory, not
+    // an unreadable row is the intact guard's territory, not
     // this heal's — `requireIntactStoredConfig` throwing here is the SAME refusal `writeUserConfig` raises
     // at the user's own next write, so silently skipping it here duplicates no owner and drops no signal;
     // the boot wrapper (`entry/boot/heal-legacy-background-pins.ts`) already logs the count this heal DID

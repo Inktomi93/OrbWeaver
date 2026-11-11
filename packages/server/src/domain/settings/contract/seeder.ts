@@ -3,7 +3,7 @@
 // (`@orb/default-content`), the CAS write (`assets.store`) and the settings read/patch all arrive as
 // closures the composition root builds.
 //
-// WHY THE PLATES NEEDED A SEEDER AT ALL. Until 2026-09-18 the ten shipped character backgrounds were a
+// WHY THE PLATES NEEDED A SEEDER AT ALL. The ten shipped character backgrounds are not a
 // static slug catalog in `@orb/contracts/theme` whose bytes were vite `public/` URLs, reachable only through
 // a `BACKGROUND_IMAGE_KINDS` member of their own (`kind:"seeded"`). That was a parallel background channel:
 // a plate could not be renamed, deleted, exported, or offered beside a user's own uploads, and the CAS and

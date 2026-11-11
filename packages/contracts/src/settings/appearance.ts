@@ -2,17 +2,17 @@
 // and its schema. The section's OWNER is still `settings` (the barrel re-exports every name here verbatim, so
 // `@orb/contracts/settings` importers are untouched); this is a FILE split, never an ownership move.
 //
-// WHY IT IS ITS OWN FILE AND ITS OWN EXPORTS-MAP DOOR (#448). The client's pre-paint boot hint
-// (`state/appearance-boot-hint.ts`, #231) re-validates its persisted blob through THIS schema rather than
+// WHY IT IS ITS OWN FILE AND ITS OWN EXPORTS-MAP DOOR. The client's pre-paint boot hint
+// (`state/appearance-boot-hint.ts`) re-validates its persisted blob through THIS schema rather than
 // through a second copy of the bounds — that is the e94c50a718 ruling and it stands. But `settings/index.ts`
 // composes the whole `UserSettings` tree, which reaches `#prose`, `#preset`, `#rpg`, `#refinery` and their
-// prose tables; zod construction is not statically pure, so `sideEffects: false` (#433) cannot shake those
+// prose tables; zod construction is not statically pure, so `sideEffects: false` cannot shake those
 // siblings out once the module is reached. Importing the section barrel for ONE schema therefore cost the
 // boot chunk the entire prose corpus (~215 kB rendered). The schema lives here, `@orb/contracts` names
 // `"./settings/appearance"` as an EXACT exports entry, and the boot hint reaches the contract's own schema
 // object through a door whose graph is `#theme` + `@orb/kit/ids` + `#versioned-config` + zod. (That last
 // one is the boot-critical leaf primitive itself — `@orb/kit/guards` + zod, no prose, no siblings; it is
-// here for `tolerantArray`, the element-wise collection leaf the #471 write guard depends on.)
+// here for `tolerantArray`, the element-wise collection leaf the intact write guard depends on.)
 //
 // The exports entry is exact, not a `"./*/*"` pattern, on purpose: the cake packages publish ONE door per
 // domain (`"./*": "./src/*/index.ts"`), and a deep-file pattern would silently make every internal contracts
@@ -35,15 +35,15 @@ const CHAT_WIDTH_PCT_MIN = 30;
 const CHAT_WIDTH_PCT_MAX = 100;
 const CHAT_WIDTH_PCT_DEFAULT = 60;
 const FONT_SCALE_DEFAULT = 1;
-// THE WALLPAPER SCRIM HAS A FLOOR, AND THE FLOOR IS DERIVED (#487). `theme-background-layer.tsx` calls the
+// THE WALLPAPER SCRIM HAS A FLOOR, AND THE FLOOR IS DERIVED. `theme-background-layer.tsx` calls the
 // scrim "mandatory … non-negotiable for text legibility"; a MIN of 0 made that sentence false — a legal
 // setting rendered the guard at `opacity: 0` and handed the transcript's reading contrast to the user's
 // picture (measured live pre-fix on the `misty-highlands` landscape plate: its worst backdrop over the
 // bright band read Y 0.0874 at dim 0 vs Y 0.0476 at 0.45). That plate was one of the four placeholder
-// landscapes deleted with the `kind:"seeded"` retirement (2026-09-18) — the MEASUREMENT stands as the
+// landscapes deleted with the `kind:"seeded"` retirement — the MEASUREMENT stands as the
 // evidence for the floor; the file it was taken on no longer ships.
 //
-// WHY A DIM FLOOR AND NOT A HEAVIER PLATE. D144(d) + the #217 rider rule the other arm OUT: "Inks are
+// WHY A DIM FLOOR AND NOT A HEAVIER PLATE. D144(d) and its rider rule the other arm OUT: "Inks are
 // guaranteed vs their BASE, not worst-case art pixels — closing that would move the sacred dark rooms
 // (owner-adjacent, refused)", and the dark plate's alpha is pinned at 0.65 because closing the same hole
 // there needs 0.86. That ruling SURVIVES — its INPUT changed. `readingPlateAlpha` solves the plate against
@@ -71,7 +71,7 @@ const BACKGROUND_BLUR_DEFAULT = 0;
 
 export const BLUR_SURFACES = ["panels", "composer", "messages", "modals"] as const;
 export type BlurSurface = (typeof BLUR_SURFACES)[number];
-// The SHIPPED default of `appearance.blurSurfaces` (owner ruling 2026-08-02 — glass is on by default on
+// The SHIPPED default of `appearance.blurSurfaces` (owner ruling — glass is on by default on
 // the three chrome surfaces; it is also the `.catch` self-heal target, matching the sibling knobs).
 // `messages` deliberately excluded — the Reading-Surface rule forbids blur behind long reading text by
 // default; a user may still opt it in, and an explicitly-stored `[]` is a real opt-out that survives.
@@ -128,7 +128,7 @@ export const backgroundLibraryEntrySchema = z
     assetHash: z.string(),
     mime: z.string(),
     name: z.string(),
-    // Provenance for a materialized external-URL background (BG-C invariant / F-P0-2): the original URL the
+    // Provenance for a materialized external-URL background (BG-C invariant): the original URL the
     // asset was fetched-and-stored from. Optional (own-uploads have none); metadata only, never re-fetched.
     provenanceUrl: z.url().optional(),
   })
@@ -157,7 +157,7 @@ const BLUR_STRENGTH_MAX = 28;
 const BLUR_STRENGTH_DEFAULT = 14;
 
 /**
- * EXPORTED for the client's device-local BOOT HINT (#231): the hint replays a few appearance axes onto
+ * EXPORTED for the client's device-local BOOT HINT: the hint replays a few appearance axes onto
  * `<html>` before React mounts, and a durable-local blob is untrusted input, so it is re-validated
  * through THIS schema rather than through a second set of bounds in the client. Every key here
  * `.catch()`es to its default, so `appearanceSettingsSchema.parse({})` is TOTAL — which is exactly the
@@ -189,7 +189,7 @@ export const appearanceSettingsSchema = z
     // ST parity: imported cards carry their structure in quoted speech, which ST colors — default ON is
     // the ST-expat expectation. Paints the theme's `dialogueColor` (per-character themeOverride wins).
     colorQuotedSpeech: z.boolean().catch(true).default(true),
-    // KEEPS its whole-collection self-heal, deliberately, against the #1365 sweep: an EMPTY set is itself a
+    // KEEPS its whole-collection self-heal, deliberately, against the collection sweep: an EMPTY set is itself a
     // meaningful stored value here ("blur nothing" — the opt-out documented at DEFAULT_BLUR_SURFACES), so
     // element-wise filtering of an unreadable `["fog"]` would FABRICATE a deliberate opt-out. The members
     // are a closed enum carrying no user content, so the reset costs a re-tick, not data.
@@ -203,7 +203,7 @@ export const appearanceSettingsSchema = z
     reducedTransparency: osPreference().default(OS_PREFERENCE_DEFAULT),
     increasedContrast: osPreference().default(OS_PREFERENCE_DEFAULT),
     backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
-    // NOTE: there was a flat `backgroundSeededId` (the `kind:"seeded"` catalog slug) — RETIRED 2026-09-18
+    // NOTE: no flat `backgroundSeededId` (the `kind:"seeded"` catalog slug) — RETIRED
     // with the kind itself; the WHY is on `BACKGROUND_IMAGE_KINDS` in `#theme`. A stored blob's leftover
     // `backgroundSeededId` is stripped by zod (unknown key), and the kind heals to `none` — the per-user
     // background seeder's migration pass rewrites the pick to the plate's now-owned asset before that
@@ -211,7 +211,7 @@ export const appearanceSettingsSchema = z
     // NOTE: there is no flat `backgroundExternalUrl` — an external URL can never paint (CSP `img-src`
     // self/data/blob only, by design), so the global appearance surface materializes a pasted URL server-side
     // (`settings.addExternalBackground`) into a `backgroundLibrary` ASSET entry rather than persisting a
-    // paintable external field (the BG-C invariant, side-eye F-P0-2). The kind enum keeps `external` only as a
+    // paintable external field (the BG-C invariant). The kind enum keeps `external` only as a
     // transient INPUT mode (the picker's URL-entry branch), never a persisted paintable state.
     // The empty string is the no-pick sentinel; a stale id degrades where the consumer resolves owned assets.
     backgroundAssetId: z
@@ -226,8 +226,8 @@ export const appearanceSettingsSchema = z
     backgroundAssetMime: z.string().catch("").default(""),
     // BG-D: the saved background library the picker chooses from. Additive + prefaulted (an old blob reads
     // `[]` with no version bump — the persona/appearance precedent). Every entry's asset is GC-rooted.
-    // ELEMENT-WISE (#1365, was a whole-array `.catch([])`): one malformed row dropped the ENTIRE library,
-    // and because the catch made the parse succeed, `parseOutcome` said `intact: true`, so the #471 write
+    // ELEMENT-WISE (was a whole-array `.catch([])`): one malformed row dropped the ENTIRE library,
+    // and because the catch made the parse succeed, `parseOutcome` said `intact: true`, so the intact write
     // guard could not see it and the next unrelated settings save persisted the erasure. One bad row now
     // costs one row. (RECOVERY of a library already emptied by the old behaviour is NOT attempted here —
     // the bytes are gone from the blob; the assets themselves survive in the CAS and can be re-added.)

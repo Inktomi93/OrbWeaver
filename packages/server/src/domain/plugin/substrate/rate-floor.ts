@@ -37,14 +37,14 @@ import type { PluginRateFloor } from "../contract/ops.ts";
 
 /** `net.fetch` calls per plugin per hour. One every 10 seconds sustained — above any human browse cadence
  *  (a hub plugin's searches, page flips and detail opens are all one text call each, and the original 120
- *  was reachable by a page-flipping binge — #801's "fix slowness, don't degrade" ruling), while still
+ *  was reachable by a page-flipping binge — the "fix slowness, don't degrade" ruling), while still
  *  bounding an exfiltration loop on the POST-capable channel to something an operator can see in the log
  *  ring. Art does NOT ride this belt (see {@link PLUGIN_ASSET_EGRESS_PER_HOUR}). */
 export const PLUGIN_EGRESS_PER_HOUR = 360;
 
-/** `net.fetchAsset` calls per plugin per hour — the #801 belt SPLIT. The asset arm shared `net.fetch`'s belt
- *  when #798 landed, and the sharing was the defect: an art hub honestly spends ~30 covers per fresh browse
- *  page, so art starved search inside an hour and the cache degenerated into rationing. The channels also
+/** `net.fetchAsset` calls per plugin per hour — the belt SPLIT. Sharing `net.fetch`'s belt
+ *  is the defect: an art hub honestly spends ~30 covers per fresh browse
+ *  page, so art starves search inside an hour and the cache degenerates into rationing. The channels also
  *  price differently — `fetchAsset` is GET-only to the manifest allowlist and its product lands in the
  *  installer's OWN CAS (the outbound bytes are one URL), while `net.fetch` can carry a POST body out (the
  *  D46 exfil pricing that keeps ITS ceiling tight). 1200/hour ≈ 40 fresh uncached pages of covers an hour;

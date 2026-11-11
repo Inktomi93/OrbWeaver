@@ -65,8 +65,8 @@ const SSE_PING_MS = 15_000;
 //
 // IT ALSO STRIPS `stack` — UNCONDITIONALLY, in every env. tRPC's `getErrorShape` attaches the raw
 // `Error.stack` to `shape.data` whenever `config.isDev`, and `isDev` defaults to
-// `NODE_ENV !== "production"` resolved ONCE at `create()` below. On 2026-08-09 the public deployment was
-// being served by a DEV process (a `node --watch` out of a worktree behind the proxy), so every tRPC error
+// `NODE_ENV !== "production"` resolved ONCE at `create()` below. The public deployment was once
+// served by a DEV process (a `node --watch` out of a worktree behind the proxy), so every tRPC error
 // — including the pre-auth 401 an anonymous prober gets — returned absolute host paths, the OS username and
 // exact dep versions. Authz was intact; this was pure info-disclosure. Cutting the process over to
 // production fixed the INSTANCE; this line fixes the STRUCTURE, so no env, no launch mistake and no future
@@ -176,7 +176,7 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // a cookie-authenticated mutation must carry the custom header. The gate keys on Principal.via: a
 // header/fallback request and all queries/subscriptions are exempt.
 //
-// WHY tRPC's belt keys on `cookie` ONLY, unlike the byte-ingest routes' `via !== "header"` (#300): because
+// WHY tRPC's belt keys on `cookie` ONLY, unlike the byte-ingest routes' `via !== "header"`: because
 // `entry/app.ts` refuses every POST to the tRPC mount whose content-type is not `application/json`, and
 // `application/json` is NOT a CORS-"simple" content-type — so a cross-site page cannot make the browser
 // send one without a preflight this app never grants (it mounts no CORS middleware). That leaves the

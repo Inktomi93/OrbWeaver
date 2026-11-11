@@ -1,6 +1,6 @@
 // domain/plugin/substrate/bundle-assets — the ONE writer that turns a parsed bundle's `ui/assets/` images
 // into CAS assets in the INSTALLER's own store, plus the link rows install/upgrade batch with their
-// `plugins` row (#820 seam 11). It lives here rather than inside either verb because both verbs need
+// `plugins` row. It lives here rather than inside either verb because both verbs need
 // byte-identical semantics: install and upgrade must store under the SAME Principal, with the SAME
 // magic-sniffed mime, in the SAME order — and a second spelling is how one of them quietly starts trusting
 // the filename extension.
@@ -27,7 +27,7 @@ import type { PluginBundleAssetBytes, PluginBundleAssetLink, PluginBundleAssetSt
  *
  *  A FAILURE MID-WAVE REPORTS WHAT IT ALREADY WROTE ({@link PluginBundleAssetStoreOutcome}) instead of
  *  throwing it away. The direction was always fail-safe (unreferenced bytes, never a link to bytes that are
- *  not there — the `storeFetched` put→link posture, #802) and the weekly `assets-gc` sweep does eventually
+ *  not there — the `storeFetched` put→link posture) and the weekly `assets-gc` sweep does eventually
  *  reclaim them; what was missing is that the caller could not follow this domain's OWN rule — reap the ids
  *  you just orphaned instead of leaving them to the sweep — because the ids died with the throw. */
 export async function storeBundleAssets(

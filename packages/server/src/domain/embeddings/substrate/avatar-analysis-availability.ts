@@ -1,6 +1,6 @@
 // domain/embeddings/substrate/avatar-analysis-availability — one root's memory of "this summarize model
 // cannot analyse an avatar", so the indexer asks a backend ONCE instead of once per asset, every sweep,
-// forever (#2422).
+// forever.
 //
 // THE INCIDENT. On a box whose engine serves a checkpoint other than the configured summarize model, every
 // avatar in the corpus produced its own chat request, its own 404 ("The model `…` does not exist") and its own

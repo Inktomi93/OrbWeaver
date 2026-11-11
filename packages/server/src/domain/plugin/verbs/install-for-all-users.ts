@@ -1,5 +1,5 @@
 // verb: installForAllUsers — the SERVER-WIDE install, resolved as an ADMIN-TRIGGERED FAN-OUT OF PER-USER
-// ROWS (D147 clause (d), owner-ruled 2026-08-24). There is no shared row, no shared principal and no consent
+// ROWS (D147 clause (d), owner-ruled). There is no shared row, no shared principal and no consent
 // junction: the deployment PUBLISHES a bundle, and every user gets their own ordinary `plugins` row that runs
 // under them when THEY turn it on. The two questions D147 recorded as open — per-user consent over a shared
 // install, and whose principal a shared install runs as — dissolve rather than get answered.

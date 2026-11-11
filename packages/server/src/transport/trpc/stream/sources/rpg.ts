@@ -16,7 +16,7 @@
 // leak-free NOT_FOUND it catches). Under the multiplex that throw is caught by the socket's per-room pump
 // and becomes a `roomFailed` CONTROL frame — the room detaches, the socket and every other room survive.
 // That is strictly better than the shape this code had as its own procedure, where the same throw ended the
-// whole stream (the 2026-08-01 zombie-subscription incident: an unwrapped subscription throw is a RETRYABLE
+// whole stream (the zombie-subscription incident: an unwrapped subscription throw is a RETRYABLE
 // tRPC 500 that `httpSubscriptionLink` reconnects every ~3s forever with ZERO client callbacks).
 //
 // LIVE-ONLY: no cursor, no replay (the rpg bus has no durable half — `domain/rpg/bus.ts`). The client

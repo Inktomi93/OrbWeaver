@@ -19,23 +19,23 @@
 // is furniture. Neither verb is re-implemented here — the seeder drives the SAME trust edge a hand install
 // drives, so the bundle meets the same unzip hardening, the same manifest validation and the same CAS store.
 //
-// WHICH BUNDLES, AND WHERE THEY LIVE (#1692): the set is `SHOWCASE_PLUGIN_SLUGS`, owned by the
+// WHICH BUNDLES, AND WHERE THEY LIVE: the set is `SHOWCASE_PLUGIN_SLUGS`, owned by the
 // `@orb/showcase-plugins` workspace package the server DECLARES as a dependency — the bytes arrive by NODE
 // RESOLUTION, never a path literal into this tier. This module knows the slug tuple and nothing else about
 // the content; the bytes and the shipped version both come in as injected ops.
 //
-// ── THE PASS HAS TWO HALVES, AND ONLY THE FIRST IS LATCHED (#803, owner-ruled 2026-09-05: AUTO-UPGRADE) ──
+// ── THE PASS HAS TWO HALVES, AND ONLY THE FIRST IS LATCHED (owner-ruled: AUTO-UPGRADE) ──
 //
 // INSTALL half — gated by `UserSettings.onboarding.examplePluginsSeeded`. Its two idempotency layers (the
-// persona/character seeder shape — one layer is not enough, #461):
+// persona/character seeder shape — one layer is not enough):
 //   1. the persisted latch — once true the install half never re-runs, which is the DELETION-RESPECT guard
 //      (a user who removed an example must not have it resurrected);
 //   2. per-slug collision tolerance — a slug the user already holds is "already present, nothing to do"
 //      rather than a failure. Layer 2 covers a latch that came back at schema defaults (a settings blob CAN,
-//      live receipt 2026-08-22) without minting a second copy: `(owner, slug)` UNIQUE is the real backstop.
+//      live receipt) without minting a second copy: `(owner, slug)` UNIQUE is the real backstop.
 // The latch is written ONLY after a COMPLETE pass — every slug installed or already present — so a transient
 // failure (a fs read, a db blip, a bundle the pack could not produce) retries on the next touch instead of
-// silently skipping the user forever. That completeness is `ShowcaseSeedResult`'s whole job (#1411): a throw is not
+// silently skipping the user forever. That completeness is `ShowcaseSeedResult`'s whole job: a throw is not
 // the only way a pass can be incomplete, and the non-throwing way used to latch.
 //
 // UPGRADE half — runs on EVERY pass, latched or not, because a latch that meant "never look at these rows
@@ -62,7 +62,7 @@
 // PRISTINE copy of our own gift should keep improving: it should.
 //
 // THE BACKFILL ARM, stated so it is not mistaken for sloppiness: a held slug with NO recorded version is one
-// seeded before #803 existed, and it is ADOPTED (treated as ours) rather than frozen. Freezing it would mean
+// seeded before version recording existed, and it is ADOPTED (treated as ours) rather than frozen. Freezing it would mean
 // every install that predates this code never receives another improvement — the exact symptom the ruling
 // was about — and pre-launch there is no population of hand-forked showcase installs to protect (D157). The
 // arm self-retires: the first pass records every held slug, after which the oracle is exact.
@@ -87,7 +87,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   const settled = new Set<UserId>();
   const inFlight = new Map<UserId, Promise<void>>();
 
-  /** Install ONE example for `principal`. The outcome is the LATCH INPUT, not a log detail (#1411):
+  /** Install ONE example for `principal`. The outcome is the LATCH INPUT, not a log detail:
    *  `installed`/`present` are both "this slug is accounted for", `unavailable` is not. Returns the version
    *  it wrote so the caller can record OUR provenance for it. */
   async function seedOne(principal: Principal, slug: string, held: boolean): Promise<ShowcaseSeedResult> {
@@ -136,7 +136,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
         wrote[row.slug] = row.version;
       }
     }
-    // THE LATCH IS A COMPLETENESS CLAIM (#1411). `examplePluginsSeeded` is read BEFORE any slug is attempted,
+    // THE LATCH IS A COMPLETENESS CLAIM. `examplePluginsSeeded` is read BEFORE any slug is attempted,
     // so latching an incomplete pass means the missing example can never be retried — a transient pack failure
     // silently costs that user the example for the life of the install. The per-slug tolerance the file header
     // describes is unchanged (a missing bundle skips ONE plugin and the other eight still land); what it does
@@ -156,7 +156,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   /** Is this held row still exactly what WE last wrote? The divergence oracle, in one place — and it is the
    *  plugin domain's OWN rule rather than a new one: `domain/plugin/verbs/uninstall-for-all-users.ts:31`
    *  already treats a row's `version` as the oracle and passes over a `version-diverged` recipient because
-   *  "they have taken the plugin over". `recorded === undefined` is the pre-#803 BACKFILL arm (adopt; the
+   *  "they have taken the plugin over". `recorded === undefined` is the BACKFILL arm (adopt; the
    *  file header states why that is the safe arm and how it self-retires). */
   function isPristine(row: HeldSeedPlugin, recorded: string | undefined): boolean {
     return recorded === undefined || recorded === row.version;
@@ -172,7 +172,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
     }
     if (!isPristine(row, recorded)) {
       // The user has taken this plugin over. We do not touch it — and we still do not manufacture any state
-      // for it here. Since #1740 the OWNER can take the newer bundle deliberately: `plugin.checkForUpdates`
+      // for it here. The OWNER can take the newer bundle deliberately: `plugin.checkForUpdates`
       // reports a showcase row against the shipped manifest and `plugin.upgradeFromShowcase` runs it through
       // the REAL `upgrade` verb, so the offer is an explicit one-click and never this pass's doing. This log
       // line stays the record of what the AUTOMATIC pass refused.
@@ -260,7 +260,7 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
       const run = seed(principal)
         .then((latched: boolean): void => {
           // Only a LATCHED pass may be memoized — otherwise the in-process memo would suppress the retry the
-          // un-written persisted latch just bought (#1411: the memo is the second half of the same skip).
+          // un-written persisted latch just bought (the memo is the second half of the same skip).
           if (latched) {
             settled.add(principal.userId);
           }

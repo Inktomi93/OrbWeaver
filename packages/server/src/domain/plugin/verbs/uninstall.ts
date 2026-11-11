@@ -5,7 +5,7 @@
 // now-unreferenced bundle asset AND every cover this plugin fetched. The bundle FK is ON DELETE RESTRICT, so
 // the row MUST go before the asset can be reaped (`reapIfOrphan` re-checks references — a within-user dedup
 // that shares the asset with another plugin is never reaped). The fetched-asset read must PRECEDE the delete:
-// the cascade takes the only record of which assets this install was retaining (#802).
+// the cascade takes the only record of which assets this install was retaining.
 
 import { PluginNotFoundError } from "../contract/errors.ts";
 import type { PluginConsentPrompt } from "../contract/ops.ts";
@@ -27,11 +27,11 @@ export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "
     // there is nothing left to name — the ids would survive only as blobs waiting for the scheduled sweep.
     const fetched = await listPluginFetchedAssetIds(ctx.db, pluginId);
     await deletePlugin(ctx.db, pluginId);
-    // The bundle (RESTRICT — the row had to go first) plus every cover this plugin fetched (#802), now
+    // The bundle (RESTRICT — the row had to go first) plus every cover this plugin fetched, now
     // unreferenced by the same delete. `reapIfOrphan` re-checks the whole registry per id, so a within-user
     // dedup that another plugin (or a character avatar) still shares is left alone.
     await reapReleasedAssets(ctx, { pluginId }, [existing.bundleAssetId, ...fetched]);
-    // Removing a plugin ANSWERS its ask by withdrawing the question (#1041): the row is gone, so the
+    // Removing a plugin ANSWERS its ask by withdrawing the question: the row is gone, so the
     // aggregate must not keep counting it — and when it was the last one standing, the ask is retracted
     // rather than left pointing at a screen with nothing to answer. Never `raised`: an uninstall can only
     // lower the count, so the standing row is corrected in place and the bell does not re-badge.
