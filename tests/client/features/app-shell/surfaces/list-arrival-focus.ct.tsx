@@ -9,7 +9,8 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { REFINERY_START_SESSION_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import { REFINERY_LIST_TITLE } from "#client/features/refinery/lib/refinery-section-label.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -103,18 +104,6 @@ function focusRegion(page: Page): Promise<Region> {
     },
     { bandSelector: BAND, contentSelector: CONTENT, listSelector: LIST, railSelector: RAIL },
   );
-}
-
-/** What holds focus, as a person meets it: its tag, its role and its name. Two landings on one control share it; a pane frame has its own. */
-function focusSignature(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const active = document.activeElement;
-    if (active === null) {
-      return "none";
-    }
-    const name = active.getAttribute("aria-label") ?? active.getAttribute("aria-labelledby") ?? active.textContent.trim();
-    return `${active.tagName}|${active.getAttribute("role") ?? ""}|${name}`;
-  });
 }
 
 const STOP_KINDS = ["band-action", "new", "fold", "search", "row", "other"] as const;
@@ -228,10 +217,18 @@ test("the Refinery list pane's focus target is a region named for what the pane 
 });
 
 // A phone shows one pane at a time: with nothing open, the list IS the screen, so it owns arrival in both sections. A jump from
-// the You sheet closes the sheet in the render that opens the section, so focus is on the body when the surface arrives; the
-// surface still lands on the control a first arrival does, and the shell's body-focus rescue (app-shell.tsx) is only the fallback.
+// the You sheet closes the sheet in the render that opens the section, so focus is on the body when the surface arrives. Each
+// landing is the surface's own target, named from production, so a section that loses its claim falls to the shell's body-focus
+// rescue (app-shell.tsx), the bare pane frame, and fails here on the first arrival as well as on the return.
 const PHONE_LIST_SECTIONS = ["refinery", "extensions"] as const satisfies readonly SectionId[];
 const SHEET = '[data-slot="drawer-popup"]';
+
+// Refinery's list band carries its start control; Extensions' band has none on a phone, so its surface frame, a region named for the
+// section, takes the focus.
+const PHONE_LANDINGS = {
+  refinery: (page: Page): Locator => page.locator(LIST).getByRole("button", { name: REFINERY_START_SESSION_NAME, exact: true }),
+  extensions: (page: Page): Locator => page.locator(LIST).getByRole("region", { name: SECTION_LABELS.extensions, exact: true }),
+} as const satisfies Record<(typeof PHONE_LIST_SECTIONS)[number], (page: Page) => Locator>;
 
 /** Opens a section from the You sheet, where the phone's bar sends the sections it has no tab for. */
 async function openFromYouSheet(page: Page, label: string): Promise<void> {
@@ -252,15 +249,14 @@ test.describe("on a phone", () => {
       await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
       await expect(page.locator(LIST)).toBeVisible();
       await expect.poll(() => focusRegion(page)).toMatch(LIST_PANE);
-      const firstArrival = await focusSignature(page);
+      await expect(PHONE_LANDINGS[section](page)).toBeFocused();
 
       await pressRail(page, ARRIVALS.home.label);
       await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
       await openFromYouSheet(page, label);
       await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
       await expect.poll(() => focusRegion(page)).toMatch(LIST_PANE);
-      // The return lands on the very control the first arrival did, not on the pane frame the shell's own rescue falls back to.
-      await expect.poll(() => focusSignature(page)).toBe(firstArrival);
+      await expect(PHONE_LANDINGS[section](page)).toBeFocused();
     });
   }
 });

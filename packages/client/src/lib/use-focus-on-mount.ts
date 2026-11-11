@@ -43,18 +43,32 @@ const browserDocument = (globalThis as { document?: MinimalDocument }).document;
 // press, and only this tells a field that started the arrival from one the reader went on typing in. Typing clears it, and a
 // click on the field itself activates nothing.
 let pressedFrom: MinimalElement | null = null;
-// The control the reader's last press landed on, kept to tell a surface arriving after that control was removed (a navigation)
-// from one mounting on a cold load (no press at all). One arrival consumes it.
-let activated: ConnectedNode | null = null;
+/** How long after a press a surface may still arrive from `<body>` on that press's account: the render the press causes, a view
+ *  transition's deferred update included, settles well inside it. A mount past it is not that press's navigation. */
+export const PRESS_RENDER_WINDOW_MS = 500;
+
+interface Press {
+  readonly target: ConnectedNode;
+  readonly at: number;
+}
+// The control the reader's last press landed on and when, to tell a surface arriving because that control was removed (a navigation)
+// from one mounting on a cold load (no press) or long after a press that went nowhere. One arrival consumes it.
+let lastPress: Press | null = null;
 function isConnectedNode(target: object | null): target is ConnectedNode {
   return target !== null && "isConnected" in target;
+}
+function notePress(target: object | null): void {
+  lastPress = isConnectedNode(target) ? { target, at: performance.now() } : null;
+}
+function pressRemovedItsControl(): boolean {
+  return lastPress !== null && !lastPress.target.isConnected && performance.now() - lastPress.at <= PRESS_RENDER_WINDOW_MS;
 }
 browserDocument?.addEventListener(
   "keydown",
   ({ key, target }) => {
     if (key === "Enter") {
       pressedFrom = browserDocument.activeElement;
-      activated = isConnectedNode(target) ? target : null;
+      notePress(target);
     }
   },
   { capture: true },
@@ -64,7 +78,7 @@ browserDocument?.addEventListener(
   ({ target }) => {
     const active = browserDocument.activeElement;
     pressedFrom = active === target ? null : active;
-    activated = isConnectedNode(target) ? target : null;
+    notePress(target);
   },
   { capture: true },
 );
@@ -127,10 +141,10 @@ function keepsFocus(active: MinimalElement, target: FocusTarget | null): boolean
 }
 
 /** Whether arrival may move focus off `active`: from a real element unless it keeps focus, and from `<body>` only when the last
- *  press landed on a control that is gone now (a cold load has no such press). */
+ *  press landed on a control that is gone now, within {@link PRESS_RENDER_WINDOW_MS} (a cold load has no such press). */
 function mayTakeFocus(active: MinimalElement | null | undefined, target: FocusTarget | null): boolean {
   if (active === null || active === undefined || active === browserDocument?.body) {
-    return activated !== null && !activated.isConnected;
+    return pressRemovedItsControl();
   }
   return !keepsFocus(active, target);
 }
@@ -145,7 +159,7 @@ function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOn
     if (!mayTakeFocus(browserDocument?.activeElement, ref.current)) {
       return;
     }
-    activated = null;
+    lastPress = null;
     const band = bandFirst ? (browserDocument?.querySelector(LIST_BAND_FIRST_CONTROL) ?? null) : null;
     (band ?? ref.current)?.focus();
   }, [ref, enabled, repeatOnReveal, preserveFocus, bandFirst]);
@@ -154,13 +168,11 @@ function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOn
 /** Focus a freshly-mounted surface UNCONDITIONALLY — for an IN-PLACE swap, where the control the user just
  *  activated is REMOVED by the same render that mounts this surface.
  *
- *  Why the sibling exists: `useFocusOnMount`'s `<body>` check is an initial-load discriminator, and it
- *  cannot tell "the page just loaded" from "the button I was standing on was destroyed" — both leave
- *  `activeElement` at `<body>`. The preset section/template drill-ins are exactly the second case (the
- *  chevron that opened the editor unmounts with the list), so the guarded hook silently declined and focus
- *  stayed on `<body>` in BOTH directions (side-eye F-04). The caller opts in per site because the guard is
- *  what protects the rail's tab order on a cold load; a surface using THIS hook must only mount as the
- *  direct result of a user activation. */
+ *  What the sibling does that {@link useFocusOnMount} does not: it never stands down. It takes focus from a text
+ *  field or an open overlay, and it needs no recorded press, so it also lands when the control that held focus went
+ *  away through something other than a click or Enter. The caller opts in per site because that guard is what
+ *  protects the rail's tab order on a cold load; a surface using THIS hook must only mount as the direct result
+ *  of a user activation. */
 export function useFocusOnSwap(ref: RefObject<FocusTarget | null>, enabled = true): void {
   useEffect(() => {
     if (enabled) {

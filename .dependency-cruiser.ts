@@ -129,6 +129,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
+  "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
   "^tests/ui/primitives/virtual-list/virtual-list-cases\\.ts$": "the long-list row count the virtual-list stories mount and their spec passes",
@@ -510,6 +511,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and CORPUS_DISTILLED_CATALOG_NAME: the Corpus list and browse names",
+  "packages/client/src/lib/use-focus-on-mount.ts":
+    "PRESS_RENDER_WINDOW_MS: how long after a press a surface may still arrive from the body on that press's account",
   "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",
   "packages/client/src/features/refinery/lib/refinery-names.ts":
     "REFINERY_VERSIONS_NAME, refineryCompareToggleName and REFINERY_VERSION_LOADING_TEXT: the context pane's version history names",
