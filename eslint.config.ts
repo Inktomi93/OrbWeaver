@@ -514,6 +514,27 @@ const TEST_DETERMINISM_SYNTAX = [
   },
 ];
 
+// The traps .claude/rules/browser-tests.md names: `innerText` is layout-aware, so an sr-only or hidden name reads as
+// empty; a bare `route.abort()` takes Playwright's default `failed` code, which reads as a real network failure. A
+// zero-argument `abort()` is also AbortController's, so the abort selector judges a receiver named `route` (or `…Route`)
+// and any receiver inside a handler written in a `.route()` call. It cannot see a handler passed by reference whose
+// parameter is not named as a route: a typed `Route` parameter cannot be told from an AbortController in the same body.
+const TRAP_TEXT_READ = "/^(innerText|allInnerTexts)$/";
+const BARE_ABORT = `CallExpression[arguments.length=0]${memberNamed("abort", "callee.")}`;
+const BROWSER_TEST_TRAPS = [
+  {
+    selector: `:matches(MemberExpression${memberNamed("innerText")}, MemberExpression${memberNamed("allInnerTexts")}, ObjectPattern > Property:matches([key.name=${TRAP_TEXT_READ}], [key.value=${TRAP_TEXT_READ}]))`,
+    message: "Read an accessible name with textContent, ariaSnapshot or getByRole(..., { exact: true }); innerText drops a name the layout hides.",
+  },
+  {
+    selector: `:matches(${[
+      `${BARE_ABORT}[callee.object.name=/^(route|.*Route)$/]`,
+      `CallExpression[callee.property.name=/^route(FromHAR|WebSocket)?$/] > :function ${BARE_ABORT}`,
+    ].join(", ")})`,
+    message: 'Abort a route with route.abort("aborted"); a bare route.abort() sends the default `failed` code, which reads as a real network failure.',
+  },
+];
+
 // A later block that sets `no-restricted-syntax` replaces this list, so every test class composes it instead of restating a part.
 const TEST_SYNTAX = [
   INTERNAL_MODULE_MOCK_RESTRICTION,
@@ -522,6 +543,7 @@ const TEST_SYNTAX = [
   ...OWNED_DB_RESTRICTIONS,
   ...EMPTY_POPULATION_RESTRICTIONS,
   ...TEST_DETERMINISM_SYNTAX,
+  ...BROWSER_TEST_TRAPS,
 ];
 // A suite whose subject is the database client, the testkit's own database owners and the child process that holds a raw connection open and close the handle themselves.
 const CLIENT_SUBJECT_TEST_SYNTAX = TEST_SYNTAX.filter((restriction) => restriction !== RAW_DB_OPEN_RESTRICTION);
@@ -539,19 +561,6 @@ const FIRST_ALERT_RESTRICTION = {
   message:
     "A first-alert read accepts any toast, including the generic one. Read the notice with noticeToast from @orb/testkit/ct, over the copy production computes for it.",
 };
-
-// The traps .claude/rules/browser-tests.md names: `innerText` is layout-aware, so an sr-only or hidden name reads as
-// empty; a bare `route.abort()` takes Playwright's default `failed` code, which reads as a real network failure.
-const BROWSER_TEST_TRAPS = [
-  {
-    selector: `:matches(MemberExpression${memberNamed("innerText")}, MemberExpression${memberNamed("allInnerTexts")}, ObjectPattern > Property[key.name='innerText'])`,
-    message: "Read an accessible name with textContent, ariaSnapshot or getByRole(..., { exact: true }); innerText drops a name the layout hides.",
-  },
-  {
-    selector: `CallExpression[arguments.length=0][callee.object.name='route']${memberNamed("abort", "callee.")}`,
-    message: 'Abort a route with route.abort("aborted"); a bare route.abort() sends the default `failed` code, which reads as a real network failure.',
-  },
-];
 
 const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 
@@ -2584,19 +2593,13 @@ export default [
     rules: { "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX) },
   },
   {
-    // The page drivers a component or e2e spec calls; the spec blocks below restate the traps for the specs themselves.
-    files: ["tests/e2e/**/!(*.test).{ts,tsx}", "tests/support/browser/**/*.{ts,tsx}"],
-    ignores: ["**/*.test-d.ts"],
-    rules: { "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, ...BROWSER_TEST_TRAPS) },
-  },
-  {
     files: ["tests/db/client/**/*.{ts,tsx}", "tests/support/node/db.ts", "tests/support/node/db-holder.ts"],
     rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SUBJECT_TEST_SYNTAX) },
   },
   {
     files: ["tests/e2e/*.spec.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, ...BROWSER_TEST_TRAPS, PAGE_SLEEP_RESTRICTION, {
+      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, {
         selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",
         message: "A hand-written role selector accepts retained rows. Read the ids a send driver returns and assert through messageRow.",
       }),
@@ -2607,7 +2610,6 @@ export default [
     rules: {
       "no-restricted-syntax": restrictedSyntax(
         ...TEST_SYNTAX,
-        ...BROWSER_TEST_TRAPS,
         PAGE_SLEEP_RESTRICTION,
         FIRST_ALERT_RESTRICTION,
         { selector: "JSXElement, JSXFragment", message: "Keep component composition in browser stories; CT specs call native mount with data props." },

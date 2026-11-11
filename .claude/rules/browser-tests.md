@@ -34,7 +34,7 @@ Run `pnpm test:ct:webkit <paths>` for the platform suites (`platform-*.suite.ct.
 - Use `route.abort("aborted")`, never a bare `route.abort()`.
 - Assert accessible names with `textContent`, `ariaSnapshot`, or `getByRole(..., { exact: true })`, never
   `innerText` or a raw attribute read. `aria-labelledby` outranks `aria-label`.
-- `BROWSER_TEST_TRAPS` in `eslint.config.ts` refuses a bare `route.abort()` and every `innerText` or `allInnerTexts` read in CT specs, e2e files and `tests/support/browser`.
+- `BROWSER_TEST_TRAPS` in `eslint.config.ts` refuses every `innerText` or `allInnerTexts` read and a bare `route.abort()` in every test class, page drivers included. Its header names the abort shapes it cannot see.
 - `getComputedStyle` reports the declared value even under `display: none`; suppress the exact property a
   test measures, not the element's display.
 - Follow `Spine-Testing.md` §7 for native gallery authoring, execution mode and lifecycle.

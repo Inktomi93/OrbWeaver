@@ -2,7 +2,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { PlatformTextSize } from "@orb/testkit/browser/spec";
 import { observeSurfaceSession, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import type { SeededIds } from "@orb/testkit/iso";
-import { createSeededIds, FIXTURE_ID_CURSOR, SURFACE_PASSES } from "@orb/testkit/iso";
+import { SURFACE_PASSES } from "@orb/testkit/iso";
 import type { SurfaceRunConfig, SurfaceWalkOptions } from "@orb/testkit/node/helpers";
 import { attachNativeFile, readSurfaceRunConfig, surfaceArtifactModes } from "@orb/testkit/node/helpers";
 import { test as base, expect } from "@playwright/test";
@@ -11,15 +11,12 @@ import type { SurfaceFlow } from "./surface-flow.ts";
 import { createSurfaceFlow } from "./surface-flow.ts";
 import type { TrpcClient } from "./trpc-client.ts";
 import { createTrpcClient } from "./trpc-client.ts";
+import { workerIds } from "./worker-ids.ts";
 
 export { expect } from "@playwright/test";
 
 const defaults = appearanceSettingsSchema.parse({});
 const nativeRun = await readSurfaceRunConfig();
-
-// Each worker process mints from its own band, so a worker Playwright restarts after a failure never repeats a name
-// an earlier worker left in the shared disposable clone.
-const WORKER_ID_BAND = 2 ** 16;
 
 // The engine's own default font size; an enlarged-text project multiplies it.
 const BROWSER_DEFAULT_TEXT_SCALE = 1;
@@ -39,7 +36,9 @@ interface SurfaceWalkWorkerFixtures {
 export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures, SurfaceWalkWorkerFixtures>({
   runIds: [
     async ({}, use, worker) => {
-      await use(createSeededIds(FIXTURE_ID_CURSOR + worker.workerIndex * WORKER_ID_BAND));
+      // Each worker mints from its own band, so a worker Playwright restarts after a failure never repeats a name an
+      // earlier worker left in the shared disposable clone.
+      await use(workerIds(worker.workerIndex));
     },
     { scope: "worker" },
   ],

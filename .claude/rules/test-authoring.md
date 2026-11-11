@@ -17,7 +17,7 @@ Work through this list for every new or changed test. Each step links to the sec
 6. Script replies with a [finite plan](../../tests/support/README.md#script-replies-with-a-finite-plan).
 7. Set an env key through the harness, never through `process.env` ([env knobs](../../tests/support/README.md#turn-a-production-env-knob)).
 8. Sign in [through the product](../../tests/support/README.md#sign-in-through-the-product).
-9. Inject the clock and the ids. Use no wall clock and no randomness; `TEST_DETERMINISM_SYNTAX` in `eslint.config.ts` refuses both. Use fake timers only for the real timer window [determinism](../../docs/law/Spine-Testing.md#3-determinism--mock-doctrine) names.
+9. Inject the clock and the ids. Use no wall clock and no randomness. `TEST_DETERMINISM_SYNTAX` in `eslint.config.ts` refuses the ambient clock reads and `Math.random`; it does not see `node:crypto`. Use fake timers only for the real timer window [determinism](../../docs/law/Spine-Testing.md#3-determinism--mock-doctrine) names.
 10. Import every constant, label, error code, route, env key and type from its production home. When production has no exported home, add one there first ([tests run the product](../../docs/law/Spine-Testing.md#9-tests-run-the-product), [zero-import modules](../../tests/support/README.md#keep-user-facing-names-in-zero-import-modules)).
 11. Seed and read through production verbs. Write or read a row directly only under `tests/db/` or a `persistence/` directory. A state the product cannot produce needs a [sanctioned home](../../tests/support/README.md#sanctioned-historic-states).
 12. Give every refusal its reason and every absence a positive control in the same case ([what is enforced](../../tests/support/README.md#what-is-enforced)).
