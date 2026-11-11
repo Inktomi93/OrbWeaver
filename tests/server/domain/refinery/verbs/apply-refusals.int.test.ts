@@ -1,17 +1,18 @@
 // The card-apply verb refuses an accepted entry for one of the typed reasons of `ApplyDropReason`, and a refusal writes nothing:
 // the card, its snapshot list and the session stay as they were, and the whole act is refused when any one entry is.
-// The rewrite under test is hand-authored through `submitManualRewrite`, so no model edge is scripted.
+// The rewrite under test is hand-authored through `submitManualRewrite`, so no model edge is scripted. A card moved by a
+// second writer mid-apply is held at the card write by the database's statement hold.
 // The refinery has no exported tuple of the reasons, so the case table is a `Record` keyed on the exported union: a new reason fails `tsc` here.
 // @subject packages/server/src/domain/refinery/substrate/accept-belts.ts
 // @subject packages/server/src/domain/refinery/verbs/apply-fields.ts
 
-import { createCharacterSchema } from "@orb/contracts/character";
+import { CHARACTER_STALE_BASIS_OP_CODE, createCharacterSchema } from "@orb/contracts/character";
 import type { ApplyDropReason } from "@orb/contracts/refinery";
 import { GREETING_SLOTS_MAX } from "@orb/contracts/refinery";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, freshHeldDb } from "@orb/testkit/node/composed";
 import type { z } from "zod";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -27,6 +28,9 @@ interface Attempt {
 }
 
 const REWRITTEN = "A rewritten description.";
+const EDITED_BY_ANOTHER_WRITER = "Edited while the apply was in flight.";
+// The card write of the apply: the statement parked between its snapshot and its write.
+const CARD_WRITE = /^update "characters" set/i;
 const EDITED_UNDER_SESSION = "Edited under the session.";
 const TWO_GREETINGS = [{ text: "First hello." }, { text: "Second hello." }];
 
@@ -269,4 +273,33 @@ test("one refused entry among accepted ones refuses the whole act and writes non
   const alone = await caller.refinery.applyFields({ sessionId: session.sessionId, rewriteRunId, accepts: [{ field: "description" }] });
   expect(alone.applied).toEqual([{ field: "description", kind: "replaced" }]);
   expect((await readState(caller, session)).card.description).toBe(REWRITTEN);
+});
+
+test("an apply whose card moved between its snapshot and its write is refused whole and leaves no snapshot behind", async () => {
+  using held = await freshHeldDb();
+  await using root = await createServerHarness({ db: held.db });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const session = await openSession(caller);
+  const rewriteRunId = await rewriteWith(caller, session.sessionId, [{ field: "description", text: REWRITTEN }]);
+  const before = await readState(caller, session);
+
+  // The apply has read the card and taken its snapshot when its card write parks; a second writer then edits the card.
+  const pending = held.hold(CARD_WRITE);
+  const apply = caller.refinery.applyFields({ sessionId: session.sessionId, rewriteRunId, accepts: [{ field: "description" }] });
+  await pending.reached;
+  pending.disarm();
+  await caller.character.update({ characterId: session.characterId, input: { personality: EDITED_BY_ANOTHER_WRITER } });
+  pending.release();
+
+  await expect(apply).rejects.toMatchObject({ cause: { code: CHARACTER_STALE_BASIS_OP_CODE } });
+  const after = await readState(caller, session);
+  expect(after.card.personality).toBe(EDITED_BY_ANOTHER_WRITER);
+  expect(after.card.description).toBe(before.card.description);
+  expect(after.snapshots).toEqual(before.snapshots);
+  expect(after.status).toBe("active");
+
+  // The same apply on the fresh basis lands and keeps its snapshot, so the retraction above removed a real row.
+  const retried = await caller.refinery.applyFields({ sessionId: session.sessionId, rewriteRunId, accepts: [{ field: "description" }] });
+  expect(retried.applied).toEqual([{ field: "description", kind: "replaced" }]);
+  expect((await readState(caller, session)).snapshots).toHaveLength(before.snapshots.length + 1);
 });
