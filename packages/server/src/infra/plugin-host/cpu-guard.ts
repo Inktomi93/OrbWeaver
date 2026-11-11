@@ -16,7 +16,9 @@
 //     the synchronous run, each settlement and pump while the invocation awaits, the read of its result — opens a
 //     window at the account's remainder and charges the account the time it ran. The await between spans charges
 //     nothing, so a guest that waits seconds on a host call and then runs briefly is inside its budget (D346);
-//   - a settlement or pump outside any invocation opens a window of the whole budget for the duration of that span.
+//   - a settlement or pump outside any invocation spends the instance's OUTSIDE account the same way. Only an
+//     invocation's opening refills it, so post-invocation work holds one budget in total, not one per span; when it
+//     is spent the pump parks the job queue until the next invocation (`pumpGuestJobs`).
 // A span opened inside an open span adds nothing (the outer window already bounds it), and every pump inside an
 // invocation spends that invocation's account — so a nested pump can neither buy the invocation extra CPU nor blank
 // its bound on the way out.
@@ -59,6 +61,9 @@ interface CpuGuard {
   deadlineAtMs: number;
   /** The open invocation's unspent budget, or `null` outside an invocation. */
   account: CpuAccount | null;
+  /** The instance's unspent budget for guest work outside any invocation. Only an invocation's opening refills it,
+   *  and the host decides when an invocation opens, so a guest cannot buy itself more. */
+  readonly outside: CpuAccount;
 }
 
 interface CpuAccount {
@@ -84,7 +89,7 @@ function windowPassed(guard: CpuGuard): boolean {
 }
 
 function createGuard(ctx: QuickJSContext, budgetMs: number): CpuGuard {
-  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null };
+  const guard: CpuGuard = { budgetMs, deadlineAtMs: BUILDING, account: null, outside: { remainingMs: budgetMs } };
   GUARDS.set(ctx, guard);
   ctx.runtime.setInterruptHandler(() => windowPassed(guard));
   return guard;
@@ -115,33 +120,37 @@ export function installCpuGuard(ctx: QuickJSContext, budgetMs: number): void {
   existing.budgetMs = budgetMs;
 }
 
-/** Open an invocation's CPU account and return its CLOSE, which restores the account it replaced. Callers MUST close
- *  in a `finally`. */
+/** Open an invocation's CPU account and return its CLOSE, which restores the account it replaced. Opening also
+ *  refills the account for guest work outside an invocation. Callers MUST close in a `finally`. */
 export function openCpuInvocation(ctx: QuickJSContext): () => void {
   const guard = guardOf(ctx);
   const previous = guard.account;
+  guard.outside.remainingMs = guard.budgetMs;
   guard.account = { remainingMs: guard.budgetMs };
   return (): void => {
     guard.account = previous;
   };
 }
 
-/** Open a guest-CPU window for one span of guest execution and return its CLOSE. Inside an invocation the window is
- *  the account's remainder and the close charges the account; outside one it is the whole budget. A span opened
- *  while one is open adds nothing — the nesting contract above. Callers MUST close in a `finally`: a window left
- *  open would preempt the next unrelated span the moment its deadline passed. */
+/** The account a span spends: the open invocation's, else the instance's account for work outside one. */
+function spending(guard: CpuGuard): CpuAccount {
+  return guard.account ?? guard.outside;
+}
+
+/** Open a guest-CPU window for one span of guest execution and return its CLOSE. The window is the remainder of the
+ *  account the span spends, already passed when that account is spent, and the close charges the account. A span
+ *  opened while one is open adds nothing — the nesting contract above. Callers MUST close in a `finally`: a window
+ *  left open would preempt the next unrelated span the moment its deadline passed. */
 export function openCpuWindow(ctx: QuickJSContext): () => void {
   const guard = guardOf(ctx);
   if (Number.isFinite(guard.deadlineAtMs)) {
     return (): void => undefined;
   }
-  const account = guard.account;
+  const account = spending(guard);
   const openedAtMs = performance.now();
-  guard.deadlineAtMs = openedAtMs + (account === null ? guard.budgetMs : account.remainingMs);
+  guard.deadlineAtMs = account.remainingMs > 0 ? openedAtMs + account.remainingMs : CLOSED;
   return (): void => {
-    if (account !== null) {
-      account.remainingMs = Math.max(0, account.remainingMs - (performance.now() - openedAtMs));
-    }
+    account.remainingMs = Math.max(0, account.remainingMs - (performance.now() - openedAtMs));
     guard.deadlineAtMs = CLOSED;
   };
 }
@@ -160,22 +169,29 @@ export function withinCpuWindow<T>(ctx: QuickJSContext, work: () => T): T {
 /** Run the guest's pending jobs inside a span — the ONE spelling of the job pump. A runaway continuation is
  *  preempted with `InternalError: interrupted` (its own promise rejects guest-side, contained), and jobs the abort
  *  left QUEUED stay queued for the next pump; a context with aborted jobs still queued disposes cleanly (measured
- *  against this runtime). Inside an invocation a pump spends that invocation's account. */
+ *  against this runtime). Inside an invocation a pump spends that invocation's account.
+ *
+ *  Outside an invocation a pump spends the instance's outside account, and a spent account PARKS the queue: no job
+ *  runs until the next invocation refills it, and that invocation's own pumps run the parked jobs on its account.
+ *  The engine keeps one queue per runtime and offers no way to drop a job short of disposing the context, so parked
+ *  jobs resume rather than vanish. This is what stops a chain that never calls the host, which the entry check
+ *  cannot see; the entry check remains the second guard for a chain that does. */
 export function pumpGuestJobs(ctx: QuickJSContext): void {
   // A fire-and-forget host call can settle AFTER its instance was torn down (snippet end / deactivate);
   // touching a dead context is a use-after-free. The pump owns this guard so no call site can forget it.
   if (!ctx.alive) {
     return;
   }
-  const closeWindow = openCpuWindow(ctx);
-  try {
+  const guard = guardOf(ctx);
+  if (guard.account === null && guard.outside.remainingMs <= 0) {
+    return;
+  }
+  withinCpuWindow(ctx, () => {
     // DISPOSE THE RESULT, always: on the interrupt arm `executePendingJobs` hands back a HANDLE to the guest's
     // `InternalError`, and an undisposed handle at `ctx.dispose()` aborts the shared WASM module
     // (`list_empty(&rt->gc_obj_list)`) — a crash every CO-RESIDENT plugin would pay for. The success arm's
     // dispose is a no-op, so this is unconditional.
     const result = ctx.runtime.executePendingJobs();
     result.dispose();
-  } finally {
-    closeWindow();
-  }
+  });
 }

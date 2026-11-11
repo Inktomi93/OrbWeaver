@@ -15,8 +15,8 @@ const BYTES_PER_MEBIBYTE = 1_048_576;
 const WASM_INITIAL_MEBIBYTES = 16;
 const WASM_MAX_MEBIBYTES = 48;
 
-/** A resident instance's guest CPU account per invocation (installed plugin handler/tool/transform), spent by its
- *  running spans of guest execution and never by its awaits. Enforced by the QuickJS interrupt handler and the
+/** A resident instance's guest CPU account per invocation (installed plugin handler/tool/transform), and for its
+ *  work outside invocations between two of them, spent by running spans of guest execution and never by awaits. Enforced by the QuickJS interrupt handler and the
  *  host-call entry check, comparing REAL monotonic time against the open window (`cpu-guard.ts`, D346). */
 export const PLUGIN_INVOCATION_CPU_MS = 1000;
 
