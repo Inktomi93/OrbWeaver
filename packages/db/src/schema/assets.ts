@@ -44,7 +44,7 @@ export const assets = sqliteTable(
     // of the media-box contract) without decoding anything. NULLABLE on purpose and NOT a defect: a non-image asset (a zip,
     // a pdf), an unrecognized signature, and a truncated header all legitimately have no dimensions — the
     // render side falls back to the `auto 16 / 9` placeholder, which is correct, just not reserved.
-    // Pre-#625 rows are NULL for the same reason (no backfill: the fallback already handles them).
+    // Rows older than these columns are NULL for the same reason (no backfill: the fallback already handles them).
     width: integer("width"),
     height: integer("height"),
     uploadedAt: integer("uploaded_at").notNull().default(sql`(unixepoch() * 1000)`),

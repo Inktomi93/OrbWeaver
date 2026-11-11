@@ -7,7 +7,7 @@
 // keeps firing keeps exactly ONE live ask, so the one-visible-card attention budget (authoring law 5) is
 // bounded by the chat's RULE COUNT and not by how often those rules fire.
 //
-// ONE INBOX, TWO ORIGINS. Plugins joined the same three-posture law post-#24: a plugin whose installer is not
+// ONE INBOX, TWO ORIGINS. Plugins follow the same three-posture law: a plugin whose installer is not
 // host of the invocation chat ASKS instead of taking a flat refusal, and its ask lands HERE. Deliberately not
 // a second store — a second one would mean a second TTL, a second sweep, a second void-on-handoff and two
 // places a host has to look. The slot key discriminates on the `AutomationEmitSource` union, so a chatty

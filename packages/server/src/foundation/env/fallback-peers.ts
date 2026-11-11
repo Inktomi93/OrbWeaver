@@ -17,7 +17,7 @@
 // Every peer inside a named range becomes the OWNER with no credential. Under docker's NAT that is not a
 // statement about a trusted machine — it is a statement about a SOCKET. With `-p 8788:8788` (all interfaces)
 // every client on the LAN or the internet reaches the app AS the bridge gateway, so naming the bridge range
-// means "anyone who can reach the published port is the owner": the pre-#298 world-owner shape, re-opened on
+// means "anyone who can reach the published port is the owner": the world-owner shape the loopback gate removes, re-opened on
 // purpose. The control that actually bounds it is the HOST-SIDE publication (`-p 127.0.0.1:8788:8788`), not
 // `IP_ALLOWLIST` — `isIngressAllowed` (`infra/network/ingress.ts`) admits every private address, which is
 // exactly what the NAT produces, so the perimeter ring cannot see past the gateway. The warning says so.

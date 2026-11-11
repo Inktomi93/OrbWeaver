@@ -215,7 +215,7 @@ export function runFile(slot: RunSlot, ...segments: readonly string[]): string {
 
 /** Replace `absPath` with a RELATIVE symlink to `target` atomically: create the link at a unique temp name
  *  in the same directory, then `rename` over the alias (POSIX rename of a symlink is atomic). A stale REAL
- *  file/dir at the alias — every pre-#1029 artifact is one — is removed first; that one-time swap is the
+ *  file/dir at the alias — every artifact older than run slots is one — is removed first; that one-time swap is the
  *  only non-atomic moment in the layout, and it happens once per alias per checkout. */
 function publishSymlink(absPath: string, target: string): void {
   const tmp = `${absPath}.tmp.${process.pid}`;

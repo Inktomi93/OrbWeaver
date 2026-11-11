@@ -51,7 +51,7 @@
  *
  *  `ramp` is the neutral SURFACE ramp, and it is two-armed for the same reason and measured polarity
  *  (the polarity split applied to the surfaces): the arms are lightness DELTAS off the picked base that
- *  {@link rampDeltas} selects between. Neither arm is invented — `dark` is the pre-#682 single additive
+ *  {@link rampDeltas} selects between. Neither arm is invented — `dark` is the original single additive
  *  block digit-for-digit, and `light` is the shipped Light seed's own measured block promoted from a
  *  hand-authored per-seed value-set into the derivation a CUSTOM theme gets too (base 0.98 → sidebar
  *  0.955, surface-raised 0.965, card/popover 0.995, secondary 0.94, muted 0.95, accent 0.93,
@@ -694,7 +694,7 @@ export interface RampDeltas {
  * elevation arm ride, so a palette can never get light-arm surfaces with dark-arm text.
  *
  * THE SHIPPED DARK ARM DOES NOT MOVE: a proposed ramp surface that stays in the base's contrast-safe
- * polarity returns the pre-#682 number exactly. If an arbitrary accepted base would let a proposed member
+ * polarity returns the original single-block number exactly. If an arbitrary accepted base would let a proposed member
  * cross that boundary, only that DERIVED delta retracts toward zero on a 0.001 grid until the base's
  * black/white endpoint clears it. Accent and sidebar-accent are exempt because each owns a dedicated
  * surface foreground, with one D336 exception: accent shares its ink with muted (the neutral tone's two tints), so
@@ -975,7 +975,7 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
  * the colour this judged: an out-of-gamut chroma never reaches the CSS.
  *
  * `none` means NO lightness in `[fgLMin, fgLMax]` clears — a card that cannot carry this hue at all. Failing open
- * to the authored accent is the pre-#692 behaviour, and inventing a colour is what this file exists not to do.
+ * to the authored accent is the wrong behaviour, and inventing a colour is what this file exists not to do.
  */
 export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch): AccentFill {
   const deltas = rampDeltas(base);

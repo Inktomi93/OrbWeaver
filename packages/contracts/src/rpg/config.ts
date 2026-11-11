@@ -188,7 +188,7 @@ export const RPG_RECONCILE_EVERY_BEATS_DEFAULT = 10;
 /** The ambient DATE mode (#9, owner-ruled default): `narrated` = the date is a FREEFORM STRING the model
  *  provides from the fiction (`calendarDate` — "3rd of Frostmoon"), with NO forced sequential day-counter
  *  display and no exact-date pressure; `structured` = the integer `clock.day` counter renders beside it
- *  (the pre-#9 behavior). Time-of-day + weather stay STRUCTURED and functional in BOTH modes — they drive
+ *  (the original behavior). Time-of-day + weather stay STRUCTURED and functional in BOTH modes — they drive
  *  the Waystone day-night + rain visual, which must never be lost. A DISPLAY/steering knob only: the
  *  stored `clock` plane is untouched by the mode (flipping it back loses nothing). */
 export const RPG_DATE_MODES = ["narrated", "structured"] as const;
@@ -219,7 +219,7 @@ export const rpgGameConfigSchema = z
     // the ruleset is a host SETTING on the Game tab, not a start-time door. It is the SELECTION, never a second
     // storage for the vocabulary: `statProfile`/`trackers` below stay the truth, and a switch MERGES the
     // ruleset's vocabulary into them additively (`applyRulesetVocabulary`, ruleset.ts). Additive defaulted — a
-    // pre-#862 blob self-heals to `freeform` at the parse seam.
+    // blob without it self-heals to `freeform` at the parse seam.
     ruleset: rpgRulesetSchema.default(RPG_RULESET_DEFAULT),
     statProfile: rpgStatProfileSchema.default(RPG_PROFILE_FREEFORM),
     // THE TRACKERS — the ONE home for every tracked field in the game, whatever its subject (the tracked-field

@@ -243,7 +243,7 @@ export interface PluginBridge {
    *  (the S4-suggestion-store precedent — respawn wipes; durable state is the plugin's own `storage.kv` job) and
    *  emits the per-user freshness poke (`pluginSurfaceStateChanged`) so the installer's own client refetches.
    *
-   *  `chatId` is the ROOM DIMENSION (row 777): `null` ⇒ the plugin-wide row every room shares; a chat id ⇒ the
+   *  `chatId` is the ROOM DIMENSION: `null` ⇒ the plugin-wide row every room shares; a chat id ⇒ the
    *  per-room row a room-anchored surface reads. It arrives ALREADY ADMITTED, like every other chat-scoped
    *  bridge op — the membrane resolved the guest's opaque `ChatHandle` against the invocation's one admitted
    *  token before calling, so infra stays authority-blind and a guest can never name a room it was not admitted

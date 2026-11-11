@@ -17,7 +17,7 @@ export type PluginHandlerRef = Branded<"PluginHandlerRef">;
 /** The JSON payload one handler invocation carries into the guest — either a FIXED string, or a BUILDER the
  *  runtime calls with this invocation's opaque chat handle.
  *
- *  WHY THE BUILDER ARM EXISTS (row 777, and it is the only shape that works). A chat-scoped handler's argument
+ *  WHY THE BUILDER ARM EXISTS (the room dimension, and it is the only shape that works). A chat-scoped handler's argument
  *  object is supposed to carry `chat: ChatHandle | null` (`PluginHostV1["ui"]["register"]`'s `onAction`), and
  *  that handle is the per-invocation opaque token — which is MINTED INSIDE the runtime when the invocation's
  *  chat scope is set, i.e. strictly after the domain has finished building its arguments. A domain caller

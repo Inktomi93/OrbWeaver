@@ -22,7 +22,7 @@ export interface MigrateProseSlotVocabDeps {
   readonly db: BootDatabaseHandle;
 }
 
-/** Re-key every pre-#1737 stored prose override onto the current slot id. Returns the number of preset rows
+/** Re-key every old-spelling stored prose override onto the current slot id. Returns the number of preset rows
  *  rewritten — 0 on every boot after the first, and on a db that never carried the old spelling. */
 export async function migrateProseSlotVocabOnBoot(deps: MigrateProseSlotVocabDeps): Promise<number> {
   const rewritten = await migrateProseSlotVocab(deps.db);

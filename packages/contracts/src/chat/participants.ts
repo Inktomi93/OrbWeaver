@@ -67,8 +67,8 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES) satisfies z.ZodType<Messa
 // KIND NEVER DECIDES THE CANON `role` (owner ruling). Narrator rows stay `role:'assistant'` in
 // canon. KIND NOW DECIDES NO WIRE ROLE EITHER (owner ruling, verbatim: "if you mean group chat
 // narration mode then that is the wrong behavior"): the "ship a narrator row as a wire `system` row on
-// capable models" mapping — a SHAPE-time dispatch on kind × capability, built on the measured vLLM cell in
-// `6aad2053fb` — is RULED OUT. Group narration is ONE generation voicing all the seated characters, i.e. the assistant's
+// capable models" mapping — a SHAPE-time dispatch on kind × capability, built on the measured vLLM cell —
+// is RULED OUT. Group narration is ONE generation voicing all the seated characters, i.e. the assistant's
 // own output voice, so a narrator row delivers `assistant` on every wire. Kind also does not replace the D55
 // synthetic group character: that identity keeps the `__group__` memory scoping, the attribution chrome and
 // the host-owned mint. Kind is purpose; attribution remains voice.

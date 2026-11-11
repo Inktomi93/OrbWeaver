@@ -190,7 +190,7 @@ const GOTO_NAMESPACE_RE = /^[a-z][a-z-]*:/u;
 /** THE WHOLE TARGET GRAMMAR IN ONE HOME. Both refusals below AND `--goto`'s flag summary
  *  (`snap/ops/flags-metadata.ts`, which `pnpm snap --help` and the generated flag index both render) read
  *  this string, so the help cannot document a form the parser refuses. It did: the summary promised "a
- *  dotted settings address group.sub.setting" — the pre-#2447 `settings:` word, minus its namespace — and a
+ *  dotted settings address group.sub.setting" — the retired `settings:` word, minus its namespace — and a
  *  lane that followed it got the SECTION arm's "unknown section … expected one of: home, chats, …", read
  *  that as "you typed it wrong" and went looking for a bug in its own address.
  *

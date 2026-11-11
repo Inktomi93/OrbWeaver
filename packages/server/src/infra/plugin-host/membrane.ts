@@ -591,7 +591,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       // op caps the serialized size; the arg-budget belt already bounded the inbound bytes.
       const raw = args[1];
       const state: Record<string, unknown> = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
-      // THE OPTIONAL ROOM DIMENSION (row 777). ABSENT (`undefined`/`null`) ⇒ the plugin-wide row every room
+      // THE OPTIONAL ROOM DIMENSION. ABSENT (`undefined`/`null`) ⇒ the plugin-wide row every room
       // shares — the U1 shape, unchanged, so every existing guest keeps working byte-for-byte. PRESENT ⇒ it must
       // be the ADMITTED invocation's opaque chat handle, resolved by the SAME `resolveChat` every other
       // room-scoped host fn uses: a forged, stale, or out-of-scope token throws here rather than silently

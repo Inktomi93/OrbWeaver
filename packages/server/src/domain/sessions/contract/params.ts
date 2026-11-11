@@ -26,7 +26,7 @@ export interface CreateSessionParams {
    * row id) before it touches the database; it is never logged, never audited, never projected into a
    * `SessionView`, and never returned by any read. The only reader is the logout revoke, which consumes and
    * clears it. Absent/empty ⇒ the row stores nothing and logout falls back to the BARE end-session URL —
-   * the pre-#141 behaviour, which is degraded UX and never a weaker logout.
+   * the bare logout, which is degraded UX and never a weaker logout.
    */
   readonly oidcIdToken?: string | null;
 }

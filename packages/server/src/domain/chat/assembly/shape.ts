@@ -595,7 +595,7 @@ function traceDeliveredRows(args: {
 
 // THERE IS NO DELIVERED-ROLE DISPATCH — a canon row's wire role is its OWN role, on every model.
 //
-// D129(B) committed, and `6aad2053fb` shipped, a SHAPE-time mapping that re-roled a `narrator`-kind canon row
+// D129(B) committed, and a build shipped, a SHAPE-time mapping that re-roled a `narrator`-kind canon row
 // to a wire `system` row wherever the model's MEASURED `turns.historySystemRows` said the wire takes mid-array
 // system rows (the vLLM arm). The OWNER RULED IT OUT the same day, verbatim: "if you mean group
 // chat narration mode then that is the wrong behavior." Group-chat narration mode is ONE generation voicing

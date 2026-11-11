@@ -28,7 +28,7 @@ const SESSION_ENTITY = "session";
  * A DECRYPT FAILURE MUST NEVER FAIL A LOGOUT. By the time this runs the session is ALREADY revoked — the
  * atomic UPDATE happened, the cookie is dead, the sockets are about to be evicted. The only thing at stake
  * is whether the IdP end-session URL can carry a hint, and the honest degrade is to send it bare (the
- * pre-#141 behaviour). The reachable cause is a rotated/changed `SESSION_SECRET`, which re-keys the HKDF
+ * bare logout). The reachable cause is a rotated/changed `SESSION_SECRET`, which re-keys the HKDF
  * and makes every id_token already at rest unopenable; throwing would turn a cosmetic redirect loss into
  * "the sign-out button is broken" for every pre-rotation session.
  *

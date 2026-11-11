@@ -63,7 +63,7 @@ export async function insertSession(db: Db, row: SessionInsert): Promise<void> {
 }
 
 /** Reassemble the sealed blob from its three columns, or null when any part is absent (a non-OIDC
- *  mint, a pre-#141 row, or an already-consumed hint). Partial ⇒ null: two thirds of a GCM seal is not a
+ *  mint, a row older than the stored hint, or an already-consumed hint). Partial ⇒ null: two thirds of a GCM seal is not a
  *  seal, and returning it would only produce a decrypt throw one layer up. */
 function sealedIdTokenOf(row: { oidcIdTokenCiphertext: string | null; oidcIdTokenIv: string | null; oidcIdTokenTag: string | null }): Sealed | null {
   const { oidcIdTokenCiphertext: ciphertext, oidcIdTokenIv: iv, oidcIdTokenTag: tag } = row;

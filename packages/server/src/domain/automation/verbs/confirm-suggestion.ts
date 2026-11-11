@@ -30,7 +30,7 @@
 //      through the PLUGIN's own bridge (see `runPluginAct` — the enforcement set follows the origin, not the
 //      executor) and writes no fire row.
 //
-// PLUGINS JOINED THIS LAW POST-#24. A plugin whose installer is not host of the invocation chat used to get a
+// PLUGINS FOLLOW THIS LAW. A plugin whose installer is not host of the invocation chat used to get a
 // flat refusal at the membrane, which is posture 3 wearing posture 2's clothes: safe, but it made "ask"
 // unexpressible. Its ask now lands in this same store and is answered by this same verb — one inbox, one host
 // answer. Nothing about the class-1 wall moves: a suggestion is an ASK, and the confirmed act is the SAME set

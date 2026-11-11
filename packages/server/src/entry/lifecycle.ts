@@ -332,7 +332,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // The background-pin ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
     // the ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses
     // EVERY settings write for that user, not only a background edit. Idempotent — a no-op on every boot
-    // after the first, and on a db seeded entirely post-#1478.
+    // after the first, and on a db seeded entirely under the guard.
     await healLegacyBackgroundPinsOnBoot({ logger: seams.logger, db: bootDb });
     // The plugin-provenance DATA repair, in the same window and for the same reason: a card ingested
     // through a plugin before provenance stamping never got an `importedFrom` stamp, and `characterProvenanceOf` collapses a null

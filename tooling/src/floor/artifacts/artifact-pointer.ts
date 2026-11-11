@@ -33,7 +33,7 @@ export type SlotState = (typeof SLOT_STATES)[number];
 
 /** What an ALIAS is: resolving into the newest complete slot (`fresh`), into an OLDER one than the
  *  instrument's newest complete run (`stale` — the week-dark class), a symlink whose slot is gone
- *  (`dangling`), a REAL file rather than a pointer (`unslotted` — every pre-#1029 artifact, and anything a
+ *  (`dangling`), a REAL file rather than a pointer (`unslotted` — every artifact older than run slots, and anything a
  *  human copied over the alias), or nothing at all (`absent`). */
 export const POINTER_STATES = ["fresh", "stale", "dangling", "unslotted", "absent"] as const;
 export type PointerState = (typeof POINTER_STATES)[number];
@@ -54,7 +54,7 @@ export interface SlotCensusRow {
   readonly ranAtSource: RunInstantSource;
   /** The in-flight marker's pid — present only while the marker is (in-flight and abandoned rows). */
   readonly pid: number | null;
-  /** HOW MANY `latest` ALIASES THIS RUN PUBLISHED, or null for a slot with no manifest at all (pre-#2221).
+  /** HOW MANY `latest` ALIASES THIS RUN PUBLISHED, or null for a slot with no manifest at all (an older slot).
    *  Zero is NOT the same as null and this is the one reader that must not collapse them: `closeRunSlot`
    *  writes an explicit `[]` for a run that FINISHED and deliberately published nothing — a fixture-mode or
    *  gate-scoped `check:structure` (ops/structure.ts:352) — and such a run never spoke for the instrument,

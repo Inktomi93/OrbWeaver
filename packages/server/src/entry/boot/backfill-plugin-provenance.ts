@@ -23,9 +23,9 @@ export interface BackfillPluginProvenanceOnBootDeps {
   readonly db: BootDatabaseHandle;
 }
 
-/** Stamp `importedFrom` for every pre-#1702 plugin-ingested character whose plugin identity is recoverable.
+/** Stamp `importedFrom` for every plugin-ingested character stamped before provenance existed whose plugin identity is recoverable.
  *  Returns the counts `backfillPluginProvenance` reported — both 0 on every boot after the candidate set is
- *  drained, and on a db that never carried a pre-#1702 plugin ingest. */
+ *  drained, and on a db that never carried such a plugin ingest. */
 export async function backfillPluginProvenanceOnBoot(deps: BackfillPluginProvenanceOnBootDeps): Promise<BackfillPluginProvenanceResult> {
   const result = await backfillPluginProvenance(deps.db);
   if (result.backfilled > 0 || result.leftAuthored > 0) {

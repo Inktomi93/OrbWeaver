@@ -47,7 +47,7 @@ import { sql } from "drizzle-orm";
 const OLD_PROSE_PATH = '$.prose."chat.group.castMember"';
 const NEW_PROSE_PATH = '$.prose."chat.group.characterHeading"';
 
-/** Re-key every pre-#1737 `promptConfig.prose` override from `chat.group.castMember` to
+/** Re-key every old-spelling `promptConfig.prose` override from `chat.group.castMember` to
  *  `chat.group.characterHeading`, carrying its `baseVersion` stamp. Returns the number of preset rows
  *  rewritten — 0 on every boot after the first, and on a db that never carried the old spelling. */
 export async function migrateProseSlotVocab(handle: BootDatabaseHandle): Promise<number> {

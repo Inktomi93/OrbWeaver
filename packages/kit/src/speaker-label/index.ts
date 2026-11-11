@@ -58,7 +58,7 @@ export interface SpeakerSpan {
  *  this module's private `SPEAKER_TAG_PAIR`; promoted here so kit tweaking the grammar can't silently
  *  diverge the renderer's span split, C16). Zero markers is the load-bearing no-op: exactly ONE
  *  `{speaker: null}` span whose `text` is byte-identical to `content` — the caller uses that single-span
- *  shape as the signal to render through the untouched pre-#21 path.
+ *  shape as the signal to render through the untouched plain path.
  *
  *  Torn/mid-stream tags are already held back UPSTREAM by the streaming lane's `holdTornSpeaker`
  *  (`#fix-markdown`, the streaming-ghost path only) before content ever settles into canon — so by the

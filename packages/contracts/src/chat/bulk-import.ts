@@ -175,7 +175,7 @@ export interface BulkImportChatInput {
    *  ownership-gated exactly like the primary before any row is written. */
   readonly characterIds?: readonly CharacterId[];
   /** Per-seat knobs the founding roster rows are born with — absent/empty ⇒ every seat takes the
-   *  column defaults, byte-identically the pre-#1687 import. The live producer is the ST GROUP wave: ST's
+   *  column defaults, byte-identically an import without knobs. The live producer is the ST GROUP wave: ST's
    *  `disabled_members` is a per-member MUTE and orb has one too (`chat_participants.disabled`), so the flag
    *  now TRAVELS instead of being reported as lost. A knob for a character the room does not seat is refused
    *  by the write op. */

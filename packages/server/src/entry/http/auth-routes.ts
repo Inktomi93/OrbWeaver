@@ -365,8 +365,8 @@ function postLogoutRedirectUri(headers: Headers, transport: RequestTransport, al
  *     silently confirms and returns the browser to our `/login` (the owner-observed papercut, closed).
  *   • HINT ONLY — the session carried an id_token but the origin did not resolve. Spec-legal and accepted
  *     by the OP; the user lands on the IdP's own logged-out page, and the SSO session still ends.
- *   • BARE — no hint (a local/first-run login, a pre-#141 session row, or a rotated `SESSION_SECRET` that
- *     made the stored blob unopenable). The pre-#141 behaviour, deliberately preserved as the degrade.
+ *   • BARE — no hint (a local/first-run login, a session row older than the stored hint, or a rotated `SESSION_SECRET` that
+ *     made the stored blob unopenable). The bare logout, deliberately preserved as the degrade.
  * The redirect param is NEVER emitted without the hint. `hint === null` returns before it is even computed.
  *
  * WHERE THE HINT ENDS UP, stated plainly rather than implied. RP-Initiated Logout is a FRONT-CHANNEL

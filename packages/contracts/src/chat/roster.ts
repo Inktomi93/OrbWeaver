@@ -367,7 +367,7 @@ interface CarriedAppearanceMember {
  * differently.
  */
 export interface CarriedAppearance {
-  /** Human seats on the roster. Counted exactly as the pre-#903 `isSingleHumanCast` counted them — every `human`
+  /** Human seats on the roster. Counted exactly as the old `isSingleHumanCast` counted them — every `human`
    *  row, `leftSeq` NOT consulted. A pre-send draft has exactly one: the viewer (an invite can only land
    *  once the chat exists). */
   readonly humanCount: number;

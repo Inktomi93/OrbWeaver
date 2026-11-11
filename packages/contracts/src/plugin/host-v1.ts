@@ -872,8 +872,8 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     has no invocation. The client names its room as `chatId` on the proc instead, and the server verifies
  *     MEMBERSHIP rather than trusting the claim.
  *   - `notifications.post` — THE MOST LIKELY FIRST WIDENING. Its per-call bounds already exist (the 60 s
- *     per-(plugin, chat) notify floor, the domain-side recipient resolve, the 200-char cap); what it lacked
- *     until row 777 was a membership-verified room for a CLIENT-claimed `chatId`. Row 777's
+ *     per-(plugin, chat) notify floor, the domain-side recipient resolve, the 200-char cap); what it needs
+ *     is a membership-verified room for a CLIENT-claimed `chatId`. The room dimension's
  *     `resolveChatAuthority` gate is exactly that, so the sanctioned shape is: admit the claimed chat, then
  *     call the bridge op under the existing floor. Priced, not built — it is an EFFECT, and this lane's
  *     tuple is deliberately reads + KV + belted egress.

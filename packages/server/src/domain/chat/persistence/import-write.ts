@@ -249,7 +249,7 @@ function rosterRows(args: {
   readonly characterIds: readonly CharacterId[];
   readonly anchorPersonaId: BulkImportChatInput["anchorPersonaId"];
   /** The chat's declared per-seat knobs. A seat with none takes the columns' own defaults, which is
-   *  byte-identically the pre-#1687 row — the knobs are SPREAD, never defaulted here, so the column stays the
+   *  byte-identically a row without knobs — the knobs are SPREAD, never defaulted here, so the column stays the
    *  one home for "what an unspecified knob means". */
   readonly seatKnobs: BulkImportChatInput["seatKnobs"];
   readonly now: number;
