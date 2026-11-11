@@ -473,7 +473,7 @@ const archiveChatSchema = z.strictObject({
 // `delete` is chatId-only (`DeleteChatParams extends ChatScopedParams {}` — same shape as `getChat`/`abort`).
 const deleteChatSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
-// `setChatAnchorPersona` (FINAL-Persona §A.0/§A.6b gap #2) — the manual/host Anchor (#4) re-pin.
+// `setChatAnchorPersona` — the manual/host Anchor re-pin.
 // `personaId: null` clears the pin. Host-only + the present-human ownership belt live INSIDE the verb.
 const setChatAnchorPersonaSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),

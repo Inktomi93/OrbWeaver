@@ -5,7 +5,7 @@
 //
 // What each proves, and why the pair is the proof:
 //   T14 a FORCED-LOAD reading LABELS a rate arm `load-suspect`, naming the loadavg — and it still
-//       MEASURES (#1616, owner ruling 2026-09-05: "label, don't withhold"). Never a red, never a skip;
+//       MEASURES (D343: label, don't withhold). Never a red, never a skip;
 //   T15 a QUIET reading leaves factor 1, every budget BYTE-IDENTICAL to its base and the arm `complete`.
 //       This is the positive control that the LABEL cannot become a way to stop MEASURING (#1040/#1616)
 //       and that scaling cannot become a way to stop failing — without it T14 is satisfied by a stub that

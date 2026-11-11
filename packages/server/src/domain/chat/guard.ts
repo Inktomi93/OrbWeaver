@@ -11,7 +11,7 @@
 //
 // RESOLVED: the DECISION routes through the injected `can()` seam (`substrate/auth/decide`). This guard
 // LOADS the caller's membership (`loadMemberChat` — chat's own data) and feeds the roster to `ctx.can`; the
-// `role === 'host'` verdict lives in admin's `can()`, never here (spine #6). `can` is injected on `ChatContext`
+// `role === 'host'` verdict lives in admin's `can()`, never here (Spine-Identity-and-Auth invariant 6). `can` is injected on `ChatContext`
 // (wired at the entry composition root) — chat NEVER imports admin (`domain-no-cross-feature`).
 
 import type { HistoryFloorSeq, RequireHostOp, RequireParticipantOp } from "@orb/contracts/chat";

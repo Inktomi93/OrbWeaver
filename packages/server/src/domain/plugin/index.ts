@@ -15,7 +15,7 @@
 // resolves that caller's own room role, `llm.quiet` spends that caller's credential), so a cross-owner
 // management path would be a confused-deputy escalation.
 //
-// THE SERVER-WIDE INSTALL IS BUILT (this header used to say UNBUILT with an open design), and it
+// THE SERVER-WIDE INSTALL IS BUILT, and it
 // is NOT a shared row: an admin PUBLISHES a bundle (`installForAllUsers`) and the server fans out one ordinary
 // per-owner row to every user, each disabled with an empty grant and a standing consent ask. So there is still
 // no shared principal and no consent junction — D147's two recorded open questions dissolved rather than got

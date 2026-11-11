@@ -65,7 +65,7 @@ export interface StatsService {
   /** Per-character attention shift between the two most-recent active months (rising / falling). */
   momentum: (ownerId: UserId) => Promise<MomentumBucket[]>;
   /** On-read TTFT/gen latency percentiles for the entity in view (owner / character / model). The stored
-   *  rollups carry no percentiles (they can't be `+=`-maintained — invariant #6). */
+   *  rollups carry no percentiles (they can't be `+=`-maintained). */
   latency: (ownerId: UserId, scope: LatencyScope) => Promise<LatencyStats>;
 
   /** Per-character selected-variant economics, owner-scoped — discovery's `forgottenGems` composes this

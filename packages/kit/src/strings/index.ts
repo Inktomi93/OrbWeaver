@@ -1,11 +1,9 @@
 // String primitives shared across layers.
 //
-// `escapeRegExp` used to live here (neo triplicated it; this was the one copy). It was DELETED
-// for the platform's `RegExp.escape` (Node-26 program §4.7) — browser-baseline, so kit
-// stays isomorphic. Verified before the swap: `RegExp.escape` escapes a strict SUPERSET of our set
-// (ours: `$()*+.?[\]^{|}`; the platform adds control/whitespace, `/`, the other punctuators, and a
-// leading alnum as `\xHH`), so every consumer regex is byte-different and match-identical. Never
-// re-mint one — the ESCAPE-MINT gate arm exists for exactly that.
+// Regex escaping is the platform's `RegExp.escape` (browser-baseline, so kit stays isomorphic). It
+// escapes a strict SUPERSET of the classic set (`$()*+.?[\]^{|}`; the platform adds control/whitespace,
+// `/`, the other punctuators, and a leading alnum as `\xHH`), so a regex built from it is match-identical
+// to a classic escape and byte-different. Never mint an `escapeRegExp`; no check refuses one.
 
 // ── the Unicode word-character class ─────────────────────────────────
 // THE ONE ANSWER TO "IS THIS CHARACTER PART OF A WORD". Homed here, not in any of its consumers, because

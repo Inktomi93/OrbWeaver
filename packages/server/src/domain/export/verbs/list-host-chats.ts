@@ -3,8 +3,8 @@
 // enumeration and nests each file under the handle; a chat with no seated character is skipped (there would
 // be no directory to nest it under, and import re-links by handle).
 //
-// Homed here (F8) because it is an EXPORT read: the composition root used to run it itself, in a file whose
-// stated job is assembling descriptors from verbs. Export is the sanctioned bulk reader of other domains'
+// Homed here because it is an EXPORT read; the composition root only assembles descriptors from verbs.
+// Export is the sanctioned bulk reader of other domains'
 // tables.
 //
 // ONE query, not one-per-chat: the host seat and the character seat are the same table joined twice

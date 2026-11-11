@@ -289,3 +289,6 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D340 | [The server owns staged params and the box owner owns the operator tree](0340-the-server-owns-staged-params-and-the-owner-owns-the-operator-tree.md) | active |
 | D341 | [Debug probes read without a principal because the gate admits only the box operator](0341-debug-probes-read-without-a-principal.md) | active |
 | D342 | [A dropped chat event append still fans live without a cursor](0342-a-dropped-chat-event-append-still-fans-live.md) | active |
+| D343 | [A rate measurement on a loaded box is labelled, not withheld](0343-a-rate-measurement-on-a-loaded-box-is-labelled-not-withheld.md) | active |
+| D344 | [A copy of a registry port that cannot import the registry stays hand-written](0344-a-copy-of-a-registry-port-outside-the-registry-stays-hand-written.md) | active |
+| D345 | [A user macro has two definition homes, the preset and the game](0345-a-user-macro-has-two-definition-homes-the-preset-and-the-game.md) | active |

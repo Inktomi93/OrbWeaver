@@ -4,7 +4,7 @@ import type { StatsContext, StatsService } from "../contract/service.ts";
 import { readLatency } from "../persistence/latency.ts";
 
 // latency — on-read TTFT/gen percentiles for the entity in view (owner | character | model). The stored
-// rollups carry no percentiles (they can't be `+=`-maintained — invariant #6); this is a bounded canon scan.
+// rollups carry no percentiles (they can't be `+=`-maintained); this is a bounded canon scan.
 
 export function createLatency(ctx: StatsContext): Pick<StatsService, "latency"> {
   async function latency(ownerId: UserId, scope: LatencyScope): Promise<LatencyStats> {

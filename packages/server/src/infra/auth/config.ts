@@ -19,7 +19,7 @@ function parseCsv(raw: string | undefined): string[] {
 // The owner-handle / owner-group env (`OWNER_HANDLES` / `OWNER_GROUP`) is NOT read here: the owner-ROLE
 // decision (`determineRole`) is the RESOLUTION tier's (`domain/sessions/substrate/role-policy.ts`, 4c),
 // not verification's. Verification only stamps the `defaultHandle` on the `via:"fallback"` identity; the
-// seam mints the owner from that discriminant (invariant #7).
+// seam mints the owner from that discriminant (Spine-Identity-and-Auth invariant 7).
 
 /** Build the live `AuthConfig` from a parsed env record. */
 export function authConfigFromEnv(record: Env): AuthConfig {

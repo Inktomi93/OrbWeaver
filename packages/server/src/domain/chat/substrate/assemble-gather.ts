@@ -423,8 +423,8 @@ export async function gatherAssembleContext(
   ]);
 
   // The host-tier regex union (global ∪ preset ∪ character ∪ room), deterministically ordered/deduped. D121-E:
-  // the four slices are LIBRARY ROWS dereferenced from their scope junctions by the injected regex op — the
-  // three embed-by-value carriers this used to read (settings blob / preset blob / card column) are gone.
+  // the four slices are LIBRARY ROWS dereferenced from their scope junctions by the injected regex op; no
+  // embed-by-value copy (settings blob / preset blob / card column) is read.
   // Resolved under `runAsUserId` (the frozen host, D19), so a member never widens the room's set.
   const hostTierRegexScripts = resolveHostTierRegexScripts({
     ...(await ctx.resolveRegexSources({
@@ -466,8 +466,7 @@ export async function gatherAssembleContext(
       // The chat's own injection ROWS + the S2 teaching collection's injections; nothing teaching ⇒ unchanged.
       // The teaching half arrives PRE-STAMPED (each contribution owns its `origin`, e.g. chat's rpg projection
       // stamps `game-state` — `domain/chat/teaching-contribution.ts`) so the BUILD walk accounts each source
-      // under its own budget row. The stamp used to live HERE, which was right while rpg was the only
-      // contributor and became wrong the moment the merge went generic: a merge-site stamp would relabel every
+      // under its own budget row. The stamp is NOT applied HERE: a merge-site stamp would relabel every
       // later contributor as game state. The rows are NOT deduped against the teaching half — a host may
       // legitimately author an injection identical to a machine one, and this seam does not edit their canon.
       userInjections: [...injectionRows.map(toChatInjection), ...(args.teachingInjections ?? [])],

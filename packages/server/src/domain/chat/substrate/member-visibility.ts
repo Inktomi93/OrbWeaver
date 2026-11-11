@@ -9,7 +9,7 @@
 // (`replayChatEvents`), and the LIVE SSE fan-out (the transport applies `stripChatEventForMember` off the
 // `viewerIsHost` flag `chatEventBounds` resolves at the same member-gated probe as the D16 floor).
 //
-// WHO SEES WHAT (§3.6, owner ruling #7): the MODEL always (the wire projection rides hidden spans verbatim —
+// WHO SEES WHAT (§3.6, owner ruling): the MODEL always (the wire projection rides hidden spans verbatim —
 // it never touches this module); the HOST reads their own payload UNSTRIPPED (the reveal eye + the standing
 // inventory are P3 reads over it); MEMBERS never (stripped here). The strip removes ONLY `hidden`-class
 // spans (`HIDDEN_TAGS` registrants); `unknown-directive` noise is display-filtered client-side but is NOT a
@@ -89,7 +89,7 @@ interface ViewerRole {
  *  THE BOUNDARY: this is the DATA-PROJECTION class (D106-F1 — consumers thread the verdict
  *  as DATA), which is why it takes a bare `ViewerRole` and not a `Principal` + `can()`. Its counterpart is the
  *  ENFORCEMENT class, homed at `substrate/auth/decide.ts::permitsHost` / `assertHost`: any comparison that
- *  DECIDES whether an operation is permitted goes there, under spine invariant #6. The THIRD host-role shape
+ *  DECIDES whether an operation is permitted goes there, under Spine-Identity-and-Auth invariant 6. The THIRD host-role shape
  *  is in neither class and has its own home — the roster LOOKUP (`substrate/participants-host.ts::hostUserIdOf`,
  *  role → identity, D19): it asks "which seat is the host?", not "does this viewer hold host?". Three shapes,
  *  three homes, zero inline re-spellings. Deliberately NOT wired

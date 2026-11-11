@@ -185,7 +185,7 @@ export const RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT = 4096;
 export const RPG_RECONCILE_EVERY_BEATS_MAX = 100;
 export const RPG_RECONCILE_EVERY_BEATS_DEFAULT = 10;
 
-/** The ambient DATE mode (#9, owner-ruled default): `narrated` = the date is a FREEFORM STRING the model
+/** The ambient DATE mode (owner-ruled default): `narrated` = the date is a FREEFORM STRING the model
  *  provides from the fiction (`calendarDate` — "3rd of Frostmoon"), with NO forced sequential day-counter
  *  display and no exact-date pressure; `structured` = the integer `clock.day` counter renders beside it
  *  (the original behavior). Time-of-day + weather stay STRUCTURED and functional in BOTH modes — they drive
@@ -204,7 +204,7 @@ export const RPG_CONFIG_MAX_TRACKERS = 64;
 /** The `rpg_games.config` blob. `lite.steeringNote` is the always-wins user tuning slot (§4.11 #2 — a
  *  real shipped knob). `statProfile` defaults to `freeform` (lite's create default). `extractionMode` is the
  *  delivery-model knob (the amendment), default `"folded"` (the one-call fold — owner ruling, on
- *  D112's measured evidence; the two-call `cheap` arm is the host's opt-out). `dateMode` (#9) defaults `"narrated"` —
+ *  D112's measured evidence; the two-call `cheap` arm is the host's opt-out). `dateMode` defaults `"narrated"` —
  *  additive, self-heals at the parse seam. */
 export const rpgGameConfigSchema = z
   .object({
@@ -263,8 +263,8 @@ export const rpgGameConfigSchema = z
     // default parses `{}` through the sub-schema so EVERY inner default fills (a bare `{}` object literal
     // wouldn't satisfy the fully-required output type).
     features: rpgGameFeaturesSchema.default(() => rpgGameFeaturesSchema.parse({})),
-    // GAME-authored user macros (owner ruling) — the game half of the two-home
-    // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
+    // GAME-authored user macros — the game half of the two-home definition rule (D345;
+    // preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
     // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source
     // `{kind:"game"}` by the macro-feed threading (kit `registerUserMacros`).
     userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),

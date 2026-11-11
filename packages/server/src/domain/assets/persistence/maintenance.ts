@@ -53,7 +53,7 @@ export async function loadAvatarBackfillCandidates(db: Db, ownerId: UserId | nul
   return await db.select({ id: characters.id, ownerId: characters.ownerId, importHash: characters.importHash }).from(characters).where(scope);
 }
 
-// The avatar-pointer WRITE that used to live here (`batchLinkAvatars`) moved to
+// The avatar-pointer WRITE lives in
 // `domain/character/persistence/avatar-link-write.ts`: `characters` is CHARACTER's table, and a
 // cross-domain write routes through the OWNING domain's persistence helper, delivered as an injected op
 // (`AssetsContext.linkCharacterAvatars`, wired at `entry/compose/assets-character.ts`) — Tier-1-DB.md

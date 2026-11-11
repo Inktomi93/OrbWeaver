@@ -10,8 +10,8 @@
 //     of publishing `externalId`/`via`. Many client surfaces dedupe on this one query (the shared
 //     tRPC/Query cache) instead of smearing viewer info onto every per-chat read.
 //
-// The per-user entity-changed live stream used to live here as `streamUserEvents`. It FOLDED into the
-// multiplexed socket at SSE-1 S1: it is now the `user` ROOM (`transport/trpc/stream/sources/user.ts`), which
+// The per-user entity-changed live stream is not on this router: it is the `user` ROOM of the
+// multiplexed socket (`transport/trpc/stream/sources/user.ts`), which
 // carries the same live-only relay with the same "the channel key IS the principal's own userId" scoping.
 // Nothing about the stream's semantics changed; it stopped costing a browser connection.
 //

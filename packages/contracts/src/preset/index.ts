@@ -356,8 +356,7 @@ const COMPACTION_VERBATIM_TAIL_MAX = 100;
 // two can never diverge: a reserve larger than the runner's real `max_tokens` starves history (amnesia);
 // smaller overflows the model (vLLM 400s). Users tune it per preset.
 //
-// ⚠ THE NUMBER IS LOAD-BEARING ON A REASONING WIRE. This comment used to end "the exact number isn't
-// load-bearing", which predates reasoning models and is now FALSE (dogfood MAXTOKENS-CAPS-THINKING). On every
+// ⚠ THE NUMBER IS LOAD-BEARING ON A REASONING WIRE. On every
 // current reasoning wire `max_completion_tokens` caps THINKING AND RESPONSE TEXT TOGETHER — it is not a
 // response-length knob there, it is the whole output budget. At a small value with a non-`none` effort the
 // model can spend the entire allowance deliberating and emit zero prose, which surfaces as VER-1b's
@@ -1067,10 +1066,7 @@ interface FormatCarrierToken {
  *  quietly ignored. Blank/absent stays legal: blank means "the shipped default rides", the storage semantic
  *  everywhere in this schema.
  *
- *  THE LINE IS "DELETES CONTENT", NOT "IS A FORMAT STRING" (owner ruling, option C of
- *  this clause previously read "DELIBERATELY DISTINCT from
- *  PROSE-1's `requiredMacros`", which was true of the `requiredMacros` set as it then stood and false of
- *  `{{note}}`). A carrier is any token whose absence deletes the payload, wherever it is stored: the two
+ *  THE LINE IS "DELETES CONTENT", NOT "IS A FORMAT STRING" (owner ruling). A carrier is any token whose absence deletes the payload, wherever it is stored: the two
  *  injection note frames are carriers too and refuse alongside these, from `PROSE_CARRIER_TOKENS` beside the
  *  write schema (a separate list only because their storage is the `prose` blob, not `formatStrings`).
  *
@@ -2317,7 +2313,7 @@ export type ChoiceBlockValues = z.infer<typeof choiceBlockValuesSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // User macros (the typed-input fold). The DEFINITION home is
-// preset/game CONFIG (owner ruling — never a global runtime): `promptConfig.userMacros` here and
+// preset/game CONFIG (D345 — never a global runtime): `promptConfig.userMacros` here and
 // `rpg_games.config.userMacros` (contracts/rpg/config.ts imports THIS schema — one shape, two homes).
 // The vocabulary (kinds/arg-types/name shape) derives from `@orb/kit/macro` — the engine half
 // (`registerUserMacros`/`resolveUserMacroInputs`, kit/macro/user-macros.ts) consumes exactly these

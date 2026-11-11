@@ -762,7 +762,7 @@ function trackSettledWork(ctx: EngineContext, chatId: ChatId, work: Promise<void
 /** Fire-and-forget the rpg post-turn FLUSH (D58): after the variant commits, flush the turn's
  *  staged tool writes onto the committed variant, keyed by `turnId`. Null op = rpg not wired (byte-identical
  *  no-op). Fire-and-forget with `.catch` — a background staging flush must NEVER turn a committed reply into an
- *  abort; the reply already landed. Inert until the rpg tool registrants stage anything (R4 #2/#3).
+ *  abort; the reply already landed. Inert until the rpg tool registrants stage anything.
  *
  *  IT GETS ITS OWN TRACE (the round was invisible to observability): this is the most expensive thing the
  *  turn does after the reply lands — a whole state round with its own provider call and its own writes — and

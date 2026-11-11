@@ -130,7 +130,7 @@ export const personaRouter = t.router({
       }),
     ),
 
-  // FINAL-Persona §A.6b gap #2/#3 — duplicate + the export/import backup round-trip.
+  // Duplicate + the export/import backup round-trip.
   duplicate: authedProcedure
     .output(strictTwin(personaDetailSchema))
     .input(personaIdInputSchema)

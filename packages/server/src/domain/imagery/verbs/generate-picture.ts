@@ -100,7 +100,7 @@ async function orchestratorPrompt(
     // A prompt override on a template mode — specific intent, used verbatim (no extraction, doc 02 §1 step 3).
     return { prompt: userPrompt, source: "user", costUsd: 0 };
   }
-  // THE CHAT REQUIREMENT MOVED DOWN a frame (C5). It used to be an early guard right here, which refused
+  // THE CHAT REQUIREMENT LIVES A FRAME DOWN (C5), never as an early guard here, which would refuse
   // EVERY template mode without a chat — including the CAPTION modes, which read the subject's avatar and
   // never touch a chat at all, and which are therefore the only image modes an owner-global automation rule
   // can use. `resolvePrompt` dispatches caption-vs-extraction, so the requirement belongs on the extraction

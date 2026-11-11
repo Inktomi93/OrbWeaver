@@ -1,4 +1,4 @@
-// verb: duplicate — clone an owned persona into a fresh row (FINAL-Persona §A.6b gap #2, mirrors
+// verb: duplicate — clone an owned persona into a fresh row (mirrors
 // `domain/character/verbs/duplicate.ts`). The clone: name suffixed " (copy)" (personas carry no unique-name
 // constraint — `db/schema/persona.ts` — so no `-2`/`-3` numbering hunt is needed, unlike character's unique
 // `handle`); `starred` reset to false (a fresh identity, not a second favorite); `avatarAssetId`/`metadata`

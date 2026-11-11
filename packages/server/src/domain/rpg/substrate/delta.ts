@@ -297,7 +297,7 @@ const walletRenderer: PlaneDiffRenderer<ActorState> = {
     }),
 };
 
-/** Ambient — scene transitions + the GAME-CALENDAR-AGNOSTIC date/time-of-last-turn diff (fold-in #6). The
+/** Ambient — scene transitions + the GAME-CALENDAR-AGNOSTIC date/time-of-last-turn diff. The
  *  diff reports the NEW value on any change (a transition — the prose reacts to the
  *  destination). Three orthogonal time arms, each firing only when changed, ALL able to fire together (a long
  *  rest advances day, date-string, AND time-of-day):
@@ -310,7 +310,7 @@ const walletRenderer: PlaneDiffRenderer<ActorState> = {
  *  Plus location + weather transitions. Never assumes a real-world calendar anywhere. */
 type AmbientSlice = Pick<RpgSnapshotState, "location" | "weather" | "clock" | "calendarDate">;
 
-/** The three orthogonal TIME arms (fold-in #6) — the day counter, the time-of-day label, and (handled by the
+/** The three orthogonal TIME arms — the day counter, the time-of-day label, and (handled by the
  *  caller) the opaque date string. All fire independently; a long rest fires several together. Hoisted so the
  *  renderer body stays under the cognitive-complexity gate. */
 function timeLines(prev: AmbientSlice, cur: AmbientSlice): readonly string[] {

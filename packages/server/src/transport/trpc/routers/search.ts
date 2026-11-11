@@ -1,6 +1,6 @@
 // transport/trpc/routers/search — the vector-search surface (docs/law/Tier-4-Transport.md). authed; the verbs take a
 // scalar `ownerId` (the one cleanly owner-scoped vector table; D20 scope DERIVES from the producer),
-// supplied from the resolved `Principal.userId` — never client input (audit #1: no caller-supplied owner).
+// supplied from the resolved `Principal.userId` — never client input (no caller-supplied owner).
 // Thin: validate → `ctx.services.search.<verb>` → map errors.
 
 import {
@@ -53,7 +53,7 @@ export const searchRouter = t.router({
     ),
 
   // Unified dispatch: query + target + scope → the matching verb's hits, tagged by `over`. Owner =
-  // resolved principal (audit #1). Any ids in `scope` are owner-belted in the domain (cross-tenant-swept).
+  // resolved principal. Any ids in `scope` are owner-belted in the domain (cross-tenant-swept).
   search: authedProcedure
     .output(unifiedSearchResultSchema)
     .input(unifiedSearchInputSchema)

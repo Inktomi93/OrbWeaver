@@ -254,7 +254,7 @@ export const imageEmbeddings = sqliteTable(
     contentHash: text("content_hash").notNull(),
     // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — RESERVED for image↔image use only (cross-modal
     // cosine scale mismatch means `search` deliberately omits it on text→image paths; docs/law/Knowledge-Cluster.md
-    // esoteric #2). Written ONLY by `discovery`; a vector write MUST NOT null it. Nullable, never defaulted.
+    // invariant 3). Written ONLY by `discovery`; a vector write MUST NOT null it. Nullable, never defaulted.
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),

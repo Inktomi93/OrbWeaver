@@ -414,7 +414,7 @@ interface BuiltTurnContext {
   readonly chatBehavior: ChatBehaviorInputs;
   /** The tool names a game turn's GATHER contributed (D58) — threaded onto the round base →
    *  `TurnPrep.attachedToolNames` (the pipeline resolves them against the tool-use registry). Empty for a
-   *  non-game turn (byte-identical); empty until the rpg tool registry lands (R4 #2/#3) even for a game. */
+   *  non-game turn (byte-identical); empty until the rpg tool registry lands even for a game. */
   readonly attachedToolNames: readonly string[];
   /** The TERMINAL wire tools a game turn's GATHER contributed (R1 — the folded state extraction), threaded
    *  onto the PERSISTING lifecycle's prep only. `undefined` for a non-game / non-folded turn (byte-identical). */
@@ -532,14 +532,14 @@ const VOICE_FOR_KIND: Record<TurnKind, TurnVoice> = {
  *  A top-level helper so its branch (rejected-log) stays OUT of `buildTurnContext`'s cognitive-complexity
  *  budget. `null` ⇒ the preset authored no user macros (the byte-identical singleton fast path).
  *
- *  Arm A (owner ruling): user-macro input VALUES live in a per-chat SIBLING typed column
+ *  User-macro input VALUES (D169) live in a per-chat SIBLING typed column
  *  (`chats.user_macro_values`, read via `loadStoredUserMacroValues`) — NOT the flat `chats.variableValues`
  *  (which can't hold the nested-typed `UserMacroValues`). Absent picks ⇒ `{}` ⇒ the defaults posture
  *  (unpicked inputs → per-kind defaults; random-pick pool → ALL options).
  *
- *  TWO DEF HOMES: the resolved preset's macros AND the game's (`ChatRpgOps.resolveUserMacros` — the injected
+ *  TWO DEF HOMES (D345): the resolved preset's macros AND the game's (`ChatRpgOps.resolveUserMacros` — the injected
  *  op, never a sideways rpg import). The game shadows the preset on a name clash; the builder owns that
- *  ruled policy (see `assembly/user-macros.ts`). */
+ *  policy (see `assembly/user-macros.ts`). */
 /** The turn's user-macro INPUT sides, both reads in one place (kept out of `buildTurnContext`'s
  *  cognitive-complexity budget): the GAME's declared defs (the second definition home — the injected rpg op,
  *  `[]` for a non-game/unwired chat) and the per-chat picks bag. The picks read is SKIPPED entirely when
@@ -633,7 +633,7 @@ function prepMacroFields(
  *  branches stay OUT of `buildTurnContext`'s cognitive-complexity budget.
  *
  *  The gather's INJECTIONS are deliberately NOT here: they ride the S2 teaching collection (chat's own
- *  contributor #0 projects them, `teaching-contribution.ts`), so every prose steering contributor reaches
+ *  the rpg-gather contributor projects them, `teaching-contribution.ts`), so every prose steering contributor reaches
  *  assembly through ONE channel. */
 function rpgAssembleFields(rpg: ChatRpgGatherResult | null): {
   rpgMacros?: Readonly<Record<string, string>>;
@@ -773,7 +773,7 @@ async function buildTurnContext(
   };
   const rpg = ctx.rpg !== null ? await ctx.rpg.gatherTurnContext(gatherArgs) : null;
   // THE S2 TEACHING COLLECTION — the ONE assembly of "what this chat's model is told it can do", collected
-  // right after the gather so contributor #0 (chat's own rpg projection) sees THIS turn's gather. Its
+  // right after the gather so the rpg-gather contributor (chat's own rpg projection) sees THIS turn's gather. Its
   // `injections` ride the one prose-steering channel to assembly; its `toolNames` are the turn's wire attach
   // set. An empty registry ⇒ both empty ⇒ byte-identical to a turn built before this seam existed.
   const teaching = await collectTeaching(ctx.teaching, {

@@ -132,7 +132,7 @@ const PLAIN_CHAT_WARNING_CODES = [
   // compaction-trigger catch (the mirror of memory_build_failed) so the silent-failure black hole is observable;
   // the turn's reply is unaffected.
   "compaction_failed",
-  // THE NO-WALL BELT (#9 owner ruling — compaction is a safety property): the pre-turn arm found the context
+  // THE NO-WALL BELT (owner ruling — compaction is a safety property): the pre-turn arm found the context
   // at/over the effective window AND no usable marker materialized (compaction kept failing/empty), so the turn
   // was DEGRADED — the session was force-reseeded (drop-oldest fit-trim, the turn survives) WITHOUT a summary.
   // Degraded-and-loud, never error-and-dead. The client warning-notice mapper is a rotation-4 restoration; the

@@ -1,4 +1,4 @@
-// The GM console's GAME MACROS section (WAVE MU, owner ruling #20's game half) — the host authors macros that
+// The GM console's GAME MACROS section (the game half of the two-home macro rule, D345) — the host authors macros that
 // live with THIS game: they resolve in its turns, appear in the Macro picks pane glossed "from game", and
 // leave when the game does. The preset is the other authoring home; this is not a copy of it, it is the
 // game-scoped one (a game's vocabulary — {{scene_tone}}, {{house_rule}} — has no business in a preset the host

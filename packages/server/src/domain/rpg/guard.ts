@@ -9,7 +9,7 @@
 // `DomainForbidden` (they legitimately know the chat exists — the action, not the chat, is gated).
 //
 // THE SPLIT: the VERDICT is the kernel's, the REFUSAL is this file's. Every host
-// comparison routes through the injected `can()` seam (`ctx.can`, `domain/admin/guard.ts` — spine invariant #6:
+// comparison routes through the injected `can()` seam (`ctx.can`, `domain/admin/guard.ts` — Spine-Identity-and-Auth invariant 6:
 // `role === "host"` is compared THERE and nowhere else; the `AutomationContext.can` precedent), and this file
 // catches the kernel's `DomainForbiddenError` and re-raises the rpg-coded sentence — chat's `permits()`
 // catch-and-reword (`chat/substrate/auth/decide.ts`). What stays rpg's: the leak-free not-found-vs-forbidden
@@ -66,8 +66,8 @@ function permitsHost(can: Can, principal: Principal, role: ParticipantRoleState)
 }
 
 /** THE host gate — rpg's ONE authority-refusal site. The COMPARISON is the kernel's (`can`, injected); what lives here is the refusal.
- *  `reason` is the refusal SENTENCE, because that is the only thing the six verbs that used to re-spell
- *  `role !== "host"` inline actually needed: `patchActor` says "…to hand-edit an actor", `promoteActor` says
+ *  `reason` is the refusal SENTENCE, because that is the only thing the verbs that would otherwise re-spell
+ *  `role !== "host"` inline actually need: `patchActor` says "…to hand-edit an actor", `promoteActor` says
  *  "…to promote an actor to the room's characters". Taking the sentence as an argument collapses seven comparisons to one
  *  with byte-identical refusals.
  *

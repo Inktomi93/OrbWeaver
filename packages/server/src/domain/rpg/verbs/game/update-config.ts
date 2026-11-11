@@ -173,11 +173,11 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
     extractionMode: params.extractionMode ?? current.extractionMode,
     // The §1.3 extraction-depth knobs — keep-on-omit.
     ...mergeExtractionKnobs(patch, current),
-    // #9 — keep-on-omit like every sibling.
+    // The ambient-date mode — keep-on-omit like every sibling.
     dateMode: patch?.dateMode ?? current.dateMode,
     // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).
     features: mergeFeatures(patch, current.features),
-    // The GAME's authored user macros (MU §12A.5 / the owner ruling's game half) — whole-list replace on a
+    // The GAME's authored user macros (the game half of the two-home rule, D345) — whole-list replace on a
     // passed array, keep-on-omit like every sibling ([versioned-config-lift-drops-overrides]: without the
     // keep, an unrelated config edit would reset them to the schema default `[]`). The turn registers these
     // beside the preset's, the game winning a name clash.

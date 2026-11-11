@@ -1,6 +1,6 @@
 // domain/discovery/themes/retrieve — the owner-scoped theme read. `theme_clusters` KEEPS `ownerId` (D23 — a
 // parentless per-user aggregate), so the owner scope belt is a direct `owner_id = ?` filter (never reads the
-// `users` table). `ownerId` is ALWAYS the resolved principal id, never caller input (audit #1).
+// `users` table). `ownerId` is ALWAYS the resolved principal id, never caller input.
 
 import type { ThemeLevel, ThemeRow } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";

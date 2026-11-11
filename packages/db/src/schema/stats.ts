@@ -2,7 +2,7 @@
 // concurrent rebuild from replacing a newer live delta (producer: domain/stats). ECONOMICS ONLY
 // (turn counts · words · tokens · cost · cache · timing) — ZERO vector columns (the
 // `stats-no-vector-tables` dep-cruiser rule; the type-enforced economics↔semantics line,
-// docs/law/Knowledge-Cluster.md §7 invariant #7: discovery is semantics, stats is economics, they share no tables).
+// docs/law/Knowledge-Cluster.md invariant 5: discovery is semantics, stats is economics, they share no tables).
 //
 // OWNERSHIP STAMP (ledger D23 — the one-FK-to-an-owned-parent test):
 //   • owner_stats / daily_stats / model_stats KEEP `ownerId` — they are PARENTLESS per-user aggregates
@@ -19,7 +19,7 @@
 // PLUS a UNIQUE on their natural business key — that unique is the live-delta UPSERT conflict target
 // (`character`, `(owner, bucketStart)`, `(owner, model, provider)`).
 //
-// `model_stats.provider` is `NOT NULL DEFAULT '(unknown)'` — LOAD-BEARING (invariant #5): the
+// `model_stats.provider` is `NOT NULL DEFAULT '(unknown)'` — LOAD-BEARING: the
 // `(ownerId, model, provider)` unique-index upsert relies on it. SQLite treats SQL
 // NULLs as DISTINCT, so a true-NULL provider would never conflict-match and would accumulate duplicate
 // rows across every recompute. `@orb/kit/stats-tally.modelKey` coalesces `null → '(unknown)'` for BOTH the
@@ -29,7 +29,7 @@
 // views type every timestamp as `number` and the delta's `now`/`firstAt`/`lastAt` are epoch-ms numbers.
 // `firstChatAt` (MIN) · `lastActivityAt` (MAX) · `maxContextTokens` (MAX) are NON-additive extrema merged
 // by MIN/MAX in the upsert, not `col += delta`. `computedAt` (MAX) is freshness.
-// NO TTFT/gen percentile columns anywhere — percentiles are computed ON READ, never stored (invariant #6).
+// NO TTFT/gen percentile columns anywhere — percentiles are computed ON READ, never stored.
 //
 // Cache economics (`cacheReadTokens`/`cacheWriteTokens`) + `maxContextTokens` are OWNER + MODEL grain only,
 // NOT per-character — character_stats omits them.
@@ -44,7 +44,7 @@ import { characters } from "./character.ts";
 import { users } from "./users.ts";
 
 // The `(unknown)` provider sentinel — see header. Mirrors `@orb/kit/stats-tally.modelKey`'s null-coalesce
-// and the read-side model/latency keys; all three MUST stay aligned (invariant #5).
+// and the read-side model/latency keys; all three MUST stay aligned.
 const PROVIDER_FALLBACK = MODEL_PROVIDER_UNKNOWN;
 
 // Born-at-insert epoch-ms clock for `computedAt` (the live delta always supplies `delta.now`; this default
@@ -125,21 +125,21 @@ export const ownerStats = sqliteTable("owner_stats", {
   variantMessages: integer("variant_messages").notNull().default(0),
   forkedChats: integer("forked_chats").notNull().default(0),
   contentChars: integer("content_chars").notNull().default(0),
-  // Cache economics — OWNER + MODEL grain only (esoteric #5); live-only (0 on ST imports).
+  // Cache economics — OWNER + MODEL grain only; live-only (0 on ST imports).
   cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
   cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
   // Owner-only MAX extremum (epoch-ms-independent); null until a live turn supplies it (null on imports).
   maxContextTokens: integer("max_context_tokens"),
-  // Extrema (epoch-ms numbers): firstChatAt MIN-merged, lastActivityAt MAX-merged (esoteric #6).
+  // Extrema (epoch-ms numbers): firstChatAt MIN-merged, lastActivityAt MAX-merged.
   firstChatAt: integer("first_chat_at"),
   lastActivityAt: integer("last_activity_at"),
   // MAX-merged freshness stamp (epoch-ms).
   computedAt: integer("computed_at").notNull().default(NOW_MS),
 });
 
-// character_stats — per-character totals, ONE row per character (esoteric #9: grouped on `characters.id`
+// character_stats — per-character totals, ONE row per character (grouped on `characters.id`
 // directly under D28 — there is no character_versions to collapse). NO `ownerId` (D23 — derive via
-// characterId → characters.ownerId). NO cache / maxContextTokens (owner+model grain only — esoteric #5).
+// characterId → characters.ownerId). NO cache / maxContextTokens (owner+model grain only).
 export const characterStats = sqliteTable(
   "character_stats",
   {
@@ -175,7 +175,7 @@ export const characterStats = sqliteTable(
     variantMessages: integer("variant_messages").notNull().default(0),
     forkedChats: integer("forked_chats").notNull().default(0),
     contentChars: integer("content_chars").notNull().default(0),
-    // Extrema (epoch-ms numbers) — MIN/MAX-merged (esoteric #6).
+    // Extrema (epoch-ms numbers) — MIN/MAX-merged.
     firstChatAt: integer("first_chat_at"),
     lastActivityAt: integer("last_activity_at"),
     computedAt: integer("computed_at").notNull().default(NOW_MS),
@@ -189,7 +189,7 @@ export const characterStats = sqliteTable(
 // daily_stats — the per-owner activity TIMELINE, WIDE format, one row per (owner, UTC quarter-hour bucket).
 // KEEPS `ownerId` (D23 parentless aggregate). It stores no calendar day: the day is the viewer's, folded
 // from the bucket on the client (`@orb/kit/time.CALENDAR_BUCKET_MS` says why a quarter-hour).
-// The timeline credits the MESSAGE stream only (esoteric #1): a variant (swipe) bumps `swipes`/`genTimeMs`
+// The timeline credits the MESSAGE stream only: a variant (swipe) bumps `swipes`/`genTimeMs`
 // but NOT `tokensIn`/`tokensOut` (the message delta sets those; the variant delta omits dailyTokensIn/Out).
 export const dailyStats = sqliteTable(
   "daily_stats",
@@ -231,8 +231,8 @@ export const dailyStats = sqliteTable(
 );
 
 // model_stats — per-(owner, model, provider) generation provenance. KEEPS `ownerId` (D23 parentless
-// aggregate). `provider` NOT NULL DEFAULT '(unknown)' is LOAD-BEARING (see header / invariant #5).
-// Cache economics ride here (owner + MODEL grain — esoteric #5).
+// aggregate). `provider` NOT NULL DEFAULT '(unknown)' is LOAD-BEARING (see header).
+// Cache economics ride here (owner + MODEL grain).
 export const modelStats = sqliteTable(
   "model_stats",
   {
@@ -260,7 +260,7 @@ export const modelStats = sqliteTable(
     costUsd: real("cost_usd").notNull().default(0),
     costSamples: integer("cost_samples").notNull().default(0),
     notionalCostSamples: integer("notional_cost_samples").notNull().default(0),
-    // Cache economics — owner + MODEL grain (esoteric #5).
+    // Cache economics — owner + MODEL grain.
     cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
     cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
     computedAt: integer("computed_at").notNull().default(NOW_MS),
