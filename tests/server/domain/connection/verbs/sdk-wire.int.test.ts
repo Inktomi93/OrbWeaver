@@ -106,7 +106,7 @@ test("native SDK model discovery parses the actual valid control response", asyn
   expect(listing).toMatchObject({ listed: true, models: [{ id: MODEL }] });
 });
 
-test.each(["valid", "bad-account"])("native SDK %s account diagnostics retain the existing best-effort policy", async (mode) => {
+test.each(["valid", "bad-account"])("native SDK %s account diagnostics retain the existing best-effort policy", { tags: "slow" }, async (mode) => {
   await using root = await rootFor(mode);
   const connection = await savedConnection(root);
   const principal = await root.principalFor(root.ownerId);

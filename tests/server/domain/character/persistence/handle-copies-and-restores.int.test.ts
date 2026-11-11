@@ -144,7 +144,7 @@ test("a handoff copy of a card stored outside the alphabet lands under an in-alp
   ]);
 });
 
-test("a card stored outside the alphabet keeps its gallery, databank and imagery links through a library round trip", async () => {
+test("a card stored outside the alphabet keeps its gallery, databank and imagery links through a library round trip", { tags: "slow" }, async () => {
   const pictures: Uint8Array[] = [];
   await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR), providerFetch: imageProvider(IMAGE_MODEL, pictures) });
   const owner = await source.principalFor(source.ownerId);

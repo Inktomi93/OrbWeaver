@@ -8,7 +8,7 @@ import { readAccounts } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { headerIdentity, me, rootForPolicy } from "../role-policy-config.fixtures.ts";
 
-test("an existing owner is immutable and a second group owner becomes user, never admin", async () => {
+test("an existing owner is immutable and a second group owner becomes user, never admin", { tags: "slow" }, async () => {
   await using root = await rootForPolicy({ [OWNER_GROUP_KEY]: "owners", [OIDC_ADMIN_GROUPS_KEY]: "admins", [OIDC_ALLOWED_GROUPS_KEY]: "friends" });
   const owner = await root.principalFor(root.ownerId);
   expect(await me(root, headerIdentity("owners,admins", owner.handle, "first-owner-subject"))).toMatchObject({ role: "owner" });
