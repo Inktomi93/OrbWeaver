@@ -120,6 +120,7 @@ const ROOT_FILES_TESTS_LOAD = {
 const MOUNT_SUPPORT_FILES = {
   "^tests/support/browser/(?:index|ct-door|ct-runtime|ct-isolation)\\.ts$": "the browser testkit door and the CT mount runtime it forwards",
   "^tests/support/browser/(?:ct-data-providers|ct-isolated-subject)\\.tsx$": "the section and isolated-subject mounts stories render through",
+  "^tests/support/browser/leaving-cover\\.ts$": "the release event and backdrop the leaving-cover story holds and its specs drive",
 } as const satisfies Readonly<Record<string, string>>;
 // Feature test helpers a story imports; each stays free of Node imports so the story can load it.
 const MOUNT_HELPER_FILES = {

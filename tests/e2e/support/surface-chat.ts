@@ -12,13 +12,14 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { controlledPanel, settledBox, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
 import type { SurfaceWitnessDisposition } from "@orb/testkit/iso";
-import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
+import { nonEmpty, parseSurfaceProviderEvidence, present } from "@orb/testkit/iso";
 import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Response, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
+import { chatTitleQualifiers } from "#client/features/chat/lib/chat-summary-row.ts";
 import {
   CHAT_ARCHIVE_NAME,
   CHAT_CANCEL_EDIT_NAME,
@@ -66,6 +67,7 @@ import {
   MESSAGE_UNDO_CONTINUATION_NAME,
   MESSAGE_UNHIDE_FROM_AI_NAME,
   MESSAGE_VIEW_WIRE_TRACE_NAME,
+  messageArticleName,
 } from "#client/features/chat/lib/message-action-names.ts";
 import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
 import { IMAGINE_MODE_NAME, IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
@@ -197,7 +199,7 @@ function subjectCoverage(flow: Journey, rooms: readonly ChatSummary[]): void {
   );
 }
 
-async function roomRow(flow: Journey, room: ChatSummary): Promise<Locator> {
+async function roomRow(flow: Journey, room: ChatSummary): Promise<{ readonly row: Locator; readonly title: Locator }> {
   const label = displayTitle(room);
   const storedTitle = room.title?.trim() ?? "";
   const search = storedTitle.length > 0 ? storedTitle : (room.participantPortraits.at(0)?.name.trim() ?? "");
@@ -240,7 +242,10 @@ async function roomRow(flow: Journey, room: ChatSummary): Promise<Locator> {
   const loaded = Number(await virtualRow.getAttribute("aria-setsize"));
   expect(loaded).toBeLessThanOrEqual(matches.length);
   await expect(virtualRow.getByRole("button", { name: namePattern(chatRowActionsName(NAME_HOLE)) })).toHaveCount(room.viewerRole === "host" ? 1 : 0);
-  await expect(virtualRow.getByRole("button", { name: label, exact: true })).toHaveCount(1);
+  // A title another row on the list shares carries the list's own qualifier in the row's name; the qualifier is a stamp the browser formats.
+  const titleQualified = chatTitleQualifiers(matches)[index] !== undefined;
+  const title = virtualRow.getByRole("button", { name: titleQualified ? namePattern(`${label}${NAME_HOLE}`) : label, exact: true });
+  await expect(title).toHaveCount(1);
   await attachNativeFile(flow.info, flow.info, `chat-${room.id}-native-row-identity`, {
     body: JSON.stringify({
       original: flow.run.subjects.chats.some(({ id }) => id === room.id),
@@ -253,7 +258,7 @@ async function roomRow(flow: Journey, room: ChatSummary): Promise<Locator> {
     }),
     contentType: "application/json",
   });
-  return virtualRow;
+  return { row: virtualRow, title };
 }
 
 async function enterChatsList(flow: Journey): Promise<void> {
@@ -277,8 +282,7 @@ async function openRoom(flow: Journey, room: ChatSummary, inspectList = false): 
       "Explicit LIST navigation state follows the requested pane intent; room capture restores requested composition",
     );
   }
-  const root = await roomRow(flow, room);
-  const row = root.getByRole("button", { name: displayTitle(room), exact: true });
+  const { row: root, title: row } = await roomRow(flow, room);
   if (inspectList) {
     await listMenu(flow, room, root);
   }
@@ -1370,7 +1374,7 @@ async function chatRowMenu(flow: Journey, room: ChatSummary): Promise<Locator> {
   if (await show.isVisible()) {
     await show.click();
   }
-  const row = await roomRow(flow, room);
+  const { row } = await roomRow(flow, room);
   await row.hover();
   const trigger = row.getByRole("button", { name: namePattern(chatRowActionsName(NAME_HOLE)) });
   await trigger.focus();
@@ -1929,7 +1933,8 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await confirm.getByRole("button", { name: CHAT_REATTRIBUTE_CONFIRM_NAME, exact: true }).click();
       await expect(confirm).toBeHidden();
       await expect.poll(async () => (await readCanon(flow, room.id)).find(({ id }) => id === user.id)?.personaId).toBe(persona.id);
-      await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(persona.name);
+      const restamped = present((await readCanon(flow, room.id)).find(({ id }) => id === user.id));
+      await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(present(messageArticleName(persona.name, restamped.position)));
       await messageOperationDone(
         flow,
         user,
@@ -2445,9 +2450,9 @@ async function selectHeldRoom(flow: Journey, room: ChatSummary, beforeSelect?: (
   if (await show.isVisible()) {
     await show.click();
   }
-  const root = await roomRow(flow, room);
+  const { title } = await roomRow(flow, room);
   beforeSelect?.();
-  await root.getByRole("button", { name: displayTitle(room), exact: true }).click();
+  await title.click();
   await expect(flow.page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
   await flow.requestPanes();
 }

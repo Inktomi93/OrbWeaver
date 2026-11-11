@@ -1,3 +1,4 @@
+import { AlertDialog, AlertDialogActions, AlertDialogClose, AlertDialogPopup, AlertDialogTitle } from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { CodeEditor } from "@orb/ui/code-editor";
@@ -13,13 +14,15 @@ import { RoomIsland } from "@orb/ui/room-island";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Select } from "@orb/ui/select";
 import { Slider } from "@orb/ui/slider";
+import { Tabs, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import { TOKENS } from "@orb/ui/tokens";
 import { WeaveVeil } from "@orb/ui/web-weave";
-import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import type { ComponentProps, ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CtIsolation } from "./ct-isolated-subject.tsx";
+import { LEAVING_RELEASE_EVENT } from "./leaving-cover.ts";
 
 /** Exercise the production density map and its sanctioned variant overrides under real containment. */
 export function SurfaceDesignStory({ width }: { readonly width: number }): ReactElement {
@@ -267,6 +270,116 @@ export function SurfaceVeilCoverStory({ cover }: { readonly cover: "veil" | "pan
         </Stack>
       </main>
       {cover === "veil" ? <WeaveVeil open={veilOpen} label="Loading" /> : <div style={{ position: "fixed", inset: 0 }} />}
+    </CtIsolation>
+  );
+}
+
+/**
+ * A control under a production alert dialog's layers. `leaving`: pressing Confirm closes the dialog and holds its closing phase, the way a
+ * slow exit leaves its backdrop over the page, until the test dispatches `LEAVING_RELEASE_EVENT`. `standing`: the dialog stays open.
+ */
+export function SurfaceLeavingCoverStory({ cover }: { readonly cover: "leaving" | "standing" }): ReactElement {
+  const actions = useRef<NonNullable<ComponentProps<typeof AlertDialog>["actionsRef"]>["current"]>(null);
+  const [open, setOpen] = useState(true);
+  useEffect(() => {
+    const release = (): void => actions.current?.unmount();
+    addEventListener(LEAVING_RELEASE_EVENT, release);
+    return (): void => removeEventListener(LEAVING_RELEASE_EVENT, release);
+  }, []);
+  return (
+    <CtIsolation subject="Enlarged-text leaving cover" isolates="A production control under a production alert dialog needs no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Leaving cover control</h1>
+          <Button variant="outline">Restore</Button>
+        </Stack>
+      </main>
+      <AlertDialog
+        actionsRef={actions}
+        onOpenChange={(next, details): void => {
+          if (cover === "standing") {
+            return;
+          }
+          if (!next) {
+            details.preventUnmountOnClose();
+          }
+          setOpen(next);
+        }}
+        open={open}
+      >
+        <AlertDialogPopup>
+          <AlertDialogTitle>Restore this version?</AlertDialogTitle>
+          <AlertDialogActions>
+            <AlertDialogClose render={<Button variant="outline">Confirm</Button>} />
+          </AlertDialogActions>
+        </AlertDialogPopup>
+      </AlertDialog>
+    </CtIsolation>
+  );
+}
+
+// A scroller narrower than its planted child, and a child far wider than the scroller.
+const SIDEWAYS_SCROLLER_PX = 160;
+const SIDEWAYS_CHILD_PX = 480;
+
+// One word no line can break, far wider than the scroller at any text size.
+const UNBREAKABLE_WORD = "Unbreakable".repeat(8);
+
+/**
+ * A sideways scroller holding a nested column: `child` makes the column's second child wider than the scroller, `filled` makes it a
+ * fixed-width box whose block child only fills it, `rtl` plants the wide child in a right-to-left scroller, `text` puts one unbreakable
+ * word directly in the scroller, `none` leaves the column fitting. Beside it, inside the same scroller, a declared strip holds content
+ * wider still, which its own clip keeps from widening the scroller.
+ */
+export function SurfaceSidewaysStory({ widened }: { readonly widened: "child" | "filled" | "rtl" | "text" | "none" }): ReactElement {
+  return (
+    <CtIsolation subject="Enlarged-text sideways scroller" isolates="A fixed-pixel scroller and its planted children need no application services.">
+      <main>
+        <div data-planted="scroller" dir={widened === "rtl" ? "rtl" : undefined} style={{ inlineSize: SIDEWAYS_SCROLLER_PX, overflowX: "auto" }}>
+          {widened === "text" ? UNBREAKABLE_WORD : null}
+          <Stack>
+            <Text>Short line</Text>
+            {widened === "child" || widened === "rtl" ? <div data-planted="widening" style={{ inlineSize: SIDEWAYS_CHILD_PX, blockSize: 1 }} /> : null}
+            {widened === "filled" ? (
+              <div data-planted="widening" style={{ inlineSize: SIDEWAYS_CHILD_PX }}>
+                <div style={{ blockSize: 1 }} />
+              </div>
+            ) : null}
+            <div data-sideways-strip={true} style={{ overflowX: "auto" }}>
+              <div style={{ inlineSize: 2 * SIDEWAYS_CHILD_PX, blockSize: 1 }} />
+            </div>
+          </Stack>
+        </div>
+      </main>
+    </CtIsolation>
+  );
+}
+
+const STRIP_TABS = ["Parameters", "Prompt", "Actions", "Data", "Transforms"] as const;
+
+/**
+ * A production tab strip wider than its scroll wrapper, the way an editor's view strip degrades to a scroll. `strip`: the wrapper holds
+ * the tablist alone. `shared`: the same wrapper also holds a wide block of its own, so it is a column, not a strip. `text`: the wrapper
+ * holds one unbreakable word of its own beside a one-tab tablist, so the word widens it.
+ */
+export function SurfaceTabStripStory({ wrapper }: { readonly wrapper: "strip" | "shared" | "text" }): ReactElement {
+  return (
+    <CtIsolation subject="Enlarged-text tab strip" isolates="A production tab strip in a fixed-pixel wrapper needs no application services.">
+      <main>
+        <Tabs defaultValue={STRIP_TABS[0]}>
+          <div data-planted="scroller" style={{ inlineSize: SIDEWAYS_SCROLLER_PX, overflowX: "auto" }}>
+            {wrapper === "text" ? UNBREAKABLE_WORD : null}
+            <TabsList aria-label="Planted views">
+              {(wrapper === "text" ? STRIP_TABS.slice(0, 1) : STRIP_TABS).map((tab) => (
+                <TabsTab key={tab} value={tab}>
+                  {tab}
+                </TabsTab>
+              ))}
+            </TabsList>
+            {wrapper === "shared" ? <div style={{ inlineSize: SIDEWAYS_CHILD_PX, blockSize: 1 }} /> : null}
+          </div>
+        </Tabs>
+      </main>
     </CtIsolation>
   );
 }
