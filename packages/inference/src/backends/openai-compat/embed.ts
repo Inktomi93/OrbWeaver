@@ -26,7 +26,7 @@ import type { EmbedDeps, ModelCall } from "#src/contract/openai-backend.ts";
 import type { VectorFit } from "#src/contract/wire.ts";
 import { deadlineSignal } from "../http/abort-flatten.ts";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
-import { providerLogger } from "../http/provider-log.ts";
+import { EMBED_CLAMPED_EVENT, providerLogger } from "../http/provider-log.ts";
 import { responseCacheOf } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { measuredCostOf } from "../v4/result.ts";
@@ -211,7 +211,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const inputs: readonly string[] = typeof req.input === "string" ? [req.input] : req.input;
   const kept = selectInputs(inputs, req, capability, (index, chars, clampedToChars, budget) =>
-    log.emit("warn", "provider.embed-clamped", { model: connection.model, index, chars, clampedToChars, budget }),
+    log.emit("warn", EMBED_CLAMPED_EVENT, { model: connection.model, index, chars, clampedToChars, budget }),
   );
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array<Float32Array<ArrayBuffer> | null>(inputs.length).fill(null);
   if (kept.length === 0) {

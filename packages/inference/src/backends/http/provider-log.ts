@@ -6,6 +6,9 @@
 import type { ProviderLogger } from "#src/contract/http.ts";
 import type { InferenceLog } from "#src/deps.ts";
 
+/** The event an embed backend emits when it shortens an input to the engine's window; the one spelling both backends and their suites use. */
+export const EMBED_CLAMPED_EVENT = "provider.embed-clamped";
+
 /** Bind the sink to one wire/provider pair — every line the backend emits carries both. */
 export function providerLogger(log: InferenceLog, wire: string, providerId: string): ProviderLogger {
   const emit: ProviderLogger["emit"] = (level, event, fields = {}) => {

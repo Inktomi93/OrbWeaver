@@ -10,7 +10,7 @@ import type { EmbedRequest, GoogleBackendDeps, ImageEmbedRequest } from "#contra
 import { embedRequestTimeoutMs, ProviderError } from "#contract";
 import { providerErrorFromHttp } from "../http/error-classify.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
-import { providerLogger } from "../http/provider-log.ts";
+import { EMBED_CLAMPED_EVENT, providerLogger } from "../http/provider-log.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { mediaFilePart } from "../v4/prompt.ts";
 import { embeddingCostOf } from "../wire/embedding-cost.ts";
@@ -70,7 +70,7 @@ function keptInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput | null)[
     }
     const text = clampToTokenBudget(input.text, safeTokenWindow(capability.maxInputTokens) - INPUT_RESERVE_TOKENS);
     if (text.length !== input.text.length) {
-      log.emit("warn", "provider.embed-clamped", { model: req.connection.model, index, chars: input.text.length, clampedToChars: text.length });
+      log.emit("warn", EMBED_CLAMPED_EVENT, { model: req.connection.model, index, chars: input.text.length, clampedToChars: text.length });
     }
     return [{ index, text: input.parts === undefined ? embeddingPrompt(text, req, capability) : text, parts: input.parts }];
   });

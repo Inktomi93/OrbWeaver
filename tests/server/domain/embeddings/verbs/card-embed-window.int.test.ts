@@ -14,13 +14,13 @@ import {
   createCorpusProviderExecution,
   createServerHarness,
 } from "@orb/testkit/node/composed";
+import { EMBED_CLAMPED_EVENT } from "#inference/backends/http/provider-log.ts";
 import { executeAdmitted } from "../../workloads/funding.fixtures.ts";
 
 const CARD_NAME = "Window keeper";
 const SMALL_WINDOW_TOKENS = 512;
 const LARGE_WINDOW_TOKENS = 32_768;
 const LOG_SCAN_LIMIT = 500;
-const CLAMP_EVENT = "provider.embed-clamped";
 
 const WINDOWS = [
   { label: "a window below the card cap", window: SMALL_WINDOW_TOKENS, clamped: true },
@@ -72,7 +72,11 @@ test.for(WINDOWS)("a long card is embedded under $label", async ({ window, clamp
   const text = embedded[0] ?? "";
   expect(estimateTokens(text)).toBeLessThanOrEqual(safeTokenWindow(window));
   expect(text === loaded).toBe(!clamped);
+  // A window below the cap embeds only the head of the card: this is the scale of that loss in the same estimate the clamp uses.
+  expect(estimateTokens(text) < estimateTokens(loaded)).toBe(clamped);
   // A shortened embed is logged, once, against the card text that was cut.
-  const clampLogs = root.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(CLAMP_EVENT) && line.includes(`"chars":${loaded.length}`));
+  const clampLogs = root.observability
+    .logLines(LOG_SCAN_LIMIT)
+    .filter((line) => line.includes(EMBED_CLAMPED_EVENT) && line.includes(`"chars":${loaded.length}`));
   expect(clampLogs).toHaveLength(clamped ? 1 : 0);
 });
