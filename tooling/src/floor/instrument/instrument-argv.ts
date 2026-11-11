@@ -10,13 +10,13 @@
 // shared member fail loud before a browser boots, which is what caught a parser that quietly stopped
 // accepting `--isolated`.
 
-/** HELP_FLAGS (§4.3): every tool prints its help and exits 0 on either spelling. Before this family,
+/** HELP_FLAGS: every tool prints its help and exits 0 on either spelling. Before this family,
  *  `--help`/`-h` was an UNKNOWN FLAG (exit 3) on every tool but snap — measured 34 hits across
- *  design-audit/ui-audit, motion-audit and perf-meter invocations (§1 P5). */
+ *  design-audit/ui-audit, motion-audit and perf-meter invocations. */
 export const HELP_FLAGS: ReadonlySet<string> = new Set(["--help", "-h"]);
 
-/** ALIAS_REFUSALS (§4.3): an unknown flag that matches a KNOWN ASK refuses NAMING the real flag instead
- *  of the generic "unknown flag" — measured asks (§1 P5): `--full-page` (snap has `--full`),
+/** ALIAS_REFUSALS: an unknown flag that matches a KNOWN ASK refuses NAMING the real flag instead
+ *  of the generic "unknown flag" — measured asks: `--full-page` (snap has `--full`),
  *  `--watch-every` (it is `--every`), `--name` (it is `--out`), `--screenshot` (it is `--shot-of`).
  *  THIS IS A REFUSAL TABLE, NOT AN ALIAS TABLE. The old flag stops working outright; it is never quietly
  *  accepted as a second spelling for the same thing: that would be half a migration.
@@ -51,12 +51,12 @@ export function aliasRefusal(flag: string, knownFlags: ReadonlySet<string>): str
   return real === undefined || !knownFlags.has(real) ? null : `unknown flag ${flag} — did you mean ${real}?`;
 }
 
-/** `--session <name>` (design §3.4/§5, #1285). The sibling tools this constant was minted for are gone
+/** `--session <name>`. The sibling tools this constant was minted for are gone
  *  (#1315) and Snap owns the flag outright (`snap/ops/flags-session.ts`); it stays a named member of
  *  `WHERE_FLAGS` below because the family roster is what `instrumentFamilyRosterErrors` enforces. */
 export const SESSION_FLAG = "--session";
 
-/** WHERE_FLAGS (§4.3): the complete shared location/session vocabulary for all public rendered tools. */
+/** WHERE_FLAGS: the complete shared location/session vocabulary for all public rendered tools. */
 const WHERE_FLAG_NAMES = ["--base", "--isolated", "--ref", "--dirty", "--fresh", SESSION_FLAG] as const;
 export type WhereFlag = (typeof WHERE_FLAG_NAMES)[number];
 export const WHERE_FLAGS: ReadonlySet<WhereFlag> = new Set(WHERE_FLAG_NAMES);
@@ -66,7 +66,7 @@ export const WHERE_FLAGS: ReadonlySet<WhereFlag> = new Set(WHERE_FLAG_NAMES);
  *  (SESSION_FLAG's shape) rather than a bare literal so a future consumer never re-spells it. */
 export const REDUCED_MOTION_FLAG = "--reduced-motion";
 
-/** ENVIRONMENT_FLAGS (§4.3): one spelling, no aliases, and one accepted roster across all public rendered tools. */
+/** ENVIRONMENT_FLAGS: one spelling, no aliases, and one accepted roster across all public rendered tools. */
 const ENVIRONMENT_FLAG_NAMES = ["--viewport", "--wide", "--mobile", "--desktop", "--dark", "--light", REDUCED_MOTION_FLAG] as const;
 export type EnvironmentFlag = (typeof ENVIRONMENT_FLAG_NAMES)[number];
 export const ENVIRONMENT_FLAGS: ReadonlySet<EnvironmentFlag> = new Set(ENVIRONMENT_FLAG_NAMES);
@@ -81,7 +81,7 @@ export const INSTRUMENT_FLAG_FAMILIES = {
   artifact: ARTIFACT_FLAGS,
 } as const satisfies Readonly<Record<"where" | "environment" | "artifact", ReadonlySet<string>>>;
 
-/** The parser-side enforcement seam for §4.2/§4.3. This checks vocabulary membership only; tool-specific
+/** The parser-side enforcement seam for the shared vocabulary. This checks vocabulary membership only; tool-specific
  * semantics, value validation, conflicts, and legacy refusals remain in each parser. */
 export function instrumentFamilyRosterErrors(tool: string, acceptedFlags: ReadonlySet<string>): string[] {
   const errors: string[] = [];
@@ -94,7 +94,7 @@ export function instrumentFamilyRosterErrors(tool: string, acceptedFlags: Readon
   return errors;
 }
 
-/** SESSION_ADMIN_FLAGS (§4.3): snap-only — the sibling four are refused BY NAME with a pointer (below),
+/** SESSION_ADMIN_FLAGS: snap-only — the sibling four are refused BY NAME with a pointer (below),
  *  never a bare "unknown flag". */
 export const SESSION_ADMIN_FLAGS: ReadonlySet<string> = new Set([
   "--session-status",
@@ -104,7 +104,7 @@ export const SESSION_ADMIN_FLAGS: ReadonlySet<string> = new Set([
   "--session-ttl",
 ]);
 
-/** STAGE_ADMIN_FLAGS (§4.3): snap-only (unchanged ruling: one lifecycle owner). `--force` is shared with
+/** STAGE_ADMIN_FLAGS: snap-only (unchanged ruling: one lifecycle owner). `--force` is shared with
  *  SESSION_ADMIN_FLAGS' teardown-consent shape (#447) rather than doubled in both sets. */
 export const STAGE_ADMIN_FLAGS: ReadonlySet<string> = new Set(["--stage-status", "--stage-down", "--stage-sweep", "--force"]);
 

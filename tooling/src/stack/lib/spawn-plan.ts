@@ -3,6 +3,7 @@
 // else — no loader flag, no emit, no bundle, no dist path for the SERVER. The only build artifact in this
 // repo is @orb/client's `vite build` output. An argv snapshot test pins that.
 import { join } from "node:path";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../floor/process/server-entry.ts";
 import type { ProdSpawnPlan, ProdSpawnPlanOpts } from "../contract/types.ts";
 import { stripDebugEnv } from "./debug-env.ts";
@@ -31,7 +32,7 @@ export function buildProdSpawnPlan(opts: ProdSpawnPlanOpts): ProdSpawnPlan {
     args: [...SERVER_NODE_FLAGS, join(opts.repoRoot, SERVER_ENTRY_REL)],
     // NODE_ENV is an ENV NAME (the platform's SCREAMING_SNAKE vocabulary), so it is set by key, not by an
     // object-literal property.
-    env: { ...inherited, ...Object.fromEntries([["NODE_ENV", "production"]]), ...(opts.debugOverlay ?? {}) },
+    env: { ...inherited, ...Object.fromEntries([["NODE_ENV" satisfies EnvKey, "production"]]), ...(opts.debugOverlay ?? {}) },
     cwd: opts.repoRoot,
     logPath: opts.logPath,
   };

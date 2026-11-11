@@ -2,6 +2,7 @@
 // Paths are composed with node:path and every spawn is node plus a JS file, so no plan needs a shell.
 import { join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import { SERVER_ENTRY_IN_PACKAGE, SERVER_NODE_FLAGS } from "../../floor/process/server-entry.ts";
 import type { DevChildName, DevParse, DevSpawnPlan, PortParse, WorkspacePackage } from "../contract/types.ts";
@@ -123,7 +124,7 @@ export function viteSpawnPlan(opts: {
 
 /** The env key naming the built client directory the server serves. The server defaults it to a path, so only the
  *  process env says a launcher was told where a built client is. */
-export const CLIENT_DIST_DIR_ENV = "CLIENT_DIST_DIR";
+export const CLIENT_DIST_DIR_ENV = "CLIENT_DIST_DIR" satisfies EnvKey;
 
 /**
  * A Playwright-owned stack (`E2E_HARNESS=on`) that names its built client serves it from the server, and its

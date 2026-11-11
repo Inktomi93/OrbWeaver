@@ -13,12 +13,13 @@ import {
 } from "@orb/kit/allowed-hosts";
 import type { EnvEdit } from "@orb/kit/env-file";
 import { DELETE_ENV_LINE } from "@orb/kit/env-file";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type { AnswerParse, SetupAnswers, SetupAudience, SetupDecision, SetupLogin, SetupMachine, SetupUrl, SetupValues } from "../contract/types.ts";
 import { PORT_ENV } from "./stack-plan.ts";
 
 /** The listen address key. Setup never writes a value to it; a network answer deletes it ({@link setupEnvEdits}). */
-export const BIND_HOST_KEY = "BIND_HOST";
+export const BIND_HOST_KEY = "BIND_HOST" satisfies EnvKey;
 
 /** The mode whose ONLY credential is the loopback owner fallback (foundation/env: AUTH_MODE's default). */
 export const SINGLE_USER_MODE = "single-user";

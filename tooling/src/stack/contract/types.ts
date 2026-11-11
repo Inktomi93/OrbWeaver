@@ -3,7 +3,7 @@
 import type { NetworkInterfaceInfo } from "node:os";
 import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import { CREDENTIALS_KEY_ENV, SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
 import type { EnvKey } from "@orb/server/foundation/env/record";
 import { DEBUG_TOKEN_ENV, LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import type { PortPair } from "../../floor/host/ports.ts";
@@ -69,7 +69,7 @@ export const DEV_PIN_KEYS = [
   AUTH_FALLBACK_KEY,
   AUTH_MODE_KEY,
   SESSION_SECRET_ENV,
-  "CREDENTIALS_KEY",
+  CREDENTIALS_KEY_ENV,
   LOCAL_INITIAL_PASSWORD_ENV,
   "DEV_SEED",
 ] as const satisfies readonly EnvKey[];

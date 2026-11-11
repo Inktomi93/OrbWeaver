@@ -3,7 +3,7 @@
 import { join } from "node:path";
 import { AUTH_MODE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
-import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import { CREDENTIALS_KEY_ENV, DATABASE_URL_KEY, SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
 import type { EnvKey } from "@orb/server/foundation/env/record";
 import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
@@ -47,9 +47,9 @@ export function fixtureEnv(repoRoot: string, ambient: Readonly<Record<string, st
       [VITE_PORT_ENV, String(vite)],
       [VITE_API_TARGET_ENV, `http://127.0.0.1:${String(server)}`],
       [RUN_DIR_ENV, join(repoRoot, FIXTURE_RUN_DIR_REL)],
-      ["DATA_DIR", dataRel],
-      ["DATABASE_URL", `file:${dataRel}/orb.db`],
-      ["ASSETS_DIR", `${dataRel}/assets`],
+      ["DATA_DIR" satisfies EnvKey, dataRel],
+      [DATABASE_URL_KEY, `file:${dataRel}/orb.db`],
+      ["ASSETS_DIR" satisfies EnvKey, `${dataRel}/assets`],
     ]),
     ...fixtureIdentityEnv(server),
   };
@@ -62,7 +62,7 @@ export function fixtureIdentityEnv(serverPort: number): Readonly<Record<string, 
   return Object.fromEntries([
     [AUTH_MODE_KEY, "local"],
     [SESSION_SECRET_ENV, "orbweaver-multi-user-fixture-session-secret-insecure"],
-    ["CREDENTIALS_KEY" satisfies EnvKey, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
+    [CREDENTIALS_KEY_ENV, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
     [LOCAL_INITIAL_PASSWORD_ENV, OWNER.password],
     [ENV_NO_FILE_KEY, "1"],
     [OWNER_HANDLES_KEY, OWNER.handle],

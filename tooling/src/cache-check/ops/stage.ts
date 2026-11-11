@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
-import type { EnvKey } from "@orb/server/foundation/env/record";
+import { CREDENTIALS_KEY_ENV } from "@orb/server/foundation/data-layout";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { execGit } from "../../floor/git/git.ts";
@@ -13,7 +13,6 @@ import type { CacheCheckOptions, EnvFile } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm cache:check");
 
-const CREDENTIALS_KEY_ENV = "CREDENTIALS_KEY" satisfies EnvKey;
 const ENV_FILE = ".env";
 const LOOPBACK = "127.0.0.1";
 
