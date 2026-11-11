@@ -1,7 +1,7 @@
-// Package source reads time through an injected clock (Spine-Testing §3), and every server stream rides the one
-// `stream.connect` socket (D118). Both are `no-restricted-syntax` entries that each package's block in
-// `eslint.config.ts` composes, so every probe below resolves the real config for one block and fails if that block
-// drops its entry.
+// Package source reads time through an injected clock (Spine-Testing §3), every server stream rides the one
+// `stream.connect` socket (D118), and a domain contract error extends the domain error tree. Each is a
+// `no-restricted-syntax` entry that a package's block in `eslint.config.ts` composes, so every probe below resolves
+// the real config for one block and fails if that block drops its entry.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
@@ -16,6 +16,7 @@ const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: RO
 // One probe per block that composes the clock entry; the path picks the block.
 const CLOCK_BLOCKS = [
   "packages/server/src/domain/probe.ts",
+  "packages/server/src/domain/chat/contract/probe.ts",
   "packages/server/src/transport/trpc/routers/stream.ts",
   "packages/server/src/transport/trpc/routers/chat.ts",
   "packages/server/src/domain/settings/seed-themes.ts",
@@ -34,6 +35,7 @@ const CLOCK_HOMES = ["packages/server/src/entry/lifecycle.ts", "packages/kit/src
 // Every server block composes the stream entry except the stream router, the socket's own home.
 const STREAM_BLOCKS = [
   "packages/server/src/transport/trpc/routers/probe.ts",
+  "packages/server/src/domain/chat/contract/probe.ts",
   "packages/server/src/transport/trpc/routers/chat.ts",
   "packages/server/src/entry/lifecycle.ts",
   "packages/server/src/domain/settings/seed-themes.ts",
@@ -140,4 +142,15 @@ test("chat.impersonateStream is the one permanent subscription, and the stream r
       "export const streamRouter = t.router({ connect: authedProcedure.subscription(fn) });",
     ),
   ).toEqual([]);
+});
+
+test("a domain contract error extends the domain error tree, never Error directly", async () => {
+  for (const source of ["export class ProbeError extends Error {}", "export const ProbeError = class extends Error {};"]) {
+    const found = await findings("packages/server/src/domain/chat/contract/probe.ts", source);
+    expect(found, source).toHaveLength(1);
+    expect(found[0]?.message, source).toContain("@orb/kit/errors");
+  }
+  expect(await findings("packages/server/src/domain/chat/contract/probe.ts", "export class ProbeError extends DomainOperationError {}")).toEqual([]);
+  // Outside a contract directory the declaration is not this entry's concern.
+  expect(await findings("packages/server/src/domain/chat/engine/probe.ts", "export class ProbeError extends Error {}")).toEqual([]);
 });

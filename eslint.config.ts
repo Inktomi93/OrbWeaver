@@ -645,6 +645,14 @@ const IMPERSONATE_STREAM_SYNTAX = {
   selector: subscriptionCall(":not(Property[key.name='impersonateStream'] > CallExpression)"),
   message: SERVER_STREAM_MESSAGE,
 };
+// The transport answers a failure by its base in the domain error tree; a contract error that extends `Error` directly
+// is unclassified and reaches the client as an unknown fault.
+const DOMAIN_CONTRACT_SOURCES = ["packages/server/src/domain/*/contract/**/*.{ts,tsx}"];
+const DOMAIN_CONTRACT_ERROR_SYNTAX = {
+  selector: "ClassDeclaration[superClass.name='Error'], ClassExpression[superClass.name='Error']",
+  message:
+    "Extend a base of the domain error tree in `@orb/kit/errors` (`packages/kit/src/errors/index.ts`); a contract error that extends `Error` directly answers as an unknown fault.",
+};
 
 // Literal bidi controls and C0/C1 controls make the reviewed text differ from what runs (trojan source).
 // Biome keeps escapes as written; this rejects the literal code points so source spells them as escapes.
@@ -2247,8 +2255,12 @@ export default [
   { files: rootSources("@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   {
     files: rootSources("@server"),
-    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME, ...IMPERSONATE_STREAM_HOME],
+    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME, ...IMPERSONATE_STREAM_HOME, ...DOMAIN_CONTRACT_SOURCES],
     rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
+  },
+  {
+    files: DOMAIN_CONTRACT_SOURCES,
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, DOMAIN_CONTRACT_ERROR_SYNTAX) },
   },
   { files: IMPERSONATE_STREAM_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, IMPERSONATE_STREAM_SYNTAX) } },
   { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, SERVER_STREAM_SYNTAX) } },
