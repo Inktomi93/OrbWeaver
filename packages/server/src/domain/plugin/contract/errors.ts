@@ -27,8 +27,8 @@ export class ManifestInvalidError extends DomainOperationError {
  *  refusal, a non-2xx, or a network error — and that is the security property, not laziness: `safeFetch`'s own
  *  `EgressBlockedError.reason` distinguishes "private-address" from "host-not-allowed", and surfacing that
  *  distinction to the caller would turn this into an SSRF ORACLE (an attacker learns their URL resolved private).
- *  The domain never imports `#infra/network` to branch on the reason (the `fetchWebDocument`→`ScrapeFailedError`
- *  precedent — infra performs the guarded fetch and THROWS; the verb collapses every throw here). The message
+ *  The domain never branches on the reason (the `fetchWebDocument`→`ScrapeFailedError` precedent — infra performs
+ *  the guarded fetch and THROWS; the verb collapses every throw here). The message
  *  names the caller-supplied URL and nothing about what it resolved to. Thrown BEFORE anything persists.
  *  Maps to BAD_REQUEST. */
 export class PluginBundleFetchError extends DomainOperationError {
