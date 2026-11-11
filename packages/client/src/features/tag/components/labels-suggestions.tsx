@@ -249,7 +249,6 @@ function SuggestionRow({
                 }
               },
               onSuccess: (): void => {
-                notify.success(`Applied ${suggestion.name}.`);
                 if (focused) {
                   onReviewed(button);
                 }
@@ -275,7 +274,6 @@ function SuggestionRow({
               }
             },
             onSuccess: (): void => {
-              notify.success(`Rejected ${suggestion.name}.`);
               if (focused) {
                 onReviewed(button);
               }

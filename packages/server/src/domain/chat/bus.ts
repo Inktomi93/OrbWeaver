@@ -122,13 +122,15 @@ type ChatBusDeps = Pick<ChatContext, "db" | "now" | "newEventId" | "logger">;
 async function classifyFailedAppend(db: Db, event: ChatBusEvent, logger: Logger): Promise<"chat-gone" | "live-fault"> {
   const chatId = event.chatId;
   let chatGone = false;
-  // a failed probe leaves `chatGone` false, so the verdict is `live-fault`,
-  // which both callers log with the original append error: `handleAppendFailure` (warn on retry, `reportTerminalDrop`
-  // error on the last attempt) and `emitAfterClaim` (error). Ends if a caller stops logging `live-fault`.
+  // FLAG[emit-is-total]: a failed probe cannot throw out of `emit`. It leaves `chatGone` false, so the verdict is the
+  // loud `live-fault` both callers log with the append error, and the probe's own error is logged here.
   try {
     chatGone = (await loadChatRow(db, chatId)) === undefined;
-  } catch {
-    // The probe failed ⇒ we cannot claim the benign race; fall through to the loud arm.
+  } catch (probeError) {
+    getLog(logger).warn(
+      { err: probeError, chatId, type: event.type },
+      "chat bus: the chat-row probe failed, so the failed append is classified as a live fault",
+    );
   }
   if (chatGone) {
     getLog(logger).debug({ chatId, type: event.type }, "chat bus: event dropped — the chat was deleted mid-turn (expected race)");
@@ -211,14 +213,17 @@ const LIVE_APPEND_ATTEMPTS = 2;
  *  against what we tried to write — the same GROUND-TRUTH rule `classifyFailedAppend` states, never a driver
  *  error code. Never throws: a probe that fails leaves the loud arm, which is the honest answer when the db
  *  is too unwell to say. */
-async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent): Promise<number | null> {
-  // a failed probe returns `null`, "cannot prove it landed", and the
-  // only caller `reportTerminalDrop` then logs the original append error at error level with the dropped-event
-  // message. Ends if another caller reads `null` without logging.
+async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent, logger: Logger): Promise<number | null> {
+  // FLAG[emit-is-total]: a failed probe cannot throw out of `emit`. It returns `null`, "cannot prove it landed", so
+  // `reportTerminalDrop` logs the append error as a drop, and the probe's own error is logged here.
   try {
     const row = await loadChatEventById(db, id);
     return row !== undefined && JSON.stringify(row.payload) === JSON.stringify(event) ? row.seq : null;
-  } catch {
+  } catch (probeError) {
+    getLog(logger).warn(
+      { err: probeError, chatId: event.chatId, type: event.type },
+      "chat bus: the committed-row probe failed, so the append cannot be proven",
+    );
     return null;
   }
 }
@@ -244,7 +249,7 @@ interface TerminalDrop {
 async function reportTerminalDrop(db: Db, drop: TerminalDrop, logger: Logger): Promise<number | null> {
   const { id, event, err, attempts } = drop;
   const fields = { err, chatId: event.chatId, type: event.type, attempts };
-  const committedSeq = await committedRowSeq(db, id, event);
+  const committedSeq = await committedRowSeq(db, id, event, logger);
   if (committedSeq === null) {
     getLog(logger).error(fields, "chat bus: DURABLE APPEND FAILED on a live chat — event dropped, its replay slot is permanently missing");
     return null;

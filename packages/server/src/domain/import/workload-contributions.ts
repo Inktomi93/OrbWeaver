@@ -1,9 +1,6 @@
 // Import contributions run owner-composed operations and injected external adapters off-request.
 // Staged handles resolve beneath the row owner's namespace before reads and cleanup; a handle grants no authority.
 
-import type { Dirent } from "node:fs";
-import { lstat, readdir, realpath, rm } from "node:fs/promises";
-import { basename, dirname, join, resolve, sep } from "node:path";
 import type { ImportFsPort, ImportPreview } from "@orb/contracts/import";
 import { STAGED_UPLOAD_OUTDATED } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, MaintenanceResult, ReportProgress, WorkloadKind } from "@orb/contracts/workloads";
@@ -11,12 +8,10 @@ import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkload
 import { DomainOperationError } from "@orb/kit/errors";
 import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
-import { isStrictDescendant } from "@orb/kit/path-containment";
 import type { ActiveWorkloadRow, WorkloadContribution } from "#domain/workloads";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import { openVerifiedArchive, ZIP_STAGING_PREFIX } from "#infra/storage";
-import { isMissingFile } from "#primitives/errno";
+import { listStagedEntries, openVerifiedArchive, removeContained, resolveStagedPath, ZIP_STAGING_PREFIX } from "#infra/storage";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
 import { STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX, stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
@@ -76,8 +71,6 @@ async function settleImportRun(args: {
   }
 }
 
-// The lexical containment pass runs on the host's own separator; `realpath` below is the authoritative half.
-const HOST_PATH = { sep };
 const STAGED_PREFIXES = [STAGED_TREE_PREFIX, STAGED_BUNDLE_PREFIX, ZIP_STAGING_PREFIX];
 
 type ImportContributions = readonly [
@@ -85,46 +78,6 @@ type ImportContributions = readonly [
   WorkloadContribution<"import-token-usage-backfill">,
   WorkloadContribution<"import-bundle">,
 ];
-
-/**
- * Resolve a server-minted staging handle to an absolute path that is a PROPER STRICT DESCENDANT of
- * `stagingRoot`, or throw. The AUTHORITATIVE containment belt (the contract-layer charset regex is the outer
- * one): a handle resolving to the staging root itself, its parent, or anywhere outside is a path-traversal
- * attempt and throws BEFORE any fs read or rm — the workload fails cleanly, nothing is touched.
- * `basename()` is NOT a containment primitive (`basename("..") === ".."`); never use it as one.
- *
- * CONTAINMENT IS RESOLVED, NEVER STRING-MATCHED. A lexical `startsWith` says "inside the root" about a path
- * whose own components are symlinks pointing anywhere on the box — and `readFile` / the profile-tree walker
- * then follow them. So the string check is only the cheap first pass: the belt is `realpath`, on the root's PARENT
- * (the configured root may itself sit behind a link) and on the target, with the two required to agree.
- * "No writer of ours creates symlinks under the staging root" is not a containment argument either: the root
- * is operator-configurable (`IMPORT_STAGING_DIR`) and may point anywhere, including a shared directory.
- *
- * SECURITY: `stagingRoot` here is the OWNER'S folder, and a staging actor can replace that folder with a link. Its own
- * realpath would then move both ends of the comparison together and the handle would resolve wherever the link
- * points, so every read and every `rm` below would act there. The comparison anchors one level up for that reason.
- */
-async function resolveStagedPath(stagingRoot: string, stagedHandle: string): Promise<string> {
-  const root = resolve(stagingRoot);
-  const target = resolve(root, stagedHandle);
-  if (!isStrictDescendant(root, target, HOST_PATH)) {
-    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
-  }
-  const realRoot = await realpath(dirname(root))
-    .then((parent) => join(parent, basename(root)))
-    .catch(() => {
-      throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
-    });
-  const realTarget = await realpath(target).catch(() => {
-    throw new DomainOperationError("staged_path_missing", `staged handle names nothing under the staging root: ${stagedHandle}`);
-  });
-  // Any symlinked component anywhere in the handle moves the real path off the expected one — refused even
-  // when the link happens to land back inside the root (its target can be repointed between checks).
-  if (realTarget !== resolve(realRoot, stagedHandle)) {
-    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root (symlinked path): ${stagedHandle}`);
-  }
-  return target;
-}
 
 /** Import one staged backup ZIP through its open handle, closing the handle whatever the outcome. */
 async function importStagedZip(
@@ -148,30 +101,6 @@ async function profilePort(deps: ImportWorkloadDeps, stagedRoot: string | null, 
   return stagedRoot === null ? deps.operatorImportPort : await deps.stagedImportPort(stagedRoot, requireStagedDigest(digest));
 }
 
-/**
- * Belt-and-suspenders rm: remove `target` ONLY when it is provably a strict descendant of `stagingRoot`
- * AT THE rm CALLSITE — so even a future refactor that computed the path unsafely can never delete the
- * staging root, its parent, or anything outside it. A non-contained target is refused SILENTLY:
- * `resolveStagedPath` already rejected the traversal loudly at compute time, so reaching here with an
- * out-of-root path means a bug, and the safe response is to delete nothing (never throw from a `finally`).
- */
-async function rmContained(stagingRoot: string, target: string): Promise<void> {
-  const root = resolve(stagingRoot);
-  const resolved = resolve(target);
-  if (!isStrictDescendant(root, resolved, HOST_PATH)) {
-    return;
-  }
-  // A SYMLINK is never removed here. `rm` would unlink the link rather than its target, so this is not the
-  // deletion hole — but a staged entry that turned into a link since the resolve is a tampering signal, and
-  // deleting nothing is the safe response on a path this belt no longer recognizes.
-  // both arms of this stat converge on "remove nothing" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.
-  const link = await lstat(resolved).catch(() => null);
-  if (link === null || link.isSymbolicLink()) {
-    return;
-  }
-  await rm(resolved, { recursive: true, force: true });
-}
-
 /** Free the upload a row that never ran still holds. Never rejects: its row is already terminal, and the next boot's
  *  sweep frees what this could not. An unset handle reads the configured profile dir, which is never removed. */
 async function releaseStaged(deps: ImportWorkloadDeps, ownerId: UserId | null, handle: string | undefined): Promise<void> {
@@ -181,7 +110,7 @@ async function releaseStaged(deps: ImportWorkloadDeps, ownerId: UserId | null, h
   // owned by the log line and the boot sweep, which frees whatever this could not reach. Ends if the sweep stops running at boot.
   try {
     const ownerRoot = stagedOwnerRoot(deps.stagingRoot, ownerId);
-    await rmContained(ownerRoot, await resolveStagedPath(ownerRoot, handle));
+    await removeContained(ownerRoot, await resolveStagedPath(ownerRoot, handle));
   } catch (err) {
     getLog(deps.logger).warn({ err, ownerId }, "import: could not free a cancelled run's staged upload; the next boot sweeps it");
   }
@@ -203,37 +132,17 @@ function liveHandles(active: readonly ActiveWorkloadRow[]): ReadonlySet<string> 
   return handles;
 }
 
-async function entriesOf(dir: string): Promise<readonly Dirent[]> {
-  // A box that has never staged anything has no root to walk; the rethrow leaves every other fault to the boot sweep's log.
-  try {
-    return await readdir(dir, { withFileTypes: true });
-  } catch (err) {
-    if (isMissingFile(err)) {
-      return [];
-    }
-    throw err;
-  }
-}
-
 /**
  * Remove every staged upload no active row names. Safe only where boot calls it: no run is live and the listener is
- * not up, so a live extraction directory or a tree still being written cannot be here. A link is never walked: a
- * `Dirent` reports what the name is, so a linked owner directory is no directory, and {@link rmContained} refuses the rest.
+ * not up, so a live extraction directory or a tree still being written cannot be here.
  */
 async function sweepStaging(deps: ImportWorkloadDeps, active: readonly ActiveWorkloadRow[]): Promise<void> {
   const live = liveHandles(active);
-  const root = resolve(deps.stagingRoot);
   let removed = 0;
-  for (const owner of await entriesOf(root)) {
-    if (!owner.isDirectory()) {
-      continue;
-    }
-    const ownerRoot = join(root, owner.name);
-    for (const { name } of await entriesOf(ownerRoot)) {
-      if (STAGED_PREFIXES.some((prefix) => name.startsWith(prefix)) && !live.has(name)) {
-        await rmContained(ownerRoot, join(ownerRoot, name));
-        removed += 1;
-      }
+  for (const { ownerRoot, name, path } of await listStagedEntries(deps.stagingRoot)) {
+    if (STAGED_PREFIXES.some((prefix) => name.startsWith(prefix)) && !live.has(name)) {
+      await removeContained(ownerRoot, path);
+      removed += 1;
     }
   }
   getLog(deps.logger).info({ removed, live: live.size }, "import: boot sweep of abandoned staged uploads");
@@ -281,7 +190,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           // A folder-upload staging tree is owned by this run; remove it (success OR error) through the
           // contained-rm belt. The configured default profile dir is persistent and is NEVER removed here.
           if (stagedRoot !== null) {
-            await rmContained(ownerRoot, stagedRoot);
+            await removeContained(ownerRoot, stagedRoot);
           }
         }
         await settleImportRun({
@@ -356,7 +265,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           }
           return report_;
         } finally {
-          await rmContained(ownerRoot, stagedPath);
+          await removeContained(ownerRoot, stagedPath);
         }
       },
     },

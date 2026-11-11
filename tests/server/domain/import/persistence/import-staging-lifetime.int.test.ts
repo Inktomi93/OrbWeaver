@@ -200,7 +200,8 @@ test("a boot keeps the upload a queued row names even when this build cannot par
   const stagedDir = basename(tree);
   await root.db
     .update(workloads)
-    .set({ params: { stagedDir, dryRun: "not a boolean" } })
+    // Stored text an earlier build wrote: the column type admits only params this build produces.
+    .set({ params: sql`${JSON.stringify({ stagedDir, dryRun: "not a boolean" })}` })
     .where(eq(workloads.id, id));
 
   await reboot(root);

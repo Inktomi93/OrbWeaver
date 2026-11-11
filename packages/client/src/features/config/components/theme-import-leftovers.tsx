@@ -12,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useConfigSectionRegistry } from "#state";
-import { appearanceSettingLabel } from "../lib/appearance-setting-label.ts";
+import { appearanceSettingPlace } from "../lib/appearance-setting-place.ts";
 import {
   THEME_IMPORT_NOTHING_TO_DO,
   THEME_IMPORT_OUTCOME,
@@ -55,7 +55,7 @@ export function ThemeImportLeftovers({ themeName, created, leftovers }: ThemeImp
   const registry = useConfigSectionRegistry();
   const [open, setOpen] = useState(false);
   const appearance = appearanceSettingsOf(leftovers);
-  const appearanceLabels = appearance.map((setting) => appearanceSettingLabel(registry, setting));
+  const places = appearance.map((setting) => appearanceSettingPlace(registry, setting));
   // One group per reason kind present: a kind with no line fails `tsc` in the copy module's table.
   const groups = groupsOf(leftovers);
   const outcome = THEME_IMPORT_OUTCOME[created ? "created" : "reused"];
@@ -67,7 +67,7 @@ export function ThemeImportLeftovers({ themeName, created, leftovers }: ThemeImp
       </Text>
       {groups.map(({ kind, keys }) => (
         <Text cap="prose" data-kind={kind} data-slot="theme-import-group" key={kind} voice="quiet">
-          {themeImportGroupLine(kind, keys.length, appearanceLabels)}
+          {themeImportGroupLine(kind, keys.length, places)}
         </Text>
       ))}
       <Collapsible open={open} onOpenChange={setOpen}>

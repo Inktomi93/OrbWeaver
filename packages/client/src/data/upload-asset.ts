@@ -1,7 +1,6 @@
 // The multipart upload POST — the ONE client seam a caller reaches for to persist a picked file as a
 // content-addressed asset (avatars/personas/backgrounds all route through this). Raw fetch, not tRPC —
-// the route is a Hono multipart handler. NOTE: the route does not currently enforce the CSRF header
-// this sends (auth-gated only) — server-side gating is out of this file's scope.
+// the route is a Hono multipart handler, and it refuses a request without the CSRF header on every auth path.
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { assetUploadRefusalSchema, storedAssetSchema } from "@orb/contracts/assets";

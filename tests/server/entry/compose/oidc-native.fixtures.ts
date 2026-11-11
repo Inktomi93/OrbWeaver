@@ -1,6 +1,7 @@
 // A real HTTP root behind a scripted OIDC issuer, and the cookie and token-endpoint helpers its suites share.
 
 import { SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
+import { CSRF_EXEMPT_ROUTES } from "@orb/server/entry/auth";
 import { authModeHarnessOptions } from "@orb/testkit/node/auth";
 import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -11,8 +12,9 @@ import { vi } from "vitest";
 
 // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
 export const MEMBER = { sub: "native-member-subject", preferred_username: "oidc-member" } satisfies JWTPayload;
-export const LOGOUT_TOKEN_PARAM = "logout_token";
-export const LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
+/** The back-channel logout route, read from the production exemption table. */
+export const BACKCHANNEL_LOGOUT_PATH = CSRF_EXEMPT_ROUTES.oidcBackchannelLogout.path;
+export { OIDC_BACKCHANNEL_LOGOUT_EVENT as LOGOUT_EVENT, OIDC_LOGOUT_TOKEN_FIELD as LOGOUT_TOKEN_PARAM } from "@orb/contracts/identity";
 
 export type HttpRoot = Pick<ServerTestHarness, "http" | "db">;
 export type Issuer = Awaited<ReturnType<typeof createNativeIssuer>>;

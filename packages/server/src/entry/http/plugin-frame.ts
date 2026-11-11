@@ -47,10 +47,10 @@
 //
 // ── THE APP-CSP EXEMPTION THIS ROUTE DEPENDS ON ──────────────────────────────────────────────────────────────
 // `hono/secure-headers` writes its headers AFTER the handler with `.set()`, so it OVERWRITES a handler's own
-// policy. The served-document path is therefore exempted in `security-headers.ts` via `PLUGIN_FRAME_DOC_PREFIX`
-// — the second member of an existing class, the card frame being the first. Without it this route would serve
-// its documents under the APP policy (`script-src 'self'`, no `sandbox` directive) with nothing red: an
-// "isolated" frame that is not isolated.
+// policy. The served-document path and the asset path are therefore both registered in `security-headers.ts`'s
+// own-policy routes, beside the card frame's document. Without that this route would serve its documents under
+// the APP policy (`script-src 'self'`, no `sandbox` directive) with nothing red: an "isolated" frame that is not
+// isolated. Each arm here writes its own `Content-Security-Policy` or none; one with none gets the app policy.
 
 import type { PluginFrameBody } from "@orb/contracts/plugin";
 import {
@@ -63,6 +63,7 @@ import {
 } from "@orb/contracts/plugin";
 import type { CardFrameMediaPolicy } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, buildCardFrameDocument, cardFrameResponseHeaders } from "@orb/kit/card-frame";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Clock } from "@orb/kit/time";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -96,7 +97,15 @@ const PLUGIN_FRAME_MEDIA: CardFrameMediaPolicy = { allowExternalMedia: false, al
  *  EVERY response on this route pair — the serve arm, the 401 arm and the miss arm alike, so no reply from this
  *  doorway is ever un-policied. There is no per-request variation to express: unlike a card, a plugin frame's
  *  policy depends on nothing a request can select. */
-const PLUGIN_FRAME_CSP = buildCardFrameCsp(PLUGIN_FRAME_MEDIA, "document", "interactive");
+export const PLUGIN_FRAME_CSP = buildCardFrameCsp(PLUGIN_FRAME_MEDIA, "document", "interactive");
+
+// A not-found read is the leak-free miss every frame route answers alike; any other failure of the read is a fault.
+function notFoundAsNull(error: unknown): null {
+  if (error instanceof DomainNotFoundError) {
+    return null;
+  }
+  throw error;
+}
 
 /** A body for the miss arm — a blank 404 inside an iframe reads as a broken surface; this reads as a stale one.
  *  IDENTICAL for every miss reason by construction (unknown handle, foreign handle, expired handle), which is
@@ -120,15 +129,20 @@ export interface PluginFrameDeps {
   readonly now: Clock;
 }
 
+/** The served asset's own policy: an image needs no source, and a direct navigation to it lands sandboxed. */
+export const PLUGIN_FRAME_ASSET_CSP = "default-src 'none'; sandbox";
+/** The opaque-origin frame loads the asset cross-origin, so only the successful asset reply carries this. */
+const PLUGIN_FRAME_ASSET_RESOURCE_POLICY = "cross-origin";
+
 function assetHeaders(mime: string, byteLength: number): Record<string, string> {
   return {
     "Content-Type": mime,
     "Content-Length": String(byteLength),
-    "Content-Security-Policy": "default-src 'none'; sandbox",
+    "Content-Security-Policy": PLUGIN_FRAME_ASSET_CSP,
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
-    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Cross-Origin-Resource-Policy": PLUGIN_FRAME_ASSET_RESOURCE_POLICY,
   };
 }
 
@@ -167,14 +181,12 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
     }
     const body = parsed.data;
     let frame: PluginFrameBody | null;
-    // leak-free collapse — documented below: a foreign/unknown pluginId, "no such surface", and "grant revoked" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes.
     try {
       frame = await deps.surfaces.getFrameBody({ caller: principal, pluginId: body.pluginId, surfaceId: body.surfaceId });
-    } catch {
-      // A foreign / unknown pluginId throws out of the owner-scoped load (`PluginNotFoundError`). It resolves to
-      // the SAME answer as "no such surface" and "the grant was revoked" — a caller learns nothing from the
-      // difference, which is the card-frame doorway's fail-closed posture applied to this gate.
-      frame = null;
+    } catch (error) {
+      // A foreign or unknown pluginId throws `PluginNotFoundError` out of the owner-scoped load. It resolves to the
+      // same answer as "no such surface" and "the grant was revoked", the card-frame doorway's fail-closed posture.
+      frame = notFoundAsNull(error);
     }
     if (frame === null) {
       return c.json({ error: "no such plugin frame" }, NOT_FOUND);
@@ -220,8 +232,8 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       return c.body(null, NOT_FOUND);
     }
     let asset: Awaited<ReturnType<PluginFrameSurfacePort["getFrameAsset"]>>;
-    // every stale/removed/foreign asset condition is the same
-    // leak-free 404 at this passive resource boundary. Ends if this route starts returning typed errors.
+    // Every stale, removed or foreign asset is the same leak-free 404 at this passive resource boundary, and so is a
+    // torn CAS entry, as `entry/http/blob.ts` answers it (`domain/assets/verbs/plugin-reads.ts` logs that fault).
     try {
       // A handle names one live frame surface, not the plugin's entire asset namespace. An upgrade can remove
       // that surface while leaving the plugin enabled and its other assets installed.
@@ -231,8 +243,8 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
         surfaceId: entry.plugin.surfaceId,
       });
       asset = frame === null ? null : await deps.surfaces.getFrameAsset({ caller: entry.plugin.caller, pluginId: entry.plugin.pluginId, bundlePath });
-    } catch {
-      asset = null;
+    } catch (error) {
+      asset = notFoundAsNull(error);
     }
     if (asset === null) {
       return c.body(null, NOT_FOUND);
@@ -272,12 +284,11 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       // A handle is not a snapshot of consent. Recheck current residency/grant so disable and uninstall revoke
       // the document as well as its assets before the sliding TTL expires.
       let live: PluginFrameBody | null;
-      // a frame-body failure closes this passive handle read as the
-      // same leak-free miss as a revoked grant or removed surface. Ends if this route returns typed errors.
+      // A plugin gone since the mint closes this passive handle read as the same leak-free miss as a revoked grant.
       try {
         live = await deps.surfaces.getFrameBody({ caller: entry.plugin.caller, pluginId: entry.plugin.pluginId, surfaceId: entry.plugin.surfaceId });
-      } catch {
-        live = null;
+      } catch (error) {
+        live = notFoundAsNull(error);
       }
       if (live === null) {
         store.drop(id, principal.userId);

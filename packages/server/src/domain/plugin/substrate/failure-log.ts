@@ -9,6 +9,7 @@ const PLUGIN_FAILURE_KINDS = [
   "activation-failed",
   "guest-error",
   "host-deadline",
+  "host-busy",
   "broker-unavailable",
   "display-deadline",
   "macro-deadline",

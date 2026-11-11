@@ -39,6 +39,8 @@ import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
+import type { JsonObject, JsonValue } from "@orb/kit/json";
+import { jsonObjectOf } from "@orb/kit/json";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { inertActivationFields, resolveEntryInjection, resolveEntryKeyMode, resolveEntryScope } from "@orb/kit/world-info";
@@ -193,9 +195,9 @@ function parseRegexScripts(data: RawCard): RegexScriptCard[] {
 
 /** `data.extensions` MINUS the fields promoted to typed columns (`depth_prompt`, `regex_scripts`, `fav`) —
  *  only genuinely-unknown vendor extras. Null when nothing is left (the §7.3 lossiness fix: no `raw` blob). */
-function residualExtensions(data: RawCard): Record<string, unknown> | null {
-  const ext = data.extensions;
-  if (ext === undefined || ext === null || typeof ext !== "object" || Array.isArray(ext)) {
+function residualExtensions(data: CardDataJson | null): JsonObject | null {
+  const ext = data === null || Array.isArray(data) ? null : jsonObjectOf(data["extensions"]);
+  if (ext === null) {
     return null;
   }
   const { depth_prompt: _dp, regex_scripts: _rs, fav: _fav, ...rest } = ext;
@@ -251,14 +253,36 @@ const PROMOTED_DATA_KEYS = new Set([
  *  what remains here is genuinely-unknown vendor residue PLUS the column-less V3 fields kept verbatim
  *  (`assets` pending its lane; `creator_notes_multilingual`; `group_only_greetings` folds into the
  *  `greetings` array). Null when nothing is left. */
-function residualData(data: RawCard): Record<string, unknown> | null {
-  const rest: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+function residualData(data: CardDataJson | null): JsonObject | null {
+  const rest: JsonObject = {};
+  for (const [key, value] of Object.entries(data ?? {})) {
     if (!PROMOTED_DATA_KEYS.has(key)) {
       rest[key] = value;
     }
   }
   return Object.keys(rest).length > 0 ? rest : null;
+}
+
+/** The card's `data` block as the JSON it was decoded from, for the residue: the same container the typed reads
+ *  use (`data` when it is an object or array, else the root, an array root included). A V1 or Pygmalion card is
+ *  rebuilt into promoted fields only, so it carries no residue and this is null for it. */
+type CardDataJson = JsonObject | JsonValue[];
+function cardDataJson(raw: JsonValue, rebuilt: boolean): CardDataJson | null {
+  if (rebuilt) {
+    return null;
+  }
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+  const root = jsonObjectOf(raw);
+  if (root === null) {
+    return null;
+  }
+  const nested = root["data"];
+  if (Array.isArray(nested)) {
+    return nested;
+  }
+  return jsonObjectOf(nested) ?? root;
 }
 
 // ST stamps this placeholder in `creator_notes`; strip it so it doesn't ride into the canonical card.
@@ -305,11 +329,12 @@ function detectSpec(raw: RawCard): CardSpec | null {
  * chunk/byte decoding. `avatarAssetId`/`refinery` are not on the card wire, so both are null; tags and
  * the embedded lorebook are external junctions and are not carried here.
  */
-export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard {
+export function cardFromJson(raw: JsonValue, fallbackName: string): CharacterCard {
   const rawCard = (raw ?? {}) as RawCard;
   const spec = detectSpec(rawCard);
   const cardJson = normalizeCardJson(rawCard);
   const data: RawCard = typeof cardJson.data === "object" && cardJson.data !== null ? cardJson.data : cardJson;
+  const residue = cardDataJson(raw, cardJson !== rawCard);
 
   const first = str(data.first_mes);
   const alternates = strArray(data.alternate_greetings);
@@ -352,8 +377,8 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
     // truthy string is not a star). Promoted out of the residue like `depth_prompt`/`regex_scripts`.
     starred: data.extensions?.fav === true,
     regexScripts: parseRegexScripts(data),
-    extensions: residualExtensions(data),
-    residualData: residualData(data),
+    extensions: residualExtensions(residue),
+    residualData: residualData(residue),
     avatarAssetId: null,
     refinery: null,
     // V2/V3 preserved so export round-trips the source spec; omitted (not `undefined`) for a specless card so

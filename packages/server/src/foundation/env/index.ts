@@ -11,6 +11,7 @@ import type { AuthModeSource } from "@orb/contracts/identity";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY, ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised } from "@orb/kit/supervisor";
+import { errnoCode } from "#primitives/errno";
 import { CONTAINER_MARKER_FILES } from "./container.ts";
 import type { Env } from "./record/index.ts";
 import { isSecretEnvKey, parseEnv } from "./record/index.ts";
@@ -85,12 +86,14 @@ function loadEnvFileWithOverride(override: boolean): void {
     return;
   }
   let raw: string;
-  // a missing .env is a normal deploy state —
-  // envFileKeys stays empty, correctly read by the launch-only superRefine as "not declared". Ends
-  // if the loader stops treating a missing file as absence rather than an error.
+  // A missing or unreadable .env leaves the schema defaults standing; `envFileKeys` stays empty, which the
+  // launch-only superRefine reads as "not declared".
   try {
     raw = readFileSync(resolve(process.cwd(), ENV_FILE), "utf8");
-  } catch {
+  } catch (error) {
+    if (errnoCode(error) === undefined) {
+      throw error;
+    }
     return;
   }
   for (const [key, value] of Object.entries(parseDotenv(raw.startsWith(UTF8_BOM) ? raw.slice(UTF8_BOM.length) : raw))) {

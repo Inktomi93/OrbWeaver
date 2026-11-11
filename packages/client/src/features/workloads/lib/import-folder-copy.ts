@@ -3,5 +3,5 @@
 
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 
-/** Said once, inline, when the picked folder is not a SillyTavern user folder: what to pick instead. */
-export const IMPORT_FOLDER_WRONG_FOLDER = `That folder doesn't look like a SillyTavern user folder. Pick the one that holds characters, chats and ${ST_SETTINGS_FILE}, usually data/default-user inside your SillyTavern folder.`;
+/** Said once, inline, when the picked folder is neither an Orbweaver backup nor a SillyTavern user folder: what to pick instead. */
+export const IMPORT_FOLDER_WRONG_FOLDER = `That folder doesn't look like an unzipped Orbweaver backup or a SillyTavern user folder. Pick the backup folder, or the SillyTavern one that holds characters, chats and ${ST_SETTINGS_FILE}, usually data/default-user inside your SillyTavern folder.`;

@@ -13,7 +13,7 @@
 //   • Actions are ONE json column, not a child table: an ordered value-object list (1..8) with no
 //     independent identity. Zod-validated at write, LAZY-parsed at read with the chat-metadata
 //     fault-isolation pattern (a corrupt row disables that rule with `last_error`, never nukes the
-//     chat's rule list). Typed opaque here — the `AutomationAction` union lands with the domain.
+//     chat's rule list). Typed by `AutomationActions` from `@orb/contracts/automation`.
 //   • The fire log is a REAL TABLE, not counters: it IS the per-hour budget source (indexed COUNT), the
 //     host's "why didn't my rule fire" answer, and testRun provenance — three consumers, one table.
 //   • `global_variables` has NO TypeID/surrogate id: nothing FKs it; the natural key (owner_id, key) IS
@@ -26,7 +26,15 @@
 // one internal `reserved` admission state that list projections never expose. CHECKs are static DDL built
 // from the tuples — never re-spelled (users.ts pattern).
 
-import type { ChatTriggerType, DomainTriggerType, RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
+import type {
+  AnalysisState,
+  AutomationActions,
+  ChatTriggerType,
+  DomainTriggerType,
+  FireView,
+  RulePresetId,
+  RulePresetKnobValues,
+} from "@orb/contracts/automation";
 import {
   ANALYSIS_GUIDANCE_MAX,
   AUTOMATION_FIRE_OUTCOMES,
@@ -101,12 +109,11 @@ export const automationRules = sqliteTable(
     // (a DDL pin would turn every catalogue addition into a merge-window schema change). A stored id a
     // later catalogue removal orphans degrades at the read/apply seam (reported skip), never at rest.
     rulePresetId: text("rule_preset_id").$type<RulePresetId>(),
-    // The complete resolved bag (`resolveRulePresetKnobs` output) — zod-validated at mint, typed opaque
-    // here (the `actions` posture).
+    // The complete resolved bag (`resolveRulePresetKnobs` output) — zod-validated at mint.
     rulePresetKnobs: text("rule_preset_knobs", { mode: "json" }).$type<RulePresetKnobValues>(),
-    // The ordered action arms — `AutomationAction[]` (the union lands with the domain).
+    // The ordered action arms.
     // Zod-validated at write + lazy-parsed at read (fault-isolation — see header).
-    actions: text("actions", { mode: "json" }).$type<readonly Record<string, unknown>[]>().notNull(),
+    actions: text("actions", { mode: "json" }).$type<AutomationActions>().notNull(),
     // The cascade opt-in — without it, automation-initiated events never re-trigger rules.
     matchAutomationEvents: integer("match_automation_events", { mode: "boolean" }).notNull().default(false),
     // RULED F4's per-rule OPT-OUT. TRUE = a rate refusal of this rule
@@ -206,7 +213,7 @@ export const automationFires = sqliteTable(
     // Public dispatch terminal OR the internal in-flight budget reservation.
     outcome: text("outcome", { enum: AUTOMATION_FIRE_STORAGE_OUTCOMES }).notNull(),
     // Per-arm results / the error / the rendered previews (test_run) — open JSON, read-seam parsed.
-    detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(),
+    detail: text("detail", { mode: "json" }).$type<NonNullable<FireView["detail"]>>(),
     // 0 = human-initiated; the cascade-depth ledger.
     automationDepth: integer("automation_depth").notNull().default(0),
     firedAt: integer("fired_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -248,8 +255,7 @@ export const automationRuleState = sqliteTable(
       .$type<AutomationRuleId>()
       .primaryKey()
       .references(() => automationRules.id, { onDelete: "cascade" }),
-    // The analysis state blob — `{arc, twists, retiredTwists, settledThroughSeq}`. Typed opaque here (the
-    // shape lands with the domain — the `automation_rules.actions` posture); zod parse-on-read with
+    // The analysis state blob, typed by `AnalysisState` from `@orb/contracts/automation`; zod parse-on-read with
     // corrupt→EMPTY fault isolation (losing analysis state costs one cold pass, never a disabled rule).
     // `settledThroughSeq` is the C2 high-water mark: the settled-span cursor DURABLE-WRITE routes advance
     // ONLY on a successful apply, so a failed/unconfirmed pass re-covers its span (the retryability law).
@@ -259,7 +265,7 @@ export const automationRuleState = sqliteTable(
     // empty (watermark 0 = re-cover, which duplicates work but never SKIPS a span). A reader that treated
     // a schema-version mismatch as corruption would discard a valid watermark and re-distill an
     // already-covered span into duplicate lore — pinned in the domain's rule-state tests.
-    state: text("state", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    state: text("state", { mode: "json" }).$type<AnalysisState>().notNull(),
     // ONE narrator-facing instruction, stored VERBATIM (machine-authored DATA — macro-inert by authoring
     // law 6; it never passes renderArmTemplate/processMacros). "" = no standing guidance (the common case).
     // Sliced to ANALYSIS_GUIDANCE_MAX at the write boundary; the CHECK below mirrors the same const.

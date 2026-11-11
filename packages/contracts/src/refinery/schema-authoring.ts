@@ -24,6 +24,7 @@
 // and there is no "any" stage: one schema serves one stage, because each stage pins its own core.
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { JsonSchemaLiftError, liftJsonSchema, RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { REFINERY_VERDICTS, SCORE_MAX, SCORE_MIN } from "./core.ts";
@@ -214,7 +215,7 @@ function liftIssueOf(schema: Record<string, unknown>): BeltIssue | null {
   }
 }
 
-const rawSchemaNode = z.record(z.string(), z.unknown());
+const rawSchemaNode = jsonObjectSchema;
 
 /** A custom schema DOCUMENT — the whole authored artifact (name + NL description + stage + the schema).
  *  The ONE belt every write runs (and the client editor may run locally — same refusals, same paths). */

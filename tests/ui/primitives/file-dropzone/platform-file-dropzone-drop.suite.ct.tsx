@@ -105,6 +105,34 @@ test("a refusal by the zone itself marks the control invalid until a pick it acc
   await expect(control).not.toHaveAttribute("aria-invalid", /.*/);
 });
 
+test("a refusal the zone says itself is described to the control, so a return to the invalid zone hears why", async ({ mount }) => {
+  const zone = await zoneOf(await mount<typeof DropAcceptStory>(STORY, { accept: "image/*" }));
+  const control = zone.locator('input[type="file"]');
+  // The control: a zone with nothing refused describes nothing.
+  await expect(control).not.toHaveAttribute("aria-describedby", /.*/);
+  await control.setInputFiles({ name: "no.txt", mimeType: "text/plain", buffer: Buffer.from([1]) });
+  const line = zone.getByRole("alert");
+  await expect(line).toBeVisible();
+  const lineId = await line.getAttribute("id");
+  expect(lineId).not.toBeNull();
+  const described = (await control.getAttribute("aria-describedby")) ?? "";
+  expect(described.split(" ")).toContain(lineId);
+});
+
+test("the refusal line takes the press, not the covering file input, so its text can be selected", async ({ mount }) => {
+  const zone = await zoneOf(await mount<typeof DropAcceptStory>(STORY, { accept: "image/*" }));
+  await zone.locator('input[type="file"]').setInputFiles({ name: "no.txt", mimeType: "text/plain", buffer: Buffer.from([1]) });
+  const line = zone.getByRole("alert");
+  await expect(line).toBeVisible();
+  // An unpolled read of what sits at the line's centre.
+  const lineOwnsItsCentre = await line.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return hit !== null && node.contains(hit);
+  });
+  expect(lineOwnsItsCentre).toBe(true);
+});
+
 test("the drag-over highlight follows enter and leave, and a drop clears it", async ({ mount }) => {
   const zone = await zoneOf(await mount<typeof DropAcceptStory>(STORY, {}));
   await expect(zone).not.toHaveAttribute("data-drag-over", /.*/);

@@ -5,7 +5,14 @@
 import { request as nativeRequest } from "node:http";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema } from "@orb/contracts/chat";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_MODE_KEY,
+  authMeSchema,
+  FORWARD_AUTH_TRUSTED_PROXIES_KEY,
+  OIDC_BACKCHANNEL_LOGOUT_EVENT,
+  OIDC_LOGOUT_TOKEN_FIELD,
+} from "@orb/contracts/identity";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -30,7 +37,6 @@ import {
 
 const GUARDED_INGEST = [...INTAKE_ROUTES.map(({ path }) => path), BUNDLE_ROUTE];
 const PASSWORD = "body-limit-owner-password";
-const LOGOUT_TOKEN_FIELD = "logout_token";
 
 test("every actual ingest refuses anonymous bytes before any input pull", async () => {
   await using root = await createServerHarness({ authConfig: { mode: "single-user", fallback: "deny" } });
@@ -81,7 +87,7 @@ for (const credential of ["fallback", "cookie"] as const) {
   });
 }
 
-test("the real trusted proxy-header identity reaches every ingest cap without ambient CSRF", async () => {
+test("the real trusted proxy-header identity needs the CSRF header before any ingest reads a byte, then reaches every cap", async () => {
   await using root = await createServerHarness({
     env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: "127.0.0.1/32" },
     physicalPeer: () => "127.0.0.1",
@@ -89,13 +95,21 @@ test("the real trusted proxy-header identity reaches every ingest cap without am
   const headers = { "x-authentik-username": "body-cap-proxy", "x-authentik-uid": "body-cap-proxy-subject" };
   expect(authMeSchema.parse(await (await root.http.request("/api/auth/me", { headers })).json()).authenticated).toBe(true);
   for (const route of INTAKE_ROUTES) {
+    using forgedInput = observedBody(route.bytes);
+    const forged = await bodyRequest(root, route.path, forgedInput.body, headers);
+    expect(forged.status, route.path).toBe(403);
+    await forged.arrayBuffer();
+    expect(forgedInput.snapshot().bytes, route.path).toBe(0);
     using input = observedBody(0);
-    const response = await bodyRequest(root, route.path, input.body, { ...headers, "content-length": String(route.bytes) });
+    const response = await bodyRequest(root, route.path, input.body, { ...headers, ...CSRF_HEADERS, "content-length": String(route.bytes) });
     expect(response.status, route.path).toBe(413);
     await response.arrayBuffer();
     expect(input.snapshot().pulls).toBe(0);
   }
-  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers, body: "" });
+  const forged = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers, body: "" });
+  expect(forged.status).toBe(403);
+  await forged.arrayBuffer();
+  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: { ...headers, ...CSRF_HEADERS }, body: "" });
   expect(response.status).toBe(202);
   await response.arrayBuffer();
 });
@@ -221,12 +235,15 @@ test("native signed backchannel bytes revoke a real session only after valid aut
   const subject = castId<ExternalId>("body-limit-oidc-subject");
   const user = await root.actor({ externalId: subject });
   const session = await root.app.sessions.create({ userId: user.id });
-  const invalid = await root.http.request(BACKCHANNEL_ROUTE.path, { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_FIELD, "invalid signature"]]) });
+  const invalid = await root.http.request(BACKCHANNEL_ROUTE.path, {
+    method: "POST",
+    body: new URLSearchParams([[OIDC_LOGOUT_TOKEN_FIELD, "invalid signature"]]),
+  });
   expect(invalid.status).toBe(400);
   await invalid.arrayBuffer();
   expect(await root.app.sessions.validate(session.token)).not.toBeNull();
-  const token = await issuer.logoutToken({ sub: subject, events: { "http://schemas.openid.net/event/backchannel-logout": {} } });
-  const response = await root.http.request(BACKCHANNEL_ROUTE.path, { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_FIELD, token]]) });
+  const token = await issuer.logoutToken({ sub: subject, events: { [OIDC_BACKCHANNEL_LOGOUT_EVENT]: {} } });
+  const response = await root.http.request(BACKCHANNEL_ROUTE.path, { method: "POST", body: new URLSearchParams([[OIDC_LOGOUT_TOKEN_FIELD, token]]) });
   expect(response.status).toBe(200);
   await response.arrayBuffer();
   expect(await root.app.sessions.validate(session.token)).toBeNull();

@@ -26,7 +26,7 @@
 
 import type { MessageKind, TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY } from "@orb/contracts/chat";
-import { jsonValueSchema } from "@orb/kit/json";
+import { jsonValueSchema, parseJsonText } from "@orb/kit/json";
 import type { MessageRole } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";
@@ -729,17 +729,6 @@ export function classifyChat(messages: readonly ParsedChatMessage[]): ChatBucket
   return "real_conversation";
 }
 
-function parseJson(line: string): unknown {
-  // null flows through asTyped(…, schema) at
-  // both call sites, a typed validator that cleanly rejects it. Ends if a caller stops routing the return
-  // through asTyped.
-  try {
-    return JSON.parse(line);
-  } catch {
-    return null;
-  }
-}
-
 // ST attachment spellings across export eras: modern `extra.media[]` / `extra.files[]`, which ST's own
 // `migrateMediaToArray` builds FROM the legacy `image` / `image_swipes` / `file` / `video` keys — an export
 // on disk can carry any era's spelling, so the debris test must know them all. A text-empty row that
@@ -791,7 +780,7 @@ function resolvePrimary(args: {
 /** Parse ONE message line → a `ParsedChatMessage`, or null for a corrupt line (skipped, not fatal) or a
  *  no-text-no-media debris row (see `resolvePrimary`). */
 function parseMessageLine(line: string, zone: string): ParsedChatMessage | null {
-  const parsed = asTyped(parseJson(line), rawMessageSchema);
+  const parsed = asTyped(parseJsonText(line), rawMessageSchema);
   if (parsed === null) {
     return null;
   }
@@ -852,7 +841,7 @@ export function parseChatJsonl(
   if (first === undefined || first.length === 0) {
     return null;
   }
-  const header = asTyped(parseJson(first), rawHeaderSchema);
+  const header = asTyped(parseJsonText(first), rawHeaderSchema);
   if (header === null) {
     return null;
   }

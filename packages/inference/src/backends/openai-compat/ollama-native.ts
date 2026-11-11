@@ -3,7 +3,9 @@
 // the samplers Ollama's Go decoder has no field for, so a row whose folded `features.nativeChat` is `ollama`
 // sends `/api/chat` instead. Both ends are translated inside `wrapFetch`, the request in `shapeBody` and the reply
 // after its tap, so the wire capture holds the native body and the native reply while the SDK reads OpenAI chunks.
+
 import type { ResolvedWarning } from "@orb/contracts/inference";
+import { parseJsonText } from "@orb/kit/json";
 import { z } from "zod";
 
 import { ProviderError } from "#contract";
@@ -479,14 +481,9 @@ function headersWith(res: Response, contentType: string): Headers {
 /** An Ollama error body (`{"error":"…"}`) in the OpenAI error shape the SDK's error handler reads. */
 async function failedResponse(res: Response): Promise<Response> {
   const text = await cappedText(res);
-  let message = text;
-  try {
-    const parsed: unknown = JSON.parse(text);
-    message = isRecord(parsed) && typeof parsed["error"] === "string" ? parsed["error"] : text;
-    // a non-JSON error body is still the server's message: it is handed on as `message` in the error Response built at ollama-native.ts:489, which the SDK raises. Ends if a body here could be anything but an error.
-  } catch {
-    message = text;
-  }
+  // A non-JSON error body is still the server's message, handed on whole.
+  const parsed = parseJsonText(text);
+  const message = isRecord(parsed) && typeof parsed["error"] === "string" ? parsed["error"] : text;
   return new Response(JSON.stringify({ error: { message } }), { status: res.status, statusText: res.statusText, headers: headersWith(res, JSON_CONTENT_TYPE) });
 }
 

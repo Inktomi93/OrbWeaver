@@ -15,3 +15,6 @@ export const IMAGE_EDIT_NAME = "Edit image";
 
 /** The prompt field. */
 export const IMAGINE_PROMPT_NAME = "Image prompt";
+
+/** The image edit dialog's instruction field. */
+export const IMAGE_EDIT_INSTRUCTION_NAME = "Edit instruction";

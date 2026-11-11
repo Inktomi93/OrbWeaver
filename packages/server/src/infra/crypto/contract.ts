@@ -35,6 +35,19 @@ export interface SecretBox {
   readonly enabled: boolean;
   /** Seal `plaintext`, binding it to `aad`. Throws if the box is disabled. */
   encrypt: (plaintext: string, aad: string) => Sealed;
-  /** Open a sealed value, verifying `aad`. Throws if disabled, or if the key/AAD/tag don't verify. */
+  /** Open a sealed value, verifying `aad`. Throws {@link SealedOpenError} if disabled, or if the key/AAD/tag don't verify. */
   decrypt: (sealed: Sealed, aad: string) => string;
+}
+
+/** A sealed value this box cannot open: the box is disabled, or the key, AAD, IV or tag does not verify. */
+export class SealedOpenError extends Error {
+  readonly reason: "disabled" | "unverified";
+  constructor(reason: "disabled" | "unverified", options?: ErrorOptions) {
+    super(
+      reason === "disabled" ? "No key is configured, so the sealed value cannot be opened." : "The sealed value did not verify under this key and AAD.",
+      options,
+    );
+    this.name = "SealedOpenError";
+    this.reason = reason;
+  }
 }

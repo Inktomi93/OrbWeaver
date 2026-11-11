@@ -68,7 +68,10 @@ import type { WireCapture } from "@orb/contracts/debug";
 import type { BoundedRing } from "@orb/kit/bounded-ring";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Env } from "#foundation/env/record";
+import { errnoCode } from "#primitives/errno";
+import type { Logger } from "../contract/logging.ts";
 import type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
+import { getLog } from "../logger.ts";
 
 export type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
 
@@ -169,24 +172,29 @@ export interface WireCaptureSpill {
   /** Queue one record as JSONL, rotating at the cap. Best-effort by construction. */
   readonly append: (kind: "request" | "outcome", record: WireCapture | WireOutcome) => void;
   /** Resolves once every append queued on THIS spill has settled, so a graph's disposal waits on its own writes
-   *  only and no append outlives its directory. Never rejects: the chain swallows its own failures. */
+   *  only and no append outlives its directory. Never rejects: a failed append is logged and the chain goes on. */
   readonly settle: () => Promise<void>;
 }
 
 /** Create a graph's spill queue over its directory, the record's `DATA_LAYOUT.wireCapture` slot in production. */
-export function createWireCaptureSpill(spillDir: string): WireCaptureSpill {
-  // Serializes this graph's appends so concurrent turns cannot interleave a half-written line. Failures are
-  // swallowed into the chain (never rethrown) — an unwritable spill directory must not fail a chat turn.
+export function createWireCaptureSpill(spillDir: string, logger: Logger): WireCaptureSpill {
+  // Serializes this graph's appends so concurrent turns cannot interleave a half-written line. A failure is logged
+  // and never rethrown: an unwritable spill directory must not fail a chat turn.
   let chain: Promise<void> = Promise.resolve();
   return {
     append: (kind, record): void => {
-      chain = appendSpillLine(chain, spillDir, kind, record);
+      chain = appendSpillLine(chain, { spillDir, logger }, kind, record);
     },
     settle: () => chain,
   };
 }
 
-function appendSpillLine(chain: Promise<void>, spillDir: string, kind: "request" | "outcome", record: WireCapture | WireOutcome): Promise<void> {
+function appendSpillLine(
+  chain: Promise<void>,
+  { spillDir, logger }: { readonly spillDir: string; readonly logger: Logger },
+  kind: "request" | "outcome",
+  record: WireCapture | WireOutcome,
+): Promise<void> {
   let line: string;
   // documented — an unserializable body is not
   // worth failing (or retrying) a turn over, best-effort observability spill. Ends if the spill stops being
@@ -196,24 +204,26 @@ function appendSpillLine(chain: Promise<void>, spillDir: string, kind: "request"
   } catch {
     return chain; // an unserializable body is not worth failing (or retrying) a turn over
   }
-  // documented above the chain declaration in createWireCaptureSpill
-  // — failures are swallowed into the chain, never rethrown; an unwritable spill directory must not
-  // fail a chat turn. Ends if the spill stops being best-effort by contract.
   return chain
     .then(async () => {
       const spillPath = join(spillDir, SPILL_FILE);
       await mkdir(spillDir, { recursive: true });
       let bytes = 0;
-      // a missing file is the normal first write of a generation and counts as size 0, so nothing rotates. Any other stat fault is met again by the `appendFile` below, whose rejection ends in the chain's catch (waived separately). Ends if rotation needs the stat fault itself.
+      // A missing file is the first write of a generation, so nothing rotates. Any other I/O fault meets the
+      // `appendFile` below again, whose rejection ends in the chain's catch.
       try {
         bytes = (await stat(spillPath)).size;
-      } catch {
-        bytes = 0; // first write of a fresh generation — nothing to rotate
+      } catch (error) {
+        if (errnoCode(error) === undefined) {
+          throw error;
+        }
       }
       if (bytes >= SPILL_MAX_BYTES) {
         await rename(spillPath, join(spillDir, SPILL_PREV_FILE));
       }
       await appendFile(spillPath, line, "utf8");
     })
-    .catch(() => undefined);
+    .catch((error: unknown) => {
+      getLog(logger).warn({ err: error, kind }, "wire capture: a spill append failed, so this capture is not on disk");
+    });
 }

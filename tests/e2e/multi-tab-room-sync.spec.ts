@@ -36,6 +36,7 @@ import {
   openMemberRowMenu,
   sendHeldTurn,
 } from "./support/chat-room.ts";
+import { runName } from "./support/run-names.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SETTLE_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import type { GroupConfigInput } from "./support/trpc.ts";
 import { assistantTurns, characterSeats, deleteChat, getGroupConfig, mintFreshCharacter, removeCharacter, startGroupChat } from "./support/trpc.ts";
@@ -65,7 +66,7 @@ async function seedRoom(label: string, count: number, groupConfig?: GroupConfigI
   for (const member of CHARACTERS.slice(0, count)) {
     characterIds.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
   }
-  const title = `e2e-hub-${label}-${Date.now()}`;
+  const title = runName(`e2e-hub-${label}`);
   // The founding characters are the first two; any extra minted character is the one tab A will SEAT mid-test.
   const chat = await startGroupChat({ characterIds: characterIds.slice(0, 2), title, ...(groupConfig === undefined ? {} : { groupConfig }) });
   return { chatId: chat.id, characterIds, title };
@@ -176,7 +177,7 @@ test("a turn driven in tab A streams into tab B's open transcript", { tag: "@liv
     await expect(assistantRows(tabB)).toHaveCount(0);
 
     // A unique body so `getByText` in tab B is unambiguous proof it received THIS message.
-    const probe = `hub-probe-${Date.now()}`;
+    const probe = runName("hub-probe");
     const held = await sendHeldTurn({ page: tabA, chatId: room.chatId }, probe);
 
     // The human line fans first (persistUserMessage emits `messageCommitted` before the AI round runs)…

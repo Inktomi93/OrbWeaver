@@ -32,6 +32,7 @@ import type { BoundedRing } from "@orb/kit/bounded-ring";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import type { Context, Env, Hono, MiddlewareHandler, Next } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
@@ -145,12 +146,7 @@ function bugReportJsonOnly(log: Logger): MiddlewareHandler {
 
 /** The POSTed body, or `null` when it was not JSON at all — which `safeParse` then reports as invalid. */
 async function readJsonBody(c: Context): Promise<unknown> {
-  // owned by the POST handler, which feeds this null to `bugReportInput.safeParse` and answers 400 `invalid bug report` to the caller (`z.object` refuses null). Ends if the null stops reaching that safeParse or its 400.
-  try {
-    return await c.req.json();
-  } catch {
-    return null;
-  }
+  return parseJsonText(await c.req.text()) ?? null;
 }
 
 function tokenMatches(provided: string | undefined, expected: string | undefined): boolean {
@@ -240,17 +236,10 @@ function debugAuthConfigOf(opts: DebugAuthOptions | string | undefined): DebugAu
 function createDebugAuthMiddleware(config: DebugAuthOptions): MiddlewareHandler {
   return async (c: Context, next: Next): ReturnType<MiddlewareHandler> => {
     const adminArmConsulted = config.adminAuth !== undefined;
-    if (config.adminAuth !== undefined) {
-      // documented below — a checker error falls
-      // through to the token check, never opening the gate. Ends if the fallthrough is removed.
-      try {
-        if (config.adminAuth.isAdmin(c)) {
-          await next();
-          return;
-        }
-      } catch {
-        // Fall through to the token check — never throw upward from the gate.
-      }
+    // A checker that throws fails the request with the app's error answer; only `true` opens the gate.
+    if (config.adminAuth?.isAdmin(c) === true) {
+      await next();
+      return;
     }
     const provided = c.req.header("x-debug-token");
     if (config.expectedToken === undefined) {

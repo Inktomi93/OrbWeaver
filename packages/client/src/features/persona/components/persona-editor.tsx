@@ -4,7 +4,6 @@
 // connected characters, then the footer verbs: Duplicate, Export, Delete. Autosaves on every change.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { PersonaMetadata } from "@orb/contracts/persona";
 import { initialsFor } from "@orb/kit/initials";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
@@ -40,7 +39,7 @@ import {
   PERSONA_NAME_FIELD_NAME,
   PERSONA_TITLE_FIELD_NAME,
 } from "../lib/persona-copy.ts";
-import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
+import type { PersonaFormValues, PersonaWireMetadata } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
 import { PersonaConnectedCharacters } from "./persona-connected-characters.tsx";
 import { PersonaLoreBookField } from "./persona-world-books-section.tsx";
@@ -75,7 +74,7 @@ function PersonaEditor({ persona, onDelete, nextDefaultName }: PersonaEditorProp
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
-  const baseMetadata: PersonaMetadata | null = persona.metadata;
+  const baseMetadata: PersonaWireMetadata = persona.metadata;
 
   const save = (values: PersonaFormValues): Promise<unknown> =>
     update.mutateAsync({
@@ -127,7 +126,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
   // composes), so a user macro genuinely resolves here; offering only three builtins was a taste list
   // standing in for the vocabulary.
   const macroSuggestions = usePromptMacroSuggestions();
-  const baseMetadata: PersonaMetadata | null = persona.metadata;
+  const baseMetadata: PersonaWireMetadata = persona.metadata;
 
   // The bytes are the SERVER's — the same file the backup bundle carries.
   const client = useTRPCClient();
@@ -308,7 +307,7 @@ function AvatarTrigger({ persona }: { readonly persona: PersonaDetail }): ReactE
 }
 
 /** Read-only provenance for a persona minted from a character card (`createFromCharacter`). */
-function ProvenanceChip({ metadata }: { readonly metadata: PersonaMetadata | null }): ReactElement | null {
+function ProvenanceChip({ metadata }: { readonly metadata: PersonaWireMetadata }): ReactElement | null {
   if (metadata?.sourceCharacterId === undefined) {
     return null;
   }

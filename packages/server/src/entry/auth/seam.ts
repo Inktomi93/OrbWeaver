@@ -417,8 +417,8 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * through the composed root) and the e2e debug-gate specs over `tests/e2e/support/debug-gate.ts` (each mode's
    * token states on a booted stack). Do not weaken this without turning those red first.
    *
-   * TOTAL — no throw, no await, no I/O: a record lookup plus the kernel's own caught verdict. The gate's
-   * `try`/`catch` (`routes.ts`) stays as the port's belt, not because this function has a failure mode.
+   * TOTAL — no throw, no await, no I/O: a record lookup plus the kernel's own caught verdict. The gate in
+   * `routes.ts` opens only on `true`, so a throw here would fail the request rather than admit it.
    */
   function debugGateAdmits(principal: Principal | null, headers: Headers): boolean {
     if (principal === null || !debugGateCredentialed(config, headers, ownerFallbackIsOperatorCredential)[principal.via]) {

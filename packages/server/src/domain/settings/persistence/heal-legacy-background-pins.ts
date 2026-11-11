@@ -33,7 +33,7 @@ import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import { requireIntactStoredConfig } from "#primitives/stored-config";
+import { isStoredConfigUnreadable, requireIntactStoredConfig } from "#primitives/stored-config";
 import { BACKGROUND_ASSET_KIND, pinnedBackgroundAssetIds } from "./queries.ts";
 
 /** The healed config: the current-selection pointer clears to "none" if it names a stale id; the library
@@ -85,17 +85,16 @@ export async function healLegacyBackgroundPins(handle: BootDatabaseHandle): Prom
   const rows = await db.select({ userId: userSettings.userId, config: userSettings.config, schemaVersion: userSettings.schemaVersion }).from(userSettings);
   let healed = 0;
   for (const row of rows) {
-    // an unreadable row is the intact guard's territory, not
-    // this heal's — `requireIntactStoredConfig` throwing here is the SAME refusal `writeUserConfig` raises
-    // at the user's own next write, so silently skipping it here duplicates no owner and drops no signal;
-    // the boot wrapper (`entry/boot/heal-legacy-background-pins.ts`) already logs the count this heal DID
-    // rewrite. Ends if this heal starts reporting skipped rows as a metric (then it belongs in that log).
+    // An unreadable row is the intact guard's territory: `writeUserConfig` raises the same refusal at the user's
+    // own next write, so skipping it here drops no signal. Any other failure is a fault and fails the boot step.
     try {
       if (await healOneUserBackgroundPins(db, row.userId, row.config, row.schemaVersion)) {
         healed++;
       }
-    } catch {
-      // Skipped — see the explanation above the try.
+    } catch (error) {
+      if (!isStoredConfigUnreadable(error)) {
+        throw error;
+      }
     }
   }
   return healed;

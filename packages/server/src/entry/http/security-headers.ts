@@ -67,30 +67,36 @@ import { requestTransport } from "#infra/auth";
 // frame would become a document with `script-src 'self'` and no `sandbox` directive, i.e. the exact
 // opposite of the intent, with nothing red.
 //
-// TWO MEMBERS, one class. `GET /api/card-frame/<id>` (D294 — a per-character trust grant widening
-// `img-src` for a model-authored card) and `GET /api/plugin-frame/<id>` (the plugin-UI
-// escape hatch — a plugin's own interface code in an isolated document). NOTHING ABOUT THE APP POLICY
-// ITSELF CHANGED when the second member landed: not one directive was added, removed or widened, and the
-// frames are same-origin so the `frame-src 'self'` belt below already admitted them. What changed is which
-// paths this middleware steps aside for, which is the mechanism this exemption has always been.
+// THREE MEMBERS, one class. `GET /api/card-frame/<id>` (D294 — a per-character trust grant widening
+// `img-src` for a model-authored card), `GET /api/plugin-frame/<id>` (the plugin-UI escape hatch — a
+// plugin's own interface code in an isolated document) and `GET /api/plugin-frame/<id>/asset` (that
+// document's passive image, served under `default-src 'none'; sandbox` with `Cross-Origin-Resource-Policy:
+// cross-origin` so the opaque-origin frame can load it). The app policy itself is the same for every member:
+// the frames are same-origin, so the `frame-src 'self'` rule below already admitted them. What a member adds
+// is a path this middleware steps aside for.
 //
-// The exemption is the DOCUMENT path only — each route's `POST` MINT is a JSON reply and keeps the full app
-// header set. The SERVED document and its MISS-404 both build their headers from their own file's
-// frame-header builder. What the exemption may NOT assume is that one of those arms ran at all — see
-// {@link securityHeaders}.
+// The exemption is the GET path only — each route's `POST` MINT is a JSON reply and keeps the full app
+// header set. The SERVED response and its MISS-404 build their headers in their own route file. What the
+// exemption may NOT assume is that one of those arms ran at all — see {@link securityHeaders}.
 //
 // Each prefix is DERIVED from its route's own contract constant, never re-typed here: a drifted copy would
 // not fail loudly, it would silently serve that document under the app policy.
 const CARD_FRAME_DOC_PREFIX = `${CARD_FRAME_ROUTE}/`;
-const OWN_POLICY_DOC_PREFIXES = [CARD_FRAME_DOC_PREFIX, PLUGIN_FRAME_DOC_PREFIX] as const;
 const PLUGIN_FRAME_ASSET_SUFFIX = "/asset";
-const CROSS_ORIGIN_RESOURCE_POLICY = "Cross-Origin-Resource-Policy";
-const CROSS_ORIGIN = "cross-origin";
-const OK_STATUS = 200;
+const NO_SUFFIX = "";
+/** Each own-policy route as its registered pattern: a contract prefix, one `:id` segment, then a fixed tail.
+ *  `tests/server/entry/http/own-policy-routes.int.test.ts` keys one case per member, so a new member with no case
+ *  fails `tsc`. */
+export const OWN_POLICY_ROUTES = {
+  cardFrameDocument: { prefix: CARD_FRAME_DOC_PREFIX, suffix: NO_SUFFIX },
+  pluginFrameDocument: { prefix: PLUGIN_FRAME_DOC_PREFIX, suffix: NO_SUFFIX },
+  pluginFrameAsset: { prefix: PLUGIN_FRAME_DOC_PREFIX, suffix: PLUGIN_FRAME_ASSET_SUFFIX },
+} as const;
+const OWN_POLICY_PATTERNS = Object.values(OWN_POLICY_ROUTES);
 
 /**
- * THE EXEMPTION IS A ROUTE-PATTERN MATCH, NEVER A PREFIX TEST. Both frame documents are registered
- * as `<prefix>:id`, and hono's path parameter matches exactly ONE segment (`LABEL_REG_EXP_STR = "[^/]+"`,
+ * THE EXEMPTION IS A ROUTE-PATTERN MATCH, NEVER A PREFIX TEST. Every own-policy route is registered
+ * as `<prefix>:id<suffix>`, and hono's path parameter matches exactly ONE segment (`LABEL_REG_EXP_STR = "[^/]+"`,
  * `node_modules/hono/dist/router/reg-exp-router/node.js`; the trie router splits on `/` for the same effect).
  * So `<prefix>a/b` matches NO handler — but a `startsWith` test still exempted it, and the framework's own
  * 404 then went out with NO security headers at all: no CSP, no `X-Frame-Options`, no `nosniff`, on a path
@@ -114,23 +120,13 @@ const OK_STATUS = 200;
  * sharing that one string, or an app-level `getPath` OPTION overriding it — we set neither.
  */
 function servesOwnPolicy(path: string): boolean {
-  return OWN_POLICY_DOC_PREFIXES.some((prefix) => {
-    if (!path.startsWith(prefix)) {
+  return OWN_POLICY_PATTERNS.some(({ prefix, suffix }) => {
+    if (!(path.startsWith(prefix) && path.endsWith(suffix) && path.length > prefix.length + suffix.length)) {
       return false;
     }
-    const id = path.slice(prefix.length);
-    return id.length > 0 && !id.includes("/");
+    const id = path.slice(prefix.length, path.length - suffix.length);
+    return !id.includes("/");
   });
-}
-
-// The sandboxed plugin document has an opaque origin, so its passive asset fetch needs CORP cross-origin.
-// Match the registered `/:id/asset` shape exactly; descendants and misses keep the app's default policy.
-function servesPluginFrameAsset(path: string): boolean {
-  if (!(path.startsWith(PLUGIN_FRAME_DOC_PREFIX) && path.endsWith(PLUGIN_FRAME_ASSET_SUFFIX))) {
-    return false;
-  }
-  const id = path.slice(PLUGIN_FRAME_DOC_PREFIX.length, -PLUGIN_FRAME_ASSET_SUFFIX.length);
-  return id.length > 0 && !id.includes("/");
 }
 
 /** The header {@link securityHeaders} reads to decide whether an exempt path's response actually came from
@@ -266,26 +262,11 @@ export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler
     return opts.allowExternalMedia() ? arm.allowed : arm.blocked;
   };
   return async (c, next) => {
-    const ownPolicy = servesOwnPolicy(c.req.path);
-    const pluginFrameAsset = servesPluginFrameAsset(c.req.path);
-    if (!(ownPolicy || pluginFrameAsset)) {
+    if (!servesOwnPolicy(c.req.path)) {
       await appPolicy(c)(c, next);
       return;
     }
     await next();
-    if (ownPolicy && c.res.headers.has(OWN_POLICY_HEADER)) {
-      return;
-    }
-    if (pluginFrameAsset) {
-      // Read the handler's authorization result before secureHeaders overwrites CORP. Only the successful
-      // passive-asset response carries this value; every refusal is stamped with the normal app policy below.
-      const allowOpaqueFrame = c.res.status === OK_STATUS && c.res.headers.get(CROSS_ORIGIN_RESOURCE_POLICY) === CROSS_ORIGIN;
-      await appPolicy(c)(c, RESPONSE_ALREADY_PRODUCED);
-      if (allowOpaqueFrame) {
-        c.res.headers.set(CROSS_ORIGIN_RESOURCE_POLICY, CROSS_ORIGIN);
-      }
-      return;
-    }
     if (!c.res.headers.has(OWN_POLICY_HEADER)) {
       // `hono/secure-headers` awaits its `next` and then `.set()`s onto `c.res`, so handing it a spent
       // chain writes the app headers onto the already-produced response without re-running anything.

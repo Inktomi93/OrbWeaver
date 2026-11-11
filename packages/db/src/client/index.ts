@@ -22,8 +22,13 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import * as schema from "#schema";
 import { backupNamePatterns, isBackupFileName, KEEP_DAILY_BACKUPS, KEEP_RECENT_BACKUPS } from "./backup-names.ts";
 
-/** The handle every domain's `context.ts` closes over. The `db` row types come off `typeof schema`. */
-export type Db = LibSQLDatabase<typeof schema>;
+// The drizzle database `createDb` builds. Only the migrator takes it whole.
+type DrizzleDb = LibSQLDatabase<typeof schema>;
+
+/** The handle every domain's `context.ts` closes over. The `db` row types come off `typeof schema`.
+ *  @remarks `transaction` is left off because `db.transaction` is banned (`.claude/rules/db.md`): the one atomic unit
+ *  is `batchMany` from `@orb/db/query`. */
+export type Db = Omit<DrizzleDb, "transaction">;
 
 /**
  * The read-only projection of {@link Db} — `select` (the query builder) + `query` (the relational API).
@@ -71,16 +76,20 @@ const TUNING_PRAGMAS = [
   "temp_store = MEMORY",
 ] as const;
 
-// `Db` (the public type) intentionally hides the driver client. `createDb` records it here for the operations
-// with no drizzle-level equivalent, such as `close()`.
-const driverClients = new WeakMap<Db, Client>();
+// `Db` (the public type) hides the driver client and the whole drizzle class. `createDb` records both here for the
+// operations with no `Db` spelling: `close()` on the client, and the migrator, which takes the whole class.
+const builtHandles = new WeakMap<Db, { readonly client: Client; readonly drizzle: DrizzleDb }>();
 
-function clientOf(db: Db): Client {
-  const client = driverClients.get(db);
-  if (client === undefined) {
+function builtHandle(db: Db): { readonly client: Client; readonly drizzle: DrizzleDb } {
+  const built = builtHandles.get(db);
+  if (built === undefined) {
     throw new Error("@orb/db: this handle was not built by createDb");
   }
-  return client;
+  return built;
+}
+
+function clientOf(db: Db): Client {
+  return builtHandle(db).client;
 }
 
 /** The native file client's path, retaining bare cwd-relative paths; undefined for non-file URLs. */
@@ -138,7 +147,7 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
       }
     }
     const db = drizzle(client, { schema });
-    driverClients.set(db, client);
+    builtHandles.set(db, { client, drizzle: db });
     return db;
   } catch (err) {
     base.close();
@@ -370,7 +379,7 @@ async function fkEnforcementSuspended(db: Db): Promise<AsyncDisposable> {
  */
 export async function runMigrations(db: Db, migrationsFolder: string): Promise<void> {
   await using _fkSuspended = await fkEnforcementSuspended(db);
-  await migrate(db, { migrationsFolder });
+  await migrate(builtHandle(db).drizzle, { migrationsFolder });
 }
 
 /**

@@ -366,6 +366,9 @@ const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server"
 // A suite of another module still needs its reach line below.
 const TEST_CONSTANT_HOMES = {
   "packages/client/src/data/query-state-copy.ts": "QUERY_WAITING_LINE and queryFailedLabel: the words of a read with no data",
+  "packages/server/src/entry/http/security-headers.ts": "OWN_POLICY_ROUTES: the own-policy route registration, one suite case per member",
+  "packages/server/src/entry/http/plugin-frame.ts": "PLUGIN_FRAME_CSP and PLUGIN_FRAME_ASSET_CSP: the policies the plugin frame routes write",
+  "packages/server/src/entry/http/card-frame.ts": "CARD_FRAME_FLOOR_CSP: the policy the card frame serves a document with no character under",
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
   "packages/server/src/transport/trpc/fault-copy.ts": "UNCLASSIFIED_FAULT_MESSAGE: the words the error formatter sends for every unclassified throw",
   "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
@@ -428,6 +431,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/contracts/src/chat/content-classes.ts": "CONTENT_CLASS_POLICY: the content-class projection table",
   "packages/contracts/src/chat/impersonation.ts": "impersonateStreamDeltaSchema: the impersonation delta parser",
   "packages/contracts/src/import/persona-collision.ts": "PERSONA_COLLISION_CHOICES: the collision choice vocabulary",
+  "packages/contracts/src/refinery/core.ts": "SCORE_MIN and SCORE_MAX: the score scale a custom score schema must keep",
   "packages/contracts/src/plugin/ui-host.ts": "PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX: the message read cap",
   "packages/contracts/src/plugin/view.ts": "PLUGIN_FANOUT_SKIP_REASONS: the fan-out skip vocabulary",
   "packages/contracts/src/prose-slot/index.ts": "proseOverrideFromLegacy: the legacy text lift",
@@ -447,7 +451,7 @@ const TEST_CONSTANT_HOMES = {
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
   "packages/client/src/data/import-tree-plan.ts": "planTreeImport: the folder import planner",
   "packages/client/src/features/workloads/lib/workloads-model.ts":
-    "WORKLOAD_KIND_LABELS, ASSET_KIND_ITEMS and toProgressView: the job and asset kind names the pickers print and the pure progress label rule",
+    "WORKLOAD_KIND_LABELS, ASSET_KIND_ITEMS, UNRESOLVED_OWNER_HANDLE and toProgressView: the job and asset kind names the pickers print, the owner name a row shows before its handle loads and the pure progress label rule",
   "packages/client/src/features/workloads/lib/portability-model.ts":
     "IMPORT_CONFIRM_NAMES, IMPORT_NOTHING_FOUND_NOTE and summarizeCardImport: the import review's control names, its empty-folder note and the pure summary rule",
   "packages/client/src/features/databank/lib/scrape-form-model.ts": "SCRAPE_FAILURE: the one failure line the add-document form and its toast both say",
@@ -530,8 +534,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/config/lib/theme-row-names.ts": "themeActionsName: the name of a Looks theme row's actions menu",
   "packages/client/src/features/workloads/lib/import-folder-copy.ts":
     "IMPORT_FOLDER_WRONG_FOLDER: the sentence the SillyTavern folder import prints when the folder is not a user folder",
-  "packages/client/src/features/character/lib/character-import-copy.ts":
-    "cardImportRefusalLine and its siblings: the character import dialog's refusal sentence for a picture that is not a card",
+  "packages/client/src/lib/card-import-copy.ts":
+    "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
   "packages/client/src/lib/use-focus-on-mount.ts":
     "PRESS_RENDER_WINDOW_MS: how long after a press a surface may still arrive from the body on that press's account",
   "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",
@@ -632,6 +636,10 @@ const SERVER_TEST_REACHES = {
   "tests/server/foundation/env/record/floor-defaults.test.ts": {
     "foundation/data-layout":
       "resolveDataLayout and LEGACY_ENTRIES: the record's slots are compared with an independent resolution, which no testkit door offers, and a keyed legacy entry exists only in the table",
+  },
+  // The CSRF suite walks the tRPC mount at a real mutation of the production router.
+  "tests/server/entry/http/csrf-route-coverage.int.test.ts": {
+    "transport/trpc": "appRouter: the production router whose first input-parsing mutation the suite walks",
   },
   "tests/server/entry/http/production-debug-posture.int.test.ts": {
     "foundation/env": "DEBUG_TOKEN_ENV: the secret env key the posture suite sets, which no testkit door names",
@@ -791,6 +799,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
     "packages/client/src/features/character/lib/character-card-form-model.ts": "DEFAULT_CHARACTER_CARD_FORM: the empty form the facet model reads",
   },
+  "tests/client/features/credentials/lib/include-body-overrides.dom.test.ts": {
+    "packages/client/src/features/credentials/lib/connection-editor-model.ts":
+      "parseIncludeBody and INCLUDE_BODY_SHAPE_REASON: the feature-private overrides reader and the refusal it shows",
+  },
   "tests/client/lib/bug-report-bundle.dom.test.ts": {
     "packages/client/src/lib/bug-report-bundle.ts":
       "sliceMotionEvidence: the motion slices the dev bug-report capture builds, whose only caller is that capture and which no door forwards",
@@ -834,9 +846,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
       "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys the section's three OS preference rows read",
   },
-  "tests/client/features/config/lib/appearance-setting-label.dom.test.ts": {
-    "packages/client/src/features/config/lib/appearance-setting-label.ts":
-      "appearanceSettingLabel: the lookup the Looks note names each Appearance setting by, walked over every key a theme import can name",
+  "tests/client/features/config/lib/appearance-setting-place.dom.test.ts": {
+    "packages/client/src/features/config/lib/appearance-setting-place.ts":
+      "appearanceSettingPlace: the lookup the Looks note names and places each Appearance setting by, walked over every key a theme import can name",
   },
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":
@@ -1272,6 +1284,14 @@ const TEST_WORLDS = [
     to: { path: ["^tests/support/node/composed\\.ts$", `${SRV}foundation/env/index\\.ts$`], dependencyTypesNot: ["type-only", "type-import"] },
   },
   {
+    name: "e2e-no-client-lib-barrel",
+    comment:
+      "The node-side e2e transform loads the whole @orb/client/lib barrel, including its .tsx re-exports, so a spec or helper imports each name from its own module (#client/lib/<module>.ts) instead (.claude/rules/browser-tests.md).",
+    severity: "error",
+    from: { path: "^tests/e2e/" },
+    to: { path: "^packages/client/src/lib/index\\.ts$" },
+  },
+  {
     name: "testkit-no-env-loader",
     comment:
       "The server env module loads the operator `.env` into every process that imports it, and the process seams import it, so testkit reaches the parsed record (foundation/env/record) instead. The two children exist to load that module in a process of their own. This rule reads each file's own imports: a reachable rule would follow the lazy loaders in the tooling doors, so tests/e2e/support/runner-env.int.test.ts holds the transitive reach by collecting both runners under a canary `.env`.",
@@ -1511,6 +1531,25 @@ const SERVER_AUTHORITY = [
     from: { path: `${SRV}foundation/env/record/index\\.ts$` },
     // `module` is listed because `createRequire` loads any host module past the static graph.
     to: { path: "^(node:)?(fs|fs/promises|os|process|child_process|module)$", reachable: true },
+  },
+  {
+    name: "domain-no-host-io",
+    comment:
+      "A domain holds business logic; filesystem, network, process and host I/O is an infra/ adapter, and env or host facts come from foundation/ (Core-0-Architecture-and-Structure.md §3). `module` and `vm` load code past the static graph. A type from a host module stays legal.",
+    severity: "error",
+    from: { path: `${SRV}domain/` },
+    to: {
+      path: "^(node:)?(fs|fs/promises|net|http|https|http2|child_process|dgram|dns|dns/promises|tls|cluster|worker_threads|readline|readline/promises|module|vm|os|process|inspector|inspector/promises|sqlite)$",
+      dependencyTypesNot: ["type-only"],
+    },
+  },
+  {
+    name: "domain-no-default-content",
+    comment:
+      "The composition root closes over the default-content readers and injects them, so seeders never learn where bytes come from (D160). A type the domain needs is declared in its own contract, so type-only imports are refused too.",
+    severity: "error",
+    from: { path: `${SRV}domain/` },
+    to: { path: "^packages/default-content/" },
   },
   {
     name: "infra-no-db",

@@ -9,11 +9,13 @@ import { absenceWindow, routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusP
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { IMPORT_FOLDER_WRONG_FOLDER } from "#client/features/workloads/lib/import-folder-copy.ts";
-import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_FOLDER_NAME, IMPORT_RESULT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_import-preview-stories/ImportPreviewStory";
 const TOAST_WINDOW_MS = 300;
+// Short enough that the pane's last section renders its refusal below the fold.
+const SHORT_WINDOW_PX = 320;
 // Counted by slot, not role: a modal marks the toaster aria-hidden, so a role query would miss a toast behind it.
 const TOAST_ROOT = '[data-slot="toast-root"]';
 
@@ -32,6 +34,7 @@ test("a folder with no SillyTavern library in it says what to pick instead, once
     "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
   });
   await routeOrbSocket(page);
+  await page.setViewportSize({ width: 960, height: SHORT_WINDOW_PX });
   await mount<typeof ImportPreviewStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
 
   const chooserPromise = page.waitForEvent("filechooser");
@@ -40,6 +43,9 @@ test("a folder with no SillyTavern library in it says what to pick instead, once
 
   await expect(page.getByRole("alert")).toHaveCount(1);
   await expect(page.getByRole("alert").getByText(IMPORT_FOLDER_WRONG_FOLDER, { exact: true })).toBeVisible();
+  // The refusal takes focus, and it is on screen however short the window.
+  await expect(page.getByRole("group", { name: IMPORT_RESULT_NAME })).toBeFocused();
+  await expect(page.getByRole("alert")).toBeInViewport();
   await absenceWindow(page, TOAST_WINDOW_MS);
   await expect(page.locator(TOAST_ROOT)).toHaveCount(0);
 });

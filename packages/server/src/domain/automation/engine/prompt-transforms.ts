@@ -17,6 +17,7 @@ import type { PromptTransform } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
+import { getLog } from "#foundation/observability";
 import type { PromptTransformIndex, PromptTransformIndexDeps, RuleRow } from "../contract/ops.ts";
 import { countChatMessages } from "../persistence/canon-reads.ts";
 import { loadEnabledTurnStartedRules, recordRuleError } from "../persistence/rules.ts";
@@ -180,13 +181,12 @@ export function createPromptTransformIndex(input: DbAssemblyInput<PromptTransfor
     reload: reconcile,
     isStale: (): boolean => stale,
     refresh: async (): Promise<void> => {
-      // DELIBERATE ABSORBER, the enabled index's twin
-      // (`substrate/enabled-index.ts` carries the full argument). The owner is the stale latch plus the
-      // watcher front door's retry; propagating would reject a rule mutation that already committed.
-      // Ends when a transform registration stops being reconcilable from canon.
+      // Ruled in `.claude/rules/server.md` (Lists, auth, events), the enabled index's twin: propagating would reject
+      // a rule mutation that already committed, so the failure is logged and latched until the watcher's retry.
       try {
         await reconcile();
-      } catch {
+      } catch (error) {
+        getLog(deps.logger).warn({ err: error }, "automation: the prompt-transform index reconcile failed; it is stale until a retry succeeds");
         stale = true;
       }
     },

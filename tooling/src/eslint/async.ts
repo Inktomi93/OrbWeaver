@@ -259,6 +259,188 @@ function escapedCatchClause(context: OrbRuleContext, thrown: TSESTree.ThrowState
   return clause;
 }
 
+const BLIND_CATCH_MESSAGE =
+  "This catch never reads its error and answers null or nothing, so a database fault or a programming error reads as an ordinary miss and reaches no log. " +
+  "Decide by the error's class and rethrow the rest (`if (!isResolveRefusal(error)) throw error;`). Where a ruling keeps every fault contained, cite it and log the error.";
+
+const RENAME_DEPTH = 3;
+
+// `await` and `Promise.resolve(...)` carry their operand's answer, so `return Promise.resolve(null)` answers nothing too.
+function isNoAnswer(argument: TSESTree.Node | null | undefined): boolean {
+  if (argument === null || argument === undefined) {
+    return true;
+  }
+  const value = unwrapTransparent(argument);
+  if (value.type === AST_NODE_TYPES.AwaitExpression) {
+    return isNoAnswer(value.argument);
+  }
+  if (isPromiseResolve(value)) {
+    return isNoAnswer(value.arguments[0]);
+  }
+  return (
+    (value.type === AST_NODE_TYPES.Literal && value.raw === "null") ||
+    (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined") ||
+    (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "void")
+  );
+}
+
+function isPromiseResolve(node: TSESTree.Node): node is TSESTree.CallExpression {
+  if (node.type !== AST_NODE_TYPES.CallExpression || node.callee.type !== AST_NODE_TYPES.MemberExpression) {
+    return false;
+  }
+  const { object, property } = node.callee;
+  return object.type === AST_NODE_TYPES.Identifier && object.name === "Promise" && property.type === AST_NODE_TYPES.Identifier && property.name === "resolve";
+}
+
+// A read that discards the value (`void error`, a bare `error;`) or only renames it into a binding nothing reads
+// leaves the error as unexamined as no binding at all.
+function usedRead(context: OrbRuleContext, identifier: TSESTree.Node, depth: number): boolean {
+  let current = identifier;
+  while (TRANSPARENT_PARENTS.has(current.parent?.type ?? "")) {
+    current = current.parent as TSESTree.Node;
+  }
+  const parent = current.parent;
+  if (parent === undefined || parent.type === AST_NODE_TYPES.ExpressionStatement) {
+    return false;
+  }
+  if (parent.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "void") {
+    return false;
+  }
+  const renamed = renamedInto(parent, current);
+  if (renamed?.type !== AST_NODE_TYPES.Identifier) {
+    return true;
+  }
+  return depth > 0 && variableUsed(context, lexicalVariable(context, renamed), depth - 1);
+}
+
+function renamedInto(parent: TSESTree.Node, current: TSESTree.Node): TSESTree.Node | undefined {
+  if (parent.type === AST_NODE_TYPES.VariableDeclarator && parent.init === current) {
+    return parent.id;
+  }
+  return parent.type === AST_NODE_TYPES.AssignmentExpression && parent.right === current ? parent.left : undefined;
+}
+
+function variableUsed(context: OrbRuleContext, variable: ReturnType<typeof lexicalVariable>, depth: number): boolean {
+  return variable?.references.some((reference) => reference.isRead() && usedRead(context, reference.identifier, depth)) === true;
+}
+
+// Every name the parameter binds, a destructured field included, counts only when it is itself read; `catch ({})` binds
+// nothing and so reads nothing.
+function readsCaughtError(context: OrbRuleContext, clause: TSESTree.CatchClause): boolean {
+  return context.sourceCode.getDeclaredVariables(clause).some((variable) => variableUsed(context, variable, RENAME_DEPTH));
+}
+
+// Only `return` and `throw` end a catch with an answer. A `break` or `continue` that leaves the catch answers nothing,
+// and the rule marks that catch where it meets the jump; `left` holds every statement some `break` leaves.
+function endsAbruptly(statement: TSESTree.Statement, left: ReadonlySet<TSESTree.Node>): boolean {
+  switch (statement.type) {
+    case AST_NODE_TYPES.ReturnStatement:
+    case AST_NODE_TYPES.ThrowStatement:
+      return true;
+    case AST_NODE_TYPES.BlockStatement:
+      return statement.body.some((inner) => endsAbruptly(inner, left));
+    case AST_NODE_TYPES.IfStatement:
+      return statement.alternate !== null && endsAbruptly(statement.consequent, left) && endsAbruptly(statement.alternate, left);
+    case AST_NODE_TYPES.SwitchStatement:
+      return switchEndsAbruptly(statement, left);
+    case AST_NODE_TYPES.TryStatement:
+      return (
+        (statement.finalizer !== null && endsAbruptly(statement.finalizer, left)) ||
+        (endsAbruptly(statement.block, left) && (statement.handler === null || endsAbruptly(statement.handler.body, left)))
+      );
+    default:
+      return false;
+  }
+}
+
+// A switch answers on every path when it has a `default`, no `break` leaves it at any depth, and its last case ends
+// abruptly: every earlier case then either ends abruptly or falls through into the next.
+function switchEndsAbruptly(statement: TSESTree.SwitchStatement, left: ReadonlySet<TSESTree.Node>): boolean {
+  const last = statement.cases.at(-1);
+  return (
+    last !== undefined &&
+    statement.cases.some((branch) => branch.test === null) &&
+    !left.has(statement) &&
+    last.consequent.some((inner) => endsAbruptly(inner, left))
+  );
+}
+
+const LOOP_NODES: ReadonlySet<string> = new Set([
+  AST_NODE_TYPES.ForStatement,
+  AST_NODE_TYPES.ForInStatement,
+  AST_NODE_TYPES.ForOfStatement,
+  AST_NODE_TYPES.WhileStatement,
+  AST_NODE_TYPES.DoWhileStatement,
+]);
+
+// The statement a jump leaves: its label's statement, else the nearest loop, or for a `break` the nearest switch.
+function jumpTarget(context: OrbRuleContext, jump: TSESTree.BreakStatement | TSESTree.ContinueStatement): TSESTree.Node | undefined {
+  for (const node of context.sourceCode.getAncestors(jump).toReversed()) {
+    if (FUNCTION_NODES.has(node.type)) {
+      return undefined;
+    }
+    if (jump.label !== null) {
+      if (node.type === AST_NODE_TYPES.LabeledStatement && node.label.name === jump.label.name) {
+        return node.body;
+      }
+    } else if (LOOP_NODES.has(node.type) || (jump.type === AST_NODE_TYPES.BreakStatement && node.type === AST_NODE_TYPES.SwitchStatement)) {
+      return node;
+    }
+  }
+  return undefined;
+}
+
+// The catch clause whose body holds `node` with no function boundary between them. A `return`, `break` or `throw` in a
+// `finally` is Biome's `lint/correctness/noUnsafeFinally`, so this rule judges catch clauses only.
+function owningCatch(context: OrbRuleContext, node: TSESTree.Node): TSESTree.CatchClause | undefined {
+  const boundary = context.sourceCode
+    .getAncestors(node)
+    .findLast((ancestor) => FUNCTION_NODES.has(ancestor.type) || ancestor.type === AST_NODE_TYPES.CatchClause);
+  return boundary?.type === AST_NODE_TYPES.CatchClause ? boundary : undefined;
+}
+
+export const blindCatchRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const unanswered = new Set<TSESTree.CatchClause>();
+    const left = new Set<TSESTree.Node>();
+    const jump = (statement: TSESTree.BreakStatement | TSESTree.ContinueStatement): void => {
+      const target = jumpTarget(context, statement);
+      if (target === undefined) {
+        return;
+      }
+      left.add(target);
+      // Every catch between the jump and the statement it leaves is left with no answer.
+      for (const node of context.sourceCode.getAncestors(statement).toReversed()) {
+        if (node === target) {
+          return;
+        }
+        if (node.type === AST_NODE_TYPES.CatchClause) {
+          unanswered.add(node);
+        }
+      }
+    };
+    return {
+      ReturnStatement: (statement: TSESTree.ReturnStatement) => {
+        const clause = isNoAnswer(statement.argument) ? owningCatch(context, statement) : undefined;
+        if (clause !== undefined) {
+          unanswered.add(clause);
+        }
+      },
+      BreakStatement: jump,
+      ContinueStatement: jump,
+      "CatchClause:exit": (clause: TSESTree.CatchClause) => {
+        if (readsCaughtError(context, clause)) {
+          return;
+        }
+        if (unanswered.has(clause) || !endsAbruptly(clause.body, left)) {
+          context.report({ node: clause, message: BLIND_CATCH_MESSAGE });
+        }
+      },
+    };
+  },
+};
+
 export const detachedWorkRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {

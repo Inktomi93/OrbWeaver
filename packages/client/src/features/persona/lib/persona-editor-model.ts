@@ -5,8 +5,9 @@
 // The name rides the form with the details (the editor's identity row). avatarAssetId stays a standalone
 // patch (an upload, not a typed value) and starred stays the row's own patch.
 
-import type { PersonaMetadata, UpdatePersonaInput } from "@orb/contracts/persona";
+import type { UpdatePersonaInput } from "@orb/contracts/persona";
 import { isAssistantPrefill } from "@orb/kit/injection";
+import type { JsonObject } from "@orb/kit/json";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
@@ -14,6 +15,8 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
 type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
+/** The metadata a persona read carried over the wire. */
+export type PersonaWireMetadata = PersonaDetail["metadata"];
 
 const DEFAULT_INJECT_DEPTH = 2;
 const DEFAULT_INJECT_ROLE: MessageRole = "system";
@@ -60,12 +63,12 @@ export function personaFormFromEntity(persona: PersonaDetail): PersonaFormValues
  *  button to gate an invalid combo), an assistant\@depth-0 prefill combo is withheld: the mapper
  *  re-emits the base's last-saved placement untouched so the rejected value never reaches the wire,
  *  while sibling edits (title/description) still persist. */
-function metadataFromForm(values: PersonaFormValues, base: PersonaMetadata | null): Record<string, unknown> {
+function metadataFromForm(values: PersonaFormValues, base: PersonaWireMetadata): JsonObject {
   const baseEntries = Object.entries(base ?? {});
   if (isPrefillCombo(values)) {
     return Object.fromEntries(baseEntries);
   }
-  const next: Record<string, unknown> = {};
+  const next: JsonObject = {};
   for (const [key, value] of baseEntries) {
     if (key !== "inject" && key !== "descriptionPosition") {
       next[key] = value;
@@ -80,7 +83,7 @@ function metadataFromForm(values: PersonaFormValues, base: PersonaMetadata | nul
 
 /** Build the persona.update partial input from the form values. avatarAssetId/starred are never sent from
  *  here; the form holds the write while the name is blank. */
-export function personaInputFromForm(values: PersonaFormValues, base: PersonaMetadata | null): UpdatePersonaInput {
+export function personaInputFromForm(values: PersonaFormValues, base: PersonaWireMetadata): UpdatePersonaInput {
   return {
     name: values.name.trim(),
     title: values.title.trim() === "" ? null : values.title,

@@ -27,6 +27,7 @@
 // file's own read predicate) so a second boot, or a concurrent write that already stamped the row, matches
 // zero rows rather than re-minting on top of a settled value.
 
+import type { CharacterCard } from "@orb/contracts/character";
 import { pluginImportedFrom } from "@orb/contracts/character";
 import { PLUGIN_TOOL_NAME_PREFIX } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
@@ -40,7 +41,7 @@ import type { BackfillPluginProvenanceResult } from "../contract/results.ts";
 interface Candidate {
   readonly id: CharacterId;
   readonly ownerId: UserId;
-  readonly extensions: Record<string, unknown> | null;
+  readonly extensions: CharacterCard["extensions"];
   readonly importHash: string;
 }
 
@@ -49,7 +50,7 @@ interface Candidate {
  *  hazard from a later `_` inside the slug itself. Object key order is insertion order (the only plugin that
  *  would ever call `setCardData` on a card it did not ingest is a distinct, later-installed one, so "first"
  *  reads as "earliest-written", the ingesting plugin's own post-import stamp). */
-function firstPluginSlug(extensions: Record<string, unknown> | null): string | null {
+function firstPluginSlug(extensions: CharacterCard["extensions"]): string | null {
   if (extensions === null) {
     return null;
   }

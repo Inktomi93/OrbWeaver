@@ -146,9 +146,6 @@ test("request-sensitive corpus embeddings preserve real near-duplicates without 
   }
   expect(search.hits.map((hit) => hit.characterId).toSorted()).toEqual(pair.map((card) => card.id).toSorted());
   const generation = await root.app.embeddings.resolveGeneration(root.ownerId, "embed");
-  if (generation === null) {
-    throw new Error("native encoder generation was not resolved");
-  }
   const inputs = [query, "An unrelated cobalt ferry leaves the estuary."];
   const batch = await generation.connection.embed(inputs, { inputType: "document" });
   const single = await generation.connection.embed(query, { inputType: "query" });

@@ -3,7 +3,7 @@
 // core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
 // the flatten-to-create-input validation seam, and card tag extraction (cardFromJson drops data.tags).
 //
-// Pure: no DB, no fs, no logger. A parse failure returns null, never throws.
+// Pure: no DB, no fs, no logger. Text that is not JSON returns null; only a defect throws.
 
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import {
@@ -19,6 +19,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
@@ -168,27 +169,22 @@ function extractCardTags(raw: unknown): string[] {
 }
 
 function fromText(text: string, fallbackName: string, artHash: string | null): ParsedCard | null {
-  // the `null` is read by every caller: `createImportCharacter`
-  // throws `ImportCardError("card_unreadable")`, `restoreCharacterBook` answers `ok: false`, and `collectCards`
-  // pushes the file onto `unreadableCards`. The try holds no I/O. Ends if a caller stops checking `null`.
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (typeof parsed !== "object" || parsed === null) {
-      return null;
-    }
-    return {
-      card: cardFromJson(parsed, fallbackName),
-      tags: extractCardTags(parsed),
-      book: extractBulkImportLorebook(parsed),
-      attachedBooks: extractAttachedBooks(parsed),
-      attachedRegexScripts: extractAttachedRegexScripts(parsed),
-      artHash,
-      handle: extractCarriedHandle(parsed),
-      background: extractCarriedBackground(parsed),
-    };
-  } catch {
+  // Every caller reads the `null`: `createImportCharacter` throws `ImportCardError("card_unreadable")`,
+  // `restoreCharacterBook` answers `ok: false`, and `collectCards` records the file in `unreadableCards`.
+  const parsed = parseJsonText(text);
+  if (typeof parsed !== "object" || parsed === null) {
     return null;
   }
+  return {
+    card: cardFromJson(parsed, fallbackName),
+    tags: extractCardTags(parsed),
+    book: extractBulkImportLorebook(parsed),
+    attachedBooks: extractAttachedBooks(parsed),
+    attachedRegexScripts: extractAttachedRegexScripts(parsed),
+    artHash,
+    handle: extractCarriedHandle(parsed),
+    background: extractCarriedBackground(parsed),
+  };
 }
 
 /** JSON rides in a base64 ccv3 (V3, preferred) or chara (V2) tEXt/zTXt chunk. Async because the codec's

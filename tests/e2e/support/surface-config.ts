@@ -569,7 +569,7 @@ async function groupJourney(flow: SurfaceWalk, id: ConfigGroupId): Promise<void>
 }
 
 async function regex(flow: SurfaceWalk): Promise<void> {
-  const name = `Surface regex ${flow.pass} ${Date.now()}`;
+  const name = `Surface regex ${flow.pass} ${flow.ids.uuid()}`;
   try {
     await category(flow, "regex");
     const content = flow.page.locator(CONTENT);
@@ -673,7 +673,7 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     );
   }
 
-  const name = `Surface ${flow.pass} ${Date.now()}`;
+  const name = `Surface ${flow.pass} ${flow.ids.uuid()}`;
   try {
     await category(flow, "worldInfo");
     const content = flow.page.locator(CONTENT);

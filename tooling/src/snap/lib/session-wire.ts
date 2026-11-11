@@ -4,6 +4,7 @@
 // null to anything off-grammar — a daemon on another protocol version, a truncated row, a torn line —
 // so nothing half-read is ever mistaken for a verdict. Split from ./session-plan.ts (the partition,
 // verdicts and refusal texts); pinned by tests/tooling/snap/lib/session-wire.test.ts.
+import { parseJsonText } from "@orb/kit/json";
 import type { OrbConsoleCompleteness, OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
 import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION } from "../contract/run-facts.ts";
@@ -24,14 +25,11 @@ function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }
 
+// A torn line is null: the daemon answers it as a protocol error, the client rejects it, and the registry reads it as an
+// absent session.
 function parseJsonObject(text: string): Record<string, unknown> | null {
-  // a torn line returns null; the daemon answers a null request with `SESSION PROTOCOL ERROR` and a toolError `done` (ops/session-daemon.ts:220), the client rejects a null event line (ops/session-client.ts:88), and a null row reads as an absent session (ops/session-registry.ts:66). Ends if a caller needs the parse error text.
-  try {
-    const value: unknown = JSON.parse(text);
-    return isRecord(value) ? value : null;
-  } catch {
-    return null;
-  }
+  const value = parseJsonText(text);
+  return isRecord(value) ? value : null;
 }
 
 function isSessionRequestKind(value: unknown): value is SessionRequest["kind"] {

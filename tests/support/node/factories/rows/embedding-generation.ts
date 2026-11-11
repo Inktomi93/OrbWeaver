@@ -49,9 +49,6 @@ export async function seedEmbeddingGenerationRows(
   const db = root.db;
   const resolveGeneration = root.app.embeddings.resolveGeneration;
   const resolved = await resolveGeneration(...params);
-  if (resolved === null) {
-    throw new Error("production embedding resolution produced no generation");
-  }
   const [generation, target] = await Promise.all([
     db.select().from(embedGenerations).where(eq(embedGenerations.id, resolved.id)).get(),
     db

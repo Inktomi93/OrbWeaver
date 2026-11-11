@@ -987,17 +987,10 @@ function preTurnCoveragePoint(args: {
   return !isCoveredByCompaction(coverage, args.currentCoverage) && coversCanon(coverage, args.canonAll) ? coverage : undefined;
 }
 
-/** Emit a bus event, swallowing any failure — a background warning/update must never re-throw out of the
- *  fire-and-forget compaction body (and a nested `.catch` trips noNestedPromises). */
-async function emitQuiet(deps: EngineDeps, event: DurableChatBusEvent): Promise<void> {
-  // `deps.emit` is the chat bus, which already
-  // classifies + reports a dropped append (FLAG[emit-is-total], bus.ts) and never rejects in practice — this
-  // is the fire-and-forget background-hook's own belt. Ends if `emit` grows a path that can actually reject.
-  try {
-    await deps.emit(event);
-  } catch {
-    // A failed emit must never surface from the background hook.
-  }
+/** Emit a background warning or update and discard the bus's result. `deps.emit` is total (FLAG[emit-is-total],
+ *  bus.ts): it classifies and reports a dropped append itself and never rejects, so a hook needs no catch. */
+async function emitBackground(deps: EngineDeps, event: DurableChatBusEvent): Promise<void> {
+  await deps.emit(event);
 }
 
 /** The fresh marker + coverage stamp a pre-turn compaction produced, overlaid onto THIS turn's assemble ctx so
@@ -1096,7 +1089,7 @@ async function runPreTurnCompaction(ctx: EngineContext, deps: OwnedEngineDeps, p
   }
   if (overlay !== null) {
     const reloaded = await loadCanonHistory(ctx.db, chatId);
-    await emitQuiet(deps, { type: "chatUpdated", chatId });
+    await emitBackground(deps, { type: "chatUpdated", chatId });
     return { canonAll: reloaded, maxSeq: reloaded.at(-1)?.seq ?? 0, compactionOverlay: overlay, markerFailed: false };
   }
   // The marker failed: the turn proceeds on the current canon, and `emitTrimmedNoSummary` raises the no-wall
@@ -1118,7 +1111,7 @@ interface PreTurnCompaction {
  *  Degraded-and-loud: the warning reads the turn's REAL drop count, the one source that knows the fit trimmed. */
 async function emitTrimmedNoSummary(deps: EngineDeps, chatId: ChatId, pre: PreTurnCompaction, result: { readonly droppedCount: number }): Promise<void> {
   if (pre.markerFailed && result.droppedCount > 0) {
-    await emitQuiet(deps, { type: "warning", chatId, code: "context_trimmed_no_summary" });
+    await emitBackground(deps, { type: "warning", chatId, code: "context_trimmed_no_summary" });
   }
 }
 
@@ -1171,13 +1164,13 @@ function fireManagedCompaction(
         // surface. An EMPTY generation over a real span THROWS (handled below), never a silent `updated:false`.
         if (res.updated) {
           // The divider re-reads previewContextFit and picks up the memory fact.
-          await emitQuiet(deps, { type: "chatUpdated", chatId });
+          await emitBackground(deps, { type: "chatUpdated", chatId });
         }
       } catch (compactErr) {
         // FAILURE-HONEST: a thrown marker build (provider error OR empty generation) leaves the existing marker
         // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
         getLog(ctx.logger).warn({ err: compactErr, chatId }, "chat: managed compaction failed");
-        await emitQuiet(deps, { type: "warning", chatId, code: "compaction_failed" });
+        await emitBackground(deps, { type: "warning", chatId, code: "compaction_failed" });
         // Rethrow so the span marks itself ERROR (I-7: previously swallowed here too). Still fire-and-forget —
         // the outer `.catch` below absorbs it.
         throw compactErr;
@@ -1753,7 +1746,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       logger: ctx.logger,
       onObservedResult: observations.onObservedResult,
       passageCounter: ctx.passageCounter,
-      onFitNotice: (code): Promise<void> => emitQuiet(deps, { type: "warning", chatId: prep.chatId, code }),
+      onFitNotice: (code): Promise<void> => emitBackground(deps, { type: "warning", chatId: prep.chatId, code }),
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,

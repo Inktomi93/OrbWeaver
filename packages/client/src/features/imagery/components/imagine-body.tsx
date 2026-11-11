@@ -39,10 +39,10 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { IMAGE_MODE_LABELS, ROOM_PICTURES_NOTE, useElapsedSeconds, viewerTimeZone } from "#lib";
+import { IMAGE_MODE_LABELS, ROOM_PICTURES_NOTE, useElapsedSeconds, useFocusOnSwap, viewerTimeZone } from "#lib";
 import type { ImagineSeed } from "#state";
 import { closeModal, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
@@ -86,6 +86,9 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const [count, setCount] = useState(MIN_IMAGE_COUNT);
   const [size, setSize] = useState<SizePresetName | undefined>(undefined);
   const [negative, setNegative] = useState("");
+  // The prompt is the dialog's one task, and Generate stays off until it has words.
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+  useFocusOnSwap(promptRef);
   const modeLabelId = useId();
   const trpc = useTRPC();
   const room = useImagineRoom(trpc, seed.chatId);
@@ -176,6 +179,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         <Textarea
           aria-label={IMAGINE_PROMPT_NAME}
           maxRows={PROMPT_MAX_ROWS}
+          ref={promptRef}
           onValueChange={(value): void => setPrompt(value)}
           placeholder={isExtraction ? "Read the chat to fill this, or type your own." : "Describe the image to generate…"}
           rows={PROMPT_ROWS}

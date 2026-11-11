@@ -3,6 +3,7 @@ import { statementToken } from "@orb/db/wiring-owner";
 import type { ExternalId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { Sealed } from "#infra/crypto";
+import { SealedOpenError } from "#infra/crypto";
 import type { RevokedSession, RevokedSessionsSummary } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import {
@@ -39,11 +40,13 @@ function openIdTokenHint(ctx: SessionsContext, sealed: Sealed | null, sessionId:
   if (sealed === null) {
     return null;
   }
-  // the owner is the `getLog(ctx.logger).warn` below inside this catch, which records the failed open with the session id; the reader credits a log only when it carries the caught binding, and this catch is bindingless on purpose so the raw GCM error stays out of the record. Ends if that warn is removed or the end-session hint becomes required for a correct logout.
   try {
     return ctx.openIdToken(sealed, sessionId);
-  } catch {
-    getLog(ctx.logger).warn({ sessionId }, "session: stored OIDC id_token could not be opened — signing out without an end-session hint");
+  } catch (error) {
+    if (!(error instanceof SealedOpenError)) {
+      throw error;
+    }
+    getLog(ctx.logger).warn({ sessionId, reason: error.reason }, "session: stored OIDC id_token could not be opened — signing out without an end-session hint");
     return null;
   }
 }

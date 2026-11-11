@@ -60,7 +60,8 @@ export function createAppSettings(ctx: SettingsContext): AppSettingsVerbs {
         action: "settings.updateAppSettings",
         entityType: "settings",
         entityId: APP_SETTINGS_KEY,
-        metadata: { value: merged },
+        // The audit records the blob as stored, version stamp included.
+        metadata: { value },
       },
       at,
     );

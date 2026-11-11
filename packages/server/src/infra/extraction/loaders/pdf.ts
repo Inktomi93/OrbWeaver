@@ -87,15 +87,11 @@ function assemblePage(items: readonly (TextItem | TextMarkedContent)[]): string 
   return lines.join(LINE_SEPARATOR);
 }
 
-/** The info-dict `Title`, trimmed, when present + non-empty. A metadata read failure never fails extraction. */
+/** The info-dict `Title`, trimmed, when present + non-empty. pdfjs itself reads a malformed info dictionary or XMP
+ *  stream as absent (its `documentInfo` and `metadata` getters catch everything but missing range data, and this
+ *  loader hands it the whole file), so a throw here is a fault in the document task and fails the extraction. */
 async function readTitle(doc: PDFDocumentProxy): Promise<string | undefined> {
-  let info: object = {};
-  // a PDF metadata read failure collapses to "no title" — no credential/auth/crypto path, the title is derived display-only content, so a malformed info dict can never fail extraction or leak. Ends if getMetadata()'s result ever gates a security decision.
-  try {
-    ({ info } = await doc.getMetadata());
-  } catch {
-    // A metadata read failure must never fail extraction — treat it as "no title".
-  }
+  const { info } = await doc.getMetadata();
   const raw = (info as Record<string, unknown>)["Title"];
   const title = typeof raw === "string" ? raw.trim() : "";
   return title.length > 0 ? title : undefined;

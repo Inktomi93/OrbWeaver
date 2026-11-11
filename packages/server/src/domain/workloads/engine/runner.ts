@@ -22,7 +22,7 @@ import type { UserId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WorkloadContribution } from "../contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../contract/service.ts";
-import type { WorkloadClaim } from "../contract/workload-row.ts";
+import type { StoredWorkloadResult, WorkloadClaim } from "../contract/workload-row.ts";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
 import { assertRunAuthority, runAccount } from "../substrate/params.ts";
 
@@ -43,7 +43,7 @@ const WORKLOAD_FAILED = "WORKLOAD_FAILED";
 function dispatchAndRun(
   deps: WorkloadRunnerDeps,
   args: { ctx: WorkloadRunContext; row: WorkloadRunnableRow; report: ReportProgress; signal: AbortSignal },
-): Promise<unknown> {
+): Promise<StoredWorkloadResult> {
   const contribution = deps.contributions[args.row.kind] as WorkloadContribution;
   return contribution.run(args.ctx, args.row.params, args.report, args.signal);
 }
@@ -186,7 +186,7 @@ async function finishCancelled(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
 
 /** Stamp the SUCCESS outcome: cancelled if aborted mid-run (the pin); else succeeded; else cancelling-pin;
  *  else a zombie (row already reaped) → nothing. */
-async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, args: { aborted: boolean; result: unknown }): Promise<void> {
+async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, args: { aborted: boolean; result: StoredWorkloadResult }): Promise<void> {
   if (args.aborted) {
     await finishCancelled(deps, row, deps.now());
     return;
@@ -308,7 +308,9 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
     return await dispatchAndRun(deps, { ctx, row, report, signal: controller.signal });
   });
   let leaseFailed = false;
-  let outcome: { readonly kind: "success"; readonly result: unknown } | { readonly kind: "failure"; readonly err: unknown; readonly aborted: boolean };
+  let outcome:
+    | { readonly kind: "success"; readonly result: StoredWorkloadResult }
+    | { readonly kind: "failure"; readonly err: unknown; readonly aborted: boolean };
   // owned by outcome: the catch classifies the throw into outcome.kind "failure", and finalizeFailure marks the row failed and audits it. Ends if outcome stops reaching finalizeFailure.
   try {
     const result = await Promise.race([contribution, lease.failure]);

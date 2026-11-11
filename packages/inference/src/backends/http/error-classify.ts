@@ -11,6 +11,7 @@
 import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ModelId } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import type { ProviderScrubSet } from "#contract";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
 import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "#src/contract/http.ts";
@@ -129,16 +130,8 @@ function parseBody(body: unknown): unknown {
   if (isRecord(body)) {
     return body;
   }
-  return typeof body === "string" && body.includes("reasons") ? safeJsonParse(body) : undefined;
-}
-
-function safeJsonParse(text: string): unknown {
-  try {
-    return JSON.parse(text);
-    // a non-JSON body is not a moderation block: isModerationBlock at error-classify.ts:148 reads the null as false, and the original provider error is still classified and thrown by the caller. Ends if null can begin authorizing a more specific classification.
-  } catch {
-    return null;
-  }
+  // A non-JSON body parses to `undefined`, which is not a moderation block; the caller still classifies the error.
+  return typeof body === "string" && body.includes("reasons") ? parseJsonText(body) : undefined;
 }
 
 function isModerationBlock(error: unknown): boolean {

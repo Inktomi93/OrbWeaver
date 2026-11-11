@@ -10,6 +10,7 @@ import { REFINERY_STAGE_PAYLOADS, refineryCustomStageConfigSchema } from "@orb/c
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { StageResolution } from "../contract/prompts.ts";
 import type { RefineryContext } from "../contract/service.ts";
@@ -66,7 +67,8 @@ export async function resolveStageResolution(
   return {
     kind: "custom",
     runConfig: { kind: "custom", schemaId: row.id, schemaVersion: row.version, schema: row.schema },
-    payloadSchema: lifted,
+    // The lifted schema strips to declared keys, and a model reply is JSON, so the pipe only states the column type.
+    payloadSchema: lifted.pipe(jsonObjectSchema),
     responseFormat: { name: row.name, schema: projected },
     shapeText: customShapeTextOf(projected),
     instruction: row.description,

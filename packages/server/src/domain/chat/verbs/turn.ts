@@ -50,7 +50,8 @@ import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { Resolved, WireTool } from "@orb/inference";
-import { resolveSideGenSampling } from "@orb/inference";
+import { ProviderError, resolveSideGenSampling } from "@orb/inference";
+import { DomainError, DomainInternalFaultError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -1547,19 +1548,27 @@ function isAutoSwipeRejected(content: string, cfg: ChatBehaviorInputs["autoSwipe
   return tooShort || blacklisted;
 }
 
-/** Runs ONE auto-behavior follow-up (swipe/continue) and returns its committed tip, or null on any failure —
- *  non-fatal, mirroring neo: the already-committed reply stands and the loop stops. */
-async function runAutoFollowUp(run: () => Promise<TurnOutcome>): Promise<MessageView | null> {
-  // documented above — non-fatal, mirrors neo: the
-  // already-committed reply stands and the loop stops; the `null` is the consumed result the caller checks.
-  // Ends if a follow-up failure needs to surface to the turn's own caller.
+/** Runs ONE auto-behavior follow-up (swipe/continue) and returns its committed tip, or null when it failed —
+ *  non-fatal, mirroring neo: the already-committed reply stands and the loop stops. A refusal or a provider failure
+ *  stays quiet; a fault (an invariant tripwire, a database error, a defect) is logged at error, and the send still
+ *  answers with its committed reply: background housekeeping stays silent to the person. */
+async function runAutoFollowUp(frame: AutoFrame, kind: AutoFollowUpKind, target: MessageView, run: () => Promise<TurnOutcome>): Promise<MessageView | null> {
   try {
     const outcome = await run();
     return outcome.messages.at(-1) ?? null;
-  } catch {
+  } catch (error) {
+    const refused = (error instanceof DomainError && !(error instanceof DomainInternalFaultError)) || error instanceof ProviderError;
+    if (!refused) {
+      getLog(frame.logger).error(
+        { err: error, chatId: frame.chatId, messageId: target.id, followUp: kind },
+        "chat: an auto follow-up faulted after the reply committed; the send answers with the committed reply",
+      );
+    }
     return null;
   }
 }
+
+type AutoFollowUpKind = "auto-swipe" | "auto-continue";
 
 /** The resolved auto-behavior frame: the acting principal + chat + the send's viewer zone (each follow-up reads
  *  the clock the send did) + the abort signal that short-circuits a follow-up loop, shared by the swipe/continue
@@ -1569,6 +1578,7 @@ interface AutoFrame {
   readonly chatId: ChatId;
   readonly timeZone: SendParams["timeZone"];
   readonly signal: AbortSignal;
+  readonly logger: ChatContext["logger"];
 }
 
 /** The bounded auto-swipe loop: regenerate the rejected reply, re-checking each fresh variant, up to the
@@ -1579,7 +1589,9 @@ async function runAutoSwipe(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Messa
   let current = tip;
   for (let i = 0; i < cfg.maxRetries && !frame.signal.aborted; i += 1) {
     const target = current;
-    const next = await runAutoFollowUp(() => auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id, timeZone: frame.timeZone }));
+    const next = await runAutoFollowUp(frame, "auto-swipe", target, () =>
+      auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id, timeZone: frame.timeZone }),
+    );
     if (next === null) {
       break;
     }
@@ -1602,7 +1614,7 @@ async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Me
       break;
     }
     const target = current;
-    const next = await runAutoFollowUp(() =>
+    const next = await runAutoFollowUp(frame, "auto-continue", target, () =>
       auto.continueTurn({ principal: frame.principal, chatId: frame.chatId, messageId: target.id, timeZone: frame.timeZone }),
     );
     if (next === null) {
@@ -1897,7 +1909,12 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     // §3.6 RETURN PROJECTION: the assistant reply in `round.messages` carries the model's hidden spans; a
     // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list
     // reads already strip — this closes the mutation-return sibling). The host reads verbatim.
-    const outcome = await assembleSendResult(auto, { frame: { principal, chatId, timeZone, signal: handle.signal }, userView, round, behavior: chatBehavior });
+    const outcome = await assembleSendResult(auto, {
+      frame: { principal, chatId, timeZone, signal: handle.signal, logger: ctx.logger },
+      userView,
+      round,
+      behavior: chatBehavior,
+    });
     return stripMessagesForViewer(outcome, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
   };
 }

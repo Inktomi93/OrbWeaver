@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { dirname, join, relative } from "node:path";
 import type { LocalLightCpuPercent } from "@orb/contracts/inference";
@@ -7,15 +7,10 @@ import { LOCAL_LIGHT_CPU_PERCENT_FULL, localLightCpuPercentSchema } from "@orb/c
 const CGROUP_PREFIX = "0::";
 const CGROUP_ROOT = "/sys/fs/cgroup";
 
+// An absent cgroup file (a v1 host, no cpu controller) is no quota, and affinity still bounds the session; a file that
+// exists but cannot be read is a fault and throws.
 function readOptional(path: string): string | undefined {
-  let result: string | undefined;
-  // an unreadable cgroup file returns undefined, which `narrow` (cpu-budget.ts:30) turns into no quota; affinity still bounds the session. Ends if this read becomes required for model admission.
-  try {
-    result = readFileSync(path, "utf8");
-  } catch {
-    result = undefined;
-  }
-  return result;
+  return existsSync(path) ? readFileSync(path, "utf8") : undefined;
 }
 
 /** Reserve server headroom within affinity and visible CPU quotas; a native call needs at least one thread. */

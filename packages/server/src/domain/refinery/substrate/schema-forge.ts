@@ -19,6 +19,7 @@ import {
 import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { addSpanEvent, traceStructuredRetry } from "#foundation/observability";
@@ -131,15 +132,9 @@ function parseFieldReply(payload: z.ZodType<{ field: ForgeFieldRow }>, text: str
   if (start === -1) {
     return null;
   }
-  // bookkeeping — documented above: a malformed
-  // JSON slice is a DROP the caller counts (bounded-cost posture, no retry); `null` is the same drop
-  // `safeParse.success === false` already produces two lines up. Ends if a dropped row needs its own reason.
-  try {
-    const parsed = payload.safeParse(JSON.parse(text.slice(start)));
-    return parsed.success ? parsed.data.field : null;
-  } catch {
-    return null;
-  }
+  // A slice that is not JSON fails the same `safeParse` and is the same counted drop.
+  const parsed = payload.safeParse(parseJsonText(text.slice(start)));
+  return parsed.success ? parsed.data.field : null;
 }
 
 /** `two-stage` — structure first (no hints), then the display vocabulary against the finished paths. */

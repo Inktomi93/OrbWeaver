@@ -13,17 +13,24 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
-import { PLUGIN_COMMAND_ARGS_TITLE, pluginCommandActionLabel } from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { humanizeId, PLUGIN_COMMAND_ARGS_TITLE, pluginCommandActionLabel } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import { dialogBodyAnchor } from "../../../components/_dialog-landing.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
 
 const STORY = "tests/client/features/plugin/_ct-stories/PluginRoomShellStory";
-const ARGS_COMMAND = "weigh";
+// One command per argument kind the form renders, each landing focus on its one argument by that control's own role.
+const ARG_COMMANDS = [
+  { command: "weigh", field: "grams", type: "number", role: "textbox" },
+  { command: "label_it", field: "label", type: "string", role: "textbox" },
+  { command: "choose", field: "colour", type: "enum", role: "combobox" },
+  { command: "flip", field: "swap", type: "boolean", role: "switch" },
+] as const;
+const ENUM_VALUES = ["red", "blue"];
 const DIALOG_COMMAND = "open_ledger";
 const DIALOG_TITLE = "Ledger";
 const DIALOG_TEXT = "The ledger balances.";
 const SOURCE = `const host = orb.host(1);
-host.ui.registerCommand({ name: "${ARGS_COMMAND}", describe: "Weigh the ledger", args: [{ name: "grams", type: "number", describe: "How many grams" }], onRun: async () => {} });
+${ARG_COMMANDS.map(({ command, field, type }) => `host.ui.registerCommand({ name: "${command}", describe: "Run ${command}", args: [{ name: "${field}", type: "${type}", describe: "The ${field}"${type === "enum" ? `, enumValues: ${JSON.stringify(ENUM_VALUES)}` : ""} }], onRun: async () => {} });`).join("\n")}
 host.ui.registerCommand({ name: "${DIALOG_COMMAND}", describe: "Open the ledger", onRun: async () => { await host.ui.openDialog("ledger_dialog"); } });
 host.ui.register({ id: "ledger_page", anchor: "page", title: "Ledger page", tier: "static", spec: { kind: "text", value: "The ledger page." } });
 host.ui.register({ id: "ledger_dialog", anchor: "dialog", title: "${DIALOG_TITLE}", tier: "static", spec: { kind: "text", value: "${DIALOG_TEXT}" } });`;
@@ -85,14 +92,16 @@ async function pickFromPalette(page: Page, command: string): Promise<void> {
   await page.keyboard.press("Enter");
 }
 
-test("a command that declares arguments opens the argument form with focus on the dialog's body", async ({ corpus, mount, page }) => {
-  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
-  await seedShellState(page, { activeSection: "chats" });
-  await openRoomWithGuest(page, root, corpus, (chatId) => mount<typeof PluginRoomShellStory>(STORY, { chatId }));
-  await pickFromPalette(page, ARGS_COMMAND);
-  await expect(page.getByRole("dialog").getByRole("heading", { name: PLUGIN_COMMAND_ARGS_TITLE, exact: true })).toBeVisible();
-  await expect(dialogBodyAnchor(page)).toBeFocused();
-});
+for (const { command, field, type, role } of ARG_COMMANDS) {
+  test(`a command whose first argument is a ${type} opens the argument form with focus on it`, async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+    await seedShellState(page, { activeSection: "chats" });
+    await openRoomWithGuest(page, root, corpus, (chatId) => mount<typeof PluginRoomShellStory>(STORY, { chatId }));
+    await pickFromPalette(page, command);
+    await expect(page.getByRole("dialog").getByRole("heading", { name: PLUGIN_COMMAND_ARGS_TITLE, exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog").getByRole(role, { name: humanizeId(field), exact: true })).toBeFocused();
+  });
+}
 
 test("a command whose run opens a plugin dialog lands focus on that dialog's body", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });

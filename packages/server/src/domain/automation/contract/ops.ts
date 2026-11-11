@@ -9,6 +9,7 @@ import type {
   AutomationTrigger,
   ChatAutomationReads,
   EmitAutomationEvent,
+  FireView,
   RulePresetId,
   RulePresetKnobValues,
   SuggestibleAction,
@@ -377,6 +378,7 @@ export interface ArmTemplateRender {
  *  declares only the TYPE — one-directional flow). */
 export interface PromptTransformIndexDeps {
   readonly db: Db;
+  readonly logger: Logger;
   readonly ops: AutomationOps;
   readonly prng: RandomSource;
   readonly now: Clock;
@@ -477,7 +479,7 @@ export type ArmOutcome =
  *  changes the TERMINAL and nothing else. Homed here (not `engine/dispatch.ts`, where `runArms` computes
  *  it) because §7.4 puts an exported cross-file shape in the domain's type home. */
 export interface ArmsResult {
-  readonly detail: Record<string, unknown> | null;
+  readonly detail: FireView["detail"];
   readonly suggested: boolean;
   readonly paused: boolean;
 }

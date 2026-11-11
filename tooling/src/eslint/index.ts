@@ -1,5 +1,5 @@
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
-import { detachedWorkRule } from "./async.ts";
+import { blindCatchRule, detachedWorkRule } from "./async.ts";
 import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
 import { closedVocabularyRule } from "./closed-vocabulary.ts";
@@ -12,6 +12,7 @@ import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIO
 import { moduleStateRule } from "./module-state.ts";
 import type { BaseUiDoors } from "./motion.ts";
 import { baseUiStateDataAttributesRule, noRenderLayoutReadRule, unruledFlipInversionRule } from "./motion.ts";
+import { narrowedJsonBrandRule } from "./narrowed-json.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { optionalAlternativesRule } from "./optional-alternatives.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
@@ -327,9 +328,11 @@ export function createOrbPlugin(options: {
       "trpc-payload-declared-keys": trpcPayloadKeysRule,
       "trpc-output-declared-keys": trpcOutputKeysRule,
       "no-unsafe-cast": noUnsafeCastRule(UNSAFE_CAST_HOMES, BRAND_MINT_HOMES),
+      "narrowed-json-brand": narrowedJsonBrandRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "detached-work-traced": detachedWorkRule,
+      "no-blind-catch": blindCatchRule,
       "commented-code": commentedCodeRule,
       "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
       "browser-no-node-globals": browserNoNodeGlobalsRule(options.browserNodeGlobals),

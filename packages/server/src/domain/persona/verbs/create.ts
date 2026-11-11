@@ -1,16 +1,15 @@
 // verb: create — mint a new persona row owned by the caller. Ownership is scoped off `principal.userId`
 // (the §7.1 source of truth — never a `users` read). The injected `newPersonaId`/`now` keep it
-// deterministic (no ambient `mintTypeId()`/`Date.now()`). `metadata` is coerced through the typed schema
-// at the write seam (the input arrives as a loose write-record; the column is typed `PersonaMetadata`) so
-// a non-transport caller can't smuggle an unvalidated blob past the type. Re-reads with the avatar JOIN
-// for the detail view (the inserted row alone would lose the joined `assets.hash`).
+// deterministic (no ambient `mintTypeId()`/`Date.now()`). `metadata` passes `narrowPersonaMetadata` at the
+// write seam: the input arrives as a plain JSON object and the column takes only the narrowed, branded shape.
+// Re-reads with the avatar JOIN for the detail view (the inserted row alone would lose the joined `assets.hash`).
 
+import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { CreatePersonaParams } from "../contract/params.ts";
 import type { PersonaContext, PersonaService } from "../contract/service.ts";
 import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
-import { normalizeWriteMetadata } from "../substrate/metadata.ts";
 
 export function createCreate(ctx: PersonaContext): PersonaService["create"] {
   return async ({ principal, input }: CreatePersonaParams) => {
@@ -22,7 +21,7 @@ export function createCreate(ctx: PersonaContext): PersonaService["create"] {
     }
     const at = ctx.now();
     const personaId = ctx.newPersonaId();
-    const metadata = normalizeWriteMetadata(input.metadata ?? null);
+    const metadata = narrowPersonaMetadata(input.metadata ?? null);
 
     await ctx.db.insert(personas).values({
       id: personaId,

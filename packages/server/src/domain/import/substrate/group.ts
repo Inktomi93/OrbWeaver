@@ -13,6 +13,7 @@
 // group's own list, and the chat write op dedups by `importHash`, so the second claimant is a clean skip.
 
 import { isPlainObject } from "@orb/kit/guards";
+import { parseJsonText } from "@orb/kit/json";
 import type { CollectedGroup, ParsedStGroup } from "../contract/collection.ts";
 import type { ImportSkippedGroupMember } from "../contract/results.ts";
 
@@ -35,15 +36,8 @@ function stringList(v: unknown): string[] {
  * `fileStem` is the fallback name. Never throws: a malformed file is one skipped group, not an aborted import.
  */
 export function parseStGroupFile(bytes: Uint8Array, fileStem: string): ParsedStGroup | null {
-  let raw: unknown;
-  // the try holds only decode + `JSON.parse`; the `null` is read by
-  // `collectGroups`, which pushes the file onto `unreadableGroups` (the report's `unreadableGroups`). Ends if
-  // `collectGroups` stops recording `null`.
-  try {
-    raw = JSON.parse(new TextDecoder("utf-8").decode(bytes));
-  } catch {
-    return null;
-  }
+  // `collectGroups` records the `null` as one of the report's `unreadableGroups`.
+  const raw = parseJsonText(new TextDecoder("utf-8").decode(bytes));
   if (!isPlainObject(raw)) {
     return null;
   }

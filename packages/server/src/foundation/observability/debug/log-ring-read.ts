@@ -3,6 +3,9 @@
 // copies of the severity read is exactly the doubling that produced the bug documented in `recordLevel` below,
 // and a second copy could reintroduce it in the half nobody was looking at.
 
+import { parseJsonText } from "@orb/kit/json";
+import { z } from "zod";
+
 const LOG_LEVEL_VALUES: Record<string, number> = {
   trace: 10,
   debug: 20,
@@ -46,15 +49,13 @@ export function ringLineLevel(record: Record<string, unknown>): number {
   return typeof raw === "string" ? levelValue(raw) : 0;
 }
 
+const ringRecordSchema = z.record(z.string(), z.unknown());
+
 /** Parse ONE serialized ring line. `null` ⇒ skip it (a non-JSON or non-object line). */
 export function parseLogRingLine(line: string): Record<string, unknown> | null {
-  // owned by the null the readers consume: `routes.ts::collectLogs` and `collectErrors`, `bug-report.ts::errorLines` and `bug-report-diagnostics.ts::serverErrors` each filter it out. The only writer, `logger.ts` ringStream, pushes whole pino JSON lines. Ends if a reader stops filtering the null or a non-JSON writer joins the ring.
-  try {
-    const value: unknown = JSON.parse(line);
-    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
+  // Every reader filters the null out; the only writer, `logger.ts` ringStream, pushes whole pino JSON lines.
+  const record = ringRecordSchema.safeParse(parseJsonText(line));
+  return record.success ? record.data : null;
 }
 
 /** The wall-clock a ring line was written at, as epoch ms. `logger.ts` configures `pino.stdTimeFunctions.isoTime`,

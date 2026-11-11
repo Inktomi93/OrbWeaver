@@ -3,6 +3,7 @@
 // smuggling identity columns past the structural type. UPDATE ... WHERE id=? AND owner_id=? RETURNING
 // folds the ownership check into the mutation.
 
+import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
 import { and, eq } from "drizzle-orm";
@@ -10,7 +11,6 @@ import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { UpdatePersonaParams } from "../contract/params.ts";
 import type { PersonaContext, PersonaService } from "../contract/service.ts";
 import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
-import { normalizeWriteMetadata } from "../substrate/metadata.ts";
 
 export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
   return async ({ principal, personaId, input }: UpdatePersonaParams) => {
@@ -19,7 +19,7 @@ export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
       // The FK proves the asset exists, never that it's the caller's.
       await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
     }
-    const metadata = input.metadata === undefined ? undefined : normalizeWriteMetadata(input.metadata);
+    const metadata = input.metadata === undefined ? undefined : narrowPersonaMetadata(input.metadata);
     const edits = stripUndefined({
       name: input.name,
       title: input.title,

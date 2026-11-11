@@ -20,6 +20,7 @@ import type {
   RefineryStage,
 } from "@orb/contracts/refinery";
 import type { ResponseFormat, RoleClients } from "@orb/contracts/role-clients";
+import type { JsonObject } from "@orb/kit/json";
 import type { z } from "zod";
 
 /** One stage call's parse seam (built fresh per run — the capture is per-call state). */
@@ -87,7 +88,7 @@ export type StageResolution =
   | {
       readonly kind: "custom";
       readonly runConfig: RefineryCustomRunConfig;
-      readonly payloadSchema: z.ZodObject;
+      readonly payloadSchema: z.ZodType<JsonObject>;
       readonly responseFormat: ResponseFormat;
       readonly shapeText: string;
       readonly instruction: string;

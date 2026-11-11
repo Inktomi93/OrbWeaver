@@ -6,7 +6,7 @@ import { lstat, readdir, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import type { ImportDirectory, ImportFsPort } from "@orb/contracts/import";
 import { DomainOperationError } from "@orb/kit/errors";
-import { errnoCode, isMissingFile } from "#primitives/errno";
+import { isAbsentPath } from "#primitives/errno";
 import type { StagedFile, StagedManifest } from "./staged-manifest.ts";
 import { openLeaf, readVerified } from "./staged-manifest.ts";
 
@@ -16,7 +16,6 @@ const PATH_SEPARATOR = "/";
 const CURRENT_DIR = ".";
 const PARENT_DIR = "..";
 const MISSING_FILE_CODE = "ENOENT";
-const NOT_A_DIRECTORY_CODE = "ENOTDIR";
 
 /** An operator's leaf is no regular file. `code` makes the collector report it as a failed read, not a missing file. */
 class NotARegularFileError extends DomainOperationError {
@@ -119,7 +118,7 @@ async function linkKind(path: string, danglingKind: FsEntry["kind"]): Promise<Fs
   try {
     return (await stat(path)).isDirectory() ? "directory" : "other";
   } catch (error) {
-    if (isMissingFile(error) || errnoCode(error) === NOT_A_DIRECTORY_CODE) {
+    if (isAbsentPath(error)) {
       return danglingKind;
     }
     throw error;
@@ -146,10 +145,16 @@ async function operatorDirectoryAt(path: string, danglingKind: FsEntry["kind"]):
   try {
     return (await stat(path)).isDirectory() ? operatorDirectory(path, danglingKind) : null;
   } catch (error) {
-    if (!isMissingFile(error) && errnoCode(error) !== NOT_A_DIRECTORY_CODE) {
+    if (!isAbsentPath(error)) {
       throw error;
     }
-    const entry = await lstat(path).catch(() => null);
+    // The target is absent; the entry itself is either a link to it, which fails, or names nothing too.
+    const entry = await lstat(path).catch((lstatError: unknown) => {
+      if (!isAbsentPath(lstatError)) {
+        throw lstatError;
+      }
+      return null;
+    });
     if (entry?.isSymbolicLink() === true) {
       throw new DanglingPlaneLinkError(path, { cause: error });
     }

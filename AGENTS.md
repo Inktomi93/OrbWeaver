@@ -95,17 +95,14 @@ that needs an upward import is in the wrong place. Move the code; never force th
 
 ## No escape hatches
 
-To get green, never add a lint suppression for a real finding, a dep-cruiser exemption, a `TODO` or `FIXME` in place of the work, `any`, `unknown` or a loose index signature to satisfy
-`tsc`, or a placeholder marker on work that is not planned. A suppression is allowed only for a verified
-false positive, with the reason in the comment on that line. Delete the old structure in the same commit
-as the new one. If you cannot go green without a hatch, stop and report.
+To get green, never add a lint suppression for a real finding, a dep-cruiser exemption, a `TODO` or `FIXME` in place of the work, `any`, `unknown` or a loose index signature to satisfy `tsc`, or a placeholder marker on work that is not planned. A suppression is allowed only for a verified false positive, with the reason in the comment on that line. Delete the old structure in the same commit as the new one. If you cannot go green without a hatch, stop and report.
 
 ## Verification
 
 - Run affected Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.
 - Typecheck affected programs with `pnpm typecheck <tsconfig paths...>`.
 - Run `pnpm lint` for Biome and `pnpm lint:eslint <paths>` for ESLint. Errors and warnings fail both commands.
-- Commit hooks check staged files with Biome. Pre-push runs the GitHub sync check, Biome, dependency-cruiser, ESLint, knip, knip:prod and typecheck sequentially.
+- Commit hooks check staged files with Biome. Pre-push runs the GitHub sync check, Biome, dependency-cruiser, ESLint, knip, knip:prod, typecheck and the repository integrity tests named in `lefthook.yml` sequentially.
 - CI owns full application verification (D317). D333 retires custom verify tiers, gates and checker qualification.
 - Read the completed native runner output. A timeout or tool error is no verdict.
 
@@ -161,11 +158,9 @@ without a path are in that folder.
 
 ## Path rules
 
-- Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Qwen Code and OpenCode load only this file: before you change a file, read each rule below whose globs match it.
+- Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Qwen Code and OpenCode load only this file: before you change a file, read each rule below whose globs match it. In Qwen Code or OpenCode, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
 
-- In Qwen Code or OpenCode, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
-
-- `.claude/rules/browser-tests.md`: `tests/**/*.ct.tsx`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
+- `.claude/rules/browser-tests.md`: `tests/**/*.tsx`, `tests/client/**`, `tests/ui/**`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
 
 - `.claude/rules/chat.md`: `packages/server/src/domain/chat/**`
 
@@ -175,13 +170,15 @@ without a path are in that folder.
 
 - `.claude/rules/db.md`: `packages/db/**`
 
+- `.claude/rules/default-content.md`: `packages/default-content/**`
+
 - `.claude/rules/hooks.md`: `.claude/hooks/**`
 
 - `.claude/rules/inference.md`: `packages/inference/**`
 
 - `.claude/rules/instruments.md`: `tooling/src/snap/**`, `tooling/src/ui-audit/**`
 
-- `.claude/rules/node-tests.md`: `tests/**/*.test.ts`, `tests/support/**`, `tests/contracts/**`
+- `.claude/rules/node-tests.md`: `tests/**/*.ts`, `tests/**/*.mjs`, `tests/support/**`
 
 - `.claude/rules/plugins.md`: `packages/server/src/domain/plugin/**`, `packages/server/src/infra/plugin-host/**`, `packages/contracts/src/plugin/**`, `packages/showcase-plugins/**`, `packages/plugin-sdk/**`, `packages/plugin-toolchain/**`
 
@@ -190,6 +187,8 @@ without a path are in that folder.
 - `.claude/rules/server-edge.md`: `packages/server/src/entry/**`, `packages/server/src/transport/**`, `packages/server/src/foundation/**`, `packages/server/src/infra/auth/**`, `packages/server/src/infra/network/**`, `tests/server/transport/**`
 
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`
+
+- `.claude/rules/test-authoring.md`: `tests/**`
 
 - `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.ts`, `.dependency-cruiser.ts`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`
 

@@ -36,7 +36,6 @@ export const compareBlocksVariants = tv({
     blockHeader: ROW_STRIP,
     blockLabel: "text-label leading-label font-medium text-muted-foreground",
     blockSpacer: "flex-1",
-    stateChip: "rounded-full px-field py-px text-micro leading-micro font-semibold tracking-caps uppercase",
     body: FIELD_STACK,
     pair: "grid grid-cols-2 gap-row @max-cq-32:grid-cols-1",
     panel: `${FIELD_STACK} rounded-control p-block`,
@@ -54,11 +53,11 @@ export const compareBlocksVariants = tv({
       /** The absent-side STATE panel (Added / Cleared) — a designed state word, never an empty tinted pane. */
       state: { panel: "border border-border bg-muted text-foreground" },
     },
-    /** The review tri-state, painted on the BLOCK (border tone) + the header chip (word). */
+    /** The review tri-state, painted on the BLOCK (border) and its body; the header chip is a `Badge` the primitive tones per decision. */
     decision: {
-      undecided: { block: "border-warning", stateChip: "bg-warning text-warning-foreground" },
-      kept: { stateChip: "bg-success text-success-foreground" },
-      discarded: { block: "border-dashed border-border", body: "opacity-receded", stateChip: "bg-destructive text-destructive-foreground" },
+      undecided: { block: "border-warning" },
+      kept: {},
+      discarded: { block: "border-dashed border-border", body: "opacity-receded" },
     },
   },
 });

@@ -48,6 +48,7 @@ import type {
   ConnectionAttributionProvenance,
   CueRole,
   DurableChatBusEvent,
+  HandoffCardPair,
   HandoffOffer,
   MacroFreezeRecord,
   MessageAssetOrigin,
@@ -247,8 +248,8 @@ export const chatImportClaims = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_handoff_resumptions — one durable post-swap completion marker per room. The role swap inserts this
 // row with the actor re-key payload; the accepted host may resume it after the nomination is already clear.
-// `actorRekeys` is deliberately `unknown` at the DB package boundary and parsed by chat's read seam: the
-// server-owned workflow shape must not become a second public contract merely to type a private JSON cell.
+// `actorRekeys` is typed by `HandoffCardPair` from `@orb/contracts/chat`, which the writer and the column share; chat's
+// read seam still parses a stored row with `handoffCardPairsSchema`, because a row on disk is untrusted on read.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const chatHandoffResumptions = sqliteTable(
@@ -262,7 +263,7 @@ export const chatHandoffResumptions = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    actorRekeys: text("actor_rekeys", { mode: "json" }).$type<unknown>().notNull(),
+    actorRekeys: text("actor_rekeys", { mode: "json" }).$type<readonly HandoffCardPair[]>().notNull(),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [index("chat_handoff_resumptions_accepted_by_idx").on(t.acceptedByUserId)],

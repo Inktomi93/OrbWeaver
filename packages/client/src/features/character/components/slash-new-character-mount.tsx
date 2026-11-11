@@ -10,8 +10,7 @@ import { setActiveSection } from "#state";
 export function SlashNewCharacterMount({ onRunner }: SlashCommandMountProps): null {
   useEffect(() => {
     onRunner((): void => {
-      // No dedicated create-character flow exists yet — land in the Characters section.
-      // TODO(character-lane): route straight to the create form when it lands.
+      // The command opens the Characters section, where a new character starts; no create form exists to route to.
       // Dismissal is the HOST's job (the palette closes before it runs anything), never the runner's.
       setActiveSection("characters");
     });

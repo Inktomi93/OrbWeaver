@@ -176,13 +176,14 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // a cookie-authenticated mutation must carry the custom header. The gate keys on Principal.via: a
 // header/fallback request and all queries/subscriptions are exempt.
 //
-// WHY tRPC's belt keys on `cookie` ONLY, unlike the byte-ingest routes' `via !== "header"`: because
-// `entry/app.ts` refuses every POST to the tRPC mount whose content-type is not `application/json`, and
+// WHY tRPC's belt keys on `cookie` ONLY, unlike the byte-ingest routes, which need the header on every `via`:
+// because `entry/app.ts` refuses every POST to the tRPC mount whose content-type is not `application/json`, and
 // `application/json` is NOT a CORS-"simple" content-type — so a cross-site page cannot make the browser
-// send one without a preflight this app never grants (it mounts no CORS middleware). That leaves the
-// `fallback` (loopback owner) arm safely un-gated here, which is what the un-cookied loopback dev tooling
-// (multi-user-seed, curl harvests) relies on. The byte-ingest routes gate fallback instead because they
-// must ACCEPT `multipart/form-data`, which IS CORS-simple — see upload.ts's authCsrfGuard.
+// send one without a preflight this app never grants (it mounts no CORS middleware). That holds whichever
+// credential rides the request, so the `fallback` (loopback owner) and proxy-`header` arms stay un-gated
+// here, which is what the un-cookied loopback dev tooling (multi-user-seed, curl harvests) relies on. The
+// byte-ingest routes cannot lean on that because they must ACCEPT `multipart/form-data`, which IS
+// CORS-simple — see upload.ts's authCsrfGuard.
 //
 // THE BELT IS LOAD-BEARING, NOT DEFENCE IN DEPTH. The `cookie`-only keying does not rest on a tRPC mutation
 // "requiring application/json": it does not. `@trpc/server` 11.18's

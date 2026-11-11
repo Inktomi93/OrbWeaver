@@ -40,7 +40,7 @@ import type { RefineryScorePayload, RefineryScoreSweepResult, RefinerySelection 
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import type { ReportProgress } from "@orb/contracts/workloads";
-import { ProviderError, runStructuredTurn } from "@orb/inference";
+import { isStructuredTurnFailure, ProviderError, runStructuredTurn } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { Logger } from "#foundation/observability";
@@ -297,12 +297,13 @@ async function runWave(
 async function parseOneScore(rc: RoleClients, item: SweepItem, batchText: string, sampleOpts: StructuredOptions): Promise<RefineryScorePayload | null> {
   const run = (correction?: string): Promise<string> =>
     correction === undefined ? Promise.resolve(batchText) : retryScoreOne(rc, item, correction, sampleOpts);
-  // the sole caller `runWave` counts every `null` payload into `failed`
-  // (score-sweep.ts:290), which `runScoreSweep` returns in `RefineryScoreSweepResult.failed`. Ends if a per-card cause
-  // needs to travel past this boundary or `runWave` stops counting `null`.
+  // `runWave` counts every `null` payload into `RefineryScoreSweepResult.failed`.
   try {
     return await runStructuredTurn({ payloadSchema: REFINERY_STAGE_PAYLOADS.score, run, onRetry: traceStructuredRetry("refine-score") });
-  } catch {
+  } catch (error) {
+    if (!isStructuredTurnFailure(error)) {
+      throw error;
+    }
     return null;
   }
 }

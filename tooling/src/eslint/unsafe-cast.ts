@@ -53,6 +53,10 @@ export const UNSAFE_CAST_HOMES = homeReasons({
   "packages/client/src/data/use-session-recovery.ts": {
     "me.userId": `${MINT_RULING}: the \`sessions.me\` result is the one source of a \`VerifiedUserId\`, which no text parser may mint`,
   },
+  "packages/kit/src/json/index.ts": {
+    "JSON.parse(text)":
+      "the one place decoded JSON text is named `JsonValue`: `JSON.parse` builds only JSON values, so a deep re-check adds only a stack fault on deep input",
+  },
   "packages/kit/src/content/index.ts": {
     "target.slice(ASSET_SCHEME.length)": `${MINT_RULING}: an \`asset:\` ref in prose is a lookup key; every resolver reads it by owner and treats an unknown id as a miss`,
   },

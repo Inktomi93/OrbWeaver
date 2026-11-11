@@ -22,6 +22,7 @@ import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { stripHiddenSpans } from "@orb/kit/content";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
@@ -165,16 +166,17 @@ function projectFactForInstaller(fact: TriggerFact, readsHidden: boolean): Trigg
 }
 
 /** Deliver one subscriber's fact behind the VISIBILITY gate — self-safe (a throwing guest `deliver` is
- *  isolated). `resolveFactVisibility` is fail-closed on `denied` OR a throwing read (a raced delete / a bad id). */
+ *  isolated). `resolveFactVisibility` is fail-closed on `denied`, a malformed id, or a raced delete. */
 async function deliverIfVisible(deps: VisibilityDeps, sub: PluginTriggerSubscriber, resolved: ResolvedTrigger): Promise<void> {
   let verdict: FactVisibility;
-  // FAIL-CLOSED — a raced delete / a bad id / any
-  // throwing visibility read collapses to `visible: false`, the same posture `resolveFactVisibility`'s own
-  // fail-closed contract states (header, `ownsFactSubject` is fail-CLOSED). Never a leaked fact. Ends if the
-  // gate needs to tell a raced-delete failure apart from a real denial.
+  // FAIL-CLOSED: a raced delete reads as not visible, never a leaked fact. Any other failure of the read is a fault
+  // and rejects the fan-out, which delivers nothing for this subscriber either.
   try {
     verdict = await resolveFactVisibility(deps, sub.installer, resolved.fact);
-  } catch {
+  } catch (error) {
+    if (!(error instanceof DomainNotFoundError)) {
+      throw error;
+    }
     verdict = { visible: false };
   }
   if (!verdict.visible) {
