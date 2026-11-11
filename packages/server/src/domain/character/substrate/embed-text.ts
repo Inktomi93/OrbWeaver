@@ -23,7 +23,18 @@ type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality
 // consistent with the bytes that actually reach the vector, which is why the cut lives at this projection
 // and not only at the provider surface.
 //
-// The window is the pooling-window floor, not a bare literal at the call site.
+// THE CAP IS DELIBERATELY NOT THREADED FROM THE RESOLVED ENGINE. `EMBED_WINDOW_TOKENS` is the pooling engines' window;
+// the supported encoders run from 512 (the unknown-model floor and two curated embedders) through 2048 and 8192 to
+// 32768 (`packages/inference/src/capability/sources/curated/embedders.ts`). This projection is keyed by card id alone
+// (D20), the shipped seed vectors are matched by the hash of this text under whichever engine the owner binds, and the
+// engine's window belongs to the owner's binding, not to the card. The hosted embed backends clamp what they send to
+// the resolved window and log the clamp (`packages/inference/src/backends/openai-compat/embed.ts`,
+// `packages/inference/src/backends/google/embed.ts`), so a card past a smaller window is embedded from its head, never
+// refused; the local-light encoder windows long text losslessly (`packages/inference/src/backends/local-light/text-windows.ts`).
+// So `content_hash` is a function of the card alone: a tail edit past a small window re-embeds to the same vector, and a
+// window change moves the generation (`capability` is in its identity), which re-embeds under the hash gate anyway.
+// A window above the cap leaves the card tail past the cap unembedded; raising the cap is a retrieval choice that
+// re-hashes every long card.
 
 /** Strip HTML, collapse runs of whitespace/newlines, trim per line. */
 function cleanText(text: string): string {
