@@ -12,7 +12,7 @@
 // unreachable by construction rather than degraded-not-broken.
 //
 // THE WAND IS THE STEERED DOOR — three ratified pairs live here (#568). This hook is the second door on
-// `chat.generate`, `chat.swipe` and `chat.continueTurn`, all three budgeted at 2 by duplicate-action-doors.
+// `chat.generate`, `chat.swipe` and `chat.continueTurn`, each with exactly two ratified doors.
 // The pairing is deliberate and none of the three is the #539 echo class (two controls in ONE home, one a
 // strict payload subset): every twin below is a BARE-verb affordance on another plane, and this hook is the
 // only door that can carry a `guided` steer.

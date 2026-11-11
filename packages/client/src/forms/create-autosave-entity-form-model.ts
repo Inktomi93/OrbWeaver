@@ -8,7 +8,7 @@ import { formValuesEqual } from "./entity-form-base.ts";
 /** The autosave lifecycle the shared `AutosaveStatus` affordance renders (north-star §7 / D66 A4).
  *  DERIVED from the state-tier tuple (`SAVE_LIFECYCLE_STATES`) — the settings save-status store carries the
  *  same lifecycle and lives BELOW forms, so the tuple homes there and this alias derives rather than
- *  re-spells it (`no-inline-union-redecl`). A driver never holds a draft for the reader's Save press (it
+ *  re-spells it (`orb/no-inline-union-alias`). A driver never holds a draft for the reader's Save press (it
  *  writes on its own), so `unsaved`, which only an explicit-Save section reports, is not one of its states. */
 export type AutosaveSaveState = Exclude<(typeof SAVE_LIFECYCLE_STATES)[number], "unsaved">;
 

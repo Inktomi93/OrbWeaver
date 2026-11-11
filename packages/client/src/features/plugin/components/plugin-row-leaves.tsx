@@ -1,4 +1,4 @@
-// plugin-row leaf components — the two sub-rows `PluginRow` composes, split out for `component-size` (the
+// plugin-row leaf components — the two sub-rows `PluginRow` composes, apart from it (the
 // `plugin-leaf-nodes.tsx` precedent). Both close over their OWN mutation hooks and local UI state, so they are
 // genuine leaves the parent only mounts:
 //   · UpdateCheckRow — the U8 2b auto update-check + one-click update, for the source the server names on the

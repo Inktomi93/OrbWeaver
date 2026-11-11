@@ -77,7 +77,7 @@ interface Window {
 
 /**
  * Build a process-wide per-plugin hourly floor over an INJECTED clock (a frozen clock in tests — the
- * `test-determinism` seam, so a suite advances the window rather than sleeping through it).
+ * Spine-Testing §3 seam, so a suite advances the window rather than sleeping through it).
  *
  * `admit` is ONE synchronous check-and-claim step, deliberately: the membrane admits up to
  * `HOST_CALLS_IN_FLIGHT_MAX` concurrent host calls per instance, so a check that returned a verdict and let the

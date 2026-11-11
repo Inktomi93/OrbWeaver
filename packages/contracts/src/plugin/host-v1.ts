@@ -2,7 +2,7 @@
 // thing a guest sees: the frozen, versioned, capability-gated surface it receives from `orb.host(1)` — the
 // JSON-safe host-mediated API. Only JSON-safe primitives and OPAQUE HANDLES cross the
 // boundary; every host function is gated at the FUNCTION (not the namespace) by a `PluginCapability`, and the
-// clock/PRNG/id sources are injected (determinism is enforced, not requested — `test-determinism`). This file
+// clock/PRNG/id sources are injected (determinism is enforced, not requested — Spine-Testing §3). This file
 // is pure wire vocabulary (types, the capability→function completeness map, the sandbox-boundary schemas); the runtime that implements it is
 // `infra/plugin-host`, wired at compose with the `domain/plugin` op bundle — infra never imports a domain.
 
@@ -209,7 +209,7 @@ export interface PluginHostV1 {
   readonly grants: readonly PluginCapability[];
 
   // Determinism — the ONLY time/entropy/id sources in the guest realm (README law).
-  readonly clock: { nowEpochMs: Clock }; // injected clock (test-determinism)
+  readonly clock: { nowEpochMs: Clock }; // injected clock (Spine-Testing §3)
   readonly random: { next: () => number }; // injected PRNG, [0,1)
   readonly ids: { mint: () => string }; // injected id factory (opaque uniqueness, NOT TypeIDs)
 

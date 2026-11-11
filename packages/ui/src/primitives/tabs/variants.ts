@@ -74,7 +74,7 @@ export const tabsVariants = tv({
     // emitted before `.h-control-sm`). The rail's captions rendered as a 5px sliver. #146 registered the
     // scale, so the mechanism INVERTED: a call-site height now wins the merge outright. That does not undo
     // this ruling, it sharpens it — an unsealed size is now silently overridable by any caller, so the seal
-    // is the variant plus the `ui-size-via-variant` gate, never a merge accident. A sealed size can only be
+    // is the variant, never a merge accident. A sealed size can only be
     // overridden HERE, the `PictureButton` precedent (F2).
     layout: {
       inline: { tab: `px-block block-(--size-control-sm) data-[orientation=horizontal]:scroll-mx-tight ${FOCUS_RING}` },

@@ -1,4 +1,4 @@
-// verbs/scripts — the library CRUD verb group barrel. One verb per file (verb-naming gate); the composition
+// verbs/scripts — the library CRUD verb group barrel. One verb per file; the composition
 // root imports the factories from here.
 
 export { createBulkRemove } from "./bulk-remove.ts";

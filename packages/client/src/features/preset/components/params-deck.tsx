@@ -20,7 +20,7 @@
 // no quality→axes mapping lives on the client (the drift `capability-panel-model.ts` bans).
 //
 // The deck is an instrument ISLAND inside the form-tier editor (§2 — the density law's sanctioned reverse
-// nesting). OUTPUT/CONTEXT/ADVANCED live in params-limits.tsx (the component-size cap).
+// nesting). OUTPUT/CONTEXT/ADVANCED live in params-limits.tsx.
 //
 // EVERY NON-KNOB ROW IS A SHARED-TRACK ROW (#1770). The deck's `<Field>` rows used to sit in
 // `FieldLayout orientation="horizontal"`'s DEFAULT `block` arm — a flex `justify-between` against the pane

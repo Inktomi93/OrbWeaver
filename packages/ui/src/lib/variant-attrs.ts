@@ -33,9 +33,8 @@
 // arm and the recipe stamps no `variant` of its own, the arm moves to `data-variant`, so the audit walker keeps the
 // authored decision. No other stamped attribute may become a paint selector.
 //
-// ENFORCER (a prose-only boundary is a wish, constitution §2): the `ui-variant-axes-stamped` gate — a `tv()`
-// recipe in `packages/ui/src` declaring a stamped axis must reach the DOM through one of these two doors,
-// with the not-yet-stamped remainder carried as a shrink-only committed ratchet.
+// A `tv()` recipe in `packages/ui/src` declaring a stamped axis reaches the DOM through one of these two
+// doors; review holds this.
 import type { Tone } from "#tokens";
 import { cn } from "./class-merge.ts";
 

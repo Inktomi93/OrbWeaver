@@ -1,6 +1,6 @@
 // The FOLLOW-YIELD half of the message-list seal: the rules that decide who owns the scroll axis when
-// the reader and the tail march both want it. Extracted from `message-list.tsx` (the §13.7 primitive
-// size cap) — the seal keeps the WHEN (which ref, which render), this file owns the WHAT.
+// the reader and the tail march both want it. Apart from `message-list.tsx`:
+// the seal keeps the WHEN (which ref, which render), this file owns the WHAT.
 //
 // Origin: owner dogfood 2026-08-13, "follow-mode is jumpy when you manually scroll up to read the top
 // mid-generation." Two separate writers were dragging the reader back; both are answered here.

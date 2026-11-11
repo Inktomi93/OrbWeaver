@@ -104,8 +104,7 @@ function PreflightWarn({ message, scope, onScopeOpen }: { message: string; scope
 
 /** The hoisted §8 warn, drawn ONCE for the whole session — nothing when the stages fit, and nothing when
  *  they breach differently (then each lane keeps its own; see `lib/preflight-warn.ts`). It lives beside
- *  `PreflightWarn` rather than in the surface because it is the same drawing at a different scope, and the
- *  surface is at its `component-size` cap. */
+ *  `PreflightWarn` rather than in the surface because it is the same drawing at a different scope. */
 export function SessionPreflightWarn({
   warn,
   onScopeOpen,

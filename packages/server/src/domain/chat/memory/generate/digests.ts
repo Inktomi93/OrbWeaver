@@ -450,7 +450,7 @@ interface ConsPending {
 
 /** One tier's collected consolidation work for a scope: the pending parent writes + the speaker map for their
  *  children + the tally of already-current parents skipped. `parentTier` is the tier the writes land in.
- *  Non-exported — backfill derives it by inference (no-inline-types: no build-internal type in an export). */
+ *  Non-exported — backfill derives it by inference (§7.4: no build-internal type in an export). */
 interface ConsolidationTierPlan {
   readonly embedSpace: MemoryEmbedSpace;
   readonly parentTier: number;

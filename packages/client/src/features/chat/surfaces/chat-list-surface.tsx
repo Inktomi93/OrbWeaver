@@ -30,20 +30,15 @@
 // band's button is 300px of nothing away from the eye that is reading "No chats yet". They are the same
 // handler and they can never mint differently.
 //
-// NO ALLOWANCE ROW IS MINTED FOR IT, and that is a receipt rather than an omission. The family has two
-// enforcement halves and NEITHER pairs these doors: the STATIC gate (`duplicate-action-doors`) censuses tRPC
-// MUTATION call sites per rail section, and both doors reach the room through `openNewChatPicker` /
-// `useStartChat` in `#data` — zero call sites inside `features/chat`, so a row in its `EXEMPT_PROCEDURES`
-// would grant nothing and its own stale-exemption arm would RED it; the RUNTIME half (design-audit's
-// `duplicate-action-door`) groups by `role|accessible name` and has no allowance table at all, and "New" and
-// "New chat" are different names, so it never pairs them either. The ruling therefore lives HERE and in
+// NO ALLOWANCE ROW IS MINTED FOR IT, on purpose. Design-audit's `duplicate-action-door` check groups by
+// `role|accessible name`, and "New" and "New chat" are different names, so it never pairs them. The ruling therefore lives HERE and in
 // `hooks/use-chat-list-header.tsx` — at both doors, so neither can be "tidied away" as the odd one out.
 //
 // THE THREE NARROWING AXES ARE STORE STATE, NOT LOCAL STATE (#490 — `state/chat-list-filter-store.ts`). The
 // per-character filter always was; search and month joined it, because the LIST CHROME BAND that prints the
 // census (`hooks/use-chat-list-header.tsx`) feeds a different shell slot and could not see a `useState`
 // here — which is how `CHATS 896` came to sit above twelve filtered rows. The faces strip + "Filtered: X ✕"
-// chip live in `components/chat-list-character-filter.tsx` (the 450-line cap; this file composes them).
+// chip live in `components/chat-list-character-filter.tsx` (this file composes them).
 
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

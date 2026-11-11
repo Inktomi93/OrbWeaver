@@ -1,7 +1,7 @@
 // The HAND-EDIT dialog's target derivation — the pure half of "which slots may a human type into, and
-// what is in them right now". Re-homed out of `surfaces/refinery-content-surface.tsx` (#2243: 451 lines
-// against the 450 cap), on the seam `lib/review-entries.ts` already established in this feature — "the
-// PURE derivation half … the component only renders what this derives".
+// what is in them right now". Apart from `surfaces/refinery-content-surface.tsx`, on the seam
+// `lib/review-entries.ts` already established in this feature — "the PURE derivation half … the component
+// only renders what this derives".
 //
 // It is its own module rather than a row in an existing lib file because it answers a question nothing
 // else in the workbench asks: every other derivation here is about a RUN (a score payload, a rewrite's

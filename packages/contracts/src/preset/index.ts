@@ -1033,7 +1033,7 @@ export type PromptSection = z.infer<typeof promptSectionSchema>;
 
 /** The FALLBACK the assembler uses when a preset doesn't supply a `formatStrings.<key>` — one PROSE-1 slot
  *  each (census rows 45-48), so the bytes are authored once in `./prose`. The KEYS are the editable/importable
- *  format-string vocabulary (the ST import mapper + the `knob-wire-coverage` arm-E reader both key off this
+ *  format-string vocabulary (the ST import mapper keys off this
  *  literal); the VALUES are read from the registry.
  *
  *  `impersonateNudge` is the measured voice-lock (`./prose` carries the measurement + the IMP-1 probe-harness
@@ -1050,7 +1050,7 @@ export const DEFAULT_FORMAT_STRINGS = {
 } as const;
 
 /** The editable/importable format-string vocabulary, DERIVED from the one literal above (never re-spelled —
- *  the `knob-wire-coverage` arm-E reader and the ST import mapper both key off that literal). */
+ *  the ST import mapper keys off that literal). */
 export type FormatStringKey = keyof typeof DEFAULT_FORMAT_STRINGS;
 
 /** One format string whose token IS its payload slot. */
@@ -2952,11 +2952,6 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
   prose: {},
 };
 
-// The type argument is EXPLICIT, not inferred: `json-column-write-parity`'s ARM B derives which db columns
-// carry a versioned-config blob from `$type<T>` matched against these owners, and reads that ownership
-// syntactically (a checker round-trip inside a gate is neither cheap nor available in its conformance
-// mini-projects). Inferred here, the ownership was UNREADABLE and `presets.config` silently carried no
-// write-guard obligation at all.
 export const promptConfigConfig = defineVersionedConfig<PromptConfig>({
   schema: promptConfigSchema,
   version: PROMPT_CONFIG_SCHEMA_VERSION,

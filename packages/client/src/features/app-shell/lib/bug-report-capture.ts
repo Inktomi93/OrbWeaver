@@ -128,8 +128,8 @@ function readEnvironment(): BugReportEnvironment {
 }
 
 /** The capture instant, as epoch ms — the `bus-devlog.ts`/`console-error-ring.ts` spelling, deliberately not
- *  `Date.now()`. Two reasons, and the second is the load-bearing one: the injected-clock law
- *  (`no-raw-clock`) governs app LOGIC whose behaviour must be reproducible, while this is the physical instant
+ *  `Date.now()`. Two reasons, and the second is the load-bearing one: the injected-clock rule
+ *  (Spine-Testing §3) governs app LOGIC whose behaviour must be reproducible, while this is the physical instant
  *  a capture happened; and the rings this bundle compares against stamp themselves with exactly this
  *  expression, so a window built on a different clock would not mean the same thing as the entries it filters. */
 function captureClockMs(): number {

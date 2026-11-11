@@ -1,5 +1,5 @@
 // The P5 ACT RAIL ("ACT II — THE BONE KEY ●I ─ ◉II ─ ○III") — extracted from
-// rpg-quests-tab.tsx (the component-size cap; the RpgSceneCards precedent). Renders the snapshot-resident
+// rpg-quests-tab.tsx (the RpgSceneCards precedent). Renders the snapshot-resident
 // `tracker.plot` plane (clone-forward like quests — swipe-consistent), current act embered
 // (text-accolade), past acts settled, future acts muted. TEXT is the datum (the "ACT II — title" line);
 // the dot row is aria-hidden decoration (the tracker-kit a11y model). Null plot ⇒ the caller renders

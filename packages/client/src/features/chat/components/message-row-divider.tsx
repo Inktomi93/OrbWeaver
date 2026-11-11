@@ -1,4 +1,4 @@
-// The context-boundary divider, split from message-row-parts at the component-size cap — one renderer,
+// The context-boundary divider, apart from message-row-parts — one renderer,
 // one consumer (message-row.tsx). Everything else about the row stays in message-row-parts.
 import { Row } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";

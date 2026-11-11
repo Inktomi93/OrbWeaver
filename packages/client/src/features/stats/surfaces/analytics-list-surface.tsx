@@ -38,8 +38,8 @@ import {
 import { LEADERBOARD_ROW_ATTR } from "../lib/leaderboard-row-attr.ts";
 import { useLeaderboardRoving } from "../lib/use-leaderboard-roving.ts";
 
-// The sort-id union derived from the shared vocabulary (a local, non-exported alias — no-inline-types
-// gates EXPORTED types outside a contract home; this list-only union has no cross-boundary consumer).
+// The sort-id union derived from the shared vocabulary (a local, non-exported alias — §7.4
+// homes EXPORTED types in a contract home; this list-only union has no cross-boundary consumer).
 type SortId = (typeof ANALYTICS_SORT_OPTIONS)[number]["id"];
 
 // The leaderboard page + row shapes, inferred off the verb's own output (local aliases — the page is

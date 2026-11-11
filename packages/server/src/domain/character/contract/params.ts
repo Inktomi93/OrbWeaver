@@ -131,7 +131,7 @@ export interface FindByNameParams {
 
 /** The library list's LENS axes — every narrowing the toolbar offers, as SQL predicates over the same scope
  *  the page windows and the census counts (owner ruling 2026-08-13; the `MemberChatFilter` precedent in
- *  `domain/chat/persistence/queries.ts`). Homed HERE per no-inline-types §7.4 (moved from persistence/queries.ts 2026-08-14 — the drain check caught the persistence-side export). Built by the verb — the verb normalizes
+ *  `domain/chat/persistence/queries.ts`). Homed HERE per §7.4. Built by the verb — the verb normalizes
  *  the request into this shape once and hands the SAME object to both the page read and the census.
  *
  *  `starred`/`archived` are TRI-STATE — `undefined` is unfiltered, which is what lets the four lookup-map

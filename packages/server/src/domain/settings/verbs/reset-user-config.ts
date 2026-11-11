@@ -10,8 +10,7 @@
 // IT SATISFIES THE GUARD LAW BY PROVENANCE, NOT BY EXEMPTION-SHOPPING: the value written is
 // `DEFAULT_USER_SETTINGS`, a contract constant, so there is no degraded read in it to persist. That is the
 // same class as `preset.resetToDefault` one table over, and it is why the persistence seam it calls
-// (`replaceUserConfig`) is deliberately unguarded and carries a two-sided `GUARD_EXEMPT` row in the
-// `json-column-write-parity` gate.
+// (`replaceUserConfig`) is deliberately unguarded.
 //
 // DESTRUCTIVE BY CONSTRUCTION, so the CALLER owns the confirm: this discards every setting the user had,
 // including any that were still readable. The client offers it as the repair door on the unreadable state

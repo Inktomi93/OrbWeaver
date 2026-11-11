@@ -10,7 +10,7 @@
  * fields is that affordance with holes in it. Splitting them costs one extra line of reading each and makes
  * every row in both blocks overridable through the same four controls.
  */
-/** NOT exported: `no-inline-types` refuses an exported UNION outside a type home, and no consumer needs
+/** NOT exported: §7.4 keeps an exported UNION in a type home, and no consumer needs
  *  the name — a component types its parameter as `FactRow["edit"]`, which is the same type by construction. */
 type FactEdit =
   | { readonly kind: "text" }

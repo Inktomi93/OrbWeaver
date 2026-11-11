@@ -37,7 +37,7 @@ import type { CharacterDistillation, DistillStats } from "../contract/results.ts
 import type { DiscoveryContext, DiscoveryService, DistillCharactersDeps } from "../contract/service.ts";
 import { readCardDistillTargets } from "../persistence/card-reads.ts";
 
-/** Bind the distill pass over the DI bundle (the verb-naming factory the service composes). Projects the
+/** Bind the distill pass over the DI bundle (the factory the service composes). Projects the
  *  context's sub-deps onto the standalone {@link distillCharacters} — the workload runner reaches the same
  *  pass through the service method this returns. */
 export function createDistill(ctx: DiscoveryContext): DiscoveryService["distillCharacters"] {

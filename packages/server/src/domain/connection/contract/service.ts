@@ -2,7 +2,7 @@
 // ConnectionService. Under the inference program (§3.3) this domain is THE FRONT DOOR over `@orb/inference`:
 // resolution EXECUTES in the runtime, and every verb here is either a thin delegation (resolve · availability ·
 // capabilities · catalogs · diagnostics · providers) or the writer of this domain's three tables
-// (`user_connections`, `connection_bindings`, `provider_rows` — producer-owned, `own-tables-only`). Every
+// (`user_connections`, `connection_bindings`, `provider_rows` — producer-owned). Every
 // cross-feature dep arrives as an injected op, wired at the composition root; connection sideways-imports no
 // sibling runtime.
 

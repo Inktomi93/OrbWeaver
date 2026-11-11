@@ -5,7 +5,7 @@
 // function here is a fold over data already on the wire.
 //
 // The Advanced tier's FACT-ROW grammar (both blocks' rows, their source lines and the per-field Override
-// write path) is the other half, at `connection-fact-model.ts` — split at the `component-size` cap, and the
+// write path) is the other half, at `connection-fact-model.ts`, and the
 // honesty rules that govern what a source line may say live in THAT file's header.
 
 import type {

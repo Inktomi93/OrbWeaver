@@ -1,5 +1,5 @@
 // The Preview tab's DIAGNOSTICS drawer — the deeper BUILD + SHAPE traces, collapsed beneath the budget
-// instrument (`assembly-preview-panel.tsx`, its only consumer). Split out at the 450-line component cap: the
+// instrument (`assembly-preview-panel.tsx`, its only consumer). Apart from it: the
 // budget/rows half answers "where did my context go", THIS half answers "why did assembly do that" — the
 // per-field provenance (`AssembleTrace.overrideSources`), which sections fired, which world-info entries
 // activated, the content-free SHAPE projection (`ShapeTrace`: row counts + the §8 cache-breakpoint

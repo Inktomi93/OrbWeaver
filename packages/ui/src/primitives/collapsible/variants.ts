@@ -36,7 +36,7 @@ export const collapsibleVariants = tv({
     // where a control box would shear it off the copy it belongs to — and every `size="text"` mount owes a
     // reasoned home on the `orb/sub-floor-disclosure` row of eslint.config.js. It is a
     // VARIANT and not a call-site `min-h-*` because tailwind-merge cannot classify custom-token utilities,
-    // so an override would win or lose by stylesheet order (gate `ui-size-via-variant`).
+    // so an override would win or lose by stylesheet order.
     size: {
       text: {},
       control: { trigger: "min-block-(--size-control-sm)" },

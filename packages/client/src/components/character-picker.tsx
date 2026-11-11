@@ -70,9 +70,8 @@ export type CharacterPickerProps = {
   readonly skeletonCount?: number;
   /**
    * The OWNER's surface-box id (#885/#1748). Many owners mount this picker, so it can never mint a
-   * key of its own — one literal here would hand all of them the same remembered box, the copy-paste collision
-   * the `query-boundary-reservation` gate's duplicate arm reds and which its literal census could not see
-   * through a shared composite. Each owner mints its own; omitted, the boundary reserves nothing, as before.
+   * key of its own — one literal here would hand all of them the same remembered box, a copy-paste collision
+   * hidden behind a shared composite. Each owner mints its own; omitted, the boundary reserves nothing, as before.
    */
   readonly reserveKey?: string | undefined;
   /** The box the picker settles at (px, or a CSS length), held open until this device has measured it. Needs a `reserveKey`. */

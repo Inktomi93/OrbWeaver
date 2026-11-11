@@ -58,10 +58,8 @@ import type { PanelMode, PanelName } from "#state";
  *  track exists this is a tsc error rather than a forgotten string (Spine-TypeScript-and-Patterns.md "String-union dispatch discipline"). `in` = the track
  *  opened (content pushed), `out` = it closed.
  *
- *  `as const satisfies` RATHER THAN AN ANNOTATION, and that is the gate's requirement rather than style:
- *  `css-selector-has-a-writer` resolves a `setAttribute` name through the value's LITERAL TYPE, so an
- *  annotation that widens these to `string` leaves every `[data-*-flip]` selector in shell.css looking
- *  like an authored hook nobody writes. `satisfies` keeps the exhaustiveness check and the literals. */
+ *  `as const satisfies` RATHER THAN AN ANNOTATION: the literal names tie each `[data-*-flip]` selector in
+ *  shell.css to this writer, and an annotation would widen them to `string`. `satisfies` keeps the exhaustiveness check and the literals. */
 const TRACK_ATTRS = {
   list: { flip: "data-list-flip", settle: "data-list-settle" },
   context: { flip: "data-context-flip", settle: "data-context-settle" },

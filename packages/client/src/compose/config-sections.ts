@@ -1,6 +1,5 @@
 // The config-SECTION contributor assembly, extracted from the authed door into its own `compose/` sibling
-// (§7 + `client-compose-door-only`, the `home-tiles.ts` precedent): still ONE assembly, still door-owned — it
-// moved for `component-size`, not for architecture. The door re-imports `configSections` and delivers it
+// (§7 + `client-compose-door-only`, the `home-tiles.ts` precedent): still ONE assembly, still door-owned. The door re-imports `configSections` and delivers it
 // through `ConfigSectionRegistryProvider`.
 //
 // The config-SECTION contributor seam (§6c / pain-point §7 / SET-SEAMS §5.2, re-anchored on `ConfigGroupId`

@@ -1,5 +1,5 @@
-// The context rail's track-overflow geometry test — pure, split out of context-rail.tsx by the
-// `component-size` cap (#1799's dot-arm comment pushed the file eight lines over). No React here: the
+// The context rail's track-overflow geometry test — pure, apart from context-rail.tsx.
+// No React here: the
 // rail's `useTrackOverflow` hook (which owns the ResizeObserver/scroll subscription) stays in the
 // component file and calls into this for the pure measurement.
 

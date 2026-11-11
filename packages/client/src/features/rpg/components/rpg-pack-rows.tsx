@@ -1,10 +1,10 @@
-// The PACK's ROW/CELL family — the two lenses over one item list, split out of the tab (the component-size
-// cap; the tab keeps the composition, these keep the anatomy). The GRID cell is the compact multi-column
+// The PACK's ROW/CELL family — the two lenses over one item list, apart from the tab (the tab
+// keeps the composition, these keep the anatomy). The GRID cell is the compact multi-column
 // lens; the LIST row is the same item read in full AND, for a host, the editor: name, quantity,
 // location and description are click-to-edit in place, with a confirmed drop. `PackEdit` is the one callback
 // set both lenses take (absent = the read-only member arm - PERMISSION-omit, never a disabled twin) — and
 // `PackEdit` plus the per-datum field components it drives live one file over in `rpg-pack-fields.tsx`
-// (the component-size cap again): this module owns the two ANATOMIES, that one owns what a single datum
+// : this module owns the two ANATOMIES, that one owns what a single datum
 // looks like under each permission arm.
 //
 // THE TILE IS THE ITEM'S OWN CARD (an owner call) — glyph · name (wrapped, a model writes it) · ×N · where

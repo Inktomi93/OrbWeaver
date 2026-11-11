@@ -5,7 +5,7 @@
 //
 // Homed here (F8) because it is an EXPORT read: the composition root used to run it itself, in a file whose
 // stated job is assembling descriptors from verbs. Export is the sanctioned bulk reader of other domains'
-// tables (`own-tables-only`'s BULK_READERS row).
+// tables.
 //
 // ONE query, not one-per-chat: the host seat and the character seat are the same table joined twice
 // (aliased), ordered so the FIRST row per chat is that chat's primary character.

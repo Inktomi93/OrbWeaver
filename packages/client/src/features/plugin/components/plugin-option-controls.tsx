@@ -2,7 +2,7 @@
 // presentations: exactly one of `options`/`optionsFrom`, a `value`, and a LIVE `actionId` whose pick IS the
 // act. They live beside `plugin-leaf-nodes.tsx` rather than inside it for the reason the whole feature splits
 // this way — each takes the CONCRETE values it needs, never the renderer's context object, so this module has
-// no import back into the walk and no union type has to leave a component module (`no-inline-types`).
+// no import back into the walk and no union type has to leave a component module (§7.4).
 //
 // The two are HERE TOGETHER on purpose. Their handlers share one non-obvious rule that a reader must see in
 // one place: the fresh pick rides the round-trip as an EXTRA value, because the React state write beside it is

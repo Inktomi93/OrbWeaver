@@ -119,8 +119,8 @@ interface ContrastFillSample {
  *
  *  IT IS DISCRIMINATED, not told apart by key presence. Two readers depend on that: a malformed value can
  *  no longer fall through to the measured arm (the #1004 fix one contract over), and a `catch` returning
- *  this is a failure-DISCRIMINATED outcome the `caught-failure-ownership` census recognises as ownership —
- *  a bare `{ refusal }` reads to it as success data with an error sitting beside it. */
+ *  this is a failure-DISCRIMINATED outcome a caller cannot misread —
+ *  a bare `{ refusal }` reads as success data with an error sitting beside it. */
 interface ContrastFillRefusal {
   readonly kind: "refused";
   readonly refusal: string;

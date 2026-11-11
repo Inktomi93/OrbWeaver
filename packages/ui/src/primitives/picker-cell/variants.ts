@@ -30,7 +30,7 @@ export const pickerCellVariants = tv({
     // kit, and `primitives/` sits BELOW the composed groups (dep-cruiser `ui-primitives-below-groups`)
     // while `content/` may not reach sideways either (`ui-groups-independent`) — so a picker that spelled
     // its own `minmax()` would be a second home for a ratified track set AND an off-token bracket
-    // (`no-arbitrary-tw-values` / `css-length-tokens`). Container steps answer the same question with
+    // (docs/law/client-architecture-lockdown.md §4). Container steps answer the same question with
     // token-scale utilities: the picker widens with the PANE it sits in, not the viewport.
     //
     // NO `@container` ANCESTOR ⇒ ONE COLUMN, which is the honest degradation (a cell is never squeezed by

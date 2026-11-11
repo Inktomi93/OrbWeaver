@@ -158,7 +158,7 @@ export function TooltipTrigger<Payload = unknown>({ "aria-describedby": callerDe
     reportTriggerName?.(spokenName);
   }, [reportTriggerName, spokenName]);
   // MERGED, never overwritten — and the merge is why this one is DESTRUCTURED out of the spread rather
-  // than ordered around it (`ui-accname-survives-spread`'s second arm). `aria-describedby` is a
+  // than ordered around it. `aria-describedby` is a
   // SPACE-SEPARATED id list, and this seal's id is the only thing pointing at the popup: with the seal's
   // attribute before the spread a caller's own description (a field hint, an error line) REPLACED it and
   // the popup rendered under an id nothing referenced; after it, the caller's would be the one dropped.

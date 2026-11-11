@@ -76,7 +76,7 @@ import {
 } from "../persistence/reactions.ts";
 
 /** One row of the window read, taken off the query's OWN return type — the shape is that query's, and
- *  `no-inline-types` keeps a persistence file from exporting it as if it were a contract. */
+ *  §7.4 keeps a persistence file from exporting it as if it were a contract. */
 type ReactionRow = Awaited<ReturnType<typeof listChatReactions>>[number];
 
 /** The reaction verbs' collaborators not on `ChatContext`. The emit is typed to `DurableChatBusEvent` (the

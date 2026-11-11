@@ -9,11 +9,7 @@ import { createRequire } from "node:module";
 const SDK_PACKAGE = "@anthropic-ai/claude-agent-sdk";
 
 function resolveClaudeExecutable(): string | null {
-  // This waiver binds because `caught-failure-ownership` names the independent `@inference` population root;
-  // `@packages` remains the frozen six-root composite. Keep the marker with the sound module-resolution reason
-  // below: the policy now judges this site and the ordinary-waiver engine stale-checks the exact `catch` token.
-  // Removing the population root would therefore raise the coverage hole as a stale-waiver authority alarm.
-  // a module-resolution miss is the answer: null reaches the registry `needs` predicate at registry/backends.ts:47, which names the unbuilt wire and surfaces `runtime-missing`. Ends if the SDK grows a second install shape.
+  // A module-resolution miss is the answer: null reaches the registry `needs` predicate at registry/backends.ts:47, which names the unbuilt wire and surfaces `runtime-missing`. Ends if the SDK grows a second install shape.
   try {
     return createRequire(import.meta.url).resolve(SDK_PACKAGE);
   } catch {

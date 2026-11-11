@@ -13,7 +13,7 @@ import { readOwnedSegmentVectorsByChat } from "../persistence/embed-store-reads.
 
 const DEFAULT_LIMIT = 10;
 
-/** Bind the similar-chats read over the DI bundle (the verb-naming factory the service composes). */
+/** Bind the similar-chats read over the DI bundle (the factory the service composes). */
 export function createSimilarChats(ctx: DiscoveryContext): Pick<DiscoveryService, "similarChats"> {
   return { similarChats: (userId, chatId, limit) => similarChats(ctx.db, userId, chatId, limit) };
 }

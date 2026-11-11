@@ -1,7 +1,7 @@
 // domain/automation/substrate/dry-run — the `testRule` engine: build the CEL activation, evaluate
 // the predicate, and MACRO-RENDER each arm's template — executing NOTHING (no injected op, no budget). The
 // same `toCelBindings`/`ruleClock` helpers the dispatch engine reuses to build its live env; here they run
-// over a host-supplied sample. Determinism: the injected clock + prng feed the macro engine (test-determinism).
+// over a host-supplied sample. Determinism: the injected clock + prng feed the macro engine (Spine-Testing §3).
 //
 // `run_tool` previews its RENDERED ARGS (`argsTemplate`) and nothing else, which is this engine's whole
 // contract: it answers "does my template render", the dominant authoring failure, without a spend. It does NOT

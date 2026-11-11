@@ -51,7 +51,7 @@ function attribute(pluginName: string, message: string): string {
  * type is homed in `contract/service.ts` (the SnippetGate/NotifyFloor convention: seam TYPE in contract,
  * factory in substrate).
  *
- * `now` is INJECTED (the `test-determinism` seam) so a suite advances the toast cooldown rather than sleeping
+ * `now` is INJECTED (the Spine-Testing §3 seam) so a suite advances the toast cooldown rather than sleeping
  * through it.
  */
 export function createPluginUiOutbox(now: () => number): PluginUiOutbox {

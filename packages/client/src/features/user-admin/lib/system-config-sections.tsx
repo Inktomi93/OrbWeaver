@@ -7,8 +7,7 @@
 // knobs: none of these APP-tier keys has a client reader at all (the render gates reach the client through
 // `/api/auth/config`, not `getAppSettings`; the concurrency/ops knobs are server-only), and the built
 // precedent for the tier is unambiguous — `memoryDefaults` is read by chat/memory and edited HERE, as are
-// the transport's rate limits. Splitting them across features would also have moved AppSettings writes out
-// of `knob-wire-coverage`'s arm-B2 admin-surface scope.
+// the transport's rate limits.
 //
 // No `when`: the admin pane carries the ONE viewer gate for this anchor. The owner-gated pair additionally
 // gates its CONTROLS on the box owner, inside `governance-sections.tsx` (§4).

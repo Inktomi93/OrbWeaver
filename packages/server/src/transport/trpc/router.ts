@@ -1,6 +1,6 @@
 // The root appRouter: one thin router per domain front door + the loose public procs. The type AppRouter
 // is what the client type-imports; it is `typeof` the root router, so its only possible home is here,
-// hence the one sanctioned no-inline-types exception below.
+// hence the one sanctioned exception to the §7.4 type-home rule below.
 
 import { bugReportDiagnosticsSchema, clientErrorReportSchema } from "@orb/contracts/diagnostics";
 import type { Principal } from "@orb/contracts/identity";

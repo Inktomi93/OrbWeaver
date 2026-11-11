@@ -111,9 +111,8 @@ export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStat
 /** Build the `host.ui.setState` op (`PluginHostOps["ui"]["setState"]`) over the shared {@link
  *  PluginSurfaceStateStore} + the injected user-bus emit. It WRITES the surface's whole replacement state, then
  *  fires the per-user `pluginSurfaceStateChanged` poke so the INSTALLER's own client refetches. Homed in the
- *  DOMAIN (not the compose seam) DELIBERATELY: the `bus-producer-coverage` gate's emit-scope is `domain|transport`
- *  ONLY — a compose-side event literal reads as an un-covered producer, so the emit literal lives HERE where the
- *  ratchet can prove the member is wired (the same reason every domain verb constructs its own `emitUserEvent`
+ *  DOMAIN (not the compose seam) DELIBERATELY: a bus member's emit literal lives in its domain, where a reader finds
+ *  the member's producer (the same reason every domain verb constructs its own `emitUserEvent`
  *  event rather than letting compose do it). Compose injects the store + `publishUserEvent`.
  *
  *  THE POKE STAYS COARSE, and that is a preserved ruling rather than an oversight (row 777). The bus member's

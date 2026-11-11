@@ -448,7 +448,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write
     // factories the accepted property offer executes. Each lives in the domain that owns its tables and is
     // injected here, so chat never writes a `characters`, `world_books`, `regex_scripts` or `chat_digests`
-    // row (`own-tables-only`). All four are unreachable without a stored offer, so an offer-less handoff
+    // row (Tier-1-DB.md §"Cross-tier composition"). All four are unreachable without a stored offer, so an offer-less handoff
     // never calls any of them.
     copyHandoffCards: createCopyHandoffCards({
       db: input.db,

@@ -10,7 +10,7 @@
 // machinery, verbatim, with its identity (`id · label · icon · order · blurb`) lifted onto the group base
 // so a library has ONE identity home — and the `shelf` axis the LIST paints. The section-contribution
 // seam that used to share this file lives in `config-section-registry.ts`; the key partition in
-// `config-section-partition.ts` (both split out for the component-size cap, not for architecture).
+// `config-section-partition.ts`.
 //
 // EVERY NON-COLLECTION GROUP IS A SKIMMER BY TYPE:
 // the `surface` body arm and the group's own `subcategories` map are GONE. A group's parts are
@@ -74,7 +74,7 @@ export function isTeachNone(decl: SettingTeachDecl): decl is { readonly none: st
  *
  *  NOT EXPORTED, deliberately: a leaf author never names it (they hand over their control's items array),
  *  and the teacher names it as `ConfigSettingLeaf["options"]` — the indexed access says "whatever a leaf
- *  declares", which is the truer statement anyway and keeps `state/index.ts` at its 450-line cap. */
+ *  declares", which is the truer statement. */
 interface ConfigSettingOption {
   readonly value: string;
   readonly label: string;

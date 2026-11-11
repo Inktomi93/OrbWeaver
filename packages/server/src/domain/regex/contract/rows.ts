@@ -1,5 +1,5 @@
 // domain/regex/contract/rows — the DB row alias the persistence + substrate layers pass around. Homed in
-// `contract/` because `no-inline-types` is right: an exported shape belongs at a type home, not on a
+// `contract/` because an exported shape belongs at a type home (§7.4), not on a
 // queries file. It is a `$inferSelect` alias (the db package owns the real shape) rather than a re-spelling
 // — a column change is a compile error at every reader, which is the point.
 

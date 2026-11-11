@@ -317,7 +317,7 @@ export async function loadMemberChat(
 }
 
 /** The library list's filter axes. File-local (the `ChatRow` precedent): the verb passes an object literal,
- *  so nothing outside this module needs the name and `no-inline-types` keeps its one-home rule. */
+ *  so nothing outside this module needs the name and §7.4 keeps its one home. */
 type MemberChatFilter = Readonly<ChatLibraryLens>;
 
 /** Every `(role, joinHistoryVisibility)` seat that {@link historyFloorFollowsJoin} floors at its join, enumerated

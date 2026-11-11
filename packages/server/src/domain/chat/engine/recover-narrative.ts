@@ -35,7 +35,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { aggregateEconomics, runTurnPipeline } from "./pipeline.ts";
 
-// DERIVED from the function, never re-declared (`no-inline-types`: an exported type belongs in `contract/`,
+// DERIVED from the function, never re-declared (§7.4: an exported type belongs in `contract/`,
 // and these are pipeline-internal shapes). `engine.ts` already names the result this way throughout, so this
 // is the file's established spelling rather than a second one.
 type RunTurnPipelineArgs = Parameters<typeof runTurnPipeline>[0];

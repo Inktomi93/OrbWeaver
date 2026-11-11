@@ -15,7 +15,7 @@
 // `aria-busy` rides the root: `Skeleton` is decorative/aria-hidden by contract, so without it the whole
 // region is silent to a screen reader for the entire wait.
 //
-// THE ISLAND IS A `Card`, not a hand-written box (train-debts, density-tier A1): the settled focal island
+// THE ISLAND IS A `Card`, not a hand-written box: the settled focal island
 // is `<Card>` (corpus-family-map.tsx), which resolves BOTH its radius and its padding from the surface tier
 // — a hand-spelled `rounded-card border p-block` claimed the elevated radius directly (D6: that step is the
 // floating family's) and pinned a padding the tier owns. Composing the primitive makes the placeholder

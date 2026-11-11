@@ -1,4 +1,4 @@
-// The single-bubble (non-Tide) render shapes, split out of message-row-parts.tsx to stay under the component-size cap.
+// The single-bubble (non-Tide) render shapes, apart from message-row-parts.tsx.
 // No state of its own — renderSingleBubble is a pure (args) => ReactElement the bubble slot calls with already-resolved
 // data, on the skin's own box (`MessageBox`).
 

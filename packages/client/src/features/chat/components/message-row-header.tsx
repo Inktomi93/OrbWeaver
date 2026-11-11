@@ -1,6 +1,5 @@
 // THE MESSAGE ROW'S HEADER — speaker name · timestamp · action cluster — and the ONE decision about where
-// that header lives. Split out of message-row-parts.tsx when #288 pushed that file past the 450-line
-// component cap; the split is by CONCEPT, not by line count: everything here answers "who is speaking and
+// that header lives. Apart from message-row-parts.tsx by CONCEPT: everything here answers "who is speaking and
 // what can I do about it", and the settled row, the streaming ghost and the skin table all reach it
 // through this one module. No state of its own — every export is a pure (args) => ReactNode.
 //
@@ -38,7 +37,7 @@ function stampAlignment(stackStamp: boolean, mirrored: boolean): "end-cq-28" | "
 const GHOST_SHAPE: HeaderShape = { identity: true, ownLine: true };
 const GHOST_UNNAMED_SHAPE: HeaderShape = { identity: false, ownLine: true };
 
-/** Read off the skin table rather than re-declared: the table owns the axis (`no-inline-types`). */
+/** Read off the skin table rather than re-declared: the table owns the axis (§7.4). */
 type HeaderPlacement = RowSkin["headerPlacement"];
 
 /** #288 — THE HEADER'S ONE NODE, ROUTED TO ITS ONE HOME. `inside` (seven of the eight skins) hands it to

@@ -1,5 +1,5 @@
-// The shell's PANEL-MODE algebra + its vocabulary — the pure half of the layout store, split out when
-// `shell-store.ts` crossed the component-size cap. Pure by construction: no store handle, no React, no
+// The shell's PANEL-MODE algebra + its vocabulary — the pure half of the layout store, apart from
+// `shell-store.ts`. Pure by construction: no store handle, no React, no
 // viewport read. `shell-store.ts` owns the STATE and the hooks that feed this function; every caller
 // (the feature-tier `useShellLayout`, the `#state` projection `useSectionListMode`) resolves through THIS one
 // function so the tiers can never drift (the M10 correction).

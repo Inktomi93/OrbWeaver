@@ -161,8 +161,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     },
   });
   let session: ProbeSession;
-  // No gate-ignore here on purpose: the catch RETHROWS the caught binding, which IS ownership under
-  // caught-failure-ownership, so a marker would be a dead exemption (the retired-marker lint rule reds those).
+  // The catch RETHROWS the caught binding, so the failure keeps its owner.
   // The slot is settled first so the marker does not outlive the launch and read as a dead session.
   try {
     beginInstrumentRun(SESSION_INSTRUMENT, root, { slotDir: slot.dir });

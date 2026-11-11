@@ -1,5 +1,5 @@
 // The capability READ helpers — the ONE spelling of every question a consumer asks a descriptor. A
-// `capability.<axis>?.` re-spelled outside this file is what the `inference-model-regex-fence` gate reds:
+// `capability.<axis>?.` re-spelled outside this file is a second home:
 // the 13 direct re-spellings the M4 census found (`pipeline.ts:608,616,634,635`, `read.ts:1093-1101`, …)
 // migrate here so the SHAPE splice, the rpg fold-mount gate and the imagery edit belt read IDENTICAL facts.
 

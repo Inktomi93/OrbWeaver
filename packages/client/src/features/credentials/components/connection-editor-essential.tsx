@@ -1,6 +1,6 @@
 // The ESSENTIAL tier's two non-trivial fields (inference program §5.3a · the step-3b mock `editor.html`
 // Board A): the saved-on-blur text field the URL and the auto-minted name both use, and the MODEL field over
-// the shared ModelPicker. Split out of `connection-editor.tsx` at the `component-size` cap.
+// the shared ModelPicker. Apart from `connection-editor.tsx`.
 
 import type { ModelCheck, ModelKind, ProviderDef } from "@orb/contracts/inference";
 import { modelIdSchema } from "@orb/contracts/inference";

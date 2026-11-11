@@ -341,7 +341,7 @@ export const ATTACHED_REGEX_SCRIPTS_WIRE_KEY = "orbweaver_attached_regex_scripts
 // cross-module, from untracked files under `packages/contracts/src/` and `packages/server/src/` (never /tmp,
 // where zod does not resolve).
 // ONE declared union keeps BOTH tools seeing the same four arms. The `satisfies` below is a ONE-WAY
-// assignability check; the `zod-output-twin-parity` gate proves the schema output equals this union exactly.
+// assignability check; review holds the schema output equal to this union.
 export type RegexAttachScope =
   | { readonly kind: "global" }
   | { readonly kind: "character"; readonly characterId: CharacterId }

@@ -227,7 +227,7 @@ export async function ensureCharacterOwned(db: Db, ownerId: UserId, characterId:
  *  {@link ensureCharacterOwned} (owner predicate resolved in one round-trip, a foreign/absent character
  *  collapsing to {@link PersonaCharacterNotFoundError} with no existence leak), returning the three card
  *  fields the mint copies. Lives HERE, not in the verb: `persistence/` is the home for a cross-domain
- *  ownership check (Tier-1-DB.md §"Cross-tier composition"; `own-tables-only` gate). */
+ *  ownership check (Tier-1-DB.md §"Cross-tier composition"). */
 export async function loadOwnedCharacterCard(db: Db, ownerId: UserId, characterId: CharacterId): Promise<CharacterCard> {
   const rows = await db
     .select({ name: characters.name, description: characters.description, avatarAssetId: characters.avatarAssetId, ownerId: characters.ownerId })

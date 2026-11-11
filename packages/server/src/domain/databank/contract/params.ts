@@ -100,7 +100,7 @@ export interface ListDocumentsParams extends DatabankActorParams {
 }
 
 /** The list's LENS axes as SQL predicates over the same scope the page windows and the census counts (the
- *  `CharacterListFilter` precedent). Homed HERE per no-inline-types §7.4, built by the verb — which normalizes
+ *  `CharacterListFilter` precedent). Homed HERE per §7.4, built by the verb — which normalizes
  *  the request into this shape ONCE and hands the SAME object to both the page read and the count, so the two
  *  can never disagree about what they are a window into / a count of. */
 export interface DocumentListFilter {

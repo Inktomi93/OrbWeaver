@@ -1,7 +1,6 @@
 // WebWeave RENDER — the per-frame canvas painters (the impure-but-stateless half; the component owns
-// the rAF clock, the palette resolution and the DOM). Split from web-weave.tsx for the same reason
-// waystone-geometry left waystone.tsx: the component stays under the `component-size-ui` cap and the
-// painting logic is readable on its own (the spider's pose engine + painter live in
+// the rAF clock, the palette resolution and the DOM). Apart from web-weave.tsx for the same reason
+// waystone-geometry left waystone.tsx: the painting logic is readable on its own (the spider's pose engine + painter live in
 // web-weave-spider.ts, the shared maths in web-weave-math.ts). Every function takes (ctx, data,
 // time) and draws — no module state, no DOM reads, no color literals (the palette is resolved from
 // theme tokens upstream).

@@ -1,5 +1,5 @@
-// The message row's picker MOUNT (B6 door → B7 segment wiring) — split out of `message-actions-row.tsx`
-// under the component-size cap (the house sub-file move), and OWNING its own toggle mutation: it exists
+// The message row's picker MOUNT (B6 door → B7 segment wiring) — apart from `message-actions-row.tsx`,
+// OWNING its own toggle mutation: it exists
 // only while the picker is open, so the mutation's lifetime matches its one consumer.
 //
 // THE PARSE INPUTS MIRROR THE SERVER'S WRITE VALIDATION EXACTLY: the picker parses the variant's CANON

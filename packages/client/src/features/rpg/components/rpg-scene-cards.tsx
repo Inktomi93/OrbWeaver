@@ -1,6 +1,6 @@
 // The CARD ARCHIVE — the Scene tab's "Cards" section: every immersive card in the
 // visible transcript, newest first, as a title list that opens the full sandboxed card in a lightbox dialog.
-// Extracted from rpg-scene-tab.tsx (the tab outgrew the component-size cap). The transcript keeps the inline
+// Apart from rpg-scene-tab.tsx. The transcript keeps the inline
 // render; this is the "find that letter again" record surface. Absent entirely when the game's immersiveHtml
 // option is off (applicability, not a disabled twin). Cross-domain read rides `trpc.chat.listMessages`
 // DIRECTLY (lockdown §12 — the transcript surface shares this exact cache key, so this is a cache read).

@@ -6,8 +6,7 @@
 // deep-link seam, which was only ever the target half of this same fact.
 //
 // WHY ITS OWN STORE, NOT `shell-store.ts` (the design's §5.2 named the shell store): this is one section's
-// navigation state, exactly what every per-section selection store already homes, and the shell store sits
-// at its component-size cap. Not persisted — landing on the section with no group active shows the welcome,
+// navigation state, exactly what every per-section selection store already homes. Not persisted — landing on the section with no group active shows the welcome,
 // the same posture the kinded member selection takes.
 //
 // THE EFFECTIVE ACTIVE GROUP IS ONE DERIVATION. A collection MEMBER can be open (the kinded selection in

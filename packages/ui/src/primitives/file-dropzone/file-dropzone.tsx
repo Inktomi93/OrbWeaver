@@ -255,8 +255,7 @@ export function FileDropzone({
   // BOTH name attributes are destructured OUT of `rest` ON PURPOSE — `nameAttributes` composes them
   // explicitly instead of letting them ride the spread. Left in `rest` they would be uncombinable: JSX
   // later-wins, so a caller's `aria-label` would sit AFTER the fallback `aria-labelledby` and lose to it
-  // under the accname spec, silently renaming three live plugin/backup dropzones. This is the
-  // `ui-accname-survives-spread` gate's second sanctioned shape.
+  // under the accname spec, silently renaming three live plugin/backup dropzones.
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
   id,

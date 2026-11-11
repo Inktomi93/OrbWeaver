@@ -1,4 +1,4 @@
-// verbs/attachments — the scope-attachment verb group barrel. One verb per file (verb-naming gate), FOUR
+// verbs/attachments — the scope-attachment verb group barrel. One verb per file, FOUR
 // scopes: global, character, preset (all owner-gated) and chat (membership-scoped via the injected chat
 // guards, D18). Plus `applyScopeOrder`, the ONE order-rewrite verb across all four scopes — the operation is
 // identical per scope (only the junction table differs), where attach/detach differ in their AUTHORITY.

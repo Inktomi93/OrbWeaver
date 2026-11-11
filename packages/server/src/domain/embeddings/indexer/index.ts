@@ -1,7 +1,7 @@
 // domain/embeddings/indexer — the NAMED SUBSYSTEM front door: the factory that binds the event handlers over
 // the injected indexer bundle. Wired at `entry/` onto the in-process domain-event bus (`character.updated` →
 // onCharacterUpdated, `asset.created` → onAssetCreated). Exports only the factory (a function) — the
-// `EmbeddingsIndexer` / `EmbeddingsIndexerContext` TYPES live in `contract/` (no-inline-types).
+// `EmbeddingsIndexer` / `EmbeddingsIndexerContext` TYPES live in `contract/` (§7.4).
 
 import type { EmbeddingsIndexer, EmbeddingsIndexerContext } from "../contract/service.ts";
 import { onAssetCreated, onCharacterUpdated } from "./handlers.ts";

@@ -1,5 +1,5 @@
-// One inbox row: the delivery copy + its action cluster, split out of notification-bell.tsx by the
-// `component-size` cap (#1799's restyle grew the file past 450 lines). The row is a fully self-contained
+// One inbox row: the delivery copy + its action cluster, apart from notification-bell.tsx.
+// The row is a fully self-contained
 // leaf — it owns its own per-item mutations (accept/decline/dismiss) and in-flight state — so the split
 // costs the bell nothing beyond passing it the four callbacks it already owned. The bell still composes
 // the list (`Stack`/`Separator`/`EmptyState`) around it; only the per-row rendering + writes live here.

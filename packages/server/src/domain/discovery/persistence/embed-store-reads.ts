@@ -299,9 +299,8 @@ export async function distinctCorpusOwners(handle: DatabaseHandle, run: EveryOwn
     distinctSegmentHubOwners(db, run),
     distinctImageHubOwners(db, run),
   ]);
-  // `indexOf` rather than a Set: `persistence-no-in-memory-state` bans a constructed Set in this layer, and
-  // the rule is right even though this one would be query-local — the union is over the box's USER count,
-  // so the quadratic is a handful of comparisons and there is no reason to spend an exemption on it.
+  // `indexOf` rather than a Set: `persistence/` holds no in-memory state, and the union is over the box's
+  // USER count, so the quadratic is a handful of comparisons.
   return perKind.flat().filter((ownerId, index, all) => all.indexOf(ownerId) === index);
 }
 

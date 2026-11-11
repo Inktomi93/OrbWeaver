@@ -1,4 +1,4 @@
-// The per-VIEW body dispatch for `preset-editor-surface.tsx` (extracted #73 — component-size gate). Params
+// The per-VIEW body dispatch for `preset-editor-surface.tsx` (extracted #73). Params
 // is the new deck; the other four are the landed bodies re-homed per the redesign's
 // schema→home map (Data and Transforms simply stack the leaves that used to be sub-tabs).
 

@@ -3,7 +3,7 @@
 // the distinct owner list (fsck's dangling-row pass drives off the DB, not the tree — an owner whose blobs
 // all vanished has no CAS dir but still has rows), and the GATHER half of the avatar backfill. NO
 // `cas.putBytes` / `db.insert(assets)` here
-// (those stay the single coherence writer in `queries.ts` — `assets-single-writer`), and NO write into
+// (those stay the single coherence writer in `queries.ts`), and NO write into
 // another domain's table: this file ENUMERATES assets' OWN index rows and READS `characters` for
 // the backfill candidates — the relink WRITE is character's (`linkCharacterAvatars`, injected).
 
@@ -44,7 +44,7 @@ export async function listAssetOwners(db: Db): Promise<UserId[]> {
  *  card (`importHash`) but no linked avatar. `ownerId === null` is the admin-wide sweep; otherwise
  *  owner-scoped in the WHERE. Lives HERE, beside the `batchLinkAvatars` write it feeds: `characters` is
  *  CHARACTER's table, so an assets-side read of it belongs in assets' db-access slot, never in the
- *  workload-contribution seam that consumes it (Tier-1-DB.md §"Cross-tier composition"; `own-tables-only`). */
+ *  workload-contribution seam that consumes it (Tier-1-DB.md §"Cross-tier composition"). */
 export async function loadAvatarBackfillCandidates(db: Db, ownerId: UserId | null): Promise<AvatarBackfillCandidate[]> {
   const scope =
     ownerId === null

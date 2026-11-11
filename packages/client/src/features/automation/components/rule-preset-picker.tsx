@@ -8,8 +8,7 @@
 // spelling: the trigger and the popover title are the same words (side-eye #621 P3-1 — the concept had
 // three names across one popover).
 //
-// THE FORM'S THREE PARTS LIVE IN THREE FILES, and the split is the `component-size` cap made honest when
-// the entityRef arm landed (#630): the per-knob EDITORS are `rule-preset-knob-field.tsx`, the per-knob
+// THE FORM'S THREE PARTS LIVE IN THREE FILES: the per-knob EDITORS are `rule-preset-knob-field.tsx`, the per-knob
 // VALUE MODEL (defaults, validity, the mint bag) is `lib/rule-preset-knob-model.ts`, and what stays here is
 // the ceremony — catalogue → knob form → mint.
 //

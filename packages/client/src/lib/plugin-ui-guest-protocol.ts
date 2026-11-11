@@ -3,7 +3,7 @@
 // worker and its host cannot drift: a new message kind fails `tsc` at the exhaustive dispatch on the other side.
 //
 // IT LIVES IN `client/src/lib`, NOT in `features/plugin/`, and that is the type-home law rather than taste
-// (`no-inline-types`, Spine-TypeScript-and-Patterns §7.4): a client feature's buckets are not a type home, and
+// (Spine-TypeScript-and-Patterns §7.4): a client feature's buckets are not a type home, and
 // these are exported UNIONS. `src/lib` is where a client-wide contract belongs — the `contribution-contracts.ts`
 // precedent — and this one genuinely spans two EXECUTION CONTEXTS, which is about as cross-boundary as a
 // client-side shape gets.

@@ -7,8 +7,8 @@
 // the whole domain regardless). It is LIVE-ONLY (no durable table, no replay) — a subscriber attaches and goes
 // live, and the client gap-heals on every (re)connect with a blanket invalidate.
 //
-// MEMBERSHIP is derived from an AUDIT of the user-level mutating verbs that exist TODAY. The
-// `bus-producer-coverage` gate flags a declared-never-emitted member as dead wire — so every member below
+// MEMBERSHIP is derived from an AUDIT of the user-level mutating verbs that exist TODAY. A
+// declared-never-emitted member is dead wire, so every member below
 // has a real server emit site.
 //   • `connection` emits from every per-user connection CRUD verb and every binding change
 //     (domain/connection/verbs/connections.ts, bindings.ts), AFTER the write commits (docs/work/0121).
@@ -115,8 +115,7 @@ export type UserBusEvent =
   | { type: "workloadsChanged" };
 
 /** Valid discriminators, derived from the union. The `satisfies Record<UserBusEvent["type"], true>` makes
- *  `tsc` error if a member is added without a matching entry — the `bus-producer-coverage` gate parses THIS object
- *  literal (the one home) to check every member has a server emit site. */
+ *  `tsc` error if a member is added without a matching entry. */
 export const USER_BUS_EVENT_TYPES = {
   charactersChanged: true,
   personasChanged: true,
@@ -144,11 +143,8 @@ export const USER_BUS_EVENT_TYPES = {
  * one id to be an honest hint, which is the same reasoning the owner-wide `databank` reindex sweep already
  * follows by omitting `documentId`; the client map path-invalidates the domain root regardless.
  *
- * It lives HERE, beside the union and the belt, for two reasons. One home: "the id-less form of member X" is
- * a fact about the union, not about whichever consumer needs it. And the emit-coverage ratchet
- * (`bus-producer-coverage`) resolves emitter identity in `server/src/{domain,transport}` — a totality table
- * parked in transport would make every member read as emitted regardless of whether it has a producer,
- * which is the one thing `bus-producer-coverage` exists to catch.
+ * It lives HERE, beside the union and the belt: "the id-less form of member X" is
+ * a fact about the union, not about whichever consumer needs it.
  *
  * `satisfies Record<…>` is the belt: a new member fails `tsc` HERE until it declares its coarse form.
  */

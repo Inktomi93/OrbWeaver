@@ -1,6 +1,5 @@
-// The section VOCABULARY — extracted from shell-store.ts (which re-exports it, so every existing
-// import path still resolves) when #181's resolveSectionPath pushed the store over the component-size
-// cap. Pure data + guards only; the store owns all state.
+// The section VOCABULARY — apart from shell-store.ts (which re-exports it, so every existing
+// import path still resolves). Pure data + guards only; the store owns all state.
 
 /** The rail's navigable sections. `home` leads: it is the landing section (its rail affordance is the
  *  brand glyph, `rail.brand`), and the tuple order IS the rail/mobile-bar order.

@@ -178,8 +178,8 @@ export async function updatePresetRow(db: Db, id: PresetId, userId: UserId, patc
  *  #471 guard's premise is that the write DESCENDS FROM A READ of the row it replaces, and neither of these
  *  callers reads it. Guarding them would refuse a reset/import over a corrupt preset — the user's own
  *  explicit repair, and the affordance the guarded editor path tells them to reach for — while preventing
- *  no silent loss. The exemption is recorded two-sidedly in `json-column-write-parity`'s GUARD_EXEMPT
- *  table, so a future caller that starts merging onto the stored value turns the row RED. */
+ *  no silent loss. A future caller that merges onto the stored value belongs on the guarded
+ *  writer, not here. */
 export async function replacePresetConfig(
   db: Db,
   id: PresetId,

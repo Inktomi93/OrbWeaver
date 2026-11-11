@@ -24,7 +24,8 @@ boundaries are physics, not policy.
    `paths`** anywhere (that was neo-tavern's `@/` shadcn tax). One resolution model, all native.
    Another module is entered only through its front door, `#<module>`. `#src/<path>` names a file in the
    importer's own module and never crosses into another one. A parent-relative import climbs at most one
-   directory (`package-deep-import`, `package-subpath-crossing`).
+   directory; review holds this. Dep-cruiser `package-subpath-crossing` refuses a subpath import into
+   another module's internals.
 3. **Name by role; no `_` junk drawers.** Folders are named for what they are (`foundation`, `infra`,
    `primitives`, `contract`, `query`, `http`). Only the `@orb/kit` package is called `kit`; a package-local
    helper folder is named by its role. There is **no `_shared` services drawer** — cross-feature *services*

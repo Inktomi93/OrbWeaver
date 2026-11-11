@@ -1,4 +1,4 @@
-// THE VITEST SEAM of the ONE load policy (NOT a test file — no `.test` suffix, so test-layout ignores it). The POLICY itself moved DOWN to `@orb/tooling/floor/host/load-budget` on
+// THE VITEST SEAM of the ONE load policy (NOT a test file — no `.test` suffix). The POLICY itself moved DOWN to `@orb/tooling/floor/host/load-budget` on
 // 2026-09-02 (#1232): the box reading, the factor, the
 // wall-clock `budget()`, the rate judgment, the two markers and the kill message are shared with the
 // INSTRUMENTS, the two runner configs and the stack launcher, and a policy that lives under `tests/` can

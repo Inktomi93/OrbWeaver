@@ -1,8 +1,8 @@
 // The connection editor's FACT-ROW model — the ONE grammar both Advanced blocks render through (inference
 // program §5.3a · the step-3b mock `editor.html` Board B): `declared` ("What this server accepts") and
 // `features` ("Endpoint quirks") are different schemas with the same reading job, so they get one row shape,
-// one source-line derivation and one per-field Override write path. Split out of
-// `connection-editor-model.ts` at the `component-size` cap; that file keeps the tier-level reads (the
+// one source-line derivation and one per-field Override write path. Apart from
+// `connection-editor-model.ts`: that file keeps the tier-level reads (the
 // verdict, the badge rail, the extras rows, the admission predicate), this one keeps the grammar and the
 // quirk rows, and `connection-capability-fact-model.ts` keeps the capability rows.
 //

@@ -24,7 +24,7 @@ function createDropPluginProviders(ctx: ConnectionContext): ConnectionService["d
   return ({ pluginId }): Promise<void> => ctx.runtime.providers.dropPlugin(pluginId);
 }
 
-/** The registry-door verb bundle (`verb-naming`: one factory named for the file). */
+/** The registry-door verb bundle (one factory named for the file). */
 export function createProviders(ctx: ConnectionContext): ProviderVerbs {
   return {
     providersAvailable: createProvidersAvailable(ctx),

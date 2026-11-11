@@ -248,7 +248,7 @@ async function bindEverywhere(ctx: ConnectionContext, principal: Principal, row:
 /** The binding slice of `ConnectionService` this grouped file owns. */
 type BindingVerbs = Pick<ConnectionService, "listBindings" | "getBoundConnection" | "setBinding" | "useForEverything">;
 
-/** The `connection_bindings` verb bundle (`verb-naming`: one factory named for the file). */
+/** The `connection_bindings` verb bundle (one factory named for the file). */
 export function createBindings(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): BindingVerbs {
   return {
     listBindings: createListBindings(ctx),

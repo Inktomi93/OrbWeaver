@@ -41,9 +41,8 @@ Every adapted finding is origin-tagged: `Finding.origin === "impeccable"` in the
   `DESIGN.md`/`PRODUCT.md` context flow this repo does not adopt (see `design-context.md`); it runs on
   Puppeteer, not Playwright; it carries its own severity vocabulary and ignore grammar that would fork
   our P0-P3 report contract.
-- Their source-regex engine (`detect-text.mjs`) is not adopted either. Source enforcement is the gate
-  battery's job (native Tailwind class validation, `density-tier`, and the token policies); a
-  second source scanner would double-home enforcement. Our detector judges rendered truth only.
+- Their source-regex engine (`detect-text.mjs`) is not adopted either. Source enforcement is the lint
+  rules' job (native Tailwind class validation and the token policies); a second source scanner would double-home enforcement. Our detector judges rendered truth only.
 - **Chosen shape:** an in-page fact walker gathers raw samples, pure Node checks decide, the runner
   reports. Thresholds and detection recipes come from impeccable, credited; the code is written to our
   house shape so every verdict stays fixture-testable without a browser.
@@ -178,7 +177,7 @@ translucent stop, as `image-indeterminate` (hand-verify) rather than trusting al
 | rule | reason |
 | - | - |
 | `design-system-color` | computed colors derive from tokens; a computed census cannot attribute alpha-composites |
-| `design-system-radius` | radius steps are tokens; assignment is the `density-tier` gate's job |
+| `design-system-radius` | radius steps are tokens; their assignment is reviewed at source |
 | `design-system-font-size` | ramp membership is enforced at source; the legibility half survives as `text-below-ramp`/`undersized-ui-text` |
 
 **Deferred on cost and quality honesty (rejected for now, not a never):**

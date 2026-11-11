@@ -2,8 +2,8 @@
 // break an e2e selector; a typed map makes the typo a `tsc` error on BOTH sides (the component
 // stamping the id and the Playwright test selecting it). Add ids HERE, never inline — grow the map
 // as surfaces land. Values are the literal DOM attribute strings (kebab-case, stable API for e2e).
-// A row lives only as long as a component STAMPS it: the `testid-liveness` gate reds a row no producer
-// spends (and a test selecting one), so add the row and its `data-testid` in the same commit.
+// A row lives only as long as a component STAMPS it: delete a row no producer
+// spends, and add a row with its `data-testid` in the same commit.
 
 // Markup and selectors share the typed testId lookup, not the registry object.
 const TEST_IDS = {

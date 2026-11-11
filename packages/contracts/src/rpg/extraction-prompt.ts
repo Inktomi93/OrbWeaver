@@ -29,8 +29,7 @@
 // CENSUS 27 IS WIRED (owner ruling 2026-08-08 on spec §11 decision 6: WIRE it and measure). The state-tracking
 // GUIDE — Appendix A's "be thorough, the panel should reflect the FULL richness of the narration" addendum, the
 // measured per-turn coverage lifter — spent its whole life as `RPG_STATE_TRACKING_GUIDE`, an exported const
-// composed onto nothing (`pnpm ast refs` found only its declaration; it is the reason ARM B of the
-// `no-hardcoded-model-prose` gate exists). It is now the `rpg.extract.stateTrackingGuide` slot, pushed by
+// composed onto nothing. It is now the `rpg.extract.stateTrackingGuide` slot, pushed by
 // `composePlaneTeaching` — so it rides BOTH write surfaces (the structured extraction + the cheap tool round,
 // and with them the host resync) and NEITHER narration prompt, which is exactly what its own doc-comment always
 // claimed. Its bytes are VERBATIM the retired constant's: the ruling was "wire and MEASURE", and a measurement

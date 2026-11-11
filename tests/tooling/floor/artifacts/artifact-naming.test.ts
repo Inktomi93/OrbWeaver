@@ -6,17 +6,11 @@
 // halves of one contract in two files. `floor/artifacts/artifacts.ts`'s own run-slot behaviour is the sibling
 // `artifacts.int.test.ts`, which spawns real children and is a different kind of test.
 //
-// WHY NO GATE CAUGHT THE DRIFT, and it is NOT "tooling is unpoliced" — that was the hypothesis and the tree
-// refutes it. `test-layout` covers this file: its §4.7 arm is `tests/tooling/<dir>/<path>.<kind>` ↔
-// `tooling/src/<dir>/<path>.ts` (only FLAT `tests/tooling` files are exempt, and `floor/` is a dir). The
-// gate was green on the old name for the most uncomfortable possible reason — `tooling/src/floor/artifacts/artifacts.ts`
-// still EXISTS, so the mirror resolved perfectly while the file tested a different module entirely.
-//
-// THE DURABLE GAP is therefore narrower and worse than a missing population: a mirror gate proves the test's
-// NAME resolves to a real source file; it cannot prove that file is the test's SUBJECT. Any test re-pointed
-// at a new module keeps passing as long as something still occupies its old name — which is exactly what a
-// decomposition does. Closing that means comparing a test's IMPORTS against its mirror target, which is a new
-// gate capability, not a rule tweak.
+// WHY THE MIRROR DID NOT SHOW THE DRIFT: `tooling/src/floor/artifacts/artifacts.ts` still EXISTS, so the
+// mirror path resolved while the file tested a different module entirely. A mirror shows a test's NAME
+// resolves to a real source file; it cannot show that file is the test's SUBJECT. Any test re-pointed at a
+// new module keeps passing as long as something still occupies its old name — which is exactly what a
+// decomposition does.
 //
 // THE DEFECT THIS PINS (2026-08-17, issue #148 item 2): `snap --out /abs/path/sf-fixed.png` wrote
 // `reports/snaps/abs/path/sf-fixed.png.png` — joined under the reports dir AND re-suffixed — and still

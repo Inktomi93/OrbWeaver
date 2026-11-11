@@ -36,10 +36,8 @@ import { ELEVATION_ITEMS } from "../lib/appearance-select-items.ts";
 
 type Elevation = AppearanceSettings["elevation"];
 
-// THE FRAME IS SPELLED INLINE IN ALL THREE, deliberately. Hoisting it to a shared `const PLATE` string
-// makes the classes invisible to every literal-shape gate that reads this file — `density-tier`
-// immediately reported the GLOW diagram's RATIFIED nested-island rows as gone (its ratchet's "budgets 2
-// finding(s) … but only 0 remain" arm), which is a gate being blinded, not a violation being fixed.
+// THE FRAME IS SPELLED INLINE IN ALL THREE, deliberately: each diagram's classes stay readable at the
+// element that paints them.
 
 /** FLAT — separation BY LINE: one base tone across the whole horizon with the `--color-sidebar-border`
  *  seams KEPT. EXAGGERATED: 2px seams — a truthful hairline reads as nothing at this size. */

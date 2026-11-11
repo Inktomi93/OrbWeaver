@@ -8,7 +8,7 @@ import { expect } from "@playwright/test";
 import type { z } from "zod";
 import type { TrpcWire } from "../iso/trpc-wire.ts";
 // The ONE tRPC code union home (tests/support/node/matchers.ts, derived through classifyDomainError —
-// gate no-inline-union-redecl). Type-only: erased, no vitest runtime in the Playwright process.
+// Spine-TypeScript-and-Patterns §7.5). Type-only: erased, no vitest runtime in the Playwright process.
 import type { TrpcErrorCode } from "./matchers.ts";
 
 type AppRouterRecord = AppRouter["_def"]["record"];

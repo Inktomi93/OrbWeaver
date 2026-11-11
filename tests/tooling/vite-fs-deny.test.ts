@@ -1,6 +1,5 @@
 // The dev server's `/@fs/` path filter (#1483) — a ROOT-CONFIG pin, hence a flat `tests/tooling/` file
-// (the `test-layout` gate's exempt non-mirror tier: `packages/client/vite.config.ts` is not under a
-// `src/`, so it prefix-swaps to nothing).
+// (`packages/client/vite.config.ts` is not under a `src/`, so no mirror path exists).
 //
 // WHY THIS IS A TEST AND NOT A READING OF THE ARRAY. `server.fs.allow` is the whole workspace root — the
 // monorepo REQUIRES it, because client imports `@orb/*` SOURCE from sibling packages — so `deny` is the

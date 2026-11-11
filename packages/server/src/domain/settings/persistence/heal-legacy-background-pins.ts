@@ -53,7 +53,7 @@ function clearStaleBackgroundPins(config: UserSettings, validIds: ReadonlySet<As
 }
 
 /** Heal one user's row; returns whether it was rewritten. `requireIntactStoredConfig`'s own top-level
- *  statement precedes the write below in this body (ARM B dominance, `json-column-write-parity`) — an
+ *  statement precedes the write below in this body — an
  *  unreadable row throws here and the caller skips it (see the header: not this heal's job). */
 async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: UserSettings, schemaVersion: number): Promise<boolean> {
   const config = requireIntactStoredConfig(userSettingsConfig.parseOutcome(storedConfig, schemaVersion), `user_settings for ${userId}`);

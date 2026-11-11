@@ -7,11 +7,11 @@ export type { AmbientStripProps } from "./ambient-strip.tsx";
 export { AmbientStrip } from "./ambient-strip.tsx";
 
 export { HintEditor } from "./hint-editor.tsx";
-// The meter row + its label/value/max/track pieces are ONE module (the component-size cap) — nothing
+// The meter row + its label/value/max/track pieces are ONE module — nothing
 // outside it composes any of them.
 
 export { MeterRow } from "./meter-row.tsx";
-// The npc card + its header slots live in ONE module (the component-size cap) — the card is nothing but
+// The npc card + its header slots live in ONE module — the card is nothing but
 // the arrangement of those slots, and they have no other consumer.
 
 export { NpcCard } from "./npc-card-slots.tsx";

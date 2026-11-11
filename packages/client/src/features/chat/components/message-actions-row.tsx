@@ -16,8 +16,8 @@
 // (the item is a child, the `ConfirmDialog` is a sibling); the wire viewer follows that precedent, which is
 // also why the `open` state has to live in THIS component rather than in a split-out trigger file.
 //
-// THREE RATIFIED SECOND DOORS HANG OFF THIS ROW (the duplicate-action-doors budgets
-// `chats::chat.deleteMessages: 2`, `chats::chat.undoContinue: 2`, `chats::chat.revertContinue: 2`). This is
+// THREE RATIFIED SECOND DOORS HANG OFF THIS ROW (`chat.deleteMessages`,
+// `chat.undoContinue` and `chat.revertContinue`, two doors each). This is
 // the per-MESSAGE plane; each twin is a different plane with a different reach, so none is an echo (two
 // controls in one home, one carrying a strict subset of the other's payload):
 //   • deleteMessages ← `message-selection-bar.tsx`: bulk-select mode, the whole selected SET, a counted

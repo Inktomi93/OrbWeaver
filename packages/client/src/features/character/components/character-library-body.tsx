@@ -1,5 +1,5 @@
 // The library pane's BODY ladder: loading → error → empty → no-matches → the flat virtual list OR the
-// categorized grouped list. Split out of `character-library-surface.tsx` (the `component-size` cap): the
+// categorized grouped list. Apart from `character-library-surface.tsx`: the
 // surface owns the reads and the lens, this owns what the pane shows once they have answered.
 //
 // THE EMPTIES ARE DIFFERENT CLAIMS, and the server-side predicates let each be honest: an empty page means
@@ -140,7 +140,7 @@ export function CharacterLibraryBody({
     // and the pointer is ADDED to it, naming the band's primary by its visible label (WCAG 2.5.3 — a
     // voice-control user says what is written), so this is a de-duplicated door, never a dead end.
     return (
-      // action={null}: the EMPTY-LIBRARY arm (#532), and the STRONGER form of the preset-library-welcome precedent: this body renders INSIDE the list panel, and PanelChrome renders the .shell-panel-header band with every panel that has a body (D66 A1), so the band's New sits unconditionally ~200px directly above. Its own New was the THIRD New on the Characters plane, which duplicate-action-doors is the sibling gate for; the invitation survives verbatim and NAMES the surviving door by its visible label (WCAG 2.5.3). Ends if PanelChrome stops rendering the header band for this pane, which would strand this state.
+      // action={null}: the EMPTY-LIBRARY arm (#532), and the STRONGER form of the preset-library-welcome precedent: this body renders INSIDE the list panel, and PanelChrome renders the .shell-panel-header band with every panel that has a body (D66 A1), so the band's New sits unconditionally ~200px directly above. Its own New was the THIRD New on the Characters plane; the invitation survives verbatim and NAMES the surviving door by its visible label (WCAG 2.5.3). Ends if PanelChrome stops rendering the header band for this pane, which would strand this state.
       <EmptyState
         action={null}
         description="Weave your first one to begin. Use New at the top of this pane."

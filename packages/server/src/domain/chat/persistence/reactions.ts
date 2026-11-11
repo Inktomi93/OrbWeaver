@@ -32,7 +32,7 @@ const LIMIT_ONE = 1;
  *  trigger fact carry — a client indexes by variant, an automation predicate reads the message).
  *
  *  FILE-LOCAL by design (the `guard.ts::MemberChat` precedent): it is the inferred shape of ONE query, not
- *  a cross-boundary contract, and `no-inline-types` homes an EXPORTED shape in `contract/`. The verb reads
+ *  a cross-boundary contract, and §7.4 homes an EXPORTED shape in `contract/`. The verb reads
  *  it back off the function's own return type instead. */
 interface ReactionRow {
   readonly variantId: MessageVariantId;

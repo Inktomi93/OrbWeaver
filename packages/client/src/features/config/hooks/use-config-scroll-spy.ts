@@ -1,6 +1,5 @@
-// THE SETTINGS CONTENT PANE'S SCROLL-SPY WIRING — the WHEN half of the spy, split out of
-// `surfaces/config-content-surface.tsx` when that file crossed the 450-line component-size cap (#1632
-// train 81). Nothing here changed behaviour: the effect body is verbatim, its one dependency
+// THE SETTINGS CONTENT PANE'S SCROLL-SPY WIRING — the WHEN half of the spy, apart from
+// `surfaces/config-content-surface.tsx`. Nothing here changed behaviour: the effect body is verbatim, its one dependency
 // (`activeGroup`) is unchanged, and both refs are still minted exactly once per pane.
 //
 // WHY IT LANDED IN `hooks/` AND NOT IN `lib/config-scroll-spy.ts`, which is where the name points.
@@ -8,7 +7,7 @@
 // (which listener, which suppression window — `config-jump.ts`); this file owns the WHAT: where the
 // reader is, how a jumped-to section announces itself, and the one-frame wait every scroll here needs."
 // Folding three observers, an rAF loop and a suppression handshake into that module would have made it
-// own both halves and quietly retired a recorded ruling to satisfy a line count. So the WHAT stays pure
+// own both halves and quietly retired a recorded ruling. So the WHAT stays pure
 // and importable, and the WHEN becomes a hook — which is what it always was, minus a home.
 //
 // THE HOOK MINTS THE TWO REFS RATHER THAN TAKING THEM, and that is not a stylistic call: a ref read as

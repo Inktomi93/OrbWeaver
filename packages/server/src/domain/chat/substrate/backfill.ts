@@ -93,7 +93,7 @@ async function scopesFor(ctx: ChatContext, chatId: ChatId, characterIds: readonl
 
 /** The digest plan `planDigests` produces (PHASE 1) and PHASE 3/4 consume (`storeTier0` + consolidation) —
  *  derived by inference so this build-internal orchestration type stays out of a substrate export
- *  (no-inline-types: exported types live in a type home). */
+ *  (§7.4: exported types live in a type home). */
 type DigestPlan = NonNullable<Awaited<ReturnType<typeof planDigests>>>;
 
 /** One chat's collected segment work, derived by inference so this build-internal orchestration type stays
@@ -286,7 +286,7 @@ interface CommitState {
   readonly funderUserId: UserId;
 }
 
-/** One bucket's collected tier-k consolidation work, derived by inference (no-inline-types). */
+/** One bucket's collected tier-k consolidation work, derived by inference (§7.4). */
 type ConsTierPlan = NonNullable<Awaited<ReturnType<typeof collectConsolidationTier>>>;
 
 /** A collected bucket at one tier, tagged with its plan index + scope for the store scatter. */

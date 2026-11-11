@@ -1,5 +1,5 @@
-// B2 — ONE rule-preset knob's EDITOR. Split out of `rule-preset-picker.tsx` when the entityRef arm (#630)
-// pushed that file past the `component-size` cap: the picker owns the popover/catalogue/mint ceremony, this
+// B2 — ONE rule-preset knob's EDITOR. Apart from `rule-preset-picker.tsx`:
+// the picker owns the popover/catalogue/mint ceremony, this
 // file owns what one knob LOOKS like, and `lib/rule-preset-knob-model.ts` owns what counts as a usable
 // value for it.
 //

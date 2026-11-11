@@ -1,6 +1,6 @@
 // The AMBIENT CADENCE — how often a RESTING web is allowed to repaint (#467: the owner's idle
-// pre-auth login screen burned CPU continuously and micro-stuttered). Split from web-weave.tsx under
-// the component-size-ui cap, and its own concern besides: the component owns the rAF clock, this
+// pre-auth login screen burned CPU continuously and micro-stuttered). Apart from web-weave.tsx as
+// its own concern: the component owns the rAF clock, this
 // module owns the question "is anything actually happening?".
 //
 // WHY a budget at all: nothing on a resting web moves faster than ~2Hz — the glint sweeps one turn in

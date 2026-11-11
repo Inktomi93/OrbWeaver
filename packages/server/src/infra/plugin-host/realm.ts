@@ -22,7 +22,7 @@ import type { MembraneRuntime } from "./membrane.ts";
 import { attachMembrane } from "./membrane.ts";
 
 /** The deterministic seams the host injects — the guest's ONLY time/entropy/id sources (README law,
- *  `test-determinism` gate). Bound at compose to the SAME injected seams production uses; a frozen test
+ *  Spine-Testing §3). Bound at compose to the SAME injected seams production uses; a frozen test
  *  clock here makes two runs byte-identical without touching the DoS deadline (which reads real time). */
 export interface HostSeams {
   /** Injected wall clock, epoch ms — the guest's `orb.host(1).clock.nowEpochMs()`. */

@@ -1,7 +1,7 @@
 // CharacterShelf — one labelled band of the Characters landing, over a FIXED-cell grid (#226, #864).
 //
 // SPLIT OUT OF `character-library-welcome.tsx` (#1662): that file carries three arms, three reads and a
-// frame, and the shelf's own door vocabulary pushed it past the 450-line component cap. It is a component
+// frame. The shelf is a component
 // with one job, so it gets a file, beside the cell it renders (`character-shelf-face.tsx`).
 //
 // THE DOOR IS A PER-SHELF FACT, never a per-face one — the whole point of the #1662 ruling. "Recently
@@ -93,7 +93,7 @@ export interface ShelfFace {
 const SHELF_DOORS = ["open", "resume"] as const;
 /** A shelf's door, closed: press a face to OPEN her in the editor, or to RESUME her newest room (#1662).
  *  FILE-LOCAL on purpose: callers pass the literal, so exporting it would put a two-member axis in a
- *  component file, which is what `no-inline-types` refuses. */
+ *  component file, which §7.4 refuses. */
 type ShelfDoor = (typeof SHELF_DOORS)[number];
 
 /** The face's resume half, resolved from the SHELF's door. A `"resume"` shelf whose face somehow carries no

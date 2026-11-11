@@ -12,7 +12,7 @@ import { layerVariants } from "./variants.ts";
  * It is a GRID, not a `relative`/`absolute` pair, because absolute positioning takes the loser OUT of flow —
  * the cell would then size to whichever cluster stayed in flow and the other could overhang. It is also not a
  * `display` swap: both children stay in layout at all times, so the row's geometry is byte-identical at rest
- * and on hover (gate `no-hover-display-swap`; the reveal is `opacity`/`visibility` only).
+ * and on hover (the reveal is `opacity`/`visibility` only).
  *
  * Usage: `<Layer className="shrink-0"><Row …/><Row …/></Layer>` — never `className="grid"` + a call-site
  * `[grid-area:…]` in feature code (structural layout goes through the layout kit).

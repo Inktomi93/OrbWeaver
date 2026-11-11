@@ -1,7 +1,7 @@
 // The `/imagine` argument grammar — the ONE pure home for "what did
 // the host mean by these /imagine args?", so the mount and its tests share one decision. A leading
 // MODE_TRIGGER word (you/face/scene/background — the ONE map in `@orb/contracts/imagery`, never re-spelled:
-// no-inline-union-redecl) selects an EXTRACTION mode and the rest is an optional refinement; anything else is
+// Spine-TypeScript-and-Patterns §7.5) selects an EXTRACTION mode and the rest is an optional refinement; anything else is
 // a verbatim FREE-mode prompt. A bare `/imagine` is free mode with an empty prompt (the modal then requires
 // one). The modal is the preview-before-spend surface — it resolves an extraction prompt via `extractPrompt`
 // before any generation, so `/imagine you` never blind-spends.

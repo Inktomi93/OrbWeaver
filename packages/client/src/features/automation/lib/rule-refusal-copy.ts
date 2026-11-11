@@ -1,7 +1,6 @@
 // The rule row's REFUSALS — what a host is told when a control on the row cannot do what it says.
 //
-// Extracted from `rule-copy.ts` when #1673's third refusal pushed that file past the `component-size` cap
-// (453 > 450), and it is the extraction that gate names: a self-contained VOCABULARY rather than a slice of
+// Apart from `rule-copy.ts` as a self-contained VOCABULARY rather than a slice of
 // component logic. It is also the honest boundary. `rule-copy.ts` translates a rule's wire values into
 // sentences that describe what a rule IS and DID — its trigger, its arms, its last run, a fire's detail.
 // This module answers a different question, about the SURFACE rather than the rule: which doors are shut,

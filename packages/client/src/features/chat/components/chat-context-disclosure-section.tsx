@@ -1,6 +1,6 @@
 // The This-chat tab's DISCLOSURE SECTION — a `Section kicker` whose heading is a `CollapsibleTrigger`, with
-// the open posture remembered per host per section (`chat-context-section-open-store.ts`). Extracted from
-// settings-context-tab.tsx at the `component-size` cap (#885 lane); the OPEN/CLOSED default LAW — which
+// the open posture remembered per host per section (`chat-context-section-open-store.ts`). Apart from
+// settings-context-tab.tsx; the OPEN/CLOSED default LAW — which
 // sections open by default and why — stays with the tab that declares them, beside its constants.
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";

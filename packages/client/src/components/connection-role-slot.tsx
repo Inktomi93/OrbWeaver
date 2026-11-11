@@ -51,7 +51,7 @@ type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
 type BindingActorInput = NonNullable<inferInput<Trpc["connection"]["setBinding"]>["actor"]>;
 
-// Both axes are DERIVED from their one home rather than re-spelled here (`no-inline-types`): the dot's
+// Both axes are DERIVED from their one home rather than re-spelled here (§7.4): the dot's
 // states are the keys of its own label map, and the readout's arms are whatever `roleReadout` returns — so
 // a fifth arm or a new state is a `tsc` error at these two maps instead of a silent fallthrough.
 type RoleStatus = keyof typeof ROLE_STATUS_LABELS;

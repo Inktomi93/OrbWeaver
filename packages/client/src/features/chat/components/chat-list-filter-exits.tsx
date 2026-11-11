@@ -1,5 +1,5 @@
-// The chats pane's ZERO-RESULT action slot (#541). Extracted from `surfaces/chat-list-surface.tsx` for the
-// same reason the faces strip + scope chip were (`chat-list-character-filter.tsx`, the 450-line cap): the
+// The chats pane's ZERO-RESULT action slot (#541). Apart from `surfaces/chat-list-surface.tsx` for the
+// same reason the faces strip + scope chip are (`chat-list-character-filter.tsx`): the
 // surface composes, it does not also hold the narrowing vocabulary. The exits themselves are derived by
 // `lib/chat-list-scope.ts` (pure), which is where the WHY is recorded.
 

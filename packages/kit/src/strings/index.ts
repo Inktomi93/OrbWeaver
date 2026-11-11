@@ -95,15 +95,15 @@ export function formatBytes(bytes: number): string {
 // caught printing `1257 tokens` and `1257 total · 1017 permanent` — four-digit runs with no separator read
 // as ids). Three call sites is `formatBytes`'s own stated threshold. The ruling survives; its input moved.
 //
-// `.toLocaleString()` stays banned repo-wide (`no-raw-intl-time` — un-memoized Intl by the back door), so
+// `.toLocaleString()` stays out of display code (un-memoized Intl by the back door), so
 // this is the hand-rolled spelling all three sites already shared, verbatim.
 //
 // THE REGEX GROUPS AN INTEGER RUN, NOT A NUMBER. `\B(?=(\d{3})+(?!\d))` is anchored on digit runs alone,
 // so applied to the whole `String(value)` it grouped the FRACTIONAL digits too and `1234.5678` read
 // `1,234.5,678` (#1359 — the one wrong-output defect in that row, and the function had no direct test at
 // all). The fix is positional, not a new engine: split the sign and the fraction off, group only the
-// integer run, reassemble. `.toLocaleString()`/`Intl.NumberFormat` stay banned repo-wide
-// (`no-raw-intl-time` — un-memoized Intl by the back door), so the hand-rolled spelling stays.
+// integer run, reassemble. `.toLocaleString()`/`Intl.NumberFormat` stay out of display code
+// (un-memoized Intl by the back door), so the hand-rolled spelling stays.
 
 /** Group a count for display, locale-agnostically: `1170` → `1,170`, `999` → `999`, `-1234` → `-1,234`,
  *  `1234.5678` → `1,234.5678` (the fraction is never grouped). The house separator is the comma — one

@@ -86,10 +86,7 @@ function isViewSwitchCell(door: ActionDoorInput): boolean {
   return door.toolbarKey !== null;
 }
 
-/** A RULED duplicate-action door (#1720) — the RUNTIME family's counterpart to the static gate's
- *  `EXEMPT_PROCEDURES` (the retired duplicate-action-doors gate), which censused tRPC
- *  mutation call sites per rail section and cannot see a ruling this `${role}|${name}` grouping catches
- *  instead. Before this table, the finding's own message ("if a second door is ruled UX, the ruling is
+/** A RULED duplicate-action door (#1720), keyed on the runtime `${role}|${name}` grouping. Before this table, the finding's own message ("if a second door is ruled UX, the ruling is
  *  what makes it one") pointed at a mechanism that did not exist. Keyed on the grouping key itself so a
  *  rename cannot silently keep a stale ruling alive.
  *

@@ -5,7 +5,7 @@
 // needs plus a `renderNode`/`renderChildren` callback for the recursion, rather than the renderer's own context
 // object: that keeps the renderer as the single owner of the walk (depth guard included), gives this module NO
 // import back into it — so there is no cycle to unpick later — and means neither file has to export a shared
-// context TYPE out of a component module (which is exactly what `no-inline-types` refuses in a feature).
+// context TYPE out of a component module (which §7.4 refuses in a feature).
 //
 // The genre these three encode is a MINED FAILURE LIST, not a wish list: the repo's own purged hub browser
 // rendered a visual medium as management rows, gave its decision surface the least design, stacked its controls

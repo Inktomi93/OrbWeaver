@@ -235,7 +235,7 @@ export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly Invali
 
 // ── THE RPG BUS's event→filter map ──────────────────────────────────────────────────────────────────────
 // It lives HERE, beside `ROOM_ENTITY_FILTERS` (the other per-member dispatch Record) rather than inside
-// `invalidation.ts`, for one structural reason: that file sits AT the 450-line component cap, and this map is
+// `invalidation.ts`, because this map is
 // the one self-contained third of it — its own event union, its own router namespace, its own gap-heal set,
 // and zero references from the chat/user maps. The seam is unchanged; `invalidation.ts` imports these two
 // names. Test them through
@@ -243,13 +243,13 @@ export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly Invali
 //
 // Third map: the feature-root rpg game bus (`rpg.stream`). LIVE-ONLY like the user bus; the client's tracker/
 // journal reads run `staleTime: Infinity`, so an rpg-bus tick is their freshness driver. TOTAL over
-// `RpgBusEvent["type"]` (the mapped type below is `bus-consumer-belt`'s consumer-exhaustiveness belt — a new
+// `RpgBusEvent["type"]` (the mapped type below is the consumer-exhaustiveness check — a new
 // member fails tsc here until it names its reads). SWIPE freshness rides the CHAT bus (`variantSelected`, in
 // `BUS_FILTERS`), NOT a new rpg event — nothing is written on swipe-select, so the rpg bus never announces it.
 //
 // W2 FORWARD-SEAM: the rpg VERB tRPC procs (`trpc.rpg.getTrackerView`/`getGame`/`listJournal`/`getConfigView`)
 // land with the W2 rpg router — they do NOT exist on `AppRouter` yet, so each handler returns `[]` for now
-// (the map's SHAPE is the belt `bus-consumer-belt` checks; the real `trpc.rpg.*` filters wire in W2 alongside the stream hook).
+// (tsc checks the map's SHAPE; the real `trpc.rpg.*` filters wire in W2 alongside the stream hook).
 // The per-member notes name the read each will invalidate.
 type RpgBusFilterMap = {
   readonly [K in RpgBusEvent["type"]]: (event: Extract<RpgBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateQueryFilters[];

@@ -152,8 +152,8 @@ function countSetOverrides(overrides: RoomOverrides): number {
 const OPEN_BY_DEFAULT = true;
 const CLOSED_BY_DEFAULT = false;
 
-// The disclosure wrapper itself lives in ./chat-context-disclosure-section.tsx (extracted at the
-// `component-size` cap); the defaults above are this tab's law and stay here with their reasons.
+// The disclosure wrapper itself lives in ./chat-context-disclosure-section.tsx ; the
+// defaults above are this tab's law and stay here with their reasons.
 
 // The Injections section reads `listChatInjections` NON-suspending (the same query the body suspends on, so
 // one fetch serves both) and spends that one read TWICE: the heading's count chip paints immediately and

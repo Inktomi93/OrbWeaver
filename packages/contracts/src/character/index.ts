@@ -989,7 +989,7 @@ export type CharacterLibraryLens = z.infer<typeof characterCensusInputSchema>;
  *  never trusted); `ownerId` is the installer the bridge closed over; `slug` is the emitter's own manifest slug,
  *  stamped host-side (never guest input) and the ONLY thing that decides which `plugin_<slug>` key is touched.
  *  Bundled so the merge stays within the 4-param house cap and the read/merge cannot drift apart on their scope.
- *  Homed HERE per no-inline-types §7.4 (the `CharacterListFilter` precedent above). */
+ *  Homed HERE per §7.4 (the `CharacterListFilter` precedent above). */
 export interface PluginCardDataTarget {
   readonly characterId: CharacterId;
   readonly ownerId: UserId;
@@ -998,7 +998,7 @@ export interface PluginCardDataTarget {
 /** The D148 plugin card-state read verdict (`persistence/plugin-card-data.ts`): `found:false` ⇒ no such OWNED
  *  character (foreign or absent — leak-free, the caller maps it to the plugin domain's NOT_FOUND); `found:true`
  *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
- *  character. Homed HERE per no-inline-types §7.4. */
+ *  character. Homed HERE per §7.4. */
 export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };
 /** One plugin's stamp lookup over one owner's characters: `ownerId` and `slug` are host-stamped, `values` is guest text. */
 export interface PluginCardDataLookup {

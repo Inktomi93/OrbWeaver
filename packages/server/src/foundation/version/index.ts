@@ -237,7 +237,7 @@ export function versionIdentity(): VersionIdentity {
  *  build's one derivation is the same code the server reads back, and a spec can assert it without a disk.
  *
  *  `builtAt` is a PARAMETER, not `new Date()`: production source reads time from the injected clock
- *  (`no-raw-clock`), and the build's wall instant is supplied by the build script that knows it. */
+ *  (Spine-Testing §3), and the build's wall instant is supplied by the build script that knows it. */
 export function buildVersionStamp(root: string, builtAt: string): VersionStamp {
   return { ...readCheckout(root), builtAt };
 }

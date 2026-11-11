@@ -6,7 +6,7 @@
 // this table is the metadata index the domain keeps coherent with the blob store.
 //
 // `kind` DERIVES the canonical `ASSET_KINDS` tuple from `@orb/contracts/assets` (the ONE home — the db
-// enum, the upload route, and the client all derive from it; §7.5 `no-inline-union-redecl`); the column
+// enum, the upload route, and the client all derive from it; §7.5); the column
 // never re-spells the union, and a tuple-built CHECK enforces it at the SQL level (a test-mirror pins db
 // === contracts).
 

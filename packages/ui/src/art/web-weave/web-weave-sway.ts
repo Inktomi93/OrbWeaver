@@ -1,6 +1,6 @@
 // The SWAY FIELD — the ambient breath every layer rides, and the one place a drawn point is moved from
-// where the geometry put it. Split from
-// web-weave-render.ts under the component-size-ui cap, and the right home besides: it sits directly on
+// where the geometry put it. Apart from
+// web-weave-render.ts because it sits directly on
 // top of the physics module and below every painter.
 //
 // A layer painted at REST coordinates over a swaying web visibly floats off it, so strands, glint

@@ -7,13 +7,9 @@
 // WHY IT IS ITS OWN FILE, AND NOT AN ARM INSIDE census-collision.ts. The two censuses answer different
 // questions (a label erased by its clipper vs. a control whose own centre a LOCAL neighbour owns), and
 // this one alone owns the compositor-reach mechanism — `askObscuredCentre`, `recenterObscuredCandidate`
-// and the device-pixel fold below. Its committed proof was authored as
-// `tests/tooling/ui-audit/ops/walker/obscured-reach.int.test.ts` against a module of this name that did
-// not exist, which is the `test-layout` mirror miss #2491 carried: the spec named the subject correctly
-// and the tree did not have it. Homing the subject here makes the mirror TRUE rather than merely
-// resolving — the distinction the retired test-layout gate's own DECLARED CAPABILITY LIMIT
-// (#2264) exists to name, since that gate proves a test's name resolves and never that the file is its
-// subject.
+// and the device-pixel fold below. Its proof,
+// `tests/tooling/ui-audit/ops/walker/obscured-reach.int.test.ts`, mirrors this file, so the test's name
+// resolves to its real subject.
 //
 // AND THE UNASKABLE POINT IS COUNTED, NOT SKIPPED (#797's lesson, in this family's own words): a centre
 // outside the viewport cannot be asked — `elementFromPoint` answers null there and null reads as "nobody

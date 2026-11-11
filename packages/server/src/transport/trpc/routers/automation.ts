@@ -7,13 +7,13 @@
 //     lane is visible to exactly one person and FORBIDDEN would make a rule id an existence oracle.
 // Thin: validate the wire schema → `principal: ctx.auth` → the acting verb.
 // The preset VOCABULARY is NOT re-spelled here — the wire wrappers reference `@orb/contracts/automation`'s
-// preset id + knob schemas (one home per shape — `no-inline-union-redecl`). testRule's dry-run
+// preset id + knob schemas (one home per shape — Spine-TypeScript-and-Patterns §7.5). testRule's dry-run
 // synthesizes its fact from the rule's trigger, so the wire takes no sample event. The per-user global-variable verbs
 // are NOT exposed here (this pane is rule-scoped; globals are a later settings surface). Result shapes flow
 // to the client via tRPC `inferOutput` — no domain result type (RuleView/FireView/TestRunResult) duplicated.
 // THE LIVE FEED IS NOT HERE: the per-chat automation bus folded onto the multiplexed socket at SSE-1 S4 and
 // is now the `automation` ROOM (`transport/trpc/stream/sources/automation.ts`) — this router is request/
-// response only, and the `single-stream-transport` gate keeps a `.subscription(` from coming back to it.
+// response only, and D118 keeps a `.subscription(` from coming back to it.
 
 import {
   AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,

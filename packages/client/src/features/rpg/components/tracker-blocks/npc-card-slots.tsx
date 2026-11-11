@@ -186,8 +186,8 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// THE CARD — the arrangement of the three slots above (moved here from tracker-blocks.tsx under the
-// component-size cap): emoji · name · relationship · mood, then guides, meters and the field chips.
+// THE CARD — the arrangement of the three slots above (moved here from tracker-blocks.tsx):
+// emoji · name · relationship · mood, then guides, meters and the field chips.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 interface NpcField {

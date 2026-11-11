@@ -1,5 +1,4 @@
-// The OKL color readers for the theme clamp — pure conversion only, extracted from clamp.ts at the
-// component-size split (the clamp keeps the POLICY: what fails open, what gets judged). The standards
+// The OKL color readers for the theme clamp — pure conversion only, apart from clamp.ts (the clamp keeps the POLICY: what fails open, what gets judged). The standards
 // parser and CSS gamut mapping live at the shared safe-color boundary; this module converts its sRGB
 // result into the OKL coordinates the derivation consumes.
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";

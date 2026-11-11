@@ -6,8 +6,8 @@ import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 // The NON-JSX HALF (the seam law, the session surface, and the three module-scope pure helpers) is the
-// `-model.ts` sibling — this JSX module carries the factory and its closure components (`component-size`;
-// the capped-field-model precedent).
+// `-model.ts` sibling — this JSX module carries the factory and its closure components (the
+// capped-field-model precedent).
 import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts";
 import { foldSaveState, hasUnsavedEdits, skipTeardownFlush } from "../create-autosave-entity-form-model.ts";
 import { DEFAULT_DEBOUNCE_MS, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "../entity-form-base.ts";

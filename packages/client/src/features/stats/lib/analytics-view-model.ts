@@ -40,7 +40,7 @@ export const ANALYTICS_SORT_OPTIONS = [
 
 /** The default leaderboard sort — the count header shares this cache key with the list surface's initial
  * query, so the band count never triggers an extra fetch. (The sort-id UNION is derived locally at each
- * consumer via `(typeof ANALYTICS_SORT_OPTIONS)[number]["id"]` — a non-exported alias, per no-inline-types:
+ * consumer via `(typeof ANALYTICS_SORT_OPTIONS)[number]["id"]` — a non-exported alias, per §7.4:
  * an exported type alias belongs in a contract home, but this list-only vocabulary has no cross-boundary
  * consumer.) */
 export const ANALYTICS_DEFAULT_SORT = "assistantTurns" as const;

@@ -3,9 +3,8 @@
 //
 // This is THE single home for the axis. It lives in `kit` — not `contracts` — because BOTH
 // consumers must reach it and `ui` may import `kit` ONLY (never `contracts`, D54): homing it in contracts
-// forces the ui prop to re-spell `"follow" | "pin-prompt"` inline, and the `no-inline-union-redecl`
-// reach-guard can only EXEMPT that re-spell (ui can't legally derive from a contracts tuple) rather than
-// kill it. Homed here, the ui prop derives `ScrollMode` and the contracts `z.enum(SCROLL_MODES)` wire
+// forces the ui prop to re-spell `"follow" | "pin-prompt"` inline (ui can't legally derive from a
+// contracts tuple). Homed here, the ui prop derives `ScrollMode` and the contracts `z.enum(SCROLL_MODES)` wire
 // schema imports the tuple DOWN — the kit↔contracts tuple rule (mirrors `message-role`, shared-dissolution §5).
 //
 // `follow` = the sealed sticky-tail behavior (default; byte-identical for untouched users). `pin-prompt` =

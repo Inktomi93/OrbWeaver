@@ -1,7 +1,7 @@
 import { groupDigitRuns } from "@orb/kit/strings";
 
 /** Digit grouping for a COUNT. Deliberately not `toLocaleString`/`Intl`: these are token counts and vector
- *  widths, not dates or money, and the `no-raw-intl-time` gate exists because a bare `.toLocale*()` is Intl
+ *  widths, not dates or money, and a bare `.toLocale*()` is Intl
  *  by the back door — un-memoized and locale-drifting — in a surface whose whole job is a stable reading. */
 export function grouped(value: unknown): string {
   return groupDigitRuns(String(value));

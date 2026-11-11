@@ -694,7 +694,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // `ProviderErrorKind` plus the credentialId the call authenticated with, which is exactly
     // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed (#1373's whole defect).
     onAuthFailed: credentials.maybeRevokeOnAuthFailed,
-    // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
+    // The sink stamps `at` from the injected clock (Spine-Testing §3) and forwards to the process ring.
     ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture(deps.rings.wireCaptures, { ...entry, at: now() }, wireSpill) } : {}),
     // The reply tap lives at the SEND BOUNDARY (it owns the 64 KiB cap and the by-value scrub); compose only
     // carries the verdict. A second opt-in on purpose — see the recorder's header.

@@ -549,8 +549,8 @@ export type ChatBusEvent =
       /** The setting a `sampling_knob_dropped` names; absent on every class that names itself. */
       knob?: AdjustedKnob | undefined;
       /** The reasoning budget, IN TOKENS, that actually ran (`reasoning_budget_clamped`). Named
-       *  `appliedBudget` rather than `appliedTokens` deliberately: the `bus-payload-allowlist` gate reads
-       *  `token` as a credential word, and it is right to — a name is the honest fix here, never a
+       *  `appliedBudget` rather than `appliedTokens` deliberately: the bus payload type test
+       *  (`tests/contracts/events/bus-payload-safety.test-d.ts`) reads `token` as a credential word, and it is right to — a name is the honest fix here, never a
        *  sanctioned-field row for a field that only looks like auth by accident. */
       appliedBudget?: number | undefined;
       /** The reasoning effort that actually ran (`reasoning_mandatory_clamp`). */
@@ -636,8 +636,8 @@ export type ChatBusEvent =
  *    • the client's central invalidation seam (`packages/client/src/data/invalidation.ts`) + the landing
  *      switch (`data/bus/apply-chat-bus-event.ts`) — a member with no filter row is a wire that reaches the
  *      device and refreshes nothing.
- *    • the `bus-producer-coverage` gate — the member needs a server emit site (declared,
- *      never emitted, is dead wire), and the contract test asserts this map's exact SIZE.
+ *    • a server emit site — declared, never emitted, is dead wire (review holds this); the contract
+ *      test asserts this map's exact SIZE.
  *    • a NON-DURABLE member (never appended to `chat_events`) must also join `NON_DURABLE_EXEMPT` in
  *      `data/bus/chat-event-seq-guard.ts`, or the seq dedup drops it forever; a DURABLE turn-lifecycle
  *      member must NOT (it replays from zero on subscription churn and needs the seq guard). */

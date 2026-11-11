@@ -16,8 +16,8 @@
 // `Record<(typeof CHARACTER_ACTION_SCOPE_IDS)["<its scope>"][number], …>`, which is exhaustive over exactly
 // the verbs it renders — a verb added to a scope fails that surface's compile until it is wired.
 //
-// TYPE HOME: the id/scope aliases are FILE-LOCAL by house rule (`no-inline-types` — an exported type alias
-// outside a type home is RED; `character-card-facets.ts` sets this exact precedent). Consumers read the id
+// TYPE HOME: the id/scope aliases are FILE-LOCAL by house rule (§7.4 — an exported type alias
+// belongs in a type home; `character-card-facets.ts` sets this exact precedent). Consumers read the id
 // through `CharacterActionDef["id"]` or derive their own local alias from the exported tuples.
 //
 // GLYPHS LIVE HERE, LABELS LIVE HERE, CONFIRM COPY DOES NOT. A destructive verb's confirm names the thing it

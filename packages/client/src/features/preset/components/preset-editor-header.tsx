@@ -1,6 +1,6 @@
 // The preset editor's sticky band — the artifact's identity (name + its rename door + the ACTIVE truth), its
-// two header commands (Activate, Reset to starter), the live autosave status, and the ONE view-tab strip. Its
-// own module keeps `preset-editor-surface.tsx` under the component-size cap.
+// two header commands (Activate, Reset to starter), the live autosave status, and the ONE view-tab strip. It
+// has its own module.
 //
 // It renders INSIDE the surface's `<Tabs>` (the strip is `TabsList` — the ONE writer of the view axis lives
 // in the surface, which owns `value`/`onValueChange`), and it owns nothing the surface needs back: the reset

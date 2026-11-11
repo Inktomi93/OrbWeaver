@@ -129,8 +129,8 @@ export interface AdminContext {
    * THE ARGUMENT IS THE **TARGET**, NOT THE ACTOR. Every other user-bus producer emits to
    * `principal.userId` because the writer owns the row it wrote; admin is the one domain whose writes land on
    * SOMEBODY ELSE'S identity, so the channel is `params.userId` and the acting admin is told nothing (their
-   * own `admin.listUsers` is writer-local and `invalidates` itself — see that key's cited
-   * `query-freshness-coverage` entry). Getting this backwards would announce a grant to everyone except the
+   * own `admin.listUsers` is writer-local and `invalidates`
+   * itself). Getting this backwards would announce a grant to everyone except the
    * person who received it, which is precisely the D5 gap this closes.
    *
    * FLAG[emit-is-total] — satisfied BY CONSTRUCTION: the op is synchronous, `void`-returning and
