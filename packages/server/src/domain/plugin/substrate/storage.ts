@@ -1,24 +1,44 @@
 // domain/plugin/substrate/storage — the `storage.kv` host op: the plugin-PRIVATE KV wrapping
-// `persistence/plugin-kv` with the HOST-SIDE caps the DDL cannot express. Every op is keyed by BOTH pluginId AND
+// `persistence/plugin-kv` with the host-side caps. Every op is keyed by BOTH pluginId AND
 // ownerId (the persistence guard filter), so plugin A can never read plugin B's keys and no cross-owner read is
-// possible. The value/key BYTE caps are DDL CHECKs (persistence surfaces them); this layer owns the 256-key cap
-// (a count read the DDL can't do) — a `set` that would create a NEW key past the ceiling is refused with a typed
-// error the membrane contains as guest errors-as-data (never a host crash) and `plugin.uiHostCall` answers as a
-// client error carrying the storage-cap code. Pure of Principal (the bridge closed
-// the scope over the installer); `db` is injected at compose.
+// possible. Both writers (`set`, `compareAndSet`) are the one place a server guest's write and the UI relay's write
+// meet, so this layer owns every write cap and each refusal is a typed error the membrane contains as guest
+// errors-as-data and `plugin.uiHostCall` answers as a coded client error:
+//   - the key and value size caps, measured by the relay's own `pluginKvKeySchema` / `pluginKvValueSchema`. The
+//     table's CHECKs are only a second line: the key CHECK stops counting at a NUL, so it bounds nothing alone.
+//   - the 256-key cap, a count the DDL cannot read.
+// Pure of Principal (the bridge closed the scope over the installer); `db` is injected at compose.
 
-import { PLUGIN_KV_MAX_KEYS } from "@orb/contracts/plugin";
+import {
+  PLUGIN_KV_KEY_MAX_CHARS,
+  PLUGIN_KV_MAX_KEYS,
+  PLUGIN_KV_VALUE_MAX_BYTES,
+  PLUGIN_UI_HOST_CALL_CODES,
+  pluginKvKeySchema,
+  pluginKvValueSchema,
+} from "@orb/contracts/plugin";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PluginId, UserId } from "@orb/kit/ids";
-import { PluginKvCapError } from "../contract/errors.ts";
+import { PluginKvCapError, PluginUiHostCallRefusedError } from "../contract/errors.ts";
 import type { PluginHostOps } from "../contract/ops.ts";
 import { compareAndSetKv, deleteKv, getKv, listKv, upsertKvUnderCap } from "../persistence/plugin-kv.ts";
 
-/** Build the composed `storage.kv` op bundle (the `PluginHostOps.storage` shape). `set` enforces the 256-key
- *  ceiling: an upsert of an EXISTING key always proceeds (no new slot); a NEW key past the cap is refused. The
- *  value/key byte caps ride the DDL (a violating `upsert` throws the persistence's CHECK error — contained the
- *  same way). `nowMs` stamps `updatedAt`. */
+/** Refuse a write whose key or any value is past its size cap, with the relay's own invalid-arguments refusal, so a
+ *  server guest and a plugin UI get one answer for one mistake. A `null` value is a compare-and-set's absent key. */
+function assertWithinSizeCaps(key: string, values: readonly (string | null)[]): void {
+  const oversized = !pluginKvKeySchema.safeParse(key).success || values.some((value) => value !== null && !pluginKvValueSchema.safeParse(value).success);
+  if (oversized) {
+    throw new PluginUiHostCallRefusedError(
+      `plugin storage.kv: a key holds 1 to ${PLUGIN_KV_KEY_MAX_CHARS} characters and a value at most ${PLUGIN_KV_VALUE_MAX_BYTES} UTF-8 bytes`,
+      { code: PLUGIN_UI_HOST_CALL_CODES.argsInvalid },
+    );
+  }
+}
+
+/** Build the composed `storage.kv` op bundle (the `PluginHostOps.storage` shape). Both writers refuse a key or value
+ *  past its size cap before the statement runs. `set` enforces the 256-key ceiling: an upsert of an EXISTING key
+ *  always proceeds (no new slot); a NEW key past the cap is refused. `nowMs` stamps `updatedAt`. */
 export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number): PluginHostOps["storage"] {
   const db = databaseForOwner(handle);
   return {
@@ -28,6 +48,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
     // serialises them: the old read-count-then-upsert let two sets for DISTINCT new keys both see the last free
     // slot and both take it. This layer states the LIMIT; persistence carries it into the statement.
     set: async (pluginId: PluginId, ownerId: UserId, key: string, value: string): Promise<void> => {
+      assertWithinSizeCaps(key, [value]);
       const admitted = await upsertKvUnderCap(db, { pluginId, ownerId }, { key, value, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
       if (!admitted) {
         throw new PluginKvCapError();
@@ -46,6 +67,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
       ownerId: UserId,
       entry: { readonly key: string; readonly expected: string | null; readonly next: string },
     ): Promise<{ applied: boolean; current: string | null }> => {
+      assertWithinSizeCaps(entry.key, [entry.expected, entry.next]);
       const scope = { pluginId, ownerId };
       const outcome = await compareAndSetKv(db, scope, { key: entry.key, expected: entry.expected, value: entry.next, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
       if (entry.expected === null && !outcome.applied && outcome.current === null) {

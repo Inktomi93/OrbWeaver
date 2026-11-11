@@ -24,11 +24,15 @@ export type PluginUiHostCallCode = (typeof PLUGIN_UI_HOST_CALL_CODES)[keyof type
 export const PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX = 50;
 // Each schema is at least as strict as the column it reaches, so a refusal is the relay's coded answer and never the
 // table's CHECK error: `storage.kv` keys and values read the plugin table's caps, variables read the global plane's.
-const kvKey = z.string().min(1).max(PLUGIN_KV_KEY_MAX_CHARS);
-const kvValue = byteBoundedString(PLUGIN_KV_VALUE_MAX_BYTES);
+
+/** A `storage.kv` key, counted in UTF-16 units with a NUL counted like any other character. The relay parses its
+ *  arguments with it and the host's storage write measures a server guest's key with it, so both doors refuse alike. */
+export const pluginKvKeySchema = z.string().min(1).max(PLUGIN_KV_KEY_MAX_CHARS);
+/** A `storage.kv` value, counted in UTF-8 bytes; read by the relay and the host's storage write, as {@link pluginKvKeySchema}. */
+export const pluginKvValueSchema = byteBoundedString(PLUGIN_KV_VALUE_MAX_BYTES);
 const variableValue = byteBoundedString(GLOBAL_VARIABLE_VALUE_MAX_BYTES);
 const noArgs = z.tuple([]);
-const oneKey = z.tuple([kvKey]);
+const oneKey = z.tuple([pluginKvKeySchema]);
 const oneVariable = z.tuple([globalVariableKeySchema]);
 
 /** Positional arguments parsed by the authoritative UI relay before calling its installer-scoped bridge. */
@@ -44,8 +48,8 @@ export const pluginUiHostArgsSchemas = {
   "variables.set": z.tuple([globalVariableKeySchema, variableValue]),
   "variables.delete": oneVariable,
   "storage.get": oneKey,
-  "storage.set": z.tuple([kvKey, kvValue]),
-  "storage.compareAndSet": z.tuple([kvKey, kvValue.nullable(), kvValue]),
+  "storage.set": z.tuple([pluginKvKeySchema, pluginKvValueSchema]),
+  "storage.compareAndSet": z.tuple([pluginKvKeySchema, pluginKvValueSchema.nullable(), pluginKvValueSchema]),
   "storage.delete": oneKey,
   "storage.list": z.tuple([z.string().max(PLUGIN_KV_KEY_MAX_CHARS).optional()]),
 } satisfies Record<UiProxyableHostFunction, z.ZodType>;
