@@ -19,7 +19,7 @@ import { tracked } from "@trpc/server";
 import type pino from "pino";
 import { getLog } from "#foundation/observability";
 import type { SubscriptionErrorFrame } from "./contract/subscriptions.ts";
-import { classifyDomainError, providerFaultOf } from "./error-mapping.ts";
+import { classifyDomainError, internalFaultOf, providerFaultOf } from "./error-mapping.ts";
 
 // Never a durable cursor, so a reconnect's lastEventId never resumes "from the error".
 const SUBSCRIPTION_ERROR_ID = "__error__";
@@ -46,6 +46,10 @@ export async function* withSubscriptionErrors<TData>(
     const provider = providerFaultOf(mapped);
     if (provider !== null) {
       getLog(logger).warn({ ...provider.toLog(), event: "trpc.provider" }, `trpc: provider failure inside a subscription (${provider.kind})`);
+    }
+    const fault = internalFaultOf(mapped);
+    if (fault !== null) {
+      getLog(logger).error({ err: fault, event: "trpc.invariant" }, "trpc: invariant fault inside a subscription");
     }
     yield tracked(SUBSCRIPTION_ERROR_ID, {
       __subscriptionError: true,

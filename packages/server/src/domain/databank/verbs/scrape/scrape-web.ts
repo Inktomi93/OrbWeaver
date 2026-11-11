@@ -9,6 +9,7 @@
 // hostname+path), mime 'text/html'. A re-scrape of a CHANGED page = a new importHash = a NEW document (canon like
 // any upload; the old one stays until removed — no in-place overwrite of canon another chat may have retrieved).
 
+import { getLog } from "#foundation/observability";
 import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeWebParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
@@ -34,6 +35,9 @@ export function createScrapeWeb(ctx: DatabankContext): DatabankService["scrapeWe
     try {
       bytes = await ctx.fetchUrl(url);
     } catch (err) {
+      // The refusal is a client error the transport does not log, and it carries the cause only as `cause`, so a
+      // broken fetch (DNS, reset, timeout, upstream status) is recorded here.
+      getLog(ctx.logger).warn({ err }, "databank: a web scrape fetch failed");
       // biome-ignore lint/style/useErrorCause: the cause IS forwarded — ScrapeFailedError assigns options.cause; biome can't see through the custom class (the egress.ts EgressBlockedError precedent).
       throw new ScrapeFailedError({ cause: err });
     }

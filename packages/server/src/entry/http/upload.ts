@@ -145,7 +145,8 @@ function documentUploadRefusal(c: Parameters<typeof uploadRefusal>[0], error: un
     return uploadRefusal(c, error);
   }
   const modeled = classifyDomainError(error);
-  if (modeled === null) {
+  // A tripwire maps to a 500 that only the app's error handler logs, so it rethrows like an unmodelled error.
+  if (modeled === null || modeled.code === "INTERNAL_SERVER_ERROR") {
     throw error;
   }
   return Response.json({ error: modeled.message }, { status: getHTTPStatusCodeFromError(modeled) });

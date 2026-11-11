@@ -23,7 +23,7 @@ import { fetchBundleThroughGuard, hashPluginBundle } from "../substrate/manifest
 
 export function createInstallFromUrl(ctx: PluginContext, deps: { readonly install: PluginService["install"] }): PluginService["installFromUrl"] {
   return async ({ caller, url, expectedBundleHash, grant }: InstallFromUrlParams) => {
-    const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, url);
+    const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, url, ctx.logger);
     if (hashPluginBundle(bundle) !== expectedBundleHash) {
       throw new PluginBundlePreviewStaleError();
     }

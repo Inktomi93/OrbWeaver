@@ -13,7 +13,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { requireAdmin } from "#domain/admin";
 import { getLog, securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context.ts";
-import { classifyDomainError, domainDetail, domainReason, providerFaultOf } from "./error-mapping.ts";
+import { classifyDomainError, domainDetail, domainReason, internalFaultOf, providerFaultOf } from "./error-mapping.ts";
 import { UNCLASSIFIED_FAULT_MESSAGE } from "./fault-copy.ts";
 
 // SSE heartbeat (SSE-1 §8) — the deployment-wide subscription liveness policy, set once here because
@@ -137,6 +137,12 @@ const domainErrorMiddleware = t.middleware(async ({ ctx, path, type, next }) => 
       const provider = providerFaultOf(mapped);
       if (provider !== null) {
         getLog(ctx.logger).warn({ ...provider.toLog(), event: "trpc.provider", path, type }, `trpc: provider failure on ${path} (${provider.kind})`);
+      }
+      // A TRIPWIRE IS MAPPED, NOT UNMAPPED, so the `trpc.unhandled` line below never sees it; its text is the
+      // fixed fault sentence on the wire, which makes this line the only place the real message exists.
+      const fault = internalFaultOf(mapped);
+      if (fault !== null) {
+        getLog(ctx.logger).error({ err: fault, event: "trpc.invariant", path, type }, `trpc: invariant fault on ${path} — surfaced to the caller as a 500`);
       }
       throw mapped;
     }

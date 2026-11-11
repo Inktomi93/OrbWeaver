@@ -40,7 +40,7 @@ export function createCheckForUpdates(ctx: PluginContext): PluginService["checkF
     let remoteVersion: string;
     let bundleHash: ReturnType<typeof hashPluginBundle>;
     try {
-      const bytes = await fetchBundleThroughGuard(ctx.fetchBundle, sourceUrl);
+      const bytes = await fetchBundleThroughGuard(ctx.fetchBundle, sourceUrl, ctx.logger);
       remoteVersion = parseBundle(bytes).manifest.version;
       bundleHash = hashPluginBundle(bytes);
     } catch {

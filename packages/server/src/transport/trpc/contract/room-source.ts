@@ -28,7 +28,10 @@ export interface RoomSourceDef<C extends StreamChannel> {
   /**
    * Can this room RESUME — i.e. does its channel have a durable log a pump can replay from a cursor? It is
    * the same property that makes the queue's `lag` overflow policy legal (a shed is refillable only if the
-   * rows can be re-read), and a contract test pins the two tables against each other.
+   * rows can be re-read). The queue reads this flag to choose its policy (`FrameQueueOptions.resumable` in
+   * `packages/server/src/transport/trpc/stream/frame-queue.ts`): a resumable room lags and a live-only room
+   * collapses, so the two cannot disagree. A `resumable: false` source states why its frames are pure invalidation triggers, since the
+   * newest frame of a type replaces older pending ones.
    *
    * It gates the RECONNECT BARRIER (`socket.ts`): a resumable room does not resume delivery on a reconnect
    * until the client announces where IT got to, because the server's cursor counts frames handed to the

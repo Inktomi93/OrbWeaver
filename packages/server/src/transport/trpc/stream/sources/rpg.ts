@@ -47,7 +47,8 @@ async function isChatMember(chat: ChatService, principal: Principal, chatId: Cha
 
 export const rpgRoomSource: RoomSourceDef<"rpg"> = {
   // LIVE-ONLY: the rpg bus has no durable half, so there is no cursor and nothing to resume from — the
-  // client heals every (re)connect with a blanket invalidate instead.
+  // client heals every (re)connect with a blanket invalidate instead. Overflow collapses, which is legal because
+  // the `RPG_BUS_FILTERS` entries are path invalidations.
   resumable: false,
   authorizeAttach: () => Promise.resolve(),
   async *run({ ref, principal, services, liveBuses, signal }): AsyncGenerator<StreamDataFrame> {

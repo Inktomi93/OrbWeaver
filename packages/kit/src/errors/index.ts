@@ -101,6 +101,18 @@ export class DomainUnavailableError extends DomainError {
 }
 
 /**
+ * An invariant tripwire fired: a state the code proves impossible was reached. It is not the caller's doing and
+ * a retry cannot help, so the transport answers INTERNAL_SERVER_ERROR with fixed copy (the message never leaves
+ * the server) and logs this error at error level.
+ */
+export class DomainInternalFaultError extends DomainError {
+  constructor(message: string) {
+    super(message);
+    this.name = this.constructor.name;
+  }
+}
+
+/**
  * The caller has no credential for the requested provider AND host fallback is
  * unavailable. Maps to tRPC FAILED_PRECONDITION + `cause: { provider }` so the
  * client can redirect to the credentials page (the action is "add a key", not "retry").

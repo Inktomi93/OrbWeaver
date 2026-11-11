@@ -30,7 +30,7 @@ export function createUpgradeFromStoredUrl(ctx: PluginContext, deps: { readonly 
     if (existing.sourceUrl === null) {
       throw new PluginNoSourceUrlError(pluginId);
     }
-    const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, existing.sourceUrl);
+    const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, existing.sourceUrl, ctx.logger);
     if (hashPluginBundle(bundle) !== expectedBundleHash) {
       throw new PluginBundlePreviewStaleError();
     }

@@ -14,6 +14,7 @@
 // round-trip (lift → projectJsonSchema ≡ input, per supported construct) is the engine's proof.
 
 import { z } from "zod";
+import { DomainOperationError } from "#errors";
 import { isPlainObject } from "#guards";
 import { PROTO_KEY } from "#objects";
 
@@ -51,14 +52,17 @@ const LIFTABLE_JSON_SCHEMA = {
 /** A guest JSON Schema carried an unsupported construct (a keyword/type outside {@link LIFTABLE_JSON_SCHEMA}).
  *  The registration REFUSES it (activation-fatal for a plugin tool) — never a silent strip. `construct` names
  *  the offending keyword/type; `path` locates it (`#/properties/foo`). */
-export class JsonSchemaLiftError extends Error {
+export class JsonSchemaLiftError extends DomainOperationError {
   public readonly construct: string;
   public readonly path: string;
   constructor(construct: string, path: string, options?: { readonly cause?: unknown }) {
     super(
+      "json_schema_unsupported_construct",
       `unsupported JSON Schema construct "${construct}" at ${path} — the liftable subset is object/array/string/number/integer/boolean (plus a type-less \`anyOf\` union) with the documented per-type keywords (LIFTABLE_JSON_SCHEMA)`,
-      options,
     );
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
     this.construct = construct;
     this.path = path;
     this.name = this.constructor.name;

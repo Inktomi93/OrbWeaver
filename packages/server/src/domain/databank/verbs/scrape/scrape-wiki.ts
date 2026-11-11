@@ -9,6 +9,7 @@
 // 'wiki', sourceUrl = the requested article URL, name = the article title from the API (fallback: the URL title).
 
 import { z } from "zod";
+import { getLog } from "#foundation/observability";
 import { ScrapeFailedError } from "#src/domain/databank/contract/errors.ts";
 import type { ScrapeWikiParams } from "#src/domain/databank/contract/params.ts";
 import type { UploadResult } from "#src/domain/databank/contract/results.ts";
@@ -62,6 +63,8 @@ export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeW
     try {
       bytes = await ctx.fetchUrl(apiUrl);
     } catch (err) {
+      // The refusal is a client error the transport does not log and carries the cause off the wire, so a broken fetch is recorded here.
+      getLog(ctx.logger).warn({ err }, "databank: a wiki scrape fetch failed");
       // biome-ignore lint/style/useErrorCause: the cause IS forwarded — ScrapeFailedError assigns options.cause; biome can't see through the custom class (the scrapeWeb precedent).
       throw new ScrapeFailedError({ cause: err });
     }
@@ -70,6 +73,7 @@ export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeW
     try {
       extract = parseExtract(JSON.parse(new TextDecoder("utf-8").decode(bytes)));
     } catch (err) {
+      getLog(ctx.logger).warn({ err }, "databank: a wiki scrape reply could not be read");
       // biome-ignore lint/style/useErrorCause: the JSON parse cause is forwarded onto ScrapeFailedError (same custom-class limitation biome can't see through).
       throw new ScrapeFailedError({ cause: err });
     }
