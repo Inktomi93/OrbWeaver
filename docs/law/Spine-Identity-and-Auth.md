@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-18
+updated: 2026-11-11
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -84,6 +84,10 @@ Code comments cite the numbered invariants below as "invariant N":
    `import-chat.ts`, and `import.ts`'s `/api/import/bundle`) accept a CORS-simple content-type, so they
    gate on `via !== "header"` — cookie and fallback both need the `x-orb-csrf` header. tRPC
    (`packages/server/src/transport/trpc/trpc.ts`) keys on `cookie` only, which the un-cookied loopback dev tooling relies on.
+   The OIDC back-channel logout route carries no CSRF check because it reads no ambient credential: the
+   issuer-signed `logout_token` is its only authentication. A route that reads an ambient credential is never
+   exempt. Each exempt route registers through its entry in `CSRF_EXEMPT_ROUTES`
+   (`packages/server/src/entry/auth/csrf-exemptions.ts`), and every other exemption needs its own law or ledger line.
 
    That tRPC exemption holds only because of the content-type guard at the mount (`packages/server/src/entry/app.ts`); the
    guard is required, not defense in depth. `@trpc/server`'s `getContentTypeHandler` also matches

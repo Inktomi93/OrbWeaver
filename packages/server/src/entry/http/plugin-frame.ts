@@ -47,10 +47,10 @@
 //
 // ── THE APP-CSP EXEMPTION THIS ROUTE DEPENDS ON ──────────────────────────────────────────────────────────────
 // `hono/secure-headers` writes its headers AFTER the handler with `.set()`, so it OVERWRITES a handler's own
-// policy. The served-document path is therefore exempted in `security-headers.ts` via `PLUGIN_FRAME_DOC_PREFIX`
-// — the second member of an existing class, the card frame being the first. Without it this route would serve
-// its documents under the APP policy (`script-src 'self'`, no `sandbox` directive) with nothing red: an
-// "isolated" frame that is not isolated.
+// policy. The served-document path and the asset path are therefore both registered in `security-headers.ts`'s
+// own-policy routes, beside the card frame's document. Without that this route would serve its documents under
+// the APP policy (`script-src 'self'`, no `sandbox` directive) with nothing red: an "isolated" frame that is not
+// isolated. Each arm here writes its own `Content-Security-Policy` or none; one with none gets the app policy.
 
 import type { PluginFrameBody } from "@orb/contracts/plugin";
 import {
