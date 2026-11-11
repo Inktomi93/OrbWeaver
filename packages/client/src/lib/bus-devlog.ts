@@ -14,7 +14,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { CONSOLE_STYLES } from "./console-styles.ts";
 import { IS_DEV } from "./dev-flag.ts";
 import { logClock } from "./log-clock.ts";
-import { wallClockMs } from "./wall-clock.ts";
+import { timeLib } from "./time.ts";
 
 // A normal turn legitimately hits each chatReads key twice (messageCommitted + turnCompleted both
 // refetch) — the alarm only fires above that baseline (3+× is the real storm signature).
@@ -107,7 +107,7 @@ export function busUnsubscribe(chatId: ChatId): void {
 /** A canon event dispatched through the invalidation seam → the query keys it refetched. Empty ⇒
  *  `(none)`. Pure-transient events never call `invalidate`, so they never reach here. */
 export function busInvalidate(type: string, chatId: ChatId | "user", keys: readonly string[]): void {
-  busEventLog.push({ at: wallClockMs(), type, chatId, keys });
+  busEventLog.push({ at: timeLib.now(), type, chatId, keys });
   if (busEventLog.length > BUS_RING_CAP) {
     busEventLog.shift();
   }
@@ -125,7 +125,7 @@ export function busDupCheck(key: string): void {
   if (!IS_DEV) {
     return;
   }
-  const now = wallClockMs();
+  const now = timeLib.now();
   const burst = invalidateBursts.get(key);
   if (burst === undefined || now - burst.firstAt >= DUP_WINDOW_MS) {
     invalidateBursts.set(key, { count: 1, firstAt: now });

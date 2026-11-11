@@ -11,7 +11,7 @@
 // `__orb.flags()` + `__orb.motion()` that pushed the real errors out of a shared cap. Those channels have their
 // own pull-side reads; this one owns the signal that had none.
 //
-// WALL-CLOCK BY CONSTRUCTION. `at` is epoch ms (`wallClockMs`, the client's one wall clock), not the `performance.now()` offsets `motion-flaggers`/`motion-stats` record — a bug report's time
+// WALL-CLOCK BY CONSTRUCTION. `at` is civil epoch ms (`timeLib.now`), not the `performance.now()` offsets `motion-flaggers`/`motion-stats` record — a bug report's time
 // window is stated in wall-clock minutes and a ring that cannot be compared to it is not window-filterable.
 //
 // THE CAP TALLIES ITS DROPS. `dropped` counts entries evicted since the last reset, so a reader can never mistake
@@ -21,7 +21,7 @@
 // Dev-only by construction: installed from agent-bridge.ts, which early-returns when !IS_DEV. Never re-export
 // from the lib barrel (that would drag it into the prod bundle).
 
-import { wallClockMs } from "./wall-clock.ts";
+import { timeLib } from "./time.ts";
 
 const RING_CAP = 128;
 const TEXT_MAX = 2000;
@@ -33,7 +33,7 @@ const ARG_MAX = 12;
 interface ConsoleErrorRecord {
   /** Which surface reported it: a `console.error` call, an uncaught error event, or a rejected promise. */
   readonly source: "console" | "uncaught" | "rejection";
-  /** Wall-clock epoch ms at the record ({@link wallClockMs}). */
+  /** Wall-clock epoch ms at the record ({@link timeLib.now}). */
   readonly at: number;
   /** The formatted message — every argument stringified and joined, capped. */
   readonly text: string;
@@ -105,7 +105,7 @@ function recordConsoleError(source: ConsoleErrorRecord["source"], args: readonly
   const stack = firstStack(args);
   push({
     source,
-    at: Math.round(wallClockMs()),
+    at: timeLib.now(),
     text: args.slice(0, ARG_MAX).map(describe).join(" ").slice(0, TEXT_MAX),
     ...(stack === undefined ? {} : { stack }),
     route: currentPathname(),

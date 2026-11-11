@@ -17,6 +17,7 @@ const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: RO
 const CLOCK_BLOCKS = [
   "packages/server/src/domain/probe.ts",
   "packages/server/src/transport/trpc/routers/stream.ts",
+  "packages/server/src/transport/trpc/routers/chat.ts",
   "packages/server/src/domain/settings/seed-themes.ts",
   "packages/inference/src/probe.ts",
   "packages/db/src/probe.ts",
@@ -33,6 +34,7 @@ const CLOCK_HOMES = ["packages/server/src/entry/lifecycle.ts", "packages/kit/src
 // Every server block composes the stream entry except the stream router, the socket's own home.
 const STREAM_BLOCKS = [
   "packages/server/src/transport/trpc/routers/probe.ts",
+  "packages/server/src/transport/trpc/routers/chat.ts",
   "packages/server/src/entry/lifecycle.ts",
   "packages/server/src/domain/settings/seed-themes.ts",
 ] as const;
@@ -61,8 +63,31 @@ async function findings(path: string, source: string): Promise<readonly Linter.L
   return found.filter(({ ruleId }) => ruleId === RULE);
 }
 
-const AMBIENT_CLOCK = ["Date.now();", "const now = Date.now;", 'Date["now"]();', "new Date();", "new Date;"] as const;
-const INJECTED_TIME = ["clock.now();", "new Date(0);", "new Date(clock.now());", "performance.now();", "Date.parse(text);"] as const;
+const AMBIENT_CLOCK = [
+  "Date.now();",
+  "const now = Date.now;",
+  'Date["now"]();',
+  "globalThis.Date.now();",
+  "const { now } = Date;",
+  "const { now: read } = globalThis.Date;",
+  "Date();",
+  "globalThis.Date();",
+  "new Date();",
+  "new Date;",
+  "new globalThis.Date();",
+  "performance.timeOrigin + performance.now();",
+  "performance.now() + performance.timeOrigin;",
+] as const;
+const INJECTED_TIME = [
+  "clock.now();",
+  "new Date(0);",
+  "new Date(clock.now());",
+  "new globalThis.Date(clock.now());",
+  "performance.now();",
+  "performance.timeOrigin + entry.startTime;",
+  "Date.parse(text);",
+  "const { parse } = Date;",
+] as const;
 
 test.for(CLOCK_BLOCKS)("%s refuses every ambient clock read and passes injected time", async (path) => {
   for (const source of AMBIENT_CLOCK) {
@@ -98,7 +123,11 @@ test.for(STREAM_BLOCKS)("%s refuses a procedure that declares its own subscripti
 test("chat.impersonateStream is the one permanent subscription, and the stream router owns the socket", async () => {
   const impersonate = "export const chatRouter = t.router({ impersonateStream: authedProcedure.input(s).subscription(fn) });";
   expect(await findings("packages/server/src/transport/trpc/routers/chat.ts", impersonate)).toEqual([]);
-  // The exception is the property, not the file: a second subscription beside it is still refused.
+  // The exception holds only in the chat router: the same property name in another router is refused.
+  const elsewhere = await findings("packages/server/src/transport/trpc/routers/user.ts", impersonate);
+  expect(elsewhere).toHaveLength(1);
+  expect(elsewhere[0]?.message).toContain("D118");
+  // Inside the chat router, a second subscription beside it is still refused.
   expect(
     await findings(
       "packages/server/src/transport/trpc/routers/chat.ts",

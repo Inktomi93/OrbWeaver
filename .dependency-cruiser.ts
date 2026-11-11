@@ -750,6 +750,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
     "packages/client/src/features/character/lib/character-card-form-model.ts": "DEFAULT_CHARACTER_CARD_FORM: the empty form the facet model reads",
   },
+  "tests/client/lib/bug-report-bundle.dom.test.ts": {
+    "packages/client/src/lib/bug-report-bundle.ts":
+      "sliceMotionEvidence: the motion slices the dev bug-report capture builds, whose only caller is that capture and which no door forwards",
+  },
   "tests/client/features/character/components/_tag-row-stories.tsx": {
     "packages/client/src/features/character/components/character-tags-row.tsx":
       "CharacterTagsRow: the editor's tag row, which no door forwards and only the hero band renders",

@@ -614,20 +614,36 @@ const SERVER_SYNTAX = [
   ...MODULE_LOADER_SYNTAX,
 ];
 
-// Package source reads time through an injected clock (Spine-Testing §3). A `Date.now` read, called or passed as a
-// default, and a bare `new Date()` are the ambient clock. Each home below constructs the clock it injects.
+// Package source reads time through an injected clock (Spine-Testing §3). The ambient clock is a `Date.now` read
+// (called, passed or destructured), `Date()` called without `new`, a bare `new Date()`, each also through
+// `globalThis.Date`, and `performance.timeOrigin + performance.now()`. Each home below constructs the clock it injects.
+const dateAt = (path: string): string =>
+  `:matches([${path}.type='Identifier'][${path}.name='Date'], [${path}.type='MemberExpression'][${path}.object.name='globalThis'][${path}.property.name='Date'])`;
+const performanceRead = (path: string, name: string): string => `[${path}.object.name='performance'][${path}.property.name='${name}']`;
 const CLOCK_SYNTAX = {
-  selector: `:matches(MemberExpression[object.name='Date']${memberNamed("now")}, NewExpression[callee.name='Date'][arguments.length=0])`,
-  message: "Read time through the injected clock (Spine-Testing §3); `Date.now` and a bare `new Date()` read the ambient clock.",
+  selector: `:matches(${[
+    `MemberExpression${dateAt("object")}${memberNamed("now")}`,
+    `VariableDeclarator${dateAt("init")} > ObjectPattern > Property[key.name='now']`,
+    `CallExpression${dateAt("callee")}`,
+    `NewExpression${dateAt("callee")}[arguments.length=0]`,
+    `BinaryExpression[operator='+']${performanceRead("left", "timeOrigin")}${performanceRead("right.callee", "now")}`,
+    `BinaryExpression[operator='+']${performanceRead("right", "timeOrigin")}${performanceRead("left.callee", "now")}`,
+  ].join(", ")})`,
+  message:
+    "Read time through the injected clock (Spine-Testing §3); `Date.now`, `Date()`, a bare `new Date()` and `performance.timeOrigin + performance.now()` read the ambient clock.",
 };
 const SERVER_CLOCK_HOME = homes("packages/server/src/entry/lifecycle.ts");
 const KIT_CLOCK_HOME = homes("packages/kit/src/time/index.ts");
-// Every server stream is a room on the one `stream.connect` socket (D118); `chat.impersonateStream` is its one permanent
-// exception, owner-ruled, and the stream router is the socket's own home.
+// Every server stream is a room on the one `stream.connect` socket (D118). The stream router is the socket's own home,
+// and `chat.impersonateStream` in the chat router is the one permanent exception, owner-ruled.
 const STREAM_ROUTER_HOME = homes("packages/server/src/transport/trpc/routers/stream.ts");
-const SERVER_STREAM_SYNTAX = {
-  selector: `CallExpression[callee.type='MemberExpression']${memberNamed("subscription", "callee.")}:not(Property[key.name='impersonateStream'] > CallExpression)`,
-  message: "Fold a stream into a room source on `stream.connect` (D118); only `chat.impersonateStream` declares its own subscription.",
+const IMPERSONATE_STREAM_HOME = homes("packages/server/src/transport/trpc/routers/chat.ts");
+const subscriptionCall = (exempt: string): string => `CallExpression[callee.type='MemberExpression']${memberNamed("subscription", "callee.")}${exempt}`;
+const SERVER_STREAM_MESSAGE = "Fold a stream into a room source on `stream.connect` (D118); only `chat.impersonateStream` declares its own subscription.";
+const SERVER_STREAM_SYNTAX = { selector: subscriptionCall(""), message: SERVER_STREAM_MESSAGE };
+const IMPERSONATE_STREAM_SYNTAX = {
+  selector: subscriptionCall(":not(Property[key.name='impersonateStream'] > CallExpression)"),
+  message: SERVER_STREAM_MESSAGE,
 };
 
 // Literal bidi controls and C0/C1 controls make the reviewed text differ from what runs (trojan source).
@@ -2231,9 +2247,10 @@ export default [
   { files: rootSources("@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   {
     files: rootSources("@server"),
-    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME],
+    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME, ...IMPERSONATE_STREAM_HOME],
     rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
   },
+  { files: IMPERSONATE_STREAM_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, IMPERSONATE_STREAM_SYNTAX) } },
   { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, SERVER_STREAM_SYNTAX) } },
   { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },

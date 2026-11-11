@@ -33,9 +33,10 @@ import {
   clipCapturedText,
   FLAGS_UNFILTERABLE_REASON,
   RENDERS_UNFILTERABLE_REASON,
+  sliceMotionEvidence,
 } from "#src/lib/bug-report-bundle.ts";
 import { consoleErrorRing } from "#src/lib/console-error-ring.ts";
-import { wallClockMs } from "#src/lib/wall-clock.ts";
+import { timeLib } from "#src/lib/time.ts";
 
 export type BugReportCaptureInput = Pick<Parameters<typeof buildBugReportClientBundle>[0], "note"> & {
   readonly windowMinutes: Parameters<typeof resolveEvidenceWindow>[1];
@@ -134,8 +135,9 @@ function absentSource(source: string): EvidenceSlice<unknown> {
 
 /** Assemble the client bundle from whatever the page can actually see. */
 export function captureBugReportBundle(input: BugReportCaptureInput): BugReportClientBundle {
-  // The capture instant is the physical moment, on the wall clock the rings this bundle filters stamp themselves with.
-  const window = resolveEvidenceWindow(wallClockMs(), input.windowMinutes);
+  // The window is on the civil clock every ring stamps with; the offset read beside it anchors the motion records.
+  const instant = { at: timeLib.now(), offset: performance.now() };
+  const window = resolveEvidenceWindow(instant.at, input.windowMinutes);
   const orb = readAgentDebugHandle();
   const consoleErrors = consoleErrorRing();
   const slices: Record<string, EvidenceSlice<unknown>> = {
@@ -162,10 +164,6 @@ export function captureBugReportBundle(input: BugReportCaptureInput): BugReportC
     });
   }
   const motion = orb.motion();
-  // The MOTION records carry `performance.now()` OFFSETS; every other source here is already wall-clock. The
-  // conversion is explicit at the call site (the engine refuses to guess a clock) — `timeOrigin` is the epoch
-  // instant this document's `performance.now()` counts from.
-  const toEpoch = (startTime: number): number => performance.timeOrigin + startTime;
   slices["queries()"] = sliceByWindow({
     // The query CENSUS — keys, status and timestamps, never cached VALUES (agent-bridge.ts's `queries` maps
     // exactly those five fields). That is why no per-field scrub is needed on this source: there is no payload
@@ -177,20 +175,7 @@ export function captureBugReportBundle(input: BugReportCaptureInput): BugReportC
     cap: null,
   });
   slices["bus().events"] = sliceByWindow({ source: "bus().events", entries: orb.bus().events, at: (event) => event.at, window, cap: CAPS.busEvents });
-  slices["motion().shifts"] = sliceByWindow({
-    source: "motion().shifts",
-    entries: motion.shifts,
-    at: (shift) => toEpoch(shift.startTime),
-    window,
-    cap: CAPS.motionShifts,
-  });
-  slices["motion().loafs"] = sliceByWindow({
-    source: "motion().loafs",
-    entries: motion.loafs,
-    at: (loaf) => toEpoch(loaf.startTime),
-    window,
-    cap: CAPS.motionLoafs,
-  });
+  Object.assign(slices, sliceMotionEvidence({ motion, window, instant, caps: { shifts: CAPS.motionShifts, loafs: CAPS.motionLoafs } }));
   slices["flags()"] = wholeSource({ source: "flags()", entries: orb.flags(), reason: FLAGS_UNFILTERABLE_REASON, cap: CAPS.flags });
   slices["renders()"] = wholeSource({ source: "renders()", entries: orb.renders(), reason: RENDERS_UNFILTERABLE_REASON, cap: null });
   return buildBugReportClientBundle({

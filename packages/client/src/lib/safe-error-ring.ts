@@ -4,7 +4,7 @@
 
 import type { BackgroundJob } from "./background-jobs.ts";
 import { backgroundJobOfLog } from "./background-jobs.ts";
-import { wallClockMs } from "./wall-clock.ts";
+import { timeLib } from "./time.ts";
 
 /** The browser surfaces a record can come from. */
 const SAFE_ERROR_SOURCES = ["console", "uncaught", "rejection"] as const;
@@ -14,7 +14,7 @@ type SafeErrorSource = (typeof SAFE_ERROR_SOURCES)[number];
  *  the page was on (the first path segment), or `null`. */
 export interface SafeErrorRecord {
   readonly source: SafeErrorSource;
-  /** Wall-clock epoch ms. */
+  /** Civil epoch ms ({@link timeLib.now}). */
   readonly at: number;
   /** The error's class name (`TypeError`), or `null` for a value that is not an `Error`. */
   readonly errorType: string | null;
@@ -106,7 +106,7 @@ interface RingGlobals {
 const ringGlobals = globalThis as RingGlobals;
 
 function liveContext(): RecordContext {
-  return { at: Math.round(wallClockMs()), origin: ringGlobals.location?.origin ?? "", pathname: ringGlobals.location?.pathname ?? "" };
+  return { at: timeLib.now(), origin: ringGlobals.location?.origin ?? "", pathname: ringGlobals.location?.pathname ?? "" };
 }
 
 // Reduce errors before retention so the production ring cannot retain reported messages.

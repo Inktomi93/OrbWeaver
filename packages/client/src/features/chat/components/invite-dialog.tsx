@@ -34,7 +34,7 @@ import {
   useSuspenseQuery,
   useTRPC,
 } from "#data";
-import { DIALOG_VERBS, notify, testId, timeLib, trpcErrorCode, wallClockMs } from "#lib";
+import { DIALOG_VERBS, notify, testId, timeLib, trpcErrorCode } from "#lib";
 import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
@@ -105,7 +105,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
     setHandleError(null);
     setSignupError(null);
     setMintedLink(null);
-    const input = toCreateInviteInput(values, wallClockMs());
+    const input = toCreateInviteInput(values, timeLib.now());
     try {
       // Read before the mint: the token shows once, so a link must never be built on a share state that failed to load.
       const share = values.mode === "link" ? await fetchLiveShare() : null;
