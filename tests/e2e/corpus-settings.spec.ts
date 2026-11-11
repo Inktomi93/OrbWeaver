@@ -1,7 +1,6 @@
 // Settings writes use the shipped controls and HTTP owners; About is intentionally read-only.
 
 import { stat } from "node:fs/promises";
-import { testId } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { portableTextFileSchema } from "@orb/contracts/portability";
@@ -19,6 +18,7 @@ import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";

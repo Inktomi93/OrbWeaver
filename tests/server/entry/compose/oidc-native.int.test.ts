@@ -5,7 +5,16 @@ import { beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@
 import { createNativeIssuer } from "@orb/testkit/node/helpers";
 import type { JWTPayload } from "jose";
 import type { HttpRoot } from "./oidc-native.fixtures.ts";
-import { BINDING_COOKIE_PATTERN, LOGOUT_EVENT, LOGOUT_TOKEN_PARAM, MEMBER, rootFor, SESSION_COOKIE_PATTERN, writes } from "./oidc-native.fixtures.ts";
+import {
+  BACKCHANNEL_LOGOUT_PATH,
+  BINDING_COOKIE_PATTERN,
+  LOGOUT_EVENT,
+  LOGOUT_TOKEN_PARAM,
+  MEMBER,
+  rootFor,
+  SESSION_COOKIE_PATTERN,
+  writes,
+} from "./oidc-native.fixtures.ts";
 
 test("native JOSE backchannel uses a cached remote keyset and never accepts a foreign signature", async () => {
   const issuer = await createNativeIssuer();
@@ -14,13 +23,19 @@ test("native JOSE backchannel uses a cached remote keyset and never accepts a fo
   const cookie = await signInWithOidc(root, issuer, MEMBER);
   const claims = { sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } } satisfies JWTPayload;
   const forged = await foreign.logoutToken(claims);
-  const rejected = await root.http.request("/api/auth/oidc/backchannel-logout", { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, forged]]) });
+  const rejected = await root.http.request(BACKCHANNEL_LOGOUT_PATH, {
+    method: "POST",
+    body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, forged]]),
+  });
   expect(rejected.status).toBe(400);
   const stillLive = await root.http.request("/api/auth/me", { headers: { cookie } });
   expect(authMeSchema.parse(await stillLive.json()).authenticated).toBe(true);
   const valid = await issuer.logoutToken(claims);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const result = await root.http.request("/api/auth/oidc/backchannel-logout", { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, valid]]) });
+    const result = await root.http.request(BACKCHANNEL_LOGOUT_PATH, {
+      method: "POST",
+      body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, valid]]),
+    });
     expect(result.status).toBe(200);
   }
   const dead = await root.http.request("/api/auth/me", { headers: { cookie } });
@@ -39,7 +54,7 @@ test("native key caches are graph-local for identical issuer/kid and survive ano
   const firstToken = await firstIssuer.logoutToken(claims);
   const secondToken = await secondIssuer.logoutToken(claims);
   const post = async (root: HttpRoot, token: string): Promise<Response> =>
-    await root.http.request("/api/auth/oidc/backchannel-logout", { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]) });
+    await root.http.request(BACKCHANNEL_LOGOUT_PATH, { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]) });
   expect((await post(first, firstToken)).status).toBe(200);
   expect((await post(second, secondToken)).status).toBe(200);
   await first[Symbol.asyncDispose]();

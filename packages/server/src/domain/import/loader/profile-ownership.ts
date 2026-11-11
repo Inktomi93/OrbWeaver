@@ -4,6 +4,7 @@
 // source string, because two profiles of one folder can share a path.
 
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
+import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import type { CharacterId } from "@orb/kit/ids";
 import { mapYielding } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
@@ -134,7 +135,7 @@ async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollec
   const personas = await mapYielding(collected.personas, deps.signal, ({ parsed, avatarBytes }) => ({
     name: parsed.name,
     description: parsed.description,
-    metadata: parsed.metadata ?? null,
+    metadata: narrowPersonaMetadata(parsed.metadata),
     artHash: avatarBytes === undefined ? null : sha256Hex(avatarBytes),
   }));
   return heldOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas }));

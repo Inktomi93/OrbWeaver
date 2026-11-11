@@ -84,7 +84,7 @@ test("the real openid-client grant completes against the issuer and its code is 
   expect(untrusted.stderr).toMatch(/self[- ]signed|certificate/iu);
 });
 
-test("the issuer certificate is minted once and reused while it is valid", ({ scratch }) => {
+test("the issuer certificate is minted once per directory and reused", ({ scratch }) => {
   const first = ensureIssuerTls(scratch);
   expect(ensureIssuerTls(scratch).cert).toBe(first.cert);
 });

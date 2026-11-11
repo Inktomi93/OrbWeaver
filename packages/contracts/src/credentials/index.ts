@@ -10,6 +10,7 @@
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { jsonMemberSchema } from "@orb/kit/json";
 import { z } from "zod";
 import type { Principal } from "#identity";
 import { providerIdSchema } from "#inference";
@@ -22,10 +23,10 @@ import { providerIdSchema } from "#inference";
  *  is a sealed secret with a label, and connections give it meaning. `.nullable()`: most rows carry none. */
 export const providerMetadataSchema = z
   .discriminatedUnion("auth", [
-    z.looseObject({ auth: z.literal("apiKey") }),
-    z.looseObject({ auth: z.literal("oauthToken") }),
+    z.object({ auth: z.literal("apiKey") }).catchall(jsonMemberSchema),
+    z.object({ auth: z.literal("oauthToken") }).catchall(jsonMemberSchema),
     /** An `auth: endpoint` row's OPTIONAL bearer (`vllm --api-key`, a proxied Ollama); the plaintext is the key. */
-    z.looseObject({ auth: z.literal("endpoint") }),
+    z.object({ auth: z.literal("endpoint") }).catchall(jsonMemberSchema),
   ])
   .nullable();
 /** Provider-specific metadata, inferred from the schema so the type and the runtime gate can't drift. */

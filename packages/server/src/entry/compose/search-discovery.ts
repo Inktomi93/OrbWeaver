@@ -4,6 +4,7 @@
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { DatabaseHandle } from "@orb/db/wiring";
+import { findSeedEmbedding } from "@orb/default-content";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -43,8 +44,8 @@ import {
   createEmbeddingsIndexer,
   createEmbeddingsIndexerSubscription,
   createEmbeddingsService,
+  createPrecomputedSeedEmbedding,
   createVacuousMemoryReceipt,
-  precomputedSeedEmbedding,
 } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
@@ -164,7 +165,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     logger: deps.logger,
     latches: createEmbeddingLatches(),
     scheduleTimeout: deps.scheduleTimeout,
-    precomputedEmbedding: precomputedSeedEmbedding,
+    precomputedEmbedding: createPrecomputedSeedEmbedding(findSeedEmbedding),
     ...assetReads,
     db,
     roleClientsFor,

@@ -95,20 +95,28 @@ export interface EmbeddingLatches {
   readonly reportImageSpaceDegrade: ReportImageSpaceDegrade;
 }
 
+/** A packaged vector for these content bytes in this encoder space, or `null` when none ships. */
+export type FindSeedEmbeddingOp = (
+  hash: string,
+  space: string,
+  kind: StoreParams["lens"],
+) => { readonly model: string; readonly vector: Float32Array<ArrayBuffer> } | null;
+
+/** A precomputed vector for these bytes on this resolved encoder, or `null` to embed live. */
+export type PrecomputedEmbeddingOp = (
+  hash: string,
+  space: string,
+  kind: StoreParams["lens"],
+  connection: EmbeddingConnectionSnapshot,
+) => ReturnType<FindSeedEmbeddingOp>;
+
 /** The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface EmbeddingsContext {
   readonly logger: Logger;
   /** This root's latches, built once by its composition root. */
   readonly latches: EmbeddingLatches;
   readonly scheduleTimeout: ScheduleOp;
-  readonly precomputedEmbedding?:
-    | ((
-        hash: string,
-        space: string,
-        kind: StoreParams["lens"],
-        connection: EmbeddingConnectionSnapshot,
-      ) => { readonly model: string; readonly vector: Float32Array<ArrayBuffer> } | null)
-    | undefined;
+  readonly precomputedEmbedding?: PrecomputedEmbeddingOp | undefined;
   readonly loadAssetKind: AssetEmbeddingReads["loadAssetKind"];
   readonly loadAssetMime: AssetEmbeddingReads["loadAssetMime"];
   /** An asset's stored hash, the CAS key: the sha-256 of its bytes. `null` when the row is gone. */

@@ -11,6 +11,7 @@ import {
   IMPORT_MAX_TOTAL_BYTES,
   IMPORT_TREE_MAX_TOTAL_BYTES,
 } from "@orb/contracts/uploads";
+import { CSRF_EXEMPT_ROUTES } from "@orb/server/entry/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 
 export const REQUEST_CHUNK_BYTES = 64 * 1024;
@@ -34,7 +35,7 @@ export const LOCAL_AUTH_ROUTES = ["/api/auth/login", "/api/auth/first-run", "/ap
   bytes: AUTH_ATTACK_BYTES,
 }));
 export const PENDING_ROUTES = ["/api/auth/oidc/pending/preview", "/api/auth/oidc/pending/confirm"].map((path) => ({ path, bytes: AUTH_ATTACK_BYTES }));
-export const BACKCHANNEL_ROUTE = { path: "/api/auth/oidc/backchannel-logout", bytes: AUTH_ATTACK_BYTES };
+export const BACKCHANNEL_ROUTE = { path: CSRF_EXEMPT_ROUTES.oidcBackchannelLogout.path, bytes: AUTH_ATTACK_BYTES };
 // The native root also mounts this separately owned, capped diagnostic mutation outside entry/http.
 export const DEBUG_ROUTE = { path: "/api/_debug/bug-report", bytes: DATABANK_UPLOAD_MAX_BYTES + 1 };
 export const BUNDLE_ROUTE = PORTABILITY_ROUTES.importBundle;

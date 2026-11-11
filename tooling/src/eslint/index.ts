@@ -13,6 +13,7 @@ import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIO
 import { moduleStateRule } from "./module-state.ts";
 import type { BaseUiDoors } from "./motion.ts";
 import { baseUiStateDataAttributesRule, noRenderLayoutReadRule, unruledFlipInversionRule } from "./motion.ts";
+import { narrowedJsonBrandRule } from "./narrowed-json.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { optionalAlternativesRule } from "./optional-alternatives.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
@@ -328,6 +329,7 @@ export function createOrbPlugin(options: {
       "trpc-payload-declared-keys": trpcPayloadKeysRule,
       "trpc-output-declared-keys": trpcOutputKeysRule,
       "no-unsafe-cast": noUnsafeCastRule(UNSAFE_CAST_HOMES, BRAND_MINT_HOMES),
+      "narrowed-json-brand": narrowedJsonBrandRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "detached-work-traced": detachedWorkRule,

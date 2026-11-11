@@ -3,7 +3,7 @@
 // checks the client secret, redirect URI and PKCE verifier, then signs an RS256 id_token carrying the nonce.
 
 import type { KeyObject } from "node:crypto";
-import { createHash, generateKeyPairSync, randomBytes, timingSafeEqual, X509Certificate } from "node:crypto";
+import { createHash, generateKeyPairSync, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer, request as httpsRequest } from "node:https";
@@ -15,8 +15,9 @@ import { z } from "zod";
 const LOOPBACK = "127.0.0.1";
 const CERT_FILE = "issuer-cert.pem";
 const KEY_FILE = "issuer-key.pem";
-const DAY_MS = 86_400_000;
-const CERT_LIFETIME_DAYS = 365;
+// A fixed validity window, so minting reads no clock. X.509 UTCTime ends with 2049; the issuer directory is per run.
+const CERT_NOT_BEFORE_MS = Date.UTC(2000, 0, 1);
+const CERT_NOT_AFTER_MS = Date.UTC(2049, 11, 31, 23, 59, 59);
 const ID_TOKEN_LIFETIME = "5m";
 const ACCESS_TOKEN_SECONDS = 300;
 const SECRET_BYTES = 32;
@@ -61,12 +62,11 @@ export function issuerCertPath(dir: string): string {
   return join(dir, CERT_FILE);
 }
 
-/** Mint the self-signed loopback certificate once per directory, again only after it expires. */
-export function ensureIssuerTls(dir: string, now: number = Date.now()): IssuerTls {
+/** Mint the self-signed loopback certificate once per directory. */
+export function ensureIssuerTls(dir: string): IssuerTls {
   const certPath = issuerCertPath(dir);
   const keyPath = join(dir, KEY_FILE);
-  const current = existsSync(certPath) && existsSync(keyPath) && new Date(new X509Certificate(readFileSync(certPath)).validTo).getTime() > now + DAY_MS;
-  if (!current) {
+  if (!(existsSync(certPath) && existsSync(keyPath))) {
     mkdirSync(dir, { recursive: true });
     const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
     writeFileSync(keyPath, privateKey.export({ type: "pkcs8", format: "pem" }));
@@ -78,8 +78,8 @@ export function ensureIssuerTls(dir: string, now: number = Date.now()): IssuerTl
         issuerKey: privateKey,
         issuerName: LOOPBACK,
         serial: 1,
-        notBefore: now - DAY_MS,
-        notAfter: now + CERT_LIFETIME_DAYS * DAY_MS,
+        notBefore: CERT_NOT_BEFORE_MS,
+        notAfter: CERT_NOT_AFTER_MS,
       }),
     );
   }
