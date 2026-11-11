@@ -17,6 +17,15 @@ DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
 iptables -P INPUT DROP
 iptables -P OUTPUT DROP
 iptables -P FORWARD DROP
+# IPv6 admits loopback only: no allowlist entry is IPv6, and a daemon or network that enables IPv6 must not
+# open a route around every rule below.
+ip6tables -P INPUT DROP
+ip6tables -P OUTPUT DROP
+ip6tables -P FORWARD DROP
+ip6tables -F
+ip6tables -X
+ip6tables -A INPUT -i lo -j ACCEPT
+ip6tables -A OUTPUT -o lo -j ACCEPT
 
 iptables -F
 iptables -X

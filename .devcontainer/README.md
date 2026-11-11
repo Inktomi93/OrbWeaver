@@ -55,8 +55,9 @@ host sessions keep whatever the host user settings say.
   design — credentials stay on the host, never exposed to a permissive sandbox).
   You can still `git commit` inside; just push from a host terminal.
 - **Models/vLLM run on the HOST.** In-container there is no GPU, and the local-light
-  int suites self-skip. The firewall allows traffic to the host network, so a service
-  the host exposes on its LAN address is reachable if you ever need it.
+  int suites self-skip. The firewall admits only the Docker bridge range (the /24 of the
+  container's default gateway, usually `172.17.0.1`). A host service is reachable through that
+  gateway only when it listens on all interfaces; one bound only to the host's LAN address is not.
 - **After editing any file in this folder**, rebuild:
   ```bash
   npx @devcontainers/cli up --remove-existing-container --workspace-folder .
