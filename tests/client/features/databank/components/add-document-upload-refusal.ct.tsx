@@ -17,6 +17,7 @@ const STORY = "tests/client/features/databank/components/_add-document-stories/A
 const UPLOAD_ROUTE = `**${DATABANK_UPLOAD_ROUTE}`;
 const FILE_INPUT = 'input[type="file"]';
 const REFUSAL_LINE = '[data-slot="file-dropzone-error"]';
+const DIALOG_FOOTER = '[data-slot="dialog-footer"]';
 const CLIENT_ACCEPTED_NAME = "ledger.txt";
 // A name the zone's own type check refuses before any request is made.
 const CLIENT_REFUSED_NAME = "roster.csv";
@@ -36,14 +37,17 @@ const DAMAGED: RefusalCase = {
   shown: DOCUMENT_UPLOAD_FAILURE[EXTRACTION_OP_CODES.failed],
 };
 
+// The longest sentence the zone can show, so the case that most needs room is the one the short-viewport test uses.
+const TOO_LARGE: RefusalCase = {
+  label: "a file that unpacks past the size budget",
+  status: 400,
+  body: { error: new ExtractionTooLargeError("epub").message, reason: EXTRACTION_OP_CODES.tooLarge },
+  shown: DOCUMENT_UPLOAD_FAILURE[EXTRACTION_OP_CODES.tooLarge],
+};
+
 const REFUSALS: readonly RefusalCase[] = [
   DAMAGED,
-  {
-    label: "a file that unpacks past the size budget",
-    status: 400,
-    body: { error: new ExtractionTooLargeError("epub").message, reason: EXTRACTION_OP_CODES.tooLarge },
-    shown: DOCUMENT_UPLOAD_FAILURE[EXTRACTION_OP_CODES.tooLarge],
-  },
+  TOO_LARGE,
   {
     label: "a type the server does not accept",
     status: 415,
@@ -65,6 +69,12 @@ async function refuseUploads(page: Page, { status, body }: RefusalCase): Promise
 
 function drop(page: Page, name: string, mimeType = "text/plain"): Promise<void> {
   return page.locator(FILE_INPUT).setInputFiles({ name, mimeType, buffer: Buffer.from("The lantern.") });
+}
+
+async function pickThroughChooser(page: Page, name: string): Promise<void> {
+  const chooser = page.waitForEvent("filechooser");
+  await page.locator(FILE_INPUT).click();
+  await (await chooser).setFiles({ name, mimeType: "text/plain", buffer: Buffer.from("The lantern.") });
 }
 
 for (const refusal of REFUSALS) {
@@ -108,15 +118,30 @@ test("a zone refusal of the next file replaces the server's refusal of the one b
   await expect(line).toContainText(CLIENT_REFUSED_NAME);
   await expect(line).not.toContainText(DAMAGED.shown);
   expect(sent()).toBe(1);
+  // The zone's own refusal marks the File control invalid, as the server's does, so the control's state matches its description.
+  await expect(page.locator(FILE_INPUT)).toHaveAttribute("aria-invalid", "true");
 });
 
-test("at a short viewport with the largest text the refusal line is fully in view", async ({ mount, page }) => {
+test("at a short viewport with the largest text the longest refusal line is clear of the dialog footer", async ({ mount, page }) => {
   await page.setViewportSize({ width: 640, height: 400 });
-  await refuseUploads(page, DAMAGED);
+  await refuseUploads(page, TOO_LARGE);
   await mount<typeof AddDocumentStory>(STORY, {});
   await setRootFontScale(page, channelName("fontScale"), FONT_SCALE.max);
 
-  await drop(page, CLIENT_ACCEPTED_NAME);
-  await expect(page.locator(REFUSAL_LINE)).toHaveText(DAMAGED.shown);
-  await expect(page.locator(REFUSAL_LINE)).toBeInViewport({ ratio: 1 });
+  // The way a person picks: the click on the zone focuses the File control and opens the chooser, so the refusal that follows has no
+  // focus move of its own to bring the line into view.
+  await pickThroughChooser(page, CLIENT_ACCEPTED_NAME);
+  const line = page.locator(REFUSAL_LINE);
+  await expect(line).toHaveText(TOO_LARGE.shown);
+  await expect(line).toBeInViewport({ ratio: 1 });
+  // In the viewport is not enough: the sticky footer paints over the scroll body's last rows, so the line's bottom edge has to sit
+  // above the footer's top edge.
+  const footer = page.locator(DIALOG_FOOTER);
+  await expect
+    .poll(async () => {
+      const lineBox = await line.boundingBox();
+      const footerBox = await footer.boundingBox();
+      return lineBox === null || footerBox === null ? null : footerBox.y - (lineBox.y + lineBox.height);
+    })
+    .toBeGreaterThanOrEqual(0);
 });

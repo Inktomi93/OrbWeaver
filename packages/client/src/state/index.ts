@@ -125,7 +125,7 @@ export type {
   SettingsViewerView,
   SettingTeach,
 } from "./config-group-registry.ts";
-export { configSettingControlId, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
+export { configSettingControlId, configSettingLabel, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export {
   arriveAtConfigGroup,

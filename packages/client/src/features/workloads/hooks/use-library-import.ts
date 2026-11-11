@@ -29,8 +29,20 @@ import { DEFAULT_PERSONA_COLLISION_CHOICE, mergeImportPreviews } from "@orb/cont
 import type { WorkloadId } from "@orb/kit/ids";
 import { useEffect, useRef, useState } from "react";
 import type { TreeImportCaps, TreeImportPlan } from "#data";
-import { HttpError, importBundle, importCharacters, importTree, planServedFolderImport, relativePathOf, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import {
+  HttpError,
+  importBundle,
+  importCharacters,
+  importTree,
+  planServedFolderImport,
+  relativePathOf,
+  UnsupportedFolderLayoutError,
+  useInvalidation,
+  useTRPC,
+  useUploadCaps,
+} from "#data";
 import { notify } from "#lib";
+import { IMPORT_FOLDER_WRONG_FOLDER } from "../lib/import-folder-copy.ts";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
@@ -136,10 +148,6 @@ export interface LibraryImport {
 function isZip(file: File): boolean {
   return file.name.toLowerCase().endsWith(ZIP_EXTENSION);
 }
-
-const IMPORT_FAILED_TOAST = "Import failed. Check the file and try again.";
-/** Said when the folder cannot be planned, before any file is sent: the inline line holds the reason. */
-const FOLDER_UNREADABLE_TOAST = "Couldn't read that folder.";
 
 /** The planner's view of the served caps. */
 function treeCaps(caps: ReturnType<typeof useUploadCaps>): TreeImportCaps {
@@ -269,22 +277,18 @@ export function useLibraryImport(): LibraryImport {
     }
     invalidation.invalidateAllUserRoots();
     setState({ status: "done", summary });
-    const caption = summaryCaption(summary);
+    // A failed or partial import is said where the person is looking: the report summary renders the same caption inline.
     if (summary.failed === 0) {
-      notify.success(`Import complete: ${caption}`);
-    } else if (summary.imported === 0) {
-      notify.error(`Import failed: ${caption}`);
-    } else {
-      notify.info(`Imported with issues: ${caption}`);
+      notify.success(`Import complete: ${summaryCaption(summary)}`);
     }
   };
 
-  const fail = (epoch: number, message: string, toast: string = IMPORT_FAILED_TOAST): void => {
+  /** A failure is one inline line where the person is looking; a toast beside it would say it twice. */
+  const fail = (epoch: number, message: string): void => {
     if (epoch !== requestEpoch.current) {
       return;
     }
     setState({ status: "error", message });
-    notify.error(toast);
   };
 
   const stageFiles = (files: readonly File[]): void => {
@@ -301,7 +305,7 @@ export function useLibraryImport(): LibraryImport {
     const epoch = ++requestEpoch.current;
     // The plan reads group definitions, so it is async; the picker's files are staged the moment it lands.
     // the .catch below calls fail(), whose
-    // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
+    // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
     planServedFolderImport(files, treeCaps(caps))
       .then(({ plan, collisions }) => {
         if (epoch === requestEpoch.current) {
@@ -314,7 +318,13 @@ export function useLibraryImport(): LibraryImport {
           }
         }
       })
-      .catch((error: unknown) => fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error), FOLDER_UNREADABLE_TOAST));
+      .catch((error: unknown) => {
+        if (error instanceof UnsupportedFolderLayoutError) {
+          fail(epoch, IMPORT_FOLDER_WRONG_FOLDER);
+          return;
+        }
+        fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error));
+      });
   };
   const cancel = (): void => {
     dropPreview();
@@ -331,7 +341,7 @@ export function useLibraryImport(): LibraryImport {
     setState({ status: "uploading", filename: first.name });
     if (isZip(first)) {
       // the .catch below calls fail(), whose
-      // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
+      // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
       importBundle(first)
         .then(({ workloadId }) => {
           if (epoch === requestEpoch.current) {
@@ -342,7 +352,7 @@ export function useLibraryImport(): LibraryImport {
       return;
     }
     // the .catch below calls fail(), whose
-    // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
+    // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
     importCharacters(files)
       .then((result) => finish(epoch, summarizeCardImport(result)))
       .catch((error: unknown) => fail(epoch, errorMessage(error)));
@@ -358,7 +368,7 @@ export function useLibraryImport(): LibraryImport {
     }
     setState({ status: "uploading", filename: relativePathOf(first) });
     // the .catch below calls fail(), whose
-    // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
+    // `setState({ status: "error", message })` shows the failure inline (it skips only a superseded epoch). Ends if fail() stops writing that state.
     importTree(batch, run.choices, run.plan.layout)
       .then(({ workloadId }) => {
         if (run.epoch === requestEpoch.current) {

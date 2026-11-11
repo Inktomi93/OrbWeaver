@@ -16,6 +16,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { configSettingLabel } from "#state";
 import { useUpdateMessageDetails } from "../hooks/use-chat-settings-mutations.ts";
 import { APPEARANCE_MESSAGE_DETAILS_KEYS, APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY } from "../lib/appearance-message-details-model.ts";
 import { MESSAGE_ACTIONS_ITEMS } from "../lib/appearance-select-items.ts";
@@ -77,29 +78,45 @@ function MessageDetailsBody({
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY }}>
         <SettingRowGroup>
           <SettingRow settingId="show-timestamps">
-            <form.AppField name="showTimestamps">{(field): ReactElement => <field.SwitchField label="Show timestamps" />}</form.AppField>
+            <form.AppField name="showTimestamps">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY, "showTimestamps")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="show-message-id">
-            <form.AppField name="showMessageId">{(field): ReactElement => <field.SwitchField label="Show message ID" />}</form.AppField>
+            <form.AppField name="showMessageId">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY, "showMessageId")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="show-model">
-            <form.AppField name="showModelIcon">{(field): ReactElement => <field.SwitchField label="Show model" />}</form.AppField>
+            <form.AppField name="showModelIcon">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY, "showModelIcon")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="show-token-count">
-            <form.AppField name="showTokenCount">{(field): ReactElement => <field.SwitchField label="Show token count" />}</form.AppField>
+            <form.AppField name="showTokenCount">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY, "showTokenCount")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="show-generation-time">
-            <form.AppField name="showGenerationTimer">{(field): ReactElement => <field.SwitchField label="Show generation time" />}</form.AppField>
+            <form.AppField name="showGenerationTimer">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY, "showGenerationTimer")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="show-generation-cost">
-            <form.AppField name="showGenerationCost">{(field): ReactElement => <field.SwitchField label="Show generation cost" />}</form.AppField>
+            <form.AppField name="showGenerationCost">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY, "showGenerationCost")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="show-reasoning">
-            <form.AppField name="showLLMReasoningIcon">{(field): ReactElement => <field.SwitchField label="Show reasoning icon" />}</form.AppField>
+            <form.AppField name="showLLMReasoningIcon">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY, "showLLMReasoningIcon")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="message-actions">
             <form.AppField name="messageActions">
-              {(field): ReactElement => <field.SelectField label="Action cluster" items={MESSAGE_ACTIONS_ITEMS} />}
+              {(field): ReactElement => (
+                <field.SelectField label={configSettingLabel(APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY, "messageActions")} items={MESSAGE_ACTIONS_ITEMS} />
+              )}
             </form.AppField>
           </SettingRow>
         </SettingRowGroup>

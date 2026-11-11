@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-11-11
-priority: P3
+priority: P2
 area: client
-lane: wt/agent-ab272ed4fef9cc84a
 plan: cross-surface-consistency
 ---
 
@@ -12,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-A SillyTavern folder import pointed at the wrong folder shows a toast and an inline line that disagree, both in technical wording; the owner's ruling is no toast beside a visible inline failure. A character import of a plain picture refuses with a toast that names the missing card chunk by its internal spelling. Source: the client rendered re-check report under reports/review.
+A plain picture given to the Backup and Restore import as a character card is refused in the server's technical wording, naming the missing card chunk by its internal spelling (packages/client/src/features/workloads, the portability model's refusal mapping). The Characters import dialog already says the same refusal in plain words from its copy module, and the SillyTavern folder refusal is fixed. Source: finding F1 in the rendered review of the client branch under reports/review.
 
 ## Why
 
@@ -20,7 +19,7 @@ A person who picked the wrong file needs to know what to pick, in their words, s
 
 ## Done when
 
-The folder import refusal shows one inline sentence that says what was wrong with the folder and what a SillyTavern folder contains, with no toast. The character import refusal says the picture holds no character card and what kinds of file do. Both read their copy from the feature's copy module.
+The Backup and Restore import shows the same plain sentence the Characters import dialog shows for a picture with no character card, read from one copy home, with a component test through the production section that asserts the sentence and no toast.
 
 ## Evidence
 

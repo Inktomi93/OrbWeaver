@@ -16,6 +16,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { configSettingLabel } from "#state";
 import { useUpdateAvatars } from "../hooks/use-chat-settings-mutations.ts";
 import { APPEARANCE_AVATARS_KEYS, APPEARANCE_AVATARS_SUBCATEGORY } from "../lib/appearance-avatars-model.ts";
 import { AVATAR_ASPECT_ITEMS, AVATAR_RING_ITEMS, AVATAR_SHAPE_ITEMS, AVATAR_SIZE_ITEMS } from "../lib/appearance-select-items.ts";
@@ -72,7 +73,9 @@ function AvatarsBody({
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_AVATARS_SUBCATEGORY }}>
         <SettingRowGroup>
           <SettingRow settingId="show-avatars">
-            <form.AppField name="showInChatAvatars">{(field): ReactElement => <field.SwitchField label="Show avatars in chat" />}</form.AppField>
+            <form.AppField name="showInChatAvatars">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_AVATARS_SUBCATEGORY, "showInChatAvatars")} />}
+            </form.AppField>
           </SettingRow>
           {/* THE FOUR DEPENDENTS FOLLOW THE MASTER. Size/shape/aspect/ring only describe an avatar that
               renders, so with `showInChatAvatars` off they were four live controls that changed nothing —
@@ -86,22 +89,46 @@ function AvatarsBody({
               <>
                 <SettingRow settingId="avatar-size">
                   <form.AppField name="avatarSize">
-                    {(field): ReactElement => <field.SelectField label="Avatar size" items={AVATAR_SIZE_ITEMS} disabled={!showAvatars} />}
+                    {(field): ReactElement => (
+                      <field.SelectField
+                        label={configSettingLabel(APPEARANCE_AVATARS_SUBCATEGORY, "avatarSize")}
+                        items={AVATAR_SIZE_ITEMS}
+                        disabled={!showAvatars}
+                      />
+                    )}
                   </form.AppField>
                 </SettingRow>
                 <SettingRow settingId="avatar-shape">
                   <form.AppField name="avatarShape">
-                    {(field): ReactElement => <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} disabled={!showAvatars} />}
+                    {(field): ReactElement => (
+                      <field.SelectField
+                        label={configSettingLabel(APPEARANCE_AVATARS_SUBCATEGORY, "avatarShape")}
+                        items={AVATAR_SHAPE_ITEMS}
+                        disabled={!showAvatars}
+                      />
+                    )}
                   </form.AppField>
                 </SettingRow>
                 <SettingRow settingId="avatar-aspect">
                   <form.AppField name="avatarAspect">
-                    {(field): ReactElement => <field.SelectField label="Avatar aspect" items={AVATAR_ASPECT_ITEMS} disabled={!showAvatars} />}
+                    {(field): ReactElement => (
+                      <field.SelectField
+                        label={configSettingLabel(APPEARANCE_AVATARS_SUBCATEGORY, "avatarAspect")}
+                        items={AVATAR_ASPECT_ITEMS}
+                        disabled={!showAvatars}
+                      />
+                    )}
                   </form.AppField>
                 </SettingRow>
                 <SettingRow settingId="avatar-ring">
                   <form.AppField name="avatarRing">
-                    {(field): ReactElement => <field.SelectField label="Avatar ring" items={AVATAR_RING_ITEMS} disabled={!showAvatars} />}
+                    {(field): ReactElement => (
+                      <field.SelectField
+                        label={configSettingLabel(APPEARANCE_AVATARS_SUBCATEGORY, "avatarRing")}
+                        items={AVATAR_RING_ITEMS}
+                        disabled={!showAvatars}
+                      />
+                    )}
                   </form.AppField>
                 </SettingRow>
               </>

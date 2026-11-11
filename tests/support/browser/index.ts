@@ -16,7 +16,7 @@ export { isolationRegistry } from "./ct-isolation.ts";
 export { CtNoticeControl } from "./ct-notice-control.tsx";
 export { CtProviders } from "./ct-providers.tsx";
 export { SettingsCompositionStory } from "./ct-settings-composition-stories.tsx";
-export { ShellAmbientStory } from "./ct-shell-reads-stories.tsx";
+export { ShellAmbientStory, ShellBusStory } from "./ct-shell-reads-stories.tsx";
 export { CtShellRoom } from "./ct-shell-room.tsx";
 export type { SeedScopeProps } from "./seed-scope.tsx";
 export { SeedScope } from "./seed-scope.tsx";

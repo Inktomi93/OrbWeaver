@@ -22,6 +22,7 @@ import type { Trpc } from "#data";
 import { timeLib } from "#lib";
 import { selectCorpusCharacter } from "#state";
 import { formatCount } from "../lib/corpus-analysis-state.ts";
+import { CORPUS_GEM_TILES_NAME } from "../lib/corpus-control-names.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 
 type ForgottenGem = inferOutput<Trpc["discovery"]["forgottenGems"]>[number];
@@ -86,7 +87,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
         gap="row"
         itemKey={(gem): string => gem.characterId}
         items={gems}
-        label="Invested but quiet characters"
+        label={CORPUS_GEM_TILES_NAME}
         renderItem={(gem, index): ReactElement => (
           <Stack gap="tight">
             <Button justify="start" variant="ghost" onClick={(): void => selectCorpusCharacter(gem.characterId)} size="sm" stacked={true} width="full">

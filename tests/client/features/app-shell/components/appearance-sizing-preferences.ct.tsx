@@ -1,6 +1,7 @@
 // @subject packages/client/src/features/app-shell/components/appearance-sizing-section.tsx
 // The three OS preferences each offer System, On and Off, and a pick saves that mode on the appearance section.
 // The corpus root's settings verbs answer the section, so the merge that stores a pick is the server's own.
+import { configSettingLabel } from "@orb/client/state";
 import { OS_PREFERENCE_MODES } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -44,5 +45,19 @@ test("each OS preference offers three modes and saves the one picked", async ({ 
     await expect
       .poll(async () => Object.entries((await caller.settings.getUserSettings()).config.appearance).find(([name]) => name === key)?.[1])
       .toBe(OFF.value);
+  }
+});
+
+// The Looks note points a person at a setting by the label the model gives it, so the control must wear that same label.
+const SLIDER_KEYS = ["chatWidthPct", "fontScale"] as const;
+
+test("each slider is named by the label the model gives its setting", async ({ mount, page }) => {
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, serveCorpusProcedures(caller, ["settings.getUserSettings", "settings.updateUserSettingsSection"]));
+  await mount<typeof SizingSectionStory>(STORY, {});
+
+  for (const key of SLIDER_KEYS) {
+    const label = configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, key);
+    await expect(page.getByRole("slider", { name: label, exact: true })).toBeVisible();
   }
 });

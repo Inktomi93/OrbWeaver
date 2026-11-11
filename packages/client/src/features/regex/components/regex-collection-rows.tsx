@@ -47,7 +47,9 @@ import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement } from "react";
-import { LibraryRow } from "#components";
+import { useRef } from "react";
+import type { RowDeleteFocus } from "#components";
+import { LibraryRow, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import {
@@ -132,6 +134,15 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
     timeLib.formatDateTime,
   );
   const qualifierById = new Map(filtered.map((script, index) => [script.id, qualifiers[index] ?? ""]));
+  // Where a delete's focus lands when no neighbouring row is mounted. The window is the library's, not the filter's, so
+  // a filter that leaves one row of a large library is still a window, and deleting that row leaves it with no neighbour.
+  // The root is one element around either arm, so the fallback exists whichever arm the library is in.
+  const windowed = scripts.length > COLLECTION_LARGE_GROUP;
+  const listRootRef = useRef<HTMLDivElement>(null);
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    filtered.map((script) => script.id),
+  );
 
   const renderRow = (script: RegexScriptRow): ReactElement => (
     <RegexCollectionRow
@@ -142,6 +153,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       onExport={onExport}
       onSelect={(): void => view.onSelect(script.id)}
       qualifier={qualifierById.get(script.id) ?? ""}
+      rowFocus={rowFocus}
       script={script}
       selected={view.selectedId === script.id}
     />
@@ -150,8 +162,8 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   const rows = ((): ReactElement | null => {
     if (filtered.length === 0) {
       // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES: with no needle, a "No scripts match that
-      // filter." line above the host's own zero-member slot would be a second, false empty state (below
-      // COLLECTION_LARGE_GROUP the filter box isn't even rendered). No needle ⇒ the host's slot is the only voice.
+      // filter." line above the host's own zero-member slot would be a second, false empty state. No needle ⇒
+      // the host's slot is the only voice.
       // …AND THE MISS SPEAKS: focus stays in the host's filter box, so the one state with no rows at all needs
       // feedback a keyboard reader receives. `role="status"` rides the
       // MESSAGE, never the row container — a live region around the list would announce every row on every
@@ -162,14 +174,15 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
         </Text>
       );
     }
-    if (scripts.length > COLLECTION_LARGE_GROUP) {
+    if (windowed) {
       return (
         <VirtualList
           aria-label="Regex scripts"
           // THE PANE IS THE WINDOW (the mock design §5.4). The bound is the CONTENT pane's own
           // `overflow-y-auto overscroll-contain` box,
           // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
-          // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the required half — a flex
+          // pane, the list root below is `min-h-0 flex-1` in the landing and this is `min-h-0 flex-1` in the
+          // root. `min-h-0` is the required half — a flex
           // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
           // primitive's own unbounded-window throw.
           className="min-block-0"
@@ -203,7 +216,11 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   const checkedIds = Object.keys(selectedIds);
   return (
     <>
-      {rows}
+      {/* THE LIST ROOT: one element around either arm, the delete's fallback focus. It carries the window's bound only when the
+          library is windowed; a short library's rows overflow it into the pane's own scroller. */}
+      <Stack focusTarget={true} grow={windowed} minHeight={windowed ? "shrinks" : undefined} ref={listRootRef} tabIndex={-1}>
+        {rows}
+      </Stack>
       {/* THE BAR IS THE MODE'S ONLY VOICE WHILE NOTHING IS CHECKED — but it is not rendered then, and that
           is deliberate: the band toggle is pressed, every row wears a checkbox, and a zero-count bar would
           be chrome saying what the rows already say. It appears the moment a row is checked. */}
@@ -222,9 +239,21 @@ interface RegexCollectionRowProps {
   readonly onDuplicate: (id: RegexScriptId) => void;
   readonly onDelete: (id: RegexScriptId) => void;
   readonly onExport: (id: RegexScriptId) => void;
+  /** Hands focus to a neighbouring row when this row's delete confirms: the row unmounts with its confirm. */
+  readonly rowFocus: RowDeleteFocus;
 }
 
-function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect, onDuplicate, onDelete, onExport }: RegexCollectionRowProps): ReactElement {
+function RegexCollectionRow({
+  script,
+  selected,
+  bulkActive,
+  qualifier,
+  onSelect,
+  onDuplicate,
+  onDelete,
+  onExport,
+  rowFocus,
+}: RegexCollectionRowProps): ReactElement {
   const checked = useIsRegexScriptSelected(script.id);
   const title = regexScriptTitle(script);
   // The bulk checkbox is this row's cluster while the mode runs, so it carries the SAME subject the kebab
@@ -262,7 +291,7 @@ function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect,
         name: title,
         qualifier,
         onDuplicate: (): void => onDuplicate(script.id),
-        onDelete: (): void => onDelete(script.id),
+        ...rowFocus.delete(script.id, (): void => onDelete(script.id)),
         deleteDescription: "Deleting a script removes it from every preset, character, and room it's attached to. This can't be undone.",
         // Below Duplicate, above the destructive Delete — the §9 kebab order.
         menuItemsAfter: (
@@ -273,6 +302,7 @@ function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect,
         ),
       }}
       actionsReserved={REGEX_CLUSTER_SLOTS}
+      bodyRef={rowFocus.bodyRef(script.id)}
       onSelect={onSelect}
       selected={selected}
       title={title}

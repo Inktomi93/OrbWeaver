@@ -7,12 +7,13 @@ import type { ReactElement } from "react";
 import type { ModalDefinition } from "#state";
 import { clearDetailSubject } from "#state";
 import { ImageDetailBody } from "../components/image-detail-body.tsx";
+import { IMAGE_DETAIL_TITLE } from "./imagine-names.ts";
 
 export const imageDetailModal: ModalDefinition = {
   id: "imageDetail",
-  title: "Image",
+  title: IMAGE_DETAIL_TITLE,
   size: "lg",
-  trigger: { placement: "surface", label: "Image", icon: Images },
+  trigger: { placement: "surface", label: IMAGE_DETAIL_TITLE, icon: Images },
   onClose: clearDetailSubject,
   body: (): ReactElement => <ImageDetailBody />,
 };

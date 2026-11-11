@@ -47,13 +47,13 @@ import { declaresOverlay } from "@orb/ui/lib";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
-import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, Tip, useFirstBootRows } from "#components";
+import { useId, useRef, useState } from "react";
+import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, Tip, useFirstBootRows, useRowDeleteFocus } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { downloadTextFile, notify } from "#lib";
+import { downloadTextFile, notify, useFocusOnSwap } from "#lib";
 import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
-import { CONFIG_BACK_TO_LOOKS_NAME, CONFIG_IMPORT_THEME_FILE_NAME, newThemeName } from "../lib/config-control-names.ts";
+import { CONFIG_BACK_TO_LOOKS_NAME, CONFIG_IMPORT_THEME_FILE_NAME, CONFIG_THEME_GROUP_NAME, newThemeName } from "../lib/config-control-names.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 import { ThemeEditor } from "./theme-editor.tsx";
@@ -128,6 +128,22 @@ export function AppearanceLooksSection({ anchorId }: { readonly anchorId: string
   );
 }
 
+/** The builder that replaces the grid. Its card's menu and the grid are gone by the time it mounts, so it takes focus itself. */
+function LooksBuilder({ session, onBack }: { readonly session: EditorSession; readonly onBack: () => void }): ReactElement {
+  const backRef = useRef<HTMLButtonElement>(null);
+  useFocusOnSwap(backRef);
+  return (
+    <Stack gap="block">
+      <Row>
+        <Button variant="ghost" onClick={onBack} ref={backRef}>
+          {CONFIG_BACK_TO_LOOKS_NAME}
+        </Button>
+      </Row>
+      {session.mint === undefined ? <ThemeEditor theme={session.draft} /> : <ThemeEditor mint={session.mint} theme={session.draft} />}
+    </Stack>
+  );
+}
+
 function LooksBody(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -143,6 +159,11 @@ function LooksBody(): ReactElement {
   const [editing, setEditing] = useState<EditorSession | null>(null);
   const [leftovers, setLeftovers] = useState<ThemeImportLeftoversProps | null>(null);
   const ids = useId();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const rowFocus = useRowDeleteFocus(
+    gridRef,
+    themes.map((theme) => theme.id),
+  );
 
   // ONE collection, in the SERVER's order — no client allowlist, no shipped/own split. WITH NO EXPLICIT
   // SELECTION the current row is the one the SERVER flags as default: the sentinel id is domain-internal and
@@ -187,14 +208,7 @@ function LooksBody(): ReactElement {
   return (
     <>
       {editing !== null ? (
-        <Stack gap="block">
-          <Row>
-            <Button variant="ghost" onClick={(): void => setEditing(null)}>
-              {CONFIG_BACK_TO_LOOKS_NAME}
-            </Button>
-          </Row>
-          {editing.mint === undefined ? <ThemeEditor theme={editing.draft} /> : <ThemeEditor mint={editing.mint} theme={editing.draft} />}
-        </Stack>
+        <LooksBuilder onBack={(): void => setEditing(null)} session={editing} />
       ) : (
         <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_LOOKS_SUBCATEGORY }}>
           {/* The two Looks rows are CANVAS rows — one collection, one builder door — so each takes
@@ -224,8 +238,10 @@ function LooksBody(): ReactElement {
                   <ThemeImportLeftovers created={leftovers.created} leftovers={leftovers.leftovers} themeName={leftovers.themeName} />
                 )}
                 <RadioGroupPicker
-                  aria-label="Theme"
+                  aria-label={CONFIG_THEME_GROUP_NAME}
                   data-slot="theme-collection"
+                  ref={gridRef}
+                  tabIndex={-1}
                   onValueChange={(next): void => {
                     const picked = themes.find((theme) => theme.id === next);
                     if (picked !== undefined) {
@@ -243,6 +259,7 @@ function LooksBody(): ReactElement {
                         width="full"
                         idPrefix={`${ids}-${theme.id}`}
                         label={theme.name}
+                        ref={rowFocus.bodyRef(theme.id)}
                         {...(isActive(theme) ? { meta: "current" } : {})}
                         value={theme.id}
                       />
@@ -256,7 +273,7 @@ function LooksBody(): ReactElement {
                       >
                         <ThemeRowMenu
                           onApply={(): void => apply(theme)}
-                          onDelete={(): void => removeTheme.mutate({ id: theme.id })}
+                          {...rowFocus.delete(theme.id, (): void => removeTheme.mutate({ id: theme.id }))}
                           onDuplicate={(): void => {
                             duplicateTheme.mutate({ id: theme.id });
                           }}
