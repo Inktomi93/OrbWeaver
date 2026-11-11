@@ -356,7 +356,7 @@ function applyAdds(twists: string[], retired: readonly string[], ops: TwistOps):
 
 /** Merge a payload's plot ops over the current state. RETIRES FIRST, then ADDS dedup + fill to the cap;
  *  the retired bank FIFO-ages at `ANALYSIS_RETIRED_CAP`. Arc: `successorArc` on completion, else
- *  `updatedArc`, else carry. Pure — the property tests pin retire-before-add, cap, and dedup. */
+ *  `updatedArc`, else carry. Pure. */
 export function mergeAnalysisState(current: AnalysisState, payload: AnalysisPayload): AnalysisStateMerge {
   const twists = [...current.twists];
   const retired = [...current.retiredTwists];
@@ -430,8 +430,7 @@ export interface RuleStateRead {
   readonly state: AnalysisState;
 }
 
-/** The pure user-prompt builder's inputs (`engine/analysis-arm.ts::buildAnalysisUserPrompt` — the golden
- *  test pins the bytes). `brief`/`steer` arrive RENDERED (host-authored templates, through the one
+/** The pure user-prompt builder's inputs (`engine/analysis-arm.ts::buildAnalysisUserPrompt`). `brief`/`steer` arrive RENDERED (host-authored templates, through the one
  *  arm-render home); `settled` is `null` when the lore route is off or its span is empty this pass. */
 export interface AnalysisPromptInputs {
   readonly brief: string;

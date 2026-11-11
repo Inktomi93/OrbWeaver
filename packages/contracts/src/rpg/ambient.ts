@@ -101,8 +101,8 @@ export type TimeOfDay = (typeof TIME_OF_DAY)[number];
  *  An internal vocabulary constant (§4.11 #6 argued no-knob). It is also the RENDER input in narrated mode: a
  *  lite game's clock only ever holds one of these representative hours, and the Waystone's continuous sky
  *  interpolates from exactly that number. Reading the label BACK is `timeOfDayAtHour` (range membership) —
- *  never an inversion of this table; a unit test pins every representative hour inside its own range so the
- *  write and the read can never disagree. */
+ *  never an inversion of this table; each representative hour must lie inside its own range, or the
+ *  write and the read disagree. */
 export const TIME_OF_DAY_HOURS: Readonly<Record<TimeOfDay, number>> = {
   dawn: 6,
   morning: 9,
@@ -121,7 +121,7 @@ export const TIME_OF_DAY_HOURS: Readonly<Record<TimeOfDay, number>> = {
 //  Coupled to the Waystone's palette: the sky's golden windows (~5-7h and ~17-19h, `waystone-treatment`)
 //  must fall INSIDE `dawn` and `evening` respectively — the boundaries and the light are one design, and the
 //  dial's band arcs are drawn from exactly these numbers (mirrored in `WAYSTONE_PHASE_SPANS`, since `@orb/ui`
-//  may not import contracts, D54; pinned by a test that imports both).
+//  may not import contracts, D54).
 const TIME_OF_DAY_RANGES: Readonly<Record<TimeOfDay, number>> = {
   dawn: 5,
   morning: 8,

@@ -113,8 +113,8 @@ const CLASS_2_TREES = [".claude/skills/", "tooling/"] as const;
  * summaries now carry CODE SPANS (`snap/ops/flags-metadata.ts`), inside which `_` and `[` are literal, so
  * the emitted markdown is canonical with no escaping at all and every grep hit survives.
  *
- * The property outlives this note: a test of the generated flag index asserts the
- * derived index still CONTAINS those literals, so the refused arm cannot arrive later by accident.
+ * The property outlives this note: the derived index must still CONTAIN those literals, so keep the
+ * registry summaries as code spans. No check asserts it.
  */
 /** True for a tracked path this formatter owns under class 2. */
 function isClass2File(path: string): boolean {
@@ -128,7 +128,7 @@ function isClass2File(path: string): boolean {
  *
  * A root entry point may carry an `@path` import line — a harness DIRECTIVE the loader resolves, not
  * prose. It survives a format byte-for-byte (it is an ordinary paragraph to CommonMark, and nothing in the
- * serializer escapes a leading `@`), and the family test proves that against a file made dirty ELSEWHERE.
+ * serializer escapes a leading `@`), and tests/tooling/doc/ops/format.test.ts proves that against a file made dirty ELSEWHERE.
  *
  * Root `AGENTS.md` is also read by `ops/check.ts` (its glossary). Both accept the
  * same bytes because the file is hand-written canonical markdown; when a formatter and a generator

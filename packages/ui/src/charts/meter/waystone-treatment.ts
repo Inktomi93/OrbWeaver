@@ -149,7 +149,7 @@ function bracket<T>(stops: readonly { readonly hour: number; readonly value: T }
 
 // ─── The SKY stop table — the continuous time axis ────────────────────────────────────────────────
 // Deliberate GOLDEN windows at ~5-7h and ~17-19h: those stops reach for `--color-primary` (the ember), which
-// nothing between 8h and 16h does — that contrast IS the dawn/dusk differentiation, and the test asserts it.
+// nothing between 8h and 16h does — that contrast IS the dawn/dusk differentiation, and tests/ui/charts/meter/waystone.ct.tsx asserts it.
 const SKY_STOPS: readonly { readonly hour: number; readonly value: WaystoneSky }[] = [
   { hour: 0, value: { from: "var(--color-sky-night)", to: "color-mix(in oklab, var(--color-sky-night) 82%, black)", cy: "24%" } },
   { hour: 4, value: { from: "color-mix(in oklab, var(--color-sky-night) 88%, var(--color-sky-night-horizon))", to: "var(--color-sky-night)", cy: "30%" } },
@@ -395,7 +395,7 @@ const CLOUD_COVER_GAIN = 1.2;
 // it runs 23h → 5h across the day line, expressed as one span with `to` past 24 (every angle goes through
 // `hourAngle`, which is modulo — so the arc draws correctly straight through the bottom of the dial).
 // The boundaries and the sky palette are ONE design: the golden windows (~5-7h / ~17-19h) fall inside `dawn`
-// and `evening`. A unit test imports the contract and pins both relationships.
+// and `evening`. Keep both relationships when either table changes.
 
 /** One dial segment: the label band it belongs to and the hour span it covers (24h dial, noon at the top).
  *  `to` may exceed 24 for the band that crosses the day line — the span is always `to - from` hours long. */

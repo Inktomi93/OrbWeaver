@@ -228,7 +228,7 @@ async function provenanceClaimed(db: Db, ownerId: UserId, importedFrom: string):
  *
  *  THE BASIS IS NOT THE CONTENT HASH ALONE (#1560). `content_hash` is the card's IDENTITY, and identity
  *  deliberately excludes the re-attribution fields — `creatorNotes` among them (`#primitives/serde/card`
- *  `semanticFields`, pinned in its own suite: re-attributing a card must not change what it IS). But
+ *  `semanticFields`: re-attributing a card must not change what it IS). But
  *  `creatorNotes` is also a field the refinery REWRITES, so a hash-only fence passed a creator-notes-only
  *  edit straight through and overwrote it: the exact defect, for one field in nine. The recorded exclusion
  *  survives untouched — the FENCE grew instead, comparing every field a stale-basis caller can write that

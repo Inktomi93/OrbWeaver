@@ -55,7 +55,7 @@ const UTF8_BOM = "﻿";
  *       the BOM is stripped below.
  *    2. dotenv also accepted a non-standard `KEY: value` separator; `parseEnv` ignores such a line. No
  *       `.env` in this repo or on this box uses it, and re-implementing a vendor dialect would defeat
- *       adopting the platform parser. Accepted, and pinned by test so the delta stays deliberate.
+ *       adopting the platform parser. Accepted as a deliberate delta.
  *
  *  A missing or unreadable file is a silent no-op — the same tolerance dotenv's `quiet: true` gave. */
 /** The keys the loaded `.env` FILE declared (populated by `loadEnvFileWithOverride`). Provenance the parsed

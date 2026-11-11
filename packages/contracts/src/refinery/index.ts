@@ -73,13 +73,13 @@ const REWRITE_TEXT_MAX = 100_000;
  *  and the token ruling above does not reach it. */
 const HOST_PROSE_MAX_CHARS = 4000;
 /** Entries in a per-field payload array (`fieldScores`, rewrite `fields`) = one per ADDRESSABLE target:
- *  the 8 non-greeting refinable fields + the card's own 100-greeting ceiling. Pinned in the contract test
- *  against `REFINABLE_FIELDS.length` and the character contract's exported `GREETINGS_MAX`. */
+ *  the 8 non-greeting refinable fields + the card's own 100-greeting ceiling. Equals `REFINABLE_FIELDS.length`
+ *  plus the character contract's exported `GREETINGS_MAX`. */
 const ENTRIES_MAX = 108;
 /** The card's greetings CEILING (`characterCardSchema`'s own `GREETINGS_MAX`) — the twin the append belt
  *  caps against: a rewrite may grow a card's greetings, never past what the card contract accepts, so the
  *  apply verb refuses the entry rather than letting `character.update` throw on a payload we constructed.
- *  Pinned in the contract test against the character contract's exported `GREETINGS_MAX`. */
+ *  Equals the character contract's exported `GREETINGS_MAX`. */
 export const GREETING_SLOTS_MAX = 100;
 /** The last greeting slot the CARD can hold — an index above it addresses a greeting that cannot exist,
  *  so a rewrite carrying one is unapplicable by construction. DERIVED, so the pair can never drift. */

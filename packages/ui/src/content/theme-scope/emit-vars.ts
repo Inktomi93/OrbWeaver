@@ -9,7 +9,7 @@
 // row here, or a row here with no emit, is drift.
 
 // Every `--*` custom property `clampThemeTokens` can emit — must stay in sync with the put()/vars[...]
-// assignments in `clamp.ts` (an emit-surface test asserts the actual output keys match this list exactly).
+// assignments in `clamp.ts` (tests/ui/content/theme-scope/emit-surface.test.ts asserts the actual output keys match this list).
 export const THEME_SCOPE_EMIT_VARS = [
   "--color-primary",
   "--color-ring",
@@ -149,7 +149,7 @@ export const THEME_OVERRIDE_COLOR_VARS = {
  * the generated light-dark() arms; only a carried custom base needs a per-surface concrete derivation.
  *
  * The token build reads it (`packages/ui/tokens.build.ts`, the `tokens:build` script) alongside
- * `THEME_SCOPE_EMIT_VARS`, and the classification suite pins the two lists against each other. Neither
+ * `THEME_SCOPE_EMIT_VARS`, and the two lists must stay consistent; no check compares them. Neither
  * reader is on the shipped runtime path, which is why the export has no production importer.
  */
 export const THEME_SCOPE_STATIC_SEED_VARS = [

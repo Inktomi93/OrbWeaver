@@ -108,7 +108,7 @@ export function isRoutableTask(task: Task): task is RoutableTask {
 }
 
 /** The binding a task resolves through: itself when routable, else the task it rides. Total by
- *  construction — every non-routable row names its `ridesOn`, pinned by the table test. */
+ *  construction — every non-routable row names its `ridesOn`. */
 export function bindingTaskOf(task: Task): RoutableTask {
   if (isRoutableTask(task)) {
     return task;

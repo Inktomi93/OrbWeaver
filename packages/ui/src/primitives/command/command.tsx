@@ -87,7 +87,7 @@ export function CommandInput({ expanded, ref, ...rest }: CommandInputProps): Rea
   //     would be undone by the next unrelated re-render;
   //   · an explicit RESTORE, because React's reconciler compares its own previous vnode, not the DOM. cmdk
   //     renders the literal `true` every time, so once this effect has written `"false"` React sees no prop
-  //     change and never rewrites the attribute — the box stayed collapsed forever (caught by the CT).
+  //     change and never rewrites the attribute — the box stayed collapsed forever (exercised by tests/ui/primitives/command/command-seal.ct.tsx).
   // `useLayoutEffect` lands both in the same frame as the commit, so no reader samples the wrong value.
   // `aria-controls` moves WITH `aria-expanded`: a control pointing at an unmounted id is the same defect.
   // (The `folder-picker` precedent — a ref + setAttribute is how this package states what the vendor will not.)

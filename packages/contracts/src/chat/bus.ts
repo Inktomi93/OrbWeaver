@@ -636,8 +636,7 @@ export type ChatBusEvent =
  *    • the client's central invalidation seam (`packages/client/src/data/invalidation.ts`) + the landing
  *      switch (`data/bus/apply-chat-bus-event.ts`) — a member with no filter row is a wire that reaches the
  *      device and refreshes nothing.
- *    • a server emit site — declared, never emitted, is dead wire (review holds this); the contract
- *      test asserts this map's exact SIZE.
+ *    • a server emit site — declared, never emitted, is dead wire (review holds this).
  *    • a NON-DURABLE member (never appended to `chat_events`) must also join `NON_DURABLE_EXEMPT` in
  *      `data/bus/chat-event-seq-guard.ts`, or the seq dedup drops it forever; a DURABLE turn-lifecycle
  *      member must NOT (it replays from zero on subscription churn and needs the seq guard). */

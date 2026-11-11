@@ -1,7 +1,7 @@
 // The WIRE axis — how bytes are spelled and parsed. The ONLY inference axis that is CODE: one backend per
 // member in `@orb/inference`, and a plugin can never add one (F8 — providers are data, wires are not).
 // `serves` is the policy CEILING for every provider on the wire (a provider row may narrow it, never
-// widen it — pinned by the table test); `deltas` is what a backend on the wire may emit.
+// widen it); `deltas` is what a backend on the wire may emit.
 
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";

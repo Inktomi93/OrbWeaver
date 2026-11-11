@@ -6,8 +6,7 @@
 //     precedent); `name`/`enabled` are promoted to real columns and therefore live OUTSIDE the body.
 //   • `regexScriptSchema` / `RegexScriptRow` — the flat library-row wire view (`id` is the `regex_script_…`
 //     TypeID brand). This is what every consumer (the chat legs, the client library surface) reads, and it
-//     is the shape `@orb/kit/regex`'s executor consumes: `RegexScriptRow satisfies RegexScriptInput`,
-//     pinned in the contract test.
+//     is the shape `@orb/kit/regex`'s executor consumes: `RegexScriptRow satisfies RegexScriptInput`.
 //   • `regexScriptCardSchema` / `RegexScriptCard` — the ST CARD-WIRE shape only (`data.extensions.
 //     regex_scripts`, V2 root `data.regex_scripts`). Its `id` is a foreign client-minted UUID, never a
 //     library id; the import LIFT mints a real row from it and the export RE-EMBED projects back onto it.

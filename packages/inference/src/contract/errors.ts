@@ -121,7 +121,7 @@ export class ProviderError extends Error {
   }
 
   /** Every carried field as its own log key. A field added to {@link ProviderErrorInit} MUST be mirrored
-   *  here AND in {@link rewrap} — the errors test asserts both by round-tripping a fully-populated error. */
+   *  here AND in {@link rewrap}. */
   toLog(): Record<string, unknown> {
     return {
       kind: this.kind,

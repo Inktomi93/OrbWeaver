@@ -20,7 +20,7 @@
 // `.transform()` — the precise toxin ([tool-schema-no-branded-transform]): `z.toJSONSchema` THROWS on a
 // transform, and this repo's ids are transform-based (`typeIdSchema`). (zod `.brand()` no longer throws on
 // 4.4.3 and is unused here anyway — see the mechanism note in `./tools`.) So this composed object projects to
-// a structured-output JSON Schema without throwing (the contract test pins it, mirroring the tools pin).
+// a structured-output JSON Schema without throwing (tests/contracts/rpg/extraction-constrain.contract.test.ts projects it).
 // Strip mode: these schemas also read model output, which can carry keys this release does not declare.
 import { z } from "zod";
 import { rpgNpcSlug } from "./actor.ts";

@@ -2321,7 +2321,7 @@ export type ChoiceBlockValues = z.infer<typeof choiceBlockValuesSchema>;
 // `rpg_games.config.userMacros` (contracts/rpg/config.ts imports THIS schema — one shape, two homes).
 // The vocabulary (kinds/arg-types/name shape) derives from `@orb/kit/macro` — the engine half
 // (`registerUserMacros`/`resolveUserMacroInputs`, kit/macro/user-macros.ts) consumes exactly these
-// shapes, pinned by the contract test's assignability guard. A name colliding with a builtin is refused
+// shapes. A name colliding with a builtin is refused
 // at REGISTRATION (never silently shadowed) — the schema pins only the parseable-name shape.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -2368,7 +2368,7 @@ const userMacroInputSchema = z
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 /** One user macro definition. `args` must declare optionals as a CONTIGUOUS SUFFIX (the arity model
- *  counts on it — the same shape rule the builtin metadata test pins). */
+ *  counts on it — the same shape rule the builtin metadata follows). */
 export const userMacroSchema = z
   .object({
     name: z.string().regex(MACRO_NAME_RE).max(MAX_NAME_LENGTH),
@@ -2593,7 +2593,7 @@ export interface ProseCarrierToken {
   /** The token NAME, brace-less — the key `spliceProseTokens` splices by, and what `hasProseToken` recognises. */
   readonly name: string;
   /** The BRACED spelling — what the refusal message says and what the editor's chip shows. It is also the exact
-   *  string the slot's own `requiredMacros` carries; the preset contract test pins the pair. */
+   *  string the slot's own `requiredMacros` carries. */
   readonly token: string;
 }
 

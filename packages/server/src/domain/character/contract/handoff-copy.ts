@@ -69,7 +69,8 @@ export type CopyHandoffCards = (args: {
 
 /** The provenance stamp a handoff copy carries — ALSO the find-before-mint idempotency key. One home, because
  *  the writer and the finder must never spell it differently (a drifted key mints a duplicate library on every
- *  retry). Exported for the test that pins the format. */
+ *  retry). tests/server/domain/character/persistence/handoff-json-boundaries.int.test.ts spells the format
+ *  itself, so a drift in it goes red. */
 export function handoffProvenance(chatId: ChatId, sourceCharacterId: CharacterId): string {
   return `handoff:${chatId}:${sourceCharacterId}`;
 }
