@@ -47,6 +47,12 @@ Context you need to grade findings, not just find them:
   is built near one-to-one with the workspace catalog, pinned-version aware, and includes
   `orbweaver` itself (the law docs). Search it before answering from training data, which predates
   Node 26 / TS 7 / current React.
+- "Was this decided or just forgotten?" has an oracle too: the full session transcripts live in
+  `~/.claude/projects/-home-inktomi-inktomi-stack-development-orbweaver*/` and
+  `~/.claude-b/projects/…` (~10G of jsonl, subagents under `*/subagents/`, tool output under
+  `*/tool-results/`). `rg -o '.{0,200}KEYPHRASE.{0,300}'` over both dirs finds the decision
+  moments; check the hit's date against the death commit before trusting it as post-ruling
+  evidence (pre-deletion sessions enforce, they don't decide).
 
 Operational traps already paid for — do not re-pay them:
 
@@ -352,6 +358,18 @@ they were `defineGate` policy names until 821e8f8dff. Some constraints have nati
 other spellings (process-portability → PORTABLE_PROCESS_SYNTAX), so the enforcement often survives
 while its named promise dies; the size-cap cite is proved successor-less by planted-file probes
 (601 clean lines draw zero Biome diagnostics; no eslint `max-lines` anywhere) — and authors still
-split at the ghost cap by faith. The triage
+split at the ghost cap by faith. Provenance from the ~/.claude + ~/.claude-b transcript sweep:
+this was DECIDED, not forgotten — ADR 0333 rules the gates, agent-sync, baseline ledgers and
+their commands gone, "without Verify, check aliases or equivalent replacements", "do not build
+another policy framework". A native max-lines successor is therefore ledger-banned unless the
+owner amends D333; what was forgotten is only the deletion hygiene the ADR itself ordered
+(commands, tests, and the sentences about them gone TOGETHER). Two instance-level calls stay
+open for the owner at triage: (a) `contracts/src/prose/prose-baseline.json` — transcripts show
+its deleted gate caught real staleness in the old world ("pnpm prose:baseline, contract now
+40/40"), and a ~20-line plain int test would be D333-legal ("ordinary targeted tests for useful
+bounded assertions"), so keep-with-test or delete-with-prose; (b) `kit/handle-key/unicode-data.ts`
+— the unwired lane at deletion noted "nothing in tooling regenerates unicode-data.ts" and shipped
+without deciding the regeneration strategy; the version-pinned test goes red at the next engine
+bump unless the ~30-line fetch script from the kit unit's finding lands. The triage
 integrity item now has a concrete second citation shape to cover: besides GENERATED/enforced-by
 headers, every `` policy `X` `` cite must resolve to a dep-cruiser rule name or eslint rule id.

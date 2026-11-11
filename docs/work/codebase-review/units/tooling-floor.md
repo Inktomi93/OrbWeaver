@@ -60,10 +60,10 @@ Governing law read in full: `.claude/rules/tooling.md`.
   (the verify-CLI removal), never re-pointed. Live importers are three modules in `doc/`
   (`lib/rules.ts`, `lib/due.ts`, `ops/check.ts`). Dead-door class, fourth distinct instance — and
   the same false sentence sits in `prose-references.ts:4` ("the instruction-layer walk … are its
-  two importers"). The instruction-file prose walk itself is gone with the tool: `.claude/**`
-  markdown is no longer walked by the charter checker (the instruction-files unit's domain —
-  confirm at triage that was intended). Suggested direction: re-point the headers at the doc-walk
-  importers; if instruction checking was retired on purpose, say so in the header instead.
+  two importers"). The walk's death was RULED: ADR 0333 names agent-sync for deletion explicitly,
+  so `.claude/**` markdown losing its charter checker was the decision, not an accident (the
+  instruction-files unit's P2 header-budget pair stays open regardless). Suggested direction:
+  re-point the headers at the doc-walk importers and say the instruction walk was retired by D333.
 - [P2] Nine dead gate-names cited as live policy across the floor — 821e8f8dff deleted the
   `defineGate` custom-gate system (the names' origin; introduced `fb0119058d`, confirmed via
   `git log -S`), but the comments still say "(policy `X`)" as an enforcement claim:
@@ -83,10 +83,15 @@ Governing law read in full: `.claude/rules/tooling.md`.
   diagnostics (only a naming complaint on the first), eslint has no `max-lines` in config or any
   policy table, and the policy's only numeric thresholds are complexity 15 / max-params 4. Authors
   still split at the cap by faith (`ui-audit/contract/samples.ts:6` "the cap had already been paid
-  in") — a dead gate still levying tax. Fix rides the same triage integrity item as the dead doors:
-  every `policy \`X\`` cite must resolve to a dep-cruiser rule name, an eslint rule id, or a named
-  native door — and the size cap decision (renew natively, e.g. eslint `max-lines`, or retire the
-  sentences) is the owner's at triage.
+  in"). DECISION provenance (transcript sweep, 2026-11-10): the deletion was RULED, not forgotten —
+  ADR 0333 names the custom Verify framework, agent-sync, baseline ledgers, probes and generated
+  reports for deletion, orders "their dedicated tests, dependencies, patches, commands and board
+  obligations" removed together, and rules checks "run directly without Verify, check aliases or
+  EQUIVALENT REPLACEMENTS for removed analysis reports" + "do not build another policy framework."
+  So a native `max-lines` successor is ledger-BANNED unless the owner amends D333; the defect is the
+  prose and the ghost-tax splits, not the missing gate. Fix: rewrite the cites to past tense or
+  drop them, and the triage integrity item must still refuse a `policy \`X\`` cite that resolves
+  nowhere.
 - [P3] `tooling/src/floor/http/session-cookie.ts:11` — the two session cookie names are hand-spelled
   a second time in this regex; the owning constants are
   `packages/server/src/infra/auth/modes/cookie-session.ts:23,31`. No translatable door (tooling
