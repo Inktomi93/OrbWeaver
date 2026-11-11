@@ -81,11 +81,13 @@ export function roomKey(addressed: StreamRoomRef | StreamDataFrame): string {
 }
 
 /** A DATA frame — one room's bus event, nested verbatim under `event`. The `seq` on `chat`/`notifications`
- *  is that room's DURABLE cursor (the resume truth the socket cell stores); the live-only rooms carry none. */
+ *  is that room's DURABLE cursor (the resume truth the socket cell stores); the live-only rooms carry none.
+ *  A `chat` frame's `seq` is `null` when its event has no `chat_events` row: a live-only event, or a dropped
+ *  append that still fans (D342). It never moves a cursor. */
 export type StreamDataFrame =
   | { readonly channel: "user"; readonly event: UserBusEvent }
   | { readonly channel: "notifications"; readonly seq: number; readonly event: InboxView }
-  | { readonly channel: "chat"; readonly chatId: ChatId; readonly seq: number; readonly event: ChatBusEvent }
+  | { readonly channel: "chat"; readonly chatId: ChatId; readonly seq: number | null; readonly event: ChatBusEvent }
   | { readonly channel: "rpg"; readonly chatId: ChatId; readonly event: RpgBusEvent }
   | { readonly channel: "automation"; readonly chatId: ChatId; readonly event: AutomationBusEvent }
   | { readonly channel: "workloads"; readonly workloadId: WorkloadId; readonly event: WorkloadEvent };

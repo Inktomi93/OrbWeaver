@@ -56,7 +56,8 @@ test("a device with no cursor shows the turn so far at once, then the live tail,
     await device.waitFor(ended);
     expect(textOf(device.frames)).toBe(FULL_TEXT);
     expect(channelOf(device.frames, "reasoning")).toBe(THOUGHT);
-    const seqs = device.frames.filter(({ event }) => event.type !== "chatOpened").map(({ seq }) => seq);
+    // Durable frames only: a no-row frame carries `seq: null` (D342) and holds no place in the order.
+    const seqs = device.frames.flatMap(({ event, seq }) => (event.type === "chatOpened" || seq === null ? [] : [seq]));
     expect(seqs).toEqual([...new Set(seqs)].toSorted((a, b) => a - b));
   } finally {
     await device.close();

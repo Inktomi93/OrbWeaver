@@ -148,10 +148,11 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
    * overflow) or left queued when the socket dies must stay AHEAD of the cursor, or the reconnect/heal
    * replay resumes past it and the row is lost for good (rows behind the cursor are never re-offered). Pre-
    * fold this was free — the resume cursor WAS the client's `Last-Event-ID`, i.e. what it had received.
-   * A control frame carries no room cursor; a live-only room's frames carry no `seq`.
+   * A control frame carries no room cursor; a live-only room's frames carry no `seq`; a chat frame with
+   * `seq: null` has no durable row (D342).
    */
   function advanceCursorOnDelivery(frame: StreamFrame): void {
-    if (frame.channel === "control" || !("seq" in frame)) {
+    if (frame.channel === "control" || !("seq" in frame) || frame.seq === null) {
       return;
     }
     const room = cell.rooms.get(roomKey(frame));

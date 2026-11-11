@@ -1952,8 +1952,8 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       // `emitChatEventChecked`, whose `chatBus.emit` is TOTAL by construction (bus.ts FLAG[emit-is-total])
       // and whose fan is a synchronous `EventEmitter.emit` into `on()`-buffered subscribers
       // (`transport/trpc/chat-events-bus::publishChatEvent` → `bus-channel::publish`); the one callback-style
-      // listener isolates its own throw. A dropped durable append therefore RESOLVES here — the engine is
-      // structurally blind to the loss, which is an open propagation fork, not this belt's job.
+      // listener isolates its own throw. A dropped durable append therefore RESOLVES here by design (D342):
+      // canon already committed, and the publication still fans a dropped terminal live so no device hangs.
       // The belt stays because the SEAM's type permits what bus.ts's invariant currently forbids; a test that
       // injected a rejecting emitter was deleted for pinning a shape no caller can reach.
       if (deltaErr !== err) {

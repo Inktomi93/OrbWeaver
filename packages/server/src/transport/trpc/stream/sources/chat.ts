@@ -48,12 +48,13 @@
 //     CHAT_CHANGED "on open, run setup" hook; the client reducer invalidates).
 //   • `historyTruncated` — yielded on resume when the cursor predates the retained window (events after it
 //     were dropped, a gap replay can't fill), BEFORE the replay so the client refetches first.
-// A THIRD CLASS OF NON-DURABLE FRAME ARRIVES ON THE BUS ITSELF: the LIVE-ONLY lane (`ChatLiveEvent`'s
-// `seq: null` arm — the entity→room member-freshness bridge, design §3.4). Unlike the two syntheses it IS
-// published (every subscriber of the room sees it) and it is member-gated + clamped like everything else;
-// what it lacks is a `chat_events` row. It therefore skips the live-loop dedup (no cursor to compare) and
-// yields under the SAME non-advancement rule as the syntheses. Loss semantics are stated, not accidental: a
-// device dark through a live-only fan never replays it — the heal is the per-attach `chatOpened`.
+// THE NO-CURSOR FRAME ARRIVES ON THE BUS ITSELF (`ChatLiveEvent`'s `seq: null` arm): the LIVE-ONLY lane (the
+// entity→room member-freshness bridge, design §3.4) and a dropped append that still fans (D342). Unlike the two
+// syntheses it IS published (every subscriber of the room sees it) and it is member-gated + clamped like
+// everything else; what it lacks is a `chat_events` row. It skips the live-loop dedup (no cursor to compare)
+// and yields with `seq: null`, which moves neither the socket's room cursor nor the client's seq mark. Loss
+// semantics are stated, not accidental: a device dark through it never replays it — the heal is the
+// per-attach `chatOpened`.
 // THE SYNTHETIC-ENVELOPE RULE, carried onto the frame: a synthetic's `seq` is the CURRENT resume cursor
 // (`cursor ?? 0`), never a fresh/durable one, so it cannot advance the room's cursor past a row that was
 // never delivered — a reconnect replays from the exact same durable point. (`cursor ?? 0` on a cursor-less
@@ -78,7 +79,8 @@ import type { RoomSourceDef } from "../room-source.ts";
  *  front-door export; the shape is `{ minSeq, maxSeq, historyFloorSeq, viewerIsHost, reasoningHostOnly }`). */
 type ChatEventAttach = Awaited<ReturnType<ChatService["chatEventBounds"]>>;
 type ChatBusReplayEvent = Awaited<ReturnType<ChatService["replayChatEvents"]>>[number];
-type ChatFrame = Extract<StreamDataFrame, { readonly channel: "chat" }>;
+/** A replay row or an attach synthesis: each carries a cursor, so only the live loop yields `seq: null`. */
+type ChatCursorFrame = Extract<StreamDataFrame, { readonly channel: "chat" }> & { readonly seq: number };
 
 export const chatRoomSource: RoomSourceDef<"chat"> = {
   // The durable `chat_events` log IS this room's resume path (and what makes its `lag` overflow legal).
@@ -122,8 +124,8 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
     }
 
     for await (const entry of live) {
-      // A LIVE-ONLY entry (`seq: null`, the entity→room bridge's lane — design §3.4) has no durable row and
-      // therefore no cursor: there is nothing to dedup against, and it yields at the CURRENT cursor below.
+      // A `seq: null` entry (the live-only lane, or a dropped append's fan — D342) has no durable row and
+      // therefore no cursor: there is nothing to dedup against, and it yields without one below.
       // Dedup everything else — the replay/live overlap and any out-of-order delivery — by the monotonic `seq`.
       if (entry.seq !== null && entry.seq <= maxSeq) {
         continue;
@@ -138,12 +140,10 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
         continue;
       }
       if (entry.seq === null) {
-        // THE NON-ADVANCEMENT RULE, reused verbatim from the attach synthetics (`attachSynthesesAndReplay`):
-        // a live-only frame carries the CURRENT cursor, so the socket cell's resume cursor (advanced at
-        // delivery from the frame's `seq`, `stream/socket.ts`) cannot move past a durable row this
-        // subscriber never received. The client's seq guard admits it by TYPE (`NON_DURABLE_EXEMPT`) —
-        // a non-advancing frame would otherwise be dropped as a stale re-delivery.
-        yield { channel: "chat", chatId, seq: maxSeq, event: verdict.event };
+        // No cursor on the wire either: the socket cell advances its resume cursor only on a numeric `seq`
+        // (`stream/socket.ts`), and the client's seq guard admits a null one without touching its mark, so a
+        // durable-type event fanned after a dropped append is not mistaken for a stale re-delivery.
+        yield { channel: "chat", chatId, seq: null, event: verdict.event };
         continue;
       }
       yield { channel: "chat", chatId, seq: entry.seq, event: verdict.event };
@@ -232,7 +232,7 @@ async function* attachSynthesesAndReplay(args: {
   readonly chatId: ChatId;
   readonly resumeSeq: number | null;
   readonly bounds: ChatEventAttach;
-}): AsyncGenerator<ChatFrame> {
+}): AsyncGenerator<ChatCursorFrame> {
   const { service, principal, chatId, resumeSeq, bounds } = args;
   // See the doc comment: a RESUMING attach keeps its own cursor; a cursor-less one adopts the room's current
   // high-water so the client (and the socket cell) have something replayable to come back to.
@@ -284,8 +284,8 @@ function withoutDeadTurns(entries: readonly ChatBusReplayEvent[], bounds: ChatEv
 /** Replay rows as frames, each run of same-slot same-channel tokens folded into one. A turn's log is thousands of
  *  small rows and the socket's queue sheds at far fewer, while the reader only ever wants the text so far. The
  *  folded frame takes its last row's `seq`, so a resume after it neither repeats nor skips a token. */
-function replayFrames(chatId: ChatId, entries: readonly ChatBusReplayEvent[]): ChatFrame[] {
-  const frames: ChatFrame[] = [];
+function replayFrames(chatId: ChatId, entries: readonly ChatBusReplayEvent[]): ChatCursorFrame[] {
+  const frames: ChatCursorFrame[] = [];
   for (const { seq, event } of entries) {
     const last = frames.at(-1)?.event;
     if (
