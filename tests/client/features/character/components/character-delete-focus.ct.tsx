@@ -6,6 +6,7 @@
 // @subject packages/client/src/features/character/surfaces/character-library-surface.tsx
 import { rowActionSubject, rowActionsName } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { ShellBusStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import type { ServedHold } from "@orb/testkit/ct";
 import {
@@ -24,9 +25,8 @@ import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { forwardUserEvent } from "../../../components/_forward-user-event.ts";
-import type { AppShellBusStory } from "../../app-shell/surfaces/_app-shell-stories.tsx";
 
-const STORY = "tests/client/features/app-shell/surfaces/_app-shell-stories/AppShellBusStory";
+const STORY = "tests/support/browser/ct-shell-reads-stories/ShellBusStory";
 const NAMES = ["Anselm of the Vale", "Branwen the Quiet", "Corvin Ashdown"] as const;
 const ACTIONS_BUTTON = /^Actions for /u;
 
@@ -112,7 +112,7 @@ test("deleting a listed character by keyboard moves focus to the next row once t
   await using cleanup = new AsyncDisposableStack();
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await prepareLibrary(page, root, {}, cleanup);
-  await mount<typeof AppShellBusStory>(STORY, {});
+  await mount<typeof ShellBusStory>(STORY, {});
   const library = await libraryOf(page);
   const { doomed, neighbour } = await middleAndNext(library);
 
@@ -127,7 +127,7 @@ test("deleting the open character after its editor has loaded leaves focus on th
   await using cleanup = new AsyncDisposableStack();
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await prepareLibrary(page, root, {}, cleanup);
-  await mount<typeof AppShellBusStory>(STORY, {});
+  await mount<typeof ShellBusStory>(STORY, {});
   const library = await libraryOf(page);
   const { doomed, neighbour } = await middleAndNext(library);
   const editor = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
@@ -152,7 +152,7 @@ test("deleting the open character before its editor has loaded leaves focus on t
   const holds = { read: holdServed(), remove: holdServed() } satisfies Holds;
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await prepareLibrary(page, root, holds, cleanup);
-  await mount<typeof AppShellBusStory>(STORY, {});
+  await mount<typeof ShellBusStory>(STORY, {});
   const library = await libraryOf(page);
   const { doomed, neighbour } = await middleAndNext(library);
   const editor = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
@@ -179,7 +179,7 @@ test("deleting the last listed character by keyboard moves focus to the row befo
   await using cleanup = new AsyncDisposableStack();
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await prepareLibrary(page, root, {}, cleanup);
-  await mount<typeof AppShellBusStory>(STORY, {});
+  await mount<typeof ShellBusStory>(STORY, {});
   const library = await libraryOf(page);
 
   const subjects = await rowSubjects(library);

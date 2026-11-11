@@ -7,12 +7,13 @@ import type { ReactElement } from "react";
 import type { ModalDefinition } from "#state";
 import { clearEditSubject } from "#state";
 import { ImageEditBody } from "../components/image-edit-body.tsx";
+import { IMAGE_EDIT_NAME } from "./imagine-names.ts";
 
 export const imageEditModal: ModalDefinition = {
   id: "imageEdit",
-  title: "Edit image",
+  title: IMAGE_EDIT_NAME,
   size: "lg",
-  trigger: { placement: "surface", label: "Edit image", icon: WandSparkles },
+  trigger: { placement: "surface", label: IMAGE_EDIT_NAME, icon: WandSparkles },
   onClose: clearEditSubject,
   body: (): ReactElement => <ImageEditBody />,
 };

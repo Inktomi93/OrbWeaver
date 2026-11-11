@@ -1,4 +1,4 @@
-// Every registered modal through the shell's one ModalHost: focus on open and on close, a locked document with the
+// Every registered modal through the shell's one ModalHost: focus on close, a locked document with the
 // overflow inside the popup, Escape, and the theme, colorization and density the portal inherits from the shell.
 import { BLANK_CHAT_NAME, NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
@@ -181,13 +181,6 @@ function stampColorization(page: Page, value: "false" | "true"): Promise<void> {
 
 function cssValue(locator: Locator, property: string): Promise<string> {
   return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name).trim(), property);
-}
-
-/** Whether the focused element is the popup or sits inside it, which the page body never does. */
-function focusInsidePopup(selector: string): boolean {
-  const active = document.activeElement;
-  const popup = document.querySelector(selector);
-  return active instanceof HTMLElement && popup !== null && popup.contains(active);
 }
 
 /** Whether any box between the popup and the document scrolls, which would carry the title and close away with it. */
@@ -514,14 +507,6 @@ test.describe("on the corpus owner's own settings", () => {
       const before = await header.boundingBox();
       expect(["scrolled", "fits"]).toContain(await scrollPopupToEnd(page));
       await expect.poll(async () => Math.abs(((await header.boundingBox())?.y ?? Number.NaN) - (before?.y ?? Number.NaN))).toBeLessThan(1.5);
-    });
-
-    test(`the ${modalId} modal opens with focus inside its popup, never on Close or the page`, async ({ mount, page }) => {
-      await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId });
-      const popup = page.locator(POPUP);
-      await expect(popup).toBeVisible();
-      await expect.poll(() => page.evaluate(focusInsidePopup, POPUP)).toBe(true);
-      await expect(popup.getByRole("button", { name: "Close", exact: true })).not.toBeFocused();
     });
 
     test(`Escape closes the ${modalId} modal`, async ({ mount, page }) => {

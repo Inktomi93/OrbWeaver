@@ -24,6 +24,7 @@ import { useInvalidation, useTRPC } from "#data";
 import type { ImageSubject } from "#state";
 import { openImageEdit, useDetailSubject } from "#state";
 import { useSetChatBackground } from "../hooks/use-imagery-mutations.ts";
+import { IMAGE_EDIT_NAME } from "../lib/imagine-names.ts";
 import { ProvenanceStrip } from "./provenance-strip.tsx";
 
 export function ImageDetailBody(): ReactElement {
@@ -102,7 +103,7 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
       <Row wrap={true} gap="field" justify="end">
         <Button variant="ghost" onClick={(): void => openImageEdit(subject)} type="button">
           <Icon icon={Pencil} size="sm" />
-          Edit image
+          {IMAGE_EDIT_NAME}
         </Button>
         <Button disabled={settingBackground} onClick={onSetBackground} type="button">
           <Icon icon={Images} size="sm" />

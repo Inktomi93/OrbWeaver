@@ -458,7 +458,17 @@ const TEST_CONSTANT_HOMES = {
     "TRAIL_OVERFLOW_LABEL and BAND_OVERFLOW_LABEL: the More triggers an action folds into when its row runs out of room, which the walk presses it through",
   "packages/client/src/lib/row-menu-names.ts": "ROW_RENAME_NAME and its siblings: the library row menu items and the delete confirm title",
   "packages/client/src/lib/search-empty-names.ts": "NO_MATCHES_TITLE and CLEAR_SEARCH_NAME: the words a searched-empty list prints",
-  "packages/client/src/features/imagery/lib/imagine-names.ts": "IMAGINE_MODE_NAME and IMAGINE_PROMPT_NAME: the imagine options' field names",
+  "packages/client/src/features/imagery/lib/imagine-names.ts":
+    "IMAGINE_MODE_NAME and its siblings: the imagine options' field names and the imagery dialogs' titles and edit door",
+  "packages/client/src/features/chat/lib/appearance-avatars-model.ts":
+    "APPEARANCE_AVATARS_SUBCATEGORY: the Avatars section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/appearance-message-details-model.ts":
+    "APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: the Message details section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
+    "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the Message style section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/app-shell/lib/appearance-effects-model.ts":
+    "APPEARANCE_EFFECTS_SUBCATEGORY: the Effects section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/auth/lib/reauth-names.ts": "REAUTH_MODAL_TITLE: the re-auth prompt's title, which its landing test names the dialog by",
   "packages/client/src/features/plugin/lib/plugin-command-copy.ts":
     "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
   "packages/client/src/features/workloads/lib/import-library-names.ts": "IMPORT_FOLDER_NAME: the import section's folder door",

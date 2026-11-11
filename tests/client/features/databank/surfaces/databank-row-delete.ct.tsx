@@ -4,6 +4,7 @@
 // has left the list. The real server's own `databankChanged` event is what removes the row.
 
 import { ROW_DELETE_NAME, rowActionsName } from "@orb/client/lib";
+import type { ShellBusStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -11,9 +12,8 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { DATABANK_LIST_NAME } from "#client/features/databank/lib/databank-names.ts";
 import { forwardUserEvent } from "../../../components/_forward-user-event.ts";
-import type { AppShellBusStory } from "../../app-shell/surfaces/_app-shell-stories.tsx";
 
-const STORY = "tests/client/features/app-shell/surfaces/_app-shell-stories/AppShellBusStory";
+const STORY = "tests/support/browser/ct-shell-reads-stories/ShellBusStory";
 const READS = [...SECTION_PROCEDURES, "databank.bankHealth", "databank.listGlobal", "databank.listAttachments", "databank.get"] as const;
 const DOCUMENTS = ["Lantern notes", "Harbour notes", "Orchard notes"] as const;
 const SEVEN_DOCUMENTS = ["Atlas notes", "Beacon notes", "Cinder notes", "Delta notes", "Ember notes", "Fjord notes", "Grove notes"] as const;
@@ -65,7 +65,7 @@ test("a refused Databank delete keeps its confirm and its trigger, and a landed 
   });
   await forwardUserEvent(page, root, "databankChanged", cleanup);
   await seedShellState(page, { activeSection: "databank" });
-  await mount<typeof AppShellBusStory>(STORY, {});
+  await mount<typeof ShellBusStory>(STORY, {});
 
   const list = listOf(page);
   await expect(rowBody(list, "Harbour notes")).toBeVisible();
@@ -116,7 +116,7 @@ test("deleting the last listed Databank document by keyboard hands focus to the 
   });
   await forwardUserEvent(page, root, "databankChanged", cleanup);
   await seedShellState(page, { activeSection: "databank" });
-  await mount<typeof AppShellBusStory>(STORY, {});
+  await mount<typeof ShellBusStory>(STORY, {});
 
   const list = listOf(page);
   await expect(list.getByRole("button", { name: rowActionsName(SEVEN_DOCUMENTS[0]), exact: true })).toBeVisible();

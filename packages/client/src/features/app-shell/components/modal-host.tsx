@@ -8,8 +8,8 @@ import type { DialogPopupProps } from "@orb/ui/dialog";
 import { DialogHeader } from "@orb/ui/dialog";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";
-import type { ReactElement, ReactNode } from "react";
-import { useRef, useState } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FlowDialog } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { ModalDefinition, ModalSlotId } from "#state";
@@ -32,6 +32,20 @@ function visibleModalTrigger(modalId: ModalSlotId): HTMLElement | undefined {
   return Array.from(document.querySelectorAll<HTMLElement>("[data-modal-trigger]")).find(
     (element) => element.dataset["modalTrigger"] === modalId && element.getClientRects().length > 0,
   );
+}
+
+// Base UI scrolls to any initial-focus element but the popup itself. A short popup that scrolls as one sheet would lose its
+// title and Close to that scroll, so the body takes focus without scrolling and Base UI is told to move nothing more.
+// A body that already placed its own arrival focus keeps it: on a warm open the picker's search focuses before this runs,
+// and on a cold one after it, so either order ends on the body's choice.
+function focusBodyInPlace(target: HTMLElement | null): boolean {
+  if (target === null) {
+    return true;
+  }
+  if (!target.contains(document.activeElement)) {
+    target.focus({ preventScroll: true });
+  }
+  return false;
 }
 
 /** The def's body — a real render, or the DECLARED-PLANNED placeholder (mirror the section content-none). */
@@ -180,33 +194,28 @@ function DialogModal({
     return visibleModalTrigger(def.id) ?? true;
   };
 
-  // Base UI scrolls to any initial-focus element but the popup itself. A short popup that scrolls as one sheet would lose its
-  // title and Close to that scroll, so the body takes focus without scrolling and Base UI is told to move nothing more.
-  // A body that already placed its own arrival focus keeps it: on a warm open the picker's search focuses before this runs,
-  // and on a cold one after it, so either order ends on the body's choice.
-  const focusBodyInPlace = (): boolean => {
-    const target = bodyRef.current;
-    if (target === null) {
-      return true;
-    }
-    if (!target.contains(document.activeElement)) {
-      target.focus({ preventScroll: true });
-    }
-    return false;
-  };
-
   return (
     <FlowDialog
       title={def.title}
       open={true}
       onOpenChange={onOpenChange}
       size={def.size}
-      popupProps={{ container, finalFocus: resolveFinalFocus, initialFocus: focusBodyInPlace }}
+      popupProps={{ container, finalFocus: resolveFinalFocus, initialFocus: (): boolean => focusBodyInPlace(bodyRef.current) }}
       bodyFocusTarget={true}
       bodyProps={{ ref: bodyRef, tabIndex: -1 }}
       dismiss={{ at: "header", glyph: true }}
     >
+      {/* A modal that replaces another in the open popup (the image detail's Edit) never gets Base UI's initial focus again, and
+          the control that was pressed is gone with the old body, so each modal id re-arms the arrival a fresh open gets. */}
+      <BodyArrival key={def.id} bodyRef={bodyRef} />
       {body}
     </FlowDialog>
   );
+}
+
+function BodyArrival({ bodyRef }: { readonly bodyRef: RefObject<HTMLDivElement | null> }): null {
+  useEffect(() => {
+    focusBodyInPlace(bodyRef.current);
+  }, [bodyRef]);
+  return null;
 }
