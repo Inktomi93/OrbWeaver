@@ -15,7 +15,8 @@ Boot sequence, in this order, every cold start:
 3. Read `units/<id>.md` if it exists (a half-done unit); else create it: title, band, sweeps,
    findings, verdict.
 4. Mark the unit `in-progress`, update its status cell, commit nothing yet.
-5. Work the unit: load the `code-recon` skill (global — see Sweep commands), run the sweeps
+5. Work the unit: load the `code-recon` skill (vendored at `.claude/skills/code-recon`), run the
+   sweeps
    (raw output into the unit file), read the unit's
    `contract/` in full, read every file header, then targeted-read only what the sweeps or
    headers made suspicious. For root-level config chunks, also truth the comments per the
@@ -33,6 +34,19 @@ Per-unit workflow rules:
   with type in the 11 allowed, and a well-formed `Co-Authored-By: Name <local@domain>` trailer
   on every commit. Message: what changed and why, two to four body lines.
 - Commit between units, not mid-unit.
+
+Context you need to grade findings, not just find them:
+
+- The repo is mid-redo toward compiler errors and mechanical checks (plans `test-foundation`,
+  `test-enforcement`, `unwired-code`; `pnpm doc overview` and `docs/plans/README.md` are the live
+  board). Judge the enforcement layer against where that program is going; a lint gate the board
+  already scheduled for retirement is not a finding. `pnpm doc drift` being clean means the board
+  itself is consistent.
+- Vendor API questions ("does drizzle 0.45 have this verb") have a current-docs oracle: the `docs`
+  MCP server via `execute` — `tools.docs.search_docs` / `list_libraries` / `list_pages`. The index
+  is built near one-to-one with the workspace catalog, pinned-version aware, and includes
+  `orbweaver` itself (the law docs). Search it before answering from training data, which predates
+  Node 26 / TS 7 / current React.
 
 Operational traps already paid for — do not re-pay them:
 
@@ -279,3 +293,8 @@ Triage fills this.
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
 (`tests/tooling/doc/comment-path-citations.repo.int.test.ts`) does not scan root files or `scripts/`.
+
+Working thesis from phase 0, to confirm or eat: **code has gates, prose does not** — see
+`units/root-config.md`, section "Program thesis". All phase-0 findings were one crime: structure
+moved and its describing sentences went false silently, twice on security tripwires. Treat stale
+prose as a P2-class defect here, not a nit, and say so when a later unit contradicts the thesis.
