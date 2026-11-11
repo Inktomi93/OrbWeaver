@@ -90,7 +90,7 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       // The FRONT-DOOR toggle: `false` disengages the game from the turn assembly + hides the
       // panel, state PRESERVED (reversible). The verb also re-writes the chat pointer mirror.
       engaged: z.boolean().optional(),
-      // The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
+      // The ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
       dateMode: z.enum(RPG_DATE_MODES).optional(),
       // The §1.3 extraction-depth knobs — how much story the state round reads (`beat`/`window`/`full`), the
       // `window` arm's token budget, and the reconcile cadence. Bounds mirror the config schema. Omit keeps.
@@ -99,7 +99,7 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       stateCaptureVehicle: z.enum(RPG_STATE_CAPTURE_VEHICLES).optional(),
       extractionWindowTokens: z.int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).optional(),
       reconcileEveryBeats: z.int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).optional(),
-      // WAVE MU (the owner ruling's game half): the GAME's authored user macros — the whole set in ONE write
+      // The game half of the two-home macro rule (D345): the GAME's authored user macros — the whole set in ONE write
       // (whole-list replace, the `trackers` semantics). Omit keeps the current set. The turn registers these
       // BESIDE the preset's, the game winning a name clash (`shadowPresetUserMacros`).
       userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).optional(),

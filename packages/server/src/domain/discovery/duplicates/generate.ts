@@ -81,7 +81,7 @@ export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps,
       continue;
     }
     owners.add(first.ownerId);
-    // Collapse fork/import copies (esoteric #3) — the all-pairs scan runs over reps; identical-hash copies
+    // Collapse fork/import copies — the all-pairs scan runs over reps; identical-hash copies
     // collapse to one rep and are not re-emitted as a (trivially identical) pair.
     const { reps } = collapseByHash(
       group,

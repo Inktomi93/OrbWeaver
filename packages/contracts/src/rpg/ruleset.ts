@@ -1,7 +1,6 @@
 // @orb/contracts/rpg/ruleset — THE RULESET axis (owner ruling): one game mode, and the
-// ruleset is a SETTING. It replaced the start-time `freeform | d20` profile PICK — both doors used to mint
-// the identical `lite` game and differ only by which packaged profile they passed, so the choice was a
-// setting wearing a door's clothes. A game is now started directly (born `freeform`) and the host retunes
+// ruleset is a SETTING, not a start-time profile PICK: a `freeform | d20` pick would be a
+// setting wearing a door's clothes. A game is started directly (born `freeform`) and the host retunes
 // the ruleset on the Game tab whenever they like.
 //
 // ONE HOME, THREE CONSUMERS: the config field (`RpgGameConfig.ruleset`), the write door's additive apply

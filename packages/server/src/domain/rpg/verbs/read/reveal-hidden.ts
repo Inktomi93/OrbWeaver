@@ -9,7 +9,7 @@
 // bundled into the payload every member gets. HOST-gated here via `resolveHost` (the participant host check every
 // shared-plane rpg verb uses): a non-member gets the SAME leak-free NOT_FOUND a no-game chat gives (the cross-tenant
 // belt), and a joined member gets FORBIDDEN, which names no hidden content. The bodies read is chat-scoped by the
-// `messages.chatId` join (D108 carve #1 — a foreign message is unreachable).
+// `messages.chatId` join (D108 — a foreign message is unreachable).
 //
 // M4 (`config.features.hiddenContentReveal`, default true): when the host turned the reveal OFF, they run PURE
 // hidden — no eye even for themselves. The verb then returns EMPTY (the parsed content is withheld from the host

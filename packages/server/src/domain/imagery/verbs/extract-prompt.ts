@@ -21,9 +21,9 @@ import { processReply } from "../substrate/process-reply.ts";
  *  clamps the canon to the caller's view and spends the run-as principal's Utility connection.
  *
  *  IT IS THE CHAT-BOUND HALF of this dispatch and says so out loud (C5): the prompt IS a reading of a room's
- *  recent messages, so a caller with no chat has nothing to extract FROM. That refusal used to live one frame
- *  up as an early guard in `generatePicture`, which meant the CAPTION modes — which read an avatar and touch
- *  no chat at all — were refused by association. Moving it here is what lets the chat-less lane use a caption
+ *  recent messages, so a caller with no chat has nothing to extract FROM. The refusal lives here, not as an early
+ *  guard in `generatePicture`, which would refuse the CAPTION modes — which read an avatar and touch
+ *  no chat at all — by association. Keeping it here is what lets the chat-less lane use a caption
  *  mode while an extraction mode still refuses, typed, with a reason naming the mode. */
 async function extractText(
   ctx: ImageryContext,

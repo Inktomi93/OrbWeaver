@@ -15,7 +15,7 @@
 // consenting human is at the keyboard, so consent is the host's OWN (not a force-stamped inheritance from an
 // unrelated turn) — the one sanctioned non-inherited rpg model call.
 //
-// DECEPTION SURFACE-ONLY (#7 rec A): the rebuild rides the SAME §1.6 extraction-prompt registry the in-turn
+// DECEPTION SURFACE-ONLY: the rebuild rides the SAME §1.6 extraction-prompt registry the in-turn
 // round does, so a deception-active game composes the surface-only clause — the model never writes hidden
 // `<lie>`/`<ofilter>` truth into a member-visible plane. The canon-window read (`resolveCanonWindow`) is
 // model-plane (hidden spans intact, the model reads its own lies, D110 §3.6) — the member never sees it.

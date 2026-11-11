@@ -124,7 +124,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   const { cur, prev } = await resolveTurnSnapshotPair(ctx.db, { id: game.id, chatId }, regenSlotMessageId);
   const curSnapshot: RpgSnapshotState = cur !== undefined ? snapshotRowToState(cur) : defaultSnapshotState();
   const prevSnapshot: RpgSnapshotState | null = prev !== undefined ? snapshotRowToState(prev) : null;
-  // The delta's participant-name map (fold-in #5): `actorRefKey → display name` so per-actor delta lines name participant
+  // The delta's participant-name map: `actorRefKey → display name` so per-actor delta lines name participant
   // actors ("Kael HP 12→16", not "character HP 12→16"). Resolved HERE (the gather has `ctx.resolveParticipants` reach —
   // the same source `buildTrackerView` reads) and handed to the PURE delta as data (no I/O in the registry).
   const participants = await ctx.resolveParticipants(chatId);
@@ -191,7 +191,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
       deception: game.config.features.deception,
       omniscience: game.config.features.omniscience,
       playerRolledDice: answersRoll,
-      dateMode: game.config.dateMode, // #9 — narrated drops the day counter from the ambient line
+      dateMode: game.config.dateMode, // narrated drops the day counter from the ambient line
       // PROSE-1 — the preset's model-facing prose overrides, so the reminder's teaches/headings resolve any host
       // edit (absent ⇒ shipped defaults, byte-identical to pre-PROSE-1).
       prose,

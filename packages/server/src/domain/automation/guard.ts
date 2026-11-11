@@ -57,7 +57,7 @@ export async function requireRuleAuthority(ctx: GuardCtx, principal: Principal, 
   const chatId = rule.chatId;
   if (chatId === null) {
     // The owner-global arm: the author IS the authority. `principal.userId` came from an authenticated
-    // request, which re-checks `users.enabled` per request (D40 / invariant #8), so "this caller is enabled"
+    // request, which re-checks `users.enabled` per request (D40 / Spine-Identity-and-Auth invariant 8), so "this caller is enabled"
     // is already proven upstream and is not re-derived here.
     if (rule.ownerId !== principal.userId) {
       throw new RuleNotFoundError(ruleId);

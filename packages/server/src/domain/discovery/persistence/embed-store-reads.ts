@@ -209,7 +209,7 @@ export async function readSegmentHubVectors(db: Db, ownerId: UserId): Promise<Hu
     .where(currentSegment);
 }
 
-/** ONE owner's image embeddings as hub rows (owner via `assets.ownerId`); image↔image hub ONLY (#2). */
+/** ONE owner's image embeddings as hub rows (owner via `assets.ownerId`); image↔image hub ONLY. */
 export async function readImageHubVectors(db: Db, ownerId: UserId): Promise<HubVector[]> {
   return await db
     .select({

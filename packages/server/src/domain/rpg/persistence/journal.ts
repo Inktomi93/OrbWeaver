@@ -1,4 +1,4 @@
-// domain/rpg/persistence/journal — the VARIANT-AWARE archive store (D58, ratification #1).
+// domain/rpg/persistence/journal — the VARIANT-AWARE archive store (D58).
 // Model entries stamp their producing `variantId` (CASCADE — a dead swipe's entries vanish); hand entries
 // stamp NULL (every-lineage room truth). The READ projects the ACTIVE lineage: an entry renders iff
 // `variantId IS NULL` OR its variant is the SELECTED variant of its message — a derive-don't-stamp join

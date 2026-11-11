@@ -1,6 +1,6 @@
-// The AUTH_MODE dispatcher — ONE branch point via the `MODE_RESOLVERS` Record (invariant #4: exhaustive
+// The AUTH_MODE dispatcher — ONE branch point via the `MODE_RESOLVERS` Record (Spine-Identity-and-Auth invariant 4: exhaustive
 // over `AuthConfig["mode"]` — a 5th mode that isn't mapped fails `tsc`). Each resolver produces a pre-row
-// `ResolvedIdentity | null` (NO `userId`, NO `role` — invariant #3); modes never import each other. Plus
+// `ResolvedIdentity | null` (NO `userId`, NO `role` — Spine-Identity-and-Auth invariant 3); modes never import each other. Plus
 // the peer-gated owner-fallback predicate.
 //
 // PEER-GATED FALLBACK (load-bearing safety). The un-credentialed owner
@@ -45,7 +45,7 @@ const LOOPBACK_RANGES: readonly string[] = ["127.0.0.0/8", "::1/128"];
 
 /**
  * The ONE dispatch point: one entry per `AuthConfig["mode"]`. The mapped-type `Record` makes a missing
- * arm a `tsc` error (invariant #4 — exhaustive dispatch). `single-user` resolves to `null` (the
+ * arm a `tsc` error (Spine-Identity-and-Auth invariant 4 — exhaustive dispatch). `single-user` resolves to `null` (the
  * peer-gated owner fallback in `resolve` takes over); the cookie modes share the validate path; only
  * `forward-header` does header/JWT verification.
  */

@@ -102,8 +102,8 @@ const bugReportInput = z.object({
 });
 
 /**
- * THE CSRF CONTENT-TYPE BELT on the one WRITE this surface carries (the CORS-simple CSRF class, spine
- * invariant #9). `hono`'s `c.req.json()` is `text()` + `JSON.parse` and reads NO content-type, so without
+ * THE CSRF CONTENT-TYPE BELT on the one WRITE this surface carries (the CORS-simple CSRF class,
+ * Spine-Identity-and-Auth invariant 9). `hono`'s `c.req.json()` is `text()` + `JSON.parse` and reads NO content-type, so without
  * this belt a `text/plain` POST carrying a JSON body ran the handler.
  *
  * WHY THAT IS A CSRF AND NOT A CURIOSITY. The gate above admits two credentials and one of them is

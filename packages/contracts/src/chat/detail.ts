@@ -47,7 +47,7 @@ export interface ChatDetail {
    *  is already on the roster, and for a pin whose persona has no owner left. Still does not say why it is held. */
   readonly anchorOwnerHandle: Handle | null;
   readonly participants: readonly ParticipantView[];
-  /** The CALLER's own participant's `activePersonaId` (FINAL-Persona §A — Chat persona #3) — populated
+  /** The CALLER's own participant's `activePersonaId` — populated
    *  server-side from the resolving `principal`, so the client never has to find-and-match its own
    *  userId in `participants`. Null when the caller has none set (never null-because-absent: `getChat`
    *  requires present membership, so a matching participant always exists). */

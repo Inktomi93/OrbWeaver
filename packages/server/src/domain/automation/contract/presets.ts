@@ -17,7 +17,7 @@
 //   law 2 — every mixed arithmetic is `int()`-coerced (`chat.messageCount % N` throws
 //           "no such overload: dyn<double> % int").
 //   law 3 — chip text is DIEGETIC (a chip click sends as the CLICKING member, so the send text must be words
-//           that member would say). The compose-mode chips are #8's, which rides A2's per-choice mode field.
+//           that member would say). The compose-mode chips are the opener-chips preset's (§4 #8), which rides A2's per-choice mode field.
 //   law 4 — a COUNTER rule (one that fires on every beat) carries an explicit HIGH `maxFiresPerHour`: the
 //           per-rule default is 30/hr and an active RP hour exceeds it, so an uncapped counter freezes stale
 //           mid-session. Only `outcome:"fired"` rows count against the cap
@@ -50,7 +50,7 @@ import { MS_PER_HOUR } from "@orb/kit/time";
 /** One rule a preset mints. `predicate` is the CEL source built from the knobs (`null` = always).
  *
  *  `triggerType` NAMES A MEMBER OF EITHER TUPLE and the BUS IS DERIVED from it (C5 widened this field with
- *  the engine's nullable-chat seam, exactly as this header used to promise). Deriving beats carrying a
+ *  the engine's nullable-chat seam). Deriving beats carrying a
  *  `{bus, type}` pair: the db pairs the two columns with a tuple-derived CHECK, so a def that spelled both
  *  could spell them INCONSISTENTLY and only find out at the insert — `automationTriggerFor` reads the
  *  contracts tuples that generate that CHECK, so the pair is right by construction. */
@@ -152,7 +152,7 @@ function analysisBeatPredicate(everyN: number): string {
   return `(!has(event.turn) || int(event.turn.automationDepth) == 0) && ${everyNBeats(everyN)}`;
 }
 
-/** #2 — the AWAKE-HOURS clause: true outside the host's quiet window, `null` when there is no window to
+/** The AWAKE-HOURS clause: true outside the host's quiet window, `null` when there is no window to
  *  respect (`from == until` — the honest spelling of "never mute me", since a zero-length window is the only
  *  way a single pair of bounds can say it).
  *
@@ -219,11 +219,11 @@ const PATTERNS_MAX = 8;
 /** One image per fire (the `generate_image` arm's `n`). */
 const IMAGES_PER_FIRE = 1;
 
-/** #1's idle window, in hours. The floor is 1 (a recap sooner than that is a recap of the last minute); the
+/** The welcome-back recap's idle window, in hours. The floor is 1 (a recap sooner than that is a recap of the last minute); the
  *  ceiling is a month, past which the room is not "idle", it is over. */
 const IDLE_HOURS_MIN = 1;
 const IDLE_HOURS_MAX = 720;
-/** #2's quiet-hours bounds — an hour of the day, `now.hour`'s own range. */
+/** The async table nudge's quiet-hours bounds — an hour of the day, `now.hour`'s own range. */
 const HOUR_MIN = 0;
 const HOUR_MAX = 23;
 /** Hours → the epoch-ms the `now.epochMs` predicate compares in. */
@@ -256,12 +256,12 @@ const AUDIT_CADENCE_LABELS = {
 /** The callback's two chat variables — the catalogue names them (§4 #12). */
 const DEBT_VAR_KEY = "debt";
 const DEBT_BEAT_VAR_KEY = "debtBeat";
-/** #1's beat stamp — the wall-clock of the last committed message, written by R1 and read by R2. */
+/** The recap's beat stamp — the wall-clock of the last committed message, written by R1 and read by R2. */
 const LAST_BEAT_VAR_KEY = "lastBeatMs";
-/** #2's OWN beat stamp, deliberately NOT `lastBeatMs` even though both hold "the wall-clock of the last
+/** The nudge's OWN beat stamp, deliberately NOT `lastBeatMs` even though both hold "the wall-clock of the last
  *  committed message". Sharing the key would make this preset's correctness depend on the POSITION of a
- *  DIFFERENT preset's rule: #1's stamp rule also fires on `messageCommitted`, and the dispatch runs a chat's
- *  rules in position order over one write-through env — so if #1 were minted first, its stamp would refresh
+ *  DIFFERENT preset's rule: the recap's stamp rule also fires on `messageCommitted`, and the dispatch runs a chat's
+ *  rules in position order over one write-through env — so if the recap were minted first, its stamp would refresh
  *  before this preset's nudge predicate ever read it and the nudge could never fire in a room that also runs
  *  the recap. A private key keeps the ordering that decides this preset INSIDE this preset, where the mint
  *  controls it. */

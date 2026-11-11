@@ -1,5 +1,5 @@
 // schema/databank — the databank source-document canon + its scope junctions (producer:
-// domain/databank, D49 #5). Tables born WHOLE into the
+// domain/databank, D49). Tables born WHOLE into the
 // `0000_baseline` (pre-launch squash rule): documents · global_documents · character_documents ·
 // chat_documents. The 5th vector table `document_chunks` is the DERIVED layer and lives with the other
 // vector tables in `schema/embeddings.ts` (the vector-substrate home + the D20 chokepoint).

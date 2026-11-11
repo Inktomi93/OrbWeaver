@@ -5,8 +5,8 @@ import type { SnapArmState } from "../contract/run-facts.ts";
 
 type MotionVerdictInput = Pick<MotionMeasurement, "gaps" | "pass" | "timing" | "loadSuspect">;
 
-/** The FACT's member — the terminal's twin, so a run-index reader reaches the same verdict (#1616). A
- *  load-suspect window read as `passed` would be exactly the promotion the ruling forbids. */
+/** The FACT's member — the terminal's twin, so a run-index reader reaches the same verdict. A
+ *  load-suspect window read as `passed` would be exactly the promotion D343 forbids. */
 export function motionFactState(requested: boolean, measurement: MotionVerdictInput | null): SnapArmState {
   if (!requested) {
     return "off";

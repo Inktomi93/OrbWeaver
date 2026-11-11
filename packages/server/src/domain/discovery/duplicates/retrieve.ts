@@ -10,7 +10,7 @@
 // probe on an already-joined alias; the moment a writer (or a repair, or a restore) breaks it, it is the
 // only thing standing between one tenant's list and another's card name.
 //
-// `ownerId` is ALWAYS the resolved principal id, never caller input (audit #1) — the verb signature takes a
+// `ownerId` is ALWAYS the resolved principal id, never caller input — the verb signature takes a
 // branded `UserId` the tRPC seam supplies.
 
 import type { Db } from "@orb/db";
@@ -55,8 +55,7 @@ export async function readDuplicateCharacters(db: Db, ownerId: UserId, opts: Dup
 /** The owner's near-duplicate CHAT pairs, Jaccard-ranked (highest first), enriched with both chat titles +
  *  the fork `relation`. Owner scope: `duplicate_chat_pairs` has no ownerId (D23) — the belt is an EXISTS on a
  *  present-host `chat_participants` row for side A's chat (a pair is within ONE owner's hosted chats, so
- *  scoping side A suffices and the join never reads `users`). `ownerId` is ALWAYS the resolved principal
- *  (audit #1). */
+ *  scoping side A suffices and the join never reads `users`). `ownerId` is ALWAYS the resolved principal. */
 export async function readDuplicateChats(db: Db, ownerId: UserId, opts: DuplicateChatsOptions = {}): Promise<DuplicateChatPair[]> {
   const chatA = aliasedTable(chats, "chat_a");
   const chatB = aliasedTable(chats, "chat_b");

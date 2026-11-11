@@ -1,4 +1,4 @@
-// verb: markRevokedByUser — the USER-FACING revoke (invariant #6). Unlike the runner-internal `maybeRevokeOnAuthFailed`,
+// verb: markRevokedByUser — the USER-FACING revoke. Unlike the runner-internal `maybeRevokeOnAuthFailed`,
 // this ADDS the ownership check (`fetchOwnedCredential` → `requireOwned`) before writing — a user pre-empts
 // the next turn's 401 round-trip when they know their key was rotated/leaked upstream. `reason` defaults to
 // "manually revoked by user" (logged, not persisted — the PERSISTED cause is the `"user"` member of

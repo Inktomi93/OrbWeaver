@@ -594,7 +594,7 @@ function previewRender(registry: MacroRegistry | null): MacroRenderEnv {
 }
 
 /** The PREVIEW's gather half — the rpg macro/CEL feed (D58) plus the S2 teaching collection
- *  (whose contributor #0 carries a game's depth-0 state-block reminder), staged exactly as the turn path
+ *  (whose rpg-gather contributor carries a game's depth-0 state-block reminder), staged exactly as the turn path
  *  stages them so the host's honesty instrument shows what the model actually reads (without this the whole
  *  state block is INVISIBLE there, and a later teaching contributor would be invisible the same way).
  *  Read-only + turnless: no pending user text, `respondsToLatestUserTurn: false` (no dice-feed eligibility),

@@ -18,7 +18,7 @@ import { rpgQuestStatusSchema } from "./enums.ts";
 import { rpgTrackerValuesSchema } from "./tracker.ts";
 
 // Strip mode: also reads imported files, model output and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-// The PLOT plane (parity-plus P5 — the campaign-scale progression datum; workboard ruling #2). SNAPSHOT-
+// The PLOT plane (parity-plus P5 — the campaign-scale progression datum). SNAPSHOT-
 // RESIDENT like quests: clone-forward on every variant, so the acts are swipe-consistent by the same
 // machinery (a swipe rewinds the act with everything else). `act` is the 1-based CURRENT act into `acts`;
 // `title` is the overall story title; each act carries its own title + a short summary. Model-writable via
@@ -93,10 +93,10 @@ export const rpgSnapshotStateSchema = z
     location: z.string().default(""),
     weather: rpgWeatherSchema.nullable(),
     // THE PRESENCE PLANE (R2) — who stands in the scene RIGHT NOW, as `actorRefKey` strings (participant refs
-    // included: a participant character on stage is `character:<id>`). Nothing else lives here any more. It used to
-    // carry the npc's whole identity row, which made departure a DESTRUCTION of her name, mood,
+    // included: a participant character on stage is `character:<id>`). Nothing else lives here: carrying the npc's whole identity row
+    // here would make departure a DESTRUCTION of her name, mood,
     // relationship and standing guides while her tracked state survived invisibly on `actorState` — one person,
-    // two planes, opposite lifecycles (the review's MS-2). Identity now rides the actor row; presence is a flag
+    // two planes, opposite lifecycles (the review's MS-2). Identity rides the actor row; presence is a flag
     // over it, so departure retains everything and return re-surfaces the whole NPC.
     presentCharacters: z.array(z.string().min(1)).default([]),
     recentEvents: z.array(z.string()).default([]),

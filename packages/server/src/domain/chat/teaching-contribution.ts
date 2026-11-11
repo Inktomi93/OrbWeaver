@@ -5,7 +5,7 @@
 // (`substrate/teaching.ts`), and the turn knows no domain. Reachable only through the front door
 // (`index.ts`), so the registry is assembled at the composition root and never imported by a verb.
 //
-// Chat's own contribution is the rpg-gather PROJECTION — contributor #0. The game's depth-0 state-block
+// Chat's own contribution is the rpg-gather PROJECTION, the first contributor. The game's depth-0 state-block
 // reminder was the seam's only contributor before it existed, and it stays byte-identical: same content,
 // same order, same `game-state` stamp. Chat learns nothing rpg-shaped here (the input is the structural
 // `ChatRpgGatherResult` chat already owns), and the gather's NON-injection outputs — macros, celBindings,
@@ -34,7 +34,7 @@ import { listAttributionReactions, loadPresentCharacterNames } from "./persisten
 import { stampGameState } from "./substrate/game-state-injections.ts";
 import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote } from "./substrate/reaction-note.ts";
 
-/** Contributor #0 — the rpg gather's injections + tool names, projected onto the teaching contract.
+/** The rpg-gather contributor — the rpg gather's injections + tool names, projected onto the teaching contract.
  *
  *  THE `game-state` STAMP is applied HERE (`stampGameState` is its one home). It used to sit at the injections merge
  *  (`substrate/assemble-gather.ts`), which was correct while rpg was the only contributor and became wrong
@@ -87,7 +87,7 @@ function resolveChoicesTeach(tctx: TeachingContext): string {
   return processMacros(text, macros, CHOICES_NAMES_REGISTRY);
 }
 
-/** Contributor #1 — the B1 standing "offer choices" posture: when this room's resolved knob is ON, tell the
+/** The choices contributor — the B1 standing "offer choices" posture: when this room's resolved knob is ON, tell the
  *  model it may end a turn with the `:::choices` fence, inside the `chat.teach.choicesFrame` delimiter. OFF ⇒
  *  `[]` ⇒ the turn is byte-identical.
  *
@@ -196,7 +196,7 @@ function buildAttributionLines(rows: Awaited<ReturnType<typeof listAttributionRe
   return lines;
 }
 
-/** Contributor #2 — the reaction-attribution injection. No reactions (or the plane resolved off) ⇒
+/** The reaction contributor — the reaction-attribution injection. No reactions (or the plane resolved off) ⇒
  *  {@link EMPTY_COLLECTION} ⇒ byte-identical (the A1 per-contributor property). */
 function createReactionAttribution(db: Db): TeachingContribution {
   return {
@@ -222,7 +222,7 @@ function createReactionAttribution(db: Db): TeachingContribution {
   };
 }
 
-/** Contributor #3 — the B7 `react` tool ATTACH (the FIRST non-empty `toolNames` contributor — R2's whole
+/** The react-tool contributor — the B7 `react` tool ATTACH (the FIRST non-empty `toolNames` contributor — R2's whole
  *  point). Teach and attach travel together (D145-a): the tool's wire `description` IS the teach (the
  *  tool-use contribution's documented posture — no prose injection beside it), so this contribution emits
  *  the NAME only, and only when BOTH knobs resolve on: `charactersCanReact` (the owner's opt-in — OFF by

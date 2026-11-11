@@ -184,8 +184,8 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // (multi-user-seed, curl harvests) relies on. The byte-ingest routes gate fallback instead because they
 // must ACCEPT `multipart/form-data`, which IS CORS-simple — see upload.ts's authCsrfGuard.
 //
-// THE BELT IS LOAD-BEARING, NOT DEFENCE IN DEPTH. This comment used to justify the `cookie`-only keying by
-// claiming a tRPC mutation "requires application/json"; it does not. `@trpc/server` 11.18's
+// THE BELT IS LOAD-BEARING, NOT DEFENCE IN DEPTH. The `cookie`-only keying does not rest on a tRPC mutation
+// "requiring application/json": it does not. `@trpc/server` 11.18's
 // `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` and dispatches
 // both as `type:"mutation"`, and multipart is exactly the CORS-simple type a plain cross-site `<form>` can
 // post. Behaviorally proven at the mount: before the belt, a multipart POST with no `x-orb-csrf` on the

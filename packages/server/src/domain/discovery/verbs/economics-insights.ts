@@ -2,7 +2,7 @@
 // discovery owns the SEMANTICS, stats owns the ECONOMICS — each verb
 // keeps its ranking/grouping in discovery and pulls the cost/usage dimension from the INJECTED `stats` op
 // (wired at the entry root onto the DI bundle, like `writeHubScores`/`summarize`). discovery NEVER SUMs a
-// raw `messages` economics column (Knowledge-Cluster inv #5).
+// raw `messages` economics column (docs/law/Knowledge-Cluster.md invariant 5).
 //   • forgottenGems — SEMANTIC ranking (assistant-message volume + recency) composed with per-character
 //     economics (`ctx.characterEconomics`) for the tokensOut/cost dimension.
 //   • modelRouting  — discovery supplies each character's distilled GENRE (`character_summaries`), the stats

@@ -1,7 +1,7 @@
 // The CSRF mutation-header signal. `SameSite=Lax` + this custom header is the anti-CSRF signal: a
 // cross-site page can't set a custom request header without a CORS preflight the app never grants.
 // infra/auth PRODUCES the signal; every GATE that reads it lives at the route tier, and there is no
-// single via-keying any more (spine invariant #9 — the gate is split by CONTENT-TYPE PHYSICS):
+// single via-keying any more (Spine-Identity-and-Auth invariant 9 — the gate is split by CONTENT-TYPE PHYSICS):
 //   · the four byte-ingest registrars (`entry/http/upload.ts`, `import.ts`, `import-tree.ts`,
 //     `import-chat.ts`) accept a CORS-SIMPLE content-type, so they gate `via !== "header"` — cookie AND
 //     the loopback owner fallback both must carry the header;

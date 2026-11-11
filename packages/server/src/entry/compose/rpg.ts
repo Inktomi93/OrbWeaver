@@ -107,7 +107,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     },
     staging: createRpgStagingStore(),
     handWrites,
-    // The ONE privilege kernel (spine invariant #6) — rpg's `guard.ts` resolves membership and asks THIS for the
+    // The ONE privilege kernel (Spine-Identity-and-Auth invariant 6) — rpg's `guard.ts` resolves membership and asks THIS for the
     // host verdict, exactly as chat/automation do. Wired here, never imported by the domain (§2 flow).
     can,
     getMembership: deps.rpgChatOps.getMembership,

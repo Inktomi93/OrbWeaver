@@ -21,8 +21,7 @@
 // NOT_FOUND). That partition is the ONLY belt left between two principals' inboxes, which is why all three
 // need a cross-principal probe.
 //
-// The live inbox stream used to live here as `notifications`. It FOLDED into the multiplexed socket at
-// SSE-1 S3: it is now the `notifications` ROOM (`transport/trpc/stream/sources/notifications.ts`), carrying
+// The live inbox stream is not on this router: it is the `notifications` ROOM of the multiplexed socket (`transport/trpc/stream/sources/notifications.ts`), carrying
 // the same durable-first resume (live listener first, `list`-paged replay of `seq > cursor`, then live). The
 // belt travelled with it onto that room's `authorizeAttach` and is OFF there for the same
 // reason it came off here — the room is `authedProcedure` reachable and self-scoped by `principal.userId`. The

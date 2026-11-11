@@ -2,7 +2,7 @@
 // verb — the stats router never exposes these; they are the stats-OWNED ops INJECTED into discovery at the
 // composition root (mirroring `embeddings.writeHubScores` → discovery). Each returns a NARROWED, already-
 // aggregated economics result (@orb/contracts/stats) so the consumer can never re-sum a raw economics
-// column (Knowledge-Cluster inv #5). Both bind `ownerId = principal.userId` upstream (self-scoped, D20/D23).
+// column (docs/law/Knowledge-Cluster.md invariant 5). Both bind `ownerId = principal.userId` upstream (self-scoped, D20/D23).
 
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";

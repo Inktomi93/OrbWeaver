@@ -148,7 +148,7 @@ function fakeCtx(): { ctx: LabellableTest & { skip: (note?: string) => void }; s
 
 test("the load judgment fires exactly at computeLoadFactor's own quiet/contended boundary", () => {
   // Loaded: per-core 40/24 ≈ 1.67 → the factor has left 1, so the rate is not ONLY about the code — the
-  // arm still measures, and the number is LABELLED rather than withheld (#1616).
+  // arm still measures, and the number is LABELLED rather than withheld (D343).
   const loaded = judgeMeasurementLoad(LOADED_BOX, "the dropped-frame budget");
   expect(loaded.disposition).toBe("load-suspect");
   expect(loaded.reason).toContain(LOAD_SUSPECT_MARKER);

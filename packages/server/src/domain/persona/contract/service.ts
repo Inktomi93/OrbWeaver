@@ -101,7 +101,7 @@ export interface PersonaService {
   readonly listConnectedCharacters: (params: ListConnectedCharactersParams) => Promise<ConnectedCharacterView[]>;
   /** Set the active persona for a participant in a chat (host-or-self scoped). */
   readonly setActivePersona: (params: SetActivePersonaParams) => Promise<void>;
-  /** Clone an owned persona into a fresh row (FINAL-Persona §A.6b gap #2) — name suffixed " (copy)",
+  /** Clone an owned persona into a fresh row — name suffixed " (copy)",
    *  `starred` reset to false (a fresh identity, mirrors `character.duplicate`), `avatarAssetId`/`metadata`
    *  carried forward verbatim (re-pointing to the SAME asset is trivial — no new asset is minted). Throws
    *  {@link PersonaNotFoundError} when the source isn't owned/found. */

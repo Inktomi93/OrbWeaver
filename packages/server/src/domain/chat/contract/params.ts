@@ -122,7 +122,7 @@ export interface PreviewActionTemplatesParams extends ChatScopedParams, ViewerCl
 
 /** `getVariantWire` — the per-variant WIRE RECORD: what ONE past generation actually sent (host/admin
  *  inspector). `variantId` is scoped by the `messages.chatId` join, so a foreign variant is unreachable even
- *  with a valid chatId (D108 carve #1, the same belt `rpg/persistence/reveal` uses). */
+ *  with a valid chatId (D108, the same belt `rpg/persistence/reveal` uses). */
 export interface GetVariantWireParams extends ChatScopedParams {
   readonly variantId: MessageVariantId;
 }

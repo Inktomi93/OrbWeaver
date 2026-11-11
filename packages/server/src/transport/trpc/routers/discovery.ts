@@ -1,6 +1,6 @@
 // transport/trpc/routers/discovery — the read-side discovery analytics (docs/law/Tier-4-Transport.md; the corpus→
-// discovery rename). authed; reads take a positional `userId` = the resolved `Principal.userId` (audit #1:
-// no caller-supplied owner). The `compute*` passes are workload-driven (the jobs runners), NOT tRPC. Thin:
+// discovery rename). authed; reads take a positional `userId` = the resolved `Principal.userId` (no
+// caller-supplied owner). The `compute*` passes are workload-driven (the jobs runners), NOT tRPC. Thin:
 // validate → `ctx.services.discovery.<verb>` → map errors. The `level` axis derives from `THEME_LEVELS`.
 //
 // "Map errors" is the domain-error MIDDLEWARE's job, never a procedure body: every read verb here refuses by
@@ -106,7 +106,7 @@ export const discoveryRouter = t.router({
     ),
 
   // distill read-half: the owner's filterable distilled catalog (CONTENT-only). `ownerId` is the
-  // resolved principal (audit #1: no caller-supplied owner). The filter is validated + narrowed here.
+  // resolved principal (no caller-supplied owner). The filter is validated + narrowed here.
   // KEYSET-PAGED since A8 — `cursor` rides as ONE sort-discriminated object field (tRPC's
   // `infiniteQueryOptions` threads exactly one `cursor` field through as the page param) and `nullish`
   // because that is what the client's `initialCursor: null` sends on the first page.
@@ -156,14 +156,14 @@ export const discoveryRouter = t.router({
     .query(({ ctx, input }) => ctx.services.discovery.compareCharactersDeep(ctx.auth.userId, input.idA, input.idB)),
 
   // askCard: a grounded Q&A over ONE owned/distilled character's recent PLAYED scenes (CONTENT-only).
-  // Owner-belted (a foreign/undistilled character → null). Owner = the resolved principal (audit #1).
+  // Owner-belted (a foreign/undistilled character → null). Owner = the resolved principal.
   askCard: authedProcedure
     .output(askCardAnswerSchema.nullable())
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), question: z.string().min(1) }))
     .query(({ ctx, input }) => ctx.services.discovery.askCard(ctx.auth.userId, input.characterId, input.question)),
 
   // swipeHotspots: one chat's most-re-rolled assistant slots. Owner-belted via characters.ownerId (a
-  // foreign chat → [], proved by the cross-tenant sweep probe). Owner = the resolved principal (audit #1).
+  // foreign chat → [], proved by the cross-tenant sweep probe). Owner = the resolved principal.
   swipeHotspots: authedProcedure
     .output(z.array(swipeHotspotSchema))
     .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
@@ -190,8 +190,8 @@ export const discoveryRouter = t.router({
 
   unusedCharacters: authedProcedure.output(z.array(archetypeMemberSchema)).query(({ ctx }) => ctx.services.discovery.unusedCharacters(ctx.auth.userId)),
 
-  // economics-composed insights (the stats↔discovery seam Tier 3). Owner = resolved principal
-  // (audit #1); the economics arrive via the injected stats op (discovery reads no raw messages economics).
+  // economics-composed insights (the stats↔discovery seam Tier 3). Owner = resolved principal;
+  // the economics arrive via the injected stats op (discovery reads no raw messages economics).
   forgottenGems: authedProcedure
     .output(z.array(forgottenGemSchema))
     .input(z.strictObject({ limit: z.int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }).optional())

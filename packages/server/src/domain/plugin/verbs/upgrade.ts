@@ -21,10 +21,9 @@
 // is the INTERSECTION (`normalizeGrant`), so the newly-declared capability is NOT granted. Re-confirming is the
 // separate `setGrant` verb (`verbs/set-grant.ts`), whose approval may also turn the plugin back on.
 //
-// TRUTH-REPAIR: this header used to say "the owner re-enables, re-confirming", and that was a
-// comment overstating a security mechanism — `setEnabled` activates with the STORED grant and never recomputes
-// one, so re-enabling could not re-confirm anything and the newly-declared capability stayed ungranted forever.
-// It failed CLOSED, so it was a dead-end UX rather than a hole; `setGrant` is the missing half. Do not
+// `setEnabled` activates with the STORED grant and never recomputes one, so re-enabling does not re-confirm
+// anything: a newly-declared capability stays ungranted until `setGrant`. It fails CLOSED, so it is a dead-end UX
+// rather than a hole, and `setGrant` is the missing half. Do not
 // re-collapse the two acts: an enable that recomputed the grant would silently widen authority on every restart.
 //
 // Both arms are the SAME rule, because what the owner consented to is what the plugin may REACH,
@@ -153,10 +152,9 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentP
     // The egress half of the same re-consent rule. Compared against the PRIOR MANIFEST's `netHosts` (the row's
     // persisted manifest json is the record of what was confirmed at install/last re-grant) — there is no
     // `granted_net_hosts` column: `granted_capabilities ⊆ declared` is the capability ledger, and the manifest
-    // plus the row's UNANSWERED delta are the host ledger. TRUTH-REPAIR: this used to say
-    // activation forwards the manifest's list "verbatim" to the SSRF wall, and that was the hole rather than
-    // the design — verbatim meant one `setEnabled` toggle armed `safeFetch` at a destination a standing
-    // re-consent covered. Activation now forwards `declared \ withheldNetHosts` (`consentedNetHosts`), so the
+    // plus the row's UNANSWERED delta are the host ledger. Activation never forwards
+    // the manifest's list "verbatim" to the SSRF wall: one `setEnabled` toggle would arm `safeFetch` at a destination
+    // a standing re-consent covers. Activation forwards `declared \ withheldNetHosts` (`consentedNetHosts`), so the
     // wall carries the owner's CONFIRMED reach and never more.
     const declaredHosts = manifest.netHosts ?? [];
     const priorHosts = existing.manifest.netHosts ?? [];

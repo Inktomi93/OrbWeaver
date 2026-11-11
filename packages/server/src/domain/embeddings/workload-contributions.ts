@@ -4,7 +4,7 @@
 //
 // Everything the run needs is a dep of THIS factory, closed over at `entry/compose` — never a shared
 // per-dispatch env hub. The projection from the service's richer pass stats down to the wire
-// `EmbedPassResult` lives here too (it used to sit at the entry tier, in `compose/runner-env.ts`).
+// `EmbedPassResult` lives here too, not at the entry tier.
 
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { ReportProgress, WorkloadParamsByKind, WorkloadRunContext } from "@orb/contracts/workloads";

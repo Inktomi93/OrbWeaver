@@ -2,7 +2,7 @@
 // portable compaction marker is chats.compactSummary + chats.compactedAtSeq (chat canon, not backend session
 // state — so a source swap carries it forward; the stateless read side splices it into the top history slot).
 //
-// FULL-RESET CHAINED MARKER (#9): each pass rebuilds ONE marker covering the whole in-context conversation —
+// FULL-RESET CHAINED MARKER: each pass rebuilds ONE marker covering the whole in-context conversation —
 // the prior marker PLUS every prompt-eligible turn since it, summarized to a fresh marker stamped at the new
 // `coveragePoint`. Markers CHAIN ("it's a new conversation"): the new marker SUPERSEDES the prior, never a
 // growing prefix. Generation rides the chat's OWN model via the injected `quietGenerate` (a non-canon quiet

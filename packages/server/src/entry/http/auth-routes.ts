@@ -671,8 +671,8 @@ function loginHandleThrottler(deps: AuthRoutesDeps): RateLimiter {
  * Without this belt that is a CSRF: login-CSRF logs the victim into the ATTACKER's account, and first-run CSRF
  * sets the owner password (the loopback-peer gate does NOT stop that class — the owner's OWN browser is a
  * loopback peer, so a cross-origin page the owner visits satisfies it). Require the custom `x-orb-csrf` header
- * a cross-site page cannot set without a preflight this app never grants — the SAME belt logout uses (spine
- * invariant #9). Runs as a route belt BEFORE the handler, so a CSRF-less request is refused before any
+ * a cross-site page cannot set without a preflight this app never grants — the SAME belt logout uses (Spine-Identity-and-Auth
+ * invariant 9). Runs as a route belt BEFORE the handler, so a CSRF-less request is refused before any
  * throttle / origin gate / body parse / scrypt work. The same-origin client always sends it
  * (data/auth-bootstrap.ts login + firstRunSetup).
  */
@@ -688,7 +688,7 @@ function registerLoginRoute(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, authe
   const loginLimiter = loginThrottler(deps);
   const handleLimiter = loginHandleThrottler(deps);
   app.post(LOGIN_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
-    // CSRF is enforced by the `csrfGuard` belt above (spine invariant #9) — it runs before this handler (and
+    // CSRF is enforced by the `csrfGuard` belt above (Spine-Identity-and-Auth invariant 9) — it runs before this handler (and
     // before the body is buffered), so a cross-site form-POST is refused before the throttle / scrypt work here.
     // The IP axis stays FIRST — it is the cheaper decision (no body parse) and it is the one that caps the
     // scrypt-CPU flood from a single source.

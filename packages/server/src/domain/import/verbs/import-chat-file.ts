@@ -1,7 +1,6 @@
 // verb: importChatFile — ONE bundle-shaped chat file into the owner's library. THE one path for a single
 // chat: the `POST /api/import/chat` door and the bundle descriptor both land here, so the handle derivation,
-// the parse, and the refusal copy have exactly one home (F8 — this body used to live inline in
-// `entry/compose/portability.ts`, outside every domain test mirror). NEVER throws for a malformed file.
+// the parse, and the refusal copy have exactly one home. NEVER throws for a malformed file.
 //
 // TWO ARMS UNDER ONE DOOR (R6). The `chats/` dir carries two formats and this is where they part:
 //   • `<handle>/<name>.jsonl` — the ST TRANSCRIPT INTERCHANGE. Foreign bytes, no envelope, accept-forever.

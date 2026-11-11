@@ -26,8 +26,8 @@
 // resolved here by `e2eRunPorts`). The offset is a multiple of 10, so two runs at different offsets never
 // share a port, and the shifted set must stay clear of every reserved row and every stage band.
 //
-// THE MIRROR SIDE, which this module cannot own (owner ruling: house precedent, no env
-// file and no move into @orb/kit; the port-registry gate excludes it BY RULING, not as a deferral):
+// THE MIRROR SIDE, which this module cannot own (D344: no env file and no move into @orb/kit; no check
+// compares a mirror with its row here, so the pointer from each side is what keeps them equal):
 //   • BY CAKE — `packages/client/vite.config.ts` (`5173`, `http://127.0.0.1:8788`). `tooling` sits ABOVE
 //     the package cake, so importing `@orb/tooling` from `packages/**` is an UPWARD import and is
 //     automatically wrong (constitution §2) — this is a boundary, not a preference. Those two values are

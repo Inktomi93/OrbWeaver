@@ -1,7 +1,7 @@
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 
-/** IMGMAC — the chat's authored USER-MACRO defs from BOTH homes (the owner ruling's two authoring homes): the
+/** IMGMAC — the chat's authored USER-MACRO defs from BOTH homes (the two authoring homes of D345): the
  *  active preset's `promptConfig.userMacros` and the game's `rpg_games.config.userMacros`. Handed to
  *  `extractQuiet` UNMERGED because the merge policy (the game shadows the preset by name) is chat's law, not
  *  the wirer's — `shadowPresetUserMacros` inside `buildTurnUserMacros` is its ONE home. A chat with no host /
