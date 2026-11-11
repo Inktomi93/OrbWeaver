@@ -257,9 +257,9 @@ export interface RunAlias {
  *  `latest`. The empty `.published` manifest is the honest record — the retention reader asks "does any
  *  pointer still resolve here?" and an empty list is the correct NO.
  *
- *  IT DOES NOT PRUNE. This used to be `publishRunSlot(root, slot, [])`, and the honest name was the
- *  whole point — a bare `publishRunSlot(…, [])` on a non-publishing path reads as a mistake and gets "tidied"
- *  back into the bug this closed. But the delegation carried a SIDE EFFECT: publishing ends in `pruneRuns`,
+ *  IT DOES NOT PRUNE. The honest name is the whole point — a bare
+ *  `publishRunSlot(…, [])` on a non-publishing path reads as a mistake and gets "tidied" into a delegation that
+ *  carries a SIDE EFFECT: publishing ends in `pruneRuns`,
  *  so a run that merely closed retired other runs' evidence. Its two callers are exactly the ones with no
  *  standing to do that — a GATE-SCOPED run publishes no pointer and is the per-conversion floor, cheap
  *  and constant, so it added nothing to the ring while evicting from it. Closing and publishing share the
