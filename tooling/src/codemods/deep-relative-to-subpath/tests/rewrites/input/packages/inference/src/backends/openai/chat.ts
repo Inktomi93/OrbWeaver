@@ -10,6 +10,6 @@ export async function load(): Promise<unknown> {
   return import("../../contract/runtime.ts");
 }
 
-// A string that is not a module specifier stays: "../../contract/http.ts".
+// A string that is not a module specifier stays as written.
 export const label = "../../contract/http.ts";
 export type Value = OpenAiBackend | typeof HttpError | typeof deps | typeof stream | typeof local;
