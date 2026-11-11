@@ -45,8 +45,6 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 
 ## Lane shape
 
-Claude uses `SendMessage` and `TaskStop` below. In Codex, inspect state with `list_agents`. Use `send_message` for running lanes and `followup_task` to resume idle or completed lanes. Messaging does not resume a completed lane. Use `interrupt_agent` to stop a running lane.
-
 - Give each lane a substantial batch across related areas that share context, dependencies or acceptance checks.
 - Include implementation, coupled tests and required documentation in the same assignment. Name ownership for each area.
 - Split lanes for independent work or different required expertise, not for each file or small item.
@@ -80,10 +78,6 @@ Finish an active plan before opening new work, and take P1 items first. `docs/pl
 ## Lane cap
 
 Owner ruling: run at most three agents beside the main session, at any model tier. Every agent counts, `code-reviewer` included. Raise the cap only on an explicit owner ruling, written here.
-
-Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the cap above for Codex. Schedule compiler and broad application runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
-
-Owner ruling for Claude primary on Codex assignments: the cap above applies to peer lanes. Codex owns integration, independent review and shared-host scheduling.
 
 - Let over-cap lanes finish. Never refill above the cap.
 - Start broad compiler or application runs minutes apart to limit shared-host load.
@@ -263,7 +257,6 @@ Lanes can share main's checkout with you.
 
 - A dispatch with `isolation: "worktree"` gets a working tree from `.claude/hooks/worktree-setup.sh`. Never brief `pnpm install`.
 - A manual `git worktree add` runs only git's post-checkout hook. Run `pnpm worktree:bootstrap` after it.
-- Codex app worktrees use `.codex/environments/environment.toml` for setup and cleanup.
 - Before manual removal, run `env -C <worktree> bash scripts/worktree-cleanup.sh`. It keeps the lane and review reports on main and releases the Snap stage. Read a live lane's report from its worktree; do not copy it.
 - Worktrees stay after an agent finishes. Sweep them by hand at session end.
 - Scope a sweep to `.claude/worktrees/agent-*`. Other directories there, and trees listed elsewhere by `git worktree list`, belong to other sessions.
@@ -337,8 +330,6 @@ the primary merges.
 
 Cross-account messages go through `~/.claude/bridge/`. `~/.claude/bridge/PROTOCOL.md` owns the
 format, numbering, and message kinds. Read it before you write a note.
-
-For Codex dispatch to Claude primary, use the full brief above: ownership, acceptance, scoped checks, hazards and explicit exclusions. Require source and caller surveys before edits. Main retains integration and shared-host scheduling. Read `~/.claude/bridge/SESSIONS.md` and verify the existing native inbox watcher; do not start a duplicate. Use a process, not a dedicated model lane, for inbox polling. Confirm the current session receives its alerts instead of assuming Claude plugin delivery reaches Codex.
 
 - Write each note in one shot. The bridge mod wakes the session with a `[bridge, not the owner] new note N` turn for every note in your inbox.
 - Send with the bridge mod's `send` tool, answer with `reply` (it acks first), ack with `ack`. Scripts use `claude-bridge send`. Numbering happens under the lock either way.

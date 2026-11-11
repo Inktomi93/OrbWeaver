@@ -1,6 +1,6 @@
 # Orbweaver
 
-This file is the always-on core for Claude Code and Codex. Area rules load by path from `.claude/rules/` (see "Path rules and Codex"). Procedures are skills. Read every other doc on demand through the reading router.
+This file is the always-on core for Claude Code and the local Qwen Code and OpenCode lanes. Area rules load by path from `.claude/rules/` (see "Path rules"). Procedures are skills. Read every other doc on demand through the reading router.
 
 ## Which law wins
 
@@ -159,15 +159,9 @@ without a path are in that folder.
 | barrier | the whole-tree check on main before the owner pushes (D317) |
 | floor | the checks a lane runs before it reports |
 
-## Path rules and Codex
+## Path rules
 
-- Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Codex does not: before you change a file, read each rule below whose globs match it.
-
-- In Codex outside a `.codex/agents/*.toml` role, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
-
-- Codex edit feedback is owner-disabled; use explicit scoped checks from the lane skill. To coordinate lanes, read `.claude/skills/orchestrator/SKILL.md`.
-
-- In Codex, spawn `code-reviewer`, `ux-reviewer` or `deep-reviewer` with `fork_turns="none"` and a self-contained brief. A forked history ends an independent review.
+- Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Qwen Code and OpenCode load only this file: before you change a file, read each rule below whose globs match it.
 
 - `.claude/rules/browser-tests.md`: `tests/**/*.ct.tsx`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
 

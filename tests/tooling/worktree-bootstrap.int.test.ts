@@ -66,7 +66,7 @@ for (const step of ["install", "build"]) {
 
 test("bootstrap links local settings and syncs a SQLite backup in an external checkout", async ({ fakeBin, repoRoot, scratch }) => {
   const mainRoot = join(scratch, "main checkout");
-  const laneRoot = join(scratch, "codex O'Brien checkout");
+  const laneRoot = join(scratch, "lane O'Brien checkout");
   await mkdir(join(mainRoot, ".claude"), { recursive: true });
   await mkdir(join(mainRoot, ".codegraph"), { recursive: true });
   await mkdir(laneRoot, { recursive: true });
