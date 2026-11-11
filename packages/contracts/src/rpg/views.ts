@@ -103,7 +103,7 @@ export interface RpgGameView {
      *  publishes `RPG_RULESET_DICE[ruleset]`, so without it on the member slice the setting would have no
      *  visible consequence for anyone but the host (the dead-toggle finding). */
     readonly ruleset: RpgGameConfig["ruleset"];
-    /** The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
+    /** The ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
      *  Member-safe display knob: the band + Scene ambient render the date arm by it. */
     readonly dateMode: RpgGameConfig["dateMode"];
     readonly immersiveHtml: boolean;
@@ -308,7 +308,7 @@ export interface RpgConfigView {
   readonly stateCaptureVehicle: RpgGameConfig["stateCaptureVehicle"];
   readonly extractionWindowTokens: RpgGameConfig["extractionWindowTokens"];
   readonly reconcileEveryBeats: RpgGameConfig["reconcileEveryBeats"];
-  /** The #9 ambient-date mode knob (host editor). */
+  /** The ambient-date mode knob (host editor). */
   readonly dateMode: RpgGameConfig["dateMode"];
   /** THE TRACKERS (the tracked-field unification) — the host's whole tracker set, the single surface that
    *  replaced the Sheet-tab pool defs, the Game-tab npc fields, and the band-pin section. */

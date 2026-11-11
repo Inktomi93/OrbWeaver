@@ -14,14 +14,13 @@
 // row a `tsc` error. The registry is the standing anti-drift mechanism the audit's "prompt-drift, not model failure"
 // diagnosis demanded.
 //
-// THE #7 DECEPTION CLAUSE (recommendation A, §1.6): on a DECEPTION-ACTIVE game every fragment is prefixed with
+// THE DECEPTION CLAUSE (recommendation A, §1.6): on a DECEPTION-ACTIVE game every fragment is prefixed with
 // the surface-only standing clause — the tracker records the players' SURFACE reality, never a hidden truth,
 // so the hidden layer lives only in the reasoning channel + the host's reveal-eye (member-safe by
 // construction; the fork-strip §3.2 leak vector evaporates). Deception-gated — a non-deception game composes
 // byte-identically to the pre-registry per-plane prose.
 //
-// THE BYTES ARE DATA (PROSE-1 S4, census 11-26). Every model-facing string this module used to hold as a const
-// is now a slot row in `./prose.ts`, resolved against `ExtractionPromptContext.prose` — the GM PRESET's
+// THE BYTES ARE DATA (PROSE-1 S4, census 11-26). Every model-facing string of this module is a slot row in `./prose.ts`, resolved against `ExtractionPromptContext.prose` — the GM PRESET's
 // `promptConfig.prose`, authored in the preset Templates tab. What stays here is the ASSEMBLY: which clause
 // fires for which config, what the per-game tokens expand to, and the composition order. An ABSENT override
 // resolves to the shipped default, so a game whose host has edited nothing composes byte-identically to the

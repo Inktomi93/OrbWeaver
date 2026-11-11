@@ -90,7 +90,7 @@ export const rpgUpdateConfigInputSchema = z.strictObject({
       // The FRONT-DOOR toggle: `false` disengages the game from the turn assembly + hides the
       // panel, state PRESERVED (reversible). The verb also re-writes the chat pointer mirror.
       engaged: z.boolean().optional(),
-      // The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
+      // The ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
       dateMode: z.enum(RPG_DATE_MODES).optional(),
       // The §1.3 extraction-depth knobs — how much story the state round reads (`beat`/`window`/`full`), the
       // `window` arm's token budget, and the reconcile cadence. Bounds mirror the config schema. Omit keeps.

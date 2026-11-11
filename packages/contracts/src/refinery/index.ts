@@ -621,9 +621,8 @@ export type RefineryRun = z.infer<typeof refineryRunSchema>;
  *  newest analyze run's verdict, null before the first analyze; {@link RefinerySessionView} carries
  *  `originalCard`.
  *
- *  CHARACTER IDENTITY RIDES THE ROW, SERVER-SIDE. This comment previously read "Character display
- *  resolves client-side by `characterId`" — TRUTH-REPAIRED (orchestrator ruling), because
- *  that mechanism has a hard ceiling the roster cannot survive: the client join's only source is
+ *  CHARACTER IDENTITY RIDES THE ROW, SERVER-SIDE. Resolving character display client-side by
+ *  `characterId` has a hard ceiling the roster cannot survive: the client join's only source is
  *  `character.list`, a cursor page capped at 100 rows (`MAX_LIMIT`, domain/character/verbs/list.ts), so
  *  a session whose card sits past page one renders UNNAMED and is unfindable by the roster's own search
  *  (the paginating-a-list-breaks-resolve-by-find class). The persistence read ALREADY inner-joins

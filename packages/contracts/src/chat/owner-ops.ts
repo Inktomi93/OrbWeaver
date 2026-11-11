@@ -20,8 +20,8 @@ import type { TurnOutcome } from "./views.ts";
 export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
 
 // The per-seat card-derived decoration a roster projection needs, resolved from ONE character read (the
-//  render policy, the raw theme + background overrides, and the card name/avatar) — collapses what used to
-//  be four separate reads of the same `characters` row per participant. `card` is null for a human/agent
+//  render policy, the raw theme + background overrides, and the card name/avatar) — replaces
+//  four separate reads of the same `characters` row per participant. `card` is null for a human/agent
 //  seat, no resolvable host, or a gone/mid-delete card.
 interface SeatDeco {
   /** The content-render policy (character override ?? global floor); the bare global floor for a card-less seat. */
@@ -107,8 +107,7 @@ export type ResolveSeatDecosOp = (params: {
  * `trigger_turn` arm and the Tier-2 plugin membrane's `turn.trigger` host-fn. The verb resolves the funding
  * host from the room itself (never a caller-supplied id), gates the initiator's membership, threads the origin
  * onto the reply slot, and runs the turn through the SAME engine path a human send clears — the per-chat turn
- * lock and the cascade-depth cap included. (The owner-consent and per-member budget belts this line used to
- * name left with the inference program §14 F13/F11; automation's own §3 rate gate is the surviving spend wall, and
+ * lock and the cascade-depth cap included. (Automation's own §3 rate gate is the spend wall, and
  * it sits in the arm above this op.)
  */
 export interface RequestTurnParams {

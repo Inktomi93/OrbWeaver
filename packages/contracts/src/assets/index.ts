@@ -314,7 +314,7 @@ export interface StoreParams {
   readonly kind: AssetKind;
   /** The claimed MIME. With `enforceMagic`, verified against the byte signature before reaching CAS. */
   readonly mime: string;
-  /** Verify the claimed mime against the magic bytes (invariant #6 — the upload boundary passes `true`).
+  /** Verify the claimed mime against the magic bytes (the upload boundary passes `true`).
    *  Omitted/`false` for trusted non-HTTP callers (DR rebuild, future import backfill). */
   readonly enforceMagic?: boolean;
   /** The hard cap on the byte length accepted into the CAS. Rejected BEFORE the blob is written
