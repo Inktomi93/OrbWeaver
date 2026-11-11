@@ -27,7 +27,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)](Spine-TypeScript-and-Patterns.md) | active |
 | [Orbweaver — `@orb/db`: the schema floor (drizzle + libSQL + migrations)](Tier-1-DB.md) | active |
 | [Orbweaver — `foundation`: the base tier (env-read · observability · residual config)](Tier-2-Foundation.md) | active |
-| [Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image · extraction · media)](Tier-3-Infra.md) | active |
+| [Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image · extraction · media · acme · relay · plugin-host · plugin-source · tasks · timers · upstream-update)](Tier-3-Infra.md) | active |
 | [Orbweaver — `@orb/inference`: the provider runtime (wires · providers · resolution · execution)](Tier-3b-Providers.md) | active |
 | [Orbweaver — `transport` (trpc · jobs): the thin drivers at the request edge](Tier-4-Transport.md) | active |
 | [Orbweaver — `entry`: the composition root](Tier-5-Entry.md) | active |
