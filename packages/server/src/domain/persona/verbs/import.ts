@@ -7,6 +7,7 @@
 // shape never carries avatarAssetId, so there is no asset-ownership guard to run here. NEVER throws for a
 // malformed file.
 
+import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import { nextFreeName } from "@orb/kit/strings";
 import { portableParseError } from "#primitives/serde/lib";
@@ -51,7 +52,7 @@ export function createImport(ctx: PersonaContext): PersonaService["import"] {
       description: backup.description,
       starred: backup.starred,
       avatarAssetId: null,
-      metadata: backup.metadata,
+      metadata: narrowPersonaMetadata(backup.metadata),
       createdAt: at,
       updatedAt: at,
     });

@@ -1,6 +1,15 @@
 // @subject packages/kit/src/json/index.ts
 import type { JsonValue } from "@orb/kit/json";
-import { boundedJsonObjectSchema, JSON_BOUND_REFUSALS, JSON_MAX_DEPTH, JSON_NOT_OBJECT, jsonObjectOf, jsonObjectSchema, parseJsonText } from "@orb/kit/json";
+import {
+  boundedJsonObjectSchema,
+  JSON_BOUND_REFUSALS,
+  JSON_MAX_DEPTH,
+  JSON_NOT_OBJECT,
+  jsonMemberSchema,
+  jsonObjectOf,
+  jsonObjectSchema,
+  parseJsonText,
+} from "@orb/kit/json";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
@@ -55,6 +64,16 @@ test("the bounded check refuses a value no JSON text can hold with its code", ()
     expect(refusalOf({ nested: [{ value }] })).toBe(NOT_JSON);
   }
   expect(refusalOf([])).toBe(JSON_NOT_OBJECT);
+});
+
+test("a member of a decoded object is checked by kind only, so decoded overflow and deep nesting pass and a non-JSON kind does not", () => {
+  const decoded = present(parseJsonText(`{"big":1e400,"deep":${"[".repeat(100_000)}1${"]".repeat(100_000)}}`));
+  for (const member of Object.values(decoded)) {
+    expect(jsonMemberSchema.parse(member)).toBe(member);
+  }
+  for (const value of [undefined, (): number => 1, Symbol("s"), 1n, new Date(0), new Map()]) {
+    expect(jsonMemberSchema.safeParse(value).error?.issues[0]?.message).toBe(NOT_JSON);
+  }
 });
 
 test("a node shared down every level is walked once, and is judged by its depth wherever it appears", () => {

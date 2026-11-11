@@ -12,9 +12,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
-import { DIALOG_VERBS, notify } from "#lib";
+import { cardImportPartialLine, cardImportRefusalLine, DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter } from "#state";
-import { cardImportPartialLine, cardImportRefusalLine } from "../lib/character-import-copy.ts";
 import { CHARACTER_IMPORT_NAME } from "../lib/character-names.ts";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";

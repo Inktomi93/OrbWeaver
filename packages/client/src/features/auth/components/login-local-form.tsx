@@ -10,19 +10,25 @@ import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, SyntheticEvent } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { login } from "#data";
-import { testId } from "#lib";
+import { testId, useFocusOnSwap } from "#lib";
 
 export interface LoginLocalFormProps {
   /** The seed-handle pre-fill (`/api/auth/config`); null under discreet login → start blank. */
   readonly defaultHandle: string | null;
   /** Fires after the session cookie is minted — the dispatcher navigates home. */
   readonly onLoggedIn: () => void;
+  /** Take focus on mount, on the password when a handle is prefilled and on the handle when none is. Off for the login page, which is not
+   *  a dialog opened to do this one thing. */
+  readonly takeFocus?: boolean;
 }
 
 /** Handle + password → `POST /api/auth/login` → the session cookie. */
-export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProps): ReactElement {
+export function LoginLocalForm({ defaultHandle, onLoggedIn, takeFocus = false }: LoginLocalFormProps): ReactElement {
+  const handleRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  useFocusOnSwap(defaultHandle === null ? handleRef : passwordRef, takeFocus);
   const [handle, setHandle] = useState(defaultHandle ?? "");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -47,12 +53,13 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProp
     <form aria-label="Sign in" onSubmit={onSubmit} data-testid={testId("loginLocalForm")}>
       <Stack gap="block">
         <Field label="Handle">
-          <Input autoComplete="username" value={handle} onValueChange={(value): void => setHandle(value)} data-testid={testId("loginHandle")} />
+          <Input autoComplete="username" ref={handleRef} value={handle} onValueChange={(value): void => setHandle(value)} data-testid={testId("loginHandle")} />
         </Field>
         <Field label="Password">
           <Input
             type="password"
             autoComplete="current-password"
+            ref={passwordRef}
             value={password}
             onValueChange={(value): void => setPassword(value)}
             data-testid={testId("loginPassword")}

@@ -2,9 +2,10 @@
 // Each schedule row's title, enable switch, Edit and Delete share one name built from its kind, cadence and, on another
 // user's row, its owner; `aria-checked` alone carries the state.
 import { testId } from "@orb/client/lib";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { UNRESOLVED_OWNER_HANDLE } from "#client/features/workloads/lib/workloads-model.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import {
   SCHEDULE_CADENCE_LABELS,
@@ -99,4 +100,38 @@ test("another user's schedule of the same kind and cadence is told apart by its 
   await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(foreign), exact: true })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("button", { name: scheduleEditName(foreign), exact: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: scheduleDeleteName(foreign), exact: true })).toHaveCount(1);
+});
+
+test("another user's schedule is never named as the viewer's own while the owner's handle is still loading", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const member = await root.actor();
+  const ownerCaller = await root.internalCallerFor(root.ownerId);
+  const memberCaller = await root.internalCallerFor(member.id);
+  await ownerCaller.workloads.createSchedule({ input: { kind: ADDED_KIND, params: {} }, mode: "singular", cadence: "daily", enabled: true });
+  await memberCaller.workloads.createSchedule({ input: { kind: ADDED_KIND, params: {} }, mode: "singular", cadence: "daily", enabled: false });
+  const users = trpcHold<"admin.listUsers">();
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(
+      ownerCaller,
+      READS.filter((read) => read !== "admin.listUsers"),
+    ),
+    "admin.listUsers": users,
+  });
+  await mount<typeof ScheduleDialogDismissalStory>(STORY, { width: 900 });
+  await users.requested;
+
+  const own: ScheduleIdentity = { kind: ADDED_KIND, cadence: "daily", ownerHandle: null };
+  const pending: ScheduleIdentity = { ...own, ownerHandle: UNRESOLVED_OWNER_HANDLE };
+  await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(own), exact: true })).toHaveCount(1);
+  await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(own), exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(pending), exact: true })).toHaveAttribute("aria-checked", "false");
+  for (const name of [scheduleEditName, scheduleDeleteName]) {
+    await expect(page.getByRole("button", { name: name(own), exact: true })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: name(pending), exact: true })).toHaveCount(1);
+  }
+
+  users.release(await ownerCaller.admin.listUsers());
+  const foreign: ScheduleIdentity = { ...own, ownerHandle: member.handle };
+  await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(foreign), exact: true })).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(pending), exact: true })).toHaveCount(0);
 });

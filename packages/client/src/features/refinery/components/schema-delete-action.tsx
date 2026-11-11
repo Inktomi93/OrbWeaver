@@ -3,7 +3,7 @@ import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { DestructiveAction } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { deleteConfirmTitle, notify } from "#lib";
+import { deleteConfirmTitle } from "#lib";
 import { useDeleteRefinerySchema } from "../hooks/use-refinery-schemas.ts";
 
 interface DeletableSchema {
@@ -22,11 +22,7 @@ export function DeleteSchemaAction({ schema, onDeleted }: { readonly schema: Del
   const invalidation = useInvalidation();
   const remove = useDeleteRefinerySchema({ trpc, invalidation, failureShownInline: "the delete-schema confirm's alert line" });
 
-  const deleteSchema = (): Promise<void> =>
-    remove.mutateAsync({ schemaId: schema.id }).then((): void => {
-      notify.success(`Deleted “${schema.name}”.`);
-      onDeleted();
-    });
+  const deleteSchema = (): Promise<void> => remove.mutateAsync({ schemaId: schema.id }).then(onDeleted);
 
   return (
     <DestructiveAction

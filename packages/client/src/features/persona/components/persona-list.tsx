@@ -63,7 +63,6 @@ export function PersonaList(): ReactElement {
   const onImportFile = async (file: File): Promise<void> => {
     try {
       const restored = await importPersona.mutateAsync({ fileText: await file.text() });
-      notify.success(`Restored “${restored.name}”.`);
       setExpandedId(restored.id);
     } catch (error) {
       // The SERVER's refusal reason, rendered as words — "written by a newer version of orbweaver" is a

@@ -3,3 +3,6 @@
 
 /** The folder picker's visible trigger. */
 export const IMPORT_FOLDER_NAME = "Import a folder…";
+
+/** The region that holds an import's outcome, whether it finished or was refused. */
+export const IMPORT_RESULT_NAME = "Import result";

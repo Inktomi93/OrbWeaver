@@ -5,9 +5,15 @@
 // through untouched. `scopeMode: "auto"` means "no override" — the mapper drops the key so the book
 // stays on the heuristic.
 
-import type { EntryMetadata, EntryView, UpdateEntryInput } from "@orb/contracts/world-info";
+import type { UpdateEntryInput } from "@orb/contracts/world-info";
+import type { JsonObject } from "@orb/kit/json";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { EntryPosition, EntryScopeMode } from "@orb/kit/world-info";
+import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
+
+/** One lore entry as the wire carries it: its metadata is the JSON the server sent, not the narrowed stored shape. */
+export type WorldEntry = inferOutput<Trpc["worldInfo"]["listEntries"]>[number];
 
 /** The flat, editor-facing shape of one lore entry (every contract field, the metadata blob unpacked). */
 export interface EntryFormValues {
@@ -50,7 +56,7 @@ export const NEW_ENTRY_FORM: EntryFormValues = {
 };
 
 /** Seed the form from a loaded entry view — unpack the typed `metadata` fields into flat controls. */
-export function entryFormFromEntity(entry: EntryView): EntryFormValues {
+export function entryFormFromEntity(entry: WorldEntry): EntryFormValues {
   const metadata = entry.metadata;
   const inject = metadata?.inject;
   return {
@@ -70,7 +76,7 @@ export function entryFormFromEntity(entry: EntryView): EntryFormValues {
 }
 
 /** Re-nest the flat form into the `updateEntry` input, PRESERVING any unknown metadata keys on `base`. */
-export function entryUpdateInputFromForm(values: EntryFormValues, base: EntryMetadata | null): UpdateEntryInput {
+export function entryUpdateInputFromForm(values: EntryFormValues, base: WorldEntry["metadata"]): UpdateEntryInput {
   return {
     title: values.title,
     description: values.description.trim() === "" ? null : values.description,
@@ -87,8 +93,8 @@ export function entryUpdateInputFromForm(values: EntryFormValues, base: EntryMet
  *  scope + a disabled inject OMIT their keys so the read path falls back to its defaults, never a pinned
  *  literal; every OTHER (unknown, ST-imported) key on `base` rides through untouched (rebuilt without the
  *  three managed keys rather than deleted — noDelete). */
-function buildMetadata(values: EntryFormValues, base: EntryMetadata | null): Record<string, unknown> {
-  const metadata: Record<string, unknown> = { position: values.position };
+function buildMetadata(values: EntryFormValues, base: WorldEntry["metadata"]): JsonObject {
+  const metadata: JsonObject = { position: values.position };
   for (const [key, value] of Object.entries(base ?? {})) {
     if (key !== "scopeMode" && key !== "inject" && key !== "position") {
       metadata[key] = value;

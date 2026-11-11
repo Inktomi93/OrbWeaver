@@ -15,7 +15,7 @@ Contributors need fast commits and a clean lint and dependency result before pub
 
 Pre-commit and pre-merge-commit run Biome on staged files and reject errors or warnings. The commit-message hook checks message format.
 
-Pre-push checks GitHub synchronization, full Biome, dependency-cruiser, full ESLint, both knip views, the full typecheck and the doc citation tests listed in `lefthook.yml`, in that order. Those tests hold law, rule and comment citations true; the other tests under `tests/tooling` stay hand-run. A merge can combine two clean branches into a tree that does not compile, so the push checks the whole compiler graph. Run these commands sequentially and stop on failure. ESLint includes the retained custom rules. Use native commands directly; do not introduce another verification wrapper.
+Pre-push checks GitHub synchronization, full Biome, dependency-cruiser, full ESLint, both knip views, the full typecheck and the repository integrity tests listed in `lefthook.yml`, in that order. Those tests hold law, rule and comment citations, the doc check, the container security config and the workflow and Dependabot agreements true; the other tests under `tests/tooling` stay hand-run. A merge can combine two clean branches into a tree that does not compile, so the push checks the whole compiler graph. Run these commands sequentially and stop on failure. ESLint includes the retained custom rules. Use native commands directly; do not introduce another verification wrapper.
 
 Run affected native compiler programs and behavioral tests during implementation. CI runs complete application static checks, Node tests, component tests and E2E smoke. Release approval remains subject to CI.
 

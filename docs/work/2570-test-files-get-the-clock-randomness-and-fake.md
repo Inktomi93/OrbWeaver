@@ -11,7 +11,7 @@ plan: checked-law
 
 ## What
 
-The test authoring checklist bans the wall clock, randomness and fake timers in tests. The ESLint clock selectors cover packages and skip tests, and the law census found test files that call vi.useFakeTimers, Math.random, Date.now and a bare new Date.
+The testing law bans the wall clock and randomness in tests and permits fake timers only for a subject that is a real setTimeout window no injected clock can drive. The ESLint clock selectors cover packages and skip tests, and the law census found test files that call Math.random, Date.now and a bare new Date. The authoring checklist states the fake timer rule more strictly than the law does.
 
 ## Why
 
@@ -19,7 +19,7 @@ A test that reads the wall clock or a random value is not deterministic, and the
 
 ## Done when
 
-ESLint selectors over tests refuse vi.useFakeTimers, Math.random, Date.now and an argument-free new Date, beside the existing test syntax block. Every existing site injects its clock or ids or is fixed, and the rule is on at zero with no file exemption. The checklist step names the rule.
+ESLint selectors over tests refuse Math.random, Date.now and an argument-free new Date, beside the existing test syntax block. Every existing site injects its clock or ids or is fixed, and the rule is on at zero with no file exemption. The checklist step on determinism matches the testing law's fake timer sentence and names the lint rule. Each fake timer site is listed with the real timer window it tests; that part of the ruling stays checked by review.
 
 ## Evidence
 

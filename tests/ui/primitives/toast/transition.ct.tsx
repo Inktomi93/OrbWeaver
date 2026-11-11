@@ -1,6 +1,6 @@
 import { ALERTS_REGION_NAME } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
-import type { ToastTransitionStory } from "./_transition-stories.tsx";
+import type { ToastGapStory, ToastTransitionStory } from "./_transition-stories.tsx";
 
 test("the toast transition names opacity, transform and translate", async ({ mount, page }) => {
   await mount<typeof ToastTransitionStory>("tests/ui/primitives/toast/_transition-stories/ToastTransitionStory");
@@ -74,4 +74,31 @@ test("the focused notice's complete outline clears its scrolling clip", async ({
   for (const side of [clearance.left, clearance.right, clearance.top, clearance.bottom]) {
     expect(side).toBeGreaterThanOrEqual(0);
   }
+});
+
+test("a page action under the stack's box between two notices still takes the press", async ({ mount, page }) => {
+  await mount<typeof ToastGapStory>("tests/ui/primitives/toast/_transition-stories/ToastGapStory");
+  const add = page.getByRole("button", { name: "Add toast", exact: true });
+  await add.click();
+  await add.click();
+  const notices = page.locator('[data-slot="toast-root"]');
+  await expect(notices).toHaveCount(2);
+  await expect.poll(() => page.evaluate(() => document.getAnimations().length)).toBe(0);
+  const [first, second] = await Promise.all([notices.nth(0).boundingBox(), notices.nth(1).boundingBox()]);
+  if (first === null || second === null) {
+    throw new Error("A notice has no box");
+  }
+  expect(second.y).toBeGreaterThan(first.y + first.height);
+  const gap = { x: first.x + first.width / 2, y: (first.y + first.height + second.y) / 2 };
+  const probe = page.getByRole("button", { name: "Probe action", exact: true });
+  await probe.evaluate((node, at) => {
+    const box = node.getBoundingClientRect();
+    node.style.position = "fixed";
+    node.style.insetInlineStart = `${String(at.x - box.width / 2)}px`;
+    node.style.insetBlockStart = `${String(at.y - box.height / 2)}px`;
+  }, gap);
+  // An unpolled read: a click retries until the notices expire and would pass over a stack that took the press.
+  expect(await probe.evaluate((node, at) => node.contains(document.elementFromPoint(at.x, at.y)), gap)).toBe(true);
+  await probe.click();
+  await expect(page.getByText("Presses: 1", { exact: true })).toBeVisible();
 });

@@ -7,6 +7,8 @@
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
+import type { JsonObject, NarrowedJsonObject } from "@orb/kit/json";
+import { jsonMemberSchema, jsonObjectSchema, narrowJsonObject } from "@orb/kit/json";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { z } from "zod";
 import type { CardFace, ResolvedCardFace } from "#card-face";
@@ -17,46 +19,60 @@ const TITLE_MAX_LENGTH = 200;
 // `descriptionPosition` drives the in-prompt-vs-at-depth-vs-none decision. `sourceCharacterId` +
 // `swapMacros` are the non-lossy `createFromCharacter` provenance: a persona minted from a card can
 // re-derive its description if the card is edited.
-export const personaMetadataSchema = z.looseObject({
-  descriptionPosition: z.enum(PERSONA_DESCRIPTION_POSITIONS).optional(),
-  /** Depth + role for the `at_depth` placement — the shared injection directive (`@orb/kit/injection`). */
-  inject: injectionDirectiveSchema.optional(),
-  sourceCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
-  swapMacros: z.boolean().optional(),
-  /** PROVENANCE: this row is the default-persona seeder's own artifact (`entry/boot/seed-default-persona`).
-   *  It is the seeder's SECOND idempotency layer — the persona analogue of the character seeder's
-   *  per-card handle-conflict tolerance, which is what kept the card pack single when the persisted
-   *  `onboarding.defaultPersonaSeeded` latch was lost mid-life and the persona seeder minted a duplicate
-   *. Personas carry no unique key by design (same-named personas are supported), so the
-   *  seeder marks what it made instead of guessing from name/title copy. Users never write it; the seeder
-   *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
-  seededDefault: z.boolean().optional(),
-});
-export type PersonaMetadata = z.infer<typeof personaMetadataSchema>;
+//
+// Unknown keys ride through as JSON (a stored row from another build keeps them). The `personas.metadata` column takes
+// only {@link narrowPersonaMetadata}'s output, so a writer cannot store an object it never narrowed.
+export const personaMetadataSchema = z
+  .object({
+    descriptionPosition: z.enum(PERSONA_DESCRIPTION_POSITIONS).exactOptional(),
+    /** Depth + role for the `at_depth` placement — the shared injection directive (`@orb/kit/injection`). */
+    inject: injectionDirectiveSchema.exactOptional(),
+    sourceCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
+    swapMacros: z.boolean().exactOptional(),
+    /** PROVENANCE: this row is the default-persona seeder's own artifact (`entry/boot/seed-default-persona`).
+     *  It is the seeder's SECOND idempotency layer — the persona analogue of the character seeder's
+     *  per-card handle-conflict tolerance, which is what kept the card pack single when the persisted
+     *  `onboarding.defaultPersonaSeeded` latch was lost mid-life and the persona seeder minted a duplicate
+     *. Personas carry no unique key by design (same-named personas are supported), so the
+     *  seeder marks what it made instead of guessing from name/title copy. Users never write it; the seeder
+     *  is the only producer, and nothing downstream branches on it except the seeder's own skip. */
+    seededDefault: z.boolean().exactOptional(),
+  })
+  .catchall(jsonMemberSchema);
+/** Persona metadata as a read or a view carries it: parsed, not narrowed for the column. */
+export type ParsedPersonaMetadata = z.infer<typeof personaMetadataSchema>;
+/** The value the `personas.metadata` column takes: only {@link narrowPersonaMetadata} produces one. */
+export type PersonaMetadata = NarrowedJsonObject<ParsedPersonaMetadata, "PersonaMetadata">;
 
-// Write-side metadata guard: the blob stays a lenient open record, but known fields are validated when
+/** The one narrowing of a written metadata object into {@link PersonaMetadata}. Every writer passes it: the write
+ *  schema hands out a plain {@link JsonObject}, and the column takes only this function's output.
+ *  @throws ZodError when a known field is out of shape, which the write schema already refused at the wire. */
+export function narrowPersonaMetadata(raw: JsonObject | null): PersonaMetadata | null {
+  return raw === null ? null : narrowJsonObject<"PersonaMetadata", ParsedPersonaMetadata>(personaMetadataSchema, raw);
+}
+
+// Write-side metadata guard: the blob stays an open JSON object, but known fields are validated when
 //  present so a typo'd `descriptionPosition`/`inject` is rejected at WRITE instead of silently no-op'ing.
 //
-//  WHY THE TWO HOPS AND NOT JUST `personaMetadataSchema` (audited — the loose schema alone accepts
-//  the identical set): the OPAQUE `Record<string, unknown>` OUTPUT is the point. It keeps the wire input
-//  UNNARROWED so every writer — transport AND the import domain, which never crosses this schema — must go
-//  through the ONE narrowing seam (`domain/persona/substrate/metadata.ts` `normalizeWriteMetadata`, typed on
-//  exactly this record). Collapsing to the loose schema would hand transport a pre-narrowed value and leave
-//  the import path shaped differently — two shapes into one seam.
+//  WHY THE TWO HOPS AND NOT JUST `personaMetadataSchema`: the plain `JsonObject` OUTPUT is the point. It keeps
+//  the wire input unnarrowed, so every writer (transport, the backup restore and the profile import, which never
+//  crosses this schema) reaches the column through the one narrowing seam, {@link narrowPersonaMetadata}.
+//  Collapsing to the read schema would hand transport a pre-narrowed value and leave the other writers shaped
+//  differently: two shapes into one seam.
 //
 //  The re-emit flattens every issue to `code:"custom"` and that is a KNOWN, ACCEPTED loss: forwarding the
 //  original (`ctx.addIssue(issue)`) works at runtime but does NOT typecheck on zod 4.4.3 — the finalized
 //  `$ZodIssue` arms lack the `[x: string]: unknown` index signature `$ZodRawIssue` requires (probed; TS2345),
 //  and the only way through is a cast this repo bans. `message` and `path` survive, which is what a client
 //  renders; only the machine-readable `code`/payload is lost.
-const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
+const personaMetadataWriteSchema = jsonObjectSchema.superRefine((val, ctx): void => {
   const known = personaMetadataSchema.safeParse(val);
   if (!known.success) {
     for (const issue of known.error.issues) {
       ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
     }
   }
-}) satisfies z.ZodType<Record<string, unknown>>;
+}) satisfies z.ZodType<JsonObject, Record<string, unknown>>;
 
 // The FACE fields spread `cardFaceFields` (D137(E) — one home, reference-equality-pinned); the wraps
 // (`description` bare = REQUIRED, starred/avatarAssetId `.optional()`) are persona's write semantics.
@@ -125,7 +141,7 @@ export interface PersonaDetail extends CardFace<string>, ResolvedCardFace<string
   readonly id: PersonaId;
   /** Display subtitle for pickers/lists — never injected into the prompt. */
   readonly title: string | null;
-  readonly metadata: PersonaMetadata | null;
+  readonly metadata: ParsedPersonaMetadata | null;
   readonly updatedAt: number;
 }
 
@@ -182,7 +198,7 @@ export interface PersonaListView {
   readonly ownerId: UserId;
   readonly name: string;
   readonly description: string;
-  readonly metadata: PersonaMetadata | null;
+  readonly metadata: ParsedPersonaMetadata | null;
 }
 
 /** Resolve the presentation surface of personas a room's PARTICIPANTS consent to.

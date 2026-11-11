@@ -17,6 +17,7 @@ export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
+export { CARD_IMPORT_FAILED_DETAIL, cardImportPartialLine, cardImportRefusalLine } from "./card-import-copy.ts";
 export type { ScreenTitle } from "./census-title.ts";
 export { censusSuffix, censusTitle } from "./census-title.ts";
 export {
@@ -199,6 +200,7 @@ export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.t
 export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { createOpenRequestChannel, useOpenRequests } from "./open-request-channel.ts";
+export { OS_PREFERENCE_LABELS } from "./os-preference-labels.ts";
 export type { OverflowMenuForm, OverflowMenuItem } from "./overflow-menu-form.ts";
 export { BAND_OVERFLOW_LABEL, TRAIL_OVERFLOW_LABEL } from "./overflow-names.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";

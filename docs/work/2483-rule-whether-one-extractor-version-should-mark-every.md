@@ -18,7 +18,7 @@ The owner is told to re-read documents that cannot change, and a large library p
 
 ## Done when
 
-The ruling stands with its reason recorded on this item, or the stamp becomes per format so a loader change marks only its own documents stale, with the sweep test updated.
+Owner ruling: the stamp becomes per format. A loader change marks only its own documents stale, the databank banner counts only those, and the sweep test proves a pdf loader bump leaves other formats untouched.
 
 ## Evidence
 

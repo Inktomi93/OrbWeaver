@@ -3,6 +3,8 @@
 // default_persona, keyed by avatar filename); this maps their description placement onto our persona
 // metadata blob so the description lands in the same spot on re-send.
 
+import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
+import type { JsonObject } from "@orb/kit/json";
 import { messageRoleFromSt } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { z } from "zod";
@@ -45,7 +47,7 @@ function stPositionToPlacement(rawPos: number): PersonaDescriptionPosition | nul
 }
 
 /** Returns null when there's no placement to record (absent descriptor or plain in_prompt default). */
-function metadataFromDescriptor(descriptor: Record<string, unknown> | null): Record<string, unknown> | null {
+function metadataFromDescriptor(descriptor: Record<string, unknown> | null): JsonObject | null {
   if (descriptor === null) {
     return null;
   }
@@ -58,11 +60,12 @@ function metadataFromDescriptor(descriptor: Record<string, unknown> | null): Rec
     return { descriptionPosition: "none" };
   }
   // Only ST's real AT_DEPTH carries depth/role; TOP_AN/BOTTOM_AN take the at-depth defaults.
-  const meta: Record<string, unknown> = { descriptionPosition: "at_depth" };
+  const meta: JsonObject = { descriptionPosition: "at_depth" };
   if (rawPos === ST_AT_DEPTH) {
     const depth = descriptorNumberSchema.parse(descriptor["depth"]);
     const role = messageRoleFromSt(descriptor["role"]);
-    if (Number.isInteger(depth) && depth >= 0) {
+    // A depth past the injection cap takes the at-depth default rather than refusing the persona at the narrowing.
+    if (Number.isInteger(depth) && depth >= 0 && depth <= MAX_INJECTION_DEPTH) {
       meta["inject"] = { depth, ...(role !== null ? { role } : {}) };
     }
   }
