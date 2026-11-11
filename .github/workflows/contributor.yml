@@ -127,7 +127,7 @@ jobs:
       - name: Generated file freshness
         id: generated-freshness
         if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
-        run: pnpm test:tools tests/tooling/generated-css-drift.repo.int.test.ts
+        run: pnpm test tests/ui/styles/generated-theme-drift.repo.int.test.ts
       - name: Restore the Windows Defender scope
         if: always() && runner.os == 'Windows' && steps.defender.outcome == 'success'
         shell: pwsh
