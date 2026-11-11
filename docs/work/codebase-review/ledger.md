@@ -1,17 +1,21 @@
 # Codebase review ledger
 
 Log-only sweep of the whole repository. The ledger is the review; the conversation is disposable.
+Unit records live in `units/<id>.md`, where `<id>` is the Unit column below. The index holds
+protocol and status only; findings live in the unit file.
 
 ## Protocol
 
 1. Resume: read this file, take the first `in-progress` unit, else the first `queued` unit. Trust no
    summary from a previous session that is not written here.
-2. Per unit, in order: run the sweeps, paste raw output under the unit; read the unit's `contract/`
-   in full and every file header; targeted-read only where a sweep or header raises a question.
-3. Write every finding into the unit's section the moment it is found, with a path and line. Commit
-   the ledger between units. Never carry a finding in context across units.
+2. Per unit, in order: run the sweeps, paste raw output into the unit file; read the unit's
+   `contract/` in full and every file header; targeted-read only where a sweep or header raises a
+   question.
+3. Write every finding into the unit file the moment it is found, with a path and line. Commit the
+   ledger and the unit file between units. Never carry a finding in context across units.
 4. Mark the unit `reviewed` only when its sweep output and findings are committed.
-5. No fixes during the sweep. Triage and fixing are a later program; this ledger is its input.
+5. No fixes during the sweep. Comment truthing on the chunk under review is part of the unit
+   (`.claude/rules/comments.md` rule 5); logic and test fixes are a later program.
 
 Unit bands are size classes for splitting work, not tracked values. Recompute with `tokei <path> -o json`.
 
@@ -24,7 +28,7 @@ Unit bands are size classes for splitting work, not tracked values. Recompute wi
 
 Statuses: `queued`, `in-progress`, `reviewed (N)`, `blocked (reason)`.
 
-Finding format, one bullet per finding:
+Finding format in unit files, one bullet per finding:
 
 ```text
 [severity] path:line — defect in one sentence — suggested direction.
@@ -38,9 +42,12 @@ Severities:
 | P2 | Law or architecture violation (placement, direction, contract home, hatch) |
 | P3 | Hygiene: naming, magic strings, dead code, noise |
 
+Fixed status markers inside findings: `FIXED` when the unit change itself cleaned it, otherwise the
+finding is open for triage.
+
 ## Fixed axes
 
-Every unit gets the same axes so the tail of the ledger is rankable.
+Every unit gets the same axes so the rollup is rankable.
 
 1. Import direction and package tiers; sideways domain imports.
 2. Placement against the homes table in `AGENTS.md`; re-declared shapes.
@@ -51,17 +58,19 @@ Every unit gets the same axes so the tail of the ledger is rankable.
 6. Scope: tables reached without the FK chain from the Principal.
 7. Tests in the slice: assertions that pass when contents are wrong, nondeterminism without clock or
    id injection, coverage of every persistence verb.
-8. Half-migrations: a shape changed in one home and not its coupled homes.
+8. Half-migrations and stale prose: a shape changed in one home and not its coupled homes; comments
+   and docs citing files that moved or are untracked (`rg tests/legacy` before closing any unit).
 
 ## Sweep commands
 
-Run scoped to the unit; paste output raw.
+Run scoped to the unit; paste output raw into the unit file.
 
 ```bash
 rg -n '\bany\b|eslint-disable|@ts-|TODO|FIXME' <unit>/
 rg -n "from '\.\./(?!')[a-z-]+" <unit>/        # sideways or upward relative imports, eyeball
 pnpm depcruise                                    # whole-tree; attribute hits to the unit
 rg -n '\.length\)\.toBe|\btoMatchInlineSnapshot' <unit-tests>/   # weak assertions
+rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 retirement
 ```
 
 ## Units
@@ -70,7 +79,7 @@ rg -n '\.length\)\.toBe|\btoMatchInlineSnapshot' <unit-tests>/   # weak assertio
 
 | Unit | Path | Band | Status |
 | - | - | - | - |
-| root-config | package.json, pnpm-workspace.yaml, tsconfig\*{.base,.node,.tests-dom,.tests-iso,.world-browser,.world-node,.json}, .editorconfig, .gitattributes, .env.example | M | reviewed (4) |
+| root-config | package.json, pnpm-workspace.yaml, tsconfig\*{.base,.node,.tests-dom,.tests-iso,.world-browser,.world-node,.json}, .editorconfig, .gitattributes, .env.example | M | reviewed (7) |
 | root-lint-configs | biome.json, eslint.config.ts, eslint-plugins.d.ts, stylelint\*.{ts}, jscpd.json, knip.ts, .dependency-cruiser.ts, lefthook.yml, stryker.config.ts, vitest\*.ts, playwright\*.config.ts, codegraph.json, .mcp.json, .markdownlint.json | L | queued |
 | root-dts | aggregator-assets.d.ts, platform\*.d.ts, reset.d.ts — loose ambient types at root | S | queued |
 | install-run | install.sh/.cmd, start.sh/.cmd, update.sh/.cmd, Dockerfile, docker-compose.yaml, .dockerignore, docker/ | M | queued |
@@ -206,78 +215,16 @@ Other test trees ride their slice units. `tests/support` is where test rot compo
 | motion-brand-audit | tooling/src/motion-audit/, tooling/src/brand-flow/ | S | queued |
 | e2e | tests/e2e/ + playwright configs' runtime behavior | L | queued |
 
-## Unit records
+## Rollup
 
-### root-config — reviewed
+Triage fills this.
 
-Sweeps and reads: `package.json`, `pnpm-workspace.yaml`, all seven root tsconfigs, `.editorconfig`,
-`.gitattributes`, `.env.example` read in full. `.editorconfig` matches `biome.json` (2/160/lf confirmed
-at `biome.json:36-38`). `pnpm format:docs` reports 0/625 to fix.
+| Severity | Open | Fixed in-unit | Units affected |
+| - | - | - | - |
+| P1 | 0 | 0 | - |
+| P2 | 3 | 0 | root-config |
+| P3 | 1 | 3 | root-config |
 
-- \[P2] `pnpm-workspace.yaml:169-171` — the undici comment says the package is "Mirrored into root
-  devDependencies so that test can import this exact package" and names the SSRF dispatcher tripwire as
-  `tests/legacy/server/infra/network/dispatcher-contract.suite.int.test.ts`. Both claims are false:
-  `package.json:78-162` has no undici (`node -e import('undici')` fails from root), `tests/legacy/` does
-  not exist in the repo (removed by `821e8f8dff`), and the suite lives only in the reference-only pile
-  `orbweaver-legacy-tests-2026-10-21`. The global-dispatcher handoff the comment itself calls "A SECURITY
-  BUG, NOT A CHORE" if it silently breaks has no in-repo tripwire. `tests/tooling/root-development-dependencies.test.ts`
-  passes and does not name undici. Direction: port the tripwire into `tests/server/infra/network/`,
-  re-declare undici at root for it, and fix the comment; or accept the contract unpinned and say so.
-  Covered: `rg undici package.json`, `rg -l dispatcher-contract|setGlobalDispatcher tests/ packages/`
-  (only `infra/network/egress.ts` consumes the dispatcher), legacy-pile listing.
-- \[P3] `pnpm-workspace.yaml:244` — comment argues "not .23" for `lucide-react` against a `^1.22` pin;
-  the pin is `^1.61.0`. `pnpm-workspace.yaml:344-346` — comment argues `^8.1.2` for `vite`; the pin is
-  `^8.3.5`. In a catalog whose comments are the pin rationales, a frozen rationale misleads the next bump.
-- \[P3] `package.json:9` — `engines.node` floor is `>=26.3.0` while `@types/node` is `^26.6.5`; code may
-  typecheck against 26.4-26.6-only APIs and fail at runtime on a floor legal Node. `devEngines` downloads
-  26.11.1 for pnpm-aware users, so this bites bare `node` and CI matrices. Raise the floor to the types floor.
-- \[P3] `tsconfig.node.json:19` — `"packages/*/*"` relies on wildcard include patterns matching files only,
-  not recursing matched directories: it resolves to thirteen depth-2 build/config files and zero package
-  `src` or `dist` files (`tsc --showConfig` files array, `--listFiles` roster confirms; the five
-  `packages/server/dist/router-types/*.d.ts` in the program arrive via imports, not include). Working as
-  presumably intended, undocumented in a repo that paragraphs every other subtlety. One comment line.
-
-Retracted during the unit: `@sentry/node` packageExtensions looked dead; they are live
-(27 lockfile mentions — the first grep ate the pattern with `rg -r`'s replacement flag).
-
-Cleanup applied (comment truthing per `.claude/rules/comments.md` rule 5 and the no-history budget):
-the undici comment now states the real state — the handoff is unpinned and the port is tracked here —
-instead of claiming a root mirror that does not exist and citing an untracked retired test path.
-The stale `lucide-react`/`vite` pin rationales and the scaffold-date line are deleted. The
-`tsconfig.base.json` incremental block keeps the trap and the re-enable proof, lost its dates,
-incident story, and issue-number citations (banned by the comment law). `tsconfig.node.json`'s
-`"packages/*/*"` got its one-line semantics comment. `.env.example` lost its `#301` citation.
-Verified: full `pnpm typecheck` exit 0; `comment-path-citations.repo.int.test.ts`,
-`root-development-dependencies.test.ts`, `node-heap.int.test.ts` pass; biome clean.
-
-- \[P2] `tests/tooling/doc/comment-path-citations.repo.int.test.ts:16` — `SCANNED_ROOTS` is
-  `["packages","tooling","tests"]`, so root configs and `scripts/` are never read and their comments
-  may cite deleted files forever — the exact rot just cleaned from `pnpm-workspace.yaml`.
-  `HASH_COMMENT_EXTS` already handles `.yaml`, so adding the roots is a set edit, not a parser edit.
-
-- \[P3] FIXED in the comment sweep: dated archaeology elsewhere in the catalog (`2026-09-20`,
-  `2026-08-14`, `F9 settled 2026-09-19`, and friends). Whole-yaml pass applied: dates, issue numbers
-  (`#1195`, `#1300`, `#0081`, stryker PR ids), inventory counts ("41 calls in 14 days"), "docs said
-  v4" comparisons, "was transitive" history voice, and a banned `load-bearing` are gone; every
-  rationale kept. Dead-path cites fixed while in there: `proposed/ui-package-design.md` →
-  `docs/law/ui-package-design.md`, and `tests/tooling/snap/ops/lighthouse.int.test.ts` →
-  `tests/tooling/snap/ops/arms/lighthouse.int.test.ts` (moved path). Verified: full violation grep
-  empty, biome clean, the suites that read the yaml plus the citation gate pass.
-
-- \[P2] `pnpm-workspace.yaml` inference block (before the sweep) — same disease as undici, one layer
-  up: the catalog says every provider bump "re-runs the wire-capture byte pins under
-  `tests/legacy/inference/backends/{anthropic-messages,openai-compat}/chat.test.ts` before it is
-  trusted", but those suites exist only in the reference-only legacy pile; no in-repo suite holds the
-  per-transport byte pins. The brace in the path would also read as a prose pattern even to the
-  citation gate. The comment now states the real state and points here; porting the byte-pin suites
-  is the open work, together with the undici tripwire.
-
-## Findings index
-
-Triage fills this. Roll up per severity as units complete.
-
-| Severity | Count | Units affected |
-| - | - | - |
-| P1 | - | - |
-| P2 | - | - |
-| P3 | - | - |
+Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
+those suites and never re-pointed the prose, and the citation gate
+(`tests/tooling/doc/comment-path-citations.repo.int.test.ts`) does not scan root files or `scripts/`.
