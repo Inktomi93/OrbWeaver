@@ -6,7 +6,7 @@ priority: P3
 area: contracts
 ---
 
-# The background-unavailable refusal code has no shared home across its two domains
+# The background-unavailable refusal code has no shared home across the domains that throw it
 
 ## What
 
