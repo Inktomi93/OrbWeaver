@@ -1,7 +1,7 @@
 // Import identity through the real doors: the Characters dialog upload and the profile-folder tree upload.
 // A JSON card and its PNG are one character, the same text under other art is a second, a repeated embedded book
 // name gets a numbered twin, a world name-link binds the book its own import landed, and a folder split into
-// uploads mints each persona once.
+// uploads mints each persona once. A card's leftover vendor fields import as JSON text decodes them, however odd.
 // @subject packages/server/src/entry/http/upload.ts
 // @subject packages/server/src/entry/http/import-tree.ts
 // @subject packages/server/src/entry/import/run-profile-import.ts
@@ -283,4 +283,43 @@ test("a card's world name-link binds the book its own import landed, whatever na
 
   expect((await caller.worldInfo.listBooks()).map((b) => b.name).toSorted()).toEqual(["Ashlands", "Eldoria"]);
   expect(await linksOf("Cato")).toEqual([{ id: renamed, role: "primary" }]);
+});
+
+// JSON text decodes an overflowing number literal to `Infinity` (stored as null) and nests as deep as its author
+// wrote; neither is a reason to refuse the card that carries it.
+const RESIDUE_DEPTH = 2500;
+function residueCard(name: string, vendorJson: string): string {
+  return `{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":${JSON.stringify(name)},"description":"${name} keeps odd notes.","first_mes":"Hello.","extensions":{"vendor":${vendorJson}}}}`;
+}
+const OVERFLOW = residueCard("Overflow Keeper", "1e400");
+const DEEP = residueCard("Deep Keeper", `${"[".repeat(RESIDUE_DEPTH)}1${"]".repeat(RESIDUE_DEPTH)}`);
+
+test("a card whose leftover fields overflow a number or nest deep imports through the Characters dialog", async () => {
+  await using root = await harness();
+
+  for (const [file, text] of [
+    ["overflow.json", OVERFLOW],
+    ["deep.json", DEEP],
+  ] as const) {
+    const result = await dialog(root, file, text);
+    expect(result.failed, file).toEqual([]);
+    expect(result.imported[0], file).toMatchObject({ created: true });
+  }
+  expect(await charactersNamed(root, "Overflow Keeper")).toBe(1);
+  expect(await charactersNamed(root, "Deep Keeper")).toBe(1);
+});
+
+test("a profile folder imports an overflowing and a deep card beside a good one", async () => {
+  await using root = await harness();
+
+  await uploadTree(root, {
+    [ST_SETTINGS_FILE]: "{}",
+    "characters/Good.png": writeCardChunk(art(root), card("Good Keeper")),
+    "characters/Overflow.png": writeCardChunk(art(root), OVERFLOW),
+    "characters/Deep.png": writeCardChunk(art(root), DEEP),
+  });
+
+  for (const name of ["Good Keeper", "Overflow Keeper", "Deep Keeper"]) {
+    expect(await charactersNamed(root, name), name).toBe(1);
+  }
 });

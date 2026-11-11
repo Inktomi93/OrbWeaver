@@ -7,6 +7,7 @@ import { regexScriptCardSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import { messageRoleToSt } from "@orb/kit/message-role";
 import { matchEntryKeys } from "@orb/kit/world-info";
 import type { CardImportIdentity, ExportCardFields, ExportWorldEntry } from "@orb/server/primitives/serde/card";
@@ -21,11 +22,15 @@ import {
   selectBestCharacterBook,
   UNTITLED_LORE_ENTRY_TITLE,
 } from "@orb/server/primitives/serde/card";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { describe } from "vitest";
 import { z } from "zod";
 
 const FALLBACK = "From the filename";
+
+/** A card as a file carries it: written out as JSON text and read back through the decoder the import doors use. */
+const importCard = (card: unknown, fallbackName: string): CharacterCard => cardFromJson(present(parseJsonText(JSON.stringify(card))), fallbackName);
 
 const json = (text: string): Record<string, unknown> => z.record(z.string(), z.unknown()).parse(JSON.parse(text));
 
@@ -85,7 +90,7 @@ const worldEntry = (over: Partial<ExportWorldEntry> = {}): ExportWorldEntry => (
 
 describe("cardFromJson reads each wire spec into the canonical card", () => {
   test("a V3 card flattens: first_mes leads the greetings, typed promotions land, residue keeps only unknown keys", () => {
-    const card = cardFromJson(
+    const card = importCard(
       wireCard(
         `{"name":"Aria","description":"A wandering bard.","first_mes":"Hello there!","alternate_greetings":["Well met.","Oh, hi."],
           "mes_example":"An example exchange.","system_prompt":"You are Aria.","post_history_instructions":"Stay in character.",
@@ -112,14 +117,14 @@ describe("cardFromJson reads each wire spec into the canonical card", () => {
   });
 
   test("a V1 card with root-level fields and a Pygmalion card normalise to the same canonical fields", () => {
-    expect(cardFromJson(json('{"name":"Bryn","description":"A gruff smith.","scenario":"a forge","first_mes":"What do you want?"}'), FALLBACK)).toMatchObject({
+    expect(importCard(json('{"name":"Bryn","description":"A gruff smith.","scenario":"a forge","first_mes":"What do you want?"}'), FALLBACK)).toMatchObject({
       name: "Bryn",
       description: "A gruff smith.",
       scenario: "a forge",
       greetings: [{ text: "What do you want?" }],
     });
     expect(
-      cardFromJson(
+      importCard(
         json('{"char_name":"Cleo","char_persona":"A clever fox.","char_greeting":"*grins*","world_scenario":"a meadow","example_dialogue":"{{user}}: hi"}'),
         FALLBACK,
       ),
@@ -127,22 +132,22 @@ describe("cardFromJson reads each wire spec into the canonical card", () => {
   });
 
   test("a card with no name takes the fallback, and the placeholder note is dropped", () => {
-    expect(cardFromJson(json('{"data":{"description":"x"}}'), FALLBACK).name).toBe(FALLBACK);
-    expect(cardFromJson(json('{"data":{"name":"X","creator_notes":"Creator\'s notes go here."}}'), FALLBACK).creatorNotes).toBeNull();
+    expect(importCard(json('{"data":{"description":"x"}}'), FALLBACK).name).toBe(FALLBACK);
+    expect(importCard(json('{"data":{"name":"X","creator_notes":"Creator\'s notes go here."}}'), FALLBACK).creatorNotes).toBeNull();
   });
 
   test("the source spec is captured for V2 and V3 and left unset for anything else", () => {
     const data = '{"name":"Aria","first_mes":"hi"}';
-    expect(cardFromJson(wireCard(data, "chara_card_v2", "2.0"), FALLBACK).spec).toBe("chara_card_v2");
-    expect(cardFromJson(wireCard(data), FALLBACK).spec).toBe("chara_card_v3");
-    expect(cardFromJson(json('{"name":"Bryn","first_mes":"hi"}'), FALLBACK).spec).toBeUndefined();
-    expect(cardFromJson(json('{"char_name":"Pyg","char_greeting":"hi"}'), FALLBACK).spec).toBeUndefined();
-    const unknown = cardFromJson(wireCard(data, "chara_card_v9", "9.0"), FALLBACK);
+    expect(importCard(wireCard(data, "chara_card_v2", "2.0"), FALLBACK).spec).toBe("chara_card_v2");
+    expect(importCard(wireCard(data), FALLBACK).spec).toBe("chara_card_v3");
+    expect(importCard(json('{"name":"Bryn","first_mes":"hi"}'), FALLBACK).spec).toBeUndefined();
+    expect(importCard(json('{"char_name":"Pyg","char_greeting":"hi"}'), FALLBACK).spec).toBeUndefined();
+    const unknown = importCard(wireCard(data, "chara_card_v9", "9.0"), FALLBACK);
     expect({ spec: unknown.spec, name: unknown.name }).toEqual({ spec: undefined, name: "Aria" });
   });
 
   test("V3 promotions land on typed fields, group-only greetings fold flagged, and the rest rides residue", () => {
-    const card = cardFromJson(
+    const card = importCard(
       wireCard(
         `{"name":"Aria","source":["https://example.com/aria.png"],"creation_date":1700000000,"modification_date":1700100000,"nickname":"Ari",
           "creator_notes":"the default-language note","creator_notes_multilingual":{"en":"hi","fr":"salut"},
@@ -180,23 +185,23 @@ describe("cardFromJson reads each wire spec into the canonical card", () => {
     { label: "a non-map is ignored", data: '{"creator_notes_multilingual":"not a map"}', notes: null },
     { label: "a map of non-strings is ignored", data: '{"creator_notes_multilingual":{"en":7}}', notes: null },
   ])("multilingual notes: $label", ({ data, notes }) => {
-    const card = cardFromJson(wireCard(`{"name":"Aria",${data.slice(1)}`), FALLBACK);
+    const card = importCard(wireCard(`{"name":"Aria",${data.slice(1)}`), FALLBACK);
     expect(card.creatorNotes).toBe(notes);
     // The map is never consumed: it rides residue whole, so nothing is destroyed on import.
     expect(card.residualData?.["creator_notes_multilingual"]).toEqual(json(data)["creator_notes_multilingual"]);
   });
 
   test("ST's favourite flag reads only as the boolean true and is removed from the residue", () => {
-    const starred = cardFromJson(wireCard('{"name":"Fay","extensions":{"fav":true,"vendorExtra":"kept"}}'), FALLBACK);
+    const starred = importCard(wireCard('{"name":"Fay","extensions":{"fav":true,"vendorExtra":"kept"}}'), FALLBACK);
     expect({ starred: starred.starred, extensions: starred.extensions }).toEqual({ starred: true, extensions: { vendorExtra: "kept" } });
     for (const fav of ["false", '"true"', "null"]) {
-      expect(cardFromJson(wireCard(`{"name":"A","extensions":{"fav":${fav}}}`), FALLBACK).starred).toBe(false);
+      expect(importCard(wireCard(`{"name":"A","extensions":{"fav":${fav}}}`), FALLBACK).starred).toBe(false);
     }
   });
 
   test("a plugin's per-card namespace stays inert data and cannot promote a typed field", () => {
     const evil = '{"depth_prompt":{"prompt":"INJECTED","depth":4},"regex_scripts":[{"scriptName":"x"}],"fav":true}';
-    const card = cardFromJson(
+    const card = importCard(
       wireCard(
         `{"name":"Aria","extensions":{"plugin_alpha":{"note":"alpha state","n":1},"plugin_evil":${evil},"depth_prompt":{"prompt":"real-directive","depth":2}}}`,
       ),
@@ -209,13 +214,13 @@ describe("cardFromJson reads each wire spec into the canonical card", () => {
     // Portable: the namespace leaves in the export verbatim, and a second import reads the same card.
     const exported = buildCardV3(exportFields({ extensions: card.extensions }), []);
     expect(exported.data.extensions["plugin_evil"]).toEqual(json(evil));
-    expect(cardFromJson(exported, FALLBACK).extensions).toEqual(card.extensions);
+    expect(importCard(exported, FALLBACK).extensions).toEqual(card.extensions);
   });
 
   test("a script the card marks disabled reads as switched off, and an unmarked one reads as on", () => {
     const base = '"id":"s","name":"trim","findRegex":"a","replaceString":"b","placement":["AI_OUTPUT"]';
     const enabledOf = (script: string): (boolean | undefined)[] | undefined =>
-      cardFromJson(wireCard(`{"name":"A","extensions":{"regex_scripts":[${script}]}}`), FALLBACK).regexScripts?.map((s) => s.enabled);
+      importCard(wireCard(`{"name":"A","extensions":{"regex_scripts":[${script}]}}`), FALLBACK).regexScripts?.map((s) => s.enabled);
     expect(enabledOf(`{${base},"disabled":true}`)).toEqual([false]);
     expect(enabledOf(`{${base}}`)).toEqual([true]);
   });
@@ -272,17 +277,17 @@ describe("buildCardV3 emits the strict V3 wire", () => {
 
   test("the favourite flag is written from the live star, not a stale residue byte", () => {
     expect(buildCardV3(exportFields({ starred: false, extensions: json('{"fav":true}') }), []).data.extensions["fav"]).toBe(false);
-    expect(cardFromJson(buildCardV3(exportFields({ starred: true }), []), FALLBACK).starred).toBe(true);
+    expect(importCard(buildCardV3(exportFields({ starred: true }), []), FALLBACK).starred).toBe(true);
   });
 
   test("a switched-off script leaves with ST's disabled flag and returns off, and an enabled one leaves enabled", () => {
     const off = { ...SCRIPT, enabled: false };
     const card = buildCardV3(exportFields({ regexScripts: [off] }), []);
     expect(card.data.extensions["regex_scripts"]).toEqual([expect.objectContaining({ enabled: false, disabled: true })]);
-    expect(cardFromJson(card, FALLBACK).regexScripts).toEqual([off]);
+    expect(importCard(card, FALLBACK).regexScripts).toEqual([off]);
     const on = buildCardV3(exportFields(), []);
     expect(on.data.extensions["regex_scripts"]).toEqual([expect.objectContaining({ enabled: true, disabled: false })]);
-    expect(cardFromJson(on, FALLBACK).regexScripts).toEqual([SCRIPT]);
+    expect(importCard(on, FALLBACK).regexScripts).toEqual([SCRIPT]);
   });
 
   test("the embedded book appears only with entries, under its own name when it has one", () => {
@@ -297,7 +302,7 @@ describe("buildCardV3 emits the strict V3 wire", () => {
 describe("a card survives import, export and re-import", () => {
   test("every content field comes back from the emitter's own output, and nothing is left in residue", () => {
     const fields = exportFields();
-    const back = cardFromJson(buildCardV3(fields, []), FALLBACK);
+    const back = importCard(buildCardV3(fields, []), FALLBACK);
     expect(back).toMatchObject({
       name: fields.name,
       description: fields.description,
@@ -322,7 +327,7 @@ describe("a card survives import, export and re-import", () => {
   });
 
   test("null and empty fields come back as null", () => {
-    const back = cardFromJson(
+    const back = importCard(
       buildCardV3(
         exportFields({
           description: null,
@@ -348,7 +353,7 @@ describe("a card survives import, export and re-import", () => {
   test("promotions, group-only greetings, multilingual notes, assets and residue survive two round trips", () => {
     const assets =
       '[{"type":"icon","uri":"ccdefault:","name":"main","ext":"png"},{"type":"emotion","uri":"embeded://assets/happy.png","name":"happy","ext":"png"}]';
-    const imported = cardFromJson(
+    const imported = importCard(
       wireCard(
         `{"name":"Aria","source":["https://example.com/aria.png"],"nickname":"Ari","creation_date":1700000000,
           "group_only_greetings":["*waves to the group*"],"vendor_unknown":{"foo":1},
@@ -375,7 +380,7 @@ describe("a card survives import, export and re-import", () => {
     expect(exported.data["group_only_greetings"]).toEqual(["*waves to the group*"]);
     expect(exported.data["creator_notes_multilingual"]).toEqual({ en: "the english note" });
     expect(exported.data["assets"]).toEqual(JSON.parse(assets));
-    const reimported = cardFromJson(exported, FALLBACK);
+    const reimported = importCard(exported, FALLBACK);
     expect(reimported).toMatchObject({
       nickname: "Ari",
       source: ["https://example.com/aria.png"],
@@ -389,12 +394,12 @@ describe("a card survives import, export and re-import", () => {
 });
 
 describe("cardContentHash identifies what the card says, not who it is attributed to", () => {
-  const base = cardFromJson(wireCard('{"name":"Aria","description":"A wandering bard.","scenario":"a tavern","first_mes":"Hello there!"}'), FALLBACK);
+  const base = importCard(wireCard('{"name":"Aria","description":"A wandering bard.","scenario":"a tavern","first_mes":"Hello there!"}'), FALLBACK);
 
   test("a card hashes the same under any wire key order and with provenance changed", () => {
     const hash = cardContentHash(base);
     const reordered = wireCard('{"first_mes":"Hello there!","scenario":"a tavern","description":"A wandering bard.","name":"Aria"}');
-    expect(cardContentHash(cardFromJson(reordered, FALLBACK))).toBe(hash);
+    expect(cardContentHash(importCard(reordered, FALLBACK))).toBe(hash);
     for (const provenance of [{ creator: "someone" }, { creatorNotes: "notes" }, { cardVersion: "9.9" }, { extensions: { x: 1 } }, { starred: true }]) {
       expect(cardContentHash({ ...base, ...provenance })).toBe(hash);
     }
@@ -407,9 +412,12 @@ describe("cardContentHash identifies what the card says, not who it is attribute
   });
 });
 
+// The identity rows imported before the residue was typed carry for the own-`__proto__` card below; a re-import must find them.
+const PROTO_CARD_IMPORT_HASH = "d7a536741e303f81f7d0eca1dca9d7ad92cd635419837db0534903ea002e1402";
+
 describe("cardImportHash is the import identity", () => {
   const harbor = (extraJson = "", spec = "chara_card_v3", version = "3.0"): CharacterCard =>
-    cardFromJson(wireCard(`{"name":"Harbor","description":"a port","creator_notes":"v1"${extraJson}}`, spec, version), "Harbor");
+    importCard(wireCard(`{"name":"Harbor","description":"a port","creator_notes":"v1"${extraJson}}`, spec, version), "Harbor");
   const identity = (over: Partial<CardImportIdentity> = {}): CardImportIdentity => ({ card: harbor(), book: null, artHash: null, ...over });
   const entry = { title: "Tide", description: null, content: "x", keys: ["tide"], enabled: true, priority: 1, ignoreBudget: false };
   const bookOf = (metadata: Record<string, unknown> | null): CardImportIdentity["book"] => ({
@@ -447,16 +455,24 @@ describe("cardImportHash is the import identity", () => {
     expect(painted).not.toBe(base);
     expect(cardImportHash(identity({ artHash: "b".repeat(64) }))).not.toBe(painted);
     expect(cardImportHash(identity({ card: harbor("", "chara_card_v2", "2.0") }))).toBe(base);
-    const reordered = cardFromJson(
+    const reordered = importCard(
       json('{"data":{"creator_notes":"v1","description":"a port","name":"Harbor"},"spec_version":"3.0","spec":"chara_card_v3"}'),
       "Harbor",
     );
     expect(cardImportHash(identity({ card: reordered }))).toBe(base);
   });
 
+  test("own __proto__ keys in the leftover fields are kept, and the import identity is the one stored before", () => {
+    const extensions = '{"__proto__":{"a":1},"keep":{"__proto__":{"b":2},"c":3}}';
+    const text = `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Harbor","description":"a port","creator_notes":"v1","__proto__":{"d":4},"extensions":${extensions}}}`;
+    const card = cardFromJson(present(parseJsonText(text)), "Harbor");
+    expect(JSON.stringify(card.extensions)).toBe(extensions);
+    expect(cardImportHash(identity({ card }))).toBe(PROTO_CARD_IMPORT_HASH);
+  });
+
   test("a note, an embedded book or a script changes the identity even under one name", () => {
     const base = cardImportHash(identity());
-    const renoted = cardFromJson(wireCard('{"name":"Harbor","description":"a port","creator_notes":"v2"}'), "Harbor");
+    const renoted = importCard(wireCard('{"name":"Harbor","description":"a port","creator_notes":"v2"}'), "Harbor");
     expect(cardImportHash(identity({ card: renoted }))).not.toBe(base);
     expect(
       cardImportHash(identity({ book: { name: "Harbor Lore", description: null, entries: [{ ...entry, keys: [], priority: 0, metadata: null }] } })),

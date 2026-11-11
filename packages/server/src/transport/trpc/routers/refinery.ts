@@ -31,7 +31,7 @@ import {
   schemaForgeResultSchema,
 } from "@orb/contracts/refinery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { jsonObjectSchema } from "@orb/kit/json";
+import { boundedJsonObjectSchema } from "@orb/kit/json";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -47,9 +47,9 @@ const acceptedFieldSchema = z.strictObject({
   confirmDiverged: z.literal(true).optional(),
 });
 
-/** The raw schema blob — belt-parsed at the VERB (`refinerySchemaDocumentSchema`), so the wire stays a
- *  plain record here (the double parse is the §3.A posture and it is cheap). */
-const rawSchemaSchema = jsonObjectSchema;
+/** The raw schema blob — belt-parsed at the VERB (`refinerySchemaDocumentSchema`). The bounded JSON check here
+ *  refuses an over-deep or non-JSON draft with a coded issue before any recursive walk can reach it. */
+const rawSchemaSchema = boundedJsonObjectSchema;
 
 export const refineryRouter = t.router({
   startSession: authedProcedure

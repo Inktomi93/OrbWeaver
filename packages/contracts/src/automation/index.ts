@@ -22,7 +22,7 @@ import type {
 } from "@orb/kit/ids";
 import { ID_PREFIX, sandboxWireIdSchema, typeIdSchema } from "@orb/kit/ids";
 import type { JsonObject } from "@orb/kit/json";
-import { jsonObjectSchema, jsonValueSchema } from "@orb/kit/json";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { reportedTimeZoneSchema, UTC_TIME_ZONE } from "@orb/kit/time";
@@ -1165,7 +1165,7 @@ export type AutomationRuleReorder = z.output<typeof automationRuleReorderSchema>
 export const automationRuleToolViewSchema = z.strictObject({
   name: z.string(),
   description: z.string(),
-  parameters: z.record(z.string(), jsonValueSchema),
+  parameters: jsonObjectSchema,
 });
 export type AutomationRuleToolView = z.infer<typeof automationRuleToolViewSchema>;
 export const automationRuleToolsSchema = z.array(automationRuleToolViewSchema);

@@ -287,7 +287,7 @@ export interface RuleFireCaps {
   readonly maxFiresPerHour: number;
 }
 
-/** Read one string field off an open detail blob (`FireView.detail` is `Record<string, unknown>`). */
+/** Read one string field off a fire's detail object (`FireView.detail`, any JSON object). */
 function detailString(detail: Record<string, unknown>, key: string): string | null {
   const value = detail[key];
   return typeof value === "string" && value !== "" ? value : null;
