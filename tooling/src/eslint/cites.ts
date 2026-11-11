@@ -55,10 +55,12 @@ export const LINK = /\{@link(?:code|plain)?\s+(?:\*\s+)?([^}\s|]+)/gu;
 
 // The checker nouns. `rule`, `gate`, `check` and `guard` are left out: product code uses them for automation rules,
 // runtime gates and guards, so only a word that names tooling marks a claim.
-const CHECKER = String.raw`(?:tests?|CTs?|e2e|suites?|lint(?:\s+rules?)?|ESLint(?:\s+rules?)?|Biome(?:\s+rules?)?|stylelint(?:\s+rules?)?|dependency-cruiser(?:\s+rules?)?|dep-cruiser(?:\s+rules?)?|depcruise|knip|ratchets?)`;
+// The claim patterns run on a sentence whose whitespace is folded to single spaces, so a word gap is one literal space.
+const CHECKER =
+  "(?:tests?|CTs?|e2e|suites?|lint(?: rules?)?|ESLint(?: rules?)?|Biome(?: rules?)?|stylelint(?: rules?)?|dependency-cruiser(?: rules?)?|dep-cruiser(?: rules?)?|depcruise|knip|ratchets?)";
 const DETERMINER = "(?:a|an|the|its|this|that|these|those|their|one|each|every)";
 // Up to three words between the determiner and the noun: "the integration test", "the corpus artifact CT".
-const MODIFIERS = String.raw`(?:[\w\x60/.:-]+\s+){0,3}?`;
+const MODIFIERS = String.raw`(?:[\w\x60/.:-]+ ){0,3}?`;
 const ACTIVE =
   "(?:holds?|pins?|enforces?|refuses?|rejects?|fails?|reds|catch(?:es)?|guards?|asserts?|proves?|locks?|bans?|forbids?|flags?|covers?|verifies|verify|polices?)";
 const PASSIVE =
@@ -67,38 +69,39 @@ const TOOL = "(?:ESLint|Biome|stylelint|dependency-cruiser|dep-cruiser|depcruise
 // A tool named as the subject takes a third-person verb; "ESLint guards" as a noun phrase is a heading, not a claim.
 const TOOL_ACTIVE = "(?:refuses|rejects|bans|forbids|flags|fails|reds|blocks|catches|enforces)";
 // A purpose or a condition names a checker without claiming one exists: "so a test can pin it", "if the test fails".
-const NOT_CLAIMED = String.raw`(?<!\b(?:for|so|what|lets?|whether|until|before|after|when|if|unless|once)\s+)`;
+const NOT_CLAIMED = String.raw`(?<!\b(?:for|so|what|lets?|whether|until|before|after|when|if|unless|once) )`;
 // A denial or a hypothesis is no claim: "it cannot be pinned by a test", "it would be caught by the lint".
-const NOT_ASSERTED = String.raw`(?<!\b(?:not|never|cannot|can't|can|could|would|should|must|may|might|will)\s+be\s+)`;
+const NOT_ASSERTED = String.raw`(?<!\b(?:not|never|cannot|can't|can|could|would|should|must|may|might|will) be )`;
 // A claim states that a checker holds a fact: "a test pins the order", "refused by the lint", "dependency-cruiser bans
 // the edge". "A test must pin it" is an instruction to the author, so a modal between the noun and the verb is no claim.
 const CLAIM = new RegExp(
   [
-    String.raw`${NOT_CLAIMED}\b${DETERMINER}\s+${MODIFIERS}${CHECKER}\s+(?:that\s+|which\s+)?${ACTIVE}\b`,
-    String.raw`${NOT_ASSERTED}\b${PASSIVE}\s+(?:by|in)\s+(?:${DETERMINER}\s+)?${MODIFIERS}${CHECKER}\b`,
-    String.raw`\b${TOOL}\s+${TOOL_ACTIVE}\b`,
+    String.raw`${NOT_CLAIMED}\b${DETERMINER} ${MODIFIERS}${CHECKER} (?:that |which )?${ACTIVE}\b`,
+    String.raw`${NOT_ASSERTED}\b${PASSIVE} (?:by|in) (?:${DETERMINER} )?${MODIFIERS}${CHECKER}\b`,
+    String.raw`\b${TOOL} ${TOOL_ACTIVE}\b`,
   ].join("|"),
   "iu",
 );
 // A claim about the file it sits in cites that file: "this test pins", "these tests hold".
-const SELF_NOUN = String.raw`(?:[\w-]+\s+){0,2}?(?:tests?|suites?|rules?|lint(?:\s+rule)?|CTs?|files?|cases?)\b`;
-const SELF = new RegExp(String.raw`\b(?:this|these)\s+${SELF_NOUN}`, "iu");
+const SELF_NOUN = String.raw`(?:[\w-]+ ){0,2}?(?:tests?|suites?|rules?|lint(?: rule)?|CTs?|files?|cases?)`;
+const SELF = new RegExp(String.raw`\b(?:this|these) ${SELF_NOUN}\b`, "iu");
 const CHECKER_SOURCE = /^(?:tests\/|tooling\/src\/eslint\/)|\.(?:test|spec|ct)\.[cm]?[jt]sx?$/u;
 /** A test or a lint rule source, whose comments describe the checker they sit in. */
 export const isCheckerSource = (path: string): boolean => CHECKER_SOURCE.test(path);
 // Inside a test or a rule source, "the test" and "the rule" are the file itself.
 // A qualified "the node suite" may name another file; "the hover-twin test above" names one in this file.
 const SELF_IN_CHECKER = new RegExp(
-  String.raw`\bthe\s+(?:tests?|suites?|rules?|lint(?:\s+rule)?|CTs?|cases?)\b|\b(?:this|these)\s+${SELF_NOUN}|\bthe\s+${SELF_NOUN}\s+(?:above|below)\b`,
+  String.raw`\bthe (?:tests?|suites?|rules?|lint(?: rule)?|CTs?|cases?)\b|\b(?:this|these) ${SELF_NOUN}\b|\bthe ${SELF_NOUN} (?:above|below)\b`,
   "iu",
 );
 // A quoted sentence is an example or a message, not the comment's own claim.
-const QUOTED = /"[^"\n]*"|“[^”\n]*”/gu;
-const COMMENT_MARKER = /^\s*(?:\/\/+|\/\*+|\*+\/?|\*)/gmu;
+const QUOTED = /"[^"\n]*"|“[^“”\n]*”/gu;
+const COMMENT_MARKER = /^[ \t]*(?:\/{2,}|\/\*+|\*+\/?)/gmu;
 // A sentence ends at a stop followed by space; a stop inside a path or a version (`a.ts`, `1.2`) has none.
 const SENTENCE_END = /(?<=[.;!?])\s+/gu;
 
-export type CiteKind = "path" | "directory" | "decision" | "script" | "rule" | "biome" | "name" | "link";
+const CITE_KINDS = ["path", "directory", "decision", "script", "rule", "biome", "name", "link"] as const;
+export type CiteKind = (typeof CITE_KINDS)[number];
 
 export interface Cite {
   readonly kind: CiteKind;
@@ -176,7 +179,7 @@ export function enforcementClaims(comment: string, inChecker: boolean): Claim[] 
   return bounds.slice(1).flatMap(({ index }, at) => {
     const raw = text.slice(bounds[at]?.next ?? 0, index);
     const sentence = raw.replaceAll(/\s+/gu, " ").trim();
-    const stated = sentence.replaceAll(QUOTED, " ");
+    const stated = sentence.replaceAll(QUOTED, " ").replaceAll(/ {2,}/gu, " ");
     if (!CLAIM.test(stated) || self.test(stated)) {
       return [];
     }

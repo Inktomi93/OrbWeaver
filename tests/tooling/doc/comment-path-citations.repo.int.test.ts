@@ -8,7 +8,7 @@
 import { basename, dirname, extname, join, posix } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import extractDepcruiseConfig from "dependency-cruiser/config-utl/extract-depcruise-config";
-import { builtinRules } from "eslint/use-at-your-own-risk";
+import type { ESLint } from "eslint";
 import type { Rule } from "stylelint";
 import stylelint from "stylelint";
 import ts from "typescript";
@@ -192,16 +192,18 @@ function biomeRules(schema: string): Map<string, Set<string>> {
   );
 }
 
-/** Every ESLint rule id the composed config sets or its plugins register, and ESLint's own rules. */
+/** Every ESLint rule id the composed config sets or its plugins register. A core rule counts only when the config names
+ *  it, so a claim cannot cite a core rule this repository never configured. */
 function eslintRuleIds(): { readonly namespaces: Set<string>; readonly rules: Set<string> } {
   const namespaces = new Set(eslintConfig.flatMap((block) => Object.keys(block.plugins ?? {})));
-  const rules = new Set([
-    ...builtinRules.keys(),
-    ...eslintConfig.flatMap((block) => [
+  const rules = new Set(
+    eslintConfig.flatMap((block) => [
       ...Object.keys(block.rules ?? {}),
-      ...Object.entries(block.plugins ?? {}).flatMap(([prefix, plugin]) => Object.keys(plugin.rules ?? {}).map((rule) => `${prefix}/${rule}`)),
+      ...Object.entries(block.plugins ?? {}).flatMap(([prefix, plugin]: readonly [string, Pick<ESLint.Plugin, "rules">]) =>
+        Object.keys(plugin.rules ?? {}).map((rule) => `${prefix}/${rule}`),
+      ),
     ]),
-  ]);
+  );
   return { namespaces, rules };
 }
 
@@ -270,6 +272,9 @@ const directoriesOf = (paths: Iterable<string>): Set<string> =>
     ),
   );
 
+// A link may name a call, `{@link run()}`: the symbol is the part before its parameters.
+const beforeCall = (token: string): string => token.split("(")[0] ?? token;
+
 /** Whether a cite names something that exists, or `undefined` when its spelling is not a cite of that kind here: a
  *  `domain/chat` directory in rule-id shape, or a link to a URL. */
 function resolves(cite: Cite, citer: string, universe: Universe): boolean | undefined {
@@ -304,7 +309,7 @@ function resolves(cite: Cite, citer: string, universe: Universe): boolean | unde
         return undefined;
       }
       // A package-qualified target (`pkg#Symbol`) is resolved by its symbol; each dotted member must be declared too.
-      const target = cite.token.slice(cite.token.lastIndexOf("#") + 1).replace(/\(.*$/u, "");
+      const target = beforeCall(cite.token.slice(cite.token.lastIndexOf("#") + 1));
       return target.split(/[.~]/u).every((part) => part === "" || universe.symbols.has(part));
     }
   }
