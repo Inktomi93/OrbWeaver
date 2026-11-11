@@ -138,6 +138,24 @@ not get your conversation, your reads, or your output style. Write each brief so
 - For a `docs/**` lane, the floor that the docs path rule names.
 - For test restoration, use the [implementation and review briefs](../../../docs/plans/test-foundation/design.md#implementation-and-review-briefs) for both assignments.
 
+### A brief that writes or changes a test
+
+The [authoring checklist](../../../tests/support/README.md#authoring-checklist) owns the steps. Tell the lane to work through it, and add what only you can decide:
+
+- The behavior and the defect each test must catch.
+- The layer, from `docs/law/Spine-Testing.md` §10, and the reason.
+- The production entry each test runs: the composed root, or the module's own door.
+- The sibling test in the same directory that shows the house pattern. Find it before you brief.
+- For a reference case, the selected reference files and the case-map location.
+- The defect control: which production break must turn the test red.
+- That a missing export, door or harness option is reported, never added for the test.
+
+Require the report to name, for each new test, the production entry, the layer and the red.
+
+Read a lane's new test files yourself before you accept its report. Check each against the checklist; a passing run does not show which door the test used.
+
+Give the reviewer the same list, and tell it to read every new test file in full.
+
 The `lane` skill carries the standing lane rules. Restate only the deltas.
 
 ## Before calling work done
