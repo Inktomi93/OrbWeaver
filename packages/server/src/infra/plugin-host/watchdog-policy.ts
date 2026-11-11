@@ -1,7 +1,7 @@
 // infra/plugin-host/watchdog-policy — pure fail-closed broker heartbeat policy.
 
-export const PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS = 25;
-const PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS = 500;
+import { PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS } from "./budgets.ts";
+
 const PLUGIN_BROKER_STARTUP_TIMEOUT_MS = 10_000;
 
 export interface BrokerHeartbeatState {

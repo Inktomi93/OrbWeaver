@@ -6,11 +6,12 @@ import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./budgets.ts";
 import { formatPluginBrokerArguments, parsePluginBrokerWatchdogArguments } from "./process-argv.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginBrokerExecArgv } from "./process-permission.ts";
 import { rpcError } from "./process-protocol.ts";
-import { brokerWatchdogFailure, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./watchdog-policy.ts";
+import { brokerWatchdogFailure } from "./watchdog-policy.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("./broker-entry.ts", import.meta.url));
 const BROKER_RESTART_DELAY_MS = 1000;

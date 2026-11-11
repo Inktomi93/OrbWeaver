@@ -1,7 +1,7 @@
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 // A stall a plugin caused is its strike even when no command was waiting on it, and so is a command of its own that
-// outlives the parent's timeout. A bystander's calls through the same teardown never are (D347). The strike count is
-// read from the plugin's row, which no door shows.
+// outlives the parent's backstop. That backstop fails the one command and never ends the broker, so a bystander is
+// never touched (D347). The strike count is read from the plugin's row, which no door shows.
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginStatus } from "@orb/contracts/plugin";
@@ -14,16 +14,21 @@ import {
   PLUGIN_WORKER_OVERRUN_MAX_MS,
   PLUGIN_WORKER_SPAN_CHECK_MS,
 } from "#server/infra/plugin-host/budgets.ts";
+import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 import {
   BASE_GRANTS,
   createPluginProcessEdge,
+  firstChild,
   frameField,
+  hasOperation,
   installGuest as installNativeGuest,
   NATIVE_TIMEOUT_MS,
   NOOP_COMMAND,
+  PLUGIN_PROCESS_OPERATIONS,
 } from "../process-runtime.fixtures.ts";
 
 const ENABLED = "enabled" satisfies PluginStatus;
+const BROKER_STOPPED = "stopped" satisfies NonNullable<ReturnType<typeof parsePluginIpcMessage>>["kind"];
 // One string search of minutes with no interrupt poll inside it.
 const NATIVE_STALL = "'a'.repeat(400000).indexOf('a'.repeat(100000) + 'b');";
 const AFTER_OPS = {
@@ -71,7 +76,15 @@ test("a stall after its command returned ends its Worker and strikes the plugin 
   expect(owed).toMatchObject({ name: ended.name, code: ended.code });
 });
 
-test("a command that outlives the parent's timeout strikes its own plugin; a bystander's calls through the killed broker do not", {
+// A late command's backstop must neither end the broker nor reach another runtime: the watchdog child the host spawned
+// is still the only one, alive, and nothing it carried reported the broker stopped.
+function brokerKept(edge: ReturnType<typeof createPluginProcessEdge>): void {
+  expect(edge.children).toHaveLength(1);
+  expect(firstChild(edge)).toMatchObject({ exitCode: null, signalCode: null });
+  expect(edge.delivered.filter((value) => parsePluginIpcMessage(value)?.kind === BROKER_STOPPED)).toEqual([]);
+}
+
+test("a command whose answer is later than its backstop fails alone as its plugin's strike; the broker keeps its Worker and serves both plugins", {
   tags: ["slow"],
   timeout: NATIVE_TIMEOUT_MS,
 }, async () => {
@@ -83,14 +96,53 @@ test("a command that outlives the parent's timeout strikes its own plugin; a bys
   expect((await bystander.enable()).status).toBe(ENABLED);
   await bystander.invoke("noop");
 
-  // The broker's answer to the culprit's command never arrives, so the parent's own timeout is what ends it.
+  // The Worker answered, but the answer is held on the way to the parent, so the parent's backstop is what ends it.
   using held = edge.holdNext((value) => frameField(value, "kind") === "response");
   const calling = culprit.invoke("noop");
   await held.reached;
   root.timers.advance(PLUGIN_COMMAND_TIMEOUT_MS.invoke);
   await expect(calling).toThrowTRPCError("BAD_REQUEST");
-  await expect(bystander.invoke("noop")).toThrowTRPCError("CONFLICT");
-
   expect(await crashesOf(root.db, root.ownerId, culprit.pluginId)).toBe(1);
+  held.release();
+
+  await bystander.invoke("noop");
+  await culprit.invoke("noop");
+  // The broker had already answered, so it kept the Worker: no runtime was ended.
+  expect(edge.delivered.filter((value) => frameField(value, "kind") === "runtime-ended")).toEqual([]);
+  brokerKept(edge);
+  expect(await crashesOf(root.db, root.ownerId, bystander.pluginId)).toBe(0);
+});
+
+test("a command the broker still holds at its backstop fails alone as its plugin's strike, and the broker ends that runtime and serves on", {
+  tags: ["slow"],
+  timeout: NATIVE_TIMEOUT_MS,
+}, async () => {
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
+  const culprit = await installNativeGuest(
+    root,
+    "culprit",
+    `const h=orb.host(1);${NOOP_COMMAND}h.ui.registerCommand({name:"read",describe:"Await a host read",onRun:async()=>{await h.storage.get("k");}});`,
+    BASE_GRANTS,
+  );
+  const bystander = await installNativeGuest(root, "bystander", `const h=orb.host(1);${NOOP_COMMAND}`, BASE_GRANTS);
+  expect((await culprit.enable()).status).toBe(ENABLED);
+  expect((await bystander.enable()).status).toBe(ENABLED);
+  await bystander.invoke("noop");
+
+  // The guest awaits a host read the parent never sees, so its command is still the broker's when the backstop runs.
+  using held = edge.holdNext((value) => hasOperation(value, PLUGIN_PROCESS_OPERATIONS.read));
+  const calling = culprit.invoke("read");
+  await held.reached;
+  root.timers.advance(PLUGIN_COMMAND_TIMEOUT_MS.invoke);
+  await expect(calling).toThrowTRPCError("BAD_REQUEST");
+  await expect.poll(() => edge.delivered.filter((value) => frameField(value, "kind") === "runtime-ended")).toHaveLength(1);
+  expect(await crashesOf(root.db, root.ownerId, culprit.pluginId)).toBe(1);
+  held.release();
+
+  await bystander.invoke("noop");
+  // The ended runtime is replaced by a fresh one on the culprit's next call.
+  await culprit.invoke("noop");
+  brokerKept(edge);
   expect(await crashesOf(root.db, root.ownerId, bystander.pluginId)).toBe(0);
 });

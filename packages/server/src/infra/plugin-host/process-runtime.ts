@@ -138,7 +138,10 @@ interface AuthorityTail {
 interface PendingCommand {
   readonly resolve: (value: unknown) => void;
   readonly reject: (error: Error) => void;
-  readonly timer: () => void;
+  readonly runtimeId: string;
+  readonly operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"];
+  /** Cancels the backstop, which is armed only while this is its runtime's oldest outstanding command. */
+  cancelBackstop: () => void;
 }
 
 interface MutableLiveness extends PluginInvocationLiveness {
@@ -298,6 +301,8 @@ class BrokerClient {
   private managedChild: ChildProcess | undefined;
   private directoryResources = new AsyncDisposableStack();
   private readonly pending = new Map<string, PendingCommand>();
+  /** Each runtime's outstanding command ids, oldest first. */
+  private readonly outstanding = new Map<string, string[]>();
   private readonly bridgeCalls = new Map<string, ActiveBridgeCall>();
   private closing: Promise<void> | undefined;
   private nextCommand = 0;
@@ -398,27 +403,79 @@ class BrokerClient {
       value,
     });
     return await new Promise((resolve, reject) => {
-      const timer = this.timers.timeout(() => {
-        this.pending.delete(id);
-        // The broker ends a stuck Worker itself, well inside this timeout, so a command still unanswered here means the
-        // broker is not answering, and it is killed. The command that ran out of time is its own plugin's to answer
-        // for: a strike. Every other command and binding the broker held is a host loss, never a strike (D347).
-        const ended = new Error(`plugin broker: ${operation} timed out`);
-        ended.name = PLUGIN_INVOCATION_ENDED;
-        reject(ended);
-        this.stopConnection(new PluginHostUnavailableError(`plugin broker: stopped answering; a ${operation} command timed out`));
-      }, PLUGIN_COMMAND_TIMEOUT_MS[operation]);
-      this.pending.set(id, { resolve, reject, timer });
+      this.pending.set(id, { resolve, reject, runtimeId, operation, cancelBackstop: () => undefined });
+      const outstanding = this.outstanding.get(runtimeId);
+      if (outstanding === undefined) {
+        this.outstanding.set(runtimeId, [id]);
+        this.armBackstop(id);
+      } else {
+        outstanding.push(id);
+      }
       try {
         sender.send({ kind: "frame", generation, frame: serialized });
         // the write failure rejects the command promise (reject(error)) and stopConnection terminates the unusable channel. Ends if either the reject or the stopConnection call is removed.
       } catch (error) {
-        this.pending.delete(id);
-        timer();
+        this.settleCommand(id);
         reject(error instanceof Error ? error : unavailableError());
         this.stopConnection(error instanceof Error ? error : unavailableError());
       }
     });
+  }
+
+  // A runtime runs its commands one at a time, so only its oldest outstanding command is timed, from when it became the
+  // oldest: the commands queued ahead of a command are never charged to it (D347).
+  private armBackstop(id: string): void {
+    const pending = this.pending.get(id);
+    if (pending === undefined) {
+      return;
+    }
+    pending.cancelBackstop = this.timers.timeout(() => this.backstop(id), PLUGIN_COMMAND_TIMEOUT_MS[pending.operation]);
+  }
+
+  // Forget a command that has answered or failed, and time the next command of its runtime if this was the oldest.
+  private settleCommand(id: string): PendingCommand | undefined {
+    const pending = this.pending.get(id);
+    if (pending === undefined) {
+      return;
+    }
+    this.pending.delete(id);
+    pending.cancelBackstop();
+    const outstanding = this.outstanding.get(pending.runtimeId) ?? [];
+    const [oldest] = outstanding;
+    const rest = outstanding.filter((other) => other !== id);
+    if (rest.length === 0) {
+      this.outstanding.delete(pending.runtimeId);
+    } else {
+      this.outstanding.set(pending.runtimeId, rest);
+    }
+    if (oldest === id && rest[0] !== undefined) {
+      this.armBackstop(rest[0]);
+    }
+    return pending;
+  }
+
+  // The broker ends a stuck Worker itself, well inside this backstop; a command still unanswered here is late on its
+  // own account. It fails alone, as its plugin's strike, and the broker is asked to end that runtime. The broker itself
+  // is never killed for a late command: only its watchdog's heartbeat bound replaces it (D347).
+  private backstop(id: string): void {
+    const pending = this.settleCommand(id);
+    if (pending === undefined) {
+      return;
+    }
+    const ended = new Error(`plugin broker: a ${pending.operation} command ran past its ${PLUGIN_COMMAND_TIMEOUT_MS[pending.operation]}ms backstop`);
+    ended.name = PLUGIN_INVOCATION_ENDED;
+    pending.reject(ended);
+    const sender = this.sender;
+    const generation = this.generation;
+    if (sender === undefined || generation === undefined) {
+      return;
+    }
+    try {
+      sender.send({ kind: "frame", generation, frame: serializeMessage({ kind: "end-runtime", runtimeId: pending.runtimeId, commandId: id }) });
+      // a channel that cannot carry this frame cannot carry any: stopConnection ends it, as every other send failure does. Ends if the channel gains another failure owner.
+    } catch (error) {
+      this.stopConnection(error instanceof Error ? error : unavailableError());
+    }
   }
 
   private async ensureConnected(): Promise<void> {
@@ -635,12 +692,10 @@ class BrokerClient {
   }
 
   private handleResponse(message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
-    const pending = this.pending.get(message.id);
+    const pending = this.settleCommand(message.id);
     if (pending === undefined) {
       return;
     }
-    this.pending.delete(message.id);
-    pending.timer();
     if (message.ok) {
       pending.resolve(message.value);
     } else {
@@ -783,9 +838,10 @@ class BrokerClient {
     const error = cause instanceof PluginHostUnavailableError ? cause : new PluginHostUnavailableError(cause.message);
     for (const [id, pending] of this.pending) {
       this.pending.delete(id);
-      pending.timer();
+      pending.cancelBackstop();
       pending.reject(error);
     }
+    this.outstanding.clear();
     for (const call of this.bridgeCalls.values()) {
       call.liveness.abort();
     }

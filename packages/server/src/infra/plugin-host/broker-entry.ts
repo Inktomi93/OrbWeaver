@@ -5,13 +5,13 @@
 // A STUCK WORKER ENDS ALONE (D347). One native call or one interrupt poll period has a length the guest picks, so the
 // guest-CPU window cannot end it, and nothing in that Worker's thread runs until it returns. The broker's thread
 // can: each Worker reports its open span of guest work in shared slots, and a span still open
-// `PLUGIN_WORKER_OVERRUN_MAX_MS` past its window terminates that Worker, well before the parent's command timeout
-// would kill this whole broker and every other owner's runtimes with it.
+// `PLUGIN_WORKER_OVERRUN_MAX_MS` past its window terminates that Worker. Nothing a command does ends this broker: only
+// its watchdog does, when this thread's heartbeat stops, and the heartbeat timer runs whatever the Workers are doing.
 
 import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
-import { PLUGIN_COMMAND_CPU_BUDGET_MS, PLUGIN_WORKER_OVERRUN_MAX_MS, PLUGIN_WORKER_SPAN_CHECK_MS } from "./budgets.ts";
+import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS, PLUGIN_COMMAND_CPU_BUDGET_MS, PLUGIN_WORKER_OVERRUN_MAX_MS, PLUGIN_WORKER_SPAN_CHECK_MS } from "./budgets.ts";
 import type { BrokerBridgeResult, BrokerParentMessage, BrokerWorkerMessage, ParentBrokerMessage, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { parsePluginBrokerArguments } from "./process-argv.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
@@ -30,7 +30,6 @@ import {
   SPAN_WINDOW_SLOT,
   serializeMessage,
 } from "./process-protocol.ts";
-import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./watchdog-policy.ts";
 
 const SYNC_TIMEOUT_MARGIN_MS = 500;
 const { workerMaximum, generation, nodeEnvironment, logLevel } = parsePluginBrokerArguments(process.argv.slice(2));
@@ -170,7 +169,8 @@ function terminateDetached(worker: Worker): void {
 }
 
 /** End a runtime whose Worker has run guest work past its budget by `PLUGIN_WORKER_OVERRUN_MAX_MS`: one span past its
- *  window, or the spans of the command it serves past that command's budget. Its bridge calls are cancelled at once, so an in-flight fetch aborts; a write the parent already started runs to
+ *  window, or the spans of the command it serves past that command's budget; or whose command the parent's backstop
+ *  gave up on while this broker still held it. Its bridge calls are cancelled at once, so an in-flight fetch aborts; a write the parent already started runs to
  *  its end and its result is dropped. Only after the Worker has exited, and its slot is free for a replacement, does
  *  the parent hear of it: first `runtime-ended`, so the logical instance is rebuilt on its next call rather than
  *  crashed, then the commands. The oldest is the one the Worker was running or was blocked behind, and fails with the
@@ -194,7 +194,7 @@ function endStuckRuntime(runtimeId: string, runtime: Runtime): void {
   // the terminate rejection is rethrown inside queueMicrotask, which ends the broker; the watchdog sees the exit and the parent rejects pending work through onDisconnect. Ends if the queued rethrow is removed.
   const ended = {
     name: PLUGIN_INVOCATION_ENDED,
-    message: `plugin host: invocation ended — its Worker ran guest code ${PLUGIN_WORKER_OVERRUN_MAX_MS}ms past its CPU budget and was terminated`,
+    message: "plugin host: invocation ended — its Worker ran past its bounds and was terminated",
   };
   runtime.worker.terminate().then(
     () => {
@@ -442,6 +442,14 @@ function handleParentMessage(message: ParentBrokerMessage): void {
     const target = pendingBridge.get(message.id);
     if (target?.kind === "async") {
       target.worker.postMessage(message satisfies BrokerWorkerMessage);
+    }
+    return;
+  }
+  if (message.kind === "end-runtime") {
+    // A command the Worker already answered leaves the Worker alone: its answer is in flight, so it is not stuck.
+    const runtime = runtimes.get(message.runtimeId);
+    if (runtime?.pendingCommands.has(message.commandId) === true) {
+      endStuckRuntime(message.runtimeId, runtime);
     }
     return;
   }

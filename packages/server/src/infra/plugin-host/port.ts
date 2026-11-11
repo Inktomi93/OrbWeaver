@@ -320,14 +320,19 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
       // `void`-typed barrier that never rejects — it swallows this run's outcome so the NEXT invoke's `.then`
       // always fires; the caller's own `run` promise still carries the real result/rejection.
       // the tail is a void barrier that must never reject, or one failed invoke wedges the chain for later ones; the caller receives the real outcome from `return await run` on the next lines. Ends if the tail becomes the only reader of `run`.
-      resident.tail = run.then(
-        () => {
-          resident.queueDepth -= 1;
-        },
-        () => {
-          resident.queueDepth -= 1;
-        },
-      );
+      // The next invoke starts on a later macrotask, after every microtask of this one has run: a broker Worker posts
+      // this invoke's answer in those microtasks, and the broker charges guest spans to the oldest command it has not
+      // seen answered, so starting sooner would charge the next invoke's first span to this one (D347).
+      resident.tail = run
+        .then(
+          () => {
+            resident.queueDepth -= 1;
+          },
+          () => {
+            resident.queueDepth -= 1;
+          },
+        )
+        .then(() => new Promise<void>((resolve) => setImmediate(resolve)));
       return await run;
     },
 

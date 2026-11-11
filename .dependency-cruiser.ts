@@ -412,11 +412,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/infra/plugin-host/module.ts": "getPluginQuickJS: the engine module that unit suite takes its raw context from",
   "packages/server/src/infra/plugin-host/process-argv.ts": "formatPluginBrokerArguments: the watchdog's broker launch the permission-drop suite repeats",
   "packages/server/src/infra/plugin-host/process-channel.ts":
-    "parsePluginIpcMessage: the envelope parser the permission-drop suite reads a real broker through",
+    "parsePluginIpcMessage: the envelope parser the permission-drop and broker-loss suites read a real broker's messages through",
   "packages/server/src/infra/plugin-host/process-permission.ts":
     "pluginBrokerExecArgv: the production flags the permission-drop suite starts a real broker under",
   "packages/server/src/infra/plugin-host/process-protocol.ts":
-    "parseBrokerParentMessage, parseMessageLine and serializeMessage: the frame codec the permission-drop suite speaks as the watchdog",
+    "parseBrokerParentMessage, parseMessageLine and serializeMessage: the frame codec the permission-drop suite speaks as the watchdog; PLUGIN_BROKER_SYNC_TIMEOUT_MS: the synchronous seam bound the command bounds suite counts",
   "packages/server/src/infra/plugin-host/sandbox.ts": "Sandbox: the sandbox class its unit suite constructs",
   "packages/server/src/infra/plugin-host/warm-runtime-pool.ts": "WarmRuntimePool: the runtime pool its unit suite constructs with a failing retirement",
   "packages/server/src/infra/relay/quick-tunnel.ts": "RELAY_STOP_GRACE_MS: the relay's stop grace",

@@ -339,7 +339,7 @@ test("a host result settles through a guest then getter that runs past one inter
 
 test("a snippet awaiting a host result under an endless then getter is ended by its wall, and the next snippet runs", {
   tags: ["slow"],
-  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS + SNIPPET_INVOCATION_WALL_MS,
 }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const caller = await root.internalCallerFor(root.ownerId);
@@ -347,6 +347,11 @@ test("a snippet awaiting a host result under an endless then getter is ended by 
 
   // The first snippet pays the broker's start, which no timed run below may carry.
   expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
+  // Every snippet also starts its own Worker, which takes longer under load; a busy loop ends at its window after the
+  // same start, so the wall's run is timed against it and the start cancels out.
+  const busyStarted = performance.now();
+  expect((await caller.plugin.runSnippet({ chatId: room.id, code: "for (;;) {}" })).error).toBeDefined();
+  const busyMs = performance.now() - busyStarted;
 
   const started = performance.now();
   const ended = await caller.plugin.runSnippet({
@@ -354,7 +359,7 @@ test("a snippet awaiting a host result under an endless then getter is ended by 
     code: `const h = orb.host(1); ${ENDLESS_THEN} (async () => { await h.chat.listMessages(h.chat.current()); })();`,
   });
   expect(ended.error).toBeDefined();
-  expect(performance.now() - started).toBeLessThan(SNIPPET_INVOCATION_WALL_MS + PAST_WINDOW_MARGIN_MS);
+  expect(performance.now() - started).toBeLessThan(busyMs - SNIPPET_WALL_MS + SNIPPET_INVOCATION_WALL_MS + PAST_WINDOW_MARGIN_MS);
   expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
 });
 

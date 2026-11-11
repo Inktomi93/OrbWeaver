@@ -35,14 +35,22 @@ export const PLUGIN_WORKER_OVERRUN_MAX_MS = PLUGIN_BROKER_SYNC_TIMEOUT_MS + PLUG
 /** How often the broker reads its Workers' span slots: a stuck Worker is terminated at most this much late. */
 export const PLUGIN_WORKER_SPAN_CHECK_MS = 250;
 
-/** How long the parent waits for the broker to answer one command before it kills the broker as unresponsive. Every
- *  kind's broker bound ends a stuck Worker well before this: `tests/server/infra/plugin-host/broker-bounds.test.ts`. */
+/** The parent's backstop for one command, timed from when the command becomes its runtime's oldest outstanding one, so
+ *  the commands queued ahead of it are never charged to it. Past it the parent fails that command alone, as its
+ *  plugin's strike, and asks the broker to end that runtime; it never ends the broker (D347). Every kind's worst case,
+ *  settlement walls included, ends before it: `tests/server/infra/plugin-host/broker-bounds.test.ts`. */
 export const PLUGIN_COMMAND_TIMEOUT_MS = {
-  create: 30_000,
-  invoke: 120_000,
-  snippet: 30_000,
+  create: 40_000,
+  invoke: 45_000,
+  snippet: 40_000,
   dispose: 30_000,
 } as const satisfies Record<PluginCommandOperation, number>;
+
+/** How often the broker's main thread reports to its watchdog, whatever any command or Worker is doing. */
+export const PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS = 25;
+/** How long the watchdog waits for a heartbeat before it ends the broker as unresponsive: the one reason the broker is
+ *  replaced (D347). */
+export const PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS = 500;
 
 /** The guest CPU one command may spend across all its spans, the spans of guest work that run while it waits its turn
  *  included: the activation and the work outside it for `create`, one invocation for `invoke`, the snippet's account for

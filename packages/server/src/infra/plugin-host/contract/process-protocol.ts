@@ -87,7 +87,12 @@ export type RpcResult =
 
 export type BrokerBridgeResult = { readonly kind: "bridge-result"; readonly id: string } & RpcResult;
 
-export type ParentBrokerMessage = BrokerCommand | BrokerBridgeResult | { readonly kind: "bridge-cancel"; readonly id: string };
+export type ParentBrokerMessage =
+  | BrokerCommand
+  | BrokerBridgeResult
+  | { readonly kind: "bridge-cancel"; readonly id: string }
+  /** The parent's backstop for this command ran out: if the broker still holds it, it ends the runtime's Worker as stuck. */
+  | { readonly kind: "end-runtime"; readonly runtimeId: string; readonly commandId: string };
 
 export type BrokerParentMessage =
   | ({ readonly kind: "response"; readonly id: string } & RpcResult)
