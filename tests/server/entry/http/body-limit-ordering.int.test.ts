@@ -5,7 +5,14 @@
 import { request as nativeRequest } from "node:http";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema } from "@orb/contracts/chat";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, authMeSchema, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
+import {
+  AUTH_FALLBACK_KEY,
+  AUTH_MODE_KEY,
+  authMeSchema,
+  FORWARD_AUTH_TRUSTED_PROXIES_KEY,
+  OIDC_BACKCHANNEL_LOGOUT_EVENT,
+  OIDC_LOGOUT_TOKEN_FIELD,
+} from "@orb/contracts/identity";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -30,7 +37,6 @@ import {
 
 const GUARDED_INGEST = [...INTAKE_ROUTES.map(({ path }) => path), BUNDLE_ROUTE];
 const PASSWORD = "body-limit-owner-password";
-const LOGOUT_TOKEN_FIELD = "logout_token";
 
 test("every actual ingest refuses anonymous bytes before any input pull", async () => {
   await using root = await createServerHarness({ authConfig: { mode: "single-user", fallback: "deny" } });
@@ -229,12 +235,15 @@ test("native signed backchannel bytes revoke a real session only after valid aut
   const subject = castId<ExternalId>("body-limit-oidc-subject");
   const user = await root.actor({ externalId: subject });
   const session = await root.app.sessions.create({ userId: user.id });
-  const invalid = await root.http.request(BACKCHANNEL_ROUTE.path, { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_FIELD, "invalid signature"]]) });
+  const invalid = await root.http.request(BACKCHANNEL_ROUTE.path, {
+    method: "POST",
+    body: new URLSearchParams([[OIDC_LOGOUT_TOKEN_FIELD, "invalid signature"]]),
+  });
   expect(invalid.status).toBe(400);
   await invalid.arrayBuffer();
   expect(await root.app.sessions.validate(session.token)).not.toBeNull();
-  const token = await issuer.logoutToken({ sub: subject, events: { "http://schemas.openid.net/event/backchannel-logout": {} } });
-  const response = await root.http.request(BACKCHANNEL_ROUTE.path, { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_FIELD, token]]) });
+  const token = await issuer.logoutToken({ sub: subject, events: { [OIDC_BACKCHANNEL_LOGOUT_EVENT]: {} } });
+  const response = await root.http.request(BACKCHANNEL_ROUTE.path, { method: "POST", body: new URLSearchParams([[OIDC_LOGOUT_TOKEN_FIELD, token]]) });
   expect(response.status).toBe(200);
   await response.arrayBuffer();
   expect(await root.app.sessions.validate(session.token)).toBeNull();

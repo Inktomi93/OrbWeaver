@@ -31,7 +31,7 @@ import {
   signupResultSchema,
 } from "@orb/contracts/chat";
 import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity";
-import { externalIdSchema, handleSchema, MIN_PASSWORD_LENGTH } from "@orb/contracts/identity";
+import { externalIdSchema, handleSchema, MIN_PASSWORD_LENGTH, OIDC_LOGOUT_TOKEN_FIELD } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
@@ -145,8 +145,6 @@ const OWNER_CLAIM_PARAM = "ownerClaim";
 const INVITE_PARAM_MAX_CHARS = 128;
 const HANDLE_FIELD = "handle";
 const PASSWORD_FIELD = "password";
-/** The back-channel logout request's form field that carries the IdP's signed token (OIDC BCL §2.5). */
-export const LOGOUT_TOKEN_FIELD = "logout_token";
 // A7 — the SPA login route the callback lands the browser back on with a sanitized ?authError= code (never
 // raw JSON on a top-level navigation). The codes below are a fixed lowercase snake_case set LoginSurface
 // maps to copy; the IdP-supplied ones are already sanitized to the same shape.
@@ -1458,7 +1456,7 @@ function registerBackchannelLogout(
   app.on(route.method, route.path, bodyLimit({ maxSize: OIDC_BACKCHANNEL_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     c.header("Cache-Control", "no-store");
     const body = await c.req.parseBody();
-    const logoutToken = typeof body[LOGOUT_TOKEN_FIELD] === "string" ? body[LOGOUT_TOKEN_FIELD] : "";
+    const logoutToken = typeof body[OIDC_LOGOUT_TOKEN_FIELD] === "string" ? body[OIDC_LOGOUT_TOKEN_FIELD] : "";
     // Per OIDC BCL §2.7 a failed logout returns 400 with a JSON `error` (error_description is optional and
     // omitted here — this is a server-to-server call, so a single machine code is enough and keeps the
     // response body free of a snake_case wire field).
@@ -1487,8 +1485,8 @@ function registerBackchannelLogout(
 
     const { revoked, userIds } = await deps.sessions.revokeByExternalId(externalIdSchema.parse(subject.sub));
     // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
-    // bound to more than one row. Idempotent with the revoke itself — a re-delivered logout token names no
-    // users and evicts nothing.
+    // bound to more than one row. It evicts exactly the users whose sessions this delivery revoked, so a
+    // re-delivered token evicts nothing unless the subject signed in again since the last one.
     for (const userId of userIds) {
       deps.sockets.evictUser(userId);
     }

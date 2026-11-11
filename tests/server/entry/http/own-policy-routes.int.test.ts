@@ -1,9 +1,10 @@
 // @subject packages/server/src/entry/http/security-headers.ts
 // Each registered own-policy route keeps the Content-Security-Policy its handler wrote on the arm that writes one,
 // and an arm that writes none leaves with the app document policy. The cases are keyed by the production
-// registration, `OWN_POLICY_ROUTES`, so a member with no case fails `tsc`, and each expected policy is the
-// production constant its route writes. This covers the registered routes only: a route whose own policy is never
-// registered is overwritten before the response leaves, so no request can see it.
+// registration, `OWN_POLICY_ROUTES`, so a member with no case fails `tsc`. The directives and resource policies a
+// route must carry are the specification, so this file states them; the production constant only pins which policy
+// the route writes. This covers the registered routes only: a route whose own policy is never registered is
+// overwritten before the response leaves, so no request can see it.
 import { spawn } from "node:child_process";
 import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
@@ -21,7 +22,7 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, makePluginBundle } from "@orb/testkit/node/composed";
 import { CARD_FRAME_FLOOR_CSP } from "#server/entry/http/card-frame.ts";
-import { PLUGIN_FRAME_ASSET_CSP, PLUGIN_FRAME_ASSET_RESOURCE_POLICY, PLUGIN_FRAME_CSP } from "#server/entry/http/plugin-frame.ts";
+import { PLUGIN_FRAME_ASSET_CSP, PLUGIN_FRAME_CSP } from "#server/entry/http/plugin-frame.ts";
 import { OWN_POLICY_ROUTES } from "#server/entry/http/security-headers.ts";
 
 const POLICY = "content-security-policy";
@@ -37,6 +38,18 @@ const GUEST = `orb.host(1).ui.registerFrame({ id: ${JSON.stringify(SURFACE_ID)},
 const OK = 200;
 const UNAUTHORIZED = 401;
 const NOT_FOUND = 404;
+
+// The specification, stated here and never read from production. Every own policy sandboxes its document; one that
+// promises to deny every source says `default-src 'none'`. The opaque-origin plugin frame loads its asset
+// cross-origin, and every other response keeps the app's same-origin resource policy and its document policy.
+const SANDBOX = "sandbox";
+const DENY_ALL_SOURCES = "default-src 'none'";
+const CROSS_ORIGIN = "cross-origin";
+const SAME_ORIGIN = "same-origin";
+const APP_REQUIRED_DIRECTIVES = ["default-src 'self'", "object-src 'none'", "frame-ancestors 'none'"] as const;
+
+const directivesOf = (policy: string | null): readonly string[] => (policy ?? "").split(";").map((directive) => directive.trim());
+const sandboxed = (policy: string | null): boolean => directivesOf(policy).some((directive) => directive.split(" ")[0] === SANDBOX);
 
 interface Served {
   readonly status: number;
@@ -105,7 +118,10 @@ interface Minted {
 interface OwnPolicyCase {
   readonly pattern: (typeof OWN_POLICY_ROUTES)[keyof typeof OWN_POLICY_ROUTES];
   readonly url: string;
+  /** The production constant the route writes, which pins the route to its own policy. */
   readonly policy: string;
+  /** The directives the route promises beyond its sandbox. */
+  readonly required: readonly string[];
   /** The resource policy the success arm carries; the documents write none. */
   readonly resourcePolicy: string | null;
   readonly refusal: { readonly url: string; readonly headers: Readonly<Record<string, string>>; readonly status: number };
@@ -116,6 +132,7 @@ const CASES: { readonly [Key in keyof typeof OWN_POLICY_ROUTES]: (minted: Minted
     pattern: OWN_POLICY_ROUTES.cardFrameDocument,
     url: cardUrl,
     policy: CARD_FRAME_FLOOR_CSP,
+    required: [DENY_ALL_SOURCES],
     resourcePolicy: null,
     refusal: { url: cardUrl, headers: RELAYED, status: UNAUTHORIZED },
   }),
@@ -123,6 +140,7 @@ const CASES: { readonly [Key in keyof typeof OWN_POLICY_ROUTES]: (minted: Minted
     pattern: OWN_POLICY_ROUTES.pluginFrameDocument,
     url: pluginUrl,
     policy: PLUGIN_FRAME_CSP,
+    required: [DENY_ALL_SOURCES],
     resourcePolicy: null,
     refusal: { url: pluginUrl, headers: RELAYED, status: UNAUTHORIZED },
   }),
@@ -130,7 +148,8 @@ const CASES: { readonly [Key in keyof typeof OWN_POLICY_ROUTES]: (minted: Minted
     pattern: OWN_POLICY_ROUTES.pluginFrameAsset,
     url: pluginFrameAssetUrl(pluginHandle, ASSET_PATH),
     policy: PLUGIN_FRAME_ASSET_CSP,
-    resourcePolicy: PLUGIN_FRAME_ASSET_RESOURCE_POLICY,
+    required: [DENY_ALL_SOURCES],
+    resourcePolicy: CROSS_ORIGIN,
     refusal: { url: pluginFrameAssetUrl(pluginHandle, REFUSED_ASSET_PATH), headers: {}, status: NOT_FOUND },
   }),
 };
@@ -139,7 +158,9 @@ test("each own-policy route keeps its handler's policy on the arm that writes on
   await using root = await openRoot();
   const app = await served(root, "/healthz");
   expect(app.status).toBe(OK);
-  expect(app.policy).not.toBeNull();
+  expect(app.resourcePolicy).toBe(SAME_ORIGIN);
+  expect(directivesOf(app.policy)).toEqual(expect.arrayContaining([...APP_REQUIRED_DIRECTIVES]));
+  expect(sandboxed(app.policy)).toBe(false);
 
   const pluginUrl = await mintPluginFrame(root);
   const minted: Minted = { cardUrl: await mintCardFrame(root), pluginUrl, pluginHandle: pluginUrl.split("/").at(-1) ?? "" };
@@ -152,8 +173,11 @@ test("each own-policy route keeps its handler's policy on the arm that writes on
     expect(pathname.startsWith(prefix) && pathname.endsWith(suffix) && !pathname.slice(prefix.length, pathname.length - suffix.length).includes("/"), key).toBe(
       true,
     );
-    expect(await served(root, routeCase.url), key).toEqual({ status: OK, policy: routeCase.policy, resourcePolicy: routeCase.resourcePolicy });
-    expect(routeCase.policy, key).not.toBe(app.policy);
+    const success = await served(root, routeCase.url);
+    expect(success, key).toEqual({ status: OK, policy: routeCase.policy, resourcePolicy: routeCase.resourcePolicy });
+    expect(sandboxed(success.policy), key).toBe(true);
+    expect(directivesOf(success.policy), key).toEqual(expect.arrayContaining([...routeCase.required]));
+    // Every refusal arm leaves under the app policy, checked above against the specification.
     expect(await served(root, routeCase.refusal.url, routeCase.refusal.headers), key).toEqual({ ...app, status: routeCase.refusal.status });
   }
 });

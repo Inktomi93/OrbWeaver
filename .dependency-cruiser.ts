@@ -365,10 +365,8 @@ const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server"
 // A suite of another module still needs its reach line below.
 const TEST_CONSTANT_HOMES = {
   "packages/client/src/data/query-state-copy.ts": "QUERY_WAITING_LINE and queryFailedLabel: the words of a read with no data",
-  "packages/server/src/entry/http/auth-routes.ts": "LOGOUT_TOKEN_FIELD: the form field a back-channel logout token is posted under",
   "packages/server/src/entry/http/security-headers.ts": "OWN_POLICY_ROUTES: the own-policy route registration, one suite case per member",
-  "packages/server/src/entry/http/plugin-frame.ts":
-    "PLUGIN_FRAME_CSP, PLUGIN_FRAME_ASSET_CSP and PLUGIN_FRAME_ASSET_RESOURCE_POLICY: the policies the plugin frame routes write",
+  "packages/server/src/entry/http/plugin-frame.ts": "PLUGIN_FRAME_CSP and PLUGIN_FRAME_ASSET_CSP: the policies the plugin frame routes write",
   "packages/server/src/entry/http/card-frame.ts": "CARD_FRAME_FLOOR_CSP: the policy the card frame serves a document with no character under",
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
   "packages/server/src/transport/trpc/fault-copy.ts": "UNCLASSIFIED_FAULT_MESSAGE: the words the error formatter sends for every unclassified throw",

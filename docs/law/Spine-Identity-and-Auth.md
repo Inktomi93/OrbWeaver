@@ -76,9 +76,11 @@ Code comments cite the numbered invariants below as "invariant N":
    bridge can still resolve a disabled-or-offline host's authority. That bridge keeping no gate is the
    intended divergence, not an oversight.
 9. **CSRF gates on `hasCsrfHeader` or on a JSON-only content type, and every credential path is ambient.**
-   A cross-site page can send a CORS-simple request with any of the three credentials attached. The browser
-   auto-attaches the session cookie. The loopback owner fallback rides the socket a browser on the box
-   already speaks from. A forward-auth proxy stamps its identity header (`via:"header"`) on any request that
+   A cross-origin page can send a CORS-simple request with any of the three credentials attached. The
+   browser attaches the `SameSite=Lax` session cookie to a POST from a same-site, cross-origin page (another
+   port on the host, a sibling subdomain), never from a cross-site one. The loopback owner fallback rides the
+   socket a browser on the box already speaks from, whatever site the page is on. A forward-auth proxy stamps
+   its identity header (`via:"header"`) on any request that
    carries the proxy's own login credential, and that credential can be ambient too: a `SameSite=None`
    proxy cookie, a sibling service on the same site, or HTTP Basic. The byte-ingest routes
    (`packages/server/src/entry/http/upload.ts`, which registers `/api/assets/upload`, `/api/databank/upload`,
@@ -89,21 +91,22 @@ Code comments cite the numbered invariants below as "invariant N":
    `POST /api/auth/oidc/backchannel-logout` carries no CSRF check, because its outcome does not depend on
    an ambient credential: the issuer-signed `logout_token` is its only authentication. A route whose
    outcome depends on an ambient credential is never exempt. Each exempt route registers through its entry
-   in `CSRF_EXEMPT_ROUTES` (`packages/server/src/entry/auth/csrf-exemptions.ts`), which cites the law or
-   ledger line that rules it; this paragraph rules the back-channel route.
+   in `CSRF_EXEMPT_ROUTES` (`packages/server/src/entry/auth/csrf-exemptions.ts`), which cites, word for
+   word, the law or ledger sentence that rules it. The first sentence of this paragraph rules the
+   back-channel route.
 
    tRPC (`packages/server/src/transport/trpc/trpc.ts`) needs only the content-type guard at its mount
    (`packages/server/src/entry/app.ts`), on every credential path. The guard refuses any POST to
    `/api/trpc/*` whose content type does not select tRPC's JSON handler (415). `application/json` is not
-   CORS-simple and the app mounts no CORS middleware, so a cross-site page cannot send it without a
+   CORS-simple and the app mounts no CORS middleware, so a cross-origin page cannot send it without a
    preflight the app never answers. The guard is required, not defense in depth: `@trpc/server`'s
    `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` as mutations,
-   and `multipart/form-data` is CORS-simple, so without the guard a plain cross-site `<form>` reaches the
+   and `multipart/form-data` is CORS-simple, so without the guard a plain cross-origin `<form>` reaches the
    mount on any ambient credential. `application/json` (with or without `; charset=utf-8`) runs on every
    path. tRPC's own gate also refuses a cookie mutation without `x-orb-csrf` (403); the fallback and proxy
-   paths with `application/json` and no `x-orb-csrf` still run (200), which the un-cookied loopback dev
-   tooling relies on. GET is untouched —
-   tRPC's method map admits GET for queries and subscriptions only. The external legacy source contains a test of the non-JSON refusal through the real mount. It is reference-only. The runtime content-type guard remains required because `application/json` is not a CORS-simple content-type and this app mounts no CORS middleware.
+   paths with `application/json` and no `x-orb-csrf` still run (200). The un-cookied loopback dev tooling
+   relies on the fallback path. GET is untouched: tRPC's method map admits GET for queries and
+   subscriptions only.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The
     production census is two: the `oidc` callback (`packages/server/src/entry/http/auth-routes.ts`: verified claims through

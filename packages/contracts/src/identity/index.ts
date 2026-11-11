@@ -66,6 +66,9 @@ export const CSRF_HEADER = "x-orb-csrf";
  *  Back-Channel Logout §2.4). Cross-boundary wire fact: the provider writes it and the server's verifier requires it. */
 export const OIDC_BACKCHANNEL_LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
 
+/** The form field an identity provider posts its back-channel logout token under (OIDC Back-Channel Logout §2.5). */
+export const OIDC_LOGOUT_TOKEN_FIELD = "logout_token";
+
 /** The cleartext local-password floor. The hashing boundary, the env's initial password and the admin verbs
  *  all enforce this one value. */
 export const MIN_PASSWORD_LENGTH = 8;

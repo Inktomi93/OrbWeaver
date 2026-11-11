@@ -11,8 +11,7 @@ import { vi } from "vitest";
 
 // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
 export const MEMBER = { sub: "native-member-subject", preferred_username: "oidc-member" } satisfies JWTPayload;
-export const LOGOUT_TOKEN_PARAM = "logout_token";
-export const LOGOUT_EVENT = "http://schemas.openid.net/event/backchannel-logout";
+export { OIDC_BACKCHANNEL_LOGOUT_EVENT as LOGOUT_EVENT, OIDC_LOGOUT_TOKEN_FIELD as LOGOUT_TOKEN_PARAM } from "@orb/contracts/identity";
 
 export type HttpRoot = Pick<ServerTestHarness, "http" | "db">;
 export type Issuer = Awaited<ReturnType<typeof createNativeIssuer>>;

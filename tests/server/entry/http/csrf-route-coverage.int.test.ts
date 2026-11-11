@@ -6,7 +6,7 @@
 // `CSRF_EXEMPT_ROUTES` excuses a route, and each exempt route proves its outcome does not depend on an ambient
 // credential.
 import type { AuthMode } from "@orb/contracts/identity";
-import { AUTH_FALLBACK_KEY, AUTH_MODES, authMeSchema, CSRF_HEADER, OIDC_BACKCHANNEL_LOGOUT_EVENT } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODES, authMeSchema, CSRF_HEADER, OIDC_BACKCHANNEL_LOGOUT_EVENT, OIDC_LOGOUT_TOKEN_FIELD } from "@orb/contracts/identity";
 import { CSRF_EXEMPT_ROUTES } from "@orb/server/entry/auth";
 import { appRouter } from "@orb/server/transport/trpc";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -15,7 +15,6 @@ import type { AuthModeRoot, AuthModeRootOptions, AuthSubject } from "@orb/testki
 import { createAuthModeRoot, mintMember, ownerSubject, signIn } from "@orb/testkit/node/auth";
 import { createNativeIssuer } from "@orb/testkit/node/helpers";
 import { METHOD_NAME_ALL } from "hono/router";
-import { LOGOUT_TOKEN_FIELD } from "#server/entry/http/auth-routes.ts";
 
 const LOOPBACK_PEER = "127.0.0.1";
 const OWNER_FALLBACK: AuthModeRootOptions = { env: { [AUTH_FALLBACK_KEY]: "owner" }, physicalPeer: () => LOOPBACK_PEER };
@@ -197,7 +196,7 @@ const EXEMPTION_PROOFS: { readonly [Key in keyof typeof CSRF_EXEMPT_ROUTES]: (na
       const post = async (token: string, arm: (typeof arms)[number]): Promise<Answer> => {
         peer = arm.peer;
         const reply = await answer(
-          await root.http.request(route.path, { method: route.method, headers: arm.headers, body: new URLSearchParams([[LOGOUT_TOKEN_FIELD, token]]) }),
+          await root.http.request(route.path, { method: route.method, headers: arm.headers, body: new URLSearchParams([[OIDC_LOGOUT_TOKEN_FIELD, token]]) }),
         );
         peer = PUBLIC_PEER_ADDRESS;
         return reply;

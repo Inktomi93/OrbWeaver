@@ -132,7 +132,7 @@ export interface PluginFrameDeps {
 /** The served asset's own policy: an image needs no source, and a direct navigation to it lands sandboxed. */
 export const PLUGIN_FRAME_ASSET_CSP = "default-src 'none'; sandbox";
 /** The opaque-origin frame loads the asset cross-origin, so only the successful asset reply carries this. */
-export const PLUGIN_FRAME_ASSET_RESOURCE_POLICY = "cross-origin";
+const PLUGIN_FRAME_ASSET_RESOURCE_POLICY = "cross-origin";
 
 function assetHeaders(mime: string, byteLength: number): Record<string, string> {
   return {
