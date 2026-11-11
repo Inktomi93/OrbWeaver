@@ -26,6 +26,10 @@ When you confirm a defect, enumerate its class from the source of truth before y
 - Check for deleted, skipped or loosened tests, expected values copied from output, and TODOs claimed as done.
 - Mutate one critical line per claim, and confirm a test fails. A test that cannot fail is a finding.
 - Read each test's setup: a test that never reaches the state it names proves nothing.
+- Read every new test file in full against the [authoring checklist](../../../tests/support/README.md#authoring-checklist). Report each step it misses.
+- Check each literal, list, table and shape in a test against its production home. A copy is a finding.
+- Confirm the test runs the production entry it names, and that its red came from the intended defect.
+- Establish each point under [What review must establish](../../../tests/support/README.md#what-review-must-establish).
 
 ## Checks to run
 

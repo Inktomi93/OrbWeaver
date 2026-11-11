@@ -34,7 +34,7 @@ Take the first step that applies:
 
 ## Budgets
 
-- A file header is 3 lines or fewer: state the file purpose and its non-obvious invariant. Omit it when the name and exports explain both.
+- A file header states the file purpose in one line, then each ruling, invariant or trap the file holds. `AGENTS.md` makes the header the home of per-domain law, so a ruling stays there in full. Cut every line that is not one of those. Omit the header when the name and exports explain the file.
 - A reason is one line. A security or deliberate-surprise warning may be as long as it must be to stop a wrong fix.
 - No history: no dates, no "was a bug", no audit or campaign notes, no comparison with SillyTavern or another project (D141).
 - Cite only a stable anchor beside a self-contained statement: a `D<n>` id or a named law section. Never cite a doc line number, an issue or board number, or an inventory count (D141).

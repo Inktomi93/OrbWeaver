@@ -1,16 +1,17 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: tooling
+lane: wt/agent-a3b00fac426662467
 ---
 
 # The comment citation test reads root config files and scripts
 
 ## What
 
-`tests/tooling/doc/comment-path-citations.repo.int.test.ts` scans only `packages`, `tooling` and `tests`, so a comment in a root config file or under `scripts/` can cite a deleted path. Source: `docs/work/codebase-review/units/root-config.md`.
+`tests/tooling/doc/comment-path-citations.repo.int.test.ts` scans only `packages`, `tooling` and `tests`, so a comment in a root config file or under `scripts/` can cite a deleted path. Source: `reports/codebase-review/units/root-config.md`.
 
 ## Why
 

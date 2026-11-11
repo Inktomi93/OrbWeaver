@@ -1,16 +1,17 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: release
+lane: wt/agent-ad0e85a8b8ba4ff64
 ---
 
 # Install and image comments and knobs match what the scripts do
 
 ## What
 
-The `Dockerfile` prod-deps comment says every patched dependency is a dev tool; several are production dependencies of the deploy graph. `install.cmd` ignores the `ORB_MODE` knob that `install.sh` honors. `docker/orbweaver.local.env.example` does not say that `PORT` moves the listener away from the published mapping in the base compose shape. No CI job runs `install.sh` or `update.sh`. Source: `docs/work/codebase-review/units/scripts-patches.md` and `install-run.md`.
+The `Dockerfile` prod-deps comment says every patched dependency is a dev tool; several are production dependencies of the deploy graph. `install.cmd` ignores the `ORB_MODE` knob that `install.sh` honors. `docker/orbweaver.local.env.example` does not say that `PORT` moves the listener away from the published mapping in the base compose shape. No CI job runs `install.sh` or `update.sh`. Source: `reports/codebase-review/units/scripts-patches.md` and `install-run.md`.
 
 ## Why
 

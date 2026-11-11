@@ -1,16 +1,17 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: tooling
+lane: wt/agent-a3b00fac426662467
 ---
 
 # Stack tooling imports the server drain constant and the canonical env keys
 
 ## What
 
-`tooling/src/stack/lib/verdicts.ts` mirrors `SHUTDOWN_DRAIN_MS` and says the server does not export it; `packages/server/src/infra/network/index.ts` does. `tooling/src/stack/lib/setup-plan.ts`, `stack-plan.ts` and `fixture-plan.ts` redefine or hand-spell env keys that `@orb/contracts/identity` and the server data-layout contract already export, and `tests/tooling/stack/lib/setup-plan.test.ts` imports the local copies. The `DEBUG_ENV_KEYS` caption in `tooling/src/stack/contract/types.ts` claims completeness and omits its one deliberate exclusion. `tooling/src/floor/http/session-cookie.ts` spells the session cookie names a second time. Source: `docs/work/codebase-review/units/tooling-configs.md` and `tooling-floor.md`.
+`tooling/src/stack/lib/verdicts.ts` mirrors `SHUTDOWN_DRAIN_MS` and says the server does not export it; `packages/server/src/infra/network/index.ts` does. `tooling/src/stack/lib/setup-plan.ts`, `stack-plan.ts` and `fixture-plan.ts` redefine or hand-spell env keys that `@orb/contracts/identity` and the server data-layout contract already export, and `tests/tooling/stack/lib/setup-plan.test.ts` imports the local copies. The `DEBUG_ENV_KEYS` caption in `tooling/src/stack/contract/types.ts` claims completeness and omits its one deliberate exclusion. `tooling/src/floor/http/session-cookie.ts` spells the session cookie names a second time. Source: `reports/codebase-review/units/tooling-configs.md` and `tooling-floor.md`.
 
 ## Why
 

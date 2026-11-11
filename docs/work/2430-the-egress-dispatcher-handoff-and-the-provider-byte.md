@@ -1,16 +1,17 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: security
+lane: wt/agent-a7cc72305cac667b5
 ---
 
 # The egress dispatcher handoff and the provider byte pins have tests in the repository
 
 ## What
 
-The SSRF dispatcher contract suite and the per-transport wire byte-pin suites for anthropic-messages and openai-compat exist only in the reference-only legacy test tree. Comments in `pnpm-workspace.yaml` named them as live protection. `packages/server/src/infra/network/egress.ts` is the only consumer of the global dispatcher. Source: `docs/work/codebase-review/units/root-config.md`.
+The SSRF dispatcher contract suite and the per-transport wire byte-pin suites for anthropic-messages and openai-compat exist only in the reference-only legacy test tree. Comments in `pnpm-workspace.yaml` named them as live protection. `packages/server/src/infra/network/egress.ts` is the only consumer of the global dispatcher. Source: `reports/codebase-review/units/root-config.md`.
 
 ## Why
 

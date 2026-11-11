@@ -1,16 +1,17 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: tooling
+lane: wt/agent-a3b00fac426662467
 ---
 
 # Lint refusal messages name import doors and tests that exist
 
 ## What
 
-Three messages point authors at things the tree does not have. `eslint.config.ts` tells authors to use `@orb/testkit/node/fixtures.ts`, which the testkit exports refuse. `tooling/src/biome-config/policy.config.ts` sends raw media to `@orb/ui/content`; the live door is `@orb/ui/message-media`. The same file says the plural sessions ban is pinned by a test file that is deleted, and one message carries a date. Source: `docs/work/codebase-review/units/root-lint-configs.md`.
+Three messages point authors at things the tree does not have. `eslint.config.ts` tells authors to use `@orb/testkit/node/fixtures.ts`, which the testkit exports refuse. `tooling/src/biome-config/policy.config.ts` sends raw media to `@orb/ui/content`; the live door is `@orb/ui/message-media`. The same file says the plural sessions ban is pinned by a test file that is deleted, and one message carries a date. Source: `reports/codebase-review/units/root-lint-configs.md`.
 
 ## Why
 
