@@ -4,6 +4,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import { pathOccurrences } from "../../floor/host/path-boundary.ts";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
@@ -13,7 +14,7 @@ import { parseEnvText } from "./env-file.ts";
 
 /** The env keys the supervisor and the server both read for the stack's address. */
 export const RUN_DIR_ENV = "STACK_RUN_DIR";
-export const PORT_ENV = "PORT";
+export const PORT_ENV = "PORT" satisfies EnvKey;
 export const VITE_PORT_ENV = "VITE_PORT";
 export const VITE_API_TARGET_ENV = "VITE_API_TARGET";
 /** The pin keys the supervisor filled, handed to the leader: in the leader's own env every pin reads as a
@@ -33,7 +34,7 @@ const PIN_DEFAULTS: Readonly<Record<DevPinKey, string>> = Object.fromEntries([
   [AUTH_FALLBACK_KEY, "owner"],
   [AUTH_MODE_KEY, "single-user"],
   [SESSION_SECRET_ENV, "orbweaver-dev-only-session-secret-insecure"],
-  ["CREDENTIALS_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
+  ["CREDENTIALS_KEY" satisfies EnvKey, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
   [LOCAL_INITIAL_PASSWORD_ENV, "orbweaver-dev-password"],
   ["DEV_SEED", "on"],
 ] satisfies readonly (readonly [DevPinKey, string])[]) as Record<DevPinKey, string>;

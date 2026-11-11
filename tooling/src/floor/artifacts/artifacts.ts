@@ -438,8 +438,7 @@ export function abandonedRuns(root: string, instrument: string): readonly Abando
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }
 
-// THE `--out` NAMING CONTRACT MOVED OUT (#2242) to ./artifact-naming.ts when this module crossed the
-// 450-line cap — the same shape as the #1029 slot machinery's own split of retention into
+// THE `--out` NAMING CONTRACT MOVED OUT (#2242) to ./artifact-naming.ts — the same shape as the #1029 slot machinery's own split of retention into
 // ./run-retention.ts. It is NOT re-exported here: biome's `lint/performance/noBarrelFile` forbids a value
 // re-export, so the eleven callers import the new module directly and this file keeps exactly the
 // capability it is named for (`PrunedRun` below survives only because a TYPE-only re-export is allowed).

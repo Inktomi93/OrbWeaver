@@ -1,7 +1,7 @@
 // CONTROL GEOMETRY: tap targets (pointer-conditional floors) + control silhouette + OBSCURED targets
 // (#816). Pure; thresholds cited. Provenance: lib/collect.ts header. The NAVIGABILITY half this file used
 // to carry — accessible names, unreachable hints, landmark, tabindex, heading order — is
-// `checks-a11y-navigability.ts`; the two left together at the tooling 450-line cap, along the seam this
+// `checks-a11y-navigability.ts`, split along the seam this
 // header already named.
 import type { CandidateDisposition, Finding, RulePopulationAccounting, Severity } from "../contract/findings.ts";
 import { WITHHELD_REASONS } from "../contract/findings.ts";

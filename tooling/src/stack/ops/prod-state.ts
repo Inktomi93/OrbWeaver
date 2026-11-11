@@ -12,7 +12,7 @@ import type { DebugPosture, InstanceClassification, ObservedInstance, ProdRecord
 import { envFilePath, parseEnvText, readEnvText } from "../lib/env-file.ts";
 import { classifyInstance } from "../lib/identity.ts";
 import { parseProdRecord } from "../lib/prod-record.ts";
-import { RUN_DIR_ENV, stackRunDir } from "../lib/stack-plan.ts";
+import { PORT_ENV, RUN_DIR_ENV, stackRunDir } from "../lib/stack-plan.ts";
 import { classifyDebugPosture } from "../lib/verdicts.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm stack <verb> prod");
@@ -60,7 +60,7 @@ export function readEnvFile(repoRoot = REPO_ROOT): Readonly<Record<string, strin
 /** The port the server will ACTUALLY bind. `.env` wins over the shell — the same precedence
  *  foundation/env applies — so probing the shell's PORT alone would watch the wrong socket. */
 export function resolvePort(fileEnv: Readonly<Record<string, string | undefined>>): number {
-  const raw = fileEnv["PORT"] ?? AMBIENT["PORT"];
+  const raw = fileEnv[PORT_ENV] ?? AMBIENT[PORT_ENV];
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_PORT;
 }

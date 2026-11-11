@@ -5,7 +5,7 @@ import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
 import type { EnvKey } from "@orb/server/foundation/env/record";
-import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
+import { DEBUG_TOKEN_ENV, LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import type { PortPair } from "../../floor/host/ports.ts";
 import type { FullPriorityChild } from "../../floor/process/proc-contract.ts";
 
@@ -159,7 +159,7 @@ export interface LeaderProbes {
  *  which stays off unless set on its own, because reply prose must never be implied by request capture.
  *  `DEBUG_TOKEN` gates /api/_debug/* · `WIRE_CAPTURE` records outbound provider request bodies ·
  *  `RPG_TRACE` wires the rpg flight recorder read at /api/_debug/rpg/traces. */
-export const DEBUG_ENV_KEYS = ["DEBUG_TOKEN", "WIRE_CAPTURE", "RPG_TRACE"] as const satisfies readonly EnvKey[];
+export const DEBUG_ENV_KEYS = [DEBUG_TOKEN_ENV, "WIRE_CAPTURE", "RPG_TRACE"] as const satisfies readonly EnvKey[];
 export type DebugEnvKey = (typeof DEBUG_ENV_KEYS)[number];
 
 export interface DebugConflict {

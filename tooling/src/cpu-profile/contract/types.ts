@@ -1,5 +1,5 @@
 // The run shapes of cpu-profile (Snap's `--perf`/`--cpu-profile` arms): the step tape, parsed args, the in-page meter
-// buckets, and the per-step report row. Split from the pre-move perf-meter.ts (P3 of #393).
+// buckets, and the per-step report row.
 export const BOOT_TRACE_INSIGHTS = ["LCPBreakdown", "CLSCulprits", "NetworkDependencyTree", "ImageDelivery", "DocumentLatency", "ForcedReflow"] as const;
 
 export type BootTraceInsightName = (typeof BOOT_TRACE_INSIGHTS)[number];

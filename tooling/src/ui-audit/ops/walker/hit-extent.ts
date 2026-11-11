@@ -4,7 +4,7 @@
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 //
-// SPLIT OUT of census-interactive.ts (#797) because that segment reached the 450-line tooling cap. The
+// SPLIT OUT of census-interactive.ts (#797). The
 // ownership vocabulary (ownsPoint / the ancestor-credit shapes / the composite walk / the probe frame)
 // is one subject and reads as one file; the census that CONSUMES it is another.
 //

@@ -21,7 +21,7 @@ updated: 2026-09-23
 
 Inventory lists are illustrative — `transport/trpc/routers/` + `transport/jobs/` on disk are the truth.
 
-NOT owned: the `Principal` construction (→ `packages/server/src/entry/auth/seam.ts`; transport CARRIES it on `ctx`); the non-tRPC registrars (→ `entry/http/`); the cross-feature workload wiring (→ `packages/server/src/entry/compose/workload-contributions.ts`, D117 — the former `runner-env.ts` hub is DELETED, D4 superseded); the bulk-import driver (→ `entry/import/`); business logic of any kind; the rate-limiter instances + bucket policy (→ `packages/server/src/entry/rate-limit-gate.ts`).
+NOT owned: the `Principal` construction (→ `packages/server/src/entry/auth/seam.ts`; transport CARRIES it on `ctx`); the non-tRPC registrars (→ `entry/http/`); the cross-feature workload wiring (→ `packages/server/src/entry/compose/workload-contributions.ts`, D117, D4 superseded); the bulk-import driver (→ `entry/import/`); business logic of any kind; the rate-limiter instances + bucket policy (→ `packages/server/src/entry/rate-limit-gate.ts`).
 
 ## The driver-vs-composition line
 

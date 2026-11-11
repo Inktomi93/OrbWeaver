@@ -1,5 +1,5 @@
-// ui-audit's programmatic front door — the ONLY way anything reaches this engine (Core-Tooling-Law §2.5,
-// §4.2). One tool, one API.
+// ui-audit's programmatic front door — the ONLY way anything reaches this engine.
+// One tool, one API.
 //
 // THERE IS NO ui-audit PROGRAM ANY MORE (#1315). The parser, the stage door, the drive queue, the matrix
 // projection, the run path and the operator help were DELETED, not deprecated: Snap is the sole rendered

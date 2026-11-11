@@ -1,5 +1,5 @@
 // THE DENSITY PREVIEW'S PERSISTENCE GUARD — the half of the appearance matrix that answers "did the
-// preview WRITE THROUGH?", split out of `appearance-invariant-runtime.ts` at the tooling 450-line cap.
+// preview WRITE THROUGH?", split out of `appearance-invariant-runtime.ts`.
 // The runtime op owns reaching a surface and taking its DOM/pixel/cascade evidence; this module owns one
 // question with its own vocabulary: intercept the settings mutation, read the tRPC body the client
 // actually posted, and report what was attempted, what matched exactly, and what shape the body had —

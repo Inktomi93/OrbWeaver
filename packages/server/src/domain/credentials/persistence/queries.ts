@@ -112,11 +112,9 @@ export function deleteOwnedCredential(db: Db, ownerId: UserId, credentialId: Use
 
 /** Mark a credential revoked — OWNER-SCOPED, every revoke path. Idempotent (a re-revoke re-stamps).
  *
- *  It used to be `WHERE id = ?` with an `@owner-scope-write-ok` marker arguing that a foreign row was
- *  unreachable "by construction" from today's callers. That argument was true and worthless: it was a claim
- *  about call sites, and the next wiring inherits nothing that says so (`injected-op-caller-param`). Now the
- *  scope is a QUERY PREDICATE — a credentialId the owner does not hold matches zero rows — which is why the
- *  marker is gone rather than re-justified.
+ *  The scope is a QUERY PREDICATE, not a claim about today's callers: a claim about call sites is one the next
+ *  wiring inherits nothing of (`injected-op-caller-param`), while a credentialId the owner does not hold matches
+ *  zero rows whoever calls.
  *
  *  RETURNS THE MATCHED IDS so a caller that did NOT pre-prove ownership can tell "revoked" from "matched
  *  nothing" (the strike-out reports the miss; the pre-fetching callers ignore it).

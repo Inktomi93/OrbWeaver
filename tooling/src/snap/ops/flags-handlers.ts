@@ -1,5 +1,5 @@
 // The flag table itself: one handler per flag (Record dispatch), driven by parseSnapArgs (ops/parse.ts)
-// in argv order. Split out of ops/flags.ts when that file crossed the tooling line cap
+// in argv order. Split out of ops/flags.ts
 // — the table is the single biggest seam in that file.
 //
 // WHAT IS **NOT** HERE ANY MORE: the twenty-five ARM flags (--text/--map/--eval/--contrast/--cascade/
@@ -377,7 +377,7 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.vision = known;
   },
   // The isolated-stage family lives in its own module (ops/flags-stage.ts) — seven flags about the same
-  // subsystem, split out when this table crossed the tooling line cap.
+  // subsystem.
   ...STAGE_FLAG_HANDLERS,
   // The stateful-session family (ops/flags-session.ts) — the same one-family-per-module shape.
   ...SESSION_FLAG_HANDLERS,

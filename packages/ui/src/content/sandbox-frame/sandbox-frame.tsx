@@ -15,7 +15,7 @@ interface SandboxFramePropsBase {
   readonly html: string;
   /** Optional card CSS (rides the sandboxed document's own `<style>`; cannot touch the app). */
   readonly css?: string;
-  /** Re-clamped at this boundary via `isSafeColor` regardless of caller — see `theme-tokens.ts`. */
+  /** Re-clamped at this boundary via `isSafeColor` regardless of caller. */
   readonly themeTokens?: Readonly<Record<string, string>>;
   /** The NON-COLOR `--*` slice (radius, mono family) — re-clamped at this boundary by the kit style grammar,
    *  which `isSafeColor` structurally cannot judge (#799). */

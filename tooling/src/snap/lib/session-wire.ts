@@ -3,7 +3,7 @@
 // and the RESULT pairs a call's captured lines carry. Every reader validates field by field and answers
 // null to anything off-grammar — a daemon on another protocol version, a truncated row, a torn line —
 // so nothing half-read is ever mistaken for a verdict. Split from ./session-plan.ts (the partition,
-// verdicts and refusal texts) at the tooling size cap; pinned by tests/tooling/snap/lib/session-wire.test.ts.
+// verdicts and refusal texts); pinned by tests/tooling/snap/lib/session-wire.test.ts.
 import type { OrbConsoleCompleteness, OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
 import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION } from "../contract/run-facts.ts";

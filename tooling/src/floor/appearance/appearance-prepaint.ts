@@ -1,6 +1,5 @@
 // Pre-parser Appearance evidence. This is a separate shared seam because the init-script program is a
-// complete browser instrument with its own lifecycle; keeping it in appearance.ts pushed the public
-// settings-shim door past the tooling size cap. The settings shim still owns installation and re-exports
+// complete browser instrument with its own lifecycle. The settings shim still owns installation and re-exports
 // the evidence types/read door, so callers do not gain a second Appearance API.
 
 import type { BrowserContext, Page } from "@playwright/test";

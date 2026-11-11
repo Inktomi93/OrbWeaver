@@ -16,7 +16,7 @@
 // THE PRESENCE DOT (#1039) IS DECORATION, AND THAT IS THE A11Y ARGUMENT, NOT A SHORTCUT. The row body is a
 // Button carrying an explicit `aria-label`, so an `aria-label` on anything INSIDE it is never announced —
 // which is why the dot is `aria-hidden` and the word "online"/"offline" rides `rowAccessibleName` instead
-// (`role-status-dot.tsx`'s labelled-dot idiom is for a dot that is its own accname owner; this one is not).
+// (a labelled dot is its own accname owner; this one is not).
 // It also carries a SHAPE channel beside the colour one — online is FILLED, offline is a hollow ring — so
 // the state survives a colour-blind reader looking at it and a screen reader hearing it. UNKNOWN presence
 // renders NO dot: "we did not ask / the read has not landed" is not "offline".
@@ -177,8 +177,7 @@ function PresenceDot({ online }: { readonly online: boolean | null }): ReactElem
       data-online={online}
       data-slot="member-presence"
       // The SHAPE channel: the online dot is filled, and the offline one is an unfilled ring of the same box —
-      // two states distinguishable with the colour removed, per the never-colour-alone rule the sibling
-      // `role-status-dot.tsx` states.
+      // two states distinguishable with the colour removed, per the never-colour-alone rule.
       edge={online ? "none" : "ring"}
       fill={online ? "success" : "none"}
       shape="pill"

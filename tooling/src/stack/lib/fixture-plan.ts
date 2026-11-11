@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { AUTH_MODE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
 import { PORT_ENV, RUN_DIR_ENV, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "./stack-plan.ts";
@@ -61,7 +62,7 @@ export function fixtureIdentityEnv(serverPort: number): Readonly<Record<string, 
   return Object.fromEntries([
     [AUTH_MODE_KEY, "local"],
     [SESSION_SECRET_ENV, "orbweaver-multi-user-fixture-session-secret-insecure"],
-    ["CREDENTIALS_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
+    ["CREDENTIALS_KEY" satisfies EnvKey, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
     [LOCAL_INITIAL_PASSWORD_ENV, OWNER.password],
     [ENV_NO_FILE_KEY, "1"],
     [OWNER_HANDLES_KEY, OWNER.handle],

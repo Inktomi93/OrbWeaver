@@ -1,5 +1,4 @@
-// ARTIFACT NAMING — the pure `--out` value → filesystem path contract, split out of ./artifacts.ts when that
-// module crossed the 450-line cap (#2242). It is the only block in there that touches NO run slot, NO
+// ARTIFACT NAMING — the pure `--out` value → filesystem path contract, split out of ./artifacts.ts. It is the only block in there that touches NO run slot, NO
 // `reports/` root and NO filesystem: given a base directory and an `--out` value it answers what the file is
 // called. Keeping it beside the slot machinery meant one module answering two unrelated questions, and the
 // cap is what made that legible.

@@ -254,7 +254,7 @@ test("the CT ceiling FOLLOWS ctWorkers, covers the host-slot wait, and never dip
   const halfTheWorkers = stageBudgetsFor({ ...shared, ctWorkers: Math.max(1, Math.floor(shared.ctWorkers / 2)) }, BODY);
   expect(halfTheWorkers.ctSuiteMs, "half the workers ⇒ a strictly longer honest run ⇒ a longer ceiling").toBeGreaterThan(budgets.ctSuiteMs);
   // A queued run spends the host-slot wait INSIDE the stage's wall clock, so the ceiling has to contain it
-  // (ct-runner-lock.ts reads `ctHostWaitMs` from this same row — one number, two readers).
+  // (`tooling/src/floor/host/host-slots.ts` reads `ctHostWaitMs` from this same row — one number, two readers).
   expect(budgets.ctSuiteMs, "the ceiling must exceed the wait a run is allowed to spend queueing").toBeGreaterThan(budgets.ctHostWaitMs);
   expect(budgets.ctSuiteMs, "…and the default floor").toBeGreaterThanOrEqual(budgets.defaultMs);
   // An absurdly cheap suite must still not shrink a stage's ceiling below the default.

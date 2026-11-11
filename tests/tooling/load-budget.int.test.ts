@@ -70,7 +70,7 @@ test("a fast child returns its stdout untouched — the non-kill path is unchang
 });
 
 test("the workspace runner enters through pnpm and preserves its successful output", ({ repoRoot }) => {
-  expect(runPnpmWithBudget(["--version"], { cwd: repoRoot }, 30_000, "pnpm entry probe")).toMatch(VERSION_RE);
+  expect(runPnpmWithBudget(["--version"], { cwd: repoRoot }, 30_000, "workspace runner probe")).toMatch(VERSION_RE);
 });
 
 test("a child that exits NON-ZERO without being killed still returns stdout (the gate-fired shape)", ({ repoRoot }) => {

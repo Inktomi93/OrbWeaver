@@ -1,6 +1,5 @@
 // THE SHARED, REPO-KEYED BAND TABLE — <main-checkout>/.cache/snap-stage/bands.json. Split out of
-// ops/stage.ts when that file crossed the tooling line cap; it is
-// one command family, and the one every other stage module reads.
+// ops/stage.ts; it is one command family, and the one every other stage module reads.
 //
 // Every function here takes the TABLE ROOT (`markerRoot(repoRoot())`), never a checkout root: that is the
 // whole of issue #108. A band is a port pair for the whole box, so the file naming its owner must be one

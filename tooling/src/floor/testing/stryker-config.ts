@@ -29,7 +29,6 @@ const IGNORE_PATTERNS = [
   "playwright-report/**",
   "test-results/**",
   ".claude/**",
-  ".agents/**",
   ".qwen/**",
   "reference/**",
   "scratch/**",

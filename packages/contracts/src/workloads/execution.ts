@@ -2,8 +2,7 @@
 // axes (tuples `@orb/db` and the client derive from, D34), the progress snapshot the SSE tail carries, and
 // the per-dispatch run context.
 //
-// These are the DOM/node-free half of the contribution seam (`domains raise seams, the worker skims them` —
-// the replacement for the retired `runner-env.ts` god-hub). The `WorkloadContribution` interface itself
+// These are the DOM/node-free half of the contribution seam (`domains raise seams, the worker skims them`). The `WorkloadContribution` interface itself
 // cannot live here: its `run` body takes an `AbortSignal` (cancel is a core queue feature, not optional),
 // and this package is deliberately isomorphic with NO dom/node lib — the same constraint that keeps
 // `PortableEntity.exportAll` signal-free in `@orb/contracts/portability`. It homes one tier up, in

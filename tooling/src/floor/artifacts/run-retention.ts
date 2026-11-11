@@ -1,5 +1,5 @@
 // THE RUN RING'S RETENTION POLICY (#1341): which slots may be deleted, and the bounded ledger of the ones
-// that were. Split out of ./artifacts.ts when that file passed the tooling line cap; the seam is real — this
+// that were. Split out of ./artifacts.ts; the seam is real — this
 // module decides POLICY over a directory of run ids and never learns what a run slot is, while artifacts.ts
 // owns the slot machinery and hands the census in.
 //

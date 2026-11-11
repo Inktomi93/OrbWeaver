@@ -4,6 +4,7 @@
 // keepNames `__name` helper breaking serialized functions — died with the 2026-08-03 tsx shed;
 // the lib-mismatch reason stands alone.)
 
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import type { Browser, BrowserContext, CDPSession, devices, LaunchOptions, Page, PlaywrightWorkerOptions } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { warn } from "../cli/log.ts";
@@ -22,7 +23,7 @@ import { resolveProbeMedia } from "./browser-media.ts";
 export type { CapturedConsole, CapturedRequest } from "./browser-capture.ts";
 
 export const DEFAULT_BASE = processEnvValue("SNAP_BASE_URL") ?? `http://localhost:${DEV_PORTS.vite}`;
-export const DEFAULT_DEBUG_TOKEN = processEnvValue("DEBUG_TOKEN") ?? "";
+export const DEFAULT_DEBUG_TOKEN = processEnvValue(DEBUG_TOKEN_ENV) ?? "";
 
 const TRAILING_SLASH_RE = /\/$/u;
 

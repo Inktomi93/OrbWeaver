@@ -28,8 +28,7 @@ export interface CorpusRunJobEmptyStateProps {
    * ONE DOOR PER SCREEN (#99 item 1). With both Corpus panes empty — which is the whole first-run shape —
    * this component mounted twice and drew the identical "Run a job…" button 400px apart, both opening the
    * same Settings → Jobs picker. The CONTENT pane keeps the verb; the LIST pane states its own emptiness
-   * and stands down. That is exactly the precedent `config-welcome.tsx` records for the same collision
-   * ("the LIST empty box dropped its button") — the sentence is per-pane truth, the door is per-screen.
+   * and stands down: the sentence is per-pane truth, the door is per-screen.
    * @defaultValue true
    */
   readonly offerDoor?: boolean;

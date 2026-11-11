@@ -90,11 +90,9 @@ export type ChatSummary = ChatSummaryFields &
  *  request's `characterId`/`includeArchived`. Mirrors the `items`/`nextCursor` shape of `character`'s own
  *  `ListCharactersResult` and ADDS the census.
  *
- *  `totalCount` is a real server `COUNT` over the SAME scope this page windows, not `items.length`. The
- *  characters band had to DROP its count when that list went keyset-paged ("any number here would be
- *  'loaded so far', and a census that silently means something else is worse than none",
- *  `characters-list-header.tsx`) — chat prints its census in two user-visible places (the chats band's count
- *  and the character card's "N chats"), so the honest number is served rather than the badge deleted. */
+ *  `totalCount` is a real server `COUNT` over the SAME scope this page windows, not `items.length`: a census
+ *  that silently means "loaded so far" is worse than none, and chat prints its census in two user-visible places
+ *  (the chats band's count and the character card's "N chats"). */
 export interface ChatListPage {
   readonly items: readonly ChatSummary[];
   /** The keyset boundary to pass as the next `cursor`; `null` when a short page came back (no row remains). */

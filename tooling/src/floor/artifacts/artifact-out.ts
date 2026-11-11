@@ -1,7 +1,6 @@
 // The `--out` FILING layer (#1164): which file an instrument's artifact lands in, and which RUN owns it.
 // One layer above ./artifacts.ts (run slots + the reports/ path home + the RESULT line), which it imports
-// and never imports back. Split out when the two layers together passed the tooling-size cap — the seam is
-// real, not cosmetic: `artifacts.ts` answers "where do runs live", this answers "where does THIS artifact go".
+// and never imports back. The seam is real, not cosmetic: `artifacts.ts` answers "where do runs live", this answers "where does THIS artifact go".
 import { createHash } from "node:crypto";
 import { readdirSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";

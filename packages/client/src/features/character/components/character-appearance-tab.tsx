@@ -72,7 +72,6 @@ const THEME_FIELD_NAMES = Object.keys(EMPTY_CHARACTER_THEME_FORM) as (keyof Char
  * Each colour and select cluster is a `SettingRowGroup`, the settings track every pane shares. Vertical
  * label-over-swatch turned eleven colour rows into a 54px-per-row ladder that exhausted the viewport before
  * Background was reachable; the track keeps label-left/control-right and stacks only below its container step.
- * (It rode `character-options-tab.tsx` until #841 folded that shell away with the merge it existed to hold.)
  */
 export function CharacterLookTab({ characterId }: CharacterAppearanceTabProps): ReactElement {
   return (

@@ -8,17 +8,19 @@
 // (default 8788), not through the vite dev proxy.
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import type { RequestTrace } from "@orb/server/foundation/observability";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { DEV_PORTS } from "../../floor/host/ports.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
+import { PORT_ENV } from "../../stack/index.ts";
 import { renderTrace } from "../lib/render.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm trace:render | pnpm trace:tail | pnpm trace:fire");
 
-const PORT = processEnvValue("PORT") ?? String(DEV_PORTS.server);
+const PORT = processEnvValue(PORT_ENV) ?? String(DEV_PORTS.server);
 const HOST = processEnvValue("TRACE_TAIL_HOST") ?? `http://127.0.0.1:${PORT}`;
 const DEFAULT_INTERVAL_MS = 2000;
 const LIST_LIMIT = 200;
@@ -96,7 +98,7 @@ export function tailOp(argv: readonly string[]): Promise<number> {
     throw new UsageError(`trace:tail does not recognize ${JSON.stringify(unknown)} — usage: pnpm trace:tail [--token=<t>]`);
   }
   const tokenArg = argv.find((a) => a.startsWith("--token="));
-  const tokenEnv = processEnvValue("DEBUG_TOKEN");
+  const tokenEnv = processEnvValue(DEBUG_TOKEN_ENV);
   const token = tokenArg === undefined ? tokenEnv : tokenArg.slice("--token=".length);
   return new Promise<number>((resolve) => {
     const runPoll = (): void => {

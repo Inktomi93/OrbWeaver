@@ -1,5 +1,5 @@
 // The duplicate-action-door family (the runtime half of issue #252) — split out of checks-quality.ts
-// (#1720) once the allowance mechanism pushed that file over the tooling-size cap; a monolith is exactly
+// (#1720) as its own family; a monolith is exactly
 // the drawer @orb/tooling exists to end. Pure.
 // Provenance: lib/collect.ts header; walker: ops/walker/census-interactive.ts.
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";

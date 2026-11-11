@@ -1,7 +1,7 @@
 // THE CGROUP READER — reads whatever CPU limit the kernel already imposes on this process tree (a
 // container, CI, or a systemd slice can all set one), never sets or changes one itself: this process's own
 // CPU ceiling (`cpu.max`) and how often it was stopped (`cpu.stat`). One INPUT to `load-budget.ts`'s box
-// reading, split out of it at the size cap (2026-09-18): the budget math stays there, the two once-per-process
+// reading, split out of it: the budget math stays there, the two once-per-process
 // filesystem walks live here, and the direction is one-way — this module imports nothing from
 // `load-budget.ts`. Why the denominator and the wall-clock stretch honour the limit at all:
 // `cgroupQuotaCores` below (#1985) and `load-budget.ts#throttleFactor` (#2206).
@@ -75,7 +75,7 @@ export function cgroupQuotaCores(read: CgroupFileReader): number | undefined {
 }
 
 function readCgroupFile(path: string): string | undefined {
-  // ONE TAIL RETURN (the `pass.ts` accumulator idiom): biome's noUselessReturn refuses a bare `return` in
+  // ONE TAIL RETURN: biome's noUselessReturn refuses a bare `return` in
   // the catch and tsc's noImplicitReturns refuses falling out of it, so the verdict is a binding.
   let body: string | undefined;
   // ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly "no ceiling is declared here", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell "unbounded" from "could not ask"; the absence then becomes a value and this catch becomes a branch.

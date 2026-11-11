@@ -1,5 +1,4 @@
-// Shared constants + the queue-pusher/selector helpers ops/flags.ts's dispatch table is built from —
-// split out when that table crossed the tooling line cap.
+// Shared constants + the queue-pusher/selector helpers ops/flags.ts's dispatch table is built from.
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args, NavAction, PagedExpr, Step } from "../contract/types.ts";
 

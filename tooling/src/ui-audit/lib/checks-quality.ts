@@ -3,7 +3,7 @@
 // PLACEMENT-COLLISION arms — a display headline overhanging an opaque card, and an `inline` element whose
 // padding leaks off its line (#816 arms ii and iii; their walker is ops/walker/census-occlusion.ts). Pure.
 // Provenance: lib/collect.ts header. Duplicate action doors (the runtime half of issue #252) moved to
-// ./checks-duplicate-door.ts (#1720) once its allowance mechanism pushed this file over the size cap.
+// ./checks-duplicate-door.ts (#1720).
 import type { Finding } from "../contract/findings.ts";
 import { PAGE_SUBJECT_SELECTOR } from "../contract/findings.ts";
 import type { ClippedOverflowInput, EdgeFlushInput, EmptyStateInput, RepeatedTextInput, TextOverflowInput, TruncatedTextInput } from "../contract/samples.ts";

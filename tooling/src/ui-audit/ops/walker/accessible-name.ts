@@ -1,6 +1,6 @@
 // ui-audit in-page walker — segment: THE ACCESSIBLE-NAME SOURCE SET **and the one name KEY over it**.
 //
-// Split out of census-interactive.ts at #1009 (the tooling 450-line cap): the resolvers below are
+// Split out of census-interactive.ts at #1009: the resolvers below are
 // not a census, they are the SOURCE SET the accessible-name census and the door census both read — one
 // resolver per way a control can carry a name, so neither consumer re-derives one and the two cannot
 // drift apart (the door census reading a different source set than the name census is exactly the shape

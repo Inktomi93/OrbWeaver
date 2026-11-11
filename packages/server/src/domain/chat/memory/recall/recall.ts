@@ -241,7 +241,7 @@ async function filterPool(
     //   • tier 0 ⇒ test the START (`first.seqStart`), i.e. drop only when the block is WHOLLY inside the
     //     window. A tier-0 straddler has nothing finer behind it, so dropping it would delete its aged-out
     //     messages from BOTH planes — trading this filter's bounded redundancy for real memory loss, which
-    //     inverts its job ("no redundancy", `window.ts`; it is never the last thing holding a scene).
+    //     inverts its job ("no redundancy": it is never the last thing holding a scene).
     // Boundary unchanged (`inLiveWindow`): a seq EQUAL to the cutoff still counts as in-window.
     const overlapSeq = d.tier === 0 ? first.seqStart : last.seqEnd;
     if (env.liveWindowCutoffSeq !== undefined && inLiveWindow(overlapSeq, env.liveWindowCutoffSeq)) {

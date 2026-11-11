@@ -95,8 +95,8 @@ export interface ContrastInput {
   readonly unseenInFrame?: string;
 }
 
-// `ImageDistortionInput` MOVED to contract/samples-media.ts (2026-09-06, #1825) — same 450-line-cap split
-// reason as `BuriedRasterInput`'s own home there; re-exported below so existing consumers are unchanged.
+// `ImageDistortionInput` MOVED to contract/samples-media.ts (2026-09-06, #1825) — the same media family as
+// `BuriedRasterInput`'s own home there; re-exported below so existing consumers are unchanged.
 export type { ImageDistortionInput } from "./samples-media.ts";
 
 // ── Broken images (impeccable `broken-image`) ───────────────────────────────
@@ -107,8 +107,8 @@ export interface BrokenImageInput {
 
 export type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // ── The interactive census (tap targets · names · landmark · tabindex · doors · silhouettes · reach) ──
-// Re-exported, not re-declared: these shapes moved to contract/samples-interactive.ts when this file hit
-// the 450-line tooling cap (#797). `contract/samples.ts` stays the one door onto the sample vocabulary —
+// Re-exported, not re-declared: these shapes moved to contract/samples-interactive.ts
+// (#797). `contract/samples.ts` stays the one door onto the sample vocabulary —
 // and the import beside the re-export is load-bearing, because `RawSamples` below composes these names
 // (a bare `export … from` re-exports without binding them locally, which tsc catches and biome does not).
 export type {
@@ -208,9 +208,8 @@ export interface AccentBorderInput {
 // aggregator closed a type-only `no-circular` loop. Re-exported here so existing consumers are unchanged.
 
 // ── Ornament censuses (patterns · icon tiles · static motion) ────────────────────────────────────────
-// `BgPatternInput` / `IconTileInput` / `MotionStaticInput` MOVED to contract/samples-ornament.ts (#1315) —
-// the #797 split reason, one family over: this file was AT the 450-line cap and the boundary census needed
-// room. Re-exported below beside the other family doors; the import is load-bearing because `RawSamples`
+// `BgPatternInput` / `IconTileInput` / `MotionStaticInput` MOVED to contract/samples-ornament.ts (#1315),
+// one family per sibling. Re-exported below beside the other family doors; the import is load-bearing because `RawSamples`
 // composes these names (a bare `export … from` re-exports without binding them locally).
 export type { BgPatternInput, IconTileInput, MotionStaticInput } from "./samples-ornament.ts";
 

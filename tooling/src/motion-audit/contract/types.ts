@@ -1,6 +1,6 @@
 // The run shapes of motion-audit: parsed args, the reach queue, the in-page motion snapshot
 // (mirrors packages/client/src/lib/motion-stats.ts — the probe reads it via __orb), the CDP trace
-// event shape, and the audit result. Split from the pre-move motion-audit.ts (P3 of #393).
+// event shape, and the audit result.
 //
 // REACH VOCABULARY LIMITATION (#1072): the audit's reach vocabulary is `click` (a measured
 // `page.mouse.click`) and `nav` (a dev-bridge navigation). Gesture-driven motion — drag, swipe,

@@ -1,6 +1,6 @@
 // Browser-channel readers for diagnostics, the redacted core capture, and HAR evidence. The typed
-// console-annotation parser and diagnostic-draft reader live in run-finding-console-annotation.ts
-// (moved out to hold the 450-line cap); re-exported here so callers keep one import surface.
+// console-annotation parser and diagnostic-draft reader live in run-finding-console-annotation.ts;
+// re-exported here so callers keep one import surface.
 
 import { aggregateDimension, exactDimension, exactScope, pageIndex, scopeV1 } from "../../floor/artifacts/artifact-scope.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";

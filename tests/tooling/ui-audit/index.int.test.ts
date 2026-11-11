@@ -512,7 +512,7 @@ test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }
 // ── the ISOLATED STAGE mode (#678): a lane must be able to audit its OWN branch ─────────────────────────
 //
 // THE THREE ARGV REFUSALS MOVED WITH THE FLAGS (#1315). `--ref`/`--isolated`/`--dirty` are SNAP's — they
-// always were (Core-Tooling-Law §2.4: one lifecycle owner) — and the folded scan rides them like every
+// always were (one lifecycle owner) — and the folded scan rides them like every
 // other arm instead of re-deriving the conflict table. Their pins are `tests/tooling/snap/ops/parse.test.ts`
 // (an unresolvable ref, `--base` beside a stage flag, `--ref` beside `--dirty`), where they are asserted
 // against the parser that actually owns them. What stays HERE is the half that is about the AUDIT: the

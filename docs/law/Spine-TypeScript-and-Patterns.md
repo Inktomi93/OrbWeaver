@@ -32,7 +32,7 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **server-only pure primitive shape** | `packages/server/src/primitives/` | server callers |
 | **tooling result, config and exit shape** | the tool's `contract/`, or `tooling/src/floor/` for retained shared plumbing | the tool and its tests |
 | **tooling helper API** (a function's options, handle and result shapes) | the file that declares the function under [D331](../adr/0331-tooling-and-test-shapes-stay-beside-their-function.md) | the function's callers |
-| **shared test shape** | the test kit under `tests/support/`, a `fixtures.ts`, `*.fixtures.ts`, `*-fixtures.ts` or `_support.ts` module, or a `contract/` folder | suites in maintained tests |
+| **shared test shape** | the test kit under `tests/support/`, a `fixtures.ts`, `*.fixtures.ts`, `*-fixtures.ts` or `**/_support.ts` module, or a `contract/` folder | suites in maintained tests |
 | **test helper API** | the file that declares the helper function under [D331](../adr/0331-tooling-and-test-shapes-stay-beside-their-function.md) | the helper's callers |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 

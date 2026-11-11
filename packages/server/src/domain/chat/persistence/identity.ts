@@ -1,7 +1,7 @@
 // domain/chat/persistence/identity — the ONE kind-polymorphic CHAT IDENTITY producer loader (D137): resolve
 // every identity a chat references into `ChatIdentity[]` — the member-gated, history-inclusive display/name
 // vocabulary both consumers derive from (server ASSEMBLE via `buildIdentityNameContext`, the client render
-// chrome via both projections). Replaces the per-kind loader pair (`macro-names.ts` + `roster-avatars.ts`).
+// chrome via both projections).
 //
 // Names + the persona description + the CAS avatar hash, never the full character/persona entity: a member
 // already sees who authored each line, so a co-participant's persona/character name is not a further secret

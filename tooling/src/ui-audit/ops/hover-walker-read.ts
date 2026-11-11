@@ -1,7 +1,7 @@
 // ui-audit in-page segment — the FORCED-STATE pass's second half: glow-member registration, the
 // read/restore closures Node drives (`window.__orbHover`), the release-proof verify, and the census
-// return object. Split from ops/hover-walker.ts (2026-09-01) when the attribute mechanism took that
-// file past the tooling-size cap — the same rule-family segmentation ops/walker.ts runs on. ONE
+// return object. Split from ops/hover-walker.ts (2026-09-01) with the attribute mechanism —
+// the same rule-family segmentation ops/walker.ts runs on. ONE
 // function scope with its siblings: ops/hover.ts concatenates STATE_PAINT + HOVER_CENSUS +
 // HOVER_DENOMINATOR (ops/hover-walker-groups.ts, the 2026-09-06 half of the same split) + THIS
 // segment in order, so every `var` the earlier halves initialized (hoverCandidates, hoverGroups,

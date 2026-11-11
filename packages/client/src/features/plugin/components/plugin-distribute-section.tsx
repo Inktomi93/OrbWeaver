@@ -4,8 +4,7 @@
 //
 // A SECTION, NOT A GATE ON THE PANE. The Plugins pane is deliberately ungated (D147: plugins are user-scoped,
 // and hiding a person's own installed plugins from them is the failure that ruling exists to prevent), so the
-// admin half arrives as a viewer-gated CONTRIBUTION at the same anchor — exactly what `plugins-pane.tsx`'s own
-// header said a future server-wide install would be.
+// admin half arrives as a viewer-gated CONTRIBUTION at the same anchor.
 //
 // THE COPY CARRIES THE ONE THING AN ADMIN MUST UNDERSTAND BEFORE PRESSING IT: distributing does not turn
 // anything on. Every copy lands switched off with nothing allowed, and each person answers the permission ask

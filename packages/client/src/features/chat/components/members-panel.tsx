@@ -12,7 +12,7 @@
 // was ever told that arrows do anything here. A roving tabindex outside a composite widget is a keyboard
 // model with no way to learn it.
 //   · the LIST is `role="toolbar"` + `aria-orientation="vertical"` + its own name. Toolbar is the app's own
-//     precedent for exactly this shape (rpg-hud-rail.tsx #112: a roving-focus set of controls that must NOT
+//     precedent for exactly this shape (`app-shell/components/context-rail.tsx`: a roving-focus set of controls that must NOT
 //     claim a selection), and its contract IS this widget's: arrows inside, one stop for the rows.
 //     DELIBERATE DEVIATION from the pattern's "a toolbar SHOULD be a single tab stop": the two section-
 //     header doors (Invite people · Add a character) keep their OWN tab stops. They are the roster's primary

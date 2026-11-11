@@ -1,6 +1,6 @@
 // ui-audit in-page walker — segment: interactive NAVIGABILITY census: tabindex smell + the coarse-pointer
-// unreachable-hint census + z-index escalation. Split out of `census-interactive.ts` at the tooling-size
-// cap along the REVEAL boundary: everything here runs AFTER the reveal sweep has been restored, reads only
+// unreachable-hint census + z-index escalation. Split out of `census-interactive.ts`
+// along the REVEAL boundary: everything here runs AFTER the reveal sweep has been restored, reads only
 // resolved geometry/attributes, and needs none of the tap-target probe's viewport-bound machinery.
 //
 // IT IS THE NEXT SEGMENT, NOT AN INDEPENDENT ONE. `ops/walker.ts` concatenates the segments IN ORDER into

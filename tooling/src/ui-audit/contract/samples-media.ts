@@ -17,8 +17,7 @@
  *  The opacity threshold itself is a Node-side verdict (`lib/checks-media.ts`) — the walker only
  *  gathers the fact. */
 // ── Distorted / stretched image (impeccable `distorted-image`) ──────────────
-// MOVED from contract/samples.ts (2026-09-06, #1825) — that file sat AT the 450-line tooling cap and had
-// no room for the new field below.
+// MOVED from contract/samples.ts (#1825) into the media family.
 export interface ImageDistortionInput {
   readonly selector: string;
   readonly naturalWidth: number;

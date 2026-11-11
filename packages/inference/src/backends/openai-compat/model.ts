@@ -75,7 +75,7 @@ function fetchArgs(call: ModelCall, shapeBody: WrapFetchArgs["shapeBody"]): Wrap
 
 /** The `providerOptions` key the openai-compatible SDK reads for a provider named `name` (§E2). The SDK
  *  accepts BOTH the raw name and its camel form, but pushes a `deprecated` warning on EVERY call when the
- *  raw form differs and is the one present (`to-camel-case.ts` + `warnIfDeprecatedProviderOptionsKey`, dist
+ *  raw form differs and is the one present (`warnIfDeprecatedProviderOptionsKey`, dist
  *  `index.js:25-45`) — and our provider ids are hyphenated (`custom-openai`, `lm-studio`). The camel form is
  *  the non-deprecated spelling, so it is the only one we write. */
 export function providerOptionsKey(providerId: string): string {

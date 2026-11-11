@@ -217,7 +217,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   var interactiveEls = document.querySelectorAll(INTERACTIVE_SELECTOR);
   // The compositor hit-extent probe — ownsPoint / measureHitExtent / probeFrameFits /
   // inVisualViewport and the ancestor-credit vocabulary — is the PRECEDING segment
-  // (ops/walker/hit-extent.ts, split out at #797 for the tooling line cap). Same function scope.
+  // (ops/walker/hit-extent.ts, split out at #797). Same function scope.
 
   // ── REACH (#653): the census's own denominator, and the sweep that earns it ──────────────────────
   // "nothing found" and "nothing looked at" must never render identically, so every control that is
