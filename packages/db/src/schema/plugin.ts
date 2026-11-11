@@ -299,6 +299,9 @@ export const pluginKv = sqliteTable(
     // The denormalized owner guard is ALSO an FK: a user hard-delete cascades these rows, and `ownerId` is
     // not the PK's leading column, so the delete scanned every KV row (FK-index test).
     index("plugin_kv_owner_idx").on(t.ownerId),
+    // NOT the key bound: length() on TEXT counts code points and stops at the first NUL, so a NUL-led key passes at any
+    // length. The host's storage write is the bound. A NUL-safe byte CHECK would refuse rows this one already admitted,
+    // so changing it needs a decision about those rows first.
     check("plugin_kv_key_check", sql.raw(`length(key) <= ${PLUGIN_KV_KEY_MAX_CHARS}`)),
     // A cap in BYTES — length() on TEXT counts characters, so cast to BLOB for the byte cap.
     check("plugin_kv_value_check", sql.raw(`length(cast(value as blob)) <= ${PLUGIN_KV_VALUE_MAX_BYTES}`)),

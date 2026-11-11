@@ -94,12 +94,25 @@ test("a storage write past the key cap answers a client error with the storage-c
 // A character that is three UTF-8 bytes, so a value of N of them is a third as many characters as bytes.
 const THREE_BYTE_CHAR = "中";
 const THREE_BYTE_CHAR_WIDTH = 3;
+const NUL = "\0";
 
 test.for([
   {
     name: "a key past the key cap",
     within: ["k".repeat(PLUGIN_KV_KEY_MAX_CHARS), "v"],
     past: ["k".repeat(PLUGIN_KV_KEY_MAX_CHARS + 1), "v"],
+  },
+  {
+    // The relay's JSON carries a NUL intact, and the key measure counts it like any character; the table's own
+    // character count stops at a NUL, so it cannot stand in for this.
+    name: "a NUL-led key past the key cap",
+    within: [`${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS - NUL.length)}`, "v"],
+    past: [`${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS)}`, "v"],
+  },
+  {
+    name: "a key with a NUL mid-key past the key cap",
+    within: [`head${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS - `head${NUL}`.length)}`, "v"],
+    past: [`head${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS - `head${NUL}`.length + 1)}`, "v"],
   },
   {
     // Fewer characters than the byte cap, more bytes than it: the cap is in bytes.
