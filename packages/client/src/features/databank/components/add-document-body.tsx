@@ -40,7 +40,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { CharacterPicker } from "#components";
-import { uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import { DocumentUploadRefusedError, uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
 import { focusFirstInvalidFieldIn } from "#forms/editor";
 import { DIALOG_VERBS, testId } from "#lib";
 import { closeModal, selectDocumentFromList, setActiveSection, useActiveChatId } from "#state";
@@ -55,6 +55,7 @@ import {
   DATABANK_ADD_TEXT_FIELD_NAME,
   DATABANK_PASTE_TEXT_NAME,
 } from "../lib/databank-names.ts";
+import { documentUploadFailureLine } from "../lib/databank-upload-copy.ts";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
 import { DEFAULT_CAPTION_LANG, SCRAPE_FAILURE, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
 
@@ -278,8 +279,9 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
         });
         setLoading(false);
       },
-      () => {
-        setError("Couldn't add the document. Check the destination, file type and size, then try again.");
+      (failure: unknown) => {
+        // The line is the server's code in the dialog's words; a rejection with no code (an over-size body, a network fault) gets the general line.
+        setError(documentUploadFailureLine(failure instanceof DocumentUploadRefusedError ? failure.reason : null));
         setLoading(false);
       },
     );

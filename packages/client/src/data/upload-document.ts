@@ -15,7 +15,7 @@
 // hardcoded byte literal (§2.2).
 
 import type { DocumentDestination, UploadResult } from "@orb/contracts/databank";
-import { DOCUMENT_DESTINATION_FORM_FIELD, uploadResultSchema } from "@orb/contracts/databank";
+import { DOCUMENT_DESTINATION_FORM_FIELD, documentUploadRefusalSchema, uploadResultSchema } from "@orb/contracts/databank";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import { throwHttpError } from "./http-error.ts";
@@ -23,8 +23,22 @@ import { throwHttpError } from "./http-error.ts";
 const UPLOAD_FIELD = "file";
 const NAME_FIELD = "name";
 
+/** The server refused the document and said why in a body {@link documentUploadRefusalSchema} accepts. `reason` is the
+ *  refusal's code (`null` when the server stated none): a caller keys its words on it, never on the server's sentence. */
+export class DocumentUploadRefusedError extends Error {
+  public readonly reason: string | null;
+  public readonly status: number;
+  constructor(refusal: { readonly error: string; readonly reason?: string | undefined }, status: number) {
+    super(`uploadDocument: ${String(status)} — ${refusal.error}`);
+    this.name = this.constructor.name;
+    this.reason = refusal.reason ?? null;
+    this.status = status;
+  }
+}
+
 /** POST a picked `File` to the databank upload route; validate its full result against
- *  {@link uploadResultSchema} (never bare-cast). Throws
+ *  {@link uploadResultSchema} (never bare-cast). Throws {@link DocumentUploadRefusedError} for a refusal body
+ *  the contract accepts, else
  *  on a non-OK response, a malformed document, or an unknown disposition — the
  *  caller (an upload component/mutation) owns the try/catch + loading-state UI (the `FileDropzone`
  *  `loading`/`success` contract, `@orb/ui`). `name` defaults to the file's own name server-side when omitted. */
@@ -43,6 +57,16 @@ export async function uploadDocument(file: File, name?: string, destination?: Do
     headers: { [CSRF_HEADER]: "1" },
   });
   if (!response.ok) {
+    // a body that is not JSON (the empty 413 a body-limit belt sends) leaves `refusal.success` false, and the line after it throws the status-line error. Ends if that throw stops following.
+    const refusal = documentUploadRefusalSchema.safeParse(
+      await response
+        .clone()
+        .json()
+        .catch(() => null),
+    );
+    if (refusal.success) {
+      throw new DocumentUploadRefusedError(refusal.data, response.status);
+    }
     await throwHttpError("uploadDocument", response);
   }
   return uploadResultSchema.parse(await response.json());

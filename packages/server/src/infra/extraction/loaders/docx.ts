@@ -11,7 +11,8 @@
 // second exists because a zip is a LIST, not a map — a crafted archive can carry N entries all named
 // `word/document.xml`, and a name-only filter admitted every one of them, inflating N parts (each legal on
 // its own) while the Record-keyed result kept only the last. A legitimate OOXML package has exactly one
-// document part, so the second copy is a loud named refusal rather than a silent last-one-wins. The guard is
+// document part, so the second copy is a loud named refusal rather than a silent last-one-wins. The over-cap refusal
+// is an `ExpansionBudgetError`, which the dispatch answers as too large rather than damaged. The guard is
 // a per-call CLOSURE (the `epub.ts` aggregate-budget precedent) — module state would refuse the second
 // document the PROCESS ever loads. A corrupt zip / missing document part throws — the dispatch wraps it as
 // `ExtractionFailedError('docx')`. Empty text is truthful (a doc with no runs).
@@ -20,6 +21,7 @@ import { decodeXmlText } from "@orb/kit/strings";
 import type { UnzipFileInfo } from "fflate";
 import { strFromU8, unzipSync } from "fflate";
 import type { RawExtraction } from "../contract.ts";
+import { ExpansionBudgetError } from "../contract.ts";
 
 const DOCUMENT_PART = "word/document.xml";
 // A single OOXML part over 64 MiB is a bomb, not a document — refuse from the zip header before allocating.
@@ -61,7 +63,7 @@ function createDocumentFilter(): (file: UnzipFileInfo) => boolean {
       throw new Error(`docx carries more than one ${DOCUMENT_PART} — a package has exactly one document part`);
     }
     if (file.originalSize > MAX_PART_BYTES) {
-      throw new Error(`docx ${DOCUMENT_PART} exceeds the ${MAX_PART_BYTES}-byte cap`);
+      throw new ExpansionBudgetError(`docx ${DOCUMENT_PART} exceeds the ${MAX_PART_BYTES}-byte cap`);
     }
     seen = true;
     return true;

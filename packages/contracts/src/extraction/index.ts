@@ -7,8 +7,9 @@
 // The error taxonomy is load-bearing: `UnsupportedDocTypeError` = the caller sent a type the system
 // does not do (thrown BEFORE any parse; never retried, never wrapped); `ExtractionFailedError` =
 // a supported format's loader threw (corrupt/encrypted/invalid file) — retryable only in the sense that a
-// FUTURE `EXTRACTOR_VERSION` may succeed. Both are `DomainOperationError`s with their own code
-// ({@link EXTRACTION_OP_CODES}), so the transport's one classifier answers each as a client error that carries
+// FUTURE `EXTRACTOR_VERSION` may succeed; `ExtractionTooLargeError` = an archive (docx, epub) would unpack past
+// a loader's size budget, so the file is intact but too large to read. All three are `DomainOperationError`s with
+// their own code ({@link EXTRACTION_OP_CODES}), so the transport's one classifier answers each as a client error that carries
 // that code, on every door that reaches the op. Empty text is NOT an error (a scanned image-only PDF extracts to
 // near-empty; `charCount` tells the story, the upload verb surfaces a warning, not a throw).
 
@@ -99,7 +100,15 @@ export type ExtractTextOp = (bytes: Uint8Array, mime: string) => Promise<Extract
 export const EXTRACTION_OP_CODES = {
   unsupportedType: "unsupported_doc_type",
   failed: "extraction_failed",
+  tooLarge: "extraction_too_large",
 } as const;
+
+export type ExtractionOpCode = (typeof EXTRACTION_OP_CODES)[keyof typeof EXTRACTION_OP_CODES];
+
+/** Narrow a refusal reason off the wire (`data.reason`, or the upload route's `reason`) to an extraction code; `null` for any other reason. */
+export function extractionOpCodeOf(reason: string): ExtractionOpCode | null {
+  return Object.values(EXTRACTION_OP_CODES).find((code) => code === reason) ?? null;
+}
 
 /** mime maps to no loader. Thrown BEFORE any parse. User-fixable; the transport answers it as a client error
  *  coded {@link EXTRACTION_OP_CODES}`.unsupportedType`; NEVER retried; NEVER wrapped in {@link ExtractionFailedError}. */
@@ -108,6 +117,21 @@ export class UnsupportedDocTypeError extends DomainOperationError {
   constructor(mime: string) {
     super(EXTRACTION_OP_CODES.unsupportedType, `unsupported document type: ${mime}`);
     this.mime = mime;
+  }
+}
+
+/** A supported archive format (docx, epub) would unpack past a loader's size budget. Refused from the zip headers before
+ *  any output is allocated, so the file is intact but too large to read; the person can split it or paste the text. Coded
+ *  {@link EXTRACTION_OP_CODES}`.tooLarge`, apart from {@link ExtractionFailedError}, so a client can say which. NEVER retried.
+ *  The message names only the format; the loader's own text rides as the cause. */
+export class ExtractionTooLargeError extends DomainOperationError {
+  readonly format: DocFormat;
+  constructor(format: DocFormat, options?: { readonly cause?: unknown }) {
+    super(EXTRACTION_OP_CODES.tooLarge, `extraction exceeded the size budget for format: ${format}`);
+    this.format = format;
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
   }
 }
 

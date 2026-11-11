@@ -11,8 +11,9 @@
 
 import type { AssetUploadRefusal } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";
+import type { DocumentUploadRefusal } from "@orb/contracts/databank";
 import { DOCUMENT_DESTINATION_FORM_FIELD, documentDestinationSchema } from "@orb/contracts/databank";
-import { docUploadMime } from "@orb/contracts/extraction";
+import { docUploadMime, EXTRACTION_OP_CODES } from "@orb/contracts/extraction";
 import type { CardImportResult } from "@orb/contracts/import";
 import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
@@ -31,7 +32,7 @@ import type { ImportCharacterPort } from "#domain/character";
 import type { DatabankService } from "#domain/databank";
 import type { ImportFile } from "#domain/import";
 import { hasCsrfHeader } from "#infra/auth";
-import { classifyDomainError } from "#transport/trpc";
+import { classifyDomainError, domainReason } from "#transport/trpc";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
@@ -148,7 +149,9 @@ function documentUploadRefusal(c: Parameters<typeof uploadRefusal>[0], error: un
   if (modeled === null) {
     throw error;
   }
-  return Response.json({ error: modeled.message }, { status: getHTTPStatusCodeFromError(modeled) });
+  const reason = domainReason(modeled);
+  const refusal: DocumentUploadRefusal = reason === undefined ? { error: modeled.message } : { error: modeled.message, reason };
+  return Response.json(refusal, { status: getHTTPStatusCodeFromError(modeled) });
 }
 
 /** Register `POST /api/assets/upload` + `POST /api/import` on `app`. Each: auth-first → CSRF → body cap → handler. */
@@ -208,7 +211,8 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     }
     const mime = docUploadMime(file.type, file.name);
     if (mime === undefined) {
-      return c.json({ error: "that document type is not accepted" }, UNSUPPORTED_MEDIA_TYPE);
+      const refusal: DocumentUploadRefusal = { error: "that document type is not accepted", reason: EXTRACTION_OP_CODES.unsupportedType };
+      return c.json(refusal, UNSUPPORTED_MEDIA_TYPE);
     }
     const nameField = form.get(NAME_FIELD);
     const name = documentUploadName(nameField, file.name);

@@ -432,6 +432,12 @@ export const uploadResultSchema = z
   })
   .transform(({ warning, ...result }): UploadResult => ({ ...result, ...(warning === undefined ? {} : { warning }) })) satisfies z.ZodType<UploadResult>;
 
+/** The body of a refused `POST /api/databank/upload` that carries a reason. `error` is the server's sentence; `reason` is the
+ *  refusal's code, the same value a tRPC refusal sends on `data.reason`, so a client keys on it and never on `error`. Absent
+ *  when the refusal has no code (the route's own 400 and an uncoded domain refusal). */
+export const documentUploadRefusalSchema = z.strictObject({ error: z.string().min(1), reason: z.string().min(1).optional() });
+export type DocumentUploadRefusal = z.infer<typeof documentUploadRefusalSchema>;
+
 export const listDocumentsResultSchema = z.strictObject({
   items: z.array(documentViewSchema).readonly(),
   nextCursor: documentListCursorSchema.strict().nullable(),
