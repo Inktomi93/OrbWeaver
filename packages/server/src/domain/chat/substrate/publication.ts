@@ -1,16 +1,27 @@
-// Only committed/stamped bytes may fan; quiet mode never coalesces terminal or memory-phase events.
-import type { ChatLivePublish, LiveOnlyChatEventType } from "@orb/contracts/chat";
+// A committed event fans under its seq; a dropped append fans with `seq: null` only when `fansWhenDropped` says so (D342).
+// Quiet mode never coalesces terminal or memory-phase events.
+import type { LiveOnlyChatEventType } from "@orb/contracts/chat";
+import { fansWhenDropped } from "@orb/contracts/chat";
 import type { ChatPublication, ChatPublicationDeps } from "../contract/publication.ts";
+
+type AppendOutcome = Awaited<ReturnType<ChatPublicationDeps["bus"]["emit"] | ChatPublicationDeps["bus"]["emitAfterClaim"]>>;
 
 const QUIET_COALESCABLE = { roomEntityChanged: true, chatDeleted: false, memoryRecall: false } as const satisfies Record<LiveOnlyChatEventType, boolean>;
 export function createChatPublication(deps: ChatPublicationDeps): ChatPublication {
-  const fan = (logged: ChatLivePublish | false | null): boolean => {
-    if (logged === false) {
+  // The verdict is whether the append landed (or another caller's claim already did), never whether it fanned.
+  const fan = (outcome: AppendOutcome): boolean => {
+    if (outcome === false) {
       return true;
     }
-    if (logged !== null) {
-      deps.publish(logged);
+    if (outcome === null) {
+      return false;
+    }
+    if (outcome.seq !== null) {
+      deps.publish(outcome);
       return true;
+    }
+    if (fansWhenDropped(outcome.event)) {
+      deps.publish({ seq: null, event: outcome.event });
     }
     return false;
   };

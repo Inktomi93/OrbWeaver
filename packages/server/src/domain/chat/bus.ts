@@ -22,10 +22,8 @@
 // `chat_events.chat_id` FK, and the process exited. A failed append is therefore CLASSIFIED, never thrown:
 //   • the chat row is gone  → the expected delete-mid-turn race: drop at debug, return `null`.
 //   • anything else         → a real fault on a LIVE chat: warn, RETRY the append once, and only then drop at
-//     ERROR. Totality is the mechanism and it stands; what changed is that "the append failed" stopped
-//     being one undifferentiated `null`. A lost event on a live chat is a permanent replay gap — a missing turn
-//     terminal, a missed automation trigger, a stranded client — so the transient half of that class (write
-//     contention) is now recovered instead of merely logged.
+//     ERROR and return the dropped event. A lost event on a live chat is a permanent replay gap, so the
+//     transient half of that class (write contention) is recovered by the retry instead of merely logged.
 // `emitAfterClaim` IS FIRE-ONCE BY DESIGN, AND THAT IS A RULING, NOT A GAP. `emit` retries because
 // its append stands ALONE: a lost append is a permanent replay gap with no other record of the thing it
 // announced. The claim door's append rides the SAME SQLite batch as the state change it announces, and that
@@ -50,16 +48,12 @@
 // fully recovered — but the message must not claim a permanent replay gap (or a lost fan) for the branch
 // that has neither. Which branch it is comes off GROUND TRUTH (the stored payload under our id), never a
 // driver error code, for the same reason `classifyFailedAppend` states.
-// `null` ⇒ the event was not durably logged, so the composition root must not fan it either (a fanned event
-// with no `chat_events` row would be un-replayable). Aborting the turn at delete (verbs/chat-lifecycle) stops
-// the emits at the SOURCE; this classification is the floor under every other cause.
-//
-// STILL OPEN (reported as a fork rather than decided here): `ChatServiceDeps.emit` is typed
-// `Promise<void>` and `entry/compose/services::emitChatEvent` awaits the checked variant and DISCARDS its
-// boolean, so an ordinary send/turn caller cannot see a post-retry loss. Propagating it collides with
-// FLAG[emit-is-total] above (three domain service contracts cite the `void emit()` unhandled-rejection kill as
-// the reason this seam is total), and widening the return with no reader would be ceremony — the owner picks
-// between "typed verdict every caller may ignore" and "an outbox".
+// A DROPPED append on a live chat returns `{ seq: null, event }`, never a rejection: canon committed apart from
+// the log, so the caller has nothing to undo, and D342 rules what the live fan does with it — a terminal or a canon
+// change still fans without a cursor (`fansWhenDropped`, `substrate/publication.ts`) so an attached device does not
+// hang on a row that will never exist; the rest is superseded by its turn's terminal. `null` means only "the chat
+// is gone": nothing fans, because the room's own `chatDeleted` announces it. Aborting the turn at delete
+// (verbs/chat-lifecycle) stops the emits at the SOURCE; this classification is the floor under every other cause.
 
 import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
@@ -80,13 +74,20 @@ interface ChatEmitted {
   readonly event: DurableChatBusEvent;
 }
 
+/** A live-chat append that exhausted its retry: the stamped event, with no cursor (D342). */
+interface ChatDropped {
+  readonly seq: null;
+  readonly event: DurableChatBusEvent;
+}
+
 /** Returns what was logged so the composition root can fan the same cursor-stamped event onto the transport
- *  live bus — or `null` when the append was dropped (see FLAG[emit-is-total]).
+ *  live bus, the dropped event when a live-chat append failed for good, or `null` when the chat is gone (see
+ *  FLAG[emit-is-total]).
  *
  *  `DurableChatBusEvent`, not the whole union: the live-only lane (`LIVE_ONLY_CHAT_EVENT_TYPES`, contracts
  *  §3.4) has no `chat_events` form, so handing one to this emit is a COMPILE error rather than a row the db
  *  CHECK would reject at runtime. Its fan surface is `entry/compose/services::emitChatEventLive`. */
-type EmitChatEvent = (event: DurableChatBusEvent, continuedBody?: string) => Promise<ChatEmitted | null>;
+type EmitChatEvent = (event: DurableChatBusEvent, continuedBody?: string) => Promise<ChatEmitted | ChatDropped | null>;
 
 /** `false` means another caller already consumed the claim: converged success, with nothing to publish. */
 type EmitChatEventAfterClaim = (event: DurableChatBusEvent, claimStatement: StatementToken) => Promise<ChatEmitted | false | null>;
@@ -314,7 +315,8 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     // delivered-but-unlogged event.
     // FLAG[emit-is-total]: a failed durable write is classified, RETRIED on a live chat, and finally dropped —
     // never rethrown, because the engine's delta emits are fire-and-forget and a rejection here kills the
-    // process. `null` still means "not durably logged, do not fan". The retry itself lives in
+    // process. A drop returns the event without a cursor and the publication decides its live fan (D342);
+    // `null` means the chat is gone and nothing fans. The retry itself lives in
     // `appendWithRetry` — kept out of `emit` so its own control flow stays under the cognitive-complexity
     // ceiling — and it mints ONE id for the whole retry outside its loop (see its own header
     // comment for why re-using the id is what makes the DB the arbiter of a duplicate-vs-lost commit).
@@ -325,7 +327,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     }
     if (outcome.kind === "dropped") {
       closeTurn(event);
-      return null;
+      return { seq: null, event };
     }
     // `"recovered"` is the terminal-drop branch that PROVED its seq — publish it on the live fan with
     // the SAME emission `"seq"` (the ordinary success arm) makes, rather than skipping the fan on the retired

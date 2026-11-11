@@ -40,7 +40,7 @@ export const FULL_TEXT = [...BEFORE_JOIN, ...AFTER_JOIN].join("");
 export const OPENING = "The opening stays public.";
 const HOST_PASSWORD = "a-real-late-join-host-password";
 
-const frameSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat), seq: z.number(), event: z.custom<ChatBusEvent>() });
+const frameSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat), seq: z.number().nullable(), event: z.custom<ChatBusEvent>() });
 const wireEnvelopeSchema = z.object({
   channel: z.string().optional(),
   type: z.string().optional(),
@@ -53,7 +53,8 @@ const wireEnvelopeSchema = z.object({
 
 export interface Frame {
   readonly chatId: ChatId;
-  readonly seq: number;
+  /** `null` on a frame with no `chat_events` row (D342). */
+  readonly seq: number | null;
   readonly event: ChatBusEvent;
 }
 

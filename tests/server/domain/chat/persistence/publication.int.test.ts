@@ -116,7 +116,7 @@ test("a room deleted mid-turn leaves the bus holding no open turn for it", async
   expect(bus.openTurns(room.id).size).toBe(0);
 });
 
-test("a terminal whose append is lost still closes its turn on the bus", async ({ harness, db, clock, ids }): Promise<void> => {
+test("a terminal whose append is lost still closes its turn on the bus and comes back without a cursor", async ({ harness, db, clock, ids }): Promise<void> => {
   const { room } = await hostedRoom(harness);
   const bus = createChatBus({ db: databaseHandle(db), logger: createTestLogger(), now: clock.now, newEventId: () => ids.typeId(ID_PREFIX.chatEvent) });
   const turnId = ids.typeId(ID_PREFIX.chatTurn);
@@ -127,6 +127,8 @@ test("a terminal whose append is lost still closes its turn on the bus", async (
     when: `NEW."type" = 'turnAborted'`,
     message: "controlled terminal refusal",
   });
-  expect(await bus.emit({ type: "turnAborted", chatId: room.id, turnId, intent: "send", reason: "error", automationDepth: 0 })).toBeNull();
+  const aborted = { type: "turnAborted", chatId: room.id, turnId, intent: "send", reason: "error", automationDepth: 0 } as const;
+  // Not `null`: that answer is reserved for a chat that is gone, which never fans (D342).
+  expect(await bus.emit(aborted)).toEqual({ seq: null, event: aborted });
   expect(bus.openTurns(room.id).size).toBe(0);
 });
