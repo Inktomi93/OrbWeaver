@@ -2,7 +2,7 @@
 // A library bundle holds one archive path per entry. A wrong allocator silently drops or renames a member of an
 // account backup, and the failure only shows on restore.
 import { expect, test } from "@orb/testkit/node";
-import { createBundlePaths } from "#server/domain/export/substrate/bundle-path.ts";
+import { createBundlePaths } from "#server/domain/export/index.ts";
 
 test("a colliding path takes the first free numeric suffix before its extension", () => {
   const allocate = createBundlePaths();
