@@ -215,7 +215,7 @@ Review before anything that trusts these results.
 | tooling-unwired | tooling/src/unwired/ | M | reviewed (2) |
 | tooling-codemods | tooling/src/codemods/ | M | reviewed (3) |
 | tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | reviewed (3) |
-| tooling-ui-facts | tooling/src/ui-facts/ | S | queued |
+| tooling-ui-facts | tooling/src/ui-facts/ | S | reviewed (0) |
 
 ### Phase 3 — server below domain
 
@@ -438,3 +438,12 @@ checkers where the law says one). Meanwhile the rules engine's best prose in the
 write verb re-runs the full composition pre-write — is the enforcement nobody's header
 advertises. Triage sweep rule addition: diff `pnpm check:\w+` mentions in living prose against
 defined package.json scripts.
+
+Phase 2 (tooling) closed with tooling-ui-facts: reviewed (0), the sweep's first clean unit —
+a maintained, daily-consumed engine whose dense headers all resolve, the neglect mechanism
+confirmed a third time. The phase's shape: the enforcement CODE is derived, tested and green
+(7/7 ui-facts suites, 138 tests; the lint plugin and dep-cruiser layers verified in their own
+units); essentially every finding was in its prose and command surface — ghost gate names,
+ghost commands, doorless fixtures. Phase 3 opens the server, where findings so far predict the
+rot concentrates in the same places: comments, refusal messages, and committed data that cites
+dead things.
