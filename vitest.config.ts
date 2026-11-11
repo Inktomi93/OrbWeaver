@@ -46,8 +46,8 @@ const SEMANTIC_CORPUS_GROUP_ORDER = 2;
 const HOST_DISK_GROUP_ORDER = 3;
 const COMPOSED_REAL_SETUP = "tests/support/node/composed-real.ts";
 
-// docs/work/0062 — every project inherits this through `extends: true`, so each one captures the working
-// tree before its own first test and re-checks it at close: a suite that writes the real tree (repo law
+// Every project inherits this through `extends: true`, so each one captures the working tree
+// before its own first test and re-checks it at close: a suite that writes the real tree (repo law
 // forbids it) reds naming the file instead of passing unseen.
 const WORKING_TREE_GUARD = "@orb/tooling/floor/testing/working-tree-guard";
 // Every project also runs inside a run-owned OS temp folder, removed at close and swept when its owner died.
@@ -87,9 +87,8 @@ export function vitestConfig(): ViteUserConfig {
       testTimeout: budget(5000),
       hookTimeout: budget(10_000),
       // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.
-      // No AUTH_FALLBACK: #2406 resolves it per AUTH_MODE, so the suite's default (unset ⇒ single-user)
-      // boots at `owner` on its own. Between #1864 and #2406 this line carried the pin the flat `deny`
-      // default made mandatory.
+      // No AUTH_FALLBACK: the server resolves it per AUTH_MODE, so the suite's default (unset ⇒
+      // single-user) boots at `owner` on its own and needs no pin here.
       env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1" },
       // Native bindings need process isolation. One module registry per worker: every file reuses the
       // server graph import, and no module may read the environment at import time (the harness

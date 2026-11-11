@@ -143,7 +143,7 @@ export const config = {
       // `tokens.near-duplicate.ts`) and it deliberately carries NO `!`: they are node-only build/verify
       // machinery, so they belong to the DEFAULT view (where their `ajv`/`style-dictionary` devDependencies
       // must stay accounted for) and NOT to the production view. Without the row, dropping `./token-contract`
-      // from the exports map in #1847 left `token-contract.ts` outside every project glob, and its ajv imports
+      // from the exports map would leave `token-contract.ts` outside every project glob, and its ajv imports
       // read as unused devDependencies of @orb/ui. `src/**` keeps the `!` — that IS the shipped surface.
       project: ["src/**/*.{ts,tsx,css}!", "*.ts"],
     },

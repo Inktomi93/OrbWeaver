@@ -145,7 +145,7 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 | Unit | Path | Band | Status |
 | - | - | - | - |
 | root-config | package.json, pnpm-workspace.yaml, tsconfig\*{.base,.node,.tests-dom,.tests-iso,.world-browser,.world-node,.json}, .editorconfig, .gitattributes, .env.example | M | reviewed (7) |
-| root-lint-configs | biome.json, eslint.config.ts, eslint-plugins.d.ts, stylelint\*.{ts}, jscpd.json, knip.ts, .dependency-cruiser.ts, lefthook.yml, stryker.config.ts, vitest\*.ts, playwright\*.config.ts, codegraph.json, .mcp.json, .markdownlint.json | L | queued |
+| root-lint-configs | biome.json, eslint.config.ts, eslint-plugins.d.ts, stylelint\*.{ts}, jscpd.json, knip.ts, .dependency-cruiser.ts, lefthook.yml, stryker.config.ts, vitest\*.ts, playwright\*.config.ts, codegraph.json, .mcp.json, .markdownlint.json | L | reviewed (7) |
 | root-dts | aggregator-assets.d.ts, platform\*.d.ts, reset.d.ts — loose ambient types at root | S | queued |
 | install-run | install.sh/.cmd, start.sh/.cmd, update.sh/.cmd, Dockerfile, docker-compose.yaml, .dockerignore, docker/ | M | queued |
 | scripts-patches | scripts/, patches/ | M | queued |
@@ -287,8 +287,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 0 | 0 | - |
-| P2 | 3 | 0 | root-config |
-| P3 | 1 | 3 | root-config |
+| P2 | 6 | 0 | root-config, root-lint-configs |
+| P3 | 3 | 5 | root-config, root-lint-configs |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -298,3 +298,7 @@ Working thesis from phase 0, to confirm or eat: **code has gates, prose does not
 `units/root-config.md`, section "Program thesis". All phase-0 findings were one crime: structure
 moved and its describing sentences went false silently, twice on security tripwires. Treat stale
 prose as a P2-class defect here, not a nit, and say so when a later unit contradicts the thesis.
+root-lint-configs sharpened it: the gates themselves are derived, guarded and green — the rot is
+in the *sentences inside refusal messages* (`units/root-lint-configs.md`): a lint error can tell
+an author to import a specifier the resolver refuses or to trust a pin-test that was deleted.
+When reviewing any gate, read its message strings with the dead-path sweep, not just its rules.
