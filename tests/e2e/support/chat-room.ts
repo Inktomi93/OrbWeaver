@@ -21,7 +21,6 @@
 //   • stream-open is observed on the wire (`stream-tap.ts`: the room's `chatOpened` frame); orb has no
 //     `chat-stream-state` testid.
 
-import { GAME_STRIP_LABEL, MESSAGE_TOOLS_LABEL, rowActionsName } from "@orb/client/lib";
 import { GROUP_OUTPUT_LABELS } from "@orb/contracts/chat";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -46,8 +45,11 @@ import { CHAT_TITLE_FIELD_NAME } from "#client/lib/chat-rename-names.ts";
 import { CONTEXT_SHEET_BACK_NAME, LIST_PANEL_NOUN, panelEdgeName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { GAME_STRIP_LABEL } from "#client/lib/registry-contracts.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
+import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 import type { CanonMessage } from "./trpc.ts";
@@ -497,25 +499,12 @@ export function characterChips(page: Page): ReturnType<Page["locator"]> {
   return page.locator(`${CHARACTER_BAR}:not([aria-hidden="true"]) ${CHARACTER_CHIP}`);
 }
 
-/** The rendered character-bar member names (empty when the bar isn't mounted — a solo room). A chip's text is
- *  `<avatar initials>\n<display name>`, so the NAME is its last non-empty line.
- *
- *  FINE-POINTER ONLY, and that is now load-bearing (#511): the strip's names are `pointer-coarse:sr-only`,
- *  and `allInnerTexts` is LAYOUT-aware — an sr-only name reads as empty, so this helper would report an
- *  empty roster on any coarse-pointer project rather than failing loudly. The e2e config is
- *  `devices["Desktop Chrome"]` (playwright.config.ts) so today every run is fine-pointer; a mobile project
- *  added here must read the names off `textContent` (the accessibility-tree read) instead. */
+/** The rendered character-bar member names (empty when the bar isn't mounted — a solo room). A chip holds the
+ *  avatar initials and then the screen-reader name, so the name is the chip's last element. It is read with
+ *  `textContent`, the accessibility-tree read, because the name is `sr-only` and a layout-aware read can drop it. */
 export async function characterChipNames(page: Page): Promise<readonly string[]> {
-  const texts = await characterChips(page).allInnerTexts();
-  return texts
-    .map(
-      (text) =>
-        text
-          .split("\n")
-          .map((line) => line.trim())
-          .findLast((line) => line.length > 0) ?? "",
-    )
-    .filter((name) => name.length > 0);
+  const texts = await characterChips(page).evaluateAll((chips) => chips.map((chip) => chip.lastElementChild?.textContent.trim() ?? ""));
+  return texts.filter((name) => name.length > 0);
 }
 
 /** Open one Members-row action menu (member-row.tsx's trailing ⋯, `Actions for <name>`) — the canonical

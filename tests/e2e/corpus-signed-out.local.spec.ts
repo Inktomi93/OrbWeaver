@@ -1,7 +1,6 @@
 // The router's auth guard on the local corpus: a signed-out alias or invite survives the redirect to sign-in, overlapping
 // navigations settle on the latest one, and a signed-in invite handoff scrubs only its own query fields.
 import { randomBytes } from "node:crypto";
-import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
 import { SIGNUP_MAX_TTL_MS } from "@orb/contracts/chat";
 import { viewerViewSchema } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
@@ -9,7 +8,9 @@ import { castId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { devices } from "@playwright/test";
 import { JOIN_CHAT_NAME } from "#client/features/chat/lib/members-names.ts";
+import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { testId } from "#client/lib/test-ids.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { loginLocal } from "./support/actors.ts";

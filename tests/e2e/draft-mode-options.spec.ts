@@ -3,7 +3,6 @@
 // This remains model-free: a fresh character supplies one durable greeting, Rename is the claiming write,
 // and the library row proves the hidden→visible transition without driving a turn.
 
-import { chatWithActionName } from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
@@ -11,6 +10,7 @@ import { expect, test } from "@playwright/test";
 import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
+import { chatWithActionName } from "#client/lib/row-qualifiers.ts";
 import {
   charactersRailButton,
   gotoChatsList,

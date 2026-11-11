@@ -1273,6 +1273,14 @@ const TEST_WORLDS = [
     to: { path: ["^tests/support/node/composed\\.ts$", `${SRV}foundation/env/index\\.ts$`], dependencyTypesNot: ["type-only", "type-import"] },
   },
   {
+    name: "e2e-no-client-lib-barrel",
+    comment:
+      "The node-side e2e transform loads the whole @orb/client/lib barrel, including its .tsx re-exports, so a spec or helper imports each name from its own module (#client/lib/<module>.ts) instead (.claude/rules/browser-tests.md).",
+    severity: "error",
+    from: { path: "^tests/e2e/" },
+    to: { path: "^packages/client/src/lib/index\\.ts$" },
+  },
+  {
     name: "testkit-no-env-loader",
     comment:
       "The server env module loads the operator `.env` into every process that imports it, and the process seams import it, so testkit reaches the parsed record (foundation/env/record) instead. The two children exist to load that module in a process of their own. This rule reads each file's own imports: a reachable rule would follow the lazy loaders in the tooling doors, so tests/e2e/support/runner-env.int.test.ts holds the transitive reach by collecting both runners under a canary `.env`.",

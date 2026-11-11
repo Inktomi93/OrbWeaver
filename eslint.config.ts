@@ -506,6 +506,19 @@ const FIRST_ALERT_RESTRICTION = {
     "A first-alert read accepts any toast, including the generic one. Read the notice with noticeToast from @orb/testkit/ct, over the copy production computes for it.",
 };
 
+// The traps .claude/rules/browser-tests.md names: `innerText` is layout-aware, so an sr-only or hidden name reads as
+// empty; a bare `route.abort()` takes Playwright's default `failed` code, which reads as a real network failure.
+const BROWSER_TEST_TRAPS = [
+  {
+    selector: `:matches(MemberExpression${memberNamed("innerText")}, MemberExpression${memberNamed("allInnerTexts")}, ObjectPattern > Property[key.name='innerText'])`,
+    message: "Read an accessible name with textContent, ariaSnapshot or getByRole(..., { exact: true }); innerText drops a name the layout hides.",
+  },
+  {
+    selector: `CallExpression[arguments.length=0][callee.object.name='route']${memberNamed("abort", "callee.")}`,
+    message: 'Abort a route with route.abort("aborted"); a bare route.abort() sends the default `failed` code, which reads as a real network failure.',
+  },
+];
+
 const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 
 const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
@@ -2555,13 +2568,19 @@ export default [
     rules: { "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX) },
   },
   {
+    // The page drivers a component or e2e spec calls; the spec blocks below restate the traps for the specs themselves.
+    files: ["tests/e2e/**/!(*.test).{ts,tsx}", "tests/support/browser/**/*.{ts,tsx}"],
+    ignores: ["**/*.test-d.ts"],
+    rules: { "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, ...BROWSER_TEST_TRAPS) },
+  },
+  {
     files: ["tests/db/client/**/*.{ts,tsx}", "tests/support/node/db.ts", "tests/support/node/db-holder.ts"],
     rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SUBJECT_TEST_SYNTAX) },
   },
   {
     files: ["tests/e2e/*.spec.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, {
+      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, ...BROWSER_TEST_TRAPS, PAGE_SLEEP_RESTRICTION, {
         selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",
         message: "A hand-written role selector accepts retained rows. Read the ids a send driver returns and assert through messageRow.",
       }),
@@ -2572,6 +2591,7 @@ export default [
     rules: {
       "no-restricted-syntax": restrictedSyntax(
         ...TEST_SYNTAX,
+        ...BROWSER_TEST_TRAPS,
         PAGE_SLEEP_RESTRICTION,
         FIRST_ALERT_RESTRICTION,
         { selector: "JSXElement, JSXFragment", message: "Keep component composition in browser stories; CT specs call native mount with data props." },

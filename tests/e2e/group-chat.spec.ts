@@ -27,7 +27,6 @@
 // below (Narrator · Label each speaker · Advanced · the policy/visibility selects) is byte-identical; only
 // the navigation to them changed (`openGroupBehaviorSection`).
 
-import { rowActionsName } from "@orb/client/lib";
 import { GROUP_OUTPUT_LABELS, GROUP_POLICY_LABELS } from "@orb/contracts/chat";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -43,6 +42,7 @@ import {
 } from "#client/features/chat/lib/chat-settings-names.ts";
 import { GROUP_ADVANCED_LABEL, GROUP_VISIBILITY_LABELS } from "#client/features/chat/lib/group-config-model.ts";
 import { MEMBER_TALKATIVENESS_NAME } from "#client/features/chat/lib/members-names.ts";
+import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import {
   characterChipNames,
   characterChips,
