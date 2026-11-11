@@ -7,6 +7,7 @@ import { healedJournalTypes, malformedToolCallDetails, RPG_STATE_ROUND_FAILED_SU
 import type { ChatResult } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import type { Logger } from "#foundation/observability";
 import type { ActorRefIndex } from "#src/domain/rpg/contract/params.ts";
 import { ghostTargetRefs } from "../apply.ts";
@@ -227,14 +228,8 @@ export function roundFailure(err: unknown): string {
 
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */
 export function safeJson(text: string): unknown {
-  // `null` reaches the salvage decoders, which report it as a `root` drop, and
-  // each caller logs a non-empty drop at warn (`rpg.extraction.unparseable`, rounds/extraction.ts:95; the
-  // other three callers log at their own sites). Ends if a caller stops logging a root drop.
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+  // `null` reaches the salvage decoders, which report it as a `root` drop that each caller logs at warn.
+  return parseJsonText(text) ?? null;
 }
 
 /** The game asked for a structured round (`stateCaptureVehicle: "structured"`) and the row cannot give one — no

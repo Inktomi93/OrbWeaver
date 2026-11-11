@@ -93,7 +93,11 @@ function sharedSecretAlg(jwt: string): string | null {
   try {
     const { alg } = decodeProtectedHeader(jwt);
     return alg !== undefined && SHARED_SECRET_ALGS.has(alg) ? alg : null;
-  } catch {
+  } catch (error) {
+    // jose reports a header it cannot decode as a TypeError.
+    if (!(error instanceof TypeError)) {
+      throw error;
+    }
     return null;
   }
 }

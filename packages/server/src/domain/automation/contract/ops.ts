@@ -377,6 +377,7 @@ export interface ArmTemplateRender {
  *  declares only the TYPE — one-directional flow). */
 export interface PromptTransformIndexDeps {
   readonly db: Db;
+  readonly logger: Logger;
   readonly ops: AutomationOps;
   readonly prng: RandomSource;
   readonly now: Clock;

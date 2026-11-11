@@ -37,13 +37,22 @@ process.on("message", (value: unknown) => {
   if (message.generation !== activeGeneration || brokerSender === undefined) {
     return;
   }
-  // a relay failure SIGKILLs the broker; its exit settles superviseOneBroker, which sends the app a stopped frame carrying rpcError, and process-runtime's onDisconnect rejects pending work. Ends if the stopped send is removed or onDisconnect stops rejecting pending work.
+  // Any relay failure SIGKILLs the broker, whatever its class: its exit settles superviseOneBroker, which sends the
+  // app a stopped frame, and process-runtime's onDisconnect rejects pending work.
   try {
     brokerSender.send(message);
-  } catch {
+  } catch (error) {
+    reportChannelFailure("the app-to-broker relay", error);
     activeBroker?.kill("SIGKILL");
   }
 });
+
+// The watchdog's one report channel is its stderr, which the app inherits; a channel failure is written there before
+// the teardown it causes, so the restart line that follows has its cause beside it.
+function reportChannelFailure(channel: string, error: unknown): void {
+  const { name, message } = rpcError(error);
+  process.stderr.write(`plugin broker watchdog: ${channel} failed (${name}: ${message})\n`);
+}
 
 interface BrokerHeartbeat {
   readonly rssBytes: number;
@@ -84,10 +93,12 @@ function forwardBrokerFrame(value: unknown, generation: string, broker: ChildPro
     broker.kill("SIGKILL");
     return true;
   }
-  // an unusable app channel calls stopBroker, which ends the watchdog; the app's child exit handler (onWatchdogGone) runs onDisconnect and rejects pending work. Ends if stopBroker stops ending the broker or the exit handler is removed.
+  // Any failure of the app channel calls stopBroker, which ends the watchdog; the app's child exit handler
+  // (onWatchdogGone) runs onDisconnect and rejects pending work.
   try {
     appSender.send(message);
-  } catch {
+  } catch (error) {
+    reportChannelFailure("the broker-to-app relay", error);
     stopBroker();
   }
   return true;
@@ -178,10 +189,12 @@ async function superviseOneBroker(): Promise<string> {
     brokerSender = undefined;
   }
   if (process.connected) {
-    // a failed stopped-frame delivery calls stopBroker, which ends the watchdog and its broker; the app's child exit handler (onWatchdogGone) runs onDisconnect and rejects pending work. Ends if stopBroker stops ending the broker or the exit handler is removed.
+    // Any failed stopped-frame delivery calls stopBroker, which ends the watchdog and its broker; the app's child
+    // exit handler (onWatchdogGone) runs onDisconnect and rejects pending work.
     try {
       appSender.send({ kind: "stopped", generation, error: rpcError(new Error(result)) });
-    } catch {
+    } catch (error) {
+      reportChannelFailure("the stopped-frame delivery", error);
       stopBroker();
     }
   }

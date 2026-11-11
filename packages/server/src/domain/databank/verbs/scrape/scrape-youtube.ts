@@ -35,13 +35,9 @@ function videoIdFrom(input: string): string | undefined {
   if (VIDEO_ID.test(input)) {
     return input;
   }
-  let url: URL;
-  // the try holds only `new URL(input)`; the `undefined` returned
-  // here is read by `createScrapeYoutube`, which throws `ScrapeFailedError` when `videoId === undefined`.
-  // Ends if that caller stops throwing on `undefined`.
-  try {
-    url = new URL(input);
-  } catch {
+  // `createScrapeYoutube` answers `undefined` with `ScrapeFailedError`.
+  const url = URL.parse(input);
+  if (url === null) {
     return;
   }
   const host = url.hostname.replace(HOST_PREFIX, "");

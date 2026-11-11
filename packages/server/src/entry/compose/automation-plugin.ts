@@ -239,7 +239,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     runTool: automationRuntime.runTool,
     summarizeQuiet: automationRuntime.summarizeQuiet,
   });
-  const automationEnabled = createEnabledRuleIndex(db);
+  const automationEnabled = createEnabledRuleIndex(db, deps.logger);
   // One store backs both automation confirms and plugin suggestions.
   const automationSuggestions = createSuggestionStore();
   const newSuggestionId = minter(ID_PREFIX.automationSuggestion, deps.idSource);
@@ -249,6 +249,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const pluginSubscribers = createPluginSubscriberRegistry();
   const automationTransforms = createPromptTransformIndex({
     db,
+    logger: deps.logger,
     ops: automationOps,
     prng: deps.random,
     now,

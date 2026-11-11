@@ -60,10 +60,14 @@ export function readRequestCookie(headers: Headers, name: string): string | null
       continue;
     }
     if (part.slice(0, eq).trim() === name) {
-      // owned by the callers' null arm: `entry/auth/seam.ts::resolveCookiePrincipal` returns null on a null token and the request falls through to the owner-fallback or unauthenticated arm. A malformed client header is not an operator event. Ends if a malformed cookie must be told apart from an absent one.
+      // A malformed percent-escape reads as no cookie: `resolveCookiePrincipal` falls through to the owner-fallback
+      // or unauthenticated arm, and a malformed client header is not an operator event.
       try {
         return decodeURIComponent(part.slice(eq + 1).trim());
-      } catch {
+      } catch (error) {
+        if (!(error instanceof URIError)) {
+          throw error;
+        }
         return null;
       }
     }

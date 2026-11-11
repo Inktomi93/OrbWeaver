@@ -36,6 +36,7 @@
 //     through by reference otherwise.
 // The openrouter transport ALSO routes its body shaping through here (`shapeBody`), because the OR provider
 // exposes no post-convert hook: the request body is parsed ONCE, shaped, captured, re-serialised.
+import { parseJsonText } from "@orb/kit/json";
 import type { ProviderScrubSet, ResponseMap } from "#contract";
 import { ProviderError } from "#contract";
 import type { WrapFetchArgs } from "#src/contract/v4.ts";
@@ -298,13 +299,10 @@ function parseBody(init: RequestInit | undefined): Record<string, unknown> | nul
   if (init === undefined || typeof init.body !== "string") {
     return null;
   }
-  try {
-    const parsed: unknown = JSON.parse(init.body);
-    return isRecord(parsed) ? parsed : null;
-    // a body that is not a JSON object returns null, which `outbound` reads as "send the request exactly as given": shaping and wire capture are skipped and nothing is rewritten. Ends if null starts authorizing a transformed body.
-  } catch {
-    return null;
-  }
+  // A body that is not a JSON object returns null, which `outbound` reads as "send the request exactly as given":
+  // shaping and wire capture are skipped and nothing is rewritten.
+  const parsed = parseJsonText(init.body);
+  return isRecord(parsed) ? parsed : null;
 }
 
 /** Scrub the known credential literals out of a captured body BY VALUE, then re-parse to keep a valid object. */

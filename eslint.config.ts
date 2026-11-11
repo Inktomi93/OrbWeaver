@@ -2331,6 +2331,7 @@ export default [
     rules: { "orb/no-module-state": "error" },
   },
   { files: rootSources("@server", "@inference"), plugins: { orb: localPlugin }, rules: { "orb/detached-work-traced": "error" } },
+  { files: rootSources("@server", "@inference", "@db"), plugins: { orb: localPlugin }, rules: { "orb/no-blind-catch": "error" } },
   { files: [...rootSources("@tooling"), ...PLAYWRIGHT_TESTS], plugins: { orb: localPlugin }, rules: { "orb/evaluate-no-scope-capture": "error" } },
   {
     files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],

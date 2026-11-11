@@ -23,6 +23,7 @@ import type {
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatUsage, ResolvedWarning } from "@orb/contracts/inference";
+import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import type {
@@ -232,7 +233,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       safeErrorMessage: lease.safeErrorMessage,
       settleExecution: () => lease[Symbol.asyncDispose](),
       signal: lease.signal,
-      probeContextUsage: () => probeContextUsage(stream, deps.scheduleTimeout),
+      probeContextUsage: () => probeContextUsage(stream, deps),
       ...(chatId !== undefined ? { chatId } : {}),
       ...(req.onEvent !== undefined ? { onEvent: req.onEvent } : {}),
       ...(req.onDelta !== undefined ? { onDelta: req.onDelta } : {}),
@@ -413,21 +414,21 @@ function toContextUsage(res: SDKControlGetContextUsageResponse): ContextUsage {
 }
 
 /** Bounded, non-fatal context-fill probe; a throw/rejection/timeout all resolve `undefined`. */
-async function probeContextUsage(query: Query, scheduleTimeout: AgentSdkDeps["scheduleTimeout"]): Promise<ContextUsage | undefined> {
+async function probeContextUsage(query: Query, deps: Pick<AgentSdkDeps, "scheduleTimeout" | "log">): Promise<ContextUsage | undefined> {
   if (typeof query.getContextUsage !== "function") {
     return;
   }
   let cancelTimer: (() => void) | undefined;
   const timeout = new Promise<undefined>((resolve) => {
-    cancelTimer = scheduleTimeout(() => resolve(undefined), CONTEXT_USAGE_PROBE_TIMEOUT_MS);
+    cancelTimer = deps.scheduleTimeout(() => resolve(undefined), CONTEXT_USAGE_PROBE_TIMEOUT_MS);
   });
   let usage: ContextUsage | undefined;
   try {
     const res = await Promise.race([query.getContextUsage(), timeout]);
     usage = res !== undefined ? toContextUsage(res) : undefined;
-    // context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result.
-  } catch {
-    // diagnostic miss, not a turn failure
+  } catch (error) {
+    // Context fill is an optional sidecar that never governs the turn result: a failed probe is logged and omits it.
+    deps.log.warn({ err: errorMessage(error) }, "agent-sdk: the context-usage probe failed; the turn reports no context fill");
   } finally {
     cancelTimer?.();
   }

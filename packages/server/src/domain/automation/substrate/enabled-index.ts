@@ -16,11 +16,13 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
+import { getLog } from "#foundation/observability";
 import type { EnabledRuleIndex } from "../contract/ops.ts";
 import { hasEnabledDomainRules, loadEnabledChatIds } from "../persistence/rules.ts";
 
 /** Build the pre-check index over `db`. Call `reload()` once at boot before the watcher subscribes. */
-export function createEnabledRuleIndex(handle: DatabaseHandle): EnabledRuleIndex {
+export function createEnabledRuleIndex(handle: DatabaseHandle, logger: Logger): EnabledRuleIndex {
   const db = databaseForOwner(handle);
   // ASSUMES(single-replica): a per-process snapshot, eventually-consistent within one reload of a mutation.
   let enabledChats = new Set<ChatId>();
@@ -46,18 +48,14 @@ export function createEnabledRuleIndex(handle: DatabaseHandle): EnabledRuleIndex
     isStale: (): boolean => stale,
     reload: rebuild,
     refresh: async (): Promise<void> => {
-      // DELIBERATE ABSORBER. The owner is the STALE
-      // LATCH below plus the watcher front door's `healStaleIndexes` retry: the failure is surfaced as
-      // fail-open reads (canon decides every event) and cleared by the next successful rebuild. Propagating
-      // instead is the defect — it rejects a verb whose durable write already committed. Ends when the
-      // enabled index stops being a pure optimisation over `loadEnabledChatRules`.
+      // Ruled in `.claude/rules/server.md` (Lists, auth, events): a derived index rebuilt after a durable write must
+      // not reject the write; latch it stale and let the bus retry. The caller is a verb whose durable write already
+      // committed, so the failure is logged and latched: reads fail open (canon decides every event) until the
+      // watcher front door's `healStaleIndexes` retry rebuilds it.
       try {
         await rebuild();
-      } catch {
-        // SWALLOWED DELIBERATELY, and this is the whole point of the seam: the caller is a verb whose DURABLE
-        // write already committed. Rejecting here would tell a host their edit failed while the row says
-        // otherwise. The latch above makes the index honest until the next refresh succeeds; the watcher front
-        // door retries on the next event it sees.
+      } catch (error) {
+        getLog(logger).warn({ err: error }, "automation: the enabled-rule index rebuild failed; reads fall back to the database until a retry succeeds");
         stale = true;
       }
     },

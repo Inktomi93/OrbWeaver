@@ -50,7 +50,8 @@ import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { Resolved, WireTool } from "@orb/inference";
-import { resolveSideGenSampling } from "@orb/inference";
+import { ProviderError, resolveSideGenSampling } from "@orb/inference";
+import { DomainError, DomainInternalFaultError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -1547,16 +1548,18 @@ function isAutoSwipeRejected(content: string, cfg: ChatBehaviorInputs["autoSwipe
   return tooShort || blacklisted;
 }
 
-/** Runs ONE auto-behavior follow-up (swipe/continue) and returns its committed tip, or null on any failure —
- *  non-fatal, mirroring neo: the already-committed reply stands and the loop stops. */
+/** Runs ONE auto-behavior follow-up (swipe/continue) and returns its committed tip, or null when the follow-up was
+ *  refused or its provider failed — non-fatal, mirroring neo: the already-committed reply stands and the loop stops.
+ *  A fault (an invariant tripwire, a database error, a defect) is not a refused follow-up and fails the send. */
 async function runAutoFollowUp(run: () => Promise<TurnOutcome>): Promise<MessageView | null> {
-  // documented above — non-fatal, mirrors neo: the
-  // already-committed reply stands and the loop stops; the `null` is the consumed result the caller checks.
-  // Ends if a follow-up failure needs to surface to the turn's own caller.
   try {
     const outcome = await run();
     return outcome.messages.at(-1) ?? null;
-  } catch {
+  } catch (error) {
+    const refused = (error instanceof DomainError && !(error instanceof DomainInternalFaultError)) || error instanceof ProviderError;
+    if (!refused) {
+      throw error;
+    }
     return null;
   }
 }

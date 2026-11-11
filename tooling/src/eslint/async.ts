@@ -259,6 +259,113 @@ function escapedCatchClause(context: OrbRuleContext, thrown: TSESTree.ThrowState
   return clause;
 }
 
+const BLIND_CATCH_MESSAGE =
+  "This catch never reads its error and answers null or nothing, so a database fault or a programming error reads as an ordinary miss and reaches no log. " +
+  "Decide by the error's class and rethrow the rest (`if (!isResolveRefusal(error)) throw error;`). Where a ruling keeps every fault contained, cite it and log the error.";
+
+const RENAME_DEPTH = 3;
+
+function isNoAnswer(argument: TSESTree.Expression | null): boolean {
+  if (argument === null) {
+    return true;
+  }
+  const value = unwrapTransparent(argument);
+  return (
+    (value.type === AST_NODE_TYPES.Literal && value.raw === "null") ||
+    (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined") ||
+    (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "void")
+  );
+}
+
+// A read that discards the value (`void error`, a bare `error;`) or only renames it into a binding nothing reads
+// leaves the error as unexamined as no binding at all.
+function usedRead(context: OrbRuleContext, identifier: TSESTree.Node, depth: number): boolean {
+  let current = identifier;
+  while (TRANSPARENT_PARENTS.has(current.parent?.type ?? "")) {
+    current = current.parent as TSESTree.Node;
+  }
+  const parent = current.parent;
+  if (parent === undefined || parent.type === AST_NODE_TYPES.ExpressionStatement) {
+    return false;
+  }
+  if (parent.type === AST_NODE_TYPES.UnaryExpression && parent.operator === "void") {
+    return false;
+  }
+  const renamed = renamedInto(parent, current);
+  if (renamed?.type !== AST_NODE_TYPES.Identifier) {
+    return true;
+  }
+  return depth > 0 && variableUsed(context, lexicalVariable(context, renamed), depth - 1);
+}
+
+function renamedInto(parent: TSESTree.Node, current: TSESTree.Node): TSESTree.Node | undefined {
+  if (parent.type === AST_NODE_TYPES.VariableDeclarator && parent.init === current) {
+    return parent.id;
+  }
+  return parent.type === AST_NODE_TYPES.AssignmentExpression && parent.right === current ? parent.left : undefined;
+}
+
+function variableUsed(context: OrbRuleContext, variable: ReturnType<typeof lexicalVariable>, depth: number): boolean {
+  return variable?.references.some((reference) => reference.isRead() && usedRead(context, reference.identifier, depth)) === true;
+}
+
+function readsCaughtError(context: OrbRuleContext, clause: TSESTree.CatchClause): boolean {
+  if (clause.param === null) {
+    return false;
+  }
+  // A destructured binding reads the error's own fields.
+  if (clause.param.type !== AST_NODE_TYPES.Identifier) {
+    return true;
+  }
+  return variableUsed(context, lexicalVariable(context, clause.param), RENAME_DEPTH);
+}
+
+// Only `return` and `throw` end a catch with an answer; `continue` and `break` skip the item and answer nothing.
+function endsAbruptly(statement: TSESTree.Statement): boolean {
+  switch (statement.type) {
+    case AST_NODE_TYPES.ReturnStatement:
+    case AST_NODE_TYPES.ThrowStatement:
+      return true;
+    case AST_NODE_TYPES.BlockStatement:
+      return statement.body.some(endsAbruptly);
+    case AST_NODE_TYPES.IfStatement:
+      return statement.alternate !== null && endsAbruptly(statement.consequent) && endsAbruptly(statement.alternate);
+    default:
+      return false;
+  }
+}
+
+// The catch clause whose body holds `node` with no function boundary between them.
+function owningCatch(context: OrbRuleContext, node: TSESTree.Node): TSESTree.CatchClause | undefined {
+  const boundary = context.sourceCode
+    .getAncestors(node)
+    .findLast((ancestor) => FUNCTION_NODES.has(ancestor.type) || ancestor.type === AST_NODE_TYPES.CatchClause);
+  return boundary?.type === AST_NODE_TYPES.CatchClause ? boundary : undefined;
+}
+
+export const blindCatchRule: OrbRule = {
+  meta: { type: "problem", schema: [] },
+  create(context: OrbRuleContext): RuleVisitor {
+    const unanswered = new Set<TSESTree.CatchClause>();
+    return {
+      ReturnStatement: (statement: TSESTree.ReturnStatement) => {
+        const clause = isNoAnswer(statement.argument) ? owningCatch(context, statement) : undefined;
+        if (clause !== undefined) {
+          unanswered.add(clause);
+        }
+      },
+      "CatchClause:exit": (clause: TSESTree.CatchClause) => {
+        if (readsCaughtError(context, clause)) {
+          return;
+        }
+        if (unanswered.has(clause) || !endsAbruptly(clause.body)) {
+          context.report({ node: clause, message: BLIND_CATCH_MESSAGE });
+        }
+      },
+    };
+  },
+};
+
 export const detachedWorkRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {

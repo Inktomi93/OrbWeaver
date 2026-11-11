@@ -28,6 +28,8 @@
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { InvocationChat, PluginMacroDefs, PluginMacroNames, PluginMacroRegistration } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "@orb/contracts/plugin";
+import { errorMessage } from "@orb/kit/error-message";
+import { DomainConflictError } from "@orb/kit/errors";
 import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import { neutralizeMacros } from "@orb/kit/macro";
@@ -102,7 +104,6 @@ function pluginMacroLegacyName(slug: string, guestName: string): string | null {
 async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, deadline: Promise<null>, logger: Logger): Promise<string | null> {
   // Aborted on the deadline so the orphaned invocation's later rejection counts a crash without a second log line.
   const orphan = new AbortController();
-  // a throw or rejected invoke was already logged by the resident `invoke`, and a deadline is logged below; the caller renders `null` as an empty body. Ends if a guest failure stops being logged at those two sites.
   try {
     const answer = await Promise.race([macro.resolve(chat, orphan.signal), deadline]);
     if (answer === null) {
@@ -110,7 +111,12 @@ async function resolveOne(macro: RegisteredMacro, chat: InvocationChat | null, d
       logPluginFailure(macro.slug, "macro-deadline", `macro '${macro.name}' exceeded its resolve deadline`, logger);
     }
     return answer;
-  } catch {
+  } catch (error) {
+    // The resident `invoke` logs a guest throw or a failed host call itself; a refused admission (the host was busy)
+    // is the one rejection it passes on unlogged, so it is logged here. Either way the macro has no value this turn.
+    if (error instanceof DomainConflictError) {
+      logPluginFailure(macro.slug, "host-busy", `macro '${macro.name}' was not admitted: ${errorMessage(error)}`, logger);
+    }
     return null;
   }
 }

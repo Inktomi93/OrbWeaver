@@ -1,6 +1,7 @@
 // The forward-header signing keys the operator names in `FORWARD_AUTH_JWKS`: an https URL or a JWKS JSON literal.
 // SECURITY: this env value is the only key source. A key, key set or key URL a request carries never reaches a verifier.
 
+import { parseJsonText } from "@orb/kit/json";
 import { z } from "zod";
 
 // The set's own shape (RFC 7517 section 5). Members stay loose: jose owns what a key must hold.
@@ -13,12 +14,8 @@ const REQUIRED_PROTOCOL = "https:";
 const REFUSAL = "FORWARD_AUTH_JWKS must be an https URL or a JWKS JSON object with at least one key.";
 
 function literalFrom(text: string): OperatorJwks | null {
-  try {
-    const parsed = jwksLiteralSchema.safeParse(JSON.parse(text));
-    return parsed.success ? { kind: "literal", jwks: parsed.data } : null;
-  } catch {
-    return null;
-  }
+  const parsed = jwksLiteralSchema.safeParse(parseJsonText(text));
+  return parsed.success ? { kind: "literal", jwks: parsed.data } : null;
 }
 
 function urlFrom(text: string): OperatorJwks | null {

@@ -12,20 +12,24 @@ export function createPluginAssetReads(deps: PluginAssetReadDeps): PluginAssetRe
   return {
     read: async ({ installerUserId, assetId }): ReturnType<PluginAssetReads["read"]> => {
       const caller = await resolveOwnerPrincipal(installerUserId);
-      // FAIL-CLOSED — documented above: any
-      // unreadable asset (a foreign/absent id, `AssetNotFoundError`) collapses to `null`, leak-free (no
-      // existence oracle). Ends if this needs to tell "foreign" apart from an infra failure.
+      // FAIL-CLOSED, leak-free: a malformed, foreign or absent id all collapse to `null`, so a guest gets no existence
+      // oracle for another owner's assets. A fault in the read is not an existence answer and surfaces as itself.
+      const id = typeIdSchema(ID_PREFIX.asset).safeParse(assetId);
+      if (!id.success) {
+        return null;
+      }
       try {
-        const owned = await assets.readOwnedAssetBytes(caller, typeIdSchema(ID_PREFIX.asset).parse(assetId));
+        const owned = await assets.readOwnedAssetBytes(caller, id.data);
         const sizeBytes = owned.bytes.length;
         return {
           mime: owned.mime,
           sizeBytes,
           dataBase64: sizeBytes > PLUGIN_ASSET_READ_MAX_BYTES ? null : Buffer.from(owned.bytes).toString("base64"),
         };
-      } catch {
-        // Leak-free: a foreign/absent id (`AssetNotFoundError`) — and any unreadable asset — collapses to
-        // `null`, indistinguishable from one another (no existence oracle for another owner's CAS).
+      } catch (error) {
+        if (!(error instanceof DomainNotFoundError)) {
+          throw error;
+        }
         return null;
       }
     },

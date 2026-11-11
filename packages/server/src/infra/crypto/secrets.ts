@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { Sealed, SecretBox } from "./contract.ts";
+import { SealedOpenError } from "./contract.ts";
 
 // AES-256-GCM encryption-at-rest for per-user secrets. Exposed as an injectable SecretBox (the project's
 // DI idiom) so the credentials store/resolver receive it and tests can supply a known key; the
@@ -39,13 +40,18 @@ export function createSecretBox(key: Buffer | null): SecretBox {
     },
     decrypt(sealed: Sealed, aad: string): string {
       if (!key) {
-        throw new Error("CREDENTIALS_KEY is not set; cannot decrypt a per-user credential.");
+        throw new SealedOpenError("disabled");
       }
-      const decipher = createDecipheriv(GCM_ALGORITHM, key, Buffer.from(sealed.iv, "base64"));
-      decipher.setAAD(Buffer.from(aad, "utf8"));
-      decipher.setAuthTag(Buffer.from(sealed.tag, "base64"));
-      // final() throws if the tag/AAD/key don't verify — a wrong key or a lifted row fails LOUDLY.
-      return Buffer.concat([decipher.update(Buffer.from(sealed.ciphertext, "base64")), decipher.final()]).toString("utf8");
+      // final() throws if the tag/AAD/key don't verify, and a corrupt IV throws earlier: a wrong key or a lifted
+      // row fails loudly, as the one typed error. Node's crypto messages carry no key or sealed bytes.
+      try {
+        const decipher = createDecipheriv(GCM_ALGORITHM, key, Buffer.from(sealed.iv, "base64"));
+        decipher.setAAD(Buffer.from(aad, "utf8"));
+        decipher.setAuthTag(Buffer.from(sealed.tag, "base64"));
+        return Buffer.concat([decipher.update(Buffer.from(sealed.ciphertext, "base64")), decipher.final()]).toString("utf8");
+      } catch (error) {
+        throw new SealedOpenError("unverified", { cause: error });
+      }
     },
   };
 }

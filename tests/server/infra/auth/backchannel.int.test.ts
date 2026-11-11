@@ -97,3 +97,25 @@ test("an unbuildable logout JWKS returns null", async ({ issuer, verifier }) => 
 test.for(["jti", "exp"])("a native logout token deliberately missing required %s returns null", async (claim, { issuer, verifier }) => {
   expect(await verifier.verify({ logoutToken: await token(issuer, {}, [claim]), jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID })).toBeNull();
 });
+
+// A key set the issuer cannot serve says nothing about the token, so it is a fault for the route, not a refusal.
+test("an unreachable logout key set rejects the verify instead of refusing the token", async ({ issuer }) => {
+  const unreachable = new Error("the issuer's key endpoint is unreachable");
+  await using root = await createServerHarness({
+    networkExecution: {
+      resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]),
+      fetch: (input, init) =>
+        new URL(input instanceof Request ? input.url : input).href === KEY_URL ? Promise.reject(unreachable) : issuer.fetch(input, init),
+    },
+  });
+  await using oidc = await configureOidc(root, NATIVE_OIDC_SETTINGS);
+  const verify = oidc.backchannelLogout?.verify({ logoutToken: await token(issuer), jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID });
+  await expect(verify).rejects.toThrow(/unreachable/u);
+  // Control: the same token against a key set the issuer serves verifies.
+  await using served = await createServerHarness({ networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: issuer.fetch } });
+  await using servedOidc = await configureOidc(served, NATIVE_OIDC_SETTINGS);
+  expect(await servedOidc.backchannelLogout?.verify({ logoutToken: await token(issuer), jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID })).toEqual({
+    sub: SUBJECT,
+    sid: null,
+  });
+});

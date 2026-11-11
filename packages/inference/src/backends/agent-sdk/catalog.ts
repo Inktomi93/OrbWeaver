@@ -9,6 +9,7 @@ import type { AgentSdkModel } from "@orb/contracts/inference";
 import { agentSdkModelSchema } from "@orb/contracts/inference";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
 import { verifyAuthAccountSchema } from "@orb/contracts/providers";
+import { errorMessage } from "@orb/kit/error-message";
 import type { AgentSdkQueryLease, DiagnosticRequestCommon, ProviderScrubSet, SpawnIdentity } from "#contract";
 import { ProviderError } from "#contract";
 import type { AgentSdkDeps, AgentSdkLog } from "#src/contract/agent-sdk-backend.ts";
@@ -121,9 +122,10 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
   try {
     const info = await Promise.race([query.accountInfo(), timeout]);
     account = info !== undefined ? verifyAuthAccountSchema.parse(info) : undefined;
-    // account identity is an optional verify diagnostic and `undefined` is its documented miss result. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if account identity becomes part of the auth verdict.
-  } catch {
-    // A rejected control call is a diagnostic miss, never a probe failure.
+  } catch (error) {
+    // Account identity is an optional verify diagnostic, outside the auth verdict: a rejected control call or an
+    // unexpected answer is logged and reads as no identity.
+    deps.log.warn({ err: errorMessage(error) }, "agent-sdk: the account-identity probe failed; verify reports no account");
   } finally {
     cancel?.();
   }

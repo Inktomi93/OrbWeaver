@@ -350,7 +350,9 @@ process.on("message", (value: unknown) => {
     abandon();
     return;
   }
-  // invalid inherited-channel input calls abandon(), which ends the broker; the watchdog reports the exit as a stopped frame and process-runtime's consumeWatchdogMessage runs onDisconnect, which rejects pending app commands. Ends if abandon stops ending the broker or onDisconnect stops rejecting pending work.
+  // Any failure to read or handle an inherited-channel frame calls abandon(), which ends the broker; the watchdog
+  // reports the exit as a stopped frame and process-runtime's consumeWatchdogMessage runs onDisconnect, which rejects
+  // pending app commands. The cause goes to the inherited stderr first, the broker's only report channel.
   try {
     const message = parseParentBrokerMessage(parseMessageLine(envelope.frame));
     if (message === null) {
@@ -358,7 +360,9 @@ process.on("message", (value: unknown) => {
       return;
     }
     handleParentMessage(message);
-  } catch {
+  } catch (error) {
+    const { name, message } = rpcError(error);
+    process.stderr.write(`plugin broker: an app frame could not be handled (${name}: ${message})\n`);
     abandon();
   }
 });

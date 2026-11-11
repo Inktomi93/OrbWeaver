@@ -25,6 +25,7 @@ import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
+import { parseJsonText } from "@orb/kit/json";
 import type { ParsedStPreset } from "../contract/collection.ts";
 import { ST_POWER_USER_KEY } from "./appearance.ts";
 
@@ -107,16 +108,9 @@ function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown): Pars
 
 /** Parse one saved `OpenAI Settings/<stem>.json` upload. Null on unparseable bytes / a non-preset object. */
 export function parseStPresetFile(bytes: Uint8Array, stem: string): ParsedStPreset | null {
-  let raw: unknown;
-  // the try holds only decode + `JSON.parse`; the `null` is read by
-  // `collectPresetDir`, which pushes the file onto `unreadablePresets` (the report's `unreadablePresets`). Ends
-  // if `collectPresetDir` stops recording `null`.
-  try {
-    raw = JSON.parse(new TextDecoder("utf-8").decode(bytes));
-  } catch {
-    return null;
-  }
-  return stPresetFromJson(raw, stPresetName(stem));
+  // `collectPresetDir` records the `null` as one of the report's `unreadablePresets`.
+  const raw = parseJsonText(new TextDecoder("utf-8").decode(bytes));
+  return raw === undefined ? null : stPresetFromJson(raw, stPresetName(stem));
 }
 
 /** The LIVE preset blob inside an already-parsed `settings.json`, or null when the section is absent or is not

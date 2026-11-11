@@ -68,6 +68,7 @@ import type { WireCapture } from "@orb/contracts/debug";
 import type { BoundedRing } from "@orb/kit/bounded-ring";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Env } from "#foundation/env/record";
+import { errnoCode } from "#primitives/errno";
 import type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
 
 export type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
@@ -204,11 +205,14 @@ function appendSpillLine(chain: Promise<void>, spillDir: string, kind: "request"
       const spillPath = join(spillDir, SPILL_FILE);
       await mkdir(spillDir, { recursive: true });
       let bytes = 0;
-      // a missing file is the normal first write of a generation and counts as size 0, so nothing rotates. Any other stat fault is met again by the `appendFile` below, whose rejection ends in the chain's catch (waived separately). Ends if rotation needs the stat fault itself.
+      // A missing file is the first write of a generation, so nothing rotates. Any other I/O fault meets the
+      // `appendFile` below again, whose rejection ends in the chain's catch.
       try {
         bytes = (await stat(spillPath)).size;
-      } catch {
-        bytes = 0; // first write of a fresh generation — nothing to rotate
+      } catch (error) {
+        if (errnoCode(error) === undefined) {
+          throw error;
+        }
       }
       if (bytes >= SPILL_MAX_BYTES) {
         await rename(spillPath, join(spillDir, SPILL_PREV_FILE));
