@@ -7,7 +7,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { execPath } from "node:process";
-import { setTimeout as delay } from "node:timers/promises";
+import { setTimeout as delay, setImmediate } from "node:timers/promises";
 import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -81,6 +81,10 @@ export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<Servi
   /** Real-time milliseconds every {@link ServerTestHarness.internalCallerFor} call waits before it runs, so detached work
    *  runs ahead of a producer's next write; the corpus determinism test sets it to expose a producer that skips a settle. */
   readonly callerStallMs?: number;
+  /** Refuse a mutation through {@link ServerTestHarness.internalCallerFor} that starts while detached work from this root
+   *  (a turn's memory build, an admitted workload step) is still running. Such a write draws seeded ids beside that work
+   *  in an order the I/O timing picks; the producer settles first with `settleBackground`. */
+  readonly refuseUnsettledWrites?: boolean;
   readonly sdkQuery?: AgentSdkQuery;
   readonly sdkSpawn?: AgentSdkSpawn;
   readonly sdkNative?: AgentSdkNativeOptions;
@@ -161,6 +165,48 @@ function stallCaller<T extends object>(target: T, stallMs: number, owner?: objec
         throw new TypeError("a stalled caller path is not callable");
       }
       await delay(stallMs);
+      const result: unknown = await Reflect.apply(procedure, owner, args);
+      return result;
+    },
+  });
+}
+
+// The router's procedure table is untyped at this depth, so the kind is read as data.
+function procedureKind(procedure: unknown): unknown {
+  const def: unknown = (typeof procedure === "function" || typeof procedure === "object") && procedure !== null ? Reflect.get(procedure, "_def") : undefined;
+  return typeof def === "object" && def !== null ? Reflect.get(def, "type") : undefined;
+}
+
+const MUTATION_KIND = "mutation";
+const MUTATION_PATHS: ReadonlySet<string> = new Set(
+  Object.entries(appRouter._def.procedures).flatMap(([path, procedure]) => (procedureKind(procedure) === MUTATION_KIND ? [path] : [])),
+);
+
+/** Whether the root's detached work is idle now. An idle tracker settles on microtasks, which run before the immediate;
+ *  work that waits on I/O or a timer does not. */
+async function backgroundIdle(settleBackground: () => Promise<void>): Promise<boolean> {
+  return await Promise.race([settleBackground().then(() => true), setImmediate().then(() => false)]);
+}
+
+// Reads are left alone: a producer polls a running workload's row while it runs, and a read draws no seeded id.
+function settledWriteCaller<T extends object>(target: T, settleBackground: () => Promise<void>, path: readonly string[] = [], owner?: object): T {
+  return new Proxy(target, {
+    get(object, key) {
+      const value: unknown = Reflect.get(object, key);
+      return typeof key === "string" && value !== null && (typeof value === "object" || typeof value === "function")
+        ? settledWriteCaller(value, settleBackground, [...path, key], object)
+        : value;
+    },
+    async apply(procedure, _receiver, args: unknown[]) {
+      if (typeof procedure !== "function") {
+        throw new TypeError("a guarded caller path is not callable");
+      }
+      const name = path.join(".");
+      if (MUTATION_PATHS.has(name) && !(await backgroundIdle(settleBackground))) {
+        throw new Error(
+          `${name} started while detached work from this root was still running, so its seeded ids would follow timing. Await root.settleBackground() before this write.`,
+        );
+      }
       const result: unknown = await Reflect.apply(procedure, owner, args);
       return result;
     },
@@ -789,7 +835,8 @@ export async function createServerHarness(
       }),
       signal === undefined ? undefined : { signal },
     );
-    return options.callerStallMs === undefined ? caller : stallCaller(caller, options.callerStallMs);
+    const guarded = options.refuseUnsettledWrites === true ? settledWriteCaller(caller, app.settleBackground) : caller;
+    return options.callerStallMs === undefined ? guarded : stallCaller(guarded, options.callerStallMs);
   };
   const actor = actorFor({ app, idSource }, ownerId, principalFor);
   const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);

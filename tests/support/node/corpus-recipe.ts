@@ -143,6 +143,8 @@ export async function createCorpusRecipe(parent: string): Promise<CorpusRecipe> 
       secretBoxKey: key,
       temporaryParentDir: parent,
       pluginSpawn: spawn,
+      // A producer that writes beside a turn's detached work is named at that write, not found later as a split publish.
+      refuseUnsettledWrites: true,
     },
     seed: { ownerPassword: CORPUS_OWNER_PASSWORD, log: (): void => undefined },
     privateCredential: { provider: "custom-openai", key: CORPUS_PROVIDER_KEY, metadata: { auth: "endpoint" as const } },

@@ -7,7 +7,8 @@ import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams } from "./conte
 
 export interface ImageryRoomAccessDeps {
   readonly resolveViewerVisibility: ResolveViewerVisibility;
-  readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
+  /** The present host when it is also in the room's consent set (present and enabled), else null. */
+  readonly resolveConsentingHostUserId: (chatId: ChatId) => Promise<UserId | null>;
   readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
   readonly resolveHostPrincipal: ResolveHostPrincipalOp;
 }

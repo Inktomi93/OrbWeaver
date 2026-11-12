@@ -21,7 +21,7 @@ import type { ScopedEgress } from "#infra/network";
 import { minter } from "./minter.ts";
 
 // The chat room reads and the settings read are their owners' own members, picked so a call through them resolves there.
-export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolveChatHostUserId" | "isCharacterSeated">, ImageryInstructionDeps {
+export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolveConsentingHostUserId" | "isCharacterSeated">, ImageryInstructionDeps {
   readonly fetchImageBytes: ScopedEgress["fetchImageBytes"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
