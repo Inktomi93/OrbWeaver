@@ -1,19 +1,22 @@
 // @subject packages/client/src/features/rpg/components/rpg-takeover-header.tsx
-// The Waystone head band against the D119a vertical budget, measured on the production room shell: the chrome above the tab
-// viewport (header row, band, game rail) as a share of the context pane, in the ambient-set and ambient-unset cases at the
-// reference geometry and with the set case at the app's top font scale on a small desktop window. The band's own height is
-// a whole CSS pixel in every case (integer-line-boxes §1). Follows `waystone-populated-band.ct.tsx` for the room mount and
-// `platform-text-scale.suite.ct.tsx` for the app font scale; the scale is the appearance setting, because the satellite row
-// leaves the band on that setting and not on the root property alone.
+// The Waystone head band on the production room shell. The chrome above the tab viewport (header row, band, game rail) is
+// measured as a share of the context pane against the D119a budget, in the ambient-set and ambient-unset cases at the
+// reference geometry, on a small desktop window, and at the font scales where the satellite row and date line leave the
+// band. The band's own height is a whole CSS pixel in every case (integer-line-boxes §1). A second pair of cells reads the
+// stone's size on both sides of the context pane step, which `packages/ui/src/tokens/tokens.json` describes. Follows
+// `waystone-populated-band.ct.tsx` for the room mount and `platform-text-scale.suite.ct.tsx` for the app font scale; the scale
+// is the appearance setting, because the satellite row leaves the band on that setting and not on the root property alone.
 
 import { contextToggleLabel } from "@orb/client/lib";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId } from "@orb/kit/ids";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
+import type { Page, PlaywrightTestArgs } from "@playwright/test";
 import { SATELLITES_TO_BODY_FONT_SCALE } from "#client/features/rpg/lib/context-layout.ts";
 import type { RpgRoomStory } from "./_own-key-panels-stories.tsx";
 
@@ -34,6 +37,9 @@ const TOP_FONT_SCALE = 1.5;
 // 30vw of 1600 is the 30rem pane of D119a's reference; 1024x768 is the small desktop window.
 const REFERENCE = { width: 1600, height: 900 } as const;
 const SMALL_DESKTOP = { width: 1024, height: 768 } as const;
+// 30vw of 1280 is exactly the context pane step; 1440 is a pane wider than it.
+const AT_PANE_STEP = { width: 1280, height: 800 } as const;
+const PAST_PANE_STEP = { width: 1440, height: 800 } as const;
 // Device pixels per CSS pixel is 1 in this host, so a whole pixel is a whole CSS pixel.
 const WHOLE_PIXEL_TOLERANCE = 0.01;
 
@@ -44,9 +50,10 @@ interface Cell {
   readonly set: boolean;
 }
 
-const CELLS: readonly Cell[] = [
+const BUDGET_CELLS: readonly Cell[] = [
   { name: "ambient set at the reference geometry", viewport: REFERENCE, fontScale: 1, set: true },
   { name: "ambient unset at the reference geometry", viewport: REFERENCE, fontScale: 1, set: false },
+  { name: "ambient unset on a small desktop window", viewport: SMALL_DESKTOP, fontScale: 1, set: false },
   { name: "ambient set at the top font scale on a small desktop window", viewport: SMALL_DESKTOP, fontScale: TOP_FONT_SCALE, set: true },
   { name: "ambient set at the body-home font scale at the reference geometry", viewport: REFERENCE, fontScale: SATELLITES_TO_BODY_FONT_SCALE, set: true },
   { name: "ambient set at the body-home font scale on a small desktop window", viewport: SMALL_DESKTOP, fontScale: SATELLITES_TO_BODY_FONT_SCALE, set: true },
@@ -83,30 +90,39 @@ async function prepareRoom(root: Root, cell: Cell): Promise<ChatId> {
   return chatId;
 }
 
-for (const cell of CELLS) {
+/** Mounts the room for a cell, opens the context pane and waits for the band's stone. */
+async function openBand(
+  cell: Cell,
+  { corpus, mount, page }: Pick<PlaywrightTestArgs, "mount" | "page"> & { corpus: Parameters<typeof createShellAmbientReads>[0] },
+  root: Root,
+): Promise<void> {
+  const chatId = await prepareRoom(root, cell);
+  const caller = await root.internalCallerFor(root.ownerId);
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed" } } });
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [
+      ...SECTION_PROCEDURES,
+      ...ROOM_PROCEDURES,
+      "rpg.getGame",
+      "rpg.getTrackerView",
+      "rpg.revealHidden",
+      "rpg.listTurnToolCalls",
+    ]),
+  });
+  await mount<typeof RpgRoomStory>(STORY, { chatId });
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+  await expect(page.locator('[data-slot="rpg-takeover-header"] [data-slot="waystone"]')).toBeVisible();
+}
+
+for (const cell of BUDGET_CELLS) {
   test.describe(cell.name, () => {
     test.use({ viewport: cell.viewport });
 
     test("the chrome stays inside the D119a budget and the band is a whole number of pixels tall", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();
-      const chatId = await prepareRoom(root, cell);
-      const caller = await root.internalCallerFor(root.ownerId);
-      await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed" } } });
-      await routeTrpc(page, {
-        ...createShellAmbientReads(corpus, root.ownerId),
-        ...serveCorpusProcedures(caller, [
-          ...SECTION_PROCEDURES,
-          ...ROOM_PROCEDURES,
-          "rpg.getGame",
-          "rpg.getTrackerView",
-          "rpg.revealHidden",
-          "rpg.listTurnToolCalls",
-        ]),
-      });
-      await mount<typeof RpgRoomStory>(STORY, { chatId });
-      await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+      await openBand(cell, { corpus, mount, page }, root);
       const header = page.locator('[data-slot="rpg-takeover-header"]');
-      await expect(header.locator('[data-slot="waystone"]')).toBeVisible();
       // The satellite row and the date line leave the band for the tab body at the top font scale, so the cell measures the band that scale leaves.
       const inBand = cell.fontScale < SATELLITES_TO_BODY_FONT_SCALE ? 1 : 0;
       await expect(header.locator('[data-slot="ring-gauge-label"]')).toHaveCount(inBand);
@@ -132,5 +148,40 @@ for (const cell of CELLS) {
       expect(share).toBeLessThanOrEqual(cell.set ? D119A_CHROME_SHARE.setMax : D119A_CHROME_SHARE.compactMax);
       expect(Math.abs(report.band - Math.round(report.band))).toBeLessThanOrEqual(WHOLE_PIXEL_TOLERANCE);
     });
+  });
+}
+
+// The stone's container is the context region, the pane less its inline border; the focal step paints where that region is
+// at least the pane step wide.
+const STEP_CELLS = [
+  { cell: { name: "a pane exactly the context pane step wide", viewport: AT_PANE_STEP, fontScale: 1, set: true }, focal: false },
+  { cell: { name: "a pane wider than the context pane step", viewport: PAST_PANE_STEP, fontScale: 1, set: true }, focal: true },
+] as const satisfies readonly { readonly cell: Cell; readonly focal: boolean }[];
+
+for (const { cell, focal } of STEP_CELLS) {
+  test.describe(cell.name, () => {
+    test.use({ viewport: cell.viewport });
+
+    test("the stone paints the focal step only where the context region reaches the step", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      await openBand(cell, { corpus, mount, page }, root);
+      const step = await resolvedLength(page, `var(${TOKENS["dimension.panel-context-step"].cssVar})`);
+      const focalSize = await resolvedLength(page, `var(${TOKENS["size.meter-hero"].cssVar})`);
+      const nextSize = await resolvedLength(page, `var(${TOKENS["size.meter-lg"].cssVar})`);
+      const measured = await readStone(page);
+      expect(measured.region >= step).toBe(focal);
+      expect(measured.stone).toBe(focal ? focalSize : nextSize);
+    });
+  });
+}
+
+/** The stone's height and the width of the context region that the stone's container query reads. */
+function readStone(page: Page): Promise<{ readonly stone: number; readonly region: number }> {
+  return page.locator('[data-slot="waystone"]').evaluate((stone) => {
+    const region = stone.closest(".shell-region-fill");
+    if (region === null) {
+      throw new Error("the stone has no context region above it");
+    }
+    return { stone: stone.getBoundingClientRect().height, region: region.getBoundingClientRect().width };
   });
 }
