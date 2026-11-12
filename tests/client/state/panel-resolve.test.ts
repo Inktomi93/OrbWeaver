@@ -9,7 +9,10 @@ const NARROW: Regime = { ...WIDE, isNarrow: true };
 const MOBILE: Regime = { ...WIDE, isMobile: true };
 
 const PANELS: readonly PanelName[] = ["list", "context"];
-const DEFAULTS: readonly PanelMode[] = ["docked", "overlay", "collapsed"];
+// A mode with no key here fails the typecheck, so every mode is resolved below.
+const MODE_ROWS = { docked: true, overlay: true, collapsed: true } satisfies Record<PanelMode, true>;
+const isMode = (key: string): key is PanelMode => key in MODE_ROWS;
+const DEFAULTS = Object.keys(MODE_ROWS).filter(isMode);
 
 test("wide resolves the raw override-or-default untouched, for every panel", () => {
   for (const panel of PANELS) {

@@ -69,7 +69,7 @@ async function exportedBackup(root: ServerTestHarness): Promise<readonly BackupE
       }),
     );
     // Every lone-sniff shape needs real entries, or a refusal would only prove an empty upload.
-    const planes = (["assets", "character", "chat", "theme", "regex"] as const).map((kind) => PORTABLE_DIRECTORIES[kind]);
+    const planes = (["assets", "character", "chat", "theme", "regex"] as const satisfies readonly PortableKind[]).map((kind) => PORTABLE_DIRECTORIES[kind]);
     expect(planes.filter((dir) => !entries.some((entry) => entry.path.startsWith(dir)))).toEqual([]);
     return entries;
   } finally {

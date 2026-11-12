@@ -1,3 +1,4 @@
+import type { SamplingRangeKnob } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
@@ -90,7 +91,7 @@ for (const regime of REGIMES) {
         const completion = { clear: page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true }), keep };
         await expect(completion[decision]).toHaveCount(completionCount);
         const saved = await caller.preset.get({ id: preset.id });
-        for (const knob of ["topK", "minP", "dryMultiplier"] as const) {
+        for (const knob of ["topK", "minP", "dryMultiplier"] as const satisfies readonly SamplingRangeKnob[]) {
           expect(saved.config.params[knob]).toBe(decision === "clear" ? undefined : preset.config.params[knob]);
         }
       });

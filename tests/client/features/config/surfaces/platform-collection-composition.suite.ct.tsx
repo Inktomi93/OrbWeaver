@@ -1,4 +1,5 @@
 import { COLLECTION_LARGE_GROUP } from "@orb/client/lib";
+import type { ConfigGroupId } from "@orb/client/state";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -19,7 +20,7 @@ import type { CollectionCompositionStory } from "./_collection-composition-stori
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
-const SUBJECTS = ["regex", "worldInfo", "rosterPreset"] as const;
+const SUBJECTS = ["regex", "worldInfo", "rosterPreset"] as const satisfies readonly ConfigGroupId[];
 type Subject = (typeof SUBJECTS)[number];
 const STORY = "tests/client/features/config/surfaces/_collection-composition-stories/CollectionCompositionStory";
 // The virtualizer sizes this box to its rows' total height, whatever the scroll box around it measures.
