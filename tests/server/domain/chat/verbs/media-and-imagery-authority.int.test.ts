@@ -3,17 +3,19 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { ProviderError } from "@orb/inference";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import {
   createImageryRoomAccess,
+  createLoadConsentingHostUserId,
   createResolveMediaRef,
   createResolveViewerVisibility,
   isCharacterSeated,
-  loadPresentHostUserId,
 } from "@orb/server/domain/chat";
 import { createResolveUserEnabled } from "@orb/server/domain/sessions";
 import { expect, test } from "@orb/testkit/node";
@@ -21,6 +23,7 @@ import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
+  CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
@@ -66,18 +69,17 @@ test("room admission and subject seating run before host principal, card or Util
     view: { chat: room },
   } = await seedChat(harness, { principal: host, characterIds: [] });
   const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
-  const resolveChatHostUserId = vi.fn<Parameters<typeof createImageryRoomAccess>[0]["resolveChatHostUserId"]>((chatId) =>
-    loadPresentHostUserId(databaseHandle(db), chatId),
-  );
+  const loadConsentingHost = createLoadConsentingHostUserId({ db: databaseHandle(db), resolveUserEnabled: createResolveUserEnabled(harness.app.sessions) });
+  const resolveConsentingHostUserId = vi.fn<Parameters<typeof createImageryRoomAccess>[0]["resolveConsentingHostUserId"]>(loadConsentingHost);
   const access = createImageryRoomAccess({
     resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
-    resolveChatHostUserId,
+    resolveConsentingHostUserId,
     isCharacterSeated: (chatId, characterId) => isCharacterSeated(databaseHandle(db), chatId, characterId),
     resolveHostPrincipal,
   });
   await seatMember(harness, host, room.id, member);
   await expect(access.resolveRoomRunAs(outsider, room.id, subject.id)).rejects.toMatchObject({ name: "DomainNotFoundError" });
-  expect(resolveChatHostUserId).not.toHaveBeenCalled();
+  expect(resolveConsentingHostUserId).not.toHaveBeenCalled();
   await expect(access.resolveRoomRunAs(member, room.id, subject.id)).rejects.toMatchObject({ name: "DomainNotFoundError" });
   expect(resolveHostPrincipal).not.toHaveBeenCalled();
   expect(await access.resolveRoomRunAs(host, room.id, subject.id)).toBe(host);
@@ -155,6 +157,85 @@ test("quiet extraction sends only the caller's visible scene through the host's 
   await expect(root.services.imagery.extractPrompt({ caller: outsider, ...params })).rejects.toMatchObject({ name: "DomainNotFoundError" });
   expect(getCard).toHaveBeenCalledTimes(1);
   expect(requests).toHaveLength(beforeRefusal);
+});
+
+test("a member's picture request spends neither the Utility nor the image connection of a disabled host, and does once the host is re-enabled", async () => {
+  const imageModel = modelIdSchema.parse("disabled-host-image-v1");
+  const images: Uint8Array[] = [];
+  const physical = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, imageModel],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "a lantern-lit ledger room",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images,
+  });
+  const requests: Request[] = [];
+  await using root = await createServerHarness({
+    startJobs: false,
+    providerFetch: async (input, init) => {
+      const request = new Request(input, init);
+      requests.push(request.clone());
+      return await physical.execute(request);
+    },
+  });
+  // The box owner is the admin, so the room is hosted by the second account and a third account plays in it.
+  const { owner: admin, secondUserId } = await seedCorpusActors(root);
+  const host = await root.principalFor(secondUserId);
+  const member = await root.principalFor((await root.actor()).id);
+  const imageConnection = await root.services.connection.create({
+    principal: host,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: imageModel,
+    allowBackground: true,
+    declared: {
+      kind: "generation",
+      generation: { context: { window: 32_000 }, output: { modalities: ["text", "image"] } },
+      features: { images: "images-api", detectServer: false },
+    },
+  });
+  await root.services.connection.setBinding({ principal: host, task: "generateImage", connectionId: imageConnection.id });
+  const subject = await root.services.character.create({
+    principal: host,
+    input: createCharacterSchema.parse({ handle: "disabled-host-subject", name: "Ledger keeper", description: "A host-owned scene subject." }),
+  });
+  const room = (await root.services.chat.startChat({ principal: host, characterIds: [subject.id], opening: "none" })).chat.id;
+  const invite = await root.services.chat.createInvite({ principal: host, chatId: room, input: { invitedHandle: member.handle } });
+  await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
+  await root.services.chat.commitMessage({ principal: host, chatId: room, content: "The keeper lights the ledger lamps.", timeZone: UTC_TIME_ZONE });
+  await root.settleBackground();
+  const extract = (): ReturnType<typeof root.services.imagery.extractPrompt> =>
+    root.services.imagery.extractPrompt({ caller: member, chatId: room, mode: "character", subjectCharacterId: subject.id, timeZone: UTC_TIME_ZONE });
+  const generate = (): ReturnType<typeof root.services.chat.generateImage> => {
+    images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+    return root.services.chat.generateImage({ principal: member, chatId: room, mode: "free", prompt: "The ledger at dusk.", n: 1, gallery: false });
+  };
+  const setHostEnabled = (enabled: boolean): Promise<unknown> => root.services.admin.setEnabled({ principal: admin, userId: host.userId, enabled });
+
+  expect(await extract()).toMatchObject({ source: "extracted" });
+  expect((await generate()).content).toContain("asset:");
+
+  await setHostEnabled(false);
+  const beforeRefusals = requests.length;
+  await expect(extract()).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(generate()).rejects.toBeInstanceOf(DomainNotFoundError);
+  expect(requests).toHaveLength(beforeRefusals);
+  images.length = 0;
+
+  await setHostEnabled(true);
+  const beforeResume = requests.length;
+  expect(await extract()).toMatchObject({ source: "extracted" });
+  expect((await generate()).content).toContain("asset:");
+  expect(requests.length).toBeGreaterThan(beforeResume);
+
+  // A host who left refuses alike: the room has no host whose connections a member may spend.
+  await root.services.chat.selfLeave({ principal: host, chatId: room });
+  const beforeHostless = requests.length;
+  await expect(extract()).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(generate()).rejects.toBeInstanceOf(DomainNotFoundError);
+  expect(requests).toHaveLength(beforeHostless);
+  images.length = 0;
 });
 
 test("a present member's picture the room never placed reads no bytes, while a placed link admits the host's", async () => {

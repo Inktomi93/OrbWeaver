@@ -54,7 +54,7 @@ import { SEED_MANIFEST } from "@orb/default-content";
 import type { InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
 import { availableClaudeExecutable, createInferenceRuntime } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
-import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
@@ -76,12 +76,12 @@ import type { ChatAssemblyContext, MemoryRecallRecorder, SignupInviteOps } from 
 import {
   createChatBus,
   createChatPublication,
+  createLoadConsentingHostUserId,
   createMemoryRecallRecorder,
   createResolveChatUserMacroDefs,
   createResolveViewerVisibility,
   createWiredChatGuards,
   isCharacterSeated,
-  loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionAssemblyContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
@@ -795,7 +795,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority a room picture runs as.
-  const resolveChatHostUserId = (chatId: ChatId): Promise<UserId | null> => loadPresentHostUserId(db, chatId);
+  const resolveConsentingHostUserId = createLoadConsentingHostUserId({ db, resolveUserEnabled: createResolveUserEnabled(sessions) });
   // WHICH preset a Utility-role background task reads (D304) — one home for every side-gen consumer. `preset`
   // composes below (the search-discovery seam), so its `get` is a request-time forward-ref (the `getPreset`
   // precedent — derefed only when a side-gen call fires, never at boot).
@@ -957,7 +957,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     character,
     roleClientsFor,
     // D298: a room picture runs as the present host, loaded with its real role.
-    resolveChatHostUserId,
+    resolveConsentingHostUserId,
     isCharacterSeated: (chatId, characterId) => isCharacterSeated(db, chatId, characterId),
     resolveHostPrincipal: resolveFunderPrincipal,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,

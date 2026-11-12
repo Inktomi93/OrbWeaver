@@ -2,7 +2,7 @@
 // defaulting to `system`; a stored boolean from the two-way reduced-motion setting parses forward through the schema.
 
 import { USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
-import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { appearanceSettingsSchema, OS_PREFERENCE_MODES } from "@orb/contracts/settings/appearance";
 import { expect, test } from "@orb/testkit/node";
 
 test("a fresh account follows the system for all three preferences", () => {
@@ -25,7 +25,7 @@ test("a stored user settings blob with the old boolean is read intact, so the ne
   expect(outcome.value.appearance.fontScale).toBe(1.25);
 });
 
-test.for(["system", "on", "off"] as const)("each mode %s round-trips on every preference", (mode) => {
+test.for(OS_PREFERENCE_MODES)("each mode %s round-trips on every preference", (mode) => {
   const parsed = appearanceSettingsSchema.parse({ reducedMotion: mode, reducedTransparency: mode, increasedContrast: mode });
   expect([parsed.reducedMotion, parsed.reducedTransparency, parsed.increasedContrast]).toEqual([mode, mode, mode]);
 });

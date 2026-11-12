@@ -15,7 +15,8 @@ export interface PortableAssetIdentity {
   /** The ORIGINAL `assets.id` — the blob is restored under this id so FK + inline-text refs re-link with
    *  no remap. */
   readonly id: AssetId;
-  readonly kind: AssetKind;
+  /** Every kind the asset is used as; never empty. */
+  readonly kinds: readonly AssetKind[];
   readonly mime: string;
 }
 

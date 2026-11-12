@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
+import ts from "typescript";
 
 const DEPRECATED_RULE = "@typescript-eslint/no-deprecated";
 const FLOATING_RULE = "@typescript-eslint/no-floating-promises";
@@ -17,7 +18,8 @@ const UNRELATED_DEPRECATED_CALL = "\n/** @deprecated Use the current API. */\nfu
  *  a dedicated tsconfig that lists only the files to lint). */
 function scopedProject(repoRoot: string, scratch: string, filePath: string): string {
   const rootConfigPath = join(repoRoot, "tsconfig.node.json");
-  const parsed: unknown = JSON.parse(readFileSync(rootConfigPath, "utf8"));
+  // A tsconfig holds comments, so the compiler reads it; strict JSON refuses the file.
+  const parsed: unknown = ts.readConfigFile(rootConfigPath, ts.sys.readFile).config;
   const include = isPlainObject(parsed) && Array.isArray(parsed["include"]) ? parsed["include"] : [];
   const ambient = include.filter((entry): entry is string => typeof entry === "string" && entry.endsWith(".d.ts")).map((entry) => join(repoRoot, entry));
   const scopedPath = join(scratch, "tsconfig.scoped.json");

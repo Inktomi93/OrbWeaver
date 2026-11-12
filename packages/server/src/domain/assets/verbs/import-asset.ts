@@ -7,7 +7,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { AssetsPortabilityContext, PortableAssetIdentity } from "../contract/portability.ts";
-import { assetIdForHash, loadAssetCasRefById, storeBlob } from "../persistence/queries.ts";
+import { addAssetKinds, assetIdForHash, loadAssetCasRefById, storeBlob } from "../persistence/queries.ts";
 import { hashAssetBytes, parsePortableAssetFilename } from "../substrate/portable-asset-file.ts";
 
 // File-local: one restore in flight — the DI slice plus the file and the identity its name decoded.
@@ -46,6 +46,8 @@ export function createImportAsset(input: DbAssemblyInput<AssetsPortabilityContex
       if (!(await ctx.cas.exists(ownerId, identity.hash))) {
         await restoreBlob(target);
       }
+      // The row this library already holds takes the file's uses, so a reader by kind finds it as the source did.
+      await addAssetKinds(ctx.db, held, identity.kinds);
       return alreadyHeld(identity.id, held);
     }
 
@@ -67,6 +69,7 @@ async function importOverExistingRow(target: ImportTarget, rowOwnerId: UserId, r
   if (rowHash !== target.identity.hash) {
     return { ok: false, error: "asset id already bound to different content" };
   }
+  await addAssetKinds(target.ctx.db, target.identity.id, target.identity.kinds);
   if (await target.ctx.cas.exists(target.ownerId, target.identity.hash)) {
     return { ok: true, created: false };
   }
@@ -74,17 +77,24 @@ async function importOverExistingRow(target: ImportTarget, rowOwnerId: UserId, r
   return { ok: true, created: repaired.created };
 }
 
-/** The one call into the CAS+row coherence writer this verb makes (both the fresh restore and the repair). */
-function restoreBlob(target: ImportTarget): ReturnType<typeof storeBlob> {
-  return storeBlob(target.ctx.db, target.ctx.cas, {
+/** The one call into the CAS+row coherence writer this verb makes (both the fresh restore and the repair). The writer
+ *  records the first kind with the row, and the rest follow on whichever row the bytes resolved to. */
+async function restoreBlob(target: ImportTarget): ReturnType<typeof storeBlob> {
+  const [first, ...rest] = target.identity.kinds;
+  if (first === undefined) {
+    throw new Error(`assets.import: ${target.identity.id} names no kind`);
+  }
+  const stored = await storeBlob(target.ctx.db, target.ctx.cas, {
     ownerId: target.ownerId,
     bytes: target.file.bytes,
-    kind: target.identity.kind,
+    kind: first,
     mime: target.identity.mime,
     candidateId: target.identity.id,
     now: target.ctx.now(),
     enforceMagic: false,
   });
+  await addAssetKinds(target.ctx.db, stored.assetId, rest);
+  return stored;
 }
 
 /** The bytes are already in this library under another id; the restore keeps that row and names both ids. */

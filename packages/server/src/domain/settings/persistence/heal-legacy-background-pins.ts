@@ -28,6 +28,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";
+import { assetUsedAs } from "@orb/db/query";
 import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
@@ -69,7 +70,7 @@ async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: U
   const owned = await db
     .select({ id: assets.id })
     .from(assets)
-    .where(and(eq(assets.ownerId, userId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.id, [...ids])));
+    .where(and(eq(assets.ownerId, userId), assetUsedAs(db, [BACKGROUND_ASSET_KIND]), inArray(assets.id, [...ids])));
   // query-local lookup over THIS call's own SELECT result (a membership test for the ids just read), not module state — discarded when the function returns. Ends if it outlives the call.
   const validIds = new Set<AssetId>(owned.map((row) => row.id));
   if (ids.every((id) => validIds.has(id))) {

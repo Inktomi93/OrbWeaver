@@ -24,6 +24,11 @@ export class ChatNotFoundError extends DomainNotFoundError {
   }
 }
 
+/** The room's turn host (the frozen one for an owed turn) is outside its consent set: disabled, or no longer
+ *  present. A turn refuses exactly as for a hostless room (NOT_FOUND), and a drained owed turn drops with the
+ *  `consent` reason instead of `chat-gone`, since the room itself still stands. */
+export class ChatHostWithoutConsentError extends ChatNotFoundError {}
+
 /** The `DomainOperationError.code` discriminators chat verbs throw. ONE home for the strings (§7.5). */
 export const CHAT_OP_CODES = {
   toolCallChanged: "tool_call_changed",

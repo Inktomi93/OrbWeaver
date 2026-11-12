@@ -19,7 +19,7 @@ export type { SeededPlateAsset, StoreSeedPlate } from "./seed-plate.ts";
  *  chat image or video (mp4/webm/gif); `document` = a databank source document's original bytes; `background` = a user-uploaded
  *  decorative app background (pinned by the `appearance.backgroundAssetId` JSON field, GC-rooted
  *  via the settings live-source scan, NOT an FK column); `plugin` = an installed plugin's bundle bytes.
- *  The db `assets.kind` enum derives from this tuple. */
+ *  The db `asset_kinds.kind` enum derives from this tuple. An asset holds one kind per use (D350). */
 
 export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "background", "plugin"] as const;
 
@@ -64,13 +64,14 @@ const PICTURE_MIMES: readonly string[] = [...SNIFFED_IMAGE_MIMES, APNG_MIME];
  *  door stores that type only after the bytes' signature matched it.
  *
  *  @remarks
- *  The kind alone is not enough: the store keeps one row per owner and content, so a picture first stored as a plugin's
- *  fetched asset or a chat attachment stays that row when the same bytes are stored again as an avatar. The image
- *  header is not enough either: an AVIF file is an MP4-family container, so the store keeps it as a video under a
- *  `video/mp4` claim, and its header still reads as an image. */
-export function isPictureAsset(asset: { readonly kind: AssetKind; readonly mime: string }): boolean {
-  const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[asset.kind];
-  return isPictureAssetKind(asset.kind) || (media.includes("image") && PICTURE_MIMES.includes(asset.mime));
+ *  An asset holds a kind for each use, so a picture first stored as a chat attachment and later as an avatar holds
+ *  both; any one picture use makes it a picture. The image header is not enough: an AVIF file is an MP4-family
+ *  container, so the store keeps it as a video under a `video/mp4` claim, and its header still reads as an image. */
+export function isPictureAsset(asset: { readonly kinds: readonly AssetKind[]; readonly mime: string }): boolean {
+  return asset.kinds.some((kind) => {
+    const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[kind];
+    return isPictureAssetKind(kind) || (media.includes("image") && PICTURE_MIMES.includes(asset.mime));
+  });
 }
 
 /** The kinds `POST /api/assets/upload` serves: each has a client door that uploads it there. Every other kind enters
@@ -174,7 +175,8 @@ export const ASSET_LIST_LIMIT_MAX = 100;
 export interface AssetListItem {
   readonly assetId: AssetId;
   readonly hash: string;
-  readonly kind: AssetKind;
+  /** Every kind the asset is used as, in the order of `ASSET_KINDS`. */
+  readonly kinds: readonly AssetKind[];
   readonly mime: string;
   readonly size: number;
   readonly uploadedAt: number;
@@ -184,7 +186,7 @@ export interface AssetListItem {
 export const assetListItemSchema = z.strictObject({
   assetId: assetIdSchema,
   hash: z.string(),
-  kind: assetKindSchema,
+  kinds: z.array(assetKindSchema).readonly(),
   mime: z.string(),
   size: z.number(),
   uploadedAt: z.number(),
@@ -352,7 +354,8 @@ export type FilterOwnedAssetIdsOp = (userId: UserId, assetIds: readonly AssetId[
 export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefined>;
 export interface AssetEmbeddingReads {
   readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
-  readonly loadAssetKind: (assetId: AssetId) => Promise<AssetKind | null>;
+  /** Every kind the asset is used as; `null` when the row is gone. */
+  readonly loadAssetKinds: (assetId: AssetId) => Promise<readonly AssetKind[] | null>;
   readonly loadAssetMime: (assetId: AssetId) => Promise<string | null>;
   readonly loadAssetHash: (assetId: AssetId) => Promise<string | null>;
   readonly loadAssetBytes: LoadAssetBytes;
@@ -387,7 +390,8 @@ export type ReadOwnedAssetBytes = (caller: Principal, assetId: AssetId) => Promi
 
 /** An asset's owner, CAS hash and mime, resolved by row id alone. */
 export interface AssetCasRef {
-  readonly kind: AssetKind;
+  /** Every kind the asset is used as. */
+  readonly kinds: readonly AssetKind[];
   readonly ownerId: UserId;
   readonly hash: string;
   readonly mime: string;

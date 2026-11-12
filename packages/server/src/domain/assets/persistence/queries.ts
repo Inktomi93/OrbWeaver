@@ -3,10 +3,21 @@
 // read is owner-scoped in the WHERE, never a post-filter; `metadataForOwnerAndHash` is the sole exception,
 // trusted only because the verb already resolved the owner via `loadCoParticipantOwner`.
 
-import type { AssetBlobRef, AssetKind, AssetListItem, GalleryCursor, GalleryItemView, GallerySort, OwnedAssetCursor, StoredAsset } from "@orb/contracts/assets";
+import type {
+  AssetBlobRef,
+  AssetCasRef,
+  AssetKind,
+  AssetListItem,
+  GalleryCursor,
+  GalleryItemView,
+  GallerySort,
+  OwnedAssetCursor,
+  StoredAsset,
+} from "@orb/contracts/assets";
 import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
-import { assets, galleryItems, imageryGenerations } from "@orb/db";
+import { assetKinds, assets, galleryItems, imageryGenerations } from "@orb/db";
+import { assetUsedAs, loadAssetKinds } from "@orb/db/query";
 import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { sniffImageBytes } from "@orb/kit/image-sniff";
 import type { SQL } from "drizzle-orm";
@@ -28,20 +39,22 @@ interface StoreBlobInput {
   readonly enforceMagic: boolean;
 }
 
+/** The store's answer with the use verdict beside the row verdict: `kindAdded` is true when this call recorded a kind
+ *  the asset did not hold, which is always so for a new row. */
+export interface StoredBlob extends StoredAsset {
+  readonly kindAdded: boolean;
+}
+
 interface AssetMetadataRow {
   readonly mime: string;
 }
 
-type AssetCasRef = Pick<typeof assets.$inferSelect, "kind" | "ownerId" | "hash" | "mime">;
 /** An asset's `(ownerId, hash, mime)` by id alone — no owner scope, un-principal. Not a user-facing surface. */
 // the D20 un-principal CAS resolver — it exists to RESOLVE the owner (it projects `ownerId` for `purgeAsset`'s per-owner blob path), so scoping it on an owner it does not yet know is circular. Consumers are the reap/GC/indexer ports; the owner-gated byte-read has its own resolver (`ownedAssetCasRef`, directly below). Ends if a user-facing door ever calls this.
 export async function loadAssetCasRefById(db: Db, assetId: AssetId): Promise<AssetCasRef | undefined> {
-  const rows = await db
-    .select({ ownerId: assets.ownerId, hash: assets.hash, mime: assets.mime, kind: assets.kind })
-    .from(assets)
-    .where(eq(assets.id, assetId))
-    .limit(LIMIT_ONE);
-  return rows[0];
+  const rows = await db.select({ ownerId: assets.ownerId, hash: assets.hash, mime: assets.mime }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
+  const row = rows[0];
+  return row === undefined ? undefined : { ...row, kinds: (await loadAssetKinds(db, [assetId])).get(assetId) ?? [] };
 }
 
 /** An owned asset's `(hash, mime)` by id, owner-scoped in the WHERE — undefined when the id is missing OR
@@ -85,7 +98,7 @@ export async function selectOwnedAssetIdsByHash(db: Db, ownerId: UserId, hashes:
 export async function listImageAssetIdRows(db: Db, ownerId?: UserId | null): Promise<AssetId[]> {
   const scope = and(
     like(assets.mime, IMAGE_MIME_PATTERN),
-    inArray(assets.kind, [...EMBEDDABLE_ASSET_KINDS]),
+    assetUsedAs(db, EMBEDDABLE_ASSET_KINDS),
     ownerId === undefined || ownerId === null ? undefined : eq(assets.ownerId, ownerId),
   );
   const rows = await db.select({ id: assets.id }).from(assets).where(scope);
@@ -123,11 +136,24 @@ export async function metadataForOwnerAndHash(db: Db, ownerId: UserId, hash: str
   return rows[0];
 }
 
+/** Record `kinds` as uses of an asset; a kind it already holds is left as it is. Returns how many were new. */
+export async function addAssetKinds(db: Db, assetId: AssetId, kinds: readonly AssetKind[]): Promise<number> {
+  if (kinds.length === 0) {
+    return 0;
+  }
+  const added = await db
+    .insert(assetKinds)
+    .values([...new Set(kinds)].map((kind) => ({ assetId, kind })))
+    .onConflictDoNothing()
+    .returning({ kind: assetKinds.kind });
+  return added.length;
+}
+
 /** The CAS+row coherence primitive: put bytes to the owner's CAS, then upsert the index row by
- *  `(ownerId, hash)`. The one writer of the blob↔row pair. `enforceMagic` verifies claimed mime against
+ *  `(ownerId, hash)` and record the kind as a use. The one writer of the blob↔row pair. `enforceMagic` verifies claimed mime against
  *  the byte signature; a dedup conflict falls through to `assetIdForHash`. The returned `created` is the
  *  ROW verdict (see the comment at the return) — NOT the CAS write's. */
-export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promise<StoredAsset> {
+export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promise<StoredBlob> {
   assertKindAdmits(input.bytes, input.kind);
   if (input.enforceMagic) {
     // The byte-signature belt now covers documents (pdf/zip/text) alongside images — dispatch on the claimed
@@ -144,7 +170,6 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
     .values({
       id: input.candidateId,
       ownerId: input.ownerId,
-      kind: input.kind,
       mime: input.mime,
       size: put.size,
       hash: put.hash,
@@ -163,13 +188,15 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
   if (assetId === undefined) {
     throw new Error(`assets.store: row missing after upsert (${put.hash})`);
   }
+  // The use is its own row: the same bytes stored again under another kind add that kind and nothing else.
+  const kindAdded = (await addAssetKinds(db, assetId, [input.kind])) > 0;
   // `created` reports the ROW, never `put.created`: the index row is what the rest of the system reacts to
   // (`store` emits `asset.created` off this flag, and the indexer embeds off that event). The two disagree
   // exactly when a crash left a blob without its row — the CAS write then dedups (`put.created === false`)
   // while THIS call inserts the missing row, and reporting the CAS verdict would silently skip the emit for
   // a recovered asset. The reverse (row present, blob freshly written) is the repair path and is likewise a
   // non-creation. Emission must be total: a recovered row IS a creation.
-  return { assetId, hash: put.hash, created: inserted[0] !== undefined };
+  return { assetId, hash: put.hash, created: inserted[0] !== undefined, kindAdded };
 }
 
 interface ListOwnedInput {
@@ -204,17 +231,20 @@ export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise
     .select({
       assetId: assets.id,
       hash: assets.hash,
-      kind: assets.kind,
       mime: assets.mime,
       size: assets.size,
       uploadedAt: assets.uploadedAt,
       animated: assets.animated,
     })
     .from(assets)
-    .where(and(eq(assets.ownerId, input.ownerId), input.kind !== undefined ? eq(assets.kind, input.kind) : undefined, galleryCandidate, keyset))
+    .where(and(eq(assets.ownerId, input.ownerId), input.kind !== undefined ? assetUsedAs(db, [input.kind]) : undefined, galleryCandidate, keyset))
     .orderBy(desc(assets.uploadedAt), desc(assets.id))
     .limit(input.limit);
-  return rows;
+  const kinds = await loadAssetKinds(
+    db,
+    rows.map((row) => row.assetId),
+  );
+  return rows.map((row) => ({ ...row, kinds: kinds.get(row.assetId) ?? [] }));
 }
 
 interface OwnedAssetRow {

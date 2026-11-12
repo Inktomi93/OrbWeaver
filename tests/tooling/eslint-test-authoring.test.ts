@@ -1,10 +1,13 @@
 // Native ESLint guards for how tests are authored: appearance channel names, story roots, shell DOM in stories, hand-copied
-// labels and cases that only prove an absence. Each rule has planted failing controls and a passing control.
+// labels, restated rosters and cases that only prove an absence. Each rule has planted failing controls and a passing control.
 import { join } from "node:path";
+import { OS_PREFERENCE_MODES } from "@orb/contracts/settings/appearance";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { exportedLabels, exportedProductionValues } from "../../tooling/src/eslint/test-labels.ts";
+import { exportedRosters } from "../../tooling/src/eslint/test-rosters.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
 
 const CONFIG_LOAD_TIMEOUT = { timeout: 120_000 };
@@ -14,6 +17,7 @@ const STORY_ROOT = "orb/ct-story-root-composition";
 const SHELL_DOM = "orb/no-hand-built-shell-dom";
 const LABEL = "orb/no-hand-copied-label";
 const ABSENCE = "orb/ct-negative-only-case";
+const ROSTER = "orb/no-restated-roster";
 
 const SPEC = "tests/client/features/probe/probe.ct.tsx";
 const E2E_SPEC = "tests/e2e/probe.spec.ts";
@@ -270,6 +274,47 @@ test.for([
   ["a describe block is not a case", `test.describe("probe", () => {\n  test.beforeEach(async () => {\n    await expect(a).toHaveCount(0);\n  });\n});`, 0],
 ] as const)("absence only: %s", CONFIG_LOAD_TIMEOUT, async ([, source, count], { repoRoot }) => {
   expect(await findings(repoRoot, ABSENCE, source, SPEC)).toHaveLength(count);
+});
+
+// The planted lists are spelled from the production tuples, so the fixtures follow a renamed member.
+const WHOLE = JSON.stringify(OS_PREFERENCE_MODES);
+const PART = JSON.stringify(THEME_CHAT_STYLES.slice(0, 3));
+const NODE_SUITE = "tests/server/domain/probe/probe.int.test.ts";
+
+test.for([
+  ["a loop over a restated tuple", `for (const mode of ${WHOLE} as const) {\n  check(mode);\n}`, NODE_SUITE, 1],
+  ["a case table over a restated tuple", `test.for(${WHOLE} as const)("%s", (mode) => {\n  check(mode);\n});`, NODE_SUITE, 1],
+  ["a restated tuple walked through its binding", `const MODES = ${WHOLE} as const;\nfor (const mode of MODES) {\n  check(mode);\n}`, NODE_SUITE, 1],
+  ["a typed restatement is still a copy", `const MODES: readonly Mode[] = ${WHOLE};\nMODES.forEach(check);`, NODE_SUITE, 1],
+  ["a loop over an untyped part", `for (const style of ${PART} as const) {\n  check(style);\n}`, NODE_SUITE, 1],
+  ["a mapped untyped part in a spec", `const cases = ${PART}.map((style) => ({ style }));`, SPEC, 1],
+  ["a loop over the imported tuple", "for (const mode of OS_PREFERENCE_MODES) {\n  check(mode);\n}", NODE_SUITE, 0],
+  [
+    "a loop over a part that names the member type",
+    `for (const style of ${PART} as const satisfies readonly ThemeChatStyle[]) {\n  check(style);\n}`,
+    NODE_SUITE,
+    0,
+  ],
+  ["an annotated part walked through its binding", `const STYLES: readonly ThemeChatStyle[] = ${PART};\nSTYLES.forEach(check);`, NODE_SUITE, 0],
+  ["a restated tuple a case expects as output", `expect(modes()).toEqual(${WHOLE});`, NODE_SUITE, 0],
+  ["a restated tuple passed as one input", `configure({ modes: ${WHOLE} });`, NODE_SUITE, 0],
+  ["a list mapped inside JSX renders, it runs no case", `const view = <ul>{${WHOLE}.map((mode) => <li key={mode}>{mode}</li>)}</ul>;`, UI_STORY, 0],
+  ["a sequence that repeats a member", `for (const mode of ["system", "on", "on", "off"]) {\n  check(mode);\n}`, NODE_SUITE, 0],
+  ["a list no production tuple holds", `for (const word of ["alpha-probe", "beta-probe", "gamma-probe"]) {\n  check(word);\n}`, NODE_SUITE, 0],
+] as const)("restated roster: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count], { repoRoot }) => {
+  expect(await findings(repoRoot, ROSTER, source, path)).toHaveLength(count);
+});
+
+test("the roster index holds each exported string tuple of three or more members and nothing else", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "packages/a/src/one.ts":
+      'export const KINDS = ["alpha", "beta", "gamma"] as const;\nexport const PAIR = ["alpha", "beta"] as const;\nconst LOCAL = ["x", "y", "z"] as const;\nexport const MIXED = ["alpha", 2, "gamma"] as const;\nexport const WRAPPED = ["delta", "epsilon", "zeta"] as const satisfies readonly string[];\n',
+    "packages/a/src/one.test.ts": 'export const NOT_PRODUCTION = ["eta", "theta", "iota"] as const;\n',
+  });
+  expect(exportedRosters(root).map(({ module, exportName, members }) => [module, exportName, [...members]])).toEqual([
+    ["packages/a/src/one.ts", "KINDS", ["alpha", "beta", "gamma"]],
+    ["packages/a/src/one.ts", "WRAPPED", ["delta", "epsilon", "zeta"]],
+  ]);
 });
 
 test("a constant outranks a table field, and a string two same-rank exports hold has no owner", async ({ plantedTree }) => {

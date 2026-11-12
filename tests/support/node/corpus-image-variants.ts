@@ -2,6 +2,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { extractedPromptSchema, generatedPictureSchema, generationProvenanceSchema } from "@orb/contracts/imagery";
+import type { Task } from "@orb/contracts/inference";
 import { assets, imageryGenerations } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -354,7 +355,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       ],
     };
   } finally {
-    for (const task of ["summarize", "generateImage", "imageEmbed"] as const) {
+    for (const task of ["summarize", "generateImage", "imageEmbed"] as const satisfies readonly Task[]) {
       await caller.connection.setBinding({ task, connectionId: previous.find((view) => view.task === task)?.binding?.connectionId ?? null });
     }
     await root.settleBackground();

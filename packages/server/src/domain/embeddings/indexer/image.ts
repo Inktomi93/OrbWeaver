@@ -42,8 +42,8 @@ async function indexableImageSpace(ctx: EmbeddingsContext, assetId: AssetId): Pr
   if (mime === null || !mime.startsWith("image/")) {
     return null;
   }
-  const kind = await ctx.loadAssetKind(assetId);
-  if (kind === null || !EMBEDDABLE_ASSET_KINDS.some((allowed) => allowed === kind)) {
+  const kinds = await ctx.loadAssetKinds(assetId);
+  if (kinds === null || !EMBEDDABLE_ASSET_KINDS.some((allowed) => kinds.includes(allowed))) {
     return null;
   }
   return await resolveImageSweepSpace(ctx, assetId);

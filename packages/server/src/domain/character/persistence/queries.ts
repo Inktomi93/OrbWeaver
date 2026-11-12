@@ -26,7 +26,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterSummaries, characters, characterTags, chatParticipants, chats, tags } from "@orb/db";
-import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/query";
+import { chatRecencyExpr, escapeLikeTerm, loadAssetKinds, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
 import { jsonObjectSchema } from "@orb/kit/json";
@@ -93,16 +93,18 @@ export async function ensureAvatarAssets(db: Db, ownerId: UserId, assetIds: read
     return;
   }
   const rows = await db
-    .select({ id: assets.id, kind: assets.kind, mime: assets.mime })
+    .select({ id: assets.id, mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...new Set(assetIds)])));
+  const kinds = await loadAssetKinds(db, assetIds);
   for (const assetId of assetIds) {
     const row = rows.find(({ id }) => id === assetId);
     if (row === undefined) {
       throw new AssetNotFoundError(assetId);
     }
-    if (!isPictureAsset(row)) {
-      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${row.kind} asset`);
+    const held = kinds.get(assetId) ?? [];
+    if (!isPictureAsset({ kinds: held, mime: row.mime })) {
+      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${held.join(", ")} asset`);
     }
   }
 }

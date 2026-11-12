@@ -5,24 +5,28 @@
 // @subject packages/server/src/domain/import/loader/profile-directory.ts
 // @subject packages/server/src/domain/import/substrate/preview.ts
 
-import { ST_SETTINGS_FILE } from "@orb/contracts/import";
+import type { ImportPreviewKind } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS, ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { admit, bothKindFolders, cardPng, chatOf, dryRun, finish, finishRun, harness, inProfile, namesakeFolder, settings } from "./_st-tree-door.ts";
 
 // Every kind whose ownership comes from an owner domain's read. Characters keep the one lookup every door uses.
-const OWNED_KINDS = ["chats", "personas", "worlds", "presets", "themes", "backgrounds", "groups", "orphans"] as const;
-const NAMESAKE_KINDS = ["personas", "worlds", "presets", "themes", "backgrounds"] as const;
+const OWNED_KINDS = IMPORT_PREVIEW_KINDS.filter((kind): kind is Exclude<ImportPreviewKind, "characters"> => kind !== "characters");
+const NAMESAKE_KINDS = ["personas", "worlds", "presets", "themes", "backgrounds"] as const satisfies readonly ImportPreviewKind[];
 
-test.for(OWNED_KINDS)("a dry run flags the %s the library already holds and not the ones it lacks", async (kind) => {
-  await using root = await harness();
-  const { held, both, names } = bothKindFolders(root);
-  await finish(root, await admit(root, held));
+forEachNonEmpty(OWNED_KINDS, "owned preview kinds", (kind) => {
+  test(`a dry run flags the ${kind} the library already holds and not the ones it lacks`, async () => {
+    await using root = await harness();
+    const { held, both, names } = bothKindFolders(root);
+    await finish(root, await admit(root, held));
 
-  const preview = await dryRun(root, both);
+    const preview = await dryRun(root, both);
 
-  const items = preview.kinds[kind].items;
-  expect(items.filter((item) => item.inLibrary === true).map((item) => item.name)).toEqual(names.held[kind]);
-  expect(items.filter((item) => item.inLibrary !== true).map((item) => item.name)).toEqual(names.fresh[kind]);
+    const items = preview.kinds[kind].items;
+    expect(items.filter((item) => item.inLibrary === true).map((item) => item.name)).toEqual(names.held[kind]);
+    expect(items.filter((item) => item.inLibrary !== true).map((item) => item.name)).toEqual(names.fresh[kind]);
+  });
 });
 
 test.for(NAMESAKE_KINDS)("a %s item that shares a held item's name but not its content is not flagged", async (kind) => {

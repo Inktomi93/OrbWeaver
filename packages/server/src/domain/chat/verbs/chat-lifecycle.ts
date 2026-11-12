@@ -49,6 +49,7 @@ import type { ChatContext, ChatServiceDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { PreparedRetainedCanonStats } from "../contract/generation-observation.ts";
+import type { HandoffBarrier } from "../contract/handoff-barrier.ts";
 import type {
   ArchiveChatParams,
   DeleteChatInjectionParams,
@@ -98,6 +99,8 @@ interface ChatLifecycleDeps {
   readonly activeTurns: ActiveTurns;
   /** The husk→real transition (R0) — every write here calls it BEFORE writing. */
   readonly claimChat: ClaimChatOp;
+  /** The room-work barrier the admitted verbs hold for their whole run; `reapHusk` deletes only an idle room. */
+  readonly admission: HandoffBarrier;
 }
 
 /** The lifecycle slice of `ChatService` this grouped file owns. */
@@ -311,6 +314,16 @@ async function deleteQualifiedRoom(ctx: ChatContext, chatId: ChatId, predicate: 
   }
 }
 
+// Holds the room closed only for the delete, so an admission meets a closed room for one batch, never a turn.
+async function deleteIdleRoom(
+  ctx: ChatContext,
+  admission: HandoffBarrier,
+  room: { readonly chatId: ChatId; readonly predicate: SQL; readonly ownerId: UserId },
+): Promise<boolean> {
+  using idle = admission.tryCloseIdle(room.chatId);
+  return idle !== null && (await deleteQualifiedRoom(ctx, room.chatId, room.predicate, room.ownerId));
+}
+
 /** The room has NO human besides the caller — the belt that keeps the TTL sweep off a room somebody else is
  *  also in. An unclaimed room that gained a second human (an invite was redeemed into it) is a shared space
  *  now, whatever the host did or did not type into it; it is not the reaper's to delete.
@@ -358,8 +371,15 @@ function hasNoOtherHuman(ctx: ChatContext, userId: UserId): SQL {
  *
  *  The pre-SELECT stays, and it is not a redundant read: it is what distinguishes "this was never a husk"
  *  (idempotent no-op, no list repaint owed — the client fires this on every nav-away) from "it WAS a husk and
- *  someone claimed it under us" (the survivor case, which still repaints). */
-function createReapHusk(ctx: ChatContext, emitLive: EmitChatEventLive): ChatService["reapHusk"] {
+ *  someone claimed it under us" (the survivor case, which still repaints).
+ *
+ *  A ROOM WITH ADMITTED WORK IN IT IS NOT REAPED. A first send claims only after its own checks, so until then
+ *  the predicate still matches a room the host is writing into from another tab or device. The delete runs
+ *  only while the room-work barrier is idle and held closed, so a send, turn or picture in flight declines
+ *  the reap (that work claims the room, or fails and leaves it to the TTL sweep), and one arriving during the
+ *  delete is refused and retries into a missing room. */
+function createReapHusk(ctx: ChatContext, deps: Pick<ChatLifecycleDeps, "emitLive" | "admission">): ChatService["reapHusk"] {
+  const { emitLive, admission } = deps;
   return async ({ principal, chatId }: ReapHuskParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     const predicate = sql`${and(eq(chats.id, chatId), isNull(chats.startedAt))}`;
@@ -369,7 +389,7 @@ function createReapHusk(ctx: ChatContext, emitLive: EmitChatEventLive): ChatServ
     }
     // The predicate rides the DELETE, so a claim racing in after the SELECT costs the reap, never the room —
     // and `RETURNING` is what the fan below is conditioned on, so it can never announce a survivor.
-    if (await deleteQualifiedRoom(ctx, chatId, predicate, principal.userId)) {
+    if (await deleteIdleRoom(ctx, admission, { chatId, predicate, ownerId: principal.userId })) {
       emitLive({ type: "chatDeleted", chatId });
     }
     // Both arms repaint: the reaped room must leave the list, and a room that survived the race must come
@@ -644,7 +664,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     archive: createArchive(ctx, emit, claimChat),
     setChatAnchorPersona: createSetChatAnchorPersona(ctx, emit, claimChat),
     delete: createDelete(ctx, emitLive, (chatId) => deps.activeTurns.abortAll(chatId)),
-    reapHusk: createReapHusk(ctx, emitLive),
+    reapHusk: createReapHusk(ctx, deps),
     reapTemporaryChats: createReapTemporaryChats(ctx, emitLive),
     setVariables: createSetVariables(ctx, emit, claimChat),
     setUserMacroValues: createSetUserMacroValues(ctx, emit, claimChat),

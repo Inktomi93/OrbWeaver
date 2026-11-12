@@ -11,6 +11,7 @@ export {
   clearRoomInvite,
   enterCreatedChat,
   goToLanding,
+  holdRoomForSend,
   type NewChatIntent,
   openChatMoment,
   openNewChatPicker,

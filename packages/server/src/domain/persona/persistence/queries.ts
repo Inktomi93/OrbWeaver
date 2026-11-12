@@ -8,6 +8,7 @@ import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "@or
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, chats, personas } from "@orb/db";
+import { loadAssetKinds } from "@orb/db/query";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { UnreadableJsonText } from "@orb/kit/json";
@@ -259,16 +260,18 @@ export async function ensureAvatarAssets(db: Db, ownerId: UserId, assetIds: read
     return;
   }
   const rows = await db
-    .select({ id: assets.id, kind: assets.kind, mime: assets.mime })
+    .select({ id: assets.id, mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...new Set(assetIds)])));
+  const kinds = await loadAssetKinds(db, assetIds);
   for (const assetId of assetIds) {
     const row = rows.find(({ id }) => id === assetId);
     if (row === undefined) {
       throw new AssetNotFoundError(assetId);
     }
-    if (!isPictureAsset(row)) {
-      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${row.kind} asset`);
+    const held = kinds.get(assetId) ?? [];
+    if (!isPictureAsset({ kinds: held, mime: row.mime })) {
+      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${held.join(", ")} asset`);
     }
   }
 }

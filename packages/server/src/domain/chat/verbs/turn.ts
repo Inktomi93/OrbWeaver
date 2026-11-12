@@ -45,6 +45,7 @@ import {
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
 import type { BindingActor } from "@orb/contracts/inference";
+import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
@@ -65,7 +66,7 @@ import type { ArbiterCandidate, AutoModeResult, SmartArbitrationResult, SpeakerC
 import type { TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatRpgGatherResult } from "../contract/context.ts";
 import type { DelayOp, EmitDurableChatEventOp } from "../contract/engine-context.ts";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import { CHAT_OP_CODES, ChatHostWithoutConsentError, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ChatBehaviorInputs, ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { HandoffBarrier } from "../contract/handoff-barrier.ts";
@@ -286,8 +287,10 @@ async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership
   return await resolveReasoningHostOnlyFor(ctx, chatId);
 }
 
-/** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). A deferred turn
- *  supplies its already-frozen host so cards, assembly, tools, and funding retain one identity across replay. */
+/** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND), and so is a room
+ *  whose turn host is outside its consent set: a disabled host is treated exactly like a departed one, so no turn
+ *  runs on that account's connection. A deferred turn supplies its already-frozen host so cards, assembly, tools,
+ *  and funding retain one identity across replay; that host must still consent at drain time. */
 async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: PersonaId | null, frozenHostUserId?: UserId): Promise<Room> {
   const participants = await loadParticipants(ctx.db, chatId);
   const currentHostUserId = hostUserIdOf(participants);
@@ -295,6 +298,13 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: Perso
     throw new ChatNotFoundError(chatId);
   }
   const hostUserId = frozenHostUserId ?? currentHostUserId;
+  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
+  // disabled-account containment gate (owner-ruled) — see `presentAndEnabledHumanUserIdsOf`'s own
+  // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.
+  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+  if (!presentHumanUserIds.includes(hostUserId)) {
+    throw new ChatHostWithoutConsentError(chatId);
+  }
   const aiRows = participants.filter((r) => isAiDriven(r.kind));
   const charRows = aiRows.flatMap((r) => {
     const actor = classifyParticipant(r);
@@ -308,10 +318,6 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: Perso
     ),
   ]);
 
-  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
-  // disabled-account containment gate (owner-ruled) — see `presentAndEnabledHumanUserIdsOf`'s own
-  // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.
-  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
   const humanSeats = humanSeatPersonasOf(participants, presentHumanUserIds);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
@@ -1736,9 +1742,6 @@ async function commitUserTurn(
 ): Promise<CommittedUserTurn> {
   const { principal, chatId, content, personaId, blocks, guided } = args;
   const membership = await requireParticipant(ctx, principal, chatId);
-  // A committed user line is THE claim (R0 F4(a)). Before the row, per the ordering invariant: the
-  // claim replays the creation stats over the canon present at claim, and this row is about to join it.
-  await deps.claimChat(chatId);
   const attachments = args.attachmentAssetIds ?? [];
   await assertAttachmentsOwned(ctx.filterOwnedAssetIds, principal.userId, chatId, attachments);
   // Unlike a picture typed into text, a block names its asset as a claim, so a foreign, gone or non-image one refuses.
@@ -1748,10 +1751,10 @@ async function commitUserTurn(
   // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
   await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
-  // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is the
-  // line ABOVE them — that path claims the chat first (R0 F4(a), every GENERATED turn claims), this one has
-  // already committed a user row. Folding the trio would put the claim/no-claim decision behind a helper
-  // whose name cannot carry it, which is the ordering bug this file has paid for before.
+  // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is where the
+  // claim sits — that path claims before them (D166: a generated turn claims the room), this one claims only
+  // after the last refusal, just before the user row. Folding the trio would put the claim/no-claim decision
+  // behind a helper whose name cannot carry it, which is the ordering bug this file has paid for before.
   const room = await loadRoom(ctx, chatId, membership.chat.anchorPersonaId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
@@ -1811,6 +1814,10 @@ async function commitUserTurn(
   const body = composeBodyWithAttachments(composed, attachments);
   // A picture typed into the text rather than attached is placed only when the sender owns it, like an edit.
   const typed = await ownedCitedAssetIds(ctx, principal.userId, body, attachments);
+  // The first user message claims the room (D166). After every refusal above, because the claim is one-way and
+  // a refused send must leave the room unclaimed; before the row, because retained accounting refuses a husk's
+  // canon write and the claim replays the creation stats over the canon present at claim.
+  await deps.claimChat(chatId);
   const userView = await persistUserMessage(ctx, deps.emit, {
     chatId,
     content: body,
@@ -2864,15 +2871,20 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
 
 // ── pending_turns drain — the host-offline deferred-turn reclaim (Part III §5) ──
 
-/** A drain VERDICT drop — a PERMANENT refusal, so the claimed row stays deleted (never re-queued). Exactly
- *  ONE verdict is permanent today: `ChatNotFoundError` — the chat row, or its host participant, is gone, so
- *  there is nothing left to run and no later edge can change that. (The separate owner-consent verdict and
- *  per-member turn budget were retired; neither belt has a raiser on the tree.)
- *  Everything else RE-QUEUES: a transient fault (a provider outage) is "not now", not "never", so the
- *  member's owed reply waits for the next drain edge. Drains fire only at boot + host-return edges, so a
- *  re-queued row can't hot-loop. */
-function isDrainVerdictDrop(err: unknown): boolean {
-  return err instanceof ChatNotFoundError;
+type DeferredTurnDropReason = Extract<NotificationEvent, { readonly type: "deferred-turn-dropped" }>["reason"];
+
+/** A drain VERDICT drop — a PERMANENT refusal, so the claimed row stays deleted (never re-queued), and the
+ *  reason the member is told. `ChatHostWithoutConsentError` (the frozen host is disabled or gone from the room,
+ *  read at drain time) drops as `consent`: a disabled host is treated exactly like a departed one, so the turn
+ *  never runs on that account even after a later re-enable. Any other `ChatNotFoundError` (the chat row, or its
+ *  host participant, is gone) drops as `chat-gone`. Everything else RE-QUEUES: a transient fault (a provider
+ *  outage) is "not now", not "never", so the member's owed reply waits for the next drain edge. Drains fire
+ *  only at boot + host-return edges, so a re-queued row can't hot-loop. */
+function drainDropReason(err: unknown): DeferredTurnDropReason | null {
+  if (err instanceof ChatHostWithoutConsentError) {
+    return "consent";
+  }
+  return err instanceof ChatNotFoundError ? "chat-gone" : null;
 }
 
 /** Reconstruct + run ONE deferred AI round from a durable `pending_turns` row — no principal, no new user
@@ -2890,7 +2902,7 @@ async function runDeferredRound(
   if (chat === undefined) {
     throw new ChatNotFoundError(row.chatId);
   }
-  const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // current hostless/gone → ChatNotFoundError (a drop)
+  const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // hostless/gone → chat-gone drop; frozen host disabled or left → consent drop
   const identity = { triggeredBy: row.triggeredBy, funderUserId: row.runAsUserId, runAsUserId: row.runAsUserId };
   const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId: row.chatId });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
@@ -2945,19 +2957,18 @@ async function drainOne(
   if (claimed === undefined) {
     return "skipped"; // a concurrent drain already claimed this row.
   }
-  // both arms report: the permanent verdict (`ChatNotFoundError` only,
-  // `isDrainVerdictDrop`) notifies the member via `notifyDeferredTurnDropped` and logs at info; every other
-  // error re-inserts the row and `getLog(ctx.logger).warn`s it with `err`. Ends if a third fault class needs its own handling.
+  // both arms report: a permanent verdict (`drainDropReason`) notifies the member via `notifyDeferredTurnDropped`
+  // and logs at info; every other error re-inserts the row and `getLog(ctx.logger).warn`s it with `err`. Ends if a
+  // third fault class needs its own handling.
   try {
     await run(claimed);
     return "ran";
   } catch (err) {
-    if (isDrainVerdictDrop(err)) {
-      // `isDrainVerdictDrop` admits exactly one class, so the reason is not a dispatch: the notification's
-      // `consent` arm survives in the contract for the belt's own sake, but nothing raises it here.
-      await notifyDeferredTurnDropped(ctx, claimed, "chat-gone");
+    const reason = drainDropReason(err);
+    if (reason !== null) {
+      await notifyDeferredTurnDropped(ctx, claimed, reason);
       getLog(ctx.logger).info(
-        { pendingTurnId: claimed.id, chatId: claimed.chatId, reason: "chat-gone", dropped: true },
+        { pendingTurnId: claimed.id, chatId: claimed.chatId, reason, dropped: true },
         "chat: deferred turn DROPPED at drain (permanent verdict)",
       );
       return "dropped";
@@ -2988,7 +2999,7 @@ async function drainOne(
 async function notifyDeferredTurnDropped(
   ctx: ChatContext,
   row: { readonly chatId: ChatId; readonly triggeredBy: UserId },
-  reason: "consent" | "chat-gone",
+  reason: DeferredTurnDropReason,
 ): Promise<void> {
   await ctx
     .emitNotification({

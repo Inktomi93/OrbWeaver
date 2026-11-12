@@ -40,7 +40,7 @@ const recursivePluginSurfaceOutput = [
 const completeAssetRow = {
   assetId,
   hash: "hash_wire",
-  kind: "gallery",
+  kinds: ["gallery"],
   mime: "image/png",
   size: 1,
   uploadedAt: 0,

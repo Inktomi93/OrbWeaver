@@ -1,4 +1,5 @@
 import { BLOB_ROUTE } from "@orb/contracts/assets";
+import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { enlargedTextGeometry, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -137,7 +138,7 @@ function registerCase(style: "echo" | "whisper" | "ripple", width: number): void
   });
 }
 
-for (const style of ["echo", "whisper", "ripple"] as const) {
+for (const style of ["echo", "whisper", "ripple"] as const satisfies readonly ThemeChatStyle[]) {
   for (const width of [390, 1440]) {
     registerCase(style, width);
   }
