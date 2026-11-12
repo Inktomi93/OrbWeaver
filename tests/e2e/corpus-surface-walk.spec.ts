@@ -24,7 +24,7 @@ import {
   walkChatReading,
 } from "./support/surface-chat.ts";
 import { walkConfigCategory, walkConfigMap, walkConfigRecovery, walkConfigSettings } from "./support/surface-config.ts";
-import { SURFACE_SECTION_IDS, walkRefineryExecution, walkSection } from "./support/surface-sections.ts";
+import { SURFACE_RAIL_CASES, walkRefineryExecution, walkSection } from "./support/surface-sections.ts";
 import { expect, test } from "./support/surface-test.ts";
 
 const NO_DEV_BRIDGE = "The real production client has no development bridge";
@@ -105,9 +105,9 @@ test.describe("production surface walk @surface-walk", () => {
       expect(await hasDevBridge(page), NO_DEV_BRIDGE).toBe(false);
     });
   }
-  for (const section of SURFACE_SECTION_IDS) {
-    test(`Rail independent ${section}`, { annotation: { type: "surface-section", description: section } }, async ({ flow, page }) => {
-      await walkSection(flow, section);
+  for (const railCase of SURFACE_RAIL_CASES) {
+    test(`Rail independent ${railCase.name}`, { annotation: { type: "surface-section", description: railCase.section } }, async ({ flow, page }) => {
+      await walkSection(flow, railCase);
       expect(await hasDevBridge(page), NO_DEV_BRIDGE).toBe(false);
     });
   }
