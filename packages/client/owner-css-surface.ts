@@ -537,6 +537,8 @@ export const OWNER_CSS_SLOTS = [
   "picker-cell-body",
   "picker-cell-description",
   "picker-cell-meta",
+  "picture-cue-drop",
+  "picture-cue-mark",
   "plugin-command-args",
   "plugin-detail-stage",
   "plugin-flank",

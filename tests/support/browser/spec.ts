@@ -5,6 +5,7 @@ export type { SurfacePaneRequest } from "../node/surface-audit.ts";
 export { accessibilityEvidence, accessibilityScan } from "./accessibility-scan.ts";
 export { formatFindings, unnamedLandmarkElementFindings } from "./accessible-names.ts";
 export { actionGroupGeometry } from "./action-group-geometry.ts";
+export { pageCanHover, readRefusalLine } from "./avatar-drive.ts";
 export type { LayoutBox } from "./box-of.ts";
 export { boxOf } from "./box-of.ts";
 export { expectCacheProse } from "./cache-prose.ts";
@@ -26,6 +27,7 @@ export { assertSurfaceReady, auditSurface } from "./settle-surface.ts";
 export {
   controlledPanel,
   dispatchCommandKey,
+  dragFileOver,
   dropOn,
   expectPinnedFailure,
   persistedOverrides,

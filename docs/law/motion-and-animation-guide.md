@@ -479,8 +479,8 @@ an initial-mount fallback anyway. No cross-fade to wire.
 
 **6. Success/save confirmation.** DECIDED-AGAINST (as a shared keyframe). The portrait save
 confirmation is a **static ring flash, no keyframe** (reduced-motion-safe by construction) —
-see `HeroPortrait` in
-`packages/client/src/features/character/components/character-hero-band.tsx`; autosave surfaces
+see `useAvatarUpload` in
+`packages/client/src/components/avatar-upload.tsx`; autosave surfaces
 confirm via their form-state chrome. No shared keyframe pattern is warranted.
 
 **7. Toasts.** BUILT. `packages/ui/src/primitives/toast/variants.ts` — enter/exit on

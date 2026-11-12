@@ -115,7 +115,7 @@ function feedbackLines(facts: UiFacts, inScope: (section: string) => boolean): s
   return [
     "### Feedback shape",
     "",
-    `Scanned ${scan.files} client files: ${scan.factories} entity-mutation hooks, ${scan.consumers} consumers.`,
+    `Scanned ${scan.files} client files: ${scan.factories} entity-mutation hooks, ${scan.consumers} consumers, ${scan.unownedToasts} success toasts no mutation owns.`,
     "",
     ...table(["success", "consumers"], tally(members, "success")),
     ...table(["failure", "consumers"], tally(members, "failure")),

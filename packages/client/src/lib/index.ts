@@ -12,9 +12,11 @@ export {
   writeAppearanceChannel,
 } from "./appearance-carrier-manifest.ts";
 export {
+  AVATAR_CONTROL_NAME,
   AVATAR_DROP_A_FILE,
   AVATAR_NOT_A_PICTURE,
   AVATAR_ONE_AT_A_TIME,
+  AVATAR_REPLACE_HINT,
   AVATAR_UPLOADING_NAME,
   AVATAR_WRITE_REFUSED,
   avatarUploadFailedLine,

@@ -3,8 +3,8 @@
 // live tail); a picked folder is PLANNED (`planServedFolderImport`: `planServedTreeImport` against the served
 // caps, the persona review, then a replan that charges each upload its collision answers) and sent as one or
 // more sequential uploads through the tree route, each its own workload; a bare character card goes through
-// the synchronous card route. On finish it blanket-invalidates the user's cache, surfaces the normalized summary, and toasts a
-// tally that matches the real outcome (never a fabricated success on a failed import).
+// the synchronous card route. On finish it blanket-invalidates the user's cache, surfaces the normalized summary. The result is said once, in the
+// report the person is looking at, never by a toast (a success they can see in place tells itself).
 //
 // SELECTION IS STAGED, NEVER FIRED. Picking a file used to BE the import: the drop handler uploaded
 // immediately, so the first thing that told you what an import does to a library you already own was the
@@ -41,10 +41,9 @@ import {
   useTRPC,
   useUploadCaps,
 } from "#data";
-import { notify } from "#lib";
 import { IMPORT_FOLDER_WRONG_FOLDER } from "../lib/import-folder-copy.ts";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
-import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
+import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport } from "../lib/portability-model.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
 import { useCancelWorkload } from "./use-workload-mutations.ts";
 
@@ -276,11 +275,8 @@ export function useLibraryImport(): LibraryImport {
       return;
     }
     invalidation.invalidateAllUserRoots();
+    // The report beside the focused Import result says every outcome, a clean one included, so no toast repeats it.
     setState({ status: "done", summary });
-    // A failed or partial import is said where the person is looking: the report summary renders the same caption inline.
-    if (summary.failed === 0) {
-      notify.success(`Import complete: ${summaryCaption(summary)}`);
-    }
   };
 
   /** A failure is one inline line where the person is looking; a toast beside it would say it twice. */

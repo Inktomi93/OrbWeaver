@@ -23,7 +23,8 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { AvatarUpload, QueryBoundary } from "#components";
+import type { AvatarUploadParts } from "#components";
+import { QueryBoundary, useAvatarUpload } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation } from "#data";
 import type { AppFormInstance } from "#forms/editor";
@@ -31,7 +32,7 @@ import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
-import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_PORTRAIT_NAME } from "../lib/character-names.ts";
+import { CHARACTER_HERO_NAME_FIELD_NAME } from "../lib/character-names.ts";
 import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
 import { CharacterTagsRow } from "./character-tags-row.tsx";
@@ -89,10 +90,11 @@ export function CharacterHeroBand({
   // DRAFT-TRUST arm 1: the preview paints with the RESOLVED policy (deployment floor × this card's
   // override), not the raw override column — see use-preview-render-policy.ts.
   const previewPolicy = usePreviewRenderPolicy(detail);
+  const portrait = useHeroPortrait(detail, trpc);
   return (
     <Stack gap="section" data-slot="character-hero">
       <Row align="start" gap="block" wrap={true}>
-        <HeroPortrait detail={detail} trpc={trpc} />
+        {portrait.control}
         <Stack className="min-inline-0" floor="field" grow={true} cap="fit" gap="field">
           <Row align="center" gap="row" wrap={true}>
             <Stack className="min-inline-0" grow={true} gap="field">
@@ -108,6 +110,7 @@ export function CharacterHeroBand({
           <HeroActions spoilerBlur={spoilerBlur} onNewChat={onNewChat} onViewChats={onViewChats} chatCount={chatCount} />
         </Stack>
       </Row>
+      {portrait.failureLine}
 
       <CharacterTagsRow characterId={detail.id} tags={detail.tags} trpc={trpc} />
       {/* ITS OWN BOUNDARY, WITH A RESERVATION. The suggestion strip is the block between the tags row and
@@ -139,21 +142,18 @@ export function CharacterHeroBand({
 }
 
 /** The portrait's upload door: the shared control, with the character's own write. The write is an immediate
- *  identity commit (`character.update` single-key patch); a refused one shows on the control's line, so the
- *  mutation declares it and no toast repeats it. */
-function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; readonly trpc: Trpc }): ReactElement {
+ *  identity commit (`character.update` single-key patch); a refused one shows on the failure line the band places
+ *  under its first row, so the mutation declares it and no toast repeats it. */
+function useHeroPortrait(detail: CharacterHeroDetail, trpc: Trpc): AvatarUploadParts {
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation, failureShownInline: "the portrait control's line" });
-  return (
-    <AvatarUpload
-      avatarHash={detail.avatarHash}
-      commit={(stored): Promise<unknown> => update.mutateAsync({ characterId: detail.id, input: { avatarAssetId: stored.assetId } })}
-      hueSeed={detail.id}
-      initials={initialsFor(detail.name)}
-      name={CHARACTER_PORTRAIT_NAME}
-      size="hero"
-    />
-  );
+  return useAvatarUpload({
+    avatarHash: detail.avatarHash,
+    commit: (stored): Promise<unknown> => update.mutateAsync({ characterId: detail.id, input: { avatarAssetId: stored.assetId } }),
+    hueSeed: detail.id,
+    initials: initialsFor(detail.name),
+    size: "hero",
+  });
 }
 
 /**

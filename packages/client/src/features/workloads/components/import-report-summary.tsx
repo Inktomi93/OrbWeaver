@@ -29,7 +29,7 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
     <Stack gap="block" data-testid={testId("importReport")}>
       <Text voice="lead">{summaryCaption(summary)}</Text>
       {summary.notes.length === 0 ? null : (
-        <Stack aria-label="Import notes" gap="field" role="list">
+        <Stack aria-label="Import notes" cap="prose" gap="field" role="list">
           {summary.notes.map((note) => (
             <Text key={note} voice="gloss" role="listitem">
               {note}
@@ -38,7 +38,7 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
         </Stack>
       )}
       {summary.outcomes.length > 0 ? (
-        <Stack aria-label="Imported files" gap="field" role="list">
+        <Stack aria-label="Imported files" cap="prose" gap="field" role="list">
           {summary.outcomes.map((outcome) => (
             <Stack key={outcome.path} gap="field">
               <Row align="center" gap="row" role="listitem">

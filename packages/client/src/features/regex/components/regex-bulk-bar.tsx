@@ -77,10 +77,13 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
   const enabledWriteInFlight = useRef(false);
   const [isPending, setIsPending] = useState(false);
 
+  // The rows show a landed batch in place, so only one that changed fewer scripts than the selection named is told (client-architecture-state-and-gates.md §11).
   const report =
     (verb: string) =>
     ({ affected }: RegexBulkOutcome): void => {
-      notify.success(bulkToast(verb, affected));
+      if (affected !== count) {
+        notify.info(bulkToast(verb, affected));
+      }
     };
 
   // THE SELECTION IS THE RETRY (#1501). Enable/Disable below already clear inside `onSuccess`; these four

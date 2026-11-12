@@ -1,10 +1,5 @@
 // Persona words more than one surface, or a test, must agree on.
 
-/** The persona editor's avatar control, named for the persona it changes. */
-export function personaAvatarName(persona: string): string {
-  return `Change avatar for ${persona}`;
-}
-
 /** The name field's error while it is blank. */
 export const PERSONA_NAME_REQUIRED = "Name can't be empty.";
 

@@ -1,6 +1,7 @@
 // components/ front door — client-shared composites over @orb/ui (UI-Arch §2.1: NOT @orb/ui itself —
 // ui stays parts-only; these are cross-feature composites with no single feature owner).
-export { AvatarUpload } from "./avatar-upload.tsx";
+export type { AvatarUploadParts } from "./avatar-upload.tsx";
+export { useAvatarUpload } from "./avatar-upload.tsx";
 export { BackgroundSourceField } from "./background-source-field.tsx";
 export type { BandProps } from "./band.tsx";
 export { Band } from "./band.tsx";

@@ -12,10 +12,15 @@ const SUCCESS_READS = new Set(["onSuccess", "isSuccess"]);
 export interface FeedbackScan {
   readonly factories: number;
   readonly consumers: number;
+  /** Success toasts no mutation consumer owns. */
+  readonly unownedToasts: number;
   readonly files: number;
 }
 
-const clientSources = (sources: readonly Source[]): readonly (Source & { readonly sf: ts.SourceFile })[] =>
+/** A client source with its parse. */
+type ClientSource = Source & { readonly sf: ts.SourceFile };
+
+const clientSources = (sources: readonly Source[]): readonly ClientSource[] =>
   sources.flatMap((source) => (source.sf === null || source.layer !== "client" ? [] : [{ ...source, sf: source.sf }]));
 
 /** The calls whose arguments carry a failed-state mark: the mark is state only and never message text. */
@@ -119,9 +124,10 @@ const FAILURE_CALLBACK = /^on\w*(?:Error|Failure|Failed|Refusal|Refused)$/u;
 
 /** The props whose awaited handler's rejection the receiving component renders: `ConfirmDialog`, `DestructiveAction` and a
  *  row menu's `destructive` action state a rejected `onConfirm` in the dialog's alert line, and a row's `onDelete` is typed
- *  as that `onConfirm` (`LibraryRowActions`, `ThemeRowMenu`) or forwarded to it. A handler that awaits or returns nothing
+ *  as that `onConfirm` (`LibraryRowActions`, `ThemeRowMenu`) or forwarded to it. The shared avatar control's `commit` is
+ *  awaited too, and a refusal shows on the failure line its hook returns. A handler that awaits or returns nothing
  *  hands no rejection on, so a plain `onDelete` callback never reads as one. */
-const REJECTION_RENDERING_PROPS = new Set(["onConfirm", "onDelete"]);
+const REJECTION_RENDERING_PROPS = new Set(["onConfirm", "onDelete", "commit"]);
 
 /** `useRowDeleteFocus().delete(key, run)` wraps `run` into the row's `onDelete`, so its second argument is a rejection position. */
 const ROW_DELETE_RUN = { method: "delete", argument: 1 } as const;
@@ -408,7 +414,7 @@ function readsFrom(
   call: ts.CallExpression,
   names: ReadonlySet<string>,
   managers: ReadonlySet<string>,
-): { readonly errorRead: boolean; readonly successRead: boolean; readonly successToast: boolean } {
+): { readonly errorRead: boolean; readonly successRead: boolean; readonly successToasts: readonly ts.CallExpression[] } {
   const binding = resultBinding(call);
   const scope = enclosingFunction(call);
   const handles = new Set([...(binding.name === null ? [] : [binding.name]), ...binding.destructured.filter((name) => MUTATE_CALLS.has(name))]);
@@ -422,7 +428,7 @@ function readsFrom(
     errorRead ||= isOwnOnError(node, handles);
     successRead ||= ts.isIdentifier(node) && SUCCESS_READS.has(node.text);
   });
-  return { errorRead, successRead, successToast: tellsSuccessAsToast(scope, handles, managers) };
+  return { errorRead, successRead, successToasts: successToastCalls(scope, handles, managers) };
 }
 
 /** The failure surface one consumer shows. A toast-class consumer that declares `failureShownInline` at its hook call
@@ -448,9 +454,26 @@ function failureOf(factory: FactoryToast, consumerSays: boolean, declaresInline:
   return "none";
 }
 
-// The consumers whose success toast tells a result that lands out of the person's sight, each with where it lands
-// (client-architecture-state-and-gates.md §11, Toasts). A further success toast in one of these files stays a defect.
-const SUCCESS_OUT_OF_SIGHT: readonly KeptRead[] = [
+/** The clause every kept success toast rests on; each ruling's reason below names where its result lands, and the census prints this beside it. */
+const TOAST_LAW = "client-architecture-state-and-gates.md §11, Toasts";
+
+// The consumers whose success toast tells a result that lands out of the person's sight, each with where it lands.
+// A further success toast in one of these files stays a defect.
+const OUT_OF_SIGHT_ROWS: readonly KeptRead[] = [
+  {
+    path: "packages/client/src/lib/copy-with-notice.ts",
+    label: "copyWithNotice",
+    value: "toast",
+    count: 1,
+    reason: "the copy lands on the clipboard, which nothing in place shows",
+  },
+  {
+    path: "packages/client/src/features/plugin/lib/plugin-ui-outcome.ts",
+    label: "module",
+    value: "toast",
+    count: 1,
+    reason: "a plugin's own notice: what it reports lands in the plugin, out of the host surface's sight",
+  },
   {
     path: "packages/client/src/features/regex/hooks/use-regex-collection.ts",
     label: "useImportRegexScriptFile",
@@ -577,7 +600,65 @@ const SUCCESS_OUT_OF_SIGHT: readonly KeptRead[] = [
     count: 1,
     reason: "the fill count covers entries that are not on screen, and a fill of none changes nothing in place",
   },
+  {
+    path: "packages/client/src/features/credentials/hooks/use-sign-in-check.ts",
+    label: "announce",
+    value: "toast",
+    count: 1,
+    reason: "the dialog that saved the connection has closed, so the sign-in verdict has no place on screen",
+  },
+  {
+    path: "packages/client/src/features/preset/lib/active-preset-notice.ts",
+    label: "notifyBuiltInFork",
+    value: "toast",
+    count: 1,
+    reason: "a save to another place: the edit lands in a copy the person did not create, while the editor's status reads Saved",
+  },
+  {
+    path: "packages/client/src/features/character/components/character-restore-book-action.tsx",
+    label: "onConfirm",
+    value: "toast",
+    count: 1,
+    reason: "a save to another place: the restored book lands in the world books, not on the Provenance facet, and the confirm closes",
+  },
+  {
+    path: "packages/client/src/features/roster-preset/hooks/use-start-roster.ts",
+    label: "report",
+    value: "toast",
+    count: 1,
+    reason: "the apply report names rules switched on and members skipped, which land in the room's other sections",
+  },
+  {
+    path: "packages/client/src/features/roster-preset/components/roster-picker.tsx",
+    label: "reportApply",
+    value: "toast",
+    count: 1,
+    reason: "the apply report names rules switched on and members skipped, which land in the room's other sections",
+  },
+  {
+    path: "packages/client/src/features/automation/components/rule-row.tsx",
+    label: "useRunRuleNow",
+    value: "toast",
+    count: 1,
+    reason: "a rule run by hand acts in the room, so its outcome shows nowhere on the rule's row",
+  },
+  {
+    path: "packages/client/src/features/character/components/character-import-dialog.tsx",
+    label: "onFiles",
+    value: "toast",
+    count: 1,
+    reason: "an import's count: the dialog closes over the list, and which of the files landed shows nowhere in place",
+  },
+  {
+    path: "packages/client/src/features/chat/components/chat-import-dialog.tsx",
+    label: "onFiles",
+    value: "toast",
+    count: 1,
+    reason: "an import's count: the dialog closes over the list, and which of the files landed shows nowhere in place",
+  },
 ];
+
+const SUCCESS_OUT_OF_SIGHT: readonly KeptRead[] = OUT_OF_SIGHT_ROWS.map((row) => ({ ...row, reason: `${row.reason} (${TOAST_LAW})` }));
 
 // The names a file binds to `useToastManager()`.
 function toastManagers(sf: ts.SourceFile): ReadonlySet<string> {
@@ -673,22 +754,45 @@ function onOwnSuccess(node: ts.Node, scope: ts.Node, handles: ReadonlySet<string
   return false;
 }
 
-// A success this consumer tells as a toast: `notify.success`, or a toast manager's `add`, on its own success path.
-function tellsSuccessAsToast(scope: ts.Node, handles: ReadonlySet<string>, managers: ReadonlySet<string>): boolean {
-  return anyNode(scope, (node) => {
-    if (!(ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression))) {
-      return false;
-    }
-    const { expression: owner, name } = node.expression;
-    const toast = (owner.text === "notify" && name.text === "success") || (managers.has(owner.text) && name.text === "add");
-    return toast && onOwnSuccess(node, scope, handles);
-  });
+/** `notify.success(...)`, or a computed `notify[channel](...)`. The scan reads syntax and one file's own bindings, never an imported
+ *  type, so a channel that is not a string literal can be `success` and counts as a success toast: the ruling judges it. */
+function isSuccessNotify(call: ts.CallExpression): boolean {
+  const callee = call.expression;
+  if (ts.isPropertyAccessExpression(callee)) {
+    return ts.isIdentifier(callee.expression) && callee.expression.text === "notify" && callee.name.text === "success";
+  }
+  if (!(ts.isElementAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === "notify")) {
+    return false;
+  }
+  const channel = callee.argumentExpression;
+  return !ts.isStringLiteralLike(channel) || channel.text === "success";
 }
 
-function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, factory: FactoryToast): Member {
-  const { errorRead, successRead, successToast } = readsFrom(call, ERROR_READS, toastManagers(sf));
+/** A toast manager's `add`: `const toasts = useToastManager(); toasts.add(...)`. */
+function isManagerAdd(call: ts.CallExpression, managers: ReadonlySet<string>): boolean {
+  const callee = call.expression;
+  return ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && managers.has(callee.expression.text) && callee.name.text === "add";
+}
+
+// The toasts this consumer tells as a success: `notify.success` or a computed `notify[channel]`, or a toast manager's `add`, on its own success path.
+function successToastCalls(scope: ts.Node, handles: ReadonlySet<string>, managers: ReadonlySet<string>): readonly ts.CallExpression[] {
+  const found: ts.CallExpression[] = [];
+  visit(scope, (node) => {
+    if (ts.isCallExpression(node) && (isSuccessNotify(node) || isManagerAdd(node, managers)) && onOwnSuccess(node, scope, handles)) {
+      found.push(node);
+    }
+  });
+  return found;
+}
+
+function memberOf(source: ClientSource, call: ts.CallExpression, factory: FactoryToast, owned: Set<ts.Node>): Member {
+  const { sf } = source;
+  const { errorRead, successRead, successToasts } = readsFrom(call, ERROR_READS, toastManagers(sf));
+  for (const toast of successToasts) {
+    owned.add(toast);
+  }
   let success = "none";
-  if (successToast) {
+  if (successToasts.length > 0) {
     success = "toast";
   } else if (successRead) {
     success = "callback";
@@ -705,23 +809,65 @@ function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, fa
   };
 }
 
+/** The failure cell of a success toast that no mutation's success path owns: there is no mutation whose failure it could tell. */
+const NOT_A_MUTATION = "not a mutation";
+
+/** The nearest enclosing function that carries a name, so a toast inside a `.then` callback is named for the function that holds it. */
+function holderName(node: ts.Node): string {
+  for (let at: ts.Node = node.parent; !ts.isSourceFile(at); at = at.parent) {
+    if (ts.isFunctionDeclaration(at) && at.name !== undefined) {
+      return at.name.text;
+    }
+    if (ts.isFunctionLike(at) && ts.isVariableDeclaration(at.parent) && ts.isIdentifier(at.parent.name)) {
+      return at.parent.name.text;
+    }
+  }
+  return "module";
+}
+
+/** Every success toast (`isSuccessNotify`) that no entity-mutation consumer's success path owns: a toast in a hook that runs a state
+ *  machine or a raw request, or in a helper. Each is a success toast like any other, so the ruling on where its result lands judges it too. */
+function unownedSuccessToasts(source: ClientSource, owned: ReadonlySet<ts.Node>): Member[] {
+  const { sf } = source;
+  const out: Member[] = [];
+  visit(sf, (node) => {
+    if (owned.has(node) || !(ts.isCallExpression(node) && isSuccessNotify(node))) {
+      return;
+    }
+    const line = lineOf(sf, node);
+    out.push({
+      path: source.path,
+      section: source.section,
+      label: holderName(node),
+      cells: { success: { value: "toast", line }, failure: { value: NOT_A_MUTATION, line } },
+    });
+  });
+  return out;
+}
+
 export function buildFeedbackCohort(sources: readonly Source[]): { readonly cohort: Cohort; readonly scan: FeedbackScan } {
   const defs = factoryDefs(sources);
   const files = clientSources(sources);
   const members = files.flatMap((source) => {
     const out: Member[] = [];
+    const owned = new Set<ts.Node>();
     visit(source.sf, (node) => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && defs.has(node.expression.text)) {
-        out.push(memberOf(source, source.sf, node, defs.get(node.expression.text) ?? NO_FEEDBACK));
+        out.push(memberOf(source, node, defs.get(node.expression.text) ?? NO_FEEDBACK, owned));
       }
     });
-    return out;
+    return [...out, ...unownedSuccessToasts(source, owned)];
   });
   return {
-    scan: { factories: defs.size, consumers: members.length, files: files.length },
+    scan: {
+      factories: defs.size,
+      consumers: members.filter((member) => member.cells["failure"]?.value !== NOT_A_MUTATION).length,
+      unownedToasts: members.filter((member) => member.cells["failure"]?.value === NOT_A_MUTATION).length,
+      files: files.length,
+    },
     cohort: {
       name: "feedback",
-      what: "entity-mutation consumers: success (toast, callback, none) and failure surface (factory toast, inline, both, background log, none)",
+      what: "entity-mutation consumers and every other success toast: success (toast, callback, none) and failure surface (factory toast, inline, both, background log, none, or not a mutation)",
       columns: ["failure"],
       // Success has no majority to follow: a success the person sees in place tells itself, and a toast is the defect
       // unless a ruling below names where the result lands out of sight (client-architecture-state-and-gates.md §11, Toasts).
@@ -735,6 +881,8 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
           inline:
             "a surface on screen while it fails states the failure inline and no toast repeats it, or a function-form toast answers null for an error the consumer says in place (client-architecture-state-and-gates.md §11, Toasts)",
           log: "background housekeeping the person did not start logs its failure and shows no toast (client-architecture-state-and-gates.md §11, Toasts)",
+          [NOT_A_MUTATION]:
+            "a success toast outside every mutation's success path has no mutation failure to tell; its success column is judged like any other (client-architecture-state-and-gates.md §11, Toasts)",
         },
       },
       basis: { success: "heuristic", failure: "heuristic" },

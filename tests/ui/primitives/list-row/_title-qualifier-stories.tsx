@@ -26,6 +26,23 @@ export function TitleQualifierStory({ width }: { readonly width: number }): Reac
   );
 }
 
+const DATE_QUALIFIER = "Jun 15, 2025, 04:06 PM";
+const SHORT_NAME = "Keeper";
+const LONG_NAME = "The long vigil kept at the Ninth Epoch's orbital loom, told in full for whoever asks";
+
+/** A short name and a long one beside the same date qualifier, and the short name alone, in a pane of a fixed width. */
+export function NameFitStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtIsolation subject="ListRow title floor" isolates="Whether a name shares its line with a qualifier needs no application services.">
+      <Container style={{ inlineSize: width }}>
+        <ListRow title={SHORT_NAME} titleQualifier={DATE_QUALIFIER} />
+        <ListRow title={LONG_NAME} titleQualifier={DATE_QUALIFIER} />
+        <ListRow title={SHORT_NAME} />
+      </Container>
+    </CtIsolation>
+  );
+}
+
 /** Two rows with one title, apart only by a stamp that outgrows the line at the phone's enlarged text. */
 export function QualifierPairStory({ width }: { readonly width: number }): ReactElement {
   return (

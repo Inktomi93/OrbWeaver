@@ -313,6 +313,7 @@ export function ListRow({
     align,
     clickable,
     float: actionsFloat,
+    qualified: titleQualifier !== undefined,
     receded,
     stackActions,
     stackActionsAt,

@@ -6,10 +6,11 @@ import { channelName } from "@orb/testkit/ct";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { QualifierPairStory, TitleQualifierStory } from "./_title-qualifier-stories.tsx";
+import type { NameFitStory, QualifierPairStory, TitleQualifierStory } from "./_title-qualifier-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/TitleQualifierStory";
 const PAIR_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/QualifierPairStory";
+const NAME_FIT_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/NameFitStory";
 const WIDTH = 373;
 const PHONE_WIDTH = 390;
 const TEXT_200 = 2;
@@ -92,6 +93,79 @@ test("a qualifier too long for the name's line takes the next line and wraps the
     expect(part.right).toBeLessThanOrEqual(long.root.right + SUBPIXEL);
   }
 });
+
+interface NameFit {
+  readonly rowHeight: number;
+  readonly titleWidth: number;
+  readonly titleCut: boolean;
+  readonly titleNatural: number;
+  readonly titleBottom: number;
+  readonly lineWidth: number;
+  readonly qualifierTop: number;
+  readonly qualifierWidth: number;
+  readonly qualifierRight: number;
+  readonly qualifierCut: boolean;
+  readonly rowRight: number;
+}
+
+/** What one row of the name-fit story shows; a row with no qualifier reports zeros for the qualifier. */
+function nameFit(row: Locator): Promise<NameFit> {
+  return row.evaluate((root) => {
+    const title = root.querySelector<HTMLElement>('[data-slot="list-row-title"]');
+    const qualifier = root.querySelector<HTMLElement>('[data-slot="list-row-title-qualifier"]');
+    if (title === null) {
+      throw new Error("list row has no title");
+    }
+    const box = title.getBoundingClientRect();
+    const own = qualifier?.getBoundingClientRect();
+    const rowBox = root.getBoundingClientRect();
+    // The name's own text width, whatever width the title box was given.
+    const text = document.createRange();
+    text.selectNodeContents(title);
+    return {
+      rowHeight: rowBox.height,
+      titleWidth: box.width,
+      titleCut: title.scrollWidth > title.clientWidth,
+      titleNatural: text.getBoundingClientRect().width,
+      titleBottom: box.bottom,
+      lineWidth: title.parentElement?.getBoundingClientRect().width ?? 0,
+      qualifierTop: own?.top ?? 0,
+      qualifierWidth: own?.width ?? 0,
+      qualifierRight: own?.right ?? 0,
+      qualifierCut: qualifier === null ? false : qualifier.scrollWidth > qualifier.clientWidth,
+      rowRight: rowBox.right,
+    };
+  });
+}
+
+// A docked list pane, where the title floor and the qualifier together outgrow the line, and a phone's full-width list, where they do not.
+const PANES = [
+  { pane: "a docked list pane", width: 280, floorOutgrowsLine: true },
+  { pane: "a phone", width: PHONE_WIDTH, floorOutgrowsLine: false },
+] as const;
+
+for (const { pane, width, floorOutgrowsLine } of PANES) {
+  test(`at ${pane}, a short name shares its line with the qualifier, and a long one truncates with the qualifier whole`, async ({ mount, page }) => {
+    const component = await mount<typeof NameFitStory>(NAME_FIT_STORY, { width });
+    const rows = component.locator('[data-slot="list-row-root"]');
+    const short = await nameFit(rows.nth(0));
+    const long = await nameFit(rows.nth(1));
+    const bare = await nameFit(rows.nth(2));
+    const floor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, rows.first());
+    // The premise: the short name is narrower than the floor, and beside the qualifier the floor either outgrows the line or does not.
+    expect(floor).toBeGreaterThan(short.titleNatural);
+    expect(floor + short.qualifierWidth > short.lineWidth).toBe(floorOutgrowsLine);
+    // The name is whole beside its qualifier, and the row is as tall as the same name with no qualifier.
+    expect(short.titleCut).toBe(false);
+    expect(short.qualifierTop).toBeLessThan(short.titleBottom);
+    expect(short.rowHeight).toBeCloseTo(bare.rowHeight, 0);
+    // The long name truncates, keeps at least the floor, and the qualifier is whole inside the row.
+    expect(long.titleCut).toBe(true);
+    expect(long.titleWidth).toBeGreaterThanOrEqual(floor - SUBPIXEL);
+    expect(long.qualifierCut).toBe(false);
+    expect(long.qualifierRight).toBeLessThanOrEqual(long.rowRight + SUBPIXEL);
+  });
+}
 
 test("two rows told apart only by their qualifier stay apart at 200% text on a phone", async ({ mount, page }) => {
   await page.setViewportSize({ width: PHONE_WIDTH, height: 844 });

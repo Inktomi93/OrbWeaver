@@ -4,9 +4,6 @@
 /** The create dialog's title and the compact band button's name. */
 export const CHARACTER_NEW_NAME = "New character";
 
-/** The hero band's portrait control. */
-export const CHARACTER_PORTRAIT_NAME = "Replace portrait";
-
 /** The band's icon-only door to the import dialog, and that dialog's name. */
 export const CHARACTER_IMPORT_NAME = "Import a character card";
 

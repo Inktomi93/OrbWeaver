@@ -1,6 +1,12 @@
 // The sentences the shared avatar upload control prints on its own inline line. A zero-import leaf, so a spec's node side
 // reads them without loading the component graph.
 
+/** The avatar control's one accessible name, the same on every surface that mounts it. */
+export const AVATAR_CONTROL_NAME = "Replace picture";
+
+/** The control's description: what it takes, by the picker and by a drop. Read by assistive tech, not shown. */
+export const AVATAR_REPLACE_HINT = "Choose a picture file, or drop one here.";
+
 /** The progress mark on the avatar while the upload and the write run. */
 export const AVATAR_UPLOADING_NAME = "Uploading the picture";
 
