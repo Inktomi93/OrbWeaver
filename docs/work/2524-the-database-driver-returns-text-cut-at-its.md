@@ -19,7 +19,7 @@ A NUL in pasted or imported text, or in a model reply, silently shortens what th
 
 ## Done when
 
-Owner ruling: text is stripped of NUL at the write boundaries where it enters. The contracts schemas for user, import and model text strip it in one shared home, a test writes a NUL-bearing string through a real write path and reads back the stripped text, and a scan of the owner's database copy reports any existing row that holds a NUL.
+Owner ruling: text is stripped of NUL where it is written. Ruling on the home, after the survey: one text column type in packages/db strips NUL on its way to the driver, and every TEXT column uses it, because user text has no common schema base and import and model text never pass through a contracts schema, so a contracts home cannot reach them. A lint refuses drizzle's own text column in the schema files so a new column cannot miss it. No migration: the stored type is unchanged. The plugin storage door keeps refusing a NUL before the write. A test writes a NUL-bearing string through a real write path for user, import and model text and reads back the stripped text whole. The scan of the owner's database copy found no row holding a NUL.
 
 ## Evidence
 
