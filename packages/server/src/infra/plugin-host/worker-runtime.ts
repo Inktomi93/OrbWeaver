@@ -18,6 +18,7 @@ import {
   fromRpcError,
   PLUGIN_BROKER_SYNC_RESULT_BYTES,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
+  parseRpcError,
   rpcError,
   SPAN_CLOSED_TOTAL_SLOT,
   SPAN_SEQUENCE_SLOT,
@@ -208,7 +209,7 @@ function callAsync(operation: PluginBridgeOperation, args: readonly unknown[], l
 
 const syncReplySchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true), value: z.unknown() }),
-  z.object({ ok: z.literal(false), error: z.object({ name: z.string(), message: z.string() }) }),
+  z.object({ ok: z.literal(false), error: z.unknown() }),
 ]);
 const syncNumberSchema = z.number();
 const syncStringSchema = z.string();
@@ -233,7 +234,7 @@ function callSync(operation: PluginSyncOperation, args: readonly unknown[]): unk
   const text = new TextDecoder().decode(new Uint8Array(resultBuffer, 0, length));
   const response = syncReplySchema.parse(decodeProcessValue(JSON.parse(text)));
   if (!response.ok) {
-    throw fromRpcError(response.error, `plugin broker: synchronous ${operation} failed`);
+    throw fromRpcError(parseRpcError(response.error), `plugin broker: synchronous ${operation} failed`);
   }
   return response.value;
 }

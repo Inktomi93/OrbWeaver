@@ -17,7 +17,15 @@ export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
 export type { PluginCommandView } from "./command-view.ts";
 export { pluginCommandViewSchema } from "./command-view.ts";
-export { HostVersionError, PluginCapabilityError, PluginHostDeadlineError, PluginSuggestedError } from "./errors.ts";
+export type { PluginHostRefusalCode } from "./errors.ts";
+export {
+  HostVersionError,
+  PLUGIN_CHANNEL_FULL_CODE,
+  PLUGIN_HOST_REFUSAL_CODES,
+  PluginCapabilityError,
+  PluginHostDeadlineError,
+  PluginSuggestedError,
+} from "./errors.ts";
 export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse } from "./frame.ts";
 export {
   PLUGIN_FRAME_CALL_REFUSED,

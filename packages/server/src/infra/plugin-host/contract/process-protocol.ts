@@ -1,4 +1,4 @@
-import type { PluginLogLevel } from "@orb/contracts/plugin";
+import type { PluginHostRefusalCode, PluginLogLevel } from "@orb/contracts/plugin";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { NodeEnvironment } from "#primitives/node-environment";
 
@@ -15,8 +15,16 @@ export interface PluginBrokerArguments extends Omit<PluginBrokerWatchdogArgument
   readonly generation: string;
 }
 
+/** The plugin runtime a frame belongs to, so that a full queue refuses that frame alone (D348), and the small frame
+ *  that answers the refusal: sent back toward the producer for a request, or on to the consumer in place of a reply. A
+ *  frame with no refusal, a log line, is dropped. */
+export interface PluginFrameRoute {
+  readonly runtimeId: string;
+  readonly refusal?: { readonly frame: string; readonly back: boolean };
+}
+
 export type PluginIpcMessage =
-  | { readonly kind: "frame"; readonly generation: string; readonly frame: string }
+  | { readonly kind: "frame"; readonly generation: string; readonly frame: string; readonly route?: PluginFrameRoute }
   | { readonly kind: "ready"; readonly generation: string }
   | { readonly kind: "stopped"; readonly generation: string; readonly error: RpcError };
 
@@ -70,6 +78,8 @@ export type PluginSyncOperation = (typeof PLUGIN_SYNC_OPERATIONS)[number];
 export interface RpcError {
   readonly name: string;
   readonly message: string;
+  /** Why a host-unavailable refusal was made, when the host can say; the guest reads it beside the name. */
+  readonly code?: PluginHostRefusalCode;
 }
 
 interface BrokerCommand {

@@ -5,7 +5,8 @@
 // which never reach a guest.
 //
 // Each class sits in the domain error tree so the transport classifier answers it as a client or availability
-// error if one ever escapes toward a route, instead of an unmodeled server error. The guest reads only `name`.
+// error if one ever escapes toward a route, instead of an unmodeled server error. The guest reads `name` and each
+// class's own string fields; a host refusal with no class here carries its reason as a code.
 
 import { DomainConflictError, DomainForbiddenError, DomainUnavailableError } from "@orb/kit/errors";
 import type { PluginCapability } from "./manifest.ts";
@@ -56,6 +57,14 @@ export class PluginHostDeadlineError extends DomainUnavailableError {
     this.hostFunction = hostFunction;
   }
 }
+
+/** The code of a `PluginHostUnavailable` refusal made because a channel between the host's processes was full: that
+ *  one call was refused and nothing else, and a retry may succeed (D348). */
+export const PLUGIN_CHANNEL_FULL_CODE = "channel_full";
+/** The codes a `PluginHostUnavailable` refusal may carry in `code`, so a guest tells why without reading the message.
+ *  One with no code means the host could not serve the call at all. */
+export const PLUGIN_HOST_REFUSAL_CODES = [PLUGIN_CHANNEL_FULL_CODE] as const;
+export type PluginHostRefusalCode = (typeof PLUGIN_HOST_REFUSAL_CODES)[number];
 
 /** Thrown by `orb.host(requestedMajor)` when the host does not serve that major — at ACTIVATION, loudly,
  *  so a V2-compiled plugin never half-runs on V1 (and, when V2 ships without a V1 adapter, symmetrically). */

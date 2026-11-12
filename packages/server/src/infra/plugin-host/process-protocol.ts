@@ -1,5 +1,5 @@
-import type { PluginLogLevel } from "@orb/contracts/plugin";
-import { PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import type { PluginHostRefusalCode, PluginLogLevel } from "@orb/contracts/plugin";
+import { PLUGIN_CHANNEL_FULL_CODE, PLUGIN_HOST_REFUSAL_CODES, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
 import type {
   BrokerParentMessage,
   ParentBrokerMessage,
@@ -16,6 +16,9 @@ export const PLUGIN_BROKER_SYNC_TIMEOUT_MS = 10_000;
 /** The error name of a refusal the host made for a reason the plugin did not cause: a broker that stopped answering,
  *  a runtime replaced before the command ran, shutdown. The parent turns it into a refusal that is never a strike. */
 export const PLUGIN_HOST_UNAVAILABLE = "PluginHostUnavailable";
+/** What a call or reply refused by a full channel carries, under {@link PLUGIN_HOST_UNAVAILABLE} and with
+ *  {@link PLUGIN_CHANNEL_FULL_CODE}: the host's own capacity, which the plugin may retry and which is never a strike. */
+export const PLUGIN_CHANNEL_FULL = "plugin host: a channel between the plugin host's processes is full; this call was refused, retry it";
 /** The error name of an invocation the host ended: at its settlement wall, or by terminating its stuck Worker. */
 export const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
 /** The Int32 slots a Worker shares with its broker to report its guest work: the open span's sequence number (0 while
@@ -25,6 +28,11 @@ export const SPAN_WINDOW_SLOT = 1;
 export const SPAN_CLOSED_TOTAL_SLOT = 2;
 export const SPAN_SLOTS_BYTES = (SPAN_CLOSED_TOTAL_SLOT + 1) * Int32Array.BYTES_PER_ELEMENT;
 export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
+/** The broker's file descriptor for its heartbeat pipe to the watchdog, apart from the IPC channel, so a beat never
+ *  waits behind a large frame in that channel's queue (D347). Index 4 of the watchdog's spawn `stdio`. */
+export const PLUGIN_BROKER_BEAT_FD = 4;
+/** The longest heartbeat line the watchdog reads; a longer one is a malformed beat. */
+export const PLUGIN_BROKER_BEAT_MAX_BYTES = 8192;
 /** Largest inherited-channel JSON frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
 const PROCESS_ID_MIN_CHARS = 16;
@@ -99,7 +107,21 @@ export function parseWorkerBrokerMessage(message: unknown): WorkerBrokerMessage 
   return message["kind"] === "response" ? parseWorkerResponse(message) : null;
 }
 
+/** A {@link PLUGIN_HOST_UNAVAILABLE} refusal that says why in its code, which crosses every hop and reaches the guest
+ *  beside its name, so a plugin tells a full channel from a lost host without reading the message. */
+export class CodedHostUnavailableError extends Error {
+  readonly code: PluginHostRefusalCode;
+  constructor(code: PluginHostRefusalCode, message: string) {
+    super(message);
+    this.name = PLUGIN_HOST_UNAVAILABLE;
+    this.code = code;
+  }
+}
+
 export function rpcError(error: unknown): RpcError {
+  if (error instanceof CodedHostUnavailableError) {
+    return { name: error.name, message: error.message, code: error.code };
+  }
   if (error instanceof Error) {
     return { name: error.name, message: error.message };
   }
@@ -110,9 +132,20 @@ export function fromRpcError(error: RpcError | undefined, fallback: string): Err
   if (error === undefined) {
     return new Error(fallback);
   }
+  if (error.code !== undefined) {
+    return new CodedHostUnavailableError(error.code, error.message);
+  }
   const restored = new Error(error.message);
   restored.name = error.name;
   return restored;
+}
+
+// A refusal code off the wire: only a host-unavailable refusal carries one, and only a code the host mints.
+function parseRefusalCode(name: string, code: unknown): PluginHostRefusalCode | null | undefined {
+  if (code === undefined) {
+    return undefined;
+  }
+  return name === PLUGIN_HOST_UNAVAILABLE ? (PLUGIN_HOST_REFUSAL_CODES.find((known) => known === code) ?? null) : null;
 }
 
 export function isBridgeOperation(value: string): value is PluginBridgeOperation {
@@ -295,11 +328,16 @@ export function parseBrokerParentMessage(message: unknown): BrokerParentMessage 
   return parseBrokerRuntimeMessage(message["kind"], message);
 }
 
-function parseRpcError(errorValue: unknown): RpcError | undefined {
+/** An error off the wire, or undefined when it is not one. */
+export function parseRpcError(errorValue: unknown): RpcError | undefined {
   if (!isRecord(errorValue) || typeof errorValue["name"] !== "string" || typeof errorValue["message"] !== "string") {
     return;
   }
-  return { name: errorValue["name"], message: errorValue["message"] };
+  const code = parseRefusalCode(errorValue["name"], errorValue["code"]);
+  if (code === null) {
+    return;
+  }
+  return code === undefined ? { name: errorValue["name"], message: errorValue["message"] } : { name: errorValue["name"], message: errorValue["message"], code };
 }
 
 const BYTE_TAG = "$orbBytes";
@@ -378,4 +416,18 @@ export function parseMessageLine(line: string): unknown {
     throw new RangeError(`plugin broker: message exceeds ${PLUGIN_BROKER_MESSAGE_MAX_BYTES}-byte cap`);
   }
   return decodeProcessValue(JSON.parse(line));
+}
+
+/** The result a bridge call gets when a full channel refused it or its result. */
+export function channelFullBridgeResult(id: string): Extract<ParentBrokerMessage, { readonly kind: "bridge-result" }> {
+  return { kind: "bridge-result", id, ok: false, error: channelFullError() };
+}
+
+/** The answer a command gets when a full channel refused it or its answer. */
+export function channelFullResponse(id: string): Extract<BrokerParentMessage, { readonly kind: "response" }> {
+  return { kind: "response", id, ok: false, error: channelFullError() };
+}
+
+function channelFullError(): RpcError {
+  return { name: PLUGIN_HOST_UNAVAILABLE, message: PLUGIN_CHANNEL_FULL, code: PLUGIN_CHANNEL_FULL_CODE };
 }

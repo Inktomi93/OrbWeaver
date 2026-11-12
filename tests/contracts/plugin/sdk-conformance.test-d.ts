@@ -9,6 +9,7 @@ import type {
   PluginHostV1 as ContractHost,
   PluginSurfaceNode as ContractNode,
   PluginPageHero as ContractPageHero,
+  PluginHostRefusalCode as ContractRefusalCode,
   PluginToastLevel as ContractToastLevel,
   PluginFrameCall,
   pluginFrameResultMessage,
@@ -164,6 +165,7 @@ test("closed vocabularies and node fields match the app contracts", () => {
   expectTypeOf<PluginSurfaceAnchor>().toEqualTypeOf<ContractAnchor>();
   expectTypeOf<PluginSurfaceTier>().toEqualTypeOf<ContractTier>();
   expectTypeOf<PluginToastLevel>().toEqualTypeOf<ContractToastLevel>();
+  expectTypeOf<PluginHostRefusalCode>().toEqualTypeOf<ContractRefusalCode>();
   expectTypeOf<PluginCommandArgSpec["type"]>().toEqualTypeOf<ContractCommandArgSpec["type"]>();
   expectTypeOf<PluginCommandPlacement>().toEqualTypeOf<ContractCommandPlacement>();
   const declared = { kind: "keyValue", rows: [] } as const;

@@ -23,6 +23,10 @@
 //     `"PluginHostDeadlineError"` (and `hostFunction` the call that ran long). The host stops waiting but
 //     does not cancel the work, so treat it as "no answer yet", not a refusal. Three consecutive crashed
 //     invocations auto-disable the plugin.
+//   - A host call the host could not serve rejects with `name` `"PluginHostUnavailable"`, never a strike, and
+//     both kinds are retryable. With `code` `"channel_full"` (`PluginHostRefusalCode`), a channel inside the host
+//     was full and only this call was refused: retry it soon. With no `code`, the host itself was lost or
+//     restarting: retry later.
 //   - Handlers must never throw: wrap, log, return.
 
 // ── capabilities (the manifest's closed axis — declaring is ASKING; `host.grants` is what was ANSWERED) ─────
@@ -54,6 +58,9 @@ type PluginCapability =
   | "net.fetch_asset";
 
 // ── shared wire shapes ──────────────────────────────────────────────────────────────────────────────────────
+
+/** The `code` a `"PluginHostUnavailable"` rejection carries when the host can say why; absent otherwise. */
+type PluginHostRefusalCode = "channel_full";
 
 /** An OPAQUE room token, minted per invocation by the host (`chat.current()`), valid only inside the
  *  invocation that minted it. Pass it back to room-scoped calls; never store, compare across calls, or

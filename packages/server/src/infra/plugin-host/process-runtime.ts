@@ -59,6 +59,7 @@ import {
   PLUGIN_LOG_RING_LINES,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
+  pluginIpcShareBytes,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, CreateLogicalInstanceInputIn, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
@@ -67,8 +68,11 @@ import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
 import {
+  channelFullBridgeResult,
+  channelFullResponse,
   fromRpcError,
   isBridgeOperation,
+  PLUGIN_CHANNEL_FULL,
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
   parseBrokerParentMessage,
@@ -412,7 +416,21 @@ class BrokerClient {
         outstanding.push(id);
       }
       try {
-        sender.send({ kind: "frame", generation, frame: serialized });
+        // A dispose is the host's own small frame; every other command carries a value its plugin sized, so it takes its
+        // runtime's share and a full channel refuses that command alone, as host-unavailable.
+        if (operation === "dispose") {
+          sender.send({ kind: "frame", generation, frame: serialized });
+        } else if (
+          !sender.offer({
+            kind: "frame",
+            generation,
+            frame: serialized,
+            route: { runtimeId, refusal: { frame: serializeMessage(channelFullResponse(id)), back: true } },
+          })
+        ) {
+          this.settleCommand(id);
+          reject(new PluginHostUnavailableError(PLUGIN_CHANNEL_FULL));
+        }
         // the write failure rejects the command promise (reject(error)) and stopConnection terminates the unusable channel. Ends if either the reject or the stopConnection call is removed.
       } catch (error) {
         this.settleCommand(id);
@@ -581,6 +599,7 @@ class BrokerClient {
         child.send(message, callback);
       },
       (error) => this.stopConnection(error),
+      pluginIpcShareBytes(this.seams.env.PLUGIN_BROKER_WORKER_MAX),
     );
     const onWatchdogGone = (error: Error): void => {
       if (this.managedChild !== child) {
@@ -763,23 +782,26 @@ class BrokerClient {
   private handleBridge(message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): void {
     const binding = this.bindings.get(message.runtimeId);
     if (binding === undefined || binding.crashed !== null || binding.disposed) {
-      this.sendBridgeResult(message.id, { ok: false, error: rpcError(new Error("plugin broker: stale, crashed, or disposed runtime id")) });
+      this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(new Error("plugin broker: stale, crashed, or disposed runtime id")) });
       return;
     }
     const authority = binding.authorities.get(message.authorityId);
     if (authority === undefined) {
-      this.sendBridgeResult(message.id, { ok: false, error: rpcError(new Error("plugin broker: stale command authority")) });
+      this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(new Error("plugin broker: stale command authority")) });
       return;
     }
     if (isBridgeOperation(message.operation)) {
       if (!admitTailCall(binding, message.authorityId)) {
-        this.sendBridgeResult(message.id, { ok: false, error: rpcError(new Error("plugin broker: command authority spent its continuation call budget")) });
+        this.sendBridgeResult(message.runtimeId, message.id, {
+          ok: false,
+          error: rpcError(new Error("plugin broker: command authority spent its continuation call budget")),
+        });
         return;
       }
       try {
         authorizeBridgeCall(authority, message.operation, message.args);
       } catch (error) {
-        this.sendBridgeResult(message.id, { ok: false, error: rpcError(error) });
+        this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(error) });
         return;
       }
       const liveness = createLiveness();
@@ -789,12 +811,12 @@ class BrokerClient {
       dispatchBridgeCall(binding, message.operation, message.args, liveness).then(
         (value) => {
           this.bridgeCalls.delete(message.id);
-          this.sendBridgeResult(message.id, { ok: true, value });
+          this.sendBridgeResult(message.runtimeId, message.id, { ok: true, value });
           completion.resolve();
         },
         (error) => {
           this.bridgeCalls.delete(message.id);
-          this.sendBridgeResult(message.id, { ok: false, error: rpcError(error) });
+          this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(error) });
           completion.resolve();
         },
       );
@@ -806,13 +828,15 @@ class BrokerClient {
         seams: binding.seams,
         invokeArgs: binding.invokeArgs,
       });
-      this.sendBridgeResult(message.id, { ok: true, value });
+      this.sendBridgeResult(message.runtimeId, message.id, { ok: true, value });
     } catch (error) {
-      this.sendBridgeResult(message.id, { ok: false, error: rpcError(error) });
+      this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(error) });
     }
   }
 
-  private sendBridgeResult(id: string, result: RpcResult): void {
+  // A host result goes on its plugin's runtime share. One that does not fit is refused, never held: the plugin may
+  // retry, and the parent keeps no result a plugin cannot take.
+  private sendBridgeResult(runtimeId: string, id: string, result: RpcResult): void {
     const sender = this.sender;
     const generation = this.generation;
     if (sender === undefined || generation === undefined) {
@@ -820,7 +844,10 @@ class BrokerClient {
     }
     try {
       const frame = serializeMessage({ kind: "bridge-result", id, ...result });
-      sender.send({ kind: "frame", generation, frame });
+      const refused = serializeMessage(channelFullBridgeResult(id));
+      if (!sender.offer({ kind: "frame", generation, frame, route: { runtimeId, refusal: { frame: refused, back: false } } })) {
+        sender.send({ kind: "frame", generation, frame: refused });
+      }
       // an oversized or unserializable host result is replaced by a bridge-result frame carrying rpcError(serializationError); the failure of that fallback is owned by the inner channelError catch. Ends if the fallback frame stops carrying the error.
     } catch (serializationError) {
       // a failed error response calls stopConnection, whose onDisconnect rejects pending work. Ends if stopConnection stops calling onDisconnect.
