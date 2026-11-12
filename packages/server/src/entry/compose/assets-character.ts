@@ -12,6 +12,7 @@
 //      resolver deref services built LATER (search-discovery). The keystone threads them as request-time getters.
 
 import type { CharacterOwnedOp } from "@orb/contracts/character";
+import type { ResolveUserEnabled } from "@orb/contracts/identity";
 import type { NewBackgroundEntryId } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BulkImportLorebook, HasPrimaryBook } from "@orb/contracts/world-info";
@@ -78,6 +79,8 @@ export interface AssetsCharacterComposeDeps {
   readonly fetchImpl: MaterializeBackgroundDeps["fetchImpl"];
   readonly idSource: IdSource;
   readonly db: DatabaseHandle;
+  /** The disabled-account read the co-participant art gate narrows each room's consent set with. */
+  readonly resolveUserEnabled: ResolveUserEnabled;
   readonly now: Clock;
   readonly cas: Cas;
   readonly variants: VariantCache;
@@ -163,8 +166,8 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // own persistence factory, not re-implemented here.
     linkCharacterAvatars: createLinkCharacterAvatars({ db, now }),
     assertCharacterOwned: characterOwned,
-    loadCoParticipantOwner: createLoadCoParticipantOwner({ db }),
-    loadChatAssetRefs: createLoadChatAssetRefs({ db }),
+    loadCoParticipantOwner: createLoadCoParticipantOwner({ db, resolveUserEnabled: deps.resolveUserEnabled }),
+    loadChatAssetRefs: createLoadChatAssetRefs({ db, resolveUserEnabled: deps.resolveUserEnabled }),
   };
   const assets = createAssetsService(assetsCtx);
   // Now that `assets` exists, bind the real materializeBackground op (the holder above forwards to it). Full

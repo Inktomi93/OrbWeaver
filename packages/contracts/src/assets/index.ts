@@ -409,9 +409,10 @@ export type ImageryGalleryAdd = (owner: Principal, assetId: AssetId, subjectChar
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
 
 /** Roster-avatar reference check, never a hash-to-owner oracle: the asset's owner only if the hash is an avatar
- *  or attachment the caller may render in a shared chat; `undefined` otherwise. */
+ *  or attachment the caller may render in a shared chat, and that owner is present and enabled there (the room's
+ *  pinned persona's avatar excepted); `undefined` otherwise. */
 export type LoadCoParticipantOwnerOp = (callerId: UserId, hash: string) => Promise<UserId | undefined>;
 
 /** The chat-scoped render resolver: the `(assetId, hash)` pairs among `assetIds` the caller may render in `chatId`
- *  (a structural `message_assets` reference, owner present, caller present). */
+ *  (a structural `message_assets` reference, owner present and enabled, caller present). */
 export type LoadChatAssetRefsOp = (callerId: UserId, chatId: ChatId, assetIds: readonly AssetId[]) => Promise<readonly AssetBlobRef[]>;

@@ -21,7 +21,7 @@
 // an injected `ctx.resolveUserEnabled` now calls, instead of re-deriving the enabled filter per call site.
 
 import type { AnchorState } from "@orb/contracts/chat";
-import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import type { HumanSeatPersona } from "../contract/foreign.ts";
 import { loadPersonaOwnerId } from "../persistence/identity.ts";
@@ -62,6 +62,26 @@ export async function presentAndEnabledHumanUserIdsOf(
   const present = presentHumanUserIdsOf(participants);
   const enabled = await Promise.all(present.map((userId) => ctx.resolveUserEnabled(userId)));
   return present.filter((_userId, i) => isBackingUserEnabled("human", enabled[i] ?? false));
+}
+
+/** The rows whose `ownerId` is in the consent set of the row's own room: the owner-side gate of the co-participant
+ *  art reads. Each row carries the owner's present seat in `chatId`, so the seats grouped per room are that room's
+ *  present roster narrowed to the owners in question, and the consent set over them is the room's consent set
+ *  narrowed the same way. One {@link presentAndEnabledHumanUserIdsOf} call per room. */
+export async function keepConsentingOwners<T extends { readonly chatId: ChatId; readonly ownerId: UserId; readonly ownerSeat: HumanSeat }>(
+  ctx: Pick<ChatContext, "resolveUserEnabled">,
+  rows: readonly T[],
+): Promise<T[]> {
+  const consentOf = async (roomRows: readonly T[]): Promise<ReadonlySet<UserId>> =>
+    new Set(
+      await presentAndEnabledHumanUserIdsOf(
+        ctx,
+        roomRows.map((row) => row.ownerSeat),
+      ),
+    );
+  const rooms = [...Map.groupBy(rows, (row) => row.chatId)];
+  const consentByRoom = new Map(await Promise.all(rooms.map(async ([chatId, roomRows]) => [chatId, await consentOf(roomRows)] as const)));
+  return rows.filter((row) => consentByRoom.get(row.chatId)?.has(row.ownerId) === true);
 }
 
 /** Is `personaId` owned by a present, enabled human in this room? The gate `setChatAnchorPersona` permits a

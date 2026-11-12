@@ -814,6 +814,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     fetchImpl: egress.safeFetch,
     idSource,
     db,
+    resolveUserEnabled: createResolveUserEnabled(sessions),
     now,
     cas,
     variants,
