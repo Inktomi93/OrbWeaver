@@ -37,8 +37,8 @@ interface ListProps {
 }
 
 /** The list inside a host with a bounded height, as every real call site gives it. */
-function BoundedHost({ children }: { readonly children: ReactNode }): ReactElement {
-  return <div style={{ height: WINDOW_HEIGHT_PX }}>{children}</div>;
+function BoundedHost({ children, height = WINDOW_HEIGHT_PX }: { readonly children: ReactNode; readonly height?: number }): ReactElement {
+  return <div style={{ height }}>{children}</div>;
 }
 
 /** A bounded window over many rows whose scope key and readiness the test drives with buttons. */
@@ -56,11 +56,19 @@ export function ResetHandshakeStory(): ReactElement {
   );
 }
 
-/** A bounded window with `fadeEdge`, over either more rows than the window or fewer. */
-export function EdgeFadeStory({ count, fadeEdge }: { readonly count: number; readonly fadeEdge: boolean }): ReactElement {
+/** A bounded window with `fadeEdge`, over either more rows than the window or fewer; `windowHeight` sets the window. */
+export function EdgeFadeStory({
+  count,
+  fadeEdge,
+  windowHeight,
+}: {
+  readonly count: number;
+  readonly fadeEdge: boolean;
+  readonly windowHeight?: number;
+}): ReactElement {
   return (
     <CtIsolation subject="VirtualList" isolates="The bottom fade cue over a bounded window, without a data source">
-      <BoundedHost>
+      <BoundedHost {...(windowHeight === undefined ? {} : { height: windowHeight })}>
         <List count={count} fadeEdge={fadeEdge} />
       </BoundedHost>
     </CtIsolation>
@@ -69,7 +77,6 @@ export function EdgeFadeStory({ count, fadeEdge }: { readonly count: number; rea
 
 const SHORT_HOST_PX = 240;
 const CHROME_PX = 320;
-
 /** A growing list under chrome taller than its scrolling parent: the parent's free space is nothing. */
 export function ShortWindowStory({ count }: { readonly count: number }): ReactElement {
   return (

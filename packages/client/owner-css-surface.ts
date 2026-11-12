@@ -711,6 +711,7 @@ export const OWNER_CSS_SLOTS = [
   "select-trigger",
   "select-value",
   "selection-bar-actions",
+  "selection-bar-body",
   "selection-bar-clear",
   "selection-bar-count",
   "selection-bar-root",

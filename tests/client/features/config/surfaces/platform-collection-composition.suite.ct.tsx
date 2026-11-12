@@ -11,8 +11,10 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { CONFIG_MORE_LIBRARY_ACTIONS_NAME } from "#client/features/config/lib/config-control-names.ts";
-import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { CONFIG_MORE_LIBRARY_ACTIONS_NAME, collectionEmptyTitle } from "#client/features/config/lib/config-control-names.ts";
+import { REGEX_GROUP_LABEL, REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { ROSTER_GROUP_LABEL } from "#client/features/roster-preset/lib/roster-names.ts";
+import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
 import type { CollectionCompositionStory } from "./_collection-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -336,6 +338,7 @@ for (const order of LANDING_ORDERS) {
           throw new Error("The landing's first row and its facts must have rendered boxes");
         }
         await test.info().attach("landing-order", { body: JSON.stringify({ rowBox, insightBox }), contentType: "application/json" });
+        await page.screenshot({ path: test.info().outputPath(`${subject}-landing-order.png`) });
         // On a short screen the rows come first; otherwise the facts lead. Either way the first row is whole on screen.
         expect(insightBox.y < rowBox.y).toBe(!order.rowsFirst);
         expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(order.viewport.height);
@@ -438,3 +441,57 @@ test.describe("two members that share a name", () => {
     await expect(insights.getByRole("button", { name: /^Open Unnamed script: Last edited$/u })).toHaveCount(1);
   });
 });
+
+const GROUP_LABELS = { regex: REGEX_GROUP_LABEL, worldInfo: WORLD_INFO_GROUP_LABEL, rosterPreset: ROSTER_GROUP_LABEL } as const satisfies Record<
+  Subject,
+  string
+>;
+
+/** Removes every member of the library through its production verb, so the landing takes its empty arm. */
+async function emptyLibrary(caller: Caller, subject: Subject): Promise<void> {
+  if (subject === "regex") {
+    for (const script of await caller.regex.listScripts()) {
+      await caller.regex.removeScript({ scriptId: script.id });
+    }
+  } else if (subject === "worldInfo") {
+    for (const book of await caller.worldInfo.listBooks()) {
+      await caller.worldInfo.removeBook({ bookId: book.id });
+    }
+  } else {
+    for (const roster of await caller.rosterPreset.list()) {
+      await caller.rosterPreset.remove({ presetId: roster.id });
+    }
+  }
+}
+
+for (const regime of REGIMES) {
+  test.describe(`${regime.name} empty library`, () => {
+    test.use({ viewport: regime.viewport, hasTouch: regime.touch, isMobile: regime.touch });
+    for (const subject of SUBJECTS) {
+      test(`${subject} with no members teaches its emptiness and offers one create door, with no list box and no rows`, async ({ mount, page }) => {
+        await using root = await createCorpusHarness();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { appearance } = await prepare(caller, page, subject, regime.enlarged);
+        await emptyLibrary(caller, subject);
+        await mount<typeof CollectionCompositionStory>(STORY, { group: subject, width: regime.width, height: regime.viewport.height, appearance });
+        const content = page.locator('[data-slot="config-content"]');
+        const empty = content.locator('[data-slot="empty-state-root"]');
+        // A short pane scrolls the empty state; each part is reached whole.
+        const title = empty.getByText(collectionEmptyTitle(GROUP_LABELS[subject]), { exact: true });
+        await title.scrollIntoViewIfNeeded();
+        await expect(title).toBeInViewport({ ratio: 1 });
+        await expectBoundedContent(content, regime.width);
+        const create = empty.locator('[data-slot="empty-state-action"]').getByRole("button");
+        await expect(create).toHaveCount(1);
+        await create.scrollIntoViewIfNeeded();
+        await expect(create).toBeInViewport({ ratio: 1 });
+        await create.click({ trial: true });
+        // The populated arm's chrome is absent: no list box with its floor, no rows, no filter.
+        await expect(content.locator('[data-slot="virtual-list-scroll"]')).toHaveCount(0);
+        await expect(content.locator('[data-slot="list-row-body"]')).toHaveCount(0);
+        await expect(content.locator('[data-slot="collection-control-row"]')).toHaveCount(0);
+        await page.screenshot({ path: test.info().outputPath(`${subject}-empty.png`) });
+      });
+    }
+  });
+}

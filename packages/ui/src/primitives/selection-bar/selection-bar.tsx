@@ -18,7 +18,7 @@ export interface SelectionBarProps {
 /** Bulk-action chrome. Render-null-when-zero is the caller's concern — this primitive always renders exactly what it's given. */
 export function SelectionBar({ count, onClear, children }: SelectionBarProps): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
-  const cap = usePinnedBarCap(rootRef);
+  const cap = usePinnedBarCap(rootRef, true);
   const slots = selectionBarVariants({ capped: cap !== null });
 
   // Escape bubbles from whatever's focused inside the bar up to the root's native listener.
@@ -39,13 +39,23 @@ export function SelectionBar({ count, onClear, children }: SelectionBarProps): R
   return (
     // The cap is a measured share of the scroll box, so it can only be a runtime value.
     <div className={slots.root()} data-slot="selection-bar-root" ref={rootRef} style={cap === null ? undefined : { maxBlockSize: cap }}>
-      <span aria-live="polite" className={slots.count()} data-slot="selection-bar-count">
-        {selectionCountLabel(count)}
-      </span>
-      <div className={slots.actions()} data-slot="selection-bar-actions">
-        {children}
+      <div className={slots.body()} data-slot="selection-bar-body">
+        <span aria-live="polite" className={slots.count()} data-slot="selection-bar-count">
+          {selectionCountLabel(count)}
+        </span>
+        <div className={slots.actions()} data-slot="selection-bar-actions">
+          {children}
+        </div>
       </div>
-      <Button aria-label={SELECTION_CLEAR_NAME} data-slot="selection-bar-clear" variant="ghost" onClick={onClear} square={true} type="button">
+      <Button
+        aria-label={SELECTION_CLEAR_NAME}
+        className={slots.clear()}
+        data-slot="selection-bar-clear"
+        variant="ghost"
+        onClick={onClear}
+        square={true}
+        type="button"
+      >
         <Icon icon={X} size="sm" />
       </Button>
     </div>

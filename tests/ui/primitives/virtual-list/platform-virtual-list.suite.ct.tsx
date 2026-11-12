@@ -78,6 +78,15 @@ test("no fade is held without the prop", async ({ mount, page }) => {
   await expect(page.locator(SCROLL)).not.toHaveAttribute("data-more", /.*/);
 });
 
+test("no fade is held when the rows below the window are shorter than the fade itself", async ({ mount, page }) => {
+  // Five 40px rows in a 190px window: 10px hidden, under the fade's 19px band.
+  await mount<typeof EdgeFadeStory>(`${STORIES}/EdgeFadeStory`, { count: 5, fadeEdge: true, windowHeight: 190 });
+  const scroller = page.locator(SCROLL);
+  await expect(scroller.getByRole("listitem")).toHaveCount(5);
+  expect(await scroller.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+  await expect(scroller).not.toHaveAttribute("data-more", /.*/);
+});
+
 test("no fade is held when every row already fits the window", async ({ mount, page }) => {
   await mount<typeof EdgeFadeStory>(`${STORIES}/EdgeFadeStory`, { count: 3, fadeEdge: true });
   await expect(page.locator(SCROLL).getByRole("listitem")).toHaveCount(3);
