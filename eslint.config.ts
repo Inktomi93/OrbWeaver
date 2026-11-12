@@ -16,10 +16,12 @@ import {
   exportedRosters,
   homeReasons,
   homes,
+  lazy,
   listSlotSurfacePaths,
   memberNamed,
   OWNED_ROOT_ACQUISITIONS,
   posixPath,
+  productionModules,
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
@@ -1850,6 +1852,9 @@ export const DOM_LOOKUP_HOMES = [
     reason: "The form submission focus adapter resolves the first aria-invalid control after native form validation.",
   },
 ] as const;
+// One read of production source for every test-authoring index, made when the first of them is asked for.
+const PRODUCTION_MODULES = lazy(() => productionModules(ROOT));
+
 const localPlugin = createOrbPlugin({
   domLookupHomes: DOM_LOOKUP_HOMES,
   baseUiDoors: baseUiDoors(fileURLToPath(new URL("./packages/ui", import.meta.url))),
@@ -1862,9 +1867,9 @@ const localPlugin = createOrbPlugin({
   ),
   shellClasses: new Set(OWNER_CSS_SHELL_CLASSES),
   shellSlots: shellOwnedSlots(ROOT),
-  exportedLabels: exportedLabels(ROOT),
-  exportedProductionValues: exportedProductionValues(ROOT),
-  exportedRosters: exportedRosters(ROOT),
+  exportedLabels: lazy(() => exportedLabels(ROOT, PRODUCTION_MODULES())),
+  exportedProductionValues: lazy(() => exportedProductionValues(ROOT, PRODUCTION_MODULES())),
+  exportedRosters: lazy(() => exportedRosters(ROOT, PRODUCTION_MODULES())),
   appearanceVocabulary: appearanceChannelVocabulary(),
   browserUnsupported: withoutPolyfilled(UNSUPPORTED_AT_FLOOR, POLYFILLED_BUILTINS),
   browserUnsupportedBeforePolyfills: UNSUPPORTED_AT_FLOOR,

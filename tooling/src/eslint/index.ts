@@ -148,6 +148,7 @@ export {
   tierRank,
 } from "./port-ownership/restated-port.ts";
 export { JOINT_BATCH_RULINGS, jointBatchRulingOf } from "./port-ownership/ruled-ops.ts";
+export { lazy, productionModules } from "./production-modules.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
 export { homeReasons, homes, memberNamed, posixPath } from "./syntax.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
@@ -234,11 +235,12 @@ export function createOrbPlugin(options: {
   floorlessControls: ReadonlySet<string>;
   shellClasses: ReadonlySet<string>;
   shellSlots: ReadonlySet<string>;
-  exportedLabels: ReadonlyMap<string, ExportedLabel>;
+  /** Read on the rule's first file, as are the two indexes below: a config resolved for another file builds none. */
+  exportedLabels: () => ReadonlyMap<string, ExportedLabel>;
   /** The strings `exportedLabels` leaves out; `no-hand-copied-label` reads them under scope `all`. */
-  exportedProductionValues: ReadonlyMap<string, ExportedLabel>;
+  exportedProductionValues: () => ReadonlyMap<string, ExportedLabel>;
   /** Every exported production string tuple; `no-restated-roster` reads it. */
-  exportedRosters: readonly ProductionRoster[];
+  exportedRosters: () => readonly ProductionRoster[];
   appearanceVocabulary: AppearanceVocabulary;
   /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
   browserUnsupported: ReadonlyMap<string, readonly string[]>;

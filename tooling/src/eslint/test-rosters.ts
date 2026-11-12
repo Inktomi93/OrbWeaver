@@ -3,17 +3,14 @@
 // table or an iterating method. A list a test passes as one input or expects as one output fails by itself when the
 // tuple changes, so it is left alone. A walked list that restates a tuple is refused. A walked part of a tuple is
 // refused until it names the tuple's member type, which states the selection and breaks on a renamed member.
-import { globSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
+import type { ProductionModule } from "./production-modules.ts";
+import { lazy, productionModules } from "./production-modules.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
-import { posixPath } from "./syntax.ts";
 
-const PRODUCTION_MODULES = "packages/*/src/**/*.{ts,tsx}";
-const NOT_PRODUCTION = /\.(?:test|test-d|d)\.tsx?$/u;
 // Two members are a pair a test names on purpose; from three on, a list reads as the vocabulary.
 const MIN_ROSTER_MEMBERS = 3;
 const CASE_TABLE_METHODS = new Set(["each", "for"]);
@@ -52,10 +49,9 @@ function tupleMembers(initializer: ts.Expression): ReadonlySet<string> | undefin
 const isExported = (statement: ts.VariableStatement): boolean =>
   ts.getModifiers(statement)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
 
-function moduleRosters(module: string, text: string): ProductionRoster[] {
-  return ts
-    .createSourceFile(module, text, ts.ScriptTarget.Latest, false)
-    .statements.filter((statement) => ts.isVariableStatement(statement) && isExported(statement))
+function moduleRosters(module: string, source: ts.SourceFile): ProductionRoster[] {
+  return source.statements
+    .filter((statement) => ts.isVariableStatement(statement) && isExported(statement))
     .flatMap((statement) => (ts.isVariableStatement(statement) ? [...statement.declarationList.declarations] : []))
     .flatMap(({ name, initializer }) => {
       const members = initializer === undefined || !ts.isIdentifier(name) ? undefined : tupleMembers(initializer);
@@ -64,14 +60,8 @@ function moduleRosters(module: string, text: string): ProductionRoster[] {
 }
 
 /** Every string-literal tuple a production module exports by name, in module order. */
-export function exportedRosters(root: string): readonly ProductionRoster[] {
-  return globSync(PRODUCTION_MODULES, { cwd: root })
-    .map(posixPath)
-    .sort()
-    .filter((module) => !NOT_PRODUCTION.test(module))
-    .map((module) => ({ module, text: readFileSync(join(root, module), "utf8") }))
-    .filter(({ text }) => text.includes("export const"))
-    .flatMap(({ module, text }) => moduleRosters(module, text));
+export function exportedRosters(root: string, modules: readonly ProductionModule[] = productionModules(root)): readonly ProductionRoster[] {
+  return modules.filter(({ text }) => text.includes("export const")).flatMap(({ module, source }) => moduleRosters(module, source()));
 }
 
 function wrapperOf(node: TSESTree.Node): TSESTree.TSAsExpression | TSESTree.TSSatisfiesExpression | undefined {
@@ -155,16 +145,20 @@ function literalMembers(node: TSESTree.ArrayExpression): ReadonlySet<string> | u
 const named = (rosters: readonly ProductionRoster[]): string => rosters.map(({ exportName, module }) => `${exportName} (${module})`).join(" or ");
 
 /** Refuse a test array that restates an exported production tuple, or that iterates a hand-picked part of one. */
-export function restatedRosterRule(rosters: readonly ProductionRoster[]): OrbRule {
-  const byMember = new Map<string, ProductionRoster[]>();
-  for (const roster of rosters) {
-    for (const member of roster.members) {
-      byMember.set(member, [...(byMember.get(member) ?? []), roster]);
+export function restatedRosterRule(rosters: () => readonly ProductionRoster[]): OrbRule {
+  const membersIndex = lazy(() => {
+    const index = new Map<string, ProductionRoster[]>();
+    for (const roster of rosters()) {
+      for (const member of roster.members) {
+        index.set(member, [...(index.get(member) ?? []), roster]);
+      }
     }
-  }
+    return index;
+  });
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
+      const byMember = membersIndex();
       const iteratedThroughBinding = (node: TSESTree.ArrayExpression): boolean => {
         const declarator = site(node).parent;
         if (declarator?.type !== AST_NODE_TYPES.VariableDeclarator || declarator.id.type !== AST_NODE_TYPES.Identifier) {
