@@ -4,7 +4,7 @@ status: active
 updated: 2026-11-09
 ---
 
-# Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
+# Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4 follow from section 9)
 
 Every line box the app produces must be a whole CSS pixel at every font scale, on every device and
 orientation. This document defines the type and leading scale for integer line boxes (Law 1) and three related visual rules for transforms and promoted layers (Laws 2-4, §9-§12). D333 ends custom static enforcement and proof-marker requirements.

@@ -17,7 +17,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Orbweaver constitution](Constitution.md) | active |
 | [Container deployment security: the deployed surface and its review](container-deployment-security.md) | active |
 | [Orbweaver — structure and placement](Core-0-Architecture-and-Structure.md) | active |
-| [Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)](integer-line-boxes.md) | active |
+| [Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4 follow from section 9)](integer-line-boxes.md) | active |
 | [Knowledge cluster — the producer → store → consumer boundary](Knowledge-Cluster.md) | active |
 | [Motion & Animation Guide](motion-and-animation-guide.md) | active |
 | [Plugin system](plugin-system.md) | active |
