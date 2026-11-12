@@ -18,7 +18,7 @@ The same picture works or silently fails depending on which door it came through
 
 ## Done when
 
-A ruling in the ledger says whether a kind belongs to the stored row or to each use of it, every reader listed follows it, and a test per reader stores one picture under two kinds through the production doors in both orders and finds it each time.
+Owner ruling: a kind belongs to each use of a stored file, not to the file. The schema records a kind per use through a numbered migration that carries existing rows over, a ledger decision states the rule, every reader listed follows it, and a test per reader stores one picture under two kinds through the production doors in both orders and finds it each time.
 
 ## Evidence
 
