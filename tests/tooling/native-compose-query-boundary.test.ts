@@ -1,15 +1,13 @@
 // The installed import checker judges actual DB/server source and package doors, never substitute DB declarations.
 // One planted tree and one checker run per fixture shape: each case owns distinct entry and helper paths, so its
-// violations are read off the shared run by path. A real dependency-cruiser run is the subject, hence the long hook budget.
+// violations are read off the shared run by path.
 import { copyFileSync, cpSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import type { SpawnNicedResult } from "@orb/tooling/floor/process/proc";
-import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { afterAll, beforeAll } from "vitest";
-import { scaledBudget } from "./_load-budget.ts";
+import type { Violation } from "./_native-cruise.ts";
+import { cruiseRules, unresolvable } from "./_native-cruise.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "../..");
 const ENTRY_DIR = "packages/server/src/entry/compose";
@@ -20,8 +18,6 @@ const CONTRACT_RULE = "query-wiring-contract-is-type-only";
 const OWNER_RULE = "query-wiring-owner-conversion";
 const WIRING_CONTRACT = "packages/db/src/client/wiring.ts";
 const WIRING_ENTRY = `${ENTRY_DIR}/native-query-contract-probe.ts`;
-// dependency-cruiser's err-long line: `  error <rule>: <from> → <to>`.
-const VIOLATION_RE = /^\s*error (?<rule>\S+): (?<from>\S+) → (?<to>\S+)/u;
 
 function linkPackageDependencies(source: string, target: string): void {
   const modules = join(target, "node_modules");
@@ -119,42 +115,17 @@ interface PlantedCase extends ImportCase {
   readonly paths: readonly string[];
 }
 
-interface Violation {
-  readonly rule: string;
-  readonly from: string;
-}
-
-interface CheckerRun {
-  readonly result: SpawnNicedResult;
-  readonly output: string;
-  readonly violations: readonly Violation[];
-}
-
 const planted: PlantedCase[] = IMPORT_CASES.map((row, index) => {
   const entry = `${row.dir ?? ENTRY_DIR}/native-query-probe-${String(index)}.ts`;
   const helper = row.helper === undefined ? undefined : `${row.helper.dir}/native-query-helper-${String(index)}.ts`;
   return { ...row, paths: helper === undefined ? [entry] : [entry, helper] };
 });
 
-function cruise(root: string, entries: readonly string[]): Promise<CheckerRun> {
-  return spawnNiced(
-    join(REPO_ROOT, "node_modules/.bin/depcruise"),
-    [...entries, "--config", join(REPO_ROOT, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    { cwd: root, timeoutMs: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS) },
-  ).then((result) => {
-    const output = result.stdout + result.stderr;
-    const violations = output.split("\n").flatMap((line) => {
-      const groups = VIOLATION_RE.exec(line)?.groups;
-      return groups?.["rule"] === undefined || groups["from"] === undefined ? [] : [{ rule: groups["rule"], from: groups["from"] }];
-    });
-    return { result, output, violations };
-  });
-}
+const RULES = [QUERY_RULE, DRIVER_RULE, LOADER_RULE, CONTRACT_RULE, OWNER_RULE] as const;
 
-const CRUISE_PASSES = 2;
 let treeRoot = "";
-let cases: CheckerRun;
-let contract: CheckerRun;
+let cases: readonly Violation[];
+let contract: readonly Violation[];
 
 beforeAll(async () => {
   treeRoot = mkdtempSync(join(tmpdir(), "orb-native-compose-query-"));
@@ -171,17 +142,17 @@ beforeAll(async () => {
       writeFileSync(join(treeRoot, helper), row.helper.source);
     }
   }
-  cases = await cruise(
+  cases = await cruiseRules(
     treeRoot,
     planted.map(({ paths }) => paths[0] ?? ""),
+    RULES,
   );
   // The contract shape replaces the shared wiring door, so it runs after the import cases and alone.
   mkdirSync(dirname(join(treeRoot, WIRING_ENTRY)), { recursive: true });
   writeFileSync(join(treeRoot, WIRING_ENTRY), 'import { databaseForOwner } from "@orb/db/wiring"; export { databaseForOwner };');
   writeFileSync(join(treeRoot, WIRING_CONTRACT), 'export { databaseForOwner } from "./wiring-capabilities.ts";');
-  contract = await cruise(treeRoot, [WIRING_ENTRY]);
-  // The hook runs two checker passes, each under its own budget.
-}, CRUISE_PASSES * scaledBudget(LONG_TEST_TIMEOUT_BASE_MS));
+  contract = await cruiseRules(treeRoot, [WIRING_ENTRY], RULES);
+});
 
 afterAll(() => {
   if (treeRoot !== "") {
@@ -189,26 +160,22 @@ afterAll(() => {
   }
 });
 
-test("the shared checker run completes, resolves every planted module and reports only planted violations", () => {
-  expect(cases.result.timedOut, cases.output).toBe(false);
-  expect(cases.result.code, cases.output).toBe(cases.violations.length);
-  expect(cases.output).not.toContain("not-to-unresolvable");
+test("the shared run resolves every planted module and reports only planted violations", () => {
+  expect(unresolvable(cases)).toEqual([]);
   const plantedPaths = new Set(planted.flatMap(({ paths }) => paths));
-  expect(cases.violations.length, cases.output).toBeGreaterThan(0);
-  expect(cases.violations.filter(({ from }) => !plantedPaths.has(from))).toEqual([]);
+  expect(cases.length).toBeGreaterThan(0);
+  expect(cases.filter(({ from }) => !plantedPaths.has(from))).toEqual([]);
 });
 
 test.for(planted)("native entry query ownership judges $name", (row) => {
-  const rules = cases.violations.filter(({ from }) => row.paths.includes(from)).map(({ rule }) => rule);
-  expect({ clean: rules.length === 0, requiredRule: row.rule === null || rules.includes(row.rule) }, cases.output).toEqual({
+  const rules = cases.filter(({ from }) => row.paths.includes(from)).map(({ rule }) => rule);
+  expect({ clean: rules.length === 0, requiredRule: row.rule === null || rules.includes(row.rule) }, JSON.stringify(rules)).toEqual({
     clean: row.rule === null,
     requiredRule: true,
   });
 });
 
 test("the actual wiring package door cannot publish an executable private conversion", () => {
-  expect(contract.result.timedOut, contract.output).toBe(false);
-  expect(contract.output).not.toContain("not-to-unresolvable");
-  expect(contract.result.code, contract.output).toBe(1);
-  expect(contract.violations.map(({ rule }) => rule)).toEqual([CONTRACT_RULE]);
+  expect(unresolvable(contract)).toEqual([]);
+  expect(contract.map(({ rule }) => rule)).toEqual([CONTRACT_RULE]);
 });

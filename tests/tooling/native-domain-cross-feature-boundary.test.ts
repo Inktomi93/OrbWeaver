@@ -1,15 +1,15 @@
 // The installed dependency checker must refuse every cross-domain import, type-only included, except a type-only
 // import of the D117 workloads door.
-import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { cruiseRules, unresolvable } from "./_native-cruise.ts";
 
 const DOMAIN = "packages/server/src/domain";
 // The probe sits at the domain root so each import climbs one directory; a deeper probe trips the parent-climb rule
 // before the rule under test.
 const ENTRY = `${DOMAIN}/alpha/probe.ts`;
 
-// Each case cruises the whole config once: about ten seconds on a loaded box.
+const RULES = ["domain-no-cross-feature", "domain-workloads-door-types-only"] as const;
+
 test.for([
   {
     name: "a type-only import of another domain's door",
@@ -37,7 +37,7 @@ test.for([
     rule: null,
   },
   { name: "an import inside the same domain", source: 'import type { AlphaView } from "./contract/view.ts"; export type Value = AlphaView;', rule: null },
-] as const)("the domain boundary judges $name", { timeout: 60_000 }, async ({ source, rule }, { plantedTree, repoRoot }) => {
+] as const)("the domain boundary judges $name", async ({ source, rule }, { plantedTree }) => {
   const root = await plantedTree({
     [`${DOMAIN}/alpha/contract/view.ts`]: "export interface AlphaView { readonly id: string; }",
     [`${DOMAIN}/beta/contract/view.ts`]: "export interface BetaView { readonly id: string; }",
@@ -46,16 +46,8 @@ test.for([
     [`${DOMAIN}/workloads/index.ts`]: 'export type { WorkloadContribution } from "./contract/contribution.ts";\nexport const reserved = 1;',
     [ENTRY]: source,
   });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [ENTRY, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    {
-      cwd: root,
-    },
-  );
-  const output = result.stdout + result.stderr;
-  expect(result.errorCode, output).toBeUndefined();
-  expect(output).not.toContain("not-to-unresolvable");
-  expect(result.status === 0, output).toBe(rule === null);
-  expect(output).toContain(rule === null ? "no dependency violations found" : `${rule}: ${ENTRY}`);
+  const violations = await cruiseRules(root, [ENTRY], RULES);
+  expect(unresolvable(violations)).toEqual([]);
+  // Exactly the named rule refuses the probe, and an admitted import trips neither.
+  expect(violations.filter(({ from }) => from === ENTRY).map((violation) => violation.rule)).toEqual(rule === null ? [] : [rule]);
 });

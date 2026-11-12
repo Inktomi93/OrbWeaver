@@ -2,12 +2,10 @@
 // through reachable rules. Each row plants a tree, runs the production config over it, and names the rule and file
 // that refuse it. A refusal row lists every attribution the config may use, because the reach is reported on the
 // file that starts the chain.
-import { dirname, join, relative } from "node:path";
+import { dirname, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { cruiseRules } from "./_native-cruise.ts";
 
-// Each row loads the production config, which parses the Node compiler's whole test population before it cruises.
-const CRUISE_TIMEOUT_MS = 60_000;
 const NODE_TEST = "tests/tooling/native-testkit-rows-boundary.test.ts";
 const NODE_HELPER = "tests/support/node/helpers.ts";
 const NODE_SERVER = "tests/support/node/server.ts";
@@ -207,7 +205,7 @@ test.for<Row>([
     files: { [MOUNT]: [BROWSER_DOOR, TRAIL_HELPER, ISO_DOOR, CLIENT_FILE], [CLIENT_FILE]: ["packages/client/browser-targets.ts"] },
     refusedBy: [],
   },
-] as const)("the native test reach boundary judges $name", { timeout: CRUISE_TIMEOUT_MS }, async (row, { plantedTree, repoRoot }) => {
+] as const)("the native test reach boundary judges $name", async (row, { plantedTree }) => {
   const sources = Object.keys(row.files);
   const specifier = (source: string, target: string): string => (target.startsWith("node:") ? target : relativeSpecifier(source, target));
   const targets = [...new Set(Object.values(row.files).flat())].filter((target) => !(target in row.files || target.startsWith("node:")));
@@ -220,17 +218,12 @@ test.for<Row>([
       ]),
     ),
   });
-  const result = runNicedSync(
-    join(repoRoot, "node_modules/.bin/depcruise"),
-    [...sources, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-    {
-      cwd: root,
-    },
+  const violations = await cruiseRules(root, sources, OWNED_RULES);
+  const report = JSON.stringify(violations);
+  const refusals = OWNED_RULES.flatMap((rule) =>
+    sources.filter((source) => violations.some((violation) => violation.rule === rule && violation.from === source)).map((source) => [rule, source] as const),
   );
-  const output = result.stdout + result.stderr;
-  expect(result.errorCode, output).toBeUndefined();
-  const refusals = OWNED_RULES.flatMap((rule) => sources.filter((source) => output.includes(`${rule}: ${source}`)).map((source) => [rule, source] as const));
   const expected = row.refusedBy.length === 0 ? [] : refusals.filter(([rule, source]) => row.refusedBy.some(([r, s]) => r === rule && s === source));
-  expect(refusals.length === 0, output).toBe(row.refusedBy.length === 0);
-  expect(expected.length > 0, output).toBe(row.refusedBy.length > 0);
+  expect(refusals.length === 0, report).toBe(row.refusedBy.length === 0);
+  expect(expected.length > 0, report).toBe(row.refusedBy.length > 0);
 });

@@ -1,6 +1,6 @@
-import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import dependencyCruiser from "../../.dependency-cruiser.ts";
+import { cruiseRules, unresolvable } from "./_native-cruise.ts";
 
 const SATELLITES = [
   { library: "echarts", owners: ["charts"] },
@@ -25,28 +25,32 @@ const CASES = SATELLITES.flatMap(({ library, owners }) => [
   ...owners.map((owner) => ({ library, owner, blocked: false })),
   { library, owner: owners.some((owner) => owner === "charts") ? "code-editor" : "charts", blocked: true },
   { library, owner: "lib", blocked: true },
-]);
+]).map((row, index) => ({ ...row, entry: `packages/ui/src/${row.owner}/satellite-probe-${String(index)}.ts` }));
 
-test.for(CASES)(
-  "the native satellite boundary judges $owner importing $library (blocked=$blocked)",
-  { tags: "slow" },
-  async (row, { plantedTree, repoRoot }) => {
-    const entry = `packages/ui/src/${row.owner}/probe.ts`;
-    const root = await plantedTree({
-      "packages/ui/package.json": JSON.stringify({ name: "@orb/ui", dependencies: { [row.library]: "1.0.0" } }),
-      [`node_modules/${row.library}/package.json`]: JSON.stringify({ name: row.library, version: "1.0.0", main: "index.js" }),
-      [`node_modules/${row.library}/index.js`]: "export const value = 1;",
-      [entry]: `export { value } from "${row.library}";`,
-    });
-    const result = runNicedSync(
-      join(repoRoot, "node_modules/.bin/depcruise"),
-      [entry, "--config", join(repoRoot, ".dependency-cruiser.ts"), "--output-type", "err-long"],
-      { cwd: root },
-    );
-    const output = result.stdout + result.stderr;
-    expect(result.errorCode, output).toBeUndefined();
-    expect(output).not.toContain("not-to-unresolvable");
-    expect(result.status === 0, output).toBe(!row.blocked);
-    expect(output.includes("ui-satellite-seals"), output).toBe(row.blocked);
-  },
-);
+// Each library family has its own seal rule, named with this prefix.
+const SEAL_RULE = "ui-satellite-seals";
+const SEAL_RULES = dependencyCruiser.forbidden.flatMap(({ name }) => (name?.startsWith(SEAL_RULE) === true ? [name] : []));
+
+// One planted tree and one run for every case: a case owns its own entry file, so its verdict is read off the shared
+// run by path.
+test("the native satellite boundary seals each library to its owning folders", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "packages/ui/package.json": JSON.stringify({ name: "@orb/ui", dependencies: Object.fromEntries(SATELLITES.map(({ library }) => [library, "1.0.0"])) }),
+    ...Object.fromEntries(
+      SATELLITES.flatMap(({ library }) => [
+        [`node_modules/${library}/package.json`, JSON.stringify({ name: library, version: "1.0.0", main: "index.js" })],
+        [`node_modules/${library}/index.js`, "export const value = 1;"],
+      ]),
+    ),
+    ...Object.fromEntries(CASES.map(({ entry, library }) => [entry, `export { value } from "${library}";`])),
+  });
+  const violations = await cruiseRules(
+    root,
+    CASES.map(({ entry }) => entry),
+    SEAL_RULES,
+  );
+  expect(unresolvable(violations)).toEqual([]);
+  const sealed = new Set(violations.filter(({ rule }) => rule.startsWith(SEAL_RULE)).map(({ from }) => from));
+  const verdicts = CASES.map(({ entry, library, owner }) => ({ library, owner, blocked: sealed.has(entry) }));
+  expect(verdicts).toEqual(CASES.map(({ library, owner, blocked }) => ({ library, owner, blocked })));
+});

@@ -11,6 +11,7 @@ import kitPackage from "./packages/kit/package.json" with { type: "json" };
 import serverPackage from "./packages/server/package.json" with { type: "json" };
 import uiPackage from "./packages/ui/package.json" with { type: "json" };
 import { CONFIRMED_ACTION_MINT_HOMES } from "./tooling/src/eslint/ui-feature-policy.ts";
+import { exactPathPattern } from "./tooling/src/floor/paths/exact-path-pattern.ts";
 import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -93,7 +94,7 @@ const BROWSER_MOUNT_PATHS = ["^playwright/", "^(tests|scripts)/(?!support/(iso|n
 const BROWSER_TEST_PATHS = [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS];
 const BROWSER_TEST_FILES = `(?:${BROWSER_TEST_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
 // Native roots include helpers while preserving the compiler's DOM, E2E and browser-support exclusions.
-const NODE_TEST_PATHS = `^(?:${nodeTestRoots.map((file) => RegExp.escape(file)).join("|")})$`;
+const NODE_TEST_PATHS = exactPathPattern(nodeTestRoots);
 // The whole-tree reachable rules over thousands of test files cost minutes, so each one is split into a direct rule over
 // the test files and a reachable rule over the few files a test can enter that the direct rule does not read. The split
 // holds only while a test enters nothing outside the sets below, so a closed-imports rule refuses every other entry.
@@ -356,10 +357,10 @@ const SERVER_TEST_PRIMITIVES = `${SRV}primitives/`;
 function exportedDoors(pkg: string, exports: Readonly<Record<string, unknown>>): string[] {
   return Object.values(exports)
     .filter((target) => typeof target === "string")
-    .map((target) => `^${RegExp.escape(target.replace(/^\.\//u, `packages/${pkg}/`))}$`);
+    .map((target) => target.replace(/^\.\//u, `packages/${pkg}/`));
 }
 // Every server door: a module's index.ts, and each subpath the package's exports map declares.
-const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server", serverPackage.exports)];
+const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, exactPathPattern(exportedDoors("server", serverPackage.exports))];
 // The production files a suite may import directly for a Spine-Testing §9 import: a constant, limit, id, error class
 // or pure rule that production executes, or a class or function its own module's unit suite drives directly when no
 // door runs the behavior it pins. A door forwards only what production consumes through it, so `pnpm knip:prod`
@@ -585,7 +586,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/compose/contributors.ts": "chromeWidgets: the shipped chrome widget registry",
   "packages/client/src/compose/home-tiles.ts": "homeTiles: the shipped home tile registry",
 } as const satisfies Readonly<Record<string, string>>;
-const TEST_CONSTANT_HOME_PATHS = Object.keys(TEST_CONSTANT_HOMES).map((path) => `^${RegExp.escape(path)}$`);
+const TEST_CONSTANT_HOME_PATHS = [exactPathPattern(Object.keys(TEST_CONSTANT_HOMES))];
 // The suites that import a production constant or verb from another module's door (Spine-Testing §9 imports constants
 // from their home): each line names what it imports and why the suite needs it. No wire carries any of them.
 const SERVER_TEST_REACHES = {
@@ -794,13 +795,15 @@ function serverTestMirrorRules(): IForbiddenRuleType[] {
 // reaches a story through the registries `@orb/testkit/browser` composes. A type-only import of any door stays legal.
 const SOURCE = "^packages/[^/]+/src/";
 const PACKAGE_DOORS = [
-  ...exportedDoors("client", clientPackage.exports),
-  ...exportedDoors("contracts", contractsPackage.exports),
-  ...exportedDoors("db", dbPackage.exports),
-  ...exportedDoors("inference", inferencePackage.exports),
-  ...exportedDoors("kit", kitPackage.exports),
-  ...exportedDoors("server", serverPackage.exports),
-  ...exportedDoors("ui", uiPackage.exports),
+  exactPathPattern([
+    ...exportedDoors("client", clientPackage.exports),
+    ...exportedDoors("contracts", contractsPackage.exports),
+    ...exportedDoors("db", dbPackage.exports),
+    ...exportedDoors("inference", inferencePackage.exports),
+    ...exportedDoors("kit", kitPackage.exports),
+    ...exportedDoors("server", serverPackage.exports),
+    ...exportedDoors("ui", uiPackage.exports),
+  ]),
 ];
 const TEST_TYPE_CONTRACT = "\\.test-d\\.ts$";
 const RUNTIME_ONLY: DependencyType[] = ["type-only", "type-import"];
