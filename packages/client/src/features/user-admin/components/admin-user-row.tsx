@@ -86,10 +86,13 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
               />
             )}
             <RowActionsMenu label={userActionsName(user.handle)} triggerSize="sm">
-              <MenuItem onClick={props.onOpenSessions}>
-                <Icon icon={MonitorSmartphone} size="sm" />
-                Sessions…
-              </MenuItem>
+              {/* The owner's sessions are the owner's to manage; the admin session verbs refuse anyone else (D17). */}
+              {isOwnerRow && !props.viewerIsOwner ? null : (
+                <MenuItem onClick={props.onOpenSessions}>
+                  <Icon icon={MonitorSmartphone} size="sm" />
+                  Sessions…
+                </MenuItem>
+              )}
               <MenuItem onClick={props.onResetPassword}>
                 <Icon icon={KeyRound} size="sm" />
                 Reset password…
