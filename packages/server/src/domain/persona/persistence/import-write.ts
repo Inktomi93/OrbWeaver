@@ -18,7 +18,7 @@ import type { AssetId, PersonaId } from "@orb/kit/ids";
 import type { PersonaCandidate, PersonaIdentity } from "#primitives/serde/persona";
 import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaPlacementOf } from "#primitives/serde/persona";
 import type { PersonaImportContext } from "../contract/import.ts";
-import { loadOwnedAssetHashes, loadOwnedPersonaCandidates } from "./queries.ts";
+import { ensureAvatarAssets, loadOwnedAssetHashes, loadOwnedPersonaCandidates } from "./queries.ts";
 
 /** The identity the dedup compares: its art is the stored asset's own content hash. */
 function identityFrom(pi: Pick<BulkImportPersonaInput, "name" | "description" | "metadata">, artHash: string | null): PersonaIdentity {
@@ -76,15 +76,13 @@ export function createBulkImportPersonas(assembly: DbAssemblyInput<PersonaImport
   const ctx: PersonaImportContext = { ...assembly, db: databaseForOwner(assembly.db) };
   return async ({ ownerId, personas: input, collisions }): Promise<BulkImportPersonasResult> => {
     const { db } = ctx;
+    const avatarIds = input.map((pi) => pi.avatarAssetId).filter((id): id is AssetId => id !== null);
+    await ensureAvatarAssets(db, ownerId, avatarIds);
     const candidates = await loadOwnedPersonaCandidates(db, ownerId);
     // Only personas owned BEFORE this call can collide: two inputs sharing a name inside one run still land
     // side by side, as they always did.
     const owned = [...candidates];
-    const artHashes = await loadOwnedAssetHashes(
-      db,
-      ownerId,
-      input.map((pi) => pi.avatarAssetId).filter((id): id is AssetId => id !== null),
-    );
+    const artHashes = await loadOwnedAssetHashes(db, ownerId, avatarIds);
     // call-local collision scan for the free-name mint over the rows this call just read. Ends if it outlives the call.
     const takenNames = new Set(candidates.map((c) => foldPersonaName(c.name)));
 
