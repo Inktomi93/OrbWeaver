@@ -1,19 +1,16 @@
-import { globSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
+import type { ProductionModule } from "./production-modules.ts";
+import { lazy, productionModules } from "./production-modules.ts";
 import { staticTextValue, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
-import { posixPath } from "./syntax.ts";
 
 // Production modules whose exported strings are names a user can read: a spec locates a control by the exported value.
 // Only an export named for what it holds counts (`CHATS_SECTION_LABEL`, `MESSAGE_EDIT_NAME`, `IMMERSIVE_CARD_LABELS`); a
 // field of a larger table is not a name its own consumers share.
 const LABEL_EXPORT = /(?:LABEL|NAME|TITLE|COPY|SENTENCE)S?$/u;
-const PRODUCTION_MODULES = "packages/*/src/**/*.ts";
-const NOT_PRODUCTION = /\.(?:test|test-d|d)\.ts$/u;
 const MIN_LABEL_LENGTH = 4;
 
 // The extended index. A label-producing function is named for what it returns (`contextToggleLabel`,
@@ -192,15 +189,9 @@ function soleOwner(held: ReadonlyMap<string, ExportedLabel>): ExportedLabel | un
   return candidates.length === 1 ? candidates[0] : undefined;
 }
 
-// A module path is POSIX on every OS: globSync joins with the platform separator, and a finding names the module.
-function productionSources(root: string, mustContain: string): { readonly module: string; readonly text: string }[] {
-  return globSync(PRODUCTION_MODULES, { cwd: root })
-    .map(posixPath)
-    .sort()
-    .filter((module) => !NOT_PRODUCTION.test(module))
-    .map((module) => ({ module, text: readFileSync(join(root, module), "utf8") }))
-    .filter(({ text }) => text.includes(mustContain));
-}
+// A label is a string a `.ts` module exports; a component file exports components.
+const labelSources = (modules: readonly ProductionModule[], mustContain: string): readonly ProductionModule[] =>
+  modules.filter(({ module, text }) => module.endsWith(".ts") && text.includes(mustContain));
 
 function soleOwners(
   strings: Iterable<readonly [module: string, value: string, exportName: string, kind: ExtendedKind | undefined]>,
@@ -225,12 +216,10 @@ function soleOwners(
  * Every string a production `.ts` module exports by value, keyed by the string. A string that two exports of the
  * same rank hold names no single control, so it is left out.
  */
-export function exportedLabels(root: string): ReadonlyMap<string, ExportedLabel> {
+export function exportedLabels(root: string, modules: readonly ProductionModule[] = productionModules(root)): ReadonlyMap<string, ExportedLabel> {
   return soleOwners(
-    productionSources(root, "export const").flatMap(({ module, text }) =>
-      exportedStrings(ts.createSourceFile(module, text, ts.ScriptTarget.Latest, false)).map(
-        ([value, exportName]) => [module, value, exportName, undefined] as const,
-      ),
+    labelSources(modules, "export const").flatMap(({ module, source }) =>
+      exportedStrings(source()).map(([value, exportName]) => [module, value, exportName, undefined] as const),
     ),
   );
 }
@@ -240,12 +229,10 @@ export function exportedLabels(root: string): ReadonlyMap<string, ExportedLabel>
  * or name module exports, the values of an exported error code object, a route constant and an env key constant. Rule
  * scope `all` reads it; scope `named` does not, so no finding appears before a sweep has fixed its sites.
  */
-export function exportedProductionValues(root: string): ReadonlyMap<string, ExportedLabel> {
+export function exportedProductionValues(root: string, modules: readonly ProductionModule[] = productionModules(root)): ReadonlyMap<string, ExportedLabel> {
   return soleOwners(
-    productionSources(root, "export").flatMap(({ module, text }) =>
-      extendedStrings(module, ts.createSourceFile(module, text, ts.ScriptTarget.Latest, false)).map(
-        ([value, exportName, kind]) => [module, value, exportName, kind] as const,
-      ),
+    labelSources(modules, "export").flatMap(({ module, source }) =>
+      extendedStrings(module, source()).map(([value, exportName, kind]) => [module, value, exportName, kind] as const),
     ),
   );
 }
@@ -448,8 +435,8 @@ function reporter(context: OrbRuleContext): (node: TSESTree.Node, value: string,
     });
 }
 
-export function handCopiedLabelRule(labels: ReadonlyMap<string, ExportedLabel>, extended: ReadonlyMap<string, ExportedLabel> = new Map()): OrbRule {
-  const { values, routes } = valueIndex(extended);
+export function handCopiedLabelRule(labelIndex: () => ReadonlyMap<string, ExportedLabel>, extendedIndex: () => ReadonlyMap<string, ExportedLabel>): OrbRule {
+  const valuesOf = lazy(() => valueIndex(extendedIndex()));
   return {
     meta: {
       type: "problem",
@@ -457,6 +444,9 @@ export function handCopiedLabelRule(labels: ReadonlyMap<string, ExportedLabel>, 
     },
     create(context: OrbRuleContext): RuleVisitor {
       const all = scopeOf(context.options) === "all";
+      const labels = labelIndex();
+      const extended = extendedIndex();
+      const { values, routes } = valuesOf();
       const report = reporter(context);
       // A code, route or env key is asserted or sent wherever a test writes it, so every string site is judged.
       const judge = (node: TSESTree.Node, whole: string | null, head: string): void => {
