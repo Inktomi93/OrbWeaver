@@ -61,7 +61,7 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
           <CollapsiblePanel>
             <Stack gap="tight">
               {kinds.map((kind) => (
-                <Text key={kind} voice="gloss" prose={true} wrap="anywhere">
+                <Text key={kind} voice="gloss" cap="prose" prose={true} wrap="anywhere">
                   {`${KIND_NOUNS[kind][1]}: ${namesLine(
                     preview.kinds[kind].items.map((item) => item.name),
                     preview.kinds[kind].total,
@@ -69,12 +69,12 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
                 </Text>
               ))}
               {groups.map(({ reason, sources }) => (
-                <Text key={reason} voice="gloss" prose={true} wrap="anywhere">
+                <Text key={reason} voice="gloss" cap="prose" prose={true} wrap="anywhere">
                   {`Skipped, ${reason}: ${sources.join(", ")}`}
                 </Text>
               ))}
               {unlisted > 0 ? (
-                <Text voice="gloss" prose={true} wrap="anywhere">
+                <Text voice="gloss" cap="prose" prose={true} wrap="anywhere">
                   {`And ${String(unlisted)} more skipped.`}
                 </Text>
               ) : null}

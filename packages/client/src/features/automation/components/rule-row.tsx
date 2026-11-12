@@ -268,7 +268,14 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
               </Text>
               {/* `prose`: the rule's own sentence is the same size as the connection description inside this card.
                   Shut, it keeps to one line (two on a phone) so a closed row stays dense; open, the whole sentence reads. */}
-              <Text flow={open || mobile ? undefined : "block"} clamp={open || !mobile ? undefined : 2} prose={true} truncate={!(open || mobile)} voice="gloss">
+              <Text
+                flow={open || mobile ? undefined : "block"}
+                clamp={open || !mobile ? undefined : 2}
+                cap="fit"
+                prose={true}
+                truncate={!(open || mobile)}
+                voice="gloss"
+              >
                 {ruleGloss(rule)}
               </Text>
               {/* The error states stay on the CLOSED face: a rule that cannot or will not run is what a host

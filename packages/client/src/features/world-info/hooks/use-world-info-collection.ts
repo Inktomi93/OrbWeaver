@@ -3,7 +3,7 @@
 // definition is a module-level value — the host calls each unconditionally, once, per rendered affordance.
 
 import { useQuery } from "@tanstack/react-query";
-import { useInvalidation, useTRPC } from "#data";
+import { useCollectionCount, useInvalidation, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight } from "#lib";
 import { notify } from "#lib";
 import { selectCollectionMember } from "#state";
@@ -11,13 +11,11 @@ import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
 import { WORLD_INFO_DUPLICATE_BOOK_NOTICE } from "../lib/world-info-names.ts";
 import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations.ts";
 
-/** The group band's live census — a NON-suspending read sharing the rows' cache. A FAILED read says so
- *  rather than reading as absence (#1546 — see {@link CollectionCount}). */
+/** The group band's live census — a NON-suspending read beside the rows' own, whose Retry re-asks both. A FAILED
+ *  read says so rather than reading as absence (#1546 — see {@link CollectionCount}). */
 export function useWorldInfoCount(): CollectionCount {
   const trpc = useTRPC();
-  const census = useQuery(trpc.worldInfo.countBooks.queryOptions());
-  // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
-  return { count: census.data, failed: census.error !== null, retry: (): void => void census.refetch().catch(globalThis.reportError) };
+  return useCollectionCount(useQuery(trpc.worldInfo.countBooks.queryOptions()), trpc.worldInfo.listBooksWithUsage.queryFilter());
 }
 
 /**

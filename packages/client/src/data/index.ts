@@ -34,6 +34,7 @@ export { useOrbSocket } from "./bus/use-orb-socket.ts";
 export { useRpgBus } from "./bus/use-rpg-bus.ts";
 export { useUserBus } from "./bus/use-user-bus.ts";
 export type { ClientRuntime } from "./client-runtime-contract.ts";
+export { useCollectionCount } from "./collection-count.ts";
 export type { CollectionSurface } from "./create-collection-surface.ts";
 export { createCollectionSurface } from "./create-collection-surface.ts";
 export type { EntityMutateAsync } from "./create-entity-mutation.ts";

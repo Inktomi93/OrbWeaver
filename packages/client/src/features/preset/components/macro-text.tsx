@@ -56,7 +56,7 @@ export interface MacroTextProps {
 /** A template rendered as a template: prose as text, `{{macro}}` references as braced inline chips. */
 export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactElement {
   const run = (
-    <Text inset={frame === "quoted" ? "island" : undefined} whitespace="preWrap" prose={true} voice="code" wrap="word">
+    <Text inset={frame === "quoted" ? "island" : undefined} whitespace="preWrap" cap="code" prose={true} voice="code" wrap="word">
       {tokens.map(
         (token, i): ReactNode =>
           token.kind === "macro" ? (

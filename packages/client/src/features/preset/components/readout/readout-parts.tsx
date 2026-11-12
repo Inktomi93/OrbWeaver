@@ -168,15 +168,15 @@ export function EffectiveProfileFailure({ error, onRetry }: { readonly error: un
         <Row align="start" gap="field" role="alert">
           <Icon icon={TriangleAlert} size="sm" tone="warning" />
           <Stack gap="tight">
-            <Text prose={true} voice="label">
+            <Text cap="prose" prose={true} voice="label">
               {copy.headline}
             </Text>
             {message === null ? null : (
-              <Text prose={true} voice="gloss">
+              <Text cap="prose" prose={true} voice="gloss">
                 {message}
               </Text>
             )}
-            <Text prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               {copy.guidance}
             </Text>
             {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band

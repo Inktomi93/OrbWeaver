@@ -39,7 +39,7 @@ export function StoredConfigUnreadableNotice({ copy, doors }: StoredConfigUnread
       <Text tone="destructive" voice="label">
         {copy.headline}
       </Text>
-      <Text prose={true} voice="reading">
+      <Text cap="prose" prose={true} voice="reading">
         {copy.guidance}
       </Text>
       {doors}

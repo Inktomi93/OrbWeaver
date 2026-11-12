@@ -14,7 +14,7 @@ import { selectCharacter, setActiveSection } from "#state";
 import { REFINERY_SESSION_STATE_NAME } from "../lib/refinery-names.ts";
 import { scopeChipLabelOf } from "../lib/render-plan.ts";
 import { SESSION_STATUS_CHIP } from "../lib/verdict.ts";
-import { RefineryChip } from "./refinery-chip.tsx";
+import { RefineryChip, RefinerySentenceChip } from "./refinery-chip.tsx";
 
 export interface SessionMastheadProps {
   /** The card the session is about — the "Open card" door's target (see the door's note below). */
@@ -75,9 +75,7 @@ export function SessionMasthead({
                 because the draft chip is a whole sentence. */}
             <Row align="baseline" aria-label={REFINERY_SESSION_STATE_NAME} className="min-inline-0" wrap={true} cap="fit" gap="field" role="group">
               <RefineryChip tone={SESSION_STATUS_CHIP[status].tone}>{SESSION_STATUS_CHIP[status].word}</RefineryChip>
-              <RefineryChip tone="neutral" wrap={true}>
-                {applied ? "Applied · snapshot taken" : "Draft: the live card is untouched"}
-              </RefineryChip>
+              <RefinerySentenceChip tone="neutral">{applied ? "Applied · snapshot taken" : "Draft: the live card is untouched"}</RefinerySentenceChip>
             </Row>
             {/* No model here: each stage can run on a different model, so each lane credits its own result. */}
             <Text as="span" voice="credit">

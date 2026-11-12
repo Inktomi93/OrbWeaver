@@ -67,7 +67,9 @@ export function ConnectionEditorUnavailable({ connection, onDone, onRemoved, fin
           <Heading level={2} voice="label">
             Provider unavailable
           </Heading>
-          <Text prose={true}>{reason}</Text>
+          <Text cap="prose" prose={true}>
+            {reason}
+          </Text>
           <Stack gap="tight">
             <Text voice="gloss">Saved provider</Text>
             <Text voice="code">{connection.providerId}</Text>

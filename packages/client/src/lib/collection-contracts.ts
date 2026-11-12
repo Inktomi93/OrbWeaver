@@ -120,8 +120,8 @@ export interface CollectionCount {
   readonly count: number | undefined;
   /** The read FAILED, as distinct from having not landed. */
   readonly failed: boolean;
-  /** Re-asks the read behind {@link count} — the failure arm's door (`refetch` takes an OPTIONS BAG, so an
-   *  implementor wraps it rather than passing the method by reference). */
+  /** Re-asks the read behind {@link count} and any rows read that failed beside it — the failure arm's door. The rows
+   *  mount when the count lands, so one press must leave no second failure behind. `useCollectionCount` in `#data` builds it. */
   readonly retry: () => void;
 }
 

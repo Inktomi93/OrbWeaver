@@ -20,7 +20,7 @@ import { useRefinerySchemaPlan, useTestRefinerySchema } from "../hooks/use-refin
 import type { buildRenderPlan } from "../lib/render-plan.ts";
 import { CharacterDoor } from "./character-door.tsx";
 import { PayloadView } from "./payload-view.tsx";
-import { RefineryChip } from "./refinery-chip.tsx";
+import { RefinerySentenceChip } from "./refinery-chip.tsx";
 
 /** The plan line is a sentence to read, so it takes the prose measure, not the dialog's width. */
 
@@ -103,7 +103,7 @@ export function PreviewCard({
       <Stack gap="row" padding="block">
         <Row align="center" gap="field">
           <Text voice="kicker">Render preview</Text>
-          <RefineryChip tone="info">The same renderer every run uses</RefineryChip>
+          <RefinerySentenceChip tone="info">The same renderer every run uses</RefinerySentenceChip>
         </Row>
         {/* The test drill's own loading arm (P1-10: "no loading affordance on any model call"). A
             `testSchema` turn is a real model round-trip; while it runs, the preview keeps painting the

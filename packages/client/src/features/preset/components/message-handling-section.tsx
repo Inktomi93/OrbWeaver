@@ -88,7 +88,7 @@ export function MessageHandlingSection({
   // kicker, where it reads as the group's gloss and both rows sit under it.
   return (
     <Section kicker="Collapsing">
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         Orbweaver can tidy your messages in two ways before sending them.
       </Text>
 
