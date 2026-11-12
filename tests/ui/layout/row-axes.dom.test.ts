@@ -77,7 +77,7 @@ test("a Row's reach crosses a message card's edges by their own insets, and a St
     expect.arrayContaining(["-ms-(--row-reach-left)", "-me-(--row-reach-right)", "ps-(--row-foot-inset-left)", "pe-(--row-foot-inset-right)"]),
   );
   expect(classesOf({ reach: "header" })).not.toContain("ps-(--row-foot-inset-left)");
-  expect(classesOf({ reach: "section" })).toEqual(expect.arrayContaining(["-mx-section", "px-section"]));
+  expect(classesOf({ reach: "section" })).toEqual(expect.arrayContaining(["-mx-inset-section", "px-inset-section"]));
   expect(stackClassesOf({ reach: "row" })).toEqual(expect.arrayContaining(["-mx-row", "px-row"]));
 });
 

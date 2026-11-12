@@ -49,6 +49,8 @@ This law follows the 8pt grid with a 4pt sub-grid (4pt inside a component, 8pt b
 
 **Do NOT re-tune `--spacing-field` to 4px "to fix the grid"** (D3): with `tight` present, 6px is the deliberate 2pt sub-step between 4 and 8.
 
+The inline inset steps hold against the viewport at enlarged text, so a phone keeps its width for the text. `paddingInline` at `block` and `section` writes `--spacing-inset-block` and `--spacing-inset-section`: the step, capped at a share of the screen and never below its value at the default size. A `section` reach and scroll inset cross the same held inset. A nested level's `indent` holds the same way through `--spacing-indent`.
+
 ### 2.3 Type — the closed `voice` axis
 
 The seven type sizes are correct and are NOT re-derived (D4 — no measured defect, and a re-derivation churns every surface).
