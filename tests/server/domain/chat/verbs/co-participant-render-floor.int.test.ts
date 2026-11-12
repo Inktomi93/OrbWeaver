@@ -227,9 +227,15 @@ test("a disabled owner's character, persona and attachment art stops serving to 
 
   await setEnabled(room, room.host.userId, false);
   expect(await art()).toEqual([REFUSES, REFUSES, WITHHELD, SERVES]);
-  // The pin's face serves to the room, never past it: an account with no seat here reads it as missing.
-  const outsider = await signedInMember(room.root, castId<Handle>("floor-outsider"));
-  expect(await served(room, { principal: await room.root.principalFor(outsider.id), cookie: outsider.cookie }, pinned.avatar.hash)).toEqual(REFUSES);
+  // The pin's face serves to the room, never past it: an account seated only in a room of its own reads it as missing.
+  const outsiderLogin = await signedInMember(room.root, castId<Handle>("floor-outsider"));
+  const outsider = { principal: await room.root.principalFor(outsiderLogin.id), cookie: outsiderLogin.cookie };
+  const ownCharacter = await room.root.services.character.create({
+    principal: outsider.principal,
+    input: createCharacterSchema.parse({ handle: "outsider-keeper", name: "Elsewhere", description: "A keeper of another room." }),
+  });
+  await room.root.services.chat.startChat({ principal: outsider.principal, characterIds: [ownCharacter.id], opening: "none" });
+  expect(await served(room, outsider, pinned.avatar.hash)).toEqual(REFUSES);
 
   await setEnabled(room, room.host.userId, true);
   expect(await art()).toEqual(allServed);
@@ -282,6 +288,10 @@ test("a departed member's persona and attachment art stops serving to the room, 
   await room.root.services.chat.selfLeave({ principal: leaver.principal, chatId: room.chatId });
 
   expect(await art()).toEqual([REFUSES, WITHHELD, SERVES]);
+
+  // The pin holds for the room, not for whoever once sat in it: a member who leaves loses its face too.
+  await room.root.services.chat.selfLeave({ principal: viewer.principal, chatId: room.chatId });
+  expect(await served(room, viewer, pinned.avatar.hash)).toEqual(REFUSES);
 });
 
 test("a departed host's character art stops serving to the members still in the room, like a disabled host's", async () => {
