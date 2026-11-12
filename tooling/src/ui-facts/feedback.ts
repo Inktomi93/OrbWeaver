@@ -124,9 +124,10 @@ const FAILURE_CALLBACK = /^on\w*(?:Error|Failure|Failed|Refusal|Refused)$/u;
 
 /** The props whose awaited handler's rejection the receiving component renders: `ConfirmDialog`, `DestructiveAction` and a
  *  row menu's `destructive` action state a rejected `onConfirm` in the dialog's alert line, and a row's `onDelete` is typed
- *  as that `onConfirm` (`LibraryRowActions`, `ThemeRowMenu`) or forwarded to it. A handler that awaits or returns nothing
+ *  as that `onConfirm` (`LibraryRowActions`, `ThemeRowMenu`) or forwarded to it. The shared avatar control's `commit` is
+ *  awaited too, and a refusal shows on the failure line its hook returns. A handler that awaits or returns nothing
  *  hands no rejection on, so a plain `onDelete` callback never reads as one. */
-const REJECTION_RENDERING_PROPS = new Set(["onConfirm", "onDelete"]);
+const REJECTION_RENDERING_PROPS = new Set(["onConfirm", "onDelete", "commit"]);
 
 /** `useRowDeleteFocus().delete(key, run)` wraps `run` into the row's `onDelete`, so its second argument is a rejection position. */
 const ROW_DELETE_RUN = { method: "delete", argument: 1 } as const;
@@ -453,9 +454,12 @@ function failureOf(factory: FactoryToast, consumerSays: boolean, declaresInline:
   return "none";
 }
 
-// The consumers whose success toast tells a result that lands out of the person's sight, each with where it lands
-// (client-architecture-state-and-gates.md §11, Toasts). A further success toast in one of these files stays a defect.
-const SUCCESS_OUT_OF_SIGHT: readonly KeptRead[] = [
+/** The clause every kept success toast rests on; each ruling's reason below names where its result lands, and the census prints this beside it. */
+const TOAST_LAW = "client-architecture-state-and-gates.md §11, Toasts";
+
+// The consumers whose success toast tells a result that lands out of the person's sight, each with where it lands.
+// A further success toast in one of these files stays a defect.
+const OUT_OF_SIGHT_ROWS: readonly KeptRead[] = [
   {
     path: "packages/client/src/lib/copy-with-notice.ts",
     label: "copyWithNotice",
@@ -596,7 +600,65 @@ const SUCCESS_OUT_OF_SIGHT: readonly KeptRead[] = [
     count: 1,
     reason: "the fill count covers entries that are not on screen, and a fill of none changes nothing in place",
   },
+  {
+    path: "packages/client/src/features/credentials/hooks/use-sign-in-check.ts",
+    label: "announce",
+    value: "toast",
+    count: 1,
+    reason: "the dialog that saved the connection has closed, so the sign-in verdict has no place on screen",
+  },
+  {
+    path: "packages/client/src/features/preset/lib/active-preset-notice.ts",
+    label: "notifyBuiltInFork",
+    value: "toast",
+    count: 1,
+    reason: "a save to another place: the edit lands in a copy the person did not create, while the editor's status reads Saved",
+  },
+  {
+    path: "packages/client/src/features/character/components/character-restore-book-action.tsx",
+    label: "onConfirm",
+    value: "toast",
+    count: 1,
+    reason: "a save to another place: the restored book lands in the world books, not on the Provenance facet, and the confirm closes",
+  },
+  {
+    path: "packages/client/src/features/roster-preset/hooks/use-start-roster.ts",
+    label: "report",
+    value: "toast",
+    count: 1,
+    reason: "the apply report names rules switched on and members skipped, which land in the room's other sections",
+  },
+  {
+    path: "packages/client/src/features/roster-preset/components/roster-picker.tsx",
+    label: "reportApply",
+    value: "toast",
+    count: 1,
+    reason: "the apply report names rules switched on and members skipped, which land in the room's other sections",
+  },
+  {
+    path: "packages/client/src/features/automation/components/rule-row.tsx",
+    label: "useRunRuleNow",
+    value: "toast",
+    count: 1,
+    reason: "a rule run by hand acts in the room, so its outcome shows nowhere on the rule's row",
+  },
+  {
+    path: "packages/client/src/features/character/components/character-import-dialog.tsx",
+    label: "onFiles",
+    value: "toast",
+    count: 1,
+    reason: "an import's count: the dialog closes over the list, and which of the files landed shows nowhere in place",
+  },
+  {
+    path: "packages/client/src/features/chat/components/chat-import-dialog.tsx",
+    label: "onFiles",
+    value: "toast",
+    count: 1,
+    reason: "an import's count: the dialog closes over the list, and which of the files landed shows nowhere in place",
+  },
 ];
+
+const SUCCESS_OUT_OF_SIGHT: readonly KeptRead[] = OUT_OF_SIGHT_ROWS.map((row) => ({ ...row, reason: `${row.reason} (${TOAST_LAW})` }));
 
 // The names a file binds to `useToastManager()`.
 function toastManagers(sf: ts.SourceFile): ReadonlySet<string> {
@@ -692,16 +754,31 @@ function onOwnSuccess(node: ts.Node, scope: ts.Node, handles: ReadonlySet<string
   return false;
 }
 
-// The toasts this consumer tells as a success: `notify.success`, or a toast manager's `add`, on its own success path.
+/** `notify.success(...)`, or a computed `notify[channel](...)`. The scan reads syntax and one file's own bindings, never an imported
+ *  type, so a channel that is not a string literal can be `success` and counts as a success toast: the ruling judges it. */
+function isSuccessNotify(call: ts.CallExpression): boolean {
+  const callee = call.expression;
+  if (ts.isPropertyAccessExpression(callee)) {
+    return ts.isIdentifier(callee.expression) && callee.expression.text === "notify" && callee.name.text === "success";
+  }
+  if (!(ts.isElementAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === "notify")) {
+    return false;
+  }
+  const channel = callee.argumentExpression;
+  return !ts.isStringLiteralLike(channel) || channel.text === "success";
+}
+
+/** A toast manager's `add`: `const toasts = useToastManager(); toasts.add(...)`. */
+function isManagerAdd(call: ts.CallExpression, managers: ReadonlySet<string>): boolean {
+  const callee = call.expression;
+  return ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && managers.has(callee.expression.text) && callee.name.text === "add";
+}
+
+// The toasts this consumer tells as a success: `notify.success` or a computed `notify[channel]`, or a toast manager's `add`, on its own success path.
 function successToastCalls(scope: ts.Node, handles: ReadonlySet<string>, managers: ReadonlySet<string>): readonly ts.CallExpression[] {
   const found: ts.CallExpression[] = [];
   visit(scope, (node) => {
-    if (!(ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression))) {
-      return;
-    }
-    const { expression: owner, name } = node.expression;
-    const toast = (owner.text === "notify" && name.text === "success") || (managers.has(owner.text) && name.text === "add");
-    if (toast && onOwnSuccess(node, scope, handles)) {
+    if (ts.isCallExpression(node) && (isSuccessNotify(node) || isManagerAdd(node, managers)) && onOwnSuccess(node, scope, handles)) {
       found.push(node);
     }
   });
@@ -748,19 +825,13 @@ function holderName(node: ts.Node): string {
   return "module";
 }
 
-/** Every `notify.success` that no entity-mutation consumer's success path owns: a toast in a hook that runs a state machine or a raw
- *  request, or in a helper. Each is a success toast like any other, so the ruling on where its result lands judges it too. */
+/** Every success toast (`isSuccessNotify`) that no entity-mutation consumer's success path owns: a toast in a hook that runs a state
+ *  machine or a raw request, or in a helper. Each is a success toast like any other, so the ruling on where its result lands judges it too. */
 function unownedSuccessToasts(source: ClientSource, owned: ReadonlySet<ts.Node>): Member[] {
   const { sf } = source;
   const out: Member[] = [];
   visit(sf, (node) => {
-    const isNotifySuccess =
-      ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression) &&
-      ts.isIdentifier(node.expression.expression) &&
-      node.expression.expression.text === "notify" &&
-      node.expression.name.text === "success";
-    if (!isNotifySuccess || owned.has(node)) {
+    if (owned.has(node) || !(ts.isCallExpression(node) && isSuccessNotify(node))) {
       return;
     }
     const line = lineOf(sf, node);

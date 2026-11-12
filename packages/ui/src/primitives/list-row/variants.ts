@@ -108,10 +108,8 @@ export const listRowVariants = tv({
   variants: {
     // A row whose body runs to several lines keeps its leading mark at the first.
     align: { start: { root: "items-start" } },
-    // A name beside a qualifier keeps the title floor. The title's flex basis is zero, so without a floor the title line counts the name as
-    // no width at all and fits the whole qualifier beside it, leaving the name a sliver; with the floor a qualifier that would take
-    // the name below it wraps to the next line, as one too long for the line already does.
-    qualified: { true: { title: "min-inline-(--width-title-floor)" } },
+    // Read only by the compound below: a block-placed name beside a qualifier keeps the smaller of the title floor and its own text.
+    qualified: { true: {}, false: {} },
     titleQualifierFace: {
       mono: {},
       body: { titleQualifier: "font-sans", titleSeparator: "font-sans" },
@@ -289,6 +287,17 @@ export const listRowVariants = tv({
     },
   },
   compoundVariants: [
+    {
+      // The title's flex basis is zero, so without a floor the title line counts the name as no width at all and fits the whole
+      // qualifier beside it, leaving the name a sliver. The floor is the title's automatic minimum size: it is the smaller of the
+      // item's own text and its specified width, so a name shorter than the floor keeps its own width and shares the line with its
+      // qualifier, and a longer one holds the floor, which sends a qualifier that would take it lower onto the next line. That
+      // minimum applies only to an item that is not a scroll container, so the title clips (`overflow-clip`, which still paints
+      // the ellipsis) instead of hiding its overflow.
+      qualified: true,
+      subtitlePlacement: "block",
+      class: { title: "overflow-clip inline-(--width-title-floor)" },
+    },
     {
       stackActions: true,
       stackActionsAt: "cq-32",

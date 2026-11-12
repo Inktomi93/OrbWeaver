@@ -95,7 +95,7 @@ The stack, outermost-in:
 
    A failure never shows neither, and never both while the inline line is visible. The feedback cohort of `pnpm ui-facts` (`tooling/src/ui-facts/feedback.ts`) reports either case as a defect. A persistent mark that reads `error` carries state only and no message text.
 
-   A success the person can see in place tells itself and shows no toast. `notify.success` is for a result that lands out of the person's sight: the clipboard, an import's count, a save to another place. The feedback cohort judges its success column by this rule, for every `notify.success` in the client, including one no mutation's success path owns.
+   A success the person can see in place tells itself and shows no toast. `notify.success` is for a result that lands out of the person's sight: the clipboard, an import's count that no report on screen states, a save to another place. The feedback cohort judges its success column by this rule, for every `notify.success` in the client and every `notify[channel]` call whose channel is not a string literal, including one no mutation's success path owns. The scan reads syntax, never an imported type, so a computed channel counts as a success toast and its ruling names where the result lands. Every kept toast carries its reason in `tooling/src/ui-facts/feedback.ts`, printed beside this clause.
 
 **The three-states law:** every surface ships all three designed states — empty teaches (an `EmptyState`
 with an action — a required prop), loading is a shape-matched skeleton (never a centered

@@ -53,7 +53,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, notify } from "#lib";
+import { DIALOG_VERBS } from "#lib";
 import { openConfigTo } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, readPluginFolder, toBundleBase64 } from "../lib/plugin-bundle.ts";
@@ -258,12 +258,11 @@ export function PluginInstallCard(): ReactElement {
     if (state.step !== "confirm" || selecting) {
       return;
     }
-    const name = state.manifest.name;
     // #1855: approve-all/deny — always grant the full declared set.
     const grant = [...state.manifest.capabilities];
     const source = state.source;
+    // The installed plugin appears, off, in the Installed section of this page; no toast repeats it (client-architecture-state-and-gates.md §11).
     const onDone = (): void => {
-      notify.success(`${name} is installed. It's off until you turn it on.`);
       setState({ step: "pick" });
     };
     const settled = installConfirmedSource(source, {

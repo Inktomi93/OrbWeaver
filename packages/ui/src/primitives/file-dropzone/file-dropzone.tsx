@@ -11,7 +11,7 @@ import { useFieldIdentity, useFieldLabelled } from "#primitives/field";
 import { Check, Icon, Upload } from "#primitives/icons";
 import { WebSpinner } from "#primitives/spinner";
 import { matchesAccept } from "./accept.ts";
-import { RefusalBody, RefusalLine } from "./refusal-line.tsx";
+import { RefusalLine } from "./refusal-line.tsx";
 import { fileDropzoneBoxVariants, fileDropzoneVariants } from "./variants.ts";
 
 /** A file dropped by a client-side pre-check: outside the `accept` vocabulary, or over `maxSizeBytes`. */
@@ -230,7 +230,6 @@ interface FileDropzoneErrorProps {
   readonly message: string;
   readonly id: string;
   readonly inField: boolean;
-  readonly slots: ReturnType<typeof fileDropzoneVariants>;
 }
 
 /** The refusal line. Inside a `Field` it is a Field.Error, as the Field primitive renders its own: Base UI adds its id to the
@@ -242,15 +241,13 @@ interface FileDropzoneErrorProps {
  *  the chooser leaves focus on the control the person just clicked, so no focus move scrolls the line in, and below the zone it
  *  can sit under a dialog's sticky footer. `nearest` honours the scroll container's own scroll padding, which is how a dialog
  *  body clears its footer. */
-function FileDropzoneError({ message, id, inField, slots }: FileDropzoneErrorProps): ReactElement {
+function FileDropzoneError({ message, id, inField }: FileDropzoneErrorProps): ReactElement {
   const lineRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     lineRef.current?.scrollIntoView({ block: "nearest" });
   }, []);
   return inField ? (
-    <BaseField.Error className={slots.error()} data-slot="file-dropzone-error" match={true} ref={lineRef} render={<p />} role="alert">
-      <RefusalBody message={message} />
-    </BaseField.Error>
+    <BaseField.Error match={true} ref={lineRef} render={<RefusalLine message={message} />} />
   ) : (
     <RefusalLine id={id} message={message} ref={lineRef} />
   );
@@ -428,7 +425,7 @@ export function FileDropzone({
         <FileDropzoneInstructions className={slots.instructions()} id={instructionsId} instructions={instructions} lines={pointerLines} />
         {resolvedHint === undefined ? null : <p className={slots.hint()}>{resolvedHint}</p>}
       </div>
-      {errorMessage === undefined ? null : <FileDropzoneError id={errorId} inField={fieldLabelled} key={errorMessage} message={errorMessage} slots={slots} />}
+      {errorMessage === undefined ? null : <FileDropzoneError id={errorId} inField={fieldLabelled} key={errorMessage} message={errorMessage} />}
     </div>
   );
 }

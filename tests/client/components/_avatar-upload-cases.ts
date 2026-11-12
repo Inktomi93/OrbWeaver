@@ -472,6 +472,38 @@ export const AVATAR_CASES: readonly AvatarCase[] = [
     },
   },
   {
+    title: "an older write not yet sent is dropped once a newer pick has taken over, so of three picks behind a held write the middle one is never sent",
+    run: async ({ surface, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const [current, first, middle, last] = [await storePicture(root), await storePicture(root), await storePicture(root), await storePicture(root)];
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const pictures = [first, middle, last];
+      const uploads = await routeUploads(page, (nth) => served(pictures[nth - 1] ?? last));
+      const writeHold = holdServed();
+      const { control, writes, storedHash } = await surface.stage({ page, mount, caller, current, refuseWrite: false, writeHold });
+
+      await pick(page, control, PICKED_FILE);
+      await writeHold.requested;
+      await pick(page, control, PICKED_FILE);
+      await expect.poll(uploads).toBe(2);
+      await pick(page, control, PICKED_FILE);
+      await expect.poll(uploads).toBe(3);
+      await absenceWindow(page, TOAST_WINDOW_MS);
+      // Only the held write has reached the server: the other two wait their turn behind it.
+      expect(writes()).toBe(1);
+
+      writeHold.release();
+
+      await expect.poll(storedHash).toBe(last.hash);
+      await expectPicture(control, last);
+      await absenceWindow(page, TOAST_WINDOW_MS);
+      // The held write and the newest pick's write: the middle pick's was queued, a newer pick took over, and it was dropped unsent.
+      expect(writes()).toBe(2);
+    },
+  },
+  {
     title: "an older write that is refused is still followed by the newer pick's write, and the control says nothing of the superseded one",
     run: async ({ surface, client, signedInConfig, page, mount }) => {
       await using root = await createServerHarness(ROOT_OPTIONS);

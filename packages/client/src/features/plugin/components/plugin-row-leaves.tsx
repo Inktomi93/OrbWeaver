@@ -16,7 +16,6 @@ import { useState } from "react";
 import { DestructiveAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
 import {
   abbreviateSourceCommit,
   approveLabel,
@@ -33,6 +32,7 @@ import {
 } from "../lib/plugin-copy.ts";
 import { useUpgradePluginFromStoredGit } from "../lib/plugin-distribution-mutations.ts";
 import { useCheckForUpdates, useUpgradePluginFromShowcase, useUpgradePluginFromStoredUrl } from "../lib/plugin-mutations.ts";
+import { notifyUpgradeStayedOff } from "../lib/plugin-upgrade-notice.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 
 /** One projected row of `plugin.list` — the shape both leaves read (a private derived alias, mirrored by the
@@ -136,14 +136,10 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       return;
     }
     // The durable truth is now on the refetched row (new version, and `reconsentPending` if it widened reach) —
-    // drop the transient verdict. The toast reads the SERVER's own `reconsentPending`, so it can never disagree
+    // drop the transient verdict. The notice reads the SERVER's own `reconsentPending`, so it can never disagree
     // with the ReConsentNotice the parent renders from the same flag.
     setVerdict({ kind: "idle" });
-    if (updated.reconsentPending) {
-      notify.info(`${plugin.name} stayed off: this update asks for more than you've allowed. Check below.`);
-      return;
-    }
-    notify.success(`${plugin.name} is now ${updated.version}.`);
+    notifyUpgradeStayedOff(plugin.name, updated);
   };
 
   return (

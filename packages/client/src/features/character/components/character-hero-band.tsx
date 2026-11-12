@@ -142,8 +142,8 @@ export function CharacterHeroBand({
 }
 
 /** The portrait's upload door: the shared control, with the character's own write. The write is an immediate
- *  identity commit (`character.update` single-key patch); a refused one shows on the control's line, so the
- *  mutation declares it and no toast repeats it. */
+ *  identity commit (`character.update` single-key patch); a refused one shows on the failure line the band places
+ *  under its first row, so the mutation declares it and no toast repeats it. */
 function useHeroPortrait(detail: CharacterHeroDetail, trpc: Trpc): AvatarUploadParts {
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation, failureShownInline: "the portrait control's line" });

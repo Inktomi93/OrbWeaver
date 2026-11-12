@@ -18,7 +18,6 @@ import { useRef, useState } from "react";
 import { QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
 import { installedPluginControlId } from "#state";
 import { usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
@@ -36,6 +35,7 @@ import {
 } from "../lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "../lib/plugin-model-copy.ts";
 import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
+import { notifyUpgradeStayedOff } from "../lib/plugin-upgrade-notice.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginLogPanel } from "./plugin-log-panel.tsx";
 import { PluginModelBindings } from "./plugin-model-bindings.tsx";
@@ -112,13 +112,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
     if (updated === undefined) {
       return;
     }
-    // The server's own verdict, not a client-computed guess: `reconsentPending` is exactly the durable
-    // flag the notice below renders from, so the toast and the notice can never disagree.
-    if (updated.reconsentPending) {
-      notify.info(`${plugin.name} stayed off: this update asks for more than you've allowed. Check below.`);
-      return;
-    }
-    notify.success(`${plugin.name} is now ${updated.version}.`);
+    notifyUpgradeStayedOff(plugin.name, updated);
   };
 
   const onUpgradeFile = (file: File): void => {

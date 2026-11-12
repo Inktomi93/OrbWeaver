@@ -404,6 +404,29 @@ test("a toast-class consumer that states the failure is a defect unless its call
   expect(feedback?.defects).toEqual({ failure: ["none", "toast+inline"], success: ["toast"] });
 });
 
+test("a commit handed to the shared avatar control is a rejection it renders on its line, and an unrelated callback prop is not", ({ scratch }) => {
+  const root = plantDir(scratch, "feedback-avatar-commit");
+  plant(root, {
+    "hooks/use-save.ts": 'export const useSave = createEntityMutation<A, B>({ errorToast: "Save failed.", busDriven: true });',
+    "components/host.tsx": [
+      'import { useSave } from "../hooks/use-save.ts";',
+      "export const Host = (d) => {",
+      '  const save = useSave({ ...d, failureShownInline: "the control line" });',
+      "  return useAvatarUpload({ commit: (stored) => save.mutateAsync({ id: stored.id }) });",
+      "};",
+      "export const Silent = (d) => {",
+      '  const save = useSave({ ...d, failureShownInline: "a line nobody renders" });',
+      "  return useOther({ run: (stored) => save.mutateAsync({ id: stored.id }) });",
+      "};",
+    ].join("\n"),
+  });
+  const feedback = analyse(root, [], null).cohorts.find((entry) => entry.name === "feedback");
+  expect(feedback?.members.map((member) => [member.cells["failure"]?.line, member.cells["failure"]?.value])).toEqual([
+    [3, "inline"],
+    [7, "none"],
+  ]);
+});
+
 test("a toast that only takes null as an argument still toasts, a setter that is not a failure says nothing, and a form submit's catch is the failure surface", ({
   scratch,
 }) => {
@@ -611,6 +634,42 @@ test("a success toast no mutation's success path owns is a feedback member too, 
     ["use-import.ts", "finish", "toast", "not a mutation"],
     ["copy-notice.ts", "copied", "toast", "not a mutation"],
     ["copy-with-notice.ts", "copyWithNotice", "toast", "not a mutation"],
+  ]);
+});
+
+test("a computed notify channel may be a success: it is a member on a mutation's success path or on its own, while a literal channel that is not success is none", ({
+  scratch,
+}) => {
+  const root = plantDir(scratch, "feedback-computed-channel");
+  plant(root, {
+    "hooks/use-save.ts": 'export const useSave = createEntityMutation<A, B>({ errorToast: "Save failed.", busDriven: true });',
+    "components/run.tsx": [
+      'import { useSave } from "../hooks/use-save.ts";',
+      "export const Row = (d) => {",
+      "  const save = useSave(d);",
+      "  const run = () => save.mutateAsync({}).then((result) => { const notice = noticeOf(result); notify[notice.channel](notice.line); });",
+      "  return null;",
+      "};",
+      "export function Import(result) {",
+      "  const notice = importNotice(result);",
+      "  notify[notice.kind](notice.message);",
+      "}",
+      "export function Warned() {",
+      '  notify["warn"]("Careful.");',
+      '  notify.warn("Careful.");',
+      "}",
+      "export function Literal() {",
+      '  notify["success"]("Saved.");',
+      "}",
+    ].join("\n"),
+  });
+  const feedback = analyse(root, [], null).cohorts.find((entry) => entry.name === "feedback");
+  expect(
+    feedback?.members.map((member) => [member.path.split("/").at(-1), member.label, member.cells["success"]?.value, member.cells["failure"]?.value]),
+  ).toEqual([
+    ["run.tsx", "useSave", "toast", "toast"],
+    ["run.tsx", "Import", "toast", "not a mutation"],
+    ["run.tsx", "Literal", "toast", "not a mutation"],
   ]);
 });
 
