@@ -147,7 +147,7 @@ export async function insertPresetWithMembers(
 
 /** Full-replace update: patch the row + swap the whole member list in ONE batch. The whole op is GATED
  *  on the owner (a mismatched caller throws the same leak-free NotFound the verb throws — the persona
- *  `ensureAssetOwned` posture), and the owner predicate ALSO rides every write: the row UPDATE directly,
+ *  `ensureAvatarAsset` posture), and the owner predicate ALSO rides every write: the row UPDATE directly,
  *  and the junction DELETE through an owned-preset subquery. The junction has no ownerId by design
  *  (D23 derive-don't-stamp), so its belt IS the join — without it a verb-bypassing caller's bare
  *  presetId would no-op the row yet silently WIPE+replace a foreign preset's member list.

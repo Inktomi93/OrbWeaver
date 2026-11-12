@@ -1,7 +1,7 @@
 // The create/update validation ladder + the shared detail re-read — ONE spelling for both write verbs
 // (verb files may not value-import each other; the chat `substrate/auth` precedent for ctx-consuming
 // feature-local helpers). The belts run BEFORE any write: the FK proves a referenced row EXISTS, never
-// that it is the caller's (the persona `ensureAssetOwned` posture), so ownership is verified here at the
+// that it is the caller's (the persona `ensureAvatarAsset` posture), so ownership is verified here at the
 // producer verb (D18/D20 — gate at the producer, derive everywhere else).
 
 import type { GroupConfigInput } from "@orb/contracts/chat";

@@ -107,7 +107,7 @@ export interface RosterPresetContext {
    *  library rows are untouched. */
   readonly emitUserEvent: EmitUserEvent;
   /** The member-ownership belt: returns the subset of `characterIds` the owner actually owns. The FK
-   *  proves a character EXISTS, never that it is the caller's (the persona `ensureAssetOwned` posture) —
+   *  proves a character EXISTS, never that it is the caller's (the persona `ensureAvatarAsset` posture) —
    *  a member row must never reference another user's character. Compose-wired read. */
   readonly verifyCharactersOwned: (ownerId: UserId, characterIds: readonly CharacterId[]) => Promise<readonly CharacterId[]>;
   /** The anchor-persona belt — absent/foreign ⇒ false (leak-free). The chat-compose precedent. */

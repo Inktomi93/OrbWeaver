@@ -49,6 +49,12 @@ export const ASSET_KIND_MEDIA = {
   plugin: ["zip", "image"],
 } as const satisfies Readonly<Record<AssetKind, readonly AssetMedia[]>>;
 
+/** Whether every blob of the kind is a picture: the only kinds an avatar field may point at. */
+export function isPictureAssetKind(kind: AssetKind): boolean {
+  const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[kind];
+  return media.length > 0 && media.every((medium) => medium === "image");
+}
+
 /** The kinds `POST /api/assets/upload` serves: each has a client door that uploads it there. Every other kind enters
  *  through its own door (card import, the databank upload, plugin install, the server's own writers). */
 export const ASSET_UPLOAD_KINDS = ["avatar", "gallery", "background", "attachment"] as const satisfies readonly AssetKind[];
