@@ -5,36 +5,38 @@ import { expect, test } from "@orb/testkit/tooling";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 
 const DOMAIN = "packages/server/src/domain";
-const ENTRY = `${DOMAIN}/alpha/verbs/probe.ts`;
+// The probe sits at the domain root so each import climbs one directory; a deeper probe trips the parent-climb rule
+// before the rule under test.
+const ENTRY = `${DOMAIN}/alpha/probe.ts`;
 
 // Each case cruises the whole config once: about ten seconds on a loaded box.
 test.for([
   {
     name: "a type-only import of another domain's door",
-    source: 'import type { BetaView } from "../../beta/index.ts"; export type Value = BetaView;',
+    source: 'import type { BetaView } from "../beta/index.ts"; export type Value = BetaView;',
     rule: "domain-no-cross-feature",
   },
   {
     name: "a type-only import of another domain's contract file",
-    source: 'import type { BetaView } from "../../beta/contract/view.ts"; export type Value = BetaView;',
+    source: 'import type { BetaView } from "../beta/contract/view.ts"; export type Value = BetaView;',
     rule: "domain-no-cross-feature",
   },
   {
     name: "a value import of another domain's door",
-    source: 'import { beta } from "../../beta/index.ts"; export const value = beta;',
+    source: 'import { beta } from "../beta/index.ts"; export const value = beta;',
     rule: "domain-no-cross-feature",
   },
   {
     name: "a value import of the workloads door",
-    source: 'import { reserved } from "../../workloads/index.ts"; export const value = reserved;',
+    source: 'import { reserved } from "../workloads/index.ts"; export const value = reserved;',
     rule: "domain-workloads-door-types-only",
   },
   {
     name: "a type-only import of the workloads door",
-    source: 'import type { WorkloadContribution } from "../../workloads/index.ts"; export type Value = WorkloadContribution;',
+    source: 'import type { WorkloadContribution } from "../workloads/index.ts"; export type Value = WorkloadContribution;',
     rule: null,
   },
-  { name: "an import inside the same domain", source: 'import type { AlphaView } from "../contract/view.ts"; export type Value = AlphaView;', rule: null },
+  { name: "an import inside the same domain", source: 'import type { AlphaView } from "./contract/view.ts"; export type Value = AlphaView;', rule: null },
 ] as const)("the domain boundary judges $name", { timeout: 60_000 }, async ({ source, rule }, { plantedTree, repoRoot }) => {
   const root = await plantedTree({
     [`${DOMAIN}/alpha/contract/view.ts`]: "export interface AlphaView { readonly id: string; }",

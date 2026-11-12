@@ -151,6 +151,7 @@ function cruise(root: string, entries: readonly string[]): Promise<CheckerRun> {
   });
 }
 
+const CRUISE_PASSES = 2;
 let treeRoot = "";
 let cases: CheckerRun;
 let contract: CheckerRun;
@@ -179,7 +180,8 @@ beforeAll(async () => {
   writeFileSync(join(treeRoot, WIRING_ENTRY), 'import { databaseForOwner } from "@orb/db/wiring"; export { databaseForOwner };');
   writeFileSync(join(treeRoot, WIRING_CONTRACT), 'export { databaseForOwner } from "./wiring-capabilities.ts";');
   contract = await cruise(treeRoot, [WIRING_ENTRY]);
-}, scaledBudget(LONG_TEST_TIMEOUT_BASE_MS));
+  // The hook runs two checker passes, each under its own budget.
+}, CRUISE_PASSES * scaledBudget(LONG_TEST_TIMEOUT_BASE_MS));
 
 afterAll(() => {
   if (treeRoot !== "") {

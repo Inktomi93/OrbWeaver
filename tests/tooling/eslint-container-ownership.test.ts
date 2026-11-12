@@ -236,7 +236,7 @@ test("an anchor whose only container prop is off is a finding", async () => {
   expect(await findings(ANCHOR, `${LAYOUT}export const A = ({ children }) => <Section container={false}>{children}</Section>;`, ANCHOR_FILE)).toHaveLength(1);
 });
 
-test("a dialog nested in a layout element is not the box the anchor provides", async () => {
+test("a dialog nested in a layout element is not the box the anchor provides", { tags: ["slow"] }, async () => {
   expect(await findings(ANCHOR, `${LAYOUT}${COMPONENTS}export const A = () => <Stack><FormDialog open /></Stack>;`, ANCHOR_FILE)).toHaveLength(1);
   expect(
     await findings(
