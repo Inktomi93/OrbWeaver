@@ -1,10 +1,9 @@
 # Dev Container — Claude Code Sandbox for orbweaver
 
 An isolated Linux container where Claude Code runs in **permissive mode**
-(`--dangerously-skip-permissions`). The container is the security boundary: non-root user + a
-default-deny egress firewall. The point of the sandbox is to run without prompts (owner ruling
-2026-09-01); the host checkout is bind-mounted and the firewall permits the host subnet, so that is
-an accepted trade, not an oversight.
+(`--dangerously-skip-permissions`), as a non-root user behind a default-deny egress firewall. The point of
+the sandbox is to run without prompts (owner ruling). The ruling has no egress proxy, so the firewall
+stops accidental egress, not a steered agent: see "What the firewall stops".
 
 This is **only a coding sandbox**. The GPU/vLLM + local-light model stack runs on the
 **host** (the `.models/` weights; the vLLM launcher lives outside this repo); in the container the
@@ -55,9 +54,7 @@ host sessions keep whatever the host user settings say.
   design — credentials stay on the host, never exposed to a permissive sandbox).
   You can still `git commit` inside; just push from a host terminal.
 - **Models/vLLM run on the HOST.** In-container there is no GPU, and the local-light
-  int suites self-skip. The firewall admits only the Docker bridge range (the /24 of the
-  container's default gateway, usually `172.17.0.1`). A host service is reachable through that
-  gateway only when it listens on all interfaces; one bound only to the host's LAN address is not.
+  int suites self-skip. The sandbox reaches no host service (see "Host services").
 - **After editing any file in this folder**, rebuild:
   ```bash
   npx @devcontainers/cli up --remove-existing-container --workspace-folder .
@@ -72,10 +69,41 @@ host sessions keep whatever the host user settings say.
 | `devcontainer.json` | Container definition: image build, mounts, run args, lifecycle commands, container-only VS Code settings. |
 | `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
 | `tools/package.json`, `tools/package-lock.json` | Exact coding-tool versions and integrity-locked dependencies, installed with `npm ci`. The pnpm version matches the repository's `packageManager`. |
-| `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). It drops first and builds the allowlist under that policy, so a failure or a re-run never leaves egress open. It admits HTTPS to the allowlist (npm, GitHub, Anthropic, VS Code), ssh only to GitHub's git ranges, DNS only to the resolvers in the container's `/etc/resolv.conf`, and the host subnet; self-tests at the end. |
+| `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). It drops first and builds the allowlist under that policy, so a failure or a re-run never leaves egress open. It admits HTTPS to the allowlist (npm, GitHub, Anthropic, VS Code), ssh only to GitHub's git ranges and DNS only to the resolvers in the container's `/etc/resolv.conf`, and no host port; self-tests at the end. |
 | `zshrc` | The shell setup, copied to `~/.zshrc`: Debian's zsh and fzf, history on the `/commandhistory` volume, and a prompt with the git branch. The build fetches no shell framework. |
 
 ---
+
+## What the firewall stops
+
+`init-firewall.sh` admits traffic by address and port. `tests/tooling/container-security-config.int.test.ts` runs the real script and fails when it admits any other rule.
+
+It stops:
+
+- a connection to an address off the allowlist, on any port;
+- a connection to the allowlisted addresses on a port other than 443, or 22 for GitHub's git ranges;
+- DNS to a resolver other than the ones `/etc/resolv.conf` names;
+- every connection to or from a host port;
+- IPv6, apart from loopback.
+
+It does not stop:
+
+- **A request to another site on a shared content network.** The allowlist holds addresses that content networks share across their customers. A connection to one of npm's Cloudflare addresses that names another Cloudflare site reaches that site.
+- **Data leaving inside DNS lookups.** The resolvers are recursive. A lookup of a name under an attacker's domain reaches that domain's server, with the data in the name.
+
+So the session credentials in `/home/node/.claude` are not protected from an agent steered by content it fetched: one `curl` or a few `dig` lookups carry them out, with no credential of the attacker's. A file the agent writes into the bind-mounted `/workspace` also runs on the host the next time the owner runs it there, outside the firewall. The owner ruled for no egress proxy and accepts both.
+
+## Host services
+
+The firewall admits no host port in either direction. The sandbox needs none: VS Code and the devcontainers CLI reach the container through `docker exec`, and DNS has its own rule.
+
+To reach one service the host runs, such as a model server, add one rule to step 7 of `init-firewall.sh` for its port on the bridge gateway (`ip route` shows it as the default route), then rebuild:
+
+```bash
+iptables -A OUTPUT -p tcp -d "$(ip route | awk '$1 == "default" {print $3}')" --dport <port> -j ACCEPT
+```
+
+The service must listen on all interfaces. Add the rule to the closed list in `tests/tooling/container-security-config.int.test.ts` in the same change.
 
 ## The pnpm store (why this is simpler than neo's)
 
