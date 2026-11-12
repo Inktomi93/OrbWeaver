@@ -273,18 +273,23 @@ async function applyRunOnEditRegex(
     return args.content;
   }
   const { chatId, hostUserId } = args;
-  const model: TurnMacroContextArgs["model"] = args.slot.model ?? "";
-  const characterIds = args.participants.flatMap((r) => {
-    const actor = classifyParticipant(r);
-    return actor?.kind === "character" ? [actor.characterId] : [];
-  });
-  const personaIds = args.editorPersonaId !== null ? [args.editorPersonaId] : [];
   // The consent set for the persona read — the editor is a member of this room, so their own persona (and a
   // member-owned anchor) resolve exactly as they do on a turn. `presentAndEnabledHumanUserIdsOf`, not the
   // presence-only `presentHumanUserIdsOf`: a runOnEdit re-apply must agree with the live turn
   // path on the enabled axis too, or a disabled member's persona could re-resolve on every future edit even
   // after generation started refusing it (the same silently-dead-pin bug class, edit-triggered).
   const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, args.participants);
+  // A disabled host stands as a departed one: a member's edit runs none of that host's scripts, and the gather
+  // below never embeds on that host's encoder.
+  if (!presentHumanUserIds.includes(hostUserId)) {
+    return args.content;
+  }
+  const model: TurnMacroContextArgs["model"] = args.slot.model ?? "";
+  const characterIds = args.participants.flatMap((r) => {
+    const actor = classifyParticipant(r);
+    return actor?.kind === "character" ? [actor.characterId] : [];
+  });
+  const personaIds = args.editorPersonaId !== null ? [args.editorPersonaId] : [];
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
