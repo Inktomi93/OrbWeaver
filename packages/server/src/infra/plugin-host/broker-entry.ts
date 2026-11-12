@@ -9,14 +9,31 @@
 // its watchdog does, when this thread's heartbeat stops, and the heartbeat timer runs whatever the Workers are doing.
 
 import { randomUUID } from "node:crypto";
+import { fstatSync, writeSync } from "node:fs";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
-import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS, PLUGIN_COMMAND_CPU_BUDGET_MS, PLUGIN_WORKER_OVERRUN_MAX_MS, PLUGIN_WORKER_SPAN_CHECK_MS } from "./budgets.ts";
-import type { BrokerBridgeResult, BrokerParentMessage, BrokerWorkerMessage, ParentBrokerMessage, WorkerBrokerMessage } from "./contract/process-protocol.ts";
+import {
+  PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
+  PLUGIN_COMMAND_CPU_BUDGET_MS,
+  PLUGIN_WORKER_OVERRUN_MAX_MS,
+  PLUGIN_WORKER_SPAN_CHECK_MS,
+  pluginIpcShareBytes,
+} from "./budgets.ts";
+import type {
+  BrokerBridgeResult,
+  BrokerParentMessage,
+  BrokerWorkerMessage,
+  ParentBrokerMessage,
+  PluginFrameRoute,
+  WorkerBrokerMessage,
+} from "./contract/process-protocol.ts";
 import { parsePluginBrokerArguments } from "./process-argv.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import {
+  channelFullBridgeResult,
+  channelFullResponse,
   encodeProcessValue,
+  PLUGIN_BROKER_BEAT_FD,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
@@ -43,26 +60,48 @@ const supervisorPid = process.ppid;
 function supervised(): boolean {
   return process.connected && process.ppid === supervisorPid;
 }
+// Beats go on their own pipe, never behind a frame: a large frame in the IPC queue would hold every beat sent after it
+// until it is read, and the watchdog would see a working broker as silent (D347). This thread still sends each beat,
+// so a hung main thread is silent on the pipe too. The pipe is written by descriptor, which the permission model
+// allows without a network grant, and synchronously: a beat never waits on a thread-pool callback, so a slow one
+// cannot hold the next beats back. A beat is a few hundred bytes and the pipe holds many seconds of them, so a write
+// blocks only once the watchdog has stopped reading for that long, which is the failure the watchdog exists to catch.
+function isBeatPipe(fd: number): boolean {
+  try {
+    const stat = fstatSync(fd);
+    return stat.isFIFO() || stat.isSocket();
+  } catch {
+    // A closed descriptor: no pipe.
+    return false;
+  }
+}
+// Started without its watchdog's beat pipe at that descriptor, the broker would write beats into whatever it is.
+if (!isBeatPipe(PLUGIN_BROKER_BEAT_FD)) {
+  throw new Error("plugin broker: refusing to run without its watchdog's heartbeat pipe");
+}
 const heartbeat = setInterval(() => {
-  // IPC can close after the connected check; the completion callback owns that teardown race.
   if (!process.connected) {
     return;
   }
-  process.send?.(
-    {
-      kind: "plugin-broker-memory",
-      sentAtMs: performance.now(),
-      rssBytes: process.memoryUsage.rss(),
-      peakPhysicalWorkers,
-      execArgv: process.execArgv,
-      nodeOptions: null,
-    },
-    (error) => {
-      if (error !== null) {
-        abandon();
-      }
-    },
-  );
+  const beat = {
+    kind: "plugin-broker-memory",
+    sentAtMs: performance.now(),
+    rssBytes: process.memoryUsage.rss(),
+    peakPhysicalWorkers,
+    execArgv: process.execArgv,
+    nodeOptions: null,
+  };
+  try {
+    writeSync(PLUGIN_BROKER_BEAT_FD, `${JSON.stringify(beat)}\n`);
+  } catch (error) {
+    // A closed beat pipe (EPIPE) means the watchdog is gone; an unsupervised broker serves nothing. Any other fault is a
+    // defect and stays loud.
+    if (error instanceof Error && Reflect.get(error, "code") === "EPIPE") {
+      abandon();
+      return;
+    }
+    throw error;
+  }
 }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
 heartbeat.unref();
 
@@ -92,11 +131,45 @@ const sender = new PluginIpcSender(
     process.send?.(message, callback);
   },
   () => abandon(),
+  pluginIpcShareBytes(workerMaximum),
 );
 function send(message: BrokerParentMessage): void {
   if (supervised()) {
     sender.send({ kind: "frame", generation, frame: serializeMessage(message) });
   }
+}
+
+// Queue a frame a plugin sized on its runtime's share. False when the channel refused it, or when it is larger than any
+// frame may be: the caller answers with the refusal in its place.
+function offer(message: BrokerParentMessage, route: PluginFrameRoute): boolean {
+  if (!supervised()) {
+    return true;
+  }
+  let frame: string;
+  try {
+    frame = serializeMessage(message);
+  } catch (error) {
+    // Only the frame cap throws a RangeError here; any other failure is a host defect and stays loud.
+    if (error instanceof RangeError) {
+      return false;
+    }
+    throw error;
+  }
+  return sender.offer({ kind: "frame", generation, frame, route });
+}
+
+// A command's answer, on its runtime's share; one that does not fit is answered with the channel-full refusal, which
+// the parent turns into a host-unavailable failure of that command alone.
+function answer(runtimeId: string, message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
+  const refused = channelFullResponse(message.id);
+  if (!offer(message, { runtimeId, refusal: { frame: serializeMessage(refused), back: false } })) {
+    send(refused);
+  }
+}
+
+// A Worker's call to the parent, on its runtime's share; one that does not fit is refused straight back to the Worker.
+function forwardBridge(runtimeId: string, message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): boolean {
+  return offer(message, { runtimeId, refusal: { frame: serializeMessage(channelFullBridgeResult(message.id)), back: true } });
 }
 
 function settleSync(target: Extract<PendingBridge, { readonly kind: "sync" }>, response: BrokerBridgeResult): void {
@@ -335,8 +408,7 @@ function handleWorkerMessage(runtimeId: string, runtime: Runtime, message: Worke
       terminateDetached(runtime.worker);
       return;
     }
-    pendingBridge.set(message.id, { kind: "async", runtimeId, worker: runtime.worker });
-    send({ kind: "bridge", id: message.id, runtimeId, authorityId: message.authorityId, operation: message.operation, args: message.args });
+    forwardAsyncBridge(runtimeId, runtime, message);
     return;
   }
   if (message.kind === "bridge-cancel") {
@@ -351,28 +423,12 @@ function handleWorkerMessage(runtimeId: string, runtime: Runtime, message: Worke
     return;
   }
   if (message.kind === "sync-bridge") {
-    const id = `${runtimeId}:sync:${randomUUID()}`;
-    const control = new Int32Array(message.control);
-    const result = new Uint8Array(message.result);
-    const timer = setTimeout(() => {
-      const target = pendingBridge.get(id);
-      if (target?.kind !== "sync") {
-        return;
-      }
-      pendingBridge.delete(id);
-      settleSync(target, {
-        kind: "bridge-result",
-        id,
-        ok: false,
-        error: { name: "PluginHostUnavailable", message: "plugin broker: synchronous parent call timed out" },
-      });
-    }, PLUGIN_BROKER_SYNC_TIMEOUT_MS - SYNC_TIMEOUT_MARGIN_MS);
-    pendingBridge.set(id, { kind: "sync", runtimeId, control, result, timer });
-    send({ kind: "bridge", id, runtimeId, authorityId: message.authorityId, operation: message.operation, args: message.args });
+    forwardSyncBridge(runtimeId, message);
     return;
   }
   if (message.kind === "log") {
-    send({ kind: "log", runtimeId, label: message.label, level: message.level, message: message.message });
+    // A log line that finds its runtime's share full is dropped: the plugin's own log ring still holds it.
+    offer({ kind: "log", runtimeId, label: message.label, level: message.level, message: message.message }, { runtimeId });
     return;
   }
   if (message.kind === "authority-released") {
@@ -380,6 +436,41 @@ function handleWorkerMessage(runtimeId: string, runtime: Runtime, message: Worke
     return;
   }
   handleWorkerCommandResponse(runtimeId, runtime, message);
+}
+
+function forwardAsyncBridge(runtimeId: string, runtime: Runtime, message: Extract<WorkerBrokerMessage, { readonly kind: "bridge" }>): void {
+  pendingBridge.set(message.id, { kind: "async", runtimeId, worker: runtime.worker });
+  if (
+    !forwardBridge(runtimeId, { kind: "bridge", id: message.id, runtimeId, authorityId: message.authorityId, operation: message.operation, args: message.args })
+  ) {
+    pendingBridge.delete(message.id);
+    runtime.worker.postMessage(channelFullBridgeResult(message.id) satisfies BrokerWorkerMessage);
+  }
+}
+
+function forwardSyncBridge(runtimeId: string, message: Extract<WorkerBrokerMessage, { readonly kind: "sync-bridge" }>): void {
+  const id = `${runtimeId}:sync:${randomUUID()}`;
+  const control = new Int32Array(message.control);
+  const result = new Uint8Array(message.result);
+  const timer = setTimeout(() => {
+    const target = pendingBridge.get(id);
+    if (target?.kind !== "sync") {
+      return;
+    }
+    pendingBridge.delete(id);
+    settleSync(target, {
+      kind: "bridge-result",
+      id,
+      ok: false,
+      error: { name: "PluginHostUnavailable", message: "plugin broker: synchronous parent call timed out" },
+    });
+  }, PLUGIN_BROKER_SYNC_TIMEOUT_MS - SYNC_TIMEOUT_MARGIN_MS);
+  const pending = { kind: "sync", runtimeId, control, result, timer } as const;
+  pendingBridge.set(id, pending);
+  if (!forwardBridge(runtimeId, { kind: "bridge", id, runtimeId, authorityId: message.authorityId, operation: message.operation, args: message.args })) {
+    pendingBridge.delete(id);
+    settleSync(pending, channelFullBridgeResult(id));
+  }
 }
 
 function handleWorkerCommandResponse(runtimeId: string, runtime: Runtime, message: Extract<WorkerBrokerMessage, { readonly kind: "response" }>): void {
@@ -397,12 +488,12 @@ function handleWorkerCommandResponse(runtimeId: string, runtime: Runtime, messag
     // termination has completed: the parent may reserve the returned slot immediately after this response.
     // the rejection arm sends an ok:false response carrying rpcError(error) to the parent, whose handleResponse rejects the command promise; success is not acknowledged before the physical Worker exits. Ends if that arm stops carrying the error.
     terminateRuntime(runtimeId).then(
-      () => send(message),
+      () => answer(runtimeId, message),
       (error: unknown) => send({ kind: "response", id: message.id, ok: false, error: rpcError(error) }),
     );
     return;
   }
-  send(message);
+  answer(runtimeId, message);
 }
 
 function activationSucceeded(value: unknown): boolean {

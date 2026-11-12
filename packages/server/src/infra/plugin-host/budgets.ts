@@ -12,7 +12,7 @@
 import type { PluginBudgets } from "@orb/contracts/plugin";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import type { PluginCommandOperation } from "./contract/process-protocol.ts";
-import { PLUGIN_BROKER_SYNC_TIMEOUT_MS } from "./process-protocol.ts";
+import { PLUGIN_BROKER_MESSAGE_MAX_BYTES, PLUGIN_BROKER_SYNC_TIMEOUT_MS } from "./process-protocol.ts";
 
 const BYTES_PER_MEBIBYTE = 1_048_576;
 const WASM_INITIAL_MEBIBYTES = 16;
@@ -285,6 +285,32 @@ export const PLUGIN_SNIPPET_LIMITS = { ...PLUGIN_RESIDENT_LIMITS, cpuDeadlineMs:
 /** How long after its synchronous run an invocation under these limits ends if it has not settled (D346). */
 export function settlementWallMs(limits: PluginBudgets): number {
   return limits.cpuDeadlineMs + limits.settleGraceMs;
+}
+
+// The largest frames one queue holds at once.
+const PLUGIN_IPC_QUEUE_FRAMES = 4;
+/** Bytes each inherited IPC channel holds queued and not yet written, on each of its four hops: broker to watchdog,
+ *  watchdog to app, app to watchdog and watchdog to broker (D348). */
+export const PLUGIN_IPC_QUEUE_MAX_BYTES = PLUGIN_IPC_QUEUE_FRAMES * PLUGIN_BROKER_MESSAGE_MAX_BYTES;
+
+/** The part of each queue only host control frames may fill: refusals, runtime notices, cancels and readiness. A
+ *  refused call owes one refusal frame of at most {@link PLUGIN_IPC_REFUSAL_MAX_BYTES}, and at most
+ *  {@link HOST_CALLS_IN_FLIGHT_MAX} calls per runtime are in flight, so every owed refusal fits. */
+export const PLUGIN_IPC_CONTROL_HEADROOM_BYTES = 1_048_576;
+
+/** The largest refusal frame a route may carry. */
+export const PLUGIN_IPC_REFUSAL_MAX_BYTES = 4096;
+
+// Capped host results a share holds at least: two full-size calls, each with room for the escaping its envelope adds,
+// fit a share however many runtimes divide the queue.
+const PLUGIN_IPC_SHARE_MIN_RESULTS = 4;
+const PLUGIN_IPC_SHARE_MIN_BYTES = PLUGIN_IPC_SHARE_MIN_RESULTS * HOST_FN_RESULT_CAP_BYTES;
+
+/** One plugin runtime's share of each queue: what the control headroom leaves, divided among the broker's Workers, so
+ *  no runtime's frames can take another's room (D348). Past the Worker count at which the floor binds, the shares
+ *  overlap and the queue's own bound still holds. */
+export function pluginIpcShareBytes(workerMaximum: number): number {
+  return Math.max(Math.floor((PLUGIN_IPC_QUEUE_MAX_BYTES - PLUGIN_IPC_CONTROL_HEADROOM_BYTES) / workerMaximum), PLUGIN_IPC_SHARE_MIN_BYTES);
 }
 
 // NOTE: the consecutive-crash auto-disable threshold is DOMAIN lifecycle policy, not a sandbox runtime
