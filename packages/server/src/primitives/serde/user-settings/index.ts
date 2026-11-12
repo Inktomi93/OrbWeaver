@@ -59,7 +59,7 @@ export function projectShareSafe(full: UserSettings): PortableUserSettings {
   return out as PortableUserSettings;
 }
 
-/** Type-safe single-namespace copy (a union-indexed `dst[ns] = src[ns]` is rejected by tsc). */
+/** Type-safe single-namespace copy (a union-indexed `dst[ns] = src[ns]` is rejected by tsc, (`pnpm typecheck`)). */
 function copyNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<Pick<PortableUserSettings, K>>, src: Pick<PortableUserSettings, K>, key: K): void {
   dst[key] = src[key];
 }

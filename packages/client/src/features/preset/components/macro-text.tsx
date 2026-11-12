@@ -15,9 +15,8 @@
 // distinct from the sentence around it. The bare form is unrecoverable — there is nothing to recover FROM.
 //
 // So the spelling is homed HERE, once, and both readers import it. A renderer is a sanctioned home for
-// macro DISPLAY (the tokenizer `scanMacroRuns` is explicitly not a resolver — see
-// the `orb/macro-resolution-home` restriction in eslint.config.js): this file chips a template AS a template and resolves
-// nothing.
+// macro DISPLAY (the tokenizer `scanMacroRuns` is explicitly not a resolver): this file chips a template AS a
+// template and resolves nothing.
 //
 // THE CHIP IS QUIET (crunch-list item 14, "THE BLUE PROBLEM"): the `soft` style, never the solid one. A macro
 // reference is a NOUN INSIDE A SENTENCE, and the surface's job here is to show what the model receives — a

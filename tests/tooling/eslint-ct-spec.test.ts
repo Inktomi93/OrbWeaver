@@ -1,4 +1,5 @@
-// Native ESLint guards story test ids, tRPC route order and shared poll schedules.
+// Native ESLint guards story test ids (`orb/testid-typed-only-stories`), tRPC route order
+// (`orb/route-trpc-lifo-order`) and shared poll schedules (`orb/ct-poll-intervals-shared`).
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";

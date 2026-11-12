@@ -1119,7 +1119,8 @@ test("the healthy twin produces no clipped-overflow finding — scroll panes, sr
 // screenshot caught them instantly: a cast NAME painted at 0px, and a rules badge whose own centre
 // hit-tests to the Start button 48px away. Both are BROWSER facts — `scrollWidth` against a collapsed
 // `clientWidth`, and `elementFromPoint` over real flex geometry — so this is the tier that can prove
-// them; the node suite pins the same families through the real CLI over file:// fixtures.
+// them; the node suite (tests/tooling/ui-audit/index.int.test.ts) pins the same families through the real CLI
+// over file:// fixtures.
 
 /** Every finding the REAL walker + the REAL checks produce for the mounted page. */
 async function findingsFor(page: Page): Promise<readonly Finding[]> {

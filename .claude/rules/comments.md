@@ -62,5 +62,25 @@ Exported API uses `/** */` TSDoc; a non-exported helper uses `//`. The `tsdoc/sy
 
 - `FLAG[<name>]` marks a deliberate design. Do not remove it.
 - Tracked debt is a `docs/work` item, not a comment marker. File it there and cite the item id or path.
-- A repo path in a comment, a doc or a test file, must name a tracked file; `tests/tooling/doc/comment-path-citations.repo.int.test.ts` checks it. Move or delete a cited file and repoint its citers in the same commit.
-- A comment that says a test, a lint rule or another check enforces something names it by tracked path or rule id. When no check exists, state the rule and claim none.
+
+## Cite grammar
+
+This section is the one home of the cite grammar for comments, `AGENTS.md`, `.claude/rules` and `docs/law`. `tooling/src/eslint/cites.ts` implements it. `tests/tooling/doc/comment-path-citations.repo.int.test.ts` resolves every cite under `packages`, `tooling`, `tests` and `scripts` and in those law files. Move, rename or delete a cited target and repoint its citers in the same commit.
+
+| Cite | Spelling | Resolves to |
+| - | - | - |
+| Repo path | a rooted path such as `packages/kit/src/ids/index.ts`, a path relative to the citing file, or a bare file name such as `Spine-Testing.md` | a tracked file |
+| Directory | a rooted path with its trailing slash, `tests/server/infra/plugin-host/` | a directory that holds a tracked file |
+| Decision | `D<n>` | an ADR file in `docs/adr`, or a number in the reserved window `docs/adr/README.md` states |
+| Script | `` `pnpm <script>` `` in backticks | a `package.json` script or a pnpm built-in |
+| Script name | `<family>:<name>`, such as `check:boot-chunk`, inside an enforcement claim | a script some workspace `package.json` declares |
+| Lint rule | `orb/<rule>`, `` `<plugin>/<rule>` `` or `` `lint/<group>/<rule>` `` | a rule the composed ESLint, stylelint or Biome configuration turns on for at least one file |
+| Dependency rule | `` policy `<name>` `` | a dependency-cruiser rule, including the extended preset's |
+| Checker name | a backticked kebab name or Biome `` `noX` `` inside an enforcement claim | a dependency-cruiser rule, a lint rule without its namespace, or a test file's stem |
+| Symbol | `{@link Name}` or `{@link Name.member}` | a name a declaration in the program carries, or a global |
+
+Quoted text is an example and cites nothing. A glob, a placeholder and a build output directory (`node_modules/`, `dist/`) cite nothing.
+
+## Enforcement claims
+
+A sentence that says a test, a CT, a suite, a lint rule, ESLint, Biome, stylelint, dependency-cruiser, knip, a ratchet, the typecheck or `tsc` holds, pins, refuses or catches a fact names that checker in the same sentence, by a cite above. The cite must point at one checker: a test file or directory, a rule, or a script that runs one check. A whole-suite command such as `pnpm test` and a source file that holds no checker point at none. `orb/enforcement-claim-cites-checker` refuses a claim that names none, and the cite test refuses a claim whose cite resolves to nothing. When no checker exists, state the rule and claim none; never drop the rule because nothing checks it. An instruction such as "a test must pin this" is not a claim. A claim about the test or rule the comment sits in ("this test", "the case below") names its own file.

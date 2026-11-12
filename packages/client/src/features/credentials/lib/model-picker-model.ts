@@ -59,9 +59,7 @@ export function pickerEntryOf(entry: ModelCatalogEntry): PickerEntry {
 }
 
 /** The render cap across ALL provider groups together — a large catalog is sliced so the list never mounts
- *  hundreds of rows.
- *  Test-anchored module surface; tests
- *  pin the cap by name (no magic number leaked). */
+ *  hundreds of rows. */
 const MODEL_PICKER_RENDER_CAP = 50;
 
 const MILLION = 1_000_000;

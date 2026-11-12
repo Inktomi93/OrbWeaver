@@ -1,6 +1,6 @@
 // Every DECISION `pnpm start` makes (tooling/src/stack/lib/start-plan.ts, through the tool front door):
 // the build decision, the single-user AUTH_FALLBACK fill, the spawn-plan reuse and the banner. The
-// platform-parameterised pnpm resolution is the platform module's, proven in tests/tooling/floor/host/.
+// platform-parameterised pnpm resolution is the platform module's, proven in tests/tooling/floor/host/platform.test.ts.
 //
 // WHY THIS IS THE PROOF AND NOT A LIVE DRIVE: booting the real thing binds the operator's :8788 (the same
 // refusal `tests/tooling/stack/index.test.ts` records for `stack up prod`), and the answers that matter

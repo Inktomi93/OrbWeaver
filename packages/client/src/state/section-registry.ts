@@ -100,7 +100,8 @@ interface SectionWithList {
   readonly useListHeader: () => ListPaneHeaderView;
   readonly selection: SectionSelection;
   /** The placeholder of the list's search field: the one home of the voice table's per-section placeholder, read by the section's own list
-   *  surface. It names what the list searches and ends in the ellipsis character; a node test asserts every section's differs. */
+   *  surface. It names what the list searches and ends in the ellipsis character; a node test asserts every section's differs
+   *  (`tests/client/state/registry-definitions.dom.test.ts`). */
   readonly listSearchPlaceholder: `${string}…`;
   /** The phone's existing list door names its destination when the section has a more precise noun. */
   readonly listDoorLabel?: {

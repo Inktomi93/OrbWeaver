@@ -6,7 +6,7 @@
 // `resetsAt` are epoch SECONDS; our own timestamps are ms; imported corpora are a zoo of formats.
 //
 // The zone/calendar math is the PLATFORM `Temporal` API (node ≥26 ships it enabled by default; the
-// browser arm is chromium ≥144 — probe-verified in the CT chromium 149 before this port landed). It
+// browser arm is chromium ≥144). It
 // replaced luxon here; the port is pinned by a differential corpus (63 of 70 inputs
 // byte-identical, every DST/calendar edge among them) whose deliberate deltas are stated on the two
 // parsers below. luxon SURVIVES in `macro/registry.ts` alone, where `{{datetimeformat::FORMAT}}`
@@ -219,7 +219,7 @@ export const reportedTimeZoneSchema: z.ZodType<IanaTimeZone, string> = z.string(
 export type Clock = () => number;
 
 /** Injectable formatter config — production omits everything (browser locale/tz, real clock);
- *  tests pin all three for deterministic output across ICU builds. */
+ *  tests supply all three for deterministic output across ICU builds. */
 export interface TimeLibConfig {
   readonly now?: Clock;
   readonly locale?: string;

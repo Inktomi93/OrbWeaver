@@ -37,7 +37,7 @@ import { hasVisibleDuration, installFrameDropFlagger, isExternalDevtoolsElement,
 import { installDeadClassFlagger } from "./motion-dead-class-flagger.ts";
 import { surfaceLabelOf } from "./motion-stats.ts";
 
-/** The pack's budgets — ONE table, so a console verdict and the CT that asserts it can never disagree.
+/** The pack's budgets — ONE table, so a console verdict and any reader of it can never disagree.
  *  Every number is a rendered-behaviour threshold, not a style preference; each states what it means. */
 export const MOTION_BUDGETS = {
   /** A rendered frame over this DURING an animation is a visible stutter: \>3 frame intervals at 60Hz. */

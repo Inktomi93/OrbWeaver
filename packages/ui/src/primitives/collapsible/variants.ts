@@ -33,8 +33,8 @@ export const collapsibleVariants = tv({
     // no hit expansion because `::after` resolves `content: none` here). It pins the pointer-conditional
     // `--size-control-sm` floor (44px coarse / 32px fine), the same token every other tap-floor control
     // rides. `text` (the renamed `inline` arm) is the OPT-OUT for a disclosure sitting in running content,
-    // where a control box would shear it off the copy it belongs to — and every `size="text"` mount owes a
-    // reasoned home on the `orb/sub-floor-disclosure` row of eslint.config.js. It is a
+    // where a control box would shear it off the copy it belongs to — and every `size="text"` mount owes its
+    // reason at the call site. It is a
     // VARIANT and not a call-site `min-h-*` because tailwind-merge cannot classify custom-token utilities,
     // so an override would win or lose by stylesheet order.
     size: {

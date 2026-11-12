@@ -200,17 +200,37 @@ export function SurfaceTextContainedOverlayStory(): ReactElement {
 }
 
 /**
- * A cell whose corner control lies over the cell's own control, and a second cell below it. `declared` declares the corner
- * as a designed overlay; `none` is the same layout with no declaration; `foreign` drops the declared corner onto the next
- * cell's control as well, which the declaration does not cover.
+ * A cell whose corner control lies over the cell's own control, and a second cell below it. `over` declares the corner box,
+ * `under` declares the box holding the covered cell: with the corner's relation (`same`), with another relation (`other`),
+ * or not at all. `layout` places the corner: over the cell (`corner`), also onto the next cell outside the pair's parent
+ * (`foreign`), with a second corner control over the first inside the one corner box (`twin`), or with a second corner control
+ * over a plain control of the same parent that no box declares (`uncovered`).
  */
-export function SurfaceDeclaredOverlayStory({ declare }: { readonly declare: "declared" | "none" | "foreign" }): ReactElement {
+export function SurfaceDeclaredOverlayStory({
+  over,
+  under,
+  layout,
+}: {
+  readonly over: boolean;
+  readonly under: "same" | "other" | "none";
+  readonly layout: "corner" | "foreign" | "twin" | "uncovered";
+}): ReactElement {
   const control = `var(${TOKENS["size.control-md"].cssVar})`;
-  const corner = {
-    position: "absolute",
-    insetInlineEnd: `calc(0.25 * ${control})`,
-    insetBlockEnd: declare === "foreign" ? `calc(-0.25 * ${control})` : `calc(0.25 * ${control})`,
-  } as const;
+  const cell = { blockSize: `calc(3 * ${control})` };
+  const corner =
+    layout === "uncovered"
+      ? ({
+          position: "absolute",
+          insetInlineEnd: `calc(0.25 * ${control})`,
+          insetBlockStart: `calc(1 * ${control})`,
+          gap: `calc(3 * ${control})`,
+        } as const)
+      : ({
+          position: "absolute",
+          insetInlineEnd: `calc(0.25 * ${control})`,
+          insetBlockEnd: layout === "foreign" ? `calc(-0.25 * ${control})` : `calc(0.25 * ${control})`,
+        } as const);
+  const underDeclaration = { same: declaresOverlay("theme-menu-over-cell"), other: declaresOverlay("row-actions-over-body"), none: {} }[under];
   return (
     <CtIsolation subject="Enlarged-text declared overlay" isolates="Two production cells, one with a corner control over it, need no application services.">
       <main>
@@ -218,13 +238,33 @@ export function SurfaceDeclaredOverlayStory({ declare }: { readonly declare: "de
           <h1>Declared overlay control</h1>
           <Stack>
             <Stack style={{ position: "relative" }}>
-              <Button variant="outline" style={{ blockSize: `calc(3 * ${control})` }}>
-                Covered cell
-              </Button>
-              <Stack style={corner} {...(declare === "none" ? {} : declaresOverlay("theme-menu-over-cell"))}>
+              <Stack {...underDeclaration}>
+                <Button variant="outline" style={cell}>
+                  Covered cell
+                </Button>
+              </Stack>
+              {layout === "uncovered" ? (
+                <Button variant="outline" style={cell}>
+                  Plain cell
+                </Button>
+              ) : null}
+              <Stack style={corner} {...(over ? declaresOverlay("theme-menu-over-cell") : {})}>
                 <GlyphButton aria-label="Corner control" glyph="sm" variant="ghost">
                   <Icon icon={Plus} size="sm" />
                 </GlyphButton>
+                {layout === "uncovered" ? (
+                  <GlyphButton aria-label="Second corner control" glyph="sm" variant="ghost">
+                    <Icon icon={Plus} size="sm" />
+                  </GlyphButton>
+                ) : null}
+                {layout === "twin" ? (
+                  // Up and toward the start, so the twin stays over the covered cell and off the next one.
+                  <Stack style={{ position: "absolute", insetBlockStart: "-60%", insetInlineStart: "-60%" }}>
+                    <GlyphButton aria-label="Twin control" glyph="sm" variant="ghost">
+                      <Icon icon={Plus} size="sm" />
+                    </GlyphButton>
+                  </Stack>
+                ) : null}
               </Stack>
             </Stack>
             <Button variant="outline" style={{ blockSize: `calc(3 * ${control})` }}>

@@ -12,7 +12,7 @@
 //
 // WHY THIS IS A PACKAGE AND NOT A SERVER DIRECTORY (D160, owner ruling 2026-09-02, verbatim: "if dockerfile
 // which we don't even use yet is moving default assets around that's a nah from me dog — that's crunchy and
-// fragile"). These two families used to live at `packages/server/src/entry/boot/seed-assets/` precisely
+// fragile"). These two families stay out of the server's boot tree precisely
 // because that tree is the one a container image copies — default content load-bearing on an image build
 // step, invisible to the toolchain and silently divergent per environment. As a workspace package the server
 // DECLARES (`@orb/server`'s `dependencies`), dev, bare metal and any future container resolve it identically

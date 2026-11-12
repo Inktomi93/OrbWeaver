@@ -688,8 +688,7 @@ export interface RpgContext {
   readonly runPopulateExtraction: RpgRunPopulateExtraction;
   /** The feature-root rpg-bus emit (the injected `EmitRpgEvent` op — wired at compose to `publishRpgEvent`,
    *  `domain/rpg/bus.ts`). A verb/flush calls it AFTER its durable write commits (§4.9); fire-and-forget
-   *  (`void`) — LIVE-ONLY, a dropped tick is healed by the client's reconnect blanket invalidate. A fake
-   *  recorder in tests asserts the emit fired. */
+   *  (`void`) — LIVE-ONLY, a dropped tick is healed by the client's reconnect blanket invalidate. */
   readonly emitBus: EmitRpgEvent;
   /** A uniform int in `[0, max)` — the dice CSPRNG (injected: `crypto.randomInt` at compose, a seeded fake in
    *  tests). Bake-once; the roll is server-authoritative, a client-supplied seed is never honored (§4.4). */

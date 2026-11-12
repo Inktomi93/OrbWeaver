@@ -34,7 +34,7 @@ type HistoryPart = ChatHistoryMessage["content"][number];
  *
  * A MAPPED RECORD, not a switch (§5.5 admits both, and only one of them lints): a `switch` over a value typed
  * `Exclude<HistoryPart, {type:"text"}>` makes biome's type service call EVERY case unreachable
- * (`lint/suspicious/noUnnecessaryConditions` — the computed-type sibling of the cross-module-union and
+ * (`noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`) — the computed-type sibling of the cross-module-union and
  * intersection cases). The Record keeps the enforcement identical: a new content-part member is a missing
  * property here and fails `tsc`.
  */

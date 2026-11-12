@@ -30,7 +30,7 @@ const MIN_ROUTE_SEGMENTS = 2;
 const ENV_EXPORT = /(?:_ENV|_KEY)S?$/u;
 const ENV_VALUE = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$/u;
 
-/** What an extended entry is. A label-kind entry is located by a spec; the others are values a test asserts or sends. */
+/** What an extended entry is. A label-kind entry is located by a spec; the others are values that test code asserts or sends. */
 const EXTENDED_KINDS = ["function", "copy", "code", "route", "env"] as const;
 type ExtendedKind = (typeof EXTENDED_KINDS)[number];
 

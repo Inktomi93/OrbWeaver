@@ -60,7 +60,7 @@ function walk(path: string, accept: (path: string) => boolean, into: SourceEntry
 
 /** Every accepted file under `roots` (files or directories), NEWEST FIRST. `accept` defaults to everything.
  *  Missing paths contribute nothing; unreadable paths throw because omission can fabricate a fresh verdict.
- * @public Test-anchored module surface; focused tests pin this production-local behavior. */
+ * @public Test-anchored module surface; focused tests pin this production-local behavior (tests/tooling/stack/lib/source-scan.test.ts). */
 export function newestSourceEntries(
   roots: readonly string[],
   accept: (path: string) => boolean = () => true,

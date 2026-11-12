@@ -134,11 +134,14 @@ export function buildFormCohort(all: readonly FileFacts[], factories: ReadonlyMa
       },
       keptSites: {
         fit: {
-          "packages/client/src/components/tag-editor-body.tsx":
-            "the Cancel belongs to the inline merge confirmation, a step inside the autosave editor that counts as its confirm (client-architecture-state-and-gates.md §14, Destructive confirms)",
-          [BLOCKED_PROVIDER]: BLOCKED_PROVIDER_RULING,
+          "packages/client/src/components/tag-editor-body.tsx": {
+            value: "autosave says Cancel",
+            reason:
+              "the Cancel belongs to the inline merge confirmation, a step inside the autosave editor that counts as its confirm (client-architecture-state-and-gates.md §14, Destructive confirms)",
+          },
+          [BLOCKED_PROVIDER]: { value: "explicit says Close/Done/Back", reason: BLOCKED_PROVIDER_RULING },
         },
-        dismiss: { [BLOCKED_PROVIDER]: BLOCKED_PROVIDER_RULING },
+        dismiss: { [BLOCKED_PROVIDER]: { value: "Close", reason: BLOCKED_PROVIDER_RULING } },
       },
       basis: { mode: "heuristic", submit: "measured", dismiss: "measured", fit: "heuristic" },
       members,

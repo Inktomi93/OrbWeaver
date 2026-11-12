@@ -387,16 +387,24 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
       },
       keptSites: {
         empty: {
-          "packages/client/src/features/config/surfaces/config-list-surface.tsx":
-            "the Settings map renders every registered group, populated or not, so it has no empty arm (config-list-surface.tsx header)",
+          "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
+            value: "none",
+            reason: "the Settings map renders every registered group, populated or not, so it has no empty arm (config-list-surface.tsx header)",
+          },
         },
         focus: {
-          "packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx":
-            "arrival lands on the omnibox, because the search is the surface (corpus-list-surface.tsx `CorpusListSurface` focus ruling)",
-          "packages/client/src/features/config/surfaces/config-list-surface.tsx":
-            "arrival lands on the active group's band, the map that owns the section's arrival (config-list-surface.tsx focus ruling)",
-          "packages/client/src/features/tag/surfaces/labels-list-surface.tsx":
-            "the Labels finder owns phone arrival and the visible library owns desktop arrival (labels-list-surface.tsx header)",
+          "packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx": {
+            value: "useFocusOnMount",
+            reason: "arrival lands on the omnibox, because the search is the surface (corpus-list-surface.tsx `CorpusListSurface` focus ruling)",
+          },
+          "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
+            value: "useFocusOnMount",
+            reason: "arrival lands on the active group's band, the map that owns the section's arrival (config-list-surface.tsx focus ruling)",
+          },
+          "packages/client/src/features/tag/surfaces/labels-list-surface.tsx": {
+            value: "useFocusOnMount",
+            reason: "the Labels finder owns phone arrival and the visible library owns desktop arrival (labels-list-surface.tsx header)",
+          },
         },
       },
       members: lists.map((facts) => listPane(facts, byPath)),

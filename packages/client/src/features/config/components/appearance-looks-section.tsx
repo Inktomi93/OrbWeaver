@@ -275,6 +275,7 @@ function LooksBody(): ReactElement {
                         ref={rowFocus.bodyRef(theme.id)}
                         {...(isActive(theme) ? { meta: "current" } : {})}
                         value={theme.id}
+                        {...declaresOverlay("theme-menu-over-cell")}
                       />
                       <ThemePreviewPane
                         placed="cornerStart"

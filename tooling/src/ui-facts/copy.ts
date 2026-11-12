@@ -453,7 +453,10 @@ function rulingsOf(kind: string): Pick<Cohort, "columns" | "info" | "defects" | 
     },
     kept: cased ? { case: { [COUNT_FIRST]: `a count leads its noun, and the noun after a number is lower case (${VOICE})` } } : {},
     ...(kind === CHIP_KIND
-      ? { basis: { wire: "heuristic" as const, [RAW_WIRE]: "measured" as const }, keptSites: { wire: { [TAXONOMY_CHIP]: TAXONOMY_RULING } } }
+      ? {
+          basis: { wire: "heuristic" as const, [RAW_WIRE]: "measured" as const },
+          keptSites: { wire: { [TAXONOMY_CHIP]: { value: "bare", reason: TAXONOMY_RULING } } },
+        }
       : {}),
   };
 }

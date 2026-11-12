@@ -451,8 +451,7 @@ function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | 
  *
  *  IT MIRRORS {@link loadChatMessageStats}'S PREDICATE EXACTLY, selected-variant join included: that read is
  *  where `ChatSummaryData.lastMessageAt` comes from, so any divergence would sort a list by a number no row in it
- *  shows. The verb-level test that pins `items` non-increasing in `lastMessageAt ?? updatedAt` is the
- *  enforcer of that agreement. */
+ *  shows: `items` must stay non-increasing in `lastMessageAt ?? updatedAt`. */
 function chatRecencySql(db: Db): SQL<number> {
   return chatRecencyExpr(db);
 }

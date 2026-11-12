@@ -88,7 +88,7 @@ const OVERLONG_NAME_LENGTH = 10_000;
 const [UNREADABLE, INVALID] = CARD_REFUSAL_CODES;
 const SCRIPTED_SERVER_SENTENCE = "SQLITE_CONSTRAINT: scripted storage refusal";
 // A character the storage edge refuses is a database fault, which a component spec cannot plant, so that one answer is the
-// test's own; the server's own `failed` answer is proved in the import-card-failures integration test.
+// test's own; the server's own `failed` answer is proved in tests/server/entry/http/import-card-failures.int.test.ts.
 const STORAGE_REFUSED_ANSWER = {
   imported: [],
   failed: [{ filename: "keeper.json", reason: "failed", error: SCRIPTED_SERVER_SENTENCE }],

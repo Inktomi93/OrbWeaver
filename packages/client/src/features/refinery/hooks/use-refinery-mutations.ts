@@ -8,8 +8,7 @@
 // that wrote and NOTHING else, so at `staleTime: Infinity` a second tab or device sat on the pre-write
 // list/session/ledger forever. Every persisting refinery verb now emits the `refineryChanged` user-bus
 // member (contracts `user-bus`), the seam maps it to `trpc.refinery` + `trpc.character.get`
-// (`data/invalidation.ts`), and the STATIC rows were deleted in the same commit (the ratchet REDs a cited key
-// that gains a row). So every write below is `busDriven: true` — the compile-time XOR in
+// (`data/invalidation.ts`), and these verbs have no STATIC rows there. So every write below is `busDriven: true` — the compile-time XOR in
 // `data/create-entity-mutation.ts` forbids carrying both, and doing both is the double-invalidate storm.
 //
 // WHAT THE SEAM ROW COVERS, so nothing here has to re-spell it:

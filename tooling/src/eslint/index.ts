@@ -7,6 +7,7 @@ import { confirmedActionMintRule } from "./confirmed-action-mint.ts";
 import type { CustomPropertyUses } from "./css/custom-properties.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
 import { destructiveNeedsConfirmRule } from "./destructive-confirm.ts";
+import { enforcementClaimRule } from "./enforcement-claim.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
@@ -334,6 +335,7 @@ export function createOrbPlugin(options: {
       "detached-work-traced": detachedWorkRule,
       "no-blind-catch": blindCatchRule,
       "commented-code": commentedCodeRule,
+      "enforcement-claim-cites-checker": enforcementClaimRule,
       "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
       "browser-no-node-globals": browserNoNodeGlobalsRule(options.browserNodeGlobals),
       "browser-support": browserSupportRule({

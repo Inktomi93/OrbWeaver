@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P1
 area: tooling
 ---
@@ -14,7 +14,7 @@ A plain whole-tree pnpm lint:eslint run exhausts its heap on main: it was reprod
 
 ## Why
 
-If the single-process run exceeds the default heap on a contributor box or a CI runner, pre-push and CI fail with no lint verdict.
+If pre-push cannot finish its lint step, nothing can be pushed with a verdict. Measured on main with the default heap, as the parts CI runs: packages peaks near fifteen gigabytes, tests near eleven, tooling and the root remainder under five each, so the packages part is already close to the memory bar for one run. The boxed script took far more than the bar in whole-tree runs beside other work and had its processes killed by the host's memory guard.
 
 ## Done when
 

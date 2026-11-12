@@ -81,7 +81,7 @@ export type ChatContentPart =
 //  `settings_adjusted` carrier, which needs its payload. Its own tuple rather than an
 //  `Exclude<ChatWarningCode, …>` for a measured reason: biome's type service does not evaluate a conditional
 //  type, so an `Exclude`-typed field makes it call every arm of the client's copy switch unreachable
-//  (`lint/suspicious/noUnnecessaryConditions`) while `tsc` is fine — the cross-module-union family. A tuple
+//  (`noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`)) while `tsc` is fine — the cross-module-union family. A tuple
 //  it can read keeps the switch legible to BOTH checkers.
 /** A committed reply holds a hidden tag so broken that members lose the rest of the body (D285). HOST-ONLY: unlike every
  *  other warning it is about content a member may not reason about, so `stripChatEventForMember` withholds it. */
@@ -234,7 +234,7 @@ type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
  *  DECLARED, not derived, and the two arms below are spelled a second time on the bus union — deliberately,
  *  against this repo's own no-doubling instinct, because BOTH readers have a hard constraint:
  *    • biome's type service cannot see through a distributive-conditional `Omit` of the bus union: every
- *      `case` of the client's copy switch reads `lint/suspicious/noUnnecessaryConditions` "unreachable"
+ *      `case` of the client's copy switch reads `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`) "unreachable"
  *      while tsc is fine (the cross-module-union family — declare the type, never re-derive it).
  *    • the bus union must stay a set of PLAIN OBJECT LITERALS: `index.test-d.ts` walks its members' keys
  *      with a mapped type, and an intersection or a conditional arm hides keys from that walk (a false

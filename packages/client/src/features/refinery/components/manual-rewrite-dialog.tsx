@@ -52,7 +52,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
   // popup's `onOpenChange`. Watching `open` itself catches every way this dialog can shut. The reset runs
   // DURING RENDER (React's derive-from-a-prop idiom, `create-autosave-entity-form.tsx` is the house
   // precedent) rather than in an effect: an effect would commit one render with the stale drafts and the
-  // compiler lint refuses a synchronous setState there.
+  // compiler lint refuses a synchronous setState there (`react-hooks/set-state-in-effect`).
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
     setPrevOpen(open);

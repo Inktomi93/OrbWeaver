@@ -215,8 +215,7 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
   // announced "Connections Not built yet" as two words. The modified arm needed the stated name because
   // its marker was a `Text as="span"` — a genuinely INLINE box, which the accessible-name computation
   // concatenates with nothing between; a `Badge` is `inline-flex`, so the computation inserts the space
-  // itself. Nothing is stated here, and the placeholder CT pins the two-word name so the next edit to this
-  // marker's box cannot silently weld it.
+  // itself. Nothing is stated here; keep the marker's box inline-flex or the two words weld.
   //
   // A group with NO rows is a nav LEAF, so its gutter is `reserved` and it states no `aria-expanded` — the
   // two halves are one statement (`BandProps.chevron`'s doc). Two steps rather than a nested ternary.

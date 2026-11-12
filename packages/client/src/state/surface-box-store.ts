@@ -17,8 +17,7 @@
 // (home-tile.tsx §3.7) and fall back to a fixed 3-row skeleton. When the reads land, the full-span
 // "Recent chats" tile grows out of that skeleton and pushes every tile below it DOWN the grid — measured
 // +189px on the landing, boot CLS 0.0913 at 1440x900 on a 6-chat dev DB (the side-eye's fuller DB read
-// 0.24). The shift is NOT the shell grid (its tracks resolve synchronously at first commit — see the
-// app-shell CT pin); it is the tile bodies changing size after first paint.
+// 0.24). The shift is NOT the shell grid (its tracks resolve synchronously at first commit); it is the tile bodies changing size after first paint.
 //
 // The box a tile settles at is DATA-dependent (N recents, N quick-picks), so it cannot be spelled as a
 // static reservation without either lying about the box or padding every short tile with dead space. The

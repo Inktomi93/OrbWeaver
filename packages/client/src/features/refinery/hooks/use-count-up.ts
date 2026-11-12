@@ -47,8 +47,7 @@ function easeOut(t: number): number {
 
 /** Decimal places in the TARGET, so the ramp lands on the target's own precision. Load-bearing: refinery
  *  scores are fractional (`overallScore: 7.5`), and rounding every frame to an integer would have made
- *  the count settle on **8** — the animation silently changing the number it animates to. Caught by the
- *  existing payload-view CT's `7.5/10` assertion; capped so a float artefact (0.30000000000000004) can
+ *  the count settle on **8** — the animation silently changing the number it animates to. Capped so a float artefact (0.30000000000000004) can
  *  never ask for 17 digits. */
 const MAX_RAMP_DECIMALS = 2;
 function decimalsOf(value: number): number {
@@ -110,8 +109,8 @@ export function useCountUp(target: number | null, arrived = false): number {
       // CLAMPED AT BOTH ENDS. A rAF callback's timestamp is the FRAME's start, which can be EARLIER
       // than the `performance.now()` read while scheduling it — so `now - start` goes negative, and a
       // one-sided `Math.min` let `easeOut` return a negative factor. Measured: a 4 → 7.5 re-run painted
-      // **3.8** on its first frame, i.e. the figure flicked BACKWARDS before counting up. Caught by the
-      // re-run CT's frame trace; it reproduced roughly one run in six, which is exactly how long it
+      // **3.8** on its first frame, i.e. the figure flicked BACKWARDS before counting up. It
+      // reproduced roughly one run in six, which is exactly how long it
       // would have survived on a real machine.
       const t = Math.min(1, Math.max(0, (now - start) / COUNT_UP_MS));
       // The final frame sets the TARGET itself, never a quantized approximation of it — the printed
