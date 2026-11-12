@@ -6,7 +6,8 @@ import { z } from "zod";
 
 // A version-keyed patch has to be ported before its package moves, and an unported patch fails installation, so
 // every patched package must be ignored by each npm update entry that updates the workspace lockfile (directory `/`).
-// An entry for another directory, such as the dev container's own lockfile, takes no workspace patches.
+// An entry for another directory, such as the dev container's own lockfile, takes no workspace patches. A rule narrowed
+// by `update-types` or `versions` still lets the other updates through, so only an unnarrowed rule holds a patch.
 const workspaceSchema = z.object({ patchedDependencies: z.record(z.string(), z.string()) });
 const dependabotSchema = z.object({
   updates: z.array(
@@ -14,7 +15,11 @@ const dependabotSchema = z.object({
       ["package-ecosystem"]: z.string(),
       directory: z.string().optional(),
       directories: z.array(z.string()).optional(),
-      ignore: z.array(z.object({ ["dependency-name"]: z.string() }).loose()).optional(),
+      ignore: z
+        .array(
+          z.object({ ["dependency-name"]: z.string(), ["update-types"]: z.array(z.string()).optional(), versions: z.array(z.string()).optional() }).loose(),
+        )
+        .optional(),
     }),
   ),
 });
@@ -48,7 +53,7 @@ test("every patched dependency is ignored by every npm update entry for the work
     expect(
       uncovered(
         names,
-        (entry.ignore ?? []).map((rule) => rule["dependency-name"]),
+        (entry.ignore ?? []).filter((rule) => rule["update-types"] === undefined && rule.versions === undefined).map((rule) => rule["dependency-name"]),
       ),
     ).toEqual([]);
   }

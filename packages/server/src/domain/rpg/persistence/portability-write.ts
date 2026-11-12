@@ -32,7 +32,9 @@ import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { asc, eq, inArray } from "drizzle-orm";
+import { RpgStateCorruptError } from "../contract/errors.ts";
 import type { RpgPortabilityContext } from "../contract/portability.ts";
 import { bookmarkArmKeys } from "./snapshots.ts";
 
@@ -88,7 +90,13 @@ export function createExportRpgGame(input: DbAssemblyInput<Pick<RpgPortabilityCo
       sessionNumber: game.sessionNumber,
       config: rpgGameConfigSchema.parse(game.config),
       createdAt: game.createdAt,
-      sheets: sheetRows.map((row): RpgPortableSheet => ({ characterId: row.characterId, sheet: rpgSheetSchema.parse(row.sheet) })),
+      sheets: sheetRows.map((row): RpgPortableSheet => {
+        // Tested before the schema, which defaults every field and would export the marker as an empty sheet.
+        if (row.sheet instanceof UnreadableJsonText) {
+          throw new RpgStateCorruptError("rpg_sheets", row.id, "sheet: the stored text is not JSON");
+        }
+        return { characterId: row.characterId, sheet: rpgSheetSchema.parse(row.sheet) };
+      }),
       snapshots: snapshotRows.map(
         (row): RpgPortableSnapshot => ({
           messageId: row.messageId,

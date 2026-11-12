@@ -107,7 +107,8 @@ export { seedCreatedTag } from "./factories/tag.ts";
 export { createQueueScanner, seedWorkloadSchedule } from "./factories/workload.ts";
 export type { PhysicalPeer, PhysicalPeerFetch } from "./physical-peer.ts";
 export { servePhysicalPeer } from "./physical-peer.ts";
-export { exportLibrary, imageProvider, restoreBundle, SIGNED_IN_ROUTE, signedInBox, WORKLOAD_DEADLINE_MS } from "./portability-box.ts";
+export type { LibraryExport } from "./portability-box.ts";
+export { exportLibrary, imageProvider, readLibraryExport, restoreBundle, SIGNED_IN_ROUTE, signedInBox, WORKLOAD_DEADLINE_MS } from "./portability-box.ts";
 export { connectDevice, isOnline } from "./presence.ts";
 export type {
   NativeServerHarnessOptions,

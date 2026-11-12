@@ -53,6 +53,7 @@ import type {
   PortableSeatCard,
 } from "#primitives/serde/chat-bundle";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
+import { identityOnlyExportNote } from "#primitives/stored-config";
 import type { ExportChatBundleParams, SeatCardIdentity } from "../contract/params.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 import { slug } from "../substrate/download-slug.ts";
@@ -101,7 +102,7 @@ async function loadSeatCards(args: {
   for (const [characterId, handle] of handleById) {
     let identity = cache.get(characterId);
     if (identity === undefined) {
-      const card = await exportCharacter({ principal: params.principal, characterId });
+      const card = await exportCharacter({ principal: params.principal, characterId, note: identityOnlyExportNote });
       identity = card === null ? null : await ctx.cardPngIdentity(card.bytes);
       cache.set(characterId, identity);
     }

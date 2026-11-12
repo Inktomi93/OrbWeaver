@@ -3,7 +3,7 @@
 import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { Principal } from "#identity";
 import type { PersonaCollisionChoices } from "#import";
-import type { PortableFile } from "#portability";
+import type { PortableExportNotes, PortableFile } from "#portability";
 import type { BulkImportPersonaInput, BulkImportPersonasResult, JoinerPersona, PersonaDetail } from "./schemas.ts";
 
 /** Capture a persona's room seats before its delete; the thunk re-seats exactly those seats with the persona it is handed. */
@@ -37,6 +37,8 @@ interface ListPersonasParams {
 interface ExportPersonaParams {
   readonly principal: Principal;
   readonly personaId: PersonaId;
+  /** Where stored metadata the export cannot carry is reported; the persona is written without it. */
+  readonly note: PortableExportNotes;
 }
 
 /** The FILE is the unit (the thin-arm law): the single-entity door and the bundle descriptor hand the same

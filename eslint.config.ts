@@ -1885,7 +1885,8 @@ const RAW_STORAGE_HOMES = homes(
   "packages/client/src/lib/probe-mode.ts",
   "packages/client/src/main.tsx",
 );
-// The read-only DB probes Tier-2-Foundation.md names: they read @orb/db down, with no port.
+// The DB probes Tier-2-Foundation.md names: they read @orb/db down, with no port. Each takes ReadOnlyDb, so a write
+// from a probe fails the typecheck (tests/server/foundation/observability/debug/inspect/read-only-probes.test-d.ts).
 const DEBUG_DB_PROBES = "packages/server/src/foundation/observability/debug/inspect/**";
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [

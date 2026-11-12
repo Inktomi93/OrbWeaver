@@ -8,6 +8,7 @@ import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq, inArray } from "drizzle-orm";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
+import { failOnExportNote } from "./export-notes.ts";
 import { seedImageryGenerationsRows, seedNativeImageryImportClaimRows } from "./factories/rows/imagery.ts";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -69,7 +70,7 @@ export async function seedCorpusImagery(root: ServerTestHarness, foreignUserId: 
     throw new Error("native imagery corpus produced no portability descriptor or call identity");
   }
   let file: PortableFile | undefined;
-  for await (const candidate of descriptor.exportAll(root.ownerId)) {
+  for await (const candidate of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     const parsed = portableImageryCallSchema.loose().parse(JSON.parse(new TextDecoder().decode(candidate.bytes)));
     if (parsed.execution.sourceCallId === callId) {
       file = candidate;

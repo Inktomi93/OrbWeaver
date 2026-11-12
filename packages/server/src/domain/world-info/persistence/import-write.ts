@@ -46,6 +46,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { nextFreeLabel } from "@orb/kit/strings";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "#primitives/serde/world-info";
@@ -172,7 +173,8 @@ export async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<D
       enabled: e.enabled,
       priority: e.priority,
       ignoreBudget: e.ignoreBudget,
-      metadata: e.metadata,
+      // Stored metadata that is not JSON compares as none, as the entry view reads it.
+      metadata: e.metadata instanceof UnreadableJsonText ? null : e.metadata,
     });
     byBook.set(e.worldBookId, list);
   }

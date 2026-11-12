@@ -629,6 +629,11 @@ const SERVER_TEST_REACHES = {
   "tests/server/domain/assets/persistence/materialization-boundaries.int.test.ts": {
     "domain/chat": "CHAT_OP_CODES: the refusal the settings background materialization raises through the chat-owned code table",
   },
+  // The seeded-background rewrite runs the card and room halves the composition root injects beside settings' own.
+  "tests/server/domain/settings/persistence/unreadable-settings-rewrite.int.test.ts": {
+    "domain/character": "migrateSeededCardBackgrounds: the card half of the rewrite the composition root injects",
+    "domain/chat": "migrateSeededRoomBackgrounds: the room half of the rewrite the composition root injects",
+  },
   "tests/server/domain/settings/persistence/seed-ledger-tags.int.test.ts": {
     "domain/character": "DEFAULT_CHARACTER_CARDS: the authored tag list is the expected set the seeded card's tag rows must equal",
   },
@@ -642,6 +647,9 @@ const SERVER_TEST_REACHES = {
   "tests/server/entry/boot/persistence/migrate-data-layout.int.test.ts": {
     "foundation/data-layout":
       "DATA_LAYOUT_DIRS, LEGACY_ENTRIES and DB_FILE_NAME: the legacy names, their targets and the layout directories exist only in this module, and no testkit door supplies them",
+  },
+  "tests/server/entry/boot/persistence/unreadable-settings-boot.int.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the env key the spawned server entry reads its database location from",
   },
   "tests/server/foundation/env/record/floor-defaults.test.ts": {
     "foundation/data-layout":

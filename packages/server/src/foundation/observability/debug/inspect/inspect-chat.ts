@@ -3,7 +3,7 @@
 // land in the DB?" check the log/trace rings can't answer.
 
 import type { ChatInspection } from "@orb/contracts/debug";
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { asc, count, desc, eq } from "drizzle-orm";
@@ -22,7 +22,7 @@ const NOT_FOUND: ChatInspection = {
   recentEvents: [],
 };
 
-export async function inspectChatState(db: Db, chatId: ChatId): Promise<ChatInspection> {
+export async function inspectChatState(db: ReadOnlyDb, chatId: ChatId): Promise<ChatInspection> {
   const chatRow = (await db.select().from(chats).where(eq(chats.id, chatId)).limit(1))[0] ?? null;
   if (chatRow === null) {
     return NOT_FOUND;

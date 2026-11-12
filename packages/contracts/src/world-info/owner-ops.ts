@@ -2,7 +2,7 @@
 
 import type { Cancellation } from "@orb/kit/guards";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
-import type { PortableFile } from "#portability";
+import type { PortableExportNotes, PortableFile } from "#portability";
 import type { AttachedBookRef } from "../character/index.ts";
 import type { HandoffCardPair } from "../chat/handoff-context.ts";
 import type { BulkImportLorebookInput, BulkImportLorebookResult, WorldBookRole } from "./schemas.ts";
@@ -85,8 +85,13 @@ export interface ImportWorldInfoPort {
 }
 
 /** Export one owned book (and its entries) as the portable `worlds/*.json` file, or null when the book is not
- *  the caller's or is absent. */
-export type ExportWorldBook = (args: { readonly ownerId: UserId; readonly bookId: WorldBookId }) => Promise<PortableFile | null>;
+ *  the caller's or is absent. An entry whose stored metadata cannot be read is written without it and reported to
+ *  `note`. */
+export type ExportWorldBook = (args: {
+  readonly ownerId: UserId;
+  readonly bookId: WorldBookId;
+  readonly note: PortableExportNotes;
+}) => Promise<PortableFile | null>;
 
 /** Every book the owner owns, the enumeration the bundle descriptor's `exportAll` streams over. */
 export type ListOwnedBookIds = (args: { readonly ownerId: UserId }) => Promise<readonly WorldBookId[]>;

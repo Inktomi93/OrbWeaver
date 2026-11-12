@@ -1,7 +1,7 @@
 import type { ExportDocument, ListOwnedDocumentIds } from "@orb/contracts/databank";
 import type { ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { ExportPersonaOp, ListPersonasOp } from "@orb/contracts/persona";
-import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
+import type { PortableEntity, PortableExportNotes, PortableFile } from "@orb/contracts/portability";
 import type { ExportPresets } from "@orb/contracts/preset";
 import type { ExportRegexScripts } from "@orb/contracts/regex";
 import type { ExportWorldBook, ListOwnedBookIds } from "@orb/contracts/world-info";
@@ -9,10 +9,12 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ExportService } from "./service.ts";
 
 type ExportOne = (ownerId: UserId) => Promise<PortableFile>;
+/** One file for the owner's whole library of a kind, reporting the rows it cannot carry; `null` when nothing is left. */
+type ExportReported = (ownerId: UserId, note: PortableExportNotes) => Promise<PortableFile | null>;
 export interface PortableExportDeps {
   readonly gallery: ExportOne;
-  readonly theme: ExportOne;
-  readonly userSettings: ExportOne;
+  readonly theme: ExportReported;
+  readonly userSettings: ExportReported;
   readonly tags: (ownerId: UserId) => Promise<Uint8Array>;
   readonly presets: ExportPresets;
   readonly worldBook: ExportWorldBook;

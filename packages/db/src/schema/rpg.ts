@@ -52,9 +52,10 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { check, foreignKey, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats, messages, messageVariants } from "./chat.ts";
@@ -258,7 +259,7 @@ export const rpgSheets = sqliteTable(
     userId: nulFreeText("user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
-    sheet: text("sheet", { mode: "json" }).$type<RpgSheet>().notNull(),
+    sheet: storedJsonText("sheet").$type<RpgSheet | UnreadableJsonText>().notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

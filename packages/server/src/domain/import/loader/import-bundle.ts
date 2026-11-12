@@ -1,5 +1,5 @@
 import type { PortabilityRegistry, PortableEntity, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
-import { PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
+import { PORTABLE_EXPORT_REPORT_FILE, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import type { StagedArchive, StagedEntry } from "#infra/storage";
 
@@ -26,6 +26,10 @@ function groupByDir(staged: StagedArchive): {
   const unrouted: string[] = [];
   for (const entry of staged.entries) {
     const dir = leadingDir(entry.path);
+    // The export's own report is advisory and holds no data, so it is neither imported nor counted as a skip.
+    if (entry.path === PORTABLE_EXPORT_REPORT_FILE) {
+      continue;
+    }
     if (dir === null) {
       unrouted.push(entry.path);
       continue;

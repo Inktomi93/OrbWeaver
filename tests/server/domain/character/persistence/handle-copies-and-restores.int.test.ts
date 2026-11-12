@@ -22,6 +22,7 @@ import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, createServerHarness, imageProvider, makeAssetBytes, restoreBundle, signedInBox } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { seedChatInviteRows, seedInvitedChatParticipantRows } from "@orb/testkit/node/rows";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -96,7 +97,7 @@ async function exportedFiles(root: ServerTestHarness, kind: PortableKind, ownerI
     throw new Error(`production composition has no ${kind} portability descriptor`);
   }
   const files: PortableFile[] = [];
-  for await (const file of descriptor.exportAll(ownerId)) {
+  for await (const file of descriptor.exportAll(ownerId, failOnExportNote)) {
     files.push(file);
   }
   return files;

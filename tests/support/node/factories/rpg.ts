@@ -1,6 +1,7 @@
 // RPG seeds run the production verbs and return their outcomes; rows-tier twins in `rows/rpg.ts` read the rows.
 
 import type { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import type { ServerProducerRoot } from "../server.ts";
 
@@ -34,7 +35,10 @@ export async function seedRpgCheckpoint(
   return await root.services.rpg.createCheckpoint(params);
 }
 
+/** A sheet row the production patch wrote, so its stored sheet is JSON. */
+type SeededRpgSheetRow = Omit<RpgSheetRow, "sheet"> & { readonly sheet: Exclude<RpgSheetRow["sheet"], UnreadableJsonText> };
+
 export interface SeededRpgSheets {
   readonly game: Awaited<ReturnType<RpgService["getGame"]>>;
-  readonly sheets: readonly RpgSheetRow[];
+  readonly sheets: readonly SeededRpgSheetRow[];
 }

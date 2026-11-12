@@ -9,7 +9,7 @@ test("a signed-in box exports its library through the product route, and a secon
   expect(bundle.byteLength).toBeGreaterThan(0);
 
   await using target = await signedInBox();
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   expect((await exportLibrary(target)).byteLength).toBeGreaterThan(0);
 });
 

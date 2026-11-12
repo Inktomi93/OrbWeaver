@@ -3,7 +3,7 @@
 // cache (the per-chat `inspectChatState` and `db/stats` counts can't answer "which ids exist"). Reads
 // @orb/db DOWN (no DbInspector port, ledger); synthetic characters excluded (they're not user-facing).
 
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatParticipants, chats, messages } from "@orb/db";
 import { count, desc, eq } from "drizzle-orm";
 import type { CharacterListRow, ChatListRow } from "#src/foundation/observability/contract/inspect.ts";
@@ -12,7 +12,7 @@ export type { CharacterListRow, ChatListRow } from "#src/foundation/observabilit
 
 /** Every chat with its participant + message counts, newest-updated first. Two grouped COUNT subqueries
  *  keep it one round-trip per table rather than N+1 per chat. */
-export async function chatListSummaries(db: Db): Promise<ChatListRow[]> {
+export async function chatListSummaries(db: ReadOnlyDb): Promise<ChatListRow[]> {
   const partCounts = await db.select({ chatId: chatParticipants.chatId, n: count() }).from(chatParticipants).groupBy(chatParticipants.chatId);
   const msgCounts = await db.select({ chatId: messages.chatId, n: count() }).from(messages).groupBy(messages.chatId);
   const partById = new Map(partCounts.map((r) => [r.chatId, r.n]));
@@ -29,7 +29,7 @@ export async function chatListSummaries(db: Db): Promise<ChatListRow[]> {
 }
 
 /** Every user-facing character (synthetic excluded), newest-created first. */
-export async function characterListSummaries(db: Db): Promise<CharacterListRow[]> {
+export async function characterListSummaries(db: ReadOnlyDb): Promise<CharacterListRow[]> {
   const rows = await db
     .select({ id: characters.id, name: characters.name, handle: characters.handle, createdAt: characters.createdAt })
     .from(characters)

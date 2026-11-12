@@ -46,6 +46,16 @@ export function parseJsonText(text: string): JsonValue | undefined {
   }
 }
 
+/** Stored text that is not JSON, carried whole. A stored-JSON column reads it as this instead of throwing, so its
+ *  read seam reports the row unreadable, and writing it back stores the same text again. */
+export class UnreadableJsonText {
+  readonly text: string;
+
+  constructor(text: string) {
+    this.text = text;
+  }
+}
+
 /** The value when it is a JSON object, as the same reference (no copy, no walk), else `null`. */
 export function jsonObjectOf(value: JsonValue | undefined): JsonObject | null {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;

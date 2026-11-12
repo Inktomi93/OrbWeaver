@@ -8,6 +8,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import type { Cancellation } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { nextFreeName } from "@orb/kit/strings";
 import { mapYielding } from "#primitives/abort";
 import { portableParseError } from "#primitives/serde/lib";
@@ -65,6 +66,11 @@ function landTheme({ ctx, ownerId, theme, library, at, unmapped }: LandingArgs):
   };
 }
 
+// A stored override that is not JSON holds no content a file can match, so it never answers a reuse; its name stays taken.
+function readableOwned(rows: Awaited<ReturnType<typeof listOwnedThemes>>): CanonicalTheme[] {
+  return rows.flatMap((row) => (row.override instanceof UnreadableJsonText ? [] : [{ name: row.name, override: row.override, css: row.css }]));
+}
+
 /** Parse theme bytes and land them in the owner's theme library. `fallbackName` names a raw ST theme that
  *  carries no `name` of its own (the picked file's stem). */
 export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp {
@@ -79,7 +85,7 @@ export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp
     const owned = await listOwnedThemes(ctx.db, ownerId);
     const library: OwnedLibrary = {
       takenNames: new Set(owned.map((row) => row.name)),
-      nameByContentKey: new Map(owned.map((row) => [themeContentKey({ override: row.override, css: row.css }), row.name])),
+      nameByContentKey: new Map(readableOwned(owned).map((row) => [themeContentKey(row), row.name])),
     };
     // Only a raw ST theme carries leftovers, and it is the file's one theme; an orb-native file leaves none behind.
     const unmapped = parsed.stTheme?.unmapped.map(({ field, place }) => ({ key: field, reason: place })) ?? [];
@@ -115,7 +121,7 @@ export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp
 export function createFindOwnedThemes(input: Pick<SettingsAssemblyContext, "db">): FindOwnedThemes {
   const db = databaseForOwner(input.db);
   return async (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation): Promise<readonly boolean[]> => {
-    const owned = new Set((await listOwnedThemes(db, ownerId)).map((row) => themeContentKey({ override: row.override, css: row.css })));
+    const owned = new Set(readableOwned(await listOwnedThemes(db, ownerId)).map((row) => themeContentKey(row)));
     return await mapYielding(files, signal, (bytes) => {
       const parsed = parseThemeFile(bytes, UNNAMED_THEME);
       return parsed.ok && parsed.value.themes.length > 0 && parsed.value.themes.every((theme) => owned.has(themeContentKey(withSafeCss(theme))));

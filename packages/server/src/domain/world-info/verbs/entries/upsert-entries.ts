@@ -13,6 +13,7 @@ import type { LoreEntryProvenance, UpsertLoreEntryInput, WorldInfoScope } from "
 import { entryMetadataSchema, narrowEntryMetadata } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { sha256Hex } from "#primitives/content-hash";
@@ -55,10 +56,13 @@ async function upsertOne(
   const provenance = provenanceOf(input);
 
   if (prior !== undefined) {
-    if (handEdited(prior)) {
+    // Stored metadata that is not JSON hides whether a human curated the entry, and merging the stamp into it would
+    // replace the bytes, so the entry is left as it is.
+    const priorMetadata = prior.metadata;
+    if (priorMetadata instanceof UnreadableJsonText || handEdited(prior)) {
       return { outcome: "skip", entryId: prior.id, scope: "keyword", row: prior };
     }
-    const metadata = narrowEntryMetadata({ ...prior.metadata, provenance });
+    const metadata = narrowEntryMetadata({ ...priorMetadata, provenance });
     await ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata, updatedAt: at }).where(eq(worldEntries.id, prior.id));
     const row = { ...prior, content: input.content, keys, enabled: true, metadata, updatedAt: at };
     return { outcome: "update", entryId: prior.id, scope: resolveEntryScope(metadata, keys !== null), row };

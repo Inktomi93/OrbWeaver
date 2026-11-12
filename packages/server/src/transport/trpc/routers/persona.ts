@@ -18,6 +18,7 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { refuseExportNote } from "#primitives/stored-config";
 import { authedProcedure, t } from "../trpc.ts";
 
 // A persona backup is prose-sized; the cap only fences a hostile upload (the preset door's shape).
@@ -143,7 +144,8 @@ export const personaRouter = t.router({
     .output(strictTwin(portableTextFileSchema))
     .input(personaIdInputSchema)
     .query(async ({ ctx, input }) => {
-      const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
+      // One persona has nothing else to deliver, so metadata it cannot carry as stored refuses it, naming the persona.
+      const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId, note: refuseExportNote });
       return { filename: file.filename, fileText: DEC.decode(file.bytes) };
     }),
 

@@ -7,6 +7,7 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
+import { versionedParseFailureSchema } from "#versioned-config";
 import type { AppearanceSettings } from "../settings/appearance.ts";
 import type { PortableSchemaKind } from "./envelope.ts";
 
@@ -192,6 +193,39 @@ export interface PortableFile {
  *  one malformed file — it returns ok:false with an error string, so one bad entry can't abort the bundle. */
 export type PortableImportOutcome = Readonly<z.output<typeof portableImportOutcomeSchema>>;
 
+/** How an export carried a row it could not read in full: left out of the bundle, or written without its metadata. */
+export const PORTABLE_EXPORT_CARRY = { leftOut: "left-out", withoutMetadata: "without-metadata" } as const;
+
+// One row an export could not carry as stored, named for the person who downloads the bundle.
+const portableExportNoteSchema = z.strictObject({
+  kind: z.enum(PORTABLE_KINDS),
+  /** The row as its owner knows it: a preset, theme, persona or book name, or a book's entry title. */
+  item: z.string(),
+  /** The refusal code the row would raise on a single-item export. */
+  code: z.string(),
+  failure: versionedParseFailureSchema,
+  carried: z.enum(PORTABLE_EXPORT_CARRY),
+});
+
+export type PortableExportNote = z.infer<typeof portableExportNoteSchema>;
+
+/** How a note names the owner's settings, which carry no name of their own. */
+export const PORTABLE_USER_SETTINGS_ITEM = "your settings";
+
+/** Where an export reports a row it could not carry as stored. The library zip writes every note to
+ *  {@link PORTABLE_EXPORT_REPORT_FILE}; a single-item door refuses on the first. */
+export type PortableExportNotes = (note: PortableExportNote) => void;
+
+/** The library zip's report of rows it left out or carried incomplete, at the archive root, written only when the
+ *  export has a note. It is advisory, for the person who downloaded the bundle: no import reads it as data. This
+ *  build's bundle importer passes it by; an older build counts it as an unrouted skip, as it does any root file. */
+export const PORTABLE_EXPORT_REPORT_FILE = "export-report.json";
+
+/** The body of {@link PORTABLE_EXPORT_REPORT_FILE}. */
+export const portableExportReportSchema = z.strictObject({ notes: z.array(portableExportNoteSchema) });
+
+export type PortableExportReport = z.infer<typeof portableExportReportSchema>;
+
 // A server-side descriptor, composed from each domain's export + import verbs and its serde. The
 // delivery core iterates a list of these — the only seam between the entity-agnostic core and per-entity logic.
 export interface PortableEntity {
@@ -202,7 +236,7 @@ export interface PortableEntity {
   readonly ext: string;
   /** Stream the owner's rows as portable files, lazily. Abort is owned by the core's iteration loop, not
    *  the descriptor — AbortSignal cannot live in this isomorphic, DOM/node-free contract. */
-  readonly exportAll: (ownerId: UserId) => AsyncIterable<PortableFile>;
+  readonly exportAll: (ownerId: UserId, note: PortableExportNotes) => AsyncIterable<PortableFile>;
   /** Import ONE file into the owner's library (idempotent). Never throws for a malformed file. */
   readonly importFile: (ownerId: UserId, file: PortableFile) => Promise<PortableImportOutcome>;
 }

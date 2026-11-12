@@ -10,6 +10,7 @@ import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, chats, personas } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { PersonaCandidate } from "#primitives/serde/persona";
 import { foldPersonaName, personaPlacementOf } from "#primitives/serde/persona";
@@ -20,6 +21,12 @@ import { NEWEST_PERSONA_FIRST } from "./newest-persona.ts";
 const LIMIT_ONE = 1;
 
 type PersonaRow = typeof personas.$inferSelect;
+
+// The read seam for the stored blob: a blob out of shape degrades to null, and so does stored text that is not JSON,
+// which is tested first because the open schema would admit the marker's own `text` key as metadata.
+function readMetadata(stored: PersonaRow["metadata"]): PersonaDetail["metadata"] {
+  return stored instanceof UnreadableJsonText ? null : personaMetadataSchema.nullable().catch(null).parse(stored);
+}
 type AssetRow = typeof assets.$inferSelect;
 
 // Row + the joined avatar asset (null when no avatar is attached). File-local — the verbs chain
@@ -119,7 +126,7 @@ function toPersonaView(row: Pick<PersonaRow, keyof typeof PERSONA_VIEW_COLUMNS>)
     name: row.name,
     description: row.description,
     // The SAME read-seam narrowing `detailOf` applies — a corrupt blob degrades to null, never poisons the view.
-    metadata: personaMetadataSchema.nullable().catch(null).parse(row.metadata),
+    metadata: readMetadata(row.metadata),
   };
 }
 
@@ -164,7 +171,7 @@ export async function loadOwnedPersonaCandidates(db: Db, ownerId: UserId): Promi
     name: row.name,
     title: row.title,
     description: row.description,
-    placement: personaPlacementOf(personaMetadataSchema.nullable().catch(null).parse(row.metadata)),
+    placement: personaPlacementOf(readMetadata(row.metadata)),
     artHash: row.artHash ?? null,
   }));
 }
@@ -295,7 +302,7 @@ export function detailOf({ persona: row, avatar }: PersonaWithAvatar): PersonaDe
     starred: row.starred,
     avatarAssetId: row.avatarAssetId,
     avatarHash: avatar?.hash ?? null,
-    metadata: personaMetadataSchema.nullable().catch(null).parse(row.metadata),
+    metadata: readMetadata(row.metadata),
     updatedAt: row.updatedAt,
   };
 }

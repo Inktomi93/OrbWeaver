@@ -60,29 +60,41 @@ const LINK = /\{@link(?:code|plain)?\s+(?:\*\s+)?([^}\s|]+)/gu;
 /** The sign that opens a section number, and the separator a section cite's token carries between doc and number. */
 export const SECTION_SIGN = "§";
 // A section of a Markdown doc: the doc as a path, a Markdown link or a bare stem (`Core-0`), then a run of section
-// numbers (`§3–§4`, `§3a/§10`, `§4.1–4.2`). The doc may be possessive (`Core-0's §8`), followed by a comma
-// (`Spine-Testing.md, §9`) or by an opening parenthesis (`Core-0 (§8)`). An unsigned range end follows only an en
-// dash: `§10-2` names item 2 of §10 in some docs, so a hyphen never opens a second number. A stem that names no law
-// doc ("The skill §5") cites nothing; tests/tooling/doc/comment-path-citations.repo.int.test.ts refuses one that
-// opens several law doc names (`Spine`).
+// numbers (`§3–§4`, `§3a/§10`, `§4.1–4.2`), or the run first and the doc after `of` (`§9 of Spine-Testing`). The doc
+// may be possessive (`Core-0's §8`), followed by a comma (`Spine-Testing.md, §9`) or by an opening parenthesis, with or
+// without a space inside (`Core-0 (§8)`, `Core-0 ( §8 )`). Under one sign an unsigned range end follows only an en
+// dash: `§10-2` names item 2 of §10 in some docs, so a hyphen never opens a second number. The plural sign marks a run
+// of sections, so under `§§` any dash is a range (`§§3-4`). A stem that names no law doc ("The skill §5") cites
+// nothing; tests/tooling/doc/comment-path-citations.repo.int.test.ts refuses one that opens several law doc names
+// (`Spine`).
 const SECTION_NUMBER = String.raw`\d+(?:\.\d+)*[a-z]?`;
 const SECTION_DOC = String.raw`(?:[\w.+@-]+\/)*[\w-]+\.md`;
 // A stem opens with a capital or carries a hyphen: a plain lowercase word before a number ("plugin (§4.5b)") names no doc.
 // Bare alternatives: the stem is only ever spliced into the doc alternation's capture group.
 const SECTION_STEM = String.raw`[A-Z][\w-]*[A-Za-z0-9]|[a-z]\w*-[\w-]*[A-Za-z0-9]`;
-const SECTION_RUN = String.raw`${SECTION_SIGN} ?${SECTION_NUMBER}(?:\s*(?:[–/,-]|and|or)\s*${SECTION_SIGN} ?${SECTION_NUMBER}|\s*–\s*${SECTION_NUMBER})*`;
-const SECTION = new RegExp(
-  String.raw`(?<![\w./+@-])(?:\[[^[\]\n]*\]\((${SECTION_DOC})(?:#[^)\s]*)?\)|\x60?(${SECTION_DOC}|${SECTION_STEM})\x60?)(?:['’]s)?,? ?\(?(${SECTION_RUN})`,
-  "gu",
-);
+const PLURAL_SIGN = `${SECTION_SIGN}${SECTION_SIGN}`;
+const PLURAL_RUN = String.raw`${PLURAL_SIGN} ?${SECTION_NUMBER}(?:\s*(?:[–,-]|and|or|to)\s*${SECTION_NUMBER})*`;
+const SINGLE_RUN = String.raw`${SECTION_SIGN} ?${SECTION_NUMBER}(?:\s*(?:[–/,-]|and|or)\s*${SECTION_SIGN} ?${SECTION_NUMBER}|\s*–\s*${SECTION_NUMBER})*`;
+// Bare alternatives: the run is only ever spliced into a capture group.
+const SECTION_RUN = `${PLURAL_RUN}|${SINGLE_RUN}`;
+// The doc in its three spellings; the link and the plain spelling each capture the doc.
+const SECTION_DOC_SPELLING = String.raw`(?:\[[^[\]\n]*\]\((${SECTION_DOC})(?:#[^)\s]*)?\)|\x60?(${SECTION_DOC}|${SECTION_STEM})\x60?)`;
+const SECTION = new RegExp(String.raw`(?<![\w./+@-])${SECTION_DOC_SPELLING}(?:['’]s)?,? ?(?:\(\s*)?(${SECTION_RUN})`, "gu");
+const SECTION_OF = new RegExp(String.raw`(?<![\w${SECTION_SIGN}])(${SECTION_RUN}) of (?:the )?${SECTION_DOC_SPELLING}(?![\w./-])`, "gu");
 const SECTION_NUMBERS = new RegExp(`(?:${SECTION_SIGN} ?|–\\s*)(${SECTION_NUMBER})`, "gu");
+const ANY_SECTION_NUMBER = new RegExp(`(${SECTION_NUMBER})`, "gu");
+
+// Each number a run names: every number under the plural sign, else each signed number and en-dash range end.
+const runNumbers = (run: string): string[] =>
+  [...run.matchAll(run.startsWith(PLURAL_SIGN) ? ANY_SECTION_NUMBER : SECTION_NUMBERS)].map(([, number = ""]) => number);
+
+const sectionCite = (doc: string, number: string): Cite => ({ kind: "section", token: `${doc}${SECTION_SIGN}${number}` });
 
 // One cite per number in the run, each `<doc>§<number>`.
-const sectionCites = (text: string): Cite[] =>
-  [...text.matchAll(SECTION)].flatMap((match) => {
-    const doc = match[1] ?? match[2] ?? "";
-    return [...(match[3] ?? "").matchAll(SECTION_NUMBERS)].map(([, number = ""]) => ({ kind: "section" as const, token: `${doc}${SECTION_SIGN}${number}` }));
-  });
+const sectionCites = (text: string): Cite[] => [
+  ...[...text.matchAll(SECTION)].flatMap((match) => runNumbers(match[3] ?? "").map((number) => sectionCite(match[1] ?? match[2] ?? "", number))),
+  ...[...text.matchAll(SECTION_OF)].flatMap((match) => runNumbers(match[1] ?? "").map((number) => sectionCite(match[2] ?? match[3] ?? "", number))),
+];
 
 // ── enforcement claims ──────────────────────────────────────────────────────────────────────────────────────────────
 

@@ -4,6 +4,7 @@
 
 import type { Theme } from "@orb/contracts/theme";
 import { DomainConflictError } from "@orb/kit/errors";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { nextFreeName } from "@orb/kit/strings";
 import { ThemeNotFoundError } from "../contract/errors.ts";
 import type { DuplicateThemeParams } from "../contract/params.ts";
@@ -33,7 +34,8 @@ export function createDuplicateTheme(ctx: SettingsContext): Pick<SettingsService
       id,
       ownerId,
       name,
-      override: structuredClone(source.override),
+      // An unreadable override is copied as its stored text; a clone would turn it into a plain object.
+      override: source.override instanceof UnreadableJsonText ? source.override : structuredClone(source.override),
       css: source.css,
       createdAt: at,
       updatedAt: at,

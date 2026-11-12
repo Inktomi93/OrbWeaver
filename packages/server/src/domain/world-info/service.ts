@@ -9,6 +9,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
+import { refuseExportNote } from "#primitives/stored-config";
 import type { WorldInfoContext, WorldInfoService } from "./contract/service.ts";
 import { createImportStandaloneLorebook } from "./persistence/import-write.ts";
 import {
@@ -58,7 +59,8 @@ export function createWorldInfoService(input: DbAssemblyInput<WorldInfoContext>)
   const exportBook = createExportWorldBook(input);
   const importBook = createImportWorldBook({ importStandalone: createImportStandaloneLorebook(input) });
   return {
-    exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId }),
+    // One book has nothing else to deliver, so an entry it cannot carry as stored refuses it, naming the entry.
+    exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId, note: refuseExportNote }),
     importFile: ({ principal, fileText, filename }) =>
       importBook({ ownerId: principal.userId, bytes: new TextEncoder().encode(fileText), ...(filename === undefined ? {} : { filename }) }),
     countBooks: createCount(ctx),

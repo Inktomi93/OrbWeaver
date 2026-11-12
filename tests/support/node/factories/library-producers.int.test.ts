@@ -19,6 +19,7 @@ import { present } from "../../iso/non-empty.ts";
 import { makePromptConfig } from "../../iso/preset-config.ts";
 import { CORPUS_LIBRARY_RULE_PRESET } from "../corpus-library-views.ts";
 import { seedCorpusLibraries } from "../corpus-seed.ts";
+import { failOnExportNote } from "../export-notes.ts";
 import { expect, test } from "../fixtures.ts";
 import type { ServerTestHarness } from "../server.ts";
 import { createServerHarness } from "../server.ts";
@@ -34,7 +35,7 @@ async function exportedPreset(root: ServerTestHarness, name: string): Promise<st
   if (descriptor === undefined) {
     throw new Error("the actual preset export descriptor is missing");
   }
-  for await (const file of descriptor.exportAll(root.ownerId)) {
+  for await (const file of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     const text = new TextDecoder().decode(file.bytes);
     const parsed = parsePresetFile(JSON.parse(text));
     if (parsed.ok && parsed.name === name) {
@@ -99,7 +100,7 @@ test("preset update captures the actual fork identity, convergence and explicit 
   const branch = await seedUpdatedPresetRows(root, root.ownerId, { id: source.id, fork: { mode: "new", name: first.view.name } });
   expect(first.row.id).not.toBe(source.id);
   expect(converged.row.id).toBe(first.row.id);
-  expect(converged.row.config.params.temperature).toBe(0.7);
+  expect(converged.row.config).toMatchObject({ params: { temperature: 0.7 } });
   expect(converged.row.updatedAt).toBe(root.clock.now());
   expect(branch.row.id).not.toBe(first.row.id);
   expect(branch.row.name).not.toBe(first.row.name);
@@ -108,7 +109,7 @@ test("preset update captures the actual fork identity, convergence and explicit 
       id: produced.view.id,
       ownerId: root.ownerId,
       forkedFrom: source.id,
-      schemaVersion: produced.row.config.schemaVersion,
+      schemaVersion: produced.view.config.schemaVersion,
     });
     expect(produced.view.isSystemDefault).toBe(false);
     expect(await caller.preset.get({ id: produced.row.id })).toEqual(produced.view);

@@ -10,6 +10,7 @@ import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
 import { createCorpusProviderExecution } from "../corpus-provider.ts";
+import { failOnExportNote } from "../export-notes.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
 import { makeAssetBytes } from "./asset.ts";
@@ -120,7 +121,7 @@ test("a real native export/import records one actual call claim without duplicat
     throw new Error("actual imagery generation or root descriptor is missing");
   }
   const files: PortableFile[] = [];
-  for await (const file of descriptor.exportAll(root.ownerId)) {
+  for await (const file of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     files.push(file);
   }
   expect(files).toHaveLength(1);

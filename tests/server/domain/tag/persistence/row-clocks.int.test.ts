@@ -14,6 +14,7 @@ import { createBookSchema } from "@orb/contracts/world-info";
 import { characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { seedCharacterRows, seedCreatedTagRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
@@ -46,7 +47,7 @@ test("native tag-library restore stamps new rows but preserves existing births a
     throw new Error("the production portability registry omitted tag libraries");
   }
   const files: PortableFile[] = [];
-  for await (const file of descriptor.exportAll(source.userId)) {
+  for await (const file of descriptor.exportAll(source.userId, failOnExportNote)) {
     files.push(file);
   }
   expect(files).toHaveLength(1);

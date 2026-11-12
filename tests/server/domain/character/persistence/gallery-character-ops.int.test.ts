@@ -9,7 +9,7 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { createGalleryCharacterOps } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node";
-import { magicBytes, principal } from "@orb/testkit/node/helpers";
+import { failOnExportNote, magicBytes, principal } from "@orb/testkit/node/helpers";
 import { seedCharacterRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
@@ -32,7 +32,7 @@ test("composed gallery export never resolves a foreign subject handle even from 
     throw new Error("composed gallery descriptor is missing");
   }
   const files: PortableFile[] = [];
-  for await (const file of gallery.exportAll(owner.id)) {
+  for await (const file of gallery.exportAll(owner.id, failOnExportNote)) {
     files.push(file);
   }
   expect(files.map((file) => file.filename)).toEqual(["gallery.json"]);
@@ -56,7 +56,7 @@ test("composed gallery import relinks only the importing owner's handle and pres
   }
   const item = await services.assets.addToGallery({ principal: await principal(harness, owner.id), assetId: image.assetId, subjectCharacterId: owned.id });
   const files: PortableFile[] = [];
-  for await (const file of gallery.exportAll(owner.id)) {
+  for await (const file of gallery.exportAll(owner.id, failOnExportNote)) {
     files.push(file);
   }
   const file = files[0];

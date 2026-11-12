@@ -2,11 +2,12 @@
 
 import type { Cancellation } from "@orb/kit/guards";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import type { PortableFile } from "#portability";
+import type { PortableExportNotes, PortableFile } from "#portability";
 import type { PresetImportOutcome } from "./portability.ts";
 
-/** Export all of the owner's presets (excludes the shared, un-owned system default) as portable files. */
-export type ExportPresets = (args: { readonly ownerId: UserId }) => Promise<PortableFile[]>;
+/** Export all of the owner's presets (excludes the shared, un-owned system default) as portable files. A preset whose
+ *  stored config cannot be exported as the user's data is left out and reported to `note`. */
+export type ExportPresets = (args: { readonly ownerId: UserId; readonly note: PortableExportNotes }) => Promise<PortableFile[]>;
 
 /** Idempotent on (ownerId, name): merges an existing same-named preset in place, else creates fresh. */
 export type ImportPreset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<PresetImportOutcome>;

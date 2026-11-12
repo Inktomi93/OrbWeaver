@@ -5,7 +5,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
-import { automationFires, characters } from "@orb/db";
+import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
+import { automationFires, characters, personas } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
@@ -110,6 +111,15 @@ test("the settings probe preserves key order and stored values while rejecting a
   expect(await read(`/api/_debug/config/user?userId=${missingUserId}`)).toEqual({ count: 0, users: [] });
   expect(await read(`/api/_debug/config/presets?ownerId=${root.ownerId}`)).toEqual({ count: 1, presets: [{ ...preset, config: raw }] });
   expect(await read(`/api/_debug/config/personas?ownerId=${root.ownerId}`)).toEqual({ count: 1, personas: [{ ...persona, metadata: raw }] });
+  // Stored text that is not JSON renders as a labelled unreadable state, never as a blob with a `text` key.
+  const notJson = '{"futureVersion": "unpar';
+  const unreadable = { storedJsonUnreadable: VERSIONED_PARSE_FAILURES.notJson, storedText: notJson };
+  await root.db.run(sql`UPDATE user_settings SET config = ${notJson} WHERE user_id = ${root.ownerId}`);
+  await root.db.run(sql`UPDATE presets SET config = ${notJson} WHERE id = ${preset.id}`);
+  await root.db.run(sql`UPDATE personas SET metadata = ${notJson} WHERE id = ${persona.id}`);
+  expect(await read(`/api/_debug/config/user?userId=${root.ownerId}`)).toEqual({ count: 1, users: [{ ...settings, config: unreadable }] });
+  expect(await read(`/api/_debug/config/presets?ownerId=${root.ownerId}`)).toEqual({ count: 1, presets: [{ ...preset, config: unreadable }] });
+  expect(await read(`/api/_debug/config/personas?ownerId=${root.ownerId}`)).toEqual({ count: 1, personas: [{ ...persona, metadata: unreadable }] });
   expect(await read(`/api/_debug/config/chat/${chat.id}`)).toMatchObject({
     room: {
       id: chat.id,
@@ -163,4 +173,25 @@ test("the settings probe preserves key order and stored values while rejecting a
     expect(refused.status).toBe(404);
     expect(await refused.text()).not.toContain(character.systemPrompt);
   }
+});
+
+test("the integrity probe reports a planted foreign-key violation by table, row and parent", async () => {
+  await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
+  const owner = await root.principalFor(root.ownerId);
+  await root.services.admin.resetPassword({ principal: owner, userId: owner.userId, password: PASSWORD });
+  const cookie = await signInWithPassword(root, owner.handle, PASSWORD, { host: "localhost" });
+  const { row: persona } = await seedPersonaRows(root, { principal: owner, input: createPersonaSchema.parse({ name: "Orphaned persona", description: "" }) });
+  // No product verb orphans a row: the FK cascade forbids it, so the plant switches enforcement off for one write.
+  await root.db.run(sql`PRAGMA foreign_keys = OFF`);
+  await root.db.update(personas).set({ ownerId: root.idSource.userId() }).where(eq(personas.id, persona.id));
+  await root.db.run(sql`PRAGMA foreign_keys = ON`);
+  const rowid = await root.db.get<{ rowid: number }>(sql`SELECT rowid FROM personas WHERE id = ${persona.id}`);
+  const ownerKey = await root.db.get<{ id: number }>(sql`SELECT id FROM pragma_foreign_key_list('personas') WHERE "from" = 'owner_id'`);
+  const response = await root.http.request("/api/_debug/db/integrity", { headers: { host: "localhost", cookie } });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    ok: false,
+    foreignKeyViolations: [{ table: "personas", rowid: rowid.rowid, parent: "users", fkid: ownerKey.id }],
+    integrityCheck: ["ok"],
+  });
 });

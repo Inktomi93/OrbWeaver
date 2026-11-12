@@ -8,6 +8,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { makeAssetBytes, seedChatInvite, seedCorpusConnections, seedInvitedChatParticipant } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import type { GcBox, StoredRef } from "../gc-box.ts";
 import { ageOnly, BOTH_STORES, inlineImage, NEITHER_STORE, openBox, openRoom, runScheduledGc, say, store, storesOf } from "../gc-box.ts";
 
@@ -27,7 +28,7 @@ async function exportedBlobs(box: GcBox): Promise<PortableFile[]> {
     throw new Error("the production graph omitted the assets descriptor");
   }
   const files: PortableFile[] = [];
-  for await (const file of descriptor.exportAll(box.root.ownerId)) {
+  for await (const file of descriptor.exportAll(box.root.ownerId, failOnExportNote)) {
     files.push(file);
   }
   return files;

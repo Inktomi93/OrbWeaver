@@ -2,9 +2,10 @@
 // product's own HTTP routes and workload runner, so a portability case sets up and restores through the real door.
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
-import type { PortableKind } from "@orb/contracts/portability";
-import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import type { PortableExportReport, PortableKind } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, portableExportReportSchema } from "@orb/contracts/portability";
 import type { ModelId, WorkloadId } from "@orb/kit/ids";
+import { extractZip } from "@orb/server/infra/storage/zip";
 import type { SeededIds } from "../iso/ids.ts";
 import { CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution } from "./corpus-provider.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -57,8 +58,38 @@ export async function exportLibrary(root: ServerTestHarness, kinds?: readonly Po
   return new Uint8Array(await response.arrayBuffer());
 }
 
-/** Upload the bundle and run its import workload to the end; the workload's own status and failure tally. */
-export async function restoreBundle(root: ServerTestHarness, bundle: Uint8Array): Promise<{ readonly status: string; readonly failed: number | undefined }> {
+/** A library export read back through the production extractor: each data file's bytes by archive path, and the
+ *  export's own report, or null when it wrote none. */
+export interface LibraryExport {
+  readonly files: ReadonlyMap<string, Uint8Array>;
+  readonly report: PortableExportReport | null;
+}
+
+/** The library export of the owner's `kinds`, unpacked. */
+export async function readLibraryExport(root: ServerTestHarness, kinds?: readonly PortableKind[]): Promise<LibraryExport> {
+  const staged = await extractZip(await exportLibrary(root, kinds));
+  try {
+    const files = new Map<string, Uint8Array>();
+    let report: PortableExportReport | null = null;
+    for (const entry of staged.entries) {
+      const bytes = await entry.read();
+      if (entry.path === PORTABLE_EXPORT_REPORT_FILE) {
+        report = portableExportReportSchema.parse(JSON.parse(new TextDecoder().decode(bytes)));
+      } else {
+        files.set(entry.path, bytes);
+      }
+    }
+    return { files, report };
+  } finally {
+    await staged.dispose();
+  }
+}
+
+/** Upload the bundle and run its import workload to the end; the workload's own status and its skip and failure tallies. */
+export async function restoreBundle(
+  root: ServerTestHarness,
+  bundle: Uint8Array,
+): Promise<{ readonly status: string; readonly skipped: number | undefined; readonly failed: number | undefined }> {
   const response = await root.http.request(PORTABILITY_ROUTES.importBundle, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: Uint8Array.from(bundle) });
   if (response.status !== HTTP_ACCEPTED) {
     throw new Error(`the bundle upload answered ${response.status}`);
@@ -73,7 +104,7 @@ export async function restoreBundle(root: ServerTestHarness, bundle: Uint8Array)
   if (row.kind !== "import-bundle" || row.poison) {
     throw new Error("the bundle upload left no typed import-bundle workload");
   }
-  return { status: row.status, failed: row.result?.failed };
+  return { status: row.status, skipped: row.result?.skipped, failed: row.result?.failed };
 }
 
 /** A scripted provider that answers only an image generation of `model`, with the pictures a case pushes in order. */

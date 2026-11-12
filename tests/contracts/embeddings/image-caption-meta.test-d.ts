@@ -1,14 +1,18 @@
 // Application metadata readers expose only canonical facets, even when stored blobs preserve future fields.
 import type { ImageCaptionMeta, imageBreakdownSchema } from "@orb/contracts/embeddings";
 import type { imageAnalyses } from "@orb/db";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import { expectTypeOf, test } from "vitest";
 
-type StoredCaptionMeta = (typeof imageAnalyses.$inferSelect)["captionMeta"];
+type StoredColumn = (typeof imageAnalyses.$inferSelect)["captionMeta"];
+// Stored text that is not JSON reads as its own value; every other stored value is the canonical shape.
+type StoredCaptionMeta = Exclude<StoredColumn, UnreadableJsonText>;
 
 test("the persisted reader carries the canonical optional facet values", () => {
   const legacy: ImageCaptionMeta = { model: "vision-model" };
   const current: StoredCaptionMeta = { artStyle: "anime", tags: ["portrait"] };
   expectTypeOf<StoredCaptionMeta>().toEqualTypeOf<ImageCaptionMeta>();
+  expectTypeOf<StoredColumn>().toEqualTypeOf<ImageCaptionMeta | UnreadableJsonText>();
   expectTypeOf(legacy.model).toEqualTypeOf<string | undefined>();
   expectTypeOf(current.artStyle).toEqualTypeOf<ReturnType<typeof imageBreakdownSchema.parse>["artStyle"] | undefined>();
   expectTypeOf(current.tags).toEqualTypeOf<string[] | undefined>();

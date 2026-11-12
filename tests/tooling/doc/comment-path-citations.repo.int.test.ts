@@ -176,12 +176,13 @@ interface Universe {
   readonly symbols: ReadonlySet<string>;
   /** Each law doc's path by its stem, the bare name a section cite may give it (`Spine-Testing`). */
   readonly lawDocs: ReadonlyMap<string, string>;
-  /** The section numbers a tracked Markdown doc carries. */
-  readonly anchorsOf: (path: string) => ReadonlySet<string>;
+  /** The section numbers a tracked Markdown doc carries, each with how many headings and numbered items carry it. */
+  readonly anchorsOf: (path: string) => ReadonlyMap<string, number>;
 }
 
 const LAW_DIR = "docs/law/";
 const HEADING = /^#{1,6}\s+(.*)$/u;
+const DOC_TITLE = /^#\s/u;
 // A heading's own number, `8.` or `§1` or `6a.`, opens its text.
 const HEADING_NUMBER = /^§?\s?(\d+(?:\.\d+)*[a-z]?)(?=[.)\s:]|$)/u;
 // A heading may also carry the number another doc's numbering gave it: "String-union dispatch (spine §7.5)".
@@ -190,26 +191,31 @@ const NUMBERED_ITEM = /^(\d+)\.\s/u;
 const FENCED_BLOCK = /^```[\s\S]+?^```/gmu;
 
 /** The section numbers a Markdown doc carries: each heading's own number, each `§` number its text names, and
- *  `<heading>.<item>` for a top-level numbered item under a numbered heading. */
+ *  `<heading>.<item>` for a top-level numbered item under a numbered heading. A number counts once per heading or
+ *  item that carries it. */
 const headingNumbers = (title: string): string[] =>
   [HEADING_NUMBER.exec(title)?.[1], ...[...title.matchAll(HEADING_ALIAS)].map((match) => match[1])].flatMap((number) => (number === undefined ? [] : [number]));
 
-function markdownAnchors(text: string): Set<string> {
-  const anchors = new Set<string>();
+function markdownAnchors(text: string): Map<string, number> {
+  const anchors = new Map<string, number>();
+  const carry = (number: string): void => {
+    anchors.set(number, (anchors.get(number) ?? 0) + 1);
+  };
   let heading: string | undefined;
   // A fenced block's `#` lines are code comments, not headings.
   for (const line of text.replaceAll(FENCED_BLOCK, "").split("\n")) {
-    const title = HEADING.exec(line)?.[1];
+    // The H1 is the doc's title: a section number it names is a cross-reference to the body, never a second home.
+    const title = DOC_TITLE.test(line) ? undefined : HEADING.exec(line)?.[1];
     if (title !== undefined) {
       heading = HEADING_NUMBER.exec(title)?.[1];
-      for (const number of headingNumbers(title)) {
-        anchors.add(number);
+      for (const number of new Set(headingNumbers(title))) {
+        carry(number);
       }
       continue;
     }
     const item = NUMBERED_ITEM.exec(line)?.[1];
     if (item !== undefined && heading !== undefined) {
-      anchors.add(`${heading}.${item}`);
+      carry(`${heading}.${item}`);
     }
   }
   return anchors;
@@ -236,8 +242,9 @@ function sectionDoc(doc: string, citer: string, universe: Universe): string | un
 const ambiguousStem = (stem: string, universe: Universe): boolean =>
   !(stem.endsWith(MARKDOWN) || universe.lawDocs.has(stem)) && [...universe.lawDocs.keys()].filter((name) => name.startsWith(`${stem}-`)).length > 1;
 
-/** Whether a section cite's doc carries its number, or `undefined` when the doc spelling names no tracked doc. A stem that
- *  opens several law docs is refused: the reader cannot tell which doc it cites. */
+/** Whether a section cite's doc carries its number in exactly one heading or item, or `undefined` when the doc spelling
+ *  names no tracked doc. A stem that opens several law docs, and a number two headings or items carry, are refused: the
+ *  reader cannot tell which doc or section it cites. */
 function resolvesSection(token: string, citer: string, universe: Universe): boolean | undefined {
   const at = token.lastIndexOf(SECTION_SIGN);
   const spelling = token.slice(0, at);
@@ -245,7 +252,7 @@ function resolvesSection(token: string, citer: string, universe: Universe): bool
     return false;
   }
   const doc = sectionDoc(spelling, citer, universe);
-  return doc === undefined ? undefined : universe.anchorsOf(doc).has(token.slice(at + SECTION_SIGN.length));
+  return doc === undefined ? undefined : universe.anchorsOf(doc).get(token.slice(at + SECTION_SIGN.length)) === 1;
 }
 
 /** The part of a composed ESLint block a rule cite reads: the plugins it loads and the rules it sets. */
@@ -481,10 +488,10 @@ async function universeOf(tracked: Tracked, scripts: readonly Source[]): Promise
   const rules = new Set([...eslint.rules, ...stylelintRules]);
   const namespaces = new Set([...eslint.namespaces, ...stylelintRules.flatMap((rule) => (rule.includes("/") ? [rule.slice(0, rule.lastIndexOf("/"))] : []))]);
   const stems = [...tracked.paths].filter((path) => path.startsWith("tests/")).map((path) => basename(path).split(".")[0] ?? "");
-  const anchors = new Map<string, Set<string>>();
+  const anchors = new Map<string, Map<string, number>>();
   return {
     lawDocs: new Map([...tracked.paths].filter((path) => path.startsWith(LAW_DIR) && path.endsWith(MARKDOWN)).map((path) => [basename(path, MARKDOWN), path])),
-    anchorsOf: (path) => anchors.get(path) ?? anchors.set(path, markdownAnchors(readFromRepo(path))).get(path) ?? new Set(),
+    anchorsOf: (path) => anchors.get(path) ?? anchors.set(path, markdownAnchors(readFromRepo(path))).get(path) ?? new Map(),
     tracked,
     directories: directoriesOf(tracked.paths),
     minted: mintedDecisions(tracked),
@@ -628,9 +635,11 @@ describe("the cite resolver", () => {
   const lawPath = "docs/law/Law-Of-Things.md";
   // A second law doc whose name opens with the same `Law-` stem, so `Law` alone names neither.
   const siblingPath = "docs/law/Law-Book.md";
-  // Numbered, lettered and aliased headings, a numbered list under heading 10, and a fenced `#` line that is no heading.
+  // Numbered, lettered and aliased headings, numbered lists under headings 7 and 10, and a fenced `#` line that is no
+  // heading. §7.5 has two homes: item 5 under heading 7 and the alias on a heading. The title names §3 and §10 as
+  // cross-references, which add no home.
   const plantedLaw =
-    "# Law\n\n## 3. Three\n\n## Dispatch (spine §7.5)\n\n## 10. Rules\n\n1. one\n2. two\n\n### 6a. Lettered\n\n```sh\n# 9. not a heading\n```\n";
+    "# Law (Laws 2-4: §3-§10)\n\n## 3. Three\n\n## Dispatch (spine §7.6)\n\n## Unions (spine §7.5)\n\n## 7. Seven\n\n5. five\n\n## 10. Rules\n\n1. one\n2. two\n\n### 6a. Lettered\n\n```sh\n# 9. not a heading\n```\n";
   const universe: Universe = {
     tracked: {
       paths: new Set(["tests/tooling/real.test.ts", "packages/x/src/real.ts", lawPath, siblingPath]),
@@ -650,7 +659,7 @@ describe("the cite resolver", () => {
       [basename(lawPath, MARKDOWN), lawPath],
       [basename(siblingPath, MARKDOWN), siblingPath],
     ]),
-    anchorsOf: (path) => (path === lawPath ? markdownAnchors(plantedLaw) : new Set()),
+    anchorsOf: (path) => (path === lawPath ? markdownAnchors(plantedLaw) : new Map()),
   };
   const comments = (path: string, text: string): CitingFile => ({
     path,
@@ -694,7 +703,7 @@ describe("the cite resolver", () => {
     const file = comments(
       "packages/x/src/a.ts",
       [
-        "// `docs/law/Law-Of-Things.md` §3, Law-Of-Things §7.5, Law-Of §10.2 and [the law](../../../docs/law/Law-Of-Things.md) §6a hold.",
+        "// `docs/law/Law-Of-Things.md` §3, Law-Of-Things §7.6, Law-Of §10.2 and [the law](../../../docs/law/Law-Of-Things.md) §6a hold.",
         "// Law-Of-Things.md §3–§4, Law-Of-Things §9 and Law-Of-Things §10.3 do not; the snap skill §5 and the guide §3 name no doc.",
         "export {};",
       ].join("\n"),
@@ -710,7 +719,7 @@ describe("the cite resolver", () => {
     const file = comments(
       "packages/x/src/a.ts",
       [
-        "// Law-Of-Things's §3, Law-Of-Things (§7.5), Law-Of-Things.md, §6a and Law-Of-Things §10.1–10.2 hold.",
+        "// Law-Of-Things's §3, Law-Of-Things (§7.6), Law-Of-Things.md, §6a and Law-Of-Things §10.1–10.2 hold.",
         "// Law-Of-Things’s §4, Law-Of-Things (§9), Law-Of-Things.md, §5, Law-Of-Things §10.1–10.3 and Law §3 do not.",
         "export {};",
       ].join("\n"),
@@ -721,6 +730,23 @@ describe("the cite resolver", () => {
       "packages/x/src/a.ts:2 Law-Of-Things.md§5",
       "packages/x/src/a.ts:2 Law-Of-Things§10.3",
       "packages/x/src/a.ts:2 Law§3",
+    ]);
+  });
+
+  test("reads the plural sign, the number before its doc and a spaced parenthesis, and refuses a number two headings carry", () => {
+    const file = comments(
+      "packages/x/src/a.ts",
+      [
+        "// Law-Of-Things §§3–10, §6a of Law-Of-Things, Law-Of-Things ( §10.1 ) and §§10.1, 10.2 of the Law-Of-Things.md hold.",
+        "// Law-Of-Things §§3-4, §9 of Law-Of-Things, Law-Of-Things ( §5 ) and Law-Of-Things §7.5 do not.",
+        "export {};",
+      ].join("\n"),
+    );
+    expect(deadCites([file], universe)).toStrictEqual([
+      "packages/x/src/a.ts:2 Law-Of-Things§4",
+      "packages/x/src/a.ts:2 Law-Of-Things§5",
+      "packages/x/src/a.ts:2 Law-Of-Things§7.5",
+      "packages/x/src/a.ts:2 Law-Of-Things§9",
     ]);
   });
 

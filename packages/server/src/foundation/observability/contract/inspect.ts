@@ -2,6 +2,7 @@
 
 import type { AutomationFireOutcome } from "@orb/contracts/automation";
 import type { CardTrust, DeploymentRenderPolicy, RenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
+import type { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import type { automationFires, characters, chatParticipants, chats, personas, presets, rpgGames, userSettings } from "@orb/db";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 
@@ -9,6 +10,13 @@ import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 export type CharacterListRow = Pick<typeof characters.$inferSelect, "id" | "name" | "handle" | "createdAt">;
 
 /** Raw stored config is diagnostic evidence, not a successful application parse. */
+/** How a probe renders a stored JSON blob whose text is not JSON: the failure and the stored text under keys no stored
+ *  blob carries, so the reading cannot be taken for a stored config. */
+export interface UnreadableStoredJsonView {
+  readonly storedJsonUnreadable: typeof VERSIONED_PARSE_FAILURES.notJson;
+  readonly storedText: string;
+}
+
 export interface UserSettingsRow extends Pick<typeof userSettings.$inferSelect, "userId" | "schemaVersion" | "updatedAt"> {
   config: unknown;
 }
