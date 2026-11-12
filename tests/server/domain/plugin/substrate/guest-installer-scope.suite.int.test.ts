@@ -29,6 +29,7 @@ import {
   seedAsset,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { z } from "zod";
 
@@ -197,7 +198,7 @@ test("library ingests land in the installer's own library, stamped with the call
   await using o = await owners();
   const { pluginId, run } = await o.guest(o.owner, "library-feeder");
   const source = await ownCharacter(o.root, o.owner, "exported-keeper");
-  const exported = await o.root.app.exportService.exportCharacter({ principal: o.owner, characterId: source, format: "json" });
+  const exported = await o.root.app.exportService.exportCharacter({ principal: o.owner, characterId: source, format: "json", note: failOnExportNote });
   if (exported === null) {
     throw new Error("the owner's own character did not export");
   }
@@ -219,7 +220,7 @@ test("a non-owner installer's character ingest runs under that installer's own p
   await using o = await owners();
   const { run } = await o.guest(o.stranger, "stranger-feeder");
   const source = await ownCharacter(o.root, o.stranger, "stranger-keeper");
-  const exported = await o.root.app.exportService.exportCharacter({ principal: o.stranger, characterId: source, format: "json" });
+  const exported = await o.root.app.exportService.exportCharacter({ principal: o.stranger, characterId: source, format: "json", note: failOnExportNote });
   if (exported === null) {
     throw new Error("the stranger's own character did not export");
   }

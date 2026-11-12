@@ -19,6 +19,7 @@ import { present } from "../../iso/non-empty.ts";
 import { makePromptConfig } from "../../iso/preset-config.ts";
 import { CORPUS_LIBRARY_RULE_PRESET } from "../corpus-library-views.ts";
 import { seedCorpusLibraries } from "../corpus-seed.ts";
+import { failOnExportNote } from "../export-notes.ts";
 import { expect, test } from "../fixtures.ts";
 import type { ServerTestHarness } from "../server.ts";
 import { createServerHarness } from "../server.ts";
@@ -34,7 +35,7 @@ async function exportedPreset(root: ServerTestHarness, name: string): Promise<st
   if (descriptor === undefined) {
     throw new Error("the actual preset export descriptor is missing");
   }
-  for await (const file of descriptor.exportAll(root.ownerId)) {
+  for await (const file of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     const text = new TextDecoder().decode(file.bytes);
     const parsed = parsePresetFile(JSON.parse(text));
     if (parsed.ok && parsed.name === name) {

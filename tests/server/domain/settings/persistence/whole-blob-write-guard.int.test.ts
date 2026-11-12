@@ -1,15 +1,19 @@
 // The two whole-blob settings writers refuse to overwrite a stored blob this build cannot read, and leave its bytes,
 // because every caller builds the next blob from a read that degrades such a blob to defaults. The read names the
-// failure so the settings pane offers its repair door, and that door works.
+// failure so the settings pane offers its repair door, and that door works. The library export carries a newer build's
+// blob as stored and leaves any other unreadable blob out, named in the export report, rather than writing defaults.
 // @subject packages/server/src/domain/settings/persistence/queries.ts
 // @subject packages/server/src/domain/settings/verbs/export-user-settings.ts
+// @subject packages/server/src/entry/http/export.ts
 // @subject packages/db/src/custom-types/index.ts
+import type { PortableExportNote } from "@orb/contracts/portability";
+import { PORTABLE_EXPORT_CARRY, PORTABLE_USER_SETTINGS_ITEM } from "@orb/contracts/portability";
 import { APP_SETTINGS_SCHEMA_VERSION, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import { settings, userSettings } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { plantForeignSettingsBytes } from "@orb/testkit/node/composed";
+import { plantForeignSettingsBytes, readLibraryExport, signedInBox } from "@orb/testkit/node/composed";
 import type { SQL } from "drizzle-orm";
 import { eq, sql } from "drizzle-orm";
 import { APP_SETTINGS_KEY } from "#server/domain/settings/contract/keys.ts";
@@ -92,26 +96,28 @@ test.for(APP_CORRUPTIONS)("an app settings write refuses a %s override row and l
   expect(await stored()).toEqual(before);
 });
 
-test.for(USER_CORRUPTIONS)(
-  "the settings backup export refuses a %s blob instead of writing defaults as the user's settings",
-  async (corruption, { harness }) => {
-    const principal = await harness.principalFor(harness.ownerId);
-    await harness.services.settings.updateUserSettingsSection({ principal, input: { section: "profile", patch: { flankCollapsed: true } } });
-    const descriptor = harness.app.portability.find((entity) => entity.kind === "user-settings");
-    if (descriptor === undefined) {
-      throw new Error("the production graph omitted the user-settings portability descriptor");
-    }
-    const exportAll = async (): Promise<number> => {
-      let files = 0;
-      for await (const _file of descriptor.exportAll(harness.ownerId)) {
-        files += 1;
-      }
-      return files;
-    };
-    // Positive control: the intact blob exports.
-    expect(await exportAll()).toBe(1);
+// Whether the export still carries the user's settings: a newer build's blob reads as that build wrote it, every other
+// failure reads only as defaults.
+const EXPORTED: Record<(typeof USER_CORRUPTIONS)[number], boolean> = { "future-version": true, "not-an-object": false, "not-json": false };
 
-    await CORRUPTIONS[corruption].plant(harness, harness.ownerId);
-    await expect(exportAll()).rejects.toMatchObject({ code: STORED_CONFIG_UNREADABLE });
+test.for(USER_CORRUPTIONS)(
+  "the library export of a %s settings blob carries it as stored or leaves it out and names it, never writing defaults",
+  async (corruption) => {
+    await using box = await signedInBox();
+    const principal = await box.principalFor(box.ownerId);
+    await box.services.settings.updateUserSettingsSection({ principal, input: { section: "profile", patch: { flankCollapsed: true } } });
+    const before = await readLibraryExport(box, ["user-settings"]);
+    // Positive control: the intact blob exports one file and reports nothing.
+    expect([before.files.size, before.report]).toEqual([1, null]);
+
+    await CORRUPTIONS[corruption].plant(box, box.ownerId);
+    const note: PortableExportNote = {
+      kind: "user-settings",
+      item: PORTABLE_USER_SETTINGS_ITEM,
+      code: STORED_CONFIG_UNREADABLE,
+      failure: CORRUPTIONS[corruption].failure,
+      carried: PORTABLE_EXPORT_CARRY.leftOut,
+    };
+    expect(await readLibraryExport(box, ["user-settings"])).toEqual(EXPORTED[corruption] ? before : { files: new Map(), report: { notes: [note] } });
   },
 );

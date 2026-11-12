@@ -28,7 +28,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
-import { principal } from "@orb/testkit/node/helpers";
+import { failOnExportNote, principal } from "@orb/testkit/node/helpers";
 import { strToU8, zipSync } from "fflate";
 import { vi } from "vitest";
 import { signedInMember } from "../_auth-roots.ts";
@@ -113,9 +113,9 @@ test("portable owner binding refuses malformed cards before effects and content-
   if (descriptor === undefined) {
     throw new Error("the production graph omitted the character descriptor");
   }
-  const files = await exportedFiles(descriptor.exportAll(source.userId));
+  const files = await exportedFiles(descriptor.exportAll(source.userId, failOnExportNote));
   expect(files).toHaveLength(1);
-  expect(await exportedFiles(descriptor.exportAll(target.userId))).toEqual([]);
+  expect(await exportedFiles(descriptor.exportAll(target.userId, failOnExportNote))).toEqual([]);
   const file = files[0];
   if (file === undefined) {
     throw new Error("the real exporter produced no card");
@@ -132,9 +132,9 @@ test("portable owner binding refuses malformed cards before effects and content-
   expect(create.mock.calls[0]?.[0].principal.userId).toBe(target.userId);
   expect(await app.services.character.count({ principal: source })).toBe(1);
   expect(await app.services.character.count({ principal: target })).toBe(1);
-  const targetFiles = await exportedFiles(descriptor.exportAll(target.userId));
+  const targetFiles = await exportedFiles(descriptor.exportAll(target.userId, failOnExportNote));
   expect(targetFiles).toHaveLength(1);
-  expect(await app.exportService.exportCharacter({ principal: target, characterId: character.id })).toBeNull();
+  expect(await app.exportService.exportCharacter({ principal: target, characterId: character.id, note: failOnExportNote })).toBeNull();
 });
 
 test("the actual staged bundle isolates malformed cards, counts unsupported files and preserves per-owner idempotency", async () => {
@@ -144,7 +144,7 @@ test("the actual staged bundle isolates malformed cards, counts unsupported file
     principal: source,
     input: createCharacterSchema.parse({ handle: "bundle-control", name: "Bundle control", description: "Bundle marker" }),
   });
-  const file = await root.app.exportService.exportCharacter({ principal: source, characterId: character.id });
+  const file = await root.app.exportService.exportCharacter({ principal: source, characterId: character.id, note: failOnExportNote });
   if (file === null) {
     throw new Error("the real owner export was refused");
   }
@@ -174,7 +174,7 @@ test("the real profile driver performs no dry-run writes and a real run writes o
     principal: source,
     input: createCharacterSchema.parse({ handle: "profile-control", name: "Profile control", description: "Profile marker" }),
   });
-  const file = await app.exportService.exportCharacter({ principal: source, characterId: character.id });
+  const file = await app.exportService.exportCharacter({ principal: source, characterId: character.id, note: failOnExportNote });
   if (file === null) {
     throw new Error("the real owner export was refused");
   }

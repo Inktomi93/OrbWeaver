@@ -60,6 +60,7 @@ import { personaAutoSeedAdmits } from "#foundation/env/record";
 import type { AuditWiring, Logger } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
+import { identityOnlyExportNote } from "#primitives/stored-config";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
@@ -246,7 +247,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     ...seedAvatars.character,
     // The identity is read off the card's real export, so it is the one a restore of that export computes.
     stampOwnIdentity: async (principal, characterId) => {
-      const exported = await deps.getCardExport().exportCharacter({ principal, characterId });
+      const exported = await deps.getCardExport().exportCharacter({ principal, characterId, note: identityOnlyExportNote });
       const identity = exported === null ? null : await cardPngIdentity(exported.bytes);
       if (identity !== null) {
         await character.stampImportIdentity({ ownerId: principal.userId, characterId, importHash: identity.importHash });

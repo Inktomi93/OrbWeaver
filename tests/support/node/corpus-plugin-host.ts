@@ -12,6 +12,7 @@ import type { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import type { SeededCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
+import { failOnExportNote } from "./export-notes.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
 import { capturePluginRows, seedInstalledPluginRows, seedPluginGrantRows } from "./factories/rows.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -96,8 +97,8 @@ export async function captureCorpusPluginHost(
 export async function seedCorpusPluginHost(root: ServerTestHarness, actors: Actors, library: SeededCorpusLibraries): Promise<CorpusPluginHost> {
   const caller = await root.internalCallerFor(root.ownerId);
   const principal = await root.principalFor(root.ownerId);
-  const exportedJson = await root.app.exportService.exportCharacter({ principal, characterId: library.character.id, format: "json" });
-  const exportedPng = await root.app.exportService.exportCharacter({ principal, characterId: library.character.id, format: "png" });
+  const exportedJson = await root.app.exportService.exportCharacter({ principal, characterId: library.character.id, format: "json", note: failOnExportNote });
+  const exportedPng = await root.app.exportService.exportCharacter({ principal, characterId: library.character.id, format: "png", note: failOnExportNote });
   if (exportedJson === null || exportedPng === null) {
     throw new Error("native library character export omitted its owned source");
   }

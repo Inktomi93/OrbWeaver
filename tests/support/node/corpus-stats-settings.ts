@@ -9,6 +9,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
+import { failOnExportNote } from "./export-notes.ts";
 import { seedStatsRows } from "./factories/rows/stats.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -304,7 +305,7 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     throw new Error("native portability graph has no theme exporter");
   }
   const exported: PortableFile[] = [];
-  for await (const file of themeDescriptor.exportAll(root.ownerId)) {
+  for await (const file of themeDescriptor.exportAll(root.ownerId, failOnExportNote)) {
     exported.push(file);
   }
   const file = exported[0];

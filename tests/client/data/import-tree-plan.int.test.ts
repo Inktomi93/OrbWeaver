@@ -24,6 +24,7 @@ import { createSeededIds, FIXTURE_ID_CURSOR, nonEmpty, present } from "@orb/test
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { planTreeImport } from "#client/data/import-tree-plan.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
@@ -381,7 +382,7 @@ test("a restore whose chat is picked before its character still links the chat o
   await author.chat.startChat({ characterIds: [card.id] });
   const picked: File[] = [];
   for (const entity of exporter.app.portability) {
-    for await (const file of entity.exportAll(exporter.ownerId)) {
+    for await (const file of entity.exportAll(exporter.ownerId, failOnExportNote)) {
       picked.push(pickedFile(`${WRAPPER}/${entity.dir}${file.filename}`, new Uint8Array(file.bytes)));
     }
   }

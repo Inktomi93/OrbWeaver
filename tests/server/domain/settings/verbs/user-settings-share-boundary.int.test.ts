@@ -8,6 +8,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { z } from "zod";
 
 type Principal = Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
@@ -25,7 +26,7 @@ function settingsPort(root: ServerTestHarness): (typeof root.app.portability)[nu
 
 async function exportedFile(root: ServerTestHarness, principal: Principal): Promise<PortableFile> {
   const files: PortableFile[] = [];
-  for await (const written of settingsPort(root).exportAll(principal.userId)) {
+  for await (const written of settingsPort(root).exportAll(principal.userId, failOnExportNote)) {
     files.push(written);
   }
   const [file] = files;

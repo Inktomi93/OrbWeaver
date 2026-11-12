@@ -5,6 +5,7 @@
 import { chats, createDb, runMigrations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { migrationsBefore, ownDb, plantLegacyZeroCanon, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { importedSeqs, textRoom, wireOf } from "../scenario-physical.ts";
 
@@ -30,7 +31,7 @@ test("a 0-based bundle import with a carried marker shows the row after the mark
     throw new Error("the production graph has no chat portability descriptor");
   }
   const files: Parameters<typeof exporter.importFile>[1][] = [];
-  for await (const file of exporter.exportAll(source.owner.userId)) {
+  for await (const file of exporter.exportAll(source.owner.userId, failOnExportNote)) {
     files.push(file);
   }
   const bundle = files.find((file) => file.filename.includes(source.chatId));

@@ -16,11 +16,12 @@
 //
 // The library route iterates the injected `PortabilityRegistry`:
 // for each requested kind it pulls that entity's exportAll(ownerId) and packs each file into one streamed
-// zip. Owner-scoped by construction. A verb returning null (not-owned/missing) maps to 404 uniformly.
+// zip. Owner-scoped by construction. A verb returning null (not-owned/missing) maps to 404 uniformly. A row an entity
+// cannot carry as stored is named in the zip's export report (`PORTABLE_EXPORT_REPORT_FILE`), never a broken stream.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
-import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
+import type { PortabilityRegistry, PortableExportNote, PortableExportReport, PortableKind } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, PORTABLE_KINDS } from "@orb/contracts/portability";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/export";
@@ -28,11 +29,13 @@ import { createBundlePaths } from "#domain/export";
 import type { Logger, TraceRing } from "#foundation/observability";
 import type { ZipEntry } from "#infra/storage";
 import { packZip } from "#infra/storage";
+import { isStoredConfigUnreadable, refuseExportNote } from "#primitives/stored-config";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
 const BAD_REQUEST = 400;
+const CONFLICT = 409;
 const PNG_MIME = "image/png";
 const JSONL_MIME = "application/x-ndjson";
 const TXT_MIME = "text/plain; charset=utf-8";
@@ -41,6 +44,7 @@ const ZIP_MIME = "application/zip";
 const FORMAT_QUERY = "format";
 const KINDS_QUERY = "kinds";
 const LIBRARY_FILENAME = "orbweaver-library.zip";
+const JSON_REPORT_INDENT = 2;
 
 /** R6 — the chat door's THIRD container: the orb-native bundle. Not an `ExportChatFormat` member, because
  *  that union is the ST INTERCHANGE's two text shapes and this one is neither text nor ST — it is the same
@@ -82,16 +86,22 @@ function parseKinds(raw: string | undefined): ParsedKinds {
 }
 
 /** Stream every requested entity's files as zip entries under distinct paths, so the archive also restores as a
- *  folder. Owner-scoped: `ownerId` is the only owner each `exportAll` sees. */
+ *  folder. Owner-scoped: `ownerId` is the only owner each `exportAll` sees. A row an entity cannot carry as stored
+ *  never breaks the stream: the entity reports it, and the report closes the archive. */
 async function* libraryEntries(registry: PortabilityRegistry, kinds: ReadonlySet<PortableKind> | null, ownerId: Principal["userId"]): AsyncGenerator<ZipEntry> {
   const bundlePath = createBundlePaths();
+  const notes: PortableExportNote[] = [];
   for (const entity of registry) {
     if (kinds !== null && !kinds.has(entity.kind)) {
       continue;
     }
-    for await (const file of entity.exportAll(ownerId)) {
+    for await (const file of entity.exportAll(ownerId, (note) => notes.push(note))) {
       yield { path: bundlePath(`${entity.dir}${file.filename}`), bytes: file.bytes };
     }
+  }
+  if (notes.length > 0) {
+    const report: PortableExportReport = { notes };
+    yield { path: bundlePath(PORTABLE_EXPORT_REPORT_FILE), bytes: new TextEncoder().encode(JSON.stringify(report, null, JSON_REPORT_INDENT)) };
   }
 }
 
@@ -104,6 +114,24 @@ function serveDownload(body: Uint8Array | string, mime: string, filename: string
       "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
+}
+
+// A card download has nothing else to deliver, so an entry it cannot carry as stored refuses it with the coded reason
+// naming the entry; the owner repairs the entry in the World Info editor or deletes it.
+async function serveCard(exporter: ExportDeps["export"], params: Omit<Parameters<ExportService["exportCharacter"]>[0], "note">): Promise<Response> {
+  let card: Awaited<ReturnType<ExportService["exportCharacter"]>>;
+  try {
+    card = await exporter.exportCharacter({ ...params, note: refuseExportNote });
+  } catch (err) {
+    if (isStoredConfigUnreadable(err)) {
+      return Response.json({ error: err.message, code: err.code }, { status: CONFLICT });
+    }
+    throw err;
+  }
+  if (card === null) {
+    return new Response(null, { status: NOT_FOUND });
+  }
+  return serveDownload(card.bytes, params.format === "json" ? JSON_MIME : PNG_MIME, card.filename);
 }
 
 function transcriptMime(format: ExportChatFormat | undefined): string {
@@ -128,11 +156,7 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     if (characterId === undefined) {
       return c.body(null, NOT_FOUND);
     }
-    const card = await deps.export.exportCharacter({ principal, characterId, format });
-    if (card === null) {
-      return c.body(null, NOT_FOUND);
-    }
-    return serveDownload(card.bytes, format === "json" ? JSON_MIME : PNG_MIME, card.filename);
+    return await serveCard(deps.export, { principal, characterId, format });
   });
 
   app.get(PORTABILITY_ROUTES.exportChat, async (c) => {

@@ -17,7 +17,7 @@ import { createSeededIds, FROZEN_AT_MS, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { exportLibrary, makeAssetBytes, restoreBundle, seedRpgCheckpoint, seedRpgGame, seedTranscript, signedInBox } from "@orb/testkit/node/composed";
-import { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
+import { failOnExportNote, makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
 
 const SOURCE_ID_CURSOR = 2 ** 29;
 const HANDLE = castId<CharacterHandle>("bridge-warden");
@@ -82,7 +82,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
   const bundle = await exportLibrary(source, ["character", "chat"]);
 
   await using target = await signedInBox();
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   const [restoredRoom, ...extra] = await roomsOf(target);
   if (restoredRoom === undefined || extra.length > 0) {
     throw new Error("the restore did not land exactly one room");
@@ -99,7 +99,7 @@ test("a room's injections, tags and rpg campaign restore into a fresh box, re-an
     checkpointId: castId(checkpoint?.id ?? ""),
   });
 
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   expect(await roomsOf(target)).toEqual([restoredRoom]);
   expect((await targetCaller.chat.listChatInjections({ chatId: restoredRoom })).map((row) => row.content)).toEqual([INJECTION]);
   expect((await targetCaller.rpg.listCheckpoints({ chatId: restoredRoom })).map((row) => row.label)).toEqual([CHECKPOINT]);
@@ -390,11 +390,11 @@ test("a room's compact summary, room overrides and variable picks restore by val
   }
   // The compaction marker is written by a summarizer turn; the production writer carries one into the file the restore reads.
   const withMarker = buildChatBundleFile({ ...sourceRoom.value, compactSummary: COMPACT_SUMMARY, compactedAtSeq: COMPACTED_AT_SEQ });
-  const sourceCard = await source.app.exportService.exportCharacter({ principal: owner, characterId: made.id });
+  const sourceCard = await source.app.exportService.exportCharacter({ principal: owner, characterId: made.id, note: failOnExportNote });
 
   await using target = await signedInBox();
   const cardBundle = await exportLibrary(source, ["character"]);
-  expect(await restoreBundle(target, cardBundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, cardBundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   const chat = target.app.portability.find((entity) => entity.kind === "chat");
   if (chat === undefined) {
     throw new Error("production composition has no chat portability descriptor");
@@ -427,6 +427,7 @@ test("a room's compact summary, room overrides and variable picks restore by val
   const restoredCardBytes = await target.app.exportService.exportCharacter({
     principal: await target.principalFor(target.ownerId),
     characterId: restoredCard.id,
+    note: failOnExportNote,
   });
   expect([...(restoredCardBytes?.bytes ?? [])]).toEqual([...sourceCard.bytes]);
 });
@@ -458,11 +459,11 @@ test("an owner's persona, world book, global databank document and settings valu
     continueOnSend: (await targetCaller.settings.getUserSettings()).config.chat.continueOnSend,
   });
 
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   const first = await landed();
   expect(first).toEqual({ personas: ["Backup Persona"], books: ["Backup World"], documents: ["Field Notes"], globalDocuments: 1, continueOnSend: false });
   // No chunk travels in a bundle, so the restored document is searchable only once the restore queues its ingest.
   expect((await targetCaller.workloads.list()).filter((job) => job.kind === "databank-ingest")).toHaveLength(1);
-  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", failed: 0 });
+  expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
   expect(await landed()).toEqual(first);
 });

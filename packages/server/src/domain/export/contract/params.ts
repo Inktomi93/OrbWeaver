@@ -2,6 +2,7 @@
 // principal; ownership is scoped off principal.userId (never a users read — the `orb/no-direct-users-read` lint rule).
 
 import type { Principal } from "@orb/contracts/identity";
+import type { PortableExportNotes } from "@orb/contracts/portability";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { PortableSeatCard } from "#primitives/serde/chat-bundle";
 
@@ -28,6 +29,8 @@ export interface ExportCharacterParams extends ExportActorParams {
   readonly characterId: CharacterId;
   /** Defaults to `png` — the bundle descriptor never passes it, so a backup always carries cards. */
   readonly format?: ExportCardFormat | undefined;
+  /** Where an embedded lore entry whose stored metadata cannot be read is reported; the entry is written without it. */
+  readonly note: PortableExportNotes;
 }
 
 /** The gate is the roster's host row; a non-host or missing chat returns null → 404. format defaults to jsonl. */

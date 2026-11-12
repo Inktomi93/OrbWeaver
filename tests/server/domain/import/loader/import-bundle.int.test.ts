@@ -39,6 +39,7 @@ import {
   seedTranscript,
   signedInBox,
 } from "@orb/testkit/node/composed";
+import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { z } from "zod";
 
 /** Asset ids restore verbatim, so the exporting box mints from its own band. */
@@ -73,7 +74,7 @@ test("a chat restores with its character when the character's handle is not the 
   const transcripts = await Promise.all(rooms.map(async (room) => (await caller.chat.listMessages({ chatId: room.id })).messages.map((m) => m.content)));
 
   expect({ outcome, handles: restored.map((c) => c.handle), transcripts }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     handles: [CHOSEN_HANDLE],
     transcripts: [lines.map((line) => line.content)],
   });
@@ -215,7 +216,7 @@ test("a restored chat binds to its own card when another character already holds
     outcome,
     keepers: await Promise.all(keepers.map(async (c) => ({ suffixed: c.handle !== CHOSEN_HANDLE, transcripts: await transcriptsOf(target, c.id) }))),
   }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     keepers: expect.arrayContaining([
       { suffixed: false, transcripts: [] },
       { suffixed: true, transcripts: [lines.map((line) => line.content)] },
@@ -249,7 +250,7 @@ test("a restored chat binds to the existing character its card deduped onto, und
     outcome,
     wardens: await Promise.all(wardens.map(async (c) => ({ handle: c.handle, transcripts: await transcriptsOf(target, c.id) }))),
   }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     wardens: [{ handle: "warden", transcripts: [lines.map((line) => line.content)] }],
   });
 });
@@ -557,7 +558,7 @@ test("a full library restore into a fresh box reports no failures and leaves no 
     room: room === undefined ? null : await restoredRoom(room.id),
     gallery: await galleryHashes(target),
   }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     room: { background: plate.assetHash, attachment: [plate.assetHash], signed: { matchesContent: true, imagesResolve: [true] } },
     gallery: sourceGallery,
   });
@@ -576,7 +577,7 @@ test("a seeded library restored into a fresh box keeps one copy of each starter 
   await using target = await signedInBox();
   const outcome = await restoreBundle(target, bundle);
 
-  expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", failed: 0 }, names: sourceNames });
+  expect({ outcome, names: await characterNames(target) }).toEqual({ outcome: { status: "succeeded", skipped: 0, failed: 0 }, names: sourceNames });
 });
 
 test("an imported card keeps its star, alone and through a library restore", { tags: ["slow"] }, async () => {
@@ -641,7 +642,7 @@ async function referrerHashes(
       throw new Error(`production composition has no ${kind} portability descriptor`);
     }
     const out: unknown[] = [];
-    for await (const file of descriptor.exportAll(ownerId)) {
+    for await (const file of descriptor.exportAll(ownerId, failOnExportNote)) {
       out.push(JSON.parse(new TextDecoder().decode(file.bytes)));
     }
     return out;
@@ -715,7 +716,7 @@ test("databank documents and imagery history restore onto bytes the owner holds 
     heldUnderOwnIds: true,
     unheldRefused: 1,
     unheldReferrers: { documents: [null], imagery: [] },
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     referrers: { documents: [sourceDocument.hash], imagery: [image.hash] },
   });
 });
@@ -759,7 +760,7 @@ test("a card's background travels in its export and re-links by content, never o
     background: await keeperBackground(target.ownerId),
   }).toEqual({
     member: { ok: true, background: null },
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     keepers: 1,
     background: { kind: "asset", resolves: plate.assetHash },
   });
@@ -782,7 +783,7 @@ test("restoring bytes the owner holds under another id repairs that asset when i
   const restored = stored ? await target.services.assets.loadAssetBytes(held.assetId) : null;
 
   expect({ outcome, stored, readable: restored !== null && Buffer.from(restored).equals(Buffer.from(bytes)) }).toEqual({
-    outcome: { status: "succeeded", failed: 0 },
+    outcome: { status: "succeeded", skipped: 0, failed: 0 },
     stored: true,
     readable: true,
   });

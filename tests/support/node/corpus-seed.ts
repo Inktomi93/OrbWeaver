@@ -17,6 +17,7 @@ import { corpusReadInput } from "../iso/corpus.ts";
 import { bootGrantFor } from "./boot-grant.ts";
 import { captureCorpusRead } from "./corpus-capture.ts";
 import { settleActiveWorkloads, settleDocumentIntake } from "./corpus-workloads.ts";
+import { failOnExportNote } from "./export-notes.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
@@ -203,7 +204,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     throw new Error("native library corpus has no preset export descriptor");
   }
   let fileText: string | undefined;
-  for await (const file of descriptor.exportAll(root.ownerId)) {
+  for await (const file of descriptor.exportAll(root.ownerId, failOnExportNote)) {
     const text = new TextDecoder().decode(file.bytes);
     const parsed = parsePresetFile(JSON.parse(text));
     if (parsed.ok && parsed.name === branchedPreset.view.name) {
