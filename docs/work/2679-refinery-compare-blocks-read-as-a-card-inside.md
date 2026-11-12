@@ -19,7 +19,7 @@ Nested bordered containers read as a flattened-design break; the earlier answers
 
 ## Done when
 
-The compare blocks render as one container with the result, or the finding is answered with a cited reason and, if the audit is wrong, a fixture in the audit engine.
+The compare blocks render as one container with the result, shown by a component test on the production Refinery result that is red today; or the finding is answered with a cited reason and, if the audit is wrong, a fixture in the audit engine.
 
 ## Evidence
 

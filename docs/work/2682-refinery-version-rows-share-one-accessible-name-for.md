@@ -19,7 +19,7 @@ A screen-reader user cannot tell which version a Restore restores; the same defe
 
 ## Done when
 
-Each version's Restore carries its version in its name from the shared naming home, the names audit passes at that checkpoint, and a production-mounted component test asserts the names differ.
+Each version's Restore carries its version in its name from the shared naming home, and a production-mounted component test asserts the names differ.
 
 ## Evidence
 

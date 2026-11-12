@@ -19,7 +19,7 @@ Two primary actions on one result compete; the user must pick which one finishes
 
 ## Done when
 
-One of the two is primary at that checkpoint, or the reading is answered with a cited reason; the checkpoint passes the density check.
+One of the two is primary on a Refinery result, shown by a component test on the production surface that counts primary controls and is red today; or the reading is answered with a cited reason.
 
 ## Evidence
 

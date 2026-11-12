@@ -19,7 +19,7 @@ A caveat that bounds a statement but reads smaller than it is easy to miss; the 
 
 ## Done when
 
-The alert and the sibling it bounds share a type tier, or the alert reads at least as large; the finding is gone from both checkpoints; or the pair is answered with a cited reason. A false positive goes to the audit engine with a fixture.
+The alert and the sibling it bounds share a type tier, or the alert reads at least as large, shown by a component test on the production create dialog with a taken name that is red today; or the pair is answered with a cited reason. A false positive goes to the audit engine with a fixture.
 
 ## Evidence
 

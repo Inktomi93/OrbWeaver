@@ -19,7 +19,7 @@ A pane that is mostly empty below its content reads as unfinished; the rule's ow
 
 ## Done when
 
-The pane earns its height or sheds it, decided from a rendered look together with the Config pane-ink decision; the finding is gone from these checkpoints or answered with a cited reason.
+The pane earns its height or sheds it, decided from a rendered look together with the Config pane-ink decision, and a component test on the production Sessions pane holds the decided shape; or the finding is answered with a cited reason.
 
 ## Evidence
 

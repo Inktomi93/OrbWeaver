@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-10
+updated: 2026-11-12
 priority: P3
 area: tooling
-plan: cross-surface-consistency
+plan: surface-walk
 ---
 
 # double-empty-state compares empty states across the panes of one screen

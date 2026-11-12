@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-10
+updated: 2026-11-12
 priority: P3
 area: testing
-plan: cross-surface-consistency
+plan: surface-walk
 ---
 
 # The surface walk scrolls overflowed context-rail cells into view so their captions are judged

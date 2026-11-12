@@ -19,7 +19,7 @@ One screen should have one primary action; two compete for the focus a user need
 
 ## Done when
 
-While a greeting preview is open, one control is primary, or the audit's reading of the hero is answered with a cited reason; both checkpoints pass the density check.
+While a greeting preview is open, one control is primary, shown by a component test on the production Characters surface that counts primary controls and is red today; or the audit's reading of the hero is answered with a cited reason.
 
 ## Evidence
 

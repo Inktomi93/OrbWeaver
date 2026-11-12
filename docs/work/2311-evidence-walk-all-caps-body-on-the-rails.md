@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-09
+updated: 2026-11-12
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -19,7 +19,7 @@ The design audit flags this as a break in the shared design system on a producti
 
 ## Done when
 
-The all-caps-body finding is gone from these surfaces' evidence checkpoints, fixed at the shared owner, or each remaining subject is answered with a cited reason. A false positive goes to the audit engine with a fixture instead.
+The all-caps-body finding is fixed at the shared owner on these surfaces, shown by a component test that mounts each named production surface and runs this rule through the testkit's design audit, red today and green after, with no whole walk needed, or each remaining subject is answered with a cited reason. A false positive goes to the audit engine with a fixture instead.
 
 ## Evidence
 
