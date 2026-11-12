@@ -14,9 +14,9 @@ import { DomainRateLimitError } from "@orb/kit/errors";
 import type { IdSource } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
-import type { TRPCError } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import type { ResponseMeta } from "@trpc/server/http";
+import type { ResponseMeta, TRPCRequestInfo } from "@trpc/server/http";
 import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -124,8 +124,8 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
  * CORS-simple content-type, so a cross-site page cannot make the browser send one without a preflight this
  * app never answers (it mounts no CORS middleware).
  *
- * GET is untouched — it carries no content-type, and tRPC's method map admits GET for queries and
- * subscriptions only. The mount's `allowMethodOverride` admits a query or subscription over POST too, which
+ * GET passes this belt — it carries no content-type, and tRPC's method map admits GET for queries and
+ * subscriptions only; {@link refuseHeaderlessGetSubscription} covers the subscriptions. The mount's `allowMethodOverride` admits a query or subscription over POST too, which
  * is why this belt, not the method, is what bounds a POST to `application/json`. A bare 415 with no body mirrors the body-limit belt: no legitimate client reaches it,
  * and the refusal still carries `X-Request-Id` (observability is mounted above this — and it
  * stamps the id on `c.res.headers` AFTER `next()`, so the header rides EVERY response through this mount,
@@ -145,6 +145,31 @@ function trpcJsonOnly(logger: Logger): MiddlewareHandler {
     );
     return Promise.resolve(c.body(null, UNSUPPORTED_MEDIA_TYPE));
   };
+}
+
+/**
+ * THE GET-SUBSCRIPTION CSRF CHECK (Spine-Identity-and-Auth invariant 9). A subscription writes: `stream.connect`
+ * marks its user online and runs the deferred-turn drain. Over POST it rides the content-type belt above. A GET
+ * carries no content type, a cross-site page can send one with no custom header, and the loopback owner fallback
+ * admits it as the owner. So a subscription outside POST must carry the CSRF header, which a cross-site page cannot
+ * send without a preflight this app never answers. It reads tRPC's own path resolution (`info.type`), so no path
+ * spelling reaches a subscription around it. Queries write nothing and stay open to GET.
+ */
+function refuseHeaderlessGetSubscription(
+  request: { readonly method: string; readonly headers: Headers; readonly path: string },
+  info: TRPCRequestInfo,
+  logger: Logger,
+): void {
+  if (request.method === "POST" || info.type !== "subscription" || hasCsrfHeader(request.headers)) {
+    return;
+  }
+  securityEvent(
+    "trpc_subscription_csrf_rejected",
+    { method: request.method, path: request.path },
+    "security: tRPC subscription outside POST rejected — no CSRF header",
+    logger,
+  );
+  throw new TRPCError({ code: "FORBIDDEN", message: "A subscription outside POST needs the CSRF header" });
 }
 
 // The tRPC `responseMeta` hook: on a TOO_MANY_REQUESTS response, surface the throttle hint from the
@@ -371,13 +396,15 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
       req: c.req.raw,
       router: appRouter,
       maxBatchSize: TRPC_BATCH_MAX_ITEMS,
-      createContext: () =>
-        deps.trpcContext({
+      createContext: ({ info }) => {
+        refuseHeaderlessGetSubscription({ method: c.req.method, headers: c.req.raw.headers, path: c.req.path }, info, deps.logger);
+        return deps.trpcContext({
           auth: c.get("principal"),
           sessionId: c.get("sessionId"),
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c, trustedProxies),
-        }),
+        });
+      },
       responseMeta: ({ errors }) => rateLimitResponseMeta(errors),
       // Subscriptions avoid buffering relays; query inputs avoid URL ceilings. Mutations stay POST-only.
       allowMethodOverride: true,

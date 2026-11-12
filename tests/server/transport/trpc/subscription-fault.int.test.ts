@@ -3,6 +3,7 @@
 // @subject packages/server/src/transport/trpc/subscriptions.ts
 // @subject packages/server/src/transport/trpc/routers/chat.ts
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { DomainInternalFaultError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
 import { vi } from "vitest";
@@ -27,7 +28,7 @@ test("a subscription that hits a tripwire ends with a terminal error frame witho
   try {
     const address = new URL("http://localhost/api/trpc/chat.impersonateStream");
     address.searchParams.set("input", JSON.stringify({ chatId: room.chatId, timeZone: REPORTED_TIME_ZONE }));
-    const response = await room.root.http.request(address, { headers: { cookie: room.hostSeat.cookie, accept: "text/event-stream" } });
+    const response = await room.root.http.request(address, { headers: { cookie: room.hostSeat.cookie, accept: "text/event-stream", [CSRF_HEADER]: "1" } });
     const body = await response.text();
 
     expect(body).not.toContain(FAULT_DETAIL);

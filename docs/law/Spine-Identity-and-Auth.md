@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-11-11
+updated: 2026-11-12
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -113,8 +113,11 @@ Code comments cite the numbered invariants below as "invariant N":
    mount on any ambient credential. `application/json` (with or without `; charset=utf-8`) runs on every
    path. tRPC's own gate also refuses a cookie mutation without `x-orb-csrf` (403); the fallback and proxy
    paths with `application/json` and no `x-orb-csrf` still run (200). The un-cookied loopback dev tooling
-   relies on the fallback path. GET is untouched: tRPC's method map admits GET for queries and
-   subscriptions only.
+   relies on the fallback path. tRPC's method map also admits GET for queries and subscriptions, and a GET
+   carries no content type. A query must not write. A subscription can write: `stream.connect` marks its
+   user online and runs the deferred-turn drain. So the mount refuses a subscription outside POST that lacks
+   `x-orb-csrf`, on every credential path (`refuseHeaderlessGetSubscription` in
+   `packages/server/src/entry/app.ts`). The client opens every subscription as a JSON POST with the header.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The
     production census is two: the `oidc` callback (`packages/server/src/entry/http/auth-routes.ts`: verified claims through
