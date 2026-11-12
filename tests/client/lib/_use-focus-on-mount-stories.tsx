@@ -1,8 +1,10 @@
+import { QueryBoundary } from "@orb/client/components";
+import { useSuspenseQuery, useTRPC } from "@orb/client/data";
 import { useFocusOnMount } from "@orb/client/lib";
-import { CtIsolation } from "@orb/testkit/browser";
+import { CtClientProviders, CtIsolation } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ARRIVAL_EVENT, DISMISS_NAME, OPEN_NAME, SURFACE_NAME } from "./use-focus-on-mount-names.ts";
+import { ARRIVAL_EVENT, DISMISS_NAME, OPEN_NAME, PENDING_NAME, SURFACE_NAME } from "./use-focus-on-mount-names.ts";
 
 /** A surface that takes arrival focus through the production hook. */
 function ArrivalSurface(): ReactElement {
@@ -49,5 +51,30 @@ export function StrayMountStory(): ReactElement {
       )}
       {arrived ? <ArrivalSurface /> : null}
     </CtIsolation>
+  );
+}
+
+/** A surface whose first render waits on a read, so the boundary above it shows its fallback until the read settles. */
+function SlowArrivalSurface(): ReactElement {
+  const trpc = useTRPC();
+  useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
+  return <ArrivalSurface />;
+}
+
+/** A press whose own control is removed by the render that starts the surface's read: the surface mounts when the read settles. */
+export function SlowReadSwapStory(): ReactElement {
+  const [opened, setOpened] = useState(false);
+  return (
+    <CtClientProviders>
+      {opened ? (
+        <QueryBoundary fallback={<p>{PENDING_NAME}</p>} resetKeys={[]}>
+          <SlowArrivalSurface />
+        </QueryBoundary>
+      ) : (
+        <button onClick={(): void => setOpened(true)} type="button">
+          {OPEN_NAME}
+        </button>
+      )}
+    </CtClientProviders>
   );
 }

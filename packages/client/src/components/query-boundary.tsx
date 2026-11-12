@@ -39,6 +39,7 @@ import { Text } from "@orb/ui/text";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, Ref, RefObject } from "react";
 import { Component, isValidElement, Suspense, useEffect, useId, useRef } from "react";
+import { holdArrivalWhilePending } from "#lib";
 import { rememberSurfaceBox, useSurfaceBox, useSurfaceRows } from "#state";
 import { QueryErrorState } from "../data/query-error-state.tsx";
 import { QUERY_WAITING_LINE } from "../data/query-state-copy.ts";
@@ -233,6 +234,8 @@ function RecoveryStatus({ phase, ref }: { readonly phase: RecoveryPhase; readonl
 function PendingFallback({ onPending, children }: { readonly onPending: () => void; readonly children: ReactNode }): ReactElement {
   const online = useOnlineStatus();
   useEffect(() => onPending(), [onPending]);
+  // A press that opened this read's surface keeps its arrival focus until the read settles (`useFocusOnMount`).
+  useEffect(() => holdArrivalWhilePending(), []);
   return (
     <>
       {children}

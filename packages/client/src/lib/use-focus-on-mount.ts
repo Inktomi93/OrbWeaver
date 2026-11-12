@@ -60,8 +60,30 @@ function isConnectedNode(target: object | null): target is ConnectedNode {
 function notePress(target: object | null): void {
   lastPress = isConnectedNode(target) ? { target, at: performance.now() } : null;
 }
+// Reads still pending behind the press's own render. While one is, the press's surface has not mounted yet and arrives when the read
+// settles, however long that takes, so the window does not run against it.
+let pendingReads = 0;
 function pressRemovedItsControl(): boolean {
-  return lastPress !== null && !lastPress.target.isConnected && performance.now() - lastPress.at <= PRESS_RENDER_WINDOW_MS;
+  if (lastPress === null || lastPress.target.isConnected) {
+    return false;
+  }
+  return pendingReads > 0 || performance.now() - lastPress.at <= PRESS_RENDER_WINDOW_MS;
+}
+
+/** Called by a pending read's fallback when it mounts. A fallback that mounts in the render a press caused holds that press's arrival
+ *  open until it unmounts; the surface then mounts in that same commit, so the window starts over at the release. Any other fallback holds nothing.
+ *  Returns the release. */
+export function holdArrivalWhilePending(): () => void {
+  if (!pressRemovedItsControl()) {
+    return (): void => undefined;
+  }
+  pendingReads += 1;
+  return (): void => {
+    pendingReads -= 1;
+    if (lastPress !== null) {
+      lastPress = { target: lastPress.target, at: performance.now() };
+    }
+  };
 }
 browserDocument?.addEventListener(
   "keydown",
