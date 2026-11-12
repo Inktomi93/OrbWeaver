@@ -38,12 +38,13 @@ import type { AssetId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, sql } from "drizzle-orm";
 import type { CharacterAvatarLinkContext } from "../contract/avatar-link.ts";
+import { ensureAvatarAssets } from "./queries.ts";
 
 /** THE ASSET AXIS OF THE RELINK'S BELT. The character axis (id + owner) was always in the
  *  WHERE; the asset the SET writes was not checked at all, so a caller-supplied `link.assetId` naming
  *  ANOTHER owner's asset landed on this owner's own card — a live pointer into a library the card's owner
  *  cannot read, and an FK that GC-roots the other owner's blob through a row they do not control. That is
- *  the failure `queries.ts::ensureAssetOwned` (the create/update front doors) and
+ *  the failure `queries.ts::ensureAvatarAsset` (the create/update front doors) and
  *  `ensureBackgroundOverrideOwned` (the carried background) already refuse; a maintenance op handed a
  *  caller-supplied id list has strictly less standing to skip it, not more.
  *
@@ -68,6 +69,13 @@ export function createLinkCharacterAvatars(input: DbAssemblyInput<CharacterAvata
     if (links.length === 0) {
       return;
     }
+    // The kind check runs ahead of the batch, which takes no SELECT; an asset's kind never changes once stored, so the
+    // EXISTS below still settles ownership atomically with the write.
+    await ensureAvatarAssets(
+      ctx.db,
+      ownerId,
+      links.map((link) => link.assetId),
+    );
     // ONE instant for the whole batch — a relink is a single reconciliation, so every row it touches
     // carries the same stamp rather than a drifting per-statement clock read.
     const updatedAt = ctx.now();

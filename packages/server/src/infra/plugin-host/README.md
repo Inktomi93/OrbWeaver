@@ -93,7 +93,10 @@ The shipped pair is a 1 GiB monitored RSS threshold and four physical Workers. M
 Every command has a parent-side deadline, and synchronous Worker calls have a bounded `Atomics.wait`. A command
 past its deadline fails alone and the broker ends that runtime's Worker; no command timer ends the broker (D347).
 Broker death rejects pending commands and cancels pending bridge liveness. A logical plugin is rebuilt on its next
-call, never replayed in the background, and a snippet in flight fails with the broker.
+call, never replayed in the background, and a snippet in flight fails with the broker. Repeated losses are bounded
+(D347): each loss after the first inside a window holds plugin calls for a doubling time, and one past the count stops
+the host until the server restarts. Each owner's plugin rows then carry the reason and name that owner's plugins that
+ran at each loss. A watchdog that stops itself is one loss.
 
 ## Sharp edges
 

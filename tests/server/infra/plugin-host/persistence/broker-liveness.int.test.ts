@@ -6,20 +6,28 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginStatus } from "@orb/contracts/plugin";
+import { brandedId, createIdSource } from "@orb/kit/ids";
+import { systemTimers } from "@orb/server/infra/timers";
+import { createFrozenClock } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness } from "@orb/testkit/node/composed";
+import { createServerHarness, guestRunner, installGuest as installOwnedGuest } from "@orb/testkit/node/composed";
 import { capturePluginRows } from "@orb/testkit/node/rows";
 import {
   PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
   PLUGIN_BROKER_LIVENESS_BOUND_MS,
+  PLUGIN_BROKER_LOSS_WINDOW_MS,
+  PLUGIN_BROKER_LOSSES_MAX,
   PLUGIN_INVOCATION_CPU_MS,
   PLUGIN_WORKER_OVERRUN_MAX_MS,
   PLUGIN_WORKER_SPAN_CHECK_MS,
+  pluginBrokerRestartHoldMs,
 } from "#server/infra/plugin-host/budgets.ts";
 import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 import { BASE_GRANTS, createPluginProcessEdge, firstChild, installGuest, NATIVE_TIMEOUT_MS, NOOP_COMMAND } from "../process-runtime.fixtures.ts";
 
 const ENABLED = "enabled" satisfies PluginStatus;
+const BYSTANDER_HANDLE = brandedId("Handle").parse("halt-bystander");
+const BYSTANDER_SLUG = "other-owners-plugin";
 const BROKER_STOPPED = "stopped" satisfies NonNullable<ReturnType<typeof parsePluginIpcMessage>>["kind"];
 // The watchdog judges once per interval, so it notices silence at most one interval late; the kill and the stopped
 // report then cross two processes, given as much again.
@@ -46,6 +54,22 @@ function brokerPid(edge: ReturnType<typeof createPluginProcessEdge>): number {
 
 function stoppedReports(edge: ReturnType<typeof createPluginProcessEdge>): readonly unknown[] {
   return edge.delivered.filter((value) => parsePluginIpcMessage(value)?.kind === BROKER_STOPPED);
+}
+
+// The host's monotonic clock, stepped by the test; production timers run in real time beside it. A root with its own
+// time takes its database and owner from a seed root.
+function steppedTime(): {
+  readonly clock: { at: number };
+  readonly time: { readonly now: () => number; readonly monotonicNow: () => number; readonly timers: typeof systemTimers };
+} {
+  const clock = { at: 0 };
+  return { clock, time: { now: createFrozenClock().now, monotonicNow: (): number => clock.at, timers: systemTimers } };
+}
+
+// Ends the broker the way any crash does; the production watchdog reports it stopped and starts a replacement.
+async function loseBroker(edge: ReturnType<typeof createPluginProcessEdge>, losses: number): Promise<void> {
+  process.kill(brokerPid(edge), "SIGKILL");
+  await expect.poll(() => stoppedReports(edge).length, { timeout: REPLACED_WITHIN_MS }).toBe(losses);
 }
 
 async function crashesOf(
@@ -202,4 +226,133 @@ test("a watchdog paused past the time the beat pipe takes to fill leaves the bro
   await culprit.invoke("noop");
   await bystander.invoke("noop");
   expect(await crashesOf(root.db, root.ownerId, bystander.pluginId)).toBe(0);
+});
+
+// One loss of every run past the bound, plus the replacements before it, each a real broker start.
+const BOUND_TEST_TIMEOUT_MS = (PLUGIN_BROKER_LOSSES_MAX + 2) * (REPLACED_WITHIN_MS + NATIVE_TIMEOUT_MS);
+
+test("a watchdog that stops itself, reporting its broker stopped and then exiting, is one broker loss", {
+  tags: ["slow"],
+  timeout: NATIVE_TIMEOUT_MS,
+}, async () => {
+  const edge = createPluginProcessEdge();
+  const { time } = steppedTime();
+  await using seed = await createServerHarness({ startJobs: false });
+  await using root = await createServerHarness({
+    db: seed.db,
+    ownerId: seed.ownerId,
+    idSource: createIdSource(),
+    startJobs: false,
+    pluginSpawn: edge.spawn,
+    time,
+  });
+  const guest = await installGuest(root, "stopped-once", `const h=orb.host(1);${NOOP_COMMAND}`, BASE_GRANTS);
+  expect((await guest.enable()).status).toBe(ENABLED);
+  await guest.invoke("noop");
+  const watchdog = firstChild(edge);
+  if (watchdog.pid === undefined) {
+    throw new Error("the production host did not spawn its watchdog");
+  }
+
+  // Told to stop, the watchdog ends its broker, reports it stopped, and exits: both reach the host before the call.
+  process.kill(watchdog.pid, "SIGTERM");
+  await expect.poll(() => watchdog.exitCode !== null || watchdog.signalCode !== null, { timeout: REPLACED_WITHIN_MS }).toBe(true);
+  expect(stoppedReports(edge)).toHaveLength(1);
+
+  // One loss holds nothing, on a clock that never moves: a second counted loss would hold this call.
+  expect(pluginBrokerRestartHoldMs(1)).toBe(0);
+  await guest.invoke("noop");
+  expect(edge.children).toHaveLength(2);
+});
+
+test("repeated broker losses inside the window hold plugin calls for a doubling time, then stop the host and tell each owner which of their plugins ran at each loss", {
+  tags: ["slow"],
+  timeout: BOUND_TEST_TIMEOUT_MS,
+}, async () => {
+  const edge = createPluginProcessEdge();
+  const { clock, time } = steppedTime();
+  await using seed = await createServerHarness({ startJobs: false });
+  const bystanderId = await seed.app.sessions.ensureUser(BYSTANDER_HANDLE);
+  await using root = await createServerHarness({
+    db: seed.db,
+    ownerId: seed.ownerId,
+    idSource: createIdSource(),
+    startJobs: false,
+    pluginSpawn: edge.spawn,
+    time,
+  });
+  const guest = await installGuest(root, "lost-often", `const h=orb.host(1);${NOOP_COMMAND}`, BASE_GRANTS);
+  expect((await guest.enable()).status).toBe(ENABLED);
+  await guest.invoke("noop");
+  // Another owner's plugin runs on the same broker at the first loss only.
+  const bystander = await root.principalFor(bystanderId);
+  const bystanderPlugin = await installOwnedGuest(
+    root,
+    bystander,
+    { slug: BYSTANDER_SLUG, capabilities: ["storage.kv"] },
+    { ping: "(h) => h.storage.get('k')" },
+  );
+  expect(await guestRunner({ root, caller: bystander, pluginId: bystanderPlugin, chatId: null })("ping")).toEqual({ ok: true, value: null });
+
+  // A lone loss recovers at once.
+  await loseBroker(edge, 1);
+  expect(pluginBrokerRestartHoldMs(1)).toBe(0);
+  await guest.invoke("noop");
+  for (let loss = 2; loss <= PLUGIN_BROKER_LOSSES_MAX; loss += 1) {
+    await loseBroker(edge, loss);
+    // Held: refused as host-unavailable, never a strike, until the hold passes on the host's clock.
+    clock.at += pluginBrokerRestartHoldMs(loss) - 1;
+    await expect(guest.invoke("noop")).toThrowTRPCError("CONFLICT");
+    clock.at += 1;
+    await guest.invoke("noop");
+    expect((await guest.view()).lastError).toBeNull();
+  }
+
+  // One loss more inside the window stops the host: no broker starts again, and each owner's rows say why, naming only
+  // that owner's plugins that ran at each loss.
+  await loseBroker(edge, PLUGIN_BROKER_LOSSES_MAX + 1);
+  await expect(guest.invoke("noop")).toThrowTRPCError("CONFLICT");
+  await expect.poll(async () => (await guest.view()).lastError).not.toBeNull();
+  const ownRecord = (await guest.view()).lastError ?? "";
+  for (let loss = 1; loss <= PLUGIN_BROKER_LOSSES_MAX + 1; loss += 1) {
+    expect(ownRecord).toContain(`${String(loss)}: lost-often`);
+  }
+  expect(ownRecord).not.toContain(BYSTANDER_SLUG);
+  const bystanderRecord = (await root.services.plugin.list({ caller: bystander })).find(({ id }) => id === bystanderPlugin)?.lastError ?? "";
+  expect(bystanderRecord).toContain(`1: ${BYSTANDER_SLUG}`);
+  expect(bystanderRecord).toContain("2: none");
+  expect(bystanderRecord).not.toContain("lost-often");
+  await expect.poll(() => firstChild(edge).exitCode !== null || firstChild(edge).signalCode !== null, { timeout: REPLACED_WITHIN_MS }).toBe(true);
+  await expect(guest.invoke("noop")).toThrowTRPCError("CONFLICT");
+  expect(edge.children).toHaveLength(1);
+  expect((await guest.view()).status).toBe(ENABLED);
+  expect(await crashesOf(root.db, root.ownerId, guest.pluginId)).toBe(0);
+});
+
+test("broker losses further apart than the window never add up, and never stop the host", {
+  tags: ["slow"],
+  timeout: BOUND_TEST_TIMEOUT_MS,
+}, async () => {
+  const edge = createPluginProcessEdge();
+  const { clock, time } = steppedTime();
+  await using seed = await createServerHarness({ startJobs: false });
+  await using root = await createServerHarness({
+    db: seed.db,
+    ownerId: seed.ownerId,
+    idSource: createIdSource(),
+    startJobs: false,
+    pluginSpawn: edge.spawn,
+    time,
+  });
+  const guest = await installGuest(root, "lost-rarely", `const h=orb.host(1);${NOOP_COMMAND}`, BASE_GRANTS);
+  expect((await guest.enable()).status).toBe(ENABLED);
+  await guest.invoke("noop");
+
+  for (let loss = 1; loss <= PLUGIN_BROKER_LOSSES_MAX + 1; loss += 1) {
+    clock.at += PLUGIN_BROKER_LOSS_WINDOW_MS;
+    await loseBroker(edge, loss);
+    // Each loss is the first inside its window, so the next call is served at once.
+    await guest.invoke("noop");
+  }
+  expect((await guest.view()).lastError).toBeNull();
 });

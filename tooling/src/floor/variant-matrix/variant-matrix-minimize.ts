@@ -80,7 +80,7 @@ function candidateIndexByObligation(candidates: readonly CandidateCoverage[], ob
 }
 
 function leastCommonObligation(obligations: readonly number[], byObligation: readonly number[][]): number | undefined {
-  return [...obligations].sort((left, right) => (byObligation[left]?.length ?? 0) - (byObligation[right]?.length ?? 0))[0];
+  return obligations.toSorted((left, right) => (byObligation[left]?.length ?? 0) - (byObligation[right]?.length ?? 0))[0];
 }
 
 function secondReplacement(

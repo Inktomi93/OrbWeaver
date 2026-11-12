@@ -45,6 +45,7 @@ import {
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { TimerScheduler } from "@orb/kit/time";
+import { MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
@@ -55,18 +56,21 @@ import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyn
 import {
   PLUGIN_AUTHORITY_TAIL_CALLS_MAX,
   PLUGIN_AUTHORITY_TAIL_MS,
+  PLUGIN_BROKER_LOSS_WINDOW_MS,
+  PLUGIN_BROKER_LOSSES_MAX,
   PLUGIN_COMMAND_TIMEOUT_MS,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
+  pluginBrokerRestartHoldMs,
   pluginIpcShareBytes,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, CreateLogicalInstanceInputIn, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
-import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
+import { PluginIpcSender, PluginIpcShares, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
 import {
   channelFullBridgeResult,
@@ -76,6 +80,7 @@ import {
   PLUGIN_CHANNEL_FULL,
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
+  PLUGIN_STALE_RUNTIME,
   parseBrokerParentMessage,
   parseMessageLine,
   rpcError,
@@ -85,6 +90,15 @@ import type { WarmRuntimeLease } from "./warm-runtime-pool.ts";
 import { WarmRuntimePool } from "./warm-runtime-pool.ts";
 
 const CONNECT_TIMEOUT_MS = 10_000;
+// How a halt record names a runtime that ran a snippet, which has no plugin slug.
+const SNIPPET_RUNNER = "a snippet";
+
+/** One broker loss inside the window (D347): when, on the host's monotonic clock, and each owner's plugins whose runtimes
+ *  the lost broker held. */
+interface BrokerLoss {
+  readonly at: number;
+  readonly running: ReadonlyMap<UserId, ReadonlySet<string>>;
+}
 
 /** A logical instance can restart from its runtime config. A snippet holds an admission until release. */
 type BindingLifetime =
@@ -102,7 +116,7 @@ type BindingLifetime =
     };
 
 type Binding = BindingLifetime & {
-  readonly registry: Map<string, Binding>;
+  readonly registry: RuntimeRegistry;
   /** Whose share of the Workers this binding's runtime draws on. */
   readonly owner: UserId;
   readonly timers: TimerScheduler;
@@ -287,8 +301,49 @@ function createLiveness(): MutableLiveness {
   };
 }
 
+// The app's live runtimes by id, each holding its share of the queues the app sends on from registration until it is
+// forgotten (D348). Forgetting one tells the broker, which holds the runtime's own share until then.
+class RuntimeRegistry {
+  private readonly bindings = new Map<string, Binding>();
+  private readonly shares = new PluginIpcShares();
+  private readonly forgotten: (runtimeId: string) => void;
+
+  constructor(forgotten: (runtimeId: string) => void) {
+    this.forgotten = forgotten;
+  }
+
+  get(runtimeId: string): Binding | undefined {
+    return this.bindings.get(runtimeId);
+  }
+
+  shareOf(runtimeId: string): string | undefined {
+    return this.shares.of(runtimeId);
+  }
+
+  set(runtimeId: string, binding: Binding): void {
+    this.bindings.set(runtimeId, binding);
+    this.shares.acquire(runtimeId);
+  }
+
+  delete(runtimeId: string): void {
+    if (!this.bindings.delete(runtimeId)) {
+      return;
+    }
+    this.shares.release(runtimeId);
+    this.forgotten(runtimeId);
+  }
+
+  values(): MapIterator<Binding> {
+    return this.bindings.values();
+  }
+
+  [Symbol.iterator](): MapIterator<[string, Binding]> {
+    return this.bindings.entries();
+  }
+}
+
 class BrokerClient {
-  readonly bindings = new Map<string, Binding>();
+  readonly bindings = new RuntimeRegistry((runtimeId) => this.releaseBrokerShare(runtimeId));
   readonly logicalBindings = new Set<Binding>();
   private readonly seams: PluginHostSeamDeps;
   private readonly timers: TimerScheduler;
@@ -314,6 +369,14 @@ class BrokerClient {
   private readonly bridgeCalls = new Map<string, ActiveBridgeCall>();
   private closing: Promise<void> | undefined;
   private nextCommand = 0;
+  private losses: readonly BrokerLoss[] = [];
+  /** The watchdog whose stopped report was already counted as a loss. Its exit before its next ready is the same event:
+   *  a watchdog that stops itself reports its broker stopped, then exits. */
+  private lossCountedFor: ChildProcess | undefined;
+  /** Until when plugin calls are refused after a run of broker losses. */
+  private heldUntil = Number.NEGATIVE_INFINITY;
+  /** Set once the host stops restarting its broker; every later call is refused with it. */
+  private halted: Error | undefined;
 
   hasManagedChild(): boolean {
     return this.managedChild !== undefined;
@@ -422,14 +485,19 @@ class BrokerClient {
       try {
         // A dispose is the host's own small frame; every other command carries a value its plugin sized, so it takes its
         // runtime's share and a full channel refuses that command alone, as host-unavailable.
+        const share = this.bindings.shareOf(runtimeId);
         if (operation === "dispose") {
           sender.send({ kind: "frame", generation, frame: serialized });
+        } else if (share === undefined) {
+          // Forgotten while the connection was awaited: the broker would refuse it as a stale runtime.
+          this.settleCommand(id);
+          reject(new PluginHostUnavailableError(PLUGIN_STALE_RUNTIME));
         } else if (
           !sender.offer({
             kind: "frame",
             generation,
             frame: serialized,
-            route: { runtimeId, refusal: { frame: serializeMessage(channelFullResponse(id)), back: true } },
+            route: { share, refusal: { frame: serializeMessage(channelFullResponse(id)), back: true } },
           })
         ) {
           this.settleCommand(id);
@@ -500,7 +568,85 @@ class BrokerClient {
     }
   }
 
+  // A host that stopped restarting its broker refuses every call; one inside a hold refuses until the hold passes. Taken
+  // where a plugin call enters the host, never per command, so a call already running can still retire its runtime.
+  admit(): void {
+    if (this.halted !== undefined) {
+      throw this.halted;
+    }
+    const waitMs = this.heldUntil - this.monotonicNow();
+    if (waitMs > 0) {
+      throw new PluginHostUnavailableError(`plugin host: restarting after repeated broker losses; retry in ${String(Math.ceil(waitMs / MS_PER_SECOND))} s`);
+    }
+  }
+
+  // REPEATED BROKER LOSSES ARE BOUNDED (D347). A lone loss recovers at once. Each further loss inside the window holds
+  // plugin calls for a doubling time, so a loss that a call can cause repeats at most that often; past the count the
+  // host stops restarting the broker until the server restarts, and tells the owner why through `onHalted`.
+  private recordBrokerLoss(reason: string): void {
+    if (this.closed || this.halted !== undefined) {
+      return;
+    }
+    const now = this.monotonicNow();
+    this.losses = [...this.losses.filter((loss) => now - loss.at < PLUGIN_BROKER_LOSS_WINDOW_MS), { at: now, running: this.runningPlugins() }];
+    if (this.losses.length <= PLUGIN_BROKER_LOSSES_MAX) {
+      this.heldUntil = now + pluginBrokerRestartHoldMs(this.losses.length);
+      return;
+    }
+    const minutes = PLUGIN_BROKER_LOSS_WINDOW_MS / MS_PER_MINUTE;
+    const message = `the plugin host stopped after its broker was lost ${String(this.losses.length)} times within ${String(minutes)} minutes (last: ${reason}); plugins stay paused until the server restarts`;
+    this.halted = new PluginHostUnavailableError(message);
+    this.seams.onHalted(this.haltRecords(message));
+    // The watchdog stops its broker on SIGTERM; nothing respawns it while the host is halted.
+    this.generation = undefined;
+    this.sender?.close();
+    this.managedChild?.kill("SIGTERM");
+    this.onDisconnect(this.halted);
+  }
+
+  // The broker's share for a runtime passes on once this host forgets the runtime, so the notice goes out before any
+  // command the freed Worker lets through, on the same ordered channel. A lost connection forgets with its broker.
+  private releaseBrokerShare(runtimeId: string): void {
+    const sender = this.sender;
+    const generation = this.generation;
+    if (sender === undefined || generation === undefined) {
+      return;
+    }
+    try {
+      sender.send({ kind: "frame", generation, frame: serializeMessage({ kind: "runtime-forgotten", runtimeId }) });
+      // a channel that cannot carry this control frame cannot carry any: stopConnection ends it, as every other send failure does. Ends if the channel gains another failure owner.
+    } catch (error) {
+      this.stopConnection(error instanceof Error ? error : unavailableError());
+    }
+  }
+
+  // Each owner's plugins whose runtimes are on the broker now: those registered and already sent a command.
+  private runningPlugins(): ReadonlyMap<UserId, ReadonlySet<string>> {
+    const running = new Map<UserId, Set<string>>();
+    for (const [, binding] of this.bindings) {
+      if (binding.dispatched) {
+        running.set(binding.owner, (running.get(binding.owner) ?? new Set()).add(binding.label ?? SNIPPET_RUNNER));
+      }
+    }
+    return running;
+  }
+
+  // A halt record for each owner of a resident plugin or of a lost runtime. Each names only that owner's own plugins, so
+  // no owner learns what another runs.
+  private haltRecords(message: string): ReadonlyMap<UserId, string> {
+    const owners = new Set([...Array.from(this.logicalBindings, (binding) => binding.owner), ...this.losses.flatMap((loss) => [...loss.running.keys()])]);
+    return new Map(
+      Array.from(owners, (owner): [UserId, string] => {
+        const atEachLoss = this.losses.map((loss, index) => `${String(index + 1)}: ${[...(loss.running.get(owner) ?? [])].join(", ") || "none"}`);
+        return [owner, `${message}. Your plugins running at each loss: ${atEachLoss.join("; ")}`];
+      }),
+    );
+  }
+
   private async ensureConnected(): Promise<void> {
+    if (this.halted !== undefined) {
+      throw this.halted;
+    }
     if (this.generation !== undefined) {
       return;
     }
@@ -609,6 +755,10 @@ class BrokerClient {
       if (this.managedChild !== child) {
         return;
       }
+      if (this.lossCountedFor !== child) {
+        this.recordBrokerLoss(error.message);
+      }
+      this.lossCountedFor = undefined;
       this.managedChild = undefined;
       this.sender?.close();
       this.sender = undefined;
@@ -640,6 +790,9 @@ class BrokerClient {
       return;
     }
     if (message.kind === "stopped") {
+      // Counted before the disconnect forgets the lost runtimes, so the loss records which plugins it took.
+      this.recordBrokerLoss(message.error.message);
+      this.lossCountedFor = child;
       this.generation = undefined;
       this.onDisconnect(unavailableError());
       return;
@@ -648,6 +801,7 @@ class BrokerClient {
   }
 
   private acceptReady(generation: string): void {
+    this.lossCountedFor = undefined;
     if (this.generation !== undefined && this.generation !== generation) {
       this.onDisconnect(unavailableError());
     }
@@ -839,7 +993,8 @@ class BrokerClient {
   }
 
   // A host result goes on its plugin's runtime share. One that does not fit is refused, never held: the plugin may
-  // retry, and the parent keeps no result a plugin cannot take.
+  // retry, and the parent keeps no result a plugin cannot take. A runtime already forgotten holds no share, so its
+  // result is refused the same way and the broker still hears an answer.
   private sendBridgeResult(runtimeId: string, id: string, result: RpcResult): void {
     const sender = this.sender;
     const generation = this.generation;
@@ -849,7 +1004,8 @@ class BrokerClient {
     try {
       const frame = serializeMessage({ kind: "bridge-result", id, ...result });
       const refused = serializeMessage(channelFullBridgeResult(id));
-      if (!sender.offer({ kind: "frame", generation, frame, route: { runtimeId, refusal: { frame: refused, back: false } } })) {
+      const share = this.bindings.shareOf(runtimeId);
+      if (share === undefined || !sender.offer({ kind: "frame", generation, frame, route: { share, refusal: { frame: refused, back: false } } })) {
         sender.send({ kind: "frame", generation, frame: refused });
       }
       // an oversized or unserializable host result is replaced by a bridge-result frame carrying rpcError(serializationError); the failure of that fallback is owned by the inner channelError catch. Ends if the fallback frame stops carrying the error.
@@ -1514,9 +1670,21 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   // biome-ignore lint/nursery/useDisposables: the caller adopts this returned host; local await using would close it before return.
   const host: ProcessPluginHost = {
     ...operations,
-    createInstance: (...args) => runOwned(() => operations.createInstance(...args)),
-    invoke: (...args) => runOwned(() => operations.invoke(...args)),
-    runSnippet: (...args) => runOwned(() => operations.runSnippet(...args)),
+    createInstance: (...args) =>
+      runOwned(() => {
+        broker.admit();
+        return operations.createInstance(...args);
+      }),
+    invoke: (...args) =>
+      runOwned(() => {
+        broker.admit();
+        return operations.invoke(...args);
+      }),
+    runSnippet: (...args) =>
+      runOwned(() => {
+        broker.admit();
+        return operations.runSnippet(...args);
+      }),
     [Symbol.asyncDispose]: (): Promise<void> => {
       closing ??= (async (): Promise<void> => {
         closed = true;

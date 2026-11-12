@@ -1,8 +1,10 @@
 #!/bin/bash
-# Default-deny egress for the bypass-mode sandbox: the container and this firewall are the boundary
-# (devcontainer.json). The script never passes through an open state. It sets the DROP policies before it
-# flushes anything and builds the allowlist under them, so an exit at any point, and a re-run through sudo,
-# leave egress dropped. A host joins the allowlist before anything dials it.
+# Default-deny egress for the bypass-mode sandbox. It stops traffic to addresses off the allowlist and to every
+# host port; it does not stop a request to another site on a shared content network in the allowlist, or data
+# leaving inside DNS lookups (devcontainer.json states the ruling). The script never passes through an open
+# state. It sets the DROP policies before it flushes anything and builds the allowlist under them, so an exit
+# at any point, and a re-run through sudo, leave egress dropped. A host joins the allowlist before anything
+# dials it.
 set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
 IFS=$'\n\t'       # Stricter word splitting
 
@@ -72,16 +74,8 @@ ipset create "$SSH_SET" hash:net
 iptables -A OUTPUT -p tcp --dport 443 -m set --match-set "$ALLOWED_SET" dst -j ACCEPT
 iptables -A OUTPUT -p tcp --dport 22 -m set --match-set "$SSH_SET" dst -j ACCEPT
 
-# 7. The host network (the bind-mounted host's own services; an accepted trade, see the README).
-HOST_IP=$(ip route | grep default | cut -d" " -f3)
-if [ -z "$HOST_IP" ]; then
-    echo "ERROR: Failed to detect host IP"
-    exit 1
-fi
-HOST_NETWORK=$(echo "$HOST_IP" | sed "s/\.[0-9]*$/.0\/24/")
-echo "Host network detected as: $HOST_NETWORK"
-iptables -A INPUT -s "$HOST_NETWORK" -j ACCEPT
-iptables -A OUTPUT -d "$HOST_NETWORK" -j ACCEPT
+# 7. No host port is admitted, in or out: the sandbox needs none (README, "Host services"). A service on the host
+# that the sandbox must reach gets its own rule here, for its one port on the gateway address.
 
 # 8. Resolve the allowed domains. api.github.com comes first: the GitHub range fetch below needs it, and it is
 # also the host the self-test must reach, so a failed or junk range fetch still leaves it admitted. Keep that

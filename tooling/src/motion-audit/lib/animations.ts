@@ -52,7 +52,7 @@ export interface AnimationTotals {
  *  the two populations, never within one: two distinct lifecycle launches on the same panel (a
  *  starting-style open and an ending-style close) are two real animations. */
 function animationIdentity(animation: AnimationRecord): string {
-  return `${animation.target}|${[...animation.properties].sort().join(",")}`;
+  return `${animation.target}|${animation.properties.toSorted().join(",")}`;
 }
 
 /** The `anim` raises' launch-time records. A raise WITHOUT one cannot be sanctioned — the allowance needs

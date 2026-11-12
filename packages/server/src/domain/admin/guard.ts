@@ -1,5 +1,6 @@
-// The `can()` guard seam — the one place a role/host is compared: `owner ⊇ admin` (global) and
-// `role === 'host'` (chat resource-role) live here and nowhere else.
+// The `can()` guard seam — the one place a privilege is decided: the global role ladder and the chat host. The
+// comparisons themselves are `userRoleSatisfies` and `isHostRole` in `@orb/contracts/identity`, which every other
+// reader of a role shares (invariant 6).
 //
 // Pure — no `Db`, no I/O. The decision is made over the immutable `Principal` + the resource data the
 // caller passes in (chat passes the {@link ChatMembership} it loaded — admin never reads chat's db).
@@ -7,15 +8,9 @@
 
 import type { IsAdmin, IsOwner, RequireAdmin, RequireOwner } from "@orb/contracts/admin";
 import type { Can, ChatAction, ChatMembership, GlobalAction, Principal, ResourceRef, UserRole, UserRoleState } from "@orb/contracts/identity";
+import { isHostRole, userRoleSatisfies } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { participantRoleValue, userRoleValue } from "#primitives/role-data/decode";
-
-// The role set that satisfies each global action — the sole encoding of `owner ⊇ admin`. Exhaustive: a new
-// `GlobalAction` member fails tsc here.
-const ROLES_FOR_GLOBAL_ACTION = {
-  admin: ["owner", "admin"],
-  owner: ["owner"],
-} as const satisfies Record<GlobalAction, readonly UserRole[]>;
 
 /** Target validity for the immutable bootstrap owner, not a caller-privilege decision. */
 export function isBootstrapOwnerRole(role: UserRoleState): boolean {
@@ -24,12 +19,12 @@ export function isBootstrapOwnerRole(role: UserRoleState): boolean {
 
 /** A requested role is input data, not the caller's authority or a resolved target record. */
 export function isBootstrapOwnerRoleCode(role: UserRole): boolean {
-  return ROLES_FOR_GLOBAL_ACTION.owner.includes(role);
+  return userRoleSatisfies(role, "owner");
 }
 
 /** The GLOBAL-scope decision (the global-role axis). Throws on deny. */
 function decideGlobal(principal: Principal, action: GlobalAction): void {
-  if (!ROLES_FOR_GLOBAL_ACTION[action].includes(userRoleValue(principal.role))) {
+  if (!userRoleSatisfies(userRoleValue(principal.role), action)) {
     throw new DomainForbiddenError(`requires ${action} privilege`);
   }
 }
@@ -43,8 +38,7 @@ function decideChat(action: ChatAction, membership: ChatMembership): void {
       // member reads in v1 — this is the seam where a future `observer` participant kind will deny.
       return;
     case "host": {
-      const role = participantRoleValue(membership.role);
-      if (role !== "host") {
+      if (!isHostRole(participantRoleValue(membership.role))) {
         throw new DomainForbiddenError("requires the room host");
       }
       return;

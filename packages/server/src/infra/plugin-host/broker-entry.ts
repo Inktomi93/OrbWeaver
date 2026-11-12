@@ -28,7 +28,7 @@ import type {
   WorkerBrokerMessage,
 } from "./contract/process-protocol.ts";
 import { parsePluginBrokerArguments } from "./process-argv.ts";
-import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
+import { PluginIpcSender, PluginIpcShares, parsePluginIpcMessage } from "./process-channel.ts";
 import {
   channelFullBridgeResult,
   channelFullResponse,
@@ -37,6 +37,7 @@ import {
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
+  PLUGIN_STALE_RUNTIME,
   parseMessageLine,
   parseParentBrokerMessage,
   parseWorkerBrokerMessage,
@@ -112,6 +113,8 @@ heartbeat.unref();
 
 interface Runtime {
   readonly worker: Worker;
+  /** The share of the queues this runtime's frames are charged to, held until its Worker exits. */
+  readonly share: string;
   readonly pendingCommands: Map<string, Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"]>;
   /** The Worker's span slots: the open span's sequence (0 when none) and its window. */
   readonly spans: Int32Array;
@@ -128,6 +131,25 @@ type PendingBridge =
   | { readonly kind: "sync"; readonly runtimeId: string; readonly control: Int32Array; readonly result: Uint8Array; readonly timer: NodeJS.Timeout };
 
 const runtimes = new Map<string, Runtime>();
+const shares = new PluginIpcShares();
+// What still keeps a runtime's share from the next runtime: its Worker, until it exits and can send nothing more, and
+// the parent, until it forgets the runtime on its last frame. Each hop is in order, so by then every frame charged to the
+// share has crossed every hop, and the next holder inherits no bytes (D348).
+const SHARE_HOLDERS = ["worker", "parent"] as const;
+type ShareHolder = (typeof SHARE_HOLDERS)[number];
+const shareHolds = new Map<string, Set<ShareHolder>>();
+
+function dropShareHold(runtimeId: string, holder: ShareHolder): void {
+  const holds = shareHolds.get(runtimeId);
+  if (holds === undefined) {
+    return;
+  }
+  holds.delete(holder);
+  if (holds.size === 0) {
+    shareHolds.delete(runtimeId);
+    shares.release(runtimeId);
+  }
+}
 const pendingBridge = new Map<string, PendingBridge>();
 let physicalWorkerCount = 0;
 let peakPhysicalWorkers = 0;
@@ -144,8 +166,8 @@ function send(message: BrokerParentMessage): void {
   }
 }
 
-// Queue a frame a plugin sized on its runtime's share. False when the channel refused it, or when it is larger than any
-// frame may be: the caller answers with the refusal in its place.
+// Queue a frame a plugin sized on its share. False when the channel refused it, or when it is larger than any frame may
+// be: the caller answers with the refusal in its place.
 function offer(message: BrokerParentMessage, route: PluginFrameRoute): boolean {
   if (!supervised()) {
     return true;
@@ -165,16 +187,16 @@ function offer(message: BrokerParentMessage, route: PluginFrameRoute): boolean {
 
 // A command's answer, on its runtime's share; one that does not fit is answered with the channel-full refusal, which
 // the parent turns into a host-unavailable failure of that command alone.
-function answer(runtimeId: string, message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
+function answer(share: string, message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
   const refused = channelFullResponse(message.id);
-  if (!offer(message, { runtimeId, refusal: { frame: serializeMessage(refused), back: false } })) {
+  if (!offer(message, { share, refusal: { frame: serializeMessage(refused), back: false } })) {
     send(refused);
   }
 }
 
 // A Worker's call to the parent, on its runtime's share; one that does not fit is refused straight back to the Worker.
-function forwardBridge(runtimeId: string, message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): boolean {
-  return offer(message, { runtimeId, refusal: { frame: serializeMessage(channelFullBridgeResult(message.id)), back: true } });
+function forwardBridge(share: string, message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): boolean {
+  return offer(message, { share, refusal: { frame: serializeMessage(channelFullBridgeResult(message.id)), back: true } });
 }
 
 function settleSync(target: Extract<PendingBridge, { readonly kind: "sync" }>, response: BrokerBridgeResult): void {
@@ -226,16 +248,17 @@ async function terminateRuntime(runtimeId: string): Promise<void> {
   try {
     await runtime.worker.terminate();
   } finally {
-    releaseWorkerSlot(runtime);
+    releaseWorkerSlot(runtimeId, runtime);
   }
 }
 
-function releaseWorkerSlot(runtime: Runtime): void {
+function releaseWorkerSlot(runtimeId: string, runtime: Runtime): void {
   if (!runtime.counted) {
     return;
   }
   runtime.counted = false;
   physicalWorkerCount -= 1;
+  dropShareHold(runtimeId, "worker");
 }
 
 function terminateDetached(worker: Worker): void {
@@ -277,7 +300,7 @@ function endStuckRuntime(runtimeId: string, runtime: Runtime): void {
   };
   runtime.worker.terminate().then(
     () => {
-      releaseWorkerSlot(runtime);
+      releaseWorkerSlot(runtimeId, runtime);
       // With no command pending, the stall ran after its command returned: the ended refusal rides on this notice, so
       // the plugin's next invocation carries it and the plugin still takes the strike.
       send(stuck === undefined ? { kind: "runtime-ended", runtimeId, error: ended } : { kind: "runtime-ended", runtimeId });
@@ -372,6 +395,7 @@ function createRuntime(runtimeId: string): Runtime {
   });
   const runtime: Runtime = {
     worker,
+    share: shares.acquire(runtimeId),
     pendingCommands: new Map(),
     spans: new Int32Array(spans),
     watched: { sequence: 0, sinceMs: 0 },
@@ -379,6 +403,7 @@ function createRuntime(runtimeId: string): Runtime {
     expectedExit: false,
     counted: true,
   };
+  shareHolds.set(runtimeId, new Set(SHARE_HOLDERS));
   physicalWorkerCount += 1;
   peakPhysicalWorkers = Math.max(peakPhysicalWorkers, physicalWorkerCount);
   runtimes.set(runtimeId, runtime);
@@ -394,7 +419,7 @@ function createRuntime(runtimeId: string): Runtime {
   });
   worker.on("error", (error) => failRuntime(runtimeId, error instanceof Error ? error : new Error(String(error)), true));
   worker.on("exit", (code) => {
-    releaseWorkerSlot(runtime);
+    releaseWorkerSlot(runtimeId, runtime);
     if (!runtime.expectedExit && runtimes.get(runtimeId) === runtime) {
       failRuntime(runtimeId, new Error(`plugin broker: worker exited (${code})`), true);
     }
@@ -428,12 +453,12 @@ function handleWorkerMessage(runtimeId: string, runtime: Runtime, message: Worke
     return;
   }
   if (message.kind === "sync-bridge") {
-    forwardSyncBridge(runtimeId, message);
+    forwardSyncBridge(runtimeId, runtime, message);
     return;
   }
   if (message.kind === "log") {
     // A log line that finds its runtime's share full is dropped: the plugin's own log ring still holds it.
-    offer({ kind: "log", runtimeId, label: message.label, level: message.level, message: message.message }, { runtimeId });
+    offer({ kind: "log", runtimeId, label: message.label, level: message.level, message: message.message }, { share: runtime.share });
     return;
   }
   if (message.kind === "authority-released") {
@@ -446,14 +471,21 @@ function handleWorkerMessage(runtimeId: string, runtime: Runtime, message: Worke
 function forwardAsyncBridge(runtimeId: string, runtime: Runtime, message: Extract<WorkerBrokerMessage, { readonly kind: "bridge" }>): void {
   pendingBridge.set(message.id, { kind: "async", runtimeId, worker: runtime.worker });
   if (
-    !forwardBridge(runtimeId, { kind: "bridge", id: message.id, runtimeId, authorityId: message.authorityId, operation: message.operation, args: message.args })
+    !forwardBridge(runtime.share, {
+      kind: "bridge",
+      id: message.id,
+      runtimeId,
+      authorityId: message.authorityId,
+      operation: message.operation,
+      args: message.args,
+    })
   ) {
     pendingBridge.delete(message.id);
     runtime.worker.postMessage(channelFullBridgeResult(message.id) satisfies BrokerWorkerMessage);
   }
 }
 
-function forwardSyncBridge(runtimeId: string, message: Extract<WorkerBrokerMessage, { readonly kind: "sync-bridge" }>): void {
+function forwardSyncBridge(runtimeId: string, runtime: Runtime, message: Extract<WorkerBrokerMessage, { readonly kind: "sync-bridge" }>): void {
   const id = `${runtimeId}:sync:${randomUUID()}`;
   const control = new Int32Array(message.control);
   const result = new Uint8Array(message.result);
@@ -472,7 +504,7 @@ function forwardSyncBridge(runtimeId: string, message: Extract<WorkerBrokerMessa
   }, PLUGIN_BROKER_SYNC_TIMEOUT_MS - SYNC_TIMEOUT_MARGIN_MS);
   const pending = { kind: "sync", runtimeId, control, result, timer } as const;
   pendingBridge.set(id, pending);
-  if (!forwardBridge(runtimeId, { kind: "bridge", id, runtimeId, authorityId: message.authorityId, operation: message.operation, args: message.args })) {
+  if (!forwardBridge(runtime.share, { kind: "bridge", id, runtimeId, authorityId: message.authorityId, operation: message.operation, args: message.args })) {
     pendingBridge.delete(id);
     settleSync(pending, channelFullBridgeResult(id));
   }
@@ -493,12 +525,12 @@ function handleWorkerCommandResponse(runtimeId: string, runtime: Runtime, messag
     // termination has completed: the parent may reserve the returned slot immediately after this response.
     // the rejection arm sends an ok:false response carrying rpcError(error) to the parent, whose handleResponse rejects the command promise; success is not acknowledged before the physical Worker exits. Ends if that arm stops carrying the error.
     terminateRuntime(runtimeId).then(
-      () => answer(runtimeId, message),
+      () => answer(runtime.share, message),
       (error: unknown) => send({ kind: "response", id: message.id, ok: false, error: rpcError(error) }),
     );
     return;
   }
-  answer(runtimeId, message);
+  answer(runtime.share, message);
 }
 
 function activationSucceeded(value: unknown): boolean {
@@ -511,7 +543,7 @@ function handleCommand(message: Extract<ParentBrokerMessage, { readonly kind: "c
     const runtime = message.operation === "create" || message.operation === "snippet" ? createRuntime(runtimeId) : runtimes.get(runtimeId);
     if (runtime === undefined) {
       // A runtime this broker already ended or retired: the host's own lifecycle, not the plugin's doing.
-      const stale = new Error("plugin broker: stale or unknown runtime id");
+      const stale = new Error(PLUGIN_STALE_RUNTIME);
       stale.name = PLUGIN_HOST_UNAVAILABLE;
       throw stale;
     }
@@ -540,6 +572,10 @@ function handleParentMessage(message: ParentBrokerMessage): void {
     if (target?.kind === "async") {
       target.worker.postMessage(message satisfies BrokerWorkerMessage);
     }
+    return;
+  }
+  if (message.kind === "runtime-forgotten") {
+    dropShareHold(message.runtimeId, "parent");
     return;
   }
   if (message.kind === "end-runtime") {

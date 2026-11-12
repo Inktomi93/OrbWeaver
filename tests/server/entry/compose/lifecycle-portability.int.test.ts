@@ -70,9 +70,9 @@ test("every native owner_id table has one non-stale portability disposition", ()
 });
 
 test("the production descriptor graph and import order each cover PortableKind exactly once", ({ app }) => {
-  const kinds = [...PORTABLE_KINDS].sort();
+  const kinds = PORTABLE_KINDS.toSorted();
   expect(app.portability.map(({ kind }) => kind).sort()).toEqual(kinds);
-  expect([...PORTABLE_IMPORT_ORDER].sort()).toEqual(kinds);
+  expect(PORTABLE_IMPORT_ORDER.toSorted()).toEqual(kinds);
   expect(Object.keys(PORTABLE_CANON_TABLES).sort()).toEqual(kinds);
   expect(Object.keys(LIFECYCLE_DOORS).sort()).toEqual(kinds);
 });

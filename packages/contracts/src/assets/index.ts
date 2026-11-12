@@ -29,15 +29,42 @@ export type AssetKind = z.infer<typeof assetKindSchema>;
 /** Only portrait assets contribute image vectors and generated captions to Corpus. */
 export const EMBEDDABLE_ASSET_KINDS = ["avatar"] as const satisfies readonly AssetKind[];
 
-/** The kinds every consumer draws as a picture: the store admits one only when its bytes carry the signature of
- *  an image type it accepts, whatever type the file claims and whoever stores it. */
-export const IMAGE_ONLY_ASSET_KINDS = ["avatar"] as const satisfies readonly AssetKind[];
+/** The media a stored blob's bytes can be, told by their signature: a raster image, an MP4 or WebM video, a PDF, a ZIP
+ *  container, or UTF-8 text. */
+const ASSET_MEDIA = ["image", "video", "pdf", "zip", "text"] as const;
+export type AssetMedia = (typeof ASSET_MEDIA)[number];
 
-/** Why the store refused a file: its bytes are not the type it claims, a picture-only kind got bytes that are not
- *  an image, or it is over the size cap. */
+/** The media each kind's consumers render. The store keeps a blob of a kind only when its bytes are one of them,
+ *  whatever type the file claims and whoever stores it. A plugin's bundle is a ZIP and its bundle assets are images;
+ *  `export` is unwired, so nothing is stored as one. */
+export const ASSET_KIND_MEDIA = {
+  card: ["image"],
+  avatar: ["image"],
+  export: [],
+  generated: ["image"],
+  gallery: ["image"],
+  attachment: ["image", "video"],
+  document: ["pdf", "zip", "text"],
+  background: ["image", "video"],
+  plugin: ["zip", "image"],
+} as const satisfies Readonly<Record<AssetKind, readonly AssetMedia[]>>;
+
+/** Whether every blob of the kind is a picture: the only kinds an avatar field may point at. */
+export function isPictureAssetKind(kind: AssetKind): boolean {
+  const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[kind];
+  return media.length > 0 && media.every((medium) => medium === "image");
+}
+
+/** The kinds `POST /api/assets/upload` serves: each has a client door that uploads it there. Every other kind enters
+ *  through its own door (card import, the databank upload, plugin install, the server's own writers). */
+export const ASSET_UPLOAD_KINDS = ["avatar", "gallery", "background", "attachment"] as const satisfies readonly AssetKind[];
+
+/** Why the store refused a file: its bytes are not the type it claims, an image-only kind got bytes that are not an
+ *  image, another kind got bytes of a medium it does not render, or it is over the size cap. */
 export const ASSET_UPLOAD_REFUSAL_CODES = {
   contentRejected: "asset_content_rejected",
   notAnImage: "asset_not_an_image",
+  wrongMedia: "asset_wrong_media",
   tooLarge: "asset_too_large",
 } as const;
 export type AssetUploadRefusalCode = (typeof ASSET_UPLOAD_REFUSAL_CODES)[keyof typeof ASSET_UPLOAD_REFUSAL_CODES];

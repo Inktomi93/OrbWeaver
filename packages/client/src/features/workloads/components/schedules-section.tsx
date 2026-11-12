@@ -17,6 +17,7 @@
 // features/workloads: it owns its own read (viewer + schedules + the gated admin handle map, which the
 // retired pane surface used to hand down as props) and its own suspense boundary.
 
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -63,8 +64,8 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   const [{ data: schedules }, { data: viewer }] = useSuspenseQueries({
     queries: [trpc.workloads.listSchedules.queryOptions({}), trpc.sessions.me.queryOptions()],
   });
-  const viewerIsOwner = viewer.globalRole === "owner";
-  const isPrivileged = viewerIsOwner || viewer.globalRole === "admin";
+  const viewerIsOwner = userRoleSatisfies(viewer.globalRole, "owner");
+  const isPrivileged = userRoleSatisfies(viewer.globalRole, "admin");
   // The admin user table resolves a FOREIGN row's owner handle (owner∪admin only — the adminProcedure read
   // never fires for a plain user, whose schedules are all their own).
   const usersQuery = useGatedQuery(isPrivileged ? "admin-users" : null, () => trpc.admin.listUsers.queryOptions());

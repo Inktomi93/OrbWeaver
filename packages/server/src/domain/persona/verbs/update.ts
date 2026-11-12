@@ -10,14 +10,14 @@ import { and, eq } from "drizzle-orm";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { UpdatePersonaParams } from "../contract/params.ts";
 import type { PersonaContext, PersonaService } from "../contract/service.ts";
-import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
+import { detailOf, ensureAvatarAsset, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
 
 export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
   return async ({ principal, personaId, input }: UpdatePersonaParams) => {
     const ownerId = principal.userId;
     if (input.avatarAssetId !== null && input.avatarAssetId !== undefined) {
       // The FK proves the asset exists, never that it's the caller's.
-      await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
+      await ensureAvatarAsset(ctx.db, ownerId, input.avatarAssetId);
     }
     const metadata = input.metadata === undefined ? undefined : narrowPersonaMetadata(input.metadata);
     const edits = stripUndefined({

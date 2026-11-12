@@ -35,7 +35,7 @@
 // The column carries both the drizzle `{ enum }` (type-side) AND a CHECK built from the same tuple
 // (SQL-side) — never a re-spelled union; a `.int` test-mirror pins the column enum === the contracts
 // tuple. `chat_digests.scopedCharacterId` is ALWAYS a real branded `CharacterId` FK → `characters.id`
-// (docs/law/Knowledge-Cluster.md §4 / inv 8 — solo's cast char, the synthetic group-as-character, or a per-
+// (D55 — solo's cast char, the synthetic group-as-character, or a per-
 // witnessing-char; NO `''` sentinel, NO NULL). The `(chatId, scopedCharacterId, tier, blockIdx)`
 // idempotent-upsert UNIQUE keys off the real id; SQLite UNIQUE never sees a NULL here.
 //
@@ -311,7 +311,7 @@ export const chatDigests = sqliteTable(
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    // The egocentric scope key (docs/law/Knowledge-Cluster.md §4 / inv 8): ALWAYS a real `CharacterId` — solo's
+    // The egocentric scope key (D55): ALWAYS a real `CharacterId` — solo's
     // single cast char, the synthetic group-as-character (`__group__${chatId}`, a real hidden id), or a
     // per-witnessing cast char under `scoped`. FK → characters.id CASCADE (a deleted character drops its
     // scoped digests). NEVER the `''` sentinel, NEVER NULL — the UNIQUE below keys off the real id.
@@ -434,7 +434,7 @@ export const chatSegments = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// chat_digest_speakers — the "which characters this digest CONTAINS" join (docs/law/Knowledge-Cluster.md §4). Lets
+// chat_digest_speakers — the "which characters this digest CONTAINS" join (docs/law/Knowledge-Cluster.md, invariant 1). Lets
 // `search`/`discovery` find a character's moments ACROSS rooms regardless of the egocentric bucketing.
 // Identity-keyed (digest ↔ character); composite PK (there is no TypeID brand for this join). Both FKs
 // CASCADE. Re-queried by the store verb after a digest upsert (the kept id may differ from a fresh mint).

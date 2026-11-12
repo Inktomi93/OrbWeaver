@@ -38,12 +38,15 @@ export interface PluginHostSeamDeps {
   readonly log: Logger;
   /** The app root's trace ring a supervised bridge settlement seals into. */
   readonly traces: TraceRing;
+  /** The host stopped restarting its broker after repeated losses (D347): for each owner of a resident plugin or of a
+   *  runtime lost with a broker, why, naming only that owner's plugins that were running at each loss. */
+  readonly onHalted: (records: ReadonlyMap<UserId, string>) => void;
 }
 
 /** A Worker-local runtime schedules nothing, fetches nothing and launches no broker itself (so it takes no `spawn`): the app process owns the
  *  timers, the broker connect clock, the broker launch config and the scoped egress, and the Worker forwards every
  *  guest fetch to it through `netEgress`. */
-export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env" | "log" | "traces" | "spawn"> & {
+export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotonicNow" | "safeFetch" | "env" | "log" | "traces" | "spawn" | "onHalted"> & {
   /** The broker Worker's forwarding egress: the app performs every plugin fetch against its own copy of the
    *  instance's `netHosts`. */
   readonly netEgress: PluginNetEgress;

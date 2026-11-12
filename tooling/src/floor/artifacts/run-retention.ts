@@ -66,8 +66,8 @@ export interface RetentionCandidate {
  *  committed to (the run publishing right now is one of them). */
 export function selectPrunable(candidates: readonly RetentionCandidate[], now: number, keep = 1): readonly RetentionCandidate[] {
   const floor = now - RETENTION_FLOOR_MS;
-  return [...candidates]
-    .sort((a, b) => b.at - a.at)
+  return candidates
+    .toSorted((a, b) => b.at - a.at)
     .slice(Math.max(0, RETAINED_RUNS - keep))
     .filter((row) => row.at <= floor);
 }

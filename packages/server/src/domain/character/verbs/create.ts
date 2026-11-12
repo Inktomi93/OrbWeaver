@@ -13,7 +13,7 @@ import { cardContentHash } from "#primitives/serde/card";
 import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
 import { insertCharacter } from "../persistence/card.ts";
-import { canonicalTagsOf, detailOf, ensureAssetOwned, loadOwnedCharacterWithAvatar, ownedCarriedBackground } from "../persistence/queries.ts";
+import { canonicalTagsOf, detailOf, ensureAvatarAsset, loadOwnedCharacterWithAvatar, ownedCarriedBackground } from "../persistence/queries.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";
 import { isReservedGroupHandle } from "../substrate/group-character.ts";
 
@@ -47,7 +47,7 @@ async function guardAvatarOwned(
   avatarAssetId: CreateCharacterParams["input"]["avatarAssetId"],
 ): Promise<void> {
   if (avatarAssetId !== null && avatarAssetId !== undefined) {
-    await ensureAssetOwned(ctx.db, ownerId, avatarAssetId);
+    await ensureAvatarAsset(ctx.db, ownerId, avatarAssetId);
   }
 }
 

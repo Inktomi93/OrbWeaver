@@ -63,6 +63,23 @@ function notePress(target: object | null): void {
 function pressRemovedItsControl(): boolean {
   return lastPress !== null && !lastPress.target.isConnected && performance.now() - lastPress.at <= PRESS_RENDER_WINDOW_MS;
 }
+
+/** Called by a pending read's fallback when it mounts. A fallback that mounts in the render a press caused keeps that press's arrival open
+ *  until it unmounts, however long the read takes. The surface it waits on mounts in the commit that deletes the fallback, and React runs a
+ *  deleted fallback's cleanup (this release, which starts the press's window over) before the new content's mount effects, so the surface arrives
+ *  inside the new window. Nothing else mounting while the read is pending is that press's navigation, so no surface is licensed before the
+ *  release. Any other fallback holds nothing. Returns the release. */
+export function holdArrivalWhilePending(): () => void {
+  if (!pressRemovedItsControl() || lastPress === null) {
+    return (): void => undefined;
+  }
+  const { target } = lastPress;
+  return (): void => {
+    if (lastPress?.target === target) {
+      lastPress = { target, at: performance.now() };
+    }
+  };
+}
 browserDocument?.addEventListener(
   "keydown",
   ({ key, target }) => {

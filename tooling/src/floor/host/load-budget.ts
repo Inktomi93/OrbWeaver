@@ -382,7 +382,7 @@ export function ratePair(arm: string, verdict: MeasurementVerdict): string {
  *  so one line answers "was anything measured under load, and how loaded was it?"
  *  Absent when nothing was suspect — a reader must never have to distinguish "none" from "not reported". */
 export function loadSuspectPair(arms: readonly string[]): readonly (readonly [string, string])[] {
-  return arms.length === 0 ? [] : [["load-suspect", [...arms].sort().join(",")]];
+  return arms.length === 0 ? [] : [["load-suspect", arms.toSorted().join(",")]];
 }
 
 /** The summary DERIVED from the pairs an instrument already printed, never accumulated a second time — a

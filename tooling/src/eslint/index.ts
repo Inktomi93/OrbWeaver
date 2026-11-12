@@ -16,6 +16,7 @@ import { baseUiStateDataAttributesRule, noRenderLayoutReadRule, unruledFlipInver
 import { narrowedJsonBrandRule } from "./narrowed-json.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { optionalAlternativesRule } from "./optional-alternatives.ts";
+import { ownedTableRule } from "./owned-table.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import { queryStateLadderRule } from "./query-state-ladder.ts";
 import { rawIdRule } from "./raw-id.ts";
@@ -23,6 +24,7 @@ import {
   AMBIENT_GLOBAL_RESTRICTIONS,
   IDENTITY_WRITER_RESTRICTIONS,
   INFRA_AUTH_RESTRICTIONS,
+  OWNED_TABLE_RESTRICTIONS,
   PLUGIN_DUMP_SELECTORS,
   ROLE_DATA_RESTRICTIONS,
   SANDBOX_WIRE_ID_RESTRICTIONS,
@@ -56,6 +58,7 @@ import { noTailRecorderReadRule } from "./test-recorders.ts";
 import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { textVoiceOnlyRule } from "./text-voices.ts";
+import { preferToSortedRule } from "./to-sorted.ts";
 import { trpcOutputKeysRule } from "./trpc-output.ts";
 import { trpcPayloadKeysRule } from "./trpc-payload.ts";
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
@@ -256,6 +259,7 @@ export function createOrbPlugin(options: {
   return {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
+      ...Object.fromEntries(OWNED_TABLE_RESTRICTIONS.map((row) => [row.id, ownedTableRule(row)] as const)),
       "destructive-needs-confirm": destructiveNeedsConfirmRule,
       "confirmed-action-mint": confirmedActionMintRule(CONFIRMED_ACTION_MINT_HOMES),
       "surface-consumes-container": surfaceConsumesContainerRule,
@@ -292,6 +296,7 @@ export function createOrbPlugin(options: {
       "no-direct-row-writes": directRowWriteRule,
       "no-direct-row-reads": directRowReadRule,
       "no-context-returntype": contextReturnTypeRule,
+      "prefer-to-sorted": preferToSortedRule,
       "no-raw-id": rawIdRule,
       "closed-vocabulary": closedVocabularyRule,
       "no-query-state-ladder": queryStateLadderRule,

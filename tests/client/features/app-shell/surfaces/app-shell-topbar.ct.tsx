@@ -5,6 +5,7 @@ import {
   CHAT_NAME_FIELD_NAME,
   censusSuffix,
   chatRoomTitle,
+  chatTitleWhole,
   contextToggleLabel,
   LIST_PANEL_NOUN,
   panelEdgeName,
@@ -14,7 +15,7 @@ import {
 } from "@orb/client/lib";
 import { LIST_OFF_SCREEN_HINT } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
-import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
+import { hitExtent, pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
 import {
   createShellAmbientReads,
@@ -48,6 +49,9 @@ const SHOW_LIST_PANEL_NAME = panelEdgeName(LIST_PANEL_NOUN, false);
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
 const NARROW_TITLE = '.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title';
+// A title the row cuts becomes the button that opens it whole. It is the title, not one of the row's controls, so the room the controls leave is
+// measured without it; its own floor is asserted by hit extent where the row is measured, and its press in topbar-title-reveal.ct.tsx.
+const ROW_CONTROLS = '.shell-topbar button:not([data-slot="title-reveal"] *)';
 const NARROWEST = { width: 320, height: 800 } as const;
 // The row holds the lead control, the title floor and the doors inline at 390; at 320 the doors ride its menu.
 const PHONE_WIDTHS = [390] as const;
@@ -310,7 +314,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
     expect(lead?.width ?? 0).toBeGreaterThan(await touchTarget(page));
     expect((await title.boundingBox())?.width ?? 0).toBeGreaterThan(0);
     expect((lead?.x ?? 0) + (lead?.width ?? 0)).toBeLessThanOrEqual((trail?.x ?? 0) + 1);
-    const controls = await page.locator(".shell-topbar button").evaluateAll((elements) =>
+    const controls = await page.locator(ROW_CONTROLS).evaluateAll((elements) =>
       elements
         .filter((element) => element.checkVisibility())
         .map((element) => ({
@@ -592,7 +596,7 @@ test.describe("an open named group room", () => {
     await expect(rename).toHaveAccessibleName(new RegExp(`, ${stamp}$`, "u"));
   });
 
-  test("at 1280 both docked the topbar names the cast, keeps the room name at its floor beside it, and the title renames; collapsed it still names them", async ({
+  test("at 1280 both docked the topbar names the cast, keeps the room name at its floor beside it, and the cut title opens its whole text and Rename starts the editor; collapsed it still names them", async ({
     corpus,
     mount,
     page,
@@ -623,8 +627,12 @@ test.describe("an open named group room", () => {
     const centre = { x: (box?.x ?? 0) + (box?.width ?? 0) / 2, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 };
     await expect
       .poll(() => page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label") ?? "", centre))
-      .toContain(RENAME_CHAT_NAME);
+      .toContain(chatTitleWhole(room.cast, room.title));
     await page.mouse.click(centre.x, centre.y);
+    await page
+      .getByRole("dialog", { name: chatTitleWhole(room.cast, room.title), exact: true })
+      .getByRole("button", { name: RENAME_CHAT_NAME, exact: true })
+      .click();
     const input = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME });
     await expect(input).toBeVisible();
     await expect.poll(() => clientWidth(input)).toBeGreaterThanOrEqual(await titleFloor(page));
@@ -803,7 +811,7 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
         .toEqual({ titleStep: true, largerThanBody: true, overflow: "ellipsis", contained: true });
       await expect(page.locator(".shell-topbar-title:visible")).toHaveCount(1);
       const floor = await touchTarget(page);
-      const controls = await page.locator(".shell-topbar button:visible").evaluateAll((elements) =>
+      const controls = await page.locator(`${ROW_CONTROLS}:visible`).evaluateAll((elements) =>
         elements.map((element) => {
           const rect = element.getBoundingClientRect();
           return { width: rect.width, height: rect.height, right: rect.right };
@@ -811,6 +819,14 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
       );
       expect(controls.length).toBeGreaterThan(0);
       expect(controls.filter((control) => control.width < floor || control.height < floor || control.right > width)).toEqual([]);
+      // The title is a control exactly while the row cuts it, and then its hit area reaches the floor like the row's other controls.
+      const titleControls = page.locator('.shell-topbar-identity[data-identity="narrow"] [data-slot="title-reveal"] button:visible');
+      const cut = await title.evaluate((element) => element.scrollWidth > element.clientWidth);
+      await expect(titleControls).toHaveCount(cut ? 1 : 0);
+      for (const control of await titleControls.all()) {
+        await expect.poll(() => hitExtent(control, "y")).toBeGreaterThanOrEqual(floor);
+        await expect.poll(() => hitExtent(control, "x")).toBeGreaterThanOrEqual(floor);
+      }
       await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
       await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     });

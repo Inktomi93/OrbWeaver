@@ -13,6 +13,7 @@
 
 import type { ChatIdentity, HandoffOffer, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext } from "@orb/contracts/chat";
+import { isHostRole } from "@orb/contracts/identity";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { timeLib } from "#lib";
 
@@ -191,7 +192,7 @@ export function toPersonRows(sources: MemberRowSources): MemberPersonRow[] {
       key: p.id,
       userId: p.userId,
       displayName: persona?.name ?? p.displayName,
-      isHost: p.role === "host",
+      isHost: isHostRole(p.role),
       isViewer: sources.viewerUserId !== null && p.userId === sources.viewerUserId,
       // The persona's own portrait when they are playing one — the same `identity-only` precedence the transcript's
       // user rows use (`CHAT_IDENTITY_KIND_POLICY.persona.avatar`); a persona has no participant avatar plane.

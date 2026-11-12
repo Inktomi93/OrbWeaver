@@ -57,6 +57,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { ParticipantView } from "@orb/contracts/chat";
+import { isHostRole } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
@@ -175,7 +176,7 @@ function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] })
           <Text as="span" truncate={true} srOnlyAt="coarse" voice="label">
             {member.displayName}
           </Text>
-          {member.role === "host" ? <Icon icon={Crown} size="xs" aria-label="Host" data-slot="host-crown" /> : null}
+          {isHostRole(member.role) ? <Icon icon={Crown} size="xs" aria-label="Host" data-slot="host-crown" /> : null}
         </Row>
       ))}
       {overflow > 0 ? (

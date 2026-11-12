@@ -55,6 +55,7 @@ import {
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
+  recordHostHaltFor,
 } from "#domain/plugin";
 import type { SearchService } from "#domain/search";
 import { createPluginDocumentSearch } from "#domain/search";
@@ -294,6 +295,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       safeFetch: deps.egress.safeFetch,
       log: deps.logger,
       traces: deps.traces,
+      // Every owner of a resident plugin reads why the host stopped on each of their enabled plugins.
+      onHalted: (records) => {
+        const at = now();
+        Promise.all(Array.from(records, ([ownerId, reason]) => recordHostHaltFor(db, ownerId, reason, at))).catch((error: unknown) => {
+          deps.logger.error({ err: error }, "plugin host: the halt could not be recorded on the plugin rows");
+        });
+      },
     }),
   );
   // Activation and confirmed acts share the same process-wide belts.

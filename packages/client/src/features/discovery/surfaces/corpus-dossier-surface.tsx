@@ -50,7 +50,7 @@ export interface CorpusDossierSurfaceProps {
 // THE DRILL-IN FOCUSES ITS OWN DOOR BACK OUT, not its container (side-eye corpus re-pass #2, P2-4).
 // This called `useFocusOnMount` on the surface ROOT — a `tabIndex={-1}` div with `outline: none`, which is
 // what the re-pass measured arriving focus landing on: 869x7831, no accessible name, no visible ring. The
-// gate's requirement (UI-Gates-and-Lessons §8: a drill-down surface manages focus on mount) is right and is
+// gate's requirement (a drill-down surface manages focus on mount, through `useFocusOnMount` in `packages/client/src/lib/use-focus-on-mount.ts`) is right and is
 // KEPT; what was wrong was the target. `Back` is the control this surface exists to return through, it is
 // named, and it paints a real focus ring — so the drill-in is announced instead of swallowed.
 export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfaceProps): ReactElement {

@@ -45,9 +45,17 @@ Code comments cite the numbered invariants below as "invariant N":
    and never falls through to a lower header or to the unsigned path. The owner fallback applies only when
    no identity was presented. `IdentityRefused` in `packages/server/src/infra/auth/contract.ts` carries the
    refusal to `resolve`.
-6. **`can()` is the only privilege-comparison site.** No `role === 'admin'` or `role === 'host'` compare
-   exists outside `packages/server/src/domain/admin/guard.ts`; chat feeds its loaded roster into
-   `can(principal, action, {kind:'chat', roster})`. `roster` in this doc names the code-level
+6. **`can()` is the only privilege decision, and what a role means is encoded once.** `can()` in
+   `packages/server/src/domain/admin/guard.ts` decides every privilege; chat feeds its loaded roster into
+   `can(principal, action, {kind:'chat', roster})`. The meaning of a role, the `owner ⊇ admin` ladder and the `host`
+   bit, lives in `packages/contracts/src/identity/index.ts` as `userRoleSatisfies` and `isHostRole`: pure predicates over
+   the closed role tuples that `can()`, the projection and roster homes below and client display labels all read. A
+   client display read is never an authorization (D121). In the server and the client, the `no-restricted-syntax`
+   role selectors in `eslint.config.ts` refuse a role literal (`host`, `member`, `owner`, `admin`) tested against an
+   operand named for a role (a `role`, `globalRole` or `viewerRole` field, a `*Role` variable, a decoded
+   `participantRoleValue(...)`) in an equality, a `switch` case, an array literal's `includes` or an `in` over an
+   object literal; `tests/tooling/eslint-role-comparison.test.ts` plants each form. A comparison under another name
+   is outside the selectors and stays a review question. `roster` in this doc names the code-level
    `chat_participants` membership (`packages/server/src/domain/chat/verbs/participants.ts`, `packages/server/src/domain/chat/substrate/participants-host.ts`,
    `participants-humans.ts`). It is not the user-facing Roster, which names the saved
    seats-knobs-rules template (`domain/roster-preset`). The room's seated characters are Characters.
@@ -384,7 +392,7 @@ may change this resolution order.
 
 ## Client session freshness
 
-→ [`client-architecture-lockdown.md`](client-architecture-lockdown.md) §10a/§12 row 12/§13 rule 7 —
+→ [`client-architecture-state-and-gates.md`](client-architecture-state-and-gates.md) §10a/§12 row 12/§13 rule 7 —
 the three-class data contract, the durable-local per-user-namespacing + referential-integrity contract,
 the session channel (`packages/client/src/lib/session-channel.ts`, ESLint `orb/session-channel-boundary`), and the recovery ladder
 (`packages/client/src/data/stale-session.ts`). D138. This spine states identity resolution; the lockdown doc owns what the

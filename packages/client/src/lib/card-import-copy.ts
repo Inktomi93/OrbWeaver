@@ -22,20 +22,34 @@ interface RefusalCopy {
   readonly one: string;
   /** The same when several files failed for this reason and no file landed. */
   readonly many: string;
+  /** The clause that opens the partial line's sentence about one file refused for this reason, before the file's name. */
+  readonly partialOne: string;
+  /** The same for several files refused for this reason. */
+  readonly partialMany: string;
 }
 
 // A total `Record` over the closed reason tuple, so a new reason fails `tsc` until it has its sentences.
 const REFUSAL_COPY: Record<FailedCardReason, RefusalCopy> = {
-  card_unreadable: { detail: "Not a character card", one: CARD_IMPORT_REFUSED_ONE, many: CARD_IMPORT_REFUSED_MANY },
+  card_unreadable: {
+    detail: "Not a character card",
+    one: CARD_IMPORT_REFUSED_ONE,
+    many: CARD_IMPORT_REFUSED_MANY,
+    partialOne: "One file isn't a character card Orbweaver can read",
+    partialMany: "Some files aren't character cards Orbweaver can read",
+  },
   card_invalid: {
     detail: "Card data is incomplete or invalid",
     one: "That file is a character card, but its data is incomplete or invalid, so Orbweaver can't import it.",
     many: "Those files are character cards, but their data is incomplete or invalid, so Orbweaver can't import them.",
+    partialOne: "One file is a character card, but its data is incomplete or invalid",
+    partialMany: "Some files are character cards, but their data is incomplete or invalid",
   },
   failed: {
     detail: "Couldn't be imported",
     one: "Orbweaver couldn't import that file. Try it again.",
     many: "Orbweaver couldn't import those files. Try them again.",
+    partialOne: "Orbweaver couldn't import one file",
+    partialMany: "Orbweaver couldn't import some files",
   },
 };
 
@@ -56,11 +70,17 @@ export function cardImportRefusalLine(failed: readonly { readonly reason: Failed
   return sentences.join(" ");
 }
 
-/** The toast for a batch that landed some cards and refused others: how many came in, then the files that did not. */
-export function cardImportPartialLine(imported: number, failedFilenames: readonly (string | null)[]): string {
-  const total = imported + failedFilenames.length;
-  const names = failedFilenames.filter((name): name is string => name !== null);
-  const listing = names.length === 0 ? "" : `: ${names.join(", ")}`;
-  const refused = failedFilenames.length === 1 ? "One file isn't a character card" : "Some files aren't character cards";
-  return `${String(imported)} of ${String(total)} imported. ${refused} Orbweaver can read${listing}.`;
+/** The toast for a batch that landed some cards and refused others: how many came in, then one sentence for each reason that refused a file, naming those files. */
+export function cardImportPartialLine(imported: number, failed: readonly { readonly filename: string | null; readonly reason: FailedCardReason }[]): string {
+  const sentences: string[] = [];
+  for (const reason of FAILED_CARD_REASONS) {
+    const refused = failed.filter((card) => card.reason === reason);
+    if (refused.length === 0) {
+      continue;
+    }
+    const names = refused.map(({ filename }) => filename).filter((name): name is string => name !== null);
+    const clause = refused.length === 1 ? REFUSAL_COPY[reason].partialOne : REFUSAL_COPY[reason].partialMany;
+    sentences.push(`${clause}${names.length === 0 ? "" : `: ${names.join(", ")}`}.`);
+  }
+  return `${String(imported)} of ${String(imported + failed.length)} imported. ${sentences.join(" ")}`;
 }

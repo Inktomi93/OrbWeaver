@@ -6,14 +6,14 @@
 
 import type { AttachImportedArtParams } from "../contract/params.ts";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
-import { attachArtIfMissing, ensureAssetOwned } from "../persistence/queries.ts";
+import { attachArtIfMissing, ensureAvatarAsset } from "../persistence/queries.ts";
 
 const ATTACH_IMPORTED_ART = "character.attachImportedArt";
 const CHARACTER_ENTITY = "character";
 
 export function createAttachImportedArt(ctx: CharacterContext): CharacterService["attachImportedArt"] {
   return async ({ ownerId, characterId, avatarAssetId, importHash }: AttachImportedArtParams): Promise<boolean> => {
-    await ensureAssetOwned(ctx.db, ownerId, avatarAssetId);
+    await ensureAvatarAsset(ctx.db, ownerId, avatarAssetId);
     const at = ctx.now();
     const attached = await attachArtIfMissing(ctx.db, { ownerId, characterId, avatarAssetId, importHash, at });
     if (!attached) {

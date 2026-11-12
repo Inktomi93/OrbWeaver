@@ -15,11 +15,11 @@ export interface PluginBrokerArguments extends Omit<PluginBrokerWatchdogArgument
   readonly generation: string;
 }
 
-/** The plugin runtime a frame belongs to, so that a full queue refuses that frame alone (D348), and the small frame
- *  that answers the refusal: sent back toward the producer for a request, or on to the consumer in place of a reply. A
- *  frame with no refusal, a log line, is dropped. */
+/** The share of every queue a frame is charged to, its runtime's, so that a full queue refuses that frame alone (D348),
+ *  and the small frame that answers the refusal: sent back toward the producer for a request, or on to the consumer in
+ *  place of a reply. A frame with no refusal, a log line, is dropped. */
 export interface PluginFrameRoute {
-  readonly runtimeId: string;
+  readonly share: string;
   readonly refusal?: { readonly frame: string; readonly back: boolean };
 }
 
@@ -102,7 +102,9 @@ export type ParentBrokerMessage =
   | BrokerBridgeResult
   | { readonly kind: "bridge-cancel"; readonly id: string }
   /** The parent's backstop for this command ran out: if the broker still holds it, it ends the runtime's Worker as stuck. */
-  | { readonly kind: "end-runtime"; readonly runtimeId: string; readonly commandId: string };
+  | { readonly kind: "end-runtime"; readonly runtimeId: string; readonly commandId: string }
+  /** The parent forgot this runtime, on its last frame: every frame charged to the runtime's share has crossed (D348). */
+  | { readonly kind: "runtime-forgotten"; readonly runtimeId: string };
 
 export type BrokerParentMessage =
   | ({ readonly kind: "response"; readonly id: string } & RpcResult)

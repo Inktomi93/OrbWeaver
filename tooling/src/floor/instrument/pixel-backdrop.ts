@@ -201,7 +201,7 @@ export function scanlineBackdrop(luminances: readonly number[]): ScanlineBackdro
   if (share < SCANLINE_MIN_CLUSTER_SHARE) {
     return null;
   }
-  const sorted = [...luminances].sort((a, b) => a - b);
+  const sorted = luminances.toSorted((a, b) => a - b);
   return {
     luminance: medianChannel([...modal]),
     share,

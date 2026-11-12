@@ -474,8 +474,8 @@
     --spacing-picker-inset: round(down, min(var(--spacing-block), 4dvw), 1px);
     --spacing-picker-gap: round(down, min(var(--spacing-row), max(2dvw, 8px)), 1px);
     --spacing-title-separator: calc(var(--spacing-row) - var(--spacing-field));
-    --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
-    --dimension-shell-topbar-block-primary: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-20) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
+    --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), max(var(--dimension-chrome-row) / 2, var(--size-touch-target))));
+    --dimension-shell-topbar-block-primary: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-20) - 100dvw) * 1000), max(var(--dimension-chrome-row) / 2, var(--size-touch-target))));
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
     --immersive-whisper-banner-cap: calc(var(--immersive-whisper-banner-viewport-cap) * 1svh);
     --tone-mix-primary-hover: var(--tone-mix-hover);

@@ -10,7 +10,7 @@
 // The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
 
 import type { AssetUploadRefusal } from "@orb/contracts/assets";
-import { ASSET_UPLOAD_REFUSAL_CODES, assetKindSchema } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_KINDS, ASSET_UPLOAD_REFUSAL_CODES, assetKindSchema } from "@orb/contracts/assets";
 import type { DocumentUploadRefusal } from "@orb/contracts/databank";
 import { DOCUMENT_DESTINATION_FORM_FIELD, documentDestinationSchema } from "@orb/contracts/databank";
 import { docUploadMime, EXTRACTION_OP_CODES } from "@orb/contracts/extraction";
@@ -168,6 +168,10 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     const kind = assetKindSchema.safeParse(form.get(KIND_FIELD));
     if (!kind.success) {
       return c.json({ error: `invalid "${KIND_FIELD}" — expected an AssetKind` }, BAD_REQUEST);
+    }
+    // A kind with no client door here enters only through its own door, never around it.
+    if (!ASSET_UPLOAD_KINDS.some((served) => served === kind.data)) {
+      return c.json({ error: `this route does not store a ${kind.data} asset` }, BAD_REQUEST);
     }
     const mime = file.type.length > 0 ? file.type : FALLBACK_MIME;
     // An image upload obeys the TIGHTER of the route cap and the admin-tunable maxImageBytes; a non-image

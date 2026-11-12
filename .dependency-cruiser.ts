@@ -378,6 +378,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
+  "packages/server/src/domain/settings/contract/keys.ts":
+    "APP_SETTINGS_KEY: the settings row the app override lives in, which the whole-blob guard suite plants a newer build's blob into",
   "packages/client/src/features/credentials/lib/connections-copy.ts": "ADD_CONNECTION_NAME: the add-connection button's name",
   "packages/client/src/features/rpg/lib/context-layout.ts":
     "SATELLITES_TO_BODY_FONT_SCALE: the font scale at which the satellite row and date line leave the Waystone band",
@@ -678,6 +680,10 @@ const SERVER_TEST_REACHES = {
   },
   "tests/server/entry/compose/scoped-timers.int.test.ts": {
     "domain/plugin": "pluginMacroName: no wire lists a plugin's registered macros, so the suite names the token by the plugin domain's own rule",
+  },
+  // The broker-loss holds are judged on a stepped clock while the parent's production timers run beside it.
+  "tests/server/infra/plugin-host/persistence/broker-liveness.int.test.ts": {
+    "infra/timers": "systemTimers: the production timers that run beside the stepped clock the broker-loss holds are judged on",
   },
   // A stuck Worker must end before the parent's command timeout fires on production timers, and a lost broker must
   // never add up to a disable.
