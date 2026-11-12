@@ -30,11 +30,11 @@ test("native JOSE backchannel uses a cached remote keyset and never accepts a fo
   expect(rejected.status).toBe(400);
   const stillLive = await root.http.request("/api/auth/me", { headers: { cookie } });
   expect(authMeSchema.parse(await stillLive.json()).authenticated).toBe(true);
-  const valid = await issuer.logoutToken(claims);
+  // Two tokens, because the route accepts each token id once; the second verify must reuse the cached key set.
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const result = await root.http.request(BACKCHANNEL_LOGOUT_PATH, {
       method: "POST",
-      body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, valid]]),
+      body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, await issuer.logoutToken(claims)]]),
     });
     expect(result.status).toBe(200);
   }
@@ -59,7 +59,7 @@ test("native key caches are graph-local for identical issuer/kid and survive ano
   expect((await post(second, secondToken)).status).toBe(200);
   await first[Symbol.asyncDispose]();
   await signInWithOidc(second, secondIssuer, MEMBER);
-  expect((await post(second, secondToken)).status).toBe(200);
+  expect((await post(second, await secondIssuer.logoutToken(claims))).status).toBe(200);
   expect(firstIssuer.calls.filter((call) => call === "GET /jwks")).toHaveLength(1);
   expect(secondIssuer.calls.filter((call) => call === "GET /jwks")).toHaveLength(1);
 });

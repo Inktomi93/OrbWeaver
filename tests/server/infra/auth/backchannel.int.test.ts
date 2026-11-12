@@ -42,15 +42,39 @@ function token(issuer: Issuer, claims: Claims = {}, omittedClaims: readonly stri
   return issuer.logoutToken({ sub: SUBJECT, events: { [BACKCHANNEL_EVENT]: {} }, ...claims }, omittedClaims);
 }
 
-test("a valid logout token returns the actual sub", async ({ issuer, verifier }) => {
-  expect(await verifier.verify({ logoutToken: await token(issuer), jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID })).toEqual({ sub: SUBJECT, sid: null });
+const TOKEN_ID = "logout-token-id";
+const EXPIRES_AT_SECONDS = 4_102_444_800;
+const MS_PER_SECOND = 1000;
+
+test("a valid logout token returns the actual sub, token id and expiry", async ({ issuer, verifier }) => {
+  const logoutToken = await token(issuer, { jti: TOKEN_ID, exp: EXPIRES_AT_SECONDS });
+  expect(await verifier.verify({ logoutToken, jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID })).toEqual({
+    sub: SUBJECT,
+    sid: null,
+    tokenId: TOKEN_ID,
+    expiresAt: EXPIRES_AT_SECONDS * MS_PER_SECOND,
+  });
 });
 
 test("a sid-only token validates separately from the route's supported revocation subjects", async ({ issuer, verifier }) => {
-  expect(await verifier.verify({ logoutToken: await token(issuer, { sid: "sess-1" }, ["sub"]), jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID })).toEqual({
+  const logoutToken = await token(issuer, { sid: "sess-1", jti: TOKEN_ID, exp: EXPIRES_AT_SECONDS }, ["sub"]);
+  expect(await verifier.verify({ logoutToken, jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID })).toEqual({
     sub: null,
     sid: "sess-1",
+    tokenId: TOKEN_ID,
+    expiresAt: EXPIRES_AT_SECONDS * MS_PER_SECOND,
   });
+});
+
+test("an accepted token id is refused on its next delivery, and an unaccepted one stays verifiable", async ({ issuer, verifier }) => {
+  const args = { logoutToken: await token(issuer), jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID };
+  const first = await verifier.verify(args);
+  expect(await verifier.verify(args)).toEqual(first);
+  if (first === null) {
+    throw new Error("the issuer's own logout token did not verify");
+  }
+  verifier.accept(first);
+  expect(await verifier.verify(args)).toBeNull();
 });
 
 test("a wrong-issuer logout token returns null", async ({ issuer, verifier }) => {
@@ -114,7 +138,7 @@ test("an unreachable logout key set rejects the verify instead of refusing the t
   // Control: the same token against a key set the issuer serves verifies.
   await using served = await createServerHarness({ networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: issuer.fetch } });
   await using servedOidc = await configureOidc(served, NATIVE_OIDC_SETTINGS);
-  expect(await servedOidc.backchannelLogout?.verify({ logoutToken: await token(issuer), jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID })).toEqual({
+  expect(await servedOidc.backchannelLogout?.verify({ logoutToken: await token(issuer), jwks: KEY_URL, issuer: ISSUER, audience: CLIENT_ID })).toMatchObject({
     sub: SUBJECT,
     sid: null,
   });

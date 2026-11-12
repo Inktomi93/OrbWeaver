@@ -526,9 +526,9 @@ export interface OidcRoutesDeps {
   readonly requireApproval: boolean;
   readonly store: OidcMintStore;
   /** A5 — present only when `OIDC_BACKCHANNEL_LOGOUT=on`; its presence registers the back-channel logout
-   *  endpoint. Carries the JWKS-verifying `verify` port + our client_id (the required `aud`). */
-  readonly backchannelLogout?: {
-    readonly verify: BackchannelLogoutVerifier["verify"];
+   *  endpoint. Carries the JWKS-verifying `verify` port, its replay record's `accept`, and our client_id (the
+   *  required `aud`). */
+  readonly backchannelLogout?: BackchannelLogoutVerifier & {
     readonly clientId: string;
   };
   /** D259 — present when invites may create OIDC accounts; its presence makes the login carry `?invite=`, lets
@@ -1442,8 +1442,8 @@ function registerOidcPendingJoin(app: Hono<PrincipalEnv>, deps: AuthRoutesDeps, 
  *  the subject. A verified sid-only token is refused until session rows persist issuer+sid — accepting one
  *  without an actionable key would tell the IdP logout succeeded while leaving the session live. Returns
  *  200 on success, 400 on validation or unsupported-token failure (per spec), always no-store.
- *  NO REPLAY CACHE: nothing records a token's `jti`, so a re-delivered token revokes every session its subject
- *  holds at that moment, including one signed in after the first delivery, until the token's `exp`. It carries no
+ *  A token id is accepted once within the token's lifetime: the route records it only after the revoke lands, so a
+ *  re-delivered token is refused and a failed or refused delivery stays deliverable. It carries no
  *  CSRF check because its outcome does not depend on an ambient credential, so it registers through its
  *  `CSRF_EXEMPT_ROUTES` entry; reading the request's principal or session cookie here would void that exemption. */
 function registerBackchannelLogout(
@@ -1468,25 +1468,25 @@ function registerBackchannelLogout(
     if (typeof jwksUri !== "string" || jwksUri.length === 0) {
       return c.json({ error: "server_error" }, BAD_REQUEST);
     }
-    const subject = await bcl.verify({ logoutToken, jwks: jwksUri, issuer: meta.issuer, audience: bcl.clientId });
-    if (subject === null) {
+    const token = await bcl.verify({ logoutToken, jwks: jwksUri, issuer: meta.issuer, audience: bcl.clientId });
+    if (token === null) {
       // The verifier already emitted a securityEvent naming the exact violation.
       return c.json({ error: "invalid_request" }, BAD_REQUEST);
     }
-    if (subject.sub === null) {
+    if (token.sub === null) {
       securityEvent(
         "oidc_backchannel_sid_unsupported",
-        { hasSid: subject.sid !== null },
+        { hasSid: token.sid !== null },
         "security: OIDC back-channel logout — refused sid-only token because sessions have no issuer/sid binding",
         deps.logger,
       );
       return c.json({ error: "unsupported_logout_token" }, BAD_REQUEST);
     }
 
-    const { revoked, userIds } = await deps.sessions.revokeByExternalId(externalIdSchema.parse(subject.sub));
+    const { revoked, userIds } = await deps.sessions.revokeByExternalId(externalIdSchema.parse(token.sub));
+    bcl.accept(token);
     // W7a — per USER here, not per session: the IdP has ended the HUMAN's login, and one subject can be
-    // bound to more than one row. It evicts exactly the users whose sessions this delivery revoked, so a
-    // re-delivered token evicts nothing unless the subject signed in again since the last one.
+    // bound to more than one row. It evicts exactly the users whose sessions this delivery revoked.
     for (const userId of userIds) {
       deps.sockets.evictUser(userId);
     }
