@@ -17,8 +17,8 @@
 // Nothing was lost by dropping the durable row: `chat_events.chat_id` CASCADES, so the `chatDeleted` row
 // was cascaded away by the very delete it announced — it was never replayable.
 //
-// HUSKS (R0 §4.2/§4.6). Every WRITE here CLAIMS the room first (`deps.claimChat`, before the write — the
-// ordering invariant in `verbs/claim-chat.ts`): configuring a room is "doing something with it" (F4(a)), so a
+// HUSKS (R0 §4.2/§4.6). Every WRITE here CLAIMS the room after its refusals and before the write
+// (`deps.claimChat` — the ordering invariant in `verbs/claim-chat.ts`): configuring a room is "doing something with it" (D166), so a
 // room the user titled/starred/tuned is no longer an abandonable husk. The three verbs that do NOT claim are
 // the three that remove the row — `delete`, `reapHusk`, `reapTemporaryChats`.
 // This file owns BOTH reap arms (§4.6): `reapHusk` is the best-effort nav-away drop (host-only, and the
@@ -464,9 +464,9 @@ function createSetVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, clai
 function createSetUserMacroValues(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["setUserMacroValues"] {
   return async ({ principal, chatId, values }: SetUserMacroValuesParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
-    await claimChat(chatId);
     const parsed = userMacroValuesSchema.parse(values);
     await assertDeclaredPicks(ctx, chatId, parsed);
+    await claimChat(chatId);
     await commitFencedChatWrite(ctx, chatId, ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId)));
     await emit({ type: "chatUpdated", chatId });
   };

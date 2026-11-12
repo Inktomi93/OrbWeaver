@@ -12,7 +12,6 @@ import { applyHandEdit, currentSnapshotState } from "#src/domain/rpg/snapshot-ed
 export function createDeleteQuest(ctx: RpgContext): Pick<RpgService, "deleteQuest"> {
   async function deleteQuest(params: DeleteQuestParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    await ctx.claimChat(params.chatId);
     const state = await currentSnapshotState(ctx, game);
     if (!state.quests.some((q) => q.id === params.questId)) {
       throw new DomainNotFoundError("quest", params.questId);

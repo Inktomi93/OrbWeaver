@@ -51,7 +51,7 @@ import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 interface InviteDeps {
   readonly emit: ChatServiceDeps["emit"];
   /** The husk→real transition (R0). Only `createInvite` claims: opening a room to another human is
-   *  effort put into it (F4(a)). The redeem/accept/revoke/decline arms cannot reach an unclaimed room
+   *  effort put into it (D166). The redeem/accept/revoke/decline arms cannot reach an unclaimed room
    *  -- an invite has to exist first, and minting it claimed. */
   readonly claimChat: ClaimChatOp;
   readonly loadParticipantViews: LoadParticipantViewsOp;
@@ -161,7 +161,6 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
     if (allowSignup) {
       assertSignupMint(ctx, principal, input, ctx.now());
     }
-    await claimChat(chatId);
     // Resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
     let invitedUserId: UserId | null = null;
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {
@@ -177,6 +176,8 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
     const inviteId = ctx.newInviteId();
     const maxUses = resolveMaxUses(input.maxUses);
     const expiresAt = resolveExpiresAt(input.expiresAt, at);
+    // Before the invite row: only an invite seats a second human, and a room is claimed before anyone can join it.
+    await claimChat(chatId);
     await insertInvite(ctx.db, {
       id: inviteId,
       chatId,

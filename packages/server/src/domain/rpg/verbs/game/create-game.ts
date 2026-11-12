@@ -35,11 +35,11 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
       throw new DomainNotFoundError("game", params.chatId);
     }
     assertHostRole(ctx.can, params.principal, membership.role, "host authority required to create a game");
-    await ctx.claimChat(params.chatId);
     // One game per chat (the UNIQUE chatId is the belt; this is the friendly refusal).
     if (await findGameByChat(ctx.db, params.chatId)) {
       throw new DomainOperationError(RPG_OP_CODES.alreadyAGame, "this chat is already a game");
     }
+    await ctx.claimChat(params.chatId);
 
     // The birth mechanics (row + pointer mirror + bus emit, no born snapshot) live in the ONE shared
     // mint (`game-mint.ts`) — the chat-ops draft-time `startGame` door births through the same code.

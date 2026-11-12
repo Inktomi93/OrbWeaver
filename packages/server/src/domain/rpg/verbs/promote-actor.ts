@@ -44,7 +44,6 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
   async function promoteActor(params: PromoteActorParams): Promise<PromoteActorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
     assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the room's characters");
-    await ctx.claimChat(params.chatId);
     const from = params.targetRef;
     const fromKey = actorRefKey(from);
 
@@ -71,6 +70,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     const { value: name, truncated: nameTruncated } = clampActorCardName(rawName);
     const participants = await ctx.resolveParticipants(game.chatId);
 
+    await ctx.claimChat(params.chatId);
     const minted = await ctx.promoteToCharacter({
       chatId: game.chatId,
       // The ROOM HOST, threaded explicitly: this verb gated `role === "host"`, so the caller IS that human, and

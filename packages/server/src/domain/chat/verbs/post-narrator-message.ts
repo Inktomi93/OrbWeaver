@@ -70,7 +70,7 @@ export function createPostNarratorMessage(input: ChatAssemblyContext, deps: Post
       throw new Error(`postNarratorMessage: refused a blank post to chat ${chatId} — a content-less canon row is not a message (D124)`);
     }
 
-    // A narrator post is a committed canon row, so it CLAIMS (R0 F4(a)) -- before the write, per the
+    // A narrator post is a committed canon row, so it CLAIMS (D166) -- before the write, per the
     // ordering invariant. This op is principal-free by design (automation/plugins drive it), so there
     // is no authority guard to sequence after: the caller was authorized at ITS own boundary.
     //

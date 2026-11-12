@@ -1973,7 +1973,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     if (target === undefined || !present) {
       throw new ChatNotFoundError(chatId);
     }
-    // A forced reply is a generated turn and claims like one (R0 F4(a)): after the host and seat gates, so a
+    // A forced reply is a generated turn and claims like one (D166): after the host and seat gates, so a
     // refused force never claims, and before any engine write, which retained accounting refuses on a husk.
     await deps.claimChat(chatId);
     // ACCEPTED: the caller is the host and the named character holds a present seat, so this turn IS happening
@@ -2130,14 +2130,17 @@ async function resolveTurnBase(
      *  re-generation resolves the identical draw. Absent (generate) ⇒ a fresh draw. */
     readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
     readonly timeZone: IanaTimeZone | undefined;
+    /** The caller's own refusal over the loaded room (generate's named speaker), run before the claim. */
+    readonly admitRoom?: ((room: Room) => void) | undefined;
   },
 ): Promise<TurnBase> {
   const { principal, chatId } = args;
-  // Every generated turn claims (R0 F4(a)) -- the four callers (swipe / continue / impersonate /
-  // generate) share this base, so the claim cannot be forgotten on one of them. Each caller has
-  // already run its own membership guard; this is before any engine write.
-  await deps.claimChat(chatId);
   const room = await loadRoom(ctx, chatId, args.anchorPersonaId);
+  args.admitRoom?.(room);
+  // Every generated turn claims (D166) -- the four callers (swipe / continue / impersonate / generate) share
+  // this base, so the claim cannot be forgotten on one of them. After every refusal: each caller ran its own
+  // guards, and the room and its speaker check passed above. Before any engine write.
+  await deps.claimChat(chatId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
     hostUserId: room.hostUserId,
@@ -2730,8 +2733,8 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
     // UNVALIDATED here, and an unvalidated foreign CharacterId must never ride the bus (see the refusal below);
     // `turnStarted` carries the validated speaker. The speaker resolve lives INSIDE the accepted region so its
     // NOT_FOUND closes the slot it opened.
-    const base = await withAcceptedSlot(deps, slot, async () => {
-      const resolved = await resolveTurnBase(ctx, deps, {
+    const base = await withAcceptedSlot(deps, slot, () =>
+      resolveTurnBase(ctx, deps, {
         principal,
         chatId,
         kind: "generate",
@@ -2741,12 +2744,11 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         respondsToLatestUserTurn,
         guided,
         timeZone,
-      });
-      if (speakerCharacterId !== undefined && speakerCharacterId !== null) {
-        requirePresentGenerateSpeaker(resolved.room, chatId, speakerCharacterId);
-      }
-      return resolved;
-    });
+        ...(speakerCharacterId === undefined || speakerCharacterId === null
+          ? {}
+          : { admitRoom: (loaded: Room): void => requirePresentGenerateSpeaker(loaded, chatId, speakerCharacterId) }),
+      }),
+    );
     const { room, identity, connection, assembleContext, macroRegistry, userMacroDraws } = base;
     // Registered BEFORE the arbitration, so the user's Stop reaches a smart side-LLM pick, not only the engine.
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
@@ -3129,7 +3131,7 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
   if (speakerCharacterId !== undefined && !room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null)) {
     throw new ChatNotFoundError(chatId);
   }
-  // A requested turn is a generated turn and claims like one (R0 F4(a)): after every refusal above, so a refused
+  // A requested turn is a generated turn and claims like one (D166): after every refusal above, so a refused
   // request never claims, and before any engine write, which retained accounting refuses on a husk.
   await deps.claimChat(chatId);
   // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.

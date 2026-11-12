@@ -18,7 +18,6 @@ const RESTORE_MESSAGE = "— scene restored —";
 export function createRestoreCheckpoint(ctx: RpgContext): Pick<RpgService, "restoreCheckpoint"> {
   async function restoreCheckpoint(params: RestoreCheckpointParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    await ctx.claimChat(params.chatId);
     const snapshotId = await ctx.handWrites.run(game.id, async () => {
       const checkpoint = await findCheckpoint(ctx.db, params.checkpointId);
       if (checkpoint === undefined || checkpoint.gameId !== game.id) {
@@ -29,6 +28,7 @@ export function createRestoreCheckpoint(ctx: RpgContext): Pick<RpgService, "rest
       if (base === undefined) {
         throw new DomainNotFoundError("snapshot", checkpoint.snapshotId);
       }
+      await ctx.claimChat(params.chatId);
       const restoredId = ctx.ids.snapshot();
       // The narrator/state batch stays inside the same owner as hand edits; neither writer resolves past it.
       await ctx.postNarratorMessage(game.chatId, RESTORE_MESSAGE, ({ messageId }) =>

@@ -209,6 +209,9 @@ async function writeOwnedHandState(ctx: RpgContext, game: RpgGameRow, derive: (h
     lockedPaths.delete(path);
   }
   const nextLocks: RpgFieldLocks = Object.fromEntries(lockedPaths);
+  // A hand write is an explicit host write and claims the room (D166): here, after the derive and parse
+  // refusals above and before the durable write, so every hand door claims in the same place.
+  await ctx.claimChat(game.chatId);
   if (head.inPlace !== null) {
     // In-place on the live UNcommitted variant (this turn's draft head — swipe-consistent).
     await updateSnapshotState(ctx.db, head.inPlace.variantId, { ...toColumns(nextState), fieldLocks: nextLocks });
