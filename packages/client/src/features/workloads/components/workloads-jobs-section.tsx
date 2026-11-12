@@ -5,7 +5,8 @@
 //
 // Suspends on workloads.list + sessions.me. workloads.list server-scopes a plain caller to its own rows; an
 // owner/admin viewer gets the deployment-wide view, resolving each foreign row's owner handle through a
-// gated admin.listUsers read that never fires for a plain user. Filters are client-side tabs over the one
+// gated admin.listUsers read that never fires for a plain user. That read also names the box owner, whose rows offer
+// Cancel and Retry only to the box owner (`viewerActsOnRow`, D17). Filters are client-side tabs over the one
 // bounded list read; each active row tails its own `workloads` ROOM on the tab's ONE socket (SSE-1 S5).
 
 import { userRoleSatisfies } from "@orb/contracts/identity";
@@ -27,6 +28,7 @@ import {
   groupWorkloadsByLane,
   isActiveWorkloadStatus,
   UNRESOLVED_OWNER_HANDLE,
+  viewerActsOnRow,
   WORKLOAD_FILTER_EMPTY_COPY,
   WORKLOAD_FILTER_EMPTY_NEXT_STEP,
   WORKLOAD_FILTER_LABELS,
@@ -107,6 +109,9 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
   const [filter, setFilter] = useState<WorkloadFilter>("all");
   const [runOpen, setRunOpen] = useState(false);
 
+  const boxOwnerId = users.find((user) => userRoleSatisfies(user.role, "owner"))?.id;
+  const viewerActsOn = (workload: WorkloadItem): boolean => viewerActsOnRow(workload, { userId: viewer.userId, isOwner }, boxOwnerId);
+
   const ownerHandleFor = (workload: WorkloadItem): string | null => {
     if (!isPrivileged || workload.ownerId === null || workload.ownerId === viewer.userId) {
       return null;
@@ -150,6 +155,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
                       rows={rows}
                       ownerHandleFor={ownerHandleFor}
                       viewerIsOwner={isOwner}
+                      viewerActsOn={viewerActsOn}
                       onCancel={(workloadId): void => cancelWorkload.mutate({ id: workloadId })}
                       onRetry={retry}
                     />
@@ -205,12 +211,14 @@ function LaneGroups({
   rows,
   ownerHandleFor,
   viewerIsOwner,
+  viewerActsOn,
   onCancel,
   onRetry,
 }: {
   readonly rows: readonly WorkloadItem[];
   readonly ownerHandleFor: (workload: WorkloadItem) => string | null;
   readonly viewerIsOwner: boolean;
+  readonly viewerActsOn: (workload: WorkloadItem) => boolean;
   readonly onCancel: (id: WorkloadItem["id"]) => void;
   readonly onRetry: (workload: WorkloadItem) => void;
 }): ReactElement {
@@ -233,6 +241,7 @@ function LaneGroups({
               workload={workload}
               ownerHandle={ownerHandleFor(workload)}
               viewerIsOwner={viewerIsOwner}
+              viewerActs={viewerActsOn(workload)}
               onCancel={(): void => onCancel(workload.id)}
               onRetry={(): void => onRetry(workload)}
             />

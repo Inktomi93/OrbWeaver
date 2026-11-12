@@ -171,6 +171,24 @@ export function canRetryWorkload(workload: inferOutput<Trpc["workloads"]["list"]
   return isRetryableWorkloadStatus(workload.status) && (viewerIsOwner || !operatorRun);
 }
 
+type ListedWorkload = inferOutput<Trpc["workloads"]["list"]>[number];
+type Account = NonNullable<ListedWorkload["ownerId"]>;
+
+/** Whether a viewer is offered a row's controls: Cancel and Retry on a run; the switch, Edit and Delete on a schedule. A
+ *  row the box owner owns or funds is the box owner's work, which a delegated admin may not act on (D17). This is a
+ *  display read; the server refuses the act regardless. `boxOwnerId` is `undefined` until the admin user list answers,
+ *  so another user's row offers nothing until then. */
+export function viewerActsOnRow(
+  row: Pick<ListedWorkload, "ownerId"> & Partial<Pick<ListedWorkload, "funderUserId">>,
+  viewer: { readonly userId: Account; readonly isOwner: boolean },
+  boxOwnerId: Account | undefined,
+): boolean {
+  if (viewer.isOwner || row.ownerId === viewer.userId) {
+    return true;
+  }
+  return boxOwnerId !== undefined && row.ownerId !== boxOwnerId && row.funderUserId !== boxOwnerId;
+}
+
 export const WORKLOAD_FILTERS = ["all", "running", "recent", "failed"] as const;
 
 export const WORKLOAD_FILTER_LABELS: Record<(typeof WORKLOAD_FILTERS)[number], string> = {

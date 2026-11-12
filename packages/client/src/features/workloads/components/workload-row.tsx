@@ -43,6 +43,8 @@ export interface WorkloadRowProps {
   /** The owning user's handle for a cross-owner view; `null` = the caller's own row (or unresolved). */
   readonly ownerHandle: string | null;
   readonly viewerIsOwner: boolean;
+  /** Whether the viewer is offered Cancel and Retry on this row ({@link viewerActsOnRow}). */
+  readonly viewerActs: boolean;
   /** MAY return a promise (#1563b, widened #1632): it is this row's `ConfirmDialog.onConfirm`, which awaits
    *  it — the confirm holds open busy, closes on resolve, and stays open with the reason on rejection.
    *  `() => void` accepted an async handler anyway, so the declared type said the opposite of what happens. */
@@ -71,6 +73,7 @@ function WorkloadRowBody({
   workload,
   ownerHandle,
   viewerIsOwner,
+  viewerActs,
   onCancel,
   onRetry,
   progress,
@@ -116,12 +119,12 @@ function WorkloadRowBody({
             <Row aria-live="polite" data-slot="workload-status">
               <StatusChip status={chipStatus} vocabulary={WORKLOAD_STATUS_VOCABULARY} />
             </Row>
-            {active ? (
+            {active && viewerActs ? (
               <Button type="button" variant="ghost" size="sm" aria-label={`Cancel: ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
                 {DIALOG_VERBS.cancel}
               </Button>
             ) : null}
-            {canRetryWorkload(workload, viewerIsOwner) ? (
+            {viewerActs && canRetryWorkload(workload, viewerIsOwner) ? (
               <Button type="button" variant="outline" size="sm" aria-label={`Retry: ${kindLabel}`} onClick={onRetry}>
                 {DIALOG_VERBS.retry}
               </Button>

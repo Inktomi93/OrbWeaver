@@ -1,9 +1,16 @@
 // domain/workloads/substrate/authorize — the F3 per-user authorization predicates the verbs share (one home
-// for the ownership/scope logic, so `get`/`cancel`/`retry`/`subscribe`/`list` cannot drift). PURE — no db, no
-// I/O; it reads the injected `isAdmin`/`requireOwner` seams (the sole role-comparison sites, D17) + the row's `ownerId`.
+// for the ownership/scope logic, so `get`/`cancel`/`retry`/`subscribe`/`list` cannot drift). No db of its own: it
+// reads the injected `isAdmin`/`isOwner`/`requireOwner`/`isBoxOwner` seams, which decide through the `can()` kernel
+// (D17), and the row's `ownerId` and `funderUserId`.
+//
+// SEEING IS NOT ACTING (D17). An admin sees every owner's rows (`isVisibleToCaller`, `resolveListOwnerFilter`), but
+// admin is delegated authority that does not reach the box owner's own work: only the box owner cancels, retries,
+// retunes, pauses or deletes a run or schedule the box owner owns or funds (`mayActOnRow`). Any caller still acts on
+// its own rows, and an admin still acts on a member's.
 //
 // The leak-free rule (doctrine): a caller who may NOT see a row is told the SAME thing whether it is missing
-// or simply not theirs — the verb collapses both to `DomainNotFoundError` (never a FORBIDDEN existence oracle).
+// or simply not theirs — the verb collapses both to `DomainNotFoundError` (never a FORBIDDEN existence oracle). A
+// row the caller sees but may not act on is answered the same way, as `canCloneRow` already answers a bulk row.
 
 import type { IsAdmin, RequireOwner } from "@orb/contracts/admin";
 import type { Principal } from "@orb/contracts/identity";
@@ -56,9 +63,10 @@ export function resolveRunOwner(
 }
 
 /**
- * May `caller` see/act on a row owned by `ownerId`? A `null` caller is a TRUSTED system/scheduler trigger
+ * May `caller` see a row owned by `ownerId`? A `null` caller is a TRUSTED system/scheduler trigger
  * (unrestricted). An admin (owner∪admin, via the injected seam) sees every owner. Otherwise a caller sees
- * ONLY rows it owns (`row.ownerId === caller.userId`) — a `null`-owned system row is never a user's.
+ * ONLY rows it owns (`row.ownerId === caller.userId`) — a `null`-owned system row is never a user's. A verb that
+ * changes the row also asks {@link mayActOnRow}.
  */
 export function isVisibleToCaller(isAdmin: IsAdmin, caller: Principal | null, ownerId: UserId | null): boolean {
   if (caller === null) {
@@ -68,6 +76,25 @@ export function isVisibleToCaller(isAdmin: IsAdmin, caller: Principal | null, ow
     return true;
   }
   return ownerId !== null && ownerId === caller.userId;
+}
+
+/**
+ * May `caller` act on a row {@link isVisibleToCaller} already admitted: cancel, retry or estimate a retry of a run, or
+ * retune, pause or delete a schedule? A row the box owner owns or funds is the box owner's work, and a delegated admin
+ * may not act on it (D17). A caller always acts on its own row, and a `null` caller is a trusted system trigger.
+ * A bulk row has no owner of its own or names its target; its funder is the box owner who started it.
+ */
+export async function mayActOnRow(
+  seams: Pick<WorkloadServiceContext, "isOwner" | "isBoxOwner">,
+  caller: Principal | null,
+  row: { readonly ownerId: UserId | null; readonly funderUserId?: UserId | null },
+): Promise<boolean> {
+  if (caller === null || row.ownerId === caller.userId || seams.isOwner(caller)) {
+    return true;
+  }
+  const accounts = [row.ownerId, row.funderUserId ?? null].filter((account): account is UserId => account !== null);
+  const ownersWork = await Promise.all(accounts.map(async (account) => await seams.isBoxOwner(account)));
+  return !ownersWork.includes(true);
 }
 
 /**
