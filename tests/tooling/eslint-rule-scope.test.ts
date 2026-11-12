@@ -24,6 +24,7 @@ const LINK = `${SESSIONS}/verbs/link-external-id.ts`;
 const PENDING = `${SESSIONS}/verbs/pending-signup.ts`;
 const NETWORK = "packages/server/src/infra/network";
 const SUBSTRATE = "packages/server/src/domain/chat/substrate";
+const DEBUG = "packages/server/src/foundation/observability/debug";
 
 // [rule, path, level]: each exempt home sits beside a neighbour in its own folder that the rule still reaches.
 test.for([
@@ -62,6 +63,33 @@ test.for([
   ["orb/no-direct-users-read", "packages/server/src/domain/chat/verbs/probe.ts", "error"],
   ["orb/vector-scope-derived", "packages/server/src/domain/embeddings/probe.ts", "off"],
   ["orb/vector-scope-derived", "packages/server/src/domain/chat/probe.ts", "error"],
+  ["orb/notifications-inbox-owner", "packages/server/src/domain/notifications/persistence/probe.ts", "off"],
+  ["orb/notifications-inbox-owner", "packages/server/src/domain/notifications/verbs/probe.ts", "error"],
+  // The DB probes hold a read role in the users, inbox and vector rows; the rest of debug/ does not, and a probe still
+  // may not write a vector table.
+  ["orb/no-direct-users-read", `${DEBUG}/inspect/probe.ts`, "off"],
+  ["orb/no-direct-users-read", `${DEBUG}/probe.ts`, "error"],
+  ["orb/notifications-inbox-owner", `${DEBUG}/inspect/probe.ts`, "off"],
+  ["orb/notifications-inbox-owner", `${DEBUG}/probe.ts`, "error"],
+  ["orb/vector-scope-derived", `${DEBUG}/inspect/probe.ts`, "off"],
+  ["orb/vector-scope-derived", `${DEBUG}/probe.ts`, "error"],
+  ["orb/vector-scope-derived-write", `${DEBUG}/inspect/probe.ts`, "error"],
+  ["orb/settings-kv-owner", "packages/server/src/domain/settings/persistence/probe.ts", "off"],
+  ["orb/settings-kv-owner", "packages/server/src/domain/settings/verbs/probe.ts", "error"],
+  // The re-export rows hold in every server file, the owning persistence included: a home names its table, never re-exports it.
+  ["orb/notifications-inbox-owner-reexport", "packages/server/src/domain/notifications/persistence/probe.ts", "error"],
+  ["orb/notifications-inbox-owner-reexport", "packages/client/src/features/probe/probe.ts", "off"],
+  ["orb/settings-kv-owner-reexport", "packages/server/src/domain/settings/persistence/kv.ts", "error"],
+  ["orb/settings-kv-owner-reexport", "tests/server/domain/settings/probe.int.test.ts", "off"],
+  ["orb/prefer-to-sorted", "packages/kit/src/probe/probe.ts", "error"],
+  ["orb/prefer-to-sorted", "packages/client/src/features/probe/probe.tsx", "error"],
+  ["orb/prefer-to-sorted", "tooling/src/probe/probe.ts", "error"],
+  ["orb/prefer-to-sorted", "tests/server/probe.test.ts", "error"],
+  ["orb/prefer-to-sorted", "tests/client/probe.dom.test.tsx", "error"],
+  ["orb/prefer-to-sorted", "scripts/probe.ts", "error"],
+  ["orb/prefer-to-sorted", "packages/client/vite.config.ts", "error"],
+  ["orb/prefer-to-sorted", "packages/showcase-plugins/bundles/probe/main.ts", "error"],
+  ["orb/prefer-to-sorted", "packages/plugin-sdk/main.d.ts", "off"],
   ["orb/persistence-boundary", "packages/client/src/state/durable-local.ts", "off"],
   ["orb/persistence-boundary", "packages/client/src/state/probe.ts", "error"],
   ["orb/session-channel-boundary", "packages/client/src/lib/session-channel.ts", "off"],

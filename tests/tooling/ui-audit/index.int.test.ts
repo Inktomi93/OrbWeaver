@@ -718,7 +718,7 @@ test("a relational-only fixture is judged, never refused as an empty census", as
     'padding-inline-end painted "20px" vs expected --orb-tier-island-pad="8px" for tier "instrument" on [data-slot=card-root]',
     'padding-inline-start painted "20px" vs expected --orb-tier-island-pad="8px" for tier "instrument" on [data-slot=card-root]',
   ] as const;
-  expect(tierDrifts.map(({ value }) => value).sort()).toEqual([...expectedTierDrifts].sort());
+  expect(tierDrifts.map(({ value }) => value).sort()).toEqual(expectedTierDrifts.toSorted());
   expect(nonEmpty(tierDrifts).every(({ selector }) => selector === "[data-slot=card-root]")).toBe(true);
 });
 

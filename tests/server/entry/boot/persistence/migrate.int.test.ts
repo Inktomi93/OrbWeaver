@@ -162,7 +162,7 @@ test("a boot that migrates keeps the recent budget, one backup per recent day an
   const keptCrowded = crowded.slice(-(KEEP_RECENT_BACKUPS - 1));
   const keptOlder = older.slice(-(KEEP_DAILY_BACKUPS - 2));
   const expected = [...taken, ...[...keptCrowded, ...keptOlder, pinnedStamp].map(backupName), pin];
-  expect([...afterMigrating].sort()).toEqual(expected.sort());
+  expect(afterMigrating.toSorted()).toEqual(expected.sort());
 
   // A no-op boot touches the backup dir not at all, so a copy no budget holds survives it.
   const stale = backupName(0);

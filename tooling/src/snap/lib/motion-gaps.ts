@@ -85,7 +85,7 @@ export function motionQueueHint(opts: Args, actionIndex: number): EvidenceGap | 
 }
 
 /** Which step kinds DISPATCH INPUT, as a mapped Record so a new `Step` kind cannot be added without
- *  classifying it here (Spine §5.5). `motion-click` is excluded because it IS the measured window's own
+ *  classifying it here (Spine-TypeScript-and-Patterns §7.5). `motion-click` is excluded because it IS the measured window's own
  *  input; `waitfor`/`pause` dispatch nothing. */
 const DISPATCHES_INPUT: Record<Step["kind"], boolean> = {
   click: true,

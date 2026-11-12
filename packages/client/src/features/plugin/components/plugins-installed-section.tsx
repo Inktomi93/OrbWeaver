@@ -42,7 +42,7 @@ function InstalledPluginsList(): ReactElement {
     );
   }
   // Stable sort: attention rows first, server order preserved within each band.
-  const ordered = [...plugins].sort((a, b) => Number(needsAttention(b)) - Number(needsAttention(a)));
+  const ordered = plugins.toSorted((a, b) => Number(needsAttention(b)) - Number(needsAttention(a)));
   return (
     <Stack gap="block">
       {ordered.map((plugin) => (

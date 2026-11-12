@@ -384,7 +384,7 @@ may change this resolution order.
 
 ## Client session freshness
 
-→ [`client-architecture-lockdown.md`](client-architecture-lockdown.md) §10a/§12 row 12/§13 rule 7 —
+→ [`client-architecture-state-and-gates.md`](client-architecture-state-and-gates.md) §10a/§12 row 12/§13 rule 7 —
 the three-class data contract, the durable-local per-user-namespacing + referential-integrity contract,
 the session channel (`packages/client/src/lib/session-channel.ts`, ESLint `orb/session-channel-boundary`), and the recovery ladder
 (`packages/client/src/data/stale-session.ts`). D138. This spine states identity resolution; the lockdown doc owns what the

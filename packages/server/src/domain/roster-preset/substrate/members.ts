@@ -15,8 +15,8 @@ import type { MemberCardRow, MemberWrite } from "../contract/service.ts";
 /** Wire seats → normalized junction writes: sorted by wire position, re-stamped dense 0..n-1, knob
  *  absence canonicalized (`talkativeness` absent → NULL = inherit; `disabled` absent → false). */
 export function normalizeMembers(members: CreateRosterPresetInput["members"]): MemberWrite[] {
-  return [...members]
-    .sort((a, b) => a.position - b.position)
+  return members
+    .toSorted((a, b) => a.position - b.position)
     .map((member, index) => ({
       characterId: member.characterId,
       position: index,

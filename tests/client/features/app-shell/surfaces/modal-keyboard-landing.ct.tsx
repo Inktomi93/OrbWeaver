@@ -92,7 +92,7 @@ test("every shell modal names a landing test file that exists", async () => {
   for (const file of new Set(Object.values(LANDING_PROVED_IN))) {
     await access(fileURLToPath(new URL(file, repoRoot)));
   }
-  expect(Object.keys(LANDING_PROVED_IN).sort()).toEqual([...MODAL_SLOT_IDS].sort());
+  expect(Object.keys(LANDING_PROVED_IN).sort()).toEqual(MODAL_SLOT_IDS.toSorted());
 });
 
 function dialogNamed(page: Page, name: string): Locator {

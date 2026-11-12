@@ -1849,6 +1849,8 @@ const RAW_STORAGE_HOMES = homes(
   "packages/client/src/lib/probe-mode.ts",
   "packages/client/src/main.tsx",
 );
+// The read-only DB probes Tier-2-Foundation.md names: they read @orb/db down, with no port.
+const DEBUG_DB_PROBES = "packages/server/src/foundation/observability/debug/inspect/**";
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
@@ -2028,15 +2030,28 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/server/src/infra/auth/**/*.{ts,tsx}"], rules: { "orb/infra-auth-no-userid": "error", "orb/infra-auth-pre-row-imports": "error" } },
     { files: ["packages/server/src/domain/discovery/**/*.{ts,tsx}"], rules: { "orb/discovery-no-stats-rollups": "error" } },
+    // DEBUG_DB_PROBES holds a read role in the users, inbox and vector rows; the rest of `debug/` holds none.
     {
-      files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/domain/sessions/**", "packages/server/src/domain/admin/**"],
+      files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}", "packages/server/src/foundation/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/sessions/**", "packages/server/src/domain/admin/**", DEBUG_DB_PROBES],
       rules: { "orb/no-direct-users-read": "error" },
+    },
+    {
+      files: ["packages/server/src/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/notifications/persistence/**", DEBUG_DB_PROBES],
+      rules: { "orb/notifications-inbox-owner": "error" },
+    },
+    {
+      files: ["packages/server/src/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/settings/persistence/**"],
+      rules: { "orb/settings-kv-owner": "error" },
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
       rules: {
         "orb/no-direct-users-read-reexport": "error",
+        "orb/notifications-inbox-owner-reexport": "error",
+        "orb/settings-kv-owner-reexport": "error",
         "orb/vector-scope-derived-reexport": "error",
         "orb/users-write-plain-spelling": "error",
         "orb/handle-key-writer": "error",
@@ -2050,7 +2065,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
         "packages/server/src/domain/search/persistence/**",
         "packages/server/src/domain/chat/memory/persistence/**",
         "packages/server/src/domain/discovery/persistence/**",
-        "packages/server/src/foundation/observability/debug/**",
+        DEBUG_DB_PROBES,
       ],
       rules: { "orb/vector-scope-derived": "error" },
     },
@@ -2376,6 +2391,20 @@ export default [
     files: ["**/*.{ts,tsx}"],
     plugins: { orb: localPlugin },
     rules: { "orb/commented-code": "error" },
+  },
+  {
+    // Every block above that carries type information; the rule asks the checker whether the copied operand is an array.
+    files: [
+      ...SOURCE,
+      ...NODE_TOOL_SOURCE,
+      "tests/**/*.{ts,tsx,mts,cts}",
+      "scripts/**/*.tsx",
+      "playwright/**/*.{ts,tsx}",
+      "packages/showcase-plugins/bundles/*/{main,ui,frame}.ts",
+    ],
+    ignores: ["**/*.d.{ts,mts,cts}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/prefer-to-sorted": "error" },
   },
   {
     files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
