@@ -804,6 +804,7 @@ export const OWNER_CSS_SLOTS = [
   "theme-scope",
   "theme-swatch-strip",
   "tick",
+  "title-reveal",
   "toast-action",
   "toast-root",
   "toast-stack",

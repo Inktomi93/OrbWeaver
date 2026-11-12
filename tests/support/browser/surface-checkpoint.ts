@@ -213,14 +213,14 @@ async function checkpointTextGeometry(
     });
   };
   // The readiness record still lands when the probe throws, so a part that never left is read beside what was leaving at readiness.
-  const { findings, declaredOverlays } = await enlargedTextGeometry(request.scope).catch(async (error: unknown) => {
+  const { findings, declaredOverlays, revealedTitleCuts } = await enlargedTextGeometry(request.scope).catch(async (error: unknown) => {
     await attach({ error: String(error) });
     throw error;
   });
-  await attach({ findings, declaredOverlays });
+  await attach({ findings, declaredOverlays, revealedTitleCuts });
   step.annotations.push({
     type: "text-geometry",
-    description: `Enlarged-text geometry over the checkpoint scope; root font=${String(rootFontPx)}px; shell regime=${shellRegime}; findings=${String(findings.length)}; declared overlays=${String(declaredOverlays.length)}`,
+    description: `Enlarged-text geometry over the checkpoint scope; root font=${String(rootFontPx)}px; shell regime=${shellRegime}; findings=${String(findings.length)}; declared overlays=${String(declaredOverlays.length)}; revealed title cuts=${String(revealedTitleCuts.length)}`,
   });
   expect.soft(findings, `${request.name}: enlarged-text geometry findings; inspect the text-geometry attachment`).toEqual([]);
 }

@@ -70,6 +70,7 @@ export {
 } from "./tag-mutations.ts";
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
 export { Tip } from "./tip.tsx";
+export { TitleReveal } from "./title-reveal.tsx";
 export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
@@ -77,6 +78,7 @@ export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 export type { FileDrop } from "./use-file-drop.ts";
 export { useFileDrop } from "./use-file-drop.ts";
 export { useFirstBootRows } from "./use-first-boot-rows.ts";
+export { useCutPart } from "./use-is-cut.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
 export type { RowDeleteFocus } from "./use-row-delete-focus.ts";
 export { returnFocusToRow, useReturnToRowOnClose, useRowDeleteFocus } from "./use-row-delete-focus.ts";
