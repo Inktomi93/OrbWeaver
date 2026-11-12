@@ -1,6 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import process from "node:process";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
+import { ANTHROPIC_API_KEY_ENV, CLAUDE_OAUTH_TOKEN_ENV } from "@orb/contracts/preset";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn, ChatResult, Resolved } from "@orb/inference";
@@ -246,8 +247,8 @@ test("native catalog and verify queries close their actual children after native
   const children: ChildProcessWithoutNullStreams[] = [];
   const closed = new Set<ChildProcessWithoutNullStreams>();
   const spawn: AgentSdkSpawn = (options) => {
-    expect(options.env["CLAUDE_CODE_OAUTH_TOKEN"] === SDK_TOKEN).toBe(true);
-    expect(options.env["ANTHROPIC_API_KEY"]).toBeUndefined();
+    expect(options.env[CLAUDE_OAUTH_TOKEN_ENV] === SDK_TOKEN).toBe(true);
+    expect(options.env[ANTHROPIC_API_KEY_ENV]).toBeUndefined();
     const child = execute(options);
     children.push(child);
     child.once("close", () => closed.add(child));

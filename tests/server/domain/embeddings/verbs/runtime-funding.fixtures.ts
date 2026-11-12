@@ -1,6 +1,7 @@
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { ProviderId, Task } from "@orb/contracts/inference";
 import { declaredCapabilitySchema, TASKS, taskDef } from "@orb/contracts/inference";
+import { CLAUDE_OAUTH_TOKEN_ENV } from "@orb/contracts/preset";
 import type { LibSqlWrap } from "@orb/db";
 import type { InferenceDeps, InferenceRuntime, ProviderExecutor, Resolved } from "@orb/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
@@ -298,7 +299,7 @@ export const test = baseTest.extend<
         observe = next;
       },
       spawn: (options) => {
-        tokens.push(options.env["CLAUDE_CODE_OAUTH_TOKEN"]);
+        tokens.push(options.env[CLAUDE_OAUTH_TOKEN_ENV]);
         observe?.();
         const child = spawn(options);
         children.push(child);
