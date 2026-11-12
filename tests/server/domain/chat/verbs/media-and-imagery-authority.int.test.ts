@@ -181,8 +181,8 @@ test("a present member's picture the room never placed reads no bytes, while a p
     resolveUserEnabled: createResolveUserEnabled(root.app.sessions),
   });
 
-  expect(await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "asset", assetId: membersPicture.assetId } })).toBeNull();
+  expect(await resolve({ chatId: room.id, ref: { kind: "asset", assetId: membersPicture.assetId } })).toBeNull();
   expect(read).not.toHaveBeenCalled();
-  expect((await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "asset", assetId: drawn.assetId } }))?.media).toBe("image");
+  expect((await resolve({ chatId: room.id, ref: { kind: "asset", assetId: drawn.assetId } }))?.media).toBe("image");
   expect(read).toHaveBeenCalledExactlyOnceWith(drawn.assetId);
 });

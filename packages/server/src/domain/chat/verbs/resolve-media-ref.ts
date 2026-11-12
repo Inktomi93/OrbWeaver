@@ -31,9 +31,9 @@ export function createResolveMediaRef(input: DbAssemblyInput<ResolveMediaRefDeps
  *  is blocked when `forbidExternalMedia` is set (the load itself is a tracking-pixel/exfil vector) and classifies
  *  as `image` (the attachment machinery never mints external refs, so the arm is defensive).
  *
- *  A stored asset needs BOTH room facts. Its owner is the host or in the room's consent set (present and enabled),
- *  and the room placed it
- *  ({@link MediaRoomAccess.isPlacedInRoom}). Presence alone would let any member's quote of an id read off a
+ *  A stored asset needs BOTH room facts. Its owner is in the room's consent set (present and enabled), the host
+ *  included: a turn run as a disabled host withholds the host's pictures like a departed owner's. And the room placed
+ *  it ({@link MediaRoomAccess.isPlacedInRoom}). Presence alone would let any member's quote of an id read off a
  *  transcript send another member's picture to the model. The row's author is no proof either: the history
  *  squash folds adjacent user rows under the first row's slot id, and a host may edit a member's row. */
 async function resolveImageRefToUrl(
@@ -42,7 +42,7 @@ async function resolveImageRefToUrl(
   forbidExternalMedia: boolean,
   params: Parameters<ResolveImageUrlOp>[0],
 ): Promise<ResolvedMediaRef | null> {
-  const { ownerId: hostId, chatId, ref } = params;
+  const { chatId, ref } = params;
   if (ref.kind === "external") {
     return forbidExternalMedia ? null : { url: ref.url, media: "image" };
   }
@@ -51,8 +51,7 @@ async function resolveImageRefToUrl(
   if (!meta) {
     return null;
   }
-  const ownerAdmitted = meta.ownerId === hostId || (await room.ownerConsents(meta.ownerId, chatId));
-  if (!(ownerAdmitted && (await room.isPlacedInRoom(assetId, chatId)))) {
+  if (!((await room.ownerConsents(meta.ownerId, chatId)) && (await room.isPlacedInRoom(assetId, chatId)))) {
     return null;
   }
   const bytes = await assets.loadAssetBytes(assetId);

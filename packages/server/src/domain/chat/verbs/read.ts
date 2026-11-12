@@ -1286,8 +1286,6 @@ async function fitShapedHistory(args: {
    *  every preview already is (`resolvePreviewInputs`: connection, preset, `{{user}}`). */
   readonly convert: {
     readonly quality: NonNullable<ForeignInputs["chatBehavior"]>["attachmentQuality"];
-    /** The room's frozen host — the owner scope the attachment resolve runs under. */
-    readonly hostUserId: UserId;
     readonly chatId: ChatId;
     /** The rpg gather's keep-last-X card window; `undefined` on a non-game chat ⇒ no window (ABSENT ≠ ZERO). */
     readonly cardKeepLastX: number | undefined;
@@ -1310,7 +1308,7 @@ async function fitShapedHistory(args: {
     carryToolReasoning: args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation",
     visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
     videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
-    resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref, quality: args.convert.quality }),
+    resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ chatId: args.convert.chatId, ref, quality: args.convert.quality }),
     cardKeepLastX: args.convert.cardKeepLastX,
     canon: args.convert.canon,
     // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
@@ -1403,7 +1401,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       assembled: prompt,
       capability: inputs.capability,
       next,
-      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
+      convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });
     const budget = buildAssemblyBudget({
@@ -1450,7 +1448,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
       assembled,
       capability: inputs.capability,
       next,
-      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
+      convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });
     return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd, shaped.breakpointDecision);
@@ -1562,7 +1560,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       assembled,
       capability: inputs.capability,
       next,
-      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
+      convert: { chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });
     const chatRow = await loadChatRow(ctx.db, chatId);
