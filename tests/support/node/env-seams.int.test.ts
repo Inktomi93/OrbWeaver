@@ -8,6 +8,7 @@ import { dirname, join, relative } from "node:path";
 import { execPath } from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { ANTHROPIC_API_KEY_ENV, ANTHROPIC_BASE_URL_ENV, CLAUDE_CONFIG_DIR_ENV } from "@orb/contracts/preset";
 import type { AgentSdkSpawn } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { APP_SECRET_ENV_KEYS, DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
@@ -131,9 +132,9 @@ test("every app secret and every ambient runtime or Claude variable planted in t
   const refused = [
     ...APP_SECRET_ENV_KEYS,
     unpinnedClaudeKey,
-    "ANTHROPIC_API_KEY",
-    "ANTHROPIC_BASE_URL",
-    "CLAUDE_CONFIG_DIR",
+    ANTHROPIC_API_KEY_ENV,
+    ANTHROPIC_BASE_URL_ENV,
+    CLAUDE_CONFIG_DIR_ENV,
     "MAX_THINKING_TOKENS",
     "NODE_OPTIONS",
     "LD_PRELOAD",

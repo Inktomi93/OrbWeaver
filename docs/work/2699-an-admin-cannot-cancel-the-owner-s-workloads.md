@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P1
 area: security
+lane: wt/agent-a7c2b9c28c863cca8
 plan: authorization-and-visibility
 ---
 

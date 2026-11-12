@@ -5,6 +5,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { CLAUDE_CONFIG_DIR_ENV } from "@orb/contracts/preset";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import type { SDK_PRIVATE_DIAGNOSTIC_SINKS, SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult } from "@orb/testkit/node/helpers";
 import { sdkPrivateDiagnosticResultSchema } from "@orb/testkit/node/helpers";
@@ -37,7 +38,7 @@ export async function nativeParent(
         [ENV_NO_FILE_KEY]: "1",
         ["LOG_LEVEL"]: "error",
         ["CORPUS_AUTOINDEX"]: "false",
-        ["CLAUDE_CONFIG_DIR"]: directory,
+        [CLAUDE_CONFIG_DIR_ENV]: directory,
         ["DEBUG_CLAUDE_AGENT_SDK"]: sink === "sdk-file" ? "1" : "",
         ["DEBUG_SDK"]: sink === "sdk-file" ? "" : "1",
         ["DEBUG"]: "",

@@ -2,6 +2,7 @@
 // @subject packages/inference/src/catalog/listing.ts
 
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { CLAUDE_OAUTH_TOKEN_ENV } from "@orb/contracts/preset";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { SECRET_BOX_TEST_KEY } from "@orb/testkit/node/helpers";
@@ -33,7 +34,7 @@ test("native daemon discovery uses the caller's current saved credential and nor
   expect(edge.children).toHaveLength(0);
   const draft = { principal, providerId: "claude-sub", credentialId: key.id };
   expect(await root.services.connection.draftCatalogModels(draft)).toMatchObject({ listed: true, models: [{ id: "sonnet", name: "Sonnet" }] });
-  expect(edge.environments.map((env) => env["CLAUDE_CODE_OAUTH_TOKEN"])).toEqual([TOKEN]);
+  expect(edge.environments.map((env) => env[CLAUDE_OAUTH_TOKEN_ENV])).toEqual([TOKEN]);
   const row = await root.services.connection.create({ principal, providerId: "claude-sub", credentialId: key.id, baseUrl: null, model: "sonnet" });
   const { resolved } = await root.app.runtime.resolve({ principal, task: "chat", connectionId: row.id });
   expect(resolved.model).toBe("claude-sonnet-4-5");
@@ -44,7 +45,7 @@ test("native daemon discovery uses the caller's current saved credential and nor
   await root.services.credentials.replace({ principal, credentialId: key.id, key: ROTATED });
   await root.app.runtime.catalogs.refresh(row.providerId);
   expect(await root.services.connection.draftCatalogModels(draft)).toMatchObject({ listed: true });
-  expect(edge.environments.map((env) => env["CLAUDE_CODE_OAUTH_TOKEN"])).toEqual([TOKEN, ROTATED]);
+  expect(edge.environments.map((env) => env[CLAUDE_OAUTH_TOKEN_ENV])).toEqual([TOKEN, ROTATED]);
 });
 
 test("native catalog refusal scrubs a reflected saved token from the readable reason and the actual warning", async () => {
@@ -61,7 +62,7 @@ test("native catalog refusal scrubs a reflected saved token from the readable re
   expect(listing.reason).toContain("auth rejected");
   expect(listing.reason).toContain("refresh the token");
   expect(listing.reason).not.toContain(TOKEN);
-  expect(edge.environments.map((env) => env["CLAUDE_CODE_OAUTH_TOKEN"])).toEqual([TOKEN]);
+  expect(edge.environments.map((env) => env[CLAUDE_OAUTH_TOKEN_ENV])).toEqual([TOKEN]);
   const logs = JSON.stringify(warning.mock.calls, (_key, value: unknown) =>
     value instanceof Error ? { ...Object.fromEntries(Object.entries(value)), message: value.message, stack: value.stack, cause: value.cause } : value,
   );

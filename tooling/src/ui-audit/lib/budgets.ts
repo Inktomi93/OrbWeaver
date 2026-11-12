@@ -17,12 +17,13 @@ import { budgets } from "@orb/tooling/floor/host/load-budget";
 // MEASURED, by watching whether the page keeps growing after the census was taken.
 /** How often the in-page pre-walk population/revision state is re-read. */
 export const CENSUS_SETTLE_POLL_MS = 250;
-/** The MINIMUM observation window, paid on every run. It is a floor rather than "stop at the first two
- *  equal readings" because a shell is PERFECTLY STABLE while its reads are in flight — the quiet before
- *  the content is exactly the state being hunted, so stopping at the first quiet reads the lie as proof.
- *  Measured against the fixture in tests/tooling/ui-audit/index.int.test.ts: a 400ms two-equal-readings rule
- *  called a page settled at ~900ms that filled at 1500ms. NOT load-scaled: this is a floor the run always
- *  pays, not a ceiling — a settle is not a budget (#1232 §7.1). */
+/** The default MINIMUM observation window for a page nothing has witnessed. It is a floor rather than "stop
+ *  at the first two equal readings" because a shell is PERFECTLY STABLE while its reads are in flight — the
+ *  quiet before the content is exactly the state being hunted, so stopping at the first quiet reads the lie
+ *  as proof. Measured against the fixture in tests/tooling/ui-audit/index.int.test.ts: a 400ms
+ *  two-equal-readings rule called a page settled at ~900ms that filled at 1500ms. The surface checkpoint
+ *  (tests/support/browser/surface-design-audit.ts) passes 0, because it has already proven its witnesses
+ *  rendered and its DOM went quiet. NOT load-scaled: a settle is not a budget (#1232 §7.1). */
 export const CENSUS_OBSERVE_MIN_MS = 2000;
 /** The ceiling for a page that keeps CHANGING past the floor — a run still moving here is refused. Scaled,
  *  because it IS a ceiling: on a contended box a page legitimately keeps moving longer, and refusing it at
