@@ -1,8 +1,8 @@
-import { resolvedLength } from "@orb/testkit/browser/spec";
+import { resolvedLength, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName } from "@orb/testkit/ct";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { channelName } from "../../client/lib/appearance-channel-names.ts";
 import type { OneAxisOwnersStory } from "./_one-axis-owners-stories.tsx";
 
 const STORY = "tests/ui/layout/_one-axis-owners-stories/OneAxisOwnersStory";
@@ -63,10 +63,7 @@ test.describe("paddingInline and paddingBlock", () => {
         const read = async (probe: string): Promise<readonly [string, string]> => (await paddingOf(component.locator(`[data-probe="${probe}"]`))).inline;
         const atDefault = await Promise.all(HELD_INSETS.map(async ({ probe, reference }) => ({ held: await read(probe), step: await read(reference) })));
         expect(atDefault.map(({ held }) => held)).toEqual(atDefault.map(({ step }) => step));
-        await page.evaluate(({ name, value }) => document.documentElement.style.setProperty(name, String(value)), {
-          name: channelName("fontScale"),
-          value: ENLARGED,
-        });
+        await setRootFontScale(page, channelName("fontScale"), ENLARGED);
         const enlarged = await Promise.all(HELD_INSETS.map(async ({ probe, reference }) => ({ held: await read(probe), step: await read(reference) })));
         const px = (value: readonly [string, string]): number => Number.parseFloat(value[0]);
         // The steps grew with the text, so each comparison is against an enlarged step; a held inset never drops below its default size.

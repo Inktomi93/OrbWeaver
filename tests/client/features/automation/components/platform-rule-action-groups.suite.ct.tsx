@@ -66,6 +66,8 @@ function wrappedLines(node: Element, width: number): { readonly needed: number; 
   return { needed, painted: Math.round(node.getBoundingClientRect().height / Number.parseFloat(style.lineHeight)) };
 }
 
+// The share of the phone a connection picker's value keeps at enlarged text, the rest going to the page, the card, the panel and the picker.
+const VALUE_SHARE = 0.5;
 const ENLARGED_PHONE_SCALES = [
   { name: "200% text", factor: 2 },
   { name: "300% layout", factor: 3 },
@@ -346,7 +348,7 @@ test.describe("rule editor field rows", () => {
         // other pixel.
         const picker = slot.getByRole("combobox", { name: `${role.label} connection`, exact: true });
         const value = picker.locator('[data-slot="select-value"]');
-        const [hostBox, slotBox, pickerBox, valueBox, iconBox, indent, inset, gap, edge, pageInset, panelInset, cardEdge] = await Promise.all([
+        const [hostBox, slotBox, pickerBox, valueBox, iconBox, indent, inset, gap, edge] = await Promise.all([
           paintedBox(page.getByRole("group", { name: "Rule action host", exact: true })),
           paintedBox(slot),
           paintedBox(picker),
@@ -356,17 +358,15 @@ test.describe("rule editor field rows", () => {
           resolvedLength(page, `var(${TOKENS["spacing.picker-inset"].cssVar})`, slot),
           resolvedLength(page, `var(${TOKENS["spacing.picker-gap"].cssVar})`, slot),
           resolvedLength(page, `var(${TOKENS["border-width.control"].cssVar})`, slot),
-          resolvedLength(page, `var(${TOKENS["spacing.inset-section"].cssVar})`, slot),
-          resolvedLength(page, `var(${TOKENS["spacing.inset-block"].cssVar})`, slot),
-          resolvedLength(page, `var(${TOKENS["border-width.default"].cssVar})`, slot),
         ]);
         expect(pickerBox.x - slotBox.x).toBeLessThanOrEqual(indent + SUBPIXEL);
         expect(slotBox.x + slotBox.width - (pickerBox.x + pickerBox.width)).toBeLessThanOrEqual(SUBPIXEL);
         const chrome = 2 * (inset + edge) + gap + iconBox.width;
         expect(Math.abs(pickerBox.width - valueBox.width - chrome)).toBeLessThanOrEqual(SUBPIXEL);
-        // The value wraps to no more lines than the phone's width needs: the room is the screen less the held page, card, panel, indent and picker
-        // chrome, and the bound is its own words laid greedily into that room at its measured font.
-        const room = hostBox.width - 2 * (pageInset + cardEdge + panelInset) - indent - chrome;
+        // The value keeps half the phone's width, and paints no more lines than its own words need laid greedily into that half at its measured
+        // font, so a page or panel inset that grows with the text costs it width and lines.
+        const room = hostBox.width * VALUE_SHARE;
+        expect(valueBox.width).toBeGreaterThanOrEqual(room);
         const lines = await value.evaluate(wrappedLines, room);
         expect(lines.painted, JSON.stringify({ room, valueWidth: valueBox.width, ...lines })).toBeLessThanOrEqual(lines.needed);
       });
