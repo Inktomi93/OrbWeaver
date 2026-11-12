@@ -1,6 +1,7 @@
 // Every cite a code comment or a law document carries resolves, in the grammar `.claude/rules/comments.md` states and
 // `tooling/src/eslint/cites.ts` implements. A repo path, a Markdown doc or a test file names a tracked file; a decision
-// names an ADR file or the reserved window `docs/adr/README.md` rules; a lint rule id names a rule the composed ESLint
+// names an ADR file or the reserved window `docs/adr/README.md` rules; a doc section names a heading or numbered item
+// that doc carries; a lint rule id names a rule the composed ESLint
 // config or Biome's schema holds; a TSDoc link names a declared symbol; an enforcement claim names a checker that exists.
 // Comments are read by each language's own parser: the TypeScript scanner's comment ranges for scripts, PostCSS comment
 // nodes (through stylelint) for sheets. A cite inside a string literal or JSX text is a fixture or copy, never a citation.
@@ -28,6 +29,7 @@ import {
   NON_LITERAL,
   RELATIVE,
   ROOTED,
+  SECTION_SIGN,
   URL_RE,
 } from "../../../tooling/src/eslint/cites.ts";
 import type { Source, Span, Tracked } from "./_sources.ts";
@@ -172,6 +174,69 @@ interface Universe {
   /** A checker named alone: a dependency-cruiser rule, an ESLint or stylelint rule without its namespace, a test file's stem. */
   readonly checkerNames: ReadonlySet<string>;
   readonly symbols: ReadonlySet<string>;
+  /** Each law doc's path by its stem, the bare name a section cite may give it (`Spine-Testing`). */
+  readonly lawDocs: ReadonlyMap<string, string>;
+  /** The section numbers a tracked Markdown doc carries. */
+  readonly anchorsOf: (path: string) => ReadonlySet<string>;
+}
+
+const LAW_DIR = "docs/law/";
+const HEADING = /^#{1,6}\s+(.*)$/u;
+// A heading's own number, `8.` or `§1` or `6a.`, opens its text.
+const HEADING_NUMBER = /^§?\s?(\d+(?:\.\d+)*[a-z]?)(?=[.)\s:]|$)/u;
+// A heading may also carry the number another doc's numbering gave it: "String-union dispatch (spine §7.5)".
+const HEADING_ALIAS = /§\s?(\d+(?:\.\d+)*[a-z]?)/gu;
+const NUMBERED_ITEM = /^(\d+)\.\s/u;
+const FENCED_BLOCK = /^```[\s\S]+?^```/gmu;
+
+/** The section numbers a Markdown doc carries: each heading's own number, each `§` number its text names, and
+ *  `<heading>.<item>` for a top-level numbered item under a numbered heading. */
+const headingNumbers = (title: string): string[] =>
+  [HEADING_NUMBER.exec(title)?.[1], ...[...title.matchAll(HEADING_ALIAS)].map((match) => match[1])].flatMap((number) => (number === undefined ? [] : [number]));
+
+function markdownAnchors(text: string): Set<string> {
+  const anchors = new Set<string>();
+  let heading: string | undefined;
+  // A fenced block's `#` lines are code comments, not headings.
+  for (const line of text.replaceAll(FENCED_BLOCK, "").split("\n")) {
+    const title = HEADING.exec(line)?.[1];
+    if (title !== undefined) {
+      heading = HEADING_NUMBER.exec(title)?.[1];
+      for (const number of headingNumbers(title)) {
+        anchors.add(number);
+      }
+      continue;
+    }
+    const item = NUMBERED_ITEM.exec(line)?.[1];
+    if (item !== undefined && heading !== undefined) {
+      anchors.add(`${heading}.${item}`);
+    }
+  }
+  return anchors;
+}
+
+// The one item of a list, or undefined when it holds none or several.
+const only = (items: readonly string[]): string | undefined => (items.length === 1 ? items[0] : undefined);
+
+/** The tracked doc a section cite names: a path as `path` cites resolve, a bare doc name preferring the law tree, or a
+ *  law doc's stem or the unique stem it opens (`Core-0`). `undefined` when the spelling names no doc here. */
+function sectionDoc(doc: string, citer: string, universe: Universe): string | undefined {
+  const { paths } = universe.tracked;
+  if (!doc.endsWith(MARKDOWN)) {
+    return universe.lawDocs.get(doc) ?? universe.lawDocs.get(only([...universe.lawDocs.keys()].filter((stem) => stem.startsWith(`${doc}-`))) ?? "");
+  }
+  if (doc.includes("/")) {
+    return [doc, posix.join(dirname(citer), doc)].find((path) => paths.has(path));
+  }
+  const named = [...paths].filter((path) => basename(path) === doc);
+  return named.find((path) => path.startsWith(LAW_DIR)) ?? only(named);
+}
+
+/** Whether a section cite's doc carries its number, or `undefined` when the doc spelling names no tracked doc. */
+function resolvesSection(token: string, citer: string, universe: Universe): boolean | undefined {
+  const at = token.lastIndexOf(SECTION_SIGN);
+  const doc = sectionDoc(token.slice(0, at), citer, universe);
+  return doc === undefined ? undefined : universe.anchorsOf(doc).has(token.slice(at + SECTION_SIGN.length));
 }
 
 /** The part of a composed ESLint block a rule cite reads: the plugins it loads and the rules it sets. */
@@ -318,6 +383,8 @@ function resolves(cite: Cite, citer: string, universe: Universe): boolean | unde
       const id = Number(cite.token.slice(1));
       return universe.minted.has(id) || (id >= universe.reserved.from && id <= universe.reserved.to);
     }
+    case "section":
+      return resolvesSection(cite.token, citer, universe);
     case "script":
       return universe.scripts.has(cite.token);
     case "task":
@@ -348,7 +415,7 @@ function resolves(cite: Cite, citer: string, universe: Universe): boolean | unde
 
 // The kinds every comment and law line is held to. A Biome or checker name alone is read only inside a claim, where it
 // names a checker: elsewhere `useState` and a kebab id are code.
-const RESOLVED_EVERYWHERE = new Set<Cite["kind"]>(["directory", "decision", "rule", "link"]);
+const RESOLVED_EVERYWHERE = new Set<Cite["kind"]>(["directory", "decision", "section", "rule", "link"]);
 
 /** Each decision, rule id or link a comment or law line carries that names nothing, as `file:line token`. */
 function deadCites(spans: readonly CitingFile[], universe: Universe): string[] {
@@ -405,7 +472,10 @@ async function universeOf(tracked: Tracked, scripts: readonly Source[]): Promise
   const rules = new Set([...eslint.rules, ...stylelintRules]);
   const namespaces = new Set([...eslint.namespaces, ...stylelintRules.flatMap((rule) => (rule.includes("/") ? [rule.slice(0, rule.lastIndexOf("/"))] : []))]);
   const stems = [...tracked.paths].filter((path) => path.startsWith("tests/")).map((path) => basename(path).split(".")[0] ?? "");
+  const anchors = new Map<string, Set<string>>();
   return {
+    lawDocs: new Map([...tracked.paths].filter((path) => path.startsWith(LAW_DIR) && path.endsWith(MARKDOWN)).map((path) => [basename(path, MARKDOWN), path])),
+    anchorsOf: (path) => anchors.get(path) ?? anchors.set(path, markdownAnchors(readFromRepo(path))).get(path) ?? new Set(),
     tracked,
     directories: directoriesOf(tracked.paths),
     minted: mintedDecisions(tracked),
@@ -546,8 +616,15 @@ describe("the reader", () => {
 });
 
 describe("the cite resolver", () => {
+  const lawPath = "docs/law/Law-Of-Things.md";
+  // Numbered, lettered and aliased headings, a numbered list under heading 10, and a fenced `#` line that is no heading.
+  const plantedLaw =
+    "# Law\n\n## 3. Three\n\n## Dispatch (spine §7.5)\n\n## 10. Rules\n\n1. one\n2. two\n\n### 6a. Lettered\n\n```sh\n# 9. not a heading\n```\n";
   const universe: Universe = {
-    tracked: { paths: new Set(["tests/tooling/real.test.ts", "packages/x/src/real.ts"]), basenames: new Set(["real.test.ts", "real.ts"]) },
+    tracked: {
+      paths: new Set(["tests/tooling/real.test.ts", "packages/x/src/real.ts", lawPath]),
+      basenames: new Set(["real.test.ts", "real.ts", basename(lawPath)]),
+    },
     directories: directoriesOf(["tests/tooling/real.test.ts", "packages/x/src/real.ts"]),
     minted: new Set([141, 317]),
     reserved: reservedWindow("A planted index: D10–D20 are reserved for a planted reason."),
@@ -558,6 +635,8 @@ describe("the cite resolver", () => {
     biome: new Map([["style", new Set(["useNamingConvention"])]]),
     checkerNames: new Set(["tooling-cli-via-index", "real", "commented-code"]),
     symbols: new Set(["createRoot", "Root", "dispose"]),
+    lawDocs: new Map([[basename(lawPath, MARKDOWN), lawPath]]),
+    anchorsOf: (path) => (path === lawPath ? markdownAnchors(plantedLaw) : new Set()),
   };
   const comments = (path: string, text: string): CitingFile => ({
     path,
@@ -595,6 +674,22 @@ describe("the cite resolver", () => {
       "/**\n * See {@link createRoot}, {@link Root.dispose}, {@link @orb/x#Root} and {@link https://example.com}.\n * Not {@link goneHelper} or {@link Root.gone}.\n */\nexport const a = 1;\n",
     );
     expect(deadCites([file], universe)).toStrictEqual(["packages/x/src/a.ts:3 goneHelper", "packages/x/src/a.ts:3 Root.gone"]);
+  });
+
+  test("refuses a section its doc does not carry, in every doc spelling, and passes a heading, an alias, a numbered item and a stem that names no doc", () => {
+    const file = comments(
+      "packages/x/src/a.ts",
+      [
+        "// `docs/law/Law-Of-Things.md` §3, Law-Of-Things §7.5, Law-Of §10.2 and [the law](../../../docs/law/Law-Of-Things.md) §6a hold.",
+        "// Law-Of-Things.md §3–§4, Law-Of-Things §9 and Law-Of-Things §10.3 do not; the snap skill §5 and the guide §3 name no doc.",
+        "export {};",
+      ].join("\n"),
+    );
+    expect(deadCites([file], universe)).toStrictEqual([
+      "packages/x/src/a.ts:2 Law-Of-Things.md§4",
+      "packages/x/src/a.ts:2 Law-Of-Things§9",
+      "packages/x/src/a.ts:2 Law-Of-Things§10.3",
+    ]);
   });
 
   test("reads a law document's decisions and rule ids", () => {

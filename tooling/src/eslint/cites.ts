@@ -1,5 +1,5 @@
-// The cite grammar `.claude/rules/comments.md` states: how a comment or a law file names a repo path, a decision, a pnpm
-// script, a lint rule or a symbol, and the sentence shape that claims a checker enforces something. It is the one
+// The cite grammar `.claude/rules/comments.md` states: how a comment or a law file names a repo path, a decision, a doc
+// section, a pnpm script, a lint rule or a symbol, and the sentence shape that claims a checker enforces something. It is the one
 // implementation: `tests/tooling/doc/comment-path-citations.repo.int.test.ts` resolves every cite it finds, and
 // `orb/enforcement-claim-cites-checker` refuses a claim that carries none. This file finds cites; it never resolves one,
 // because a lint rule cannot read the composed configs a rule id resolves against.
@@ -56,6 +56,27 @@ const CHECK_NAME = /\x60([a-z0-9]+(?:-[a-z0-9]+)+)\x60/gu;
 
 // A TSDoc link target: a symbol, a dotted member or a URL. A wrapped block comment can put the leading `*` before it.
 const LINK = /\{@link(?:code|plain)?\s+(?:\*\s+)?([^}\s|]+)/gu;
+
+/** The sign that opens a section number, and the separator a section cite's token carries between doc and number. */
+export const SECTION_SIGN = "§";
+// A section of a Markdown doc: the doc as a path, a Markdown link or a bare stem (`Core-0`), then a run of section
+// numbers (`§3–§4`, `§3a/§10`). A stem is any word here; one that names no law doc ("the skill §5") cites nothing.
+const SECTION_NUMBER = String.raw`\d+(?:\.\d+)*[a-z]?`;
+const SECTION_DOC = String.raw`(?:[\w.+@-]+\/)*[\w-]+\.md`;
+const SECTION_STEM = String.raw`[A-Za-z][\w-]*[A-Za-z0-9]`;
+const SECTION_RUN = String.raw`${SECTION_SIGN} ?${SECTION_NUMBER}(?:\s*(?:[–/,-]|and|or)\s*${SECTION_SIGN} ?${SECTION_NUMBER})*`;
+const SECTION = new RegExp(
+  String.raw`(?<![\w./+@-])(?:\[[^[\]\n]*\]\((${SECTION_DOC})(?:#[^)\s]*)?\)|\x60?(${SECTION_DOC}|${SECTION_STEM})\x60?) ?(${SECTION_RUN})`,
+  "gu",
+);
+const SECTION_NUMBERS = new RegExp(`${SECTION_SIGN} ?(${SECTION_NUMBER})`, "gu");
+
+// One cite per number in the run, each `<doc>§<number>`.
+const sectionCites = (text: string): Cite[] =>
+  [...text.matchAll(SECTION)].flatMap((match) => {
+    const doc = match[1] ?? match[2] ?? "";
+    return [...(match[3] ?? "").matchAll(SECTION_NUMBERS)].map(([, number = ""]) => ({ kind: "section" as const, token: `${doc}${SECTION_SIGN}${number}` }));
+  });
 
 // ── enforcement claims ──────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -131,7 +152,7 @@ const COMMENT_MARKER = /^[ \t]*(?:\/{2,}|\/\*+|\*+\/?)/gmu;
 // A sentence ends at a stop followed by space; a stop inside a path or a version (`a.ts`, `1.2`) has none.
 const SENTENCE_END = /(?<=[.;!?])\s+/gu;
 
-const CITE_KINDS = ["path", "directory", "decision", "script", "task", "rule", "biome", "name", "link"] as const;
+const CITE_KINDS = ["path", "directory", "decision", "section", "script", "task", "rule", "biome", "name", "link"] as const;
 type CiteKind = (typeof CITE_KINDS)[number];
 
 export interface Cite {
@@ -155,6 +176,7 @@ export function citesIn(text: string): Cite[] {
     ...tokens(line, RELATIVE, "path"),
     ...tokens(line, BARE, "path"),
     ...tokens(line, DECISION, "decision"),
+    ...sectionCites(line),
     ...tokens(line, SCRIPT, "script", 1),
     ...tokens(line, SCRIPT_NAME, "task", 1),
     ...tokens(line, RULE_ID, "rule", 1),
@@ -184,6 +206,7 @@ function namesChecker({ kind, token }: Cite): boolean {
     case "name":
       return true;
     case "decision":
+    case "section":
     case "link":
       return false;
   }

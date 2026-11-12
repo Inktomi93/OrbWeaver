@@ -73,7 +73,7 @@ export const TABLE_IMPORT_RESTRICTIONS = [
     selectors: [tableImportDoor(STATS_ROLLUP_TABLES), tableExportDoor(STATS_ROLLUP_TABLES), DB_WHOLE_MODULE_DOORS].map((selector) => ({
       selector,
       message:
-        "The stats rollup tables (ownerStats, characterStats, dailyStats, modelStats) are stats' alone; discovery computes no usage rollup (Knowledge-Cluster §7). Consume the injected stats economics op instead.",
+        "The stats rollup tables (ownerStats, characterStats, dailyStats, modelStats) are stats' alone; discovery computes no usage rollup (Knowledge-Cluster.md, invariant 5). Consume the injected stats economics op instead.",
     })),
   },
   {

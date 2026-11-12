@@ -1,5 +1,5 @@
 // Paint on a raw HTML element in the client: `className`, `style` and spread attributes on a lowercase JSX element
-// (client-architecture-lockdown.md §1.2). The one exception is the app shell's own frame, whose static class strings
+// (client-architecture-lockdown.md §0.2). The one exception is the app shell's own frame, whose static class strings
 // name shell.css classes.
 
 import type { RuleVisitor } from "@eslint/core";

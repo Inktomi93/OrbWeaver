@@ -204,8 +204,7 @@ export interface SegmentChunk {
   readonly text: string;
 }
 
-/** One presence interval of a character in a chat (the join/leave WITNESSING horizon — docs/law/Knowledge-Cluster.md §4 /
- *  inv 12). `joinSeq` = the `messages.seq` at which the character became present; `leftSeq` = the seq at which
+/** One presence interval of a character in a chat (the join/leave WITNESSING horizon — D55). `joinSeq` = the `messages.seq` at which the character became present; `leftSeq` = the seq at which
  *  it left (exclusive — present for `seq ∈ [joinSeq, leftSeq)`), or `null` when still present. A kick→re-add
  *  yields MULTIPLE intervals (the kicked span stays invisible). Sourced from `chat_participants` by the engine
  *  (or `loadWitnessHorizons`); the build/recall LOGIC takes them as data (determinism — no ambient read). */
@@ -261,7 +260,7 @@ export interface MemoryRecallRecorder {
   readonly recent: (filter?: RecorderFilter) => readonly MemoryRecallRecord[];
 }
 
-/** The per-call build observability fragment (docs/law/Knowledge-Cluster.md §3a `memoryTrace.build`). Folded into
+/** The per-call build observability fragment (D55 `memoryTrace.build`). Folded into
  *  {@link MemoryLogEntry}'s `memory.build` arm — not consumed as a standalone type, so not exported. */
 interface MemoryBuildTrace {
   readonly blocksBuilt: number;
@@ -278,7 +277,7 @@ interface MemoryBuildTrace {
   readonly ms: number;
 }
 
-/** A structured memory observability event (docs/law/Knowledge-Cluster.md §3a — "did memory work this turn, and why" is a
+/** A structured memory observability event (D55 — "did memory work this turn, and why" is a
  *  first-class, greppable fact). Discriminated on `event`; `note` carries the zero-work / degrade reason
  *  ("no digests" / "no aged-out block" / "summarizer context below floor"). */
 export type MemoryLogEntry =
