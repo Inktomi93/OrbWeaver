@@ -106,8 +106,8 @@ async function runSnippetInBroker(directory: string, ids: ReturnType<typeof crea
       BROKER_ENTRY,
       ...formatPluginBrokerArguments({ directory: brokerDirectory, workerMaximum: 1, generation, nodeEnvironment: "test", logLevel: "silent" }),
     ],
-    // The watchdog's beat pipe sits at PLUGIN_BROKER_BEAT_FD; the broker refuses to start without it.
-    { cwd: brokerDirectory, env: { ["NODE_ENV"]: "test" }, stdio: ["ignore", "pipe", "inherit", "ipc", "pipe"] },
+    // The broker writes its heartbeats on stderr, which only a watchdog reads.
+    { cwd: brokerDirectory, env: { ["NODE_ENV"]: "test" }, stdio: ["ignore", "pipe", "ignore", "ipc"] },
   );
   await using lifetime = new AsyncDisposableStack();
   const exited = once(broker, "exit");

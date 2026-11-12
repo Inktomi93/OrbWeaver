@@ -101,7 +101,7 @@ test("holding an actual synchronous IPC message preserves its identity, result a
   expect(edge.delivered).toContain(captured);
   expect((await caller.plugin.runSnippet({ chatId: room.id, code: 'orb.host(1).log.info("still live");' })).logLines).toEqual(["[info] still live"]);
   expect(edge.children).toHaveLength(1);
-  const closed = once(child, "close");
+  const closed = once(child, "exit");
   await root[Symbol.asyncDispose]();
   await closed;
   expect(child.exitCode).toBe(0);

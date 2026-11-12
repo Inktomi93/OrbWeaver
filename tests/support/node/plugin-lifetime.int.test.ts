@@ -80,8 +80,9 @@ test("identical-ID roots own independent real watchdogs and guest entropy; closi
   }
   const firstChild = firstChildResult.value;
   const secondChild = secondChildResult.value;
-  const firstClosed = new Promise<void>((resolve) => firstChild.once("close", () => resolve()));
-  const secondClosed = new Promise<void>((resolve) => secondChild.once("close", () => resolve()));
+  // The host stops its watchdog by closing their channel, after which Node emits exit and no close.
+  const firstClosed = new Promise<void>((resolve) => firstChild.once("exit", () => resolve()));
+  const secondClosed = new Promise<void>((resolve) => secondChild.once("exit", () => resolve()));
   await first[Symbol.asyncDispose]();
   await firstClosed;
   expect(firstChild.exitCode).toBe(0);

@@ -52,6 +52,33 @@ jobs:
           browsers: "false"
       - name: Staged import custody
         run: pnpm test tests/server/domain/import/persistence/staged-custody.int.test.ts tests/server/domain/import/persistence/staged-params-door.int.test.ts tests/server/infra/storage/zip.int.test.ts
+  # The plugin host's start, heartbeat and stop must work the same on every platform it ships on; Linux runs these in CI.
+  plugin-host:
+    needs: [head]
+    name: plugin host (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.head.outputs.sha }}
+      - name: pnpm install
+        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Scheduled runs execute the frozen trusted main checkout.
+        with:
+          browsers: "false"
+      - name: Run a shipped showcase plugin through the real broker
+        run: pnpm test tests/server/domain/plugin/substrate/atlas-library-marker.suite.int.test.ts -t "an added card badges"
+      - name: End a stuck plugin call alone
+        run: pnpm test tests/server/infra/plugin-host/stuck-worker.int.test.ts -t "ends alone at its deadline"
+      - name: Stop the server with no broker or watchdog left running
+        run: pnpm test tests/server/infra/plugin-host/watchdog-shutdown.int.test.ts -t "neither remains"
   contributor:
     needs: [head]
     name: contributor (${{ matrix.os }})

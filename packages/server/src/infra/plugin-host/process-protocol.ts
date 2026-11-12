@@ -31,10 +31,7 @@ export const SPAN_WINDOW_SLOT = 1;
 export const SPAN_CLOSED_TOTAL_SLOT = 2;
 export const SPAN_SLOTS_BYTES = (SPAN_CLOSED_TOTAL_SLOT + 1) * Int32Array.BYTES_PER_ELEMENT;
 export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
-/** The broker's file descriptor for its heartbeat pipe to the watchdog, apart from the IPC channel, so a beat never
- *  waits behind a large frame in that channel's queue (D347). Index 4 of the watchdog's spawn `stdio`. */
-export const PLUGIN_BROKER_BEAT_FD = 4;
-/** The longest heartbeat line the watchdog reads; a longer one is a malformed beat. */
+/** The longest line the watchdog reads as a heartbeat; a longer line on the broker's stderr is passed on as text. */
 export const PLUGIN_BROKER_BEAT_MAX_BYTES = 8192;
 /** Largest inherited-channel JSON frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
