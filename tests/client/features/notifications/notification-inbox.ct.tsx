@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { DEFERRED_TURN_HOST_UNAVAILABLE_COPY } from "#client/features/notifications/lib/notifications-copy.ts";
 import type { NotificationInboxStory } from "./_ct-stories.tsx";
 
 const STORY = "tests/client/features/notifications/_ct-stories/NotificationInboxStory";
@@ -509,4 +510,21 @@ test("Show dismissed sits above the rows, in reach with every page loaded", asyn
   await expect(first).toBeVisible();
   const [toggleBox, firstBox] = [await toggle.boundingBox(), await first.boundingBox()];
   expect(toggleBox?.y).toBeLessThan(firstBox?.y ?? Number.NEGATIVE_INFINITY);
+});
+
+test("a queued reply dropped for consent says the host is unavailable", async ({ corpus, mount, page }) => {
+  const reader = corpus.memberIdentities?.notificationReader.viewer;
+  if (reader === undefined) {
+    throw new Error("The shared corpus omitted its native notification reader");
+  }
+  await using root = await createCorpusHarness();
+  const readerId = brandedId("UserId").parse(reader.userId);
+  const rpc = await root.internalCallerFor(readerId);
+  await root.services.notifications.record({
+    event: { type: "deferred-turn-dropped", recipientUserId: readerId, chatId: root.ids.typeId("chat"), reason: "consent" },
+  });
+  await routeTrpc(page, serveCorpusProcedures(rpc, INBOX_PROCEDURES));
+  await mount<typeof NotificationInboxStory>(STORY, {});
+  await openBell(page);
+  await expect(page.locator(ROW).filter({ hasText: DEFERRED_TURN_HOST_UNAVAILABLE_COPY })).toHaveCount(1);
 });
