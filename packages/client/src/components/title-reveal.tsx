@@ -1,60 +1,126 @@
-// A one-line title that can be cut by its row still says all of itself. `TitleReveal` is the press-opened arm, for a title that is plain
-// text: while a part marked `CUT_PART` inside it is cut, the title becomes the control that opens its whole text, so touch and keyboard
-// reach it too (a tooltip opens on neither). `TitleTip` is the hover arm for a title that is already a control. Both leave the title
-// untouched while nothing is cut, so a title that fits carries no extra control, and neither shrinks the title under its floor: the
-// floor belongs to the row, and the trigger adds no padding of its own.
+// A one-line title that its row can cut still says all of itself, by the press, tap or key that reaches it. While a text part of the title is cut
+// the title is the control that opens its whole text; while nothing is cut it carries no extra control, and the reveal never shrinks the title under
+// its floor: the floor belongs to the row, and the control adds no padding of its own.
+//
+// A title that is already a control keeps that control in both states (`action`): while it is cut its press opens the reveal, whose popup offers the
+// control's own action, and while it is not its press is that action. A tooltip is no reveal here, because it opens on neither touch nor a plain key.
+//
+// A control that holds focus or an open reveal stays a control when its title stops being cut, so the focus that returns to it when the reveal
+// closes does not fall to the page body.
 
+import { Button } from "@orb/ui/button";
 import { InlineAction } from "@orb/ui/inline-action";
-import { Contents } from "@orb/ui/layout";
+import { Contents, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
+import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useRef } from "react";
-import { useIsCut } from "./use-is-cut.ts";
+import { useState } from "react";
+import { CutPartContext, useCutParts } from "./use-is-cut.ts";
+
+/** The reasons a reveal closes with focus going where the user pointed, not back to the control that opened it. */
+const FOCUS_LEAVES: ReadonlySet<string> = new Set(["outside-press", "focus-out"]);
+
+/** What a title that is already a control does when pressed uncut, and what its reveal offers while it is cut. */
+interface TitleAction {
+  /** The label of the action inside the reveal. */
+  readonly label: string;
+  readonly onSelect: () => void;
+  /** The control, drawn for the state it is in: its name carries the whole title either way. */
+  readonly control: (state: { readonly cut: boolean }) => ReactElement;
+}
 
 export interface TitleRevealProps {
-  /** The whole title: the trigger's name when it is cut, and the text the popup prints. */
+  /** The whole title: what the reveal prints, and what a cut title's control is named by. */
   readonly whole: string;
-  /** The title fills the room its row gives it, so the trigger that replaces it fills that room too and takes the floor the title carries. */
+  /** The title fills the room its row gives it, so the control that replaces it fills that room too and takes the floor the title carries. */
   readonly fill?: boolean;
+  readonly action?: TitleAction;
+  /** The control a cut title becomes, where the title is not already one and the row's own layout has to hold under the control. Default: a text-height action that fills the row. */
+  readonly control?: ReactElement;
   readonly children: ReactNode;
 }
 
-export function TitleReveal({ whole, fill = false, children }: TitleRevealProps): ReactElement {
-  const ref = useRef<HTMLDivElement>(null);
-  const cut = useIsCut(ref);
+function Reveal({
+  whole,
+  action,
+}: {
+  readonly whole: string;
+  readonly action?: { readonly label: string; readonly onSelect: () => void } | undefined;
+}): ReactElement {
   return (
-    <Contents data-slot="title-reveal" ref={ref}>
-      {cut ? (
-        <Popover>
-          <PopoverTrigger render={<InlineAction grow={fill} step="label" type="button" />}>{children}</PopoverTrigger>
-          <PopoverPopup aria-label={whole} side="bottom">
-            {whole}
-          </PopoverPopup>
-        </Popover>
-      ) : (
-        children
-      )}
-    </Contents>
+    <PopoverPopup aria-label={whole} side="bottom">
+      <Stack gap="row">
+        <Text>{whole}</Text>
+        {action === undefined ? null : (
+          <Button onClick={action.onSelect} size="sm" type="button" variant="outline">
+            {action.label}
+          </Button>
+        )}
+      </Stack>
+    </PopoverPopup>
   );
 }
 
-export interface TitleTipProps {
-  /** The whole title the tooltip prints. */
-  readonly whole: string;
-  /** The control the title already is, rendered as the tooltip's trigger. */
-  readonly children: ReactElement;
-}
+export function TitleReveal({ whole, fill = false, action, control: own, children }: TitleRevealProps): ReactElement {
+  const { cut, part } = useCutParts();
+  const [open, setOpen] = useState(false);
+  // Set when a reveal opens and cleared when focus leaves the control, so the control outlives the cut that made it.
+  const [held, setHeld] = useState(false);
+  const isControl = action !== undefined || cut || held;
+  const revealing = cut || open;
 
-export function TitleTip({ whole, children }: TitleTipProps): ReactElement {
-  const ref = useRef<HTMLDivElement>(null);
-  const cut = useIsCut(ref);
+  const control = action === undefined ? (own ?? <InlineAction grow={fill} step="label" type="button" />) : action.control({ cut });
+  const trigger = (
+    <PopoverTrigger
+      aria-expanded={revealing ? open : undefined}
+      aria-haspopup={revealing ? "dialog" : undefined}
+      onBlur={(): void => {
+        if (!open) {
+          setHeld(false);
+        }
+      }}
+      onClick={revealing || action === undefined ? undefined : action.onSelect}
+      render={control}
+    >
+      {children}
+    </PopoverTrigger>
+  );
+
   return (
-    <Contents data-slot="title-reveal" ref={ref}>
-      <Tooltip disabled={!cut}>
-        <TooltipTrigger render={children} />
-        <TooltipPopup side="bottom">{whole}</TooltipPopup>
-      </Tooltip>
+    <Contents data-slot="title-reveal">
+      <CutPartContext value={part}>
+        {isControl ? (
+          <Popover
+            onOpenChange={(next, details): void => {
+              setOpen(next && revealing);
+              if (next && revealing) {
+                setHeld(true);
+              } else if (!next && FOCUS_LEAVES.has(details.reason)) {
+                setHeld(false);
+              }
+            }}
+            open={open}
+          >
+            {trigger}
+            <Reveal
+              action={
+                action === undefined
+                  ? undefined
+                  : {
+                      label: action.label,
+                      onSelect: (): void => {
+                        setOpen(false);
+                        action.onSelect();
+                      },
+                    }
+              }
+              whole={whole}
+            />
+          </Popover>
+        ) : (
+          children
+        )}
+      </CutPartContext>
     </Contents>
   );
 }

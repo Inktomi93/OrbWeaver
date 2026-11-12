@@ -24,3 +24,8 @@ export function renameChatButtonIdentity(label: string, roomName: string | null)
 export function renameChatButtonName(label: string, roomName: string | null, date: string): string {
   return `${renameChatButtonIdentity(label, roomName)}, ${date}`;
 }
+
+/** The topbar title control's name while the title is cut and its press opens the whole title: that text, then the date the control shows. */
+export function chatTitleButtonName(label: string, roomName: string | null, date: string): string {
+  return `${chatTitleWhole(label, roomName)}, ${date}`;
+}

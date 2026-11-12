@@ -154,3 +154,25 @@ for (const reason of FAILED_CARD_REASONS) {
     expect(sent()).toBe(1);
   });
 }
+
+test("a batch refused for two reasons says each reason's sentence once, naming the files that reason refused", async ({ corpus, mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
+  const sent = await routeImport(page, root);
+  const unreadable = PARTIAL_CASES[UNREADABLE].file;
+  const invalid = PARTIAL_CASES[INVALID].file;
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await dropOnImportDialog(page, [{ name: "keeper.json", mimeType: "application/json", buffer: GOOD_CARD }, unreadable, invalid]);
+
+  const toast = page.locator(TOAST_ROOT);
+  await expect(toast).toContainText(
+    cardImportPartialLine(1, [
+      { filename: unreadable.name, reason: UNREADABLE },
+      { filename: invalid.name, reason: INVALID },
+    ]),
+  );
+  // Each file is named under its own reason only, so no sentence lists both files together.
+  await expect(toast).not.toContainText(`${unreadable.name}, ${invalid.name}`);
+  await expect(toast).not.toContainText(`${invalid.name}, ${unreadable.name}`);
+  expect(sent()).toBe(1);
+});

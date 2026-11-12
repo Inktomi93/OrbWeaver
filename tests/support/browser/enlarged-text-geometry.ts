@@ -27,9 +27,10 @@ const TRUNCATED_BY_DESIGN = [
   '[data-slot="member-name"]',
   '[data-slot="facet-preview"]',
 ].join(", ");
-// A title in a one-line chrome bar may be cut only inside the box that also opens its whole text. The probe lists such a cut apart, so a
-// walk reads which titles the design reveals, and a cut title outside the box is still a finding.
-const REVEALED_TITLE = '[data-slot="title-reveal"]';
+// A title in a one-line chrome bar may be cut only where a press opens its whole text: a control in the title box that holds a popup open. The
+// probe lists such a cut apart, so a walk reads which titles the design reveals; a cut in the box whose control opens nothing, or outside the box, is
+// still a finding.
+const REVEALING_TITLE_CONTROL = '[data-slot="title-reveal"] [aria-haspopup="dialog"]';
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *, [data-sideways-strip]';
 
 interface ControlGeometry {
@@ -267,7 +268,12 @@ function cutOffText(subject: Element, { subpixel }: { readonly subpixel: number 
  */
 function cutControlValues(
   subject: Element,
-  { reachable, byDesign, revealed, subpixel }: { readonly reachable: string; readonly byDesign: string; readonly revealed: string; readonly subpixel: number },
+  {
+    reachable,
+    byDesign,
+    revealing,
+    subpixel,
+  }: { readonly reachable: string; readonly byDesign: string; readonly revealing: string; readonly subpixel: number },
 ): { readonly cuts: string[]; readonly revealedCuts: string[] } {
   const paintsText = (element: Element): boolean =>
     element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
@@ -288,7 +294,7 @@ function cutControlValues(
         .filter((element) => element.checkVisibility({ visibilityProperty: true }) && isValue(element) && cut(element))
         .map((element) => ({
           line: `${control.tagName.toLowerCase()} "${nameOf(control)}" has its value cut: ${element.tagName.toLowerCase()} ${element.scrollWidth}/${element.clientWidth}`,
-          reveals: element.closest(revealed) !== null,
+          reveals: control.matches(revealing),
         }));
     });
   return {
@@ -458,7 +464,7 @@ export async function enlargedTextGeometry(scope: Locator): Promise<EnlargedText
   const values = await scope.evaluate(cutControlValues, {
     reachable: REACHABLE,
     byDesign: TRUNCATED_BY_DESIGN,
-    revealed: REVEALED_TITLE,
+    revealing: REVEALING_TITLE_CONTROL,
     subpixel: LAYOUT_SUBPIXEL_PX,
   });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: LAYOUT_SUBPIXEL_PX });

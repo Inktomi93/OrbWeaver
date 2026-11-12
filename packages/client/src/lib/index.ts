@@ -38,7 +38,14 @@ export {
   START_TEMP_CHAT_NAME,
   TEMPORARY_CHAT_BADGE,
 } from "./chat-launch-names.ts";
-export { CHAT_NAME_FIELD_NAME, CHAT_TITLE_FIELD_NAME, chatTitleWhole, RENAME_CHAT_NAME, renameChatButtonName } from "./chat-rename-names.ts";
+export {
+  CHAT_NAME_FIELD_NAME,
+  CHAT_TITLE_FIELD_NAME,
+  chatTitleButtonName,
+  chatTitleWhole,
+  RENAME_CHAT_NAME,
+  renameChatButtonName,
+} from "./chat-rename-names.ts";
 export { authoredChatName, chatRoomTitle, deriveChatTitle } from "./chat-title.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";
 export type {
@@ -325,6 +332,7 @@ export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";
 export { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "./use-debounced-value.ts";
 export { useElapsedSeconds } from "./use-elapsed-seconds.ts";
-export { holdArrivalWhilePending, useFocusListArrival, useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
+export type { ArrivalBoundary } from "./use-focus-on-mount.ts";
+export { ArrivalBoundaryContext, holdArrivalWhilePending, useFocusListArrival, useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
 export { useRouterUrlReplace } from "./use-router-url-replace.ts";
 export { motionIsReduced, runAfterViewTransition, surfaceDeferredFailure } from "./view-transition.ts";

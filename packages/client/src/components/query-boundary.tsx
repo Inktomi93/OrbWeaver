@@ -38,8 +38,9 @@ import { Contents, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, Ref, RefObject } from "react";
-import { Component, isValidElement, Suspense, useEffect, useId, useRef } from "react";
-import { holdArrivalWhilePending } from "#lib";
+import { Component, isValidElement, Suspense, useEffect, useId, useRef, useState } from "react";
+import type { ArrivalBoundary } from "#lib";
+import { ArrivalBoundaryContext, holdArrivalWhilePending } from "#lib";
 import { rememberSurfaceBox, useSurfaceBox, useSurfaceRows } from "#state";
 import { QueryErrorState } from "../data/query-error-state.tsx";
 import { QUERY_WAITING_LINE } from "../data/query-state-copy.ts";
@@ -231,11 +232,19 @@ function RecoveryStatus({ phase, ref }: { readonly phase: RecoveryPhase; readonl
 /** The pending fallback + the offline line. Offline AND pending is the paused-forever state
  *  (`networkMode:"online"` never rejects a paused query), so it gets an explicit affordance. A retried read's
  *  pending message is the recovery status's, not a line here. `onPending` tells the catch a read is pending. */
-function PendingFallback({ onPending, children }: { readonly onPending: () => void; readonly children: ReactNode }): ReactElement {
+function PendingFallback({
+  onPending,
+  boundary,
+  children,
+}: {
+  readonly onPending: () => void;
+  readonly boundary: ArrivalBoundary;
+  readonly children: ReactNode;
+}): ReactElement {
   const online = useOnlineStatus();
   useEffect(() => onPending(), [onPending]);
-  // A press that opened this read's surface keeps its arrival focus until the read settles (`useFocusOnMount`).
-  useEffect(() => holdArrivalWhilePending(), []);
+  // A press that opened this read's surface keeps its arrival focus, for the surfaces in this boundary, until the read settles (`useFocusOnMount`).
+  useEffect(() => holdArrivalWhilePending(boundary), [boundary]);
   return (
     <>
       {children}
@@ -457,6 +466,7 @@ export function QueryBoundary({
   children,
 }: QueryBoundaryProps): ReactElement {
   const landing = useRef<HTMLParagraphElement>(null);
+  const [boundary] = useState((): ArrivalBoundary => ({}));
   const declared: DeclaredReserve = reserveRows === undefined ? { reserveBlock } : { reserveRows };
   const reservedFallback =
     reserveKey === undefined ? (
@@ -475,16 +485,24 @@ export function QueryBoundary({
       </MeasuredSettle>
     );
   return (
-    <QueryErrorResetBoundary>
-      {({ reset }): ReactElement => (
-        <QueryErrorCatch landing={landing} onReset={reset} renderError={renderError} resetKeys={resetKeys}>
-          {(phase): ReactElement => (
-            <Suspense fallback={<PendingFallback onPending={phase.onPending}>{reservedFallback}</PendingFallback>}>
-              <QueryBoundaryScope value={true}>{settledChildren(phase, measuredChildren)}</QueryBoundaryScope>
-            </Suspense>
-          )}
-        </QueryErrorCatch>
-      )}
-    </QueryErrorResetBoundary>
+    <ArrivalBoundaryContext value={boundary}>
+      <QueryErrorResetBoundary>
+        {({ reset }): ReactElement => (
+          <QueryErrorCatch landing={landing} onReset={reset} renderError={renderError} resetKeys={resetKeys}>
+            {(phase): ReactElement => (
+              <Suspense
+                fallback={
+                  <PendingFallback boundary={boundary} onPending={phase.onPending}>
+                    {reservedFallback}
+                  </PendingFallback>
+                }
+              >
+                <QueryBoundaryScope value={true}>{settledChildren(phase, measuredChildren)}</QueryBoundaryScope>
+              </Suspense>
+            )}
+          </QueryErrorCatch>
+        )}
+      </QueryErrorResetBoundary>
+    </ArrivalBoundaryContext>
   );
 }

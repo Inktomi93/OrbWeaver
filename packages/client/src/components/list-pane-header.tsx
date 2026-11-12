@@ -19,13 +19,12 @@ import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useRef } from "react";
 import type { ListPaneHeaderProps, OverflowMenuItem } from "#lib";
 import { BAND_OVERFLOW_LABEL, LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
 import { OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 import { Tip } from "./tip.tsx";
-import { CUT_PART, useIsCut } from "./use-is-cut.ts";
+import { useCutParts } from "./use-is-cut.ts";
 
 /** The primary's icon form: the same command its menu form runs, named by its label. */
 function CompactAction({ command }: { readonly command: OverflowMenuItem }): ReactElement {
@@ -45,10 +44,9 @@ function CompactAction({ command }: { readonly command: OverflowMenuItem }): Rea
  * The box keeps its width while the figure is hidden, so the read cannot flip back and forth.
  */
 function CutCensus({ children }: { readonly children: ReactNode }): ReactElement {
-  const ref = useRef<HTMLParagraphElement>(null);
-  const cut = useIsCut(ref);
+  const { cut, part } = useCutParts();
   return (
-    <Text as="span" data-slot="list-pane-census" {...CUT_PART} ink="muted" voice="label" numeric={true} truncate={true} unpainted={cut} ref={ref}>
+    <Text as="span" data-slot="list-pane-census" ink="muted" voice="label" numeric={true} truncate={true} unpainted={cut} ref={part}>
       {children}
     </Text>
   );

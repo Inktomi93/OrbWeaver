@@ -10,6 +10,7 @@ import { Container, Contents, Row, Stack, Surface } from "@orb/ui/layout";
 import { declaresOverlay } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { MessageBubble } from "@orb/ui/message-bubble";
+import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { RoomIsland } from "@orb/ui/room-island";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Select } from "@orb/ui/select";
@@ -430,8 +431,9 @@ const CUT_TITLE = "Calamity, Doomblade of the Ninth Epoch, Keeper of the Orbital
 /**
  * A text-cut case in a box of the given width: a picker whose value is wider than its trigger (`value`, with `wraps` the arm that wraps it), the
  * same picker in a list row's actions (`action`), a list row whose title is wider than the row (`row`), a button whose preview line carries the
- * facet-preview slot (`preview`), a button whose visible label is cut with no such slot (`label`), or that button inside a title-reveal box (`title`).
- * A picker and a label are a control's own text; the row title, the declared preview and a title that opens its whole text are design.
+ * facet-preview slot (`preview`), a button whose visible label is cut with no such slot (`label`), that button as the popup trigger of a title-reveal box
+ * (`title`), or the same button in that box with nothing to open (`unrevealed`). A picker and a label are a control's own text; the row title, the
+ * declared preview and a title that opens its whole text are design.
  */
 export function SurfaceCutValueStory({
   width,
@@ -439,7 +441,7 @@ export function SurfaceCutValueStory({
   wraps,
 }: {
   readonly width: number;
-  readonly cut: "value" | "action" | "row" | "preview" | "label" | "title";
+  readonly cut: "value" | "action" | "row" | "preview" | "label" | "title" | "unrevealed";
   readonly wraps?: boolean;
 }): ReactElement {
   const picker = <Select aria-label="Connection" items={[{ label: CUT_VALUE, value: "same" }]} layout={wraps === true ? "hugWrap" : "hug"} value="same" />;
@@ -462,6 +464,18 @@ export function SurfaceCutValueStory({
       </Button>
     ),
     title: (
+      <Contents data-slot="title-reveal">
+        <Popover>
+          <PopoverTrigger render={<Button aria-label="Description" className="min-inline-0" variant="outline" width="full" wrap={true} />}>
+            <Text aria-hidden={true} as="span" className="min-inline-0" truncate={true}>
+              {CUT_TITLE}
+            </Text>
+          </PopoverTrigger>
+          <PopoverPopup aria-label="Description">{CUT_TITLE}</PopoverPopup>
+        </Popover>
+      </Contents>
+    ),
+    unrevealed: (
       <Contents data-slot="title-reveal">
         <Button aria-label="Description" className="min-inline-0" variant="outline" width="full" wrap={true}>
           <Text aria-hidden={true} as="span" className="min-inline-0" truncate={true}>

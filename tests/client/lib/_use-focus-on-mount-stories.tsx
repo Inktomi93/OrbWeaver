@@ -4,15 +4,15 @@ import { useFocusOnMount } from "@orb/client/lib";
 import { CtClientProviders, CtIsolation } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ARRIVAL_EVENT, DISMISS_NAME, OPEN_NAME, PENDING_NAME, SURFACE_NAME } from "./use-focus-on-mount-names.ts";
+import { ARRIVAL_EVENT, DISMISS_NAME, OPEN_NAME, PENDING_NAME, STRAY_NAME, SURFACE_NAME } from "./use-focus-on-mount-names.ts";
 
 /** A surface that takes arrival focus through the production hook. */
-function ArrivalSurface(): ReactElement {
+function ArrivalSurface({ name = SURFACE_NAME }: { readonly name?: string }): ReactElement {
   const ref = useRef<HTMLElement>(null);
   useFocusOnMount(ref);
   return (
-    <section aria-label={SURFACE_NAME} ref={ref} tabIndex={-1}>
-      <p>{SURFACE_NAME}</p>
+    <section aria-label={name} ref={ref} tabIndex={-1}>
+      <p>{name}</p>
     </section>
   );
 }
@@ -75,6 +75,31 @@ export function SlowReadSwapStory(): ReactElement {
           {OPEN_NAME}
         </button>
       )}
+    </CtClientProviders>
+  );
+}
+
+/** A press that opens a held read's surface, and a second surface beside it that mounts later on no press at all. */
+export function HeldReadStrayStory(): ReactElement {
+  const [opened, setOpened] = useState(false);
+  const [arrived, setArrived] = useState(false);
+  useEffect(() => {
+    const arrive = (): void => setArrived(true);
+    globalThis.addEventListener(ARRIVAL_EVENT, arrive);
+    return (): void => globalThis.removeEventListener(ARRIVAL_EVENT, arrive);
+  }, []);
+  return (
+    <CtClientProviders>
+      {opened ? (
+        <QueryBoundary fallback={<p>{PENDING_NAME}</p>} resetKeys={[]}>
+          <SlowArrivalSurface />
+        </QueryBoundary>
+      ) : (
+        <button onClick={(): void => setOpened(true)} type="button">
+          {OPEN_NAME}
+        </button>
+      )}
+      {arrived ? <ArrivalSurface name={STRAY_NAME} /> : null}
     </CtClientProviders>
   );
 }

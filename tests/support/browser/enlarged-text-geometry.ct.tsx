@@ -111,13 +111,21 @@ test("the probe fails a visible button label that is cut, though the label repea
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(/^button "Description" has its value cut: /u)]);
 });
 
-test("the probe lists a title cut inside its reveal box apart, and still fails the same cut outside it", async ({ mount, page }) => {
+test("the probe lists a title cut under a control that opens its whole text apart", async ({ mount, page }) => {
   await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "title" });
   const label = page.getByRole("button", { name: "Description", exact: true });
   await expect(label).toBeVisible();
   const geometry = await enlargedTextGeometry(page.getByRole("main"));
   expect(geometry.findings).toEqual([]);
   expect(geometry.revealedTitleCuts).toEqual([expect.stringMatching(/^button "Description" has its value cut: /u)]);
+});
+
+test("the probe fails a title cut inside its reveal box whose control opens nothing", async ({ mount, page }) => {
+  await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "unrevealed" });
+  await expect(page.getByRole("button", { name: "Description", exact: true })).toBeVisible();
+  const geometry = await enlargedTextGeometry(page.getByRole("main"));
+  expect(geometry.findings).toEqual([expect.stringMatching(/^button "Description" has its value cut: /u)]);
+  expect(geometry.revealedTitleCuts).toEqual([]);
 });
 
 const SIDEWAYS_STORY = "tests/support/browser/surface-design-fixtures/SurfaceSidewaysStory";
