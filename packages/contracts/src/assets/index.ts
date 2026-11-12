@@ -29,6 +29,19 @@ export type AssetKind = z.infer<typeof assetKindSchema>;
 /** Only portrait assets contribute image vectors and generated captions to Corpus. */
 export const EMBEDDABLE_ASSET_KINDS = ["avatar"] as const satisfies readonly AssetKind[];
 
+/** The kinds every consumer draws as a picture: the store admits one only when its bytes carry the signature of
+ *  an image type it accepts, whatever type the file claims and whoever stores it. */
+export const IMAGE_ONLY_ASSET_KINDS = ["avatar"] as const satisfies readonly AssetKind[];
+
+/** Why the store refused a file: its bytes are not the type it claims, a picture-only kind got bytes that are not
+ *  an image, or it is over the size cap. */
+export const ASSET_UPLOAD_REFUSAL_CODES = {
+  contentRejected: "asset_content_rejected",
+  notAnImage: "asset_not_an_image",
+  tooLarge: "asset_too_large",
+} as const;
+export type AssetUploadRefusalCode = (typeof ASSET_UPLOAD_REFUSAL_CODES)[keyof typeof ASSET_UPLOAD_REFUSAL_CODES];
+
 // The variant kinds `/api/blob/:hash` can produce. `icon` (an omitted `?v=` defaults to it) is the
 //  width-only ladder for round/square avatar chrome. `portrait` is the 2:3 smart-cropped, face-safe
 //  variant for VN/portrait immersive modes. `banner` is the 3:1 smart-cropped variant for header art —
@@ -99,8 +112,8 @@ export const storedAssetSchema = z.strictObject({
   created: z.boolean(),
 }) satisfies z.ZodType<StoredAsset>;
 /** The body of a refused `POST /api/assets/upload` (415 wrong contents, 413 over the cap): the reason the
- *  person can act on, worded to follow "Couldn't upload <file>:". */
-export const assetUploadRefusalSchema = z.strictObject({ error: z.string().min(1) });
+ *  person can act on, worded to follow "Couldn't upload <file>:", and the code the server always sends with it. */
+export const assetUploadRefusalSchema = z.strictObject({ error: z.string().min(1), reason: z.enum(ASSET_UPLOAD_REFUSAL_CODES).optional() });
 export type AssetUploadRefusal = z.infer<typeof assetUploadRefusalSchema>;
 
 /** A `gallery_item_…` TypeID — the gallery v2 curation row id. */

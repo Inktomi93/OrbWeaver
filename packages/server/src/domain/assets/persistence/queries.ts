@@ -12,7 +12,7 @@ import { sniffImageBytes } from "@orb/kit/image-sniff";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, exists, gt, inArray, isNull, like, lt, notExists, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
-import { assertMagicMatches } from "../substrate/mime.ts";
+import { assertKindAdmits, assertMagicMatches } from "../substrate/mime.ts";
 
 const LIMIT_ONE = 1;
 /** Any `image/*` mime — the gallery takes images only. */
@@ -128,6 +128,7 @@ export async function metadataForOwnerAndHash(db: Db, ownerId: UserId, hash: str
  *  the byte signature; a dedup conflict falls through to `assetIdForHash`. The returned `created` is the
  *  ROW verdict (see the comment at the return) — NOT the CAS write's. */
 export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promise<StoredAsset> {
+  assertKindAdmits(input.bytes, input.kind);
   if (input.enforceMagic) {
     // The byte-signature belt now covers documents (pdf/zip/text) alongside images — dispatch on the claimed
     // mime family. Throws on any mismatch before the CAS write.

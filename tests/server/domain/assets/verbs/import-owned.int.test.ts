@@ -1,6 +1,6 @@
 // Private asset bytes are admitted by the real owner-scoped reader before the injected import effect.
 
-import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
+import { ASSET_LIST_LIMIT_MAX, ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -11,8 +11,12 @@ import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { principal } from "@orb/testkit/node/helpers";
+import { magicBytes, principal } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
+
+// An avatar's bytes must carry an image signature, so each payload is a PNG head with its own tail: distinct bytes
+// that are still not a card.
+const avatarBytes = (tail: string): Uint8Array => Uint8Array.from([...magicBytes("png", 0), ...new TextEncoder().encode(tail)]);
 
 test("foreign malformed bytes and absence share the same refusal before import; same-owner bytes retain actor and payload", async (): Promise<void> => {
   await using harness = await createServerHarness({
@@ -42,9 +46,9 @@ test("foreign malformed bytes and absence share the same refusal before import; 
   expect(isAdmin(own)).toBe(true);
   expect(isOwner(own)).toBe(false);
   const foreign = await principal(harness, (await harness.actor()).id);
-  const privateBytes = new TextEncoder().encode("Foreign private malformed card");
+  const privateBytes = avatarBytes("Foreign private malformed card");
   const stored = await services.assets.store({ principal: foreign, bytes: privateBytes, kind: "avatar", mime: "image/png", enforceMagic: false });
-  const ownBytes = new TextEncoder().encode("Owner card bytes");
+  const ownBytes = avatarBytes("Owner card bytes");
   const ownStored = await services.assets.store({ principal: own, bytes: ownBytes, kind: "avatar", mime: "image/png", enforceMagic: false });
   const resolve = vi.fn(async () => own);
   const importBytes = vi.fn(async (_owner: UserId, bytes: Uint8Array) => bytes);
@@ -70,10 +74,10 @@ test("avatar policy retains the original Principal and false-magic flag while a 
   services,
 }): Promise<void> => {
   const actor = await principal(harness, (await harness.actor({ role: "admin" })).id);
-  const bytes = new TextEncoder().encode("Already parsed avatar bytes");
+  const bytes = avatarBytes("Already parsed avatar bytes");
   const stored = vi.spyOn(services.assets, "store");
   const capped = createImportAvatarStore(actor, (params) => services.assets.store({ ...params, maxBytes: 1 }));
-  await expect(capped({ bytes, mime: "image/png" })).rejects.toMatchObject({ code: "asset_too_large" });
+  await expect(capped({ bytes, mime: "image/png" })).rejects.toMatchObject({ code: ASSET_UPLOAD_REFUSAL_CODES.tooLarge });
   expect(stored.mock.calls[0]?.[0]).toMatchObject({ principal: actor, enforceMagic: false, kind: "avatar", maxBytes: 1 });
   expect(await services.assets.listOwned({ principal: actor, limit: ASSET_LIST_LIMIT_MAX })).toEqual([]);
   const store = createImportAvatarStore(actor, (params) => services.assets.store(params));
