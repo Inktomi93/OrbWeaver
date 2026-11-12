@@ -1,8 +1,9 @@
 ---
 kind: plan
-status: active
-updated: 2026-11-06
+status: parked
+updated: 2026-11-12
 rank: 12
+blocked: owner
 ---
 
 # Inference flow: owners, ports and callers
