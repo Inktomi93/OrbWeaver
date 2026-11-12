@@ -17,6 +17,7 @@ import {
   seedInvitedChatParticipant,
   seedMessage,
 } from "@orb/testkit/node/composed";
+import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 
 // The read's refusal names the cause; no production export carries the sentence, so the case matches its wording.
 const UNRESOLVED_VISIBILITY = /is not an answer chat's resolver handed out/u;
@@ -44,10 +45,13 @@ test("a cross-wired message fact cannot hydrate another room's canon", async ():
 
 type Visibility = NonNullable<Awaited<ReturnType<ReturnType<typeof createResolveViewerVisibility>>>>;
 
-/** A room with a pre-join line, a hidden span and a from-join guest, and chat's resolved answer for each human. */
-async function fromJoinRoom(root: ServerTestHarness): Promise<{ readonly roomId: ChatId; readonly hostView: Visibility; readonly memberView: Visibility }> {
-  const { owner: host } = await seedCorpusActors(root);
-  const guest = await actor(root);
+/** A room with a pre-join line, a hidden span and a from-join guest, and chat's resolved answer for each human. The guest
+ *  carries the corpus connections, so a case can seat them as the host of a room of their own. */
+async function fromJoinRoom(
+  root: ServerTestHarness,
+): Promise<{ readonly roomId: ChatId; readonly guest: Principal; readonly hostView: Visibility; readonly memberView: Visibility }> {
+  const { owner: host, secondUserId } = await seedCorpusActors(root);
+  const guest = await root.principalFor(secondUserId);
   const {
     view: { chat: room },
   } = await seedChat(root, { principal: host, characterIds: [] });
@@ -63,7 +67,7 @@ async function fromJoinRoom(root: ServerTestHarness): Promise<{ readonly roomId:
   if (hostView === null || memberView === null) {
     throw new Error("each present human must have a visibility verdict");
   }
-  return { roomId: room.id, hostView, memberView };
+  return { roomId: room.id, guest, hostView, memberView };
 }
 
 test("the guest page applies the floor in SQL and strips hidden bytes before returning content", async (): Promise<void> => {
@@ -90,6 +94,28 @@ test("the guest page refuses an answer chat's resolver did not hand out, such as
   expect((await read(memberView)).map((row) => row.seq)).toEqual([2, 3]);
   await expect(read({ ...memberView, historyFloorSeq: NO_HISTORY_FLOOR })).rejects.toThrow(UNRESOLVED_VISIBILITY);
   await expect(read({ ...memberView, readsHidden: true })).rejects.toThrow(UNRESOLVED_VISIBILITY);
+});
+
+// The guest hosts a room of their own, so their answer there is unclamped and reads hidden bytes.
+test("the guest page refuses an answer resolved for another room as that room's not-found", async (): Promise<void> => {
+  await using root = await createServerHarness();
+  const { roomId, guest } = await fromJoinRoom(root);
+  const {
+    view: { chat: own },
+  } = await seedChat(root, { principal: guest, characterIds: [] });
+  await seedMessage(root, { principal: guest, chatId: own.id, content: "Own room line" });
+  const ownView = await createResolveViewerVisibility({ db: databaseHandle(root.db) })(own.id, guest.userId);
+  if (ownView === null) {
+    throw new Error("the guest hosts their own room");
+  }
+  const read = (chatId: ChatId): ReturnType<typeof loadPluginMessages> =>
+    loadPluginMessages(databaseHandle(root.db), chatId, { visibility: ownView, limit: 3 });
+
+  // Control: the answer reads the room it was resolved for.
+  expect((await read(own.id)).map((row) => row.content)).toEqual(["Own room line"]);
+  const refused = read(roomId);
+  await expect(refused).rejects.toBeInstanceOf(ChatNotFoundError);
+  await expect(refused).rejects.toMatchObject({ chatId: roomId });
 });
 
 test("a departed character seat is not exposed as a present guest roster member", async ({ harness, db }): Promise<void> => {
