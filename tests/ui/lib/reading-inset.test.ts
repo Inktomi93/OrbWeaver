@@ -1,19 +1,28 @@
 // A reading box's inset and the reach that crosses it are one table, so a band reaching across a box ends exactly on its edges.
 import { expect, test } from "@orb/testkit/node";
+import { Stack } from "@orb/ui/layout";
 import { READING_INSET } from "@orb/ui/lib";
-
-const PHONE = "@max-cq-28:";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 type Inset = (typeof READING_INSET)[keyof typeof READING_INSET]["inset"];
 
-/** The classes that cross and pay back each inline inset a box lays: a bleed and its padding, per step and per phone edge. */
+// An inline padding class, after any container variant: `px-*` on both sides or `pe-*` on the end edge.
+const INLINE_PADDING = /^(?<variant>(?:@[^:]+:)?)p(?<side>[xe])-/u;
+
+/** The classes that cross and pay back each inline inset a box lays: each inline padding the layout recipe writes for the box's props, and its bleed. */
 function reachFor(inset: Inset): readonly string[] {
-  return [
-    `-mx-${inset.paddingInline}`,
-    `px-${inset.paddingInline}`,
-    ...(inset.paddingInlineNarrow === undefined ? [] : [`${PHONE}-mx-${inset.paddingInlineNarrow}`, `${PHONE}px-${inset.paddingInlineNarrow}`]),
-    ...(inset.paddingInlineEndNarrow === undefined ? [] : [`${PHONE}-me-${inset.paddingInlineEndNarrow}`, `${PHONE}pe-${inset.paddingInlineEndNarrow}`]),
-  ];
+  const { paddingInline, paddingInlineNarrow, paddingInlineEndNarrow } = inset;
+  const markup = renderToStaticMarkup(createElement(Stack, { paddingInline, paddingInlineNarrow, paddingInlineEndNarrow }));
+  const classes = (/class="(?<classes>[^"]*)"/u.exec(markup)?.groups?.["classes"] ?? "").split(/\s+/u);
+  return classes.flatMap((name) => {
+    const match = INLINE_PADDING.exec(name);
+    if (match?.groups === undefined) {
+      return [];
+    }
+    const { variant = "", side = "" } = match.groups;
+    return [`${variant}-m${side}-${name.slice(match[0].length)}`, name];
+  });
 }
 
 test.for(Object.entries(READING_INSET))("the %s reach crosses exactly the inline insets the box lays, and pays each back", ([, box]) => {
