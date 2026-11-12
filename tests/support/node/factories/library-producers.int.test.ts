@@ -99,7 +99,7 @@ test("preset update captures the actual fork identity, convergence and explicit 
   const branch = await seedUpdatedPresetRows(root, root.ownerId, { id: source.id, fork: { mode: "new", name: first.view.name } });
   expect(first.row.id).not.toBe(source.id);
   expect(converged.row.id).toBe(first.row.id);
-  expect(converged.row.config.params.temperature).toBe(0.7);
+  expect(converged.row.config).toMatchObject({ params: { temperature: 0.7 } });
   expect(converged.row.updatedAt).toBe(root.clock.now());
   expect(branch.row.id).not.toBe(first.row.id);
   expect(branch.row.name).not.toBe(first.row.name);
@@ -108,7 +108,7 @@ test("preset update captures the actual fork identity, convergence and explicit 
       id: produced.view.id,
       ownerId: root.ownerId,
       forkedFrom: source.id,
-      schemaVersion: produced.row.config.schemaVersion,
+      schemaVersion: produced.view.config.schemaVersion,
     });
     expect(produced.view.isSystemDefault).toBe(false);
     expect(await caller.preset.get({ id: produced.row.id })).toEqual(produced.view);

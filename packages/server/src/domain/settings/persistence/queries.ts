@@ -22,7 +22,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { JsonValue } from "@orb/kit/json";
+import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, sql } from "drizzle-orm";
@@ -209,10 +209,10 @@ export async function replaceUserConfig(db: Db, ownerId: UserId, config: UserSet
   }
 }
 
-function toView(row: { key: string; value: JsonValue; updatedAt: number }): GlobalSettingView {
+function toView(row: { key: string; value: JsonValue | UnreadableJsonText; updatedAt: number }): GlobalSettingView {
   return {
     key: row.key,
-    // A corrupt row degrades to null rather than throwing — the read surface must not 500.
+    // A corrupt row, text that is not JSON included, degrades to null rather than throwing — the read surface must not 500.
     value: jsonValueSchema.catch(null).parse(row.value),
     updatedAt: row.updatedAt,
   };
@@ -227,7 +227,8 @@ export async function readGlobalSetting(db: Db, key: string): Promise<GlobalSett
 /** Operator inspection preserves stored JSON without normalizing app overrides or tenant values. */
 export async function readGlobalSettings(handle: DatabaseHandle): Promise<GlobalSettingView[]> {
   const db = databaseForOwner(handle);
-  return await db.select({ key: settings.key, value: settings.value, updatedAt: settings.updatedAt }).from(settings).orderBy(settings.key);
+  const rows = await db.select({ key: settings.key, value: settings.value, updatedAt: settings.updatedAt }).from(settings).orderBy(settings.key);
+  return rows.map(toView);
 }
 
 /** Upsert one raw global-KV row and return its view. The reserved-key guard + audit live in the verb. */
@@ -245,7 +246,7 @@ export async function upsertGlobalSetting(db: Db, key: string, value: JsonValue,
 }
 
 /** Read the raw stored AppSettings override blob (or undefined if never written); the caller parses it. */
-export async function readAppOverrideRaw(db: Db): Promise<JsonValue | undefined> {
+export async function readAppOverrideRaw(db: Db): Promise<JsonValue | UnreadableJsonText | undefined> {
   const rows = await db.select({ value: settings.value }).from(settings).where(eq(settings.key, APP_SETTINGS_KEY)).limit(1);
   return rows[0]?.value;
 }

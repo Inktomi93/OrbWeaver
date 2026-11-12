@@ -19,10 +19,11 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import { PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { index, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const presets = sqliteTable(
@@ -39,7 +40,7 @@ export const presets = sqliteTable(
     kind: nulFreeText("kind").notNull(),
     // The PromptConfig blob. Parsed at the read seam via `parsePromptConfig` (@orb/contracts/preset);
     // a corrupt blob degrades to DEFAULT_PROMPT_CONFIG there, never here.
-    config: text("config", { mode: "json" }).$type<PromptConfig>().notNull(),
+    config: storedJsonText("config").$type<PromptConfig | UnreadableJsonText>().notNull(),
     // Mirrors `config.schemaVersion` (the reseed-gate compare key). Defaulted to the current version so
     // a fresh write is self-consistent; the domain stamps `config.schemaVersion` explicitly on write.
     schemaVersion: integer("schema_version").notNull().default(PROMPT_CONFIG_SCHEMA_VERSION),

@@ -25,10 +25,10 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import type { ThemeId, UserId } from "@orb/kit/ids";
-import type { JsonValue } from "@orb/kit/json";
+import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const settings = sqliteTable("settings", {
@@ -36,7 +36,7 @@ export const settings = sqliteTable("settings", {
   key: nulFreeText("key").primaryKey(),
   // The stored JSON value. Generic `JsonValue` (the AppSettings override blob, the OR catalog snapshot,
   // …); parsed into its specific shape at the read seam by whichever tenant owns the row.
-  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),
+  value: storedJsonText("value").$type<JsonValue | UnreadableJsonText>().notNull(),
   updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
 
@@ -51,7 +51,7 @@ export const userSettings = sqliteTable("user_settings", {
   schemaVersion: integer("schema_version").notNull().default(USER_SETTINGS_SCHEMA_VERSION),
   // The UserSettings blob. Parsed (with this row's `schema_version` as `storedVersion`) at the read seam
   // via `parseUserSettings`; a never-touched account reads defaults from `{}` with NO row written.
-  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),
+  config: storedJsonText("config").$type<UserSettings | UnreadableJsonText>().notNull(),
   updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
 

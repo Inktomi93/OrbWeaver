@@ -1,5 +1,5 @@
-// custom-types — the db's own column codecs (reserved cross-cutting db artifact): the native vector column and the
-// NUL-free text column.
+// custom-types — the db's own column codecs (reserved cross-cutting db artifact): the native vector column, the
+// NUL-free text column and the stored-JSON text column.
 //
 // A NUL IS NOT TEXT IN THIS APP. It is removed from every value written to, or compared against, a `nulFreeText`
 // column. The libSQL client stores a TEXT value whole and reads it back cut at its first NUL, so a NUL
@@ -25,6 +25,8 @@
 //      cannot wrap an unaligned buffer and reads corrupt. `slice()` produces a fresh, 4-byte-aligned
 //      `ArrayBuffer` (offset 0, exact length). Removing the copy is a silent data-corruption bug.
 
+import type { JsonValue } from "@orb/kit/json";
+import { parseJsonText, UnreadableJsonText } from "@orb/kit/json";
 import { withoutNul } from "@orb/kit/strings";
 import { customType } from "drizzle-orm/sqlite-core";
 
@@ -36,6 +38,21 @@ export const nulFreeText = customType<{ data: string; driverData: string }>({
   },
   toDriver(value: string): string {
     return withoutNul(value);
+  },
+});
+
+/** A JSON TEXT column read through a parse-on-read seam. Text that is not JSON reads as an {@link UnreadableJsonText},
+ *  never a thrown `SyntaxError`, so the seam reports the row unreadable and offers its repair. Writing that value
+ *  back stores its text unchanged. Narrow the stored shape with `.$type<T | UnreadableJsonText>()`. */
+export const storedJsonText = customType<{ data: JsonValue | UnreadableJsonText; driverData: string }>({
+  dataType(): string {
+    return "text";
+  },
+  toDriver(value: JsonValue | UnreadableJsonText): string {
+    return value instanceof UnreadableJsonText ? value.text : JSON.stringify(value);
+  },
+  fromDriver(value: string): JsonValue | UnreadableJsonText {
+    return parseJsonText(value) ?? new UnreadableJsonText(value);
   },
 });
 

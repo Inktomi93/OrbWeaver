@@ -51,6 +51,7 @@
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare.
 import { isPlainObject } from "@orb/kit/guards";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { z } from "zod";
 
 // Schema versions are 1-based; v1 is the floor a probe/lift walk starts from.
@@ -60,6 +61,8 @@ const INITIAL_VERSION = 1;
 export const VERSIONED_PARSE_FAILURES = {
   /** The stored value is not a plain object (null/undefined, a scalar, an array, a truncated write). */
   notAnObject: "not-an-object",
+  /** The stored text is not JSON at all; the column carries it whole as an {@link UnreadableJsonText}. */
+  notJson: "not-json",
   /** A lift in the walk returned a non-object — the migration chain broke on this blob. */
   liftBrokeShape: "lift-broke-shape",
   /** The final-version schema rejected the (possibly lifted) blob. */
@@ -195,6 +198,9 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
 
   // The ONE walk. `parse` is this minus the provenance, so the two can never disagree.
   const parseOutcome = (raw: unknown, storedVersion?: number): VersionedParseOutcome<T> => {
+    if (raw instanceof UnreadableJsonText) {
+      return degraded(VERSIONED_PARSE_FAILURES.notJson);
+    }
     if (!isPlainObject(raw)) {
       return degraded(VERSIONED_PARSE_FAILURES.notAnObject);
     }
