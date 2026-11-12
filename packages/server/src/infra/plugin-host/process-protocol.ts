@@ -214,6 +214,9 @@ export function parseParentBrokerMessage(message: unknown): ParentBrokerMessage 
   if (message["kind"] === "bridge-result") {
     return parseParentBridgeResult(message);
   }
+  if (message["kind"] === "runtime-forgotten") {
+    return typeof message["runtimeId"] === "string" ? { kind: "runtime-forgotten", runtimeId: message["runtimeId"] } : null;
+  }
   if (message["kind"] === "end-runtime") {
     return typeof message["runtimeId"] === "string" && typeof message["commandId"] === "string"
       ? { kind: "end-runtime", runtimeId: message["runtimeId"], commandId: message["commandId"] }

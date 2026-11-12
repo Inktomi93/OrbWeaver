@@ -102,7 +102,9 @@ export type ParentBrokerMessage =
   | BrokerBridgeResult
   | { readonly kind: "bridge-cancel"; readonly id: string }
   /** The parent's backstop for this command ran out: if the broker still holds it, it ends the runtime's Worker as stuck. */
-  | { readonly kind: "end-runtime"; readonly runtimeId: string; readonly commandId: string };
+  | { readonly kind: "end-runtime"; readonly runtimeId: string; readonly commandId: string }
+  /** The parent forgot this runtime, on its last frame: every frame charged to the runtime's share has crossed (D348). */
+  | { readonly kind: "runtime-forgotten"; readonly runtimeId: string };
 
 export type BrokerParentMessage =
   | ({ readonly kind: "response"; readonly id: string } & RpcResult)

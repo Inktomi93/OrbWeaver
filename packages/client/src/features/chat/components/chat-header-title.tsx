@@ -3,6 +3,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -24,10 +25,10 @@ export interface ChatHeaderTitleProps {
   readonly canRename: boolean;
 }
 
-/** The participants, leading (the ellipsis is the layout's floor). */
+/** The participants, leading (the ellipsis is the layout's floor). A span, because the title's control holds phrasing content only. */
 function ParticipantsText({ label }: { readonly label: string }): ReactElement {
   return (
-    <Text voice="promoted" className="shell-topbar-title" ref={useCutPart()} truncate={true}>
+    <Text as="span" voice="promoted" className="shell-topbar-title" ref={useCutPart()} truncate={true}>
       {label}
     </Text>
   );
@@ -103,22 +104,20 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
   if (draft === null) {
     if (!canRename) {
       return (
+        // The cut control takes the group's own place and no padding of its own, so the title keeps its position in both states.
         <TitleReveal
           control={
-            <Button
+            <InlineAction
               type="button"
-              variant="ghost"
-              size="sm"
+              step="label"
               aria-label={chatTitleButtonName(label, roomName, timeLib.formatDate(createdAt))}
               className="shell-topbar-title-group min-inline-0"
-              justify="start"
             />
           }
+          frame={(title): ReactElement => <TitleGroup>{title}</TitleGroup>}
           whole={whole}
         >
-          <TitleGroup>
-            <TitleText label={label} roomName={roomName} createdAt={createdAt} />
-          </TitleGroup>
+          <TitleText label={label} roomName={roomName} createdAt={createdAt} />
         </TitleReveal>
       );
     }

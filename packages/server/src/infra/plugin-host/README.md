@@ -95,7 +95,8 @@ past its deadline fails alone and the broker ends that runtime's Worker; no comm
 Broker death rejects pending commands and cancels pending bridge liveness. A logical plugin is rebuilt on its next
 call, never replayed in the background, and a snippet in flight fails with the broker. Repeated losses are bounded
 (D347): each loss after the first inside a window holds plugin calls for a doubling time, and one past the count stops
-the host until the server restarts, with the reason on each resident plugin's row.
+the host until the server restarts. Each owner's plugin rows then carry the reason and name that owner's plugins that
+ran at each loss. A watchdog that stops itself is one loss.
 
 ## Sharp edges
 

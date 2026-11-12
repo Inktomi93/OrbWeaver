@@ -61,6 +61,8 @@ test.for([
   ["orb/member-card-clamped-clamp", `${SUBSTRATE}/probe.ts`, "error"],
   ["orb/no-direct-users-read", `${SESSIONS}/verbs/probe.ts`, "off"],
   ["orb/no-direct-users-read", "packages/server/src/domain/chat/verbs/probe.ts", "error"],
+  // The entry tier cannot import the users table either, so a second users upsert has no home there (invariant 10).
+  ["orb/no-direct-users-read", "packages/server/src/entry/auth/probe.ts", "error"],
   ["orb/vector-scope-derived", "packages/server/src/domain/embeddings/probe.ts", "off"],
   ["orb/vector-scope-derived", "packages/server/src/domain/chat/probe.ts", "error"],
   ["orb/notifications-inbox-owner", "packages/server/src/domain/notifications/persistence/probe.ts", "off"],

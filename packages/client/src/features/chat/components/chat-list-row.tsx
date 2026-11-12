@@ -4,6 +4,7 @@
 // second consumer: the two panes are the SAME list of the SAME chats, so a forked row would be two truths.
 
 import type { ChatSeatPortrait } from "@orb/contracts/chat";
+import { isHostRole } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
 import { Contents } from "@orb/ui/layout";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -102,7 +103,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
       <ChatSummaryRow
         actionName={rowName}
         chat={chat}
-        onToggleStar={chat.viewerRole === "host" ? (next): void => actions.star({ chatId: chat.id, starred: next }) : undefined}
+        onToggleStar={isHostRole(chat.viewerRole) ? (next): void => actions.star({ chatId: chat.id, starred: next }) : undefined}
         portraits={portraits}
         titleQualifier={titleQualifier}
         // `group` roots the row so the kebab's + the star's hover/focus-within reveal fires on row hover
@@ -115,7 +116,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
         // that collided (side-eye P3a + P2c).
         // `title` (raw, nullable) still seeds the rename input — the empty box for an unnamed chat is intact.
         menu={
-          chat.viewerRole === "host" ? (
+          isHostRole(chat.viewerRole) ? (
             <ChatListRowMenu
               actions={actions}
               archived={chat.archived}

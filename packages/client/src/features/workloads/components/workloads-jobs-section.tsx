@@ -8,6 +8,7 @@
 // gated admin.listUsers read that never fires for a plain user. Filters are client-side tabs over the one
 // bounded list read; each active row tails its own `workloads` ROOM on the tab's ONE socket (SSE-1 S5).
 
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -69,8 +70,8 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
   const [{ data: workloads }, { data: viewer }] = useSuspenseQueries({
     queries: [trpc.workloads.list.queryOptions({}), trpc.sessions.me.queryOptions()],
   });
-  const isOwner = viewer.globalRole === "owner";
-  const isPrivileged = isOwner || viewer.globalRole === "admin";
+  const isOwner = userRoleSatisfies(viewer.globalRole, "owner");
+  const isPrivileged = userRoleSatisfies(viewer.globalRole, "admin");
 
   const usersQuery = useGatedQuery(isPrivileged ? "admin-users" : null, () => trpc.admin.listUsers.queryOptions());
   const users = usersQuery.data ?? [];

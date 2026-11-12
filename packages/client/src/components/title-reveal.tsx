@@ -37,6 +37,8 @@ export interface TitleRevealProps {
   readonly action?: TitleAction;
   /** The control a cut title becomes, where the title is not already one and the row's own layout has to hold under the control. Default: a text-height action that fills the row. */
   readonly control?: ReactElement;
+  /** What the title sits in while it is not a control, where the row's layout wants a box around it. The control carries that layout itself. */
+  readonly frame?: (children: ReactNode) => ReactElement;
   readonly children: ReactNode;
 }
 
@@ -61,14 +63,13 @@ function Reveal({
   );
 }
 
-export function TitleReveal({ whole, fill = false, action, control: own, children }: TitleRevealProps): ReactElement {
+export function TitleReveal({ whole, fill = false, action, control: own, frame, children }: TitleRevealProps): ReactElement {
   const { cut, part } = useCutParts();
   const [open, setOpen] = useState(false);
   // Set when a reveal opens and cleared when focus leaves the control, so the control outlives the cut that made it.
   const [held, setHeld] = useState(false);
   const isControl = action !== undefined || cut || held;
   const revealing = cut || open;
-
   const control = action === undefined ? (own ?? <InlineAction grow={fill} step="label" type="button" />) : action.control({ cut });
   const trigger = (
     <PopoverTrigger
@@ -79,6 +80,7 @@ export function TitleReveal({ whole, fill = false, action, control: own, childre
           setHeld(false);
         }
       }}
+      // The control decides when it is activated, from the state it is in then: a cut title reveals, an uncut one acts. Nothing is carried between presses.
       onClick={revealing || action === undefined ? undefined : action.onSelect}
       render={control}
     >
@@ -118,7 +120,7 @@ export function TitleReveal({ whole, fill = false, action, control: own, childre
             />
           </Popover>
         ) : (
-          children
+          (frame?.(children) ?? children)
         )}
       </CutPartContext>
     </Contents>

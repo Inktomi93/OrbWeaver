@@ -97,8 +97,30 @@ const CLAUDE_ISOLATION_PIN_KEYS = [
 export type ClaudeIsolationPinKey = (typeof CLAUDE_ISOLATION_PIN_KEYS)[number];
 /** Every `CLAUDE_*` name a preset may neither set nor unset: the isolation pins plus the project-memory
  *  suppression (set per-builder rather than through the pin record, hence the append). */
-export const HOST_OWNED_CLAUDE_ENV_KEYS = [...CLAUDE_ISOLATION_PIN_KEYS, "CLAUDE_CODE_DISABLE_CLAUDE_MDS"] as const;
+const HOST_OWNED_CLAUDE_ENV_KEYS = [...CLAUDE_ISOLATION_PIN_KEYS, "CLAUDE_CODE_DISABLE_CLAUDE_MDS"] as const;
 const HOST_OWNED_CLAUDE_ENV_KEY_SET: ReadonlySet<string> = new Set<string>(HOST_OWNED_CLAUDE_ENV_KEYS);
+
+/** The documented headless subscription credential env (`claude setup-token`). */
+export const CLAUDE_OAUTH_TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";
+
+/** Every key the agent SDK child's environment owns (D8): the host-owned names above, auth and identity, routing, the
+ *  config directory and model selection. A preset can neither set nor unset one, and the server's boot scrub deletes
+ *  each from its own environment, so no process it starts outside that child inherits one. */
+export const RESERVED_CLAUDE_ENV_KEYS = [
+  ...HOST_OWNED_CLAUDE_ENV_KEYS,
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "ANTHROPIC_BASE_URL",
+  CLAUDE_OAUTH_TOKEN_ENV,
+  "ANTHROPIC_IDENTITY_TOKEN",
+  "ANTHROPIC_IDENTITY_TOKEN_FILE",
+  "ANTHROPIC_SERVICE_ACCOUNT_ID",
+  "CLAUDE_CONFIG_DIR",
+  "ANTHROPIC_CONFIG_DIR",
+  "ANTHROPIC_DEFAULT_OPUS_MODEL",
+  "ANTHROPIC_DEFAULT_SONNET_MODEL",
+  "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+] as const;
 
 // A preset value reaches the Agent SDK CHILD PROCESS, which runs tools as the host — so `claudeEnv` is a
 // process-execution boundary, not ordinary advanced tuning, and it is an ALLOWLIST. A deny set was

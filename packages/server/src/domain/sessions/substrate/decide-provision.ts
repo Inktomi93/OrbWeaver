@@ -4,6 +4,7 @@
 // decision; a batch-shaped signup statement calls the same function, so the rules have one home.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { ProvisionDecisionContext, ProvisionIdentityOptions } from "../contract/params.ts";
 import type { ProvisionCandidate, ProvisionDecision, ProvisionDeny, ProvisionInsert, ProvisionUpdate } from "../contract/results.ts";
@@ -13,7 +14,7 @@ const deny = (cause: ProvisionDeny["cause"]): ProvisionDeny => ({ kind: "deny", 
 
 /** The owner singleton: a policy-matched second owner falls to `user`. A re-login of the owner row keeps it. */
 function reconcileOwnerSingleton(derivedRole: UserRole, ownerId: UserId | undefined, existingId: UserId | undefined): { role: UserRole; downgraded: boolean } {
-  if (derivedRole !== "owner" || ownerId === undefined || ownerId === existingId) {
+  if (!userRoleSatisfies(derivedRole, "owner") || ownerId === undefined || ownerId === existingId) {
     return { role: derivedRole, downgraded: false };
   }
   return { role: "user", downgraded: true };
@@ -27,7 +28,12 @@ function decideUpdate(existing: ProvisionCandidate, derivedRole: UserRole, owner
 /** A2: a first-time non-owner row lands disabled under approval; the owner is never gated. */
 function decideInsert(derivedRole: UserRole, ownerId: UserId | undefined, options: ProvisionIdentityOptions): ProvisionInsert {
   const { role: resolvedRole, downgraded } = reconcileOwnerSingleton(derivedRole, ownerId, undefined);
-  return { kind: "insert", resolvedRole, enabled: resolvedRole === "owner" || options.requireApproval !== true, ownerSingletonDowngrade: downgraded };
+  return {
+    kind: "insert",
+    resolvedRole,
+    enabled: userRoleSatisfies(resolvedRole, "owner") || options.requireApproval !== true,
+    ownerSingletonDowngrade: downgraded,
+  };
 }
 
 /** MS-W1 and A1 for a non-owner identity. A subject-bearing identity never auto-links onto an unbound row

@@ -1,6 +1,11 @@
 // Global roles, identity and admin user wire views. DAG root: kit-only, no sibling contracts node.
 // Identity resolves once at the entry seam into one immutable Principal; ResolvedIdentity is pre-row.
 //
+// WHAT A ROLE MEANS IS ENCODED HERE ONCE (Spine-Identity-and-Auth.md invariant 6, D121(A)): `isHostRole` and
+// `userRoleSatisfies` are pure predicates over the closed role tuples, read by the `can()` kernel, the projection and
+// roster homes, and client display labels. They take no principal and no resource and decide nothing: whether a caller
+// may act is the kernel's decision alone, and a client display read is never an authorization.
+//
 // VOCABULARY (vocabulary-map row 45): `ChatResource.membership` is not `ChatResource.roster`.
 // The TYPE half of row 45 (`ChatRoster` → `ChatMembership`) once left
 // the FIELD spelling the old word, so every `can()` call site read `{ kind: "chat", roster: {…} }` for a
@@ -445,6 +450,28 @@ export type ChatAction = (typeof CHAT_ACTIONS)[number];
  *  and identity is the DAG root; chat re-exports this same name, no alias. */
 export const PARTICIPANT_ROLES = ["host", "member"] as const;
 export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
+
+// Which participant role holds room authority. A mapped record over the closed tuple, so a new role fails tsc here.
+const HOLDS_ROOM_AUTHORITY = { host: true, member: false } as const satisfies Record<ParticipantRole, boolean>;
+
+/** Whether a participant role holds room authority: the one meaning of `host` (invariant 6). */
+export function isHostRole(role: ParticipantRole): boolean {
+  return HOLDS_ROOM_AUTHORITY[role];
+}
+
+// The global actions each user role satisfies: the one encoding of `owner ⊇ admin`. A mapped record over the closed
+// tuple, so a new role, and a new action through the tuple below, fails tsc here.
+const GLOBAL_ACTIONS_OF_ROLE = {
+  owner: ["owner", "admin"],
+  admin: ["admin"],
+  user: [],
+} as const satisfies Record<UserRole, readonly GlobalAction[]>;
+
+/** Whether a user role satisfies a global action, `owner ⊇ admin` (invariant 6). */
+export function userRoleSatisfies(role: UserRole, action: GlobalAction): boolean {
+  const actions: readonly GlobalAction[] = GLOBAL_ACTIONS_OF_ROLE[role];
+  return actions.includes(action);
+}
 
 /** The membership data chat feeds `can()` for a chat-resource decision. `can()` makes the verdict —
  *  chat never compares `role === 'host'` itself. */
