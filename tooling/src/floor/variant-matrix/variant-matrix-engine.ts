@@ -151,7 +151,7 @@ function findTwinCompletion(
     return { left, right };
   }
   const offset = declarationOffset(nextAxis, twin.id);
-  const values = [...nextAxis.values].sort(
+  const values = nextAxis.values.toSorted(
     (leftValue, rightValue) =>
       ((nextAxis.values.indexOf(leftValue) - offset + nextAxis.values.length) % nextAxis.values.length) -
       ((nextAxis.values.indexOf(rightValue) - offset + nextAxis.values.length) % nextAxis.values.length),

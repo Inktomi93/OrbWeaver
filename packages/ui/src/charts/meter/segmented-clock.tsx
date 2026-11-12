@@ -82,7 +82,7 @@ export function SegmentedClock({ segments, filled, completed, hidden, label, siz
     );
   }
   return (
-    // biome-ignore lint/a11y/useSemanticElements: the D58 spec is ONE hand-rolled ARIA mechanism across all magnitude kinds — a native <meter> cannot render a segmented SVG circle (ui-package-design §10.4).
+    // biome-ignore lint/a11y/useSemanticElements: the D58 spec is ONE hand-rolled ARIA mechanism across all magnitude kinds — a native <meter> cannot render a segmented SVG circle (ui-package-design §10).
     <svg
       role="meter"
       aria-valuemin={0}

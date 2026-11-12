@@ -1,0 +1,13 @@
+declare const names: readonly string[];
+declare const rows: { readonly at: number }[];
+declare const tags: Set<string>;
+declare const load: () => Promise<number[]>;
+declare const maybe: number[] | undefined;
+export const a = [...names].sort((x, y) => x.localeCompare(y));
+export const b = rows.slice().sort((x, y) => x.at - y.at);
+export const c = Array.from(names).sort();
+export const d = async () => [...(await load())].sort((x, y) => x - y);
+export const e = [...(maybe ?? [])].sort((x, y) => x - y);
+export const f = [...tags].sort((x, y) => x.localeCompare(y));
+export const g = [...names].sort(), h = [...names, "z"].sort();
+export const i = [...names].reverse();

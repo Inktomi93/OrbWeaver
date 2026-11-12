@@ -100,7 +100,7 @@ export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Pr
   const text =
     cfg.mode === "mixB" || cfg.mode === "mixC"
       ? formatMemory(
-          [...rendered].sort((a, b) => chronoStart(a, cfg.fanOut) - chronoStart(b, cfg.fanOut)),
+          rendered.toSorted((a, b) => chronoStart(a, cfg.fanOut) - chronoStart(b, cfg.fanOut)),
           byKey,
         ).text
       : rankedText;

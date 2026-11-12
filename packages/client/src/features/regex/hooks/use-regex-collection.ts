@@ -40,7 +40,7 @@ export function useRegexInsights(): readonly CollectionInsight[] | undefined {
   }
   const off = rows.filter((row) => !row.enabled);
   const firstOff = off[0];
-  const newest = [...rows].sort((left, right) => right.updatedAt - left.updatedAt)[0];
+  const newest = rows.toSorted((left, right) => right.updatedAt - left.updatedAt)[0];
   return [
     {
       id: "disabled",

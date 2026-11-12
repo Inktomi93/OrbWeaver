@@ -12,7 +12,7 @@ import { setBulkMode, setCharacterSortMode, setCharacterViewMode, useCharacterBu
 import { CHARACTER_GROUP_BY_TAG_NAME, CHARACTER_SELECT_MULTIPLE_NAME, CHARACTER_SORT_NAME } from "../lib/character-names.ts";
 
 /** The §4.5 sort labels — a TOTAL Record over `CHARACTER_LIST_SORTS` (a new sort member fails `tsc`;
- *  Spine §5.5). The `random`/`name-desc` drops never appear because the tuple is the one home. */
+ *  Spine-TypeScript-and-Patterns §7.5). The `random`/`name-desc` drops never appear because the tuple is the one home. */
 const SORT_LABELS: Record<CharacterListSort, string> = {
   recent: "Recent",
   alpha: "A–Z",

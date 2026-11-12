@@ -125,15 +125,21 @@ exports map has one entry, so no domain can reach a backend.
 | - | - |
 | Packages, server tiers, the domain template and partitioning | `Core-0-Architecture-and-Structure.md` |
 | Retained tooling | `Core-0-Architecture-and-Structure.md` §9 |
+| Cross-cutting threads (§5) | `Spine-Identity-and-Auth.md`, `Spine-Config-and-Serialization.md`, `Spine-TypeScript-and-Patterns.md`, `Spine-Testing.md` |
+| Knowledge and derived data | `Knowledge-Cluster.md` |
 | The decision ledger | `../adr/README.md` (one decision per file) |
 | Writing a ui-audit rule | `../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
 | Server tier law | `Tier-1-DB.md`, `Tier-2-Foundation.md`, `Tier-3-Infra.md`, `Tier-3b-Providers.md`, `Tier-4-Transport.md`, `Tier-5-Entry.md` |
-| UI law | `UI-Architecture-and-Layout.md`, `UI-Primitives-and-Reuse.md`, `UI-Theming-and-Content.md`, `UI-Density-Law.md`, `ui-platform-rulings.md`, `ui-package-design.md`, `motion-and-animation-guide.md` |
-| Client composition | `client-architecture-lockdown.md` |
+| UI law | `UI-Architecture-and-Layout.md`, `ui-architecture-state-and-stack.md`, `UI-Primitives-and-Reuse.md`, `UI-Theming-and-Content.md`, `UI-Density-Law.md`, `ui-platform-rulings.md`, `ui-package-design.md`, `motion-and-animation-guide.md`, `integer-line-boxes.md` |
+| Client composition | `client-architecture-lockdown.md`, `client-architecture-state-and-gates.md` |
+| Chat macro and persona resolution | `Chat-Macro-Resolution.md` |
+| Plugins | `plugin-system.md` |
+| The shipped container | `container-deployment-security.md` |
+| User docs | `user-docs.md` |
 | SillyTavern parity rulings | `../adr/README.md` (D46, D47, D49) |
 | Open work | `docs/work/README.md` |
 | Docs and comments | `.claude/rules/writing.md`, `.claude/rules/comments.md` |
-| Which word names a concept | `docs/law/vocabulary-map.md` |
+| Which word names a concept | `vocabulary-map.md` |
 | Mission | `../Mission.md` |
 
 ## L. Lane discipline

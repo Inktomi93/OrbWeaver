@@ -323,7 +323,7 @@ export async function captureAppearanceInvariantRows(
   rows: readonly RuntimeAppearanceHistoricalRow[],
 ): Promise<readonly AppearanceInvariantReceipt[]> {
   const receipts: AppearanceInvariantReceipt[] = [];
-  const ordered = [...rows].sort((left, right) => Number(right.id === "opposite-os-app-prepaint") - Number(left.id === "opposite-os-app-prepaint"));
+  const ordered = rows.toSorted((left, right) => Number(right.id === "opposite-os-app-prepaint") - Number(left.id === "opposite-os-app-prepaint"));
   for (const row of ordered) {
     receipts.push(await captureAppearanceInvariantRow(session, opts, row));
   }

@@ -223,7 +223,7 @@ test.for(SELECTORS.map((selector) => ({ selector, label: JSON.stringify(selector
     const bootConfiguration: unknown = JSON.parse(probe.stdout);
     const bootModes = pageArray(bootConfiguration, "configuration probe auth modes").map((mode) => pageString(mode, "configuration probe auth mode"));
     expect(sharedSelection, JSON.stringify(selector)).toEqual(native);
-    expect([...bootModes].sort(), JSON.stringify(selector)).toEqual(native);
+    expect(bootModes.toSorted(), JSON.stringify(selector)).toEqual(native);
     expect(existsSync(runDirectory) ? readdirSync(runDirectory).sort() : []).toEqual(before);
   },
 );

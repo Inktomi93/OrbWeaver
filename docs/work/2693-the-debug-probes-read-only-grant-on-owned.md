@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-12
 priority: P3
+lane: wt/agent-a672cae2c753c5fe3
 plan: checked-law
 ---
 
@@ -18,7 +19,7 @@ The grant is read-only by law and nothing refuses a write through it.
 
 ## Done when
 
-A write to an owned table from the probe path is refused by a lint row with a planted control, on at zero, for every owned table the probes read.
+The probes take a read-only database type, so a write to any table from the probe path fails the typecheck, shown by a type test; where a type cannot hold it, a lint row with a planted control refuses the write, on at zero.
 
 ## Evidence
 

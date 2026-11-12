@@ -21,7 +21,7 @@ export const FOLDER_TYPE_ITEMS: readonly SelectOption<TagFolderType>[] = TAG_FOL
   value,
 }));
 
-/** The sort-mode labels — a TOTAL Record over the `#lib` union (a new mode fails `tsc`; Spine §5.5).
+/** The sort-mode labels — a TOTAL Record over the `#lib` union (a new mode fails `tsc`; Spine-TypeScript-and-Patterns §7.5).
  *  "Manual order" is named as an ORDER, not a verb: it is the authored `sortOrder`, and it is the only mode
  *  that offers drag handles (dragging a derived order would write an order nothing ever reads back). */
 const SORT_MODE_LABELS: Record<TagSortMode, string> = {

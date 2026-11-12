@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "copy-sort-to-sorted"
+version: "0.1.0"
+description: "Rewrite a copy-then-sort of an array to toSorted, at the sites orb/prefer-to-sorted listed."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

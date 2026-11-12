@@ -1,5 +1,5 @@
 // domain/chat/memory/recall/query — build the `MemoryQueryOptions` memory threads into `search.digests`
-// (docs/law/Knowledge-Cluster.md §3b/§6). The window, the scope and the knobs are `@orb/kit/recall` rules; this
+// (D55). The window, the scope and the knobs are `@orb/kit/recall` rules; this
 // file renders the window text, which needs the chat's name map and its transcript error, then hands it over.
 // `candidates` is left ABSENT here (the bridge restriction is layered by `recall.ts`).
 

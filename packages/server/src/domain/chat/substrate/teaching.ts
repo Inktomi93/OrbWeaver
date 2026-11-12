@@ -92,7 +92,7 @@ export async function collectTeaching(registry: ChatTeachingRegistry, tctx: Teac
   if (registry.length === 0) {
     return { injections: [], toolNames: [] };
   }
-  const ordered = [...registry].sort((a, b) => a.order - b.order);
+  const ordered = registry.toSorted((a, b) => a.order - b.order);
   const collected = await Promise.all(ordered.map((contribution) => contribution.collect(tctx)));
   const injections = dedupeInjections(collected.flatMap((c) => c.injections));
   const toolNames = [...new Set(collected.flatMap((c) => c.toolNames))];
