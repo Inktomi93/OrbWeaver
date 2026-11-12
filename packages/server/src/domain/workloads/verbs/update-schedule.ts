@@ -1,14 +1,15 @@
-// verb: updateSchedule — retune a schedule by id (owner-scoped). Loads + visibility-checks FIRST (a foreign
-// or absent id collapses to the leak-free NOT_FOUND — never a FORBIDDEN existence oracle), then applies the
-// optional patch: `input` replaces kind+params (re-parsed + re-gated), `mode` re-gates the kind policy,
-// `cadence` re-bases `nextRunAt` to one new interval out. An omitted field is left unchanged.
+// verb: updateSchedule — retune a schedule by id (owner-scoped). Loads + visibility- and act-checks FIRST (a foreign
+// or absent id, or the box owner's schedule to a delegated admin per D17, collapses to the leak-free NOT_FOUND —
+// never a FORBIDDEN existence oracle), then applies the optional patch: `input` replaces kind+params (re-parsed +
+// re-gated), `mode` re-gates the kind policy, `cadence` re-bases `nextRunAt` to one new interval out. An omitted
+// field is left unchanged.
 
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { SchedulePatch, UpdateScheduleParams, WorkloadScheduleRow } from "../contract/schedule.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { loadSchedule, updateScheduleFields } from "../persistence/schedule-queries.ts";
-import { assertKindSupportsMode, isVisibleToCaller } from "../substrate/authorize.ts";
+import { assertKindSupportsMode, isVisibleToCaller, mayActOnRow } from "../substrate/authorize.ts";
 import { parseWorkloadInput } from "../substrate/params.ts";
 
 const ENTITY = "workload_schedule";
@@ -48,7 +49,7 @@ async function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: Workloa
 export function createUpdateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "updateSchedule"> {
   async function updateSchedule(params: UpdateScheduleParams): Promise<WorkloadScheduleRow> {
     const existing = await loadSchedule(ctx.db, params.id, (ownerId) => isVisibleToCaller(ctx.isAdmin, params.caller, ownerId));
-    if (existing === null) {
+    if (existing === null || !(await mayActOnRow(ctx, params.caller, existing))) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
     const patch = await resolveUpdatePatch(ctx, existing, params);

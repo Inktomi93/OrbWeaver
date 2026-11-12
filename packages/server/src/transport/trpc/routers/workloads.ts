@@ -8,7 +8,8 @@
 //     The wire envelope has no spelling for a staged handle or digest (D340): only an upload route mints those.
 //   • `list`/`get`/`cancel`/`retry` — IDOR-scoped in the verb to the caller's own `ownerId`
 //     (a non-admin), or across ALL owners (owner∪admin = the deployment-wide view). A foreign/absent id →
-//     leak-free NOT_FOUND. The `caller` Principal (`ctx.auth`, resolved once at the edge) is threaded in.
+//     leak-free NOT_FOUND. An admin sees the box owner's rows but may not cancel or retry them (D17), and is
+//     answered the same NOT_FOUND. The `caller` Principal (`ctx.auth`, resolved once at the edge) is threaded in.
 // Thin: validate → LAYER-1 owner gate for bulk → enter the front door → map errors.
 //
 // LIVE TAILING IS NOT HERE ANY MORE (SSE-1 S5). The deleted `subscribe` proc is the `workloads` ROOM on the
@@ -134,8 +135,8 @@ export const workloadsRouter = t.router({
 
   // ── Schedules (the TIME dimension) — recurring auto-enqueue. Owner-scoped like the workload verbs: a
   //    SINGULAR schedule is any authed caller, unless the kind's `ownerOnly` says otherwise; a BULK schedule is
-  //    BOX-OWNER-only (LAYER-1 gate here, re-checked in the verb); read/mutate-by-id collapse a foreign id to
-  //    leak-free NOT_FOUND. ──
+  //    BOX-OWNER-only (LAYER-1 gate here, re-checked in the verb); read/mutate-by-id collapse a foreign id, and
+  //    the box owner's schedule to a delegated admin's mutate (D17), to leak-free NOT_FOUND. ──
   createSchedule: authedProcedure
     .output(workloadScheduleRefSchema)
     .input(

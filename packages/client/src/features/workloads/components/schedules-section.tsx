@@ -10,8 +10,9 @@
 // Schedules on ONE scroll surface, so an accent fill here made two at rest. Jobs keeps the accent: "Run a
 // workload…" is the pane's reason to exist, scheduling is the follow-on.
 // Reads workloads.listSchedules (server-scoped: a plain user sees only their own; owner/admin sees every
-// owner's, so a foreign/bulk row is labelled). Only the box owner may create/retune a bulk schedule; the
-// server re-gates regardless.
+// owner's, so a foreign/bulk row is labelled). Only the box owner may create/retune a bulk schedule, and only the box
+// owner is offered the switch, Edit and Delete on the box owner's schedules (`viewerActsOnRow`, D17); the server
+// re-gates regardless.
 //
 // A settings-SECTION CONTRIBUTION at the `workloads` anchor since SET-SEAMS stage 3, owned by
 // features/workloads: it owns its own read (viewer + schedules + the gated admin handle map, which the
@@ -34,7 +35,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
-import { UNRESOLVED_OWNER_HANDLE, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
+import { UNRESOLVED_OWNER_HANDLE, viewerActsOnRow, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
 import { scheduleDeleteName, scheduleEditName, scheduleEnabledSwitchName, scheduleName, scheduleQualifier } from "../lib/workloads-schedule-model.ts";
 import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav.ts";
 import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog.tsx";
@@ -76,6 +77,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   const [editing, setEditing] = useState<ScheduleItem | null>(null);
 
   const handleByUserId = new Map<string, string>(users.map((user) => [user.id, user.handle]));
+  const boxOwnerId = users.find((user) => userRoleSatisfies(user.role, "owner"))?.id;
   const ownerHandleFor = (schedule: ScheduleItem): string | null => {
     if (schedule.ownerId === viewer.userId) {
       return null;
@@ -113,6 +115,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
                 key={schedule.id}
                 schedule={schedule}
                 ownerHandle={ownerHandleFor(schedule)}
+                viewerActs={viewerActsOnRow(schedule, { userId: viewer.userId, isOwner: viewerIsOwner }, boxOwnerId)}
                 onToggle={(enabled): void => setEnabled.mutate({ id: schedule.id, enabled })}
                 onEdit={(): void => setEditing(schedule)}
                 onDelete={(): void => deleteSchedule.mutate({ id: schedule.id })}
@@ -139,16 +142,19 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   );
 }
 
-/** One schedule row — a title naming kind, cadence and (on another user's row) owner, a next-run subtitle, a Bulk badge, an enable Switch + Edit + Delete. */
+/** One schedule row — a title naming kind, cadence and (on another user's row) owner, a next-run subtitle, a Bulk badge,
+ *  and, when the viewer may act on it, an enable Switch + Edit + Delete. */
 function ScheduleRow({
   schedule,
   ownerHandle,
+  viewerActs,
   onToggle,
   onEdit,
   onDelete,
 }: {
   readonly schedule: ScheduleItem;
   readonly ownerHandle: string | null;
+  readonly viewerActs: boolean;
   readonly onToggle: (enabled: boolean) => void;
   readonly onEdit: () => void;
   readonly onDelete: () => void;
@@ -173,22 +179,26 @@ function ScheduleRow({
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">
           {schedule.mode === "bulk" ? <Badge>Bulk</Badge> : null}
-          <Switch aria-label={scheduleEnabledSwitchName(identity)} checked={schedule.enabled} onCheckedChange={onToggle} />
-          <Button variant="outline" size="sm" aria-label={scheduleEditName(identity)} onClick={onEdit}>
-            Edit
-          </Button>
-          {/* Qualified like its Switch/Edit siblings (WCAG 2.4.6 / 4.1.2, side-eye 2026-08-08 P1-3): a list
-              of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
-              user N identical buttons and no way to tell which row they are about to destroy. */}
-          <DestructiveAction
-            confirm={{ confirmLabel: "Delete schedule", description: "The schedule is removed and stops running.", title: `Delete ${name}?` }}
-            onConfirm={onDelete}
-            trigger={
-              <Button variant="ghost" size="sm" aria-label={scheduleDeleteName(identity)}>
-                Delete
+          {viewerActs ? (
+            <>
+              <Switch aria-label={scheduleEnabledSwitchName(identity)} checked={schedule.enabled} onCheckedChange={onToggle} />
+              <Button variant="outline" size="sm" aria-label={scheduleEditName(identity)} onClick={onEdit}>
+                Edit
               </Button>
-            }
-          />
+              {/* Qualified like its Switch/Edit siblings (WCAG 2.4.6 / 4.1.2, side-eye 2026-08-08 P1-3): a list
+                  of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
+                  user N identical buttons and no way to tell which row they are about to destroy. */}
+              <DestructiveAction
+                confirm={{ confirmLabel: "Delete schedule", description: "The schedule is removed and stops running.", title: `Delete ${name}?` }}
+                onConfirm={onDelete}
+                trigger={
+                  <Button variant="ghost" size="sm" aria-label={scheduleDeleteName(identity)}>
+                    Delete
+                  </Button>
+                }
+              />
+            </>
+          ) : null}
         </Row>
       }
     />

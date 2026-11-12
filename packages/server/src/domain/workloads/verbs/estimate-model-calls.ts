@@ -8,7 +8,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { EstimateModelCallsParams, EstimateRetryModelCallsParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { loadWorkload } from "../persistence/queries.ts";
-import { canCloneRow, resolveRunOwner } from "../substrate/authorize.ts";
+import { canCloneRow, mayActOnRow, resolveRunOwner } from "../substrate/authorize.ts";
 import { admissionRefusal, assertRunAuthority, countModelCalls, parseWorkloadInput, runAccount } from "../substrate/params.ts";
 
 const ENTITY = "workload";
@@ -35,13 +35,13 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
   }
 
   // The same gates `retry` applies before it clones: a row the caller cannot see is leak-free NOT_FOUND, and a bulk
-  // row is the box owner's alone (a non-owner gets the same NOT_FOUND). A POISON row has no params to count, so it
-  // answers `null` like a kind that makes no model call. A row the owning domain would no longer admit makes no
+  // row, or any row the box owner owns or funds, is the box owner's alone (a non-owner gets the same NOT_FOUND). A
+  // POISON row has no params to count, so it answers `null` like a kind that makes no model call. A row the owning domain would no longer admit makes no
   // calls. Funding remains the original admission, never the retrying caller.
   async function estimateRetryModelCalls(params: EstimateRetryModelCallsParams): Promise<ModelCallEstimate> {
     const contributions = ctx.getContributions();
     const original = await loadWorkload(ctx.db, contributions, params.id, (access) => canCloneRow(ctx, params.caller, access));
-    if (original === null) {
+    if (original === null || !(await mayActOnRow(ctx, params.caller, original))) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
     if (original.poison) {

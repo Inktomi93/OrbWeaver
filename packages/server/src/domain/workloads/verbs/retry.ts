@@ -1,8 +1,9 @@
 // verb: retry — clones a row's kind+params+dependsOn into a fresh queued row; never mutates the original
 // (the failure row stays as the audit trail). Subject to the same single-active constraint (collides →
 // DomainConflictError). The clone preserves the original's mode + ownerId; a bulk original requires the
-// box owner, same as starting one. The LANE is re-stamped from the kind's CURRENT contribution (a lane is
-// the owning domain's live declaration, not a property of the failed attempt).
+// box owner, same as starting one, and a delegated admin may not retry the box owner's run (`mayActOnRow`, D17).
+// The LANE is re-stamped from the kind's CURRENT contribution (a lane is the owning domain's live declaration, not
+// a property of the failed attempt).
 //
 // A POISON original (params that no longer parse) is retryable BY DESIGN — that is the point of surfacing it
 // instead of dropping it — and clones the RAW params blob so the operator's original input survives verbatim
@@ -16,7 +17,7 @@ import type { RetryWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
-import { canCloneRow } from "../substrate/authorize.ts";
+import { canCloneRow, mayActOnRow } from "../substrate/authorize.ts";
 import { activeConflictMessage, assertAdmissible, assertRunAuthority, resolveAdmissionKey, resolveLane, runAccount } from "../substrate/params.ts";
 
 const ENTITY = "workload";
@@ -57,7 +58,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
   async function retry(params: RetryWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
     const original = await loadWorkload(ctx.db, contributions, params.id, (access) => canCloneRow(ctx, params.caller, access));
-    if (original === null) {
+    if (original === null || !(await mayActOnRow(ctx, params.caller, original))) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
     await assertCloneDependenciesAvailable(ctx, original);
