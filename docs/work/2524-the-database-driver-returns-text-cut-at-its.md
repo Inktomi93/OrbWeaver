@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-11
+status: doing
+updated: 2026-11-12
 priority: P2
 area: db
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # The database driver returns text cut at its first NUL

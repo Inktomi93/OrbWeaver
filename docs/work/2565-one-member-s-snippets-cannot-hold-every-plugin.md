@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-11
+status: doing
+updated: 2026-11-12
 priority: P2
 area: plugins
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # One member's snippets cannot hold every plugin Worker
