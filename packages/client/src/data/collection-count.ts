@@ -1,8 +1,8 @@
 // A collection's census as the config host reads it: the count read, and what a Retry re-asks.
 
 import type { QueryFilters } from "@tanstack/react-query";
-import { useQueryClient } from "@tanstack/react-query";
 import type { CollectionCount } from "#lib";
+import { useInvalidation } from "./use-invalidation.ts";
 
 /** The slice of a TanStack query result the census reads. */
 interface CensusRead {
@@ -21,14 +21,15 @@ interface CensusRead {
  * to re-ask; the rows ask it themselves when the count lands.
  */
 export function useCollectionCount(census: CensusRead, rows: QueryFilters): CollectionCount {
-  const queryClient = useQueryClient();
+  const invalidation = useInvalidation();
   return {
     count: census.data,
     failed: census.error !== null,
     // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
     retry: (): void => {
       void census.refetch().catch(globalThis.reportError);
-      void queryClient.refetchQueries({ ...rows, predicate: (query) => query.state.status === "error" }).catch(globalThis.reportError);
+      // `refetchType: "all"` because the failed rows read has no observer while the census failure arm stands.
+      invalidation.invalidateFilters([{ ...rows, predicate: (query) => query.state.status === "error", refetchType: "all" }]);
     },
   };
 }
