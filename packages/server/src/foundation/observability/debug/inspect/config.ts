@@ -14,9 +14,11 @@
 
 import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import { rendersTrustedHtml, resolveRenderPolicy } from "@orb/contracts/chat";
+import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatParticipants, chats, personas, presets, rpgGames, userSettings } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { desc, eq } from "drizzle-orm";
 import type {
   CharacterDetailRow,
@@ -26,6 +28,7 @@ import type {
   PresetRow,
   RenderPolicyVerdict,
   RpgGameRow,
+  UnreadableStoredJsonView,
   UserSettingsRow,
 } from "#src/foundation/observability/contract/inspect.ts";
 
@@ -38,13 +41,21 @@ export type {
   UserSettingsRow,
 } from "#src/foundation/observability/contract/inspect.ts";
 
+// A stored-JSON column reads text that is not JSON as its marker; the probe labels it rather than serializing the marker
+// as an object with a `text` key, which reads like a stored blob.
+function storedJsonView(value: unknown): unknown {
+  return value instanceof UnreadableJsonText
+    ? ({ storedJsonUnreadable: VERSIONED_PARSE_FAILURES.notJson, storedText: value.text } satisfies UnreadableStoredJsonView)
+    : value;
+}
+
 /** Every `user_settings` row, or just one principal's when `userId` is given. A never-touched account has NO
  *  row (it reads defaults from `{}`), so an empty result is a real answer, not a miss. */
 export async function userSettingsRows(db: ReadOnlyDb, userId?: UserId): Promise<UserSettingsRow[]> {
   // Two explicit awaits rather than awaiting a conditional: drizzle's `.where()` returns a different builder
   // type, and the union is not uniformly thenable to the linter.
   const rows = userId === undefined ? await db.select().from(userSettings) : await db.select().from(userSettings).where(eq(userSettings.userId, userId));
-  return rows.map((r) => ({ userId: r.userId, schemaVersion: r.schemaVersion, config: r.config, updatedAt: r.updatedAt }));
+  return rows.map((r) => ({ userId: r.userId, schemaVersion: r.schemaVersion, config: storedJsonView(r.config), updatedAt: r.updatedAt }));
 }
 
 /** Every preset, or one owner's. Config blobs ride whole — a preset's section ORDER is the thing being
@@ -61,7 +72,7 @@ export async function presetRows(db: ReadOnlyDb, ownerId?: UserId): Promise<Pres
     kind: r.kind,
     schemaVersion: r.schemaVersion,
     forkedFrom: r.forkedFrom,
-    config: r.config,
+    config: storedJsonView(r.config),
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   }));
@@ -81,7 +92,7 @@ export async function personaRows(db: ReadOnlyDb, ownerId?: UserId): Promise<Per
     description: r.description,
     starred: r.starred,
     avatarAssetId: r.avatarAssetId,
-    metadata: r.metadata,
+    metadata: storedJsonView(r.metadata),
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   }));

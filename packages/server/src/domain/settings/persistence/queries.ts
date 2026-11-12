@@ -26,7 +26,7 @@ import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, sql } from "drizzle-orm";
-import { requireIntactStoredConfig } from "#primitives/stored-config";
+import { requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
@@ -162,7 +162,7 @@ export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSetti
     await insertGuardedUserSettings(db, ownerId, config, at);
     return;
   }
-  requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`);
+  requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config, row.schemaVersion), `user_settings for ${ownerId}`, STORED_CONFIG_REFUSALS.overwrite);
   const written = await db
     .update(userSettings)
     .set({ config, schemaVersion: USER_SETTINGS_SCHEMA_VERSION, updatedAt: at })
@@ -260,7 +260,7 @@ export async function readAppOverrideRaw(db: Db): Promise<JsonValue | Unreadable
 export async function writeAppOverride(db: Db, value: JsonValue, at: number): Promise<void> {
   const stored = await readAppOverrideRaw(db);
   if (stored !== undefined) {
-    requireIntactStoredConfig(appSettingsConfig.parseOutcome(stored), `the ${APP_SETTINGS_KEY} override row`);
+    requireIntactStoredConfig(appSettingsConfig.parseOutcome(stored), `the ${APP_SETTINGS_KEY} override row`, STORED_CONFIG_REFUSALS.overwrite);
   }
   await db
     .insert(settings)

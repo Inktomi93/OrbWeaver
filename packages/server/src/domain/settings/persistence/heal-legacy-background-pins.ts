@@ -34,7 +34,7 @@ import type { AssetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { UnreadableJsonText } from "@orb/kit/json";
 import { and, eq, inArray } from "drizzle-orm";
-import { isStoredConfigUnreadable, requireIntactStoredConfig } from "#primitives/stored-config";
+import { isStoredConfigUnreadable, requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
 import { BACKGROUND_ASSET_KIND, pinnedBackgroundAssetIds } from "./queries.ts";
 
 /** The healed config: the current-selection pointer clears to "none" if it names a stale id; the library
@@ -57,7 +57,11 @@ function clearStaleBackgroundPins(config: UserSettings, validIds: ReadonlySet<As
  *  statement precedes the write below in this body — an
  *  unreadable row throws here and the caller skips it (see the header: not this heal's job). */
 async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: UserSettings | UnreadableJsonText, schemaVersion: number): Promise<boolean> {
-  const config = requireIntactStoredConfig(userSettingsConfig.parseOutcome(storedConfig, schemaVersion), `user_settings for ${userId}`);
+  const config = requireIntactStoredConfig(
+    userSettingsConfig.parseOutcome(storedConfig, schemaVersion),
+    `user_settings for ${userId}`,
+    STORED_CONFIG_REFUSALS.overwrite,
+  );
   const ids = pinnedBackgroundAssetIds(config);
   if (ids.length === 0) {
     return false;

@@ -52,7 +52,9 @@ export const storedJsonText = customType<{ data: JsonValue | UnreadableJsonText;
     return value instanceof UnreadableJsonText ? value.text : JSON.stringify(value);
   },
   fromDriver(value: string): JsonValue | UnreadableJsonText {
-    return parseJsonText(value) ?? new UnreadableJsonText(value);
+    // `undefined` is the parse failure; a stored JSON `null` parses to `null` and reads as itself.
+    const parsed = parseJsonText(value);
+    return parsed === undefined ? new UnreadableJsonText(value) : parsed;
   },
 });
 

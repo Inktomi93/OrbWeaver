@@ -1,13 +1,16 @@
 // @subject packages/server/src/domain/rpg/persistence/portability-write.ts
+// @subject packages/server/src/domain/rpg/persistence/sheets.ts
 // @subject packages/server/src/domain/export/verbs/export-chat-bundle.ts
 // @subject packages/server/src/domain/export/verbs/export-chat.ts
 
 import { chats, rpgGames, rpgSheets, rpgSnapshots } from "@orb/db";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { RPG_OP_CODES } from "#server/domain/rpg/contract/op-codes.ts";
 import { handoffActors } from "../../chat/substrate/handoff.fixtures.ts";
 
 async function scene(harness: ServerTestHarness): Promise<{
@@ -69,8 +72,8 @@ test("an admitted export validates the real stored actor sheet before writing bu
   });
   const rows = await harness.db.select().from(rpgSheets).where(eq(rpgSheets.gameId, game.id));
   const sheet = rows[0];
-  if (sheet === undefined) {
-    throw new Error("the actual sheet edit did not land");
+  if (sheet === undefined || sheet.sheet instanceof UnreadableJsonText) {
+    throw new Error("the actual sheet edit did not land a readable sheet");
   }
   await harness.db
     .update(rpgSheets)
@@ -122,4 +125,32 @@ test("both transcript export doors refuse a foreign malformed room before privat
   await expect(harness.app.exportService.exportChatBundle({ principal: foreign, chatId: actors.chat.id })).resolves.toBeNull();
   await expect(harness.app.exportService.exportChat({ principal: foreign, chatId: actors.chat.id })).resolves.toBeNull();
   await expect(harness.app.exportService.exportChatBundle({ principal: actors.host, chatId: actors.chat.id })).rejects.toBeInstanceOf(SyntaxError);
+});
+
+test("a stored actor sheet holding text that is not JSON refuses the sheet edit and the export, and keeps its bytes", async ({ harness }) => {
+  const notJson = '{"className": "Kee';
+  const { actors, game } = await scene(harness);
+  const card = actors.cards[0];
+  if (card === undefined) {
+    throw new Error("the real room omitted its actor");
+  }
+  const actorRef = { kind: "character", characterId: card.id } as const;
+  await harness.services.rpg.patchSheet({ principal: actors.host, chatId: actors.chat.id, actorRef, patch: { className: "Keeper" } });
+  await harness.db
+    .update(rpgSheets)
+    .set({ sheet: sql`${notJson}` })
+    .where(eq(rpgSheets.gameId, game.id));
+  const stored = async (): Promise<unknown> =>
+    await harness.db
+      .select({ text: sql<string>`${rpgSheets.sheet}` })
+      .from(rpgSheets)
+      .where(eq(rpgSheets.gameId, game.id));
+
+  await expect(
+    harness.services.rpg.patchSheet({ principal: actors.host, chatId: actors.chat.id, actorRef, patch: { className: "Warden" } }),
+  ).rejects.toMatchObject({ code: RPG_OP_CODES.stateCorrupt });
+  await expect(harness.app.exportService.exportChatBundle({ principal: actors.host, chatId: actors.chat.id })).rejects.toMatchObject({
+    code: RPG_OP_CODES.stateCorrupt,
+  });
+  expect(await stored()).toEqual([{ text: notJson }]);
 });

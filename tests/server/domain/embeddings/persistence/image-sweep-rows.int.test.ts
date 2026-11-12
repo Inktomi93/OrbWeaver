@@ -2,6 +2,7 @@
 // records its owner's image space complete only when it finishes, resumes without paying twice, and quotes what it will spend.
 // @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 // @subject packages/server/src/domain/embeddings/indexer/image.ts
+// @subject packages/server/src/domain/embeddings/persistence/queries.ts
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import { embedGenerations, embedSpaceState, imageAnalyses, imageEmbeddings } from "@orb/db";
@@ -20,7 +21,7 @@ import {
   refuseWrites,
   seedCorpusConnections,
 } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const CAPTION_REQUEST = "POST /v1/chat/completions";
 const CAPTIONED_LENS: ImageLens = "image-captioned";
@@ -220,4 +221,19 @@ test("a failure that is not a missing file stops the sweep instead of failing ea
   // Positive control: with the fault lifted the same sweep embeds both avatars.
   await fault.lift();
   expect(await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 2, skipped: 0 });
+});
+
+test("an analysis whose stored caption metadata is not JSON is re-analysed by the next sweep, which stores readable metadata", async () => {
+  await using lifetime = new AsyncDisposableStack();
+  const room = await unindexedAvatars(1, lifetime);
+  const { root } = room;
+  await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() });
+  const paid = room.captions();
+  await root.db.update(imageAnalyses).set({ captionMeta: sql`${'{"artStyle": "ani'}` });
+
+  // Stored text that is not JSON holds no breakdown, so the resumable sweep pays for this one avatar again.
+  expect(await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 1, skipped: 0 });
+  expect(room.captions()).toBe(paid + 1);
+  const [analysis] = await root.db.select({ valid: sql<number>`json_valid(${imageAnalyses.captionMeta})` }).from(imageAnalyses);
+  expect(analysis).toEqual({ valid: 1 });
 });

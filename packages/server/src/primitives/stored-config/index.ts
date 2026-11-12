@@ -29,7 +29,7 @@
 // against it until the row is repaired — the write fails loudly with `stored_config_unreadable` instead of
 // quietly resetting everything. Losing write availability is recoverable; losing the blob is not.
 
-import type { VersionedParseOutcome } from "@orb/contracts/versioned-config";
+import type { VersionedParseFailure, VersionedParseOutcome } from "@orb/contracts/versioned-config";
 import { DomainOperationError } from "@orb/kit/errors";
 
 /** The `DomainOperationError.code` this guard refuses with. ONE home — every domain catalog that lists it
@@ -42,16 +42,25 @@ export function isStoredConfigUnreadable(error: unknown): error is DomainOperati
   return error instanceof DomainOperationError && error.code === STORED_CONFIG_UNREADABLE;
 }
 
-/**
- * The stored blob, or a refusal. `what` names the row for the operator reading the error (a table +
- * scope, never blob contents — the same leak-free posture as the settings audit metadata).
- */
-export function requireIntactStoredConfig<T>(outcome: VersionedParseOutcome<T>, what: string): T {
+/** What a refusal declined to do with an unreadable blob. An export refuses for the same reason a write does: its
+ *  stand-in is defaults, and a backup holding defaults presents them as the user's data. */
+export const STORED_CONFIG_REFUSALS = { overwrite: "overwrite", export: "export" } as const;
+
+export type StoredConfigRefusal = (typeof STORED_CONFIG_REFUSALS)[keyof typeof STORED_CONFIG_REFUSALS];
+
+/** The refusal of an unreadable stored blob. `what` names the row for the operator reading the error (a table +
+ *  scope, never blob contents — the same leak-free posture as the settings audit metadata). */
+export function unreadableStoredConfig(failure: VersionedParseFailure, what: string, refused: StoredConfigRefusal): DomainOperationError {
+  return new DomainOperationError(
+    STORED_CONFIG_UNREADABLE,
+    `refusing to ${refused} ${what}: the stored blob could not be read (${failure}). The existing row is untouched.`,
+  );
+}
+
+/** The stored blob, or {@link unreadableStoredConfig}'s refusal of `refused`. */
+export function requireIntactStoredConfig<T>(outcome: VersionedParseOutcome<T>, what: string, refused: StoredConfigRefusal): T {
   if (!outcome.intact) {
-    throw new DomainOperationError(
-      STORED_CONFIG_UNREADABLE,
-      `refusing to overwrite ${what}: the stored blob could not be read (${outcome.failure}). The existing row is untouched.`,
-    );
+    throw unreadableStoredConfig(outcome.failure, what, refused);
   }
   return outcome.value;
 }

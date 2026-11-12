@@ -7,6 +7,7 @@ import type { Db } from "@orb/db";
 import { assets, embedGenerations, imageAnalyses, imageEmbeddings } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
 import type { AssetId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { and, eq, sql } from "drizzle-orm";
 import type { StoredImageAnalysis } from "../contract/results.ts";
 
@@ -79,6 +80,11 @@ export async function readImageAnalysis(db: Db, ownerId: UserId, assetId: AssetI
     .where(and(eq(assets.ownerId, ownerId), eq(assets.id, assetId), eq(assets.hash, hash), eq(imageAnalyses.contentHash, hash)))
     .limit(1);
   if (row === undefined || row.caption.trim().length === 0) {
+    return;
+  }
+  // Stored text that is not JSON is a lost analysis; it is tested first because the schema keeps unknown keys and would
+  // take the marker's own `text` key for a breakdown.
+  if (row.captionMeta instanceof UnreadableJsonText) {
     return;
   }
   const parsed = imageCaptionMetaSchema.safeParse(row.captionMeta);

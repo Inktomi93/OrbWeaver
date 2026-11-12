@@ -36,3 +36,14 @@ test("text that is not JSON reads as its unreadable value and writes back byte f
   expect((await harness.db.select({ value: settings.value }).from(settings).where(eq(settings.key, KEY)))[0]?.value).toEqual({ models: [1, 2] });
   expect(await rawText()).toBe('{"models":[1,2]}');
 });
+
+test.for([
+  ["null", null],
+  ["false", false],
+  ["0", 0],
+  ['""', ""],
+] as const)("the JSON text %s reads as its value, not as unreadable text", async ([stored, value], { harness }) => {
+  await harness.db.insert(settings).values({ key: KEY, value: sql`${stored}`, updatedAt: 1 });
+  const [row] = await harness.db.select({ value: settings.value }).from(settings).where(eq(settings.key, KEY));
+  expect(row).toEqual({ value });
+});

@@ -5,6 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { createPersonaSchema } from "@orb/contracts/persona";
+import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import { automationFires, characters, personas } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -110,6 +111,15 @@ test("the settings probe preserves key order and stored values while rejecting a
   expect(await read(`/api/_debug/config/user?userId=${missingUserId}`)).toEqual({ count: 0, users: [] });
   expect(await read(`/api/_debug/config/presets?ownerId=${root.ownerId}`)).toEqual({ count: 1, presets: [{ ...preset, config: raw }] });
   expect(await read(`/api/_debug/config/personas?ownerId=${root.ownerId}`)).toEqual({ count: 1, personas: [{ ...persona, metadata: raw }] });
+  // Stored text that is not JSON renders as a labelled unreadable state, never as a blob with a `text` key.
+  const notJson = '{"futureVersion": "unpar';
+  const unreadable = { storedJsonUnreadable: VERSIONED_PARSE_FAILURES.notJson, storedText: notJson };
+  await root.db.run(sql`UPDATE user_settings SET config = ${notJson} WHERE user_id = ${root.ownerId}`);
+  await root.db.run(sql`UPDATE presets SET config = ${notJson} WHERE id = ${preset.id}`);
+  await root.db.run(sql`UPDATE personas SET metadata = ${notJson} WHERE id = ${persona.id}`);
+  expect(await read(`/api/_debug/config/user?userId=${root.ownerId}`)).toEqual({ count: 1, users: [{ ...settings, config: unreadable }] });
+  expect(await read(`/api/_debug/config/presets?ownerId=${root.ownerId}`)).toEqual({ count: 1, presets: [{ ...preset, config: unreadable }] });
+  expect(await read(`/api/_debug/config/personas?ownerId=${root.ownerId}`)).toEqual({ count: 1, personas: [{ ...persona, metadata: unreadable }] });
   expect(await read(`/api/_debug/config/chat/${chat.id}`)).toMatchObject({
     room: {
       id: chat.id,

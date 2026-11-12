@@ -2,7 +2,7 @@ import type { PresetDetail } from "@orb/contracts/preset";
 import { promptConfigConfig } from "@orb/contracts/preset";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
-import { requireIntactStoredConfig } from "#primitives/stored-config";
+import { requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
 import { OWNED_PRESET_KIND, SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { PresetForkIntent, UpdatePresetParams } from "../contract/params.ts";
@@ -71,7 +71,13 @@ async function mintFork(
   // arm DOES descend from a read of `base.config`, so it is guarded the same way the editor path is
   //: a base whose blob cannot be read must not silently mint a fork carrying DEFAULT_PROMPT_CONFIG —
   // the owner would get a fork that does not match the base they think they forked.
-  const config = params.config ?? requireIntactStoredConfig(promptConfigConfig.parseOutcome(base.config, base.schemaVersion), `presets.config for ${base.id}`);
+  const config =
+    params.config ??
+    requireIntactStoredConfig(
+      promptConfigConfig.parseOutcome(base.config, base.schemaVersion),
+      `presets.config for ${base.id}`,
+      STORED_CONFIG_REFUSALS.overwrite,
+    );
   const forkId = ctx.newPresetId();
   const name = nextFreeName(desiredName, await listOwnedPresetNames(ctx.db, params.userId));
   const row = {

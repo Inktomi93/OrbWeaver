@@ -1,10 +1,13 @@
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import { settings } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { createSettingsKvPort } from "@orb/server/domain/settings";
 import { expect, test } from "@orb/testkit/node";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { SETTINGS_OP_CODES } from "#server/domain/settings/contract/errors.ts";
+
+const NOT_JSON = '{"models": [';
 
 test("tenant KV preserves stored keys, opaque values and overwrite timestamps", async ({ db, clock }) => {
   const key = `${CATALOG_SETTINGS_PREFIX}openrouter`;
@@ -65,4 +68,15 @@ test("prefix deletion counts Unicode characters consistently for exact keys and 
     expect(await Promise.all(matching.map((key) => kv.read(key)))).toEqual(matching.map(() => undefined));
     expect(await Promise.all(siblings.map((key) => kv.read(key)))).toEqual(siblings);
   }
+});
+
+test("a value stored as JSON null reads back as null, and stored text that is not JSON reads as its unreadable value", async ({ db, clock }) => {
+  const kv = createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => clock.now());
+  const key = `${CATALOG_SETTINGS_PREFIX}cleared`;
+  await db.insert(settings).values({ key, value: sql`'null'`, updatedAt: 1 });
+  expect(await kv.read(key)).toBeNull();
+  // Control in the same case: text that is not JSON is the one value the read marks unreadable.
+  const broken = `${CATALOG_SETTINGS_PREFIX}broken`;
+  await db.insert(settings).values({ key: broken, value: sql`${NOT_JSON}`, updatedAt: 1 });
+  expect(await kv.read(broken)).toEqual(new UnreadableJsonText(NOT_JSON));
 });

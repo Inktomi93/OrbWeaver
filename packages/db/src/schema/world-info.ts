@@ -30,9 +30,10 @@
 import type { EntryMetadata } from "@orb/contracts/world-info";
 import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -108,7 +109,7 @@ export const worldEntries = sqliteTable(
     // The typed per-entry blob (`EntryMetadata`): { scopeMode?, position?, inject? {depth, role?} } + any
     // preserved unknown ST keys. NOT columns — read at the `@orb/db/query` seam / the `@orb/kit/world-info`
     // resolvers, never trusted raw.
-    metadata: text("metadata", { mode: "json" }).$type<EntryMetadata>(),
+    metadata: storedJsonText("metadata").$type<EntryMetadata | UnreadableJsonText>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // The EDITED stamp (the regex_scripts X-16 precedent — see `worldBooks.updatedAt`'s comment).
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),

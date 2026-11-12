@@ -2,6 +2,7 @@
 // because every caller builds the next blob from a read that degrades such a blob to defaults. The read names the
 // failure so the settings pane offers its repair door, and that door works.
 // @subject packages/server/src/domain/settings/persistence/queries.ts
+// @subject packages/server/src/domain/settings/verbs/export-user-settings.ts
 // @subject packages/db/src/custom-types/index.ts
 import { APP_SETTINGS_SCHEMA_VERSION, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
@@ -90,3 +91,27 @@ test.for(APP_CORRUPTIONS)("an app settings write refuses a %s override row and l
   await expect(write()).rejects.toMatchObject({ code: STORED_CONFIG_UNREADABLE });
   expect(await stored()).toEqual(before);
 });
+
+test.for(USER_CORRUPTIONS)(
+  "the settings backup export refuses a %s blob instead of writing defaults as the user's settings",
+  async (corruption, { harness }) => {
+    const principal = await harness.principalFor(harness.ownerId);
+    await harness.services.settings.updateUserSettingsSection({ principal, input: { section: "profile", patch: { flankCollapsed: true } } });
+    const descriptor = harness.app.portability.find((entity) => entity.kind === "user-settings");
+    if (descriptor === undefined) {
+      throw new Error("the production graph omitted the user-settings portability descriptor");
+    }
+    const exportAll = async (): Promise<number> => {
+      let files = 0;
+      for await (const _file of descriptor.exportAll(harness.ownerId)) {
+        files += 1;
+      }
+      return files;
+    };
+    // Positive control: the intact blob exports.
+    expect(await exportAll()).toBe(1);
+
+    await CORRUPTIONS[corruption].plant(harness, harness.ownerId);
+    await expect(exportAll()).rejects.toMatchObject({ code: STORED_CONFIG_UNREADABLE });
+  },
+);

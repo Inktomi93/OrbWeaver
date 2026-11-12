@@ -6,6 +6,7 @@ import type { PortableFile } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput, ExportWorldBook } from "@orb/contracts/world-info";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildWorldBookFile } from "#primitives/serde/world-info";
 import type { WorldInfoExportContext } from "../contract/export.ts";
@@ -32,8 +33,9 @@ export function createExportWorldBook(input: DbAssemblyInput<WorldInfoExportCont
         enabled: e.enabled,
         priority: e.priority,
         ignoreBudget: e.ignoreBudget,
-        // The lossless stored blob (typed `EntryMetadata` at the DB seam) rides through as the raw record.
-        metadata: e.metadata ?? null,
+        // The lossless stored blob (typed `EntryMetadata` at the DB seam) rides through as the raw record; stored text
+        // that is not JSON leaves as none, as the entry view reads it.
+        metadata: e.metadata instanceof UnreadableJsonText ? null : e.metadata,
       })),
     };
     return {

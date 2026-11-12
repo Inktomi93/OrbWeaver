@@ -1,7 +1,9 @@
 // A preset whose stored config text is not JSON reads as unreadable, with the reset door, instead of throwing: the
 // config column carries the text whole, the read names `not-json`, the guarded config write refuses and keeps the
-// bytes, and reset repairs the row.
+// bytes, and reset repairs the row. The backup export refuses it too, rather than writing the default config as the
+// user's preset.
 // @subject packages/server/src/domain/preset/persistence/queries.ts
+// @subject packages/server/src/domain/preset/verbs/export.ts
 // @subject packages/db/src/custom-types/index.ts
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
@@ -42,4 +44,28 @@ test("a preset holding text that is not JSON reads as unreadable, refuses a conf
   const reset = await harness.services.preset.resetToDefault({ userId, id: created.id });
   expect(reset.configUnreadable).toBeNull();
   expect(await stored()).not.toEqual(before);
+});
+
+test("the preset backup export refuses a preset holding text that is not JSON instead of writing the default config", async ({ harness }) => {
+  const userId = harness.ownerId;
+  const created = await harness.services.preset.create({ userId, name: "Kept", kind: "chat", config: DEFAULT_PROMPT_CONFIG });
+  const descriptor = harness.app.portability.find((entity) => entity.kind === "preset");
+  if (descriptor === undefined) {
+    throw new Error("the production graph omitted the preset portability descriptor");
+  }
+  const exportAll = async (): Promise<number> => {
+    let files = 0;
+    for await (const _file of descriptor.exportAll(userId)) {
+      files += 1;
+    }
+    return files;
+  };
+  // Positive control: the readable preset exports.
+  expect(await exportAll()).toBe(1);
+
+  await harness.db
+    .update(presets)
+    .set({ config: sql`${NOT_JSON}` })
+    .where(eq(presets.id, created.id));
+  await expect(exportAll()).rejects.toMatchObject({ code: STORED_CONFIG_UNREADABLE });
 });

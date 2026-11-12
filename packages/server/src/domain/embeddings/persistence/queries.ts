@@ -41,6 +41,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
@@ -120,8 +121,11 @@ export async function existingCaptionedRow(db: Db, assetId: AssetId, generationI
     .where(and(eq(imageEmbeddings.assetId, assetId), eq(imageEmbeddings.generationId, generationId), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS)))
     .limit(LIMIT_ONE);
   const row = rows[0];
-  // Provenance-only (`{model}`) is NOT a breakdown — any other key means the analysis ran.
-  return row === undefined ? undefined : { hash: row.hash, hasFacets: row.captionMeta !== null && Object.keys(row.captionMeta).some((key) => key !== "model") };
+  // Provenance-only (`{model}`) is NOT a breakdown — any other key means the analysis ran. Stored text that is not
+  // JSON holds no breakdown, so the analysis runs again and replaces it.
+  const meta = row?.captionMeta;
+  const hasFacets = meta !== null && meta !== undefined && !(meta instanceof UnreadableJsonText) && Object.keys(meta).some((key) => key !== "model");
+  return row === undefined ? undefined : { hash: row.hash, hasFacets };
 }
 
 /** Is this asset recorded in the admission-floor skip-log? Both admission paths (on-write + bulk sweep) read

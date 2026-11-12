@@ -15,6 +15,7 @@ import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import { UnreadableJsonText } from "@orb/kit/json";
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
@@ -42,7 +43,9 @@ export function toEntryView(row: EntryRow): EntryView {
     enabled: row.enabled,
     priority: row.priority,
     ignoreBudget: row.ignoreBudget,
-    metadata: entryMetadataSchema.nullable().catch(null).parse(row.metadata),
+    // Stored text that is not JSON degrades like a blob out of shape; it is tested first because the open schema would
+    // admit the marker's own `text` key as metadata.
+    metadata: row.metadata instanceof UnreadableJsonText ? null : entryMetadataSchema.nullable().catch(null).parse(row.metadata),
   };
 }
 

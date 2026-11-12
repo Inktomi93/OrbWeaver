@@ -49,6 +49,7 @@ import type {
   RpgParticipantActor,
   RpgRecordedToolCall,
   RpgRevealView,
+  RpgSheet,
   RpgSnapshotState,
   RpgStateRoundOverflow,
   RpgToolCall,
@@ -164,7 +165,9 @@ export type TurnWriteFoldOutcome =
   | { readonly kind: "refused"; readonly headId: RpgSnapshotId; readonly reason: string }
   | { readonly kind: "shadowed"; readonly headId: RpgSnapshotId; readonly reason: string };
 
-export type RpgSheetRow = typeof rpgSheets.$inferSelect;
+/** A sheet row as the persistence read returns it: its `sheet` parsed, so stored text that is not a sheet never reaches a
+ *  verb (the read refuses it with `RpgStateCorruptError`). */
+export type RpgSheetRow = Omit<typeof rpgSheets.$inferSelect, "sheet"> & { readonly sheet: RpgSheet };
 
 export type RpgJournalRow = typeof rpgJournal.$inferSelect;
 export type NewRpgJournal = typeof rpgJournal.$inferInsert;

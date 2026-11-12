@@ -27,7 +27,7 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
@@ -83,7 +83,7 @@ export const themes = sqliteTable(
     name: nulFreeText("name").notNull(),
     // The D294 Tier-A token-override value-set. Parsed LENIENTLY at the read seam via `themeOverrideSchema`
     // (@orb/contracts/theme) — a corrupt blob degrades to defaults there, never here.
-    override: text("override", { mode: "json" }).$type<ThemeOverride>().notNull(),
+    override: storedJsonText("override").$type<ThemeOverride | UnreadableJsonText>().notNull(),
     // Optional self-authored custom CSS (§12.1 Tier-B / global-owner tier — validated at the write
     // boundary via `@orb/kit/css-validate`). NULL on seeds.
     css: nulFreeText("css"),

@@ -63,9 +63,10 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
+import type { UnreadableJsonText } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText, vector32 } from "../custom-types/index.ts";
+import { nulFreeText, storedJsonText, vector32 } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -287,7 +288,7 @@ export const imageAnalyses = sqliteTable("image_analyses", {
   caption: nulFreeText("caption").notNull(),
   // A vector pins this accepted Utility result; a newer result refuses an older encoder completion.
   revision: integer("revision").notNull().default(1),
-  captionMeta: text("caption_meta", { mode: "json" }).$type<ImageCaptionMeta>().notNull(),
+  captionMeta: storedJsonText("caption_meta").$type<ImageCaptionMeta | UnreadableJsonText>().notNull(),
   createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
 
