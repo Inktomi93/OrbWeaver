@@ -13,20 +13,20 @@ import { PLUGIN_BROKER_MESSAGE_MAX_BYTES } from "./process-protocol.ts";
 const GENERATION_MIN_CHARS = 16;
 
 type IpcFrame = Extract<PluginIpcMessage, { readonly kind: "frame" }>;
-/** A frame a plugin sized, with the runtime whose share it uses. */
+/** A frame a plugin sized, with the share it uses. */
 export type RoutedIpcFrame = IpcFrame & { readonly route: PluginFrameRoute };
 
 function parseRoute(value: unknown): PluginFrameRoute | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
-  const runtimeId: unknown = Reflect.get(value, "runtimeId");
+  const share: unknown = Reflect.get(value, "share");
   const refusal: unknown = Reflect.get(value, "refusal");
-  if (typeof runtimeId !== "string" || runtimeId.length === 0) {
+  if (typeof share !== "string" || share.length === 0) {
     return null;
   }
   if (refusal === undefined) {
-    return { runtimeId };
+    return { share };
   }
   if (typeof refusal !== "object" || refusal === null) {
     return null;
@@ -34,7 +34,7 @@ function parseRoute(value: unknown): PluginFrameRoute | null {
   const frame: unknown = Reflect.get(refusal, "frame");
   const back: unknown = Reflect.get(refusal, "back");
   return typeof frame === "string" && Buffer.byteLength(frame, "utf8") <= PLUGIN_IPC_REFUSAL_MAX_BYTES && typeof back === "boolean"
-    ? { runtimeId, refusal: { frame, back } }
+    ? { share, refusal: { frame, back } }
     : null;
 }
 
@@ -76,10 +76,38 @@ export function parsePluginIpcMessage(value: unknown): PluginIpcMessage | null {
   return null;
 }
 
-/** Bound bytes retained in Node's IPC write queue until each send completes, in total and per plugin runtime. */
+/** Each live plugin runtime's share of every queue its process sends on (D348): the lowest share no live runtime holds.
+ *  A runtime that replaces another takes the share the replaced runtime's still-queued bytes are charged to, so those
+ *  bytes take that share's room alone until they drain, never a bystander's. A process holds at most its Worker count of
+ *  live runtimes, so the shares in use never pass it. */
+export class PluginIpcShares {
+  private readonly held = new Map<string, string>();
+
+  acquire(runtimeId: string): string {
+    const taken = new Set(this.held.values());
+    let index = 0;
+    while (taken.has(String(index))) {
+      index += 1;
+    }
+    const share = String(index);
+    this.held.set(runtimeId, share);
+    return share;
+  }
+
+  /** The share a live runtime holds; none once it is released. */
+  of(runtimeId: string): string | undefined {
+    return this.held.get(runtimeId);
+  }
+
+  release(runtimeId: string): void {
+    this.held.delete(runtimeId);
+  }
+}
+
+/** Bound bytes retained in Node's IPC write queue until each send completes, in total and per share. */
 export class PluginIpcSender {
   private pendingBytes = 0;
-  private readonly pendingByRuntime = new Map<string, number>();
+  private readonly pendingByShare = new Map<string, number>();
   private closed = false;
   private readonly deliver: PluginIpcSend;
   private readonly fail: (error: Error) => void;
@@ -104,13 +132,13 @@ export class PluginIpcSender {
     this.write(message, bytes, undefined);
   }
 
-  /** Queue a frame a plugin sized on its runtime's share. False, with the channel left open, when the frame, the
-   *  runtime's share or the queue short of its control headroom would pass its bound: the caller refuses that frame. */
+  /** Queue a frame a plugin sized on its share. False, with the channel left open, when the frame, the share or the
+   *  queue short of its control headroom would pass its bound: the caller refuses that frame. */
   offer(message: RoutedIpcFrame): boolean {
     this.assertOpen();
     const bytes = Buffer.byteLength(JSON.stringify(message), "utf8");
-    const runtimeId = message.route.runtimeId;
-    const held = this.pendingByRuntime.get(runtimeId) ?? 0;
+    const share = message.route.share;
+    const held = this.pendingByShare.get(share) ?? 0;
     if (
       parsePluginIpcMessage(message) === null ||
       this.pendingBytes + bytes > PLUGIN_IPC_QUEUE_MAX_BYTES - PLUGIN_IPC_CONTROL_HEADROOM_BYTES ||
@@ -118,8 +146,8 @@ export class PluginIpcSender {
     ) {
       return false;
     }
-    this.pendingByRuntime.set(runtimeId, held + bytes);
-    this.write(message, bytes, runtimeId);
+    this.pendingByShare.set(share, held + bytes);
+    this.write(message, bytes, share);
     return true;
   }
 
@@ -133,31 +161,31 @@ export class PluginIpcSender {
     }
   }
 
-  private release(bytes: number, runtimeId: string | undefined): void {
+  private release(bytes: number, share: string | undefined): void {
     this.pendingBytes -= bytes;
-    if (runtimeId === undefined) {
+    if (share === undefined) {
       return;
     }
-    const held = (this.pendingByRuntime.get(runtimeId) ?? bytes) - bytes;
+    const held = (this.pendingByShare.get(share) ?? bytes) - bytes;
     if (held > 0) {
-      this.pendingByRuntime.set(runtimeId, held);
+      this.pendingByShare.set(share, held);
     } else {
-      this.pendingByRuntime.delete(runtimeId);
+      this.pendingByShare.delete(share);
     }
   }
 
-  private write(message: PluginIpcMessage, bytes: number, runtimeId: string | undefined): void {
+  private write(message: PluginIpcMessage, bytes: number, share: string | undefined): void {
     this.pendingBytes += bytes;
     try {
       this.deliver(message, (error) => {
-        this.release(bytes, runtimeId);
+        this.release(bytes, share);
         if (error !== null && !this.closed) {
           this.close();
           this.fail(error);
         }
       });
     } catch (error) {
-      this.release(bytes, runtimeId);
+      this.release(bytes, share);
       this.close();
       const failure = error instanceof Error ? error : new Error("plugin broker: inherited channel write failed");
       this.fail(failure);

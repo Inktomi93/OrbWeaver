@@ -70,7 +70,7 @@ import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, CreateLogicalInstanceInputIn, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
-import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
+import { PluginIpcSender, PluginIpcShares, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
 import {
   channelFullBridgeResult,
@@ -80,6 +80,7 @@ import {
   PLUGIN_CHANNEL_FULL,
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
+  PLUGIN_STALE_RUNTIME,
   parseBrokerParentMessage,
   parseMessageLine,
   rpcError,
@@ -106,7 +107,7 @@ type BindingLifetime =
     };
 
 type Binding = BindingLifetime & {
-  readonly registry: Map<string, Binding>;
+  readonly registry: RuntimeRegistry;
   /** Whose share of the Workers this binding's runtime draws on. */
   readonly owner: UserId;
   readonly timers: TimerScheduler;
@@ -291,8 +292,41 @@ function createLiveness(): MutableLiveness {
   };
 }
 
+// The app's live runtimes by id, each holding its share of the queues the app sends on from registration until it is
+// forgotten (D348).
+class RuntimeRegistry {
+  private readonly bindings = new Map<string, Binding>();
+  private readonly shares = new PluginIpcShares();
+
+  get(runtimeId: string): Binding | undefined {
+    return this.bindings.get(runtimeId);
+  }
+
+  shareOf(runtimeId: string): string | undefined {
+    return this.shares.of(runtimeId);
+  }
+
+  set(runtimeId: string, binding: Binding): void {
+    this.bindings.set(runtimeId, binding);
+    this.shares.acquire(runtimeId);
+  }
+
+  delete(runtimeId: string): void {
+    this.bindings.delete(runtimeId);
+    this.shares.release(runtimeId);
+  }
+
+  values(): MapIterator<Binding> {
+    return this.bindings.values();
+  }
+
+  [Symbol.iterator](): MapIterator<[string, Binding]> {
+    return this.bindings.entries();
+  }
+}
+
 class BrokerClient {
-  readonly bindings = new Map<string, Binding>();
+  readonly bindings = new RuntimeRegistry();
   readonly logicalBindings = new Set<Binding>();
   private readonly seams: PluginHostSeamDeps;
   private readonly timers: TimerScheduler;
@@ -432,14 +466,19 @@ class BrokerClient {
       try {
         // A dispose is the host's own small frame; every other command carries a value its plugin sized, so it takes its
         // runtime's share and a full channel refuses that command alone, as host-unavailable.
+        const share = this.bindings.shareOf(runtimeId);
         if (operation === "dispose") {
           sender.send({ kind: "frame", generation, frame: serialized });
+        } else if (share === undefined) {
+          // Forgotten while the connection was awaited: the broker would refuse it as a stale runtime.
+          this.settleCommand(id);
+          reject(new PluginHostUnavailableError(PLUGIN_STALE_RUNTIME));
         } else if (
           !sender.offer({
             kind: "frame",
             generation,
             frame: serialized,
-            route: { runtimeId, refusal: { frame: serializeMessage(channelFullResponse(id)), back: true } },
+            route: { share, refusal: { frame: serializeMessage(channelFullResponse(id)), back: true } },
           })
         ) {
           this.settleCommand(id);
@@ -890,7 +929,8 @@ class BrokerClient {
   }
 
   // A host result goes on its plugin's runtime share. One that does not fit is refused, never held: the plugin may
-  // retry, and the parent keeps no result a plugin cannot take.
+  // retry, and the parent keeps no result a plugin cannot take. A runtime already forgotten holds no share, so its
+  // result is refused the same way and the broker still hears an answer.
   private sendBridgeResult(runtimeId: string, id: string, result: RpcResult): void {
     const sender = this.sender;
     const generation = this.generation;
@@ -900,7 +940,8 @@ class BrokerClient {
     try {
       const frame = serializeMessage({ kind: "bridge-result", id, ...result });
       const refused = serializeMessage(channelFullBridgeResult(id));
-      if (!sender.offer({ kind: "frame", generation, frame, route: { runtimeId, refusal: { frame: refused, back: false } } })) {
+      const share = this.bindings.shareOf(runtimeId);
+      if (share === undefined || !sender.offer({ kind: "frame", generation, frame, route: { share, refusal: { frame: refused, back: false } } })) {
         sender.send({ kind: "frame", generation, frame: refused });
       }
       // an oversized or unserializable host result is replaced by a bridge-result frame carrying rpcError(serializationError); the failure of that fallback is owned by the inner channelError catch. Ends if the fallback frame stops carrying the error.
