@@ -126,7 +126,8 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
     .strip(),
   // A host-offline DEFERRED AI turn (chat `pending_turns`, Part III §5) that a drain PERMANENTLY dropped —
   // delivered to the frozen `triggeredBy` member so their owed reply never silently vanishes. `reason`:
-  // `consent` (the host's D17 consent belt refused the by-proxy hosted turn) | `chat-gone` (the room is gone).
+  // `consent` (the turn's frozen host is outside the room's consent set at drain time: disabled, or no longer
+  // present) | `chat-gone` (the room, or its host seat, is gone).
   // A budget/transient drain outcome RE-QUEUES (no notification), so this is only the terminal-verdict path.
   z
     .object({
