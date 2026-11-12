@@ -26,8 +26,7 @@
  *  shape was a measured P0 — a reveal-swapped Badge reflowing the title line under a stationary pointer,
  *  ~85 hover crossings/sec, `preset-library-row.tsx`'s O-1 header), and nothing enters or leaves the row's
  *  layout. The state's readout is the filled dot plus its `role="radio"`/`aria-checked` pair, which is a
- *  reading AT gets in words; and activation now ANNOUNCES itself (`active-preset-notice.ts`), which is where
- *  the words the eye needs went. */
+ *  reading AT gets in words, and the pressed radio stays focused and flips to checked in place. */
 export function presetRowSubtitle(
   { kind, updatedAt, forkedFromName }: { kind: string; updatedAt: number; forkedFromName: string | null },
   formatRelative: (epochMs: number) => string,

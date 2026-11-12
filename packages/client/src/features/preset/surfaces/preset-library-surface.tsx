@@ -40,7 +40,6 @@ import {
 } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
-import { notifyActivePreset } from "../lib/active-preset-notice.ts";
 import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
@@ -140,18 +139,13 @@ function PresetList({
   // null pick — the seed stores "no explicit preset", not the system row's sentinel id, so the runner keeps
   // resolving the shared default even if that row is ever re-seeded.
   //
-  // IT ANNOUNCES ON SUCCESS (#481): the write is what changes every future generation, so the confirmation
-  // rides the SETTLED write, never the intent. `notifyActivePreset` is the one home for the sentence — the
-  // editor header's Activate calls the same function.
+  // NO TOAST: the pressed radio stays mounted, keeps focus and reads checked, so the result is in sight.
   const onActivate = (id: PresetId): void => {
     const preset = presets.find((p) => p.id === id);
     if (preset === undefined) {
       return;
     }
-    setDefault.mutate(
-      { section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : id } },
-      { onSuccess: (): void => notifyActivePreset(preset.name) },
-    );
+    setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : id } });
   };
 
   // G6 export: the CACHED detail row → `buildPresetFile` → a browser download. Same bytes as the bundle arm.

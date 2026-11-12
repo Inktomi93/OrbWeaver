@@ -27,6 +27,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog, DetailHeader, EditorPage, Tip } from "#components";
 import { AutosaveStatus } from "#forms/editor";
+import { useFocusOnSwap } from "#lib";
 import { PRESET_ACTIVATE_NAME, PRESET_RESET_ARRANGEMENT_NAME, PRESET_RESET_ARRANGEMENT_TITLE, PRESET_SECTIONS_NAME } from "../lib/preset-names.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
@@ -40,8 +41,9 @@ export interface PresetEditorHeaderProps {
   readonly active: boolean;
   /** The locked built-in: no Export (it re-seeds on the target box), no Reset (it IS the starter). */
   readonly isSystemDefault: boolean;
-  /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
-  readonly onActivate: () => void;
+  /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). `onLanded` runs when the write
+   *  succeeds, so the header can hand focus to the status that replaces the pressed button. */
+  readonly onActivate: (onLanded: () => void) => void;
   /** Commit a new name — the `preset.update {id, name}` name-only write. This is the verb's ONLY caller
    *  (the list-row kebab carries no Rename; see the door below).
    *  The DIALOG lives here with its door (the reset door's own posture); the WRITE is the surface's. */
@@ -74,6 +76,20 @@ export function PresetEditorHeader({
 
   const [resetOpen, setResetOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+
+  // Activate unmounts when the write lands, so the press would leave focus on <body>: the status that now states the result takes
+  // it. Only a landed press from this header asks for that, never another door's activation and never a cold open of an
+  // active preset; the ask ends when the preset stops being the pick.
+  const statusRef = useRef<HTMLSpanElement>(null);
+  const [landedHere, setLandedHere] = useState(false);
+  const [wasActive, setWasActive] = useState(active);
+  if (wasActive !== active) {
+    setWasActive(active);
+    if (!active) {
+      setLandedHere(false);
+    }
+  }
+  useFocusOnSwap(statusRef, landedHere && active);
 
   return (
     <>
@@ -125,7 +141,8 @@ export function PresetEditorHeader({
                       the `soft` style (rider 1 / side-eye F-06): a SOLID ember chip carried the same fill as the
                       pane's one primary CTA, so a status read as a second call to action. */}
                   {active ? (
-                    <Badge tone="primary" size="sm">
+                    // `role="status"` names the result to AT when focus lands on it; `tabIndex={-1}` makes it a focus target, not a tab stop.
+                    <Badge ref={statusRef} role="status" size="sm" tabIndex={-1} tone="primary">
                       Active
                     </Badge>
                   ) : (
@@ -138,7 +155,13 @@ export function PresetEditorHeader({
                     // THE NAME LEADS WITH THE VISIBLE WORD (WCAG 2.5.3 label-in-name): a control reading
                     // "Activate" whose name lacks that word is unaddressable by speech. Visible word first, then the editor-voice gloss that keeps it distinct
                     // from the list's radio.
-                    <Button aria-label={PRESET_ACTIVATE_NAME} variant="ghost" onClick={onActivate} size="sm" type="button">
+                    <Button
+                      aria-label={PRESET_ACTIVATE_NAME}
+                      variant="ghost"
+                      onClick={(): void => onActivate((): void => setLandedHere(true))}
+                      size="sm"
+                      type="button"
+                    >
                       <Icon icon={Zap} size="sm" />
                       Activate
                     </Button>
