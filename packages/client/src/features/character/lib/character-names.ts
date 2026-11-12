@@ -4,6 +4,58 @@
 /** The create dialog's title and the compact band button's name. */
 export const CHARACTER_NEW_NAME = "New character";
 
+/** The band's worded create door; the band's kicker supplies "characters". */
+export const CHARACTER_NEW_SHORT_LABEL = "New";
+
+/** The Context pane's header tablist, named for the artifact. */
+export const CHARACTER_CONTEXT_TABLIST_NAME = "Character";
+
+/** The context pane's overview card and drilled facet tab. */
+export const CHARACTER_OVERVIEW_TAB_LABEL = "Overview";
+
+/** The context pane's appearance tab. */
+export const CHARACTER_LOOK_TAB_LABEL = "Look";
+
+/** The context pane's card trust tab. */
+export const CHARACTER_TRUST_TAB_LABEL = "Trust";
+
+/** WHAT THE CLOSED DISCLOSURE OPENS (#519, side-eye se-verify-1) — the CONTENTS, not the act.
+ *
+ *  Collapsed, this group renders `FILTERS`, one text control and a datum, and the control said "More
+ *  filters": a cold first-timer got no signal that Favorites, Archived, or a 551-entry tag vocabulary exist
+ *  at all behind it (Nielsen #6, recognition over recall). Naming the three things is the cheapest possible
+ *  fix and costs one rail cell's width — measured against the ratified 264px resting chrome fence in the
+ *  surface CT, because a wider cell is a wrap risk at the 307px docked width. The OPEN arm keeps "Fewer
+ *  filters": once the vocabulary is on screen, the contents are the thing you can already see, and the
+ *  control's only remaining job is to say how to put it away. */
+export const CHARACTER_FILTERS_CLOSED_LABEL = "Favorites, archived & tags";
+
+/** THE SAME PROMISE, MINUS THE TAGS (side-eye 2026-09-02 nit 15, #1139). The label above names three things
+ *  a first-timer cannot otherwise know exist — but on a library whose tag vocabulary is EMPTY the third one
+ *  is not there, so both arms of the control were advertising a payload the disclosure could not deliver
+ *  ("show more filters" opened two switches; "hide the tag vocabulary" hid nothing). An empty state is
+ *  load-bearing: the honest label names what IS behind the door and says the tag vocabulary has not started
+ *  yet, which is a fact a reader can act on (tag something) rather than a promise they will find broken. */
+export const CHARACTER_FILTERS_CLOSED_LABEL_NO_TAGS = "Favorites & archived";
+
+/** The filter disclosure's open label. */
+export const CHARACTER_FEWER_FILTERS_LABEL = "Fewer filters";
+
+/** The open disclosure's name, which says what closing it puts away. */
+export function characterFiltersOpenName(hasTags: boolean): string {
+  return hasTags ? "Fewer filters: hide the tag vocabulary" : "Fewer filters: hide the filter options";
+}
+
+/** The closed disclosure's name: its visible label, then what opening it does. */
+export function characterFiltersClosedName(closedLabel: string, noTagsYet: boolean): string {
+  return noTagsYet ? `${closedLabel}: show more filters, no tags yet` : `${closedLabel}: show more filters`;
+}
+
+/** The filter rail's door to the tags that do not fit, by how many are hidden. */
+export function characterShowMoreTagsName(count: string): string {
+  return `Show ${count} more tags`;
+}
+
 /** The band's icon-only door to the import dialog, and that dialog's name. */
 export const CHARACTER_IMPORT_NAME = "Import a character card";
 

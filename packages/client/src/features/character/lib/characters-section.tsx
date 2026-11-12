@@ -41,7 +41,15 @@ import { useCharacterContextResetKeys, useCharacterContextState } from "../hooks
 import { useCharactersListHeader } from "../hooks/use-characters-list-header.tsx";
 import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
 import { CHARACTER_CHATS_TAB_ID } from "./character-chat-intents.ts";
-import { CHARACTER_CHATS_TAB_LABEL, CHARACTER_HISTORY_TAB_LABEL, CHARACTER_LINKS_TAB_LABEL } from "./character-names.ts";
+import {
+  CHARACTER_CHATS_TAB_LABEL,
+  CHARACTER_CONTEXT_TABLIST_NAME,
+  CHARACTER_HISTORY_TAB_LABEL,
+  CHARACTER_LINKS_TAB_LABEL,
+  CHARACTER_LOOK_TAB_LABEL,
+  CHARACTER_OVERVIEW_TAB_LABEL,
+  CHARACTER_TRUST_TAB_LABEL,
+} from "./character-names.ts";
 import { useCharactersSelectionTitle } from "./character-selection-title.ts";
 import { CHARACTERS_SECTION_LABEL } from "./characters-section-label.ts";
 
@@ -93,11 +101,11 @@ export function makeCharactersSection(
       // context bracket's band slot — the pane's identity, under its header tab strip.
       header: (s) => <CharacterContextBand characterId={s.characterId} />,
       // The header tablist's name — the artifact noun, carried as its a11y group name.
-      railLabel: "Character",
+      railLabel: CHARACTER_CONTEXT_TABLIST_NAME,
       tabs: [
         {
           id: "overview",
-          label: "Overview",
+          label: CHARACTER_OVERVIEW_TAB_LABEL,
           icon: IdCard,
           body: (s) => <CharacterFacetInspector characterId={s.characterId} />,
         },
@@ -115,7 +123,7 @@ export function makeCharactersSection(
         },
         {
           id: "look",
-          label: "Look",
+          label: CHARACTER_LOOK_TAB_LABEL,
           icon: Palette,
           body: (s) => <CharacterLookTab characterId={s.characterId} />,
         },
@@ -127,7 +135,7 @@ export function makeCharactersSection(
         },
         {
           id: "trust",
-          label: "Trust",
+          label: CHARACTER_TRUST_TAB_LABEL,
           icon: Shield,
           body: (s) => <CharacterTrustTab characterId={s.characterId} />,
         },

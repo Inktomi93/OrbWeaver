@@ -35,6 +35,7 @@ import {
   PERSONA_FROM_CARD_NAME,
   PERSONA_NAME_FIELD_NAME,
   PERSONA_TITLE_FIELD_NAME,
+  personaEditName,
 } from "../lib/persona-copy.ts";
 import type { PersonaFormValues, PersonaWireMetadata } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
@@ -98,7 +99,7 @@ export function PersonaEditorRegion({ persona, subject, onDelete, nextDefaultNam
     }
   }, [request, persona.id]);
   return (
-    <Card aria-label={`Edit ${subject}`} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
+    <Card aria-label={personaEditName(subject)} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
       <PersonaEditor persona={persona} onDelete={onDelete} nextDefaultName={nextDefaultName} />
     </Card>
   );

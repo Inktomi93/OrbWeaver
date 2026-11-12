@@ -26,6 +26,7 @@ import type { Trpc } from "#data";
 import { rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openPersonaEditor } from "#state";
+import { personaEditName } from "../lib/persona-copy.ts";
 import { PersonaCardPin } from "./persona-card-pin.tsx";
 import { PersonaClearDefaultItem } from "./persona-clear-default-item.tsx";
 import { PersonaCrown } from "./persona-crown.tsx";
@@ -275,7 +276,7 @@ function EditDoor({
   readonly presentation: ChromePresentation;
   readonly tabIndex: -1 | undefined;
 }): ReactElement {
-  const label = `Edit ${subject}`;
+  const label = personaEditName(subject);
   const door = (
     <Button
       aria-label={label}
