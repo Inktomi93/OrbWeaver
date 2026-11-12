@@ -1,4 +1,6 @@
 // D332 joins actual room work before authority moves; normal admissions remain concurrent.
+// A husk reap closes only an idle room, never waits, and holds it closed just for its delete (D166), so it
+// cannot delete a room under admitted work such as a first send that has not claimed yet.
 import type { ChatId } from "@orb/kit/ids";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { HandoffBarrier, HandoffReservation } from "../contract/handoff-barrier.ts";
@@ -11,7 +13,7 @@ interface RoomWork {
 
 /** A request that observed closure never waits and rebinds to the recipient's authority. */
 export function refuseHandoffAdmission(): never {
-  throw new ChatOperationError(CHAT_OP_CODES.locked, "host handoff is settling this room; try the request again");
+  throw new ChatOperationError(CHAT_OP_CODES.locked, "this room is settling a host handoff or its removal; try the request again");
 }
 
 /** Construct the chat graph's transition barrier, not a database or cross-replica lock. */
@@ -53,6 +55,17 @@ export function createHandoffBarrier(): HandoffBarrier {
     const room = roomFor(chatId);
     return room.closed ? null : { [Symbol.dispose]: retain(chatId, room) };
   };
+  const closeRoom = (chatId: ChatId, room: RoomWork): (() => void) => {
+    room.closed = true;
+    let released = false;
+    return (): void => {
+      if (!released) {
+        released = true;
+        room.closed = false;
+        retire(chatId, room);
+      }
+    };
+  };
   return {
     tryEnter,
     close: (chatId): HandoffReservation => {
@@ -60,22 +73,21 @@ export function createHandoffBarrier(): HandoffBarrier {
       if (room.closed) {
         throw new ChatOperationError(CHAT_OP_CODES.locked, "host handoff is already settling this room; accept it again");
       }
-      room.closed = true;
-      let released = false;
       return {
         settle: async (): Promise<void> => {
           while (room.count > 0) {
             await new Promise<void>((resolve) => room.idle.add(resolve));
           }
         },
-        [Symbol.dispose](): void {
-          if (!released) {
-            released = true;
-            room.closed = false;
-            retire(chatId, room);
-          }
-        },
+        [Symbol.dispose]: closeRoom(chatId, room),
       };
+    },
+    tryCloseIdle: (chatId): Disposable | null => {
+      const room = roomFor(chatId);
+      if (room.closed || room.count > 0) {
+        return null;
+      }
+      return { [Symbol.dispose]: closeRoom(chatId, room) };
     },
     track: (chatId, work): void => {
       const release = retain(chatId, roomFor(chatId));

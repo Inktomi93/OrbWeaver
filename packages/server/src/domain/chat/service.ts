@@ -166,7 +166,7 @@ export function createChatService(
     resolveForeignInputs: deps.resolveForeignInputs,
   });
   const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews });
-  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat });
+  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat, admission });
   const participants = createParticipants(ctx, { emit: deps.emitChecked, claimChat });
   const admitted = createAdmittedChatOperations(ctx, {
     barrier: admission,
