@@ -35,6 +35,8 @@ for (const { textSize, width } of REGIMES) {
     await input.tap();
     await expect(input).toBeFocused();
     await expect(input).toHaveValue("4");
+    // The input is a touch control in its own right: its row is the step tall, not as tall as its text.
+    expect(await hitExtent(input, "y")).toBeGreaterThanOrEqual(floor);
 
     for (const name of STEPPER_NAMES) {
       const stepper = component.getByRole("button", { name, exact: true });
