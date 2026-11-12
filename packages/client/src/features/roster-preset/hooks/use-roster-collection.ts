@@ -37,7 +37,7 @@ export function useRosterInsights(): readonly CollectionInsight[] | undefined {
   }
   const withRules = rows.filter((roster) => roster.rules.length > 0);
   const first = withRules[0];
-  const newest = [...rows].sort((left, right) => right.updatedAt - left.updatedAt)[0];
+  const newest = rows.toSorted((left, right) => right.updatedAt - left.updatedAt)[0];
   return [
     {
       id: "with-rules",

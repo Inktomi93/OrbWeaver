@@ -121,7 +121,7 @@ test("the plugin authoring release counts commits from the SDK and toolchain and
     .filter((entry) => entry.isDirectory() && !AUTHORING_PACKAGES.includes(entry.name))
     .map((entry) => `packages/${entry.name}`)
     .sort();
-  expect([...config["exclude-paths"]].sort()).toEqual(others);
+  expect(config["exclude-paths"].toSorted()).toEqual(others);
   expect(config["extra-files"].map((file) => file.path).sort()).toEqual(AUTHORING_PACKAGES.map((name) => `${name}/package.json`));
 });
 

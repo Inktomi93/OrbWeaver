@@ -56,6 +56,7 @@ import { noTailRecorderReadRule } from "./test-recorders.ts";
 import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { textVoiceOnlyRule } from "./text-voices.ts";
+import { preferToSortedRule } from "./to-sorted.ts";
 import { trpcOutputKeysRule } from "./trpc-output.ts";
 import { trpcPayloadKeysRule } from "./trpc-payload.ts";
 import type { AppearanceVocabulary } from "./ui-appearance.ts";
@@ -292,6 +293,7 @@ export function createOrbPlugin(options: {
       "no-direct-row-writes": directRowWriteRule,
       "no-direct-row-reads": directRowReadRule,
       "no-context-returntype": contextReturnTypeRule,
+      "prefer-to-sorted": preferToSortedRule,
       "no-raw-id": rawIdRule,
       "closed-vocabulary": closedVocabularyRule,
       "no-query-state-ladder": queryStateLadderRule,

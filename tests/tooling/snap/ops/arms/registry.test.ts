@@ -226,8 +226,8 @@ test("the page-target class is exactly the arms that declared it (a @<page> suff
 });
 
 test("the optional-inline classes are entirely arm-owned, which is why they exist", () => {
-  expect([...OPTIONAL_SELECTOR_FLAGS].sort()).toEqual([...armFlagsOfKind("optional-selector")].sort());
-  expect([...OPTIONAL_VALUE_FLAGS].sort()).toEqual([...armFlagsOfKind("optional-value")].sort());
+  expect([...OPTIONAL_SELECTOR_FLAGS].sort()).toEqual(armFlagsOfKind("optional-selector").toSorted());
+  expect([...OPTIONAL_VALUE_FLAGS].sort()).toEqual(armFlagsOfKind("optional-value").toSorted());
   // `--requests /route` leaves the ROUTE alone; `--map .rail` swallows its selector.
   expect(parseSnapArgs(["--requests", "/chat"]).route).toBe("/chat");
   expect(parseSnapArgs(["/chats", "--map", ".rail"]).mapSelector).toBe(".rail");
@@ -284,5 +284,5 @@ test("the arm roster names every capability snap advertises as an arm", () => {
     // is its one spelling.
     "design-audit",
   ];
-  expect([...ARMS].sort()).toEqual(roster.toSorted());
+  expect(ARMS.toSorted()).toEqual(roster.toSorted());
 });

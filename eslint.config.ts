@@ -2388,6 +2388,20 @@ export default [
     rules: { "orb/commented-code": "error" },
   },
   {
+    // Every block above that carries type information; the rule asks the checker whether the copied operand is an array.
+    files: [
+      ...SOURCE,
+      ...NODE_TOOL_SOURCE,
+      "tests/**/*.{ts,tsx,mts,cts}",
+      "scripts/**/*.tsx",
+      "playwright/**/*.{ts,tsx}",
+      "packages/showcase-plugins/bundles/*/{main,ui,frame}.ts",
+    ],
+    ignores: ["**/*.d.{ts,mts,cts}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/prefer-to-sorted": "error" },
+  },
+  {
     files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
     plugins: { orb: localPlugin },
     rules: { "orb/enforcement-claim-cites-checker": "error" },

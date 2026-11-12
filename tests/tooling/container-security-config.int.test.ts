@@ -473,7 +473,7 @@ const COMPOSE_HARDENING: readonly (readonly [string, (service: Record<string, un
   ["tmpfs", (s): boolean => Array.isArray(s["tmpfs"]) && ["/tmp", "/app/.cache"].every((path) => (s["tmpfs"] as unknown[]).includes(path))],
   ["cap_drop", (s): boolean => JSON.stringify(s["cap_drop"]) === JSON.stringify(["ALL"])],
   // Exactly what the entrypoint's one-time chown and privilege drop use as root; nothing else comes back.
-  ["cap_add", (s): boolean => Array.isArray(s["cap_add"]) && [...(s["cap_add"] as string[])].sort().join() === "CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID"],
+  ["cap_add", (s): boolean => Array.isArray(s["cap_add"]) && (s["cap_add"] as string[]).toSorted().join() === "CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID"],
   ["security_opt", (s): boolean => Array.isArray(s["security_opt"]) && s["security_opt"].includes("no-new-privileges:true")],
   ["init", (s): boolean => s["init"] === true],
   ["restart", (s): boolean => s["restart"] === "unless-stopped"],

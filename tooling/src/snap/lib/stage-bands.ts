@@ -198,7 +198,7 @@ export function allocateStageBand(input: {
   readonly nowMs: number;
   readonly auth?: StageAuthMode;
 }): StageAllocation {
-  const ordered = [...input.views].sort((a, b) => a.band - b.band);
+  const ordered = input.views.toSorted((a, b) => a.band - b.band);
   const occupied = ordered.filter((view): view is StageBandView & { readonly row: StageRow } => view.row !== null);
   const auth = input.auth ?? "single-user";
 

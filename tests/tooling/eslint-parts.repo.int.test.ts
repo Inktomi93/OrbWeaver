@@ -77,5 +77,5 @@ test("the parts lint every file a whole-tree run lints, and no file twice", { ti
   const twice = linted.filter((file, index) => linted.indexOf(file) !== index);
   expect(whole.length).toBeGreaterThan(0);
   expect(twice).toEqual([]);
-  expect([...linted].sort()).toEqual([...whole].sort());
+  expect(linted.toSorted()).toEqual(whole.toSorted());
 });

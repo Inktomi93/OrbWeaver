@@ -959,7 +959,7 @@ function validateResolverSets(sets: JsonObject, diagnostics: TokenContractDiagno
   const expectedSets = ["base", "light", "mocha"] as const;
   const expectedSetRefs = { base: "./tokens.json", light: "./themes/light.json", mocha: "./themes/mocha.json" } as const;
   const themes: ThemeSet[] = [];
-  if (JSON.stringify(Object.keys(sets).sort()) !== JSON.stringify([...expectedSets].sort())) {
+  if (JSON.stringify(Object.keys(sets).sort()) !== JSON.stringify(expectedSets.toSorted())) {
     diagnostics.push(diagnostic("/sets", "resolver.sets", "bounded Resolver supports exactly base, light, and mocha sets"));
   }
   for (const key of expectedSets) {
