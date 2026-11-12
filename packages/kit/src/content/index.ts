@@ -50,6 +50,8 @@
 
 import type { AssetId } from "#ids";
 import { castId } from "#ids";
+import type { JsonValue } from "#json";
+import { parseJsonText } from "#json";
 import { speakerTagsToPlain } from "#speaker-label";
 import { isSpaceChar } from "#strings";
 
@@ -1111,6 +1113,33 @@ function scanHiddenLayer(text: string): LocatedHiddenSpan[] {
 export function stripHiddenSpans(content: string): { readonly content: string; readonly hadHidden: boolean } {
   const projected = projectHiddenSpans(content, []);
   return { content: projected.content, hadHidden: projected.hadHidden };
+}
+
+// Keys are stripped as well as values: a tool payload's keys are whatever the model wrote. Two keys that strip to one
+// name collapse, the later winning, as a repeated JSON key does.
+function stripHiddenInJsonValue(value: JsonValue): JsonValue {
+  if (typeof value === "string") {
+    return stripHiddenSpans(value).content;
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripHiddenInJsonValue);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [stripHiddenSpans(key).content, stripHiddenInJsonValue(entry)]));
+  }
+  return value;
+}
+
+/** The member bytes of one JSON text: decoded, every key and string value stripped with {@link stripHiddenSpans}, then
+ *  re-encoded. `undefined` when the text is not JSON; each caller decides what an unreadable payload shows.
+ *
+ *  @remarks Decoded first because a tag inside a JSON string has escaped quotes, which the strip reads as a broken tag
+ *  and conceals to the end of the text, so the result would no longer parse. SECURITY: always the re-encoding, never the
+ *  input text. A repeated key decodes to its last value, so a tag in a shadowed value, literal or escaped, is in the
+ *  text but not in the decode, and only the re-encoding drops it. */
+export function stripHiddenSpansInJsonText(text: string): string | undefined {
+  const decoded = parseJsonText(text);
+  return decoded === undefined ? undefined : JSON.stringify(stripHiddenInJsonValue(decoded));
 }
 
 /** How many passes the strip gives a body. SECURITY: removing a tag joins the bytes around it, and those bytes can spell a

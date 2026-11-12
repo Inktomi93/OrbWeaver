@@ -29,33 +29,19 @@
 
 import type { RpgRecordedToolCall, RpgToolCallDisclosure } from "@orb/contracts/rpg";
 import { parseToolCallArgs, projectIssueSentValue, RPG_STATE_ROUND_FAILED_SUMMARY } from "@orb/contracts/rpg";
-import { stripHiddenSpans } from "@orb/kit/content";
+import { stripHiddenSpansInJsonText } from "@orb/kit/content";
 import { stripHiddenDeep } from "./hidden-spans.ts";
 
-// KEYS ARE BELTED HERE, unlike `stripHiddenDeep`'s values-only walk: that walk spares keys because a state
-// plane's keys are ADDRESSES (`fieldLocks`), but a call's keys are whatever the model invented, so a hidden
-// span in one is model bytes like any value. Two keys that belt to one name collapse, the later winning, as a
-// repeated JSON key does.
-function stripHiddenKeysAndValues(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(stripHiddenKeysAndValues);
-  }
-  if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [stripHiddenSpans(key).content, stripHiddenKeysAndValues(entry)]));
-  }
-  return stripHiddenDeep(value);
-}
-
 /** One JSON payload with every key's and leaf string's hidden spans removed, re-encoded — or `null` when the
- *  input is not readable at all (the withhold arm; see the header).
+ *  input is not readable at all (the withhold arm; see the header). The strip is the kit's
+ *  `stripHiddenSpansInJsonText`, the one chat's member view takes; keys are stripped too, unlike `stripHiddenDeep`'s
+ *  values-only walk, because a call's keys are whatever the model invented.
  *
- *  The decode is `parseToolCallArgs`, the SAME one the fold's own drop verdict uses — not a second
- *  `JSON.parse` + catch here, which would be a second, differently-owned answer to "is this payload
- *  readable". Its `null` also covers a literal `null` payload, which is the same verdict: nothing to belt and
- *  nothing a reader can act on. */
+ *  The readable verdict is `parseToolCallArgs`, the SAME one the fold's own drop verdict uses, so the two never
+ *  disagree on "is this payload readable". Its `null` also covers a literal `null` payload, which is the same verdict:
+ *  nothing to strip and nothing a reader can act on. Chat's member view reads that payload as `null` instead. */
 function stripHiddenInJson(raw: string): string | null {
-  const parsed = parseToolCallArgs(raw);
-  return parsed === null ? null : JSON.stringify(stripHiddenKeysAndValues(parsed));
+  return parseToolCallArgs(raw) === null ? null : (stripHiddenSpansInJsonText(raw) ?? null);
 }
 
 /** One issue line with its model-SENT value re-rendered through the belt; a value that cannot be decoded
