@@ -102,12 +102,12 @@ async function openRoom(): Promise<Room & AsyncDisposable> {
   return { root, admin, host, chatId: room.chat.id, characterAvatar, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
-async function admit(room: Room, handle: string, visibility: "full" | "from-join"): Promise<Member> {
+async function admit(room: Room, handle: string, visibility: "full" | "from-join", chatId: ChatId = room.chatId): Promise<Member> {
   const signedIn = await signedInMember(room.root, castId<Handle>(handle));
   const guest = await room.root.principalFor(signedIn.id);
-  const invite = await seedChatInvite(room.root, { principal: room.host, chatId: room.chatId, input: { invitedHandle: guest.handle } });
+  const invite = await seedChatInvite(room.root, { principal: room.host, chatId, input: { invitedHandle: guest.handle } });
   await seedInvitedChatParticipant(room.root, { principal: guest, inviteId: invite.invite.id });
-  await room.root.services.chat.setMemberHistoryVisibility({ principal: room.host, chatId: room.chatId, userId: guest.userId, visibility });
+  await room.root.services.chat.setMemberHistoryVisibility({ principal: room.host, chatId, userId: guest.userId, visibility });
   return { principal: guest, cookie: signedIn.cookie };
 }
 
@@ -292,6 +292,23 @@ test("a departed member's persona and attachment art stops serving to the room, 
   // The pin holds for the room, not for whoever once sat in it: a member who leaves loses its face too.
   await room.root.services.chat.selfLeave({ principal: viewer.principal, chatId: room.chatId });
   expect(await served(room, viewer, pinned.avatar.hash)).toEqual(REFUSES);
+});
+
+test("a fork carries the held pin's face to a member seated only in the fork, and the origin's pin grants that member nothing", async () => {
+  await using room = await openRoom();
+  const leaver = await admit(room, "floor-pinned-player", "full");
+  const stayer = await admit(room, "floor-origin-stayer", "full");
+  const pinned = await personaWithAvatar(room, leaver.principal, "Carried");
+  await room.root.services.chat.setChatAnchorPersona({ principal: room.host, chatId: room.chatId, personaId: pinned.personaId });
+  await room.root.services.chat.selfLeave({ principal: leaver.principal, chatId: room.chatId });
+  const fork = (await room.root.services.chat.forkChat({ principal: room.host, chatId: room.chatId })).chat.id;
+  const forkOnly = await admit(room, "floor-fork-member", "full", fork);
+  expect(await served(room, forkOnly, pinned.avatar.hash)).toEqual(SERVES);
+
+  // With the fork's own pin cleared, the origin still pins the persona, but this member has no seat there.
+  await room.root.services.chat.setChatAnchorPersona({ principal: room.host, chatId: fork, personaId: null });
+  expect(await served(room, forkOnly, pinned.avatar.hash)).toEqual(REFUSES);
+  expect(await served(room, stayer, pinned.avatar.hash)).toEqual(SERVES);
 });
 
 test("a departed host's character art stops serving to the members still in the room, like a disabled host's", async () => {

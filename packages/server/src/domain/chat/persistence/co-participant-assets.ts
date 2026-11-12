@@ -6,7 +6,7 @@
 // room, and the verb narrows them through the room's consent set (`presentAndEnabledHumanUserIdsOf`), so a disabled
 // owner's art stops exactly where a departed owner's does. Those reads take no LIMIT: a hash can sit under several
 // owners (CAS dedup is per owner), and a first row whose owner is out of the consent set must not hide a later one
-// that is in it. The pinned-persona read is the one exception with no owner side: the pin holds (ADR 0315).
+// that is in it. The pinned-persona read is the one exception with no owner side: the pin holds (D314, D315).
 
 import type { AssetBlobRef } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
@@ -135,8 +135,10 @@ export async function loadSeatedPersonaAvatarOwners(db: Db, callerId: UserId, ha
 }
 
 /** The owner of `hash` when it is the avatar of the persona a room `callerId` is present in pins as its anchor
- *  (`chats.anchorPersonaId`), whoever owns it and whether or not they are still present or enabled: a held pin
- *  keeps its face (ADR 0315). The read starts at the chat's own pin, so a caller names a hash, never a persona. */
+ *  (`chats.anchorPersonaId`), whoever owns it and whether or not they are still present or enabled: the pin holds
+ *  while its owner has left or is disabled, a host handoff never touches it, and a fork carries it (D314, D315), so a
+ *  held pin keeps its face in every room that carries it. The read starts at the chat's own pin, so a caller names a
+ *  hash, never a persona. */
 export async function loadPinnedPersonaAvatarOwner(db: Db, callerId: UserId, hash: string): Promise<UserId | undefined> {
   const pinCallerSeat = alias(chatParticipants, "pin_caller_seat");
   const rows = await db
