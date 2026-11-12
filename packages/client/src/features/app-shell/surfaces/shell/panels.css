@@ -44,11 +44,11 @@
       overflow: visible;
     }
   }
-  /* A pane on a small desktop window gives its band the field inset in place of the row inset, so the chrome above the
+  /* A pane on a small desktop window gives its band the tight inset in place of the row inset, so the chrome above the
    * tab viewport stays inside the compact pane-share ceiling of D119a, which `tests/client/features/rpg/components/waystone-band-budget.ct.tsx` measures. */
   @container shell-panel (height <= 48rem) {
     [data-slot="context-bracket-band"] {
-      padding-block: var(--spacing-field);
+      padding-block: var(--spacing-tight);
     }
   }
   /* The panes and `<main>` take focus only programmatically; the ring belongs on the controls inside them. */
