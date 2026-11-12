@@ -14,7 +14,7 @@
 
 import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import { rendersTrustedHtml, resolveRenderPolicy } from "@orb/contracts/chat";
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatParticipants, chats, personas, presets, rpgGames, userSettings } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
@@ -40,7 +40,7 @@ export type {
 
 /** Every `user_settings` row, or just one principal's when `userId` is given. A never-touched account has NO
  *  row (it reads defaults from `{}`), so an empty result is a real answer, not a miss. */
-export async function userSettingsRows(db: Db, userId?: UserId): Promise<UserSettingsRow[]> {
+export async function userSettingsRows(db: ReadOnlyDb, userId?: UserId): Promise<UserSettingsRow[]> {
   // Two explicit awaits rather than awaiting a conditional: drizzle's `.where()` returns a different builder
   // type, and the union is not uniformly thenable to the linter.
   const rows = userId === undefined ? await db.select().from(userSettings) : await db.select().from(userSettings).where(eq(userSettings.userId, userId));
@@ -49,7 +49,7 @@ export async function userSettingsRows(db: Db, userId?: UserId): Promise<UserSet
 
 /** Every preset, or one owner's. Config blobs ride whole — a preset's section ORDER is the thing being
  *  debugged more often than any single value, and a summary would drop exactly that. */
-export async function presetRows(db: Db, ownerId?: UserId): Promise<PresetRow[]> {
+export async function presetRows(db: ReadOnlyDb, ownerId?: UserId): Promise<PresetRow[]> {
   const rows =
     ownerId === undefined
       ? await db.select().from(presets).orderBy(desc(presets.updatedAt))
@@ -68,7 +68,7 @@ export async function presetRows(db: Db, ownerId?: UserId): Promise<PresetRow[]>
 }
 
 /** Every persona, or one owner's. */
-export async function personaRows(db: Db, ownerId?: UserId): Promise<PersonaRow[]> {
+export async function personaRows(db: ReadOnlyDb, ownerId?: UserId): Promise<PersonaRow[]> {
   const rows =
     ownerId === undefined
       ? await db.select().from(personas).orderBy(desc(personas.updatedAt))
@@ -88,7 +88,7 @@ export async function personaRows(db: Db, ownerId?: UserId): Promise<PersonaRow[
 }
 
 /** The room config + roster for one chat, or `null` when the chat does not exist. */
-export async function chatConfigRow(db: Db, chatId: ChatId): Promise<ChatConfigRow | null> {
+export async function chatConfigRow(db: ReadOnlyDb, chatId: ChatId): Promise<ChatConfigRow | null> {
   const rows = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1);
   const r = rows[0];
   if (r === undefined) {
@@ -129,7 +129,7 @@ export async function chatConfigRow(db: Db, chatId: ChatId): Promise<ChatConfigR
 
 /** The rpg game for one chat, or `null` when the chat has no game (the `rpg_games_chat_unique` index makes
  *  this at most one row). */
-export async function rpgGameForChat(db: Db, chatId: ChatId): Promise<RpgGameRow | null> {
+export async function rpgGameForChat(db: ReadOnlyDb, chatId: ChatId): Promise<RpgGameRow | null> {
   const rows = await db.select().from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(1);
   const row = rows[0];
   if (row === undefined) {
@@ -180,7 +180,11 @@ function renderPolicyVerdict(stored: RenderPolicyOverride, deployment: Deploymen
 // exemption ENDS if the admitted set ever widens past the box owner and the token holder: any other per-user principal
 // here makes this a cross-tenant read of arbitrary caller-supplied ids, and then these reads must take an ownerId and
 // filter on it. Turn that suite red before widening anything.
-export async function characterDetailRow(db: Db, characterId: CharacterId, deployment: DeploymentRenderPolicy | null): Promise<CharacterDetailRow | null> {
+export async function characterDetailRow(
+  db: ReadOnlyDb,
+  characterId: CharacterId,
+  deployment: DeploymentRenderPolicy | null,
+): Promise<CharacterDetailRow | null> {
   const rows = await db.select().from(characters).where(eq(characters.id, characterId)).limit(1);
   const r = rows[0];
   if (r === undefined) {
@@ -238,7 +242,7 @@ export async function characterDetailRow(db: Db, characterId: CharacterId, deplo
  *  owners. Without the owner column that reads as duplicate rows, and it did: this sweep's first output was
  *  mis-filed as a seeder idempotency bug before the owners were checked. A cross-tenant sweep that omits the
  *  tenant is a misreading waiting to happen. */
-export async function characterPolicySweep(db: Db, deployment: DeploymentRenderPolicy | null): Promise<CharacterPolicyRow[]> {
+export async function characterPolicySweep(db: ReadOnlyDb, deployment: DeploymentRenderPolicy | null): Promise<CharacterPolicyRow[]> {
   const rows = await db
     .select({
       id: characters.id,

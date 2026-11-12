@@ -68,16 +68,16 @@ const STATS_MESSAGE =
   "The stats rollup tables (ownerStats, characterStats, dailyStats, modelStats) are stats' alone; discovery computes no usage rollup (Knowledge-Cluster.md, invariant 5). Consume the injected stats economics op instead.";
 
 const USERS_MESSAGE =
-  "The users table is read and written only by domain/sessions and domain/admin (Spine-Identity-and-Auth §1, invariant 10); the debug probe (foundation/observability/debug/inspect) counts its rows, read-only, by the Tier-2-Foundation.md ruling. Take userId from the resolved Principal instead.";
+  "The users table is read and written only by domain/sessions and domain/admin (Spine-Identity-and-Auth §1, invariant 10); the debug probe (foundation/observability/debug/inspect) counts its rows by the Tier-2-Foundation.md ruling and holds only ReadOnlyDb, so a write from it fails the typecheck (tests/server/foundation/observability/debug/inspect/read-only-probes.test-d.ts). Take userId from the resolved Principal instead.";
 
 const INBOX_MESSAGE =
-  "The notifications inbox table is named only by domain/notifications/persistence and the debug probe (foundation/observability/debug/inspect, Tier-2-Foundation.md). `notifications.record` is the one recipient writer (Core-0 §8); the probe's row count writes nothing, so it is no second writer. Route a notification through the injected notifications.record op.";
+  "The notifications inbox table is named only by domain/notifications/persistence and the debug probe (foundation/observability/debug/inspect, Tier-2-Foundation.md). `notifications.record` is the one recipient writer (Core-0 §8); the probe holds only ReadOnlyDb, so a write from it fails the typecheck (tests/server/foundation/observability/debug/inspect/read-only-probes.test-d.ts) and it is no second writer. Route a notification through the injected notifications.record op.";
 
 const SETTINGS_KV_MESSAGE =
   "The settings key-value table is named only by domain/settings/persistence: settings has one writer (Core-0 §8). Read or write a tenant value through the settings KV port, or an app value through the settings service.";
 
 const VECTOR_MESSAGE =
-  "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) (D20) and the debug probe (foundation/observability/debug/inspect, read-only, Tier-2-Foundation.md). Go through the search engine with a producer scope.";
+  "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) (D20) and the debug probe (foundation/observability/debug/inspect, Tier-2-Foundation.md; it holds only ReadOnlyDb, so a write from it fails the typecheck, tests/server/foundation/observability/debug/inspect/read-only-probes.test-d.ts). Go through the search engine with a producer scope.";
 
 // The import, export and whole-module doors of a row that owns `tables`; `ownedTableRule` adds the doors that need no import.
 const ownedTableRow = (id: string, tables: readonly string[], message: string): OwnedTableRow => {

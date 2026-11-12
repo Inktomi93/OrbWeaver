@@ -2,7 +2,7 @@
 // (db is a lower package — no DbInspector port needed, ledger). Labels are driven off the schema objects
 // (`getTableName`) so a rename can't silently drift them.
 
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import {
   assets,
   characterEmbeddings,
@@ -58,14 +58,14 @@ const COUNTED_TABLES: SQLiteTable[] = [
   notifications,
 ];
 
-async function countRows(db: Db, table: SQLiteTable): Promise<number> {
+async function countRows(db: ReadOnlyDb, table: SQLiteTable): Promise<number> {
   // the debug inspector's row count over its own fixed backbone table list, behind the `/api/_debug` gate, which admits only the box owner's session (`debugGateAdmits`, `can(p,'owner',global)`) or the `DEBUG_TOKEN` operator secret; it returns a count, never a row. Ends if a caller-supplied table reaches it or the gate admits a non-owner principal.
   const rows = await db.select({ n: count() }).from(table);
   return rows[0]?.n ?? 0;
 }
 
 /** Row counts for the backbone tables (label = schema table name). */
-export async function tableCounts(db: Db): Promise<Record<string, number>> {
+export async function tableCounts(db: ReadOnlyDb): Promise<Record<string, number>> {
   const entries = await Promise.all(COUNTED_TABLES.map(async (t) => [getTableName(t), await countRows(db, t)] as const));
   return Object.fromEntries(entries);
 }

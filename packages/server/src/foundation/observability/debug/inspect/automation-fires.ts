@@ -12,7 +12,7 @@
 // storage-only `reserved` reservation (an in-flight budget hold, finalized or released by the dispatcher) is
 // excluded exactly as every domain read excludes it — it is not a terminal and must never read as one.
 
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import { automationFires } from "@orb/db";
 import { and, desc, eq, ne } from "drizzle-orm";
 
@@ -21,7 +21,7 @@ import type { AutomationFireFilter, AutomationFireRow } from "#src/foundation/ob
 export type { AutomationFireFilter, AutomationFireRow } from "#src/foundation/observability/contract/inspect.ts";
 
 /** The recent fire log, newest-first, `reserved` excluded, narrowed by `chatId` and/or `ruleId` when given. */
-export async function automationFireRows(db: Db, filter: AutomationFireFilter): Promise<AutomationFireRow[]> {
+export async function automationFireRows(db: ReadOnlyDb, filter: AutomationFireFilter): Promise<AutomationFireRow[]> {
   const rows = await db
     .select()
     .from(automationFires)
