@@ -1,7 +1,10 @@
 // The read-only file inventory and the syntactic JSX helpers every ui-facts scan shares. Syntax only: no program, no checker.
+// A Source path is POSIX on every OS, and so is the inventory order: globSync joins with the platform separator, and
+// every reader matches `/`.
 import { globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { posixPath } from "../syntax.ts";
 
 const UI_SCAN_ROOT = "packages/ui/src";
 const SCAN_ROOTS = ["packages/client/src", UI_SCAN_ROOT] as const;
@@ -43,6 +46,7 @@ function parse(relative: string, text: string, kind: FileKind): ts.SourceFile | 
 function sourcesUnder(root: string, scanRoot: string, kind: FileKind): readonly Source[] {
   const layer: Layer = scanRoot.includes("client") ? "client" : "ui";
   return globSync(`${scanRoot}/**/*.${kind}`, { cwd: root })
+    .map(posixPath)
     .sort()
     .filter((relative) => !SKIPPED.test(relative))
     .map((relative) => {
