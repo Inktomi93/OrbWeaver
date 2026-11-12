@@ -432,7 +432,8 @@ const KIND_WHAT: Readonly<Record<string, string>> = {
 
 const CHIP_KIND = "chip";
 const RAW_WIRE = "rawWire";
-const TAXONOMY_CHIP = "packages/client/src/features/preset/components/template-drill-in.tsx";
+/** The one file whose bare chip the voice ruling keeps: the drill-in header's taxonomy chip. */
+export const TAXONOMY_CHIP = "packages/client/src/features/preset/components/template-drill-in.tsx";
 const TAXONOMY_RULING =
   "the raw template kind is the drill-in header's taxonomy chip (packages/client/src/features/preset/lib/template-rows.ts `TEMPLATE_KIND_LABEL`)";
 const VOICE = "UI-Architecture-and-Layout.md §4.3, the voice table";

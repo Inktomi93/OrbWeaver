@@ -1,5 +1,6 @@
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { analyse } from "../../../tooling/src/ui-facts/analysis.ts";
+import { TAXONOMY_CHIP } from "../../../tooling/src/ui-facts/copy.ts";
 import { skeletonCohortOf } from "../../../tooling/src/ui-facts/skeleton.ts";
 import { plantTheme } from "./_theme.ts";
 
@@ -664,7 +665,7 @@ test("a site ruling keeps the one chip it names: a second bare chip in the ruled
   plant(root, {});
   plantFile(
     root,
-    "packages/client/src/features/preset/components/template-drill-in.tsx",
+    TAXONOMY_CHIP,
     [
       'import { Badge } from "@orb/ui/badge";',
       "export const Header = ({ def, job }) => (",
@@ -676,9 +677,8 @@ test("a site ruling keeps the one chip it names: a second bare chip in the ruled
     ].join("\n"),
   );
   const wire = analyse(root, [], null).comparisons.find((entry) => entry.cohort === "copy:chip" && entry.column === "wire");
-  const ruled = "packages/client/src/features/preset/components/template-drill-in.tsx";
-  expect(wire?.kept.map((kept) => [kept.at, kept.value])).toEqual([[`${ruled}:4`, "bare"]]);
-  expect(wire?.defects.map((defect) => defect.at)).toEqual([`${ruled}:5`]);
+  expect(wire?.kept.map((kept) => [kept.at, kept.value])).toEqual([[`${TAXONOMY_CHIP}:4`, "bare"]]);
+  expect(wire?.defects.map((defect) => defect.at)).toEqual([`${TAXONOMY_CHIP}:5`]);
 });
 
 test("a chip printing a wire spelling a display map has a word for is a raw wire; an authored value and the word are not", ({ scratch }) => {
