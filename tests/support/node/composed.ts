@@ -60,6 +60,7 @@ export {
   latestSchemaSnapshot,
   migrationsBefore,
   migrationsBeforeLatest,
+  migrationsHolding,
   ownDb,
   ownFileDb,
   SHIPPED_MIGRATIONS,
