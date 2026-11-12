@@ -71,7 +71,7 @@ async function setCardVisibility(host: ActorClient, chatId: ChatId, level: CardV
 
 /** The card's single greeting text — named so the `sheet`-tier assertion can compare against it without
  *  indexing back into the literal (`CARD_FIELDS.greetings[0]?.name` is a provably-unnecessary optional
- *  chain on a literal array, which biome rejects). */
+ *  chain on a literal array, which `@typescript-eslint/no-unnecessary-condition` rejects). */
 const GREETING_TEXT = "She looks up from the chart.";
 
 const CARD_FIELDS = {

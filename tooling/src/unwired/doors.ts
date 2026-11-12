@@ -118,7 +118,7 @@ export class ImportGraph {
     return found;
   }
 
-  /** Would `importer` importing `module` close a cycle? dependency-cruiser refuses one, type-only or not. */
+  /** Would `importer` importing `module` close a cycle? dependency-cruiser refuses one, type-only or not (`no-circular`). */
   reaches(module: string, importer: string): boolean {
     const seen = new Set<string>([module]);
     const queue = [module];

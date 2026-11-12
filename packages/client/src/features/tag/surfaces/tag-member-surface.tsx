@@ -10,7 +10,7 @@ import { useSuspenseQuery, useTRPC } from "#data";
 import type { DrillBack } from "#lib";
 import { clearLabelSelection, useLabelNameFocus } from "#state";
 
-// Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): TagEditorBody owns editor arrival focus via useFocusOnMount; tag-member-surface CT pins the Name-field arrival for creation.
+// Arrival focus lives in another pane: TagEditorBody owns editor arrival focus via useFocusOnMount, which lands on the Name field for creation.
 /** `back` is the host's, the same one its pending arm draws. */
 export function TagMemberSurface({ tagId, back }: { readonly tagId: TagId; readonly back: DrillBack }): ReactElement {
   const trpc = useTRPC();

@@ -27,7 +27,7 @@ export type TagSource = z.infer<typeof tagSourceSchema>;
  *  `CLOSED` = folder, members hidden until entered. */
 export const TAG_FOLDER_TYPES = ["NONE", "OPEN", "CLOSED"] as const;
 // DECLARED off the tuple to keep the vocabulary's type face at its one home. Biome 2.5.1 still reports every
-// `case` of an exhaustive switch over the `z.infer` alias as `lint/suspicious/noUnnecessaryConditions`
+// `case` of an exhaustive switch over the `z.infer` alias as `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`)
 // "unreachable" (`character-list-view.ts`'s `groupStartsOpen` is the live dispatch); the probe that called
 // this fixed ran under /tmp, where zod does not resolve, against `lint/correctness/noUnreachable`. Reproduce
 // from an untracked file under `packages/contracts/src/`. `satisfies` is only a one-way

@@ -229,7 +229,7 @@ export function requirementMet(capability: Capability, requires: CapabilityRequi
 
 // An if-chain with a BARE tail, not a `switch` and not a third `if`: biome cannot narrow a cross-module
 // discriminated union inside a switch (every arm reads unreachable) and eslint refuses a third `if` on an
-// already-narrowed remainder. Exhaustiveness is still compile-time: a fourth kind widens the tail's
+// already-narrowed remainder (`@typescript-eslint/no-unnecessary-condition`). Exhaustiveness is still compile-time: a fourth kind widens the tail's
 // `capability` and `.rerank` stops existing on it, which is a tsc error at this line.
 function missingClauses(capability: Capability, requires: CapabilityRequirement): readonly string[] {
   if (capability.kind === "generation") {

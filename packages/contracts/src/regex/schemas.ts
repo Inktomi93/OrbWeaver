@@ -336,7 +336,7 @@ export const ATTACHED_REGEX_SCRIPTS_WIRE_KEY = "orbweaver_attached_regex_scripts
 // reason is measured, not stylistic: the arms carry `typeIdSchema`, which is a transform-backed `ZodType`
 // rather than a `ZodObject` — `tsc` reads the discriminant correctly through it, but biome's type service
 // does not, and flagged every `case` of a switch over the inferred type as unreachable. Re-measured on Biome
-// 2.5.1: still every `case`, `lint/suspicious/noUnnecessaryConditions`, single-file and
+// 2.5.1: still every `case`, `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`), single-file and
 // cross-module, from untracked files under `packages/contracts/src/` and `packages/server/src/` (never /tmp,
 // where zod does not resolve).
 // ONE declared union keeps BOTH tools seeing the same four arms. The `satisfies` below is a ONE-WAY

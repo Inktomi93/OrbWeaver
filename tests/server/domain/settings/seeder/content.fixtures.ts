@@ -1,4 +1,4 @@
-// The first default card and the persona item the content seeder suites assert on.
+// The first default card and the persona item `tests/server/domain/settings/seeder/content.int.test.ts` asserts on.
 
 import { SEED_MANIFEST } from "@orb/default-content";
 

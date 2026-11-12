@@ -2409,8 +2409,8 @@ export type UserMacroValues = z.infer<typeof userMacroValuesSchema>;
 const [_valueIsKitValue]: [z.infer<typeof userMacroInputValueSchema> extends UserMacroInputValue ? true : never] = [true];
 
 /** Current blob shape. Bump + add a lift below when the shape changes. A bump also owes a forward db migration:
- *  `presets.schema_version` defaults to this value (`@orb/db` schema/preset), and `check:db-baseline` fails
- *  until the chain records the new DEFAULT. */
+ *  `presets.schema_version` defaults to this value (`@orb/db` schema/preset), so the migration chain must record
+ *  the new DEFAULT. */
 export const PROMPT_CONFIG_SCHEMA_VERSION = 8;
 const SCHEMA_VERSION_V1 = 1; // walk floor — a versionless/garbage blob probes as v1
 const SCHEMA_VERSION_V2 = 2;

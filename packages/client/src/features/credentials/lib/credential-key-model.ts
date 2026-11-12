@@ -45,8 +45,7 @@ export function keyRowSubtitle(
  *  has repeatedly turned display-bound response text into a key disclosure).
  *
  *  The unknown arm returns null — a wire value outside the union is not parsed at this boundary, and the
- *  honest answer to "why?" we cannot read is silence, never the raw string on screen.
- * Test-anchored module surface; focused tests pin this production-local behavior. */
+ *  honest answer to "why?" we cannot read is silence, never the raw string on screen. */
 function revokedReasonCopy(reason: CredRevokedReason): string | null {
   switch (reason) {
     case "auth_failed":

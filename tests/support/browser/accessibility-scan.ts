@@ -103,7 +103,7 @@ function reclassify(raw: AxeResults, excusals: readonly Excusal[]): Omit<Accessi
 
 /**
  * Keep default document/frame rules and explicitly enable the vendor's disabled WCAG 2.2 target-size rule. Returns the untouched vendor
- * result beside the one a test asserts on, and the record of what differs. Two findings are not the page's and move to `incomplete`:
+ * result beside the reclassified one callers assert on, and the record of what differs. Two findings are not the page's and move to `incomplete`:
  * the library's own focus guards for `aria-hidden-focus` (an authored focusable `aria-hidden` element still fails), and a control the
  * content of an open menu or select popup covers for `target-size` (a closed select's trigger over a control is still a finding).
  */

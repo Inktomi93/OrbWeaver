@@ -1,8 +1,8 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-08
-priority: P3
+updated: 2026-11-12
+priority: P1
 area: tooling
 ---
 
@@ -10,15 +10,15 @@ area: tooling
 
 ## What
 
-One pnpm lint:eslint run over packages, tooling and tests aborted with JavaScript heap out of memory on main, while the same three trees passed when linted one at a time. Pre-push runs pnpm lint:eslint over the whole tree in one process.
+A plain whole-tree pnpm lint:eslint run exhausts its heap on main: it was reproduced on a clean tree, and the peak is far above the memory bar for one run. Pre-push runs that plain whole-tree form in one process (lefthook.yml), so a push cannot get a lint verdict. CI is not affected: it lints packages, tests, tooling and the root remainder as separate jobs with the default heap. The boxed script completes, but it raises the heap for the local box and is not a form pre-push or CI may use.
 
 ## Why
 
-If the single-process run exceeds the default heap on a contributor box or a CI runner, pre-push and CI fail with no lint verdict.
+If pre-push cannot finish its lint step, nothing can be pushed with a verdict. Measured on main with the default heap, as the parts CI runs: packages peaks near fifteen gigabytes, tests near eleven, tooling and the root remainder under five each, so the packages part is already close to the memory bar for one run. The boxed script took far more than the bar in whole-tree runs beside other work and had its processes killed by the host's memory guard.
 
 ## Done when
 
-The peak heap of a whole-tree pnpm lint:eslint run is measured on main, and it stays inside the default heap with headroom, or the run is split by world so each process fits, with no raised heap limit.
+Ruling: pre-push lints the same parts CI does, one process after another with the default heap, so each part's memory is released before the next starts. The list of parts has one home that the pre-push command and the boxed script read, and the CI matrix names it in a comment. Each part's peak is measured on main and recorded where the memory bar is stated; a part that does not fit the default heap is split further, never given a larger heap. lefthook.yml, the lane skill's line about pre-push, and D317 agree with the result, and a whole pre-push run completes on main.
 
 ## Evidence
 

@@ -451,7 +451,7 @@ test("filmstrip interference refuses before allocating a run slot", async ({ run
 /** THE RECORD DOOR IS GONE, SO ITS RECIPE PIN IS TOO (owner ruling 2026-09-04, #1315: no doors, no
  *  shims). This asserted that the deleted screen-record tool printed
  *  `RECORD RETIRED` plus an exact translated `pnpm snap … --pause 900 --filmstrip` recipe — an argv
- *  TRANSLATION layer, which is the thing the ruling deleted. `tooling/src/screen-record/` no longer
+ *  TRANSLATION layer, which is the thing the ruling deleted. The screen-record tool no longer
  *  exists at all, so there is no process left to exit 3, and asserting through `runCli("screen-record")`
  *  now fails at the fixture ("no such tool") rather than proving anything about snap. What replaced it,
  *  one rung weaker and one rung honester: `unified-instrument.suite.int.test.ts` sweeps the tracked

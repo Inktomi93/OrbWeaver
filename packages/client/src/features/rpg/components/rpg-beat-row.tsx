@@ -183,7 +183,7 @@ function BeatBodyEditor({
           <Tip text="Click to edit the beat">
             <CollapsibleTrigger
               chevron={false}
-              // Sub-floor disclosure by ruling (a reasoned home of `orb/sub-floor-disclosure` in eslint.config.js): the box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.
+              // Sub-floor disclosure by ruling: the box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.
               size="text"
               render={
                 <InlineAction variant="ghost" step="label" inset="control" textAlign="start" whitespace="normal" cap="fit" className="min-inline-0">

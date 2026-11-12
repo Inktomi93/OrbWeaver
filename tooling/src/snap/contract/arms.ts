@@ -58,7 +58,7 @@ export interface ArmFlagSpec {
    *  `.claude/skills/snap-driving/reference/flags.md`'s section headings — one home for the grouping). */
   readonly group: string;
   /** One line (≤160 chars, no trailing period, present tense) — the generated flag index and grammar
-   *  block's ONLY source of "what it does". REQUIRED so tsc refuses a flag with no summary (#1329). */
+   *  block's ONLY source of "what it does". REQUIRED so tsc refuses a flag with no summary (`pnpm typecheck`). */
   readonly summary: string;
   readonly handler: ArmFlagHandler;
 }
@@ -267,8 +267,8 @@ export interface ArmDef<A extends Arm = Arm> {
  *
  *  It is a `Pick` rather than a second interface so the field DOCS above stay in one place — this list is
  *  the ownership statement, not a re-declaration. `ops/parse.ts` builds the initial `Args` as a non-arm
- *  literal plus `armArgDefaults()`, so tsc REFUSES the parse when an arm stops defaulting a field it
- *  owns: adding an arm is a contract edit plus one file, and never an edit to the parser. */
+ *  literal plus `armArgDefaults()`, so tsc REFUSES the parse (`pnpm typecheck`) when an arm stops defaulting a field
+ *  it owns: adding an arm is a contract edit plus one file, and never an edit to the parser. */
 export type ArmArgs = Pick<
   Args,
   | "deadCss"

@@ -183,7 +183,8 @@ const CARD_FRAME_HEIGHT_SCRIPT =
 
 /** The CSP source expression pinning {@link CARD_FRAME_HEIGHT_SCRIPT} by digest. A literal, because kit is
  *  isomorphic (no `node:crypto`) and WebCrypto's digest is async — the recompute lives in the unit test,
- *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships. */
+ *  which is the gate: change the script without re-pinning and the suite REDs before the policy ships
+ *  (`tests/kit/card-frame/index.test.ts`). */
 const CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH = "'sha256-X4P6ct+XbYLNF4Q5h+h/1nJEA0TD7k/6cHZe/VxxMI0='";
 
 /** The one keyword that turns the posture into a capability. Named so the grant is greppable and so the

@@ -11,7 +11,7 @@ import type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
 import type { DocumentFrameInput, ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // `RawSamples` at the bottom COMPOSES the split families' shapes, so they are imported here as well as
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
-// that; biome's type service does not).
+// that, (`pnpm typecheck`); biome's type service does not).
 import type {
   AccessibleNameInput,
   ActionDoorInput,
@@ -110,7 +110,7 @@ export type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from
 // Re-exported, not re-declared: these shapes moved to contract/samples-interactive.ts
 // (#797). `contract/samples.ts` stays the one door onto the sample vocabulary —
 // and the import beside the re-export is load-bearing, because `RawSamples` below composes these names
-// (a bare `export … from` re-exports without binding them locally, which tsc catches and biome does not).
+// (a bare `export … from` re-exports without binding them locally, which tsc catches (`pnpm typecheck`) and biome does not).
 export type {
   AccessibleNameInput,
   ActionDoorInput,
