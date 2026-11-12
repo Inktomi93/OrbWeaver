@@ -130,8 +130,10 @@ export {
   PROMPT_TRANSFORM_POINTS,
   ROOM_ENTITY_KINDS,
   TURN_ABORTED_OP_CODE,
+  TURN_HOST_UNAVAILABLE_OP_CODE,
   TURN_INITIATORS,
   TURN_LOCKED_OP_CODE,
+  TURN_ROOM_CLOSING_OP_CODE,
   USER_MACRO_UNKNOWN_PICK_OP_CODE,
 } from "./bus.ts";
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";

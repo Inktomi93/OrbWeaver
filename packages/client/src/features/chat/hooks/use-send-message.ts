@@ -15,8 +15,7 @@ import type { Trpc } from "#data";
 import { createEntityMutation, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
 import { notify, turnMutationToast, viewerTimeZone } from "#lib";
 import { holdRoomForSend, subscribeUserMessageCommitted } from "#state";
-
-const SEND_FAILED_TITLE = "Couldn't send your message.";
+import { SEND_FAILED_TITLE } from "../lib/send-failure-copy.ts";
 
 // TData is `unknown` — the sent turn is bus-driven (messageCommitted/turnStarted/...), never read back.
 const useSendMutation = createEntityMutation<inferInput<Trpc["chat"]["send"]>, unknown>({

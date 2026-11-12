@@ -10,7 +10,13 @@
 // the host) → ChatOperationError("not_host") — the existence is already known to a member, so this is an
 // authority refusal, not a leak. (Authoritative auth surface: docs/law/Spine-Identity-and-Auth.md.)
 
-import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE, USER_MACRO_UNKNOWN_PICK_OP_CODE } from "@orb/contracts/chat";
+import {
+  TURN_ABORTED_OP_CODE,
+  TURN_HOST_UNAVAILABLE_OP_CODE,
+  TURN_LOCKED_OP_CODE,
+  TURN_ROOM_CLOSING_OP_CODE,
+  USER_MACRO_UNKNOWN_PICK_OP_CODE,
+} from "@orb/contracts/chat";
 import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
@@ -25,8 +31,9 @@ export class ChatNotFoundError extends DomainNotFoundError {
 }
 
 /** The room's turn host (the frozen one for an owed turn) is outside its consent set: disabled, or no longer
- *  present. A turn refuses exactly as for a hostless room (NOT_FOUND), and a drained owed turn drops with the
- *  `consent` reason instead of `chat-gone`, since the room itself still stands. */
+ *  present. A turn refuses exactly as for a hostless room (NOT_FOUND) until the admission wrapper re-checks the
+ *  caller's seat and, for a present member only, re-throws it as `hostUnavailable`. A drained owed turn drops with
+ *  the `consent` reason instead of `chat-gone`, since the room itself still stands. */
 export class ChatHostWithoutConsentError extends ChatNotFoundError {}
 
 /** The `DomainOperationError.code` discriminators chat verbs throw. ONE home for the strings (§7.5). */
@@ -66,6 +73,13 @@ export const CHAT_OP_CODES = {
    *  the contract wire home (the `aborted` precedent below) — the client keys on the same literal
    *  (`data.reason`) to say WHICH refusal this is instead of a generic "couldn't swipe". */
   locked: TURN_LOCKED_OP_CODE,
+  /** An admitted verb met its room held closed for removal (a husk reap's delete). Thrown only after the
+   *  caller's own room gate, so a stranger still reads the leak-free not found. Derived from the contract home. */
+  roomClosing: TURN_ROOM_CLOSING_OP_CODE,
+  /** An admitted verb met a room whose host is outside its consent set (`ChatHostWithoutConsentError`), and the
+   *  caller holds a present seat there, so the reason leaks nothing a member cannot already read from the dropped
+   *  owed-turn notice. Every other caller keeps the not found. Derived from the contract home. */
+  hostUnavailable: TURN_HOST_UNAVAILABLE_OP_CODE,
   /** `undoContinue`/`revertContinue` on a variant that was never continued (the `preContinue*`/
    *  `lastContinuation*` snapshot columns are empty — D26; nothing to restore). */
   noContinuation: "no_continuation",

@@ -1,7 +1,5 @@
 // The turn-notice mapper — the ONE testable home for the coupled decisions a turn's two failure surfaces
-// need (owner-approved enhancement). All pure; the CT QueryClient has no MutationCache seam so toast copy is
-// unobservable in a CT — this mapper is unit-tested instead (the ct-queryclient precedent), and the bus
-// reducer + the turn-mutation hooks stay one-liners over it.
+// need (owner-approved enhancement). All pure; the bus reducer + the turn-mutation hooks stay one-liners over it.
 //
 // WHY these functions, one home:
 //   • `turnAbortNotice(reason)` — the bus-side surface. `applyChatBusEvent` sees EVERY turnAborted (SSE),
@@ -10,16 +8,17 @@
 //     nothing HERE — a real fault ALSO throws out the awaited verb and rides the tRPC error boundary
 //     (query-client `meta.errorToast`), so notifying on the bus too would double-toast. Deliberate dedupe.
 //   • `turnMutationToast(error, fallback)` — the hook-side surface, the ONE `errorToast` every turn-starting
-//     mutation passes (send/swipe/continue/generate/impersonate/summon). Three outcomes, decided once:
+//     mutation passes (send/swipe/continue/generate/impersonate/summon). Decided once, by `data.reason`:
 //     `aborted` → SILENT (a stale lock rejects the AWAITED verb loudly with that op-code — server engine
 //     `runInLockWithHeartbeat` — and the bus notice above already owns that surface, so a generic "couldn't
-//     send" there would double-toast and say less); `locked` → the CONTENTION copy, which the fallback used
-//     to hide; anything else → the caller's verb-specific fallback, so a real fault still toasts and nothing
-//     genuine is swallowed.
+//     send" there would double-toast and say less); `locked`, `room_closing` and `host_unavailable` → the copy
+//     naming that room state, which the fallback used to hide; anything else → the caller's verb-specific
+//     fallback, so a real fault still toasts and nothing genuine is swallowed.
 
 import type { TurnAbortReason } from "@orb/contracts/chat";
-import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
+import { TURN_ABORTED_OP_CODE, TURN_HOST_UNAVAILABLE_OP_CODE, TURN_LOCKED_OP_CODE, TURN_ROOM_CLOSING_OP_CODE } from "@orb/contracts/chat";
 import { trpcErrorReason } from "./trpc-error-reason.ts";
+import { TURN_HOST_UNAVAILABLE_COPY, TURN_LOCKED_COPY, TURN_ROOM_CLOSING_COPY } from "./turn-refusal-copy.ts";
 
 // The bus owns the stale-abort notice so the awaited mutation does not duplicate it.
 const TURN_STALE_ABORT_COPY =
@@ -54,26 +53,29 @@ export function isSilencedTurnAbort(error: unknown): boolean {
   return trpcErrorReason(error) === TURN_ABORTED_OP_CODE;
 }
 
-// Contention names the retryable state instead of the caller-specific generic failure.
-const TURN_LOCKED_COPY = "Another reply is still generating in this room. Nothing was changed. Try again once it finishes.";
-
 /**
  * Hook-side: the toast a turn mutation (send/swipe/continue/generate/impersonate/summon) should show for a
- * failure — or `null` for silence. ONE mapper so every turn call site answers the three outcomes the same
+ * failure — or `null` for silence. ONE mapper so every turn call site answers the same outcomes the same
  * way, instead of each spelling its own `isSilencedTurnAbort(e) ? null : "Couldn't …"` ternary:
  *   • `aborted` → null (the bus's `turnAbortNotice` owns the stale surface — see the file header);
  *   • `locked`  → the honest contention copy, which the generic fallback actively HID: the reader was told
  *     "Couldn't generate that swipe" for a refusal that is neither their fault nor permanent, with no ghost
- *     and no other feedback while the OTHER turn ran (measured 2026-08-14: the old text held 74/75 samples
- *     and changed only at 7.8 s, when that turn completed);
+ *     and no other feedback while the OTHER turn ran;
+ *   • `room_closing` → the chat is no longer available (the room is being removed, so waiting cannot help);
+ *   • `host_unavailable` → the host is unavailable, never why;
  *   • anything else → the caller's own verb-specific fallback (a real fault still toasts, unchanged).
  */
 export function turnMutationToast(error: unknown, fallback: string): string | null {
-  if (isSilencedTurnAbort(error)) {
-    return null;
+  switch (trpcErrorReason(error)) {
+    case TURN_ABORTED_OP_CODE:
+      return null;
+    case TURN_LOCKED_OP_CODE:
+      return TURN_LOCKED_COPY;
+    case TURN_ROOM_CLOSING_OP_CODE:
+      return TURN_ROOM_CLOSING_COPY;
+    case TURN_HOST_UNAVAILABLE_OP_CODE:
+      return TURN_HOST_UNAVAILABLE_COPY;
+    default:
+      return fallback;
   }
-  if (trpcErrorReason(error) === TURN_LOCKED_OP_CODE) {
-    return TURN_LOCKED_COPY;
-  }
-  return fallback;
 }
