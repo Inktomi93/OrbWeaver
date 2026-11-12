@@ -4,7 +4,7 @@
 // after the covered span reaches the model again.
 import { chats, createDb, runMigrations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
-import { migrationsBefore, ownDb, plantLegacyZeroCanon, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
+import { migrationsHolding, ownDb, plantLegacyZeroCanon } from "@orb/testkit/node/composed";
 import { failOnExportNote } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 import { importedSeqs, textRoom, wireOf } from "../scenario-physical.ts";
@@ -39,10 +39,10 @@ test("a 0-based bundle import with a carried marker shows the row after the mark
     throw new Error("the chat export produced no bundle for the room");
   }
 
-  await using previous = await migrationsBefore(MIGRATION);
+  await using chain = await migrationsHolding(MIGRATION);
   using opened = ownDb(await createDb(":memory:"));
   const db = opened.db;
-  await runMigrations(db, previous.path);
+  await runMigrations(db, chain.paths.rest);
   await using h = await textRoom(["The reply after the renumber."], { server: { db } });
   const chat = h.root.services.chat;
   const descriptor = h.root.app.portability.find((entity) => entity.kind === "chat");
@@ -60,7 +60,7 @@ test("a 0-based bundle import with a carried marker shows the row after the mark
   await plantLegacyZeroCanon(h.root, imported.id);
   expect(await importedSeqs(h, imported.id)).toEqual([0, 1, 2, 3, 4, 5]);
 
-  await runMigrations(db, SHIPPED_MIGRATIONS);
+  await runMigrations(db, chain.paths.held);
 
   expect(await importedSeqs(h, imported.id)).toEqual([1, 2, 3, 4, 5, 6]);
   expect((await db.select({ at: chats.compactedAtSeq }).from(chats).where(eq(chats.id, imported.id)))[0]?.at).toBe(4);

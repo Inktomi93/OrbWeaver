@@ -257,6 +257,17 @@ The row-write lint judges call sites, so a state the product can no longer produ
 | `plantForeignRoomBackground`, `plantForeignCardBackground`, `plantForeignSettingsValue`, `plantForeignSettingsBytes` | a stored reference another build wrote | a database shared across versions holds kinds and encodings this build never writes |
 | `plantMemberOperatorSchedule`, `plantMemberOperatorRun` | a member who holds a bare `import-st` schedule or run, which reads the operator tree | builds before D340 stored them, and launched databases still hold them |
 
+## A suite on an older schema
+
+Two helpers in [node/db.ts](node/db.ts) build a database from before a migration. Pick by what the suite runs on it.
+
+| The suite | Use | Why |
+| - | - | - |
+| runs SQL and row builders only, then the migration | `migrationsBefore(tag)` | the chain stops before `tag`, so the database is the one that migration shipped against |
+| boots the composed root or calls a service before the migration | `migrationsHolding(tag)` | services read today's schema; a chain cut before `tag` also lacks every later migration, so the suite breaks when the next migration adds a table the boot reads |
+
+`migrationsHolding` applies `tag` after the later migrations. Use it only while no later migration touches the tables `tag` rewrites; otherwise the suite belongs in `tests/db/schema/` on rows alone.
+
 ## What review must establish
 
 - The selected behavior matters and belongs at this layer.

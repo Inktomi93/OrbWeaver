@@ -114,6 +114,33 @@ export async function migrationsBefore(tag: string): Promise<AsyncDisposable & {
   }
 }
 
+/** The shipped chain with one migration held back, for a suite that needs today's services over rows from before
+ *  `tag`. `paths.rest` is every other migration in order; `paths.held` is `tag` alone, stamped after the rest so the production
+ *  migrator applies it last. A chain cut before `tag` also drops every later migration, and services read the tables
+ *  those add. The held migration then runs later than it shipped, which is the same only while no later migration
+ *  touches the tables it rewrites. Disposing removes both copies. */
+export async function migrationsHolding(tag: string): Promise<AsyncDisposable & { readonly paths: { readonly rest: string; readonly held: string } }> {
+  const root = await mkdtemp(join(tmpdir(), "orb-migrations-holding-"));
+  try {
+    const rest = join(root, "rest");
+    const held = join(root, "held");
+    await cp(SHIPPED_MIGRATIONS, rest, { recursive: true });
+    await cp(SHIPPED_MIGRATIONS, held, { recursive: true });
+    const { journal, entries } = await readJournal(rest);
+    const entry = entries.find((candidate) => tagOf(candidate) === tag);
+    const last = Math.max(...entries.map((candidate) => (isPlainObject(candidate) && typeof candidate["when"] === "number" ? candidate["when"] : 0)));
+    if (!isPlainObject(entry)) {
+      throw new Error(`migration ${tag} is not in the shipped chain`);
+    }
+    await writeFile(join(rest, "meta", "_journal.json"), JSON.stringify({ ...journal, entries: entries.filter((candidate) => candidate !== entry) }));
+    await writeFile(join(held, "meta", "_journal.json"), JSON.stringify({ ...journal, entries: [{ ...entry, idx: 0, when: last + 1 }] }));
+    return { paths: { rest, held }, [Symbol.asyncDispose]: () => rm(root, { recursive: true, force: true }) };
+  } catch (error) {
+    await rm(root, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 /** {@link migrationsBefore} the newest shipped migration: the chain a database holds just before the latest one runs. */
 export async function migrationsBeforeLatest(): Promise<AsyncDisposable & { readonly path: string }> {
   const latest = tagOf((await readJournal(SHIPPED_MIGRATIONS)).entries.at(-1));
