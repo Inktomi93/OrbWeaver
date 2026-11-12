@@ -6,6 +6,13 @@
 // two differ on a phone with a wide column, which shows the topbar's Back and this row's name. The heading stays in the
 // outline and the verbs stay on screen at every width.
 //
+// The row is the one author of a drilled member's way back. It publishes its Back (`publishDrillBack`), and the topbar's Back
+// runs and names that one where it carries the way back, so the two never name different places or return focus differently.
+//
+// A drilled member's Back is the row's own lead item, outside the name's column: it never shrinks, so when the row is narrow
+// the verbs drop a line, then the name's column does, and the Back wraps only in a row narrower than its own label. The name's
+// column holds the kicker, the name with its meta, and `children` under the name.
+//
 // A drilled member's Back sits outside the member's suspense boundary: its host draws this row with the Back alone while the
 // member's read is pending or failed, so the exit is never missing. No lifecycle chrome on the row (D212): Delete stays on the
 // list row's kebab, and the Back is the answer to that kebab being off-screen while drilled.
@@ -18,7 +25,9 @@ import { ArrowLeft, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { DrillBack } from "#lib";
+import { publishDrillBack } from "#state";
 
 /** `title`: a document's or a member's name. `masthead`: a workbench's one opening statement, at the display step. */
 const NAME_VOICE = { title: "promoted", masthead: "masthead" } as const;
@@ -67,7 +76,42 @@ function DetailName({ title, step, defer }: { readonly title: string; readonly s
   );
 }
 
-/** `[back] [kicker] name meta … actions` over the subject's own lines. */
+// Publishes the row's Back for the topbar while the row is mounted. The press reads the latest Back through a ref, so a new
+// handler each render does not republish; a new label does.
+function usePublishedBack(back: DrillBack | undefined): void {
+  const latest = useRef(back);
+  useLayoutEffect(() => {
+    latest.current = back;
+  });
+  const label = back?.label;
+  useLayoutEffect(() => {
+    if (label === undefined) {
+      return;
+    }
+    return publishDrillBack({ label, onClick: (): void => latest.current?.onClick() });
+  }, [label]);
+}
+
+/** The drilled member's Back: the row's lead control, and the one the topbar runs where it carries the way back. */
+function DrillBackButton({ back, defer }: { readonly back: DrillBack; readonly defer: boolean }): ReactElement {
+  usePublishedBack(defer ? back : undefined);
+  return (
+    <Button
+      className="shrink-0"
+      data-shell-identity={defer ? SHELL_IDENTITY.back : undefined}
+      variant="ghost"
+      onClick={back.onClick}
+      size="sm"
+      wrap={true}
+      type="button"
+    >
+      <Icon icon={ArrowLeft} size="sm" />
+      {back.label}
+    </Button>
+  );
+}
+
+/** `[back] [kicker] name meta … actions`, the subject's own lines under the name. */
 export function DetailHeader({ title, step = "title", back, kicker, meta, actions, deferToShell = true, children }: DetailHeaderProps): ReactElement {
   const drilled = back !== undefined;
   const verbs =
@@ -87,23 +131,10 @@ export function DetailHeader({ title, step = "title", back, kicker, meta, action
     );
   return (
     <Row align="center" className="min-inline-0" data-slot={drilled ? "config-drill-header" : undefined} wrap={true} gap="field" justify="between">
+      {back === undefined ? null : <DrillBackButton back={back} defer={deferToShell} />}
       <Stack className="min-inline-0" floor="title" grow={true} gap="tight">
         {kicker === undefined ? null : <Text voice="kicker">{kicker}</Text>}
         <Row align="baseline" className="min-inline-0" wrap={true} gap="row">
-          {back === undefined ? null : (
-            <Button
-              className="shrink-0"
-              data-shell-identity={deferToShell ? SHELL_IDENTITY.back : undefined}
-              variant="ghost"
-              onClick={back.onClick}
-              size="sm"
-              wrap={true}
-              type="button"
-            >
-              <Icon icon={ArrowLeft} size="sm" />
-              {back.label}
-            </Button>
-          )}
           {title === undefined ? null : <DetailName defer={deferToShell} step={step} title={title} />}
           {meta}
           {step === "masthead" ? verbs : null}

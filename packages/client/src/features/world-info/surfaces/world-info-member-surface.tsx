@@ -19,7 +19,7 @@ import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
-import type { ReactElement, RefCallback, RefObject } from "react";
+import type { ReactElement, RefCallback } from "react";
 import { useRef, useState } from "react";
 import { DetailHeader, EditorPage, returnFocusToRow, useReturnToRowOnClose, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
@@ -112,7 +112,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   };
 
   if (selectedEntry !== null) {
-    return <EntryMember bookName={book.name} entry={selectedEntry} pageRef={surfaceRef} />;
+    return <EntryMember bookName={book.name} entry={selectedEntry} />;
   }
 
   return (
@@ -196,18 +196,11 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   );
 }
 
-/** The open entry: its own page, so it leaves as one piece when Back pops it or when it is deleted elsewhere, and either
- *  way hands focus back to the entry list. */
-function EntryMember({
-  bookName,
-  entry,
-  pageRef,
-}: {
-  readonly bookName: string;
-  readonly entry: WorldEntry;
-  /** The book's page ref, so an arrival straight into an entry takes the book's mount focus. */
-  readonly pageRef: RefObject<HTMLDivElement | null>;
-}): ReactElement {
+/** The open entry: its own page, so it takes arrival focus as every member does when it opens, leaves as one piece when Back
+ *  pops it or when it is deleted elsewhere, and either way hands focus back to the entry list. */
+function EntryMember({ bookName, entry }: { readonly bookName: string; readonly entry: WorldEntry }): ReactElement {
+  const pageRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(pageRef);
   useReturnToRowOnClose(pageRef, entry.id);
   return (
     <EditorPage focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={pageRef} tabIndex={-1}>

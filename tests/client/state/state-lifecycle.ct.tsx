@@ -1,7 +1,7 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
-import type { MessageDraftStory, MessageSelectionStory, PresetSelectionStory, SteerRecoveryStory } from "./_state-lifecycle-stories.tsx";
+import type { DrillBackStory, MessageDraftStory, MessageSelectionStory, PresetSelectionStory, SteerRecoveryStory } from "./_state-lifecycle-stories.tsx";
 
 test("edit drafts retain text and footprint across reader unmount, isolate rows and distinguish empty from cancelled", async ({ mount }) => {
   const ids = createSeededIds();
@@ -84,4 +84,27 @@ test("steer recovery trims, moves repeated text to the front and refuses blank i
   await expect(state).toHaveText(JSON.stringify(["First steer", "Second steer"]));
   await component.getByRole("button", { name: "Fire blank", exact: true }).click();
   await expect(state).toHaveText(JSON.stringify(["First steer", "Second steer"]));
+});
+
+const DRILL_BACK_ROWS = { library: "Back to Witness library", entry: "Back to Witness entries" } as const;
+
+test("a drilled row withdraws only its own Back: none is left stale, and a second row never erases the first", async ({ mount }) => {
+  const component = await mount<typeof DrillBackStory>("tests/client/state/_state-lifecycle-stories/DrillBackStory", DRILL_BACK_ROWS);
+  const published = component.getByRole("status", { name: "Published Back", exact: true });
+  const toggle = (row: keyof typeof DRILL_BACK_ROWS): Promise<void> => component.getByRole("button", { name: `Toggle ${row} row`, exact: true }).click();
+  await expect(published).toHaveText("none");
+  await toggle("library");
+  await expect(published).toHaveText(DRILL_BACK_ROWS.library);
+  await toggle("entry");
+  await expect(published).toHaveText(DRILL_BACK_ROWS.entry);
+  // The newer row leaves: the older one, still mounted, is read again.
+  await toggle("entry");
+  await expect(published).toHaveText(DRILL_BACK_ROWS.library);
+  // The older row leaves while the newer is mounted: the newer one stays.
+  await toggle("entry");
+  await toggle("library");
+  await expect(published).toHaveText(DRILL_BACK_ROWS.entry);
+  // The last row leaves: no Back names a library the person has left.
+  await toggle("entry");
+  await expect(published).toHaveText("none");
 });

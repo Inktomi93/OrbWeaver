@@ -14,6 +14,7 @@
 // at that one moment (#383). Without it the toggle silently orphaned whichever channel it left.
 
 import { useEffect, useState } from "react";
+import type { DrillBack } from "#lib";
 import type { ModalSlotId, PanelMode, PanelName, SectionId } from "#state";
 import {
   registerListFlipCarry,
@@ -23,6 +24,7 @@ import {
   setOpenOverlayPanel,
   setPanelMode,
   useActiveSection,
+  useDrillBack,
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
@@ -89,6 +91,8 @@ export interface ShellLayout {
   /** The rail label of the section {@link backToList} returns to when the open member was resumed from another
    *  section (a room opened from Home); `null` when Back returns to the active section's own list. */
   readonly backTargetLabel: string | null;
+  /** The drilled member's own Back label when {@link backToList} runs that Back; `null` when it pops the section's rung. */
+  readonly drillBackLabel: string | null;
 }
 
 /** Back undoes the last step: an open details sheet closes first; the member pops on the next press. */
@@ -102,6 +106,20 @@ function closesSheet(back: (() => void) | null, contextMode: PanelMode): boolean
 
 function sheetCoversShell(isMobile: boolean, contextMode: PanelMode): boolean {
   return isMobile && contextMode === "overlay";
+}
+
+// A drilled member's own row Back pops the same rung as the section's clear, and also returns focus to the opening row and
+// names the library it opens, so the topbar runs it while it is mounted. A member resumed from another section goes back there.
+function memberBackOf(drillBack: DrillBack | null, backTarget: SectionId | null): DrillBack | null {
+  return backTarget === null ? drillBack : null;
+}
+
+function memberPop(memberBack: DrillBack | null, clear: () => void): () => void {
+  return memberBack?.onClick ?? clear;
+}
+
+function drillBackLabelOf(back: (() => void) | null, contextMode: PanelMode, memberBack: DrillBack | null): string | null {
+  return back === null || contextMode === "overlay" ? null : (memberBack?.label ?? null);
 }
 
 export function useShellLayout(): ShellLayout {
@@ -285,15 +303,17 @@ export function useShellLayout(): ShellLayout {
   // (side-eye P2). It keys on an OPEN MEMBER, not on "the list is not the screen": a CONTENT-landing section
   // (Corpus Insights, D271) has no list screen with nothing open, and the lead slot must stay its list door.
   const selection = activeDef.selection;
+  const memberBack = memberBackOf(useDrillBack(), backTarget);
   // Back undoes the last step: a details sheet over the member closes first, the member pops on the next press.
   const backToList =
     isMobile && listAvailable && selection !== undefined && memberOpen
-      ? backAction(contextMode === "overlay", () => collapsePanel("context"), selection.clear)
+      ? backAction(contextMode === "overlay", () => collapsePanel("context"), memberPop(memberBack, selection.clear))
       : null;
 
   return {
     backToList,
     backClosesSheet: closesSheet(backToList, contextMode),
+    drillBackLabel: drillBackLabelOf(backToList, contextMode, memberBack),
     listIsSheet: !isMobile && isOverlayRegime("list"),
     contextIsSheet: !isMobile && isOverlayRegime("context"),
     backTargetLabel: backTarget === null ? null : registry.get(backTarget).rail.label,

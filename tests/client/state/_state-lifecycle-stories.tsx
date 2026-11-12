@@ -1,3 +1,4 @@
+import { DetailHeader } from "@orb/client/components";
 import {
   cancelEditingMessage,
   enterSelectionMode,
@@ -11,6 +12,7 @@ import {
   setOpenOverlayPanel,
   startEditingMessage,
   toggleMessageSelected,
+  useDrillBack,
   useIsEditingMessage,
   useIsMessageSelected,
   useMessageEditDraftText,
@@ -127,6 +129,38 @@ export function SteerRecoveryStory(): ReactElement {
   return (
     <CtClientProviders>
       <SteerActions />
+    </CtClientProviders>
+  );
+}
+
+function DrillBackRead(): ReactElement {
+  const back = useDrillBack();
+  return <output aria-label="Published Back">{back?.label ?? "none"}</output>;
+}
+
+function DrillBackRows({ library, entry }: DrillBackLabels): ReactElement {
+  const [mounted, setMounted] = useState({ library: false, entry: false });
+  return (
+    <Stack gap="block">
+      <DrillBackRead />
+      <Button onClick={(): void => setMounted((m) => ({ ...m, library: !m.library }))}>Toggle library row</Button>
+      <Button onClick={(): void => setMounted((m) => ({ ...m, entry: !m.entry }))}>Toggle entry row</Button>
+      {mounted.library ? <DetailHeader back={{ label: library, onClick: (): void => undefined }} title="Library" /> : null}
+      {mounted.entry ? <DetailHeader back={{ label: entry, onClick: (): void => undefined }} title="Entry" /> : null}
+    </Stack>
+  );
+}
+
+interface DrillBackLabels {
+  readonly library: string;
+  readonly entry: string;
+}
+
+/** Two drilled rows, mounted and unmounted by buttons, and a read of the Back the topbar would run. */
+export function DrillBackStory(labels: DrillBackLabels): ReactElement {
+  return (
+    <CtClientProviders>
+      <DrillBackRows {...labels} />
     </CtClientProviders>
   );
 }
