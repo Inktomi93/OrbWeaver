@@ -48,7 +48,7 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
       return { calls: null };
     }
     await assertRunAuthority(
-      { contributions, isBoxOwner: ctx.isBoxOwner },
+      { contributions, isBoxOwner: ctx.isBoxOwner, isAccountEnabled: ctx.isAccountEnabled },
       { caller: params.caller, account: runAccount(original) },
       original.kind,
       original.params,

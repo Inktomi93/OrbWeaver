@@ -14,6 +14,13 @@ export const WORKLOAD_RUN_ACCOUNT_NOT_OWNER = "run_account_not_owner";
 /** {@link WORKLOAD_RUN_ACCOUNT_NOT_OWNER}'s sentence. A stored run shows it as the failed row's reason. */
 export const WORKLOAD_RUN_ACCOUNT_REFUSAL = "This job runs for an account that is not the box owner, and only the box owner can run it.";
 
+/** The coded refusal of a run whose account is disabled, whoever asks: a disabled account is treated exactly like a
+ *  departed one, so its schedules admit nothing and its queued runs fail rather than spend on its connections. */
+export const WORKLOAD_RUN_ACCOUNT_DISABLED = "run_account_disabled";
+
+/** {@link WORKLOAD_RUN_ACCOUNT_DISABLED}'s sentence. A stored run shows it as the failed row's reason. */
+export const WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL = "This job runs for an account that is disabled.";
+
 /** Missing admitted liability for a generative workload. */
 export const WORKLOAD_UNFUNDED = "workload_unfunded";
 

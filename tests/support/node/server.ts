@@ -19,7 +19,7 @@ import { castId, createIdSource } from "@orb/kit/ids";
 import { isAdmin } from "@orb/server/domain/admin";
 import { stagedOwnerRoot } from "@orb/server/domain/import";
 import type { SessionsRolePolicy } from "@orb/server/domain/sessions";
-import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
+import { createResolveUserEnabled, createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
 import type { WorkloadRunnerAssemblyDeps } from "@orb/server/domain/workloads";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
@@ -788,6 +788,7 @@ export async function createServerHarness(
     now: clock.now,
     contributions: app.workloadContributions,
     isBoxOwner: createBoxOwnerRead(app.sessions),
+    isAccountEnabled: createResolveUserEnabled(app.sessions),
     audit: audit.log,
     emitEvent: app.workloadEvents.emitWorkloadEvent,
     scheduleInterval: timers.interval,
