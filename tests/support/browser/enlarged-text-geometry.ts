@@ -39,7 +39,7 @@ interface ControlGeometry {
  * Two probes over the reachable controls that paint. Clipped: a control painted past the viewport or past a clipping
  * ancestor on either axis (a scroller keeps its children reachable on its own axis), or covered at its centre by
  * something that is not the control. Overlapping: pairs inside one scroller, which a centre hit test misses when one
- * lies over a neighbour's edge; a pair a box declares as a designed overlay is listed apart, by its relation's name.
+ * lies over a neighbour's edge; a pair whose two boxes declare one designed overlay is listed apart, by its relation's name.
  */
 function controlGeometry(
   subject: Element,
@@ -202,15 +202,17 @@ function controlGeometry(
       // A dropzone's file input is a transparent sheet over its own zone, and it passes under a dialog's pinned footer.
       !element.matches('input[type="file"]'),
   );
-  // A box that declares a designed overlay lays its controls across the controls of its parent's other children: only that
-  // pair is design. Its control over a control elsewhere, or a control inside it over another inside it, stays a finding.
+  // A designed overlay is declared on both sides: each control sits in its own box declaring the same relation, and one box's
+  // parent holds the other box. Any other pair, two controls of one box or a declared control over an undeclared one, is a finding.
   const declaredRelation = (inside: Element, across: Element): string | null => {
     const declarer = inside.closest(`[${relation}]`);
+    const partner = across.closest(`[${relation}]`);
     const parent = declarer?.parentElement ?? null;
-    if (declarer === null || parent === null || declarer.contains(across) || !parent.contains(across)) {
+    if (declarer === null || partner === null || parent === null || declarer.contains(partner) || partner.contains(declarer) || !parent.contains(partner)) {
       return null;
     }
-    return declarer.getAttribute(relation);
+    const named = declarer.getAttribute(relation);
+    return named === partner.getAttribute(relation) ? named : null;
   };
   const overlaps: string[] = [];
   const declared: string[] = [];

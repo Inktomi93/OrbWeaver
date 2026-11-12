@@ -1,5 +1,5 @@
-// A floated action cluster lies over its own row body on a fine pointer by design. The row declares that relation, so
-// the enlarged-text overlap probe names the pair instead of reporting it; an in-flow cluster overlays nothing.
+// A floated action cluster lies over its own row body on a fine pointer by design. The cluster and the clickable body both
+// declare that relation, so the enlarged-text overlap probe names the pair instead of reporting it; an in-flow cluster overlays nothing.
 import { enlargedTextGeometry } from "@orb/testkit/browser/spec";
 import { OVERLAY_RELATION_ATTRIBUTE } from "@orb/ui/lib";
 import { expect, test } from "@playwright/test";
@@ -26,4 +26,5 @@ test("an in-flow cluster lies over nothing and declares nothing", async ({ mount
   expect(geometry.findings).toEqual([]);
   expect(geometry.declaredOverlays).toEqual([]);
   await expect(page.locator('[data-slot="list-row-actions"]').first()).not.toHaveAttribute(OVERLAY_RELATION_ATTRIBUTE);
+  await expect(page.locator('[data-slot="list-row-body"]').first()).not.toHaveAttribute(OVERLAY_RELATION_ATTRIBUTE);
 });

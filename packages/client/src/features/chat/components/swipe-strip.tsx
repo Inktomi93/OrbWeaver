@@ -20,6 +20,7 @@ import { NO_VALUE } from "@orb/kit/strings";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { declaresOverlay } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId } from "react";
@@ -54,7 +55,21 @@ function FootRow({
     "align" | "justify" | "gap"
   >): ReactElement {
   if (edge === "card") {
-    return <Row {...props} align={align} justify={justify} gap={gap} ground="bubble" cardCorners="bottom" reach="foot" wrap={true} className={FOOT_INSIDE} />;
+    // The card foot crosses echo's art pane, so its chevrons lie over the art tile's pointer sheet by design (`EchoArtTile`).
+    return (
+      <Row
+        {...props}
+        {...declaresOverlay("message-controls-over-art")}
+        align={align}
+        justify={justify}
+        gap={gap}
+        ground="bubble"
+        cardCorners="bottom"
+        reach="foot"
+        wrap={true}
+        className={FOOT_INSIDE}
+      />
+    );
   }
   if (edge === "plate") {
     return <Row {...props} align={align} justify={justify} gap={gap} plate="card" wrap={true} paddingInline="field" />;
