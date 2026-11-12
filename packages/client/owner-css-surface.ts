@@ -1262,6 +1262,8 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--spacing-glyph-gap",
   "--spacing-gutter",
   "--spacing-indent",
+  "--spacing-inset-block",
+  "--spacing-inset-section",
   "--spacing-picker-gap",
   "--spacing-picker-inset",
   "--spacing-row",

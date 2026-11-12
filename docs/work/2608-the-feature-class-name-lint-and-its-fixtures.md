@@ -2,7 +2,7 @@
 kind: tooling
 status: open
 updated: 2026-11-12
-priority: P2
+priority: P3
 area: tooling
 plan: checked-law
 ---
@@ -11,7 +11,7 @@ plan: checked-law
 
 ## What
 
-Cases of tests/tooling/eslint-feature-classname.test.ts fail on main: the Row end-justify class became justify-end-safe and the Button small-size block recipe moved to the control minimum block, and the rule's fixtures kept the old spellings. The file sits under tests/tooling, which the node suite and CI leave out, so nothing reported it. It is not known whether the rule still maps the new classes to their props or only the fixtures are stale.
+Cases of tests/tooling/eslint-feature-classname.test.ts fail on main: the Row end-justify class became justify-end-safe and the Button small-size block recipe moved to the control minimum block, and the rule's fixtures kept the old spellings. The rule itself is right: it reads the recipe tables at lint time, and a probe lint mapped both new spellings to their props. Only the fixtures are stale. The file sits under tests/tooling, which the node suite and CI leave out, so nothing reported it.
 
 ## Why
 
@@ -19,7 +19,7 @@ The rule sends a hand-written class in a feature to the primitive prop that owns
 
 ## Done when
 
-The rule reads the class spellings from the recipes or agrees with them by a test that fails when a recipe changes, the file passes, and each of the failing shapes is proved to be refused in feature code with its prop named. The file joins the pre-push repository list if it runs in seconds.
+The fixtures use the spellings the recipes emit, or read them from the recipes so a recipe change cannot leave them stale. The file passes, and it joins the pre-push repository list if it runs in seconds.
 
 ## Evidence
 

@@ -7,7 +7,7 @@
 export const READING_INSET = {
   plate: {
     inset: { paddingInline: "section", paddingBlock: "row", paddingBlockStart: undefined, paddingInlineNarrow: undefined, paddingInlineEndNarrow: "block" },
-    reach: "-mx-section px-section @max-cq-28:-me-block @max-cq-28:pe-block",
+    reach: "-mx-inset-section px-inset-section @max-cq-28:-me-block @max-cq-28:pe-block",
   },
   page: {
     inset: { paddingInline: "gutter", paddingBlock: undefined, paddingBlockStart: "row", paddingInlineNarrow: "tight", paddingInlineEndNarrow: undefined },

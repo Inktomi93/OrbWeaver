@@ -42,6 +42,32 @@ async function paintedBox(locator: Locator): Promise<NonNullable<Awaited<ReturnT
   return box;
 }
 
+/** The lines a run paints, and the fewest its words need at `width`: laid greedily at its own font, a word wider than the room taking the lines
+ *  it spans. Runs in the page. */
+function wrappedLines(node: Element, width: number): { readonly needed: number; readonly painted: number } {
+  const style = getComputedStyle(node);
+  const context = document.createElement("canvas").getContext("2d");
+  if (context === null) {
+    throw new Error("The text measure needs a 2D canvas");
+  }
+  context.font = style.font;
+  const space = context.measureText(" ").width;
+  let needed = 0;
+  let line = Number.POSITIVE_INFINITY;
+  for (const word of node.textContent.split(/\s+/u).filter((part) => part !== "")) {
+    const wide = context.measureText(word).width;
+    if (line + space + wide <= width) {
+      line += space + wide;
+    } else {
+      needed += Math.ceil(wide / width);
+      line = wide > width ? wide % width : wide;
+    }
+  }
+  return { needed, painted: Math.round(node.getBoundingClientRect().height / Number.parseFloat(style.lineHeight)) };
+}
+
+// The share of the phone a connection picker's value keeps at enlarged text, the rest going to the page, the card, the panel and the picker.
+const VALUE_SHARE = 0.5;
 const ENLARGED_PHONE_SCALES = [
   { name: "200% text", factor: 2 },
   { name: "300% layout", factor: 3 },
@@ -269,7 +295,10 @@ test.describe("rule editor field rows", () => {
     test.describe(`phone at ${scale.name}`, () => {
       test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-      test("the rule card keeps its connection slot's heading, hint, badge and picker inside the panel", async ({ mount, page }) => {
+      test("the rule card keeps its connection slot's heading, hint, badges and picker inside the panel, and the value on the lines the phone needs", async ({
+        mount,
+        page,
+      }) => {
         await using root = await createCorpusHarness();
         const caller = await root.internalCallerFor(root.ownerId);
         const appearance = appearanceSettingsSchema.parse({});
@@ -307,17 +336,23 @@ test.describe("rule editor field rows", () => {
           .last();
         const [panelBox, hintBox] = await Promise.all([paintedBox(panel), paintedBox(slot.locator('[data-slot="hint-trigger"]').first())]);
         expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
-        // The requirement badges wrap inside the panel too; a badge is no control, so the probe does not see one that runs past it.
-        const badges = await slot.locator('[data-slot="badge"]').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().right));
+        // Every requirement badge wraps inside the panel too; a badge is no control, so the probe does not see one that runs past it. The status
+        // dot shares the badge slot and carries no text, so only the worded chips count.
+        const badges = await slot
+          .locator('[data-slot="badge"]')
+          .filter({ hasText: /\S/u })
+          .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().right));
         expect(badges.length).toBeGreaterThan(0);
-        expect(badges.filter((right) => right > panelBox.x + panelBox.width)).toEqual([]);
+        expect(badges.filter((right) => right > panelBox.x + panelBox.width + SUBPIXEL)).toEqual([]);
         // The picker takes a line of its own: it spans the slot to the held nested step, and its chrome is the tokens' width, so the value takes every
-        // other pixel. The line count is not asserted: a 48px value in a 172px slot cannot wrap to a couple of lines at any inset, so the bound is the room.
+        // other pixel.
         const picker = slot.getByRole("combobox", { name: `${role.label} connection`, exact: true });
-        const [slotBox, pickerBox, valueBox, iconBox, indent, inset, gap, edge] = await Promise.all([
+        const value = picker.locator('[data-slot="select-value"]');
+        const [hostBox, slotBox, pickerBox, valueBox, iconBox, indent, inset, gap, edge] = await Promise.all([
+          paintedBox(page.getByRole("group", { name: "Rule action host", exact: true })),
           paintedBox(slot),
           paintedBox(picker),
-          paintedBox(picker.locator('[data-slot="select-value"]')),
+          paintedBox(value),
           paintedBox(picker.locator('[data-slot="select-icon"]')),
           resolvedLength(page, `var(${TOKENS["spacing.indent"].cssVar})`, slot),
           resolvedLength(page, `var(${TOKENS["spacing.picker-inset"].cssVar})`, slot),
@@ -326,7 +361,14 @@ test.describe("rule editor field rows", () => {
         ]);
         expect(pickerBox.x - slotBox.x).toBeLessThanOrEqual(indent + SUBPIXEL);
         expect(slotBox.x + slotBox.width - (pickerBox.x + pickerBox.width)).toBeLessThanOrEqual(SUBPIXEL);
-        expect(Math.abs(pickerBox.width - valueBox.width - (2 * (inset + edge) + gap + iconBox.width))).toBeLessThanOrEqual(SUBPIXEL);
+        const chrome = 2 * (inset + edge) + gap + iconBox.width;
+        expect(Math.abs(pickerBox.width - valueBox.width - chrome)).toBeLessThanOrEqual(SUBPIXEL);
+        // The value keeps half the phone's width, and paints no more lines than its own words need laid greedily into that half at its measured
+        // font, so a page or panel inset that grows with the text costs it width and lines.
+        const room = hostBox.width * VALUE_SHARE;
+        expect(valueBox.width).toBeGreaterThanOrEqual(room);
+        const lines = await value.evaluate(wrappedLines, room);
+        expect(lines.painted, JSON.stringify({ room, valueWidth: valueBox.width, ...lines })).toBeLessThanOrEqual(lines.needed);
       });
     });
   }

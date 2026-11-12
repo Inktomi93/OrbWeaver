@@ -1280,6 +1280,31 @@ test.describe("character editor at normal text on a 320px phone", () => {
   });
 });
 
+/** The inline inset a box lays on each side, in px. */
+const inlineInset = (box: Locator): Promise<readonly number[]> =>
+  box.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return [style.paddingInlineStart, style.paddingInlineEnd].map(Number.parseFloat);
+  });
+
+test.describe("a library page on the phone", () => {
+  test.use({ viewport: PHONE.size, hasTouch: PHONE.touch, isMobile: PHONE.touch });
+
+  test("lays no wider an inline inset at enlarged text than at the default size", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "characters" });
+    await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: await firstCharacterId() });
+    await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true })).toBeVisible();
+    const region = page.locator(".shell-region-fill[data-inset]");
+    const atDefault = Math.max(...(await inlineInset(region)));
+    // The positive control: the page is inset at the default size, so a bound of zero cannot pass.
+    expect(atDefault).toBeGreaterThan(0);
+    for (const scale of [TEXT_200, LAYOUT_300]) {
+      await scaleRoot(page, scale.factor);
+      expect(Math.max(...(await inlineInset(region))), scale.name).toBeLessThanOrEqual(atDefault);
+    }
+  });
+});
+
 for (const [viewport, scale] of QUALIFIED.echoFoot) {
   test.describe(`Echo's foot band at ${scale.name} on the ${viewport.name}`, () => {
     test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });

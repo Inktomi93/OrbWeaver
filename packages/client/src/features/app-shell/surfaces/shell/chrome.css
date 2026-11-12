@@ -12,8 +12,8 @@
     max-block-size: var(--orb-notice-block-cap);
     /* When the keyboard leaves only a control's height, its hit area takes priority over outer spacing. */
     padding-block: clamp(0px, calc((var(--orb-notice-block-cap) - var(--size-control-sm)) / 2), var(--spacing-section));
-    /* The gutter yields to the screen's width, not the text's: at an enlarged root the section spacing alone would take most of a phone. */
-    padding-inline: max(min(var(--spacing-section), 8vw), env(safe-area-inset-left)) max(min(var(--spacing-section), 8vw), env(safe-area-inset-right));
+    /* The gutter is the held section inset, which yields to the screen's width, not the text's: at an enlarged root the section spacing alone would take most of a phone. */
+    padding-inline: max(var(--spacing-inset-section), env(safe-area-inset-left)) max(var(--spacing-inset-section), env(safe-area-inset-right));
   }
 
   .shell-main {
