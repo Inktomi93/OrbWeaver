@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P3
 area: security
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # An avatar field accepts only an asset of an image kind

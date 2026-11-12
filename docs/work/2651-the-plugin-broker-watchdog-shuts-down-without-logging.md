@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P3
 area: plugins
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # The plugin broker watchdog shuts down without logging a relay failure

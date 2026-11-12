@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-12
 priority: P3
 area: plugins
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # The plugin membrane's slow-setter row holds under load

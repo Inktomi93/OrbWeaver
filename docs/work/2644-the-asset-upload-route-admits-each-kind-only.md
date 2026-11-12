@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P2
 area: security
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # The asset upload route admits each kind only from its own door and only the media its consumers render

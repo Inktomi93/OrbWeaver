@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P3
 area: plugins
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # A replaced plugin runtime's queued bytes do not count against the live runtimes' shares

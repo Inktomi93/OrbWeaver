@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-12
 priority: P3
+lane: wt/agent-a672cae2c753c5fe3
 plan: checked-law
 ---
 

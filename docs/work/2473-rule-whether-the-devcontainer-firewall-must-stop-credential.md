@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-11-11
+status: doing
+updated: 2026-11-12
 priority: P1
 area: security
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # Rule whether the devcontainer firewall must stop credential theft, and build the proxy if it must
