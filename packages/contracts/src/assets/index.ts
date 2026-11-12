@@ -5,6 +5,7 @@
 
 import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { APNG_MIME, SNIFFED_IMAGE_MIMES } from "@orb/kit/image-sniff";
 import { z } from "zod";
 import type { Principal } from "#identity";
 import { pageDirectionShape } from "#rpc";
@@ -55,18 +56,21 @@ function isPictureAssetKind(kind: AssetKind): boolean {
   return media.length > 0 && media.every((medium) => medium === "image");
 }
 
+// The stored types of a picture: the images the store accepts by signature, and animated PNG.
+const PICTURE_MIMES: readonly string[] = [...SNIFFED_IMAGE_MIMES, APNG_MIME];
+
 /** Whether a stored asset is a picture an avatar may point at: one of a picture kind, or one of a kind that also admits
- *  images whose bytes the store itself read as an image when it wrote them. Both facts are the store's, never a type a
- *  caller declared: a kind admits only the media its bytes were sniffed as, and `width` is set only from the store's
- *  header sniff (`sniffImageBytes`), which answers for a PNG, JPEG, GIF, WebP or AVIF image and for nothing else, so a
- *  video, a document or an archive row carries none.
+ *  images stored as one of the image types an avatar upload accepts (PNG, JPEG, GIF, WebP, animated PNG). The upload
+ *  door stores that type only after the bytes' signature matched it.
  *
  *  @remarks
  *  The kind alone is not enough: the store keeps one row per owner and content, so a picture first stored as a plugin's
- *  fetched asset or a chat attachment stays that row when the same bytes are stored again as an avatar. */
-export function isPictureAsset(asset: { readonly kind: AssetKind; readonly width: number | null }): boolean {
+ *  fetched asset or a chat attachment stays that row when the same bytes are stored again as an avatar. The image
+ *  header is not enough either: an AVIF file is an MP4-family container, so the store keeps it as a video under a
+ *  `video/mp4` claim, and its header still reads as an image. */
+export function isPictureAsset(asset: { readonly kind: AssetKind; readonly mime: string }): boolean {
   const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[asset.kind];
-  return isPictureAssetKind(asset.kind) || (media.includes("image") && asset.width !== null);
+  return isPictureAssetKind(asset.kind) || (media.includes("image") && PICTURE_MIMES.includes(asset.mime));
 }
 
 /** The kinds `POST /api/assets/upload` serves: each has a client door that uploads it there. Every other kind enters
