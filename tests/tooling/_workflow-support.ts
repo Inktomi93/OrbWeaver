@@ -37,6 +37,7 @@ const workflowConfig = z.object({
             z.object({
               shard: z.array(z.number()).optional(),
               include: z.array(z.object({ shard: z.string().optional() })).optional(),
+              part: z.array(z.object({ name: z.string(), args: z.string() })).optional(),
             }),
           ]),
         })

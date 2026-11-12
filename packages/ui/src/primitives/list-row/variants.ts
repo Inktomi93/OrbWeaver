@@ -294,6 +294,9 @@ export const listRowVariants = tv({
       // qualifier, and a longer one holds the floor, which sends a qualifier that would take it lower onto the next line. That
       // minimum applies only to an item that is not a scroll container, so the title clips (`overflow-clip`, which still paints
       // the ellipsis) instead of hiding its overflow.
+      // The floors in `packages/client/browser-targets.ts` (Firefox 138 included) support `overflow: clip`, `text-overflow` and `inline-size`:
+      // the compat floor map `unsupportedAtFloor` lists none of them (the stylelint compat rule reads sheets, not utilities). The ellipsis
+      // paints under `clip` because `text-overflow` applies to a block container whose `overflow` is other than `visible` (CSS Overflow 3 §6.1).
       qualified: true,
       subtitlePlacement: "block",
       class: { title: "overflow-clip inline-(--width-title-floor)" },

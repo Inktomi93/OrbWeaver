@@ -59,7 +59,6 @@ import { PresetEditorHeader } from "../components/preset-editor-header.tsx";
 import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.tsx";
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
-import { notifyActivePreset } from "../lib/active-preset-notice.ts";
 import { samplerSpellingOf } from "../lib/capability-panel-model.ts";
 import { chatCapabilityOf } from "../lib/chat-capability.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
@@ -184,13 +183,9 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   // G7: the built-in IS the null pick, exactly as the LIST row reads it — the two surfaces must not
   // disagree about which preset the next turn runs with.
   const active = preset.isSystemDefault ? activePresetId === null : presetId === activePresetId;
-  // ACTIVATION ANNOUNCES on success, through the same one home as the LIST row's radio (#481): it is the act
-  // with global reach on this surface, and it used to change every future generation in silence.
-  const onActivate = (): void => {
-    setDefault.mutate(
-      { section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } },
-      { onSuccess: (): void => notifyActivePreset(preset.name) },
-    );
+  // The header's Active status tells the result in place, so activation shows no toast; `onLanded` lets the header move focus there.
+  const onActivate = (onLanded: () => void): void => {
+    setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } }, { onSuccess: onLanded });
   };
   // The staleness row names a dropped sampler under the target server's own spelling: its provider row, then the
   // connection's declared override, both already in the client's hands.
@@ -270,7 +265,7 @@ interface PresetEditorBodyProps {
   /** The locked built-in: no Export (it re-seeds on the target box), no Reset (it IS the starter). */
   readonly isSystemDefault: boolean;
   /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
-  readonly onActivate: () => void;
+  readonly onActivate: (onLanded: () => void) => void;
   /** Commit a new name (#483) — the header owns the door + its dialog; this is the write. */
   readonly onRename: (name: string) => void;
   readonly capability: GenerationCapability | undefined;

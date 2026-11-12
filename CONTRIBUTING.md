@@ -53,7 +53,7 @@ written with an AI assistant end with its `Co-Authored-By:` trailer; for one you
 
 ```bash
 pnpm lint
-pnpm lint:eslint
+pnpm lint:eslint:parts
 pnpm lint:css
 pnpm typecheck
 pnpm depcruise

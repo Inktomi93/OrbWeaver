@@ -33,7 +33,8 @@ jobs:
         run: pnpm knip:prod
 
   # One type-aware program over the whole tree outgrew one runner's memory, so each part lints on its
-  # own runner. The parts are the same split `scripts/eslint-box.ts` runs sequentially on the box.
+  # own runner. The parts are ESLINT_PARTS in `scripts/eslint-parts.ts`, which pre-push runs one after
+  # another; `tests/tooling/eslint-parts.repo.int.test.ts` fails when this matrix and that table disagree.
   eslint:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -41,8 +42,14 @@ jobs:
       fail-fast: false
       matrix:
         part:
+          - name: client
+            args: packages/client
+          - name: server
+            args: packages/server
+          - name: ui
+            args: packages/ui
           - name: packages
-            args: packages
+            args: packages --ignore-pattern packages/client/ --ignore-pattern packages/server/ --ignore-pattern packages/ui/
           - name: tests
             args: tests
           - name: tooling

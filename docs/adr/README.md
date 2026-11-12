@@ -295,3 +295,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D346 | [A host call past the CPU window ends the guest](0346-a-host-call-past-the-cpu-window-ends-the-guest.md) | active |
 | D347 | [A stuck plugin Worker ends alone](0347-a-stuck-plugin-worker-ends-alone.md) | active |
 | D348 | [A full plugin IPC queue refuses one frame, never the channel](0348-a-full-plugin-ipc-queue-refuses-one-frame-never-the-channel.md) | active |
+| D349 | [No plugin owner holds the whole Worker pool](0349-no-plugin-owner-holds-the-whole-worker-pool.md) | active |
