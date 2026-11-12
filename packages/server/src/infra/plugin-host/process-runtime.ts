@@ -90,6 +90,15 @@ import type { WarmRuntimeLease } from "./warm-runtime-pool.ts";
 import { WarmRuntimePool } from "./warm-runtime-pool.ts";
 
 const CONNECT_TIMEOUT_MS = 10_000;
+// How a halt record names a runtime that ran a snippet, which has no plugin slug.
+const SNIPPET_RUNNER = "a snippet";
+
+/** One broker loss inside the window (D347): when, on the host's monotonic clock, and each owner's plugins whose runtimes
+ *  the lost broker held. */
+interface BrokerLoss {
+  readonly at: number;
+  readonly running: ReadonlyMap<UserId, ReadonlySet<string>>;
+}
 
 /** A logical instance can restart from its runtime config. A snippet holds an admission until release. */
 type BindingLifetime =
@@ -352,8 +361,10 @@ class BrokerClient {
   private readonly bridgeCalls = new Map<string, ActiveBridgeCall>();
   private closing: Promise<void> | undefined;
   private nextCommand = 0;
-  /** When each broker loss inside the window happened, on the host's monotonic clock (D347). */
-  private losses: readonly number[] = [];
+  private losses: readonly BrokerLoss[] = [];
+  /** The watchdog whose stopped report was already counted as a loss. Its exit before its next ready is the same event:
+   *  a watchdog that stops itself reports its broker stopped, then exits. */
+  private lossCountedFor: ChildProcess | undefined;
   /** Until when plugin calls are refused after a run of broker losses. */
   private heldUntil = Number.NEGATIVE_INFINITY;
   /** Set once the host stops restarting its broker; every later call is refused with it. */
@@ -569,7 +580,7 @@ class BrokerClient {
       return;
     }
     const now = this.monotonicNow();
-    this.losses = [...this.losses.filter((at) => now - at < PLUGIN_BROKER_LOSS_WINDOW_MS), now];
+    this.losses = [...this.losses.filter((loss) => now - loss.at < PLUGIN_BROKER_LOSS_WINDOW_MS), { at: now, running: this.runningPlugins() }];
     if (this.losses.length <= PLUGIN_BROKER_LOSSES_MAX) {
       this.heldUntil = now + pluginBrokerRestartHoldMs(this.losses.length);
       return;
@@ -577,12 +588,35 @@ class BrokerClient {
     const minutes = PLUGIN_BROKER_LOSS_WINDOW_MS / MS_PER_MINUTE;
     const message = `the plugin host stopped after its broker was lost ${String(this.losses.length)} times within ${String(minutes)} minutes (last: ${reason}); plugins stay paused until the server restarts`;
     this.halted = new PluginHostUnavailableError(message);
-    this.seams.onHalted(message, new Set(Array.from(this.logicalBindings, (binding) => binding.owner)));
+    this.seams.onHalted(this.haltRecords(message));
     // The watchdog stops its broker on SIGTERM; nothing respawns it while the host is halted.
     this.generation = undefined;
     this.sender?.close();
     this.managedChild?.kill("SIGTERM");
     this.onDisconnect(this.halted);
+  }
+
+  // Each owner's plugins whose runtimes are on the broker now: those registered and already sent a command.
+  private runningPlugins(): ReadonlyMap<UserId, ReadonlySet<string>> {
+    const running = new Map<UserId, Set<string>>();
+    for (const [, binding] of this.bindings) {
+      if (binding.dispatched) {
+        running.set(binding.owner, (running.get(binding.owner) ?? new Set()).add(binding.label ?? SNIPPET_RUNNER));
+      }
+    }
+    return running;
+  }
+
+  // A halt record for each owner of a resident plugin or of a lost runtime. Each names only that owner's own plugins, so
+  // no owner learns what another runs.
+  private haltRecords(message: string): ReadonlyMap<UserId, string> {
+    const owners = new Set([...Array.from(this.logicalBindings, (binding) => binding.owner), ...this.losses.flatMap((loss) => [...loss.running.keys()])]);
+    return new Map(
+      Array.from(owners, (owner): [UserId, string] => {
+        const atEachLoss = this.losses.map((loss, index) => `${String(index + 1)}: ${[...(loss.running.get(owner) ?? [])].join(", ") || "none"}`);
+        return [owner, `${message}. Your plugins running at each loss: ${atEachLoss.join("; ")}`];
+      }),
+    );
   }
 
   private async ensureConnected(): Promise<void> {
@@ -697,7 +731,10 @@ class BrokerClient {
       if (this.managedChild !== child) {
         return;
       }
-      this.recordBrokerLoss(error.message);
+      if (this.lossCountedFor !== child) {
+        this.recordBrokerLoss(error.message);
+      }
+      this.lossCountedFor = undefined;
       this.managedChild = undefined;
       this.sender?.close();
       this.sender = undefined;
@@ -729,15 +766,18 @@ class BrokerClient {
       return;
     }
     if (message.kind === "stopped") {
+      // Counted before the disconnect forgets the lost runtimes, so the loss records which plugins it took.
+      this.recordBrokerLoss(message.error.message);
+      this.lossCountedFor = child;
       this.generation = undefined;
       this.onDisconnect(unavailableError());
-      this.recordBrokerLoss(message.error.message);
       return;
     }
     this.consumeFrame(message.frame);
   }
 
   private acceptReady(generation: string): void {
+    this.lossCountedFor = undefined;
     if (this.generation !== undefined && this.generation !== generation) {
       this.onDisconnect(unavailableError());
     }
