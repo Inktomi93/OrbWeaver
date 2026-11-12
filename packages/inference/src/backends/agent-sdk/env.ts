@@ -8,12 +8,9 @@
 // the Claude runtime knob namespace, then RESERVED filtered) → the auth pins LAST so nothing above can override.
 
 import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
-import { HOST_OWNED_CLAUDE_ENV_KEYS, isAllowedClaudeRuntimeEnvKey } from "@orb/contracts/preset";
+import { CLAUDE_OAUTH_TOKEN_ENV, isAllowedClaudeRuntimeEnvKey, RESERVED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
 import { ProviderError } from "#contract";
 import type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "#src/contract/agent-sdk-backend.ts";
-
-// The documented headless subscription credential env (`claude setup-token`).
-const CLAUDE_OAUTH_TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";
 
 // The host conveniences the bundled runtime actually needs. This allowlist is the whole host baseline: an app secret,
 // the Claude/Anthropic namespace, NODE_OPTIONS, loader preloads and language search paths all stay out because they
@@ -73,23 +70,8 @@ const ISOLATION_PINS: Readonly<Record<ClaudeIsolationPinKey, string>> = {
   CLAUDE_CODE_ATTRIBUTION_HEADER: "0",
 };
 
-// Keys a preset's escape hatch can never set or unset — auth, credential isolation, config dir, AND every
-//  host-owned pin above. Spread from the contracts vocabulary rather than re-spelled — one home, no drift.
-const RESERVED_CLAUDE_ENV_KEYS: ReadonlySet<string> = new Set<string>([
-  ...HOST_OWNED_CLAUDE_ENV_KEYS,
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "ANTHROPIC_BASE_URL",
-  CLAUDE_OAUTH_TOKEN_ENV,
-  "ANTHROPIC_IDENTITY_TOKEN",
-  "ANTHROPIC_IDENTITY_TOKEN_FILE",
-  "ANTHROPIC_SERVICE_ACCOUNT_ID",
-  "CLAUDE_CONFIG_DIR",
-  "ANTHROPIC_CONFIG_DIR",
-  "ANTHROPIC_DEFAULT_OPUS_MODEL",
-  "ANTHROPIC_DEFAULT_SONNET_MODEL",
-  "ANTHROPIC_DEFAULT_HAIKU_MODEL",
-]);
+// Keys a preset's escape hatch can never set or unset (the contracts vocabulary, one home).
+const RESERVED_KEYS: readonly string[] = RESERVED_CLAUDE_ENV_KEYS;
 
 const DISABLE_CLAUDE_MDS = "true";
 /** The two runtime knobs whose COMBINATION the bundled runtime refuses (#1541). */
@@ -117,7 +99,7 @@ function claudeUserEnv(userOverrides: Record<string, string | null> | undefined)
   }
   const out: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(userOverrides)) {
-    if (RESERVED_CLAUDE_ENV_KEYS.has(key)) {
+    if (RESERVED_KEYS.includes(key)) {
       continue;
     }
     if (!isAllowedClaudeRuntimeEnvKey(key)) {
