@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P3
 area: ui
+lane: wt/agent-ab272ed4fef9cc84a
 ---
 
 # The picture button has one tv() export

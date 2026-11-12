@@ -20,7 +20,7 @@ An unproved branch in the focus hook is the kind of code that hides the next foc
 
 ## Done when
 
-The boundary clause has a test that is red without it, or it and its context are deleted with the reason found. The floor check reads a settled bar and is red on every repeat against the defect. A press acts on the state it started in. The title control holds phrasing content only. A member's title keeps its position when it crosses between cut and uncut, shown by a component test.
+The boundary clause has a test that is red without it, or it and its context are deleted with the reason found. The floor check reads a settled bar and is red on every repeat against the defect. The title control decides its action when it is activated, from the state it is in then, for mouse, touch and keyboard alike, with no state carried between presses. The title control holds phrasing content only. A member's title keeps its position when it crosses between cut and uncut, shown by a component test.
 
 ## Evidence
 
