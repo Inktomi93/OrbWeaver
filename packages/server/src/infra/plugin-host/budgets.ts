@@ -9,24 +9,70 @@
 // time jump) must never be able to disable the DoS kill — so the interrupt reads real monotonic time, the
 // guest reads the seam.
 
+import type { PluginBudgets } from "@orb/contracts/plugin";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
+import type { PluginCommandOperation } from "./contract/process-protocol.ts";
+import { PLUGIN_BROKER_SYNC_TIMEOUT_MS } from "./process-protocol.ts";
 
 const BYTES_PER_MEBIBYTE = 1_048_576;
 const WASM_INITIAL_MEBIBYTES = 16;
 const WASM_MAX_MEBIBYTES = 48;
 
-/** Guest CPU budget for ONE SPAN of guest execution (installed plugin handler/tool/transform). Enforced by the
- *  QuickJS interrupt handler comparing REAL wall-time against the open window.
- *
- *  A SPAN, not an invocation: the same number bounds the invocation AND each POST-invocation job pump, because
- *  a guest continuation resumed when a fire-and-forget host call settles is guest bytecode too — and a pump
- *  that ran it with no handler installed is a whole-process DoS. `cpu-guard.ts` states the window
- *  mechanics (one context-lifetime handler, nested windows narrow and restore). The aggregate is therefore
- *  bounded by `HOST_CALLS_IN_FLIGHT_MAX` × this, not by this alone. */
+/** A resident instance's guest CPU account per invocation (installed plugin handler/tool/transform), and for its
+ *  work outside invocations between two of them, spent by running spans of guest execution and never by awaits. Enforced by the QuickJS interrupt handler and the
+ *  host-call entry check, comparing REAL monotonic time against the open window (`cpu-guard.ts`, D346). */
 export const PLUGIN_INVOCATION_CPU_MS = 1000;
 
-/** Inline snippet total wall-clock run — the whole snippet, not per-call. */
+/** An inline snippet's guest CPU account — the whole snippet, not per call. Its wall is this plus
+ *  {@link HOST_FN_DEADLINE_MS}. */
 export const SNIPPET_WALL_MS = 5000;
+
+/** How far a Worker's guest work may run past its CPU budget before its broker terminates that Worker alone (D347):
+ *  past one span's window, or past the budget of the command it is serving, summed over every span. One native call or
+ *  one interrupt poll period has a length the guest picks, so the window cannot end it; this does. It covers the
+ *  longest honest overrun, a synchronous seam call that waits on the parent inside a span, plus one invocation budget. */
+export const PLUGIN_WORKER_OVERRUN_MAX_MS = PLUGIN_BROKER_SYNC_TIMEOUT_MS + PLUGIN_INVOCATION_CPU_MS;
+
+/** How often the broker reads its Workers' span slots: a stuck Worker is terminated at most this much late. */
+export const PLUGIN_WORKER_SPAN_CHECK_MS = 250;
+
+/** The parent's backstop for one command, timed from when the command becomes its runtime's oldest outstanding one, so
+ *  the commands queued ahead of it are never charged to it. Past it the parent fails that command alone, as its
+ *  plugin's strike, and asks the broker to end that runtime; it never ends the broker (D347). Every kind's worst case,
+ *  settlement walls included, ends before it: `tests/server/infra/plugin-host/broker-bounds.test.ts`. */
+export const PLUGIN_COMMAND_TIMEOUT_MS = {
+  create: 40_000,
+  invoke: 45_000,
+  snippet: 40_000,
+  dispose: 30_000,
+} as const satisfies Record<PluginCommandOperation, number>;
+
+/** How often the broker's main thread reports to its watchdog, whatever any command or Worker is doing; the watchdog
+ *  judges the broker on the same period. */
+export const PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS = 25;
+// The longest heartbeat gap measured from a healthy broker, at send and at arrival, through the plugin-host floor at
+// load up to 40 on 24 cores; D347 records the run.
+const PLUGIN_BROKER_HEARTBEAT_WORST_GAP_MS = 125;
+// The margin over that gap, for a slower or busier host than the one measured.
+const PLUGIN_BROKER_HEARTBEAT_GAP_FACTOR = 8;
+/** Consecutive intervals in which the watchdog, its pipe drained, finds nothing new from the broker before it ends the
+ *  broker as unresponsive (D347): the measured worst gap times the factor, in intervals, so detection takes 1 s. */
+export const PLUGIN_BROKER_HEARTBEAT_MISSES_MAX = Math.ceil(
+  (PLUGIN_BROKER_HEARTBEAT_GAP_FACTOR * PLUGIN_BROKER_HEARTBEAT_WORST_GAP_MS) / PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
+);
+/** How long a broker that stops answering keeps serving before its watchdog ends it. */
+export const PLUGIN_BROKER_LIVENESS_BOUND_MS = PLUGIN_BROKER_HEARTBEAT_MISSES_MAX * PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS;
+
+/** The guest CPU one command may spend across all its spans, the spans of guest work that run while it waits its turn
+ *  included: the activation and the work outside it for `create`, one invocation for `invoke`, the snippet's account for
+ *  `snippet`, and the work outside an invocation a `dispose` waits behind. The broker ends the Worker once the spans
+ *  summed since the command reached it pass this plus {@link PLUGIN_WORKER_OVERRUN_MAX_MS} (D347). */
+export const PLUGIN_COMMAND_CPU_BUDGET_MS = {
+  create: 2 * PLUGIN_INVOCATION_CPU_MS,
+  invoke: 2 * PLUGIN_INVOCATION_CPU_MS,
+  snippet: SNIPPET_WALL_MS,
+  dispose: PLUGIN_INVOCATION_CPU_MS,
+} as const satisfies Record<PluginCommandOperation, number>;
 
 /** QuickJS's LIVE guest-allocation accounting ceiling (= 32 MiB). This is NOT a WebAssembly or process RSS
  *  ceiling: the published Emscripten build may grow its allocator's linear-memory high-water mark while live
@@ -225,6 +271,21 @@ export const EVENT_QUEUE_DEPTH = 16;
  *  every entry retains its invocation arguments or activation source in the app process. Bounding it is the
  *  aggregate app-memory wall for pressure that has not reached the broker process yet. */
 export const PLUGIN_RUNTIME_REQUEST_QUEUE_MAX = 32;
+
+/** A resident invocation's limits: its CPU account, its heap, and the grace its settlement wall adds past the account. */
+export const PLUGIN_RESIDENT_LIMITS = {
+  cpuDeadlineMs: PLUGIN_INVOCATION_CPU_MS,
+  memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES,
+  settleGraceMs: HOST_FN_DEADLINE_MS,
+} as const satisfies PluginBudgets;
+
+/** A snippet's limits: a resident invocation's, with the snippet's own CPU account. */
+export const PLUGIN_SNIPPET_LIMITS = { ...PLUGIN_RESIDENT_LIMITS, cpuDeadlineMs: SNIPPET_WALL_MS } as const satisfies PluginBudgets;
+
+/** How long after its synchronous run an invocation under these limits ends if it has not settled (D346). */
+export function settlementWallMs(limits: PluginBudgets): number {
+  return limits.cpuDeadlineMs + limits.settleGraceMs;
+}
 
 // NOTE: the consecutive-crash auto-disable threshold is DOMAIN lifecycle policy, not a sandbox runtime
 // budget — it lives in `domain/plugin/activation/crash-policy.ts` (`PLUGIN_CRASH_DISABLE_THRESHOLD`). It is NOT

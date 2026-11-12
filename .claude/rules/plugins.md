@@ -41,9 +41,13 @@ paths:
 - Do not `eval` a JSON string across the marshalling boundary. Call the realm's own `JSON.parse`
   on a string value, with the function handle captured before guest code runs.
 - Drain pending promises at dispose, before `ctx.dispose`, not only in settle handlers.
-- Reconstruct a guest error's `name` and `message` via `ctx.newError`. Assert `e.name`, never a message substring.
+- Build a host error for the guest with the marshal's `newHostError`: an object on the realm's `Error.prototype` plus `defineProp`. Never `ctx.newError`, whose stack capture runs the guest's `Error.prepareStackTrace` and whose field form runs a guest setter. Assert `e.name`, never a message substring.
+- Settle a guest value through the marshal's `settlementOf`, never `ctx.resolvePromise`, which reads the guest's global `Promise`.
+- Build every host function with the marshal's `newHostFunction`, which ends a guest past its CPU window before any read (D346). Never coerce a guest value with `getString` or `getNumber`, which run its `toString` or `valueOf`; read it through the marshal, or refuse a non-primitive.
 - Guest bytecode also runs in the two post-settle job pumps. Bound the interrupt handler for the
   context lifetime, not per invocation, and dispose every `executePendingJobs` handle.
+- Call into the realm from host code only inside a span: `runToSettlement`, `pumpGuestJobs` or `withinCpuWindow`. A resolve reads a guest `then` getter, and between spans the window reads as passed (D346).
+- Inside a host function, read a guest property with the marshal's `readGuestProp` and set one on a host-made object with `setHostProp`. Each checks the window first, because the binding drops a callback's interrupt.
 - A guest harness evaluates the shipped bundle in `node:vm` using the realm's exported
   `AMBIENT_STUBS` in `realm.ts`, never a hand-rolled stub set.
 

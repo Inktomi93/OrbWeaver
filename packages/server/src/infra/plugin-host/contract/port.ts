@@ -49,7 +49,18 @@ export type LocalPluginHostSeams = Omit<PluginHostSeamDeps, "timers" | "monotoni
   readonly netEgress: PluginNetEgress;
   /** The Worker's own record level; the Worker builds its root logger from it, since the app's cannot cross the process. */
   readonly logLevel: Env["LOG_LEVEL"];
+  /** Where this Worker reports each span of guest work to its broker (D347); absent outside a broker's Worker. */
+  readonly spanReport?: CpuSpanReport;
 };
+
+/** Where a thread reports each outermost span of guest work, for a watcher the span cannot block: one native call or one
+ *  interrupt poll period has a length the guest picks, and nothing in that thread runs until it returns (D347). */
+export interface CpuSpanReport {
+  /** A span opened with `windowMs` left on its account (0 when the account is spent). */
+  readonly opened: (windowMs: number) => void;
+  /** The open span closed after running `spentMs`. */
+  readonly closed: (spentMs: number) => void;
+}
 
 /** Instance data plus the app-owned operation bridge; no domain import crosses the infra boundary. */
 export interface CreateInstanceInputIn extends PluginInstanceCreateData {

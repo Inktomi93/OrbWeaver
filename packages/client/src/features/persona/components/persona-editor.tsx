@@ -3,29 +3,25 @@
 // at_depth; the assistant@0 prefill combo is withheld from the write + warned inline), the lore book and the
 // connected characters, then the footer verbs: Duplicate, Export, Delete. Autosaves on every change.
 
-import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
-import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { FileTrigger } from "@orb/ui/file-trigger";
 import { Copy, Download, Icon, Trash } from "@orb/ui/icons";
-import { InlineAction } from "@orb/ui/inline-action";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
-import { DestructiveAction } from "#components";
+import { AvatarUpload, DestructiveAction } from "#components";
 import type { Trpc } from "#data";
-import { useInvalidation, usePromptMacroSuggestions, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
+import { useInvalidation, usePromptMacroSuggestions, useTRPC, useTRPCClient } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
-import { ASSISTANT_PREFILL_WARNING, downloadTextFile, MESSAGE_ROLE_ITEMS, notify, oversizeUploadMessage } from "#lib";
+import { ASSISTANT_PREFILL_WARNING, downloadTextFile, MESSAGE_ROLE_ITEMS, notify } from "#lib";
 import { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "#state";
 import { PersonaForm } from "../hooks/use-persona-form.ts";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
@@ -38,6 +34,7 @@ import {
   PERSONA_FROM_CARD_NAME,
   PERSONA_NAME_FIELD_NAME,
   PERSONA_TITLE_FIELD_NAME,
+  personaAvatarName,
 } from "../lib/persona-copy.ts";
 import type { PersonaFormValues, PersonaWireMetadata } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
@@ -268,41 +265,21 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
   );
 }
 
-/** The avatar as its own upload door. The route's size cap is checked before the multipart POST, because
- *  `FileTrigger` carries no ceiling of its own. */
+/** The avatar's upload door: the shared control, with the persona's own write. A refused write shows on the
+ *  control's line, so the mutation declares it and no toast repeats it. */
 function AvatarTrigger({ persona }: { readonly persona: PersonaDetail }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const update = useUpdatePersona({ trpc, invalidation });
-  const upload = useUploadAsset();
-  const uploadCaps = useUploadCaps();
-  const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
-  const onAvatarFile = async (file: File): Promise<void> => {
-    const oversize = oversizeUploadMessage(file, uploadCaps.assetUpload);
-    if (oversize !== undefined) {
-      notify.error(oversize);
-      return;
-    }
-    const stored = await upload(file, "avatar");
-    update.mutate({ personaId: persona.id, input: { avatarAssetId: stored.assetId } });
-  };
+  const update = useUpdatePersona({ trpc, invalidation, failureShownInline: "the avatar control's line" });
   return (
-    <FileTrigger
-      accept="image/*"
-      onFilesSelected={([file]): void => {
-        if (file !== undefined) {
-          onAvatarFile(file).catch(() => notify.error("Couldn't upload the avatar."));
-        }
-      }}
-    >
-      {({ open }): ReactElement => (
-        <InlineAction aria-label={`Change avatar for ${persona.name}`} className="shrink-0" variant="ghost" onClick={open} step="label">
-          <Avatar fallbackDelay={0} hueSeed={persona.id} size="md" {...avatarSrc}>
-            {initialsFor(persona.name)}
-          </Avatar>
-        </InlineAction>
-      )}
-    </FileTrigger>
+    <AvatarUpload
+      avatarHash={persona.avatarHash}
+      commit={(stored): Promise<unknown> => update.mutateAsync({ personaId: persona.id, input: { avatarAssetId: stored.assetId } })}
+      hueSeed={persona.id}
+      initials={initialsFor(persona.name)}
+      name={personaAvatarName(persona.name)}
+      size="md"
+    />
   );
 }
 
