@@ -1,8 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-11-10
-priority: P2
+updated: 2026-11-12
+priority: P1
 area: testing
 plan: test-foundation
 ---
