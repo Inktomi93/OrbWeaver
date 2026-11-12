@@ -3,20 +3,29 @@
 // ASSUMES(single-replica): the set is keyed by object identity and never leaves this process.
 
 import type { ViewerVisibility } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
+import { ChatNotFoundError } from "../contract/errors.ts";
 
 const resolved = new WeakSet<object>();
 
-/** Mint the answer for a viewer whose present participant row was just loaded. Only `resolveViewerVisibility` calls this
- *  (an ESLint import restriction in `eslint.config.ts` names it). */
-export function mintViewerVisibility(answer: Pick<ViewerVisibility, "role" | "historyFloorSeq" | "readsHidden">): ViewerVisibility {
+/** Mint the answer for a viewer whose present participant row in `answer.chatId` was just loaded. Only
+ *  `resolveViewerVisibility` calls this (an ESLint import restriction in `eslint.config.ts` names it). */
+export function mintViewerVisibility(answer: Pick<ViewerVisibility, "chatId" | "role" | "historyFloorSeq" | "readsHidden">): ViewerVisibility {
   const minted = Object.freeze({ ...answer }) as ViewerVisibility;
   resolved.add(minted);
   return minted;
 }
 
-/** Refuse any visibility the resolver did not hand out, before a read uses its floor or its hidden-content verdict. */
-export function assertResolvedVisibility(visibility: ViewerVisibility): void {
+/** Refuse any visibility the resolver did not hand out for `chatId`, before a read uses its floor or its hidden-content
+ *  verdict.
+ *  @throws {@link ChatNotFoundError} for an answer resolved for another chat: it proves no membership in `chatId`, and a
+ *  non-member's answer for a room is not-found (Spine-Identity-and-Auth §2). */
+export function assertResolvedVisibility(visibility: ViewerVisibility, chatId: ChatId): void {
   if (!resolved.has(visibility)) {
     throw new Error("canon read: this visibility is not an answer chat's resolver handed out");
+  }
+  // The answer is frozen and identity-checked above, so its chat id is the one the resolver stamped.
+  if (visibility.chatId !== chatId) {
+    throw new ChatNotFoundError(chatId);
   }
 }

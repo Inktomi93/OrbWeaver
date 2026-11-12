@@ -60,6 +60,9 @@ declare const viewerVisibilityBrand: unique symbol;
  *  canon read checks by object identity, so a spread copy with a defaulted floor is refused when the read runs. */
 export interface ViewerVisibility {
   readonly [viewerVisibilityBrand]: true;
+  /** The chat this answer was resolved for. A canon read refuses the answer for any other chat: a host's unclamped,
+   *  hidden-reading answer for their own room would otherwise open another room's pre-join and hidden canon. */
+  readonly chatId: ChatId;
   readonly role: ParticipantRoleState;
   readonly historyFloorSeq: HistoryFloorSeq;
   /** The parity-plus §3.6 / D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
