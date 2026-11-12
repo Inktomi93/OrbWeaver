@@ -103,7 +103,8 @@ export const listRowVariants = tv({
       group-hover:visible
     `,
     // `shrink-0`: controls keep their intrinsic width and are never squeezed below the tap-target floor.
-    actions: "flex shrink-0 items-center justify-end gap-field",
+    // `max-inline-full`: a cluster wider than its row (a rem-sized control at enlarged text) takes the row's width and lets its own content wrap, instead of ending past the row.
+    actions: "flex shrink-0 items-center justify-end gap-field max-inline-full",
   },
   variants: {
     // A row whose body runs to several lines keeps its leading mark at the first.

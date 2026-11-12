@@ -103,7 +103,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
             // body is not clickable: the row's door is the `⋯`, because "open the library" navigates away
             // from the room and must be chosen, not stumbled into.
             actions: (
-              <Row align="center" gap="tight">
+              <Row align="center" gap="tight" wrap={true}>
                 {notYours ? null : <Switch aria-label={regexScriptEverywhereSwitchName(name)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />}
                 {menu}
               </Row>
