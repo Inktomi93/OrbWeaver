@@ -204,7 +204,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         {error !== null ? (
           <Row align="start" gap="field">
             <Icon icon={TriangleAlert} size="sm" tone="destructive" />
-            <Text prose={true} voice="label">
+            <Text cap="prose" prose={true} voice="label">
               {error}
             </Text>
           </Row>
@@ -229,7 +229,7 @@ function ImportSummary({ parsed }: { readonly parsed: ParsedImport }): ReactElem
 function OrbSummary({ name }: { readonly name: string }): ReactElement {
   return (
     <Section kicker="Ready to import">
-      <Text prose={true} voice="label">
+      <Text cap="prose" prose={true} voice="label">
         orbweaver preset export: "{name}". That name is the merge key.
       </Text>
     </Section>
@@ -241,7 +241,7 @@ function StImportSummary({ name, result }: { readonly name: string; readonly res
   const { sectionCount, dropped } = result;
   return (
     <Section kicker="Ready to import">
-      <Text prose={true} voice="label">
+      <Text cap="prose" prose={true} voice="label">
         SillyTavern preset: {sectionCount} section{sectionCount === 1 ? "" : "s"}, created as a new preset named "{name}".
       </Text>
       {dropped.length === 0 ? (

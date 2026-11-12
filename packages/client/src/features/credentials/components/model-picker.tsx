@@ -343,11 +343,11 @@ function PickedLine({
   const picked = models?.find((entry) => entry.id === value.trim()) ?? null;
   if (value.trim() === "") {
     return error === null ? (
-      <Text data-slot="model-picker-picked" prose={true} role="status" voice="gloss">
+      <Text data-slot="model-picker-picked" cap="prose" prose={true} role="status" voice="gloss">
         No model picked yet.
       </Text>
     ) : (
-      <Text tone="destructive" data-slot="model-picker-picked" id={errorId} prose={true} role="alert" voice="gloss">
+      <Text tone="destructive" data-slot="model-picker-picked" id={errorId} cap="prose" prose={true} role="alert" voice="gloss">
         {error}
       </Text>
     );
@@ -356,7 +356,7 @@ function PickedLine({
   if (picked !== null || models === null) {
     const entry = picked === null ? null : pickerEntryOf(picked);
     return (
-      <Text data-slot="model-picker-picked" prose={true} role="status" voice="gloss">
+      <Text data-slot="model-picker-picked" cap="prose" prose={true} role="status" voice="gloss">
         Picked: {entry === null ? value : entry.label}
         {entry !== null && entry.label !== entry.id ? ` (${entry.id})` : ""}
       </Text>

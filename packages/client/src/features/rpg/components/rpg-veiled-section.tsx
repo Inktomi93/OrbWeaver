@@ -112,7 +112,9 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
   const toldAt = new Map(reveal.messages.map((message) => [message.messageId, message.createdAt]));
   return (
     <Stack gap="field" data-slot="rpg-veiled-section">
-      <Kicker crown={true}>Veiled: host only</Kicker>
+      <Kicker crown={true} gloss="Host only">
+        Veiled
+      </Kicker>
       {/* The row key is the lie's identity, so a revealed truth stays revealed while other rows come and go,
           and a changed truth is a new row that starts hidden. */}
       {lies.map(({ lie, subject }) => (

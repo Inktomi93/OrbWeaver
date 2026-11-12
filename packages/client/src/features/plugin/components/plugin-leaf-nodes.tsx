@@ -205,7 +205,7 @@ function DisplayLeaf({
         {keyValueRows(node, state).map((kv) => (
           <Row align="baseline" gap="field" justify="between" key={kv.key}>
             <Text voice="label">{kv.key}</Text>
-            <Text prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               {resolveString(kv.value, state)}
             </Text>
           </Row>
@@ -220,6 +220,7 @@ function DisplayLeaf({
           <Text
             // biome-ignore lint/suspicious/noArrayIndexKey: bound strings render as Text only; replacing a slot cannot transfer row-local state or actions.
             key={index}
+            cap="prose"
             prose={true}
           >
             {resolveString(item, state)}

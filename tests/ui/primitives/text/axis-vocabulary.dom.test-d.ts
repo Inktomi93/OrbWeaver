@@ -21,6 +21,29 @@ test("the old tone values do not compile", () => {
   expectTypeOf<NonNullable<TextProps["tone"]>>().toEqualTypeOf<Tone>();
 });
 
+declare const flag: boolean;
+
+test("the prose size states its measure", () => {
+  // @ts-expect-error a paragraph with no cap runs the whole row
+  createElement(Text, { prose: true }, "x");
+  // @ts-expect-error a heading takes the same pair
+  createElement(Heading, { level: 2, prose: true }, "x");
+  // @ts-expect-error a block element states its measure, whichever element it is
+  createElement(Text, { prose: true, as: "div" }, "x");
+  // @ts-expect-error a computed flag needs the cap too
+  createElement(Text, { prose: flag }, "x");
+  // @ts-expect-error a heading has no inline run to exempt
+  createElement(Heading, { level: 2, prose: true, as: "span" }, "x");
+  createElement(Text, { prose: true, cap: "prose" }, "a paragraph at its measure");
+  createElement(Text, { prose: true, cap: "fit" }, "a run its owner already bounds");
+  createElement(Text, { prose: flag, cap: "prose" }, "a computed flag with its measure");
+  createElement(Heading, { level: 2, prose: flag, cap: "prose" }, "x");
+  createElement(Text, { prose: true, as: "span" }, "an inline run takes the measure of its line");
+  createElement(Text, { cap: "prose" }, "a cap without the size");
+  createElement(Text, { prose: false }, "x");
+  expectTypeOf<{ prose: true }>().not.toExtend<TextProps>();
+});
+
 test("an ink excludes a colour tone", () => {
   // @ts-expect-error an ink would repaint the tone's meaning away
   createElement(Text, { tone: "destructive", ink: "muted" }, "x");

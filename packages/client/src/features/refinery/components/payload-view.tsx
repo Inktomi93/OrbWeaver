@@ -207,7 +207,11 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
           ) : (
             <Heading level={3}>{verdictWordOf(verdict)}</Heading>
           )}
-          {prose !== undefined ? <Text prose={true}>{scalarText(readOwnKey(payload, prose.key))}</Text> : null}
+          {prose !== undefined ? (
+            <Text cap="prose" prose={true}>
+              {scalarText(readOwnKey(payload, prose.key))}
+            </Text>
+          ) : null}
         </Stack>
         {axis !== undefined && axisWidget !== undefined ? (
           <Row align="center" gap="field">
@@ -275,7 +279,11 @@ function HeroGauge({
           min={widget.min}
           value={value === null ? widget.min : shown}
         />
-        {prose !== null ? <Text prose={true}>{scalarText(readOwnKey(payload, prose.key))}</Text> : null}
+        {prose !== null ? (
+          <Text cap="prose" prose={true}>
+            {scalarText(readOwnKey(payload, prose.key))}
+          </Text>
+        ) : null}
       </Stack>
     </Card>
   );
@@ -371,7 +379,9 @@ function ProseBlock({ field, value }: { field: PlanField; value: unknown }): Rea
   return (
     <Stack data-field={field.key} data-testid={testId("refineryField")} gap="tight">
       <Text voice="kicker">{field.label}</Text>
-      <Text prose={true}>{scalarText(value)}</Text>
+      <Text cap="prose" prose={true}>
+        {scalarText(value)}
+      </Text>
     </Stack>
   );
 }

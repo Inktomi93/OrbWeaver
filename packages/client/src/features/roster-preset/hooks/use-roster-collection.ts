@@ -5,19 +5,17 @@
 // rows and the picker read (the tag-collection discipline: a second reader, never a second request).
 
 import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "#data";
+import { useCollectionCount, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight } from "#lib";
 import { timeLib } from "#lib";
 import { openModal, selectCollectionMember } from "#state";
 import { ROSTER_COLLECTION_ID } from "../lib/roster-model.ts";
 
-/** The group band's live census ("ROSTERS · 4"). A FAILED read says so rather than reading as absence
- *  (#1546 — see {@link CollectionCount}). */
+/** The group band's live census ("ROSTERS · 4"), whose Retry re-asks the rows' read too. A FAILED read says so
+ *  rather than reading as absence (#1546 — see {@link CollectionCount}). */
 export function useRosterCount(): CollectionCount {
   const trpc = useTRPC();
-  const census = useQuery(trpc.rosterPreset.count.queryOptions());
-  // `refetch` takes an OPTIONS BAG, so it is wrapped rather than passed by reference.
-  return { count: census.data, failed: census.error !== null, retry: (): void => void census.refetch().catch(globalThis.reportError) };
+  return useCollectionCount(useQuery(trpc.rosterPreset.count.queryOptions()), trpc.rosterPreset.list.queryFilter());
 }
 
 /**

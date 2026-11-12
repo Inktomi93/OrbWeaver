@@ -287,10 +287,6 @@ Two WHYs stay live because they still constrain the code:
   client-phase type test asserts the pairing. Contracts importing a ui shape was rejected — it inverts
   the cake (ui is a LEAF of client).
 
-The Streamdown security-API gotcha (the real surface is `allowedElements`/`disallowedElements` +
-`urlTransform`, not the assumed `allowedImagePrefixes`/`allowDataImages`) now self-documents at the top
-of `packages/ui/src/markdown/policy.ts` — no doc copy needed.
-
 ## 11. Static enforcement
 
 D333 ends custom static gate and checker enforcement. This document states product design law; it does not claim a custom checker enforces it.
@@ -373,6 +369,8 @@ This applies to open/close callbacks too, including composite primitives that me
 (`ColorField.onOpenChange` derives from `Popover.Root`'s). It does NOT apply to a composite's own
 invented callback that forwards nothing (`ColorField.onValueChange` is a clamp-gated commit, not a
 passthrough) — say so inline where it is not obvious.
+
+**R10 — A prose run states its measure.** `Text` and `Heading` take `prose` only with a `cap`: `prose` for a paragraph, `code` in the code voice, `fit` for a truncated or clamped run. An inline run (`as="span"`) takes the measure of its line, so it takes `prose` with no cap. The `TextProps` type in `packages/ui/src/primitives/text/text.tsx` enforces it; `pnpm typecheck tsconfig.tests-dom.json` runs the cases in `tests/ui/primitives/text/axis-vocabulary.dom.test-d.ts`.
 
 ## 14. The Base UI anatomy ledger (every part: exposed · sealed-away · n/a)
 

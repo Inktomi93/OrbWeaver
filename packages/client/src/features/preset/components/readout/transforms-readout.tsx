@@ -164,7 +164,7 @@ function Pipeline({ config, attached }: { readonly config: PromptConfig; readonl
         <Stack gap="tight">
           <Lane state={stepState} steps={REPLY_LANE_STEPS} />
         </Stack>
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           Execution order: display-only scripts change what you read and never touch the wire.
         </Text>
       </Section>

@@ -30,25 +30,42 @@ const CHIP_BADGE: Record<RefineryChipTone, ChipBadge> = {
 
 export interface RefineryChipProps {
   readonly tone?: RefineryChipTone;
-  /** Keep a full status sentence inside its row by wrapping at word boundaries. */
-  readonly wrap?: boolean;
   readonly children: ReactNode;
 }
 
-export function RefineryChip({ tone = "neutral", wrap = false, children }: RefineryChipProps): ReactElement {
-  // The kicker voice carries the micro-caps grammar; `ink="inherit"` takes the badge's own ink.
+function ChipFrame({ tone, sentence, children }: { readonly tone: RefineryChipTone; readonly sentence: boolean; readonly children: ReactNode }): ReactElement {
   return (
     <Badge
-      cap={wrap ? "fit" : undefined}
-      whitespace={wrap ? "normal" : undefined}
+      cap={sentence ? "fit" : undefined}
+      whitespace={sentence ? "normal" : undefined}
       data-testid={testId("refineryChip")}
       tone={CHIP_BADGE[tone].tone}
       variant={CHIP_BADGE[tone].variant}
       size="compact"
     >
+      {children}
+    </Badge>
+  );
+}
+
+/** A chip that says one word or a short label, in the kicker voice (micro-caps). `ink="inherit"` takes the badge's own ink. */
+export function RefineryChip({ tone = "neutral", children }: RefineryChipProps): ReactElement {
+  return (
+    <ChipFrame sentence={false} tone={tone}>
       <Text as="span" data-hint-tone={tone} ink="inherit" voice="kicker">
         {children}
       </Text>
-    </Badge>
+    </ChipFrame>
+  );
+}
+
+/** A chip that says a whole sentence: caps is a label voice and prose never borrows it, so it sets in sentence case and wraps at word boundaries inside its row. */
+export function RefinerySentenceChip({ tone = "neutral", children }: RefineryChipProps): ReactElement {
+  return (
+    <ChipFrame sentence={true} tone={tone}>
+      <Text as="span" data-hint-tone={tone} ink="inherit" voice="label">
+        {children}
+      </Text>
+    </ChipFrame>
   );
 }

@@ -160,7 +160,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
                   <Icon icon={step.glyph} size="sm" />
                   <Text voice="label">{step.name}</Text>
                 </Row>
-                <Text prose={true} voice="gloss">
+                <Text cap="prose" prose={true} voice="gloss">
                   {step.detail}
                 </Text>
               </Stack>

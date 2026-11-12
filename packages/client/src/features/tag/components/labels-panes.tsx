@@ -116,10 +116,10 @@ export function LabelsContextTab(): ReactElement {
 function LabelsMeaning(): ReactElement {
   return (
     <Stack data-slot="labels-meaning" gap="block">
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         A tag is yours: you create it, attach it, and it stays until you remove it.
       </Text>
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         Genres, tones, themes, families and archetypes come from corpus analysis. They are generated facets, not tags, and they can change when the analysis
         reruns.
       </Text>

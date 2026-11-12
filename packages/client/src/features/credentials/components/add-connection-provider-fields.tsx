@@ -121,7 +121,7 @@ export function ProviderFields({
         <form.Subscribe selector={(state): string => state.values.baseUrl}>
           {(baseUrl): ReactElement | null =>
             namesLoopback(baseUrl) ? (
-              <Text data-slot="add-connection-loopback-note" prose={true} voice="gloss">
+              <Text data-slot="add-connection-loopback-note" cap="prose" prose={true} voice="gloss">
                 127.0.0.1 and localhost mean the machine Orbweaver runs on. If Orbweaver runs in Docker, that is the container, not your computer: use
                 host.docker.internal or your computer's network address instead.
               </Text>
@@ -201,7 +201,7 @@ export function ProviderFields({
           {(field): ReactElement => <field.SwitchField label={CONNECTION_FORM_COPY.backgroundLabel} description={CONNECTION_FORM_COPY.backgroundDescription} />}
         </form.AppField>
       ) : (
-        <Text data-slot="add-connection-background-note" prose={true} voice="gloss">
+        <Text data-slot="add-connection-background-note" cap="prose" prose={true} voice="gloss">
           {backgroundNote}
         </Text>
       )}
@@ -227,7 +227,7 @@ function KeyField({
   const [lastChoice, setLastChoice] = useState<CredentialView | null>(null);
   if (held !== null) {
     return (
-      <Text data-slot="add-connection-key-held" prose={true} voice="gloss">
+      <Text data-slot="add-connection-key-held" cap="prose" prose={true} voice="gloss">
         {savedKeyName(held.name)}. It won't be shown again.
       </Text>
     );
@@ -237,7 +237,7 @@ function KeyField({
   }
   if (!keyStorage) {
     return (
-      <Text data-slot="add-connection-keyless-note" prose={true} voice="gloss">
+      <Text data-slot="add-connection-keyless-note" cap="prose" prose={true} voice="gloss">
         {KEY_STORAGE_OFF_COPY.keylessNote}
       </Text>
     );

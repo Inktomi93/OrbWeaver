@@ -144,7 +144,7 @@ interface BeatLineProps {
  *  The leading em-dash is the mock's beat marker (aria-hidden decoration — the text stays the datum). */
 export function BeatLine({ children }: BeatLineProps): ReactElement {
   return (
-    <Text ink="muted" data-slot="beat-line" flow="lineField" voice="gloss" prose={true}>
+    <Text ink="muted" data-slot="beat-line" flow="lineField" voice="gloss" cap="prose" prose={true}>
       <Text as="span" aria-hidden={true} receded={true} className="shrink-0" voice="gloss" prose={true} ink="foreground">
         :
       </Text>
