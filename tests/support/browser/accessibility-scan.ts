@@ -108,7 +108,10 @@ function reclassify(raw: AxeResults, excusals: readonly Excusal[]): Omit<Accessi
  * content of an open menu or select popup covers for `target-size` (a closed select's trigger over a control is still a finding).
  */
 export async function accessibilityEvidence(page: Page): Promise<AccessibilityEvidence> {
-  const raw = await new AxeBuilder({ page }).options({ rules: { "target-size": { enabled: true } } }).analyze();
+  const builder = new AxeBuilder({ page }).options({ rules: { "target-size": { enabled: true } } });
+  // The vendor's per-frame mode finishes every scan in a fresh blank page; with no child frame there is nothing for it
+  // to join, so the single-frame run returns the same result without that page. Any child frame keeps per-frame mode.
+  const raw = await (page.frames().length === 1 ? builder.setLegacyMode() : builder).analyze();
   const inOpenPopup = await selectorsInOpenPopup(page, raw);
   const { results, reclassified } = reclassify(raw, [
     { ruleId: "aria-hidden-focus", reason: FOCUS_GUARD_REASON, excused: isFocusGuard },

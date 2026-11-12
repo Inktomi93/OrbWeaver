@@ -99,13 +99,38 @@ function httpLines(route: CaseRoute): string[] {
 }
 
 /** The native selector that reruns exactly this case: its project plus its describe and title, anchored at the end. */
-function caseSelector(route: CaseRoute): string {
+function caseSelector(route: Pick<CaseRoute, "titlePath" | "project">): string {
   // Escape only pattern syntax: `RegExp.escape` also hex-escapes spaces and leading letters, which no one can read back.
   const title = route.titlePath
     .slice(-2)
     .join(" ")
     .replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   return `--project=${route.project ?? "<project>"} -g "${title}$"`;
+}
+
+type CaseEndRoute = Pick<CaseRoute, "result"> & { readonly test: Pick<CaseRoute["test"], "id"> };
+
+/** Sort the selected cases by how far they got: an end result, started without one, or never started. */
+export function surfaceCaseEnds<Route extends CaseEndRoute, Selected extends { readonly id: string }>(
+  selected: readonly Selected[],
+  routes: readonly Route[],
+): { readonly completed: Route[]; readonly missing: Selected[]; readonly inProgress: Route[]; readonly unstarted: Selected[] } {
+  const completed = routes.filter((route) => route.result !== null);
+  const inProgress = routes.filter((route) => route.result === null);
+  const missing = selected.filter((test) => !completed.some((route) => route.test.id === test.id));
+  const unstarted = missing.filter((test) => !inProgress.some((route) => route.test.id === test.id));
+  return { completed, missing, inProgress, unstarted };
+}
+
+/** Name each selected case without an end result: those a stop caught in progress, with their rerun selector and steps, then those never started. */
+export function surfaceUnendedLines(
+  inProgress: readonly Pick<CaseRoute, "titlePath" | "project" | "stepFile">[],
+  unstarted: readonly { readonly titlePath: readonly string[] }[],
+): string[] {
+  return [
+    ...inProgress.map((route) => `- in progress, never ended: ${route.titlePath.join(" / ")}; rerun: \`-- ${caseSelector(route)}\`; steps: ${route.stepFile}`),
+    ...unstarted.map((test) => `- never started: ${test.titlePath.join(" / ")}`),
+  ];
 }
 
 function caseLines(route: CaseRoute): string[] {
@@ -306,9 +331,9 @@ export default class SurfaceIndexReporter implements Reporter {
   }
 
   private writeEntry(): void {
-    const completed = [...this.cases.values()].filter((route) => route.result !== null);
+    const { completed, missing, inProgress, unstarted } = surfaceCaseEnds(this.selected, [...this.cases.values()]);
     const unexpected = completed.filter((route) => route.result?.status !== route.test.expectedStatus && route.result?.status !== "skipped");
-    const missing = this.selected.filter((test) => !completed.some((route) => route.test.id === test.id));
+    const unended = surfaceUnendedLines(inProgress, unstarted);
     const unselected = this.configuredProjects.filter((project) => !this.selectedProjects.includes(project));
     const audits = completed.flatMap((route) => route.audits);
     const skippedCount = audits.reduce((total, audit) => total + audit.skipped.length, 0);
@@ -318,7 +343,7 @@ export default class SurfaceIndexReporter implements Reporter {
       "",
       `Run: ${this.root}`,
       "",
-      `${String(completed.length)} completed native results; ${String(unexpected.length)} unexpected; ${String(missing.length)} selected cases without an end result.`,
+      `${String(completed.length)} completed native results; ${String(unexpected.length)} unexpected; ${String(missing.length)} selected cases without an end result (${String(inProgress.length)} in progress, ${String(unstarted.length)} never started); each is named under "Selected cases without completed results".`,
       this.selectionCaption(),
       `Configured projects: ${this.configuredProjects.join(", ") || "unavailable"}. Unselected projects: ${unselected.join(", ") || "none established"}.`,
       "",
@@ -345,7 +370,7 @@ export default class SurfaceIndexReporter implements Reporter {
     lines.push(
       "## Selected cases without completed results",
       "",
-      ...missing.map((test) => `- ${test.titlePath.join(" / ")}`),
+      ...unended,
       "",
       "## Global native errors",
       "",
@@ -353,7 +378,8 @@ export default class SurfaceIndexReporter implements Reporter {
     );
     writeFileSync(join(this.root, SURFACE_AGENT_ENTRY), `${lines.join("\n")}\n`, { mode: 0o600 });
     const summary = [
-      `Native E2E: ${this.outcome ?? "incomplete"}; completed=${String(completed.length)} unexpected=${String(unexpected.length)} selected-without-end=${String(missing.length)} global-errors=${String(this.errors.length)} skipped=${String(skippedCount)} unlisted-skips=${String(unlistedCount)}`,
+      `Native E2E: ${this.outcome ?? "incomplete"}; completed=${String(completed.length)} unexpected=${String(unexpected.length)} selected-without-end=${String(missing.length)} in-progress=${String(inProgress.length)} never-started=${String(unstarted.length)} global-errors=${String(this.errors.length)} skipped=${String(skippedCount)} unlisted-skips=${String(unlistedCount)}`,
+      ...unended,
       ...completed.flatMap((route) => httpLines(route).map((line) => `${route.titlePath.join(" / ")}: ${line}`)),
       ...unexpected.flatMap((route) => {
         const errors = route.result?.errors ?? [];
