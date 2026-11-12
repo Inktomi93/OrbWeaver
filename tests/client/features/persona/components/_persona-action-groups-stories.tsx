@@ -11,7 +11,7 @@ export function PersonaActionGroupsStory({ width, appearance }: { readonly width
     <CtClientProviders>
       <CtAppearanceChannels settings={appearance}>
         <Container aria-label="Persona action host" className="h-screen" role="group" style={{ inlineSize: width }}>
-          <Stack className="overflow-y-auto overscroll-contain px-section py-section block-full min-block-0">
+          <Stack className="overflow-y-auto overscroll-contain py-section block-full min-block-0" paddingInline="section">
             <CtConfigGroupBody anchor={personaListSection.anchor} sections={sections} />
           </Stack>
         </Container>

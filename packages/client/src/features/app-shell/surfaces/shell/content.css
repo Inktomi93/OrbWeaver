@@ -54,11 +54,11 @@
     }
   }
 
-  /* An inset pane at the enlarged root keeps the inset's step in rem, which takes a third of a phone: the pane gives
-   * the column back, so a control row of its own width fits. */
+  /* An inset pane at the enlarged root gives the column back to the held block inset, below the held section inset
+   * `paddingInline` writes, so a control row of its own width fits. */
   @container shell-main (inline-size < 20rem) {
     .shell-region-fill[data-inset] {
-      padding-inline: var(--spacing-block);
+      padding-inline: var(--spacing-inset-block);
     }
   }
 

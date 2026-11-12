@@ -212,6 +212,7 @@ export {
 } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
 export { rememberMultiHumanCapable, useMultiHumanCapableHint } from "./deployment-boot-hint.ts";
+export { publishDrillBack, useDrillBack } from "./drill-back-store.ts";
 // D166: room configuration belongs to committed server verbs, not a second local draft model.
 export { activeDurableLocalUserId, bindDurableLocalToUser, durableLocalReadyFor } from "./durable-local.ts";
 export { setExtensionsSearchQuery, useExtensionsSearchQuery } from "./extensions-search-store.ts";

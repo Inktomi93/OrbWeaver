@@ -49,6 +49,8 @@ This law follows the 8pt grid with a 4pt sub-grid (4pt inside a component, 8pt b
 
 **Do NOT re-tune `--spacing-field` to 4px "to fix the grid"** (D3): with `tight` present, 6px is the deliberate 2pt sub-step between 4 and 8.
 
+`paddingInline` at `block` and `section` holds against the viewport at enlarged text, so a phone keeps its width for the text. It writes `--spacing-inset-block` and `--spacing-inset-section`: the step, capped at a share of the screen and never below its value at the default size. A `section` reach and scroll inset cross the same held inset, and the shell's narrow content pane steps down to the held block inset. `padding`, the one-edge props and the narrow-pane props do not hold. The nested indent holds through `--spacing-indent`, whose rule lives in its description in [tokens.json](../../packages/ui/src/tokens/tokens.json).
+
 ### 2.3 Type — the closed `voice` axis
 
 The seven type sizes are correct and are NOT re-derived (D4 — no measured defect, and a re-derivation churns every surface).

@@ -18,6 +18,7 @@ export function OneAxisOwnersStory(): ReactElement {
   return (
     <CtIsolation subject="One-axis padding and truncate owners" isolates="Stack, Row, Text and Heading with their own props, and nothing from a shell">
       <Stack paddingInline="block" data-probe="stack-inline" />
+      <Stack paddingInline="section" data-probe="stack-inline-section" />
       <Stack paddingBlock="section" data-probe="stack-block" />
       <Row paddingInline="field" data-probe="row-inline" />
       <Row paddingBlock="row" data-probe="row-block" />

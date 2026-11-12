@@ -20,7 +20,8 @@ export function RuleActionGroupsStory({ width, appearance }: { readonly width: n
     <CtClientProviders>
       <CtAppearanceChannels settings={appearance}>
         <Container aria-label="Rule action host" className="h-screen" role="group" style={{ inlineSize: width }}>
-          <Stack className="overflow-y-auto overscroll-contain px-section py-section block-full min-block-0">
+          {/* The settings pane's own inline inset prop, so the rule card sits as far in as it does on the page. */}
+          <Stack className="overflow-y-auto overscroll-contain py-section block-full min-block-0" paddingInline="section">
             <ReadyRuleList />
           </Stack>
         </Container>
@@ -40,7 +41,7 @@ export function ChatRulesStory({ chatId, appearance }: { readonly chatId: ChatId
     <CtClientProviders>
       <CtAppearanceChannels settings={appearance}>
         <Container aria-label="Chat rules host" className="h-screen" role="group" style={{ inlineSize: 960 }}>
-          <Stack className="overflow-y-auto overscroll-contain px-section py-section block-full min-block-0">
+          <Stack className="overflow-y-auto overscroll-contain py-section block-full min-block-0" paddingInline="section">
             <ReadyChatRules chatId={chatId} />
           </Stack>
         </Container>
