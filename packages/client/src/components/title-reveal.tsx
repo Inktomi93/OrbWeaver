@@ -14,17 +14,11 @@ import { Contents, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { CutPartContext, useCutParts } from "./use-is-cut.ts";
 
 /** The reasons a reveal closes with focus going where the user pointed, not back to the control that opened it. */
 const FOCUS_LEAVES: ReadonlySet<string> = new Set(["outside-press", "focus-out"]);
-
-/** What a press does: open the whole text, or take the control's own action. */
-type PressMode = "reveal" | "act";
-
-/** The keys whose press on a button is its click. */
-const PRESS_KEYS: ReadonlySet<string> = new Set(["Enter", " "]);
 
 /** What a title that is already a control does when pressed uncut, and what its reveal offers while it is cut. */
 interface TitleAction {
@@ -76,37 +70,18 @@ export function TitleReveal({ whole, fill = false, action, control: own, frame, 
   const [held, setHeld] = useState(false);
   const isControl = action !== undefined || cut || held;
   const revealing = cut || open;
-  // A press acts on the state it started in: the layout can change between the press and its click, and a press that began on the control's own
-  // action is not turned into a reveal by a cut that arrived under the finger. Set at pointer-down or key-down, spent when the press ends.
-  const started = useRef<PressMode | null>(null);
-  const modeNow = (): PressMode => (revealing ? "reveal" : "act");
-  const begin = (): void => {
-    started.current = modeNow();
-  };
-  const end = (): void => {
-    globalThis.setTimeout(() => {
-      started.current = null;
-    }, 0);
-  };
-  const mode = (): PressMode => started.current ?? modeNow();
-
   const control = action === undefined ? (own ?? <InlineAction grow={fill} step="label" type="button" />) : action.control({ cut });
   const trigger = (
     <PopoverTrigger
       aria-expanded={revealing ? open : undefined}
       aria-haspopup={revealing ? "dialog" : undefined}
       onBlur={(): void => {
-        started.current = null;
         if (!open) {
           setHeld(false);
         }
       }}
-      onClick={action === undefined ? undefined : (): void => (mode() === "act" ? action.onSelect() : undefined)}
-      onKeyDown={(event): void => (PRESS_KEYS.has(event.key) ? begin() : undefined)}
-      onKeyUp={end}
-      onPointerCancel={end}
-      onPointerDown={begin}
-      onPointerUp={end}
+      // The control decides when it is activated, from the state it is in then: a cut title reveals, an uncut one acts. Nothing is carried between presses.
+      onClick={revealing || action === undefined ? undefined : action.onSelect}
       render={control}
     >
       {children}
@@ -119,9 +94,8 @@ export function TitleReveal({ whole, fill = false, action, control: own, frame, 
         {isControl ? (
           <Popover
             onOpenChange={(next, details): void => {
-              const reveals = next && mode() === "reveal";
-              setOpen(reveals);
-              if (reveals) {
+              setOpen(next && revealing);
+              if (next && revealing) {
                 setHeld(true);
               } else if (!next && FOCUS_LEAVES.has(details.reason)) {
                 setHeld(false);
