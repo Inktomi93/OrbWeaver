@@ -66,6 +66,10 @@ function realOptions(): ts.CompilerOptions {
 
 // A program of the spec and a route helper: the planted one gives the rule the route types without the repo graph,
 // the real one brings the server's router with it.
+// Files a program read from disk, parsed once per option set: a case's program differs only in its planted sources.
+const REAL_FILES = new Map<string, ts.SourceFile | undefined>();
+const PLANTED_FILES = new Map<string, ts.SourceFile | undefined>();
+
 function programFor(fileName: string, source: string, real: boolean): ts.Program {
   const options: ts.CompilerOptions = real
     ? realOptions()
@@ -85,9 +89,16 @@ function programFor(fileName: string, source: string, real: boolean): ts.Program
   }
   const host = ts.createCompilerHost(options, true);
   const read = host.getSourceFile.bind(host);
+  const onDisk = real ? REAL_FILES : PLANTED_FILES;
   host.getSourceFile = (name, version, onError, create): ts.SourceFile | undefined => {
     const text = planted.get(name);
-    return text === undefined ? read(name, version, onError, create) : ts.createSourceFile(name, text, version, true);
+    if (text !== undefined) {
+      return ts.createSourceFile(name, text, version, true);
+    }
+    if (!onDisk.has(name)) {
+      onDisk.set(name, read(name, version, onError, create));
+    }
+    return onDisk.get(name);
   };
   const exists = host.fileExists.bind(host);
   host.fileExists = (name): boolean => planted.has(name) || exists(name);
