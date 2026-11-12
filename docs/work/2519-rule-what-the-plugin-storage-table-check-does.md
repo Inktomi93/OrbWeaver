@@ -1,9 +1,10 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P3
 area: db
+plan: stored-data-integrity
 ---
 
 # Rule what the plugin storage table check does about rows it already admitted

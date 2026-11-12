@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-12
 priority: P2
 area: server
+plan: stored-data-integrity
 ---
 
 # A picture stored under one asset kind is found when used under another

@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
+updated: 2026-11-12
 priority: P2
 area: server
-plan: unwired-code
+plan: import-robustness
 ---
 
 # Parsing a large SillyTavern chat does not block the event loop (no gap over 200 ms on 5 MB chats)

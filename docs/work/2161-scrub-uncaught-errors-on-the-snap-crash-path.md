@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-12
 priority: P2
 area: tooling
+plan: snap-secret-hygiene
 ---
 
 # Scrub uncaught errors on the snap crash path

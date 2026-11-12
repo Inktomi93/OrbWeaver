@@ -11,11 +11,16 @@ This is the work order: plans are worked in rank order, active before parked, an
 
 | Rank | Plan | Status |
 | - | - | - |
-| 1 | [Cross-surface visual consistency](cross-surface-consistency/design.md) | active |
-| 2 | [Automated product surface review](surface-walk/design.md) | active |
-| 3 | [Every ruling names its checker, and every claim in prose resolves](checked-law/design.md) | active |
-| 4 | [Inference flow: owners, ports and callers](inference-flow/design.md) | active |
-| 5 | [Tests on the production harness](test-foundation/design.md) | active |
-| 6 | [Mechanical checks that keep tests on production](test-enforcement/design.md) | active |
-| 7 | [Find and judge every unwired and dead piece of code](unwired-code/design.md) | active |
-| 8 | [Restoration register](restoration-register/design.md) | parked |
+| 1 | [Who may act on whose data, and who may see it](authorization-and-visibility/design.md) | active |
+| 2 | [The product behaves the same on Windows, macOS and Linux](cross-platform/design.md) | active |
+| 3 | [Tests on the production harness](test-foundation/design.md) | active |
+| 4 | [Mechanical checks that keep tests on production](test-enforcement/design.md) | active |
+| 5 | [Every ruling names its checker, and every claim in prose resolves](checked-law/design.md) | active |
+| 6 | [An import survives bad input and reports each failure](import-robustness/design.md) | active |
+| 7 | [Stored data that cannot be read is named, kept and repairable](stored-data-integrity/design.md) | active |
+| 8 | [Cross-surface visual consistency](cross-surface-consistency/design.md) | active |
+| 9 | [Automated product surface review](surface-walk/design.md) | active |
+| 10 | [Find and judge every unwired and dead piece of code](unwired-code/design.md) | active |
+| 11 | [Snap never writes a secret to disk, argv or a trace](snap-secret-hygiene/design.md) | active |
+| 12 | [Inference flow: owners, ports and callers](inference-flow/design.md) | active |
+| 13 | [Restoration register](restoration-register/design.md) | parked |

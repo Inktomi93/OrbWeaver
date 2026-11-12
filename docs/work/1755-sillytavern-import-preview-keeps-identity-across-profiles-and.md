@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
+updated: 2026-11-12
 priority: P3
 area: server
-plan: unwired-code
+plan: import-robustness
 ---
 
 # SillyTavern import preview keeps identity across profiles and same-named orb books

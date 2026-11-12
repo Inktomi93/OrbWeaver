@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-12
 priority: P1
 area: security
+plan: authorization-and-visibility
 ---
 
 # An admin cannot cancel the owner's workloads or change the owner's schedules

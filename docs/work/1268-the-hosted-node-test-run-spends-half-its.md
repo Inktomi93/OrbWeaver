@@ -1,8 +1,8 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-08
-priority: P2
+updated: 2026-11-12
+priority: P3
 area: ci
 plan: test-foundation
 ---

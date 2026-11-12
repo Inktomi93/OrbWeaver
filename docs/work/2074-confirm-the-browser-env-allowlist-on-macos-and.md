@@ -1,11 +1,11 @@
 ---
 kind: tooling
 status: blocked
-updated: 2026-11-07
+updated: 2026-11-12
 priority: P3
 area: tooling
 blocked: owner
-plan: test-foundation
+plan: cross-platform
 ---
 
 # Confirm the browser env allowlist on macOS and Windows

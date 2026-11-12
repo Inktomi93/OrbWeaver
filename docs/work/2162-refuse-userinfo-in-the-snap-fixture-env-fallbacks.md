@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-12
 priority: P3
 area: tooling
+plan: snap-secret-hygiene
 ---
 
 # Refuse userinfo in the snap fixture env fallbacks

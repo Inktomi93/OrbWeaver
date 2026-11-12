@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P3
 area: security
+plan: authorization-and-visibility
 ---
 
 # A GET under the loopback owner fallback runs a deferred-turn drain with no cross-site check

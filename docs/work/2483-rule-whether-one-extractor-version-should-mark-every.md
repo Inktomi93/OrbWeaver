@@ -1,9 +1,10 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P3
 area: server
+plan: stored-data-integrity
 ---
 
 # Rule whether one extractor version should mark every document stale

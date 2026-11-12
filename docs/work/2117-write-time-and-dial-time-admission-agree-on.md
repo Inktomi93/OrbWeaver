@@ -1,10 +1,11 @@
 ---
 kind: decision
 status: blocked
-updated: 2026-11-08
+updated: 2026-11-12
 priority: P3
 area: security
 blocked: owner
+plan: authorization-and-visibility
 ---
 
 # Write-time and dial-time admission agree on a private IP literal issuer

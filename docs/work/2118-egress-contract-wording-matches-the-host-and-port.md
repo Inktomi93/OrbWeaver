@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-08
+updated: 2026-11-12
 priority: P3
 area: security
+plan: authorization-and-visibility
 ---
 
 # Egress contract wording matches the host and port allowlist grammar

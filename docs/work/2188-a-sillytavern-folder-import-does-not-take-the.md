@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-12
 priority: P2
 area: server
+plan: import-robustness
 ---
 
 # A SillyTavern folder import does not take the stage down

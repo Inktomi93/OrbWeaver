@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-11
+updated: 2026-11-12
 priority: P2
-plan: unwired-code
 area: server
+plan: authorization-and-visibility
 ---
 
 # A disabled owner's art stops serving to the room, like a departed owner's

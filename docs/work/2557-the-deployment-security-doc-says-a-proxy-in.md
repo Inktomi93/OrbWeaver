@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P3
 area: security
+plan: authorization-and-visibility
 ---
 
 # The deployment security doc says a proxy in front of the app must not answer CORS preflights

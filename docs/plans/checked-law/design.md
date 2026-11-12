@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-11
-rank: 3
+rank: 5
 ---
 
 # Every ruling names its checker, and every claim in prose resolves

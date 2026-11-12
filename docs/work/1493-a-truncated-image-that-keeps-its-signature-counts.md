@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-31
+updated: 2026-11-12
 priority: P3
 area: embeddings
+plan: stored-data-integrity
 ---
 
 # A truncated image that keeps its signature counts as embedded or skipped in the image sweep

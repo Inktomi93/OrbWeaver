@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-08
+updated: 2026-11-12
 priority: P3
 area: security
+plan: authorization-and-visibility
 ---
 
 # The import, export and settings ESLint blocks keep the visibility minter restriction

@@ -11,7 +11,7 @@ plan: surface-walk
 
 ## What
 
-On a phone at the largest text the corpus insights finder's list scroller measures no height over its content and stays hidden, so the walk's corpus rail case stops there and the corpus labels and insights sites after it go unmeasured. An earlier tree gave that scroller a short height; it now gets none. The cause is not yet found in source. Evidence: the phone rerun reports under reports/cb-walk-text.
+On a phone at the largest text the corpus insights finder's list scroller measures no height over its content and stays hidden, so the walk's corpus rail case stops there and the corpus labels and insights sites after it go unmeasured. An earlier tree gave that scroller a short height; it now gets none. The cause is not yet found in source. Evidence: the phone rerun reports under reports/cb-walk-text. Folded in, "Discover results collapse to no height at the largest text on a phone": The corpus Discover results scroller reads no height over its content (kind K21). Evidence: the enlarged-text verdict table under reports/cb-walk-text. Its done line was: The scroller keeps a usable height in a component test, and the walk lists no collapsed scroller there.
 
 ## Why
 

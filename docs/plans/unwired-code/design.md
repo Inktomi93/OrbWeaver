@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-06
-rank: 7
+rank: 10
 ---
 
 # Find and judge every unwired and dead piece of code

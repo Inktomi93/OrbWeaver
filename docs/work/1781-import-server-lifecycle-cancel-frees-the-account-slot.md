@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
+updated: 2026-11-12
 priority: P2
 area: server
-plan: unwired-code
+plan: import-robustness
 ---
 
 # Import server lifecycle: cancel frees the account slot, and poison or deleted-owner rows free their upload without waiting for boot

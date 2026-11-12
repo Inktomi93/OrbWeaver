@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
-priority: P3
+updated: 2026-11-12
+priority: P2
 area: plugins
-plan: unwired-code
+plan: stored-data-integrity
 ---
 
 # Showcase bundle bytes change without a manifest version bump, so seeded installs keep the old bytes

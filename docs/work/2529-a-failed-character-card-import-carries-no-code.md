@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P3
 area: contracts
+plan: import-robustness
 ---
 
 # A failed character card import carries no code the client can key on

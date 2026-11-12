@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
+updated: 2026-11-12
 priority: P2
 area: server
-plan: unwired-code
+plan: stored-data-integrity
 ---
 
 # Plugin card-data reads and writes guard json_valid, so getCardData on an over-deep row does not raise

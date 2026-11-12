@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-06
-rank: 6
+rank: 4
 ---
 
 # Mechanical checks that keep tests on production

@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-24
+updated: 2026-11-12
 priority: P3
-plan: unwired-code
 area: character
+plan: import-robustness
 ---
 
 # Handle reads and copies outside findByHandle skip the alphabet and the synthetic filter

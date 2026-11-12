@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P2
 area: import
+plan: import-robustness
 ---
 
 # One unreadable card fails a whole profile-folder import

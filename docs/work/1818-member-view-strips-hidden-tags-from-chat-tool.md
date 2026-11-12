@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
-priority: P2
+updated: 2026-11-12
+priority: P1
 area: chat
+plan: authorization-and-visibility
 ---
 
 # Member view strips hidden tags from chat tool records

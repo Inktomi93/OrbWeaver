@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
-priority: P2
+updated: 2026-11-12
+priority: P1
 area: security
+plan: authorization-and-visibility
 ---
 
 # A resolved viewer visibility answer is valid only for its own chat

@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P2
 area: import
+plan: import-robustness
 ---
 
 # A card with an over-cap lore depth imports, and a failed card import leaves no half-made character

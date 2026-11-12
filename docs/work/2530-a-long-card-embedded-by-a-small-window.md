@@ -1,9 +1,10 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P3
 area: embeddings
+plan: stored-data-integrity
 ---
 
 # A long card embedded by a small-window model is indexed from its opening only, and nothing tells the owner

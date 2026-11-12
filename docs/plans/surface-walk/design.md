@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-06
-rank: 2
+rank: 9
 ---
 
 # Automated product surface review

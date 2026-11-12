@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-11
+updated: 2026-11-12
 priority: P2
 area: import
+plan: import-robustness
 ---
 
 # Chat import refuses a deeply nested file instead of overflowing the stack

@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-10-30
+updated: 2026-11-12
 priority: P3
 area: testing
-plan: surface-walk
+plan: cross-platform
 ---
 
 # Qualify the surface walkthrough on native macOS, Windows and real iOS

@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-24
+updated: 2026-11-12
 priority: P3
-plan: unwired-code
 area: character
+plan: import-robustness
 ---
 
 # Synthetic group rows can be seated and copied by a handoff

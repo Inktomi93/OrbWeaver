@@ -2,7 +2,7 @@
 kind: plan
 status: parked
 updated: 2026-11-10
-rank: 8
+rank: 13
 blocked: wake gone docs/plans/unwired-code/design.md
 ---
 

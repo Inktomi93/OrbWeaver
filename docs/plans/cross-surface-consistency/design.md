@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-06
-rank: 1
+rank: 8
 ---
 
 # Cross-surface visual consistency

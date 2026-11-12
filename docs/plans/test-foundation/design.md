@@ -2,7 +2,7 @@
 kind: plan
 status: active
 updated: 2026-11-06
-rank: 5
+rank: 3
 ---
 
 # Tests on the production harness

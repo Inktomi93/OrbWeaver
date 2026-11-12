@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-12
 priority: P2
 area: server
+plan: cross-platform
 ---
 
 # Server and launcher code that assumes POSIX is found and made OS-neutral

@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-12
 priority: P3
 area: security
+plan: authorization-and-visibility
 ---
 
 # A portable bundle import checks an image asset's bytes against its declared type

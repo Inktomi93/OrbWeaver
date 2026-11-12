@@ -5,6 +5,7 @@ updated: 2026-11-12
 priority: P1
 area: plugins
 blocked: owner
+plan: cross-platform
 ---
 
 # The plugin host starts, serves and stops on native Windows and macOS
