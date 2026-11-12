@@ -160,6 +160,40 @@ test.describe("phone shell", () => {
     });
   }
 
+  test("the topbar's Back pops one rung per press, entry to book to library to the list, named for where each press goes", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const { header } = await drillIntoBook(page, root, () => mount<typeof ShellAmbientStory>(STORY, {}), { corpus, entries: [ENTRY] });
+    await expect(header.getByRole("heading", { level: 2, name: BOOK, exact: true })).toHaveCount(1);
+    const entryRow = page.locator('[data-slot="world-info-member-editor"] [data-slot="list-row-body"]').filter({ hasText: ENTRY });
+    await entryRow.focus();
+    await page.keyboard.press("Enter");
+    const topbar = page.getByRole("banner");
+    const rungs = [
+      // The entry: the topbar names the book it returns to, and the book is open behind it.
+      { back: sectionBackName(BOOK), after: header.getByRole("heading", { level: 2, name: BOOK, exact: true }) },
+      // The book: the topbar names the library, and the library's rows are the pane again.
+      { back: BACK, after: page.locator('[data-slot="config-content"] [data-slot="list-row-body"]').filter({ hasText: BOOK }) },
+      // The library: the topbar names Settings, and the list is the screen again.
+      { back: sectionBackName(SECTION_LABELS.settings), after: page.getByRole("button", { name: new RegExp(`^${WORLD_INFO_GROUP_LABEL}`, "u") }).first() },
+    ];
+    const names = rungs.map((rung) => rung.back);
+    await expect(header.getByRole("heading", { level: 2, name: ENTRY, exact: true })).toHaveCount(1);
+    for (const [at, rung] of rungs.entries()) {
+      // Exactly one way back, and it names where this press goes.
+      for (const other of names.filter((name) => name !== rung.back)) {
+        await expect(topbar.getByRole("button", { name: other, exact: true })).toHaveCount(0);
+      }
+      const back = topbar.getByRole("button", { name: rung.back, exact: true });
+      await expect(back, `rung ${String(at)}`).toBeVisible();
+      await back.click();
+      await expect(rung.after, `after rung ${String(at)}`).toBeVisible();
+    }
+    // The list is the screen: no way back is offered.
+    for (const name of names) {
+      await expect(topbar.getByRole("button", { name, exact: true })).toHaveCount(0);
+    }
+  });
+
   test("opening an entry by keyboard lands focus in the entry, not on the page", async ({ corpus, mount, page }) => {
     await using root = await createCorpusHarness();
     const { header } = await drillIntoBook(page, root, () => mount<typeof ShellAmbientStory>(STORY, {}), { corpus, entries: [ENTRY] });
