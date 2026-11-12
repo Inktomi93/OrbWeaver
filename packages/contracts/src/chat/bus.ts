@@ -282,7 +282,7 @@ export const TURN_ABORTED_OP_CODE = "aborted" as const;
  *  never on message text, and the server's `CHAT_OP_CODES.locked` derives this literal. The refusal is total
  *  (no turn ran, nothing was written), and it is the ONE turn error whose cause the user can act on — so the
  *  client maps it to honest copy naming the other turn instead of its generic "couldn't swipe" toast
- *  (`features/chat/lib/turn-abort-notice.ts`). */
+ *  (`packages/client/src/lib/turn-abort-notice.ts`). */
 export const TURN_LOCKED_OP_CODE = "locked" as const;
 
 /** The `DomainOperationError.code` a turn surfaces when it meets its room being removed (a husk reap holds the
