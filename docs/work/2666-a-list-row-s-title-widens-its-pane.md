@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P2
 area: ui
+lane: wt/agent-ac2fbba9e3e81b983
 plan: surface-walk
 ---
 
