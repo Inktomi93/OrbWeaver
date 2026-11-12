@@ -73,11 +73,18 @@ jobs:
         uses: ./.github/actions/setup # zizmor: ignore[self-repository] Scheduled runs execute the frozen trusted main checkout.
         with:
           browsers: "false"
+      - name: Build the showcase plugin bundles
+        id: bundles
+        run: pnpm --filter @orb/showcase-plugins build
+      # Each case runs whatever the one before it did, so one red still leaves evidence from the others.
       - name: Run a shipped showcase plugin through the real broker
+        if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
         run: pnpm test tests/server/domain/plugin/substrate/atlas-library-marker.suite.int.test.ts -t "an added card badges"
       - name: End a stuck plugin call alone
+        if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
         run: pnpm test tests/server/infra/plugin-host/stuck-worker.int.test.ts -t "ends alone at its deadline"
       - name: Stop the server with no broker or watchdog left running
+        if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
         run: pnpm test tests/server/infra/plugin-host/watchdog-shutdown.int.test.ts -t "neither remains"
   contributor:
     needs: [head]

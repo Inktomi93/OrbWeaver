@@ -618,7 +618,8 @@ process.on("message", (value: unknown) => {
   }
   // Any failure to read or handle an inherited-channel frame calls abandon(), which ends the broker; the watchdog
   // reports the exit as a stopped frame and process-runtime's consumeWatchdogMessage runs onDisconnect, which rejects
-  // pending app commands. The cause goes to the inherited stderr first, the broker's only report channel.
+  // pending app commands. The cause goes to stderr first, the broker's only report channel, which the watchdog reads
+  // and passes on to its own stderr.
   try {
     const message = parseParentBrokerMessage(parseMessageLine(envelope.frame));
     if (message === null) {

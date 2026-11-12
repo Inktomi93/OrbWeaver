@@ -21,6 +21,8 @@ const { directory, workerMaximum, memoryLimitBytes, nodeEnvironment, logLevel } 
 const stop = Promise.withResolvers<void>();
 // Set once the watchdog is told to stop: from then on it closes its relay to the broker and ends it.
 let stopping = false;
+// When the watchdog was told to stop, on the judgement clock.
+let stoppedAt: number | undefined;
 let activeBroker: ChildProcess | undefined;
 let activeGeneration: string | undefined;
 let brokerSender: PluginIpcSender | undefined;
@@ -241,6 +243,7 @@ async function superviseOneBroker(): Promise<string> {
         heard: newestSentAtMs !== undefined,
         misses,
         ...(rssBytes === undefined ? {} : { rssBytes }),
+        ...(stoppedAt === undefined ? {} : { stoppedAt }),
       });
       if (reason !== null) {
         failure = reason;
@@ -255,7 +258,7 @@ async function superviseOneBroker(): Promise<string> {
       setImmediate(judge);
     }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
     monitor.unref();
-    broker.once("close", () => clearInterval(monitor));
+    broker.once("exit", () => clearInterval(monitor));
   });
 
   sender.close();
@@ -279,10 +282,11 @@ async function superviseOneBroker(): Promise<string> {
 
 function stopBroker(): void {
   stopping = true;
+  stoppedAt ??= performance.now();
   stop.resolve();
   brokerSender?.close();
-  // The broker ends when its channel closes. One that does not stops beating, since it beats only while connected, and
-  // the liveness check below ends it with `kill()` within PLUGIN_BROKER_LIVENESS_BOUND_MS.
+  // The broker ends when its channel closes. One that does not is ended by the judgement with `kill()` once
+  // PLUGIN_BROKER_LIVENESS_BOUND_MS of wall time has passed since this stop (watchdog-policy.ts).
   if (activeBroker?.connected === true) {
     activeBroker.disconnect();
   }
