@@ -13,6 +13,7 @@ import { createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestRun, NativeServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/node/composed";
+import { SNIPPET_CONCURRENCY_PER_USER } from "#server/domain/plugin/substrate/snippet-gate.ts";
 import {
   EVENT_QUEUE_DEPTH,
   HOST_CALLS_IN_FLIGHT_MAX,
@@ -122,6 +123,33 @@ test.for([
     expect(await owners.bystanderStatus()).toBe(ENABLED);
   },
 );
+
+test("one member's snippets all stuck at once leave a Worker for another owner, whose plugin answers while every one is still running", {
+  tags: ["slow"],
+  timeout: STALL_TEST_TIMEOUT_MS,
+}, async () => {
+  await using owners = await rootWithBystander();
+  expect(await owners.ping()).toEqual({ ok: true, value: null });
+  const member = await owners.root.internalCallerFor(owners.root.ownerId);
+  const room = (await member.chat.startChat({ characterIds: [] })).chat;
+
+  // The member's whole snippet allowance, each stuck until the broker ends its Worker.
+  let settled = 0;
+  const stuck = Array.from({ length: SNIPPET_CONCURRENCY_PER_USER }, () =>
+    member.plugin.runSnippet({ chatId: room.id, code: NATIVE_STALL }).finally(() => {
+      settled += 1;
+    }),
+  );
+  await sleep(SNIPPET_WALL_MS);
+  // The other owner is served now, not when the member's first Worker ends.
+  expect(await owners.ping()).toEqual({ ok: true, value: null });
+  expect(settled).toBe(0);
+
+  for (const ended of await Promise.all(stuck)) {
+    expect(ended).toMatchObject({ logLines: [], errorKind: "runtime" });
+  }
+  expect(await owners.bystanderStatus()).toBe(ENABLED);
+});
 
 const SEARCH_NEEDLE = 20_000;
 // One string search that runs several seconds with one interrupt poll, sized by its haystack.
@@ -396,7 +424,10 @@ test("a resident guest stuck in one native call fails that invocation with the e
   expect((await root.services.plugin.list({ caller: owner })).find(({ id }) => id === pluginId)).toMatchObject({ status: ENABLED });
 });
 
-test("a lost broker fails a resident plugin's calls as host-unavailable, never as strikes", { tags: ["slow"], timeout: NATIVE_TIMEOUT_MS }, async () => {
+test("after a lost broker a resident plugin is served by a new one with no owner action, and never struck", {
+  tags: ["slow"],
+  timeout: NATIVE_TIMEOUT_MS,
+}, async () => {
   const edge = createPluginProcessEdge();
   await using root = await createServerHarness({ pluginSpawn: edge.spawn });
   const guest = await installNativeGuest(root, "lost-broker", `const h=orb.host(1);${NOOP_COMMAND}`, BASE_GRANTS);
@@ -407,8 +438,10 @@ test("a lost broker fails a resident plugin's calls as host-unavailable, never a
   const exited = once(child, "exit");
   expect(child.kill("SIGKILL")).toBe(true);
   await exited;
+  // More calls than the strike threshold: a recovery that failed them would disable the plugin.
   for (let call = 0; call < PLUGIN_CRASH_DISABLE_THRESHOLD; call += 1) {
-    await expect(guest.invoke("noop")).toThrowTRPCError("CONFLICT");
+    await guest.invoke("noop");
   }
+  expect(edge.children).toHaveLength(2);
   expect((await guest.view()).status).toBe(ENABLED);
 });

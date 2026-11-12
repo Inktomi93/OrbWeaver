@@ -28,7 +28,7 @@ const DENIED = "denied:ERR_ACCESS_DENIED";
 type ProbeMode = "node-with-drop" | "node-without-drop";
 type IpcEnvelope = NonNullable<ReturnType<typeof parsePluginIpcMessage>>;
 type BrokerFrame = NonNullable<ReturnType<typeof parseBrokerParentMessage>>;
-type SnippetCommandValue = Omit<Parameters<ReturnType<typeof createPluginHost>["runSnippet"]>[0], "bridge">;
+type SnippetCommandValue = Omit<Parameters<ReturnType<typeof createPluginHost>["runSnippet"]>[0], "bridge" | "owner">;
 
 interface ProbeReport {
   readonly hasWorker: boolean;

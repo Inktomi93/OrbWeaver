@@ -56,7 +56,7 @@ async function crashesOf(
   return (await capturePluginRows(root, ownerId, pluginId)).plugin.consecutiveCrashes;
 }
 
-test("a broker whose main thread stops answering is replaced within the heartbeat bound, and no plugin is struck", {
+test("a broker whose main thread stops answering is replaced within the heartbeat bound, and every plugin is served by the new one unstruck", {
   tags: ["slow"],
   timeout: NATIVE_TIMEOUT_MS,
 }, async () => {
@@ -88,16 +88,13 @@ test("a broker whose main thread stops answering is replaced within the heartbea
   expect(failedAfterMs).toBeLessThan(REPLACED_WITHIN_MS);
   expect(stoppedReports(edge)).toHaveLength(1);
 
-  // What a bystander sees: its binding crashed with the broker as a host loss, so its calls fail as host-unavailable,
-  // with no strike, until it is enabled again; then a new broker serves it.
-  await expect(bystander.invoke("noop")).toThrowTRPCError("CONFLICT");
+  // What a bystander sees: nothing. Its owner does nothing, and its next call is served by the new broker, unstruck.
+  await bystander.invoke("noop");
+  await caller.invoke("noop");
+  expect(brokerPid(edge)).not.toBe(hung);
   expect((await bystander.view()).status).toBe(ENABLED);
   expect(await crashesOf(root.db, root.ownerId, caller.pluginId)).toBe(0);
   expect(await crashesOf(root.db, root.ownerId, bystander.pluginId)).toBe(0);
-  await bystander.disable();
-  expect((await bystander.enable()).status).toBe(ENABLED);
-  await bystander.invoke("noop");
-  expect(brokerPid(edge)).not.toBe(hung);
 });
 
 test("a watchdog that stalls past the liveness bound keeps a broker that went on answering", { tags: ["slow"], timeout: NATIVE_TIMEOUT_MS }, async () => {

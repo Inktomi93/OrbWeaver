@@ -215,6 +215,7 @@ export function createActivate(
     const outcome = await ctx.host.createInstance({
       mainJs,
       reloadMainJs: durableMainJsLoader(ctx, input),
+      owner: input.caller.userId,
       grants: input.grants,
       bridge,
       chat: null,

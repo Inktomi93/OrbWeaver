@@ -105,7 +105,9 @@ import type {
  *  `chat` is `null` for an installed plugin's registration-only `main.js`; set for a snippet run. Constructed
  *  ONCE at the trust boundary, never guest-supplied. The durable `main.js` re-reader is required here: every
  *  domain activation is an installed plugin, which the host wakes cold from it. */
-export interface CreateInstanceInput extends PluginInstanceCreateData, Required<Pick<Parameters<ProcessPluginHost["createInstance"]>[0], "reloadMainJs">> {
+export interface CreateInstanceInput
+  extends PluginInstanceCreateData,
+    Required<Pick<Parameters<ProcessPluginHost["createInstance"]>[0], "reloadMainJs" | "owner">> {
   readonly bridge: PluginBridge;
 }
 
