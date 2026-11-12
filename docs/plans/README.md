@@ -22,5 +22,5 @@ This is the work order: plans are worked in rank order, active before parked, an
 | 9 | [Automated product surface review](surface-walk/design.md) | active |
 | 10 | [Find and judge every unwired and dead piece of code](unwired-code/design.md) | active |
 | 11 | [Snap never writes a secret to disk, argv or a trace](snap-secret-hygiene/design.md) | active |
-| 12 | [Inference flow: owners, ports and callers](inference-flow/design.md) | active |
+| 12 | [Inference flow: owners, ports and callers](inference-flow/design.md) | parked |
 | 13 | [Restoration register](restoration-register/design.md) | parked |

@@ -1,10 +1,11 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-06
+status: doing
+updated: 2026-11-12
 priority: P2
-area: server
-plan: unwired-code
+area: security
+lane: wt/agent-ab06dd7e04de7b73c
+plan: authorization-and-visibility
 ---
 
 # claimChat runs before the ownership check on a refused send

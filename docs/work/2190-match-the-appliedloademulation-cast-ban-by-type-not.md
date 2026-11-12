@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-12
 priority: P3
 area: tooling
+plan: test-enforcement
 ---
 
 # Match the AppliedLoadEmulation cast ban by type, not spelling

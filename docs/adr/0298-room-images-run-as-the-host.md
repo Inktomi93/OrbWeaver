@@ -16,7 +16,7 @@ A picture or prompt preview requested in a room runs as the room host. Chat name
 
 The run-as principal supplies the image connection, the extraction templates and caption instructions, the negative-prompt base, the Utility connection and caption sampling preset, the generation owner, the asset store, the spend, the reuse lookup and the gallery placement (`runAsFor` in `packages/server/src/domain/imagery/verbs/generate-picture.ts`). The caller stays the message author and the viewer whose visibility gate and history floor clamp the extraction. The subject card and avatar are read as the run-as principal, because `character.get` is owner-only and the roster gate above has already limited the subject to a seat of the room.
 
-The picture is a `generated` asset the host owns. Its `generated-post` link in `message_assets` places it in the room, and a present member renders it through the room asset gate: a link in that chat, the owner present and the viewer present (`createLoadChatAssetRefs` and `createLoadCoParticipantOwner` in `packages/server/src/domain/chat/verbs/load-chat-asset-refs.ts` and `packages/server/src/domain/chat/verbs/load-co-participant-owner.ts`). The member does not own it, so owned-asset reads refuse it: `assets.resolveBlobRefs`, `imagery.readProvenance` and an `imagery.editImage` source. It joins the host's gallery under the room's first character when the host owns that character, unless the request sends `gallery: false`.
+The picture is a `generated` asset the host owns. Its `generated-post` link in `message_assets` places it in the room, and a present member renders it through the room asset gate: a link in that chat, the owner present and enabled, and the viewer present. The owner side reads the room's consent set, `presentAndEnabledHumanUserIdsOf` in `packages/server/src/domain/chat/substrate/participants-humans.ts`, and the model's picture resolver in `packages/server/src/domain/chat/verbs/resolve-media-ref.ts` reads the same set (`createLoadChatAssetRefs` and `createLoadCoParticipantOwner` in `packages/server/src/domain/chat/verbs/load-chat-asset-refs.ts` and `packages/server/src/domain/chat/verbs/load-co-participant-owner.ts`). The member does not own it, so owned-asset reads refuse it: `assets.resolveBlobRefs`, `imagery.readProvenance` and an `imagery.editImage` source. It joins the host's gallery under the room's first character when the host owns that character, unless the request sends `gallery: false`.
 
 Outside a room nothing changes: `editImage`, a chat-less generation, and the automation and plugin lanes run as their own caller, under D204.
 
@@ -24,7 +24,7 @@ The reuse lookup searches the run-as principal's generations in every chat. Chat
 
 ## Consequences
 
-A member with no image connection can make pictures in a host's room, and the host pays the spend and the storage. A member cannot edit a room picture or read its provenance. Room pictures render while the host is a present participant, the same rule as a model's inline reply pictures. When the host lacks an image connection, the refusal names the room host rather than the member.
+A member with no image connection can make pictures in a host's room, and the host pays the spend and the storage. A member cannot edit a room picture or read its provenance. Room pictures render while the host is a present and enabled participant, the same rule as a model's inline reply pictures. When the host lacks an image connection, the refusal names the room host rather than the member.
 
 ## Alternatives rejected
 

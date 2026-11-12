@@ -6,6 +6,7 @@ import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { staticTextValue, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { posixPath } from "./syntax.ts";
 
 // Production modules whose exported strings are names a user can read: a spec locates a control by the exported value.
 // Only an export named for what it holds counts (`CHATS_SECTION_LABEL`, `MESSAGE_EDIT_NAME`, `IMMERSIVE_CARD_LABELS`); a
@@ -191,8 +192,10 @@ function soleOwner(held: ReadonlyMap<string, ExportedLabel>): ExportedLabel | un
   return candidates.length === 1 ? candidates[0] : undefined;
 }
 
+// A module path is POSIX on every OS: globSync joins with the platform separator, and a finding names the module.
 function productionSources(root: string, mustContain: string): { readonly module: string; readonly text: string }[] {
   return globSync(PRODUCTION_MODULES, { cwd: root })
+    .map(posixPath)
     .sort()
     .filter((module) => !NOT_PRODUCTION.test(module))
     .map((module) => ({ module, text: readFileSync(join(root, module), "utf8") }))

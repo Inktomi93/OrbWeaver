@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
-updated: 2026-11-11
+status: open
+updated: 2026-11-12
 priority: P3
 area: docs
-lane: wt/agent-a30ee1d42d1997dfe
 ---
 
 # Three owner rulings cited only in comments get decision records

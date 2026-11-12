@@ -1,7 +1,10 @@
 // The read-only file inventory and the syntactic JSX helpers every ui-facts scan shares. Syntax only: no program, no checker.
+// A Source path is POSIX on every OS, and so is the inventory order, although globSync joins with the platform separator.
+// A reader that derives a directory or a joined path from a Source path uses `posix` from node:path, never the native form.
 import { globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { posixPath } from "../syntax.ts";
 
 const UI_SCAN_ROOT = "packages/ui/src";
 const SCAN_ROOTS = ["packages/client/src", UI_SCAN_ROOT] as const;
@@ -42,12 +45,14 @@ function parse(relative: string, text: string, kind: FileKind): ts.SourceFile | 
 
 function sourcesUnder(root: string, scanRoot: string, kind: FileKind): readonly Source[] {
   const layer: Layer = scanRoot.includes("client") ? "client" : "ui";
+  // The file is read by the name the glob returned; the inventory keys and orders it by its POSIX path.
   return globSync(`${scanRoot}/**/*.${kind}`, { cwd: root })
-    .sort()
-    .filter((relative) => !SKIPPED.test(relative))
-    .map((relative) => {
-      const text = readFileSync(join(root, relative), "utf8");
-      return { path: relative, text, kind, layer, section: sectionOf(relative), sf: parse(relative, text, kind) };
+    .map((found) => ({ found, path: posixPath(found) }))
+    .sort((a, b) => Number(a.path > b.path) - Number(a.path < b.path))
+    .filter(({ path }) => !SKIPPED.test(path))
+    .map(({ found, path }) => {
+      const text = readFileSync(join(root, found), "utf8");
+      return { path, text, kind, layer, section: sectionOf(path), sf: parse(path, text, kind) };
     });
 }
 

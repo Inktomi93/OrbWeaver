@@ -17,7 +17,7 @@ import type { RpgTurnOps } from "./rpg-turn.ts";
 /** The Node regex watchdog owns execution time outside the pure regex library. */
 export type ApplyRegexReplaceOp = NonNullable<RegexExecuteOptions["applyReplace"]>;
 
-/** The turn-bound image resolver: owner, room and quality are already closed over. */
+/** The turn-bound image resolver: room and quality are already closed over. */
 export type ResolveTurnImageUrlOp = (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
 
 /** Per canon slot, the asset ids the model emitted inside that slot's own generation. Lazy: a history with no `asset:` span never awaits it. */
@@ -82,7 +82,6 @@ export type ApplyPromptTransformsOp = (
 
 // Null omits a gone or policy-blocked attachment instead of sending an unauthorized reference.
 export type ResolveImageUrlOp = (params: {
-  readonly ownerId: UserId;
   readonly chatId: ChatId;
   readonly ref: ContentImageRef;
   readonly quality?: AttachmentQuality | undefined;

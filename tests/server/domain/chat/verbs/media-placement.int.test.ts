@@ -1,5 +1,6 @@
-// A stored picture reaches the model only when the room itself placed it, read off the real provider request on
-// the composition root; fork and duplicate carry the placing link with the body that cites it.
+// A stored picture reaches the model only when the room itself placed it and its owner is the host or in the room's
+// consent set, read off the real provider request on the composition root; fork and duplicate carry the placing link
+// with the body that cites it.
 // @subject packages/server/src/domain/chat/verbs/resolve-media-ref.ts
 // @subject packages/server/src/domain/chat/verbs/fork.ts
 // @subject packages/server/src/domain/chat/verbs/edit.ts
@@ -10,8 +11,8 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { assetIdsInContent, contentSpanRaw } from "@orb/kit/content";
-import type { AssetId, ChatId, MessageId } from "@orb/kit/ids";
-import { ID_PREFIX } from "@orb/kit/ids";
+import type { AssetId, ChatId, Handle, MessageId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -170,6 +171,18 @@ async function turnImageUrls(box: Box, chatId: ChatId): Promise<string[]> {
   return imageUrls(turn[0] ?? "");
 }
 
+/** A member's send while the host is offline queues the owed turn; the boot reclaim drain runs it as the frozen
+ *  host. Answers the image parts that turn's provider request carried. */
+async function drainedTurnImageUrls(box: Box, chatId: ChatId, member: Principal): Promise<string[]> {
+  const before = box.chatBodies.length;
+  const sent = await box.root.services.chat.send({ principal: member, chatId, content: TURN_CUE });
+  expect(sent.messages.map(({ role }) => role)).toEqual(["user"]);
+  expect(await box.root.services.chat.drainDeferredTurns({ all: true })).toEqual({ ran: 1, dropped: 0 });
+  const turn = box.chatBodies.slice(before).filter((body) => body.includes(TURN_CUE));
+  expect(turn).toHaveLength(1);
+  return imageUrls(turn[0] ?? "");
+}
+
 /** The data URI the resolver sends for a stored picture. */
 async function wireUrl(box: Box, assetId: AssetId): Promise<string> {
   const bytes = await box.root.services.assets.loadAssetBytes(assetId);
@@ -225,6 +238,50 @@ test("a host's edit citing a member's picture in the member's row never reaches 
   expect((await box.root.services.assets.resolveChatAssetRefs(box.host.userId, room, [picture])).map((ref) => ref.assetId)).toEqual([picture]);
   const url = await wireUrl(box, picture);
   expect(await turnImageUrls(box, room)).toEqual([url, url]);
+});
+
+test("a disabled member's attachment stops riding to the model, and rides again once they are re-enabled", async () => {
+  await using box = await openBox();
+  const room = await openRoom(box, [box.member]);
+  const attached = await store(box, box.member, "attachment");
+  await say(box, room, { as: box.member, content: "", attached: [attached] });
+  const url = await wireUrl(box, attached);
+  expect(await turnImageUrls(box, room)).toEqual([url]);
+
+  await box.root.services.admin.setEnabled({ principal: box.host, userId: box.member.userId, enabled: false });
+  expect(await turnImageUrls(box, room)).toEqual([]);
+
+  await box.root.services.admin.setEnabled({ principal: box.host, userId: box.member.userId, enabled: true });
+  expect(await turnImageUrls(box, room)).toEqual([url]);
+});
+
+test("a disabled host's picture stops riding to the model on a member's owed turn, and rides again once the host is re-enabled", async () => {
+  await using box = await openBox();
+  // The box owner is the admin, so the room is hosted by the second account and a third account plays in it.
+  const host = box.member;
+  const created = await box.root.services.admin.createUser({
+    principal: box.host,
+    handle: castId<Handle>("placement-player"),
+    password: "placement-player-pw",
+  });
+  const player = await box.root.principalFor(created.id);
+  const character = await box.root.services.character.create({
+    principal: host,
+    input: createCharacterSchema.parse({ handle: "placement-host-keeper", name: "Keeper", description: "A keeper reads the orbital ledger." }),
+  });
+  const room = (await box.root.services.chat.startChat({ principal: host, characterIds: [character.id], opening: "none" })).chat.id;
+  const invite = await seedChatInvite(box.root, { principal: host, chatId: room, input: { invitedHandle: player.handle } });
+  await seedInvitedChatParticipant(box.root, { principal: player, inviteId: invite.invite.id });
+  const attached = await store(box, host, "attachment");
+  await say(box, room, { as: host, content: "", attached: [attached] });
+  const url = await wireUrl(box, attached);
+  expect(await drainedTurnImageUrls(box, room, player)).toEqual([url]);
+
+  await box.root.services.admin.setEnabled({ principal: box.host, userId: host.userId, enabled: false });
+  expect(await drainedTurnImageUrls(box, room, player)).toEqual([]);
+
+  await box.root.services.admin.setEnabled({ principal: box.host, userId: host.userId, enabled: true });
+  expect(await drainedTurnImageUrls(box, room, player)).toEqual([url]);
 });
 
 test("a send links the typed pictures its author owns and never another member's", async () => {

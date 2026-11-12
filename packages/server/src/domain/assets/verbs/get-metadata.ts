@@ -1,6 +1,7 @@
 // verb: getMetadata — the blob-serve gate: {mime} of a viewable asset, else undefined (404; missing and foreign collapse).
-// Owner-scoped first, then loadCoParticipantOwner: a co-participant's rostered avatar, active persona, or a room-linked
-// attachment at or above the caller's history floor, never a bare hash; a hit returns that owner's CAS partition.
+// Owner-scoped first, then loadCoParticipantOwner: a co-participant's rostered avatar, active persona, the room pin's
+// persona avatar, or a room-linked attachment at or above the caller's history floor, never a bare hash; a hit returns
+// that owner's CAS partition.
 
 import type { GetMetadataParams } from "../contract/params.ts";
 import type { AssetMetadata } from "../contract/results.ts";
