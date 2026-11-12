@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { env } from "node:process";
 import { fileURLToPath } from "node:url";
 import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
@@ -42,6 +42,7 @@ import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
 import { __unstable__loadDesignSystem } from "tailwindcss";
+import ts from "typescript";
 import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
@@ -564,7 +565,30 @@ const FIRST_ALERT_RESTRICTION = {
     "A first-alert read accepts any toast, including the generic one. Read the notice with noticeToast from @orb/testkit/ct, over the copy production computes for it.",
 };
 
-const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
+// The test worlds, each one typed program. A file two worlds name takes the earlier world's project, the one a list
+// of all three gave it.
+const TEST_WORLDS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
+const TEST_TYPED_SOURCE = ["tests/**/*.{ts,tsx,mts,cts}", "scripts/**/*.tsx", "playwright/**/*.{ts,tsx}"];
+
+// A tsconfig `include` or `exclude` spec as globs: a spec whose last segment has no wildcard names a file or a directory.
+const worldGlobs = (specs: readonly string[]): string[] =>
+  specs.flatMap((spec) => (spec.split("/").at(-1)?.includes("*") === true ? [spec] : [spec, `${spec}/**`]));
+
+// A world's parser block, matched from its tsconfig's own `include` and `exclude`, so a part that lints one world's
+// files builds that world's program alone. A project list would build each earlier program to look for the file.
+function testWorldParser(world: string): FlatConfig.Config {
+  const read = ts.readConfigFile(join(ROOT, world), ts.sys.readFile);
+  if (read.error !== undefined) {
+    throw new Error(`${world}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
+  }
+  const { include, exclude = [] } = read.config as { readonly include: readonly string[]; readonly exclude?: readonly string[] };
+  return {
+    files: TEST_TYPED_SOURCE.flatMap((scope) => worldGlobs(include).map((spec) => [scope, spec])),
+    // Playwright's declaration files are linted without a program.
+    ignores: [...worldGlobs(exclude), "playwright/**/*.d.{ts,mts,cts}"],
+    languageOptions: { parserOptions: { project: [world], projectService: false, tsconfigRootDir: ROOT } },
+  };
+}
 
 const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
 
@@ -1011,16 +1035,13 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       },
     }),
   ),
+  // Reversed, so the earlier world's block comes last and its project wins a file two worlds name.
+  ...TEST_WORLDS.toReversed().map(testWorldParser),
   {
-    files: ["tests/**/*.{ts,tsx,mts,cts}", "scripts/**/*.tsx", "playwright/**/*.{ts,tsx}"],
+    files: TEST_TYPED_SOURCE,
     ignores: ["**/*.d.{ts,mts,cts}"],
-    languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
     // Async test doubles implement Promise contracts without asynchronous work.
     rules: ASYNC_SAFETY_RULES,
-  },
-  {
-    files: ["tests/**/*.d.{ts,mts,cts}"],
-    languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
   },
   {
     // The patched plugin of the old config under-reported these two on literal operands; without the patch they report less.
