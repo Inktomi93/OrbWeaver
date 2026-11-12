@@ -1,50 +1,19 @@
 // `orb/feature-classname-layout-only` and `orb/no-built-class-string`: a feature's className on a primitive holds only the plain-layout list, never
 // a class the primitive's own prop writes; paint is judged by the CSS a token compiles to; a client component takes no class; a class string is never built.
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
 import { classOwners } from "../../tooling/src/eslint/ui-classes/class-owners.ts";
-import { loadUiSources } from "../../tooling/src/eslint/ui-classes/source.ts";
-import { componentTables } from "../../tooling/src/eslint/ui-classes/variant-tables.ts";
 import { levelOf, resolvedConfig } from "./_eslint-config.ts";
+import { recipeClass } from "./_recipe-class.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const LAYOUT_RULE = "orb/feature-classname-layout-only";
 const BUILT_RULE = "orb/no-built-class-string";
 const FEATURE = "packages/client/src/features/a/control.tsx";
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
-
-type RecipeProps = Readonly<Record<string, string | boolean>>;
-type Recipe = (props: RecipeProps) => string;
-
-const TABLES = componentTables(ROOT, loadUiSources(ROOT));
-
-/**
- * The one class the component's own `tv()` recipe writes for `props` and not for the bare component, which is the spelling the rule must
- * map back to that prop. The recipe is the one the rule's reader found the component applying, called as the render calls it.
- */
-async function recipeClass(door: string, component: string, props: RecipeProps): Promise<string> {
-  const [table, ...others] = TABLES.get(door)?.get(component)?.applied ?? [];
-  if (table === undefined || others.length > 0) {
-    throw new TypeError(`${component} does not apply exactly one recipe table`);
-  }
-  const recipe = ((await import(pathToFileURL(join(ROOT, table.file)).href)) as Readonly<Record<string, Recipe | undefined>>)[table.name];
-  if (recipe === undefined) {
-    throw new TypeError(`${table.file} exports no ${table.name}`);
-  }
-  const bare = recipe({}).split(/\s+/u);
-  const added = recipe(props)
-    .split(/\s+/u)
-    .filter((token) => !bare.includes(token));
-  const [only, ...rest] = added;
-  if (only === undefined || rest.length > 0) {
-    throw new RangeError(`${component} ${JSON.stringify(props)} writes ${added.length} classes the bare component does not: ${added.join(" ")}`);
-  }
-  return only;
-}
 
 const JUSTIFY_END = await recipeClass("layout", "Row", { justify: "end" });
 const CONTROL_MIN_BLOCK = await recipeClass("button", "Button", { minHeight: "control" });

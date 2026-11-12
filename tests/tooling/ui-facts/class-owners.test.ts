@@ -1,6 +1,8 @@
 import { join } from "node:path";
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { classOwners } from "../../../tooling/src/eslint/ui-classes/class-owners.ts";
+import type { RecipeProps } from "../_recipe-class.ts";
+import { recipeClass, recipeClasses } from "../_recipe-class.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "../../..");
 const UI_PACKAGE = JSON.stringify({ exports: { "./layout": "./src/layout/index.ts" } });
@@ -52,24 +54,40 @@ test("a class no forwarded axis writes has no owner", ({ scratch }) => {
   expect(ownerOf("elsewhere", "Row", "justify-end", [])).toBeNull();
 });
 
-test("a wrapper answers for the axes it hands on inside a carrying prop, and for no other the core computes", () => {
+test("a wrapper answers for the axes it hands on inside a carrying prop, and for no other the core computes", async () => {
   const ownerOf = classOwners(REPO_ROOT);
-  const square = ["shrink-0", "p-0"];
-  const wrap = ["py-tight", "wrap-anywhere", "whitespace-normal", "block-auto", "max-inline-full"];
-  expect(ownerOf("button", "Button", "p-0", square)).toEqual({ axis: "button.square", prop: "square", arm: "true" });
-  expect(ownerOf("button", "Button", "block-auto", wrap)).toEqual({ axis: "button.wrap", prop: "wrap", arm: "true" });
-  expect(ownerOf("button", "Button", "px-section", [])).toEqual({ axis: "button.size", prop: "size", arm: "lg" });
-  expect(ownerOf("button", "Button", "min-block-(--size-control-sm)", [])).toEqual({ axis: "button.minHeight", prop: "minHeight", arm: "control" });
+  const square = await recipeClasses("button", "Button", { square: true });
+  const wrap = await recipeClasses("button", "Button", { wrap: true });
+  const large = await recipeClasses("button", "Button", { size: "lg" }, { size: "md" });
+  for (const token of square) {
+    expect(ownerOf("button", "Button", token, square), token).toEqual({ axis: "button.square", prop: "square", arm: "true" });
+  }
+  for (const token of wrap) {
+    expect(ownerOf("button", "Button", token, wrap), token).toEqual({ axis: "button.wrap", prop: "wrap", arm: "true" });
+  }
+  for (const token of large) {
+    expect(ownerOf("button", "Button", token, []), token).toEqual({ axis: "button.size", prop: "size", arm: "lg" });
+  }
+  expect(ownerOf("button", "Button", await recipeClass("button", "Button", { minHeight: "control" }), [])).toEqual({
+    axis: "button.minHeight",
+    prop: "minHeight",
+    arm: "control",
+  });
   expect(ownerOf("button", "Button", "shadow-cta", [])).toBeNull();
 });
 
-test("a class under a container step no arm writes belongs to the ramp of that step's axis", () => {
+test("a class under a container step no arm writes belongs to the ramp of that step's axis", async () => {
   const ownerOf = classOwners(REPO_ROOT);
+  // The classes no arm writes stay literal: the case is the lint's answer for a class the recipe does not have.
   expect(ownerOf("layout", "Row", "@max-cq-48:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
   expect(ownerOf("layout", "Row", "flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
   expect(ownerOf("layout", "Row", "hover:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
-  expect(ownerOf("layout", "Row", "flex-row-reverse", [])).toEqual({ axis: "row.reverse", prop: "reverse", arm: "true" });
-  expect(ownerOf("layout", "Row", "@max-cq-32:flex-row-reverse", [])).toEqual({ axis: "row.reverse", prop: "reverse", arm: "cq-32" });
+  expect(ownerOf("layout", "Row", await recipeClass("layout", "Row", { reverse: true }), [])).toEqual({ axis: "row.reverse", prop: "reverse", arm: "true" });
+  expect(ownerOf("layout", "Row", await recipeClass("layout", "Row", { reverse: "cq-32" }), [])).toEqual({
+    axis: "row.reverse",
+    prop: "reverse",
+    arm: "cq-32",
+  });
   expect(ownerOf("layout", "Row", "@max-cq-48:flex-row-reverse", [])).toEqual({ axis: "row.reverse", prop: "reverse", arm: null });
 });
 
@@ -97,17 +115,24 @@ test("a coded keep and a mechanism the plain-layout rule admits are nobody's row
   expect(ownerOf("layout", "Stack", "inset-bs-row", [])).toMatchObject({ prop: null });
 });
 
-test("the real Text, Heading, Button and Row own the classes the clamp, grow, floor, width, band and out-of-flow props write", () => {
+test("the real Text, Heading, Button and Row own the classes the clamp, grow, floor, width, band and out-of-flow props write", async () => {
   const ownerOf = classOwners(REPO_ROOT);
-  expect(ownerOf("text", "Text", "line-clamp-3", [])).toEqual({ axis: "text.clamp", prop: "clamp", arm: "3" });
-  expect(ownerOf("text", "Heading", "line-clamp-2", [])).toEqual({ axis: "heading.clamp", prop: "clamp", arm: "2" });
-  expect(ownerOf("text", "Text", "flex-1", [])).toEqual({ axis: "text.grow", prop: "grow", arm: "true" });
-  expect(ownerOf("text", "Text", "basis-(--width-field-floor)", [])).toEqual({ axis: "text.floor", prop: "floor", arm: "field" });
-  expect(ownerOf("button", "Button", "inline-full", [])).toEqual({ axis: "button.width", prop: "width", arm: "full" });
-  expect(ownerOf("layout", "Row", "orb-out-of-flow", [])).toEqual({ axis: "row.outOfFlow", prop: "outOfFlow", arm: "true" });
-  const stacked = ["flex-col", "items-start", "block-auto"];
-  expect(ownerOf("button", "Button", "p-row", stacked)).toEqual({ axis: "button.stacked", prop: "stacked", arm: "true" });
-  expect(ownerOf("button", "Button", "flex-1", ["min-inline-0"])).toEqual({ axis: "button.stretch", prop: "stretch", arm: "row" });
+  const owns = async (door: string, component: string, prop: string, arm: string | number | boolean): Promise<unknown> =>
+    ownerOf(door, component, await recipeClass(door, component, { [prop]: arm }), []);
+  expect(await owns("text", "Text", "clamp", 3)).toEqual({ axis: "text.clamp", prop: "clamp", arm: "3" });
+  expect(await owns("text", "Heading", "clamp", 2)).toEqual({ axis: "heading.clamp", prop: "clamp", arm: "2" });
+  expect(await owns("text", "Text", "grow", true)).toEqual({ axis: "text.grow", prop: "grow", arm: "true" });
+  expect(await owns("text", "Text", "floor", "field")).toEqual({ axis: "text.floor", prop: "floor", arm: "field" });
+  expect(await owns("button", "Button", "width", "full")).toEqual({ axis: "button.width", prop: "width", arm: "full" });
+  expect(await owns("layout", "Row", "outOfFlow", true)).toEqual({ axis: "row.outOfFlow", prop: "outOfFlow", arm: "true" });
+  const stacked = await recipeClasses("button", "Button", { stacked: true });
+  const stretched = await recipeClasses("button", "Button", { stretch: "row" });
+  for (const token of stacked) {
+    expect(ownerOf("button", "Button", token, stacked), token).toEqual({ axis: "button.stacked", prop: "stacked", arm: "true" });
+  }
+  for (const token of stretched) {
+    expect(ownerOf("button", "Button", token, stretched), token).toEqual({ axis: "button.stretch", prop: "stretch", arm: "row" });
+  }
 });
 
 test("an arm that writes a part inside the component owns nothing on its root", ({ scratch }) => {
@@ -120,35 +145,47 @@ test("an axis with an arm outside the family does not choose it, so a class of o
   expect(owners(scratch)("layout", "Stack", "ps-1", [])).toBeNull();
 });
 
-test("the real layout tables own justify on Row and truncate on Text", () => {
+test("the real layout tables own justify on Row and truncate on Text", async () => {
   const ownerOf = classOwners(REPO_ROOT);
-  expect(ownerOf("layout", "Row", "justify-end-safe", [])).toEqual({ axis: "row.justify", prop: "justify", arm: "end" });
-  expect(ownerOf("text", "Text", "truncate", [])).toEqual({ axis: "text.truncate", prop: "truncate", arm: "true" });
+  expect(ownerOf("layout", "Row", await recipeClass("layout", "Row", { justify: "end" }), [])).toEqual({ axis: "row.justify", prop: "justify", arm: "end" });
+  expect(ownerOf("text", "Text", await recipeClass("text", "Text", { truncate: true }), [])).toEqual({ axis: "text.truncate", prop: "truncate", arm: "true" });
   expect(ownerOf("layout", "Row", "min-inline-0", [])).toBeNull();
 });
 
-test("the real Row owns each class it writes below a container step, on the steps of the container scale", () => {
+test("the real Row owns each class it writes below a container step, on the steps of the container scale", async () => {
   const ownerOf = classOwners(REPO_ROOT);
-  expect(ownerOf("layout", "Row", "@max-cq-32:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: "cq-32" });
-  expect(ownerOf("layout", "Row", "@max-cq-28:items-stretch", [])).toEqual({ axis: "row.alignBelow", prop: "alignBelow", arm: "stretch-cq-28" });
-  expect(ownerOf("layout", "Row", "@max-cq-28:items-end", [])).toEqual({ axis: "row.alignBelow", prop: "alignBelow", arm: "end-cq-28" });
-  expect(ownerOf("layout", "Row", "@max-cq-64:justify-end", [])).toEqual({ axis: "row.endBelow", prop: "endBelow", arm: "cq-64" });
+  const row = (props: RecipeProps): Promise<string> => recipeClass("layout", "Row", props);
+  expect(ownerOf("layout", "Row", await row({ stackBelow: "cq-32" }), [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: "cq-32" });
+  expect(ownerOf("layout", "Row", await row({ alignBelow: "stretch-cq-28" }), [])).toEqual({
+    axis: "row.alignBelow",
+    prop: "alignBelow",
+    arm: "stretch-cq-28",
+  });
+  expect(ownerOf("layout", "Row", await row({ alignBelow: "end-cq-28" }), [])).toEqual({ axis: "row.alignBelow", prop: "alignBelow", arm: "end-cq-28" });
+  expect(ownerOf("layout", "Row", await row({ endBelow: "cq-64" }), [])).toEqual({ axis: "row.endBelow", prop: "endBelow", arm: "cq-64" });
   expect(ownerOf("layout", "Row", "@max-cq-20:flex-col", [])).toEqual({ axis: "row.stackBelow", prop: "stackBelow", arm: null });
 });
 
-test("the real Stack and Row own an inset that steps down below the phone container step, and the block-start inset", () => {
+test("the real Stack and Row own an inset that steps down below the phone container step, and the block-start inset", async () => {
   const ownerOf = classOwners(REPO_ROOT);
-  expect(ownerOf("layout", "Stack", "@max-cq-28:px-tight", [])).toEqual({ axis: "stack.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "tight" });
-  expect(ownerOf("layout", "Row", "@max-cq-28:px-row", [])).toEqual({ axis: "row.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "row" });
-  expect(ownerOf("layout", "Stack", "@max-cq-28:pe-block", [])).toEqual({ axis: "stack.paddingInlineEndNarrow", prop: "paddingInlineEndNarrow", arm: "block" });
-  expect(ownerOf("layout", "Stack", "pbs-row", [])).toEqual({ axis: "stack.paddingBlockStart", prop: "paddingBlockStart", arm: "row" });
+  const owns = async (component: string, props: RecipeProps): Promise<unknown> =>
+    ownerOf("layout", component, await recipeClass("layout", component, props), []);
+  expect(await owns("Stack", { paddingInlineNarrow: "tight" })).toEqual({ axis: "stack.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "tight" });
+  expect(await owns("Row", { paddingInlineNarrow: "row" })).toEqual({ axis: "row.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "row" });
+  expect(await owns("Stack", { paddingInlineEndNarrow: "block" })).toEqual({
+    axis: "stack.paddingInlineEndNarrow",
+    prop: "paddingInlineEndNarrow",
+    arm: "block",
+  });
+  expect(await owns("Stack", { paddingBlockStart: "row" })).toEqual({ axis: "stack.paddingBlockStart", prop: "paddingBlockStart", arm: "row" });
 });
 
-test("a class of a family an axis chooses in is that axis's, with no arm named when no arm writes it", () => {
+test("a class of a family an axis chooses in is that axis's, with no arm named when no arm writes it", async () => {
   const ownerOf = classOwners(REPO_ROOT);
+  const [sidebarCap] = (await recipeClasses("layout", "Grid", { cap: "sidebar" })).filter((token) => !token.startsWith("@"));
   expect(ownerOf("layout", "Stack", "max-inline-(--width-popup-floor)", [])).toEqual({ axis: "stack.cap", prop: "cap", arm: null });
   expect(ownerOf("layout", "Stack", "@max-cq-32:pe-block", [])).toEqual({ axis: "stack.paddingInlineEnd", prop: "paddingInlineEnd", arm: null });
-  expect(ownerOf("layout", "Grid", "max-inline-(--width-sidebar-sm)", [])).toEqual({ axis: "grid.cap", prop: "cap", arm: "sidebar" });
+  expect(ownerOf("layout", "Grid", sidebarCap ?? "", [])).toEqual({ axis: "grid.cap", prop: "cap", arm: "sidebar" });
   // A zero step is structure, and a family no axis chooses in is the caller's to write.
   expect(ownerOf("layout", "Row", "pe-0", [])).toBeNull();
   expect(ownerOf("layout", "Row", "min-inline-0", [])).toBeNull();
