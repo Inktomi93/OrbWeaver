@@ -9,6 +9,7 @@
 // A non-suspense probe deliberately: `when` gating must never block a pane from painting — an unresolved
 // viewer reads as non-admin, and the shell re-applies a deep link once visibility GROWS.
 
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import { useQuery } from "@tanstack/react-query";
 import type { SettingsViewerView } from "#state";
 import { useTRPC } from "./trpc.ts";
@@ -19,7 +20,7 @@ import { useTRPC } from "./trpc.ts";
 export function useSettingsViewerView(): SettingsViewerView {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.sessions.me.queryOptions());
-  const isOwner = data?.globalRole === "owner";
-  const isAdmin = isOwner || data?.globalRole === "admin";
+  const isOwner = data !== undefined && userRoleSatisfies(data.globalRole, "owner");
+  const isAdmin = data !== undefined && userRoleSatisfies(data.globalRole, "admin");
   return { isAdmin, isOwner };
 }

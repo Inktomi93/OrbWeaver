@@ -28,7 +28,7 @@ const text = new TextEncoder();
 // One file of each medium, its bytes carrying that medium's real signature, and the type it honestly claims.
 const SAMPLES = {
   image: { bytes: magicBytes("png"), type: "image/png", name: "sample.png" },
-  video: { bytes: text.encode("\0\0\0\u0018ftypisom\0\0\0\0isomiso2"), type: "video/mp4", name: "sample.mp4" },
+  video: { bytes: magicBytes("mp4"), type: "video/mp4", name: "sample.mp4" },
   pdf: { bytes: text.encode("%PDF-1.4\n%sample\n"), type: "application/pdf", name: "sample.pdf" },
   zip: { bytes: magicBytes("zip"), type: "application/zip", name: "sample.zip" },
   text: { bytes: text.encode("a plain note"), type: "text/plain", name: "sample.txt" },

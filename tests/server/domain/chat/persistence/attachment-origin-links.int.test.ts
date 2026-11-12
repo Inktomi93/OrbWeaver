@@ -8,6 +8,7 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import { createResolveMediaRef } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors } from "@orb/testkit/node/composed";
+import { magicBytes } from "@orb/testkit/node/helpers";
 import { seedChatRows, seedMessageRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -21,7 +22,7 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
   const { services, db } = root;
   const { row: room } = await seedChatRows(root, { principal: host, characterIds: [] });
   await seatMember(root, host, room.id, member);
-  const bytes = new Uint8Array([9, 8, 7]);
+  const bytes = magicBytes("webm");
   const asset = await services.assets.store({ principal: member, bytes, kind: "attachment", mime: "video/webm" });
   // The member's own attachment link places the clip in the room; this case pins presence and deferral.
   const attachedIn = await seedMessageRows(root, {

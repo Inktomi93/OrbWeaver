@@ -12,6 +12,7 @@
 // clears only the keys the VIEWER may actually clear (`discreetLogin` is admin-writable; `localMultiUser`
 // is not).
 
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import type { AppSettings } from "@orb/contracts/settings";
 import { Field } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
@@ -36,7 +37,7 @@ const ALLOWLIST_PLACEHOLDER = "127.0.0.1:8703\n192.168.1.0/24\nollama.lan:11434"
 function useIsBoxOwner(): boolean {
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.sessions.me.queryOptions());
-  return data.globalRole === "owner";
+  return userRoleSatisfies(data.globalRole, "owner");
 }
 
 /** Multi-user — the local-mode seating switch (owner-only) beside the login-page posture (admin-writable). */

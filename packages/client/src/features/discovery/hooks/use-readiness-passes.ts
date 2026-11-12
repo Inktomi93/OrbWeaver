@@ -1,6 +1,7 @@
 // The readiness rail's per-pass doors: which door each row offers, and the start that runs one pass on its own.
 // One confirm serves every row, so a pass that calls the Utility model is counted and confirmed before it enqueues.
 
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import { errorMessage } from "@orb/kit/error-message";
 import { useQuery } from "@tanstack/react-query";
@@ -61,7 +62,7 @@ export function useReadinessPasses(): ReadinessPassesView {
   const facts: ReadinessFacts = {
     helperModel: helperModelFact(utility.kind),
     chatMemory: settled(settings.data, (data) => (data.config.memory.enabled ? "on" : "off")),
-    viewer: settled(viewer.data, (data) => (data.globalRole === "owner" ? "box-owner" : "member")),
+    viewer: settled(viewer.data, (data) => (userRoleSatisfies(data.globalRole, "owner") ? "box-owner" : "member")),
     running: new Set(CORPUS_READINESS_STAGE_IDS.filter((stage) => activeRows.some((row) => isReadinessRun(stage, row)))),
   };
 

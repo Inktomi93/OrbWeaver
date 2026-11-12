@@ -76,10 +76,10 @@ export function parsePluginIpcMessage(value: unknown): PluginIpcMessage | null {
   return null;
 }
 
-/** Each live plugin runtime's share of every queue its process sends on (D348): the lowest share no live runtime holds.
- *  A runtime that replaces another takes the share the replaced runtime's still-queued bytes are charged to, so those
- *  bytes take that share's room alone until they drain, never a bystander's. A process holds at most its Worker count of
- *  live runtimes, so the shares in use never pass it. */
+/** Each plugin runtime's share of every queue its process sends on (D348): the lowest share no runtime holds. A holder
+ *  releases a share when its process can charge nothing more to it: the broker after the Worker's exit and the app's
+ *  forgetting, so the broker's next runtime takes it empty; the app on forgetting. A process holds about its Worker count
+ *  of runtimes, so the shares in use pass it only while a finished runtime is still being forgotten. */
 export class PluginIpcShares {
   private readonly held = new Map<string, string>();
 

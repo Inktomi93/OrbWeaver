@@ -20,6 +20,7 @@
 import type { HandoffOffer, ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import { isHostRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, chats, messages } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
@@ -27,7 +28,6 @@ import { batchMany } from "@orb/db/query";
 import type { CharacterId, ChatId, ChatInviteId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AnyColumn, SQL } from "drizzle-orm";
 import { and, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
-
 import type { ParticipantActor, ParticipantInsertRow } from "../contract/participant-row.ts";
 
 /** The row shape {@link classifyParticipant} discriminates. */
@@ -96,7 +96,7 @@ export function firstCharacterIdOf(rows: readonly ParticipantRowShape[]): Charac
 
 /** A `character` participant is always `role='member'` — a character can never be the host. */
 export function assertForcedCharacterMember(p: { readonly kind: ParticipantKind; readonly role: ParticipantRole }): void {
-  if (p.kind === "character" && p.role !== "member") {
+  if (p.kind === "character" && isHostRole(p.role)) {
     throw new Error(`a character participant must be role 'member' (got '${p.role}')`);
   }
 }

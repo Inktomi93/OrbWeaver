@@ -10,6 +10,7 @@
 // Both controls write IMMEDIATELY (a toggle/enum pick IS the override), so there is no draft and the shared
 // row renders Reset alone.
 
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import type { AppSettings, LogLevel } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -92,7 +93,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
           error={save.error}
           onReset={(): void => write({ corpusAutoindex: null, logLevel: null })}
         />
-        {viewer.globalRole === "owner" ? <RestartServerControl /> : null}
+        {userRoleSatisfies(viewer.globalRole, "owner") ? <RestartServerControl /> : null}
       </Stack>
     </Section>
   );
