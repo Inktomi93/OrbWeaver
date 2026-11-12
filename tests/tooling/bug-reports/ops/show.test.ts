@@ -1,5 +1,5 @@
 // The reader's RESOLUTION rule (#1184) — pure, so the ambiguity edges are posed directly instead of planted.
-// The cli.int suite proves the same behaviour through the real binary; this one exists because the edge that
+// The cli.int suite (`tests/tooling/bug-reports/cli.int.test.ts`) proves the same behaviour through the real binary; this one exists because the edge that
 // matters (an id that is also a PREFIX of a longer id) is awkward to plant and trivial to state.
 
 import { expect, test } from "@orb/testkit/tooling";

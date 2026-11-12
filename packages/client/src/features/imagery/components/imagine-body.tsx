@@ -298,7 +298,7 @@ function readCostLine(receipt: ExtractedPromptResult | undefined): string {
  * A live "…N s" line for one in-flight spend. MOUNT-SCOPED BY DESIGN: the caller renders it only while the
  * call is pending, so the counter starts at zero because the component is new — there is no reset arm, and
  * therefore no `setState` inside an effect adjusting state when a prop changed (which the react-hooks lint
- * refuses, correctly: it is a cascading render). A tick counter, never a wall-clock read in render scope
+ * refuses, correctly, as `react-hooks/set-state-in-effect`: it is a cascading render). A tick counter, never a wall-clock read in render scope
  * (the `reasoning-block` precedent).
  */
 function PendingLine({ label, verb }: { readonly label: string; readonly verb: string }): ReactElement {

@@ -1,4 +1,4 @@
-// mutation-run's front door: the run the cli fronts, and the pure checks its tests pin.
+// mutation-run's front door: the run the cli fronts, and the pure checks under `tests/tooling/mutation-run/lib/`.
 export type { MutationPlan } from "./lib/named-files.ts";
 export { planMutationRun } from "./lib/named-files.ts";
 export type { StatusCounts } from "./lib/summary.ts";

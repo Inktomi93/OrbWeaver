@@ -2,7 +2,7 @@
 // renderer applied to a hinted schema — the owner's standing directive ("the built-in fixed payload is
 // ONE INSTANCE of a general renderer") made mechanical. The zod contracts carry no x-orb-ui, so these
 // overlay by JSON-pointer path onto `projectJsonSchema(REFINERY_STAGE_PAYLOADS[stage])`. Keyed per
-// stage; the derivation-pin test asserts the mock anatomy falls out of plan + hints alone.
+// stage; the mock anatomy falls out of plan + hints alone.
 
 import type { RefineryStage } from "@orb/contracts/refinery";
 import type { HintOverlay } from "./render-plan.ts";

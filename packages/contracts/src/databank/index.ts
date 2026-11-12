@@ -69,7 +69,7 @@ export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalle
 /** Derived from the TUPLE, not `z.infer` of the schema below (the `CharacterListSort` spelling): the
  *  vocabulary's type face lives at the tuple, its one home. Both give tsc the same type, but Biome 2.5.1 still
  *  reports every `case` of an exhaustive switch over the `z.infer` alias as
- *  `lint/suspicious/noUnnecessaryConditions` "unreachable", while the tuple-derived alias lints clean (probe
+ *  `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`) "unreachable", while the tuple-derived alias lints clean (probe
  *  from untracked files under `packages/contracts/src/` and `packages/server/src/`, never /tmp where zod does
  *  not resolve). The `satisfies` below is a ONE-WAY assignability check; exact equality holds because the schema and this
  *  type both derive from `INGEST_PHASES`. */

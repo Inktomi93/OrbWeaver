@@ -306,8 +306,7 @@ export function npcHeader(actors: readonly RpgTrackerView["actors"][number][], p
  *  actor — name, mood, stance — never her trackers, pack or guides: this is a memory jog, not a second Present
  *  block, and a long-running game accumulates these.
  *
- *  Module-private on purpose: the macro feed deliberately does NOT stage this block (the reachability suite
- *  pins that posture with a `macroAbsent` needle), so unlike `actorLine`/`npcHeader` it has exactly one
+ *  Module-private on purpose: the macro feed deliberately does NOT stage this block, so unlike `actorLine`/`npcHeader` it has exactly one
  *  consumer — the reminder's own assembly. */
 function offstageLine(actor: RpgTrackerView["actors"][number], hints: Readonly<Record<string, string>>): string {
   const identity = actor.identity;

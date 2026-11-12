@@ -41,7 +41,7 @@ import "./styles/index.ts";
 // so the instruments (the long-task tracer and the agent handles) and anything only they reach land in no
 // production chunk at all. `compose/config-sections.ts` is the exception: it is production code that
 // `compose/authed-app.tsx` imports into its lazy chunk, loaded here early only for agent navigation.
-// `pnpm check:boot-chunk` holds this against the real build (`DEV_ONLY_INSTRUMENTS`). All three are dynamic
+// All three are dynamic
 // imports rather than static ones for the same reason: a static import would put the graph back in the entry
 // chunk in dev, and — for the agent handles — in prod too.
 //

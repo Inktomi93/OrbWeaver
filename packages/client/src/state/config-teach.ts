@@ -1,8 +1,7 @@
 // The teach HONESTY assertion (owner rider R-TEACH, 2026-08-30): teach is
 // LOCKED to its leaf by type (`ConfigSettingLeaf.teach` is required), and this assert carries what tsc
 // cannot see — a HOLLOW declaration. Runs at the compose door beside `assertSettingsKeyPartition` (a
-// throw, not a gate approximation) over the REAL registry, so every leaf that exists is swept; the mirror
-// unit test pins each arm with a planted fixture.
+// throw, not a gate approximation) over the REAL registry, so every leaf that exists is swept.
 //
 // The arms: a non-none teach with an empty `summary`, an empty `affects` list or a blank `affects` entry
 // is RED; a `{none: ""}` is RED (an opt-out owes its reason); a `related` ref that does not resolve

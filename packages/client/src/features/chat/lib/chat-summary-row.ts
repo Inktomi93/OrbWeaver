@@ -2,7 +2,8 @@
 // last-activity epoch) — shared by the chats-list rows, the landing "Recent chats" strip, the command
 // palette, and (via `deriveChatTitle`) the topbar/context identity, so the surfaces can't drift
 // (derive-modernization §W5). The composite that renders it lives beside it in
-// components/chat-summary-row.tsx (biome forbids a component + a plain export in one module).
+// components/chat-summary-row.tsx (biome forbids a component + a plain export in one module:
+// `lint/style/useComponentExportOnlyModules`).
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { authoredChatName, collidingNameQualifiers, deriveChatTitle, rowQualifiers, timeLib } from "#lib";
@@ -10,7 +11,7 @@ import { authoredChatName, collidingNameQualifiers, deriveChatTitle, rowQualifie
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
 // `deriveChatTitle` MOVED to `#lib/chat-title` (2026-08-09) and is imported from there above, NOT re-exported
-// from here (a re-export would make this a barrel file, which biome forbids): the regex library's room
+// from here (a re-export would make this a barrel file, which biome forbids: `lint/performance/noBarrelFile`): the regex library's room
 // roster names chat rooms, features cannot import each other, and this file's own two-rung copy of the chain
 // is what put "Untitled chat" on rooms the chats list calls by their characters. Every consumer now imports
 // from `#lib`.

@@ -11,7 +11,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 //
 // THE DEFECT. `publishRunSlot` was the ONLY unlinker of the `.inflight` marker, and TWO run shapes finish
 // without publishing: a GATE-SCOPED run (#1964) and a NON-VERDICT run (#2167). Both left a marker behind
-// forever, `abandonedRuns` reports a marker whose pid is gone as a run that DIED, and `check:show` refuses
+// forever, `abandonedRuns` reports a marker whose pid is gone as a run that DIED, and `check:show` refused
 // the published pointer on exactly that signal — so a complete verdict was reported as "that run never
 // finished". Measured on main 2026-09-12 over `reports/runs/structure/` (N=32): 17 slots carried a marker
 // and 13 of those were FINISHED fixture-mode runs.

@@ -86,7 +86,7 @@ export function PresetEditorHeader({
           the body must breathe together or they realign at every dock.
 
           The Params deck carries a THIRD, deeper column — its own instrument cap (`params-deck.tsx`) — so an
-          offset between this header and the deck shows on Params and on no other tab. A CT pins the header
+          offset between this header and the deck shows on Params and on no other tab. The header keeps
           to the panel column; the deck's cap is argued at its own site. */}
       <Stack gap="block" placed={pinned ? "pinned" : undefined} paddingBlock="block" ground="card" layer="raised" ref={bandRef}>
         <Container width="full">

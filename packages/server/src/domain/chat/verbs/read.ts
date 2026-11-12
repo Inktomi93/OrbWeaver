@@ -665,7 +665,7 @@ async function previewGatherFields(
 /** Build the assemble ctx for a preview from the resolved {@link PreviewInputs}. No persist, no turn. An
  *  optional `guided` steer mirrors a real turn's steered assembly. Threads the preview user-macro registry
  *  (WAVE MU) so a previewed prompt resolves user macros exactly as a real turn would (stable-prng posture) AND
- *  the game turn's rpg gather (see {@link previewRpgFields}) so a game chat previews its real state block.
+ *  the game turn's rpg gather (see {@link previewGatherFields}) so a game chat previews its real state block.
  *
  *  The gathered ctx is then SHAPED for the primary speaker exactly as a turn's round is
  *  (`shapeContextForSpeaker`, `cardScope: "merged"` — the same assumption `shapeNextTurn` already makes for

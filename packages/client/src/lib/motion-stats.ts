@@ -135,7 +135,7 @@ function publishLongAnimationFrame(entry: LoafEntry): void {
 
 /** One attributed layout shift — what moved, how far, and whether the spec counts it. NOT exported (the
  *  `LoafRecord` precedent): it is reachable through `MotionSnapshot.shifts`, and a second export would be
- *  an unused public name knip reds. */
+ *  an unused public name knip reds (`pnpm knip`). */
 interface ShiftRecord {
   readonly startTime: number;
   readonly value: number;

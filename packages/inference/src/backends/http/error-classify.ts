@@ -36,7 +36,7 @@ const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAVAILABLE_LEGAL = 451;
 const HTTP_SERVER_ERROR_FLOOR = 500;
 
-// File-local: narrow an unknown to a string-keyed record without an `as` cast (biome bans single `as`).
+// File-local: narrow an unknown to a string-keyed record without an `as` cast (`orb/no-unsafe-cast` refuses one).
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }

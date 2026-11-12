@@ -28,9 +28,8 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
   /** The trigger's BOX. `control` (the default since #884 C2 — the inversion) pins the pointer-conditional
    *  `--size-control-sm` row floor: a disclosure is the thing you press to reach a whole section, and
    *  the recurring defect was this arm not taken. `text` is text-height, for a disclosure sitting in
-   *  running content where a control box would shear it off its copy — every `size="text"` mount owes a
-   *  reasoned home on the `orb/sub-floor-disclosure` row of eslint.config.js (variants.ts carries the
-   *  measurements). */
+   *  running content where a control box would shear it off its copy — every `size="text"` mount owes its
+   *  reason at the call site (variants.ts carries the measurements). */
   size?: "text" | "control";
   /** `block` floors a `text` trigger's own height at the touch target on a coarse pointer; fine stays text-height. */
   touchFloor?: "block";

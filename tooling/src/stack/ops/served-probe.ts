@@ -68,7 +68,7 @@ function readSource(path: string): string | null {
  *  two-file tree and drive both directions (a fake vite echoing the file = `fresh`; one echoing a wedged
  *  body = `stale`). A detector nobody can fail is not a detector. `vitePort` is the stack's own, so a
  *  sidecar probes its own vite and never the dev one.
- * @public Test-anchored module surface; focused tests pin this production-local behavior. */
+ * @public Test-anchored module surface; focused tests pin this production-local behavior (tests/tooling/stack/index.int.test.ts). */
 export async function probeServedTransform(
   roots: readonly string[] = WATCHED_SOURCE_DIRS.map((rel) => `${REPO_ROOT}/${rel}`),
   vitePort: number = DEV_PORTS.vite,

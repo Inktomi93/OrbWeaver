@@ -9,7 +9,7 @@ import { logClock } from "./log-clock.ts";
 /**
  * The structural slice of tRPC's `LoggerLinkFnOptions` this formatter reads — declared locally
  * (tRPC does not export the fn-options type cleanly) and SUPERTYPE-compatible with the real arg,
- * so `logger: formatTrpcOp` assignability is verified by tsc at the data/trpc.ts wiring site.
+ * so `logger: formatTrpcOp` assignability is verified by tsc (`pnpm typecheck`) at the data/trpc.ts wiring site.
  */
 export type TrpcOpLogEntry =
   | {

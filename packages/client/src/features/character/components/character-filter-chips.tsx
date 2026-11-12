@@ -38,9 +38,8 @@ const VISIBLE_TAG_CHIPS = 8;
  *  i.e. TWO lines of the pre-#102-review chip. Reserving the lines while the read is in flight is what
  *  makes the arrival free.
  *
- *  Pinned by EQUALITY, not by the review's number — the CT holds the group's height IDENTICAL held-vs-
- *  settled at `RAIL_PANE_PX`, so this constant cannot drift away from the rail it stands in for without
- *  going red. (It is the review's two either way: the glyph-cell widening that would have made it three was
+ *  Held by EQUALITY, not by the review's number: the group's height is IDENTICAL held-vs-settled at
+ *  `RAIL_PANE_PX`, the rail this constant stands in for. (It is the review's two either way: the glyph-cell widening that would have made it three was
  *  refused — see {@link TagFilterChip}.)
  *
  *  Named keys, not indices — a fixed list of lines is a set of things, not array positions. */

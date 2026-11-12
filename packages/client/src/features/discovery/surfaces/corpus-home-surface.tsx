@@ -14,7 +14,7 @@
 //
 // CD3 IS WHAT MAKES THE SWAP MANDATORY (UI-Density-Law.md §3.2): exactly one element per surface may
 // carry accent fill, glow, or elevated shadow at rest. Both islands can paint the focal treatment; exactly
-// one is ever told to. A CT pins `[data-corpus-focal]` at count 1 in every phase.
+// one is ever told to: `[data-corpus-focal]` is on exactly one element in every phase.
 //
 // ── WHAT WENT, AND WHAT REPLACED IT (the #99 item-7 / side-eye 2026-08-08 findings, in composition) ────
 //   • THE COVERAGE STAT STRIP IS GONE. Five structural zeros at display size above an empty state that
@@ -104,8 +104,8 @@ import { deriveCorpusAnalysisState } from "../lib/corpus-analysis-state.ts";
 // unnamed container: nothing announced, no visible ring, and the pane's real control (the search box the
 // LIST surface deliberately focuses, C7) one Tab further away than it looks. A section has ONE arrival
 // target; this is not it. Nothing else here focused anything, so the fix is the removal — and the removal
-// is DECLARED rather than silent, because `orb/surface-a11y-focus` is otherwise right about every other surface:
-// Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): the corpus LIST pane's omnibox (SearchOmnibox in corpus-list-surface.tsx, C7) owns this section's arrival focus; this CONTENT surface mounts second and must not steal it. Ends when this surface becomes a section's sole pane and has an arrival target of its own.
+// is DECLARED rather than silent, because every other surface does take its own arrival focus:
+// Arrival focus lives in another pane: the corpus LIST pane's omnibox (SearchOmnibox in corpus-list-surface.tsx, C7) owns this section's arrival focus; this CONTENT surface mounts second and must not steal it. Ends when this surface becomes a section's sole pane and has an arrival target of its own.
 export function CorpusHomeSurface(): ReactElement {
   return (
     // No height/scroll/inset of its own — the CONTENT region owns all three for both corpus surfaces

@@ -7,21 +7,9 @@ import { extname } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { parse } from "yaml";
+import { NON_LITERAL, PNPM_NAME, ROOTED, SCRIPT } from "../../../tooling/src/eslint/cites.ts";
 import type { Source, Span, Tracked } from "./_sources.ts";
-import {
-  LAW_DOC,
-  MARKDOWN,
-  NON_LITERAL,
-  REPO_ROOT,
-  ROOT_CONFIG,
-  ROOTED,
-  readFromRepo,
-  SCRIPT_KINDS,
-  scriptComments,
-  scriptStrings,
-  trackedFiles,
-  VENDORED,
-} from "./_sources.ts";
+import { LAW_DOC, MARKDOWN, REPO_ROOT, ROOT_CONFIG, readFromRepo, SCRIPT_KINDS, scriptComments, scriptStrings, trackedFiles, VENDORED } from "./_sources.ts";
 
 const WORKFLOW = /^\.github\/(?:workflows\/[^/]+|actions\/.+)\.ya?ml$/u;
 const ACTION_FILES = ["action.yml", "action.yaml"] as const;
@@ -29,16 +17,11 @@ const LOCAL_ACTION = "./";
 const EXPRESSION = "${{";
 const YAML_EXTS = new Set([".yml", ".yaml"]);
 
-const PNPM_ROOTS = ["tooling/src/", "scripts/", "tests/tooling/", ".github/"] as const;
-// A command is a name the next characters do not continue into a word, a glob or a placeholder (`pnpm sdk:*`); a
-// sentence stop after it is not part of it.
-const NAME = String.raw`([a-z](?:[\w:.-]*\w)?)(?![\w*<{]|[:.-][\w*<{])`;
-// In a string or a run line a command opens the text, a line or a shell clause; in prose only a backticked span
-// names one, so "pnpm and its workers" stays English.
-const PNPM_IN_CODE = new RegExp(String.raw`(?:^|[\x60(]|&&|\|\||[;|]|\$\()[ \t]*(?:\$ )?pnpm\s+${NAME}`, "gmu");
-const PNPM_IN_PROSE = new RegExp(String.raw`\x60(?:\$ )?pnpm\s+${NAME}[^\x60\n]*\x60`, "gu");
+const PNPM_ROOTS = ["tooling/src/", "scripts/", "tests/", "packages/", ".github/"] as const;
+// In a string or a run line a command opens the text, a line or a shell clause; a comment names one in the cite grammar.
+const PNPM_IN_CODE = new RegExp(String.raw`(?:^|[\x60(]|&&|\|\||[;|]|\$\()[ \t]*(?:\$ )?pnpm\s+${PNPM_NAME}`, "gmu");
 const FENCE = "```";
-const FENCED_COMMAND = new RegExp(String.raw`^\s*(?:\$ )?pnpm\s+${NAME}`, "u");
+const FENCED_COMMAND = new RegExp(String.raw`^\s*(?:\$ )?pnpm\s+${PNPM_NAME}`, "u");
 
 const LINT_HOMES = [/^eslint\.config\.ts$/u, /^\.dependency-cruiser\.ts$/u, /^tooling\/src\/biome-config\//u, /^tooling\/src\/eslint\//u] as const;
 // The subpath ends on a word character, so a sentence stop after a specifier is not part of it.
@@ -124,7 +107,7 @@ function pnpmTokens(source: Source): Span[] {
         return [];
       }
       const command = fenced ? FENCED_COMMAND.exec(text)?.[1] : undefined;
-      return command === undefined ? from([{ line: index + 1, text }], PNPM_IN_PROSE) : [{ line: index + 1, text: command }];
+      return command === undefined ? from([{ line: index + 1, text }], SCRIPT) : [{ line: index + 1, text: command }];
     });
   }
   if (YAML_EXTS.has(ext)) {
@@ -135,11 +118,11 @@ function pnpmTokens(source: Source): Span[] {
         runs.map(({ value }) => ({ line: 0, text: value })),
         PNPM_IN_CODE,
       ),
-      ...from(comments, PNPM_IN_PROSE),
+      ...from(comments, SCRIPT),
     ];
   }
   const kind = kindOf(source.path);
-  return kind === undefined ? [] : [...from(scriptStrings(source, kind), PNPM_IN_CODE), ...from(scriptComments(source, kind), PNPM_IN_PROSE)];
+  return kind === undefined ? [] : [...from(scriptStrings(source, kind), PNPM_IN_CODE), ...from(scriptComments(source, kind), SCRIPT)];
 }
 
 function deadPnpmCommands(sources: readonly Source[], known: ReadonlySet<string>): string[] {

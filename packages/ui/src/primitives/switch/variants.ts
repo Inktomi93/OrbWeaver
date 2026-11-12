@@ -34,8 +34,8 @@ import { COLOR_MOTION, DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH
 // the inset leaves (the #1684 paragraph below). That token is a LITERAL, not a calc
 // (the `--size-slider-inset` precedent: DTCG $values carry no references), and the first spelling here
 // WAS the calc — `no-raw-spacing-in-features` refused it, correctly: this repo spells spacing as intent
-// tokens. The CT asserts the RENDERED inline gap EQUALS the RENDERED block gap at both pointers, so an
-// unmirrored retune of any of the other tokens goes red on geometry instead of drifting. Substitute the
+// tokens. The RENDERED inline gap must EQUAL the RENDERED block gap at both pointers, so retune the
+// other tokens together. Substitute the
 // inset into `trackW − 2×border − 2×inset − thumb` and both the border and the thumb cancel:
 //
 //     travel = trackWidth − trackHeight        (20px coarse, 16px fine)

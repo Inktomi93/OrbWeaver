@@ -64,8 +64,8 @@ export * from "./schema-plan.ts";
 // check needs them and this file re-exports ./schema-authoring — importing them back out of here would
 // close a cycle).
 // The card TEXT_MAX twin (contracts/character) — an applied rewrite flows into `character.update`,
-// whose text fields cap at 100 000; an uncapped payload would make the apply verb partial. Pinned
-// in the contract test against the character contract's exported `TEXT_MAX`.
+// whose text fields cap at 100 000; an uncapped payload would make the apply verb partial. It
+// must equal the character contract's exported `TEXT_MAX`.
 const REWRITE_TEXT_MAX = 100_000;
 
 /** Host-authored free prose that reaches a model wire (session `guidance`) — the `PROSE_MAX_CHARS` twin

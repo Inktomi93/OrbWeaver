@@ -76,7 +76,7 @@ function setRecall(chatId: ChatId, next: RecallState | null, action: string): vo
 // Terminals (complete/abort) and `markStopping` flush the pending buffer for that chat SYNCHRONOUSLY first
 // (so no trailing token is dropped and the phase transition lands AFTER the text it followed). In a
 // non-browser env (vitest/node — no `requestAnimationFrame`) the scheduler runs the flush SYNCHRONOUSLY,
-// preserving the store's existing synchronous per-delta contract the unit/CT suites assert against.
+// preserving the store's synchronous per-delta contract.
 
 interface PendingTokens {
   text: string;

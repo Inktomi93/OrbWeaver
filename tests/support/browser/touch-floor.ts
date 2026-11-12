@@ -10,11 +10,11 @@
 // sees it, and only if you WALK OUT from the centre rather than sampling it.
 //
 // TWO INSTRUMENTS, because neither alone states the claim:
-//   · {@link hitBoxes} — the effective target per control. Correct for a run whose controls are SEPARATED
+//   · {@link hitExtent} — the effective target per control. Correct for a run whose controls are SEPARATED
 //     (each pseudo sits inside its own cell); on a perfectly TILED run it under-reports by one, because the
 //     boundary sample resolves to whichever of two abutting neighbours wins it.
 //   · {@link measurePitch} — centre-to-centre spacing, which has no boundary to share. This is the exact
-//     floor claim for a tiled run; pair it with `hitBoxes` to prove the pseudo is not clipped BELOW the pitch.
+//     floor claim for a tiled run; pair it with `hitExtent` to prove the pseudo is not clipped BELOW the pitch.
 //
 // And the floor itself is {@link touchFloorPx} — the RESOLVED token, never a hardcoded 44. It bites: the CT
 // harness's rendering context is not the app's, and a literal both fails correct fixes and survives a token
@@ -32,12 +32,6 @@ export interface HitBox {
   readonly y: number;
 }
 
-/** A Button `inline`/`glyph-*` hit pseudo's resolved box. This intentionally names `::before`:
- * the hit surface lives there so `::after` can remain the CTA paint layer. An unresolved dimension is an
- * absent measurement, so this refuses instead of turning `auto` into a zero-sized target. */
-/** The effective box for Button arms that may carry their floor either in their own border box or in
- * `::before`. A box that already clears the floor needs no pseudo; a smaller box must have a measurable
- * pseudo and therefore inherits {@link beforeHitBox}'s refusal. */
 /**
  * One `--spacing-*` custom property resolved to REAL px by the browser, at the document root.
  *

@@ -57,7 +57,7 @@ import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine, 
  *  owns the full width, so nothing competes), and the name itself is `min-w-0 flex-1 truncate` inside its
  *  own line so it degrades to an ellipsis rather than to zero. `@container` sits on the row WRAPPER
  *  because an element cannot query itself. The crossover sits between the two measured points: 316px was
- *  broken, 480px was clean, both pinned in the CT width matrix under both pointers.
+ *  broken, 480px was clean, under both pointers.
  *
  *  THE COUNTS RIDE THE ACCESSIBLE NAMES (P2-1). Nine tab stops and not one said that applying this roster
  *  switches automation on in the room; the badges are visual-only (a `<span>` has no name to carry), so

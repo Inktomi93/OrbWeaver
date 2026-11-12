@@ -403,8 +403,8 @@ export function withStateToolExamples(tools: readonly RpgStateRoundTool[]): RpgS
  *  when the game defines no game-subject trackers (the constraint dropped the plane from the schema, and a
  *  tool whose parameters no longer exist would be an invitation to write nothing).
  *
- *  Homed here so the compose that sends these tools and the contract suites that pin their weight build the
- *  SAME list. */
+ *  Homed here so the compose that sends these tools and the contract suite that reads them
+ *  (`tests/contracts/rpg/structured-patch-public-contract.contract.test.ts`) build the SAME list. */
 export function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig, prose: ProseOverrides): RpgStateRoundTool[] {
   // The per-tool projected args, ref-constrained. We reuse the extraction constraint by projecting the whole
   // extraction schema once and lifting each array field's item schema (which carries the injected enums).

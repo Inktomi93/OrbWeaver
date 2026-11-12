@@ -57,7 +57,7 @@ export const userCredentials = sqliteTable(
     // WHICH of those wrote `revoked_at`, so the pane can say "the provider rejected it" vs "you revoked it"
     // instead of a bare Revoked chip. Derives `CRED_REVOKED_REASONS` (never re-spelled). Written in the same
     // statement as `revokedAt` and cleared with it (`setRevokedById` requires it; `CLEARED_REVOCATION` nulls
-    // the pair at every clear site) — the pairing is a property of the writer SET, enforced by tsc.
+    // the pair at every clear site) — the pairing is a property of the writer SET, enforced by tsc (`pnpm typecheck`).
     revokedReason: text("revoked_reason", { enum: CRED_REVOKED_REASONS }),
     // Provider-specific JSON (custom_openai baseUrl/headers). Parsed at
     // the read seam via `parseProviderMetadata` (@orb/contracts/credentials). Nullable: most providers

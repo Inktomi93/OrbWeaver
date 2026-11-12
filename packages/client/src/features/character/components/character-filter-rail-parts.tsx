@@ -71,8 +71,8 @@ const TAG_CHIP_PRESENTATION: Record<TagFilterState, TagChipPresentation> = {
  *  1. BOUNDED — the chips live in a `ScrollArea` whose VIEWPORT carries the cap, so the region shrinks to
  *     its content when the vocabulary is small and scrolls when it is not. (The cap goes on the viewport,
  *     not the root: a percentage/auto root height cannot make `h-full` definite, and the region would clip
- *     instead of scroll.) The character list keeps its own height either way — the CT pins
- *     `[data-slot=virtual-list-scroll]`'s `clientHeight > 0` in the expanded state, because an unbounded panel
+ *     instead of scroll.) The character list keeps its own height either way:
+ *     `[data-slot=virtual-list-scroll]` keeps `clientHeight > 0` in the expanded state, because an unbounded panel
  *     collapses it to zero.
  *  2. ITS EXIT IS ABOVE THE SCROLL — "Show fewer tags" sits in the panel's header row, OUTSIDE the
  *     scroller. That is strictly stronger than a sticky control inside the scroller: it cannot be

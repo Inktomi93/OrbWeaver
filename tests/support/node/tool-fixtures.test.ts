@@ -36,8 +36,8 @@ test("fixturePath proves the actual target stays in its owned root", ({ repoRoot
   expect(existsSync(join(repoRoot, "would-write.txt"))).toBe(false);
 });
 
-// The scratch writers are the only write door a gate family test has (the `orb/no-raw-fs-write-in-gate-tests`
-// lint rule bans the raw verbs), so the door itself must refuse the checkout and any escape.
+// The scratch writers are the only write door a gate family test has, so the door itself must refuse the checkout
+// and any escape.
 test("plantFile, plantDir, plantLink and removePlanted write only below an invocation-owned temp root", ({ repoRoot, scratch }) => {
   const planted = plantFile(scratch, "a/b/c.txt", "owned");
   expect(planted).toBe(join(scratch, "a", "b", "c.txt"));

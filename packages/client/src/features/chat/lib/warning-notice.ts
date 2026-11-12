@@ -38,7 +38,7 @@ import type { NotifyNotice } from "#lib";
 export function warningNotice(warning: ChatWarning): NotifyNotice {
   // THE CARRIER LEAVES FIRST, and the split is not stylistic: biome's type service does not narrow a
   // property read on a DISCRIMINATED UNION, so a single switch over `warning.code` has every arm flagged
-  // `lint/suspicious/noUnnecessaryConditions` "unreachable" while tsc is fine (the same family as a
+  // `noUnnecessaryConditions` (off in `tooling/src/biome-config/policy.config.ts`) "unreachable" while tsc is fine (the same family as a
   // cross-module tuple union). Handing the plain switch a plain union keeps it legible to both checkers,
   // and it is also the honest shape — one of these notices is written from a payload, the rest from a code.
   return warning.code === "settings_adjusted" ? settingsAdjustedNotice(warning) : plainNotice(warning.code);

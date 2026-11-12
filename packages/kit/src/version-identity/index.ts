@@ -19,7 +19,7 @@
 // branch is stable, and release-please tags each stable release `v<version>` there. A build is `stable`
 // exactly when its commit IS the commit its own release tag names; everything else (main, a lane worktree, a
 // source build of an untagged commit, the release branch between a promotion and its release PR) is `main`.
-// The test fails toward `main`, never toward `stable`: a build that cannot prove it is the tagged release
+// The classification falls back to `main`, never to `stable`: a build that cannot prove it is the tagged release
 // never claims to be one. The channel decides the version line and which upstream the update check asks.
 //
 // `dirty` IS DELIBERATELY ABSENT. Whether the working tree matches its commit cannot be answered without

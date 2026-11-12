@@ -179,7 +179,7 @@ export interface CarrierAttribution {
   readonly manage?: CarrierManageDoor | undefined;
 }
 
-/** The world-info library's collection kind (see {@link ManageCollectionDoor.collection}). */
+/** The world-info library's collection kind (see {@link CarrierManageDoor.collection}). */
 const WORLD_INFO_COLLECTION = "worldInfo";
 
 /** The PLAIN markers — exactly the `MarkerType`s with no `template` field (the schema's own branch is the
