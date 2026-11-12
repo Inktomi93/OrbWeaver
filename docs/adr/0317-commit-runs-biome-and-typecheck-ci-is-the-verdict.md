@@ -19,7 +19,7 @@ Pre-push checks GitHub synchronization, full Biome, dependency-cruiser, full ESL
 
 Full ESLint is the one split command. One ESLint process over the whole tree peaks past the memory bar, so `pnpm lint:eslint:parts` lints the parts `scripts/eslint-parts.ts` lists, one process after another, each with the default heap. The CI `eslint` matrix runs the same parts as separate jobs. A part that outgrows the bar is split into smaller parts; it is never given a larger heap.
 
-The memory bar: one run's peak stays under 16 GB. A part's peak may grow while it stays under the bar. Raising a heap limit is refused.
+The memory bar: one run's peak resident memory stays under 16 GiB, the 16384 MiB of `ESLINT_PART_PEAK_BAR_MIB` in `scripts/eslint-parts.ts`. A part's peak may grow while it stays under the bar. Raising a heap limit is refused.
 
 Run affected native compiler programs and behavioral tests during implementation. CI runs complete application static checks, Node tests, component tests and E2E smoke. Release approval remains subject to CI.
 

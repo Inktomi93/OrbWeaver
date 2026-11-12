@@ -1,63 +1,54 @@
 // The whole-tree ESLint run as parts, each linted by its own ESLint process one after another, so one part's typed
 // programs are released before the next part loads its own (D317). Pre-push runs this file through
 // `pnpm lint:eslint:parts`; the CI `eslint` matrix in `.github/workflows/ci.yml` runs the same parts as separate jobs, and
-// `tests/tooling/eslint-parts.repo.int.test.ts` fails when the matrix and this table disagree or when the parts stop
-// covering the whole tree exactly once. A part whose process peaks over the memory bar fails the run with its peak,
-// because a heap raise is not an answer (D317): split the part instead.
+// `tests/tooling/eslint-parts.repo.int.test.ts` fails when the matrix, the commands that run it and this table disagree,
+// or when the parts stop covering the whole tree exactly once. A part whose process peaks over the memory bar fails the
+// run with its peak, because a heap raise is not an answer (D317): split the part instead. The peak each part prints is
+// measured on that run; no recorded figure stands beside it to go stale.
 // Each part runs ESLint directly, with the flags `pnpm lint:eslint` passes read from `package.json`, because pnpm
 // replaces NODE_OPTIONS for a script it starts and so would drop the preload that reports the peak. The part inherits
 // this runner's NODE_OPTIONS, which `pnpm lint:eslint:parts` sets from `nodeOptions` in `pnpm-workspace.yaml`: the same
 // heap a `pnpm lint:eslint` run gets.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 
-/** One run's peak memory may not pass this (D317). */
+/** One run's peak resident memory may not pass this: 16 GiB, the memory bar D317 states. */
 export const ESLINT_PART_PEAK_BAR_MIB = 16_384;
 
 const KIB_PER_MIB = 1024;
 const MS_PER_SECOND = 1000;
 
-const LINT_SCRIPT = "lint:eslint";
+/** The package script whose flags every part lints with; the CI matrix runs it once per part. */
+export const ESLINT_LINT_SCRIPT = "lint:eslint";
+/** The package script that runs this file; pre-push and the contributor workflow lint the whole tree through it. */
+export const ESLINT_PARTS_SCRIPT = "lint:eslint:parts";
 const ESLINT_BIN = "node_modules/eslint/bin/eslint.js";
 
-/** The query key on the preload's URL that names the file a part's processes write their peak resident memory to. */
-export const ESLINT_PEAK_FILE_PARAM = "out";
+/** The query key on the preload's URL that names the directory a part's processes write their peak resident memory to. */
+export const ESLINT_PEAK_DIR_PARAM = "out";
 
 /** One part of the whole-tree run: the targets and ignore patterns it passes to ESLint. */
 export interface EslintPart {
   readonly name: string;
   readonly targets: readonly string[];
   readonly ignorePatterns: readonly string[];
-  /** A recorded measurement, not a check: the part's peak resident memory and wall time on main, from
-   *  `pnpm lint:eslint:parts [part...]`, which prints both for every part it runs. Update it from that output. */
-  readonly measured: { readonly peakMiB: number; readonly wallSeconds: number };
 }
 
 // Each package part loads only the typed programs its own files need. The client program is the largest, and one
 // process holding every package program at once peaks near the bar, so packages split by package.
 export const ESLINT_PARTS = [
-  { name: "client", targets: ["packages/client"], ignorePatterns: [], measured: { peakMiB: 8564, wallSeconds: 114 } },
-  { name: "server", targets: ["packages/server"], ignorePatterns: [], measured: { peakMiB: 3791, wallSeconds: 117 } },
-  { name: "ui", targets: ["packages/ui"], ignorePatterns: [], measured: { peakMiB: 5554, wallSeconds: 107 } },
-  {
-    name: "packages",
-    targets: ["packages"],
-    ignorePatterns: ["packages/client/", "packages/server/", "packages/ui/"],
-    measured: { peakMiB: 4944, wallSeconds: 58 },
-  },
-  { name: "tests", targets: ["tests"], ignorePatterns: [], measured: { peakMiB: 10_188, wallSeconds: 194 } },
-  { name: "tooling", targets: ["tooling"], ignorePatterns: [], measured: { peakMiB: 4936, wallSeconds: 39 } },
-  {
-    name: "root",
-    targets: ["."],
-    ignorePatterns: ["packages/", "tests/", "tooling/"],
-    measured: { peakMiB: 4338, wallSeconds: 26 },
-  },
+  { name: "client", targets: ["packages/client"], ignorePatterns: [] },
+  { name: "server", targets: ["packages/server"], ignorePatterns: [] },
+  { name: "ui", targets: ["packages/ui"], ignorePatterns: [] },
+  { name: "packages", targets: ["packages"], ignorePatterns: ["packages/client/", "packages/server/", "packages/ui/"] },
+  { name: "tests", targets: ["tests"], ignorePatterns: [] },
+  { name: "tooling", targets: ["tooling"], ignorePatterns: [] },
+  { name: "root", targets: ["."], ignorePatterns: ["packages/", "tests/", "tooling/"] },
 ] as const satisfies readonly EslintPart[];
 
 /** The arguments a part passes after `pnpm lint:eslint`, as the CI matrix spells them. */
@@ -65,10 +56,14 @@ export function eslintPartArgs(part: EslintPart): string[] {
   return [...part.targets, ...part.ignorePatterns.flatMap((pattern) => ["--ignore-pattern", pattern])];
 }
 
+// A part either exits with a status, or a signal ends it: V8 aborts a process that exhausts its heap (SIGABRT, exit
+// 134 through a shell) and the host's out-of-memory killer sends SIGKILL, so a signal is a memory verdict, not a lint one.
+type PartOutcome = { readonly kind: "exited"; readonly status: number } | { readonly kind: "signalled"; readonly signal: NodeJS.Signals };
+
 interface PartRun {
   readonly part: EslintPart;
-  readonly status: number;
-  // Null when the process died before its exit handler ran (a heap abort, a kill); its status fails the run.
+  readonly outcome: PartOutcome;
+  // The highest peak any of the part's processes last sampled; null only when every process ended before its first sample.
   readonly peakMiB: number | null;
   readonly wallSeconds: number;
 }
@@ -76,43 +71,44 @@ interface PartRun {
 // The flags after `eslint` in the `lint:eslint` script, so a part lints exactly as `pnpm lint:eslint` does.
 function lintScriptFlags(root: string): string[] {
   const manifest = z.object({ scripts: z.record(z.string(), z.string()) }).parse(JSON.parse(readFileSync(join(root, "package.json"), "utf8")));
-  const [command, ...flags] = (manifest.scripts[LINT_SCRIPT] ?? "").split(" ");
+  const [command, ...flags] = (manifest.scripts[ESLINT_LINT_SCRIPT] ?? "").split(" ");
   if (command !== "eslint") {
-    throw new Error(`the ${LINT_SCRIPT} script no longer starts with eslint; teach scripts/eslint-parts.ts its new form`);
+    throw new Error(`the ${ESLINT_LINT_SCRIPT} script no longer starts with eslint; teach scripts/eslint-parts.ts its new form`);
   }
   return flags;
 }
 
-function peakMiBOf(file: string): number | null {
-  if (!existsSync(file)) {
-    return null;
-  }
-  const kib = readFileSync(file, "utf8")
-    .split("\n")
-    .filter((line) => line !== "")
-    .map(Number);
-  return Math.round(Math.max(...kib) / KIB_PER_MIB);
+// Each process of the part keeps one file of its own, holding its latest peak in KiB.
+function peakMiBOf(dir: string): number | null {
+  const kib = readdirSync(dir).map((file) => Number(readFileSync(join(dir, file), "utf8")));
+  return kib.length === 0 ? null : Math.round(Math.max(...kib) / KIB_PER_MIB);
 }
 
 function runPart(root: string, scratch: string, flags: readonly string[], part: EslintPart): PartRun {
-  const peakFile = join(scratch, `${part.name}.peak`);
+  const peakDir = join(scratch, part.name);
+  mkdirSync(peakDir);
   const preload = pathToFileURL(resolve(root, "scripts/eslint-peak.ts"));
-  preload.searchParams.set(ESLINT_PEAK_FILE_PARAM, peakFile);
+  preload.searchParams.set(ESLINT_PEAK_DIR_PARAM, peakDir);
   const started = performance.now();
   const result = spawnSync(process.execPath, [`--import=${preload.href}`, resolve(root, ESLINT_BIN), ...flags, ...eslintPartArgs(part)], {
     cwd: root,
     stdio: "inherit",
   });
   const wallSeconds = Math.round((performance.now() - started) / MS_PER_SECOND);
-  // A signal (an OOM kill, a crash) has no status; it must still fail the run.
-  return { part, status: result.status ?? 1, peakMiB: peakMiBOf(peakFile), wallSeconds };
+  // spawnSync reports a status when the process exited and a signal when one ended it; a spawn error has neither and fails.
+  const outcome: PartOutcome = result.signal === null ? { kind: "exited", status: result.status ?? 1 } : { kind: "signalled", signal: result.signal };
+  return { part, outcome, peakMiB: peakMiBOf(peakDir), wallSeconds };
 }
+
+const describeOutcome = (outcome: PartOutcome): string => (outcome.kind === "exited" ? `exit ${outcome.status}` : `ended by ${outcome.signal}`);
+
+const failedRun = (run: PartRun): boolean => run.outcome.kind === "signalled" || run.outcome.status !== 0;
 
 // Part names on the command line run only those parts, to re-measure one; no names runs every part.
 function selectedParts(names: readonly string[]): readonly EslintPart[] | null {
   const unknown = names.filter((name) => !ESLINT_PARTS.some((part) => part.name === name));
   if (unknown.length > 0) {
-    console.error(`unknown eslint part: ${unknown.join(", ")}; the parts are ${ESLINT_PARTS.map((part) => part.name).join(", ")}`);
+    console.error(`unknown eslint part: ${unknown.join(", ")}; pnpm ${ESLINT_PARTS_SCRIPT} takes ${ESLINT_PARTS.map((part) => part.name).join(", ")}`);
     return null;
   }
   return names.length === 0 ? ESLINT_PARTS : ESLINT_PARTS.filter((part) => names.includes(part.name));
@@ -131,15 +127,23 @@ function main(): void {
     const runs = parts.map((part) => {
       console.log(`eslint part ${part.name}: ${eslintPartArgs(part).join(" ")}`);
       const run = runPart(root, scratch, flags, part);
-      console.log(`eslint part ${part.name}: exit ${run.status}, peak ${run.peakMiB ?? "unknown"} MiB, ${run.wallSeconds} s`);
+      console.log(`eslint part ${part.name}: ${describeOutcome(run.outcome)}, peak ${run.peakMiB ?? "unknown"} MiB, ${run.wallSeconds} s`);
       return run;
     });
-    const failed = runs.filter((run) => run.status !== 0);
+    const failed = runs.filter(failedRun);
     const over = runs.filter((run) => run.peakMiB !== null && run.peakMiB > ESLINT_PART_PEAK_BAR_MIB);
     for (const run of over) {
       console.error(
         `eslint part ${run.part.name} peaked at ${run.peakMiB} MiB, over the ${ESLINT_PART_PEAK_BAR_MIB} MiB bar: split it in scripts/eslint-parts.ts`,
       );
+    }
+    for (const run of runs) {
+      if (run.outcome.kind === "signalled") {
+        console.error(
+          `eslint part ${run.part.name} was ${describeOutcome(run.outcome)}, not by a lint finding: a heap abort (SIGABRT) or an out-of-memory kill (SIGKILL). ` +
+            `Its last sampled peak was ${run.peakMiB ?? "unknown"} MiB against the ${ESLINT_PART_PEAK_BAR_MIB} MiB bar; split it in scripts/eslint-parts.ts`,
+        );
+      }
     }
     if (failed.length > 0) {
       console.error(`eslint failed in: ${failed.map((run) => run.part.name).join(", ")}`);
