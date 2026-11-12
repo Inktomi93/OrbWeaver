@@ -19,7 +19,7 @@ The law's own named example of a defect is live and nothing fails on it.
 
 ## Done when
 
-The pattern finds no site in `.ts` or `.tsx`, the lint rule is on at zero with a planted control, and the affected tests pass.
+No site spreads an array or tuple and then sorts it: a type-aware lint rule is on at zero with a planted control, the law's ADOPT entry states that the spelling binds for an array operand and that a spread of another iterable followed by a sort stays, and the affected tests pass.
 
 ## Evidence
 
