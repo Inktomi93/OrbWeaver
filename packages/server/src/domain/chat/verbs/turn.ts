@@ -117,7 +117,7 @@ import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, renderHistoryMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { stampGameState, swapGameState } from "../substrate/game-state-injections.ts";
-import { refuseHandoffAdmission } from "../substrate/handoff-barrier.ts";
+import { refuseClosedAdmission } from "../substrate/handoff-barrier.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
@@ -3170,8 +3170,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
     const { chatId, initiator, automationDepth, speakerCharacterId, guided, timeZone } = params;
     using custody = deps.admission.tryEnter(chatId);
     if (custody === null) {
-      await requireRequestTurn(ctx, params);
-      refuseHandoffAdmission();
+      await refuseClosedAdmission(deps.admission, chatId, () => requireRequestTurn(ctx, params));
     }
     const { chat, room, connection, identity } = await resolveRequestTurn(ctx, deps, params);
     // A forced speaker coerces the round to per-speaker so a narrator room still voices the named character.

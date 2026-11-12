@@ -377,7 +377,7 @@ function hasNoOtherHuman(ctx: ChatContext, userId: UserId): SQL {
  *  the predicate still matches a room the host is writing into from another tab or device. The delete runs
  *  only while the room-work barrier is idle and held closed, so a send, turn or picture in flight declines
  *  the reap (that work claims the room, or fails and leaves it to the TTL sweep), and one arriving during the
- *  delete is refused and retries into a missing room. */
+ *  delete is refused as a closing room (`roomClosing`) and a retry finds no room. */
 function createReapHusk(ctx: ChatContext, deps: Pick<ChatLifecycleDeps, "emitLive" | "admission">): ChatService["reapHusk"] {
   const { emitLive, admission } = deps;
   return async ({ principal, chatId }: ReapHuskParams): Promise<void> => {
