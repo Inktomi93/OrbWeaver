@@ -3,7 +3,7 @@
 // ROOM-plane read; and the room's pin through its chat (`chats.anchorPersonaId`, the FK chain). `detailOf`
 // narrows the stored `metadata` blob at the read seam, so a corrupt row degrades to `null`.
 
-import { ASSET_UPLOAD_REFUSAL_CODES, isPictureAssetKind } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_REFUSAL_CODES, isPictureAsset } from "@orb/contracts/assets";
 import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "@orb/contracts/persona";
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
@@ -252,7 +252,7 @@ export async function ensureAvatarAssets(db: Db, ownerId: UserId, assetIds: read
     return;
   }
   const rows = await db
-    .select({ id: assets.id, kind: assets.kind })
+    .select({ id: assets.id, kind: assets.kind, mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...new Set(assetIds)])));
   for (const assetId of assetIds) {
@@ -260,7 +260,7 @@ export async function ensureAvatarAssets(db: Db, ownerId: UserId, assetIds: read
     if (row === undefined) {
       throw new AssetNotFoundError(assetId);
     }
-    if (!isPictureAssetKind(row.kind)) {
+    if (!isPictureAsset(row)) {
       throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${row.kind} asset`);
     }
   }

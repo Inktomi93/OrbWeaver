@@ -1,7 +1,8 @@
 // @subject packages/server/src/infra/plugin-host/broker-entry.ts
-// The broker writes its heartbeats on their own pipe, not the IPC channel, so a large frame queued on that channel
-// never holds a beat back and the watchdog never reads a live broker as silent (D347). A broker spawned without that
-// pipe is not live from the start and exits. This test plays the watchdog's half directly, so it reads the raw pipe.
+// The broker writes its heartbeats on its stderr, not the IPC channel, so a large frame queued on that channel never
+// holds a beat back and the watchdog never reads a live broker as silent (D347). A broker spawned without its watchdog's
+// IPC channel is not supervised from the start and exits. This test plays the watchdog's half directly, so it reads the
+// raw pipe.
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdir } from "node:fs/promises";
@@ -16,7 +17,6 @@ import { expect, test } from "@orb/testkit/node";
 import { PLUGIN_BROKER_LIVENESS_BOUND_MS } from "#server/infra/plugin-host/budgets.ts";
 import { formatPluginBrokerArguments } from "#server/infra/plugin-host/process-argv.ts";
 import { pluginBrokerExecArgv } from "#server/infra/plugin-host/process-permission.ts";
-import { PLUGIN_BROKER_BEAT_FD } from "#server/infra/plugin-host/process-protocol.ts";
 import { NATIVE_TIMEOUT_MS } from "../process-runtime.fixtures.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("../../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
@@ -32,7 +32,7 @@ async function brokerDir(name: string, ids: ReturnType<typeof createSeededIds>):
   return directory;
 }
 
-function spawnBroker(directory: string, generation: string, withBeatPipe: boolean): ReturnType<typeof spawn> {
+function spawnBroker(directory: string, generation: string, withChannel: boolean): ReturnType<typeof spawn> {
   return spawn(
     process.execPath,
     [
@@ -43,13 +43,13 @@ function spawnBroker(directory: string, generation: string, withBeatPipe: boolea
     {
       cwd: directory,
       env: { ["NODE_ENV"]: "test" },
-      // Index PLUGIN_BROKER_BEAT_FD is the beat pipe; dropping it leaves the broker with no pipe at that descriptor.
-      stdio: withBeatPipe ? ["ignore", "inherit", "inherit", "ipc", "pipe"] : ["ignore", "inherit", "inherit", "ipc"],
+      // The watchdog pipes the broker's stderr for its beats and gives it the IPC channel; the second case drops the channel.
+      stdio: withChannel ? ["ignore", "inherit", "pipe", "ipc"] : ["ignore", "inherit", "pipe"],
     },
   );
 }
 
-test("the broker's heartbeats arrive on their own pipe, not the IPC channel, so a frame on that channel cannot hold them back", {
+test("the broker's heartbeats arrive on its stderr, not the IPC channel, so a frame on that channel cannot hold them back", {
   tags: ["slow"],
   timeout: NATIVE_TIMEOUT_MS,
 }, async () => {
@@ -65,12 +65,13 @@ test("the broker's heartbeats arrive on their own pipe, not the IPC channel, so 
     }
     await exited;
   });
-  const beatPipe = broker.stdio[PLUGIN_BROKER_BEAT_FD];
+  const beatPipe = broker.stderr;
   if (!(beatPipe instanceof Readable)) {
-    throw new Error("the broker was spawned with a beat pipe");
+    throw new Error("the broker was spawned with its stderr piped");
   }
-  // Only the broker's heartbeat writes this pipe, so every line is a beat. With the beat put back on the IPC channel the
-  // pipe is silent and no beat arrives here, where a frame queued ahead of it on that channel could have delayed it.
+  // Only the broker's heartbeat writes this quiet broker's stderr, so every line is a beat. With the beat put back on the
+  // IPC channel the pipe is silent and no beat arrives here, where a frame queued ahead of it on that channel could have
+  // delayed it.
   // The gaps are read from each beat's own send time, as the watchdog judges them after draining the pipe, so a reader
   // that gets the CPU late under load still sees the cadence the broker kept.
   const sent: number[] = [];
@@ -87,12 +88,12 @@ test("the broker's heartbeats arrive on their own pipe, not the IPC channel, so 
   expect(Math.max(...gaps)).toBeLessThan(PLUGIN_BROKER_LIVENESS_BOUND_MS);
 });
 
-test("a broker spawned without its heartbeat pipe exits at once instead of running as a live broker", {
+test("a broker spawned without its watchdog's IPC channel exits at once instead of running as a live broker", {
   tags: ["slow"],
   timeout: NATIVE_TIMEOUT_MS,
 }, async () => {
   const ids = createSeededIds();
-  const directory = await brokerDir("no-pipe", ids);
+  const directory = await brokerDir("no-channel", ids);
   const broker = spawnBroker(directory, ids.uuid(), false);
   await once(broker, "exit");
   // A broker that refused to start leaves a non-zero exit code or a kill signal; either way it is not a live broker.

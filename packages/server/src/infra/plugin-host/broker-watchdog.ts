@@ -12,7 +12,7 @@ import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS, pluginIpcShareBytes } from "./budg
 import { formatPluginBrokerArguments, parsePluginBrokerWatchdogArguments } from "./process-argv.ts";
 import { PluginIpcSender, parsePluginIpcMessage, relayFrame } from "./process-channel.ts";
 import { pluginBrokerExecArgv } from "./process-permission.ts";
-import { PLUGIN_BROKER_BEAT_FD, PLUGIN_BROKER_BEAT_MAX_BYTES, rpcError } from "./process-protocol.ts";
+import { PLUGIN_BROKER_BEAT_MAX_BYTES, rpcError } from "./process-protocol.ts";
 import { brokerWatchdogFailure } from "./watchdog-policy.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("./broker-entry.ts", import.meta.url));
@@ -21,6 +21,8 @@ const { directory, workerMaximum, memoryLimitBytes, nodeEnvironment, logLevel } 
 const stop = Promise.withResolvers<void>();
 // Set once the watchdog is told to stop: from then on it closes its relay to the broker and ends it.
 let stopping = false;
+// When the watchdog was told to stop, on the judgement clock.
+let stoppedAt: number | undefined;
 let activeBroker: ChildProcess | undefined;
 let activeGeneration: string | undefined;
 let brokerSender: PluginIpcSender | undefined;
@@ -71,9 +73,14 @@ interface BrokerHeartbeat {
   readonly nodeOptions: null;
 }
 
-// A beat line's JSON, or null for a line that is not JSON. `JSON.parse` throws only `SyntaxError`; any other fault is a
-// defect and stays loud.
+const HEARTBEAT_KIND = "plugin-broker-memory";
+
+// A stderr line's JSON, or null for a line that is not JSON or is too long to be a beat. `JSON.parse` throws only
+// `SyntaxError`; any other fault is a defect and stays loud.
 function parseBeatLine(line: string): unknown {
+  if (Buffer.byteLength(line, "utf8") > PLUGIN_BROKER_BEAT_MAX_BYTES) {
+    return null;
+  }
   try {
     return JSON.parse(line);
   } catch (error) {
@@ -84,18 +91,18 @@ function parseBeatLine(line: string): unknown {
   }
 }
 
-function parseHeartbeat(message: unknown): BrokerHeartbeat | null {
-  if (typeof message !== "object" || message === null) {
-    return null;
-  }
-  const kind: unknown = Reflect.get(message, "kind");
+// Whether a stderr line claims to be a heartbeat. Any other line is the broker's or Node's own text.
+function claimsHeartbeat(message: unknown): message is object {
+  return typeof message === "object" && message !== null && Reflect.get(message, "kind") === HEARTBEAT_KIND;
+}
+
+function parseHeartbeat(message: object): BrokerHeartbeat | null {
   const sentAtMs: unknown = Reflect.get(message, "sentAtMs");
   const rssBytes: unknown = Reflect.get(message, "rssBytes");
   const peakPhysicalWorkers: unknown = Reflect.get(message, "peakPhysicalWorkers");
   const execArgv: unknown = Reflect.get(message, "execArgv");
   const nodeOptions: unknown = Reflect.get(message, "nodeOptions");
-  return kind === "plugin-broker-memory" &&
-    typeof sentAtMs === "number" &&
+  return typeof sentAtMs === "number" &&
     Number.isFinite(sentAtMs) &&
     typeof rssBytes === "number" &&
     Number.isSafeInteger(rssBytes) &&
@@ -151,8 +158,8 @@ async function superviseOneBroker(): Promise<string> {
       env: { ["NODE_ENV"]: nodeEnvironment },
       // A guest Worker can read the broker's working directory whatever the grants say; keep it the private one.
       cwd: directory,
-      // Index PLUGIN_BROKER_BEAT_FD is the heartbeat pipe; the IPC channel carries frames only.
-      stdio: ["ignore", "inherit", "inherit", "ipc", "pipe"],
+      // The broker's stderr carries its heartbeats; the IPC channel carries frames only.
+      stdio: ["ignore", "inherit", "pipe", "ipc"],
     },
   );
   activeBroker = broker;
@@ -196,13 +203,19 @@ async function superviseOneBroker(): Promise<string> {
         malformed("broker sent a malformed IPC message");
       }
     });
-    const beatPipe = broker.stdio[PLUGIN_BROKER_BEAT_FD];
+    const beatPipe = broker.stderr;
     if (!(beatPipe instanceof Readable)) {
       malformed("broker has no heartbeat pipe");
     } else {
-      // The broker's own host code writes this pipe, one JSON beat per line; a line past the cap or not a beat ends it.
+      // The broker's host code writes one JSON beat per line here; a line that claims to be a beat and is not one ends
+      // the broker. Every other line is the broker's report or Node's own, passed on to the stderr the app reads.
       createInterface({ input: beatPipe, crlfDelay: Number.POSITIVE_INFINITY }).on("line", (line) => {
-        const heartbeat = Buffer.byteLength(line, "utf8") <= PLUGIN_BROKER_BEAT_MAX_BYTES ? parseHeartbeat(parseBeatLine(line)) : null;
+        const claimed = parseBeatLine(line);
+        if (!claimsHeartbeat(claimed)) {
+          process.stderr.write(`${line}\n`);
+          return;
+        }
+        const heartbeat = parseHeartbeat(claimed);
         if (heartbeat === null) {
           malformed("broker sent a malformed memory heartbeat");
           return;
@@ -230,9 +243,14 @@ async function superviseOneBroker(): Promise<string> {
         heard: newestSentAtMs !== undefined,
         misses,
         ...(rssBytes === undefined ? {} : { rssBytes }),
+        ...(stoppedAt === undefined ? {} : { stoppedAt }),
       });
       if (reason !== null) {
         failure = reason;
+        // A stop reports no failure of its own, so a broker that had to be ended is named here.
+        if (stopping) {
+          process.stderr.write(`${reason}; the broker did not exit on its stop\n`);
+        }
         broker.kill("SIGKILL");
       }
     };
@@ -240,7 +258,7 @@ async function superviseOneBroker(): Promise<string> {
       setImmediate(judge);
     }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
     monitor.unref();
-    broker.once("close", () => clearInterval(monitor));
+    broker.once("exit", () => clearInterval(monitor));
   });
 
   sender.close();
@@ -264,12 +282,16 @@ async function superviseOneBroker(): Promise<string> {
 
 function stopBroker(): void {
   stopping = true;
+  stoppedAt ??= performance.now();
   stop.resolve();
   brokerSender?.close();
-  activeBroker?.kill("SIGTERM");
+  // The broker ends when its channel closes. One that does not is ended by the judgement with `kill()` once
+  // PLUGIN_BROKER_LIVENESS_BOUND_MS of wall time has passed since this stop (watchdog-policy.ts).
+  if (activeBroker?.connected === true) {
+    activeBroker.disconnect();
+  }
 }
-process.on("SIGINT", stopBroker);
-process.on("SIGTERM", stopBroker);
+// The app stops this watchdog by closing the channel (process-runtime.ts `stopWatchdog`); a dead app closes it too.
 process.on("disconnect", stopBroker);
 
 for (;;) {

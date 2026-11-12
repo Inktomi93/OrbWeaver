@@ -63,6 +63,7 @@ import {
   PLUGIN_LOG_RING_LINES,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
+  PLUGIN_WATCHDOG_STOP_GRACE_MS,
   pluginBrokerRestartHoldMs,
   pluginIpcShareBytes,
 } from "./budgets.ts";
@@ -425,9 +426,7 @@ class BrokerClient {
       this.onDisconnect(unavailableError());
       for (const child of this.children.keys()) {
         child.ref();
-        if (child.exitCode === null && child.signalCode === null) {
-          child.kill("SIGTERM");
-        }
+        this.stopWatchdog(child);
       }
       for (const listener of this.readyListeners) {
         listener();
@@ -444,8 +443,26 @@ class BrokerClient {
     for (const child of this.children.keys()) {
       child.ref();
     }
-    if (this.generation === undefined && this.connecting !== undefined) {
-      this.managedChild?.kill("SIGTERM");
+    if (this.generation === undefined && this.connecting !== undefined && this.managedChild !== undefined) {
+      this.stopWatchdog(this.managedChild);
+    }
+  }
+
+  // STOP IS A CLOSED IPC CHANNEL, NEVER A SIGNAL (D347). On Windows `kill()` ends a process at once whatever signal it
+  // names, and a `SIGTERM` handler never runs, so a signal cannot carry a stop the child gets to act on. Closing the
+  // channel can: the watchdog sees `disconnect` on every platform, the event it also sees when this process dies, stops
+  // its broker the same way, and exits. Its exit is the acknowledgement; `kill()` after the grace is only the fallback.
+  private stopWatchdog(child: ChildProcess): void {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      return;
+    }
+    const cancel = this.timers.timeout(() => {
+      getLog(this.seams.log).warn({ graceMs: PLUGIN_WATCHDOG_STOP_GRACE_MS }, "plugin host: the broker watchdog did not exit after its stop; ending it");
+      child.kill("SIGKILL");
+    }, PLUGIN_WATCHDOG_STOP_GRACE_MS);
+    child.once("exit", cancel);
+    if (child.connected) {
+      child.disconnect();
     }
   }
 
@@ -597,10 +614,12 @@ class BrokerClient {
     const message = `the plugin host stopped after its broker was lost ${String(this.losses.length)} times within ${String(minutes)} minutes (last: ${reason}); plugins stay paused until the server restarts`;
     this.halted = new PluginHostUnavailableError(message);
     this.seams.onHalted(this.haltRecords(message));
-    // The watchdog stops its broker on SIGTERM; nothing respawns it while the host is halted.
+    // Nothing respawns the watchdog while the host is halted.
     this.generation = undefined;
     this.sender?.close();
-    this.managedChild?.kill("SIGTERM");
+    if (this.managedChild !== undefined) {
+      this.stopWatchdog(this.managedChild);
+    }
     this.onDisconnect(this.halted);
   }
 
@@ -734,8 +753,9 @@ class BrokerClient {
         stdio: ["ignore", "inherit", "inherit", "ipc"],
       },
     );
+    // Joined on exit, not close: once this side has closed the channel to stop the watchdog, Node emits no close.
     const closed = new Promise<void>((resolve) => {
-      child.once("close", () => {
+      child.once("exit", () => {
         this.children.delete(child);
         resolve();
       });
