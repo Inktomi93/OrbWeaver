@@ -406,10 +406,11 @@ export interface RpgToolCall {
 /** Parse a tool call's raw JSON args, or null on non-JSON (a malformed call is DROPPED — errors-as-data for
  *  canon, mirroring the structured path's non-conforming-drop; never a throw into the flush).
  *
- *  EXPORTED because it is the ONE place the model's args string is decoded. rpg's member-facing
- *  projection has to decode before it can belt the hidden spans out of the leaf values — running the strip
- *  over the ENCODED string is a silent false clean — and a second `JSON.parse` + catch there would be a
- *  second, differently-owned answer to "is this payload readable at all". A literal `null` payload decodes to
+ *  EXPORTED because it is the ONE verdict on whether the model's args string is readable. rpg's member-facing
+ *  projection asks it before it strips: the strip decodes first (`stripHiddenSpansInJsonText` in `@orb/kit/content`),
+ *  because running it over the ENCODED string conceals from the tag to the end and leaves JSON that does not parse,
+ *  and the projection's withhold reads this function's `null`, so the fold and the projection never answer "is this
+ *  payload readable at all" differently. A literal `null` payload decodes to
  *  `null` and is therefore indistinguishable from unparseable: both are "nothing a reader can act on", which
  *  is the same verdict both consumers want. */
 export function parseToolCallArgs(raw: string): unknown {
@@ -839,10 +840,10 @@ const SENT_VALUE_MARKER = " — sent ";
  * fail-closed arm for a value that cannot be safely re-rendered (a truncated JSON literal, a non-JSON
  * `(absent)` marker). A line with no sent value is returned unchanged.
  *
- * WHY THE CALLER PROJECTS RATHER THAN THIS FUNCTION STRIPPING: the value is JSON-ENCODED here, and the
- * hidden-span recognizer walks `"…"` attr values with `\` escapes — so running a strip over the ENCODED form
- * matches nothing and reports `hadHidden: false`, a silent false clean (measured). Only a caller
- * that decodes first can strip it, and only rpg knows the belt.
+ * WHY THE CALLER PROJECTS RATHER THAN THIS FUNCTION STRIPPING: the value is JSON-ENCODED here, so a tag's quotes
+ * arrive as `\"`, which the hidden-span recognizer reads as a broken tag — running a strip over the ENCODED form
+ * conceals from the tag to the end of the line instead of removing the tag. Only a caller that decodes first can
+ * strip the value and keep the rest, and only rpg knows the belt.
  */
 export function projectIssueSentValue(issue: string, project: (sent: string) => string | null): string {
   const at = issue.indexOf(SENT_VALUE_MARKER);
