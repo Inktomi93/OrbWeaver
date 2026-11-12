@@ -1742,9 +1742,6 @@ async function commitUserTurn(
 ): Promise<CommittedUserTurn> {
   const { principal, chatId, content, personaId, blocks, guided } = args;
   const membership = await requireParticipant(ctx, principal, chatId);
-  // A committed user line is THE claim (R0 F4(a)). Before the row, per the ordering invariant: the
-  // claim replays the creation stats over the canon present at claim, and this row is about to join it.
-  await deps.claimChat(chatId);
   const attachments = args.attachmentAssetIds ?? [];
   await assertAttachmentsOwned(ctx.filterOwnedAssetIds, principal.userId, chatId, attachments);
   // Unlike a picture typed into text, a block names its asset as a claim, so a foreign, gone or non-image one refuses.
@@ -1754,10 +1751,10 @@ async function commitUserTurn(
   // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
   await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
-  // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is the
-  // line ABOVE them — that path claims the chat first (R0 F4(a), every GENERATED turn claims), this one has
-  // already committed a user row. Folding the trio would put the claim/no-claim decision behind a helper
-  // whose name cannot carry it, which is the ordering bug this file has paid for before.
+  // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is where the
+  // claim sits — that path claims before them (D166: a generated turn claims the room), this one claims only
+  // after the last refusal, just before the user row. Folding the trio would put the claim/no-claim decision
+  // behind a helper whose name cannot carry it, which is the ordering bug this file has paid for before.
   const room = await loadRoom(ctx, chatId, membership.chat.anchorPersonaId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
@@ -1817,6 +1814,10 @@ async function commitUserTurn(
   const body = composeBodyWithAttachments(composed, attachments);
   // A picture typed into the text rather than attached is placed only when the sender owns it, like an edit.
   const typed = await ownedCitedAssetIds(ctx, principal.userId, body, attachments);
+  // The first user message claims the room (D166). After every refusal above, because the claim is one-way and
+  // a refused send must leave the room unclaimed; before the row, because retained accounting refuses a husk's
+  // canon write and the claim replays the creation stats over the canon present at claim.
+  await deps.claimChat(chatId);
   const userView = await persistUserMessage(ctx, deps.emit, {
     chatId,
     content: body,

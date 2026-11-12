@@ -1,10 +1,12 @@
+import { useHuskReaper } from "@orb/client/data";
 import { rpgDiceComposerMediaSurface, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { ResolvedContextTabs } from "@orb/client/lib";
 import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
-import { selectChat, useSectionRegistry } from "@orb/client/state";
+import { enterCreatedChat, goToLanding, selectChat, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { CtClientProviders, CtShellRoom } from "@orb/testkit/browser";
+import { Button } from "@orb/ui/button";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { Suspense, useState } from "react";
@@ -43,6 +45,27 @@ export function RpgContextTabBesidePresetsStory({ chatId, tab }: { readonly chat
       <Suspense>
         <ChatsContextTab chatId={chatId} tab={tab} />
         <PresetsContent />
+      </Suspense>
+    </CtClientProviders>
+  );
+}
+
+function Reaper(): null {
+  useHuskReaper();
+  return null;
+}
+
+/** The Scene tab for a room entered as just created, under the app root's husk reaper, with the store actions that
+ *  enter a room as just created and leave it. */
+export function RpgSceneReapStory({ chatId, otherChatId }: { readonly chatId: ChatId; readonly otherChatId: ChatId }): ReactElement {
+  return (
+    <CtClientProviders>
+      <Reaper />
+      <Button onClick={(): void => enterCreatedChat(chatId)}>Enter the new room</Button>
+      <Button onClick={(): void => enterCreatedChat(otherChatId)}>Enter another new room</Button>
+      <Button onClick={goToLanding}>Go to the landing</Button>
+      <Suspense>
+        <ChatsContextTab chatId={chatId} tab="rpg.scene" />
       </Suspense>
     </CtClientProviders>
   );
