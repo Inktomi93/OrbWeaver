@@ -495,6 +495,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       assets: input.assets,
       mediaProcessing: input.mediaProcessing,
       forbidExternalMedia: () => input.settings.getEffectiveConfig().forbidExternalMedia,
+      resolveUserEnabled: input.resolveUserEnabled,
     }),
     // A hash is not a secret; the owner-gate lives on the blob route's byte read, not here.
     resolveAssetHash: assetOps.resolveAssetHash,
