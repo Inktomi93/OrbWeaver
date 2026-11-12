@@ -1,6 +1,6 @@
 // The recipe each exported `@orb/ui` component applies: its own `tv()` axes and arms, limited to the axes it forwards, and what a
 // migration must read to prove a move renders the same: axis order, defaults, compounds and the classes the door writes itself.
-import { dirname } from "node:path";
+import { posix } from "node:path";
 import ts from "typescript";
 import { isJoinerCall, opaqueIn, readClassExpression } from "./class-expression.ts";
 import type { Source } from "./source.ts";
@@ -639,7 +639,7 @@ export function componentTables(root: string, sources: readonly Source[]): Compo
   const context: ReadContext = { index: scaleIndex(sources), stamped: stampedAxes(sources) };
   const result = new Map<string, ReadonlyMap<string, ComponentRecipe>>();
   const inDoors = [...doorDirs(root)].map(
-    ([door, dir]) => [door, sources.filter((source) => source.layer === "ui" && source.sf !== null && dirname(source.path) === dir)] as const,
+    ([door, dir]) => [door, sources.filter((source) => source.layer === "ui" && source.sf !== null && posix.dirname(source.path) === dir)] as const,
   );
   for (const [door, inDoor] of inDoors) {
     const components = doorComponents(inDoor, context);

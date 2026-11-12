@@ -18,6 +18,7 @@ import {
   listSlotSurfacePaths,
   memberNamed,
   OWNED_ROOT_ACQUISITIONS,
+  posixPath,
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
@@ -1326,7 +1327,10 @@ if (browserGlobalsOverride?.linter?.rules.style?.noRestrictedGlobals === undefin
 }
 const UNSUPPORTED_AT_FLOOR = unsupportedAtFloor(BROWSER_TARGETS);
 // The page script and what it imports statically run before the polyfills are installed (packages/client/src/entry.ts), so nothing there is trusted.
-const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/client/src/entry.ts", import.meta.url))).map((file) => relative(ROOT, file));
+// A `files` pattern matches with `/` only, so the native relative path is rewritten on Windows.
+const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/client/src/entry.ts", import.meta.url))).map((file) =>
+  posixPath(relative(ROOT, file)),
+);
 // Exact DOM-boundary calls; additional calls in these files remain findings.
 export const DOM_LOOKUP_HOMES = [
   {
