@@ -2035,7 +2035,9 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/domain/notifications/persistence/**"],
+      // The debug inspector counts the inbox's rows beside every backbone table; it produces no notification, which is
+      // what the one chokepoint guards. The vector rows grant the debug probes the same read role (D20).
+      ignores: ["packages/server/src/domain/notifications/persistence/**", "packages/server/src/foundation/observability/debug/**"],
       rules: { "orb/notifications-inbox-owner": "error" },
     },
     {
@@ -2047,6 +2049,8 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       files: ["packages/server/src/**/*.{ts,tsx}"],
       rules: {
         "orb/no-direct-users-read-reexport": "error",
+        "orb/notifications-inbox-owner-reexport": "error",
+        "orb/settings-kv-owner-reexport": "error",
         "orb/vector-scope-derived-reexport": "error",
         "orb/users-write-plain-spelling": "error",
         "orb/handle-key-writer": "error",

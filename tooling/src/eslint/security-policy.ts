@@ -1,4 +1,5 @@
 import { SCRUBBER_FACTORY } from "./ambient.ts";
+import type { OwnedTableRow } from "./owned-table.ts";
 import { alternation, FIREHOSE_SYMBOL, memberNamed } from "./syntax.ts";
 
 const POST_ROW_IDENTITY_NAMES = alternation([
@@ -41,19 +42,30 @@ export const INFRA_AUTH_RESTRICTIONS = [
 
 const DB_MODULE_SOURCE = String.raw`/^@orb\/db(\/|$)|\/db\/src(\/|$)/`;
 
-const tableImportDoor = (names: string): string => `ImportSpecifier:matches([imported.name=${names}], [imported.value=${names}])`;
+// A table binding taken from the db package or its schema; a local binding of the same name (a settings object) is not
+// a table. A home that passed the binding on under its own module is held by the `-reexport` rows.
+const tableImportDoor = (names: string): string =>
+  `ImportDeclaration[source.value=${DB_MODULE_SOURCE}] > ImportSpecifier:matches([imported.name=${names}], [imported.value=${names}])`;
 
 const tableExportDoor = (names: string): string => `ExportSpecifier:matches([local.name=${names}], [local.value=${names}])`;
+
+const tableReexportDoor = (names: string): string => `ExportNamedDeclaration[source.value=${DB_MODULE_SOURCE}] > ${tableExportDoor(names)}`;
 
 const DB_STAR_EXPORT = `ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}]`;
 
 const DB_WHOLE_MODULE_DOORS = `:matches(ImportDeclaration[source.value=${DB_MODULE_SOURCE}] > ImportNamespaceSpecifier, ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}], ImportExpression[source.value=${DB_MODULE_SOURCE}])`;
 
-const STATS_ROLLUP_TABLES = alternation(["ownerStats", "characterStats", "dailyStats", "modelStats"]);
+const STATS_ROLLUP_TABLES = ["ownerStats", "characterStats", "dailyStats", "modelStats"] as const;
 
-const VECTOR_TABLES = alternation(["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"]);
+/** The vector tables by their `@orb/db` binding: the set every vector row below holds. */
+export const VECTOR_TABLES = ["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"] as const;
+
+const VECTOR_TABLE_NAMES = alternation(VECTOR_TABLES);
 
 const VECTOR_WRITE_METHODS = alternation(["insert", "update", "delete"]);
+
+const STATS_MESSAGE =
+  "The stats rollup tables (ownerStats, characterStats, dailyStats, modelStats) are stats' alone; discovery computes no usage rollup (Knowledge-Cluster.md, invariant 5). Consume the injected stats economics op instead.";
 
 const USERS_MESSAGE =
   "The users table is read and written only by domain/sessions and domain/admin (Spine-Identity-and-Auth §1, invariant 10). Take userId from the resolved Principal instead.";
@@ -67,56 +79,45 @@ const SETTINGS_KV_MESSAGE =
 const VECTOR_MESSAGE =
   "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) and the debug probes (D20). Go through the search engine with a producer scope.";
 
+// The import, export and whole-module doors of a row that owns `tables`; `ownedTableRule` adds the doors that need no import.
+const ownedTableRow = (id: string, tables: readonly string[], message: string): OwnedTableRow => {
+  const names = alternation(tables);
+  return {
+    id,
+    tables,
+    message,
+    selectors: [tableImportDoor(names), tableReexportDoor(names), DB_WHOLE_MODULE_DOORS].map((selector) => ({ selector, message })),
+  };
+};
+
+/** The rows whose subject is a set of owned tables, each built by `ownedTableRule`. */
+export const OWNED_TABLE_RESTRICTIONS: readonly OwnedTableRow[] = [
+  ownedTableRow("discovery-no-stats-rollups", STATS_ROLLUP_TABLES, STATS_MESSAGE),
+  ownedTableRow("no-direct-users-read", ["users"], USERS_MESSAGE),
+  ownedTableRow("notifications-inbox-owner", ["notifications"], INBOX_MESSAGE),
+  ownedTableRow("settings-kv-owner", ["settings"], SETTINGS_KV_MESSAGE),
+  ownedTableRow("vector-scope-derived", VECTOR_TABLES, VECTOR_MESSAGE),
+];
+
+// A `-reexport` row holds every server file, homes included, so no home passes a table binding on under its own module.
+const reexportRow = (id: string, tables: readonly string[], message: string): Pick<OwnedTableRow, "id" | "selectors"> => ({
+  id,
+  selectors: [tableExportDoor(alternation(tables)), DB_STAR_EXPORT].map((selector) => ({ selector, message })),
+});
+
 export const TABLE_IMPORT_RESTRICTIONS = [
-  {
-    id: "discovery-no-stats-rollups",
-    selectors: [tableImportDoor(STATS_ROLLUP_TABLES), tableExportDoor(STATS_ROLLUP_TABLES), DB_WHOLE_MODULE_DOORS].map((selector) => ({
-      selector,
-      message:
-        "The stats rollup tables (ownerStats, characterStats, dailyStats, modelStats) are stats' alone; discovery computes no usage rollup (Knowledge-Cluster.md, invariant 5). Consume the injected stats economics op instead.",
-    })),
-  },
-  {
-    id: "no-direct-users-read",
-    selectors: [tableImportDoor("'users'"), tableExportDoor("'users'"), DB_WHOLE_MODULE_DOORS].map((selector) => ({ selector, message: USERS_MESSAGE })),
-  },
-  {
-    id: "no-direct-users-read-reexport",
-    selectors: [tableExportDoor("'users'"), DB_STAR_EXPORT].map((selector) => ({ selector, message: USERS_MESSAGE })),
-  },
-  {
-    id: "notifications-inbox-owner",
-    selectors: [tableImportDoor("'notifications'"), tableExportDoor("'notifications'"), DB_WHOLE_MODULE_DOORS].map((selector) => ({
-      selector,
-      message: INBOX_MESSAGE,
-    })),
-  },
-  {
-    id: "settings-kv-owner",
-    selectors: [tableImportDoor("'settings'"), tableExportDoor("'settings'"), DB_WHOLE_MODULE_DOORS].map((selector) => ({
-      selector,
-      message: SETTINGS_KV_MESSAGE,
-    })),
-  },
-  {
-    id: "vector-scope-derived",
-    selectors: [tableImportDoor(VECTOR_TABLES), tableExportDoor(VECTOR_TABLES), DB_WHOLE_MODULE_DOORS].map((selector) => ({
-      selector,
-      message: VECTOR_MESSAGE,
-    })),
-  },
-  {
-    id: "vector-scope-derived-reexport",
-    selectors: [tableExportDoor(VECTOR_TABLES), DB_STAR_EXPORT].map((selector) => ({ selector, message: VECTOR_MESSAGE })),
-  },
+  reexportRow("no-direct-users-read-reexport", ["users"], USERS_MESSAGE),
+  reexportRow("notifications-inbox-owner-reexport", ["notifications"], INBOX_MESSAGE),
+  reexportRow("settings-kv-owner-reexport", ["settings"], SETTINGS_KV_MESSAGE),
+  reexportRow("vector-scope-derived-reexport", VECTOR_TABLES, VECTOR_MESSAGE),
   {
     id: "vector-scope-derived-write",
     selectors: [
-      `CallExpression:matches([callee.property.name=${VECTOR_WRITE_METHODS}], [callee.property.value=${VECTOR_WRITE_METHODS}], [callee.computed=true]:not([callee.property.type='Literal'])):matches([arguments.0.name=${VECTOR_TABLES}], [arguments.0.property.name=${VECTOR_TABLES}], [arguments.0.property.value=${VECTOR_TABLES}], [arguments.0.expression.name=${VECTOR_TABLES}])`,
+      `CallExpression:matches([callee.property.name=${VECTOR_WRITE_METHODS}], [callee.property.value=${VECTOR_WRITE_METHODS}], [callee.computed=true]:not([callee.property.type='Literal'])):matches([arguments.0.name=${VECTOR_TABLE_NAMES}], [arguments.0.property.name=${VECTOR_TABLE_NAMES}], [arguments.0.property.value=${VECTOR_TABLE_NAMES}], [arguments.0.expression.name=${VECTOR_TABLE_NAMES}])`,
       // Rebinding keeps the canonical name at every write position, which is what the write selector reads.
-      `ImportSpecifier:matches([imported.name=${VECTOR_TABLES}], [imported.value=${VECTOR_TABLES}]):not([local.name=${VECTOR_TABLES}])`,
-      `VariableDeclarator:matches([init.name=${VECTOR_TABLES}], [init.expression.name=${VECTOR_TABLES}])`,
-      `AssignmentExpression:matches([right.name=${VECTOR_TABLES}], [right.expression.name=${VECTOR_TABLES}])`,
+      `ImportSpecifier:matches([imported.name=${VECTOR_TABLE_NAMES}], [imported.value=${VECTOR_TABLE_NAMES}]):not([local.name=${VECTOR_TABLE_NAMES}])`,
+      `VariableDeclarator:matches([init.name=${VECTOR_TABLE_NAMES}], [init.expression.name=${VECTOR_TABLE_NAMES}])`,
+      `AssignmentExpression:matches([right.name=${VECTOR_TABLE_NAMES}], [right.expression.name=${VECTOR_TABLE_NAMES}])`,
       // An import home's own namespace door would hide the table name from the write position.
       DB_WHOLE_MODULE_DOORS,
     ].map((selector) => ({

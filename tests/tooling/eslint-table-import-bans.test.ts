@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { VECTOR_TABLES } from "../../tooling/src/eslint/security-policy.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -18,10 +19,11 @@ const VECTOR_WRITE = "orb/vector-scope-derived-write";
 const VECTOR_COSINE = "orb/vector-scope-derived-cosine";
 const INBOX = "orb/notifications-inbox-owner";
 const SETTINGS_KV = "orb/settings-kv-owner";
-const RULES = [USERS, USERS_REEXPORT, VECTOR, VECTOR_REEXPORT, VECTOR_WRITE, VECTOR_COSINE, INBOX, SETTINGS_KV] as const;
+const INBOX_REEXPORT = "orb/notifications-inbox-owner-reexport";
+const SETTINGS_KV_REEXPORT = "orb/settings-kv-owner-reexport";
+const RULES = [USERS, USERS_REEXPORT, VECTOR, VECTOR_REEXPORT, VECTOR_WRITE, VECTOR_COSINE, INBOX, SETTINGS_KV, INBOX_REEXPORT, SETTINGS_KV_REEXPORT] as const;
 type Rule = (typeof RULES)[number];
 type Row = readonly [path: string, source: string, expected: Partial<Record<Rule, number>>];
-const VECTOR_TABLES = ["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"] as const;
 
 async function counts(path: string, source: string): Promise<Record<Rule, number>> {
   const config = await resolvedConfig(eslint, join(ROOT, path));
@@ -82,12 +84,13 @@ const USERS_GATE_ROWS: readonly Row[] = [
     `import { users } from "${USERS_SCHEMA}";\nexport const a = users;\nexport const b = users;\n`,
     { [USERS]: 1 },
   ],
-  ["packages/server/src/domain/billing/unreadable.ts", 'import { users } from "./missing-barrel.ts";\nexport const u = users;\n', { [USERS]: 1 }],
+  // The import door reads only `@orb/db` and the schema modules: a same-named binding of another module is no table, and a
+  // module that launders the table must import it through one of those doors first.
+  ["packages/server/src/domain/billing/unreadable.ts", 'import { users } from "./missing-barrel.ts";\nexport const u = users;\n', {}],
   ["packages/server/src/entry/boot/secrets.ts", `import { sessions } from "${USERS_SCHEMA}";\nexport const dependency = sessions;\n`, {}],
   ["packages/server/src/domain/billing/y.ts", `import { messages } from "${USERS_SCHEMA}";\nexport const m = messages;\n`, {}],
   ["packages/server/src/domain/billing/local.ts", "const schema = { users: 1 };\nexport const u = schema.users;\n", {}],
-  // The retired gate acquitted a same-named export of another module; the name-based door refuses it.
-  ["packages/server/src/domain/billing/import-foreign.ts", 'import { users } from "./foreign.ts";\nexport const u = users;\n', { [USERS]: 1 }],
+  ["packages/server/src/domain/billing/import-foreign.ts", 'import { users } from "./foreign.ts";\nexport const u = users;\n', {}],
   ["packages/server/src/domain/billing/foreign.ts", "export const users = { name: 'not the table' };\nexport const u = users;\n", {}],
   ["packages/server/src/domain/billing/renamed.ts", 'import { identityRoot } from "../../../../db/src/barrel.ts";\nexport const u = identityRoot;\n', {}],
 ];
@@ -113,7 +116,6 @@ test("only sessions and admin name the users identity root, through any import d
       'import type { users } from "@orb/db";\nexport type U = typeof users;',
       'import { "users" as root } from "@orb/db";\nexport const u = root;',
       'import { users } from "@orb/db/schema";\nexport const u = users;',
-      'import { users } from "./foreign.ts";\nexport const u = users;',
       'import * as schema from "@orb/db";\nexport const u = schema.users;',
       'export const load = async () => (await import("@orb/db")).users;',
       'export const load = async () => (await import("../../../../db/src/schema/users.ts")).users;',
@@ -125,8 +127,10 @@ test("only sessions and admin name the users identity root, through any import d
     ]) {
       rows.push([path, source, { [USERS]: 1 }]);
     }
-    rows.push([path, 'import { users } from "@orb/db";\nexport { users };', { [USERS]: 2 }]);
+    // The local re-export is the re-export rule's; this rule refuses the import once.
+    rows.push([path, 'import { users } from "@orb/db";\nexport { users };', { [USERS]: 1 }]);
     for (const source of [
+      'import { users } from "./foreign.ts";\nexport const u = users;',
       'import { sessions } from "@orb/db";\nexport const dependency = sessions;',
       'import { DATA_LAYOUT_DIRS } from "#foundation/data-layout";\nexport const dir = DATA_LAYOUT_DIRS.users;',
       "// users is read only by sessions and admin\nexport const note = 'users';",
@@ -201,14 +205,10 @@ const VECTOR_GATE_ROWS: readonly Row[] = [
   [
     "packages/server/src/domain/hub/via-reexport.ts",
     'import { chatDigests } from "../embeddings/persistence/reexport.ts";\nexport const t = chatDigests;\n',
-    { [VECTOR]: 1, [VECTOR_WRITE]: 1 },
+    { [VECTOR_WRITE]: 1 },
   ],
   ["packages/server/src/domain/hub/y.ts", 'export const q = "SELECT vector_distance_cos(a, b)";\n', { [VECTOR_COSINE]: 1 }],
-  [
-    "packages/server/src/domain/hub/unreadable.ts",
-    'import { chatDigests } from "./missing.ts";\nexport const t = chatDigests;\n',
-    { [VECTOR]: 1, [VECTOR_WRITE]: 1 },
-  ],
+  ["packages/server/src/domain/hub/unreadable.ts", 'import { chatDigests } from "./missing.ts";\nexport const t = chatDigests;\n', { [VECTOR_WRITE]: 1 }],
   [
     "packages/server/src/domain/hub/bracket-cosine.ts",
     'export const q = (db: Record<string, (a: unknown, b: unknown) => unknown>): unknown => db["vector_distance_cos"](1, 2);\n',
@@ -231,11 +231,11 @@ const VECTOR_GATE_ROWS: readonly Row[] = [
     {},
   ],
   ["packages/server/src/domain/hub/lib/local-digests.ts", 'export const chatDigests = { label: "an in-RAM digest cache" };\n', {}],
-  // The retired gate acquitted a same-named export of another module; the name-based door refuses it.
+  // A same-named export of another module passes the import door; the write rule still refuses the rebinding by name.
   [
     "packages/server/src/domain/hub/foreign.ts",
     'import { chatDigests } from "./lib/local-digests.ts";\nexport const t = chatDigests;\n',
-    { [VECTOR]: 1, [VECTOR_WRITE]: 1 },
+    { [VECTOR_WRITE]: 1 },
   ],
   ["packages/server/src/domain/search/persistence/cosine.ts", 'export const q = "SELECT vector_distance_cos(a, b)";\n', {}],
   ["packages/server/src/domain/hub/z.ts", "// vector_distance_cos is search's — cited in a comment\nexport const x = 1;\n", {}],
@@ -320,14 +320,19 @@ test("a vector table is named only by its import-role roots, through any import 
         `import { ${table} as t } from "@orb/db";\nexport const x = t;`,
         `import type { ${table} } from "@orb/db";\nexport type T = typeof ${table};`,
         `import { "${table}" as t } from "@orb/db";\nexport const x = t;`,
-        `import { ${table} } from "./missing.ts";\nexport const t = ${table};`,
-        `import { ${table} } from "../embeddings/persistence/reexport.ts";\nexport const t = ${table};`,
       ]) {
         rows.push([path, source, { [VECTOR]: 1 }]);
       }
-      for (const source of [`export { ${table} } from "@orb/db";`, `export { ${table} as renamed } from "../embeddings/persistence/reexport.ts";`]) {
-        rows.push([path, source, { [VECTOR]: 1, [VECTOR_REEXPORT]: 1 }]);
+      // Another module's binding of the name is no import door; a re-export home that launders the table is refused at
+      // its own re-export.
+      for (const source of [
+        `import { ${table} } from "./missing.ts";\nexport const t = ${table};`,
+        `import { ${table} } from "../embeddings/persistence/reexport.ts";\nexport const t = ${table};`,
+      ]) {
+        rows.push([path, source, {}]);
       }
+      rows.push([path, `export { ${table} } from "@orb/db";`, { [VECTOR]: 1, [VECTOR_REEXPORT]: 1 }]);
+      rows.push([path, `export { ${table} as renamed } from "../embeddings/persistence/reexport.ts";`, { [VECTOR_REEXPORT]: 1 }]);
     }
     for (const source of [
       'import * as schema from "@orb/db";\nexport const t = schema.chatDigests;',
@@ -419,20 +424,22 @@ test("only embeddings persistence writes a vector table, whatever the receiver o
 
 // Each single-writer table: its rule, the table's export name, the one persistence home that may name it, and a
 // table of the same package the rule leaves alone.
+const DEBUG_PROBE = "packages/server/src/foundation/observability/debug/x.ts";
+// The last field is the files that may also read the table: the debug inspector counts the inbox's rows.
 const SINGLE_WRITER_TABLES = [
-  [INBOX, "notifications", "packages/server/src/domain/notifications/persistence/queries.ts", "auditLogs"],
-  [SETTINGS_KV, "settings", "packages/server/src/domain/settings/persistence/kv.ts", "userSettings"],
+  [INBOX, INBOX_REEXPORT, "notifications", "packages/server/src/domain/notifications/persistence/queries.ts", "auditLogs", [DEBUG_PROBE]],
+  [SETTINGS_KV, SETTINGS_KV_REEXPORT, "settings", "packages/server/src/domain/settings/persistence/kv.ts", "userSettings", []],
 ] as const;
 
 test("only its own persistence names the inbox or the settings key-value table, through any import door", CONFIG_TIMEOUT, async () => {
-  for (const [rule, table, home, neighbour] of SINGLE_WRITER_TABLES) {
+  for (const [rule, reexport, table, home, neighbour, readers] of SINGLE_WRITER_TABLES) {
     const rows: Row[] = [];
     for (const path of [
       "packages/server/src/domain/chat/verbs/x.ts",
       "packages/server/src/domain/notifications/verbs/x.ts",
       "packages/server/src/domain/settings/verbs/x.ts",
       "packages/server/src/entry/compose/x.ts",
-      "packages/server/src/foundation/observability/debug/x.ts",
+      ...(readers.length === 0 ? [DEBUG_PROBE] : []),
     ]) {
       for (const source of [
         `import { ${table} } from "@orb/db";\nexport const t = ${table};`,
@@ -440,18 +447,23 @@ test("only its own persistence names the inbox or the settings key-value table, 
         `import type { ${table} } from "@orb/db";\nexport type T = typeof ${table};`,
         `import { "${table}" as t } from "@orb/db";\nexport const x = t;`,
         `import { ${table} } from "@orb/db/schema";\nexport const t = ${table};`,
-        `export { ${table} } from "@orb/db";`,
         'import * as schema from "@orb/db";\nexport const t = schema;',
         'export const load = async () => await import("@orb/db");',
       ]) {
         rows.push([path, source, { [rule]: 1 }]);
       }
+      rows.push([path, `export { ${table} } from "@orb/db";`, { [rule]: 1, [reexport]: 1 }]);
       rows.push([path, `import { ${neighbour} } from "@orb/db";\nexport const t = ${neighbour};`, {}]);
+      // A binding of the table's name that is not the table passes: the doors read only `@orb/db` and the schema modules.
+      rows.push([path, `const ${table} = { rows: 1 };\nexport const n = ${table}.rows;`, {}]);
+      rows.push([path, `import { ${table} } from "./local-${table}.ts";\nexport const n = ${table};`, {}]);
     }
-    for (const path of [home, "packages/client/src/features/probe.ts", "tests/server/domain/probe.int.test.ts"]) {
+    // The home names its table and is refused only for re-exporting it.
+    rows.push([home, `export { ${table} } from "@orb/db";`, { [reexport]: 1 }]);
+    for (const path of [home, ...readers, "packages/client/src/features/probe.ts", "tests/server/domain/probe.int.test.ts"]) {
       rows.push([path, `import { ${table} } from "@orb/db";\nexport const t = ${table};`, {}]);
     }
-    const { actual, expected } = await verdicts(rows, [rule]);
+    const { actual, expected } = await verdicts(rows, [rule, reexport]);
     expect(actual).toEqual(expected);
   }
 });

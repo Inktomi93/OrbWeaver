@@ -10,20 +10,25 @@ import { APP_SETTINGS_KEY } from "#server/domain/settings/contract/keys.ts";
 import { STORED_CONFIG_UNREADABLE } from "#server/primitives/stored-config/index.ts";
 
 const USER_CORRUPTIONS = ["future-version", "not-an-object"] as const;
+type PlantArgs = Parameters<typeof plantForeignSettingsBytes>;
+type Plant = (root: PlantArgs[0], ownerId: PlantArgs[1]) => Promise<unknown>;
+
+// One plant per corruption; a new member fails `tsc` until it has one.
+const PLANT_CORRUPTION: Record<(typeof USER_CORRUPTIONS)[number], Plant> = {
+  "future-version": async (root, ownerId) =>
+    await root.db
+      .update(userSettings)
+      .set({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION + 1 })
+      .where(eq(userSettings.userId, ownerId)),
+  "not-an-object": async (root, ownerId) => await plantForeignSettingsBytes(root, ownerId, '["profile"]'),
+};
 
 test.for(USER_CORRUPTIONS)("a section write refuses a %s settings blob and leaves its bytes", async (corruption, { harness }) => {
   const principal = await harness.principalFor(harness.ownerId);
   const write = (): Promise<unknown> =>
     harness.services.settings.updateUserSettingsSection({ principal, input: { section: "profile", patch: { flankCollapsed: true } } });
   await write();
-  if (corruption === "future-version") {
-    await harness.db
-      .update(userSettings)
-      .set({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION + 1 })
-      .where(eq(userSettings.userId, harness.ownerId));
-  } else {
-    await plantForeignSettingsBytes(harness, harness.ownerId, '["profile"]');
-  }
+  await PLANT_CORRUPTION[corruption](harness, harness.ownerId);
   const stored = async (): Promise<unknown> => await harness.db.select().from(userSettings).where(eq(userSettings.userId, harness.ownerId));
   const before = await stored();
 
