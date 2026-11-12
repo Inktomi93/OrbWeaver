@@ -399,7 +399,8 @@ async function seedOneScript(caller: Caller): Promise<void> {
 test.describe("one script at enlarged browser text on a landscape phone", () => {
   const landscape = { width: 844, height: 390 } as const;
   test.use({ viewport: landscape, hasTouch: true, isMobile: true });
-  test("the list box is one row tall and the library's facts follow it directly", async ({ mount, page }) => {
+  test("the list box is one row tall and the library's facts follow it directly", async ({ browserName, mount, page }) => {
+    test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
     await using _textSize = await setPlatformTextSize(page, PLATFORM_TEXT_SCALES[1]);
     await using root = await createCorpusHarness();
     const caller = await root.internalCallerFor(root.ownerId);
@@ -447,7 +448,12 @@ test.describe("coarse landscape enlarged, at enlarged browser text", () => {
   test.use({ viewport: landscape, hasTouch: true, isMobile: true });
   for (const scale of PLATFORM_TEXT_SCALES.slice(1)) {
     for (const subject of WINDOWED_SUBJECTS) {
-      test(`${subject} at ${String(scale * 100)}% keeps a window of rows a keyboard reaches, and the pane scrolls to it`, async ({ mount, page }) => {
+      test(`${subject} at ${String(scale * 100)}% keeps a window of rows a keyboard reaches, and the pane scrolls to it`, async ({
+        browserName,
+        mount,
+        page,
+      }) => {
+        test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
         await using _textSize = await setPlatformTextSize(page, scale);
         await using root = await createCorpusHarness();
         const caller = await root.internalCallerFor(root.ownerId);
