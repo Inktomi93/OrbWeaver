@@ -113,7 +113,7 @@ test("the walk's axe attachment keeps the covered control a violation and a seco
   const name = "popup-over-target";
   await surfaceCheckpoint(info, {
     name,
-    scope: page.getByRole("menu", { name: "Actions", exact: true }),
+    scope: page.getByRole("menu", { name: "Fixture menu", exact: true }),
     state: "loaded",
     witnesses: [item],
     checks: ["names"],

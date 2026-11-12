@@ -4,6 +4,7 @@ import { Badge, STATUS_PILL_VARIANT } from "#primitives/badge";
 import { Button } from "#primitives/button";
 import { Check, Icon, Minus, Plus, X } from "#primitives/icons";
 import type { Tone } from "#tokens";
+import { COMPARE_DISCARD_LABEL, COMPARE_KEEP_CLEARED_LABEL, COMPARE_KEEP_LABEL } from "./compare-blocks-names.ts";
 import { COMPARE_SIDE_TONE, compareBlocksVariants } from "./variants.ts";
 
 interface CompareBlockBase {
@@ -162,6 +163,7 @@ function ReviewVerbs({
   slots: Slots;
   onDecide: (decision: CompareDecision) => void;
 }): ReactElement {
+  const keepLabel = cleared ? COMPARE_KEEP_CLEARED_LABEL : COMPARE_KEEP_LABEL;
   return (
     <div className={slots.verbRow()} data-slot="compare-block-verbs">
       <Button
@@ -171,12 +173,12 @@ function ReviewVerbs({
         size="sm"
       >
         <Icon icon={Check} size="xs" />
-        {cleared ? "Keep (empties field)" : "Keep"}
+        {keepLabel}
         <span className={slots.srOnly()}> {name}</span>
       </Button>
       <Button aria-pressed={decision === "discarded"} variant="outline" onClick={(): void => onDecide(decision === "discarded" ? null : false)} size="sm">
         <Icon icon={X} size="xs" />
-        Discard
+        {COMPARE_DISCARD_LABEL}
         <span className={slots.srOnly()}> {name}</span>
       </Button>
     </div>

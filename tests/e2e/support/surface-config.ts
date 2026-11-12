@@ -22,7 +22,7 @@ import {
   configSearchEmptyText,
   newThemeName,
 } from "#client/features/config/lib/config-control-names.ts";
-import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
+import { CONFIG_SECTION_LABEL, configGroupRegionName } from "#client/features/config/lib/config-copy.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
 import { PERSONA_NAME_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import {
@@ -57,6 +57,7 @@ import {
   WORLD_INFO_NEW_BOOK_NAME,
   WORLD_INFO_NEW_ENTRY_NAME,
   WORLD_INFO_NO_ENTRIES_TITLE,
+  worldInfoEntryDeleteName,
 } from "#client/features/world-info/lib/world-info-names.ts";
 import { contextPaneLabel, LIST_PANEL_NOUN, panelCloseName, panelEdgeName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
@@ -159,7 +160,7 @@ async function category(flow: SurfaceFlow, id: ConfigGroupId): Promise<Locator> 
     },
     ready: async (): Promise<void> => {
       const content = flow.page.locator(CONTENT);
-      await expect(content).toHaveAccessibleName(collection ? CONFIG_SECTION_LABEL : `${label.trim()} settings`);
+      await expect(content).toHaveAccessibleName(collection ? CONFIG_SECTION_LABEL : configGroupRegionName(label.trim()));
       await expect(content).toBeVisible();
       if (collection) {
         const landing = content.locator(`[data-slot="config-collection-landing"][data-collection="${id}"]`);
@@ -730,7 +731,7 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     await injection.click();
     await expect(editor.getByRole("combobox", { name: WORLD_INFO_ENTRY_PLACEMENT_NAME, exact: true })).toBeVisible();
     await walkScope(flow, content, "config/world-info-disposable-entry-placement");
-    await editor.getByRole("button", { name: `Delete ${entryName}`, exact: true }).click();
+    await editor.getByRole("button", { name: worldInfoEntryDeleteName(entryName), exact: true }).click();
     const confirmation = flow.page.getByRole("alertdialog");
     await checkpoint(flow, "world-info-delete-entry-confirmation", confirmation);
     await confirmation.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();

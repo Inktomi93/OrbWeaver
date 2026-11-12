@@ -47,6 +47,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { usePluginFrameSrc } from "#data";
 import { usePluginHostCall } from "../hooks/use-plugin-host-call.ts";
+import { pluginSurfaceName } from "../lib/plugin-panel-copy.ts";
 import type { PluginShellPresentation } from "./plugin-surface-shell.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 
@@ -150,7 +151,7 @@ export function PluginFrame({
         // The name-once rule (P3-7, plugin-surface-shell.tsx): a frame titled exactly like its plugin would
         // announce "Card Atlas — Card Atlas" to the one audience (AT, via the iframe's `title`) that hears
         // every word.
-        title={title === pluginName ? pluginName : `${pluginName}: ${title}`}
+        title={pluginSurfaceName(pluginName, title)}
         onHostMessage={onHostMessage}
       />
     </PluginSurfaceShell>

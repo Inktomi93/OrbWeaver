@@ -24,6 +24,7 @@ import { FOLDER_TYPE_ITEMS, tagColorValueLabel, tagUsageLabel } from "../lib/tag
 import { DetailHeader } from "./detail-header.tsx";
 import { EditorPage } from "./editor-page.tsx";
 import { SettingSwitchRow } from "./setting-switch-row.tsx";
+import { TAG_EDITOR_NAME_FIELD_NAME } from "./shared-control-names.ts";
 import { useMergeTags, useUpdateTag } from "./tag-mutations.ts";
 
 type TagEditorValues = Pick<TagView, keyof UpdateTagInput>;
@@ -180,7 +181,7 @@ function TagEditorFields({ tag, others, back, onMerged, session, confirmed, merg
         <AutosaveStatus state={session.status} onRetry={session.retrySave} />
         <form.AppField name="name">
           {(field): ReactElement => (
-            <Field error={touchedFieldError(field.state.meta)} label="Name" name="tag-name">
+            <Field error={touchedFieldError(field.state.meta)} label={TAG_EDITOR_NAME_FIELD_NAME} name="tag-name">
               <Input
                 onBlur={field.handleBlur}
                 onKeyDown={(event): void => {

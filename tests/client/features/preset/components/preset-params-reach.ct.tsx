@@ -6,6 +6,7 @@ import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory";
@@ -36,7 +37,7 @@ for (const factor of FONT_SCALES) {
     const presetId = presetDetailSchema.shape.id.parse(library.reads.presetDetail.output.id);
     await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
     await mount<typeof PresetListLifetimeStory>(STORY, { presetId });
-    await page.getByRole("tab", { name: "Params", exact: true }).click();
+    await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true }).click();
     await setRootFontScale(page, channelName("fontScale"), factor);
     const triggers = page.locator('[data-slot="hint-trigger"]');
     await expect(triggers.first()).toBeVisible();

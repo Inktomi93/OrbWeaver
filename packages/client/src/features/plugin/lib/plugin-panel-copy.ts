@@ -15,8 +15,12 @@ export const PLUGIN_DIALOG_TITLE = "Plugin";
 /** The page shell's kicker: it names the class, so a faked app screen inside a plugin is contradicted. */
 export const PLUGIN_SURFACE_KICKER = "Plugin";
 
+/** A surface's name, its plugin's then its own; a surface titled exactly like its plugin says the name once. */
+export function pluginSurfaceName(pluginName: string, title: string): string {
+  return pluginName === title ? pluginName : `${pluginName}: ${title}`;
+}
+
 /** The placement action stays distinct when one plugin registers several panels. */
 export function movePluginPanelLabel(pluginName: string, title: string, sidecar: boolean): string {
-  const name = pluginName === title ? pluginName : `${pluginName}: ${title}`;
-  return `Move to ${sidecar ? "sidecar" : "Context"}: ${name}`;
+  return `Move to ${sidecar ? "sidecar" : "Context"}: ${pluginSurfaceName(pluginName, title)}`;
 }

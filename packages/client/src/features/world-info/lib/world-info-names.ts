@@ -42,3 +42,8 @@ export const WORLD_INFO_NO_ENTRIES_TITLE = "No entries yet";
 
 /** The notice an import of a book already in the library raises. */
 export const WORLD_INFO_DUPLICATE_BOOK_NOTICE = "That book is already in your library. Nothing was added.";
+
+/** The entry editor's delete door, named for the entry. */
+export function worldInfoEntryDeleteName(entry: string): string {
+  return `Delete ${entry}`;
+}

@@ -5,7 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { PRESET_BACK_TO_RACK_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { PRESET_BACK_TO_ACTIONS_NAME, PRESET_BACK_TO_RACK_NAME, PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -38,7 +38,7 @@ for (const { width, height, density } of [
         ]),
       );
       await mount<typeof PresetActionGroupsStory>(STORY, { width: viewport.width, appearance, subject: "editor", presetId: preset.id });
-      const prompt = page.getByRole("tab", { name: "Prompt", exact: true });
+      const prompt = page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.prompt, exact: true });
       await prompt.click();
       const pivot = page.getByRole("button", { name: "Edit Chat history", exact: true });
       await expect(pivot).toBeVisible();
@@ -52,7 +52,7 @@ for (const { width, height, density } of [
         await back.press("Enter");
         await expect(trigger).toBeFocused();
       }
-      const actions = page.getByRole("tab", { name: "Actions", exact: true });
+      const actions = page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.actions, exact: true });
       await actions.click();
       await expect(actions).toBeFocused();
       // The chevron ends its row, and the editor's scroller clips anything past it: the row's end inset is what leaves the focus ring its paint.
@@ -73,7 +73,7 @@ for (const { width, height, density } of [
         const trigger = page.getByRole("button", { name, exact: true });
         await trigger.focus();
         await trigger.press("Enter");
-        const back = page.getByRole("button", { name: "Back to actions", exact: true });
+        const back = page.getByRole("button", { name: PRESET_BACK_TO_ACTIONS_NAME, exact: true });
         await expect(back).toBeFocused();
         await back.press("Enter");
         await expect(trigger).toBeFocused();

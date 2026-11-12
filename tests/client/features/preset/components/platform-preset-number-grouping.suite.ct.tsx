@@ -3,6 +3,7 @@ import { presetDetailSchema } from "@orb/contracts/preset";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory";
@@ -37,7 +38,7 @@ for (const { locale, grouped, decimal, point, shown } of LOCALES) {
         ]),
       );
       await mount<typeof PresetListLifetimeStory>(STORY, { presetId });
-      await page.getByRole("tab", { name: "Params", exact: true }).click();
+      await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true }).click();
       const tokens = page.getByRole("textbox", { name: "Max context tokens value", exact: true });
       await tokens.scrollIntoViewIfNeeded();
       await tokens.fill(grouped);

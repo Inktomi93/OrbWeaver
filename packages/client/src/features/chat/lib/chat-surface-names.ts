@@ -148,3 +148,13 @@ export const CHAT_MEMBERS_ENTRY_PREFIX = "Members: ";
 export function chatMembersEntryName(count: number): string {
   return `${CHAT_MEMBERS_ENTRY_PREFIX}${count}`;
 }
+
+/** Home's hearth island, named for the room it resumes. */
+export function homeResumeChatName(title: string): string {
+  return `Resume ${title}`;
+}
+
+/** A Home quick pick's door to a fresh room with that character. */
+export function homeNewChatWithName(character: string): string {
+  return `New chat with ${character}`;
+}

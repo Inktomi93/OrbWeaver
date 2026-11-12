@@ -62,7 +62,7 @@ import { ConfigPaneGlance } from "../components/config-pane-glance.tsx";
 import { ConfigSaveFooter } from "../components/config-save-footer.tsx";
 import { SettingsUnreadableGate } from "../components/settings-unreadable-notice.tsx";
 import { useConfigScrollSpy } from "../hooks/use-config-scroll-spy.ts";
-import { CONFIG_SECTION_LABEL, CONFIG_WELCOME } from "../lib/config-copy.ts";
+import { CONFIG_SECTION_LABEL, CONFIG_WELCOME, configGroupRegionName } from "../lib/config-copy.ts";
 import { scrollContentToTop, scrollToAnchor, whenControlMounts } from "../lib/config-jump.ts";
 
 /** The landmark containers the shell's focus rescue lands on (`main`, the list pane, the pane scroller) are
@@ -192,7 +192,7 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
     // are stable identities, so naming them re-fires nothing, and the alternative is a suppression.
   }, [target, groups, sectionRegistry, isAdmin, isOwner, contentRef, suppressSpyRef]);
 
-  const regionLabel = shownGroup === null ? CONFIG_SECTION_LABEL : `${shownGroup.label} settings`;
+  const regionLabel = shownGroup === null ? CONFIG_SECTION_LABEL : configGroupRegionName(shownGroup.label);
   return (
     // THE CONTENT PANE OWNS THE SCROLL, once, for every group and member: the shell's own CONTENT region is
     // a bounded flex box with NO overflow, so a member editor taller than the viewport — a 60-entry world

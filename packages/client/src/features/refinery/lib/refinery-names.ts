@@ -30,3 +30,24 @@ export const REFINERY_SETUP_TAB_LABEL = "Setup";
 /** The versions tab's compare heading and its pending read. */
 export const REFINERY_VERSION_DIFF_HEADING = "description: this version vs live";
 export const REFINERY_VERSION_LOADING_TEXT = "Loading that version…";
+
+/** A stage lane's first run. */
+export function refineryRunStageName(stage: string): string {
+  return `Run ${stage}`;
+}
+
+/** A stage lane's run once it has a result. */
+export function refineryRerunStageName(stage: string): string {
+  return `Re-run ${stage}`;
+}
+
+/** The apply row's commit, counting the kept fields it writes. */
+export function refineryApplyKeptLabel(count: number): string {
+  return `Apply ${String(count)} kept`;
+}
+
+/** The apply outcome's note after Save as copy. */
+export const REFINERY_COPY_UNTOUCHED_TEXT = "The live card is untouched. No snapshot was needed, nothing existing was written.";
+
+/** The apply outcome's note after an apply that snapshotted the live card first. */
+export const REFINERY_SNAPSHOT_TAKEN_TEXT = "Saved a snapshot first. Undo it from the character's History tab.";

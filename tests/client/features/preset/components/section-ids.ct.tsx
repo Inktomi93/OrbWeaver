@@ -5,7 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { PRESET_SECTION_ACTIONS_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { PRESET_EDITOR_VIEW_LABELS, PRESET_SECTION_ACTIONS_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { ROW_DUPLICATE_NAME } from "#client/lib/row-menu-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
@@ -37,7 +37,7 @@ test("an added section and its duplicate take their ids from the runtime's sourc
   });
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
 
-  await page.getByRole("tab", { name: "Prompt", exact: true }).click();
+  await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.prompt, exact: true }).click();
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByRole("menuitem", { name: "Literal text", exact: true }).click();
   await page.getByRole("button", { name: PRESET_SECTION_ACTIONS_NAME, exact: true }).click();

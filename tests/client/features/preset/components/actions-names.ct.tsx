@@ -3,6 +3,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -29,7 +30,7 @@ test("templates that share a label across kinds have distinct door names on the 
     ]),
   );
   await mount<typeof PresetActionGroupsStory>(STORY, { width: WIDTH, appearance, subject: "editor", presetId: preset.id });
-  await page.getByRole("tab", { name: "Actions", exact: true }).click();
+  await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.actions, exact: true }).click();
   const sharing = page.getByRole("button", { name: new RegExp(`^Edit ${SHARED_LABEL}`, "u") });
   await expect(sharing).toHaveCount(2);
   const names = await sharing.evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));

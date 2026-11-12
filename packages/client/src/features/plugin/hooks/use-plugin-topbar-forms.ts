@@ -1,6 +1,7 @@
 import type { OverflowMenuForm } from "#lib";
 import { useActiveChatId } from "#state";
-import { placedItemGlyph, placedItemLabel, usePlacedCommands } from "./use-placed-commands.ts";
+import { placedItemLabel } from "../lib/plugin-command-copy.ts";
+import { placedItemGlyph, usePlacedCommands } from "./use-placed-commands.ts";
 import { useRunPluginCommand } from "./use-plugin-commands.ts";
 
 /** The top bar's placed commands as "More" menu items, each with the attribution its icon button names. */
