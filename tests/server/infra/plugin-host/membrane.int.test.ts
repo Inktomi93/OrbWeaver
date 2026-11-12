@@ -365,29 +365,25 @@ test("a snippet awaiting a host result under an endless then getter is ended by 
   expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
 });
 
-test("a snippet building its surface under slow Object.prototype setters reports the refusal, never success", {
+// Each setter holds its guest until the window ends, whatever the box's speed. The host's set past the window ends the
+// snippet with the interrupt a busy loop gets; a set that ran the setters anyway would see each interrupt dropped by the
+// binding, so the surface build, and with it the snippet, would finish.
+test("a snippet building its surface under endless Object.prototype setters reports the refusal, never success", {
   tags: ["slow"],
   timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
 }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const caller = await root.internalCallerFor(root.ownerId);
   const room = (await caller.chat.startChat({ characterIds: [] })).chat;
-  const code = `const arr = new Array(${String(CALLBACK_SLICE_WIDTH)}).fill(0);
-for (const key of ${JSON.stringify(SURFACE_KEYS)}) { Object.defineProperty(Object.prototype, key, { set(v) { for (;;) arr.slice(); }, configurable: true }); }
+  const code = `for (const key of ${JSON.stringify(SURFACE_KEYS)}) { Object.defineProperty(Object.prototype, key, { set(v) { for (;;) {} }, configurable: true }); }
 orb.host(1);`;
 
   expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
-  // A busy loop's snippet: its refusal, and its time to the end of its account, which carries the same runtime
-  // acquisition and load as the run measured against it.
-  const busyStarted = performance.now();
+  // A busy loop's refusal: the one a snippet ended at its window reports.
   const busy = await caller.plugin.runSnippet({ chatId: room.id, code: "for (;;) {}" });
-  const busyMs = performance.now() - busyStarted;
   expect(busy.error).toBeDefined();
 
-  const started = performance.now();
-  const result = await caller.plugin.runSnippet({ chatId: room.id, code });
-  expect(result.error).toBe(busy.error);
-  expect(performance.now() - started).toBeLessThan(busyMs + PAST_WINDOW_MARGIN_MS);
+  expect((await caller.plugin.runSnippet({ chatId: room.id, code })).error).toBe(busy.error);
   expect(await caller.plugin.runSnippet({ chatId: room.id, code: NEXT_SNIPPET })).toEqual({ logLines: NEXT_SNIPPET_LINES });
 });
 
