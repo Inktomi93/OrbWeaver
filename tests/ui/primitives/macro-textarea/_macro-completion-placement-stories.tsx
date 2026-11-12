@@ -28,7 +28,7 @@ export function MacroCompletionPlacementStory({ sits, lines = 0 }: MacroCompleti
   return (
     <CtIsolation subject="MacroTextarea" isolates="Where the completion list seats against the viewport, without the editor around it">
       <Stack height="viewport" justify={JUSTIFY[sits]}>
-        <MacroTextarea aria-label="Prompt" onChange={setValue} rows={4} suggestions={SUGGESTIONS} value={value} />
+        <MacroTextarea aria-label="Macro field" onChange={setValue} rows={4} suggestions={SUGGESTIONS} value={value} />
       </Stack>
     </CtIsolation>
   );

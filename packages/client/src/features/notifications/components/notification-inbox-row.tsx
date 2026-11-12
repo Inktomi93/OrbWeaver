@@ -19,6 +19,7 @@ import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
+import { DEFERRED_TURN_CHAT_GONE_COPY, DEFERRED_TURN_HOST_UNAVAILABLE_COPY } from "../lib/notifications-copy.ts";
 
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 
@@ -39,8 +40,7 @@ const ROW_COPY: {
   kicked: () => "You were removed from a chat",
   "handoff-nominated": () => "You've been nominated to host a chat",
   "handoff-accepted": (p) => `Your chat is now hosted by ${p.newHostHandle}`,
-  "deferred-turn-dropped": (p) =>
-    p.reason === "consent" ? "An AI reply couldn't run. The host hasn't allowed it" : "An AI reply couldn't run. That chat is no longer available",
+  "deferred-turn-dropped": (p) => (p.reason === "consent" ? DEFERRED_TURN_HOST_UNAVAILABLE_COPY : DEFERRED_TURN_CHAT_GONE_COPY),
   "automation-notice": (p) => `Automation notice: ${p.message}`,
   // The crash policy turns a plugin off after repeated failures; the payload carries the id only.
   "plugin-disabled": (_p, pluginName) => `${pluginName ?? "A plugin"} was turned off after it kept failing`,

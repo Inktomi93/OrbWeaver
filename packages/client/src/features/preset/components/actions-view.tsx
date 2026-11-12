@@ -49,6 +49,7 @@ import type { AppFormInstance } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { closePresetTemplateDrill, drillPresetTemplate, selectPresetTemplate, useDrilledPresetTemplateId, useSelectedPresetTemplateId } from "#state";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { presetEditDrillName } from "../lib/preset-names.ts";
 import type { TemplateRow, TemplateRowCluster } from "../lib/template-rows.ts";
 import {
   ACTIONS_TAB_TEACH,
@@ -325,7 +326,7 @@ function TemplateListRow({
                   </Badge>
                 ) : null}
                 <Button
-                  aria-label={kindQualifier === undefined ? `Edit ${def.label}` : `Edit ${def.label} · ${kindQualifier}`}
+                  aria-label={presetEditDrillName(kindQualifier === undefined ? def.label : `${def.label} · ${kindQualifier}`)}
                   variant="ghost"
                   onClick={(): void => onDrill(def.id)}
                   onFocus={restoreFocus ? onRestoreFocus : undefined}

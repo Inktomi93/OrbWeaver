@@ -72,6 +72,8 @@ import {
   PRESET_DELETE_SECTION_TITLE,
   PRESET_SECTION_ACTIONS_NAME,
   PRESET_SECTION_NAME_FIELD_NAME,
+  presetMoveToZoneLabel,
+  presetSectionEditorName,
 } from "#src/features/preset/lib/preset-names.ts";
 import { DeliveryCluster } from "../delivery-cluster.tsx";
 import type { DerivedZones } from "./derive-zones.ts";
@@ -120,7 +122,7 @@ export function SectionDrillIn({ form, presetId, section, index, onBack }: Secti
   return (
     // A region with a name, so the drill-in is reachable by landmark and announces what it edits (ARIA
     // rec 2). `aria-label` is the section's own name — one editor, one object.
-    <Stack aria-label={`${label}: section editor`} gap="section" role="region">
+    <Stack aria-label={presetSectionEditorName(label)} gap="section" role="region">
       <Row align="center" gap="row" justify="between">
         <Button variant="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
@@ -449,7 +451,7 @@ function MoveToZoneItem({ form, index, zones }: { readonly form: AssemblyForm; r
   return (
     <MenuItem onClick={(): void => form.moveFieldValues("sections", index, to > index ? to - 1 : to)}>
       <Icon icon={GitFork} size="sm" />
-      {inSetup ? "Move below the conversation" : "Move above the conversation"}
+      {presetMoveToZoneLabel(inSetup)}
     </MenuItem>
   );
 }

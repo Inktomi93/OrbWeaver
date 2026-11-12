@@ -27,7 +27,17 @@ import { useId, useState } from "react";
 import type { TagFilterEntry } from "#lib";
 import { tagFilterStateOf } from "#lib";
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
-import { CHARACTER_FILTERS_NAME, CHARACTER_SHOW_ARCHIVED_NAME, CHARACTER_SHOW_FAVORITES_NAME } from "../lib/character-names.ts";
+import {
+  CHARACTER_FEWER_FILTERS_LABEL,
+  CHARACTER_FILTERS_CLOSED_LABEL,
+  CHARACTER_FILTERS_CLOSED_LABEL_NO_TAGS,
+  CHARACTER_FILTERS_NAME,
+  CHARACTER_SHOW_ARCHIVED_NAME,
+  CHARACTER_SHOW_FAVORITES_NAME,
+  characterFiltersClosedName,
+  characterFiltersOpenName,
+  characterShowMoreTagsName,
+} from "../lib/character-names.ts";
 import { RailAction, TagFilterChip, TagVocabularyPanel } from "./character-filter-rail-parts.tsx";
 
 /** How many tag chips the row shows before the disclosure — one glance, at the 290px pane's width. */
@@ -139,7 +149,7 @@ export function CharacterFilterChips({
       {panelOpen ? null : visible.map((tag) => <TagFilterChip key={tag.id} onCycle={onCycleTag} state={tagFilterStateOf(tagFilter, tag.id)} tag={tag} />)}
       {open && !panelOpen && hiddenCount > 0 ? (
         <RailAction
-          accessibleName={`Show ${String(hiddenCount)} more tags`}
+          accessibleName={characterShowMoreTagsName(String(hiddenCount))}
           controls={panelId}
           expanded={false}
           label={`+${String(hiddenCount)} more`}
@@ -228,25 +238,6 @@ function ScopePill({
   );
 }
 
-/** WHAT THE CLOSED DISCLOSURE OPENS (#519, side-eye se-verify-1) — the CONTENTS, not the act.
- *
- *  Collapsed, this group renders `FILTERS`, one text control and a datum, and the control said "More
- *  filters": a cold first-timer got no signal that Favorites, Archived, or a 551-entry tag vocabulary exist
- *  at all behind it (Nielsen #6, recognition over recall). Naming the three things is the cheapest possible
- *  fix and costs one rail cell's width — measured against the ratified 264px resting chrome fence in the
- *  surface CT, because a wider cell is a wrap risk at the 307px docked width. The OPEN arm keeps "Fewer
- *  filters": once the vocabulary is on screen, the contents are the thing you can already see, and the
- *  control's only remaining job is to say how to put it away. */
-const CLOSED_DISCLOSURE_LABEL = "Favorites, archived & tags";
-
-/** THE SAME PROMISE, MINUS THE TAGS (side-eye 2026-09-02 nit 15, #1139). The label above names three things
- *  a first-timer cannot otherwise know exist — but on a library whose tag vocabulary is EMPTY the third one
- *  is not there, so both arms of the control were advertising a payload the disclosure could not deliver
- *  ("show more filters" opened two switches; "hide the tag vocabulary" hid nothing). An empty state is
- *  load-bearing: the honest label names what IS behind the door and says the tag vocabulary has not started
- *  yet, which is a fact a reader can act on (tag something) rather than a promise they will find broken. */
-const CLOSED_DISCLOSURE_LABEL_NO_TAGS = "Favorites & archived";
-
 /** The group's OWN disclosure (#491) — the one control that decides whether the 551-entry tag vocabulary is
  *  on screen at all. Its own component so the group's render stays inside the complexity cap, and so the
  *  two labels can never drift apart. It wears the same grammar as its siblings (`RailAction`'s rule: the
@@ -267,10 +258,12 @@ function VocabularyDisclosure({
   readonly noTagsYet: boolean;
   readonly onToggle: () => void;
 }): ReactElement {
-  const closedLabel = hasTags ? CLOSED_DISCLOSURE_LABEL : CLOSED_DISCLOSURE_LABEL_NO_TAGS;
-  const openName = hasTags ? "Fewer filters: hide the tag vocabulary" : "Fewer filters: hide the filter options";
-  const closedName = noTagsYet ? `${closedLabel}: show more filters, no tags yet` : `${closedLabel}: show more filters`;
-  return <RailAction accessibleName={open ? openName : closedName} expanded={open} label={open ? "Fewer filters" : closedLabel} onClick={onToggle} />;
+  const closedLabel = hasTags ? CHARACTER_FILTERS_CLOSED_LABEL : CHARACTER_FILTERS_CLOSED_LABEL_NO_TAGS;
+  const openName = characterFiltersOpenName(hasTags);
+  const closedName = characterFiltersClosedName(closedLabel, noTagsYet);
+  return (
+    <RailAction accessibleName={open ? openName : closedName} expanded={open} label={open ? CHARACTER_FEWER_FILTERS_LABEL : closedLabel} onClick={onToggle} />
+  );
 }
 
 /** The lines the tag vocabulary is ABOUT to occupy, held open while `tag.listTagsWithUsage` is in flight.

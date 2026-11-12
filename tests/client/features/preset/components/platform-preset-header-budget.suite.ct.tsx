@@ -9,6 +9,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import {
   PRESET_ACTIVATE_NAME,
   PRESET_EDITOR_NAME,
+  PRESET_EDITOR_VIEW_LABELS,
   PRESET_RENAME_NAME,
   PRESET_RESET_ARRANGEMENT_NAME,
   PRESET_RESET_ARRANGEMENT_TITLE,
@@ -187,12 +188,12 @@ test.describe("coarse phone tab navigation", () => {
     const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
     const tabs = editor.getByRole("tablist", { name: PRESET_SECTIONS_NAME, exact: true });
     const clip = tabs.locator("..");
-    await tabs.getByRole("tab", { name: "Params", exact: true }).focus();
+    await tabs.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true }).focus();
     const before = await editor.evaluate((node) => node.scrollTop);
     for (const [key, name] of [
-      ["End", "Transforms"],
-      ["Home", "Params"],
-      ["ArrowRight", "Prompt"],
+      ["End", PRESET_EDITOR_VIEW_LABELS.transforms],
+      ["Home", PRESET_EDITOR_VIEW_LABELS.params],
+      ["ArrowRight", PRESET_EDITOR_VIEW_LABELS.prompt],
     ] as const) {
       await page.keyboard.press(key);
       const tab = tabs.getByRole("tab", { name, exact: true });

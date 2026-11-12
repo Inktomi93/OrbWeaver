@@ -4,6 +4,47 @@
 /** The create dialog's title and the compact band button's name. */
 export const CHARACTER_NEW_NAME = "New character";
 
+/** The band's worded create door; the band's kicker supplies "characters". */
+export const CHARACTER_NEW_SHORT_LABEL = "New";
+
+/** The Context pane's header tablist, named for the artifact. */
+export const CHARACTER_CONTEXT_TABLIST_NAME = "Character";
+
+/** The context pane's overview card and drilled facet tab. */
+export const CHARACTER_OVERVIEW_TAB_LABEL = "Overview";
+
+/** The context pane's appearance tab. */
+export const CHARACTER_LOOK_TAB_LABEL = "Look";
+
+/** The context pane's card trust tab. */
+export const CHARACTER_TRUST_TAB_LABEL = "Trust";
+
+/** The closed filter disclosure names what it opens, not the act: collapsed, nothing else on the rail says
+ *  Favorites, Archived or a tag vocabulary exist. It must stay one rail cell wide, because a wider cell wraps
+ *  at the docked width. The open arm says how to put the filters away, since its contents are on screen. */
+export const CHARACTER_FILTERS_CLOSED_LABEL = "Favorites, archived & tags";
+
+/** The closed label on a library with no tags yet, so the door never promises a vocabulary it cannot open. */
+export const CHARACTER_FILTERS_CLOSED_LABEL_NO_TAGS = "Favorites & archived";
+
+/** The filter disclosure's open label. */
+export const CHARACTER_FEWER_FILTERS_LABEL = "Fewer filters";
+
+/** The open disclosure's name, which says what closing it puts away. */
+export function characterFiltersOpenName(hasTags: boolean): string {
+  return hasTags ? "Fewer filters: hide the tag vocabulary" : "Fewer filters: hide the filter options";
+}
+
+/** The closed disclosure's name: its visible label, then what opening it does. */
+export function characterFiltersClosedName(closedLabel: string, noTagsYet: boolean): string {
+  return noTagsYet ? `${closedLabel}: show more filters, no tags yet` : `${closedLabel}: show more filters`;
+}
+
+/** The filter rail's door to the tags that do not fit, by how many are hidden. */
+export function characterShowMoreTagsName(count: string): string {
+  return `Show ${count} more tags`;
+}
+
 /** The band's icon-only door to the import dialog, and that dialog's name. */
 export const CHARACTER_IMPORT_NAME = "Import a character card";
 

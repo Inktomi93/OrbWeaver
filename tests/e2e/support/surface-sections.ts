@@ -24,9 +24,16 @@ import {
 } from "@orb/testkit/node/helpers";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { TAG_EDITOR_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { chatTitleQualifiers } from "#client/features/chat/lib/chat-summary-row.ts";
-import { CHAT_ALL_CHARACTERS_NAME, CHAT_ALL_CHATS_NAME, CHAT_COMPOSER_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import {
+  CHAT_ALL_CHARACTERS_NAME,
+  CHAT_ALL_CHATS_NAME,
+  CHAT_COMPOSER_NAME,
+  homeNewChatWithName,
+  homeResumeChatName,
+} from "#client/features/chat/lib/chat-surface-names.ts";
 import { CHATS_SECTION_LABEL } from "#client/features/chat/lib/chats-section-label.ts";
 import { homeAlsoOpenVisible } from "#client/features/chat/lib/home-also-open-visibility.ts";
 import { splitHearth } from "#client/features/chat/lib/home-hearth.ts";
@@ -44,11 +51,15 @@ import {
   DATABANK_LIST_NAME,
   DATABANK_MAINTENANCE_NAME,
   DATABANK_PASTE_TEXT_NAME,
+  DATABANK_REBUILD_ALL_NAME,
   DATABANK_RECENT_DOCUMENTS_NAME,
   DATABANK_RENAME_NAME,
+  DATABANK_REREAD_ALL_NAME,
   DATABANK_SEARCH_NAME,
   DATABANK_USE_IN_EVERY_CHAT_NAME,
   DATABANK_VIEW_SOURCE_NAME,
+  databankOpenSectionName,
+  databankSweepConfirmTitle,
 } from "#client/features/databank/lib/databank-names.ts";
 import { DATABANK_SECTION_LABEL } from "#client/features/databank/lib/databank-section-label.ts";
 import {
@@ -57,6 +68,8 @@ import {
   CORPUS_NO_RESULT_TEXT,
   CORPUS_SEARCH_NAME,
   CORPUS_SEARCH_TARGET_NAME,
+  corpusLexicalNoMatchText,
+  corpusResultsStatusText,
 } from "#client/features/discovery/lib/corpus-control-names.ts";
 import {
   CORPUS_IMAGE_LENS,
@@ -70,20 +83,29 @@ import { EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-c
 import { EXTENSIONS_SECTION_LABEL } from "#client/features/plugin/lib/extensions-section-label.ts";
 import {
   NEW_PRESET_NAME,
+  PRESET_ADD_SECTION_LABEL,
+  PRESET_BACK_TO_ACTIONS_NAME,
   PRESET_BACK_TO_RACK_NAME,
   PRESET_DELETE_SECTION_TITLE,
   PRESET_EDITOR_NAME,
+  PRESET_EDITOR_VIEW_LABELS,
   PRESET_IMPORT_NAME,
   PRESET_IMPORT_TITLE,
   PRESET_NAME_FIELD_NAME,
+  PRESET_NEW_LABEL,
   PRESET_RENAME_NAME,
   PRESET_SECTION_ACTIONS_NAME,
   PRESET_SECTION_NAME_FIELD_NAME,
   PRESET_SECTIONS_NAME,
+  presetEditDrillName,
+  presetMoveToZoneLabel,
+  presetSectionEditorName,
+  presetTemplateEditorName,
 } from "#client/features/preset/lib/preset-names.ts";
 import { PRESETS_SECTION_LABEL } from "#client/features/preset/lib/presets-section-label.ts";
 import {
   REFINERY_COMPARE_NAME,
+  REFINERY_COPY_UNTOUCHED_TEXT,
   REFINERY_EDIT_SCOPE_NAME,
   REFINERY_HAND_EDIT_NAME,
   REFINERY_HIDE_COMPARE_NAME,
@@ -93,18 +115,34 @@ import {
   REFINERY_SEARCH_SESSIONS_NAME,
   REFINERY_SESSION_STATE_NAME,
   REFINERY_SETUP_TAB_LABEL,
+  REFINERY_SNAPSHOT_TAKEN_TEXT,
   REFINERY_VERSION_DIFF_HEADING,
   REFINERY_VERSION_LOADING_TEXT,
   REFINERY_VERSIONS_NAME,
+  refineryApplyKeptLabel,
+  refineryRerunStageName,
+  refineryRunStageName,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import { REFINERY_SECTION_LABEL } from "#client/features/refinery/lib/refinery-section-label.ts";
 import { reviewFieldLabel } from "#client/features/refinery/lib/review-field-label.ts";
-import { SETUP_SCHEMA_ACTIONS, SETUP_SCHEMA_ROWS } from "#client/features/refinery/lib/setup-door-names.ts";
+import {
+  SETUP_ORIGINAL_CARD_ROW,
+  SETUP_SCHEMA_ACTIONS,
+  SETUP_SCHEMA_ROWS,
+  SETUP_VIEW_ACTION,
+  setupDoorName,
+} from "#client/features/refinery/lib/setup-door-names.ts";
 import { homeRostersVisible } from "#client/features/roster-preset/lib/home-rosters-visibility.ts";
 import { rosterCountsSuffix } from "#client/features/roster-preset/lib/roster-copy.ts";
-import { ROSTER_ALL_NAME, ROSTER_SAVED_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
+import {
+  ROSTER_ALL_NAME,
+  ROSTER_DELETE_TITLE,
+  ROSTER_SAVED_NAME,
+  rosterDeleteName,
+  rosterStartChatName,
+} from "#client/features/roster-preset/lib/roster-names.ts";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "#client/features/stats/lib/analytics-copy.ts";
-import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-names.ts";
+import { ANALYTICS_SEARCH_NAME, analyticsSortName } from "#client/features/stats/lib/analytics-names.ts";
 import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features/stats/lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
@@ -120,6 +158,7 @@ import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { NO_MATCHES_TITLE } from "#client/lib/search-empty-names.ts";
 import type { SectionId } from "#client/state/section-ids.ts";
 import { SECTION_IDS } from "#client/state/section-ids.ts";
+import { COMPARE_KEEP_LABEL } from "../../../packages/ui/src/primitives/compare-blocks/compare-blocks-names.ts";
 import { messageRow, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import type { SurfaceWalk } from "./surface-walker.ts";
@@ -219,7 +258,7 @@ async function presetMenuFamily(journey: Journey, menu: Locator, prefix: string)
   if (prefix.startsWith("presets/library/")) {
     return "library";
   }
-  for (const name of ["Add", "Section actions"]) {
+  for (const name of [PRESET_ADD_SECTION_LABEL, PRESET_SECTION_ACTIONS_NAME]) {
     if ((await menu.and(journey.page.getByRole("menu", { name, exact: true })).count()) === 1) {
       return name;
     }
@@ -615,7 +654,7 @@ async function homeChatDoors(journey: Journey, operations: readonly HomeOperatio
   const rooms = await journey.client.chat.listChats.query({ limit: HOME_RECENT_CHATS_LIMIT });
   const { hearth, rest } = splitHearth(rooms.items);
   const recents = content(journey).locator(`[data-home-tile=${JSON.stringify(CHAT_RECENTS_TILE_ID)}]`);
-  const resume = recents.getByRole("button", { name: /^Resume /u });
+  const resume = recents.getByRole("button", { name: namePattern(homeResumeChatName(NAME_HOLE)) });
   if (hearth !== undefined && (await resume.count()) === 1) {
     await homeOperation(journey, operations, resume, async (id) => {
       await homeResume(journey, resume, hearth.id, id);
@@ -678,7 +717,7 @@ async function homeQuickPickDoors(journey: Journey, operations: readonly HomeOpe
         await homeResume(journey, pick, chatId, id);
       });
     }
-    const start = tile.getByRole("button", { name: `New chat with ${character.name}`, exact: true });
+    const start = tile.getByRole("button", { name: homeNewChatWithName(character.name), exact: true });
     if ((await start.count()) === 1) {
       await homeOperation(journey, operations, start, async (id) => {
         await homeCreatedRoom(
@@ -700,7 +739,7 @@ async function homeCreationDoors(journey: Journey, operations: readonly HomeOper
   for (const roster of rosters) {
     const start = content(journey)
       .locator(`[data-home-tile=${JSON.stringify(ROSTERS_TILE_ID)}]`)
-      .getByRole("button", { name: `Start a chat with ${roster.name}${rosterCountsSuffix(roster)}`, exact: true });
+      .getByRole("button", { name: rosterStartChatName(roster.name, rosterCountsSuffix(roster)), exact: true });
     if ((await start.count()) === 1) {
       await homeOperation(journey, operations, start, async (id) => {
         await homeCreatedRoom(
@@ -770,7 +809,7 @@ async function homeNavigation(journey: Journey): Promise<void> {
     { name: CHAT_ALL_CHATS_NAME, label: CHATS_SECTION_LABEL },
     { name: CHAT_ALL_CHARACTERS_NAME, label: CHARACTERS_SECTION_LABEL },
     { name: DATABANK_ALL_DOCUMENTS_NAME, label: DATABANK_SECTION_LABEL },
-    { name: `Open ${DATABANK_SECTION_LABEL}`, label: DATABANK_SECTION_LABEL },
+    { name: databankOpenSectionName(DATABANK_SECTION_LABEL), label: DATABANK_SECTION_LABEL },
   ]) {
     const button = content(journey).getByRole("button", { name: door.name, exact: true });
     if ((await button.count()) === 1) {
@@ -837,12 +876,12 @@ async function homeSavedRosters(journey: Journey, trigger: Locator, id: string):
   await walkScope(journey, dialog, `${id}/saved-rosters`);
   for (const roster of rosters.filter((candidate) => originalIds.has(candidate.id))) {
     const row = rows.filter({
-      has: journey.page.getByRole("button", { name: `Start a chat with ${roster.name}${rosterCountsSuffix(roster)}`, exact: true }),
+      has: journey.page.getByRole("button", { name: rosterStartChatName(roster.name, rosterCountsSuffix(roster)), exact: true }),
     });
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(roster.name);
-    const remove = row.getByRole("button", { name: `Delete ${roster.name}`, exact: true });
-    const confirm = journey.page.getByRole("alertdialog", { name: "Delete this roster?", exact: true });
+    const remove = row.getByRole("button", { name: rosterDeleteName(roster.name), exact: true });
+    const confirm = journey.page.getByRole("alertdialog", { name: ROSTER_DELETE_TITLE, exact: true });
     const operation = `${id}/roster/${roster.id}/delete-cancel`;
     expectSubject(journey, operation, "roster-operation");
     await journey.action(operation, {
@@ -900,7 +939,9 @@ async function corpusSemanticQuery(journey: Journey, target: Extract<CorpusTarge
   const witness =
     count === 0
       ? list.getByText(CORPUS_NO_RESULT_TEXT, { exact: true })
-      : list.getByRole("status").filter({ hasText: new RegExp(`^${String(count)} (?:nearest )?results? in ${RegExp.escape(target.label)}`, "u") });
+      : list
+          .getByRole("status")
+          .filter({ hasText: namePattern(corpusResultsStatusText(count, target.label, false), corpusResultsStatusText(count, target.label, true)) });
   const search = journey.page.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true });
   await journey.action(id, {
     action: async () => {
@@ -958,10 +999,10 @@ async function corpusTarget(journey: Journey, target: CorpusTarget): Promise<voi
   const result = await journey.client.search.fields.query({ query: character.name, topN: CORPUS_SEARCH_TOP_N });
   const resultWitness =
     result.hits.length === 0
-      ? pane(journey, "list").getByText(new RegExp(`^Nothing.*${RegExp.escape(character.name)}`, "u"))
+      ? pane(journey, "list").getByText(corpusLexicalNoMatchText(target.label, character.name), { exact: true })
       : pane(journey, "list")
           .getByRole("status")
-          .filter({ hasText: new RegExp(`^${String(result.hits.length)} results? in ${RegExp.escape(target.label)}$`, "u") });
+          .filter({ hasText: namePattern(corpusResultsStatusText(result.hits.length, target.label, false)) });
   await journey.action("corpus/text/query", {
     action: async () => {
       await search.fill(character.name);
@@ -979,7 +1020,7 @@ async function corpusTarget(journey: Journey, target: CorpusTarget): Promise<voi
     body: JSON.stringify({ query: EMPTY_FIELD_QUERY, hits: emptyResult.hits.length }),
     contentType: "application/json",
   });
-  const empty = pane(journey, "list").getByText(new RegExp(RegExp.escape(EMPTY_FIELD_QUERY), "u"));
+  const empty = pane(journey, "list").getByText(corpusLexicalNoMatchText(target.label, EMPTY_FIELD_QUERY), { exact: true });
   await journey.action("corpus/text/empty-query", {
     action: async () => {
       await search.fill(EMPTY_FIELD_QUERY);
@@ -1034,7 +1075,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
         await row.getByRole("button", { name: subject.name, exact: true }).click();
       },
       ready: async () => {
-        await expect(content(journey).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(subject.name);
+        await expect(content(journey).getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveValue(subject.name);
       },
     });
     await walkScope(journey, content(journey), `corpus/labels/member/${subject.id}`);
@@ -1045,7 +1086,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
   if (defaultSort === undefined) {
     throw new Error("The production leaderboard default must be in its actual sort vocabulary");
   }
-  await expect(pane(journey, "list").getByRole("button", { name: `Sort by ${defaultSort.label}`, exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(pane(journey, "list").getByRole("button", { name: analyticsSortName(defaultSort.label), exact: true })).toHaveAttribute("aria-pressed", "true");
   const leaderboard = await journey.client.stats.leaderboard.query({ sort: ANALYTICS_DEFAULT_SORT });
   if (leaderboard.rows.length === 0) {
     await ready(pane(journey, "list").getByText(ANALYTICS_NO_ACTIVITY_TEXT, { exact: true }));
@@ -1207,12 +1248,12 @@ async function presetViews(journey: Journey, editor: Locator, prefix: string): P
 }
 
 async function presetDrills(journey: Journey, body: Locator, prefix: string): Promise<void> {
-  const controls = body.getByRole("button", { name: /^Edit /u });
+  const controls = body.getByRole("button", { name: namePattern(presetEditDrillName(NAME_HOLE)) });
   const count = await controls.count();
   for (let index = 0; index < count; index += 1) {
     const trigger = controls.nth(index);
     const id = `${prefix}/drill-${String(index)}`;
-    const drill = body.getByRole("region", { name: /: (?:section|template) editor$/u });
+    const drill = body.getByRole("region", { name: namePattern(presetSectionEditorName(NAME_HOLE), presetTemplateEditorName(NAME_HOLE)) });
     await journey.action(id, {
       action: async () => {
         await trigger.click();
@@ -1223,7 +1264,7 @@ async function presetDrills(journey: Journey, body: Locator, prefix: string): Pr
       },
     });
     await walkScope(journey, drill, id);
-    const back = drill.getByRole("button", { name: /^Back to (?:rack|actions)$/u });
+    const back = drill.getByRole("button", { name: namePattern(PRESET_BACK_TO_RACK_NAME, PRESET_BACK_TO_ACTIONS_NAME) });
     await journey.action(`${id}/return`, {
       action: async () => {
         await back.click();
@@ -1273,7 +1314,7 @@ async function createDisposablePreset(journey: Journey, onCreated: (created: Lis
   const band = pane(journey, "list");
   // A band with no room for the word keeps its primary as an icon named by the primary's menu label.
   const newPreset = band
-    .getByRole("button", { name: "New", exact: true })
+    .getByRole("button", { name: PRESET_NEW_LABEL, exact: true })
     .or(band.getByRole("button", { name: NEW_PRESET_NAME, exact: true }))
     .filter({ visible: true });
   await journey.action("presets/disposable/create", {
@@ -1516,10 +1557,10 @@ function settlePresetMenus(journey: Journey, proofs: ReadonlyMap<string, string>
 async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
   const { journey, presetId } = run;
   const editor = journey.page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
-  const prompt = editor.getByRole("tab", { name: "Prompt", exact: true });
+  const prompt = editor.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.prompt, exact: true });
   await prompt.click();
   const body = await controlledPanel(prompt);
-  const add = body.getByRole("button", { name: "Add", exact: true });
+  const add = body.getByRole("button", { name: PRESET_ADD_SECTION_LABEL, exact: true });
   await add.click();
   const addMenu = journey.page.getByRole("menu");
   await ready(addMenu);
@@ -1536,7 +1577,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
       },
       ready: async () => {
         await expect.poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.length).toBe(before.length + 1);
-        await ready(body.getByRole("region", { name: /: section editor$/u }));
+        await ready(body.getByRole("region", { name: namePattern(presetSectionEditorName(NAME_HOLE)) }));
       },
     });
     const added = (await journey.client.preset.get.query({ id: presetId })).config.sections.filter(
@@ -1547,7 +1588,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     if (section === undefined) {
       throw new Error("Native Add left no new section identity");
     }
-    const drill = body.getByRole("region", { name: `${section.name}: section editor`, exact: true });
+    const drill = body.getByRole("region", { name: presetSectionEditorName(section.name), exact: true });
     await expect(drill).toBeVisible();
     if (section.type === "literal") {
       literalId = section.id;
@@ -1569,10 +1610,10 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     if (section === undefined) {
       throw new Error("Disposable section left its canonical preset");
     }
-    const trigger = body.getByRole("button", { name: `Edit ${section.name}`, exact: true });
+    const trigger = body.getByRole("button", { name: presetEditDrillName(section.name), exact: true });
     await expect(trigger).toHaveCount(1);
     await trigger.click();
-    const drill = body.getByRole("region", { name: /: section editor$/u });
+    const drill = body.getByRole("region", { name: namePattern(presetSectionEditorName(NAME_HOLE)) });
     await expect(drill).toHaveCount(1);
     const uniqueName = `Surface section ${journey.ids.uuid()}`;
     await drill.getByRole("textbox", { name: PRESET_SECTION_NAME_FIELD_NAME, exact: true }).fill(uniqueName);
@@ -1592,7 +1633,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
 async function moveDisposableSection(run: PresetCommandRun, drill: Locator, sectionId: string): Promise<void> {
   const { journey, presetId } = run;
   await drill.getByRole("button", { name: PRESET_SECTION_ACTIONS_NAME, exact: true }).click();
-  const item = journey.page.getByRole("menu").getByRole("menuitem", { name: /^Move (?:above|below) the conversation$/u });
+  const item = journey.page.getByRole("menu").getByRole("menuitem", { name: namePattern(presetMoveToZoneLabel(true), presetMoveToZoneLabel(false)) });
   await expect(item).toHaveCount(1);
   const label = (await item.textContent())?.trim();
   if (label === undefined) {
@@ -1811,7 +1852,7 @@ async function databankMaintenance(journey: Journey, empty: boolean): Promise<vo
     overflow: pane(journey, "list").getByRole("button", { name: BAND_OVERFLOW_LABEL, exact: true }),
     name: DATABANK_MAINTENANCE_NAME,
   };
-  for (const name of ["Rebuild all documents", "Re-read all documents"]) {
+  for (const name of [DATABANK_REBUILD_ALL_NAME, DATABANK_REREAD_ALL_NAME]) {
     const menu = await openOverflowedMenu(journey.page, maintenance);
     const item = menu.getByRole("menuitem", { name, exact: true });
     await expect(item).toBeEnabled({ enabled: !empty });
@@ -1834,7 +1875,7 @@ async function databankMaintenance(journey: Journey, empty: boolean): Promise<vo
 
 async function databankMaintenanceConfirmation(journey: Journey, item: Locator, name: string): Promise<void> {
   await item.click();
-  const dialog = journey.page.getByRole("alertdialog", { name: `${name}?`, exact: true });
+  const dialog = journey.page.getByRole("alertdialog", { name: databankSweepConfirmTitle(name), exact: true });
   await checkpoint(journey, `databank/library/maintenance/${name}/confirmation`, dialog);
   await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(dialog).toBeHidden();
@@ -2044,7 +2085,10 @@ async function databank(journey: Journey): Promise<void> {
     },
     ready: async () => {
       await expect(editor.getByRole("button", { name: DATABANK_HIDE_SOURCE_NAME, exact: true })).toBeVisible();
-      await expect(editor.getByText("Loading the source text…", { exact: true })).toHaveCount(0);
+      // The source text's loading fallback is a skeleton that marks itself busy until the read settles; a failed read
+      // settles too, so the readout must then hold the text production stored.
+      await expect(editor.locator('[aria-busy="true"]')).toHaveCount(0);
+      await expect(editor.locator('[data-slot="scroll-area-content"]')).toHaveText(stored.extractedText ?? "");
     },
   });
   await walkScope(journey, content(journey), `databank/${subject.id}/source-text`);
@@ -2229,10 +2273,10 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
     }
     expect(description.text).not.toBe(before.description);
     await content(journey)
-      .getByRole("button", { name: `Keep ${reviewFieldLabel("description")}`, exact: true })
+      .getByRole("button", { name: `${COMPARE_KEEP_LABEL} ${reviewFieldLabel("description")}`, exact: true })
       .click();
     await expect.poll(async () => (await flow.client.refinery.getSession.query({ sessionId: session.id })).rewriteDecisions[latestRewrite.id]).toEqual([true]);
-    await expect(content(journey).getByRole("button", { name: "Apply 1 kept", exact: true })).toBeEnabled();
+    await expect(content(journey).getByRole("button", { name: refineryApplyKeptLabel(1), exact: true })).toBeEnabled();
     const branch = await refineryCopy(journey, session.id, characters);
     expect(branch.description).toBe(description.text);
     expect((await flow.client.character.get.query({ characterId: copy.id })).description).toBe(before.description);
@@ -2241,7 +2285,7 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
     await content(journey).getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
     await refineryApply(journey, session.id, copy.id, description.text);
     await content(journey).getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
-    await expect(content(journey).getByRole("button", { name: "Apply 1 kept", exact: true })).toBeDisabled();
+    await expect(content(journey).getByRole("button", { name: refineryApplyKeptLabel(1), exact: true })).toBeDisabled();
     await refineryVersionRestore(journey, session.id, copy.id, before.description);
     expect((await flow.client.character.get.query({ characterId: branch.id })).description).toBe(description.text);
     expect((await flow.client.refinery.getSession.query({ sessionId: session.id })).originalCard).toEqual(session.originalCard);
@@ -2281,12 +2325,12 @@ async function refineryStageRun(journey: Journey, sessionId: RefinerySessionId, 
     action: async () => {
       const [response] = await Promise.all([
         journey.page.waitForResponse((item) => new URL(item.url()).origin === journey.run.origin && isTrpcRequestFor(item.url(), "refinery.runStage")),
-        lane.getByRole("button", { name: `Run ${stage}`, exact: true }).click(),
+        lane.getByRole("button", { name: refineryRunStageName(stage), exact: true }).click(),
       ]);
       produced = await readTrpcOutput(response, "refinery.runStage", refineryRunViewSchema);
     },
     ready: async () => {
-      await expect(lane.getByRole("button", { name: `Re-run ${stage}`, exact: true })).toBeEnabled();
+      await expect(lane.getByRole("button", { name: refineryRerunStageName(stage), exact: true })).toBeEnabled();
     },
   });
   if (produced === undefined) {
@@ -2310,7 +2354,7 @@ function refineryPayloadWitness(lane: Locator, run: RefineryRun): Locator {
     case "score":
       return lane.getByText(REFINERY_STAGE_PAYLOADS.score.parse(run.payload).summary, { exact: true });
     case "rewrite":
-      return lane.getByRole("button", { name: `Keep ${reviewFieldLabel("description")}`, exact: true });
+      return lane.getByRole("button", { name: `${COMPARE_KEEP_LABEL} ${reviewFieldLabel("description")}`, exact: true });
     case "analyze":
       return lane.getByText(REFINERY_STAGE_PAYLOADS.analyze.parse(run.payload).soulAssessment, { exact: true });
   }
@@ -2379,7 +2423,7 @@ async function refineryCopy(
       expect(result.dropped).toEqual([]);
     },
     ready: async () => {
-      await expect(content(journey)).toContainText("The live card is untouched. No snapshot was needed, nothing existing was written.");
+      await expect(content(journey)).toContainText(REFINERY_COPY_UNTOUCHED_TEXT);
     },
   });
   const copied = custody.character;
@@ -2396,7 +2440,9 @@ async function refineryApply(journey: Journey, sessionId: RefinerySessionId, cha
     action: async () => {
       const [response] = await Promise.all([
         journey.page.waitForResponse((item) => new URL(item.url()).origin === journey.run.origin && isTrpcRequestFor(item.url(), "refinery.applyFields")),
-        content(journey).getByRole("button", { name: "Apply 1 kept", exact: true }).click(),
+        content(journey)
+          .getByRole("button", { name: refineryApplyKeptLabel(1), exact: true })
+          .click(),
       ]);
       const result = await readTrpcOutput(response, "refinery.applyFields", applyFieldsResultSchema);
       expect(result.snapshotId).not.toBeNull();
@@ -2404,7 +2450,7 @@ async function refineryApply(journey: Journey, sessionId: RefinerySessionId, cha
       expect(result.dropped).toEqual([]);
     },
     ready: async () => {
-      await expect(content(journey)).toContainText("Saved a snapshot first. Undo it from the character's History tab.");
+      await expect(content(journey)).toContainText(REFINERY_SNAPSHOT_TAKEN_TEXT);
       await expect.poll(async () => (await journey.client.character.get.query({ characterId })).description).toBe(description);
     },
   });
@@ -2487,10 +2533,9 @@ const REFINERY_WORKBENCH_DOORS = [
   { name: REFINERY_HAND_EDIT_NAME, id: "manual-rewrite-dialog" },
 ] as const;
 // A stage on the built-in schema offers Create, a stage on a saved one offers Edit; the pattern takes either, from the pane's own words.
-const SCHEMA_ACTIONS = SETUP_SCHEMA_ACTIONS.join("|");
 const REFINERY_SETUP_DOORS = [
-  { id: "View Original card", name: "View Original card" },
-  ...Object.values(SETUP_SCHEMA_ROWS).map((row) => ({ id: row, name: new RegExp(`^(${SCHEMA_ACTIONS}) ${row}$`, "u") })),
+  { id: setupDoorName(SETUP_VIEW_ACTION, SETUP_ORIGINAL_CARD_ROW), name: setupDoorName(SETUP_VIEW_ACTION, SETUP_ORIGINAL_CARD_ROW) },
+  ...Object.values(SETUP_SCHEMA_ROWS).map((row) => ({ id: row, name: namePattern(...SETUP_SCHEMA_ACTIONS.map((action) => setupDoorName(action, row))) })),
 ] as const;
 
 async function openSetupTab(journey: Journey): Promise<Locator> {

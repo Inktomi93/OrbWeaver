@@ -9,8 +9,9 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { pluginCommandAuditAttributes } from "#lib";
 import { useActiveChatId } from "#state";
-import { placedItemGlyph, placedItemLabel, usePlacedCommands } from "../hooks/use-placed-commands.ts";
+import { placedItemGlyph, usePlacedCommands } from "../hooks/use-placed-commands.ts";
 import { useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
+import { placedItemLabel } from "../lib/plugin-command-copy.ts";
 
 export function PluginTopbarCommands({ presentation }: { readonly presentation: "bar" | "sheet" }): ReactElement {
   const placed = usePlacedCommands("topbar");

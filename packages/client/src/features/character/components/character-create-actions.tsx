@@ -33,6 +33,7 @@ import {
   CHARACTER_IMPORT_NAME,
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
+  CHARACTER_NEW_SHORT_LABEL,
 } from "../lib/character-names.ts";
 import { CHARACTER_CREATE_FAILED, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
@@ -232,7 +233,7 @@ export function CharacterNewDoor({ iconOnly = false }: { readonly iconOnly?: boo
       ) : (
         <Button onClick={(): void => setOpen(true)} size="sm">
           <Icon icon={Plus} size="sm" />
-          New
+          {CHARACTER_NEW_SHORT_LABEL}
         </Button>
       )}
       <NewCharacterDialog onOpenChange={setOpen} open={open} />

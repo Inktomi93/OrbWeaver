@@ -17,6 +17,7 @@ import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { addableSections } from "../lib/assembly-model.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_ADD_SECTION_LABEL } from "../lib/preset-names.ts";
 
 type AssemblyForm = AppFormInstance<PresetEditorValues>;
 
@@ -37,7 +38,7 @@ export function AssemblyToolbar({ form, onAdd }: AssemblyToolbarProps): ReactEle
                 render={
                   <Button size="sm">
                     <Icon icon={Plus} size="sm" />
-                    Add
+                    {PRESET_ADD_SECTION_LABEL}
                   </Button>
                 }
               />

@@ -133,18 +133,39 @@ function patternEdits(rootNode: SgNode<TS>, rewrites: readonly LiteralRewrite[],
   }
 }
 
-// One import line per module, so bindings from one copy module land together.
-function importEdit(rootNode: SgNode<TS>, needed: ReadonlyMap<string, LiteralRewrite>): Edit | undefined {
+// The last specifier of a value import from `from`; a type-only import cannot carry a value binding.
+function valueImportTail(statements: readonly SgNode<TS>[], from: string): SgNode<TS> | undefined {
+  const statement = statements.find(
+    (candidate) => candidate.field("source")?.text().slice(1, -1) === from && !candidate.children().some((child) => child.kind() === "type"),
+  );
+  return statement?.findAll({ rule: { kind: "import_specifier" } }).at(-1);
+}
+
+// A module the file already imports from takes the new bindings on that line; any other module gets one new line.
+function importEdits(rootNode: SgNode<TS>, needed: ReadonlyMap<string, LiteralRewrite>): Edit[] {
   const statements = rootNode.findAll({ rule: { kind: "import_statement" } });
   const last = statements.at(-1);
   const missing = [...needed.values()].filter((entry) => !importsBinding(statements, entry.binding));
   if (missing.length === 0 || last === undefined) {
-    return undefined;
+    return [];
   }
-  const byModule = Map.groupBy(missing, (entry) => entry.from);
-  const at = last.range().end.index;
-  const lines = [...byModule].map(([from, entries]) => `\nimport { ${entries.map((entry) => entry.binding).join(", ")} } from "${from}";`);
-  return { startPos: at, endPos: at, insertedText: lines.join("") };
+  const edits: Edit[] = [];
+  const lines: string[] = [];
+  for (const [from, entries] of Map.groupBy(missing, (entry) => entry.from)) {
+    const names = entries.map((entry) => entry.binding).join(", ");
+    const tail = valueImportTail(statements, from);
+    if (tail === undefined) {
+      lines.push(`\nimport { ${names} } from "${from}";`);
+    } else {
+      const at = tail.range().end.index;
+      edits.push({ startPos: at, endPos: at, insertedText: `, ${names}` });
+    }
+  }
+  if (lines.length > 0) {
+    const at = last.range().end.index;
+    edits.push({ startPos: at, endPos: at, insertedText: lines.join("") });
+  }
+  return edits;
 }
 
 const codemod: Codemod<TS> = (root, options) => {
@@ -162,8 +183,7 @@ const codemod: Codemod<TS> = (root, options) => {
   if (planned.edits.length === 0) {
     return Promise.resolve(null);
   }
-  const imports = importEdit(rootNode, planned.needed);
-  return Promise.resolve(rootNode.commitEdits(imports === undefined ? planned.edits : [...planned.edits, imports]));
+  return Promise.resolve(rootNode.commitEdits([...planned.edits, ...importEdits(rootNode, planned.needed)]));
 };
 
 export default codemod;

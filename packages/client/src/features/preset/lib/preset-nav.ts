@@ -16,15 +16,16 @@ import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } 
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select/items";
 import { selectPresetSection, setPresetEditorView } from "#state";
+import { PRESET_EDITOR_VIEW_LABELS } from "./preset-names.ts";
 
 export type PresetEditorView = Readonly<Pick<(typeof PRESET_EDITOR_VIEW_TUPLE)[number], "id"> & { label: string }>;
 
 const PRESET_EDITOR_VIEW_TUPLE = [
-  { id: "params", label: "Params" },
-  { id: "prompt", label: "Prompt" },
-  { id: "actions", label: "Actions" },
-  { id: "data", label: "Data" },
-  { id: "transforms", label: "Transforms" },
+  { id: "params", label: PRESET_EDITOR_VIEW_LABELS.params },
+  { id: "prompt", label: PRESET_EDITOR_VIEW_LABELS.prompt },
+  { id: "actions", label: PRESET_EDITOR_VIEW_LABELS.actions },
+  { id: "data", label: PRESET_EDITOR_VIEW_LABELS.data },
+  { id: "transforms", label: PRESET_EDITOR_VIEW_LABELS.transforms },
 ] as const;
 
 type PresetEditorViewId = (typeof PRESET_EDITOR_VIEW_TUPLE)[number]["id"];

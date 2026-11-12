@@ -3,6 +3,7 @@ import { presetDetailSchema } from "@orb/contracts/preset";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory";
@@ -32,7 +33,7 @@ for (const coarse of [false, true]) {
         ]),
       );
       await mount<typeof PresetListLifetimeStory>(STORY, { presetId });
-      await page.getByRole("tab", { name: "Params", exact: true }).click();
+      await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true }).click();
       const field = page.getByRole("textbox", { name: "Response replay lifetime (seconds)", exact: true });
       await field.scrollIntoViewIfNeeded();
       await expect(field).toBeVisible();

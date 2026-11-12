@@ -4,6 +4,9 @@
 /** The tag picker dialog's name field. */
 export const TAG_NAME_FIELD_NAME = "Tag name";
 
+/** The tag editor page's rename field. */
+export const TAG_EDITOR_NAME_FIELD_NAME = "Name";
+
 /** The background picker's door to the URL entry. */
 export const BACKGROUND_FROM_URL_NAME = "From a URL…";
 

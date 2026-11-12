@@ -14,7 +14,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { collidingNameQualifiers, positionQualifier, REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY, trpcErrorReason } from "#lib";
 import { openChatMoment, openConfigTo } from "#state";
-import { CORPUS_NO_RESULT_TEXT } from "../lib/corpus-control-names.ts";
+import { CORPUS_NO_RESULT_TEXT, corpusLexicalNoMatchText, corpusResultsStatusText } from "../lib/corpus-control-names.ts";
 import { chatSubtitle, groupByEvidence, snippetForDisplay } from "../lib/corpus-result-text.ts";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, isNearestOnly, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
@@ -178,12 +178,11 @@ function SearchPaused({ over, onTextInstead }: { readonly over: UnifiedOver; rea
  *  rendered hits, and "0 results" while resting over a 200-row catalog. This one counts what the list
  *  actually renders, and names the target so two targets' counts can't be confused for one number. */
 function ResultsStatus({ count, label, nearestOnly }: { readonly count: number; readonly label: string; readonly nearestOnly: boolean }): ReactElement {
-  const noun = count === 1 ? "result" : "results";
   return (
     <Text as="span" className="sr-only" role="status">
       {/* A LISTENER GETS THE SAME CAVEAT THE READER GETS (P2-B). The banner below is visual; announcing
           "20 results" beside it would tell a screen-reader user the opposite of what the screen says. */}
-      {nearestOnly ? `${count} nearest ${noun} in ${label}: nothing matched strongly` : `${count} ${noun} in ${label}`}
+      {corpusResultsStatusText(count, label, nearestOnly)}
     </Text>
   );
 }
@@ -289,7 +288,7 @@ function FieldsResultsRead({
  *  engines behind this one box answer different questions, and only the lexical one cares about exact
  *  words. The second line names the engine and the next thing to try. */
 function NoMatches({ label, query, lexical }: { readonly label: string; readonly query: string; readonly lexical: boolean }): ReactElement {
-  const headline = lexical ? `Nothing in your ${label.toLowerCase()} matched “${query}”.` : CORPUS_NO_RESULT_TEXT;
+  const headline = lexical ? corpusLexicalNoMatchText(label, query) : CORPUS_NO_RESULT_TEXT;
   return (
     <Stack align="center" padding="block" gap="field">
       <Icon icon={Search} size="lg" />

@@ -15,10 +15,6 @@ export interface PlacedCommand {
   readonly shownName: string;
 }
 
-export function placedItemLabel(item: PlacedCommand): string {
-  return `${item.shownName} · ${item.command.group ?? "Commands"} · ${item.label}`;
-}
-
 // A command that declares no glyph wears the command mark, never `Blocks`: that is the Plugin actions trigger's own glyph, so an item wearing it
 // reads as the menu's own button.
 export function placedItemGlyph(item: PlacedCommand): LucideIcon {

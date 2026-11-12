@@ -30,7 +30,7 @@ import { DIALOG_VERBS, groupOrdinalQualifiers, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
 import { REFINERY_VERSION_DIFF_HEADING, REFINERY_VERSION_LOADING_TEXT, refineryCompareToggleName } from "../lib/refinery-names.ts";
-import { SETUP_SCHEMA_ROWS, schemaDoorActionOf } from "../lib/setup-door-names.ts";
+import { SETUP_ORIGINAL_CARD_ROW, SETUP_SCHEMA_ROWS, SETUP_VIEW_ACTION, schemaDoorActionOf, setupDoorName } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
@@ -224,7 +224,7 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
           // visual context — would meet identically-named buttons that open different editors. The name is DERIVED from the two strings the row already has, so a new row
           // cannot ship an ambiguous one, and it CONTAINS the visible label (WCAG 2.5.3 label-in-name: the
           // accessible name must start with what the control visibly says, or voice control cannot hit it).
-          <Button aria-label={`${action} ${k}`} variant="ghost" onClick={onAction} size="sm">
+          <Button aria-label={setupDoorName(action, k)} variant="ghost" onClick={onAction} size="sm">
             {action}
           </Button>
         ) : null}
@@ -281,7 +281,7 @@ export function SetupTab({
 }: SetupTabProps): ReactElement {
   return (
     <ContextTabBody data-testid={testId("refinerySetupTab")} kind="rows">
-      <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
+      <SetupRow action={SETUP_VIEW_ACTION} k={SETUP_ORIGINAL_CARD_ROW} onAction={onViewOriginal} v={anchorLine} />
       <SetupRow action="Edit" k="Scope" onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
       {/* ONE ROW PER STAGE, so custom-ANALYZE authoring and editing a saved analyze schema have a door as score
           does. Each stage carries its own "Edit" ("Create" on the built-in schema) → the editor at that stage; the body resolves

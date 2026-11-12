@@ -1,7 +1,7 @@
 // Workload service and runner contracts. Cross-feature capabilities arrive through injected operations.
 
 import type { IsAdmin, IsOwner, RequireOwner } from "@orb/contracts/admin";
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type {
   CancelWorkloadResult,
@@ -54,6 +54,8 @@ export interface WorkloadServiceContext {
   readonly isOwner: IsOwner;
   /** Whether an account is the box owner, read off its row: a stored run has no Principal to ask, only an id. */
   readonly isBoxOwner: (userId: UserId) => Promise<boolean>;
+  /** Whether an account is enabled, read off its row per call: a run answers to an enabled account or none. */
+  readonly isAccountEnabled: ResolveUserEnabled;
   /** The graph-owned lifecycle publisher, shared by verbs and the workload engine. */
   readonly emitEvent: WorkloadProgressBus["emitWorkloadEvent"];
   /** The per-user freshness plane: a system-started owned row announces `workloadsChanged` to its owner. */
@@ -75,6 +77,7 @@ export interface WorkloadRunnerDeps {
   readonly contributions: WorkloadContributions;
   /** The runner judges an owner-only run before its body, so a row stored by any build answers to this. */
   readonly isBoxOwner: WorkloadServiceContext["isBoxOwner"];
+  readonly isAccountEnabled: WorkloadServiceContext["isAccountEnabled"];
   /** Suppress-and-drop audit writer; the engine emits `WORKLOAD_FAILED` on a terminal runtime failure. */
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly now: Clock;

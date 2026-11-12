@@ -10,6 +10,8 @@ import {
   startWorkloadEnvelope,
   WORKLOAD_NOT_ADMISSIBLE,
   WORKLOAD_OWNER_ONLY_REFUSAL,
+  WORKLOAD_RUN_ACCOUNT_DISABLED,
+  WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
   WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
   WORKLOAD_RUN_ACCOUNT_REFUSAL,
 } from "@orb/contracts/workloads";
@@ -48,11 +50,15 @@ export function runAccount(row: { readonly mode: WorkloadMode; readonly ownerId:
  *  schedule tick and a dispatched row are judged like a door, whatever build stored them. A non-owner asking is refused
  *  as such; an owner-asked or stored run whose account is not the box owner gets the coded refusal a client can name. */
 export async function runAuthorityRefusal<K extends WorkloadKind>(
-  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner">,
+  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner" | "isAccountEnabled">,
   asker: RunAsker,
   kind: K,
   params: WorkloadParamsByKind[K],
 ): Promise<DomainForbiddenError | DomainOperationError | null> {
+  // A disabled account is treated exactly like a departed one, so no run answers to it, whatever its kind.
+  if (asker.account !== null && !(await deps.isAccountEnabled(asker.account))) {
+    return new DomainOperationError(WORKLOAD_RUN_ACCOUNT_DISABLED, WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL);
+  }
   if (deps.contributions[kind].ownerOnly?.(params) !== true) {
     return null;
   }
@@ -67,7 +73,7 @@ export async function runAuthorityRefusal<K extends WorkloadKind>(
 
 /** Throw {@link runAuthorityRefusal}'s answer when there is one. */
 export async function assertRunAuthority<K extends WorkloadKind>(
-  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner">,
+  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner" | "isAccountEnabled">,
   asker: RunAsker,
   kind: K,
   params: WorkloadParamsByKind[K],
@@ -86,13 +92,13 @@ export async function assertRunAuthority<K extends WorkloadKind>(
  * escaping ZodError (which would 500).
  */
 export async function parseWorkloadInput(
-  ctx: Pick<WorkloadServiceContext, "getContributions" | "isBoxOwner">,
+  ctx: Pick<WorkloadServiceContext, "getContributions" | "isBoxOwner" | "isAccountEnabled">,
   asker: RunAsker,
   input: StartWorkloadInput,
 ): Promise<StartWorkloadInput> {
   const contributions = ctx.getContributions();
   const parsed = parseKindParams(contributions, input);
-  await assertRunAuthority({ contributions, isBoxOwner: ctx.isBoxOwner }, asker, parsed.kind, parsed.params);
+  await assertRunAuthority({ contributions, isBoxOwner: ctx.isBoxOwner, isAccountEnabled: ctx.isAccountEnabled }, asker, parsed.kind, parsed.params);
   return parsed;
 }
 

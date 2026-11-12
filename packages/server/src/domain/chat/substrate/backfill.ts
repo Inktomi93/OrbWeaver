@@ -47,6 +47,7 @@ import { loadParticipants } from "../persistence/participants-read.ts";
 import { digestsDerivable } from "./digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
 import { hostUserIdOf } from "./participants-host.ts";
+import { presentAndEnabledHumanUserIdsOf } from "./participants-humans.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
  *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. `importWindow`
@@ -56,7 +57,9 @@ export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | nul
   return await loadBackfillChatIds(ctx.db, hostUserId, importWindow);
 }
 
-/** A chat's present characters + its host. One roster read serves both. */
+/** A chat's present characters + its host. One roster read serves both. A host outside the room's consent set
+ *  (disabled) reads as no host, exactly like a departed one, so the sweep spends nothing on that account's
+ *  connections and resumes the room once the host is enabled again. */
 async function loadCharacterIdsAndHost(
   ctx: ChatContext,
   chatId: ChatId,
@@ -69,7 +72,8 @@ async function loadCharacterIdsAndHost(
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
-  const hostUserId = hostUserIdOf(participants);
+  const presentHost = hostUserIdOf(participants);
+  const hostUserId = presentHost !== null && (await presentAndEnabledHumanUserIdsOf(ctx, participants)).includes(presentHost) ? presentHost : null;
   return { characterIds, hostUserId };
 }
 

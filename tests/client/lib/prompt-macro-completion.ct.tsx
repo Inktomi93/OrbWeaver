@@ -14,7 +14,7 @@ test("typing {{c lists each category once and logs no duplicate-key error", asyn
     }
   });
   const component = await mount<typeof BuiltinMacroCompletionStory>(STORY);
-  const field = component.getByRole("textbox", { name: "Prompt", exact: true });
+  const field = component.getByRole("textbox", { name: "Macro field", exact: true });
   await field.pressSequentially("{{c");
   const list = component.getByRole("listbox", { name: "Macro suggestions", exact: true });
   await expect(list).toBeVisible();
@@ -29,7 +29,7 @@ test("typing {{c lists each category once and logs no duplicate-key error", asyn
 
 test("ArrowDown walks the options in the order they are drawn", async ({ mount }) => {
   const component = await mount<typeof BuiltinMacroCompletionStory>(STORY);
-  const field = component.getByRole("textbox", { name: "Prompt", exact: true });
+  const field = component.getByRole("textbox", { name: "Macro field", exact: true });
   await field.pressSequentially("{{c");
   const list = component.getByRole("listbox", { name: "Macro suggestions", exact: true });
   const drawn = await list.getByRole("option").evaluateAll((nodes) => nodes.map((node) => node.id));

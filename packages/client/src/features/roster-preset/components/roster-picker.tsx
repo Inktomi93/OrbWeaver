@@ -42,6 +42,7 @@ import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-r
 import { useActiveRosterChat, useRoomGameCapture, useRosterRuleCapture, useRulePresetCatalogue, useSavedRosters } from "../hooks/use-saved-rosters.ts";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine, rulesetLine } from "../lib/roster-copy.ts";
+import { ROSTER_DELETE_TITLE, rosterDeleteName, rosterStartChatName } from "../lib/roster-names.ts";
 
 /** One roster row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
  *  viewer HOSTS it (program doc §6 — the add door is capability-driven and HIDDEN for a non-host, the
@@ -101,7 +102,7 @@ function RosterRow(props: {
           </Text>
         </Stack>
         <Row align="center" gap="tight" justify="end" className="shrink-0" wrap={true}>
-          <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={`Start a chat with ${roster.name}${counts}`}>
+          <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onStart(roster)} aria-label={rosterStartChatName(roster.name, counts)}>
             <Icon icon={MessagesSquare} size="sm" />
             Start
           </Button>
@@ -113,7 +114,7 @@ function RosterRow(props: {
           ) : null}
           {/* The destructive door keeps a bare name: the counts inform CONSENT to apply, and a delete that
               recited them would read as though it were deleting the members too. */}
-          <Button disabled={busy} variant="ghost" size="sm" square={true} onClick={(): void => onDelete(roster)} aria-label={`Delete ${roster.name}`}>
+          <Button disabled={busy} variant="ghost" size="sm" square={true} onClick={(): void => onDelete(roster)} aria-label={rosterDeleteName(roster.name)}>
             <Icon icon={Trash} size="sm" />
           </Button>
         </Row>
@@ -412,7 +413,7 @@ export function RosterPicker(): ReactElement {
             setConfirmDelete(null);
           }
         }}
-        title="Delete this roster?"
+        title={ROSTER_DELETE_TITLE}
         description={confirmDelete === null ? "" : `“${confirmDelete.name}” is a saved template: chats you started from it are untouched.`}
         confirmLabel="Delete"
         onConfirm={(): void => {

@@ -28,7 +28,7 @@ export function MenuOverTargetStory({ withSecondRow = false }: { readonly withSe
           <h1>Menu popup</h1>
           <Menu>
             <MenuTrigger>Open the menu</MenuTrigger>
-            <MenuPopup aria-label="Actions">
+            <MenuPopup aria-label="Fixture menu">
               {/* The trailing space is where a planted target lies under the row, clear of its text. */}
               <MenuItem>
                 Rename the character

@@ -11,7 +11,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import type { Trpc } from "#data";
 import type { TerminalActs } from "../hooks/use-terminal-acts.ts";
-import { REFINERY_SAVE_AS_COPY_NAME } from "../lib/refinery-names.ts";
+import { REFINERY_SAVE_AS_COPY_NAME, refineryApplyKeptLabel } from "../lib/refinery-names.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 // Re-derived locally from the wire (§7.4 — never an exported alias).
@@ -48,7 +48,7 @@ export function ApplyRow({ keptAccepts, armedRewrite, acts, completed }: ApplyRo
         onClick={(): void => acts.run("apply", keptAccepts)}
         size="sm"
       >
-        Apply {keptAccepts.length} kept
+        {refineryApplyKeptLabel(keptAccepts.length)}
       </Button>
     </Row>
   );

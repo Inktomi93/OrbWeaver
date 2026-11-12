@@ -29,10 +29,12 @@ import {
   CHARACTER_LIBRARY_NAME,
   CHARACTER_LINK_BOOK_NAME,
   CHARACTER_LINKS_TAB_LABEL,
+  CHARACTER_LOOK_TAB_LABEL,
   CHARACTER_NEVER_SPOKE_TEXT,
   CHARACTER_NO_BOOKS_LINKED_TEXT,
   CHARACTER_NO_PERSONAS_CONNECTED_TEXT,
   CHARACTER_NO_SNAPSHOTS_TEXT,
+  CHARACTER_OVERVIEW_TAB_LABEL,
   CHARACTER_RESET_LOOK_CONFIRM_NAME,
   CHARACTER_RESET_LOOK_NAME,
   CHARACTER_SAVE_FAILURE,
@@ -164,7 +166,7 @@ async function expectRetryContained(context: Locator, retry: Locator, landscape:
 
 async function openCharacterContext(
   page: Page,
-  tabName: typeof CHARACTER_HISTORY_TAB_LABEL | typeof CHARACTER_LINKS_TAB_LABEL | "Look" | "Overview",
+  tabName: typeof CHARACTER_HISTORY_TAB_LABEL | typeof CHARACTER_LINKS_TAB_LABEL | typeof CHARACTER_LOOK_TAB_LABEL | typeof CHARACTER_OVERVIEW_TAB_LABEL,
 ): Promise<void> {
   await selectCharacter(page, CARD_NAME);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
@@ -290,7 +292,7 @@ test("Overview does not claim you never spoke while its newest-thread read is he
   await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["chat.listChats"], (input) => (input?.limit === 1 ? pending : undefined)) });
   try {
     await mount<typeof ShellAmbientStory>(STORY, {});
-    await openCharacterContext(page, "Overview");
+    await openCharacterContext(page, CHARACTER_OVERVIEW_TAB_LABEL);
     await pending.requested;
     const context = page.locator('.shell-panel[data-panel-side="context"]');
     await expect(context.getByText(CHARACTER_NEVER_SPOKE_TEXT, { exact: true })).toHaveCount(0);
@@ -323,7 +325,7 @@ test("Look isolates a failed character's draft on selection without leaking it i
     ),
   });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await openCharacterContext(page, "Look");
+  await openCharacterContext(page, CHARACTER_LOOK_TAB_LABEL);
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
   const status = context.locator('[data-slot="autosave-status"]');
@@ -415,7 +417,7 @@ for (const regime of REGIMES) {
       });
       try {
         await mount<typeof ShellAmbientStory>(STORY, {});
-        await openCharacterContext(page, "Look");
+        await openCharacterContext(page, CHARACTER_LOOK_TAB_LABEL);
         const context = page.locator('.shell-panel[data-panel-side="context"]');
         const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
         const status = context.locator('[data-slot="autosave-status"]');
@@ -509,13 +511,13 @@ test("Overview: a failed read for one character does not stick on the next", asy
     ),
   });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await openCharacterContext(page, "Overview");
+  await openCharacterContext(page, CHARACTER_OVERVIEW_TAB_LABEL);
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await expect(context.locator('[data-slot="character-context-band-tokens"]')).toBeVisible();
   await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveCount(0);
   await selectCharacter(page, other);
-  await showContextTab(page, "Overview");
+  await showContextTab(page, CHARACTER_OVERVIEW_TAB_LABEL);
   await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveText("0 chats");
   await expect(context.getByText(CHARACTER_NEVER_SPOKE_TEXT, { exact: true })).toBeVisible();
   await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
@@ -528,7 +530,7 @@ test("Look's Reset all to Inherit asks first: Cancel writes nothing, Reset write
   await caller.character.update({ characterId: card.id, input: { themeOverride: { font: FONT } } });
   const calls = await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["character.update"]) });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await openCharacterContext(page, "Look");
+  await openCharacterContext(page, CHARACTER_LOOK_TAB_LABEL);
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
   await expect(font).toHaveText(FONT);
@@ -556,7 +558,7 @@ test.describe("the phone character sheet's header", () => {
     const { reads } = await prepare(root, page, corpus);
     await routeTrpc(page, reads);
     await mount<typeof ShellAmbientStory>(STORY, {});
-    await openCharacterContext(page, "Overview");
+    await openCharacterContext(page, CHARACTER_OVERVIEW_TAB_LABEL);
     const header = page.locator('.shell-panel[data-panel-side="context"] [data-slot="context-bracket-header"]');
     const mark = (name: string): Promise<string[]> =>
       header

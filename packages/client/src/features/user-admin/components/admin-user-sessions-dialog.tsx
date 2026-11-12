@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { DestructiveAction, DismissDialog } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
 import type { AdminUserDialogProps } from "../lib/admin-model.ts";
 import { revokeSessionName } from "../lib/admin-model.ts";
@@ -35,7 +35,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
   return (
     <DismissDialog
       description="Revoking a session signs that device out on its next request."
-      dismissLabel="Close"
+      dismissLabel={DIALOG_VERBS.close}
       onOpenChange={props.onOpenChange}
       open={props.open}
       size="lg"
