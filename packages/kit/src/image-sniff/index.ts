@@ -26,9 +26,13 @@ const WEBP_MIME = "image/webp";
 const AVIF_MIME = "image/avif";
 const OCTET_STREAM = "application/octet-stream";
 
+/** The image types {@link sniffMime} recognizes by signature: the images the asset store accepts. */
+export const SNIFFED_IMAGE_MIMES = [PNG_MIME, JPEG_MIME, GIF_MIME, WEBP_MIME] as const;
+/** Animated PNG: it carries the PNG signature, so a claim of this type is accepted for bytes that sniff as PNG. */
+export const APNG_MIME = "image/apng";
 // Exported (contracts/types-in-contract doesn't apply to `kit` — it's the leaf below contracts, and
 // callers in two different packages need this exact union to narrow on the result).
-export type SniffedMime = typeof PNG_MIME | typeof JPEG_MIME | typeof GIF_MIME | typeof WEBP_MIME | typeof OCTET_STREAM;
+export type SniffedMime = (typeof SNIFFED_IMAGE_MIMES)[number] | typeof OCTET_STREAM;
 
 /** `bytes[start..end)` as a lowercase hex string — the `Buffer.toString("hex")` equivalent, hand-packed
  *  so this module has no `node:buffer` dependency (kit-purity: browser + Node isomorphic). */

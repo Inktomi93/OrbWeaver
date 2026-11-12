@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: doing
+status: blocked
 updated: 2026-11-12
 priority: P1
 area: plugins
-lane: wt/agent-a84eabc3e8d8f0a49
+blocked: owner
 ---
 
 # The plugin host starts, serves and stops on native Windows and macOS

@@ -428,6 +428,8 @@ const TEST_CONSTANT_HOMES = {
     "parseBrokerParentMessage, parseMessageLine and serializeMessage: the frame codec the permission-drop suite speaks as the watchdog; PLUGIN_BROKER_SYNC_TIMEOUT_MS: the synchronous seam bound the command bounds suite counts; channelFullBridgeResult and channelFullResponse: the refusal frames the channel suite routes",
   "packages/server/src/infra/plugin-host/sandbox.ts": "Sandbox: the sandbox class its unit suite constructs",
   "packages/server/src/infra/plugin-host/warm-runtime-pool.ts": "WarmRuntimePool: the runtime pool its unit suite constructs with a failing retirement",
+  "packages/server/src/infra/plugin-host/watchdog-policy.ts":
+    "brokerWatchdogFailure: the watchdog's judgement its unit suite drives with an injected clock, which no door reaches inside the watchdog process",
   "packages/server/src/infra/relay/quick-tunnel.ts": "RELAY_STOP_GRACE_MS: the relay's stop grace",
   "packages/server/src/infra/upstream-update/adapter.ts": "parseLatestRelease and parseMainHead: the pure release and head parsers",
   "packages/server/src/entry/compose/portability.ts":

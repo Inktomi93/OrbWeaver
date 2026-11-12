@@ -15,7 +15,7 @@
 
 import type { AssetKind, AssetMedia, AssetUploadRefusalCode } from "@orb/contracts/assets";
 import { ASSET_KIND_MEDIA, ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
-import { sniffMime } from "@orb/kit/image-sniff";
+import { APNG_MIME, sniffMime } from "@orb/kit/image-sniff";
 import { AssetContentRejectedError } from "../contract/errors.ts";
 
 const OCTET_STREAM = "application/octet-stream";
@@ -23,7 +23,6 @@ const IMAGE_PREFIX = "image/";
 // Animated PNG shares the PNG byte signature — the acTL animation chunk sits past the signature, and the
 // magic sniff is container-blind to it — so a browser-supplied `image/apng` claim always sniffs as
 // `image/png`. This is the ONE legitimate claim≠sniff pair for images (animated backgrounds; BG-A).
-const APNG_MIME = "image/apng";
 const PNG_MIME = "image/png";
 const TEXT_PREFIX = "text/";
 const VIDEO_PREFIX = "video/";

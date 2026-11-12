@@ -10,7 +10,7 @@ export { readAccounts } from "./admin/accounts.ts";
 export type { AtlasBootOptions, CannedResponse } from "./atlas-guest.ts";
 export { bootAtlas, bootAtlasDates, lastAtlasState } from "./atlas-guest.ts";
 export { prepareBackupFolder } from "./backup-folder.ts";
-export { casOf } from "./cas.ts";
+export { casOf, storeThenDamageBlob } from "./cas.ts";
 export { readRoomCanon } from "./chat/canon.ts";
 export type { StoredAvatar } from "./chat/cast.ts";
 export { addCharacter, addPersona, startRoom, storeAvatar } from "./chat/cast.ts";

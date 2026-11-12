@@ -250,12 +250,10 @@ test("a watchdog that stops itself, reporting its broker stopped and then exitin
   expect((await guest.enable()).status).toBe(ENABLED);
   await guest.invoke("noop");
   const watchdog = firstChild(edge);
-  if (watchdog.pid === undefined) {
-    throw new Error("the production host did not spawn its watchdog");
-  }
 
-  // Told to stop, the watchdog ends its broker, reports it stopped, and exits: both reach the host before the call.
-  process.kill(watchdog.pid, "SIGTERM");
+  // A message on its app channel that is no frame makes the watchdog stop itself: it ends its broker, reports it
+  // stopped, and exits, and both reach the host before the call.
+  watchdog.send({ kind: "not-a-frame" });
   await expect.poll(() => watchdog.exitCode !== null || watchdog.signalCode !== null, { timeout: REPLACED_WITHIN_MS }).toBe(true);
   expect(stoppedReports(edge)).toHaveLength(1);
 

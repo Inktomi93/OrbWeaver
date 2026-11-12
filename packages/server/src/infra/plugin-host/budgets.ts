@@ -63,6 +63,10 @@ export const PLUGIN_BROKER_HEARTBEAT_MISSES_MAX = Math.ceil(
 );
 /** How long a broker that stops answering keeps serving before its watchdog ends it. */
 export const PLUGIN_BROKER_LIVENESS_BOUND_MS = PLUGIN_BROKER_HEARTBEAT_MISSES_MAX * PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS;
+/** How long the app waits for its watchdog to exit after closing their channel before it ends the watchdog (D347). A
+ *  working watchdog ends a broker still running the liveness bound after the stop; the second is the watchdog's own
+ *  exit. */
+export const PLUGIN_WATCHDOG_STOP_GRACE_MS = PLUGIN_BROKER_LIVENESS_BOUND_MS + MS_PER_SECOND;
 
 /** How long the host remembers a broker loss: losses further apart than this never add up (D347). */
 export const PLUGIN_BROKER_LOSS_WINDOW_MS = 10 * MS_PER_MINUTE;
