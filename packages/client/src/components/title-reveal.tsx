@@ -14,11 +14,17 @@ import { Contents, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CutPartContext, useCutParts } from "./use-is-cut.ts";
 
 /** The reasons a reveal closes with focus going where the user pointed, not back to the control that opened it. */
 const FOCUS_LEAVES: ReadonlySet<string> = new Set(["outside-press", "focus-out"]);
+
+/** What a press does: open the whole text, or take the control's own action. */
+type PressMode = "reveal" | "act";
+
+/** The keys whose press on a button is its click. */
+const PRESS_KEYS: ReadonlySet<string> = new Set(["Enter", " "]);
 
 /** What a title that is already a control does when pressed uncut, and what its reveal offers while it is cut. */
 interface TitleAction {
@@ -37,6 +43,8 @@ export interface TitleRevealProps {
   readonly action?: TitleAction;
   /** The control a cut title becomes, where the title is not already one and the row's own layout has to hold under the control. Default: a text-height action that fills the row. */
   readonly control?: ReactElement;
+  /** What the title sits in while it is not a control, where the row's layout wants a box around it. The control carries that layout itself. */
+  readonly frame?: (children: ReactNode) => ReactElement;
   readonly children: ReactNode;
 }
 
@@ -61,13 +69,26 @@ function Reveal({
   );
 }
 
-export function TitleReveal({ whole, fill = false, action, control: own, children }: TitleRevealProps): ReactElement {
+export function TitleReveal({ whole, fill = false, action, control: own, frame, children }: TitleRevealProps): ReactElement {
   const { cut, part } = useCutParts();
   const [open, setOpen] = useState(false);
   // Set when a reveal opens and cleared when focus leaves the control, so the control outlives the cut that made it.
   const [held, setHeld] = useState(false);
   const isControl = action !== undefined || cut || held;
   const revealing = cut || open;
+  // A press acts on the state it started in: the layout can change between the press and its click, and a press that began on the control's own
+  // action is not turned into a reveal by a cut that arrived under the finger. Set at pointer-down or key-down, spent when the press ends.
+  const started = useRef<PressMode | null>(null);
+  const modeNow = (): PressMode => (revealing ? "reveal" : "act");
+  const begin = (): void => {
+    started.current = modeNow();
+  };
+  const end = (): void => {
+    globalThis.setTimeout(() => {
+      started.current = null;
+    }, 0);
+  };
+  const mode = (): PressMode => started.current ?? modeNow();
 
   const control = action === undefined ? (own ?? <InlineAction grow={fill} step="label" type="button" />) : action.control({ cut });
   const trigger = (
@@ -75,11 +96,17 @@ export function TitleReveal({ whole, fill = false, action, control: own, childre
       aria-expanded={revealing ? open : undefined}
       aria-haspopup={revealing ? "dialog" : undefined}
       onBlur={(): void => {
+        started.current = null;
         if (!open) {
           setHeld(false);
         }
       }}
-      onClick={revealing || action === undefined ? undefined : action.onSelect}
+      onClick={action === undefined ? undefined : (): void => (mode() === "act" ? action.onSelect() : undefined)}
+      onKeyDown={(event): void => (PRESS_KEYS.has(event.key) ? begin() : undefined)}
+      onKeyUp={end}
+      onPointerCancel={end}
+      onPointerDown={begin}
+      onPointerUp={end}
       render={control}
     >
       {children}
@@ -92,8 +119,9 @@ export function TitleReveal({ whole, fill = false, action, control: own, childre
         {isControl ? (
           <Popover
             onOpenChange={(next, details): void => {
-              setOpen(next && revealing);
-              if (next && revealing) {
+              const reveals = next && mode() === "reveal";
+              setOpen(reveals);
+              if (reveals) {
                 setHeld(true);
               } else if (!next && FOCUS_LEAVES.has(details.reason)) {
                 setHeld(false);
@@ -118,7 +146,7 @@ export function TitleReveal({ whole, fill = false, action, control: own, childre
             />
           </Popover>
         ) : (
-          children
+          (frame?.(children) ?? children)
         )}
       </CutPartContext>
     </Contents>

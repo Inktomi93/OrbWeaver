@@ -115,6 +115,37 @@ for (const role of ROLES) {
       await expect(page.locator(`${WIDE_IDENTITY} [data-slot="title-reveal"]`).getByRole("button")).toHaveCount(role === "host" ? 1 : 0);
     });
 
+    test("holds phrasing content only inside the cut title's control", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role, ROOM_NAME);
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+      await expect(titleControl(page)).toBeVisible();
+      // The control holds the title's text parts (the positive control), and no block element among them.
+      await expect(titleControl(page).locator(".shell-topbar-title")).toHaveCount(1);
+      await expect(titleControl(page).locator("div, p")).toHaveCount(0);
+    });
+
+    test("keeps its place in its box when it crosses between cut and uncut", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role, ROOM_NAME);
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+      const participants = page.locator(`${WIDE_IDENTITY} .shell-topbar-title`);
+      // The title's own box is the control while cut and the group while not; the row's width moves the box, never the text inside it.
+      const box = page.locator(`${WIDE_IDENTITY} .shell-topbar-title-group`);
+      const offsetInBox = async (): Promise<{ readonly x: number; readonly y: number }> => {
+        const [text, frame] = [await participants.boundingBox(), await box.boundingBox()];
+        return { x: (text?.x ?? Number.NaN) - (frame?.x ?? Number.NaN), y: (text?.y ?? Number.NaN) - (frame?.y ?? Number.NaN) };
+      };
+      expect(await titleIsCut(page)).toBe(true);
+      const cut = await offsetInBox();
+      await page.setViewportSize({ width: REVEAL_WIDTH, height: DESKTOP.height });
+      await expect.poll(() => titleIsCut(page)).toBe(false);
+      const uncut = await offsetInBox();
+      // Within a device pixel: the two widths round the box's own edge differently.
+      expect(Math.abs(uncut.x - cut.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(uncut.y - cut.y)).toBeLessThanOrEqual(1);
+    });
+
     test("keeps the control under an open reveal whose title stops being cut, and closing it returns focus there", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();
       const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role, ROOM_NAME);
@@ -141,6 +172,25 @@ test.describe("the host's press", () => {
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
     expect(await titleIsCut(page)).toBe(false);
     await page.locator(WIDE_IDENTITY).getByRole("button", { name: RENAME_CHAT_NAME }).tap();
+    await expect(page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true })).toBeFocused();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("acts on the state the press started in when the title is cut before it ends", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "host", ROOM_NAME);
+    await page.setViewportSize({ width: REVEAL_WIDTH, height: DESKTOP.height });
+    await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+    expect(await titleIsCut(page)).toBe(false);
+    const rename = page.locator(WIDE_IDENTITY).getByRole("button", { name: RENAME_CHAT_NAME });
+    const box = await rename.boundingBox();
+    const point = { x: (box?.x ?? 0) + 8, y: (box?.y ?? 0) + (box?.height ?? 0) / 2 };
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    // The press began on Rename. The layout changes under the finger, and the title is cut when the press ends.
+    await page.setViewportSize(DESKTOP);
+    await expect.poll(() => titleIsCut(page)).toBe(true);
+    await page.mouse.up();
     await expect(page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true })).toBeFocused();
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
