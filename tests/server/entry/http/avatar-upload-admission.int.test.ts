@@ -2,7 +2,8 @@
 // An avatar is drawn as a picture everywhere it appears, so the upload door stores one only when its bytes carry the
 // signature of an image type the store accepts, whatever type the file claims. Anything else is refused with its
 // code and stored nowhere.
-import { ASSET_UPLOAD_REFUSAL_CODES, assetUploadRefusalSchema, IMAGE_ONLY_ASSET_KINDS, storedAssetSchema } from "@orb/contracts/assets";
+import type { AssetKind } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_REFUSAL_CODES, assetUploadRefusalSchema, storedAssetSchema } from "@orb/contracts/assets";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/node";
 import type { NativeServerTestHarness } from "@orb/testkit/node/composed";
@@ -13,7 +14,7 @@ import { CSRF_HEADERS } from "./_body-limit-inputs.ts";
 const UPLOAD_ROUTE = "/api/assets/upload";
 const OK = 200;
 const UNSUPPORTED_MEDIA_TYPE = 415;
-const [AVATAR] = IMAGE_ONLY_ASSET_KINDS;
+const AVATAR = "avatar" satisfies AssetKind;
 const LIST_LIMIT = 10;
 const TEXT_BYTES = new TextEncoder().encode("a note, not a picture");
 

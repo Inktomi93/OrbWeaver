@@ -13,8 +13,8 @@
 // Throws `AssetContentRejectedError` (a person-facing reason + the operator detail) on any mismatch — the ONE
 // verification point `storeBlob` calls when `enforceMagic` is set.
 
-import type { AssetKind, AssetUploadRefusalCode } from "@orb/contracts/assets";
-import { ASSET_UPLOAD_REFUSAL_CODES, IMAGE_ONLY_ASSET_KINDS } from "@orb/contracts/assets";
+import type { AssetKind, AssetMedia, AssetUploadRefusalCode } from "@orb/contracts/assets";
+import { ASSET_KIND_MEDIA, ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { AssetContentRejectedError } from "../contract/errors.ts";
 
@@ -74,12 +74,41 @@ function refuse(reason: string, detail: string, refusal?: AssetUploadRefusalCode
   throw new AssetContentRejectedError(reason, `assets.store: ${detail}`, refusal);
 }
 
-/** A picture-only kind admits only bytes whose signature is an accepted image, whatever they claim to be and
- *  whether or not the caller asked for the claim to be checked: every consumer draws them as a picture. */
-export function assertKindAdmits(bytes: Uint8Array, kind: AssetKind): void {
-  if (IMAGE_ONLY_ASSET_KINDS.some((imageOnly) => imageOnly === kind) && sniffMime(bytes) === OCTET_STREAM) {
-    refuse("it is not a PNG, JPEG, GIF or WebP image", `a ${kind} asset must be an image — no known image signature`, ASSET_UPLOAD_REFUSAL_CODES.notAnImage);
+// The medium the bytes are, by their signature; null for bytes that are none of the media.
+function mediaOf(bytes: Uint8Array): AssetMedia | null {
+  if (sniffMime(bytes) !== OCTET_STREAM) {
+    return "image";
   }
+  if (matchesAt(bytes, FTYP_OFFSET, FTYP_SIGNATURE) || startsWith(bytes, EBML_SIGNATURE)) {
+    return "video";
+  }
+  if (startsWith(bytes, PDF_SIGNATURE)) {
+    return "pdf";
+  }
+  if (startsWith(bytes, ZIP_SIGNATURE)) {
+    return "zip";
+  }
+  return isValidUtf8(bytes) ? "text" : null;
+}
+
+// How a refusal names each medium to the person.
+const MEDIA_NAMES = { image: "an image", video: "a video", pdf: "a PDF", zip: "a ZIP archive", text: "text" } as const satisfies Record<AssetMedia, string>;
+const MEDIA_LIST = new Intl.ListFormat("en", { type: "disjunction" });
+
+/** A kind admits only bytes whose signature is a medium its consumers render (`ASSET_KIND_MEDIA`), whatever they claim
+ *  to be and whether or not the caller asked for the claim to be checked. */
+export function assertKindAdmits(bytes: Uint8Array, kind: AssetKind): void {
+  const admitted: readonly AssetMedia[] = ASSET_KIND_MEDIA[kind];
+  const media = mediaOf(bytes);
+  if (media !== null && admitted.includes(media)) {
+    return;
+  }
+  const detail = `a ${kind} asset must be ${admitted.join(" or ") || "nothing"} — its bytes are ${media ?? "no known medium"}`;
+  if (admitted.length === 1 && admitted[0] === "image") {
+    refuse("it is not a PNG, JPEG, GIF or WebP image", detail, ASSET_UPLOAD_REFUSAL_CODES.notAnImage);
+  }
+  const reason = admitted.length === 0 ? "that kind of file is not stored" : `its contents are not ${MEDIA_LIST.format(admitted.map((m) => MEDIA_NAMES[m]))}`;
+  refuse(reason, detail, ASSET_UPLOAD_REFUSAL_CODES.wrongMedia);
 }
 
 /** True iff `bytes[offset..]` equals the given ASCII/byte signature (a short buffer simply fails to match). */
