@@ -19,7 +19,9 @@ import {
   createServerHarness,
   refuseWrites,
   seedCorpusConnections,
+  storeThenDamageBlob,
 } from "@orb/testkit/node/composed";
+import { magicBytes } from "@orb/testkit/node/helpers";
 import { eq } from "drizzle-orm";
 
 const CAPTION_REQUEST = "POST /v1/chat/completions";
@@ -192,6 +194,9 @@ test("an avatar whose stored file is gone fails alone: the rest embed and the ru
   ]);
 });
 
+// Fewer bytes than a PNG signature, so the sweep reads no image.
+const CUT_SIGNATURE_BYTES = 5;
+
 test("an avatar whose stored bytes are not a decodable image fails alone like a missing file, and the rest embed", async () => {
   await using lifetime = new AsyncDisposableStack();
   const { root, owner, assetIds } = await unindexedAvatars(1, lifetime);
@@ -199,8 +204,17 @@ test("an avatar whose stored bytes are not a decodable image fails alone like a 
   if (kept === undefined) {
     throw new Error("the case stores one good avatar");
   }
-  const corrupt = (await root.app.assets.store({ principal: owner, bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d]), mime: "image/png", kind: "avatar" }))
-    .assetId;
+  // A valid avatar whose file is cut to a few bytes on disk afterwards, as a sync tool or antivirus can leave it.
+  const bytes = magicBytes("png");
+  const stored = await storeThenDamageBlob(
+    root,
+    bytes,
+    () => root.app.assets.store({ principal: owner, bytes, mime: "image/png", kind: "avatar" }),
+    bytes.subarray(0, CUT_SIGNATURE_BYTES),
+  );
+  const corrupt = stored.assetId;
+  // Positive control: the store's own check finds the blob no longer matches its hash.
+  expect(await casOf(root).verify(owner.userId, stored.hash)).toBe(false);
 
   const result = await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() });
 
