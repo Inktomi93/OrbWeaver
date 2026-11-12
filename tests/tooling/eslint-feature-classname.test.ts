@@ -1,10 +1,14 @@
 // `orb/feature-classname-layout-only` and `orb/no-built-class-string`: a feature's className on a primitive holds only the plain-layout list, never
 // a class the primitive's own prop writes; paint is judged by the CSS a token compiles to; a client component takes no class; a class string is never built.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/tooling";
+import { pathToFileURL } from "node:url";
+import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { classOwners } from "../../tooling/src/eslint/ui-classes/class-owners.ts";
+import { loadUiSources } from "../../tooling/src/eslint/ui-classes/source.ts";
+import { componentTables } from "../../tooling/src/eslint/ui-classes/variant-tables.ts";
 import { levelOf, resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -12,6 +16,41 @@ const LAYOUT_RULE = "orb/feature-classname-layout-only";
 const BUILT_RULE = "orb/no-built-class-string";
 const FEATURE = "packages/client/src/features/a/control.tsx";
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
+
+type RecipeProps = Readonly<Record<string, string | boolean>>;
+type Recipe = (props: RecipeProps) => string;
+
+const TABLES = componentTables(ROOT, loadUiSources(ROOT));
+
+/**
+ * The one class the component's own `tv()` recipe writes for `props` and not for the bare component, which is the spelling the rule must
+ * map back to that prop. The recipe is the one the rule's reader found the component applying, called as the render calls it.
+ */
+async function recipeClass(door: string, component: string, props: RecipeProps): Promise<string> {
+  const [table, ...others] = TABLES.get(door)?.get(component)?.applied ?? [];
+  if (table === undefined || others.length > 0) {
+    throw new TypeError(`${component} does not apply exactly one recipe table`);
+  }
+  const recipe = ((await import(pathToFileURL(join(ROOT, table.file)).href)) as Readonly<Record<string, Recipe | undefined>>)[table.name];
+  if (recipe === undefined) {
+    throw new TypeError(`${table.file} exports no ${table.name}`);
+  }
+  const bare = recipe({}).split(/\s+/u);
+  const added = recipe(props)
+    .split(/\s+/u)
+    .filter((token) => !bare.includes(token));
+  const [only, ...rest] = added;
+  if (only === undefined || rest.length > 0) {
+    throw new RangeError(`${component} ${JSON.stringify(props)} writes ${added.length} classes the bare component does not: ${added.join(" ")}`);
+  }
+  return only;
+}
+
+const JUSTIFY_END = await recipeClass("layout", "Row", { justify: "end" });
+const CONTROL_MIN_BLOCK = await recipeClass("button", "Button", { minHeight: "control" });
+
+/** The sentence the rule gives a class a prop writes: the class and the prop and arm that own it. */
+const ownedBy = (token: string, prop: string, arm: string): string => `\`${token}\` is \`${prop}="${arm}"\``;
 
 beforeAll(async () => {
   await eslint.calculateConfigForFile(join(ROOT, FEATURE));
@@ -106,7 +145,7 @@ const PRIMITIVES = 'import { Row, Stack } from "@orb/ui/layout";\nimport { Text 
 const BOXES = 'import { Container, Grid, Row, Stack } from "@orb/ui/layout";\n';
 
 test.for([
-  ["a class a Row prop writes", `${PRIMITIVES}export const T = (<Row className="justify-end" />);\n`, '`justify-end` is `justify="end"`'],
+  ["a class a Row prop writes", `${PRIMITIVES}export const T = (<Row className="${JUSTIFY_END}" />);\n`, ownedBy(JUSTIFY_END, "justify", "end")],
   ["a class a boolean prop writes", `${PRIMITIVES}export const T = (<Text className="truncate" />);\n`, "`truncate` is `truncate={true}`"],
   [
     "a padding class on a Stack",
@@ -133,7 +172,11 @@ test.for([
     `${PRIMITIVES}export const T = (<Row className={cn("flex-wrap", open && "justify-between")} />);\n`,
     "`justify-between`",
   ],
-  ["an owned class in a local constant", `${PRIMITIVES}const ROW = "flex-wrap justify-end";\nexport const T = (<Row className={ROW} />);\n`, "`justify-end`"],
+  [
+    "an owned class in a local constant",
+    `${PRIMITIVES}const ROW = "flex-wrap ${JUSTIFY_END}";\nexport const T = (<Row className={ROW} />);\n`,
+    ownedBy(JUSTIFY_END, "justify", "end"),
+  ],
   [
     "a stack-below class a Row prop writes",
     `${PRIMITIVES}export const T = (<Row className="@max-cq-32:flex-col @max-cq-32:items-stretch" />);\n`,
@@ -141,10 +184,14 @@ test.for([
   ],
   [
     "an owned class on an aliased import",
-    'import { Row as Line } from "@orb/ui/layout";\nexport const T = (<Line className="justify-end" />);\n',
-    "`justify-end`",
+    `import { Row as Line } from "@orb/ui/layout";\nexport const T = (<Line className="${JUSTIFY_END}" />);\n`,
+    ownedBy(JUSTIFY_END, "justify", "end"),
   ],
-  ["an owned class on the element a carrier renders", `${PRIMITIVES}export const T = (<Track of={Row} className="justify-end" />);\n`, "`justify-end`"],
+  [
+    "an owned class on the element a carrier renders",
+    `${PRIMITIVES}export const T = (<Track of={Row} className="${JUSTIFY_END}" />);\n`,
+    ownedBy(JUSTIFY_END, "justify", "end"),
+  ],
   [
     "a width cap no arm writes, on a Stack",
     `${BOXES}export const T = (<Stack className="max-inline-(--width-popup-floor)" />);\n`,
@@ -183,9 +230,9 @@ test.for([
     "`wrap={true}`",
   ],
   [
-    "a size a Button's scale writes",
-    'import { Button } from "@orb/ui/button";\nexport const T = (<Button className="block-(--size-control-sm)" />);\n',
-    '`size="sm"`',
+    "a minimum height a Button's control scale writes",
+    `import { Button } from "@orb/ui/button";\nexport const T = (<Button className="${CONTROL_MIN_BLOCK}" />);\n`,
+    ownedBy(CONTROL_MIN_BLOCK, "minHeight", "control"),
   ],
   [
     "an inline size a Button's width writes",
@@ -279,7 +326,11 @@ test.for([
     "`className` on P",
   ],
   ["a hand class inside a carrier", 'export function Car({ of: P }) { return <P className="shrink-0" />; }\n', "`className` on P"],
-  ["a class in a plain object spread", `${PRIMITIVES}export const T = (<Row {...{ className: "justify-end" }} />);\n`, '`justify-end` is `justify="end"`'],
+  [
+    "a class in a plain object spread",
+    `${PRIMITIVES}export const T = (<Row {...{ className: "${JUSTIFY_END}" }} />);\n`,
+    ownedBy(JUSTIFY_END, "justify", "end"),
+  ],
   ["a parked box", `${PRIMITIVES}export const T = (<Row className="orb-out-of-flow" />);\n`, "`outOfFlow={true}`"],
   ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
   ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
@@ -293,6 +344,30 @@ test.for([
   const messages = await findings(LAYOUT_RULE, source);
   expect(messages).toHaveLength(1);
   expect(messages[0]).toContain(tokens);
+});
+
+// The cases above call the recipe that renders. The rule reads the same recipe as source text, so a table spelled in a way the reader
+// does not follow stops owning the class the render writes: the same lookup, over a table that spells the arm otherwise, shows the break.
+function plantedRowOwners(scratch: string, name: string, endClass: string): ReturnType<typeof classOwners> {
+  const root = plantDir(scratch, name);
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./layout": "./src/layout/index.ts" } }));
+  plantFile(
+    root,
+    "packages/ui/src/layout/variants.ts",
+    `export const rowVariants = tv({ variants: { justify: { start: "justify-start", end: "${endClass}" } } });`,
+  );
+  plantFile(
+    root,
+    "packages/ui/src/layout/components.tsx",
+    "export function Row({ justify, className }) {\n  return <div className={rowVariants({ justify, className })} />;\n}",
+  );
+  return classOwners(root);
+}
+
+test("a recipe respelled where the rule reads it, and not where the render runs it, no longer owns the class the render writes", ({ scratch }) => {
+  const owned = { axis: "row.justify", prop: "justify", arm: "end" };
+  expect(plantedRowOwners(scratch, "row-as-rendered", JUSTIFY_END)("layout", "Row", JUSTIFY_END, [])).toEqual(owned);
+  expect(plantedRowOwners(scratch, "row-respelled", `${JUSTIFY_END}-respelled`)("layout", "Row", JUSTIFY_END, [])).toBeNull();
 });
 
 // A step that writes the type tokens is reported twice: the type tokens as paint, and every class as the step's own.
@@ -323,7 +398,7 @@ test.for([
   ["a zero step of a family an axis chooses in", "Stack", "pe-0", "`pe-0`"],
   ["a zero block size", "Stack", "block-0", "`block-0`"],
   ["a class under a viewport variant", "Row", "md:justify-end", "`md:justify-end`"],
-  ["an owned class in a part's own class prop", "Row", "justify-end", "`justify-end`", "restClassName"],
+  ["an owned class in a part's own class prop", "Row", JUSTIFY_END, `\`${JUSTIFY_END}\``, "restClassName"],
   ["a position alone on a Row", "Row", "fixed", "fixed"],
   ["a pinned box on a Row", "Row", "sticky inset-bs-0", '`placed="pinned"`'],
   ["a pinned box on a Stack", "Stack", "sticky inset-bs-0", '`placed="pinned"`'],
