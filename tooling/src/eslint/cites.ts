@@ -60,16 +60,22 @@ const LINK = /\{@link(?:code|plain)?\s+(?:\*\s+)?([^}\s|]+)/gu;
 /** The sign that opens a section number, and the separator a section cite's token carries between doc and number. */
 export const SECTION_SIGN = "§";
 // A section of a Markdown doc: the doc as a path, a Markdown link or a bare stem (`Core-0`), then a run of section
-// numbers (`§3–§4`, `§3a/§10`). A stem is any word here; one that names no law doc ("the skill §5") cites nothing.
+// numbers (`§3–§4`, `§3a/§10`, `§4.1–4.2`). The doc may be possessive (`Core-0's §8`), followed by a comma
+// (`Spine-Testing.md, §9`) or by an opening parenthesis (`Core-0 (§8)`). An unsigned range end follows only an en
+// dash: `§10-2` names item 2 of §10 in some docs, so a hyphen never opens a second number. A stem that names no law
+// doc ("The skill §5") cites nothing; tests/tooling/doc/comment-path-citations.repo.int.test.ts refuses one that
+// opens several law doc names (`Spine`).
 const SECTION_NUMBER = String.raw`\d+(?:\.\d+)*[a-z]?`;
 const SECTION_DOC = String.raw`(?:[\w.+@-]+\/)*[\w-]+\.md`;
-const SECTION_STEM = String.raw`[A-Za-z][\w-]*[A-Za-z0-9]`;
-const SECTION_RUN = String.raw`${SECTION_SIGN} ?${SECTION_NUMBER}(?:\s*(?:[–/,-]|and|or)\s*${SECTION_SIGN} ?${SECTION_NUMBER})*`;
+// A stem opens with a capital or carries a hyphen: a plain lowercase word before a number ("plugin (§4.5b)") names no doc.
+// Bare alternatives: the stem is only ever spliced into the doc alternation's capture group.
+const SECTION_STEM = String.raw`[A-Z][\w-]*[A-Za-z0-9]|[a-z]\w*-[\w-]*[A-Za-z0-9]`;
+const SECTION_RUN = String.raw`${SECTION_SIGN} ?${SECTION_NUMBER}(?:\s*(?:[–/,-]|and|or)\s*${SECTION_SIGN} ?${SECTION_NUMBER}|\s*–\s*${SECTION_NUMBER})*`;
 const SECTION = new RegExp(
-  String.raw`(?<![\w./+@-])(?:\[[^[\]\n]*\]\((${SECTION_DOC})(?:#[^)\s]*)?\)|\x60?(${SECTION_DOC}|${SECTION_STEM})\x60?) ?(${SECTION_RUN})`,
+  String.raw`(?<![\w./+@-])(?:\[[^[\]\n]*\]\((${SECTION_DOC})(?:#[^)\s]*)?\)|\x60?(${SECTION_DOC}|${SECTION_STEM})\x60?)(?:['’]s)?,? ?\(?(${SECTION_RUN})`,
   "gu",
 );
-const SECTION_NUMBERS = new RegExp(`${SECTION_SIGN} ?(${SECTION_NUMBER})`, "gu");
+const SECTION_NUMBERS = new RegExp(`(?:${SECTION_SIGN} ?|–\\s*)(${SECTION_NUMBER})`, "gu");
 
 // One cite per number in the run, each `<doc>§<number>`.
 const sectionCites = (text: string): Cite[] =>

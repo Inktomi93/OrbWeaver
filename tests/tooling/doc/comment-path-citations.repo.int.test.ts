@@ -232,10 +232,19 @@ function sectionDoc(doc: string, citer: string, universe: Universe): string | un
   return named.find((path) => path.startsWith(LAW_DIR)) ?? only(named);
 }
 
-/** Whether a section cite's doc carries its number, or `undefined` when the doc spelling names no tracked doc. */
+/** Whether a stem opens the names of several law docs and names none whole (`Spine` before `Spine-Testing`). */
+const ambiguousStem = (stem: string, universe: Universe): boolean =>
+  !(stem.endsWith(MARKDOWN) || universe.lawDocs.has(stem)) && [...universe.lawDocs.keys()].filter((name) => name.startsWith(`${stem}-`)).length > 1;
+
+/** Whether a section cite's doc carries its number, or `undefined` when the doc spelling names no tracked doc. A stem that
+ *  opens several law docs is refused: the reader cannot tell which doc it cites. */
 function resolvesSection(token: string, citer: string, universe: Universe): boolean | undefined {
   const at = token.lastIndexOf(SECTION_SIGN);
-  const doc = sectionDoc(token.slice(0, at), citer, universe);
+  const spelling = token.slice(0, at);
+  if (ambiguousStem(spelling, universe)) {
+    return false;
+  }
+  const doc = sectionDoc(spelling, citer, universe);
   return doc === undefined ? undefined : universe.anchorsOf(doc).has(token.slice(at + SECTION_SIGN.length));
 }
 
@@ -617,13 +626,15 @@ describe("the reader", () => {
 
 describe("the cite resolver", () => {
   const lawPath = "docs/law/Law-Of-Things.md";
+  // A second law doc whose name opens with the same `Law-` stem, so `Law` alone names neither.
+  const siblingPath = "docs/law/Law-Book.md";
   // Numbered, lettered and aliased headings, a numbered list under heading 10, and a fenced `#` line that is no heading.
   const plantedLaw =
     "# Law\n\n## 3. Three\n\n## Dispatch (spine §7.5)\n\n## 10. Rules\n\n1. one\n2. two\n\n### 6a. Lettered\n\n```sh\n# 9. not a heading\n```\n";
   const universe: Universe = {
     tracked: {
-      paths: new Set(["tests/tooling/real.test.ts", "packages/x/src/real.ts", lawPath]),
-      basenames: new Set(["real.test.ts", "real.ts", basename(lawPath)]),
+      paths: new Set(["tests/tooling/real.test.ts", "packages/x/src/real.ts", lawPath, siblingPath]),
+      basenames: new Set(["real.test.ts", "real.ts", basename(lawPath), basename(siblingPath)]),
     },
     directories: directoriesOf(["tests/tooling/real.test.ts", "packages/x/src/real.ts"]),
     minted: new Set([141, 317]),
@@ -635,7 +646,10 @@ describe("the cite resolver", () => {
     biome: new Map([["style", new Set(["useNamingConvention"])]]),
     checkerNames: new Set(["tooling-cli-via-index", "real", "commented-code"]),
     symbols: new Set(["createRoot", "Root", "dispose"]),
-    lawDocs: new Map([[basename(lawPath, MARKDOWN), lawPath]]),
+    lawDocs: new Map([
+      [basename(lawPath, MARKDOWN), lawPath],
+      [basename(siblingPath, MARKDOWN), siblingPath],
+    ]),
     anchorsOf: (path) => (path === lawPath ? markdownAnchors(plantedLaw) : new Set()),
   };
   const comments = (path: string, text: string): CitingFile => ({
@@ -689,6 +703,24 @@ describe("the cite resolver", () => {
       "packages/x/src/a.ts:2 Law-Of-Things.md§4",
       "packages/x/src/a.ts:2 Law-Of-Things§9",
       "packages/x/src/a.ts:2 Law-Of-Things§10.3",
+    ]);
+  });
+
+  test("reads the possessive, parenthesized and comma spellings and an en-dash range end, and refuses an ambiguous stem", () => {
+    const file = comments(
+      "packages/x/src/a.ts",
+      [
+        "// Law-Of-Things's §3, Law-Of-Things (§7.5), Law-Of-Things.md, §6a and Law-Of-Things §10.1–10.2 hold.",
+        "// Law-Of-Things’s §4, Law-Of-Things (§9), Law-Of-Things.md, §5, Law-Of-Things §10.1–10.3 and Law §3 do not.",
+        "export {};",
+      ].join("\n"),
+    );
+    expect(deadCites([file], universe)).toStrictEqual([
+      "packages/x/src/a.ts:2 Law-Of-Things§4",
+      "packages/x/src/a.ts:2 Law-Of-Things§9",
+      "packages/x/src/a.ts:2 Law-Of-Things.md§5",
+      "packages/x/src/a.ts:2 Law-Of-Things§10.3",
+      "packages/x/src/a.ts:2 Law§3",
     ]);
   });
 
