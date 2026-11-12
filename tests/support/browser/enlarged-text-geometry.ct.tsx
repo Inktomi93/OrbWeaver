@@ -1,7 +1,7 @@
 // @subject tests/support/browser/enlarged-text-geometry.ts
 // The probe's planted cases: a control under the boot veil or a closed dialog's leaving backdrop is read once the layer has left, a backdrop
 // that never leaves fails the probe by its path, a control under a standing panel or an open dialog still fails, a scroller that scrolls sideways names the descendant that widens it,
-// a control's own value cut with an ellipsis fails while a list row title the design truncates does not, and an overlay both sides
+// a control's own value cut with an ellipsis fails while a list row title the design truncates does not, a title cut inside its reveal box is listed apart, and an overlay both sides
 // declare is named apart while every other overlay still fails: one side or neither declared, two relations, a control outside the pair's
 // parent, two controls of one declaring box, and a declaring box's control over a plain control beside the pair.
 import { expect, test } from "@playwright/test";
@@ -109,6 +109,15 @@ test("the probe fails a visible button label that is cut, though the label repea
   await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "label" });
   await expect(page.getByRole("button", { name: "Description", exact: true })).toBeVisible();
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(/^button "Description" has its value cut: /u)]);
+});
+
+test("the probe lists a title cut inside its reveal box apart, and still fails the same cut outside it", async ({ mount, page }) => {
+  await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "title" });
+  const label = page.getByRole("button", { name: "Description", exact: true });
+  await expect(label).toBeVisible();
+  const geometry = await enlargedTextGeometry(page.getByRole("main"));
+  expect(geometry.findings).toEqual([]);
+  expect(geometry.revealedTitleCuts).toEqual([expect.stringMatching(/^button "Description" has its value cut: /u)]);
 });
 
 const SIDEWAYS_STORY = "tests/support/browser/surface-design-fixtures/SurfaceSidewaysStory";

@@ -48,6 +48,9 @@ const SHOW_LIST_PANEL_NAME = panelEdgeName(LIST_PANEL_NOUN, false);
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
 const NARROW_TITLE = '.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title';
+// A title the row cuts becomes the button that opens it whole. It is the title, not one of the row's controls, so the controls' floor and
+// room are measured without it; a tap on it opening the whole title is proved in topbar-title-reveal.ct.tsx.
+const ROW_CONTROLS = '.shell-topbar button:not([data-slot="title-reveal"] *)';
 const NARROWEST = { width: 320, height: 800 } as const;
 // The row holds the lead control, the title floor and the doors inline at 390; at 320 the doors ride its menu.
 const PHONE_WIDTHS = [390] as const;
@@ -310,7 +313,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
     expect(lead?.width ?? 0).toBeGreaterThan(await touchTarget(page));
     expect((await title.boundingBox())?.width ?? 0).toBeGreaterThan(0);
     expect((lead?.x ?? 0) + (lead?.width ?? 0)).toBeLessThanOrEqual((trail?.x ?? 0) + 1);
-    const controls = await page.locator(".shell-topbar button").evaluateAll((elements) =>
+    const controls = await page.locator(ROW_CONTROLS).evaluateAll((elements) =>
       elements
         .filter((element) => element.checkVisibility())
         .map((element) => ({
@@ -803,7 +806,7 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
         .toEqual({ titleStep: true, largerThanBody: true, overflow: "ellipsis", contained: true });
       await expect(page.locator(".shell-topbar-title:visible")).toHaveCount(1);
       const floor = await touchTarget(page);
-      const controls = await page.locator(".shell-topbar button:visible").evaluateAll((elements) =>
+      const controls = await page.locator(`${ROW_CONTROLS}:visible`).evaluateAll((elements) =>
         elements.map((element) => {
           const rect = element.getBoundingClientRect();
           return { width: rect.width, height: rect.height, right: rect.right };

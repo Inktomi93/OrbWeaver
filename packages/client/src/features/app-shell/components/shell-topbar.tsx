@@ -10,6 +10,7 @@ import { ChevronLeft, Icon, PanelLeftClose, PanelLeftOpen } from "@orb/ui/icons"
 import { Heading, Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, Ref } from "react";
+import { CUT_PART, TitleReveal } from "#components";
 import type { ScreenTitle } from "#lib";
 import { censusSuffix, cn, screenListDoorName, screenOverviewDoorName } from "#lib";
 import type { PanelMode } from "#state";
@@ -127,29 +128,36 @@ function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mob
 /** Both identity arms share the page-title display step, distinct from editable body text without enlarging adjacent chrome. */
 function TopbarTitle({ shellLine = false, children }: { readonly shellLine?: boolean; readonly children: ReactNode }): ReactElement {
   return (
-    <Text className={shellLine ? "shell-topbar-title" : ""} truncate={shellLine} voice="masthead">
+    <Text className={shellLine ? "shell-topbar-title" : ""} {...CUT_PART} truncate={shellLine} voice="masthead">
       {children}
     </Text>
   );
 }
 
 /** The NARROW identity's screen name. A census sits beside the name as its own part: the name is the title's floor, so the
- *  trail folds before the name is cut, and the census is what the row drops first, whole (`chrome.css`). */
+ *  trail folds before the name is cut, and the census is what the row drops first, whole (`chrome.css`). A name the row still
+ *  cuts is the control that opens it whole, because a phone has no hover and the name is all the title there is. */
 function ScreenName({ title }: { readonly title: ScreenTitle }): ReactElement {
   if (title.census === undefined) {
-    return <TopbarTitle shellLine={true}>{title.name}</TopbarTitle>;
+    return (
+      <TitleReveal fill={true} whole={title.name}>
+        <TopbarTitle shellLine={true}>{title.name}</TopbarTitle>
+      </TitleReveal>
+    );
   }
   return (
-    <Text as="div" className="shell-topbar-title" data-census="" voice="masthead">
-      <Text as="span" className="shell-topbar-title-name" truncate={true} voice="masthead">
-        {title.name}
-      </Text>
-      <Text as="span" className="shell-topbar-title-census" voice="masthead">
-        <Text as="span" voice="masthead">
-          {censusSuffix(title.census)}
+    <TitleReveal fill={true} whole={title.name}>
+      <Text as="div" className="shell-topbar-title" data-census="" voice="masthead">
+        <Text as="span" className="shell-topbar-title-name" {...CUT_PART} truncate={true} voice="masthead">
+          {title.name}
+        </Text>
+        <Text as="span" className="shell-topbar-title-census" voice="masthead">
+          <Text as="span" voice="masthead">
+            {censusSuffix(title.census)}
+          </Text>
         </Text>
       </Text>
-    </Text>
+    </TitleReveal>
   );
 }
 

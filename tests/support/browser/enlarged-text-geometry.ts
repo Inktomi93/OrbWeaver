@@ -27,6 +27,9 @@ const TRUNCATED_BY_DESIGN = [
   '[data-slot="member-name"]',
   '[data-slot="facet-preview"]',
 ].join(", ");
+// A title in a one-line chrome bar may be cut only inside the box that also opens its whole text. The probe lists such a cut apart, so a
+// walk reads which titles the design reveals, and a cut title outside the box is still a finding.
+const REVEALED_TITLE = '[data-slot="title-reveal"]';
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *, [data-sideways-strip]';
 
 interface ControlGeometry {
@@ -264,8 +267,8 @@ function cutOffText(subject: Element, { subpixel }: { readonly subpixel: number 
  */
 function cutControlValues(
   subject: Element,
-  { reachable, byDesign, subpixel }: { readonly reachable: string; readonly byDesign: string; readonly subpixel: number },
-): string[] {
+  { reachable, byDesign, revealed, subpixel }: { readonly reachable: string; readonly byDesign: string; readonly revealed: string; readonly subpixel: number },
+): { readonly cuts: string[]; readonly revealedCuts: string[] } {
   const paintsText = (element: Element): boolean =>
     element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
       ? element.value !== ""
@@ -276,18 +279,22 @@ function cutControlValues(
     return clips && style.textOverflow === "ellipsis" && element.scrollWidth > element.clientWidth + subpixel && paintsText(element);
   };
   const nameOf = (control: Element): string => (control.getAttribute("aria-label") ?? control.textContent).trim().slice(0, 40);
-  return [...subject.querySelectorAll(reachable)]
+  const found = [...subject.querySelectorAll(reachable)]
     .filter((control) => control.checkVisibility({ visibilityProperty: true }) && control.closest("[inert]") === null)
     .flatMap((control) => {
       const descriptions = (control.getAttribute("aria-describedby") ?? "").split(/\s+/u).flatMap((id) => document.getElementById(id) ?? []);
       const isValue = (element: Element): boolean => element.closest(byDesign) === null && !descriptions.some((description) => description.contains(element));
       return [control, ...control.querySelectorAll("*")]
         .filter((element) => element.checkVisibility({ visibilityProperty: true }) && isValue(element) && cut(element))
-        .map(
-          (element) =>
-            `${control.tagName.toLowerCase()} "${nameOf(control)}" has its value cut: ${element.tagName.toLowerCase()} ${element.scrollWidth}/${element.clientWidth}`,
-        );
+        .map((element) => ({
+          line: `${control.tagName.toLowerCase()} "${nameOf(control)}" has its value cut: ${element.tagName.toLowerCase()} ${element.scrollWidth}/${element.clientWidth}`,
+          reveals: element.closest(revealed) !== null,
+        }));
     });
+  return {
+    cuts: found.filter(({ reveals }) => !reveals).map(({ line }) => line),
+    revealedCuts: found.filter(({ reveals }) => reveals).map(({ line }) => line),
+  };
 }
 
 // How far one box or run of text overshoots its scroller's end edge, found at a structural path from the scroller.
@@ -397,6 +404,8 @@ export interface EnlargedTextGeometry {
   readonly findings: readonly string[];
   /** Each declared pair, with the relation that declares it; never a finding. */
   readonly declaredOverlays: readonly string[];
+  /** Each control value cut inside a title whose box also opens its whole text; never a finding. */
+  readonly revealedTitleCuts: readonly string[];
 }
 
 // Each leaving part as a structural path from the body, so a failure names it without carrying the owner's text.
@@ -446,10 +455,19 @@ export async function enlargedTextGeometry(scope: Locator): Promise<EnlargedText
     relation: OVERLAY_RELATION_ATTRIBUTE,
   });
   const text = await scope.evaluate(cutOffText, { subpixel: LAYOUT_SUBPIXEL_PX });
-  const values = await scope.evaluate(cutControlValues, { reachable: REACHABLE, byDesign: TRUNCATED_BY_DESIGN, subpixel: LAYOUT_SUBPIXEL_PX });
+  const values = await scope.evaluate(cutControlValues, {
+    reachable: REACHABLE,
+    byDesign: TRUNCATED_BY_DESIGN,
+    revealed: REVEALED_TITLE,
+    subpixel: LAYOUT_SUBPIXEL_PX,
+  });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: LAYOUT_SUBPIXEL_PX });
   const collapsed = await scope.evaluate(collapsedScrollers, { subpixel: LAYOUT_SUBPIXEL_PX });
-  return { findings: [...controls.clipped, ...controls.overlaps, ...text, ...values, ...columns, ...collapsed], declaredOverlays: controls.declared };
+  return {
+    findings: [...controls.clipped, ...controls.overlaps, ...text, ...values.cuts, ...columns, ...collapsed],
+    declaredOverlays: controls.declared,
+    revealedTitleCuts: values.revealedCuts,
+  };
 }
 
 /** Every enlarged-text geometry finding inside `scope`; an empty list is a clean scope. */

@@ -1287,6 +1287,15 @@ const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/
 // Exact DOM-boundary calls; additional calls in these files remain findings.
 export const DOM_LOOKUP_HOMES = [
   {
+    file: "packages/client/src/components/use-is-cut.ts",
+    function: "useIsCut/parts",
+    method: "querySelectorAll",
+    receiver: "root",
+    selector: "[data-cut-part]",
+    reason:
+      "A title's cut text is whichever parts its caller marked inside the box, and the box reads them all to know whether the title is cut; a part publishes no handle to the box",
+  },
+  {
     file: "packages/client/src/components/overflow-actions.tsx",
     function: "firstControlIn",
     method: "querySelector",

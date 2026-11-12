@@ -6,7 +6,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
-import { Container, Row, Stack, Surface } from "@orb/ui/layout";
+import { Container, Contents, Row, Stack, Surface } from "@orb/ui/layout";
 import { declaresOverlay } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { MessageBubble } from "@orb/ui/message-bubble";
@@ -430,8 +430,8 @@ const CUT_TITLE = "Calamity, Doomblade of the Ninth Epoch, Keeper of the Orbital
 /**
  * A text-cut case in a box of the given width: a picker whose value is wider than its trigger (`value`, with `wraps` the arm that wraps it), the
  * same picker in a list row's actions (`action`), a list row whose title is wider than the row (`row`), a button whose preview line carries the
- * facet-preview slot (`preview`), or a button whose visible label is cut with no such slot (`label`). A picker and a label are a control's own
- * text; the row title and the declared preview are design.
+ * facet-preview slot (`preview`), a button whose visible label is cut with no such slot (`label`), or that button inside a title-reveal box (`title`).
+ * A picker and a label are a control's own text; the row title, the declared preview and a title that opens its whole text are design.
  */
 export function SurfaceCutValueStory({
   width,
@@ -439,7 +439,7 @@ export function SurfaceCutValueStory({
   wraps,
 }: {
   readonly width: number;
-  readonly cut: "value" | "action" | "row" | "preview" | "label";
+  readonly cut: "value" | "action" | "row" | "preview" | "label" | "title";
   readonly wraps?: boolean;
 }): ReactElement {
   const picker = <Select aria-label="Connection" items={[{ label: CUT_VALUE, value: "same" }]} layout={wraps === true ? "hugWrap" : "hug"} value="same" />;
@@ -460,6 +460,15 @@ export function SurfaceCutValueStory({
           {CUT_TITLE}
         </Text>
       </Button>
+    ),
+    title: (
+      <Contents data-slot="title-reveal">
+        <Button aria-label="Description" className="min-inline-0" variant="outline" width="full" wrap={true}>
+          <Text aria-hidden={true} as="span" className="min-inline-0" truncate={true}>
+            {CUT_TITLE}
+          </Text>
+        </Button>
+      </Contents>
     ),
   };
   return (

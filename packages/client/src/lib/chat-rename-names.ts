@@ -10,9 +10,14 @@ export const CHAT_NAME_FIELD_NAME = "Chat name";
 /** The rename dialog's title field. */
 export const CHAT_TITLE_FIELD_NAME = "Chat title";
 
-/** The stable head of the topbar title button's name: the verb, then who the room is with and the room's own name. A spec locates the button by this head, since the date after it changes. */
+/** The topbar title's whole text: who the room is with, then the room's own name. The one spelling the rename button's name and the cut title's reveal both print. */
+export function chatTitleWhole(label: string, roomName: string | null): string {
+  return `${label}${roomName === null ? "" : `, ${roomName}`}`;
+}
+
+/** The stable head of the topbar title button's name: the verb, then the title's whole text. A spec locates the button by this head, since the date after it changes. */
 export function renameChatButtonIdentity(label: string, roomName: string | null): string {
-  return `${RENAME_CHAT_NAME}: ${label}${roomName === null ? "" : `, ${roomName}`}`;
+  return `${RENAME_CHAT_NAME}: ${chatTitleWhole(label, roomName)}`;
 }
 
 /** The topbar title button's name: its identity, then the date it shows (WCAG 2.5.3: the whole visible label is in the name). */
