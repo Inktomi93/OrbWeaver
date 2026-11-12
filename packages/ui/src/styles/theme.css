@@ -374,6 +374,8 @@
   --tracking-micro: 0.08em;
   --dimension-composer-field-min: 12ch;
   --spacing-indent: round(down, min(var(--spacing-block), 4dvw), 1px);
+  --spacing-inset-block: round(down, min(var(--spacing-block), max(4dvw, 12px)), 1px);
+  --spacing-inset-section: round(down, min(var(--spacing-section), max(8dvw, 24px)), 1px);
   --dimension-shell-title-floor: 6ch;
   --dimension-shell-notice-cap: min(14rem, 30dvh);
   --shadow-shell-over-art: 0 1px 3px light-dark(transparent, var(--color-backdrop));
@@ -953,6 +955,8 @@
     --spacing-picker-gap: round(down, min(var(--spacing-row), max(2dvw, 8px)), 1px);
     --spacing-title-separator: calc(var(--spacing-row) - var(--spacing-field));
     --spacing-indent: round(down, min(var(--spacing-block), 4dvw), 1px);
+    --spacing-inset-block: round(down, min(var(--spacing-block), max(4dvw, 12px)), 1px);
+    --spacing-inset-section: round(down, min(var(--spacing-section), max(8dvw, 24px)), 1px);
     --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
     --size-dialog-footer-clear: calc(var(--size-control-lg) + var(--spacing-field));
     --size-room-island-inset-narrow: calc(var(--spacing-field) - var(--spacing-tight));

@@ -9,7 +9,7 @@ export function SuggestionActionGroupsStory({ width, appearance }: { readonly wi
     <CtClientProviders>
       <CtAppearanceChannels settings={appearance}>
         <Container aria-label="Suggestion action host" role="group" style={{ inlineSize: width }}>
-          <Stack className="px-section">
+          <Stack paddingInline="section">
             <CtUserBus>{labelsCorpusMode.content()}</CtUserBus>
           </Stack>
         </Container>

@@ -69,13 +69,14 @@ const PADDING = {
 } as const;
 // One axis of the same ramp: `paddingInline` writes `px-*` and `paddingBlock` writes `py-*`. `tight` is the atom inset
 // of a small island (a diagram's margin, a divider's side room); the narrow arms below step a roomy inset down for a pane
-// too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it.
+// too tight to spend it. Each class is a whole literal so Tailwind's scanner sees it. The `block` and `section` insets are held to a share
+// of the screen, so a phone at enlarged text keeps the width between them for the text; at the default size they are the steps.
 const PADDING_INLINE = {
   tight: "px-tight",
   field: "px-field",
   row: "px-row",
-  block: "px-block",
-  section: "px-section",
+  block: "px-inset-block",
+  section: "px-inset-section",
   gutter: "px-gutter",
 } as const;
 const PADDING_BLOCK = {
@@ -157,10 +158,11 @@ const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
 // A box laid over content that takes no pointer itself: clicks fall through to what lies under it, and only a child that asks for the pointer takes it.
 // A capped box centres in the room its cap leaves.
 // A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
-// pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed.
+// pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed; `section` crosses the held inset
+// `paddingInline="section"` writes, so a bleed ends on the parent's edge at enlarged text too.
 const REACH = {
   row: "-mx-row px-row",
-  section: "-mx-section px-section",
+  section: "-mx-inset-section px-inset-section",
 } as const;
 // A Row's own reach. `column` and `page` cross the two reading boxes' insets, from the one table that lays those insets, phone step
 // included. `header` and `foot` cross a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps
@@ -581,8 +583,8 @@ export const gridVariants = tv({
     // The two axes of a grid are different jobs: `gapInline` separates its columns and `gapBlock` its rows.
     gapInline: { row: "gap-x-row", block: "gap-x-block" },
     gapBlock: { tight: "gap-y-tight", field: "gap-y-field" },
-    // A snapping track keeps its edge item clear of the scrollport's edge.
-    scrollInset: { section: "scroll-px-section" },
+    // A snapping track keeps its edge item clear of the scrollport's edge, by the same held inset its `section` reach crosses.
+    scrollInset: { section: "scroll-px-inset-section" },
     cap: CAP,
     width: WIDTH,
     paddingInline: PADDING_INLINE,

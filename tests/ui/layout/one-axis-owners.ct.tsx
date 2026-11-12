@@ -1,4 +1,5 @@
-import { resolvedLength } from "@orb/testkit/browser/spec";
+import { resolvedLength, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName } from "@orb/testkit/ct";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -6,6 +7,18 @@ import type { OneAxisOwnersStory } from "./_one-axis-owners-stories.tsx";
 
 const STORY = "tests/ui/layout/_one-axis-owners-stories/OneAxisOwnersStory";
 const BOX_PX = 120;
+// The block and section insets hold against the screen at enlarged text: a phone keeps its width for the text, while the default size and a
+// desktop keep the step. Each viewport is a width the shell runs at.
+const ENLARGED = 3;
+const HELD_INSETS = [
+  { probe: "stack-inline", reference: "ref-block" },
+  { probe: "stack-inline-section", reference: "ref-section" },
+] as const;
+const INSET_VIEWPORTS = [
+  { name: "narrow phone", size: { width: 320, height: 568 }, holds: true },
+  { name: "phone", size: { width: 390, height: 844 }, holds: true },
+  { name: "desktop", size: { width: 1440, height: 900 }, holds: false },
+] as const;
 
 interface Padding {
   readonly inline: readonly [string, string];
@@ -40,6 +53,27 @@ test.describe("paddingInline and paddingBlock", () => {
     expect(row.block).toEqual((await paddingOf(component.locator('[data-probe="ref-row"]'))).block);
     expect(row.inline).toEqual(["0px", "0px"]);
   });
+
+  for (const viewport of INSET_VIEWPORTS) {
+    test.describe(`on the ${viewport.name}`, () => {
+      test.use({ viewport: viewport.size, hasTouch: viewport.holds, isMobile: viewport.holds });
+
+      test("the block and section insets are the step at the default size, and hold against the screen at enlarged text", async ({ mount, page }) => {
+        const component = await mount<typeof OneAxisOwnersStory>(STORY);
+        const read = async (probe: string): Promise<readonly [string, string]> => (await paddingOf(component.locator(`[data-probe="${probe}"]`))).inline;
+        const atDefault = await Promise.all(HELD_INSETS.map(async ({ probe, reference }) => ({ held: await read(probe), step: await read(reference) })));
+        expect(atDefault.map(({ held }) => held)).toEqual(atDefault.map(({ step }) => step));
+        await setRootFontScale(page, channelName("fontScale"), ENLARGED);
+        const enlarged = await Promise.all(HELD_INSETS.map(async ({ probe, reference }) => ({ held: await read(probe), step: await read(reference) })));
+        const px = (value: readonly [string, string]): number => Number.parseFloat(value[0]);
+        // The steps grew with the text, so each comparison is against an enlarged step; a held inset never drops below its default size.
+        expect(enlarged.map(({ step }, index) => px(step) / px(atDefault[index]?.step ?? ["0px", "0px"]))).toEqual(HELD_INSETS.map(() => ENLARGED));
+        expect(
+          enlarged.map(({ held, step }, index) => ({ belowStep: px(held) < px(step), keepsDefault: px(held) >= px(atDefault[index]?.held ?? ["0px", "0px"]) })),
+        ).toEqual(HELD_INSETS.map(() => ({ belowStep: viewport.holds, keepsDefault: true })));
+      });
+    });
+  }
 
   test("an axis prop overrides the all-sides step on its own axis only", async ({ mount }) => {
     const component = await mount<typeof OneAxisOwnersStory>(STORY);

@@ -108,16 +108,20 @@ const BOXES = 'import { Container, Grid, Row, Stack } from "@orb/ui/layout";\n';
 test.for([
   ["a class a Row prop writes", `${PRIMITIVES}export const T = (<Row className="justify-end" />);\n`, '`justify-end` is `justify="end"`'],
   ["a class a boolean prop writes", `${PRIMITIVES}export const T = (<Text className="truncate" />);\n`, "`truncate` is `truncate={true}`"],
-  ["a padding class on a Stack", `${PRIMITIVES}export const T = (<Stack className="px-section" />);\n`, '`px-section` is `paddingInline="section"`'],
+  [
+    "a padding class on a Stack",
+    `${PRIMITIVES}export const T = (<Stack className="px-inset-section" />);\n`,
+    '`px-inset-section` is `paddingInline="section"`',
+  ],
   [
     "a class that beats a later axis's class, which the prop's place in the recipe settles",
-    `${PRIMITIVES}export const T = (<Stack artDecoration={art} className="px-section" />);\n`,
-    '`px-section` is `paddingInline="section"`',
+    `${PRIMITIVES}export const T = (<Stack artDecoration={art} className="px-inset-section" />);\n`,
+    '`px-inset-section` is `paddingInline="section"`',
   ],
   [
     "a class that conflicts with another in the same className",
-    `${PRIMITIVES}export const T = (<Stack className="px-section px-block" />);\n`,
-    '`px-block` is `paddingInline="block"`',
+    `${PRIMITIVES}export const T = (<Stack className="px-inset-section px-inset-block" />);\n`,
+    '`px-inset-block` is `paddingInline="block"`',
   ],
   [
     "a responsive inset the narrow padding props write",
@@ -279,7 +283,7 @@ test.for([
   ["a parked box", `${PRIMITIVES}export const T = (<Row className="orb-out-of-flow" />);\n`, "`outOfFlow={true}`"],
   ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
   ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
-  ["a bleed the reach prop pays back", `${BOXES}export const T = (<Stack className="-mx-section" />);\n`, "`-mx-section` is `reach="],
+  ["a bleed the reach prop pays back", `${BOXES}export const T = (<Stack className="-mx-inset-section" />);\n`, "`-mx-inset-section` is `reach="],
   [
     "the name row's reach to a card's edges, in a constant",
     `${BOXES}const REACH = "-ms-(--row-reach-left) ps-(--row-reach-left) -me-(--row-reach-right) pe-(--row-reach-right)";\nexport const T = (<Row className={REACH} />);\n`,

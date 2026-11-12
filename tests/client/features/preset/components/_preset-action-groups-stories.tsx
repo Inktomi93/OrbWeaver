@@ -21,7 +21,7 @@ export function PresetActionGroupsStory(props: PresetActionProps): ReactElement 
       <CtAppearanceChannels settings={props.appearance}>
         <Container aria-label="Preset action host" className="h-screen" role="group" style={{ inlineSize: props.width }}>
           {props.subject === "editor" ? (
-            <Stack className="px-section block-full min-block-0">
+            <Stack className="block-full min-block-0" paddingInline="section">
               <PresetEditorSurface presetId={props.presetId} />
             </Stack>
           ) : null}
