@@ -14,6 +14,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { SATELLITES_TO_BODY_FONT_SCALE } from "#client/features/rpg/lib/context-layout.ts";
 import type { RpgRoomStory } from "./_own-key-panels-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgRoomStory";
@@ -30,9 +31,6 @@ const D119A_CHROME_SHARE = {
 } as const;
 // The app's top font scale (the appearance schema's upper bound).
 const TOP_FONT_SCALE = 1.5;
-// The font scale at which the satellite row and the date line leave the band for the tab body (`SATELLITES_TO_BODY_FONT_SCALE`
-// in packages/client/src/features/rpg/hooks/use-rpg-context-state.ts, not exported).
-const BODY_HOME_FONT_SCALE = 1.25;
 // 30vw of 1600 is the 30rem pane of D119a's reference; 1024x768 is the small desktop window.
 const REFERENCE = { width: 1600, height: 900 } as const;
 const SMALL_DESKTOP = { width: 1024, height: 768 } as const;
@@ -50,8 +48,8 @@ const CELLS: readonly Cell[] = [
   { name: "ambient set at the reference geometry", viewport: REFERENCE, fontScale: 1, set: true },
   { name: "ambient unset at the reference geometry", viewport: REFERENCE, fontScale: 1, set: false },
   { name: "ambient set at the top font scale on a small desktop window", viewport: SMALL_DESKTOP, fontScale: TOP_FONT_SCALE, set: true },
-  { name: "ambient set at the body-home font scale at the reference geometry", viewport: REFERENCE, fontScale: BODY_HOME_FONT_SCALE, set: true },
-  { name: "ambient set at the body-home font scale on a small desktop window", viewport: SMALL_DESKTOP, fontScale: BODY_HOME_FONT_SCALE, set: true },
+  { name: "ambient set at the body-home font scale at the reference geometry", viewport: REFERENCE, fontScale: SATELLITES_TO_BODY_FONT_SCALE, set: true },
+  { name: "ambient set at the body-home font scale on a small desktop window", viewport: SMALL_DESKTOP, fontScale: SATELLITES_TO_BODY_FONT_SCALE, set: true },
 ];
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -110,7 +108,7 @@ for (const cell of CELLS) {
       const header = page.locator('[data-slot="rpg-takeover-header"]');
       await expect(header.locator('[data-slot="waystone"]')).toBeVisible();
       // The satellite row and the date line leave the band for the tab body at the top font scale, so the cell measures the band that scale leaves.
-      const inBand = cell.fontScale < BODY_HOME_FONT_SCALE ? 1 : 0;
+      const inBand = cell.fontScale < SATELLITES_TO_BODY_FONT_SCALE ? 1 : 0;
       await expect(header.locator('[data-slot="ring-gauge-label"]')).toHaveCount(inBand);
       await expect(header.locator('[data-slot="coin-figure-label"]')).toHaveCount(inBand);
       await expect(header.locator('[data-slot="rpg-band-when-context"]')).toHaveCount(cell.set ? inBand : 0);
