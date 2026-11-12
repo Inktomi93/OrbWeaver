@@ -132,6 +132,24 @@ type PendingBridge =
 
 const runtimes = new Map<string, Runtime>();
 const shares = new PluginIpcShares();
+// What still keeps a runtime's share from the next runtime: its Worker, until it exits and can send nothing more, and
+// the parent, until it forgets the runtime on its last frame. Each hop is in order, so by then every frame charged to the
+// share has crossed every hop, and the next holder inherits no bytes (D348).
+const SHARE_HOLDERS = ["worker", "parent"] as const;
+type ShareHolder = (typeof SHARE_HOLDERS)[number];
+const shareHolds = new Map<string, Set<ShareHolder>>();
+
+function dropShareHold(runtimeId: string, holder: ShareHolder): void {
+  const holds = shareHolds.get(runtimeId);
+  if (holds === undefined) {
+    return;
+  }
+  holds.delete(holder);
+  if (holds.size === 0) {
+    shareHolds.delete(runtimeId);
+    shares.release(runtimeId);
+  }
+}
 const pendingBridge = new Map<string, PendingBridge>();
 let physicalWorkerCount = 0;
 let peakPhysicalWorkers = 0;
@@ -234,15 +252,13 @@ async function terminateRuntime(runtimeId: string): Promise<void> {
   }
 }
 
-// Once its Worker has exited a runtime sends nothing more, so its share passes to the next runtime created, with
-// whatever of its frames are still queued.
 function releaseWorkerSlot(runtimeId: string, runtime: Runtime): void {
   if (!runtime.counted) {
     return;
   }
   runtime.counted = false;
   physicalWorkerCount -= 1;
-  shares.release(runtimeId);
+  dropShareHold(runtimeId, "worker");
 }
 
 function terminateDetached(worker: Worker): void {
@@ -387,6 +403,7 @@ function createRuntime(runtimeId: string): Runtime {
     expectedExit: false,
     counted: true,
   };
+  shareHolds.set(runtimeId, new Set(SHARE_HOLDERS));
   physicalWorkerCount += 1;
   peakPhysicalWorkers = Math.max(peakPhysicalWorkers, physicalWorkerCount);
   runtimes.set(runtimeId, runtime);
@@ -555,6 +572,10 @@ function handleParentMessage(message: ParentBrokerMessage): void {
     if (target?.kind === "async") {
       target.worker.postMessage(message satisfies BrokerWorkerMessage);
     }
+    return;
+  }
+  if (message.kind === "runtime-forgotten") {
+    dropShareHold(message.runtimeId, "parent");
     return;
   }
   if (message.kind === "end-runtime") {

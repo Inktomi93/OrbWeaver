@@ -302,10 +302,15 @@ function createLiveness(): MutableLiveness {
 }
 
 // The app's live runtimes by id, each holding its share of the queues the app sends on from registration until it is
-// forgotten (D348).
+// forgotten (D348). Forgetting one tells the broker, which holds the runtime's own share until then.
 class RuntimeRegistry {
   private readonly bindings = new Map<string, Binding>();
   private readonly shares = new PluginIpcShares();
+  private readonly forgotten: (runtimeId: string) => void;
+
+  constructor(forgotten: (runtimeId: string) => void) {
+    this.forgotten = forgotten;
+  }
 
   get(runtimeId: string): Binding | undefined {
     return this.bindings.get(runtimeId);
@@ -321,8 +326,11 @@ class RuntimeRegistry {
   }
 
   delete(runtimeId: string): void {
-    this.bindings.delete(runtimeId);
+    if (!this.bindings.delete(runtimeId)) {
+      return;
+    }
     this.shares.release(runtimeId);
+    this.forgotten(runtimeId);
   }
 
   values(): MapIterator<Binding> {
@@ -335,7 +343,7 @@ class RuntimeRegistry {
 }
 
 class BrokerClient {
-  readonly bindings = new RuntimeRegistry();
+  readonly bindings = new RuntimeRegistry((runtimeId) => this.releaseBrokerShare(runtimeId));
   readonly logicalBindings = new Set<Binding>();
   private readonly seams: PluginHostSeamDeps;
   private readonly timers: TimerScheduler;
@@ -594,6 +602,22 @@ class BrokerClient {
     this.sender?.close();
     this.managedChild?.kill("SIGTERM");
     this.onDisconnect(this.halted);
+  }
+
+  // The broker's share for a runtime passes on once this host forgets the runtime, so the notice goes out before any
+  // command the freed Worker lets through, on the same ordered channel. A lost connection forgets with its broker.
+  private releaseBrokerShare(runtimeId: string): void {
+    const sender = this.sender;
+    const generation = this.generation;
+    if (sender === undefined || generation === undefined) {
+      return;
+    }
+    try {
+      sender.send({ kind: "frame", generation, frame: serializeMessage({ kind: "runtime-forgotten", runtimeId }) });
+      // a channel that cannot carry this control frame cannot carry any: stopConnection ends it, as every other send failure does. Ends if the channel gains another failure owner.
+    } catch (error) {
+      this.stopConnection(error instanceof Error ? error : unavailableError());
+    }
   }
 
   // Each owner's plugins whose runtimes are on the broker now: those registered and already sent a command.
