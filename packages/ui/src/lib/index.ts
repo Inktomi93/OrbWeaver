@@ -96,4 +96,4 @@ export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts"
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export { type ToneStamp, type VariantStampProps, variantAttrs, variantProps } from "./variant-attrs.ts";
 export { assertBoundedScrollHeight, type GapToken, gapPxFor, UnboundedScrollHeightError } from "./virtual-gap.ts";
-export { CAP, CENTRED, HEIGHT, MAX_HEIGHT, MIN_HEIGHT, MIN_WIDTH, PICTURE_SIZE, WIDTH } from "./width.ts";
+export { CAP, CENTRED, HEIGHT, MAX_HEIGHT, MIN_HEIGHT, MIN_WIDTH, PICTURE_SIZE, TITLE_FLOOR, WIDTH } from "./width.ts";

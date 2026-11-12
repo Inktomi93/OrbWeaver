@@ -11,6 +11,34 @@ interface TitleFit {
   readonly qualifierWhole: boolean;
 }
 
+/** How far one `ListRow`'s title reaches: how far its box ends past its row's inline end, and whether it keeps the least width it is owed
+ *  (the smaller of the title floor, its own text and the title line). Any row, qualified or not. */
+interface TitleReach {
+  readonly pastRowBy: number;
+  readonly nameKeepsItsFloor: boolean;
+}
+
+/** @param floorPx - the title floor token resolved to px under the page's font setting. */
+export function titleReach(row: Locator, floorPx: number): Promise<TitleReach> {
+  return row.evaluate(
+    (root, { floor, subpixel }) => {
+      const title = root.querySelector<HTMLElement>('[data-slot="list-row-title"]');
+      const line = root.querySelector<HTMLElement>('[data-slot="list-row-title-row"]');
+      if (title === null || line === null) {
+        throw new Error("list row has no title or title line");
+      }
+      const titleBox = title.getBoundingClientRect();
+      const text = document.createRange();
+      text.selectNodeContents(title);
+      return {
+        pastRowBy: Math.max(0, Math.round(titleBox.right - root.getBoundingClientRect().right)),
+        nameKeepsItsFloor: titleBox.width >= Math.min(floor, text.getBoundingClientRect().width, line.getBoundingClientRect().width) - subpixel,
+      };
+    },
+    { floor: floorPx, subpixel: LAYOUT_SUBPIXEL_PX },
+  );
+}
+
 /** @param floorPx - the title floor token resolved to px under the page's font setting. */
 export function titleFit(row: Locator, floorPx: number): Promise<TitleFit> {
   return row.evaluate(

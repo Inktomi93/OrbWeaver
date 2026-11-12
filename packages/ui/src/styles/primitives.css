@@ -58,6 +58,12 @@
   min-block-size: min(var(--height-scroll-sm), var(--orb-list-content, var(--height-scroll-sm)));
 }
 
+/* A list row title's floor: the title-floor width, or the title line itself when that is narrower. The floor is a rem length, so at
+ * enlarged text it outgrows a phone's whole row, and a bare minimum width would push the title past its row. */
+@utility min-inline-title-fit {
+  min-inline-size: min(var(--width-title-floor), 100%);
+}
+
 /* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose gradient is
  * masked to the border box minus the padding box, so only the border paints and the element's own fill and ink keep
  * their contrast. The gradient is a primary head over the polarity-fixed sheen foot. `orb-gradient-ring` is the plain

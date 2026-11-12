@@ -103,6 +103,9 @@ export const MIN_HEIGHT = {
   pageLastRow: "min-block-(--immersive-document-last-row-min-height)",
 } as const;
 
+/** A list row title's floor: the title-floor width, or its line when that is narrower (`min-inline-title-fit` in primitives.css). */
+export const TITLE_FLOOR = "min-inline-title-fit";
+
 /** The least inline size a box holds, by what must fit in it: a control, a popup's content, the composer's field, or a title. */
 export const MIN_WIDTH = {
   controlMd: "min-inline-(--size-control-md)",

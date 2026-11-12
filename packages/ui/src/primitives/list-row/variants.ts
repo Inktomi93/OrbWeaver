@@ -1,4 +1,4 @@
-import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, RECEDED, SELECTION_RAIL, TITLE_STEP, tv } from "#lib";
+import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -189,7 +189,7 @@ export const listRowVariants = tv({
     // (`actions-and-sections.html`: a fixed name column, then the fires gloss at `1fr`, truncating).
     //
     // The inline arm is where the F-01 P0 is fixed structurally: the SUBTITLE takes the flexing column and
-    // truncates, and the TITLE keeps a `min-w-(--width-title-floor)` floor — the identifier can shorten but can never reach
+    // truncates, and the TITLE keeps a `min-inline-title-fit` floor (the row yields it, at enlarged text) — the identifier can shorten but can never reach
     // 0px, whatever the gloss is. Both slots are consumed by `titleRow`'s flex, so this is a layout swap,
     // never a second markup path (`ListRowContent` renders the same span in a different parent).
     //
@@ -206,7 +206,7 @@ export const listRowVariants = tv({
       // before it, even with the name at no width, takes the next line, so markers follow a qualifier that has a line to itself.
       block: { titleRow: "flex-wrap", titleQualifier: "shrink wrap-break-word whitespace-normal min-inline-0" },
       inline: {
-        title: "flex-none shrink min-inline-(--width-title-floor)",
+        title: `flex-none shrink ${TITLE_FLOOR}`,
         // NO `truncate` here (2026-08-08): the base slot's own comment already says truncation belongs to
         // the `subtitleWrap` axis "never baked in", and a `truncate` baked into the PLACEMENT arm silently
         // beat the wrapping arm's `line-clamp-2` (`truncate` carries `whitespace-nowrap`, which collapses a
@@ -216,10 +216,10 @@ export const listRowVariants = tv({
       },
       // `w-…` is the BASIS and `shrink` is kept deliberately: under a phone-width squeeze every row's name
       // cell shrinks by the same factor from the same basis, so the shared left edge survives the squeeze
-      // instead of only existing at desk widths — and `min-w-(--width-title-floor)` keeps the F-01 floor (a name may shorten,
+      // instead of only existing at desk widths — and `min-inline-title-fit` keeps the F-01 floor (a name may shorten,
       // never vanish) that `flex-none` alone would have traded away for a horizontal scrollbar.
       column: {
-        title: "flex-none shrink inline-(--width-label-col) min-inline-(--width-title-floor)",
+        title: `flex-none shrink inline-(--width-label-col) ${TITLE_FLOOR}`,
         subtitle: "flex-1 min-inline-0",
       },
     },

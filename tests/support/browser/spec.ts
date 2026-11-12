@@ -47,7 +47,7 @@ export { readSurfaceCohortRenders, readSurfaceDesignAudit } from "./surface-desi
 export { publishSurfaceInventory } from "./surface-inventory.ts";
 export { markExpectedSurfaceHttpFailure, observeSurfaceSession } from "./surface-session.ts";
 export { surfaceTopology } from "./surface-topology.ts";
-export { titleFit } from "./title-fit.ts";
+export { titleFit, titleReach } from "./title-fit.ts";
 export { watchToastMounts } from "./toast-mounts.ts";
 export { hitExtent, pressableWhole, touchFloorPx, touchTargetFindings } from "./touch-floor.ts";
 export type {
