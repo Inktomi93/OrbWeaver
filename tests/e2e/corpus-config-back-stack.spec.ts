@@ -1,7 +1,8 @@
-// The phone's Settings back stack on the committed corpus: each Back pops exactly one rung, entry to member to group to the list.
+// The phone's Settings back stack on the committed corpus: each Back pops exactly one rung, entry to member to group to the list,
+// and at each rung the topbar's Back is named for where that press goes: the book, the library, then Settings.
 import type { WorldBookId } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
-import { WORLD_INFO_NEW_ENTRY_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import { WORLD_INFO_GROUP_LABEL, WORLD_INFO_NEW_ENTRY_NAME } from "#client/features/world-info/lib/world-info-names.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -9,6 +10,7 @@ import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 
 const SHELL_BACK = sectionBackName(SECTION_LABELS.settings);
+const LIBRARY_BACK = sectionBackName(WORLD_INFO_GROUP_LABEL);
 const CONTROL_ROW = '[data-slot="collection-control-row"]';
 const BOOK_EDITOR = '[data-slot="world-info-member-editor"]';
 const CONFIG_LIST = '[data-slot="config-list"]';
@@ -55,13 +57,16 @@ test.describe("committed corpus settings back stack", () => {
     await expect(page.getByRole("button", { name: `Delete ${entry.title}` })).toBeVisible();
     await expect(page.getByRole("main").getByRole("heading", { name: entry.title })).toHaveCount(1);
 
-    // Back pops the entry only; the book is still open behind it.
-    await page.getByRole("button", { name: SHELL_BACK }).click();
+    // Back pops the entry only, and says so: it is named for the book, which is still open behind it.
+    const bookBack = sectionBackName(book.name);
+    await expect(page.getByRole("button", { name: SHELL_BACK, exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: bookBack, exact: true }).click();
     await expect(page.getByRole("button", { name: `Delete ${entry.title}` })).toHaveCount(0);
     await expect(page.locator(BOOK_EDITOR)).toBeVisible();
 
-    // Back pops the member; the library is the pane again and the phone has not returned to the list.
-    await page.getByRole("button", { name: SHELL_BACK }).click();
+    // Back pops the member, named for the library; the library is the pane again and the phone has not returned to the list.
+    await expect(page.getByRole("button", { name: bookBack, exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: LIBRARY_BACK, exact: true }).click();
     await expect(page.locator(BOOK_EDITOR)).toHaveCount(0);
     await expect(page.locator(CONTROL_ROW)).toBeVisible();
     await expect(page.getByRole("button", { name: SHELL_BACK })).toBeVisible();
