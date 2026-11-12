@@ -2,7 +2,7 @@
 kind: bug
 status: open
 updated: 2026-11-12
-priority: P3
+priority: P2
 area: ui
 plan: surface-walk
 ---
@@ -11,15 +11,15 @@ plan: surface-walk
 
 ## What
 
-At the largest text on a phone the walk reports a number field's input covered at its centre by its own Increase button; the stepper's touch-target pseudo-element may reach it. Not yet proved by a component test.
+Below a container step a stepped NumberField stacks its steppers on a line under the input (packages/ui/src/primitives/number-field/variants.ts). Each stepper carries the touch-target pseudo-element (packages/ui/src/lib/selection-control.ts), a square centred on the stepper. At the largest text on a phone that square is much taller than the stepper row and reaches past the centre of the input above it, and it wins the hit test. Proved by a component test on the production field: a tap on the input's centre presses Increase. The walk's covered findings at that size on World Info depth, the workloads token cutoff, library rows per page and automation runs per hour are this one cause. The proof and measurements are in the drafted items under reports/cb-walk-text.
 
 ## Why
 
-A covered input cannot be tapped to type.
+A person who taps the middle of the number to type into it steps the value up instead, and never gets the keyboard.
 
 ## Done when
 
-A component test on the production number field in a phone-width column at the largest text shows whether the cover is real. If it is, the stepper keeps clear of the input's centre; if not, the probe is fixed with a control.
+No stepper's hit area reaches into the input at any container width and text size. A component test taps the stacked input's centre at the largest text on a touch viewport and the input takes focus with its value unchanged, and the same test still finds each stepper at least the touch target in both axes. The walk lists no covered finding for a number field.
 
 ## Evidence
 

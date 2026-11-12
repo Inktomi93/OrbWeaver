@@ -314,7 +314,12 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
   const description = "A disposable card created through the native character dialog.";
   const open = async (): Promise<Locator> => {
     await openList(flow);
-    await page.getByRole("button", { name: /^(?:New|New character)$/u }).click();
+    // A phone trail folds New into its More menu once grown text leaves no room for it.
+    await pressOverflowed(page, {
+      inline: page.getByRole("button", { name: /^(?:New|New character)$/u }),
+      overflow: page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
+      name: CHARACTER_NEW_NAME,
+    });
     const dialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
     await dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(name);
     await dialog.getByRole("textbox", { name: CHARACTER_DESCRIPTION_FIELD_NAME, exact: true }).fill(description);
