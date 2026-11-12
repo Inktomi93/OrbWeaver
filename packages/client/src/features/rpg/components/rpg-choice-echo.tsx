@@ -23,7 +23,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
-import { isLiveTurnPhase, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
+import { holdRoomForSend, isLiveTurnPhase, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useSendChoice } from "../hooks/use-rpg-mutations.ts";
 
@@ -74,9 +74,17 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
   }
   const behavior = game.publicConfig.cyoaChoiceBehavior;
 
+  // A picked choice can be a new room's first line with an empty composer, so it holds the room out of the
+  // nav-away reap until the send settles. `mutateAsync` settles even after this tab unmounts on the way out.
+  const sendPick = async (text: string): Promise<void> => {
+    using _hold = holdRoomForSend(chatId);
+    await sendChoice.mutateAsync({ chatId, content: text, timeZone: viewerTimeZone() });
+  };
+
   const pick = (text: string): void => {
     if (behavior === "send") {
-      sendChoice.mutate({ chatId, content: text, timeZone: viewerTimeZone() });
+      // The mutation's own error toast reports a failed send.
+      sendPick(text).catch(() => undefined);
       return;
     }
     setComposerDraft(chatId, text);
