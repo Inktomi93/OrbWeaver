@@ -35,6 +35,7 @@ import { CHAT_APIS, LOCAL_LIGHT_SEED_ROWS, MODEL_CHECKS } from "@orb/contracts/i
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { userCredentials } from "./credentials.ts";
 import { users } from "./users.ts";
@@ -52,25 +53,25 @@ export const userConnections = sqliteTable(
   "user_connections",
   {
     // TypeID PK (`user_connection_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<UserConnectionId>().primaryKey(),
+    id: nulFreeText("id").$type<UserConnectionId>().primaryKey(),
     // The owning user (D23 — KEEP ownerId: a connection is a true producer, single-owned; the binding fold
     // reads ONLY the funder's rows and the resolver refuses a binding that names a stranger's).
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    label: text("label").notNull(),
+    label: nulFreeText("label").notNull(),
     // The provider REGISTRY id — validated at the domain against the registry (built-ins ∪ `provider_rows`),
     // CHECK-free because plugin rows are runtime data (§5.3c class 2).
-    providerId: text("provider_id").$type<ProviderId>().notNull(),
-    credentialId: text("credential_id")
+    providerId: nulFreeText("provider_id").$type<ProviderId>().notNull(),
+    credentialId: nulFreeText("credential_id")
       .$type<UserCredentialId>()
       .references(() => userCredentials.id, { onDelete: "set null" }),
     // For `auth: endpoint` providers; NULL when the provider row fixes it. Validated as a URL by the domain on
     // write and by the egress guard on use (§5.3c class 4).
-    baseUrl: text("base_url"),
+    baseUrl: nulFreeText("base_url"),
     // The picked model id — NEVER defaulted (F16); the picker is the only way it gets set.
-    model: text("model").$type<ModelId>().notNull(),
+    model: nulFreeText("model").$type<ModelId>().notNull(),
     // ∈ PROVIDER.apis (coherence is data, re-checked at resolve); `auto` ⇒ the provider's first api.
     api: text("api", { enum: CONNECTION_APIS }).$type<ConnectionApi>().notNull().default("auto"),
     // Per-connection capability OVERRIDES in `declaredCapabilitySchema` (kind, modalities, window, dims,
@@ -90,10 +91,10 @@ export const userConnections = sqliteTable(
     promptCache: text("prompt_cache", { mode: "json" }).$type<PromptCacheSettings>(),
     // The local-light seed slot this row fills (its task), NULL for every row a user made. The seed keys on it,
     // never on the label, so relabelling the seed renames the user's row in place instead of adding one.
-    seedSlot: text("seed_slot").$type<LocalLightSeedSlot>(),
+    seedSlot: nulFreeText("seed_slot").$type<LocalLightSeedSlot>(),
     // The model the local-light seed last put this slot row on (NULL on rows seeded before the column). The seed
     // moves a row to a new default only while the row is still on the model it gave it, so a user's own pick stays.
-    seedModel: text("seed_model").$type<ModelId>(),
+    seedModel: nulFreeText("seed_model").$type<ModelId>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

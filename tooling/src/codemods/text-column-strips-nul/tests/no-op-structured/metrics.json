@@ -1,0 +1,10 @@
+{
+  "text-column-strips-nul-kept": [
+    {
+      "cardinality": {
+        "reason": "json-or-enum"
+      },
+      "count": 2
+    }
+  ]
+}

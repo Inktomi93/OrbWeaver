@@ -51,6 +51,7 @@ import type { AutomationFireId, AutomationRuleCreationId, AutomationRuleId, Chat
 import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { chats } from "./chat.ts";
 import { users } from "./users.ts";
@@ -73,21 +74,21 @@ export const automationRules = sqliteTable(
   "automation_rules",
   {
     // TypeID PK (`automation_rule_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<AutomationRuleId>().primaryKey(),
+    id: nulFreeText("id").$type<AutomationRuleId>().primaryKey(),
     // The AUTHOR (v1: the host). Rules run as their author — authority is re-checked per fire.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // Immutable row-local birth identity; legacy and preset births retain NULL.
-    creationRequestId: text("creation_request_id").$type<AutomationRuleCreationId>(),
+    creationRequestId: nulFreeText("creation_request_id").$type<AutomationRuleCreationId>(),
     // NULL = owner-global — WIRED at C5 (`createRule` admits NULL under the owner check; the rate belt is
     // `automation_owner_budgets`). A global rule's arms are restricted to the chat-INDEPENDENT set.
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .references(() => chats.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    description: text("description"),
+    name: nulFreeText("name").notNull(),
+    description: nulFreeText("description"),
     // Born disabled — enabling is the consent act.
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
     // Explicit order among a chat's rules (list-reorderable; order is SEMANTICS — arms mutate the
@@ -98,9 +99,9 @@ export const automationRules = sqliteTable(
     // A member of the bus's trigger tuple (the source event discriminator — no third vocabulary).
     // Typed to the union; the paired CHECK is the SQL-side guard (no single-tuple `enum` fits a
     // two-tuple column).
-    triggerType: text("trigger_type").$type<ChatTriggerType | DomainTriggerType>().notNull(),
+    triggerType: nulFreeText("trigger_type").$type<ChatTriggerType | DomainTriggerType>().notNull(),
     // NULL = always fire (trigger + budgets still gate). Parse-validated at write.
-    predicateCel: text("predicate_cel"),
+    predicateCel: nulFreeText("predicate_cel"),
     // ── MINT PROVENANCE (the §3-S3 flip shape, landed with B10's saved-cast rules rider) ──
     // Which RULE PRESET minted this rule, and with which RESOLVED knob bag. Stamped ONLY by
     // `createRuleFromPreset`; CLEARED by `updateRule` (a hand-edited rule is no longer the preset's mint);
@@ -108,7 +109,7 @@ export const automationRules = sqliteTable(
     // catalogue (`RULE_PRESET_IDS`, @orb/contracts/automation), not rows, and the tuple GROWS by design
     // (a DDL pin would turn every catalogue addition into a merge-window schema change). A stored id a
     // later catalogue removal orphans degrades at the read/apply seam (reported skip), never at rest.
-    rulePresetId: text("rule_preset_id").$type<RulePresetId>(),
+    rulePresetId: nulFreeText("rule_preset_id").$type<RulePresetId>(),
     // The complete resolved bag (`resolveRulePresetKnobs` output) — zod-validated at mint.
     rulePresetKnobs: text("rule_preset_knobs", { mode: "json" }).$type<RulePresetKnobValues>(),
     // The ordered action arms.
@@ -128,11 +129,11 @@ export const automationRules = sqliteTable(
     maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR),
     // The IANA zone the rule's clock reads in (`now.hour`, `{{time}}`), stamped from the saver's browser on
     // every create/update/mint. NULL = saved before rules carried a zone: it reads UTC until its next save.
-    timeZone: text("time_zone").$type<IanaTimeZone>(),
+    timeZone: nulFreeText("time_zone").$type<IanaTimeZone>(),
     // Increments on predicate_error/action_error, resets on a clean fire; auto-disable at 20.
     consecutiveErrors: integer("consecutive_errors").notNull().default(0),
     // The last skip reason (host debug surface).
-    lastError: text("last_error"),
+    lastError: nulFreeText("last_error"),
     lastFiredAt: integer("last_fired_at"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -178,7 +179,7 @@ export const automationOwnerBudgets = sqliteTable(
   {
     // NATURAL PK: the owner's own id + CASCADE FK (the chat_locks pattern) — the PK is also the child-FK
     // index in one column (FK-index test satisfied).
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -199,17 +200,17 @@ export const automationFires = sqliteTable(
   "automation_fires",
   {
     // TypeID PK (`automation_fire_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<AutomationFireId>().primaryKey(),
-    ruleId: text("rule_id")
+    id: nulFreeText("id").$type<AutomationFireId>().primaryKey(),
+    ruleId: nulFreeText("rule_id")
       .$type<AutomationRuleId>()
       .notNull()
       .references(() => automationRules.id, { onDelete: "cascade" }),
     // Nullable — mirrors the rule's own chat scope (an owner-global rule's fire has no chat).
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .references(() => chats.id, { onDelete: "cascade" }),
     // The trigger that fired — denormalized for the debug surface (the rule row may since be edited).
-    triggerType: text("trigger_type").$type<ChatTriggerType | DomainTriggerType>().notNull(),
+    triggerType: nulFreeText("trigger_type").$type<ChatTriggerType | DomainTriggerType>().notNull(),
     // Public dispatch terminal OR the internal in-flight budget reservation.
     outcome: text("outcome", { enum: AUTOMATION_FIRE_STORAGE_OUTCOMES }).notNull(),
     // Per-arm results / the error / the rendered previews (test_run) — open JSON, read-seam parsed.
@@ -251,7 +252,7 @@ export const automationRuleState = sqliteTable(
   {
     // NATURAL PK: the rule's own id + CASCADE FK (the `automation_owner_budgets` ownerId-PK pattern above) — the
     // PK is also the spec's UNIQUE and the child-FK index in one column (FK-index test satisfied).
-    ruleId: text("rule_id")
+    ruleId: nulFreeText("rule_id")
       .$type<AutomationRuleId>()
       .primaryKey()
       .references(() => automationRules.id, { onDelete: "cascade" }),
@@ -269,7 +270,7 @@ export const automationRuleState = sqliteTable(
     // ONE narrator-facing instruction, stored VERBATIM (machine-authored DATA — macro-inert by authoring
     // law 6; it never passes renderArmTemplate/processMacros). "" = no standing guidance (the common case).
     // Sliced to ANALYSIS_GUIDANCE_MAX at the write boundary; the CHECK below mirrors the same const.
-    guidance: text("guidance").notNull().default(""),
+    guidance: nulFreeText("guidance").notNull().default(""),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   () => [check("automation_rule_state_guidance_check", sql.raw(`length(guidance) <= ${ANALYSIS_GUIDANCE_MAX}`))],
@@ -284,12 +285,12 @@ export const automationRuleState = sqliteTable(
 export const globalVariables = sqliteTable(
   "global_variables",
   {
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    key: text("key").notNull(),
-    value: text("value").notNull(),
+    key: nulFreeText("key").notNull(),
+    value: nulFreeText("value").notNull(),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [

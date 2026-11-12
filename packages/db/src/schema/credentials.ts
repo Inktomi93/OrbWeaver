@@ -26,27 +26,28 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
 export const userCredentials = sqliteTable(
   "user_credentials",
   {
-    id: text("id").$type<UserCredentialId>().primaryKey(),
+    id: nulFreeText("id").$type<UserCredentialId>().primaryKey(),
     // The owning user (D23 — KEEP ownerId; credentials are single-owned). Hard-deleting the user
     // takes their secrets with them.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // The provider REGISTRY id (`ProviderId`, inference program §5.3c class 2) — validated at the domain against
     // the registry, CHECK-free because plugin rows are runtime data. It is HALF THE AAD, so a respelling
     // orphans the ciphertext by construction.
-    provider: text("provider").$type<ProviderId>().notNull(),
+    provider: nulFreeText("provider").$type<ProviderId>().notNull(),
     // AES-256-GCM at-rest secret material (AAD = `${userId}|${provider}`, supplied by the domain).
-    ciphertext: text("ciphertext").notNull(),
-    iv: text("iv").notNull(),
-    tag: text("tag").notNull(),
+    ciphertext: nulFreeText("ciphertext").notNull(),
+    iv: nulFreeText("iv").notNull(),
+    tag: nulFreeText("tag").notNull(),
     // Set when the credential is revoked; null = live. THE POLICY (wired end to end — adapter
     // `ProviderErrorKind` → post-generation hook → this row → the Connections pane): ONE provider
     // `auth_failed` revokes (there is no strike COUNTER on this table and none is wanted — a key the
@@ -64,7 +65,7 @@ export const userCredentials = sqliteTable(
     // have a fixed base URL and carry no metadata.
     metadata: text("metadata", { mode: "json" }).$type<ProviderMetadata>(),
     // User-facing label (also the seam API tokens reuse).
-    label: text("label"),
+    label: nulFreeText("label"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

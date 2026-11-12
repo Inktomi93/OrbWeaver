@@ -30,6 +30,7 @@ import { TAG_FOLDER_TYPES, TAG_SOURCES, TAG_STATUSES } from "@orb/contracts/tag"
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -55,17 +56,17 @@ export const tags = sqliteTable(
   "tags",
   {
     // TypeID PK (`tag_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<TagId>().primaryKey(),
+    id: nulFreeText("id").$type<TagId>().primaryKey(),
     // KEEP `ownerId` (D23). User hard-delete cascades the owner's tags (→ all junction rows via the tag FK).
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
+    name: nulFreeText("name").notNull(),
     // Chip BACKGROUND color (ST tag.color). NULL = theme default.
-    color: text("color"),
+    color: nulFreeText("color"),
     // Chip TEXT color (ST tag.color2). NULL = theme default.
-    color2: text("color2"),
+    color2: nulFreeText("color2"),
     // manual | auto | card — derives TAG_SOURCES. NULLABLE (display-only provenance; null tolerated by the
     // CHECK since `NULL in (...)` is NULL, never FALSE).
     source: text("source", { enum: TAG_SOURCES }),
@@ -98,11 +99,11 @@ export const tags = sqliteTable(
 export const characterTags = sqliteTable(
   "character_tags",
   {
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    tagId: text("tag_id")
+    tagId: nulFreeText("tag_id")
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
@@ -131,17 +132,17 @@ export const characterTags = sqliteTable(
 export const chatTags = sqliteTable(
   "chat_tags",
   {
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    tagId: text("tag_id")
+    tagId: nulFreeText("tag_id")
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
     // D30: the TAGGER (this junction's own owner, since `chats` carries none). CASCADE: a user hard-delete
     // removes their chat-tag overlay rows.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -169,11 +170,11 @@ export const chatTags = sqliteTable(
 export const worldBookTags = sqliteTable(
   "world_book_tags",
   {
-    worldBookId: text("world_book_id")
+    worldBookId: nulFreeText("world_book_id")
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
-    tagId: text("tag_id")
+    tagId: nulFreeText("tag_id")
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
@@ -189,11 +190,11 @@ export const worldBookTags = sqliteTable(
 export const personaTags = sqliteTable(
   "persona_tags",
   {
-    personaId: text("persona_id")
+    personaId: nulFreeText("persona_id")
       .$type<PersonaId>()
       .notNull()
       .references(() => personas.id, { onDelete: "cascade" }),
-    tagId: text("tag_id")
+    tagId: nulFreeText("tag_id")
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
@@ -209,11 +210,11 @@ export const personaTags = sqliteTable(
 export const presetTags = sqliteTable(
   "preset_tags",
   {
-    presetId: text("preset_id")
+    presetId: nulFreeText("preset_id")
       .$type<PresetId>()
       .notNull()
       .references(() => presets.id, { onDelete: "cascade" }),
-    tagId: text("tag_id")
+    tagId: nulFreeText("tag_id")
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),

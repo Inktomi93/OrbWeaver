@@ -38,7 +38,8 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { CharacterId, CharacterStatId, DailyStatId, ModelId, ModelStatId, UserId } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
@@ -82,7 +83,7 @@ const NOW_MS = sql`(unixepoch() * 1000)`;
 // scan/replace and retries only the owner whose canon moved. It is deliberately separate from owner_stats:
 // reconcile replaces that rollup, while this ownership token must survive the replacement unchanged.
 export const statsCanonVersions = sqliteTable("stats_canon_versions", {
-  ownerId: text("owner_id")
+  ownerId: nulFreeText("owner_id")
     .$type<UserId>()
     .primaryKey()
     .references(() => users.id, { onDelete: "restrict" }),
@@ -93,7 +94,7 @@ export const statsCanonVersions = sqliteTable("stats_canon_versions", {
 // Always written by reconcile (even all-zeros) so `freshness` distinguishes computed-empty from never-run.
 export const ownerStats = sqliteTable("owner_stats", {
   // NATURAL PK + FK users RESTRICT (D23 parentless aggregate — the user is the key, not a mirror).
-  ownerId: text("owner_id")
+  ownerId: nulFreeText("owner_id")
     .$type<UserId>()
     .primaryKey()
     .references(() => users.id, { onDelete: "restrict" }),
@@ -144,9 +145,9 @@ export const characterStats = sqliteTable(
   "character_stats",
   {
     // TypeID PK (`character_stat_…`), minted in domain/stats/write/*; brand is type-only, SQL is TEXT.
-    id: text("id").$type<CharacterStatId>().primaryKey(),
+    id: nulFreeText("id").$type<CharacterStatId>().primaryKey(),
     // The owning character. CASCADE: the rollup dies with its character.
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
@@ -195,8 +196,8 @@ export const dailyStats = sqliteTable(
   "daily_stats",
   {
     // TypeID PK (`daily_stat_…`), minted in domain/stats/write/*.
-    id: text("id").$type<DailyStatId>().primaryKey(),
-    ownerId: text("owner_id")
+    id: nulFreeText("id").$type<DailyStatId>().primaryKey(),
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -237,15 +238,15 @@ export const modelStats = sqliteTable(
   "model_stats",
   {
     // TypeID PK (`model_stat_…`), minted in domain/stats/write/*.
-    id: text("id").$type<ModelStatId>().primaryKey(),
-    ownerId: text("owner_id")
+    id: nulFreeText("id").$type<ModelStatId>().primaryKey(),
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    model: text("model").$type<ModelId>().notNull(),
+    model: nulFreeText("model").$type<ModelId>().notNull(),
     // LOAD-BEARING `(unknown)` sentinel — NOT NULL so the (owner, model, provider) unique never splits on
     // a NULL (SQLite NULLs are DISTINCT → duplicate rows across recompute). Coalesced to match modelKey.
-    provider: text("provider").$type<ProviderId | typeof PROVIDER_FALLBACK>().notNull().default(PROVIDER_FALLBACK),
+    provider: nulFreeText("provider").$type<ProviderId | typeof PROVIDER_FALLBACK>().notNull().default(PROVIDER_FALLBACK),
     generations: integer("generations").notNull().default(0),
     tokensIn: integer("tokens_in").notNull().default(0),
     tokensOut: integer("tokens_out").notNull().default(0),

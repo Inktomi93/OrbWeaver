@@ -22,20 +22,21 @@ import type { PresetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const presets = sqliteTable(
   "presets",
   {
-    id: text("id").$type<PresetId>().primaryKey(),
+    id: nulFreeText("id").$type<PresetId>().primaryKey(),
     // NULLABLE (system default = null owner). RESTRICT: never cascade-delete a user's presets out from
     // under them; the system-default row has no owner to restrict.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
+    name: nulFreeText("name").notNull(),
     // Free-text label (`kind` is NOT an enum; e.g. "roleplay", "assistant").
-    kind: text("kind").notNull(),
+    kind: nulFreeText("kind").notNull(),
     // The PromptConfig blob. Parsed at the read seam via `parsePromptConfig` (@orb/contracts/preset);
     // a corrupt blob degrades to DEFAULT_PROMPT_CONFIG there, never here.
     config: text("config", { mode: "json" }).$type<PromptConfig>().notNull(),
@@ -49,7 +50,7 @@ export const presets = sqliteTable(
     // deep COPY — this link carries nothing but provenance, and no read path depends on the source row
     // existing. Also the COW convergence key: `domain/preset/verbs/update.ts` looks up the caller's
     // existing fork of the same source instead of minting a second one.
-    forkedFrom: text("forked_from")
+    forkedFrom: nulFreeText("forked_from")
       .$type<PresetId>()
       .references((): AnySQLiteColumn => presets.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

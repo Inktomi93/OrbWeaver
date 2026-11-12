@@ -103,6 +103,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -130,8 +131,8 @@ export const chats = sqliteTable(
   "chats",
   {
     // TypeID PK (`chat_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<ChatId>().primaryKey(),
-    title: text("title"),
+    id: nulFreeText("id").$type<ChatId>().primaryKey(),
+    title: nulFreeText("title"),
     // D18: NO `ownerId`. Membership (`chat_participants`) is the scope; the host is the authority.
     // D66: renamed from `star` — matches `characters.starred`/`personas.starred` (the report-cards
     // punch list item 6 rename; the RPC verb NAME `chat.star` is unchanged, only the data field).
@@ -158,7 +159,7 @@ export const chats = sqliteTable(
     // host sets it) and `acceptHostHandoff` (the nominee — and ONLY the nominee — clears it on the atomic
     // role swap). One pending nomination per chat (a re-nominate overwrites). Null = no pending handoff.
     // SET NULL on user delete: a deleted nominee just clears the nomination, never deletes the chat (D18).
-    pendingHostUserId: text("pending_host_user_id")
+    pendingHostUserId: nulFreeText("pending_host_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // The departing host's OPT-IN property offer, co-located with the nominee it qualifies: `nominateHostHandoff` writes it, `acceptHostHandoff` EXECUTES it and clears it in the
@@ -170,17 +171,17 @@ export const chats = sqliteTable(
     pendingHandoffOffer: text("pending_handoff_offer", { mode: "json" }).$type<HandoffOffer>(),
     // The stable `{{user}}` POV for card-authored sections (renamed from `pinnedPersonaId`). A persona
     // delete nulls the anchor (SET NULL) — it must NOT delete the chat.
-    anchorPersonaId: text("anchor_persona_id")
+    anchorPersonaId: nulFreeText("anchor_persona_id")
       .$type<PersonaId>()
       .references(() => personas.id, { onDelete: "set null" }),
     // Fork lineage (D27): a fork is a deep COPY; this self-FK is the only link. SET NULL so a fork
     // outlives its parent as a root. `forkedAt` is the copy timestamp (null for a non-fork root chat).
-    parentChatId: text("parent_chat_id")
+    parentChatId: nulFreeText("parent_chat_id")
       .$type<ChatId>()
       .references((): AnySQLiteColumn => chats.id, { onDelete: "set null" }),
     forkedAt: integer("forked_at"),
     // Portable compaction checkpoint (D25 — STAYS): the summary text + the seq it covers through.
-    compactSummary: text("compact_summary"),
+    compactSummary: nulFreeText("compact_summary"),
     compactedAtSeq: integer("compacted_at_seq"),
     // The room-behavior blob (GroupConfig/RoomOverrides/OpeningPolicy) — typed JSON, lazy-parsed at the
     // `@orb/db/query` read seam; never trusted raw. Seeded from `userSettings.groupDefaults` (domain).
@@ -204,10 +205,10 @@ export const chats = sqliteTable(
     // fold reads it alongside the per-variant message deltas. Nullable JSON (no standalone delta yet).
     standaloneVariableDeltas: text("standalone_variable_deltas", { mode: "json" }).$type<readonly StandaloneVariableDelta[]>(),
     // Import provenance: the source `.jsonl` filename a chat was imported from (null for a born-here chat).
-    importedFrom: text("imported_from"),
+    importedFrom: nulFreeText("imported_from"),
     // SHA-256 of the import bytes — the idempotent re-import key (a re-import of identical bytes is a
     // no-op). Mirrors `characters.importHash`. Nullable (null for a born-here chat).
-    importHash: text("import_hash"),
+    importHash: nulFreeText("import_hash"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -231,15 +232,15 @@ export const chats = sqliteTable(
 export const chatImportClaims = sqliteTable(
   "chat_import_claims",
   {
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    importHash: text("import_hash").notNull(),
+    importHash: nulFreeText("import_hash").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [primaryKey({ columns: [t.characterId, t.importHash], name: "chat_import_claims_scope_pk" }), index("chat_import_claims_chat_idx").on(t.chatId)],
@@ -255,11 +256,11 @@ export const chatImportClaims = sqliteTable(
 export const chatHandoffResumptions = sqliteTable(
   "chat_handoff_resumptions",
   {
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .primaryKey()
       .references(() => chats.id, { onDelete: "cascade" }),
-    acceptedByUserId: text("accepted_by_user_id")
+    acceptedByUserId: nulFreeText("accepted_by_user_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -311,9 +312,9 @@ export const chatHandoffResumptions = sqliteTable(
 export const messages = sqliteTable(
   "messages",
   {
-    id: text("id").$type<MessageId>().primaryKey(),
+    id: nulFreeText("id").$type<MessageId>().primaryKey(),
     // Chat children CASCADE on chat delete.
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -333,23 +334,23 @@ export const messages = sqliteTable(
     // ── Attribution (SLOT-level — a swipe never re-voices). All nullable per role. ──
     // The human who SENT a user message (server-stamped). Plain `UserId` brand (users.id is a plain
     // nanoid, not a TypeID). SET NULL on user hard-delete — the authored line survives for other members.
-    authorUserId: text("author_user_id")
+    authorUserId: nulFreeText("author_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // The AI identity that VOICED an assistant message (keyed on `characters.id` — live identity, D28).
     // SET NULL on character delete preserves history (the row, minus attribution).
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .references(() => characters.id, { onDelete: "set null" }),
     // Which persona authored a user message. SET NULL on persona delete.
-    personaId: text("persona_id")
+    personaId: nulFreeText("persona_id")
       .$type<PersonaId>()
       .references(() => personas.id, { onDelete: "set null" }),
     // D26: the pointer to the displayed generation. NULLABLE at the DB layer SOLELY to break the
     // message↔variant circular FK at insert time (insert slot → insert variant → set pointer); the
     // message contract treats it as non-null post-commit. SET NULL (never CASCADE — that would
     // delete the slot) so deleting the pointed-at variant can't dangle.
-    selectedVariantId: text("selected_variant_id")
+    selectedVariantId: nulFreeText("selected_variant_id")
       .$type<MessageVariantId>()
       .references((): AnySQLiteColumn => messageVariants.id, { onDelete: "set null" }),
     // When true, the slot is held out of the assembled prompt (a hidden message).
@@ -407,15 +408,15 @@ export const messages = sqliteTable(
 export const messageVariants = sqliteTable(
   "message_variants",
   {
-    id: text("id").$type<MessageVariantId>().primaryKey(),
-    messageId: text("message_id")
+    id: nulFreeText("id").$type<MessageVariantId>().primaryKey(),
+    messageId: nulFreeText("message_id")
       .$type<MessageId>()
       .notNull()
       .references(() => messages.id, { onDelete: "cascade" }),
     // 0-based position among this slot's variants (swipes). UNIQUE per message.
     idx: integer("idx").notNull(),
     // The generation text (notNull; a streaming-in-progress variant starts as "").
-    content: text("content").notNull(),
+    content: nulFreeText("content").notNull(),
     // ── RAW + FREEZE PROVENANCE (the re-resolution substrate). ──
     // `content` above stays the ONE canonical post-transform text every consumer reads (D51) — these two
     // columns are pure provenance and change no existing behavior. `rawContent` is the pre-freeze,
@@ -429,7 +430,7 @@ export const messageVariants = sqliteTable(
     // TRUST BOUNDARY (binding): both columns are HOST-PLANE. The receive transforms exist partly to STRIP
     // content (a host regex can remove hidden material), so serving pre-strip bytes to a member re-opens the
     // D110 §3.6 class — they ride the already host-gated variant wire view ONLY, never `MessageView`.
-    rawContent: text("raw_content"),
+    rawContent: nulFreeText("raw_content"),
     // The volatile-freeze RECORD: the ordered `{name, args?, value}` occurrences a commit baked into
     // `content` ({{roll}}/{{random}}/{{pick}}/the clock family). Written in the SAME batch as the variant
     // (the `macroDraws` discipline). Nullable JSON, parsed at the read seam with `macroFreezeRecordSchema`
@@ -437,7 +438,7 @@ export const messageVariants = sqliteTable(
     // re-derivable byte-exactly — which is what makes an intentional re-roll, a re-resolution against new
     // context, and a fix for the greeting-swipe gap possible at all.
     macroFreezes: text("macro_freezes", { mode: "json" }).$type<MacroFreezeRecord>(),
-    reasoning: text("reasoning"),
+    reasoning: nulFreeText("reasoning"),
     // The model's reasoning BLOCKS with their per-wire provenance (`ChatReasoningPart` — the `reasoning` arm of `ChatContentPart`: the
     // Anthropic signature / redacted payload, OpenRouter's `reasoning_details`) — the REPLAY MATERIAL the next leg
     // of a tool loop hands back so the provider verifies its own prior thinking (the read
@@ -449,18 +450,18 @@ export const messageVariants = sqliteTable(
     // commit (both NULL when no cue was sent). A prefix-bound model binds its thinking to the prompt it saw, so the
     // carry replays both verbatim ahead of the reply (D262); re-deriving either from today's prose, roster or
     // settings would drop the thinking. HOST-PLANE: the cue is prompt material and rides no member view.
-    cue: text("cue"),
+    cue: nulFreeText("cue"),
     cueRole: text("cue_role", { enum: CUE_ROLES }).$type<CueRole>(),
-    model: text("model").$type<ModelId>(),
+    model: nulFreeText("model").$type<ModelId>(),
     // Reported serving identity, never the requested model copied into a missing response field.
-    servedModel: text("served_model"),
+    servedModel: nulFreeText("served_model"),
     tokenDetails: text("token_details", { mode: "json" }).$type<TokenDetails>(),
     responseCache: text("response_cache", { mode: "json" }).$type<ResponseCache>(),
     // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
     // a deleted connection never deletes history (`selectedVariantId`'s idiom). The required provenance
     // below distinguishes that deletion from rows whose connection was never recorded (imports, edits,
     // user-authored messages). Routing is a `connection_bindings` row; attribution is HERE and outlives it.
-    connectionId: text("connection_id")
+    connectionId: nulFreeText("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
     connectionAttributionProvenance: text("connection_attribution_provenance", { enum: CONNECTION_ATTRIBUTION_PROVENANCES })
@@ -471,7 +472,7 @@ export const messageVariants = sqliteTable(
     // join. Validated at the producer against the registry, NO CHECK — a plugin provider id is runtime data
     // (§5.3c class 2). The ST import narrows an unparseable source value to NULL; `(unknown)` belongs only
     // to `model_stats.provider`, whose non-null natural key requires a sentinel.
-    provider: text("provider").$type<ProviderId>(),
+    provider: nulFreeText("provider").$type<ProviderId>(),
     // CHECK on the preset effort tuple (`EFFORT_LEVELS`, 7 members incl. `none`) — §5.3c class 1. The
     // APPLIED effort — what the wire actually carried in our vocabulary (`ChatResult.appliedEffort`), never the
     // requested intent (that lives in `params`): a transport that spells no effort field, a budget-mode turn or
@@ -502,7 +503,7 @@ export const messageVariants = sqliteTable(
     // history for this generation (null = nothing was dropped / the fit-pass never ran). Powers a client
     // "last-in-context" divider. SET NULL (never CASCADE) — deleting the boundary message should not
     // delete this variant, it should just drop the marker (mirrors `messages.selectedVariantId`).
-    contextBoundaryMessageId: text("context_boundary_message_id")
+    contextBoundaryMessageId: nulFreeText("context_boundary_message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "set null" }),
     maxOutputTokens: integer("max_output_tokens"),
@@ -510,8 +511,8 @@ export const messageVariants = sqliteTable(
     // CHECK on `NORMALIZED_FINISH_REASONS` (`stop|length|filter|tool|other`) — the per-wire raw → normalized
     // fold happens in the runtime; `stop_reason` below keeps the raw upstream word as provenance.
     finishReason: text("finish_reason", { enum: NORMALIZED_FINISH_REASONS }).$type<NormalizedFinishReason>(),
-    stopReason: text("stop_reason"),
-    terminalReason: text("terminal_reason"),
+    stopReason: nulFreeText("stop_reason"),
+    terminalReason: nulFreeText("terminal_reason"),
     // The HTTP status of a FAILED generation (diagnostics + the retry-survivor signal alongside
     // terminalReason). Nullable — null on a clean generation.
     apiErrorStatus: integer("api_error_status"),
@@ -539,12 +540,12 @@ export const messageVariants = sqliteTable(
     // settles the per-message cost with) or Anthropic's `msg_…` (the support handle a request is traced
     // by). §5.3c class 4: declared-OPAQUE provenance, never compared, switched on or joined.
     // Null where the wire reports none (agent-sdk / a user-authored row). Never an orbweaver identity.
-    generationId: text("generation_id").$type<ProviderGenerationId>(),
+    generationId: nulFreeText("generation_id").$type<ProviderGenerationId>(),
     // ── Continue-undo state (preContinue* + lastContinuation* + reasoning twins — Tier-1-DB.md §chat). ──
-    preContinueContent: text("pre_continue_content"),
-    preContinueReasoning: text("pre_continue_reasoning"),
-    lastContinuationContent: text("last_continuation_content"),
-    lastContinuationReasoning: text("last_continuation_reasoning"),
+    preContinueContent: nulFreeText("pre_continue_content"),
+    preContinueReasoning: nulFreeText("pre_continue_reasoning"),
+    lastContinuationContent: nulFreeText("last_continuation_content"),
+    lastContinuationReasoning: nulFreeText("last_continuation_reasoning"),
     // The generation sidecar (§5.3c class 3): a PARSED JSON sidecar, never an open bag. `VariantMetadata`
     // (@orb/contracts/chat) is the closed shape both sides import — the measured reasoning window under
     // `VARIANT_METADATA_REASONING_MS_KEY`, the per-provider `providerMetadata` union, and the ST import's
@@ -599,12 +600,12 @@ export const messageVariants = sqliteTable(
 export const messageAssets = sqliteTable(
   "message_assets",
   {
-    id: text("id").$type<MessageAssetId>().primaryKey(),
-    messageId: text("message_id")
+    id: nulFreeText("id").$type<MessageAssetId>().primaryKey(),
+    messageId: nulFreeText("message_id")
       .$type<MessageId>()
       .notNull()
       .references(() => messages.id, { onDelete: "cascade" }),
-    assetId: text("asset_id")
+    assetId: nulFreeText("asset_id")
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
@@ -637,8 +638,8 @@ export const messageAssets = sqliteTable(
 export const chatParticipants = sqliteTable(
   "chat_participants",
   {
-    id: text("id").$type<ChatParticipantId>().primaryKey(),
-    chatId: text("chat_id")
+    id: nulFreeText("id").$type<ChatParticipantId>().primaryKey(),
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -649,17 +650,17 @@ export const chatParticipants = sqliteTable(
     // characterId (the dormant `agent`/`observer` DDL arms would carry userId / neither, same shape rule).
     // userId CASCADE: a user hard-delete removes their memberships (D18). characterId CASCADE: a deleted
     // character leaves no roster ghost.
-    userId: text("user_id")
+    userId: nulFreeText("user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .references(() => characters.id, { onDelete: "cascade" }),
     // host | member — derives PARTICIPANT_ROLES. The host is the ONE authority + funding source (D18);
     // server-forced `member` on the invite-redeem chokepoint.
     role: text("role", { enum: PARTICIPANT_ROLES }).notNull(),
     // Per-participant active persona (the live `{{user}}` for this human's lines). SET NULL on delete.
-    activePersonaId: text("active_persona_id")
+    activePersonaId: nulFreeText("active_persona_id")
       .$type<PersonaId>()
       .references(() => personas.id, { onDelete: "set null" }),
     // Natural-arbitration sampling weight (0–1, default 0.5).
@@ -756,37 +757,37 @@ export const chatParticipants = sqliteTable(
 export const messageReactions = sqliteTable(
   "message_reactions",
   {
-    id: text("id").$type<MessageReactionId>().primaryKey(),
+    id: nulFreeText("id").$type<MessageReactionId>().primaryKey(),
     // The ANCHOR (see the header). CASCADE: a deleted swipe takes its reactions with it, and a message/chat
     // delete reaches here through the variant's own cascade.
-    variantId: text("variant_id")
+    variantId: nulFreeText("variant_id")
       .$type<MessageVariantId>()
       .notNull()
       .references(() => messageVariants.id, { onDelete: "cascade" }),
     // WHO reacted, as a roster seat (D80). CASCADE: a member who is hard-deleted (or a character removed
     // from the roster) takes their reactions with them — unlike a MESSAGE, a reaction carries no authored
     // prose worth preserving past its author, so this is a CASCADE where `messages` uses SET NULL.
-    reactorParticipantId: text("reactor_participant_id")
+    reactorParticipantId: nulFreeText("reactor_participant_id")
       .$type<ChatParticipantId>()
       .notNull()
       .references(() => chatParticipants.id, { onDelete: "cascade" }),
     // The unicode emoji, or (when custom emoji land) a `:name:` token. Plain TEXT — see the header.
-    emoji: text("emoji").notNull(),
+    emoji: nulFreeText("emoji").notNull(),
     // The custom-emoji image (D21 CAS) — BORN AND TYPED, written by nothing through MR0-MR2 (the wire is
     // unicode-only). It exists now because the pre-launch schema is baseline-SQUASHED: adding a column later
     // costs a whole merge window, and Open-Q D already ruled custom emoji ship. Registered RETAINING in
     // `domain/assets/persistence/asset-refs.ts` — a CAS column the ref registry cannot see is a blob the GC
     // reaps out from under a live reaction. SET NULL (never CASCADE): losing the art degrades the chip to
     // its token, it must not delete somebody's reaction.
-    emojiImageAssetId: text("emoji_image_asset_id")
+    emojiImageAssetId: nulFreeText("emoji_image_asset_id")
       .$type<AssetId>()
       .references(() => assets.id, { onDelete: "set null" }),
     // The B7 segment-anchor trio (see the header). Nullable TOGETHER-OR-NOT (the CHECK below): NULL index
     // = whole-message; a non-null index always carries its snippet (speaker stays nullable — a narration
     // span's label is legitimately `null`).
     segmentIndex: integer("segment_index"),
-    segmentSpeaker: text("segment_speaker"),
-    segmentSnippet: text("segment_snippet"),
+    segmentSpeaker: nulFreeText("segment_speaker"),
+    segmentSnippet: nulFreeText("segment_snippet"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -823,19 +824,19 @@ export const messageReactions = sqliteTable(
 export const chatInvites = sqliteTable(
   "chat_invites",
   {
-    id: text("id").$type<ChatInviteId>().primaryKey(),
-    chatId: text("chat_id")
+    id: nulFreeText("id").$type<ChatInviteId>().primaryKey(),
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
     // The peppered hash of the CSPRNG token — the raw token is NEVER persisted. UNIQUE = the lookup key.
-    tokenHash: text("token_hash").notNull(),
+    tokenHash: nulFreeText("token_hash").notNull(),
     // Redemption cap (null = unlimited) + the running redemption count (the conditional-redeem guard).
     maxUses: integer("max_uses"),
     uses: integer("uses").notNull().default(0),
     expiresAt: integer("expires_at"),
     // Targeted-by-handle: the resolved invitee (null for an open share-link). SET NULL on user delete.
-    invitedUserId: text("invited_user_id")
+    invitedUserId: nulFreeText("invited_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // pending | accepted | declined | revoked | expired — derives INVITE_STATUSES.
@@ -844,7 +845,7 @@ export const chatInvites = sqliteTable(
     allowSignup: integer("allow_signup", { mode: "boolean" }).notNull().default(false),
     // The host who minted the invite; a signup redeem re-checks this user's standing (D259). SET NULL on user
     // delete, and a signup invite whose minter is gone refuses.
-    createdByUserId: text("created_by_user_id")
+    createdByUserId: nulFreeText("created_by_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // The AUTH_MODE at mint; a signup redeem refuses under any other mode (D259). Null on a row minted before
@@ -884,24 +885,24 @@ export const chatInvites = sqliteTable(
 export const pendingTurns = sqliteTable(
   "pending_turns",
   {
-    id: text("id").$type<PendingTurnId>().primaryKey(),
-    chatId: text("chat_id")
+    id: nulFreeText("id").$type<PendingTurnId>().primaryKey(),
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
     // The human RESPONSIBLE for the turn (spend budget + abort-rights + attribution) — D19.
-    triggeredBy: text("triggered_by")
+    triggeredBy: nulFreeText("triggered_by")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // The authorized host whose box FUNDS the deferred turn (the frozen `runAsUserId`) — D19.
-    runAsUserId: text("run_as_user_id")
+    runAsUserId: nulFreeText("run_as_user_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // The sender's zone AT DEFER TIME, so the drained turn's time macros read their clock even if the sender's
     // zone has moved since. Null (no zone reported) drains on the UTC clock.
-    timeZone: text("time_zone").$type<IanaTimeZone>(),
+    timeZone: nulFreeText("time_zone").$type<IanaTimeZone>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -934,8 +935,8 @@ const CHAT_EVENT_TYPES = (Object.keys(CHAT_BUS_EVENT_TYPES) as ChatBusEvent["typ
 export const chatEvents = sqliteTable(
   "chat_events",
   {
-    id: text("id").$type<ChatEventId>().primaryKey(),
-    chatId: text("chat_id")
+    id: nulFreeText("id").$type<ChatEventId>().primaryKey(),
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -947,7 +948,7 @@ export const chatEvents = sqliteTable(
     // `DurableChatBusEvent`), which is upstream of every writer, and narrowing here as well would force the
     // §3.6 member stamper — a D16-frozen file whose signature is the whole union — to be re-typed for no
     // additional coverage.
-    type: text("type").$type<ChatBusEvent["type"]>().notNull(),
+    type: nulFreeText("type").$type<ChatBusEvent["type"]>().notNull(),
     // The full closed bus event (room-public; the contract's allowlist makes secrets unrepresentable).
     payload: text("payload", { mode: "json" }).$type<ChatBusEvent>().notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -968,8 +969,8 @@ const INJECTION_POSITIONS = ["before_prompt", "in_static", "in_prompt", "in_chat
 export const chatInjections = sqliteTable(
   "chat_injections",
   {
-    id: text("id").$type<ChatInjectionId>().primaryKey(),
-    chatId: text("chat_id")
+    id: nulFreeText("id").$type<ChatInjectionId>().primaryKey(),
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -979,7 +980,7 @@ export const chatInjections = sqliteTable(
     depth: integer("depth").notNull().default(0),
     // The injected block's role — the canonical MESSAGE_ROLES axis (no inline re-spell, D32).
     role: text("role", { enum: MESSAGE_ROLES }).notNull(),
-    content: text("content").notNull(),
+    content: nulFreeText("content").notNull(),
     // Priority WITHIN a depth (ST `injection_order`; co-located in_chat injections splice DESC). `order`
     // is a SQL keyword — the column is `injection_order`.
     order: integer("injection_order"),
@@ -1002,12 +1003,12 @@ export const chatInjections = sqliteTable(
 
 export const chatLocks = sqliteTable("chat_locks", {
   // NATURAL PK: the chat's own ChatId reused as the lock key + a CASCADE FK to chats (brand flows the FK).
-  chatId: text("chat_id")
+  chatId: nulFreeText("chat_id")
     .$type<ChatId>()
     .primaryKey()
     .references(() => chats.id, { onDelete: "cascade" }),
   // The replica/holder that owns the lock (for multi-replica takeover diagnostics).
-  holder: text("holder").notNull(),
+  holder: nulFreeText("holder").notNull(),
   // DIAGNOSTIC-ONLY, deliberately write-only. Expiry/takeover reads `expiresAt` exclusively, so
   // nothing in the app ever reads this back. It is kept for MANUAL forensics on a probe copy of the db —
   // "when did this holder actually take the lock?" is unanswerable from `expiresAt` alone once LOCK_TTL_MS
@@ -1029,9 +1030,9 @@ export const chatLocks = sqliteTable("chat_locks", {
 export const compactionSpend = sqliteTable(
   "compaction_spend",
   {
-    id: text("id").$type<CompactionSpendId>().primaryKey(),
+    id: nulFreeText("id").$type<CompactionSpendId>().primaryKey(),
     // FK users RESTRICT — the same posture as the stats rollups this row feeds.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -1049,32 +1050,32 @@ export const compactionSpend = sqliteTable(
 export const chatGenerationObservations = sqliteTable(
   "chat_generation_observations",
   {
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    turnId: text("turn_id").$type<ChatTurnId>().notNull(),
+    turnId: nulFreeText("turn_id").$type<ChatTurnId>().notNull(),
     ordinal: integer("ordinal").notNull(),
-    sourceMessageId: text("source_message_id")
+    sourceMessageId: nulFreeText("source_message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "cascade" }),
-    sourceVariantId: text("source_variant_id")
+    sourceVariantId: nulFreeText("source_variant_id")
       .$type<MessageVariantId>()
       .references(() => messageVariants.id, { onDelete: "cascade" }),
     // D19 attribution is frozen independently of D18 membership scope and a later host handoff.
-    funderUserId: text("funder_user_id")
+    funderUserId: nulFreeText("funder_user_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    connectionId: text("connection_id")
+    connectionId: nulFreeText("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
     connectionAttributionProvenance: text("connection_attribution_provenance", { enum: CONNECTION_ATTRIBUTION_PROVENANCES })
       .$type<ConnectionAttributionProvenance>()
       .notNull(),
-    model: text("model").$type<ModelId>().notNull(),
-    servedModel: text("served_model"),
-    provider: text("provider").$type<ProviderId>().notNull(),
+    model: nulFreeText("model").$type<ModelId>().notNull(),
+    servedModel: nulFreeText("served_model"),
+    provider: nulFreeText("provider").$type<ProviderId>().notNull(),
     wire: text("wire", { enum: WIRES }).$type<Wire>().notNull(),
     tokensIn: integer("tokens_in"),
     tokensOut: integer("tokens_out"),
@@ -1092,9 +1093,9 @@ export const chatGenerationObservations = sqliteTable(
     durationApiMs: real("duration_api_ms"),
     ttftMs: real("ttft_ms"),
     finishReason: text("finish_reason", { enum: NORMALIZED_FINISH_REASONS }).$type<NormalizedFinishReason>(),
-    stopReason: text("stop_reason"),
-    terminalReason: text("terminal_reason"),
-    generationId: text("generation_id").$type<ProviderGenerationId>(),
+    stopReason: nulFreeText("stop_reason"),
+    terminalReason: nulFreeText("terminal_reason"),
+    generationId: nulFreeText("generation_id").$type<ProviderGenerationId>(),
     observedAt: integer("observed_at").notNull(),
   },
   (t) => [

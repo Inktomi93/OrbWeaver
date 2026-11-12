@@ -32,6 +32,7 @@ import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -52,14 +53,14 @@ export const worldBooks = sqliteTable(
   "world_books",
   {
     // TypeID PK (`world_book_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<WorldBookId>().primaryKey(),
+    id: nulFreeText("id").$type<WorldBookId>().primaryKey(),
     // KEEP `ownerId` (D23). User hard-delete cascades the owner's books (→ entries + junctions).
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    description: text("description"),
+    name: nulFreeText("name").notNull(),
+    description: nulFreeText("description"),
     // NOTE: a book carries NO `role` — role is a per-character-ATTACHMENT property (`character_books.role`,
     // BookAttachmentView), "only meaningful on the character scope" (contracts/world-info). One book can be
     // primary for char A and auxiliary for char B, so role cannot live on the book.
@@ -86,17 +87,17 @@ export const worldEntries = sqliteTable(
   "world_entries",
   {
     // TypeID PK (`world_entry_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<WorldEntryId>().primaryKey(),
+    id: nulFreeText("id").$type<WorldEntryId>().primaryKey(),
     // The owning book. CASCADE: deleting a book removes its entries (entries have no independent existence).
-    worldBookId: text("world_book_id")
+    worldBookId: nulFreeText("world_book_id")
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
+    title: nulFreeText("title").notNull(),
     // Author-facing memo (= ST's `comment`); rendered in the entry list, NEVER injected. Nullable.
-    description: text("description"),
+    description: nulFreeText("description"),
     // What the model sees when the entry fires.
-    content: text("content").notNull(),
+    content: nulFreeText("content").notNull(),
     // Keyword triggers for `scope: keyword` entries. NULLABLE list (absent ⇒ null, NOT `[]`) — the
     // parseStringArrayColumn asymmetry; mirrors `EntryView.keys: string[] | null`.
     keys: text("keys", { mode: "json" }).$type<string[]>(),
@@ -129,11 +130,11 @@ export const worldEntries = sqliteTable(
 export const chatBooks = sqliteTable(
   "chat_books",
   {
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    worldBookId: text("world_book_id")
+    worldBookId: nulFreeText("world_book_id")
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
@@ -152,11 +153,11 @@ export const chatBooks = sqliteTable(
 export const characterBooks = sqliteTable(
   "character_books",
   {
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    worldBookId: text("world_book_id")
+    worldBookId: nulFreeText("world_book_id")
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
@@ -177,7 +178,7 @@ export const characterBooks = sqliteTable(
 export const globalBooks = sqliteTable(
   "global_books",
   {
-    worldBookId: text("world_book_id")
+    worldBookId: nulFreeText("world_book_id")
       .$type<WorldBookId>()
       .primaryKey()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
@@ -192,11 +193,11 @@ export const globalBooks = sqliteTable(
 export const personaBooks = sqliteTable(
   "persona_books",
   {
-    personaId: text("persona_id")
+    personaId: nulFreeText("persona_id")
       .$type<PersonaId>()
       .notNull()
       .references(() => personas.id, { onDelete: "cascade" }),
-    worldBookId: text("world_book_id")
+    worldBookId: nulFreeText("world_book_id")
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),

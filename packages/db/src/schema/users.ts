@@ -20,6 +20,7 @@ import type { ExternalId, Handle, HandleKey, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 
 // The default global role for a freshly-provisioned user (owner/admin are granted explicitly — D17).
@@ -34,22 +35,22 @@ export const users = sqliteTable(
   "users",
   {
     // PLAIN nanoid brand (not a TypeID) — see file header. App-minted; no DB default.
-    id: text("id").$type<UserId>().primaryKey(),
-    handle: text("handle").$type<Handle>().notNull(),
+    id: nulFreeText("id").$type<UserId>().primaryKey(),
+    handle: nulFreeText("handle").$type<Handle>().notNull(),
     // `handleKey(handle)` (`@orb/kit/handle-key`), written with every handle: the comparison key, never shown.
     // Its unique index makes a case variant or a confusable of a held handle a conflict (D257).
-    handleKey: text("handle_key").$type<HandleKey>().notNull(),
+    handleKey: nulFreeText("handle_key").$type<HandleKey>().notNull(),
     // Stable SSO subject — nullable (the single-user / owner-fallback path has none); UNIQUE-when-set
     // via the partial index below.
-    externalId: text("external_id").$type<ExternalId>(),
+    externalId: nulFreeText("external_id").$type<ExternalId>(),
     // MUTABLE contact attribute off the SSO `email` claim (or FORWARD_AUTH_EMAIL_HEADER) — re-derived on
     // each login, never wiped on a null (keep-on-null). NEVER an identity/join key (no UNIQUE): identity
     // stays keyed on `id` + `external_id`. Nullable — the single-user/owner-fallback + local paths carry none.
-    email: text("email"),
+    email: nulFreeText("email"),
     role: text("role", { enum: USER_ROLES }).notNull().default(DEFAULT_ROLE),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     // Local-auth path only; null for SSO-only users.
-    passwordHash: text("password_hash"),
+    passwordHash: nulFreeText("password_hash"),
     // The principal-kind axis (D60). Defaults 'human' — every existing row is a valid human, no backfill. The
     // `users_agent_shape` CHECK (below) makes the agent flavor loginless/unprivileged/owned by DDL.
     // Born at AP0; the ONLY writer of a non-'human' row will be `provisionAgentPrincipal` (AP1, docs/work/0048).
@@ -58,7 +59,7 @@ export const users = sqliteTable(
     // CASCADE: owner hard-delete → agent row deleted → (existing FKs) roster CASCADE + `messages.authorUserId`
     // SET NULL, with NO reaper (referential physics — D60). The explicit
     // `AnySQLiteColumn` return type is required for a self-reference (drizzle can't infer mid-definition).
-    ownerUserId: text("owner_user_id")
+    ownerUserId: nulFreeText("owner_user_id")
       .$type<UserId>()
       .references((): AnySQLiteColumn => users.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

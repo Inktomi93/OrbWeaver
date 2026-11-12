@@ -644,6 +644,24 @@ const VISIBILITY_MINT_IMPORT = {
   message: "Only chat's resolveViewerVisibility mints a ViewerVisibility; take the answer from that op.",
 };
 
+// A NUL is not text in this app: a free-string TEXT column is `nulFreeText` (`packages/db/src/custom-types/index.ts`),
+// which removes NUL on its way to the driver, because the libSQL client reads a TEXT value back cut at its first NUL.
+// Drizzle's own `text` stays only where a value cannot carry a raw NUL: a `mode: "json"` or an `enum` column.
+const DB_SCHEMA_SOURCES = ["packages/db/src/schema/**/*.ts"];
+const NUL_FREE_TEXT_MESSAGE =
+  'A free-string TEXT column is nulFreeText from "../custom-types/index.ts", which removes NUL on its way to the driver; drizzle\'s text is only for a mode "json" or an enum column.';
+const PLAIN_TEXT_COLUMN_SYNTAX = [
+  { selector: "CallExpression[callee.name='text'][arguments.length=1]", message: NUL_FREE_TEXT_MESSAGE },
+  {
+    selector: "CallExpression[callee.name='text'][arguments.length>1]:not(:has(Property[key.name=/^(mode|enum)$/]))",
+    message: NUL_FREE_TEXT_MESSAGE,
+  },
+  {
+    selector: "ImportDeclaration[source.value='drizzle-orm/sqlite-core'] ImportSpecifier[imported.name='text'][local.name!='text']",
+    message: "Import drizzle's text under its own name, so the free-string column check sees every use of it.",
+  },
+];
+
 // dependency-cruiser sees only literal import edges, so a computed specifier or a host loader reaches any db door
 // unseen (D335). `node:module` itself is a dependency-cruiser rule; these are the loaders no import names.
 const MODULE_LOADER_SYNTAX = [
@@ -2306,6 +2324,7 @@ export default [
   { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, SERVER_STREAM_SYNTAX) } },
   { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },
+  { files: DB_SCHEMA_SOURCES, rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, ...PLAIN_TEXT_COLUMN_SYNTAX) } },
   {
     files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
     ignores: KIT_CLOCK_HOME,

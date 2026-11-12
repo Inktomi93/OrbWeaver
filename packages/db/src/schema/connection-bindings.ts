@@ -17,6 +17,7 @@ import { BINDING_ACTOR_KINDS, CATALOG_STRATEGIES, DIALECTS, PLUGIN_PROVIDER_ID_P
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { automationRules } from "./automation.ts";
 import { userConnections } from "./connection.ts";
@@ -37,23 +38,23 @@ import { users } from "./users.ts";
 export const connectionBindings = sqliteTable(
   "connection_bindings",
   {
-    id: text("id").$type<ConnectionBindingId>().primaryKey(),
+    id: nulFreeText("id").$type<ConnectionBindingId>().primaryKey(),
     actorKind: text("actor_kind", { enum: BINDING_ACTOR_KINDS }).notNull(),
     // Set ONLY on the `user` arm (that user's per-task defaults).
-    userId: text("user_id")
+    userId: nulFreeText("user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
     // The `automation-rule` arm: the rule's AUTHOR picked a row for it.
-    ruleId: text("rule_id")
+    ruleId: nulFreeText("rule_id")
       .$type<AutomationRuleId>()
       .references(() => automationRules.id, { onDelete: "cascade" }),
     // The `plugin-grant` arm: the installing user granted the plugin a row per task.
-    pluginId: text("plugin_id")
+    pluginId: nulFreeText("plugin_id")
       .$type<PluginId>()
       .references(() => plugins.id, { onDelete: "cascade" }),
     // ROUTABLE tasks only — `structured` rides its `ridesOn` task for every actor (F16).
     task: text("task", { enum: ROUTABLE_TASKS }).$type<RoutableTask>().notNull(),
-    connectionId: text("connection_id")
+    connectionId: nulFreeText("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
   },
@@ -97,23 +98,23 @@ export const providerRows = sqliteTable(
   "provider_rows",
   {
     // The registry id itself (`plugin:<name>/<id>` | a bare admin id) — NOT a TypeID; the natural key.
-    id: text("id").$type<ProviderId>().notNull(),
-    label: text("label").notNull(),
+    id: nulFreeText("id").$type<ProviderId>().notNull(),
+    label: nulFreeText("label").notNull(),
     wire: text("wire", { enum: WIRES }).$type<Wire>().notNull(),
     dialect: text("dialect", { enum: DIALECTS }),
     auth: text("auth", { enum: PROVIDER_AUTHS }).notNull(),
-    baseUrl: text("base_url"),
+    baseUrl: nulFreeText("base_url"),
     apis: text("apis", { mode: "json" }).$type<readonly ChatApi[]>().notNull(),
     serves: text("serves", { mode: "json" }).$type<readonly Task[]>(),
     catalog: text("catalog", { enum: CATALOG_STRATEGIES }).notNull(),
     metered: integer("metered", { mode: "boolean" }).notNull(),
-    docsUrl: text("docs_url"),
+    docsUrl: nulFreeText("docs_url"),
     features: text("features", { mode: "json" }).$type<EndpointFeatures>(),
     /** SHA-256 of the canonical validated ProviderDef — half the key: one row per distinct definition of an id. */
-    definitionHash: text("definition_hash").notNull(),
+    definitionHash: nulFreeText("definition_hash").notNull(),
     originKind: text("origin_kind", { enum: PROVIDER_ROW_ORIGINS }).notNull(),
     // The admin who added it — provenance only (SET NULL; the row outlives the admin).
-    originUserId: text("origin_user_id")
+    originUserId: nulFreeText("origin_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -152,14 +153,14 @@ export const providerRows = sqliteTable(
 export const pluginProviderClaims = sqliteTable(
   "plugin_provider_claims",
   {
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    providerId: text("provider_id").$type<ProviderId>().notNull(),
-    definitionHash: text("definition_hash").notNull(),
+    providerId: nulFreeText("provider_id").$type<ProviderId>().notNull(),
+    definitionHash: nulFreeText("definition_hash").notNull(),
     // The owner's install serving this claim now; NULL is a tombstone that serves nobody.
-    pluginId: text("plugin_id")
+    pluginId: nulFreeText("plugin_id")
       .$type<PluginId>()
       .references(() => plugins.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

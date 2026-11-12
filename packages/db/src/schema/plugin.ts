@@ -15,6 +15,7 @@ import { PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_KV_VALUE_MAX_BYTES, PLUGIN_ORIGINS, PLU
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { users } from "./users.ts";
@@ -27,20 +28,20 @@ export const plugins = sqliteTable(
   "plugins",
   {
     // TypeID PK (`plugin_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<PluginId>().primaryKey(),
+    id: nulFreeText("id").$type<PluginId>().primaryKey(),
     // The installing principal — the single-owner partition key. User hard-delete cascades their plugins.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // The manifest slug (unique per owner — the UNIQUE below) + the display/upgrade-ordering fields.
-    slug: text("slug").notNull(),
-    name: text("name").notNull(),
-    version: text("version").notNull(),
+    slug: nulFreeText("slug").notNull(),
+    name: nulFreeText("name").notNull(),
+    version: nulFreeText("version").notNull(),
     // The FULL validated manifest (provenance; re-validated on load). `builtAgainst` provenance lives here.
     manifest: text("manifest", { mode: "json" }).$type<PluginManifest>().notNull(),
     // The bundle bytes in the per-user CAS. RESTRICT: an installed plugin's bundle must not vanish.
-    bundleAssetId: text("bundle_asset_id")
+    bundleAssetId: nulFreeText("bundle_asset_id")
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "restrict" }),
@@ -56,10 +57,10 @@ export const plugins = sqliteTable(
     // re-pasting it. NULL for an `upload` install (a handed-over file has no remembered source). It is not
     // derivable from anything else — the bytes are in the CAS but the URL they came from is not — which is the
     // whole reason it earns a column. Owner-scoped by the row it rides; a guest can name no other owner's row.
-    sourceUrl: text("source_url"),
+    sourceUrl: nulFreeText("source_url"),
     // Exact installed revision for a guarded Git source. The CHECK below makes it a lowercase 40-hex OID
     // exactly for `git`; SHA-1 is the object format isomorphic-git currently resolves and validates.
-    sourceCommit: text("source_commit"),
+    sourceCommit: nulFreeText("source_commit"),
     // THE SYSTEM'S OWN REFUSAL, recorded — set when an UPGRADE widened declared reach and forced the row
     // `disabled`, cleared when the owner re-consents to the whole ask (`setGrant`) and on a fresh install.
     // It is a stored EVENT, not a derivable state, and that is what earns it a column: "declared ⊄ granted"
@@ -93,7 +94,7 @@ export const plugins = sqliteTable(
     widenedNetHosts: text("widened_net_hosts", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     // The 03 §4 auto-disable counter — a clean invocation resets it, 3 consecutive crashes → errored.
     consecutiveCrashes: integer("consecutive_crashes").notNull().default(0),
-    lastError: text("last_error"),
+    lastError: nulFreeText("last_error"),
     installedAt: integer("installed_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -152,21 +153,21 @@ export const adminDistributedPlugins = sqliteTable(
   "admin_distributed_plugins",
   {
     // The manifest slug — the plugin's identity, and therefore the natural PK (see the header).
-    slug: text("slug").primaryKey(),
+    slug: nulFreeText("slug").primaryKey(),
     // Display fields denormalized off the VALIDATED manifest, so the admin's list reads without unzipping a
     // bundle. `version` is also load-bearing: `uninstallForAllUsers` compares it against each recipient's row
     // to decide whether that user has diverged.
-    name: text("name").notNull(),
-    version: text("version").notNull(),
+    name: nulFreeText("name").notNull(),
+    version: nulFreeText("version").notNull(),
     // The PUBLISHED bytes, in the distributing admin's own CAS — the source every later fan-out and every
     // new-user application re-reads. See the header for why this is CASCADE.
-    bundleAssetId: text("bundle_asset_id")
+    bundleAssetId: nulFreeText("bundle_asset_id")
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
     // WHO published it — provenance for the admin surface, and the reason a deleted admin's distribution stops
     // applying (their assets cascade away with them, and so does this row).
-    distributedBy: text("distributed_by")
+    distributedBy: nulFreeText("distributed_by")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -232,18 +233,18 @@ export const adminDistributedPlugins = sqliteTable(
 export const pluginAssets = sqliteTable(
   "plugin_assets",
   {
-    pluginId: text("plugin_id")
+    pluginId: nulFreeText("plugin_id")
       .$type<PluginId>()
       .notNull()
       .references(() => plugins.id, { onDelete: "cascade" }),
-    assetId: text("asset_id")
+    assetId: nulFreeText("asset_id")
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
     /** The zip entry this asset was unpacked from (`ui/assets/<name>`), or `''` for a runtime
      *  `net.fetchAsset` cover — see the table header for why the sentinel is `''` and not NULL. It is
      *  the RESOLUTION key: a UI node names a bundle path and `listPluginBundleAssets` turns it into the id. */
-    bundlePath: text("bundle_path").notNull().default(""),
+    bundlePath: nulFreeText("bundle_path").notNull().default(""),
     // Diagnostic provenance for the last fetch or bundle unpack of this retained CAS link; asset
     // liveness is reference-based, so correctness must not read recency. Ends if link retention becomes TTL-based.
     fetchedAt: integer("fetched_at").notNull(),
@@ -267,7 +268,7 @@ export const pluginAssets = sqliteTable(
 export const pluginKv = sqliteTable(
   "plugin_kv",
   {
-    pluginId: text("plugin_id")
+    pluginId: nulFreeText("plugin_id")
       .$type<PluginId>()
       .notNull()
       .references(() => plugins.id, { onDelete: "cascade" }),
@@ -286,12 +287,12 @@ export const pluginKv = sqliteTable(
     // target. Either is a design change, not a floor — file one if the join cost is ever measured as
     // acceptable. What is NOT acceptable is a future writer that takes `ownerId` as a parameter beside a
     // `pluginId` it did not authorize together.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    key: text("key").notNull(),
-    value: text("value").notNull(),
+    key: nulFreeText("key").notNull(),
+    value: nulFreeText("value").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
   (t) => [

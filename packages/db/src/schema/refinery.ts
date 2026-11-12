@@ -35,6 +35,7 @@ import type { CharacterId, ModelId, RefineryRunId, RefinerySchemaId, RefinerySes
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
@@ -50,15 +51,15 @@ export const refinerySessions = sqliteTable(
   "refinery_sessions",
   {
     // TypeID PK (`refinery_session_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<RefinerySessionId>().primaryKey(),
+    id: nulFreeText("id").$type<RefinerySessionId>().primaryKey(),
     // The D23 ownership anchor (header) — CASCADE: a session is per-character work product, not canon.
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
     // Optional user label; null renders as the character-derived default in the roster (D62 LIST row).
     // Bounded at the write verb via `refinerySessionNameSchema` (@orb/contracts/refinery).
-    name: text("name"),
+    name: nulFreeText("name"),
     status: text("status", { enum: REFINERY_SESSION_STATUSES }).$type<RefinerySessionStatus>().notNull().default("active"),
     // The full canonical card snapshotted at session start — the anti-drift anchor (header; D28 blob law).
     originalCard: text("original_card", { mode: "json" }).$type<CharacterCard>().notNull(),
@@ -70,7 +71,7 @@ export const refinerySessions = sqliteTable(
     // HOST-authored but MODEL-FACING: the write verb parses it through `refineryGuidanceSchema`
     // (@orb/contracts/refinery — the cap's ONE home) and the prompt substrate NEUTRALIZES it before
     // splicing, the `{{input}}` guided precedent. SQLite has no length domain; the belt is the verb.
-    guidance: text("guidance"),
+    guidance: nulFreeText("guidance"),
     iterationCount: integer("iteration_count").notNull().default(0),
     // The review's Keep/Discard sheets, keyed by rewrite run id (`refineryRewriteDecisionsSchema`), written
     // as each block is pressed so a re-entered session shows the same decisions and the same Apply count.
@@ -99,8 +100,8 @@ export const refineryRuns = sqliteTable(
   "refinery_runs",
   {
     // TypeID PK (`refinery_run_…`); brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<RefineryRunId>().primaryKey(),
-    sessionId: text("session_id")
+    id: nulFreeText("id").$type<RefineryRunId>().primaryKey(),
+    sessionId: nulFreeText("session_id")
       .$type<RefinerySessionId>()
       .notNull()
       .references(() => refinerySessions.id, { onDelete: "cascade" }),
@@ -114,7 +115,7 @@ export const refineryRuns = sqliteTable(
     payload: text("payload", { mode: "json" }).$type<RefineryRun["payload"]>().notNull(),
     // NULLABLE for exactly the `manual` provenance arm (a hand-authored rewrite has no model) — an
     // honest null, never a sentinel spelling. Every model-produced run writes it.
-    model: text("model").$type<ModelId>(),
+    model: nulFreeText("model").$type<ModelId>(),
     // Provider-reported usage; null when the backend reports none (stats parity, study §5.2). The
     // summarize result DOES carry usage and the engine threads it — a null here is a silent backend.
     promptTokens: integer("prompt_tokens"),
@@ -135,7 +136,7 @@ export const refineryRuns = sqliteTable(
     // `set null` because a parent's disappearance means the edge is UNKNOWN, never that the child should
     // vanish — a run is independent append-only history whichever run it read (in practice the session
     // cascade takes both together, so the arm is a correctness statement more than a live path).
-    sourceRunId: text("source_run_id")
+    sourceRunId: nulFreeText("source_run_id")
       .$type<RefineryRunId>()
       .references((): AnySQLiteColumn => refineryRuns.id, { onDelete: "set null" }),
     // The keys the strip-mode payload parse silently REMOVED — dotted paths, never content (the
@@ -166,16 +167,16 @@ export const refinerySchemas = sqliteTable(
   "refinery_schemas",
   {
     // TypeID PK (`refinery_schema_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<RefinerySchemaId>().primaryKey(),
-    ownerId: text("owner_id")
+    id: nulFreeText("id").$type<RefinerySchemaId>().primaryKey(),
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     // The wire ResponseFormat identifier (identifier grammar, verb-enforced per-owner case-insensitively
     // unique — the S5 registry-hygiene bar).
-    name: text("name").notNull(),
+    name: nulFreeText("name").notNull(),
     // The NL origin / purpose note (editable; rides the editor + the refine prompt).
-    description: text("description").notNull(),
+    description: nulFreeText("description").notNull(),
     // Which stage this schema serves (score|analyze — no custom rewrite, F-N3).
     stage: text("stage", { enum: REFINERY_SCHEMA_STAGES }).$type<RefinerySchemaStage>().notNull(),
     // The JSON-Schema document (liftable subset + x-orb-ui hints). Read-seam re-lifted.

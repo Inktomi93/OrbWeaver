@@ -28,11 +28,12 @@ import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const settings = sqliteTable("settings", {
   // The natural KV key (e.g. "app", "catalog:openrouter"). No brand — a free-form string key.
-  key: text("key").primaryKey(),
+  key: nulFreeText("key").primaryKey(),
   // The stored JSON value. Generic `JsonValue` (the AppSettings override blob, the OR catalog snapshot,
   // …); parsed into its specific shape at the read seam by whichever tenant owns the row.
   value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),
@@ -41,7 +42,7 @@ export const settings = sqliteTable("settings", {
 
 export const userSettings = sqliteTable("user_settings", {
   // PK = the owning user (one settings row per user). The FK + the PK are the same column.
-  userId: text("user_id")
+  userId: nulFreeText("user_id")
     .$type<UserId>()
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
@@ -60,11 +61,11 @@ export const userSettings = sqliteTable("user_settings", {
 export const userSeedLedger = sqliteTable(
   "user_seed_ledger",
   {
-    userId: text("user_id")
+    userId: nulFreeText("user_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    itemKey: text("item_key").notNull(),
+    itemKey: nulFreeText("item_key").notNull(),
     seededAt: integer("seeded_at").notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.itemKey] })],
@@ -73,19 +74,19 @@ export const userSeedLedger = sqliteTable(
 export const themes = sqliteTable(
   "themes",
   {
-    id: text("id").$type<ThemeId>().primaryKey(),
+    id: nulFreeText("id").$type<ThemeId>().primaryKey(),
     // NULLABLE: owner_id IS NULL = a seed palette row (the presets two-row-kind pattern). CASCADE for
     // owned rows — a deleted user's themes are worthless without the owner (the D21 single-owned norm).
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
+    name: nulFreeText("name").notNull(),
     // The D294 Tier-A token-override value-set. Parsed LENIENTLY at the read seam via `themeOverrideSchema`
     // (@orb/contracts/theme) — a corrupt blob degrades to defaults there, never here.
     override: text("override", { mode: "json" }).$type<ThemeOverride>().notNull(),
     // Optional self-authored custom CSS (§12.1 Tier-B / global-owner tier — validated at the write
     // boundary via `@orb/kit/css-validate`). NULL on seeds.
-    css: text("css"),
+    css: nulFreeText("css"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

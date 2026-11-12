@@ -1,0 +1,10 @@
+{
+  "text-column-strips-nul-edits": [
+    {
+      "cardinality": {
+        "shape": "plain-text"
+      },
+      "count": 2
+    }
+  ]
+}

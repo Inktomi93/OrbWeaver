@@ -27,6 +27,7 @@ import type { CostDetails, ProviderId, ResponseCache, TokenDetails } from "@orb/
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -41,41 +42,41 @@ export const imageryGenerations = sqliteTable(
   "imagery_generations",
   {
     // TypeID PK (`imagery_generation_…`); brand is type-only, SQL is plain TEXT. App-minted, no DB default.
-    id: text("id").$type<ImageryGenerationId>().primaryKey(),
+    id: nulFreeText("id").$type<ImageryGenerationId>().primaryKey(),
     // The generated image this row describes. Subordinate: deleting the asset erases its provenance.
-    assetId: text("asset_id")
+    assetId: nulFreeText("asset_id")
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
     // Provenance context — the chat it was born in; nullable + SET NULL so the image outlives the chat.
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .references(() => chats.id, { onDelete: "set null" }),
     // The template mode this generation used ("free" for the P5 chat caller). CHECK-gated to the tuple;
     // `{ enum }` derives the row-type union (`$inferSelect.mode` is `PromptTemplateMode`, not bare string).
     mode: text("mode", { enum: PROMPT_TEMPLATE_MODES }).notNull(),
     // The card this portrait depicts (portrait modes; null for scene/background/free). SET NULL on delete.
-    subjectCharacterId: text("subject_character_id")
+    subjectCharacterId: nulFreeText("subject_character_id")
       .$type<CharacterId>()
       .references(() => characters.id, { onDelete: "set null" }),
     // sha-256 of `${mode}:${characterId}:${card.contentHash}` — the reuse key. Null ⇒ never reuse-matched
     // (scene/background/free/edit). Reserved for the Phase-7 reuse gate.
-    identityHash: text("identity_hash"),
+    identityHash: nulFreeText("identity_hash"),
     // The resolved prompt the image was generated from (regenerate reads this; the gallery shows it).
-    prompt: text("prompt").notNull(),
+    prompt: nulFreeText("prompt").notNull(),
     // The negative prompt applied (reserved — the Phase-7 negative composition). Nullable.
-    negativePrompt: text("negative_prompt"),
+    negativePrompt: nulFreeText("negative_prompt"),
     // The image model that produced it (the gallery's provenance detail).
-    model: text("model").$type<ModelId>().notNull(),
+    model: nulFreeText("model").$type<ModelId>().notNull(),
     // The provider registry id + the connection that generated it — the same attribution pair as a chat swipe
     // (inference program §5.3b/§5.3c); SET NULL so provenance outlives the connection row.
-    provider: text("provider").$type<ProviderId>(),
-    connectionId: text("connection_id")
+    provider: nulFreeText("provider").$type<ProviderId>(),
+    connectionId: nulFreeText("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
     // The summed generation cost (extraction + caption + generate). Nullable when any component is unknown.
     costUsd: real("cost_usd"),
-    servedModel: text("served_model"),
+    servedModel: nulFreeText("served_model"),
     tokensIn: integer("tokens_in"),
     tokensOut: integer("tokens_out"),
     reasoningTokens: integer("reasoning_tokens"),
@@ -91,10 +92,10 @@ export const imageryGenerations = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // The provider call this picture came from, shared by every picture of one fanned-out call: the stats
     // rebuild counts one priced generation per call id. NULL only on rows written before the column existed.
-    callId: text("call_id").$type<ImageryCallId>(),
+    callId: nulFreeText("call_id").$type<ImageryCallId>(),
     // Restore identity is per output, not per asset bytes or retained output cohort. Source ids confer
     // no authority; the owning import verb admits the entire asset group in the same batch.
-    importHash: text("import_hash"),
+    importHash: nulFreeText("import_hash"),
     importSource: text("import_source", { mode: "json" }).$type<ImageryImportSource>(),
   },
   (t) => [
@@ -117,12 +118,12 @@ export const imageryGenerations = sqliteTable(
 export const imageryImportCalls = sqliteTable(
   "imagery_import_calls",
   {
-    id: text("id").$type<ImageryCallId>().primaryKey(),
-    ownerId: text("owner_id")
+    id: nulFreeText("id").$type<ImageryCallId>().primaryKey(),
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    identity: text("identity").notNull(),
+    identity: nulFreeText("identity").notNull(),
   },
   (t) => [uniqueIndex("imagery_import_calls_owner_identity_unique").on(t.ownerId, t.identity)],
 );

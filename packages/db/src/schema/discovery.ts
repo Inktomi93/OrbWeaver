@@ -52,6 +52,7 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -74,14 +75,14 @@ export const duplicateCharacterPairs = sqliteTable(
   "duplicate_character_pairs",
   {
     // TypeID PK (`duplicate_character_pair_…`); brand is type-only, SQL is plain TEXT. App-minted.
-    id: text("id").$type<DuplicateCharacterPairId>().primaryKey(),
+    id: nulFreeText("id").$type<DuplicateCharacterPairId>().primaryKey(),
     // The two sides of the pair — both real FKs (D24), both CASCADE (a deleted character removes every
     // pair it is in, BY PHYSICS — no delete-time sweep). Canonical A<B (the CHECK below).
-    characterIdA: text("character_id_a")
+    characterIdA: nulFreeText("character_id_a")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    characterIdB: text("character_id_b")
+    characterIdB: nulFreeText("character_id_b")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
@@ -93,7 +94,7 @@ export const duplicateCharacterPairs = sqliteTable(
     // would be a dead constant. `relation` lives ONLY on `duplicate_chat_pairs`. (Vestige of neo's single
     // polymorphic `duplicate_pairs`, dissolved by D24 into these per-type tables.)
     // The embedding-space tag the pair was computed in (a pair is only meaningful within one space).
-    model: text("model").notNull(),
+    model: nulFreeText("model").notNull(),
     // Provenance: the epoch-MS stamp of the recompute that wrote this row.
     computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -119,13 +120,13 @@ export const duplicateChatPairs = sqliteTable(
   "duplicate_chat_pairs",
   {
     // TypeID PK (`duplicate_chat_pair_…`); brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<DuplicateChatPairId>().primaryKey(),
+    id: nulFreeText("id").$type<DuplicateChatPairId>().primaryKey(),
     // The two sides — both real FKs (D24), both CASCADE.
-    chatIdA: text("chat_id_a")
+    chatIdA: nulFreeText("chat_id_a")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    chatIdB: text("chat_id_b")
+    chatIdB: nulFreeText("chat_id_b")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -134,7 +135,7 @@ export const duplicateChatPairs = sqliteTable(
     similarity: real("similarity").notNull(),
     // `duplicate | forked` — derives RELATIONS (+ the CHECK below).
     relation: text("relation", { enum: RELATIONS }).notNull(),
-    model: text("model").notNull(),
+    model: nulFreeText("model").notNull(),
     computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -160,17 +161,17 @@ export const keywordCooccurrence = sqliteTable(
   "keyword_cooccurrence",
   {
     // TypeID PK (`keyword_cooccurrence_…`).
-    id: text("id").$type<KeywordCooccurrenceId>().primaryKey(),
+    id: nulFreeText("id").$type<KeywordCooccurrenceId>().primaryKey(),
     // KEEP ownerId (D23) — the row's own key dimension, not a derivable mirror. CASCADE: a deleted owner
     // drops their rollup.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // The two co-occurring keywords (free-form strings). Canonical A<B is enforced by the table CHECK below
     // (the unique index alone does not enforce the ordering — D40).
-    keywordA: text("keyword_a").notNull(),
-    keywordB: text("keyword_b").notNull(),
+    keywordA: nulFreeText("keyword_a").notNull(),
+    keywordB: nulFreeText("keyword_b").notNull(),
     // How many tier-0 digests the pair co-occurred in (the co-occurrence weight).
     count: integer("count").notNull(),
     computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -194,13 +195,13 @@ export const characterKeywordProfiles = sqliteTable(
   "character_keyword_profiles",
   {
     // TypeID PK (`character_keyword_profile_…`).
-    id: text("id").$type<CharacterKeywordProfileId>().primaryKey(),
+    id: nulFreeText("id").$type<CharacterKeywordProfileId>().primaryKey(),
     // The producer FK + the ONLY ownership link (owner derives via characters.ownerId). CASCADE.
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    keyword: text("keyword").notNull(),
+    keyword: nulFreeText("keyword").notNull(),
     count: integer("count").notNull(),
     computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -223,21 +224,21 @@ export const characterKeywordProfiles = sqliteTable(
 export const characterSummaries = sqliteTable("character_summaries", {
   // Natural PK = the producer FK (D28 — one summary per current card; a re-run refreshes in place).
   // CASCADE: a deleted character drops its summary. No own TypeID brand (keyed by characterId).
-  characterId: text("character_id")
+  characterId: nulFreeText("character_id")
     .$type<CharacterId>()
     .primaryKey()
     .references(() => characters.id, { onDelete: "cascade" }),
   // The distilled facets. Enum-constrained by the guided-decode grammar (discovery-local), not the db.
-  genre: text("genre"),
-  tone: text("tone"),
+  genre: nulFreeText("genre"),
+  tone: nulFreeText("tone"),
   subGenres: text("sub_genres", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
-  setting: text("setting"),
+  setting: nulFreeText("setting"),
   // Discovery FACETS (auto-suggest source), NOT tag-domain labels.
   tags: text("tags", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
-  elevatorPitch: text("elevator_pitch"),
-  overview: text("overview"),
+  elevatorPitch: nulFreeText("elevator_pitch"),
+  overview: nulFreeText("overview"),
   // The summarize-model id + the recompute provenance stamp.
-  model: text("model").notNull(),
+  model: nulFreeText("model").notNull(),
   computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
 
@@ -253,22 +254,22 @@ export const themeClusters = sqliteTable(
   "theme_clusters",
   {
     // TypeID PK (`theme_cluster_…`).
-    id: text("id").$type<ThemeClusterId>().primaryKey(),
+    id: nulFreeText("id").$type<ThemeClusterId>().primaryKey(),
     // KEEP ownerId (D23) — the row's own key dimension. CASCADE: a deleted owner drops their clusters.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // The clustering level (`scene` = tier-0, `arc` = tier-1+). Plain TEXT — domain-validated (see header).
-    level: text("level").notNull(),
+    level: nulFreeText("level").notNull(),
     // The cluster index within (owner, level) — the stable address used by `themeDetail(clusterIdx, level)`.
     clusterIdx: integer("cluster_idx").notNull(),
     // The LLM-assigned name — nullable until the naming pass runs (clusters exist before they are named).
-    name: text("name"),
+    name: nulFreeText("name"),
     // The FULL-space member count (the "is this cluster worth naming?" gate uses this, NOT the collapsed
     // rep count — a fork-of-50 collapsing to one rep should still be named).
     size: integer("size").notNull(),
-    model: text("model").notNull(),
+    model: nulFreeText("model").notNull(),
     computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -289,13 +290,13 @@ export const digestThemeAssignments = sqliteTable(
   "digest_theme_assignments",
   {
     // The producer FK + the ownership-derivation link (digest → chat → host). CASCADE.
-    digestId: text("digest_id")
+    digestId: nulFreeText("digest_id")
       .$type<ChatDigestId>()
       .notNull()
       .references(() => chatDigests.id, { onDelete: "cascade" }),
     // The cluster the digest is assigned to. CASCADE: a recompute deletes the owner's clusters, which
     // clears every assignment, then reinserts (the atomic per-owner-set replace on recompute).
-    themeClusterId: text("theme_cluster_id")
+    themeClusterId: nulFreeText("theme_cluster_id")
       .$type<ThemeClusterId>()
       .notNull()
       .references(() => themeClusters.id, { onDelete: "cascade" }),

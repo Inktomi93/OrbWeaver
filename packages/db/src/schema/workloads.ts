@@ -55,6 +55,7 @@ import {
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
@@ -81,7 +82,7 @@ export const workloads = sqliteTable(
   "workloads",
   {
     // TypeID PK (`workload_…`); the brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<WorkloadId>().primaryKey(),
+    id: nulFreeText("id").$type<WorkloadId>().primaryKey(),
     // The bulk-work kind — derives WORKLOAD_KINDS (D34); CHECK below mirrors the tuple.
     kind: text("kind", { enum: WORKLOAD_KINDS }).notNull(),
     // The lifecycle state — derives WORKLOAD_STATUSES (D34); defaults to `queued` at enqueue.
@@ -96,7 +97,7 @@ export const workloads = sqliteTable(
     // bank ingests at once, one document twice does not); a kind declaring nothing carries the `none`
     // sentinel, a shared bucket → its lock stays per-(kind, owner) / per-(kind). Free TEXT, no CHECK: a
     // concurrency unit is as often an entity id as an axis member (see the header).
-    admissionKey: text("admission_key").notNull().default(DEFAULT_KEY),
+    admissionKey: nulFreeText("admission_key").notNull().default(DEFAULT_KEY),
     // The EXECUTION lane (derives WORKLOAD_LANES; CHECK below mirrors the tuple) — which worker poll loop
     // dispatches the row. Stamped at enqueue from the owning domain's contribution; NOT a lock dimension.
     lane: text("lane", { enum: WORKLOAD_LANES }).notNull().default(DEFAULT_LANE),
@@ -113,11 +114,11 @@ export const workloads = sqliteTable(
     progress: text("progress", { mode: "json" }).$type<WorkloadProgress>(),
     // Enumeration and workload-visibility owner (D23). Bulk/system scope is null. SET NULL retains
     // history after deletion; admissionSystem distinguishes deletion from ownerless admission.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // Retained liability is not enumeration ownership; deletion never selects a replacement funder.
-    funderUserId: text("funder_user_id")
+    funderUserId: nulFreeText("funder_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // Immutable ADMISSION identity, distinct from the mutable audit/authorization FK above. True means the
@@ -132,7 +133,7 @@ export const workloads = sqliteTable(
     // verdict rather than an insert-time refusal. Null when the caller supplied no deps.
     dependsOn: text("depends_on", { mode: "json" }).$type<readonly WorkloadId[]>(),
     // A human-readable failure reason stamped on the terminal (failed/worker_died) path. Null otherwise.
-    error: text("error"),
+    error: nulFreeText("error"),
     // Dispatch DUE-instant + order key: the queue is (status='queued', lane, scheduledAt <= now) ordered
     // earliest-first, so a future-dated value is the "Run at" deferral (the row is invisible to dispatch
     // until its instant), not merely a sort hint. Defaults to now = run as soon as the lane is free.
@@ -204,12 +205,12 @@ export const workloadSchedules = sqliteTable(
   "workload_schedules",
   {
     // TypeID PK (`workload_schedule_…`); the brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<WorkloadScheduleId>().primaryKey(),
+    id: nulFreeText("id").$type<WorkloadScheduleId>().primaryKey(),
     // The owning user — the F3 permission + enqueue scope. NOT NULL + CASCADE: a schedule is live config
     // (not an audit row), so it dies with its owner rather than orphaning into an ownerless auto-enqueue.
     // A SINGULAR schedule enqueues for THIS owner; a BULK schedule is box-owner-owned (the tick still
     // enqueues the deployment-wide sweep — the owner here is the permission subject, not the sweep scope).
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

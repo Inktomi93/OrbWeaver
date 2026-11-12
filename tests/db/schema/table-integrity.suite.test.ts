@@ -98,7 +98,15 @@ function foreignKeysWithoutOnDelete(views: readonly TableView[]): readonly strin
 }
 
 // ── soft references ──────────────────────────────────────────────────────────────────────────────
-const ID_COLUMN_TYPES: ReadonlySet<string> = new Set(["SQLiteText", "SQLiteTextJson", "SQLiteInteger", "SQLiteTimestamp", "SQLiteBoolean"]);
+// `SQLiteCustomColumn` is the db's own codec columns, `nulFreeText` among them, which every free-string id column uses.
+const ID_COLUMN_TYPES: ReadonlySet<string> = new Set([
+  "SQLiteText",
+  "SQLiteTextJson",
+  "SQLiteInteger",
+  "SQLiteTimestamp",
+  "SQLiteBoolean",
+  "SQLiteCustomColumn",
+]);
 
 /** An id-shaped column (its JS key ends `Id`) with no foreign key: the shape D24 outlaws. */
 function softReferences(views: readonly TableView[]): readonly string[] {
