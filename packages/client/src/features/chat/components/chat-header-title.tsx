@@ -8,8 +8,9 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
+import { TitleReveal, useCutPart } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { CHAT_NAME_FIELD_NAME, renameChatButtonName, timeLib } from "#lib";
+import { CHAT_NAME_FIELD_NAME, chatTitleButtonName, chatTitleWhole, RENAME_CHAT_NAME, renameChatButtonName, timeLib } from "#lib";
 import { useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
 
 export interface ChatHeaderTitleProps {
@@ -26,7 +27,7 @@ export interface ChatHeaderTitleProps {
 /** The participants, leading (the ellipsis is the layout's floor). */
 function ParticipantsText({ label }: { readonly label: string }): ReactElement {
   return (
-    <Text voice="promoted" className="shell-topbar-title" truncate={true}>
+    <Text voice="promoted" className="shell-topbar-title" ref={useCutPart()} truncate={true}>
       {label}
     </Text>
   );
@@ -42,13 +43,14 @@ function DateText({ createdAt }: { readonly createdAt: number }): ReactElement {
 }
 
 function TitleText({ label, roomName, createdAt }: Pick<ChatHeaderTitleProps, "label" | "roomName" | "createdAt">): ReactElement {
+  const subtitle = useCutPart();
   return (
     <>
       <ParticipantsText label={label} />
       {roomName === null ? null : (
         <>
           {/* Whitespace between flex items paints nothing but separates their words for text-content readers. */}{" "}
-          <Text as="span" voice="quiet" className="shell-topbar-subtitle" truncate={true}>
+          <Text as="span" voice="quiet" className="shell-topbar-subtitle" ref={subtitle} truncate={true}>
             {roomName}
           </Text>
         </>
@@ -86,41 +88,70 @@ export function ChatHeaderTitle({ chatId, label, roomName, createdAt, canRename 
   // Set when the editor closes by Enter/Escape, so the title button that replaces the unmounted input takes
   // the focus the input held (a blur-cancel means the user went elsewhere: no restore).
   const restoreFocus = useRef(false);
+  const whole = chatTitleWhole(label, roomName);
   const finish = (): void => {
     restoreFocus.current = true;
     setDraft(null);
+  };
+  // The title control's width as the editor opens, so the chips beside the title stay put.
+  const titleControl = useRef<HTMLButtonElement | null>(null);
+  const startEdit = (): void => {
+    setEditWidth(titleControl.current?.getBoundingClientRect().width);
+    setDraft(roomName ?? "");
   };
 
   if (draft === null) {
     if (!canRename) {
       return (
-        <TitleGroup>
-          <TitleText label={label} roomName={roomName} createdAt={createdAt} />
-        </TitleGroup>
+        <TitleReveal
+          control={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={chatTitleButtonName(label, roomName, timeLib.formatDate(createdAt))}
+              className="shell-topbar-title-group min-inline-0"
+              justify="start"
+            />
+          }
+          whole={whole}
+        >
+          <TitleGroup>
+            <TitleText label={label} roomName={roomName} createdAt={createdAt} />
+          </TitleGroup>
+        </TitleReveal>
       );
     }
+    const date = timeLib.formatDate(createdAt);
+    // One control in both states: while the title is cut its press opens the whole title, and the reveal offers Rename; uncut, the press renames.
     return (
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        // The date is visible inside the button, so the name carries it after the stable identity (WCAG 2.5.3).
-        aria-label={renameChatButtonName(label, roomName, timeLib.formatDate(createdAt))}
-        className="shell-topbar-title-group min-inline-0"
-        justify="start"
-        ref={(node: HTMLButtonElement | null): void => {
-          if (node !== null && restoreFocus.current) {
-            restoreFocus.current = false;
-            node.focus();
-          }
+      <TitleReveal
+        action={{
+          label: RENAME_CHAT_NAME,
+          onSelect: startEdit,
+          control: ({ cut }): ReactElement => (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              // The date is visible inside the button, so the name carries it after the title (WCAG 2.5.3).
+              aria-label={cut ? chatTitleButtonName(label, roomName, date) : renameChatButtonName(label, roomName, date)}
+              className="shell-topbar-title-group min-inline-0"
+              justify="start"
+              ref={(node: HTMLButtonElement | null): void => {
+                titleControl.current = node;
+                if (node !== null && restoreFocus.current) {
+                  restoreFocus.current = false;
+                  node.focus();
+                }
+              }}
+            />
+          ),
         }}
-        onClick={(event): void => {
-          setEditWidth(event.currentTarget.getBoundingClientRect().width);
-          setDraft(roomName ?? "");
-        }}
+        whole={whole}
       >
         <TitleText label={label} roomName={roomName} createdAt={createdAt} />
-      </Button>
+      </TitleReveal>
     );
   }
 

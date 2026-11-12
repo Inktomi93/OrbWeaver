@@ -2,7 +2,7 @@
 // no primary wraps at and below the cq-16 step, as it always has; a screen whose trail holds its primary (Characters' New)
 // wraps from the wider cq-20 step, so the primary stays inline instead of folding. The reserved block height follows the wrap.
 import { FONT_SCALE } from "@orb/kit/font-scale";
-import { resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { resolvedLength, seedShellState, setRootFontScale, touchFloorPx } from "@orb/testkit/browser/spec";
 import { channelName, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -17,8 +17,6 @@ const TEXT_SCALES = [1, 1.25, FONT_SCALE.max] as const;
 const CHROME_ROW = `var(${TOKENS["dimension.chrome-row"].cssVar})`;
 const STEP_16 = `var(${TOKENS["container.cq-16"].cssVar})`;
 const STEP_20 = `var(${TOKENS["container.cq-20"].cssVar})`;
-// A wrapped topbar is the chrome row plus half of one, which is the line the name takes.
-const WRAPPED_ROWS = 1.5;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -38,6 +36,12 @@ test.afterAll(async () => {
 
 test.use({ hasTouch: true, isMobile: true });
 
+/** The phone topbar's height: one chrome row, plus the line the name takes when it wraps, which is a touch target tall because the name is a control while the row cuts it. */
+async function topbarBlock(page: Page, wraps: boolean): Promise<number> {
+  const row = await resolvedLength(page, CHROME_ROW);
+  return wraps ? row + Math.max(row / 2, await touchFloorPx(page)) : row;
+}
+
 /** Whether the phone page at `width` is under the container step `expression`; `atStep` counts the step itself. */
 async function underStep(page: Page, expression: string, width: number, atStep: boolean): Promise<boolean> {
   const step = await resolvedLength(page, expression);
@@ -52,9 +56,8 @@ for (const section of ["chats", "config"] as const) {
         await seedShellState(page, { activeSection: section });
         await mount<typeof AppShellStory>(STORY, {});
         await setRootFontScale(page, channelName("fontScale"), scale);
-        const row = await resolvedLength(page, CHROME_ROW);
         const wraps = await underStep(page, STEP_16, width, true);
-        await expect.poll(async () => (await page.locator(".shell-topbar").boundingBox())?.height).toBeCloseTo(row * (wraps ? WRAPPED_ROWS : 1), 0);
+        await expect.poll(async () => (await page.locator(".shell-topbar").boundingBox())?.height).toBeCloseTo(await topbarBlock(page, wraps), 0);
       });
     }
   }
@@ -70,9 +73,8 @@ for (const width of PHONE_WIDTHS) {
       await seedShellState(page, { activeSection: "characters" });
       await mount<typeof AppShellStory>(STORY, {});
       await setRootFontScale(page, channelName("fontScale"), scale);
-      const row = await resolvedLength(page, CHROME_ROW);
       const wraps = await underStep(page, STEP_20, width, false);
-      await expect.poll(async () => (await page.locator(".shell-topbar").boundingBox())?.height).toBeCloseTo(row * (wraps ? WRAPPED_ROWS : 1), 0);
+      await expect.poll(async () => (await page.locator(".shell-topbar").boundingBox())?.height).toBeCloseTo(await topbarBlock(page, wraps), 0);
     });
   }
 }

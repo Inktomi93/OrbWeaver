@@ -90,8 +90,9 @@ export const commandVariants = tv({
           **:[[cmdk-list-sizer]]:block-full
         `,
       },
-      // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still.
-      grow: { list: "block-(--height-scroll-lg) **:[[cmdk-list-sizer]]:block-full" },
+      // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still. At large text the
+      // box is taller than the pane it sits in, so a wheel at either end of the list goes on to the pane instead of stopping there.
+      grow: { list: "overscroll-auto block-(--height-scroll-lg) **:[[cmdk-list-sizer]]:block-full" },
       // A picker's window inside a dialog: it caps at the window step. A short dialog is one box with one scroller, so the
       // window stops guessing at the chrome around it: the command box and its list take what the dialog leaves, down to
       // one touch row, and the list drops the inset, the headings and the scroll chain so the rows keep the room.

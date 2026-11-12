@@ -1,11 +1,14 @@
 // Plain pictures dropped on the character import dialog are refused in one sentence on the dropzone's own error line, which says what
 // a card is, and no toast repeats it: the dialog is open and the line is where the person is looking. A batch that lands a card beside a
-// picture says how many came in and names the files that did not, in the client's words rather than the server's. The shell, the
+// refused file says how many came in and names the files that did not, in the sentence for the reason the server gave, never the server's
+// own words. The shell, the
 // characters list band and its dialog are the production ones, and the files really go to the import route of a real server, so the
 // refusal is the one the server gives a PNG with no card in it.
 // @subject packages/client/src/features/character/components/character-import-dialog.tsx
 import { CHARA_CARD_V2_SPEC } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import type { FailedCardReason } from "@orb/contracts/import";
+import { CARD_REFUSAL_CODES, cardImportResultSchema, FAILED_CARD_REASONS } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -38,6 +41,16 @@ const GOOD_CARD = Buffer.from(
     data: { name: "Harbor Keeper", description: "Keeps the light.", ["first_mes"]: "The lamp is lit." },
   }),
 );
+// Far past any character name cap, so the card decodes and then fails the canonical schema.
+const OVERLONG_NAME_LENGTH = 10_000;
+const OVERLONG_CARD = Buffer.from(
+  JSON.stringify({
+    spec: CHARA_CARD_V2_SPEC,
+    ["spec_version"]: "2.0",
+    data: { name: "x".repeat(OVERLONG_NAME_LENGTH), description: "d", ["first_mes"]: "hi" },
+  }),
+);
+const [UNREADABLE, INVALID] = CARD_REFUSAL_CODES;
 const picture = (name: string): { name: string; mimeType: string; buffer: Buffer } => ({ name, mimeType: "image/png", buffer: PLAIN_PICTURE });
 
 const REFUSALS = [
@@ -48,7 +61,7 @@ const REFUSALS = [
 type Root = Awaited<ReturnType<typeof createServerHarness>>;
 
 /** Serves the shell's reads, and sends the page's card uploads to the real server's import route; only the transport between them is the test's. */
-async function routeImport(page: Page, root: Root): Promise<() => number> {
+async function routeImport(page: Page, root: Root, refusedAs?: FailedCardReason): Promise<() => number> {
   const caller = await root.internalCallerFor(root.ownerId);
   await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]));
   let sent = 0;
@@ -63,7 +76,18 @@ async function routeImport(page: Page, root: Root): Promise<() => number> {
         body: upload === null ? null : new Uint8Array(upload),
       }),
     );
-    await route.fulfill({ status: answer.status, headers: Object.fromEntries(answer.headers), body: Buffer.from(await answer.arrayBuffer()) });
+    const body = Buffer.from(await answer.arrayBuffer());
+    // A card the storage refuses is a database fault a component spec cannot plant, so that one reason is the answer's own rewrite of a refusal the
+    // server really gave; the server's own `failed` answer is proved in tests/server/entry/http/import-card-failures.int.test.ts.
+    const result = refusedAs === undefined ? null : cardImportResultSchema.parse(JSON.parse(body.toString("utf8")));
+    await route.fulfill({
+      status: answer.status,
+      headers: refusedAs === undefined ? Object.fromEntries(answer.headers) : { "content-type": "application/json" },
+      body:
+        result === null || refusedAs === undefined
+          ? body
+          : JSON.stringify({ ...result, failed: result.failed.map((card) => ({ ...card, reason: refusedAs })) }),
+    });
   });
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   return (): number => sent;
@@ -98,13 +122,57 @@ for (const refusal of REFUSALS) {
   });
 }
 
-test("a card beside a picture imports, and the toast names the picture in the client's words", async ({ corpus, mount, page }) => {
+interface PartialCase {
+  readonly name: string;
+  readonly file: { readonly name: string; readonly mimeType: string; readonly buffer: Buffer };
+  /** The reason the route answers with when the server's own cannot be provoked from a component spec. */
+  readonly refusedAs?: FailedCardReason;
+}
+
+// A total `Record` over the wire's reason tuple, so a new reason fails `tsc` until it has a case here.
+const PARTIAL_CASES: Record<FailedCardReason, PartialCase> = {
+  [UNREADABLE]: { name: "a picture", file: picture("portrait.png") },
+  [INVALID]: { name: "a card whose data is invalid", file: { name: "overlong.json", mimeType: "application/json", buffer: OVERLONG_CARD } },
+  ["failed"]: { name: "a file the server's storage refuses", file: picture("portrait.png"), refusedAs: "failed" },
+};
+
+for (const reason of FAILED_CARD_REASONS) {
+  const { name, file, refusedAs } = PARTIAL_CASES[reason];
+  test(`a card beside ${name} imports, and the toast says that file's reason in the client's words`, async ({ corpus, mount, page }) => {
+    await using root = await createServerHarness(ROOT_OPTIONS);
+    await routeAuthConfig(page, corpus.auth.signedInConfig);
+    const sent = await routeImport(page, root, refusedAs);
+    await mount<typeof ShellAmbientStory>(STORY, {});
+    await dropOnImportDialog(page, [{ name: "keeper.json", mimeType: "application/json", buffer: GOOD_CARD }, file]);
+
+    const toast = page.locator(TOAST_ROOT);
+    await expect(toast).toContainText(cardImportPartialLine(1, [{ filename: file.name, reason }]));
+    // Another reason's sentence for the same file is not what the person is told.
+    for (const other of FAILED_CARD_REASONS.filter((candidate) => candidate !== reason)) {
+      await expect(toast).not.toContainText(cardImportPartialLine(1, [{ filename: file.name, reason: other }]));
+    }
+    expect(sent()).toBe(1);
+  });
+}
+
+test("a batch refused for two reasons says each reason's sentence once, naming the files that reason refused", async ({ corpus, mount, page }) => {
   await using root = await createServerHarness(ROOT_OPTIONS);
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   const sent = await routeImport(page, root);
+  const unreadable = PARTIAL_CASES[UNREADABLE].file;
+  const invalid = PARTIAL_CASES[INVALID].file;
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await dropOnImportDialog(page, [{ name: "keeper.json", mimeType: "application/json", buffer: GOOD_CARD }, picture("portrait.png")]);
+  await dropOnImportDialog(page, [{ name: "keeper.json", mimeType: "application/json", buffer: GOOD_CARD }, unreadable, invalid]);
 
-  await expect(page.locator(TOAST_ROOT)).toContainText(cardImportPartialLine(1, ["portrait.png"]));
+  const toast = page.locator(TOAST_ROOT);
+  await expect(toast).toContainText(
+    cardImportPartialLine(1, [
+      { filename: unreadable.name, reason: UNREADABLE },
+      { filename: invalid.name, reason: INVALID },
+    ]),
+  );
+  // Each file is named under its own reason only, so no sentence lists both files together.
+  await expect(toast).not.toContainText(`${unreadable.name}, ${invalid.name}`);
+  await expect(toast).not.toContainText(`${invalid.name}, ${unreadable.name}`);
   expect(sent()).toBe(1);
 });
