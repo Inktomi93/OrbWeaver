@@ -2,8 +2,9 @@
 // The Actions tab pins each template's name to a name column beside its gloss. At the largest browser text on a phone the title floor, a rem
 // length, outgrows the row: the floor yields to the row, and the name is cut short inside it.
 
+import { TEMPLATE_DEFS } from "@orb/contracts/preset";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize, titleReach } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize, sidewaysReach, titleReach } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -13,8 +14,11 @@ import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.ts
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
 const PHONE = { width: 390, height: 844 } as const;
 const LARGEST_TEXT = PLATFORM_TEXT_SCALES[2];
-// Two templates in different kinds share this label, so each row's name carries a kind qualifier.
-const SHARED_LABEL = "Past tense";
+// A label two templates of different kinds share, so each row's name carries a kind qualifier.
+const SHARED_LABEL = TEMPLATE_DEFS.map(({ label }) => label).find((label, index, labels) => labels.indexOf(label) !== index);
+if (SHARED_LABEL === undefined) {
+  throw new Error("The template registry holds no label two templates share");
+}
 
 test.use({ viewport: PHONE, hasTouch: true, isMobile: true });
 
@@ -52,5 +56,10 @@ test("the Actions rows cut a template name inside the row at the largest browser
     const reach = await titleReach(row, floor);
     expect(reach.pastRowBy).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     expect(reach.nameKeepsItsFloor).toBe(true);
+    // The qualifier and the gloss beside the name end inside the row too. The row is judged, not the editor's pane: its header and tab strip
+    // widen that pane themselves.
+    const inside = await row.evaluate(sidewaysReach);
+    expect(inside.wideners).toEqual([]);
+    expect(inside.scrolls).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
   }
 });

@@ -296,12 +296,22 @@ export const listRowVariants = tv({
       // the ellipsis) instead of hiding its overflow. The floor is a rem length, so at enlarged text it outgrows a phone's whole row; the
       // maximum size clamps the automatic minimum to the title line (`max-inline-full`), so the name keeps the smaller of the floor, its
       // text and the line.
-      // The floors in `packages/client/browser-targets.ts` (Firefox 138 included) support `overflow: clip`, `text-overflow` and `inline-size`:
-      // the compat floor map `unsupportedAtFloor` lists none of them (the stylelint compat rule reads sheets, not utilities). The ellipsis
-      // paints under `clip` because `text-overflow` applies to a block container whose `overflow` is other than `visible` (CSS Overflow 3 §6.1).
+      // The floors in `packages/client/browser-targets.ts` (Firefox 138 included) support `overflow: clip`, `text-overflow`, `inline-size` and
+      // `max-inline-size`: the compat floor map `unsupportedAtFloor` lists none of them (the stylelint compat rule reads sheets, not
+      // utilities). The ellipsis paints under `clip` because `text-overflow` applies to a block container whose `overflow` is other than
+      // `visible` (CSS Overflow 3 §6.1).
       qualified: true,
       subtitlePlacement: "block",
       class: { title: "overflow-clip inline-(--width-title-floor) max-inline-full" },
+    },
+    {
+      // The inline and column arms floor the title at the smaller of the floor and the title line, so at enlarged text the name can take the
+      // whole line, and a qualifier that stayed on it (`shrink-0`, no wrap) would run past the row. The qualifier takes the next line, as in the
+      // block arm, rather than shrink: it is the half that tells two rows apart, and a squeeze eats the name, never the qualifier. The gloss
+      // follows the qualifier in reading order.
+      qualified: true,
+      subtitlePlacement: ["inline", "column"],
+      class: { titleRow: "flex-wrap", titleQualifier: "shrink wrap-break-word whitespace-normal min-inline-0" },
     },
     {
       stackActions: true,

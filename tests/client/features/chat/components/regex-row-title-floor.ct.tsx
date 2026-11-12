@@ -5,7 +5,7 @@
 
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
-import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize, titleReach } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize, sidewaysReach, titleReach } from "@orb/testkit/browser/spec";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -79,6 +79,10 @@ for (const phone of PHONES) {
         const reach = await titleReach(row, floor);
         expect(reach.pastRowBy).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
         expect(reach.nameKeepsItsFloor).toBe(true);
+        // The row's text column holds its name, pattern and marks inside itself; its actions cluster is a separate part and is not judged here.
+        // Only its scroll width is read: a marker's screen-reader text sits past the edge by design.
+        const column = await row.locator('[data-slot="list-row-content"]').evaluate(sidewaysReach);
+        expect(column.scrolls).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       }
     });
   });
