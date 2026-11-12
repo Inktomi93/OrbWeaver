@@ -8,7 +8,19 @@
 // the Claude runtime knob namespace, then RESERVED filtered) → the auth pins LAST so nothing above can override.
 
 import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
-import { CLAUDE_OAUTH_TOKEN_ENV, isAllowedClaudeRuntimeEnvKey, RESERVED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
+import {
+  ANTHROPIC_API_KEY_ENV,
+  ANTHROPIC_AUTH_TOKEN_ENV,
+  ANTHROPIC_BASE_URL_ENV,
+  ANTHROPIC_CONFIG_DIR_ENV,
+  ANTHROPIC_IDENTITY_TOKEN_ENV,
+  ANTHROPIC_IDENTITY_TOKEN_FILE_ENV,
+  ANTHROPIC_SERVICE_ACCOUNT_ID_ENV,
+  CLAUDE_CONFIG_DIR_ENV,
+  CLAUDE_OAUTH_TOKEN_ENV,
+  isAllowedClaudeRuntimeEnvKey,
+  RESERVED_CLAUDE_ENV_KEYS,
+} from "@orb/contracts/preset";
 import { ProviderError } from "#contract";
 import type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "#src/contract/agent-sdk-backend.ts";
 
@@ -143,16 +155,16 @@ export function buildClaudeSdkEnv(args: ClaudeSdkEnvArgs): Record<string, string
   }
   return {
     ...hostEnvForClaudeChild(args.hostEnv),
-    CLAUDE_CONFIG_DIR: args.configDir,
-    ANTHROPIC_CONFIG_DIR: args.configDir,
+    [CLAUDE_CONFIG_DIR_ENV]: args.configDir,
+    [ANTHROPIC_CONFIG_DIR_ENV]: args.configDir,
     CLAUDE_CODE_DISABLE_CLAUDE_MDS: DISABLE_CLAUDE_MDS,
     ...claudeRuntimeLayer(args.overrides ?? {}),
-    ANTHROPIC_API_KEY: undefined,
-    ANTHROPIC_BASE_URL: undefined,
-    ANTHROPIC_AUTH_TOKEN: undefined,
-    ANTHROPIC_IDENTITY_TOKEN: undefined,
-    ANTHROPIC_IDENTITY_TOKEN_FILE: undefined,
-    ANTHROPIC_SERVICE_ACCOUNT_ID: undefined,
+    [ANTHROPIC_API_KEY_ENV]: undefined,
+    [ANTHROPIC_BASE_URL_ENV]: undefined,
+    [ANTHROPIC_AUTH_TOKEN_ENV]: undefined,
+    [ANTHROPIC_IDENTITY_TOKEN_ENV]: undefined,
+    [ANTHROPIC_IDENTITY_TOKEN_FILE_ENV]: undefined,
+    [ANTHROPIC_SERVICE_ACCOUNT_ID_ENV]: undefined,
     [CLAUDE_OAUTH_TOKEN_ENV]: args.token,
   };
 }

@@ -10,6 +10,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { ANTHROPIC_API_KEY_ENV, ANTHROPIC_AUTH_TOKEN_ENV, CLAUDE_OAUTH_TOKEN_ENV } from "@orb/contracts/preset";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { DATA_LAYOUT_DIRS, DATABASE_URL_KEY, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { APP_SECRET_ENV_KEYS } from "@orb/server/foundation/env/record";
@@ -33,9 +34,9 @@ const CREDENTIALED_URL = `libsql://user:${DATABASE_CREDENTIAL}@${UNREACHABLE_HOS
 // Provider credentials a launcher's environment or `.env` carries that the parse never reads. The last name is one no
 // code knows, so the scrub must hold by the name's shape, not by a list someone has to extend.
 const UNREAD_PROVIDER_CREDENTIALS = [
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "CLAUDE_CODE_OAUTH_TOKEN",
+  ANTHROPIC_API_KEY_ENV,
+  ANTHROPIC_AUTH_TOKEN_ENV,
+  CLAUDE_OAUTH_TOKEN_ENV,
   "ANTHROPIC_PROBE_KEY",
   "OPENROUTER_PROBE_KEY",
   "OPENAI_PROBE_KEY",

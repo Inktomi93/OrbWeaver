@@ -102,24 +102,36 @@ const HOST_OWNED_CLAUDE_ENV_KEY_SET: ReadonlySet<string> = new Set<string>(HOST_
 
 /** The documented headless subscription credential env (`claude setup-token`). */
 export const CLAUDE_OAUTH_TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN";
+/** The other auth, identity, routing and config-directory names the agent SDK child's environment owns. */
+export const ANTHROPIC_API_KEY_ENV = "ANTHROPIC_API_KEY";
+export const ANTHROPIC_AUTH_TOKEN_ENV = "ANTHROPIC_AUTH_TOKEN";
+export const ANTHROPIC_BASE_URL_ENV = "ANTHROPIC_BASE_URL";
+export const ANTHROPIC_IDENTITY_TOKEN_ENV = "ANTHROPIC_IDENTITY_TOKEN";
+export const ANTHROPIC_IDENTITY_TOKEN_FILE_ENV = "ANTHROPIC_IDENTITY_TOKEN_FILE";
+export const ANTHROPIC_SERVICE_ACCOUNT_ID_ENV = "ANTHROPIC_SERVICE_ACCOUNT_ID";
+export const CLAUDE_CONFIG_DIR_ENV = "CLAUDE_CONFIG_DIR";
+export const ANTHROPIC_CONFIG_DIR_ENV = "ANTHROPIC_CONFIG_DIR";
+const ANTHROPIC_DEFAULT_OPUS_MODEL_ENV = "ANTHROPIC_DEFAULT_OPUS_MODEL";
+const ANTHROPIC_DEFAULT_SONNET_MODEL_ENV = "ANTHROPIC_DEFAULT_SONNET_MODEL";
+const ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV = "ANTHROPIC_DEFAULT_HAIKU_MODEL";
 
 /** Every key the agent SDK child's environment owns (D8): the host-owned names above, auth and identity, routing, the
  *  config directory and model selection. A preset can neither set nor unset one, and the server's boot scrub deletes
  *  each from its own environment, so no process it starts outside that child inherits one. */
 export const RESERVED_CLAUDE_ENV_KEYS = [
   ...HOST_OWNED_CLAUDE_ENV_KEYS,
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "ANTHROPIC_BASE_URL",
+  ANTHROPIC_API_KEY_ENV,
+  ANTHROPIC_AUTH_TOKEN_ENV,
+  ANTHROPIC_BASE_URL_ENV,
   CLAUDE_OAUTH_TOKEN_ENV,
-  "ANTHROPIC_IDENTITY_TOKEN",
-  "ANTHROPIC_IDENTITY_TOKEN_FILE",
-  "ANTHROPIC_SERVICE_ACCOUNT_ID",
-  "CLAUDE_CONFIG_DIR",
-  "ANTHROPIC_CONFIG_DIR",
-  "ANTHROPIC_DEFAULT_OPUS_MODEL",
-  "ANTHROPIC_DEFAULT_SONNET_MODEL",
-  "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+  ANTHROPIC_IDENTITY_TOKEN_ENV,
+  ANTHROPIC_IDENTITY_TOKEN_FILE_ENV,
+  ANTHROPIC_SERVICE_ACCOUNT_ID_ENV,
+  CLAUDE_CONFIG_DIR_ENV,
+  ANTHROPIC_CONFIG_DIR_ENV,
+  ANTHROPIC_DEFAULT_OPUS_MODEL_ENV,
+  ANTHROPIC_DEFAULT_SONNET_MODEL_ENV,
+  ANTHROPIC_DEFAULT_HAIKU_MODEL_ENV,
 ] as const;
 
 // A preset value reaches the Agent SDK CHILD PROCESS, which runs tools as the host — so `claudeEnv` is a

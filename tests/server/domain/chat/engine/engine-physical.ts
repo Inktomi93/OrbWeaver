@@ -1,6 +1,7 @@
 // Shared real-root setup for native executable controls; no fixture owns engine decisions or context.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
+import { CLAUDE_CONFIG_DIR_ENV } from "@orb/contracts/preset";
 import { createSeededIds } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions, TranscriptLine } from "@orb/testkit/node/composed";
 import {
@@ -83,7 +84,7 @@ export async function sdkEngineRoom(
         ids: sdkFixtureIds,
         ...rootOptions.server,
         sdkSpawn: (input) => {
-          const physicalPolicy = policy.inspectHistory === true ? { ...policy, materializedRuntime: input.env["CLAUDE_CONFIG_DIR"] } : policy;
+          const physicalPolicy = policy.inspectHistory === true ? { ...policy, materializedRuntime: input.env[CLAUDE_CONFIG_DIR_ENV] } : policy;
           const child = spawn({ ...input, args: [...input.args, `${ENGINE_SDK_POLICY}${JSON.stringify(physicalPolicy)}`] });
           let pending = "";
           child.stderr.on("data", (bytes: Buffer) => {

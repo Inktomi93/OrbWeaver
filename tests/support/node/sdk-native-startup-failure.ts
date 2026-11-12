@@ -1,8 +1,9 @@
 // This physical Node preload fails before native initialization, without a replacement SDK decoder.
 import process from "node:process";
+import { CLAUDE_OAUTH_TOKEN_ENV } from "@orb/contracts/preset";
 
 // biome-ignore lint/style/noProcessEnv: this external Node preload reads its own canonically prepared subprocess credential, not application configuration.
-const token = process.env["CLAUDE_CODE_OAUTH_TOKEN"];
+const token = process.env[CLAUDE_OAUTH_TOKEN_ENV];
 if (token === undefined) {
   throw new Error("native startup fixture requires its actual prepared credential");
 }
