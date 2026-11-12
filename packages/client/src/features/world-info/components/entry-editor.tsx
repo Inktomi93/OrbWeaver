@@ -48,6 +48,7 @@ import {
   WORLD_INFO_ENTRY_PLACEMENT_NAME,
   WORLD_INFO_ENTRY_ROLE_NAME,
   WORLD_INFO_ENTRY_TITLE_NAME,
+  worldInfoEntryDeleteName,
 } from "../lib/world-info-names.ts";
 
 // The contract cap on `keys` (contracts/world-info KEYS_MAX) — the chip picker enforces it too.
@@ -279,7 +280,7 @@ function DeleteEntryAction({ title, onDelete }: { readonly title: string; readon
       confirm={{ confirmLabel: "Delete", title: deleteConfirmTitle(title) }}
       onConfirm={onDelete}
       trigger={
-        <Button variant="ghost" size="sm" aria-label={`Delete ${title}`}>
+        <Button variant="ghost" size="sm" aria-label={worldInfoEntryDeleteName(title)}>
           <Icon icon={Trash} size="sm" />
         </Button>
       }
