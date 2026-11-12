@@ -12,8 +12,8 @@ import { scaledBudget } from "../../_load-budget.ts";
 const READ_TIMEOUT_MS = scaledBudget(10_000);
 const READ_INTERVAL_MS = 50;
 
-// Each identity read is one OS-tool launch on win32 (powershell.exe running Get-CimInstance), and the case makes about a dozen
-// of them synchronously, so its budget is the slow tag's, not the default that /proc reads fit.
+// Each identity read is one OS-tool launch on win32 (powershell.exe running Get-CimInstance), and the case runs its reads
+// synchronously, so its budget is the slow tag's, not the default that /proc reads fit.
 test("a live child has a start-time identity, and the real stop door ends that incarnation for good", { tags: ["slow"] }, async () => {
   const child = spawnFullPriorityChild(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
     detached: process.platform !== "win32",

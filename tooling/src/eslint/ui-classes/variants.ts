@@ -2,7 +2,7 @@
 // A literal counts as written. So does a value reached through a same-file const map, a conditional or a `??`/`||` of literals.
 // What the syntax cannot reach (a prop, a call, an import) is counted per reason, and an axis with any such use cannot claim a value unused.
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join, posix } from "node:path";
 import ts from "typescript";
 import { isJoinerCall } from "./class-expression.ts";
 import type { FileFacts } from "./file-facts.ts";
@@ -13,14 +13,14 @@ const MAX_HOPS = 3;
 
 const DOOR_EXPORT = /^\.\/([^/]+)$/u;
 
-/** door name to its directory under packages/ui/src, from the package exports map. */
+/** door name to its directory under packages/ui/src, from the package exports map, in the POSIX form a Source path has. */
 export function doorDirs(root: string): ReadonlyMap<string, string> {
   const pkg = JSON.parse(readFileSync(join(root, "packages/ui/package.json"), "utf8")) as { readonly exports: Readonly<Record<string, unknown>> };
   const map = new Map<string, string>();
   for (const [key, target] of Object.entries(pkg.exports)) {
     const door = DOOR_EXPORT.exec(key)?.[1];
     if (door !== undefined && typeof target === "string") {
-      map.set(door, dirname(join("packages/ui", target)));
+      map.set(door, posix.dirname(posix.join("packages/ui", target)));
     }
   }
   return map;
@@ -280,9 +280,9 @@ const doorAt = (dirs: ReadonlyMap<string, string>, dir: string): string | undefi
 function coreCarriers(sources: readonly Source[], dirs: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
   const carriers = new Map<string, string>();
   for (const source of sources) {
-    const door = source.layer === "ui" && source.sf !== null ? doorAt(dirs, dirname(source.path)) : undefined;
+    const door = source.layer === "ui" && source.sf !== null ? doorAt(dirs, posix.dirname(source.path)) : undefined;
     for (const name of door === undefined || source.sf === null ? [] : coreImports(source.sf)) {
-      const owner = doorAt(dirs, join(dirname(source.path), "..", name));
+      const owner = doorAt(dirs, posix.join(posix.dirname(source.path), "..", name));
       if (door !== undefined && owner !== undefined && owner !== door) {
         carriers.set(door, owner);
       }
@@ -298,7 +298,7 @@ export function declaredVariants(root: string, sources: readonly Source[]): Decl
   const unread = new Set<string>();
   const dirs = doorDirs(root);
   for (const [door, dir] of dirs) {
-    const files = sources.filter((source) => source.layer === "ui" && dirname(source.path) === dir && /variants\.ts$/u.test(source.path));
+    const files = sources.filter((source) => source.layer === "ui" && posix.dirname(source.path) === dir && /variants\.ts$/u.test(source.path));
     const read = doorAxes(door, files, index);
     if (read.axes.size > 0) {
       axes.set(door, read.axes);
