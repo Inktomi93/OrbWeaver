@@ -31,10 +31,7 @@ function importNotice({ imported, failed }: CardImportResult): ImportNotice {
   }
   return {
     kind: "info",
-    message: cardImportPartialLine(
-      imported.length,
-      failed.map(({ filename }) => filename),
-    ),
+    message: cardImportPartialLine(imported.length, failed),
   };
 }
 
