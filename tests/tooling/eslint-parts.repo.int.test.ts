@@ -2,13 +2,15 @@
 // them, and together they lint every file a whole-tree run lints, each once. The file sets come from ESLint's own
 // enumeration, with every rule filtered out and a parser that reads nothing, so no typed program loads.
 // @subject scripts/eslint-parts.ts
-import { relative } from "node:path";
+import { join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import type { Linter } from "eslint";
 import { ESLint } from "eslint";
+import ts from "typescript";
 import { parse } from "yaml";
 import { z } from "zod";
-import { ESLINT_LINT_SCRIPT, ESLINT_PARTS, ESLINT_PARTS_SCRIPT, eslintPartArgs } from "../../scripts/eslint-parts.ts";
+import { ESLINT_LINT_SCRIPT, ESLINT_PARTS, ESLINT_PARTS_SCRIPT } from "../../scripts/eslint-parts.ts";
+import { TEST_WORLDS } from "../../tooling/src/unwired/worlds.ts";
 import { read, workflowJobs } from "./_workflow-support.ts";
 
 const RUNNER = "scripts/eslint-parts.ts";
@@ -51,12 +53,12 @@ async function lintedFiles(repoRoot: string, targets: readonly string[], ignoreP
   return results.map(({ filePath }) => relative(repoRoot, filePath).replaceAll("\\", "/"));
 }
 
-test("the CI eslint matrix runs exactly the parts the pre-push runner runs", ({ repoRoot }) => {
+test("the CI eslint matrix runs exactly the parts the pre-push runner runs, through that runner", ({ repoRoot }) => {
   const parts = workflowJobs(repoRoot, "ci")["eslint"]?.strategy?.matrix;
   const matrix = typeof parts === "object" ? parts.part : undefined;
-  expect(matrix).toEqual(ESLINT_PARTS.map((part) => ({ name: part.name, args: eslintPartArgs(part).join(" ") })));
+  expect(matrix).toEqual(ESLINT_PARTS.map((part) => part.name));
   const steps = workflowJobs(repoRoot, "ci")["eslint"]?.steps.map(({ run }) => run) ?? [];
-  expect(steps).toContain(`pnpm ${ESLINT_LINT_SCRIPT} \${{ matrix.part.args }}`);
+  expect(steps).toContain(`${PARTS_COMMAND} \${{ matrix.part }}`);
 });
 
 test("pre-push and the contributor workflow lint the whole tree through the parts runner", ({ repoRoot }) => {
@@ -78,4 +80,41 @@ test("the parts lint every file a whole-tree run lints, and no file twice", { ti
   expect(whole.length).toBeGreaterThan(0);
   expect(twice).toEqual([]);
   expect(linted.toSorted()).toEqual(whole.toSorted());
+});
+
+// The root files each test world's tsconfig names, as tsc resolves its `include` and `exclude`.
+function worldFiles(repoRoot: string, world: string): ReadonlySet<string> {
+  const parsed = ts.getParsedCommandLineOfConfigFile(join(repoRoot, world), {}, { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => undefined });
+  return new Set((parsed?.fileNames ?? []).map((file) => relative(repoRoot, file).replaceAll("\\", "/")));
+}
+
+const parserProject = z.object({ languageOptions: z.object({ parserOptions: z.object({ project: z.array(z.string()).optional() }).optional() }).optional() });
+
+test("a test-world file takes its own world's project, so no part builds two test-world programs", { timeout: 300_000 }, async ({ repoRoot }) => {
+  const worlds = TEST_WORLDS.map((world) => ({ world, files: worldFiles(repoRoot, world) }));
+  const eslint = new ESLint({ cwd: repoRoot, flags: [CONFIG_FLAG] });
+  const projectOf = async (file: string): Promise<readonly string[]> =>
+    parserProject.parse(await eslint.calculateConfigForFile(join(repoRoot, file))).languageOptions?.parserOptions?.project ?? [];
+  const byPart = await Promise.all(ESLINT_PARTS.map(async (part) => ({ part, files: await lintedFiles(repoRoot, part.targets, part.ignorePatterns) })));
+  const wrong: string[] = [];
+  const builds = new Map<string, Set<string>>();
+  for (const { part, files } of byPart) {
+    for (const file of files) {
+      const project = await projectOf(file);
+      const world = project.find((name) => worlds.some((entry) => entry.world === name));
+      if (world === undefined) {
+        continue;
+      }
+      // The first world whose tsconfig names the file owns it; a file no world names has no world project to take.
+      const owner = worlds.find((entry) => entry.files.has(file))?.world ?? "no world";
+      if (project.length !== 1 || world !== owner) {
+        wrong.push(`${file}: ${project.join(", ")} (owner ${owner})`);
+      }
+      builds.set(part.name, (builds.get(part.name) ?? new Set()).add(world));
+    }
+  }
+  expect(wrong).toEqual([]);
+  expect([...builds].filter(([, built]) => built.size > 1).map(([name, built]) => `${name}: ${[...built].join(", ")}`)).toEqual([]);
+  // Positive control: every test world is linted by some part.
+  expect(new Set([...builds.values()].flatMap((built) => [...built]))).toEqual(new Set(TEST_WORLDS));
 });

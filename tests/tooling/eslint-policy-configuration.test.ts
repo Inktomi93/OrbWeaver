@@ -19,18 +19,15 @@ test("ambient declarations use their compiler projects without enabling async ru
   expect(results.flatMap(({ messages }) => messages)).toEqual([]);
 });
 
-test.for(["tests/server/transport/trpc/procedure-input.test-d.ts", "tests/client/forms/editor/autosave-reset-strip.dom.test-d.ts"])(
-  "type tests retain their compiler and async rule settings: %s",
-  async (path) => {
-    const { languageOptions, rules } = await resolvedConfig(eslint, join(ROOT, path));
-    expect(languageOptions.parserOptions).toMatchObject({
-      project: ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"],
-      projectService: false,
-    });
-    expect(levelOf(rules["orb/no-raw-id"])).toBe(2);
-    expect(levelOf(rules["@typescript-eslint/no-floating-promises"])).toBe(2);
-  },
-);
+test.for([
+  { path: "tests/server/transport/trpc/procedure-input.test-d.ts", world: "tsconfig.node.json" },
+  { path: "tests/client/forms/editor/autosave-reset-strip.dom.test-d.ts", world: "tsconfig.tests-dom.json" },
+])("type tests retain their world's compiler and the async rule settings: $path", async ({ path, world }) => {
+  const { languageOptions, rules } = await resolvedConfig(eslint, join(ROOT, path));
+  expect(languageOptions.parserOptions).toMatchObject({ project: [world], projectService: false });
+  expect(levelOf(rules["orb/no-raw-id"])).toBe(2);
+  expect(levelOf(rules["@typescript-eslint/no-floating-promises"])).toBe(2);
+});
 
 async function judge(path: string, rule: string, source: string): Promise<number> {
   const config = await resolvedConfig(eslint, join(ROOT, path));
