@@ -200,8 +200,8 @@ async function onRuleError(
  *  The two scopes ask different questions because they HAVE different answers, not because the global lane is
  *  laxer: a chat rule asks "does the author still hold host in that room" (a demoted/removed ex-host's rule
  *  stops firing); a global rule has no room, no roster and nothing for `can()` to decide over, so it asks the
- *  only standing fact that remains — is the author still a live, ENABLED account. Disabling a user therefore
- *  stops their global rules exactly as a handoff stops their chat rules. */
+ *  only standing fact that remains — is the author still a live, ENABLED account. The chat question asks it too,
+ *  so disabling a user stops their chat and global rules alike, as a handoff stops their chat rules. */
 function holdsAuthority(rc: RuleCtx): Promise<boolean> {
   const chatId = rc.chatId;
   return chatId === null ? holdsOwnerAuthority(rc.ctx, rc.rule.ownerId) : holdsChatHostAuthority(rc.ctx, chatId, rc.rule.ownerId);
