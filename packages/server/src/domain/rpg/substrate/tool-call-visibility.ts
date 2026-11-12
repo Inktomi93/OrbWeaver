@@ -4,17 +4,17 @@
 //
 // WHY THIS ISN'T `stripHiddenForViewer` OVER THE SAME BYTES. A recorded call's `args` is the RAW JSON STRING
 // the model sent, deliberately kept unparsed so a call that did not parse is still visible
-// (`contracts/rpg/extraction.ts` — TOOLDROP-BLIND). Running the span strip over that ENCODED form does not
-// half-work: it is a SILENT FALSE CLEAN. Measured against the live recognizer —
+// (`contracts/rpg/extraction.ts` — TOOLDROP-BLIND). Running the span strip over that ENCODED form loses the
+// payload. JSON has turned the tag's quotes into `\"`, which the strip reads as a broken tag, so it conceals from
+// the tag to the end of the string —
 //
 //   stripHiddenSpans('{"location":"hall <lie truth=\\"trapped\\"/> ok"}')
-//     → content UNCHANGED, hadHidden: FALSE      (the truth ships, and the belt reports it did not)
+//     → '{"location":"hall ', hadHidden: true     (the truth is gone, and so is every field after it)
 //   stripHiddenSpans('hall <lie truth="trapped"/> ok')
 //     → 'hall  ok',        hadHidden: true
 //
-// — because the tokenizer walks an attr value from its opening `"` with `\` escapes, and JSON has already
-// turned that quote into `\"`, so the tag never validates and never registers as hidden. DECODE FIRST, walk
-// the parsed leaves, re-encode. The same trap applies to an issue line's model-SENT value, which is a JSON
+// DECODE FIRST, strip the parsed keys and leaves, re-encode, so a member keeps every field the tag did not
+// touch and reads JSON that still parses. The same applies to an issue line's model-SENT value, which is a JSON
 // literal embedded in prose.
 //
 // THE UNPARSEABLE ARM IS A WITHHOLD, and that is the product decision this file records: args that do
@@ -29,33 +29,19 @@
 
 import type { RpgRecordedToolCall, RpgToolCallDisclosure } from "@orb/contracts/rpg";
 import { parseToolCallArgs, projectIssueSentValue, RPG_STATE_ROUND_FAILED_SUMMARY } from "@orb/contracts/rpg";
-import { stripHiddenSpans } from "@orb/kit/content";
+import { stripHiddenSpansInJsonText } from "@orb/kit/content";
 import { stripHiddenDeep } from "./hidden-spans.ts";
 
-// KEYS ARE BELTED HERE, unlike `stripHiddenDeep`'s values-only walk: that walk spares keys because a state
-// plane's keys are ADDRESSES (`fieldLocks`), but a call's keys are whatever the model invented, so a hidden
-// span in one is model bytes like any value. Two keys that belt to one name collapse, the later winning, as a
-// repeated JSON key does.
-function stripHiddenKeysAndValues(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(stripHiddenKeysAndValues);
-  }
-  if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [stripHiddenSpans(key).content, stripHiddenKeysAndValues(entry)]));
-  }
-  return stripHiddenDeep(value);
-}
-
 /** One JSON payload with every key's and leaf string's hidden spans removed, re-encoded — or `null` when the
- *  input is not readable at all (the withhold arm; see the header).
+ *  input is not readable at all (the withhold arm; see the header). The strip is the kit's
+ *  `stripHiddenSpansInJsonText`, the one chat's member view takes; keys are stripped too, unlike `stripHiddenDeep`'s
+ *  values-only walk, because a call's keys are whatever the model invented.
  *
- *  The decode is `parseToolCallArgs`, the SAME one the fold's own drop verdict uses — not a second
- *  `JSON.parse` + catch here, which would be a second, differently-owned answer to "is this payload
- *  readable". Its `null` also covers a literal `null` payload, which is the same verdict: nothing to belt and
- *  nothing a reader can act on. */
+ *  The readable verdict is `parseToolCallArgs`, the SAME one the fold's own drop verdict uses, so the two never
+ *  disagree on "is this payload readable". Its `null` also covers a literal `null` payload, which is the same verdict:
+ *  nothing to strip and nothing a reader can act on. Chat's member view reads that payload as `null` instead. */
 function stripHiddenInJson(raw: string): string | null {
-  const parsed = parseToolCallArgs(raw);
-  return parsed === null ? null : JSON.stringify(stripHiddenKeysAndValues(parsed));
+  return parseToolCallArgs(raw) === null ? null : (stripHiddenSpansInJsonText(raw) ?? null);
 }
 
 /** One issue line with its model-SENT value re-rendered through the belt; a value that cannot be decoded

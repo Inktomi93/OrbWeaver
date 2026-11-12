@@ -50,6 +50,8 @@
 
 import type { AssetId } from "#ids";
 import { castId } from "#ids";
+import type { JsonValue } from "#json";
+import { parseJsonText } from "#json";
 import { speakerTagsToPlain } from "#speaker-label";
 import { isSpaceChar } from "#strings";
 
@@ -346,7 +348,8 @@ function walkSelfClosingTag(content: string, start: number, limit: number): TagS
   let attrCount = 0;
   for (;;) {
     i = skipSpaces(content, i, limit);
-    if (content[i] === "/" && content[i + 1] === ">") {
+    // The whole close must lie inside the bound: a close read past it makes a tag the stream has already concealed.
+    if (i + 1 < limit && content[i] === "/" && content[i + 1] === ">") {
       return { kind: "tag", scan: { tag, attrs, attrCount, end: i + "/>".length } };
     }
     // A `/` on the last byte is a close whose `>` did not arrive, not a stray byte in the attr list.
@@ -364,6 +367,9 @@ function walkSelfClosingTag(content: string, start: number, limit: number): TagS
 }
 
 const ATTR_GAP_RE = /\s/;
+// The loose test's attr name: any run of bytes that cannot end or open a tag. SECURITY: wider than the strict
+// identifier, so a non-English (`véracité`), namespaced (`x:truth`) or quoted (`"truth"`) name still conceals.
+const LOOSE_ATTR_NAME_RE = /^[^\s=<>/]+/u;
 
 /** Past any whitespace, including the newlines the strict walker refuses between attrs. */
 function skipAttrGap(src: string, from: number): number {
@@ -384,7 +390,7 @@ function scanLooseHiddenOpen(content: string, start: number): TagScanOutcome {
     return TAG_MALFORMED;
   }
   const key = skipAttrGap(content, start + 1 + tag.length);
-  const name = ATTR_KEY_RE.exec(content.slice(key, key + IDENT_WINDOW));
+  const name = LOOSE_ATTR_NAME_RE.exec(content.slice(key, key + IDENT_WINDOW));
   if (name === null) {
     return key < content.length ? TAG_MALFORMED : { kind: "truncated", tag };
   }
@@ -1109,6 +1115,33 @@ export function stripHiddenSpans(content: string): { readonly content: string; r
   return { content: projected.content, hadHidden: projected.hadHidden };
 }
 
+// Keys are stripped as well as values: a tool payload's keys are whatever the model wrote. Two keys that strip to one
+// name collapse, the later winning, as a repeated JSON key does.
+function stripHiddenInJsonValue(value: JsonValue): JsonValue {
+  if (typeof value === "string") {
+    return stripHiddenSpans(value).content;
+  }
+  if (Array.isArray(value)) {
+    return value.map(stripHiddenInJsonValue);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [stripHiddenSpans(key).content, stripHiddenInJsonValue(entry)]));
+  }
+  return value;
+}
+
+/** The member bytes of one JSON text: decoded, every key and string value stripped with {@link stripHiddenSpans}, then
+ *  re-encoded. `undefined` when the text is not JSON; each caller decides what an unreadable payload shows.
+ *
+ *  @remarks Decoded first because a tag inside a JSON string has escaped quotes, which the strip reads as a broken tag
+ *  and conceals to the end of the text, so the result would no longer parse. SECURITY: always the re-encoding, never the
+ *  input text. A repeated key decodes to its last value, so a tag in a shadowed value, literal or escaped, is in the
+ *  text but not in the decode, and only the re-encoding drops it. */
+export function stripHiddenSpansInJsonText(text: string): string | undefined {
+  const decoded = parseJsonText(text);
+  return decoded === undefined ? undefined : JSON.stringify(stripHiddenInJsonValue(decoded));
+}
+
 /** How many passes the strip gives a body. SECURITY: removing a tag joins the bytes around it, and those bytes can spell a
  *  new tag, so one pass is not final. Repeating until clean is quadratic on a deep nest, so the passes are capped and a
  *  nest past the cap conceals the rest of the body. It never releases it. */
@@ -1220,14 +1253,18 @@ export function projectHiddenSpans(
   };
 }
 
-/** Did the strip lose the rest of this body to a hidden tag? A tag that broke the grammar counts always. A tag left
- *  unfinished, one past the scan bound, and a nest past the pass bound count unless `cutOff` says the output stopped
- *  there: an unfinished tag is then the cut itself, and nothing was written after it. A span whose raw outruns its tag is
- *  the pass bound's conceal. */
+/** Did the strip lose the rest of this body to a hidden tag? A tag left unfinished counts unless `cutOff` says the output
+ *  stopped there: it runs to the end of the body, so it is the cut itself and nothing was written after it. Every other
+ *  conceal counts always, because bytes after it were lost: a tag that broke the grammar, a tag past the scan bound, and
+ *  a nest past the pass bound (a span whose raw outruns its tag). A tool loop keeps only its last finish reason, so
+ *  `cutOff` can describe a later step than the one that wrote the tag. */
 export function concealsBrokenHiddenTag(content: string, cutOff: boolean): boolean {
   return scanHiddenSpans(content).some((span) => {
     const verdict = scanSelfClosingTag(span.raw, 0);
-    return verdict.kind === "loose" || (!cutOff && (verdict.kind !== "tag" || verdict.scan.end < span.raw.length));
+    if (verdict.kind === "truncated") {
+      return !cutOff;
+    }
+    return verdict.kind !== "tag" || verdict.scan.end < span.raw.length;
   });
 }
 

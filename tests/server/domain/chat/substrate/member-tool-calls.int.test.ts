@@ -1,12 +1,16 @@
 // @subject packages/contracts/src/chat/member-projection.ts
 // A tool call's name, arguments and result are model bytes: a member reads them with hidden spans removed, the JSON
-// decoded first and re-encoded, and arguments that are not JSON withheld. The host reads every field verbatim.
+// decoded first and re-encoded, arguments that are not JSON withheld and a prose result stripped as prose. The host
+// reads every field verbatim.
+import { spawn } from "node:child_process";
 import type { MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginToolWireName } from "@orb/contracts/plugin";
 import { stripHiddenSpans } from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
+import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
 import { coreFrame, coreProse, coreSse } from "../engine/core-physical.ts";
 import { turnToolsRoom } from "../verbs/turn-rpg-physical.ts";
@@ -178,5 +182,45 @@ test("a member reads tool arguments that are not JSON as withheld, and the host 
     expect(record.arguments).toBe("");
     // The rest of the record still reaches the member: the call, its refusal and its error state.
     expect(record).toMatchObject({ name: CHAT_REACT_TOOL_NAME, isError: true, result: hosted.result });
+  }
+});
+
+const PROSE_PLUGIN = pluginManifestSchema.parse({
+  id: "prose-witness",
+  name: "Prose witness",
+  description: "A tool whose result is prose.",
+  version: "1.0.0",
+  hostVersion: PLUGIN_HOST_VERSIONS[0],
+  entry: PLUGIN_MAIN_ENTRY,
+  capabilities: ["tools.register"],
+});
+const PROSE_RESULT = `Seen <lie character="Witness" truth="${TRUTH}"/> there.`;
+// The guest's string return is the result as it stands, so the record holds prose, not a JSON document.
+const PROSE_GUEST = `const host = orb.host(1);
+host.tools.register({name:"look",description:"Look.",
+  parameters:{type:"object",properties:{},additionalProperties:false},handler:async()=>${JSON.stringify(PROSE_RESULT)}});`;
+const PROSE_CALL: ScriptedCall = { id: "plugin-prose", args: "{}", name: pluginToolWireName(PROSE_PLUGIN.id, "look") };
+
+test("a member reads a plugin tool's prose result with its hidden span removed", async () => {
+  await using h = await turnToolsRoom([(): Response => scriptedCalls([PROSE_CALL]), (): Response => coreProse("Looked.")], { server: { pluginSpawn: spawn } });
+  const installed = await seedInstalledPlugin(h.root, { caller: h.owner, bundle: makePluginBundle(PROSE_PLUGIN, PROSE_GUEST, h.root.clock.now()), grant: [] });
+  const enabled = await seedPluginGrant(h.root, {
+    caller: h.owner,
+    pluginId: installed.outcome.id,
+    grant: PROSE_PLUGIN.capabilities,
+    acknowledgedNetHosts: [],
+    enable: true,
+  });
+  expect(enabled.outcome.status).toBe("enabled");
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const invitation = await h.root.services.chat.createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: member.handle } });
+  await h.root.services.chat.acceptInvite({ principal: member, inviteId: invitation.invite.id });
+  expect((await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId })).aborted).toBe(false);
+  // Control: the host reads the guest's prose as it returned it.
+  expect(await hostRecord(h, PROSE_CALL)).toMatchObject({ result: PROSE_RESULT, isError: false });
+
+  for (const record of await memberRecords(h, member, PROSE_CALL)) {
+    expect(record.result).toBe(stripHiddenSpans(PROSE_RESULT).content);
+    expect(JSON.stringify(record)).not.toContain(TRUTH);
   }
 });

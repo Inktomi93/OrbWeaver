@@ -19,7 +19,7 @@ Code cites a decision for a rule the decision does not state.
 
 ## Done when
 
-D17's decision text states the rule, names its homes and says which reads it covers, following the owner's answer on whether an admin may see the owner's workloads and schedules.
+D17's decision text states the rule and names its homes. For reads it states the owner's ruling: an admin still sees every owner's workloads and schedules, as the workloads owner and funder columns already scope them, and may not act on a row the box owner owns or funds. A row an admin sees and may not act on answers not found, as the bulk clone refusal in the same module already does.
 
 ## Evidence
 

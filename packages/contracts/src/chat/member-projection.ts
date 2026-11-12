@@ -4,17 +4,12 @@
 // is produced (`substrate/member-visibility.ts`), and a non-host fork copies tool calls through `memberToolCalls`
 // (`packages/server/src/domain/chat/verbs/fork.ts`).
 //
-// A TOOL PAYLOAD IS DECODED BEFORE THE STRIP. `arguments` is the model's raw JSON text and `result` is JSON or
-// prose, and a hidden tag inside a JSON string has its quotes escaped. The strip reads that escaped tag as broken
-// and removes everything after it, so a member would get JSON that no longer parses. Each key and string leaf is
-// stripped in the decoded value, then the value is re-encoded: a member reads the re-encoding, never the model's own
-// spelling. Arguments that are not JSON have no decoded strings to strip, so a member reads them as withheld: an
-// empty string, the rpg tool-call disclosure's posture. A result that is not JSON is prose (`ToolCallRecord.result`)
-// and is stripped as prose.
+// A TOOL PAYLOAD IS DECODED BEFORE THE STRIP, through the kit's `stripHiddenSpansInJsonText`, the walk rpg's tool-call
+// disclosure takes too: a member reads the re-encoding, never the model's own spelling. Arguments that are not JSON have
+// no decoded strings to strip, so a member reads them as withheld: an empty string, the rpg disclosure's posture. A
+// result that is not JSON is prose (`ToolCallRecord.result`) and is stripped as prose.
 
-import { projectHiddenSpans, stripHiddenSpans } from "@orb/kit/content";
-import type { JsonValue } from "@orb/kit/json";
-import { parseJsonText } from "@orb/kit/json";
+import { projectHiddenSpans, stripHiddenSpans, stripHiddenSpansInJsonText } from "@orb/kit/content";
 import type { MessageView, ToolCallRecord } from "./messages.ts";
 
 // Strip hidden-class spans from one message view's content and its tool calls. Identity when the body hides nothing
@@ -29,29 +24,6 @@ function stripHiddenForMember(view: MessageView): MessageView {
   return { ...view, content, toolCalls: memberToolCalls(view.toolCalls, view.content) };
 }
 
-// Keys are stripped as well as values: a call's keys are whatever the model wrote. Two keys that strip to one name
-//  collapse, the later winning, as a repeated JSON key does.
-function stripHiddenInJson(value: JsonValue): JsonValue {
-  if (typeof value === "string") {
-    return stripHiddenSpans(value).content;
-  }
-  if (Array.isArray(value)) {
-    return value.map(stripHiddenInJson);
-  }
-  if (typeof value === "object" && value !== null) {
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [stripHiddenSpans(key).content, stripHiddenInJson(entry)]));
-  }
-  return value;
-}
-
-// The member bytes of one JSON text, or `undefined` when the text is not JSON. SECURITY: always the re-encoding, never
-//  the model's text. A repeated key decodes to its last value, so a tag in a shadowed value, literal or escaped, is in
-//  the text but not in the decode, and only the re-encoding drops it.
-function memberJsonText(text: string): string | undefined {
-  const decoded = parseJsonText(text);
-  return decoded === undefined ? undefined : JSON.stringify(stripHiddenInJson(decoded));
-}
-
 /** The member projection of tool calls: positions rebased onto the delivered body, and hidden spans removed from
  *  `name`, `arguments` and `result` (the file header). A registered tool's name holds no tag, so only a name the model
  *  invented for a tool the round did not offer changes. Native and occurrence identities stay unchanged. */
@@ -63,8 +35,8 @@ export function memberToolCalls(records: readonly ToolCallRecord[], content: str
   return records.map((record, index) => ({
     ...record,
     name: stripHiddenSpans(record.name).content,
-    arguments: memberJsonText(record.arguments) ?? "",
-    result: record.result === null ? null : (memberJsonText(record.result) ?? stripHiddenSpans(record.result).content),
+    arguments: stripHiddenSpansInJsonText(record.arguments) ?? "",
+    result: record.result === null ? null : (stripHiddenSpansInJsonText(record.result) ?? stripHiddenSpans(record.result).content),
     ...(record.textOffset === undefined ? {} : { textOffset: offsets[index * 2] ?? record.textOffset }),
     ...(record.exchangeTextEnd === undefined ? {} : { exchangeTextEnd: offsets[index * 2 + 1] ?? record.exchangeTextEnd }),
   }));

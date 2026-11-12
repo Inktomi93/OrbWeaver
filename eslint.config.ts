@@ -644,6 +644,13 @@ const VISIBILITY_MINT_IMPORT = {
   message: "Only chat's resolveViewerVisibility mints a ViewerVisibility; take the answer from that op.",
 };
 
+// Every server import restriction. Flat config replaces a rule's options per block, so a home block takes this list
+// less the one door its home owns; a restriction added here reaches every server block.
+const SERVER_IMPORT_RESTRICTIONS = [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT, VISIBILITY_MINT_IMPORT] as const;
+const serverImportsExcept = (...owned: readonly (typeof SERVER_IMPORT_RESTRICTIONS)[number][]): Linter.RulesRecord => ({
+  "no-restricted-imports": ["error", { patterns: SERVER_IMPORT_RESTRICTIONS.filter((restriction) => !owned.includes(restriction)) }],
+});
+
 // A NUL is not text in this app: a free-string TEXT column is `nulFreeText` (`packages/db/src/custom-types/index.ts`),
 // which removes NUL on its way to the driver, because the libSQL client reads a TEXT value back cut at its first NUL.
 // Drizzle's own `text` stays only where a value cannot carry a raw NUL: a `mode: "json"` or an `enum` column.
@@ -2351,16 +2358,16 @@ export default [
   {
     files: ["packages/server/src/**/*.{ts,tsx}"],
     ignores: ["packages/server/src/domain/import/**", "packages/server/src/domain/export/**", "packages/server/src/domain/settings/**", VISIBILITY_MINT_HOME],
-    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT, VISIBILITY_MINT_IMPORT] }] },
+    rules: serverImportsExcept(),
   },
-  { files: [VISIBILITY_MINT_HOME], rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT] }] } },
+  { files: [VISIBILITY_MINT_HOME], rules: serverImportsExcept(VISIBILITY_MINT_IMPORT) },
   {
     files: ["packages/server/src/domain/import/**/*.{ts,tsx}", "packages/server/src/domain/export/**/*.{ts,tsx}"],
-    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT] }] },
+    rules: serverImportsExcept(PNG_CHUNK_IMPORT),
   },
   {
     files: ["packages/server/src/domain/settings/**/*.{ts,tsx}"],
-    rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] },
+    rules: serverImportsExcept(SETTINGS_TABLE_IMPORT),
   },
   { files: rootSources("@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   {
