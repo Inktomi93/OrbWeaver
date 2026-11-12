@@ -10,7 +10,7 @@ area: plugins
 
 ## What
 
-At server shutdown, after the last request, the plugin broker watchdog logs that the app-to-broker relay failed because the inherited channel is closed. It was seen at the end of two e2e runs. It reads as teardown order: the channel closes before the relay stops, and the ordinary close is reported as a failure.
+At server shutdown, after the last request, the plugin broker watchdog logs that the app-to-broker relay failed because the inherited channel is closed. It prints once in every run of the corpus e2e launcher, after the relay and channel changes as well as before them, and not in a plain e2e run. So it follows how the corpus launcher's web server is shut down: the channel closes before the relay stops, and the ordinary close is reported as a failure.
 
 ## Why
 
