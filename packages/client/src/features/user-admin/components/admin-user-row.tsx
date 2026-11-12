@@ -4,6 +4,7 @@
 // ⋯ menu offers Sessions… and Reset password….
 
 import type { UserRole } from "@orb/contracts/identity";
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Icon, KeyRound, MonitorSmartphone } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -41,7 +42,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
   const { user } = props;
   const [confirmDisable, setConfirmDisable] = useState(false);
 
-  const isOwnerRow = user.role === "owner";
+  const isOwnerRow = userRoleSatisfies(user.role, "owner");
   const subtitle = `Created ${timeLib.formatRelative(user.createdAt)}`;
 
   return (

@@ -3,6 +3,7 @@
 // Focus never falls to the page when a control it sits on unmounts; `ShareCardBody` names each successor.
 
 import type { CookieAuthMode, RelayDownReason, ShareRelayKind } from "@orb/contracts/identity";
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -379,7 +380,7 @@ function SignEveryoneOut(): ReactElement {
   const describedId = useId();
   const { data: users } = useSuspenseQuery(trpc.admin.listUsers.queryOptions());
   const revoke = useRevokeUserSessions({ trpc, invalidation, failureShownInline: "the revoke-sessions confirm's alert line" });
-  const members = users.filter((user) => user.role !== "owner");
+  const members = users.filter((user) => !userRoleSatisfies(user.role, "owner"));
   const nobody = members.length === 0;
   return (
     <>

@@ -9,6 +9,7 @@
 // (admin.listUsers, filtered client-side to the linkable set) and its own suspense boundary. Every verb behind
 // it is adminProcedure + requireAdmin — this section is convenience over that floor.
 
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -47,7 +48,7 @@ function AdminLinkSsoBody({ anchorId }: { readonly anchorId: string }): ReactEle
   // The linkable set: non-owner and still UNBOUND (no externalId). A bound row is already keyed on its subject;
   // the owner binds via adoption, never here. (No `kind` filter: `USER_KINDS` is `["human"]` today — agents
   // are unbuilt — so every row is human; add a kind exclusion here when the seat wave re-adds `agent`.)
-  const linkable = users.filter((user) => user.role !== "owner" && user.externalId === null);
+  const linkable = users.filter((user) => !userRoleSatisfies(user.role, "owner") && user.externalId === null);
 
   return (
     <Section container={true} divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={anchorId}>
