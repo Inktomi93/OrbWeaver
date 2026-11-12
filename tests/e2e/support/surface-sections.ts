@@ -68,6 +68,8 @@ import {
   CORPUS_NO_RESULT_TEXT,
   CORPUS_SEARCH_NAME,
   CORPUS_SEARCH_TARGET_NAME,
+  corpusLexicalNoMatchText,
+  corpusResultsStatusText,
 } from "#client/features/discovery/lib/corpus-control-names.ts";
 import {
   CORPUS_IMAGE_LENS,
@@ -937,7 +939,9 @@ async function corpusSemanticQuery(journey: Journey, target: Extract<CorpusTarge
   const witness =
     count === 0
       ? list.getByText(CORPUS_NO_RESULT_TEXT, { exact: true })
-      : list.getByRole("status").filter({ hasText: new RegExp(`^${String(count)} (?:nearest )?results? in ${RegExp.escape(target.label)}`, "u") });
+      : list
+          .getByRole("status")
+          .filter({ hasText: namePattern(corpusResultsStatusText(count, target.label, false), corpusResultsStatusText(count, target.label, true)) });
   const search = journey.page.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true });
   await journey.action(id, {
     action: async () => {
@@ -995,10 +999,10 @@ async function corpusTarget(journey: Journey, target: CorpusTarget): Promise<voi
   const result = await journey.client.search.fields.query({ query: character.name, topN: CORPUS_SEARCH_TOP_N });
   const resultWitness =
     result.hits.length === 0
-      ? pane(journey, "list").getByText(new RegExp(`^Nothing.*${RegExp.escape(character.name)}`, "u"))
+      ? pane(journey, "list").getByText(corpusLexicalNoMatchText(target.label, character.name), { exact: true })
       : pane(journey, "list")
           .getByRole("status")
-          .filter({ hasText: new RegExp(`^${String(result.hits.length)} results? in ${RegExp.escape(target.label)}$`, "u") });
+          .filter({ hasText: namePattern(corpusResultsStatusText(result.hits.length, target.label, false)) });
   await journey.action("corpus/text/query", {
     action: async () => {
       await search.fill(character.name);
@@ -1016,7 +1020,7 @@ async function corpusTarget(journey: Journey, target: CorpusTarget): Promise<voi
     body: JSON.stringify({ query: EMPTY_FIELD_QUERY, hits: emptyResult.hits.length }),
     contentType: "application/json",
   });
-  const empty = pane(journey, "list").getByText(new RegExp(RegExp.escape(EMPTY_FIELD_QUERY), "u"));
+  const empty = pane(journey, "list").getByText(corpusLexicalNoMatchText(target.label, EMPTY_FIELD_QUERY), { exact: true });
   await journey.action("corpus/text/empty-query", {
     action: async () => {
       await search.fill(EMPTY_FIELD_QUERY);
@@ -2081,8 +2085,10 @@ async function databank(journey: Journey): Promise<void> {
     },
     ready: async () => {
       await expect(editor.getByRole("button", { name: DATABANK_HIDE_SOURCE_NAME, exact: true })).toBeVisible();
-      // The source text's loading fallback is a skeleton that marks itself busy until the read settles.
+      // The source text's loading fallback is a skeleton that marks itself busy until the read settles; a failed read
+      // settles too, so the readout must then hold the text production stored.
       await expect(editor.locator('[aria-busy="true"]')).toHaveCount(0);
+      await expect(editor.locator('[data-slot="scroll-area-content"]')).toHaveText(stored.extractedText ?? "");
     },
   });
   await walkScope(journey, content(journey), `databank/${subject.id}/source-text`);

@@ -10,10 +10,10 @@ import type { ReactElement } from "react";
 import { pluginCommandAuditAttributes, pluginMenuAuditAttributes } from "#lib";
 import { revealContextPanel } from "#state";
 import type { PlacedCommand } from "../hooks/use-placed-commands.ts";
-import { placedItemGlyph, placedItemLabel, usePlacedCommands } from "../hooks/use-placed-commands.ts";
+import { placedItemGlyph, usePlacedCommands } from "../hooks/use-placed-commands.ts";
 import { useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
 import { useHasChatPluginPanels } from "../hooks/use-visible-anchored-surfaces.ts";
-import { PLUGIN_ACTIONS_NAME } from "../lib/plugin-command-copy.ts";
+import { PLUGIN_ACTIONS_NAME, placedItemLabel } from "../lib/plugin-command-copy.ts";
 import { CHAT_PLUGINS_OPEN_LABEL } from "../lib/plugin-panel-copy.ts";
 
 interface PlacedCommandGroup {

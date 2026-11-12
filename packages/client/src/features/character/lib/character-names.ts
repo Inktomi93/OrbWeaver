@@ -19,23 +19,12 @@ export const CHARACTER_LOOK_TAB_LABEL = "Look";
 /** The context pane's card trust tab. */
 export const CHARACTER_TRUST_TAB_LABEL = "Trust";
 
-/** WHAT THE CLOSED DISCLOSURE OPENS (#519, side-eye se-verify-1) — the CONTENTS, not the act.
- *
- *  Collapsed, this group renders `FILTERS`, one text control and a datum, and the control said "More
- *  filters": a cold first-timer got no signal that Favorites, Archived, or a 551-entry tag vocabulary exist
- *  at all behind it (Nielsen #6, recognition over recall). Naming the three things is the cheapest possible
- *  fix and costs one rail cell's width — measured against the ratified 264px resting chrome fence in the
- *  surface CT, because a wider cell is a wrap risk at the 307px docked width. The OPEN arm keeps "Fewer
- *  filters": once the vocabulary is on screen, the contents are the thing you can already see, and the
- *  control's only remaining job is to say how to put it away. */
+/** The closed filter disclosure names what it opens, not the act: collapsed, nothing else on the rail says
+ *  Favorites, Archived or a tag vocabulary exist. It must stay one rail cell wide, because a wider cell wraps
+ *  at the docked width. The open arm says how to put the filters away, since its contents are on screen. */
 export const CHARACTER_FILTERS_CLOSED_LABEL = "Favorites, archived & tags";
 
-/** THE SAME PROMISE, MINUS THE TAGS (side-eye 2026-09-02 nit 15, #1139). The label above names three things
- *  a first-timer cannot otherwise know exist — but on a library whose tag vocabulary is EMPTY the third one
- *  is not there, so both arms of the control were advertising a payload the disclosure could not deliver
- *  ("show more filters" opened two switches; "hide the tag vocabulary" hid nothing). An empty state is
- *  load-bearing: the honest label names what IS behind the door and says the tag vocabulary has not started
- *  yet, which is a fact a reader can act on (tag something) rather than a promise they will find broken. */
+/** The closed label on a library with no tags yet, so the door never promises a vocabulary it cannot open. */
 export const CHARACTER_FILTERS_CLOSED_LABEL_NO_TAGS = "Favorites & archived";
 
 /** The filter disclosure's open label. */

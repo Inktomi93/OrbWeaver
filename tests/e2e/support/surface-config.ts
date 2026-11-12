@@ -22,7 +22,7 @@ import {
   configSearchEmptyText,
   newThemeName,
 } from "#client/features/config/lib/config-control-names.ts";
-import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
+import { CONFIG_SECTION_LABEL, configGroupRegionName } from "#client/features/config/lib/config-copy.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
 import { PERSONA_NAME_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import {
@@ -160,7 +160,7 @@ async function category(flow: SurfaceFlow, id: ConfigGroupId): Promise<Locator> 
     },
     ready: async (): Promise<void> => {
       const content = flow.page.locator(CONTENT);
-      await expect(content).toHaveAccessibleName(collection ? CONFIG_SECTION_LABEL : `${label.trim()} settings`);
+      await expect(content).toHaveAccessibleName(collection ? CONFIG_SECTION_LABEL : configGroupRegionName(label.trim()));
       await expect(content).toBeVisible();
       if (collection) {
         const landing = content.locator(`[data-slot="config-collection-landing"][data-collection="${id}"]`);

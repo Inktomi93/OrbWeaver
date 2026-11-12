@@ -76,6 +76,7 @@ import {
   humanizeId,
   PLUGIN_ACTIONS_NAME,
   PLUGIN_COMMAND_ARGS_TITLE,
+  placedItemLabel,
   pluginCommandActionLabel,
   pluginCommandShownName,
   pluginUndoName,
@@ -789,7 +790,7 @@ async function sidecar(flow: Journey, room: ChatSummary): Promise<void> {
 
 async function inspectSidecarColumn(flow: Journey, room: ChatSummary): Promise<void> {
   const column = flow.page.locator('[data-slot="chat-thread-flank"]');
-  const edge = flow.page.getByRole("button", { name: new RegExp(`^(?:Show|Hide) ${SIDECAR_PANELS_NOUN}$`, "u") });
+  const edge = flow.page.getByRole("button", { name: namePattern(panelEdgeName(SIDECAR_PANELS_NOUN, false), panelEdgeName(SIDECAR_PANELS_NOUN, true)) });
   await expect(edge).toHaveCount(1);
   await settledBox(edge);
   const initiallyOpen = (await edge.getAttribute("aria-expanded")) === "true";
@@ -1970,7 +1971,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       }
       observe(
         flow,
-        `message-operations/assistant/${assistant.id}/Saved replies…`,
+        `message-operations/assistant/${assistant.id}/${CHAT_SAVED_REPLIES_DOOR_NAME}`,
         "not-applicable",
         "Generated assistant row has no card-opening binding; actual menu snapshot has no Saved replies door",
       );
@@ -2265,16 +2266,18 @@ export async function walkChatArcade(input: SurfaceFlow): Promise<void> {
         const guest = arcade.contentFrame();
         const board = guest.locator("#board");
         const cells = board.locator(".cell");
-        await expect(guest.getByRole("button", { name: "New game", exact: true })).toBeVisible();
+        // Guest source cannot import, so its copy has no production home; its own markup ids are the stable handles.
+        const newGame = guest.locator("button#new");
+        await expect(newGame).toBeVisible();
         await expect.poll(async () => await cells.count()).toBeGreaterThan(0);
-        await guest.getByRole("button", { name: "New game", exact: true }).click();
+        await newGame.click();
         const before = await cells.allTextContents();
         await flow.action("arcade/native-pad", {
           action: async () => {
-            await guest.getByRole("button", { name: "▲", exact: true }).click();
-            await guest.getByRole("button", { name: "◀", exact: true }).click();
-            await guest.getByRole("button", { name: "▼", exact: true }).click();
-            await guest.getByRole("button", { name: "▶", exact: true }).click();
+            await guest.locator('button[data-d="up"]').click();
+            await guest.locator('button[data-d="left"]').click();
+            await guest.locator('button[data-d="down"]').click();
+            await guest.locator('button[data-d="right"]').click();
           },
           ready: async () => {
             await expect.poll(async () => await cells.allTextContents()).not.toEqual(before);
@@ -2311,9 +2314,7 @@ async function runPlacedCommand(flow: Journey, command: PluginCommandView): Prom
   const trigger = flow.page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true });
   await trigger.click();
   const menu = await controlledPanel(trigger);
-  const item = menu.getByRole("menuitem", {
-    name: new RegExp(`^${RegExp.escape(shownName)} · .+ · ${RegExp.escape(placement.label)}$`, "u"),
-  });
+  const item = menu.getByRole("menuitem", { name: placedItemLabel({ shownName, command, label: placement.label }), exact: true });
   await expect(item).toHaveCount(1);
   await item.click();
 }

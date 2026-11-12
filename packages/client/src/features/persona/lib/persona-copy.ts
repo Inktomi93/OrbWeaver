@@ -29,14 +29,14 @@ export function personaWithPlayer(persona: string, player: string): string {
 
 /** The persona editor's identity fields. */
 export const PERSONA_NAME_FIELD_NAME = "Name";
+export const PERSONA_DESCRIPTION_FIELD_NAME = "Description";
+/** The persona editor's picker subtitle field. */
+export const PERSONA_TITLE_FIELD_NAME = "Title";
 
 /** A persona's editor card, and the row door that opens it, named for the persona. */
 export function personaEditName(subject: string): string {
   return `Edit ${subject}`;
 }
-export const PERSONA_DESCRIPTION_FIELD_NAME = "Description";
-/** The persona editor's picker subtitle field. */
-export const PERSONA_TITLE_FIELD_NAME = "Title";
 
 /** The persona editor footer's verbs. Delete also names the confirm's button. */
 export const PERSONA_DUPLICATE_NAME = "Duplicate";
