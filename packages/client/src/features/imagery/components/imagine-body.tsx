@@ -44,7 +44,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { IMAGE_MODE_LABELS, ROOM_PICTURES_NOTE, useElapsedSeconds, useFocusOnSwap, viewerTimeZone } from "#lib";
 import type { ImagineSeed } from "#state";
-import { closeModal, useImagineSeed } from "#state";
+import { closeModal, holdRoomForSend, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
 import { formatCost } from "../lib/format-cost.ts";
 import { IMAGINE_MODE_NAME, IMAGINE_PROMPT_NAME } from "../lib/imagine-names.ts";
@@ -133,10 +133,14 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
     const base = { chatId: seed.chatId, gallery: toGallery, timeZone: viewerTimeZone(), n: count };
     const excluded = negative.trim();
     const request = { ...base, ...generationPrompt, ...(size === undefined ? {} : { size }), ...(excluded.length === 0 ? {} : { negative: excluded }) };
-    void generate
-      .mutateAsync(request)
-      .then(() => closeModal())
-      .catch(() => undefined);
+    // The server claims a new room only after the picture is made, so the room stays out of the nav-away reap for
+    // the whole call. `mutateAsync` settles even after this modal unmounts, which releases the hold.
+    const run = async (): Promise<void> => {
+      using _hold = holdRoomForSend(seed.chatId);
+      await generate.mutateAsync(request);
+      closeModal();
+    };
+    run().catch(() => undefined);
   };
 
   return (
