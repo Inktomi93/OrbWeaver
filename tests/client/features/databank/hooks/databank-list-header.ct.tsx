@@ -6,12 +6,10 @@ import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { DATABANK_MAINTENANCE_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { DATABANK_MAINTENANCE_NAME, DATABANK_REBUILD_ALL_NAME, DATABANK_REREAD_ALL_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { DatabankListHeaderStory } from "./_list-header-stories.tsx";
 
 const STORY = "tests/client/features/databank/hooks/_list-header-stories/DatabankListHeaderStory";
-const REBUILD_ALL = "Rebuild all documents";
-const REREAD_ALL = "Re-read all documents";
 const CHECK_AGAIN = "Check the bank again";
 
 type BankHealth = TrpcWireOutput<"databank.bankHealth">;
@@ -101,7 +99,7 @@ test("each owner-wide sweep waits for its confirm before sending its mode, and A
   await openMaintenance(page);
   // A stocked bank labels no reason for closed sweeps.
   await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName("");
-  await page.getByRole("menuitem", { name: REBUILD_ALL, exact: true }).click();
+  await page.getByRole("menuitem", { name: DATABANK_REBUILD_ALL_NAME, exact: true }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toBeVisible();
   expect(trpc.count("databank.reindex")).toBe(0);
@@ -110,7 +108,7 @@ test("each owner-wide sweep waits for its confirm before sending its mode, and A
   await expect(confirm).toHaveCount(0);
 
   await openMaintenance(page);
-  await page.getByRole("menuitem", { name: REREAD_ALL, exact: true }).click();
+  await page.getByRole("menuitem", { name: DATABANK_REREAD_ALL_NAME, exact: true }).click();
   await expect(confirm).toBeVisible();
   expect(trpc.count("databank.reindex")).toBe(1);
   await confirm.getByRole("button", { name: "Re-read", exact: true }).click();
@@ -125,8 +123,8 @@ test("an empty bank closes both sweeps and names why, with no retry to offer", a
   await mount<typeof DatabankListHeaderStory>(STORY, {});
 
   await openMaintenance(page);
-  await expect(page.getByRole("menuitem", { name: REBUILD_ALL, exact: true })).toBeDisabled();
-  await expect(page.getByRole("menuitem", { name: REREAD_ALL, exact: true })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: DATABANK_REBUILD_ALL_NAME, exact: true })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: DATABANK_REREAD_ALL_NAME, exact: true })).toBeDisabled();
   await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName(/\S/u);
   await expect(page.getByRole("menuitem", { name: CHECK_AGAIN, exact: true })).toHaveCount(0);
 });
@@ -144,13 +142,13 @@ test("a failed census keeps the sweeps closed and recovers through its re-read",
   const checkAgain = page.getByRole("menuitem", { name: CHECK_AGAIN, exact: true });
   await expect(checkAgain).toBeVisible();
   await expect(page.getByRole("menu").getByRole("group")).toHaveAccessibleName(/\S/u);
-  await expect(page.getByRole("menuitem", { name: REBUILD_ALL, exact: true })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: DATABANK_REBUILD_ALL_NAME, exact: true })).toBeDisabled();
   healthy = true;
   await checkAgain.click();
 
   await expect(component.getByRole("heading", { level: 2 }).getByText(String(health.total), { exact: true })).toBeVisible();
   await openMaintenance(page);
-  await expect(page.getByRole("menuitem", { name: REBUILD_ALL, exact: true })).toBeEnabled();
+  await expect(page.getByRole("menuitem", { name: DATABANK_REBUILD_ALL_NAME, exact: true })).toBeEnabled();
   await expect(page.getByRole("menuitem", { name: CHECK_AGAIN, exact: true })).toHaveCount(0);
 });
 

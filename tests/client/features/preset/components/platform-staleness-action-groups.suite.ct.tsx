@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
 import { AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { StalenessActionGroupsStory } from "./_staleness-action-groups-stories.tsx";
 
@@ -63,7 +64,7 @@ for (const regime of REGIMES) {
         expect(effective.stale.map((entry) => entry.knob)).toEqual(expect.arrayContaining(["topK", "minP", "dryMultiplier"]));
         const calls = await routeTrpc(page, serveCorpusProcedures(caller, READS));
         await mount<typeof StalenessActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance, presetId: preset.id });
-        await page.getByRole("tab", { name: "Params", exact: true }).click();
+        await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true }).click();
         const keep = page.getByRole("button", { name: DECISION_LABELS.keep, exact: true });
         const clear = page.getByRole("button", { name: DECISION_LABELS.clear, exact: true });
         const group = keep.locator("..");

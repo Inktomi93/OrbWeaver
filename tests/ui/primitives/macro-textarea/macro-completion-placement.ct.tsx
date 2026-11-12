@@ -22,7 +22,7 @@ interface Box {
 
 /** Types the trigger and returns the field and its open list. */
 async function openList(component: Locator): Promise<{ field: Locator; list: Locator }> {
-  const field = component.getByRole("textbox", { name: "Prompt", exact: true });
+  const field = component.getByRole("textbox", { name: "Macro field", exact: true });
   await field.pressSequentially("{{");
   const list = component.getByRole("listbox", { name: "Macro suggestions", exact: true });
   await expect(list).toBeVisible();

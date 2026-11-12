@@ -5,7 +5,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { present } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { PRESET_RESET_ARRANGEMENT_NAME, PRESET_RESET_ARRANGEMENT_TITLE } from "#client/features/preset/lib/preset-names.ts";
+import { PRESET_EDITOR_VIEW_LABELS, PRESET_RESET_ARRANGEMENT_NAME, PRESET_RESET_ARRANGEMENT_TITLE } from "#client/features/preset/lib/preset-names.ts";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
@@ -99,7 +99,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
     presetId,
   });
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "Data", exact: true }).click();
+  await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.data, exact: true }).click();
   await page.getByRole("button", { name: "{{cohort_macro}}", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Edit macro", exact: true });
   const arg = dialog.locator('input[name="userMacros[0].args[1].name"]');
@@ -222,7 +222,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
     variables: [choiceBlockSchema.parse({ name: "cohort_variable", question: "Remote question", options: [{ label: "Remote option", value: "remote" }] })],
   }));
   await component.update({ presetId, runtimeEpoch: 1 });
-  await page.getByRole("tab", { name: "Data", exact: true }).click();
+  await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.data, exact: true }).click();
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
   await expect(remaining).toHaveValue("Remote option");
   const variableScreenshot = testInfo.outputPath("variable-after-stale-draft-refusal.png");
@@ -263,7 +263,7 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   const component = await mount<typeof PresetListLifetimeStory>("tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory", {
     presetId,
   });
-  await page.getByRole("tab", { name: "Data", exact: true }).click();
+  await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.data, exact: true }).click();
   await page.getByRole("button", { name: "queued_variable", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Edit variable", exact: true });
   const label = dialog.locator('input[name="variables[0].options[0].label"]');
