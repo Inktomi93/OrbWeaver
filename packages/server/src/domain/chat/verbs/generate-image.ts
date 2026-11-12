@@ -12,6 +12,7 @@ import type { ChatWarningCode, MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext, PostNarratorMessageDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
+import { ChatHostWithoutConsentError } from "../contract/errors.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
@@ -19,6 +20,7 @@ import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStateme
 import { firstCharacterIdOf } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { resolveTurnIdentityVia } from "../substrate/turn-access.ts";
 
@@ -63,6 +65,11 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
       const hostUserId = hostUserIdOf(participants);
       if (hostUserId === null) {
         throw new Error(`generateImage: chat ${chatId} has no host to own the committed message economics`);
+      }
+      // The picture runs on the host's connections, so a host outside the consent set (disabled) refuses as a
+      // turn does (`loadRoom`): no member spends a disabled host's inference.
+      if (!(await presentAndEnabledHumanUserIdsOf(ctx, participants)).includes(hostUserId)) {
+        throw new ChatHostWithoutConsentError(chatId);
       }
       const identity = resolveTurnIdentityVia({ principalUserId: principal.userId, hostUserId });
       // The picture joins the gallery of the character it was generated for — the room's subject, one

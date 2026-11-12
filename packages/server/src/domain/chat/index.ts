@@ -107,6 +107,7 @@ export { createImageryRoomAccess } from "./verbs/imagery-room-access.ts";
 // The two co-participant asset reference checks assets consumes (`AssetsContext`): room membership is chat's data.
 export { createLoadChatAssetRefs } from "./verbs/load-chat-asset-refs.ts";
 export { createLoadCoParticipantOwner } from "./verbs/load-co-participant-owner.ts";
+export { createLoadConsentingHostUserId } from "./verbs/load-consenting-host.ts";
 export { createChatMemorySearchOps } from "./verbs/memory-search.ts";
 export { setParticipantActivePersona } from "./verbs/participants.ts";
 export { createPluginChatAuthority } from "./verbs/plugin-authority.ts";
