@@ -30,6 +30,7 @@ import { useFocusOnSwap } from "#lib";
 import { isTemplatedMarker, sectionEnabledSwitchName, sectionGlyphIcon, sectionKind, triggersPillLabel } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
 import type { PresetEditorValues } from "#src/features/preset/lib/preset-editor-values.ts";
+import { presetEditDrillName } from "#src/features/preset/lib/preset-names.ts";
 import { estimateSectionTokens } from "./estimate-tokens.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 
@@ -159,7 +160,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               <Switch aria-label={sectionEnabledSwitchName(section)} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
             )}
           </form.AppField>
-          <Button aria-label={`Edit ${name}`} variant="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} square={true} type="button">
+          <Button aria-label={presetEditDrillName(name)} variant="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} square={true} type="button">
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>

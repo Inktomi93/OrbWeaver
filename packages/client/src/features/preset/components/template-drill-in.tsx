@@ -36,6 +36,7 @@ import { CappedFieldCounter } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN, guidedFooterState } from "../lib/assembly-model.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_BACK_TO_ACTIONS_NAME, presetTemplateEditorName } from "../lib/preset-names.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
 import { isGuidedActionKind, proseTemplateDraft } from "../lib/template-rows.ts";
 import { DeliveryCluster } from "./delivery-cluster.tsx";
@@ -64,11 +65,11 @@ export function TemplateDrillIn({ form, presetId, row, onBack }: TemplateDrillIn
   const backRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(backRef);
   return (
-    <Stack aria-label={`${def.label}: template editor`} gap="section" role="region">
+    <Stack aria-label={presetTemplateEditorName(def.label)} gap="section" role="region">
       <Row align="center" gap="row">
         <Button variant="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
-          Back to actions
+          {PRESET_BACK_TO_ACTIONS_NAME}
         </Button>
       </Row>
 

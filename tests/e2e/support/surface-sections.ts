@@ -70,16 +70,24 @@ import { EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-c
 import { EXTENSIONS_SECTION_LABEL } from "#client/features/plugin/lib/extensions-section-label.ts";
 import {
   NEW_PRESET_NAME,
+  PRESET_ADD_SECTION_LABEL,
+  PRESET_BACK_TO_ACTIONS_NAME,
   PRESET_BACK_TO_RACK_NAME,
   PRESET_DELETE_SECTION_TITLE,
   PRESET_EDITOR_NAME,
+  PRESET_EDITOR_VIEW_LABELS,
   PRESET_IMPORT_NAME,
   PRESET_IMPORT_TITLE,
   PRESET_NAME_FIELD_NAME,
+  PRESET_NEW_LABEL,
   PRESET_RENAME_NAME,
   PRESET_SECTION_ACTIONS_NAME,
   PRESET_SECTION_NAME_FIELD_NAME,
   PRESET_SECTIONS_NAME,
+  presetEditDrillName,
+  presetMoveToZoneLabel,
+  presetSectionEditorName,
+  presetTemplateEditorName,
 } from "#client/features/preset/lib/preset-names.ts";
 import { PRESETS_SECTION_LABEL } from "#client/features/preset/lib/presets-section-label.ts";
 import {
@@ -219,7 +227,7 @@ async function presetMenuFamily(journey: Journey, menu: Locator, prefix: string)
   if (prefix.startsWith("presets/library/")) {
     return "library";
   }
-  for (const name of ["Add", "Section actions"]) {
+  for (const name of [PRESET_ADD_SECTION_LABEL, PRESET_SECTION_ACTIONS_NAME]) {
     if ((await menu.and(journey.page.getByRole("menu", { name, exact: true })).count()) === 1) {
       return name;
     }
@@ -1207,12 +1215,12 @@ async function presetViews(journey: Journey, editor: Locator, prefix: string): P
 }
 
 async function presetDrills(journey: Journey, body: Locator, prefix: string): Promise<void> {
-  const controls = body.getByRole("button", { name: /^Edit /u });
+  const controls = body.getByRole("button", { name: namePattern(presetEditDrillName(NAME_HOLE)) });
   const count = await controls.count();
   for (let index = 0; index < count; index += 1) {
     const trigger = controls.nth(index);
     const id = `${prefix}/drill-${String(index)}`;
-    const drill = body.getByRole("region", { name: /: (?:section|template) editor$/u });
+    const drill = body.getByRole("region", { name: namePattern(presetSectionEditorName(NAME_HOLE), presetTemplateEditorName(NAME_HOLE)) });
     await journey.action(id, {
       action: async () => {
         await trigger.click();
@@ -1223,7 +1231,7 @@ async function presetDrills(journey: Journey, body: Locator, prefix: string): Pr
       },
     });
     await walkScope(journey, drill, id);
-    const back = drill.getByRole("button", { name: /^Back to (?:rack|actions)$/u });
+    const back = drill.getByRole("button", { name: namePattern(PRESET_BACK_TO_RACK_NAME, PRESET_BACK_TO_ACTIONS_NAME) });
     await journey.action(`${id}/return`, {
       action: async () => {
         await back.click();
@@ -1273,7 +1281,7 @@ async function createDisposablePreset(journey: Journey, onCreated: (created: Lis
   const band = pane(journey, "list");
   // A band with no room for the word keeps its primary as an icon named by the primary's menu label.
   const newPreset = band
-    .getByRole("button", { name: "New", exact: true })
+    .getByRole("button", { name: PRESET_NEW_LABEL, exact: true })
     .or(band.getByRole("button", { name: NEW_PRESET_NAME, exact: true }))
     .filter({ visible: true });
   await journey.action("presets/disposable/create", {
@@ -1516,10 +1524,10 @@ function settlePresetMenus(journey: Journey, proofs: ReadonlyMap<string, string>
 async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
   const { journey, presetId } = run;
   const editor = journey.page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
-  const prompt = editor.getByRole("tab", { name: "Prompt", exact: true });
+  const prompt = editor.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.prompt, exact: true });
   await prompt.click();
   const body = await controlledPanel(prompt);
-  const add = body.getByRole("button", { name: "Add", exact: true });
+  const add = body.getByRole("button", { name: PRESET_ADD_SECTION_LABEL, exact: true });
   await add.click();
   const addMenu = journey.page.getByRole("menu");
   await ready(addMenu);
@@ -1536,7 +1544,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
       },
       ready: async () => {
         await expect.poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.length).toBe(before.length + 1);
-        await ready(body.getByRole("region", { name: /: section editor$/u }));
+        await ready(body.getByRole("region", { name: namePattern(presetSectionEditorName(NAME_HOLE)) }));
       },
     });
     const added = (await journey.client.preset.get.query({ id: presetId })).config.sections.filter(
@@ -1547,7 +1555,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     if (section === undefined) {
       throw new Error("Native Add left no new section identity");
     }
-    const drill = body.getByRole("region", { name: `${section.name}: section editor`, exact: true });
+    const drill = body.getByRole("region", { name: presetSectionEditorName(section.name), exact: true });
     await expect(drill).toBeVisible();
     if (section.type === "literal") {
       literalId = section.id;
@@ -1569,10 +1577,10 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     if (section === undefined) {
       throw new Error("Disposable section left its canonical preset");
     }
-    const trigger = body.getByRole("button", { name: `Edit ${section.name}`, exact: true });
+    const trigger = body.getByRole("button", { name: presetEditDrillName(section.name), exact: true });
     await expect(trigger).toHaveCount(1);
     await trigger.click();
-    const drill = body.getByRole("region", { name: /: section editor$/u });
+    const drill = body.getByRole("region", { name: namePattern(presetSectionEditorName(NAME_HOLE)) });
     await expect(drill).toHaveCount(1);
     const uniqueName = `Surface section ${journey.ids.uuid()}`;
     await drill.getByRole("textbox", { name: PRESET_SECTION_NAME_FIELD_NAME, exact: true }).fill(uniqueName);
@@ -1592,7 +1600,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
 async function moveDisposableSection(run: PresetCommandRun, drill: Locator, sectionId: string): Promise<void> {
   const { journey, presetId } = run;
   await drill.getByRole("button", { name: PRESET_SECTION_ACTIONS_NAME, exact: true }).click();
-  const item = journey.page.getByRole("menu").getByRole("menuitem", { name: /^Move (?:above|below) the conversation$/u });
+  const item = journey.page.getByRole("menu").getByRole("menuitem", { name: namePattern(presetMoveToZoneLabel(true), presetMoveToZoneLabel(false)) });
   await expect(item).toHaveCount(1);
   const label = (await item.textContent())?.trim();
   if (label === undefined) {

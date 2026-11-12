@@ -33,3 +33,41 @@ export const NEW_PRESET_KIND = "generation";
 
 /** The section drill-in's name field. */
 export const PRESET_SECTION_NAME_FIELD_NAME = "Name";
+
+/** The list band's inline create door; its icon-only and menu forms wear {@link NEW_PRESET_NAME}. */
+export const PRESET_NEW_LABEL = "New";
+
+/** The rack toolbar's add-section menu trigger, which also names the menu it opens. */
+export const PRESET_ADD_SECTION_LABEL = "Add";
+
+/** The template drill-in's return to the Actions list. */
+export const PRESET_BACK_TO_ACTIONS_NAME = "Back to actions";
+
+/** The editor's view tabs, by view id. */
+export const PRESET_EDITOR_VIEW_LABELS = {
+  params: "Params",
+  prompt: "Prompt",
+  actions: "Actions",
+  data: "Data",
+  transforms: "Transforms",
+} as const;
+
+/** The section menu's zone jump, from the side of the conversation the section sits on now. */
+export function presetMoveToZoneLabel(inSetup: boolean): string {
+  return inSetup ? "Move below the conversation" : "Move above the conversation";
+}
+
+/** A rack row's or an Actions row's door into its editor. */
+export function presetEditDrillName(subject: string): string {
+  return `Edit ${subject}`;
+}
+
+/** The section drill-in region, named for the section it edits. */
+export function presetSectionEditorName(section: string): string {
+  return `${section}: section editor`;
+}
+
+/** The template drill-in region, named for the template it edits. */
+export function presetTemplateEditorName(template: string): string {
+  return `${template}: template editor`;
+}
