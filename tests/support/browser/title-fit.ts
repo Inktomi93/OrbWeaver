@@ -2,7 +2,7 @@ import type { Locator } from "@playwright/test";
 import { LAYOUT_SUBPIXEL_PX } from "./enlarged-text-geometry.ts";
 
 /** How one qualified `ListRow` lays its title line out: whether the qualifier shares the name's line, whether the name keeps the least
- *  width it is owed (its own text, or the title floor when the text is longer), whether it is cut short of its own text, and whether the
+ *  width it is owed (its own text, or the title floor when the text is longer, or the whole title line when that is narrower), whether it is cut short of its own text, and whether the
  *  qualifier is on the row whole. Measured from the rendered boxes, so a row that lost its qualifier cannot read as one that merely fits. */
 interface TitleFit {
   readonly qualifierBesideName: boolean;
@@ -31,9 +31,11 @@ export function titleFit(row: Locator, floorPx: number): Promise<TitleFit> {
       const text = document.createRange();
       text.selectNodeContents(title);
       const natural = text.getBoundingClientRect().width;
+      // The room the title line gives the name: a floor wider than the line itself cannot be kept.
+      const room = part("list-row-title-row").getBoundingClientRect().width;
       return {
         qualifierBesideName: qualifierBox.top < titleBox.bottom,
-        nameKeepsItsFloor: titleBox.width >= Math.min(floor, natural) - subpixel,
+        nameKeepsItsFloor: titleBox.width >= Math.min(floor, natural, room) - subpixel,
         nameTruncated: natural > titleBox.width + subpixel,
         qualifierWhole: qualifierBox.left >= rowBox.left && qualifierBox.right <= rowBox.right && qualifier.scrollWidth <= qualifier.clientWidth,
       };

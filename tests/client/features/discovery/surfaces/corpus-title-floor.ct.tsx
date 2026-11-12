@@ -3,7 +3,15 @@
 // name shares its line with the qualifier, and a long name is cut short while the qualifier stays whole.
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { resolvedLength, titleFit } from "@orb/testkit/browser/spec";
+import {
+  LAYOUT_SUBPIXEL_PX,
+  nearestScroller,
+  PLATFORM_TEXT_SCALES,
+  resolvedLength,
+  setPlatformTextSize,
+  sidewaysReach,
+  titleFit,
+} from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -38,6 +46,10 @@ const EXPECTED = {
   long: { qualifierBesideName: true, nameKeepsItsFloor: true, nameTruncated: true, qualifierWhole: true },
 } as const;
 
+const PHONE_WIDTH = 390;
+const PHONE_HEIGHT = 844;
+const LARGEST_TEXT = PLATFORM_TEXT_SCALES[2];
+
 test.use({ hasTouch: false, isMobile: false, viewport: { width: 1280, height: 1200 } });
 
 for (const { label, name, width } of CASES) {
@@ -61,3 +73,38 @@ for (const { label, name, width } of CASES) {
     }
   });
 }
+
+// The title floor is a rem length, so at the largest browser text it outgrows a phone's whole pane: the floor yields to the row.
+test.describe("a phone at the largest browser text", () => {
+  test.use({ viewport: { width: PHONE_WIDTH, height: PHONE_HEIGHT }, hasTouch: true, isMobile: true });
+
+  for (const { label, name } of [
+    { label: "short", name: SHORT_NAME },
+    { label: "long", name: LONG_NAME },
+  ] as const) {
+    test(`a ${label} name in the pane truncates inside its row and the pane does not scroll sideways`, async ({ mount, page, corpus }) => {
+      await using _textSize = await setPlatformTextSize(page, LARGEST_TEXT);
+      await using root = await createCorpusHarness(undefined, { startJobs: false });
+      const caller = await root.internalCallerFor(root.ownerId);
+      for (let copy = 0; copy < SAME_NAME_CHARACTERS; copy += 1) {
+        await caller.character.create({ input: createCharacterSchema.parse({ handle: `title-floor-${String(copy)}`, name, description: "Keeps the light." }) });
+      }
+      await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SERVED) });
+      await mount<typeof CorpusSearchControlsStory>(STORY, { query: "", targetId: "characters", width: PHONE_WIDTH, height: PHONE_HEIGHT });
+
+      const rows = page
+        .getByRole("list", { name: CORPUS_DISTILLED_CATALOG_NAME, exact: true })
+        .locator('[data-slot="list-row-root"]')
+        .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(name, { exact: true }) });
+      await expect(rows).toHaveCount(SAME_NAME_CHARACTERS);
+      const floor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, rows.first());
+      for (const row of await rows.all()) {
+        expect(await titleFit(row, floor)).toMatchObject({ nameKeepsItsFloor: true, nameTruncated: label === "long", qualifierWhole: true });
+      }
+      const scroller = await rows.first().evaluateHandle(nearestScroller);
+      const reach = await scroller.evaluate(sidewaysReach);
+      expect(reach.wideners).toEqual([]);
+      expect(reach.scrolls).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    });
+  }
+});
