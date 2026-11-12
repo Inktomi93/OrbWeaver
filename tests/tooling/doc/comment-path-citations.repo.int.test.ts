@@ -182,6 +182,7 @@ interface Universe {
 
 const LAW_DIR = "docs/law/";
 const HEADING = /^#{1,6}\s+(.*)$/u;
+const DOC_TITLE = /^#\s/u;
 // A heading's own number, `8.` or `§1` or `6a.`, opens its text.
 const HEADING_NUMBER = /^§?\s?(\d+(?:\.\d+)*[a-z]?)(?=[.)\s:]|$)/u;
 // A heading may also carry the number another doc's numbering gave it: "String-union dispatch (spine §7.5)".
@@ -203,7 +204,8 @@ function markdownAnchors(text: string): Map<string, number> {
   let heading: string | undefined;
   // A fenced block's `#` lines are code comments, not headings.
   for (const line of text.replaceAll(FENCED_BLOCK, "").split("\n")) {
-    const title = HEADING.exec(line)?.[1];
+    // The H1 is the doc's title: a section number it names is a cross-reference to the body, never a second home.
+    const title = DOC_TITLE.test(line) ? undefined : HEADING.exec(line)?.[1];
     if (title !== undefined) {
       heading = HEADING_NUMBER.exec(title)?.[1];
       for (const number of new Set(headingNumbers(title))) {
@@ -634,9 +636,10 @@ describe("the cite resolver", () => {
   // A second law doc whose name opens with the same `Law-` stem, so `Law` alone names neither.
   const siblingPath = "docs/law/Law-Book.md";
   // Numbered, lettered and aliased headings, numbered lists under headings 7 and 10, and a fenced `#` line that is no
-  // heading. §7.5 has two homes: item 5 under heading 7 and the alias on a heading.
+  // heading. §7.5 has two homes: item 5 under heading 7 and the alias on a heading. The title names §3 and §10 as
+  // cross-references, which add no home.
   const plantedLaw =
-    "# Law\n\n## 3. Three\n\n## Dispatch (spine §7.6)\n\n## Unions (spine §7.5)\n\n## 7. Seven\n\n5. five\n\n## 10. Rules\n\n1. one\n2. two\n\n### 6a. Lettered\n\n```sh\n# 9. not a heading\n```\n";
+    "# Law (Laws 2-4: §3-§10)\n\n## 3. Three\n\n## Dispatch (spine §7.6)\n\n## Unions (spine §7.5)\n\n## 7. Seven\n\n5. five\n\n## 10. Rules\n\n1. one\n2. two\n\n### 6a. Lettered\n\n```sh\n# 9. not a heading\n```\n";
   const universe: Universe = {
     tracked: {
       paths: new Set(["tests/tooling/real.test.ts", "packages/x/src/real.ts", lawPath, siblingPath]),
