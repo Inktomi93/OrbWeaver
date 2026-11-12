@@ -124,7 +124,7 @@ export function KnobRow(props: KnobRowProps): ReactElement {
           // tracks, side-eye 2026-08-30 P2-C): name and value share the first line — so the values read down
           // a right-hand column against the rail's own edge — and the rail takes the whole width beneath
           // them. No cell names a ROW in either arm (they are all cells of ONE grid, so a row index would
-          // address every knob at once); the fold is the rail's `col-span-2` plus the grid's dense flow.
+          // address every knob at once); the fold is the rail's `col-span-full` plus the grid's dense flow.
           <>
             <KnobLabel hint={hint} label={label} />
             <KnobControls
@@ -188,7 +188,7 @@ function KnobControls({
         // starts the line below — and the grid's dense flow then backfills the value cell into the hole it
         // left beside the name (`@orb/ui`'s `knob` recipe carries the why). The DOM order is untouched in
         // both arms, which is what keeps the reading order the eye's order.
-        className="min-inline-0 @max-cq-32:col-span-2"
+        className="min-inline-0 @max-cq-32:col-span-full"
         largeStep={largeStep}
         max={max}
         min={min}
@@ -279,7 +279,7 @@ function KnobGloss({ text, glossId }: { readonly text: string | null; readonly g
     return null;
   }
   return (
-    <Text as="span" className="@max-cq-32:col-span-2 @cq-32:col-span-2 @cq-32:col-start-2" id={glossId} voice="gloss">
+    <Text as="span" className="@max-cq-32:col-span-full @cq-32:col-span-2 @cq-32:col-start-2" id={glossId} voice="gloss">
       {text}
     </Text>
   );
@@ -300,7 +300,7 @@ function KnobLabel({ label, hint }: { readonly label: string; readonly hint: str
     // wherever the names fit it and grows past it where they do not. The name accordingly does NOT truncate
     // — a content-sized track has nothing to truncate against, and the clipping this fixes ("Max output
     // tokens", "Max context tokens", at every width) was the box, never the string.
-    <Row align="center" gap="field" justify="between">
+    <Row align="center" gap="field" justify="between" wrap="cq-20">
       <Text as="span" voice="label">
         {label}
       </Text>

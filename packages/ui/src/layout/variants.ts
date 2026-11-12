@@ -529,7 +529,7 @@ export const sectionVariants = tv({
     heading: "text-title leading-title font-medium text-foreground",
     // inline-flex so the hint trigger sits on the heading's baseline instead of dropping to its own line
     // (mirrors the Field label/hint row, field/variants.ts).
-    headingRow: INLINE_FIELD_ROW,
+    headingRow: `${INLINE_FIELD_ROW} @max-cq-16:flex-wrap @max-cq-16:max-inline-full`,
     // The KICKER band (UI-Density-Law.md §2.3/§4.3): a caps micro label + a hairline rule running to the
     // edge. This is the CD1 replacement for a box — a read-only grouping gets a name and a rule, never a
     // border+radius+bg. The type itself is the `kicker` VOICE on a real <Heading> (one spelling, in
@@ -813,7 +813,17 @@ export const gridVariants = tv({
       // must stay there: measured, an unscoped `grid-flow-row-dense` backfills the wide arm's next NAME cell
       // into the hole the gloss's `col-start-2` leaves at column one, which put a cluster's explainers on
       // two different x's (398,398,398,966,966) — the very column P3 exists to hold.
-      knob: "grid-cols-[1fr_max-content] @max-cq-32:grid-flow-row-dense @cq-32:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]",
+      //
+      // BELOW `@cq-16` THE FOLDED ARM IS ONE TRACK. The value cluster is content-sized (the number box and the reset are rem and
+      // touch-floor lengths), so at the largest browser text on a phone the name's minimum plus that cluster outgrows the pane and
+      // the second track pushes the row past it. The cluster takes its own line under the rail instead. The step is in `rem`, so
+      // it moves with the type: it never engages at normal text, where the two-track fold fits.
+      knob: `
+        grid-cols-[1fr_max-content]
+        @max-cq-32:grid-flow-row-dense
+        @max-cq-16:grid-cols-1
+        @cq-32:grid-cols-[minmax(var(--width-label-col),max-content)_1fr_max-content]
+      `,
       // Four ordered action homes. A wide container keeps the explicit four-track row (`1fr` at the third
       // home is the spacer that pushes the last two right).
       //
