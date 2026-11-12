@@ -1,5 +1,6 @@
-// orb/prefer-to-sorted refuses a copy-then-sort whose copied operand the checker types as an array or a tuple in every
-// union member, and passes the spread of a Set, an iterator or a string, which has no `toSorted` and so no shorter copy.
+// orb/prefer-to-sorted refuses a copy-then-sort whose copied operand the checker types as an array, a tuple, a branded
+// array or an Array subclass in every union member, and passes the spread of a Set, an iterator or a string, which has
+// no `toSorted` and so no shorter copy.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
@@ -48,6 +49,13 @@ const DECLARATIONS = [
   "declare const byId: Map<string, number>;",
   "declare const word: string;",
   "declare const mixed: number[] | Set<number>;",
+  "declare const branded: readonly string[] & { readonly brand: unique symbol };",
+  "declare class Rows extends Array<number> {}",
+  "declare const rows: Rows;",
+  "declare class Bag<T> extends Array<T> {}",
+  "declare const bag: Bag<string>;",
+  "declare const samples: Float64Array;",
+  "declare const loose: any;",
 ].join("\n");
 
 async function findings(body: string): Promise<readonly Linter.LintMessage[]> {
@@ -80,6 +88,10 @@ test.for([
   ["an empty slice of an array", "export const sorted = names.slice().sort();"],
   ["an Array.from of an array", "export const sorted = Array.from(names).sort();"],
   ["a computed sort member", 'export const sorted = [...names]["sort"]();'],
+  ["a spread of a branded array", "export const sorted = [...branded].sort();"],
+  ["a spread of an Array subclass", "export const sorted = [...rows].sort((a, b) => a - b);"],
+  ["a spread of a generic Array subclass", "export const sorted = [...bag].sort();"],
+  ["a spread of a type parameter constrained to a branded array", "export const sorted = <T extends typeof branded>(xs: T) => [...xs].sort();"],
 ] as const)("refuses %s", async ([, body]) => {
   expect((await findings(body)).map(({ message }) => message)).toEqual([expect.stringContaining("toSorted")]);
 });
@@ -88,7 +100,11 @@ test.for([
   ["a spread of a Set", "export const sorted = [...tags].sort();"],
   ["a spread of a Map iterator", "export const sorted = [...byId.keys()].sort();"],
   ["a spread of a string", "export const sorted = [...word].sort();"],
+  // `toSorted` is not a member of the union, so the spread is the only copy that sorts it.
   ["a union with a non-array member", "export const sorted = [...mixed].sort((a, b) => a - b);"],
+  // A typed array's `toSorted` returns a typed array and sorts numerically, so it is no spelling of the array copy.
+  ["a spread of a typed array", "export const sorted = [...samples].sort();"],
+  ["a spread of an any", "export const sorted = [...loose].sort();"],
   ["an Array.from of a Set", "export const sorted = Array.from(tags).sort();"],
   ["a spread of two arrays", "export const sorted = [...names, ...frozen].sort();"],
   ["a slice with bounds", "export const sorted = names.slice(1).sort();"],

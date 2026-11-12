@@ -1,7 +1,7 @@
 // A sorted copy of an array is `x.toSorted(fn)` (Spine-TypeScript-and-Patterns §9). The rule refuses the three copy-then-sort
-// spellings, `[...x].sort()`, `x.slice().sort()` and `Array.from(x).sort()`, only when the checker types `x` as an array or
-// a tuple in every union member. A Set, a Map iterator or another iterable has no `toSorted`, so its spread is the one
-// copy and stays.
+// spellings, `[...x].sort()`, `x.slice().sort()` and `Array.from(x).sort()`, only when the checker types `x` as an array, a
+// tuple, a branded array or an Array subclass in every union member. A Set, a Map iterator or another iterable has no
+// `toSorted`, so its spread is the one copy and stays.
 
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
@@ -37,9 +37,23 @@ export const preferToSortedRule: OrbRule = {
   meta: { type: "suggestion", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const { checker, esTreeNodeToTSNodeMap: toTs } = requireTypeServices(context);
+    // An array is an Array, a tuple, an intersection that carries one (a branded array) or a class whose bases reach one.
+    // A union is an array only when every member is: `toSorted` exists on the union only then.
     const arrayTyped = (type: ts.Type): boolean => {
       const resolved = type.isTypeParameter() ? (checker.getBaseConstraintOfType(type) ?? type) : type;
-      return resolved.isUnion() ? resolved.types.every(arrayTyped) : checker.isArrayType(resolved) || checker.isTupleType(resolved);
+      if (resolved.isUnion()) {
+        return resolved.types.every(arrayTyped);
+      }
+      if (resolved.isIntersection()) {
+        return resolved.types.some(arrayTyped);
+      }
+      return checker.isArrayType(resolved) || checker.isTupleType(resolved) || arraySubclass(resolved);
+    };
+    // The declared type of the instance's class, so an instantiated generic (`Rows<number>`) reaches its bases too.
+    const arraySubclass = (type: ts.Type): boolean => {
+      const symbol = type.getSymbol();
+      const declared = symbol === undefined ? undefined : checker.getDeclaredTypeOfSymbol(symbol);
+      return declared?.isClassOrInterface() === true && checker.getBaseTypes(declared).some(arrayTyped);
     };
     return {
       CallExpression: (node: TSESTree.CallExpression): void => {
