@@ -11,7 +11,9 @@
 //       (`matchAutomationEvents`, mirroring the rule column). ONE guard, two consumers.
 //   (b) VISIBILITY — a plugin installed by user X receives a fact ONLY for a chat/resource X can SEE
 //       (`canInstallerSeeFact`: chat's `resolveViewerVisibility` op for a chat fact — membership AND the D16
-//       history floor; owned character/asset for chat-less domain facts). A PUSH delivery carries no admitted
+//       history floor; owned character/asset for chat-less domain facts), and only while X's account is
+//       enabled: a disabled installer sees nothing (owner-ruled to stand as a departed member), so a room
+//       event never wakes a guest that would spend that account's connections. A PUSH delivery carries no admitted
 //       opaque handle, so the fan-out itself is the caller-gate (INFO-5 / the injected-op-caller-gate class) —
 //       checked BEFORE `deliver`.
 //   (c) DECLARED-MATCH — only the trigger types the plugin DECLARED (its `events.on` registrations) deliver.
@@ -20,6 +22,7 @@
 import type { PluginSubscriberRegistry, PluginTriggerSubscriber, TriggerFact } from "@orb/contracts/automation";
 import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
+import type { ResolveUserEnabled } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { stripHiddenSpans } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -62,6 +65,7 @@ interface VisibilityDeps {
   readonly db: Db;
   readonly resolveViewerVisibility: AutomationOps["chat"]["resolveViewerVisibility"];
   readonly getMessageFact: AutomationOps["chat"]["getMessageFact"];
+  readonly isInstallerEnabled: ResolveUserEnabled;
 }
 
 /**
@@ -129,6 +133,9 @@ async function isBelowHistoryFloor(deps: VisibilityDeps, fact: TriggerFact, floo
 }
 
 async function resolveFactVisibility(deps: VisibilityDeps, installer: UserId, fact: TriggerFact): Promise<FactVisibility> {
+  if (!(await deps.isInstallerEnabled(installer))) {
+    return { visible: false };
+  }
   if (fact.chatId !== null) {
     // Ids arrive UNBRANDED (the TriggerFact wire shape) and are parsed only to query — a re-read gate, never a
     // trust transfer. A malformed chatId fails the parse and a forged one resolves to no membership: no delivery.

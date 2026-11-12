@@ -990,6 +990,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     search,
     workloads,
     loadUserSettings: settings.loadUserSettings,
+    resolveUserEnabled: createResolveUserEnabled(sessions),
     emitChatEventLive,
   });
 

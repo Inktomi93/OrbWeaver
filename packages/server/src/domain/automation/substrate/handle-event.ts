@@ -132,6 +132,7 @@ async function fanOutIsolated(ctx: AutomationContext, event: BusEvent, resolved:
         // The D16 anchor resolver for a fact that REFERENCES canon without carrying it — the same op
         // the message-shaped resolve already uses, so the gate adds no seam and no second canon reader.
         getMessageFact: ctx.ops.chat.getMessageFact,
+        isInstallerEnabled: ctx.isAuthorEnabled,
       },
       resolved,
     );

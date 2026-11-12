@@ -27,7 +27,7 @@ export function createListActiveForChat(ctx: DatabankContext): DatabankService["
     // The SOURCES map, not the flat union: the panel is the one reader that needs to say WHY each document
     // is active (D-2) — the retrieval path takes the id-only twin.
     const [credits, hiddenIds, host] = await Promise.all([
-      resolveChatDocumentSources(ctx.db, chatId),
+      resolveChatDocumentSources(ctx.db, chatId, ctx.resolveUserEnabled),
       resolveChatHiddenDocumentIds(ctx.db, chatId),
       ctx.resolveChatHost(chatId),
     ]);
