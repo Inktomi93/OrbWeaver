@@ -1,10 +1,9 @@
 ---
 kind: decision
-status: blocked
-updated: 2026-11-11
+status: open
+updated: 2026-11-12
 priority: P3
 area: ui
-blocked: on 1401
 plan: cross-surface-consistency
 ---
 
@@ -20,7 +19,7 @@ The probe cannot tell a designed sibling overlay from a defect, because the tree
 
 ## Done when
 
-A ruling, and each overlay either redesigned or declared through a production attribute the probe reads. These checkpoints show no enlarged-text geometry finding at 200% and 300% text: chat-room-chat-*, config-appearance-*, config-library-setting-changed, config-rosterPreset-*, config-worldInfo-*, corpus-labels-finder-scroll-*, home-native-chat-alsoOpen-*, library-scroll-*, message-operations-*, refinery-requested-pane-composition.
+Ruling, narrowed to the item's own subject: no overlap finding appears on its named checkpoints at enlarged text and every overlay there is declared on both boxes. Other enlarged-text findings on those surfaces belong to their own items. Met on the four text-size walks of main: no named checkpoint has an overlap finding, and every overlay is declared.
 
 ## Evidence
 

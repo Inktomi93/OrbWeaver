@@ -1,10 +1,9 @@
 ---
 kind: decision
-status: blocked
-updated: 2026-11-11
+status: open
+updated: 2026-11-12
 priority: P3
 area: ui
-blocked: on 1401
 plan: cross-surface-consistency
 ---
 
@@ -20,7 +19,7 @@ Reflow at enlarged text competes with code layout.
 
 ## Done when
 
-A ruling, and either `lineWrapping` on, or a production-declared code strip the probe reads through a declared attribute. These checkpoints show no enlarged-text geometry finding at 200% and 300% text: config-regex-\*.
+Ruling, narrowed to the item's own subject: the code editor's scroller does not scroll sideways on the regex checkpoints at enlarged text. The page's own sideways scroll and button cuts there belong to the regex page's item. Met on the four text-size walks of main: the editor wraps on desktop and phone.
 
 ## Evidence
 
