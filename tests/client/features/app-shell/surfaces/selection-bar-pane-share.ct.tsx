@@ -63,13 +63,22 @@ async function selectRows(page: Page, list: BulkList): Promise<{ readonly bar: L
   await page.getByRole("button", { name: /^Select( multiple| scripts)?$/u }).click();
   const checkboxes = page.getByRole("checkbox");
   await expect(checkboxes.first()).toBeVisible();
+  let lastSelected = checkboxes.first();
   for (let index = 0; index < SELECTED; index += 1) {
-    await checkboxes.nth(index).scrollIntoViewIfNeeded();
-    await checkboxes.nth(index).click();
+    const checkbox = checkboxes.nth(index);
+    await checkbox.scrollIntoViewIfNeeded();
+    // The list recycles its rows as the pane lifts the selected one clear of the bar, so a position names a different row afterwards:
+    // the row just selected is found again by its name.
+    const name = await checkbox.getAttribute("aria-label");
+    if (name === null) {
+      throw new Error("A selectable row's checkbox carries no name");
+    }
+    lastSelected = page.getByRole("checkbox", { name, exact: true });
+    await checkbox.click();
   }
   const bar = page.locator('[data-slot="selection-bar-root"]');
   await expect(bar.locator('[data-slot="selection-bar-count"]')).toHaveText(selectionCountLabel(SELECTED));
-  return { bar, lastSelected: checkboxes.nth(SELECTED - 1) };
+  return { bar, lastSelected };
 }
 
 function middle(box: { readonly y: number; readonly height: number } | null): number {
