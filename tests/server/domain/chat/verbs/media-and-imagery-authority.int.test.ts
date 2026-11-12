@@ -228,6 +228,14 @@ test("a member's picture request spends neither the Utility nor the image connec
   expect(await extract()).toMatchObject({ source: "extracted" });
   expect((await generate()).content).toContain("asset:");
   expect(requests.length).toBeGreaterThan(beforeResume);
+
+  // A host who left refuses alike: the room has no host whose connections a member may spend.
+  await root.services.chat.selfLeave({ principal: host, chatId: room });
+  const beforeHostless = requests.length;
+  await expect(extract()).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(generate()).rejects.toBeInstanceOf(DomainNotFoundError);
+  expect(requests).toHaveLength(beforeHostless);
+  images.length = 0;
 });
 
 test("a present member's picture the room never placed reads no bytes, while a placed link admits the host's", async () => {
