@@ -34,36 +34,23 @@ jobs:
 
   # One type-aware program over the whole tree outgrew one runner's memory, so each part lints on its
   # own runner. The parts are ESLINT_PARTS in `scripts/eslint-parts.ts`, which pre-push runs one after
-  # another; `tests/tooling/eslint-parts.repo.int.test.ts` fails when this matrix and that table disagree.
+  # another and each job runs by name; `tests/tooling/eslint-parts.repo.int.test.ts` fails when this
+  # matrix and that table disagree.
   eslint:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        part:
-          - name: client
-            args: packages/client
-          - name: server
-            args: packages/server
-          - name: ui
-            args: packages/ui
-          - name: packages
-            args: packages --ignore-pattern packages/client/ --ignore-pattern packages/server/ --ignore-pattern packages/ui/
-          - name: tests
-            args: tests
-          - name: tooling
-            args: tooling
-          - name: root
-            args: . --ignore-pattern packages/ --ignore-pattern tests/ --ignore-pattern tooling/
-    name: eslint (${{ matrix.part.name }})
+        part: [client, server, ui, packages, tests-node, tests-dom, tests-iso, tooling, root]
+    name: eslint (${{ matrix.part }})
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm lint:eslint ${{ matrix.part.args }}
+      - run: pnpm lint:eslint:parts ${{ matrix.part }}
 
   node:
     runs-on: ubuntu-24.04
