@@ -109,6 +109,7 @@ test("only sessions and admin name the users identity root, through any import d
     "packages/server/src/entry/compose/identity.ts",
     "packages/server/src/entry/auth/identity.tsx",
     "packages/server/src/domain/billing/probe.gen.ts",
+    "packages/server/src/foundation/observability/debug/x.ts",
   ]) {
     for (const source of [
       'import { users } from "@orb/db";\nexport const u = users;',
@@ -261,9 +262,15 @@ const VECTOR_GATE_ROWS: readonly Row[] = [
     { [VECTOR_WRITE]: 1 },
   ],
   [
-    "packages/server/src/foundation/observability/debug/vectors.ts",
+    "packages/server/src/foundation/observability/debug/inspect/vectors.ts",
     `import { chatDigests } from "${HOME_SCHEMA}";\nexport const t = chatDigests;\n`,
     { [VECTOR_WRITE]: 1 },
+  ],
+  // Only the DB probes under debug/inspect hold the read role; the rest of debug/ is refused.
+  [
+    "packages/server/src/foundation/observability/debug/vectors.ts",
+    `import { chatDigests } from "${HOME_SCHEMA}";\nexport const column = chatDigests.id;\n`,
+    { [VECTOR]: 1 },
   ],
   // The import homes name the table without rebinding it.
   [
@@ -277,7 +284,7 @@ const VECTOR_GATE_ROWS: readonly Row[] = [
     {},
   ],
   [
-    "packages/server/src/foundation/observability/debug/digest-ids.ts",
+    "packages/server/src/foundation/observability/debug/inspect/digest-ids.ts",
     `import { chatDigests } from "${HOME_SCHEMA}";\nexport const column = chatDigests.id;\n`,
     {},
   ],
@@ -355,7 +362,7 @@ test("a vector table is named only by its import-role roots, through any import 
     "packages/server/src/domain/search/persistence/nearest.ts",
     "packages/server/src/domain/chat/memory/persistence/digests.ts",
     "packages/server/src/domain/discovery/persistence/near-duplicates.ts",
-    "packages/server/src/foundation/observability/debug/vectors.ts",
+    "packages/server/src/foundation/observability/debug/inspect/vectors.ts",
     "packages/client/src/features/probe.ts",
     "tests/server/domain/search/probe.int.test.ts",
   ]) {
@@ -376,7 +383,7 @@ test("only embeddings persistence writes a vector table, whatever the receiver o
     "packages/server/src/domain/search/persistence/x.ts",
     "packages/server/src/domain/chat/memory/persistence/x.ts",
     "packages/server/src/domain/discovery/persistence/x.ts",
-    "packages/server/src/foundation/observability/debug/x.ts",
+    "packages/server/src/foundation/observability/debug/inspect/x.ts",
     "packages/server/src/domain/embeddings/verbs/x.ts",
   ]) {
     for (const table of VECTOR_TABLES) {
@@ -424,8 +431,8 @@ test("only embeddings persistence writes a vector table, whatever the receiver o
 
 // Each single-writer table: its rule, the table's export name, the one persistence home that may name it, and a
 // table of the same package the rule leaves alone.
-const DEBUG_PROBE = "packages/server/src/foundation/observability/debug/x.ts";
-// The last field is the files that may also read the table: the debug inspector counts the inbox's rows.
+const DEBUG_PROBE = "packages/server/src/foundation/observability/debug/inspect/x.ts";
+// The last field is the files that may also read the table: the debug DB probes count the inbox's rows.
 const SINGLE_WRITER_TABLES = [
   [INBOX, INBOX_REEXPORT, "notifications", "packages/server/src/domain/notifications/persistence/queries.ts", "auditLogs", [DEBUG_PROBE]],
   [SETTINGS_KV, SETTINGS_KV_REEXPORT, "settings", "packages/server/src/domain/settings/persistence/kv.ts", "userSettings", []],
@@ -439,6 +446,7 @@ test("only its own persistence names the inbox or the settings key-value table, 
       "packages/server/src/domain/notifications/verbs/x.ts",
       "packages/server/src/domain/settings/verbs/x.ts",
       "packages/server/src/entry/compose/x.ts",
+      "packages/server/src/foundation/observability/debug/x.ts",
       ...(readers.length === 0 ? [DEBUG_PROBE] : []),
     ]) {
       for (const source of [

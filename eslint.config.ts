@@ -1849,6 +1849,8 @@ const RAW_STORAGE_HOMES = homes(
   "packages/client/src/lib/probe-mode.ts",
   "packages/client/src/main.tsx",
 );
+// The read-only DB probes Tier-2-Foundation.md names: they read @orb/db down, with no port.
+const DEBUG_DB_PROBES = "packages/server/src/foundation/observability/debug/inspect/**";
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
@@ -2028,16 +2030,15 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/server/src/infra/auth/**/*.{ts,tsx}"], rules: { "orb/infra-auth-no-userid": "error", "orb/infra-auth-pre-row-imports": "error" } },
     { files: ["packages/server/src/domain/discovery/**/*.{ts,tsx}"], rules: { "orb/discovery-no-stats-rollups": "error" } },
+    // DEBUG_DB_PROBES holds a read role in the users, inbox and vector rows; the rest of `debug/` holds none.
     {
-      files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/domain/sessions/**", "packages/server/src/domain/admin/**"],
+      files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}", "packages/server/src/foundation/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/sessions/**", "packages/server/src/domain/admin/**", DEBUG_DB_PROBES],
       rules: { "orb/no-direct-users-read": "error" },
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      // The debug inspector counts the inbox's rows beside every backbone table; it produces no notification, which is
-      // what the one chokepoint guards. The vector rows grant the debug probes the same read role (D20).
-      ignores: ["packages/server/src/domain/notifications/persistence/**", "packages/server/src/foundation/observability/debug/**"],
+      ignores: ["packages/server/src/domain/notifications/persistence/**", DEBUG_DB_PROBES],
       rules: { "orb/notifications-inbox-owner": "error" },
     },
     {
@@ -2064,7 +2065,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
         "packages/server/src/domain/search/persistence/**",
         "packages/server/src/domain/chat/memory/persistence/**",
         "packages/server/src/domain/discovery/persistence/**",
-        "packages/server/src/foundation/observability/debug/**",
+        DEBUG_DB_PROBES,
       ],
       rules: { "orb/vector-scope-derived": "error" },
     },
