@@ -137,7 +137,7 @@ export function PluginSurfaceRenderer(props: PluginSurfaceRendererProps): ReactE
   const parsed = pluginSurfaceSpecSchema.safeParse(props.spec);
   if (!parsed.success) {
     return (
-      <Text prose={true} role="alert" voice="gloss">
+      <Text cap="prose" prose={true} role="alert" voice="gloss">
         This plugin's panel couldn't be displayed — its layout didn't pass validation.
       </Text>
     );

@@ -1,4 +1,5 @@
-// The World Info library's Retry on a phone at enlarged text: one press recovers the read and leaves no second failure behind.
+// The World Info library's Retry: one press recovers the failed read, and when the count and the book list both failed, it recovers both.
+// The first case runs on a phone at enlarged text.
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, routeTrpc, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -42,3 +43,28 @@ for (const factor of SCALES) {
     await expect(content.locator('[data-slot="query-error"]:visible')).toHaveCount(0);
   });
 }
+
+test("one Retry recovers the World Info count and the book list when both reads failed", async ({ corpus, corpusViewer, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  let failing = true;
+  const failWhileDown = (): ReturnType<typeof trpcError> | undefined => (failing ? trpcError({ code: "INTERNAL_SERVER_ERROR" }) : undefined);
+  await routeTrpc(page, {
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpusViewer.userId, corpus.reads["settings.listThemes"]),
+    "settings.getAppSettingsWithOverrides": () => trpcHold<"settings.getAppSettingsWithOverrides">(),
+    ...serveCorpusProcedures(caller, ["worldInfo.listBooksWithUsage"], failWhileDown),
+    ...serveCorpusProcedures(caller, ["worldInfo.countBooks"], failWhileDown),
+  });
+  await mount<typeof ConfigPanesStory>(STORY, { showList: false, initialGroup: "worldInfo" });
+  const content = page.locator('[data-slot="config-content"]');
+  const error = content.locator('[data-slot="query-error"]:visible');
+  await expect(error).toHaveCount(1);
+  failing = false;
+  const retry = error.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
+  await retry.focus();
+  await retry.press("Enter");
+  await expect(content.getByRole("textbox", { name: collectionFilterName(WORLD_INFO_GROUP_LABEL), exact: true })).toBeVisible();
+  await expect(error).toHaveCount(0);
+});

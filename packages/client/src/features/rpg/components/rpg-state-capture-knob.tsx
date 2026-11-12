@@ -25,7 +25,7 @@ export function StateCaptureKnob({ value, onChange, structuredUnavailable }: Sta
   const unavailableId = useId();
   return (
     <Stack gap="field">
-      <Kicker>How the state is asked for</Kicker>
+      <Kicker>State capture</Kicker>
       <Text voice="gloss" id={scopeId}>
         {STATE_CAPTURE_SCOPE}
       </Text>

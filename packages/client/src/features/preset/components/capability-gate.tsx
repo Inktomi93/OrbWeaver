@@ -83,17 +83,17 @@ export function CapabilityGate({ error, onRetry }: CapabilityGateProps): ReactEl
         <Row align="start" gap="field">
           <Icon icon={TriangleAlert} size="sm" tone="warning" />
           <Stack gap="tight">
-            <Text prose={true} voice="label">
+            <Text cap="prose" prose={true} voice="label">
               {routing
                 ? "Your chat model couldn't be resolved, so these knobs can't be shown at your model's real caps."
                 : "Your model's capabilities couldn't be read, so these knobs can't be shown at their real caps."}
             </Text>
             {message === null ? null : (
-              <Text prose={true} voice="gloss">
+              <Text cap="prose" prose={true} voice="gloss">
                 {message}
               </Text>
             )}
-            <Text prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               {routing
                 ? `This is a routing problem, not a missing connection: fix it under ${MODEL_ROLES_PATH_TEXT}.`
                 : `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`}

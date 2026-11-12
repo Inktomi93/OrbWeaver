@@ -12,20 +12,22 @@
 
 import { Row } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
-import { Heading } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 
 export interface RpgKickerProps {
   readonly children: ReactNode;
   /** Crown-gold host-only voice (highlight). @defaultValue false */
   readonly crown?: boolean;
+  /** A sentence-case note after the label: caps is a label voice and a sentence never borrows it. */
+  readonly gloss?: string;
   /** An affordance beside the text (the section lock pin) — sits before the rule. */
   readonly trailing?: ReactNode;
 }
 
 /** A muted letter-spaced caps section heading with a trailing rule (the mock's `.kicker`). The rule is the
  *  `@orb/ui/separator` primitive (`flex-1` to fill the row) — never a hand-styled raw element in a feature. */
-export function Kicker({ children, crown = false, trailing }: RpgKickerProps): ReactElement {
+export function Kicker({ children, crown = false, gloss, trailing }: RpgKickerProps): ReactElement {
   return (
     <Row gap="field" align="center">
       {/* `voice="kicker"` IS this anatomy (micro · caps · semibold · micro tracking · muted) — the
@@ -33,6 +35,11 @@ export function Kicker({ children, crown = false, trailing }: RpgKickerProps): R
       <Heading level={3} voice="kicker" ink={crown ? "accolade" : undefined}>
         {children}
       </Heading>
+      {gloss === undefined ? null : (
+        <Text as="span" voice="gloss">
+          {gloss}
+        </Text>
+      )}
       {trailing}
       <Separator grow={true} />
     </Row>

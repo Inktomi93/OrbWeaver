@@ -174,7 +174,7 @@ function PageBody({ page }: { readonly page: PluginPageView }): ReactElement | n
   }
   if (page.spec === undefined) {
     return (
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         This page hasn't published anything to draw yet.
       </Text>
     );

@@ -229,7 +229,9 @@ export function HostConsoleScalars({
 
                 {/* gap="row" — same fix-forward (measured clearance defect, Kicker included). */}
                 <Stack gap="row">
-                  <Kicker crown={true}>Hidden channels: host only</Kicker>
+                  <Kicker crown={true} gloss="Host only">
+                    Hidden channels
+                  </Kicker>
                   <form.AppField name="deception">
                     {(field): ReactElement => (
                       <field.SwitchField
@@ -276,7 +278,7 @@ export function HostConsoleScalars({
                 </Stack>
 
                 <Stack gap="field">
-                  <Kicker>Steering note: never shown to members</Kicker>
+                  <Kicker gloss="Never shown to members">Steering note</Kicker>
                   <form.AppField name="steeringNote">
                     {(field): ReactElement => (
                       <field.TextareaField

@@ -21,6 +21,18 @@ test("the old tone values do not compile", () => {
   expectTypeOf<NonNullable<TextProps["tone"]>>().toEqualTypeOf<Tone>();
 });
 
+test("the prose size states its measure", () => {
+  // @ts-expect-error a paragraph with no cap runs the whole row
+  createElement(Text, { prose: true }, "x");
+  // @ts-expect-error a heading takes the same pair
+  createElement(Heading, { level: 2, prose: true }, "x");
+  createElement(Text, { prose: true, cap: "prose" }, "a paragraph at its measure");
+  createElement(Text, { prose: true, cap: "fit" }, "a run its owner already bounds");
+  createElement(Text, { cap: "prose" }, "a cap without the size");
+  createElement(Text, { prose: false }, "x");
+  expectTypeOf<{ prose: true }>().not.toExtend<TextProps>();
+});
+
 test("an ink excludes a colour tone", () => {
   // @ts-expect-error an ink would repaint the tone's meaning away
   createElement(Text, { tone: "destructive", ink: "muted" }, "x");

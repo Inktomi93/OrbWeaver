@@ -86,7 +86,7 @@ function OverrideSources({ sources }: { readonly sources: AssembleTrace["overrid
     return null;
   }
   return (
-    <Section heading={<Kicker>Where each value came from</Kicker>}>
+    <Section heading={<Kicker>Value sources</Kicker>}>
       <Stack gap="field">
         {present.map((row) => (
           <Row key={row.label} gap="block" justify="between" align="center">
@@ -185,7 +185,7 @@ function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElem
         {/* `prose` (variants.ts §the reading-length modifier): these two drawer glosses are SENTENCES, and
             the bare `gloss` step sets them at 10.5px on tight leading — the wall that modifier exists for.
             First consumer in features/chat (side-eye 2026-08-06 P3). */}
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           How the canon shaped into the next turn's wire history. Row counts only, no content.
         </Text>
         <TraceLine label="Stages (tail → inject → squash → name)" value={`${withTail} → ${injected} → ${squashed} → ${named}`} />
@@ -256,10 +256,10 @@ function WireRows({ rows }: { readonly rows: readonly ShapeTraceRow[] }): ReactE
         <Text>This turn delivers no history rows.</Text>
       ) : (
         <Stack gap="field">
-          <Text prose={true} voice="gloss">
+          <Text cap="prose" prose={true} voice="gloss">
             The order the model receives, before the context fit trims the oldest turns. Roles and speakers only. No content.
           </Text>
-          <Text prose={true} voice="gloss">
+          <Text cap="prose" prose={true} voice="gloss">
             {ROW_SOURCE_GLOSS}
           </Text>
           {/* NO INNER SCROLLER (side-eye 2026-08-06 P2). It used to cap at `max-h-(--height-scroll-md)`, which showed 7 of 24

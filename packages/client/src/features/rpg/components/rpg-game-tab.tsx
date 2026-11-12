@@ -402,8 +402,9 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
       <Row gap="field" align="center">
         <Icon icon={Crown} size="sm" ink="accolade" />
         <Text voice="kicker" ink="accolade">
-          Host console: host only
+          Host console
         </Text>
+        <Text voice="gloss">Host only</Text>
       </Row>
       <RpgRulesetControl chatId={state.chatId} config={config} />
       <Stack gap="field">

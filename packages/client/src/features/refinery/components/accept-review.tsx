@@ -39,7 +39,7 @@ import { StatusChip } from "#components";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { ReviewEntry } from "../lib/review-entries.ts";
 import { reviewTargetLabel } from "../lib/review-entries.ts";
-import { RefineryChip } from "./refinery-chip.tsx";
+import { RefinerySentenceChip } from "./refinery-chip.tsx";
 
 export interface AcceptReviewProps {
   readonly entries: readonly ReviewEntry[];
@@ -80,9 +80,7 @@ function blockOf(review: ReviewEntry): CompareBlock {
       body: (
         <Stack gap="tight">
           <Row align="center" wrap={true} gap="field">
-            <RefineryChip tone="warn" wrap={true}>
-              Changed since the session started
-            </RefineryChip>
+            <RefinerySentenceChip tone="warn">Changed since the session started</RefinerySentenceChip>
             <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
               re-confirm which version wins: Keep uses the rewrite, Discard keeps the live text
             </Text>
@@ -104,7 +102,9 @@ function ConflictPane({ label, text }: { label: string; text: string }): ReactEl
   return (
     <Stack gap="tight">
       <Text voice="kicker">{label}</Text>
-      <Text prose={true}>{text.length > 0 ? text : "(empty)"}</Text>
+      <Text cap="prose" prose={true}>
+        {text.length > 0 ? text : "(empty)"}
+      </Text>
     </Stack>
   );
 }
@@ -201,11 +201,7 @@ function QueueRow({
           </Text>
         </Button>
       )}
-      {review.diverged && state !== "open" ? (
-        <RefineryChip tone="warn" wrap={true}>
-          Changed since the session started
-        </RefineryChip>
-      ) : null}
+      {review.diverged && state !== "open" ? <RefinerySentenceChip tone="warn">Changed since the session started</RefinerySentenceChip> : null}
       {state === "undecided" ? null : <StatusChip size="compact" status={state} vocabulary={QUEUE_CHIP} />}
       {state === "kept" || state === "discarded" ? (
         <Button variant="ghost" onClick={onOpen} size="sm" wrap={true}>

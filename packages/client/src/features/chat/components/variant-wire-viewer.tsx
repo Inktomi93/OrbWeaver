@@ -196,7 +196,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
       <InjectionsSection prompt={prompt} />
       {prompt.sendHistory ? null : <Text voice="gloss">History was DISABLED for this turn. The model saw no transcript.</Text>}
       {params === null ? null : (
-        <Section heading={<Text voice="kicker">Settings this send ran under</Text>}>
+        <Section heading={<Text voice="kicker">Send settings</Text>}>
           {Object.keys(params).length === 0 ? (
             // Replies recorded before the effective settings were stamped carry `{}`, which would read as "ran under no settings".
             <Text data-slot="wire-params-unrecorded" voice="gloss">

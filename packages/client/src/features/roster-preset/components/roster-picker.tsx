@@ -144,7 +144,7 @@ function RosterRulesIncludeLine(props: {
   const { capture, presetOf } = props;
   if (capture.status === "loading") {
     return (
-      <Text voice="gloss" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
+      <Text voice="gloss" cap="prose" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
         Checking this room's rules…
       </Text>
     );
@@ -152,7 +152,7 @@ function RosterRulesIncludeLine(props: {
   if (capture.status === "error") {
     return (
       <Row align="center" gap="field">
-        <Text voice="gloss" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
+        <Text voice="gloss" cap="prose" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
           Couldn't check this room's rules.
         </Text>
         <Button variant="ghost" size="sm" onClick={capture.retry}>
@@ -163,13 +163,13 @@ function RosterRulesIncludeLine(props: {
   }
   if (capture.rules.length === 0) {
     return (
-      <Text voice="gloss" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
+      <Text voice="gloss" cap="prose" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
         No enabled rules to include.
       </Text>
     );
   }
   return (
-    <Text voice="gloss" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
+    <Text voice="gloss" cap="prose" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
       Includes {capture.rules.length} enabled rule{capture.rules.length === 1 ? "" : "s"}:{" "}
       {capture.rules.map((rule) => rosterRuleLine(presetOf(rule.rulePresetId), rule.rulePresetId, rule.knobs)).join(", ")}
     </Text>

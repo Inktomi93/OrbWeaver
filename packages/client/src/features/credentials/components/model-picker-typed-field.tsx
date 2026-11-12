@@ -36,7 +36,7 @@ export function TypedModelField({
       {view.typingOffered ? (
         <Field
           description={
-            <Text as="span" tone={view.warns ? "warning" : undefined} data-slot="model-picker-notice" prose={true} voice="gloss">
+            <Text as="span" tone={view.warns ? "warning" : undefined} data-slot="model-picker-notice" cap="fit" prose={true} voice="gloss">
               {notice}
             </Text>
           }
@@ -54,7 +54,7 @@ export function TypedModelField({
             {notice}
           </Text>
           {error === null ? null : (
-            <Text tone="destructive" id={errorId} prose={true} role="alert" voice="gloss">
+            <Text tone="destructive" id={errorId} cap="prose" prose={true} role="alert" voice="gloss">
               {error}
             </Text>
           )}

@@ -163,7 +163,7 @@ export function FirstModelSetup({
   return (
     <Stack gap="block" data-slot="first-model-setup">
       <Row gap="field" wrap={true}>
-        <Text prose={true} role={chatState.failure === null ? undefined : "alert"} voice="gloss">
+        <Text cap="prose" prose={true} role={chatState.failure === null ? undefined : "alert"} voice="gloss">
           {chatAssignmentText(chatState.pending, chatState.failure, name)}
         </Text>
         {chatState.failure === null ? (
@@ -180,11 +180,11 @@ export function FirstModelSetup({
         <Text id={labelId} voice="label">
           Utility model
         </Text>
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           {`Memory summaries, image captions and extraction run in the background on a Utility model, and a cheaper model is fine for it. ${MEMORY_COST_SENTENCE}`}
         </Text>
         {subscription ? (
-          <Text id={reasonId} prose={true} voice="gloss">
+          <Text id={reasonId} cap="prose" prose={true} voice="gloss">
             {CLAUDE_SUBSCRIPTION_NOTICE.utility}
           </Text>
         ) : null}
@@ -218,7 +218,7 @@ export function FirstModelSetup({
           value={otherId}
         />
       ) : null}
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         {CHOICE_NOTES[choice]}
       </Text>
       {failure === null ? null : (

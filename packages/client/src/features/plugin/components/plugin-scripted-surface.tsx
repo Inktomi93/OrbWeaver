@@ -192,7 +192,7 @@ export function PluginScriptedSurface({
   if (renderedState.kind === "ready-empty") {
     return (
       <Stack gap="field">
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           This plugin has no content to show here yet.
         </Text>
         <Button variant="ghost" onClick={(): void => setAttempt((current) => current + 1)} size="sm">
