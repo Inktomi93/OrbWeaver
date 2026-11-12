@@ -1,10 +1,10 @@
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { variantProps } from "#lib";
+import { variantAttrs } from "#lib";
 import type { ButtonCoreProps } from "../button/core.tsx";
 import { ButtonCore } from "../button/core.tsx";
 import { Icon, ImagePlus, Upload } from "../icons/index.ts";
-import { pictureButtonVariants, pictureCueVariants } from "./variants.ts";
+import { pictureButtonVariants } from "./variants.ts";
 
 /**
  * A button that wraps a picture. The picture's own `alt` or label names it, so no attribute name is required. With no
@@ -29,16 +29,17 @@ export type PictureReach =
 type PictureCue = { readonly cue?: undefined } | { readonly cue: "replace"; readonly shape: "pill"; readonly placed?: undefined };
 
 export function PictureButton({ variant, caption, reach, cue, children, ...rest }: PictureButtonProps): ReactElement {
-  const slots = pictureCueVariants();
+  const selection = { painted: variant !== undefined, caption, reach, cue };
+  const slots = pictureButtonVariants(selection);
   return (
-    <ButtonCore {...rest} variant={variant} box={variantProps(pictureButtonVariants, { painted: variant !== undefined, caption, reach, cue })}>
+    <ButtonCore {...rest} variant={variant} box={{ className: slots.base(), ...variantAttrs(pictureButtonVariants, selection) }}>
       {children}
       {cue === undefined ? null : (
         <>
-          <span aria-hidden={true} className={slots.mark()} data-slot="picture-cue-mark">
+          <span aria-hidden={true} className={slots.mark()} data-slot="picture-button-mark">
             <Icon icon={ImagePlus} size="xs" />
           </span>
-          <span aria-hidden={true} className={slots.drop()} data-slot="picture-cue-drop">
+          <span aria-hidden={true} className={slots.drop()} data-slot="picture-button-drop">
             <Icon icon={Upload} size="sm" />
           </span>
         </>

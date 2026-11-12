@@ -8,10 +8,11 @@
 import { chatRoomTitle, chatTitleWhole, deriveChatTitle } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatId } from "@orb/kit/ids";
-import { hitExtent, seedShellState, setPlatformTextSize, touchFloorPx } from "@orb/testkit/browser/spec";
+import { hitExtent, resolvedLength, seedShellState, setPlatformTextSize, touchFloorPx } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -101,9 +102,13 @@ for (const regime of REGIMES) {
         const title = regime.arm.title(page);
         await expect(title).toBeVisible();
         expect(await titleIsCut(page)).toBe(true);
+        // Read a settled bar: the hit area is one measurement of a bar at its token's block size, never the first sample that clears the floor.
+        const block = await resolvedLength(page, `var(${TOKENS["dimension.shell-topbar-block"].cssVar})`);
+        await expect.poll(async () => (await page.locator(".shell-topbar").boundingBox())?.height).toBeCloseTo(block, 0);
+        await page.evaluate(() => document.fonts.ready);
         const floor = await touchFloorPx(page);
-        await expect.poll(() => hitExtent(title, "y")).toBeGreaterThanOrEqual(floor);
-        await expect.poll(() => hitExtent(title, "x")).toBeGreaterThanOrEqual(floor);
+        expect(await hitExtent(title, "y")).toBeGreaterThanOrEqual(floor);
+        expect(await hitExtent(title, "x")).toBeGreaterThanOrEqual(floor);
       });
     }
   });

@@ -115,6 +115,38 @@ for (const role of ROLES) {
       await expect(page.locator(`${WIDE_IDENTITY} [data-slot="title-reveal"]`).getByRole("button")).toHaveCount(role === "host" ? 1 : 0);
     });
 
+    test("holds phrasing content only inside the cut title's control", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role, ROOM_NAME);
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+      await expect(titleControl(page)).toBeVisible();
+      // The control holds the title's text parts (the positive control), and no block element among them.
+      await expect(titleControl(page).locator(".shell-topbar-title")).toHaveCount(1);
+      await expect(titleControl(page).locator("div, p")).toHaveCount(0);
+    });
+
+    test("keeps its place in the topbar row when it crosses between cut and uncut", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role, ROOM_NAME);
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+      // The topbar row is the one box the control, the frame and the plain title all sit in; the width moves it, never the title inside it.
+      const row = page.locator(WIDE_IDENTITY).locator("xpath=..");
+      const participants = page.locator(`${WIDE_IDENTITY} .shell-topbar-title`);
+      await expect(participants).toHaveCount(1);
+      const offsetInRow = async (): Promise<{ readonly x: number; readonly y: number }> => {
+        const [text, box] = [await participants.boundingBox(), await row.boundingBox()];
+        return { x: (text?.x ?? Number.NaN) - (box?.x ?? Number.NaN), y: (text?.y ?? Number.NaN) - (box?.y ?? Number.NaN) };
+      };
+      expect(await titleIsCut(page)).toBe(true);
+      const cut = await offsetInRow();
+      await page.setViewportSize({ width: REVEAL_WIDTH, height: DESKTOP.height });
+      await expect.poll(() => titleIsCut(page)).toBe(false);
+      const uncut = await offsetInRow();
+      // Within a device pixel: the two widths round the box's own edge differently.
+      expect(Math.abs(uncut.x - cut.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(uncut.y - cut.y)).toBeLessThanOrEqual(1);
+    });
+
     test("keeps the control under an open reveal whose title stops being cut, and closing it returns focus there", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();
       const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role, ROOM_NAME);
@@ -135,14 +167,60 @@ for (const role of ROLES) {
 }
 
 test.describe("the host's press", () => {
-  test("renames directly while the title is not cut", async ({ mount, page }) => {
+  const Presses = {
+    mouse: (control: Locator): Promise<void> => control.click(),
+    touch: (control: Locator): Promise<void> => control.tap(),
+    enter: async (control: Locator): Promise<void> => {
+      await control.focus();
+      await control.press("Enter");
+    },
+    space: async (control: Locator): Promise<void> => {
+      await control.focus();
+      await control.press("Space");
+    },
+  } as const;
+  const States = [
+    { name: "not cut", width: REVEAL_WIDTH, cut: false },
+    { name: "cut", width: DESKTOP.width, cut: true },
+  ] as const;
+
+  for (const [input, press] of Object.entries(Presses)) {
+    for (const state of States) {
+      test(`${state.name}: a ${input} press ${state.cut ? "opens the whole title" : "starts the rename"}`, async ({ corpus, mount, page }) => {
+        await using root = await createCorpusHarness();
+        const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "host", ROOM_NAME);
+        await page.setViewportSize({ width: state.width, height: DESKTOP.height });
+        await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+        expect(await titleIsCut(page)).toBe(state.cut);
+        await press(titleControl(page));
+        const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
+        const reveal = page.getByRole("dialog", { name: await wholeTitle(page), exact: true });
+        await expect(reveal).toHaveCount(state.cut ? 1 : 0);
+        await expect(field).toHaveCount(state.cut ? 0 : 1);
+      });
+    }
+  }
+
+  test("a press released outside does nothing and leaves nothing behind for a later click", async ({ corpus, mount, page }) => {
     await using root = await createCorpusHarness();
-    const chatId = await routeShortRoom({ root, page });
+    const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "host", ROOM_NAME);
+    await page.setViewportSize({ width: REVEAL_WIDTH, height: DESKTOP.height });
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
     expect(await titleIsCut(page)).toBe(false);
-    await page.locator(WIDE_IDENTITY).getByRole("button", { name: RENAME_CHAT_NAME }).tap();
-    await expect(page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true })).toBeFocused();
+    const box = await titleControl(page).boundingBox();
+    await page.mouse.move((box?.x ?? 0) + 8, (box?.y ?? 0) + (box?.height ?? 0) / 2);
+    await page.mouse.down();
+    await page.mouse.move(8, DESKTOP.height - 8);
+    await page.mouse.up();
+    const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
+    await expect(field).toHaveCount(0);
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    // The title is cut when the next activation arrives with no pointer press before it (assistive technology): it acts on the state it is in then.
+    await page.setViewportSize(DESKTOP);
+    await expect.poll(() => titleIsCut(page)).toBe(true);
+    await titleControl(page).dispatchEvent("click");
+    await expect(page.getByRole("dialog", { name: await wholeTitle(page), exact: true })).toBeVisible();
+    await expect(field).toHaveCount(0);
   });
 
   test("starts the editor from Rename inside the reveal, and Escape returns focus to the title control", async ({ corpus, mount, page }) => {

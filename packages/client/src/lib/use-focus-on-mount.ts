@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { createContext, use, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 // `document` is reached via a `globalThis` cast with an inline structural type — NOT the bare `document`
 // global. This hook is re-exported through the `#lib` barrel and is import-reachable from the DOM-LESS
@@ -60,35 +60,21 @@ function isConnectedNode(target: object | null): target is ConnectedNode {
 function notePress(target: object | null): void {
   lastPress = isConnectedNode(target) ? { target, at: performance.now() } : null;
 }
-/** One `QueryBoundary`'s identity: a read it holds pending licenses the arrival of a surface that mounts inside it, and no other. */
-export type ArrivalBoundary = object;
-/** Provided by a `QueryBoundary` to everything under it, so a surface knows which boundary it mounts in. */
-export const ArrivalBoundaryContext = createContext<ArrivalBoundary | null>(null);
-ArrivalBoundaryContext.displayName = "ArrivalBoundaryContext";
-
-// The control each boundary's pending read took a hold for. A hold belongs to one press and one boundary: while it stands, the press's surface has
-// not mounted yet and arrives when the read settles, however long that takes, so the window does not run against it. Keyed by the pressed control,
-// so a later press does not inherit it.
-const heldBy = new Map<ArrivalBoundary, ConnectedNode>();
-
-function pressRemovedItsControl(boundary: ArrivalBoundary | null): boolean {
-  if (lastPress === null || lastPress.target.isConnected) {
-    return false;
-  }
-  return performance.now() - lastPress.at <= PRESS_RENDER_WINDOW_MS || (boundary !== null && heldBy.get(boundary) === lastPress.target);
+function pressRemovedItsControl(): boolean {
+  return lastPress !== null && !lastPress.target.isConnected && performance.now() - lastPress.at <= PRESS_RENDER_WINDOW_MS;
 }
 
-/** Called by a boundary's pending fallback when it mounts. A fallback that mounts in the render a press caused holds that press's arrival open
- *  for the surfaces inside that boundary until it unmounts; the surface then mounts in that same commit, so the window starts over at the release.
- *  Any other fallback holds nothing. Returns the release. */
-export function holdArrivalWhilePending(boundary: ArrivalBoundary): () => void {
-  if (lastPress === null || lastPress.target.isConnected || performance.now() - lastPress.at > PRESS_RENDER_WINDOW_MS) {
+/** Called by a pending read's fallback when it mounts. A fallback that mounts in the render a press caused keeps that press's arrival open
+ *  until it unmounts, however long the read takes. The surface it waits on mounts in the commit that deletes the fallback, and React runs a
+ *  deleted fallback's cleanup (this release, which starts the press's window over) before the new content's mount effects, so the surface arrives
+ *  inside the new window. Nothing else mounting while the read is pending is that press's navigation, so no surface is licensed before the
+ *  release. Any other fallback holds nothing. Returns the release. */
+export function holdArrivalWhilePending(): () => void {
+  if (!pressRemovedItsControl() || lastPress === null) {
     return (): void => undefined;
   }
   const { target } = lastPress;
-  heldBy.set(boundary, target);
   return (): void => {
-    heldBy.delete(boundary);
     if (lastPress?.target === target) {
       lastPress = { target, at: performance.now() };
     }
@@ -173,28 +159,27 @@ function keepsFocus(active: MinimalElement, target: FocusTarget | null): boolean
 
 /** Whether arrival may move focus off `active`: from a real element unless it keeps focus, and from `<body>` only when the last
  *  press landed on a control that is gone now, within {@link PRESS_RENDER_WINDOW_MS} (a cold load has no such press). */
-function mayTakeFocus(active: MinimalElement | null | undefined, target: FocusTarget | null, boundary: ArrivalBoundary | null): boolean {
+function mayTakeFocus(active: MinimalElement | null | undefined, target: FocusTarget | null): boolean {
   if (active === null || active === undefined || active === browserDocument?.body) {
-    return pressRemovedItsControl(boundary);
+    return pressRemovedItsControl();
   }
   return !keepsFocus(active, target);
 }
 
 function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOnReveal, preserveFocus, bandFirst }: ArrivalOptions): void {
   const handled = useRef(false);
-  const boundary = use(ArrivalBoundaryContext);
   useEffect(() => {
     if (!enabled || preserveFocus?.() === true || (!repeatOnReveal && handled.current)) {
       return;
     }
     handled.current = true;
-    if (!mayTakeFocus(browserDocument?.activeElement, ref.current, boundary)) {
+    if (!mayTakeFocus(browserDocument?.activeElement, ref.current)) {
       return;
     }
     lastPress = null;
     const band = bandFirst ? (browserDocument?.querySelector(LIST_BAND_FIRST_CONTROL) ?? null) : null;
     (band ?? ref.current)?.focus();
-  }, [ref, enabled, repeatOnReveal, preserveFocus, bandFirst, boundary]);
+  }, [ref, enabled, repeatOnReveal, preserveFocus, bandFirst]);
 }
 
 /** Focus a freshly-mounted surface UNCONDITIONALLY — for an IN-PLACE swap, where the control the user just
