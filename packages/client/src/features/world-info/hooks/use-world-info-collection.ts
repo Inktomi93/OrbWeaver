@@ -3,7 +3,7 @@
 // definition is a module-level value — the host calls each unconditionally, once, per rendered affordance.
 
 import { useQuery } from "@tanstack/react-query";
-import { collectionCount, useInvalidation, useTRPC } from "#data";
+import { useCollectionCount, useInvalidation, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight } from "#lib";
 import { notify } from "#lib";
 import { selectCollectionMember } from "#state";
@@ -15,7 +15,7 @@ import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mut
  *  read says so rather than reading as absence (#1546 — see {@link CollectionCount}). */
 export function useWorldInfoCount(): CollectionCount {
   const trpc = useTRPC();
-  return collectionCount(useQuery(trpc.worldInfo.countBooks.queryOptions()), useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions()));
+  return useCollectionCount(useQuery(trpc.worldInfo.countBooks.queryOptions()), trpc.worldInfo.listBooksWithUsage.queryFilter());
 }
 
 /**

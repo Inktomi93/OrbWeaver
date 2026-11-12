@@ -103,7 +103,6 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
           data-slot="facet-preview"
           id={previewId}
           voice="gloss"
-          cap="fit"
           prose={true}
           truncate={true}
           grow={true}

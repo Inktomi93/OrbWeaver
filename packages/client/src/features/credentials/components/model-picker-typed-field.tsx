@@ -36,7 +36,7 @@ export function TypedModelField({
       {view.typingOffered ? (
         <Field
           description={
-            <Text as="span" tone={view.warns ? "warning" : undefined} data-slot="model-picker-notice" cap="fit" prose={true} voice="gloss">
+            <Text as="span" tone={view.warns ? "warning" : undefined} data-slot="model-picker-notice" prose={true} voice="gloss">
               {notice}
             </Text>
           }

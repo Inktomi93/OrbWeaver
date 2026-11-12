@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-`tooling/src/codemods/text-prose-cap-pair/` was never applied: a dry run of its script would still change client files. The codemod cleanup under item 2450 kept it for that reason and recorded the reason in its `codemod.yaml`.
+The `text-prose-cap-pair` codemod was never applied: a dry run of its script would still change client files. The codemod cleanup under item 2450 kept it for that reason and recorded the reason in its `codemod.yaml`.
 
 ## Why
 

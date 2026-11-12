@@ -5,7 +5,7 @@
 // rows and the picker read (the tag-collection discipline: a second reader, never a second request).
 
 import { useQuery } from "@tanstack/react-query";
-import { collectionCount, useTRPC } from "#data";
+import { useCollectionCount, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight } from "#lib";
 import { timeLib } from "#lib";
 import { openModal, selectCollectionMember } from "#state";
@@ -15,7 +15,7 @@ import { ROSTER_COLLECTION_ID } from "../lib/roster-model.ts";
  *  rather than reading as absence (#1546 — see {@link CollectionCount}). */
 export function useRosterCount(): CollectionCount {
   const trpc = useTRPC();
-  return collectionCount(useQuery(trpc.rosterPreset.count.queryOptions()), useQuery(trpc.rosterPreset.list.queryOptions()));
+  return useCollectionCount(useQuery(trpc.rosterPreset.count.queryOptions()), trpc.rosterPreset.list.queryFilter());
 }
 
 /**

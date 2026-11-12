@@ -141,7 +141,7 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
             STATE LINE below keeps the bare micro step on purpose — the recorded ruling there is that the
             separation between teaser and state is carried by the MONO FACE, and that ruling now has the
             ramp helping it rather than doing its whole job alone. */}
-        <Text cap="fit" prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           {doorway.teaser}
         </Text>
         {/* THE STATE LINE — what is still missing, in the user's own words (`DormantDoorway.reason`).

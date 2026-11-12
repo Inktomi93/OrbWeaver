@@ -215,7 +215,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
                   // addition. A cell with NO pitch at all (#119 — no line beats a slug) still ends short, and
                   // that is left alone deliberately: reserving a box for copy that does not exist is the
                   // invented-second-line the ladder ruling refuses.
-                  <Text as="span" id={captionId} lines={2} cap="fit" prose={true} voice="gloss">
+                  <Text as="span" id={captionId} lines={2} prose={true} voice="gloss">
                     {caption}
                   </Text>
                 )}

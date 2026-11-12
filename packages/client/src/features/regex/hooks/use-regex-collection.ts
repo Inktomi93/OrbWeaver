@@ -3,7 +3,7 @@
 // module-level value — the host calls each unconditionally, once, per rendered affordance.
 
 import { useQuery } from "@tanstack/react-query";
-import { collectionCount, useInvalidation, useTRPC } from "#data";
+import { useCollectionCount, useInvalidation, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight } from "#lib";
 import { notify, regexScriptTitle, timeLib } from "#lib";
 import { selectCollectionMember, toggleRegexBulkMode, useRegexBulkActive } from "#state";
@@ -15,7 +15,7 @@ import { makeRegexScriptDefaults } from "./use-regex-script-form.ts";
  *  read says so rather than reading as absence (#1546 — see {@link CollectionCount}). */
 export function useRegexCount(): CollectionCount {
   const trpc = useTRPC();
-  return collectionCount(useQuery(trpc.regex.countScripts.queryOptions()), useQuery(trpc.regex.listScripts.queryOptions()));
+  return useCollectionCount(useQuery(trpc.regex.countScripts.queryOptions()), trpc.regex.listScripts.queryFilter());
 }
 
 /**

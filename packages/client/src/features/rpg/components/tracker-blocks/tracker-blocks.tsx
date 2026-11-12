@@ -144,14 +144,14 @@ interface BeatLineProps {
  *  The leading em-dash is the mock's beat marker (aria-hidden decoration — the text stays the datum). */
 export function BeatLine({ children }: BeatLineProps): ReactElement {
   return (
-    <Text ink="muted" data-slot="beat-line" flow="lineField" voice="gloss" cap="fit" prose={true}>
-      <Text as="span" aria-hidden={true} receded={true} className="shrink-0" voice="gloss" cap="fit" prose={true} ink="foreground">
+    <Text ink="muted" data-slot="beat-line" flow="lineField" voice="gloss" cap="prose" prose={true}>
+      <Text as="span" aria-hidden={true} receded={true} className="shrink-0" voice="gloss" prose={true} ink="foreground">
         :
       </Text>
       {/* min-w-0: the content is model-authored free text (journal beats, recent events) with no length
           contract — as a flex child it must be allowed to shrink so its inline content WRAPS; without it
           the line forces the tab wide (owner horizontal-scrollbar report, 08-01). */}
-      <Text as="span" ink="muted" className="min-inline-0" wrap="word" voice="gloss" cap="fit" prose={true}>
+      <Text as="span" ink="muted" className="min-inline-0" wrap="word" voice="gloss" prose={true}>
         {children}
       </Text>
     </Text>

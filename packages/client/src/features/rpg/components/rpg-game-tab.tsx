@@ -22,7 +22,7 @@ import { NO_VALUE } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
-import { Crown, Eye, EyeOff, Icon, Lock, LockOpen, Plus, RotateCcw, Trash } from "@orb/ui/icons";
+import { Eye, EyeOff, Icon, Lock, LockOpen, Plus, RotateCcw, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
@@ -399,13 +399,9 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
   const { data: config } = useSuspenseQuery(trpc.rpg.getConfigView.queryOptions({ chatId: state.chatId }));
   return (
     <Stack gap="section" data-slot="rpg-game-tab">
-      <Row gap="field" align="center">
-        <Icon icon={Crown} size="sm" ink="accolade" />
-        <Text voice="kicker" ink="accolade">
-          Host console
-        </Text>
-        <Text voice="gloss">Host only</Text>
-      </Row>
+      <Kicker crown={true} gloss="Host only">
+        Host console
+      </Kicker>
       <RpgRulesetControl chatId={state.chatId} config={config} />
       <Stack gap="field">
         <Kicker>Stats</Kicker>

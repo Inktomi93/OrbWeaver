@@ -121,7 +121,7 @@ function NpcGuides({ name, appearance, outfit, thoughts, onEditGuide }: NpcGuide
             {field}
           </Text>
           {onEditGuide === undefined ? (
-            <Text as="span" ink="muted" italic={field === "thoughts"} className="min-inline-0" voice="gloss" cap="fit" prose={true} wrap="word">
+            <Text as="span" ink="muted" italic={field === "thoughts"} className="min-inline-0" voice="gloss" prose={true} wrap="word">
               {text}
             </Text>
           ) : (
@@ -179,7 +179,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
     return null;
   }
   return (
-    <Text as="span" ink="muted" className="min-inline-0" wrap="word" voice="gloss" cap="fit" prose={true}>
+    <Text as="span" ink="muted" className="min-inline-0" wrap="word" voice="gloss" prose={true}>
       mood: {mood}
     </Text>
   );

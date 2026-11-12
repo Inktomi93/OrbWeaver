@@ -131,10 +131,10 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
                       alone on line two on all twelve tiles — a widow the browser will avoid on its own once
                       it is allowed to (text-wrap: pretty balances the LAST lines). The unit stays the honest
                       word; nothing here shortens a label to win a layout. */}
-                  <Text as="span" className="text-pretty" flow="block" lines={2} cap="fit" prose={true} voice="gloss">
+                  <Text as="span" className="text-pretty" flow="block" lines={2} prose={true} voice="gloss">
                     {gemMagnitudes(gem)}
                   </Text>
-                  <Text as="span" flow="block" truncate={true} cap="fit" prose={true} voice="gloss">
+                  <Text as="span" flow="block" truncate={true} prose={true} voice="gloss">
                     {gemLastOpened(gem)}
                   </Text>
                 </Stack>

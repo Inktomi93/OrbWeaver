@@ -126,7 +126,7 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
           </Text>
         )}
         {caption === null ? null : (
-          <Text as="span" id={captionId} lines={2} cap="fit" prose={true} voice="gloss">
+          <Text as="span" id={captionId} lines={2} prose={true} voice="gloss">
             {caption}
           </Text>
         )}

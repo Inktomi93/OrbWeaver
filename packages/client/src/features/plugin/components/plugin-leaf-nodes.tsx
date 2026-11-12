@@ -205,7 +205,7 @@ function DisplayLeaf({
         {keyValueRows(node, state).map((kv) => (
           <Row align="baseline" gap="field" justify="between" key={kv.key}>
             <Text voice="label">{kv.key}</Text>
-            <Text cap="fit" prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               {resolveString(kv.value, state)}
             </Text>
           </Row>

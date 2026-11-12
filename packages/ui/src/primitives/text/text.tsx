@@ -41,11 +41,13 @@ type TextCap = { clamp?: TextAxes["clamp"]; lines?: undefined } | { clamp?: unde
 // `unpainted` hides the run's paint while keeping its box and name, and `receded`'s opacity would replace it: a run takes one of the two.
 type TextPaint = { receded?: TextAxes["receded"]; unpainted?: undefined } | { receded?: undefined; unpainted?: TextAxes["unpainted"] };
 
-// The prose size is a paragraph, and a paragraph with no measure runs the whole row. So `prose` carries its `cap` in the type: `cap="prose"` is the
-// paragraph's measure, and a run another owner already bounds (a clamped cell, a card column, an inline run) writes the bound it sits under, such as `cap="fit"`.
-type TextProse = { prose?: false | undefined } | { prose: true; cap: NonNullable<TextAxes["cap"]> };
+// The prose size is a paragraph, and a paragraph with no measure runs the whole row. So a `p` or `div` takes `prose` only with a `cap`: `cap="prose"` is the
+// paragraph's measure, and a run another box already bounds (a truncated or clamped run) writes `cap="fit"`. An inline run (`as="span"`) sits in a line or a box that
+// owns the measure, so it takes `prose` with none; a heading has no inline run. The pair leads each props intersection so a missing `cap` is the error TypeScript names.
+type HeadingProse = { prose?: false | undefined } | { prose: boolean; cap: NonNullable<TextAxes["cap"]> };
+type TextProse = HeadingProse | { prose: boolean; as: "span" };
 
-export type TextProps = TextOwnProps & ToneInkSelection & TextCue & TextCap & TextPaint & TextProse;
+export type TextProps = TextProse & TextOwnProps & ToneInkSelection & TextCue & TextCap & TextPaint;
 
 /**
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.
@@ -168,7 +170,7 @@ interface HeadingOwnProps extends ComponentProps<"h1">, Omit<TextAxes, "hoverCue
   level: HeadingLevel;
 }
 
-export type HeadingProps = HeadingOwnProps & ToneInkSelection & TextCue & TextCap & TextPaint & TextProse;
+export type HeadingProps = HeadingProse & HeadingOwnProps & ToneInkSelection & TextCue & TextCap & TextPaint;
 
 /** Renders a real h1-h6 with the type-scale skin; `size` defaults from `level`, override for the rare hero.
  *  `voice="kicker"` is the section-NAME heading (the mocks' band label) — it keeps the document outline

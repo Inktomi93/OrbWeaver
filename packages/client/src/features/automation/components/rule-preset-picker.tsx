@@ -169,7 +169,7 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
                 "what will this do to my room", and it rendered at 10.5px (design-audit `undersized-ui-text`,
                 below the 11px functional floor) inside an interactive button. `prose` lifts the gloss voice
                 to the label step and relaxes its leading while keeping it unmistakably the same voice. */}
-            <Text voice="gloss" cap="fit" prose={true}>
+            <Text voice="gloss" cap="prose" prose={true}>
               {preset.summary}
               {spendLine(preset)}
               {preset.confirmFirst ? " Asks before acting." : ""}
