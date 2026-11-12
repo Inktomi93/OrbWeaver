@@ -25,7 +25,8 @@
 // exists AT CLAIM (§4.7 moved them off `startChat`, so a husk nobody started never inflates chat-created
 // economics and never consumes a character's first-chat bump). Claim after the write and the claiming
 // activity's own row would be counted twice — once by its own delta builder, once by the replay.
-// **And AFTER its last refusal** (D166): the claim is one-way, so a request the verb refuses never claims.
+// **And AFTER every refusal of the request's input or ownership** (D166): the claim is one-way, so a request
+// refused for those reasons never claims. A refusal that is the write's own result may still follow the claim.
 //
 // The replay uses the CHAT ROW's `createdAt` as the creation delta's clock, not the claim instant: the stats
 // rebuild buckets `chatsCreated` by `chats.created_at` (`rebuild-from-canon.ts::loadChatMeta`), so claiming a

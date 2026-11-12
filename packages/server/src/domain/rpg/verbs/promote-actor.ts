@@ -70,7 +70,8 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     const { value: name, truncated: nameTruncated } = clampActorCardName(rawName);
     const participants = await ctx.resolveParticipants(game.chatId);
 
-    await ctx.claimChat(params.chatId);
+    // No claim of its own: the seat (`addCharacterToChat`) and the rekey (`writeHandState`) each claim after the
+    // promotion's roster-name and handle refusals.
     const minted = await ctx.promoteToCharacter({
       chatId: game.chatId,
       // The ROOM HOST, threaded explicitly: this verb gated `role === "host"`, so the caller IS that human, and

@@ -645,9 +645,9 @@ export interface RpgContext {
   /** The opaque pointer write: `createGame`, the `updateConfig` engaged toggle and the game fork call it so the
    *  client's takeover gate is a sync read off `ChatDetail`. `null` deletes the pointer. */
   readonly setPointer: SetRpgPointer;
-  /** Every host write verb claims the room after its last refusal and before its write (D166), so a room whose game
-   *  the host authored is listed and never reaped, and a refused request never claims. The hand-state doors claim in
-   *  `writeHandState`. Idempotent. */
+  /** Every host write verb claims the room after its input and ownership refusals and before its write (D166), so a
+   *  room whose game the host authored is listed and never reaped. The hand-state doors claim in `writeHandState`.
+   *  Idempotent. */
   readonly claimChat: ClaimChatOp;
   readonly resolveParticipants: ResolveRpgParticipants;
   /** R4 — promotion's DURABLE half (mint the card + seat it among the participants), wired at compose over the

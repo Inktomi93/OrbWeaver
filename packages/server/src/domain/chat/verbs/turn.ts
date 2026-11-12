@@ -1752,9 +1752,10 @@ async function commitUserTurn(
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
   await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
   // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is where the
-  // claim sits — that path claims before them (D166: a generated turn claims the room), this one claims only
-  // after the last refusal, just before the user row. Folding the trio would put the claim/no-claim decision
-  // behind a helper whose name cannot carry it, which is the ordering bug this file has paid for before.
+  // claim sits — that path claims right after the room load (D166: a generated turn claims the room), before
+  // the identity and connection resolves; this one claims only after the block-picture refusal, just before the
+  // user row. Folding the trio would put the claim decision behind a helper whose name cannot carry it, which is
+  // the ordering bug this file has paid for before.
   const room = await loadRoom(ctx, chatId, membership.chat.anchorPersonaId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,
@@ -2138,8 +2139,9 @@ async function resolveTurnBase(
   const room = await loadRoom(ctx, chatId, args.anchorPersonaId);
   args.admitRoom?.(room);
   // Every generated turn claims (D166) -- the four callers (swipe / continue / impersonate / generate) share
-  // this base, so the claim cannot be forgotten on one of them. After every refusal: each caller ran its own
-  // guards, and the room and its speaker check passed above. Before any engine write.
+  // this base, so the claim cannot be forgotten on one of them. After every refusal of the request: each caller
+  // ran its own guards, and the room and its speaker check passed above. The connection resolve and the engine
+  // may still refuse on room state after it. Before any engine write.
   await deps.claimChat(chatId);
   const identity = resolveTurnIdentityVia({
     principalUserId: principal.userId,

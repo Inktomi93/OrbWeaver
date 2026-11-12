@@ -732,9 +732,6 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     if (card === null) {
       throw new DomainNotFoundError("character", characterId);
     }
-    // Before the seat: the claim replays the creation stats over the seats present at claim, and this seat's
-    // own delta below counts the new one.
-    await claimChat(chatId);
     // Present-seat floor: return the live seat instead of minting a duplicate row. `loadParticipants` is present-only
     // (`leftSeq IS NULL`), so a previously-left character re-adds a fresh row (era-per-row, F8) as before.
     const existing = (await loadParticipants(ctx.db, chatId)).find((p) => {
@@ -744,6 +741,9 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     if (existing !== undefined) {
       return characterParticipantView(existing, card, ctx.resolveAssetHash);
     }
+    // Before the seat: the claim replays the creation stats over the seats present at claim, and this seat's
+    // own delta below counts the new one.
+    await claimChat(chatId);
     const at = ctx.now();
     const joinSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const participantId = ctx.newParticipantId();
@@ -904,11 +904,11 @@ function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
     if (seat === undefined || !isAiDriven(seat.kind)) {
       throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${participantId} is not a present AI seat`);
     }
-    await claimChat(chatId);
     // An empty patch skips the UPDATE (idempotent no-op returning the current view — applyToChat re-apply leans on this).
     const set = seatKnobsSet(patch);
     let row = seat;
     if (Object.keys(set).length > 0) {
+      await claimChat(chatId);
       const rows = await ctx.db
         .update(chatParticipants)
         .set(set)

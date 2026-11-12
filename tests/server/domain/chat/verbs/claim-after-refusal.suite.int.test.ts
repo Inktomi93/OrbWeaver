@@ -122,6 +122,24 @@ test("roster: a character the host does not own is refused before the claim, and
   await watch.expectClaimedOnce();
 });
 
+test("roster: a re-add of a seated character and an empty knob patch write nothing and claim nothing", async () => {
+  await using h = await textRoom([]);
+  using stack = new DisposableStack();
+  const watch = watchClaims(h, h.chatId, stack);
+  const [seated] = h.characters;
+  if (seated === undefined) {
+    throw new Error("the room seated no character");
+  }
+
+  const seat = await h.caller.chat.addCharacterToChat({ chatId: h.chatId, characterId: seated.id });
+  expect(seat).toMatchObject({ characterId: seated.id });
+  await h.caller.chat.setSeatKnobs({ chatId: h.chatId, participantId: seat.id, patch: {} });
+  await watch.expectUnclaimed();
+
+  await h.caller.chat.setSeatKnobs({ chatId: h.chatId, participantId: seat.id, patch: { talkativeness: 0.9 } });
+  await watch.expectClaimedOnce();
+});
+
 test("invite: an unknown target handle is refused before the claim, and a share link then claims", async () => {
   await using h = await textRoom([]);
   using stack = new DisposableStack();
