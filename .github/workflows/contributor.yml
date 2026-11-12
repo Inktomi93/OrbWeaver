@@ -113,7 +113,7 @@ jobs:
         shell: bash
         run: |
           pnpm lint
-          pnpm lint:eslint
+          pnpm lint:eslint:parts
           pnpm lint:css
           pnpm typecheck
       - name: Fixed component test

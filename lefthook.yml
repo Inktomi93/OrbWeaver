@@ -59,9 +59,10 @@ pre-push:
     depcruise:
       priority: 3
       run: pnpm depcruise
+    # One ESLint process over the whole tree peaks past the memory bar, so the runner lints its parts one after another (D317).
     eslint:
       priority: 4
-      run: pnpm lint:eslint
+      run: pnpm lint:eslint:parts
     knip:
       priority: 5
       run: pnpm knip
@@ -91,3 +92,4 @@ pre-push:
         tests/tooling/workflow-security-policy.test.ts
         tests/tooling/workflow-feedback.int.test.ts
         tests/tooling/eslint-feature-classname.test.ts
+        tests/tooling/eslint-parts.repo.int.test.ts
