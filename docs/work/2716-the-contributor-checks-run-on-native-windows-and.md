@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: doing
+status: blocked
 updated: 2026-11-12
 priority: P2
 area: tooling
-lane: wt/agent-afa486f082b1e1884
+blocked: owner
 plan: cross-platform
 ---
 

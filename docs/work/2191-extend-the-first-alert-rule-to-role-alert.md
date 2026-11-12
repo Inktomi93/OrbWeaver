@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-12
 priority: P3
 area: tests
+plan: test-enforcement
 ---
 
 # Extend the first-alert rule to role=alert locators and e2e specs
