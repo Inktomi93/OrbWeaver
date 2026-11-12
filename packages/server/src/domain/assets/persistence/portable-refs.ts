@@ -6,6 +6,7 @@
 import type { AssetKind } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
+import { loadAssetKinds } from "@orb/db/query";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 
@@ -13,15 +14,16 @@ const LIMIT_ONE = 1;
 
 interface OwnedAssetExportRow {
   readonly hash: string;
-  readonly kind: AssetKind;
+  readonly kinds: readonly AssetKind[];
   readonly mime: string;
 }
 
 export async function loadOwnedAssetForExport(db: Db, ownerId: UserId, assetId: AssetId): Promise<OwnedAssetExportRow | undefined> {
   const rows = await db
-    .select({ hash: assets.hash, kind: assets.kind, mime: assets.mime })
+    .select({ hash: assets.hash, mime: assets.mime })
     .from(assets)
     .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId)))
     .limit(LIMIT_ONE);
-  return rows[0];
+  const row = rows[0];
+  return row === undefined ? undefined : { ...row, kinds: (await loadAssetKinds(db, [assetId])).get(assetId) ?? [] };
 }

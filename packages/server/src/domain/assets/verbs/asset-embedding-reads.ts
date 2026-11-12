@@ -5,7 +5,7 @@ import type { AssetsService } from "../contract/service.ts";
 export function createAssetEmbeddingReads(assets: Pick<AssetsService, "assetCasRefById" | "loadAssetBytes">): AssetEmbeddingReads {
   return {
     loadAssetOwner: async (assetId) => (await assets.assetCasRefById(assetId))?.ownerId ?? null,
-    loadAssetKind: async (assetId) => (await assets.assetCasRefById(assetId))?.kind ?? null,
+    loadAssetKinds: async (assetId) => (await assets.assetCasRefById(assetId))?.kinds ?? null,
     loadAssetMime: async (assetId) => (await assets.assetCasRefById(assetId))?.mime ?? null,
     loadAssetHash: async (assetId) => (await assets.assetCasRefById(assetId))?.hash ?? null,
     loadAssetBytes: async (assetId) => (await assets.loadAssetBytes(assetId)) ?? undefined,

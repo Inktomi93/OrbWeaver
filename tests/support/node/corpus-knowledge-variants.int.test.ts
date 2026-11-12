@@ -61,7 +61,7 @@ test("default-grid canon produces real arc themes and selected reroll hotspots w
   expect(result.swipedTwice.messages.map((message) => message.id)).toEqual([result.slot.id]);
   expect(swipes.requests).toHaveLength(3);
   expect(result.images.assets.map(({ width, height }) => ({ width, height }))).toEqual([...CORPUS_KNOWLEDGE_IMAGE_SIZES]);
-  expect(nonEmpty(result.images.assets).every((asset) => asset.kind === "avatar" && asset.mime === "image/gif")).toBe(true);
+  expect(nonEmpty(result.images.assets).every((asset) => asset.kinds.includes("avatar") && asset.mime === "image/gif")).toBe(true);
   for (const [index, capture] of result.images.indexed.entries()) {
     expect(capture.skip).toBeUndefined();
     expect(capture.vectors.map((row) => row.lens)).toEqual(["image-captioned", "image-raw"]);

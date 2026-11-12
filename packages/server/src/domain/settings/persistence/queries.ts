@@ -17,6 +17,7 @@ import { appSettingsConfig, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, use
 import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, settings, userSettings } from "@orb/db";
+import { assetUsedAs } from "@orb/db/query";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -75,7 +76,7 @@ export function pinnedBackgroundAssetIds(config: UserSettings): AssetId[] {
 }
 
 /** The owner's background assets keyed by content hash. `(ownerId, hash)` is unique, so each hash names at
- *  most one asset; a hash the owner holds under another kind is absent. */
+ *  most one asset; a hash the owner holds but never stored as a background is absent. */
 export async function ownedBackgroundIdsByHash(db: Db, ownerId: UserId, hashes: readonly string[]): Promise<ReadonlyMap<string, AssetId>> {
   if (hashes.length === 0) {
     return new Map();
@@ -83,12 +84,12 @@ export async function ownedBackgroundIdsByHash(db: Db, ownerId: UserId, hashes: 
   const rows = await db
     .select({ id: assets.id, hash: assets.hash })
     .from(assets)
-    .where(and(eq(assets.ownerId, ownerId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.hash, [...new Set(hashes)])));
+    .where(and(eq(assets.ownerId, ownerId), assetUsedAs(db, [BACKGROUND_ASSET_KIND]), inArray(assets.hash, [...new Set(hashes)])));
   return new Map(rows.map((row) => [row.hash, row.id]));
 }
 
 /** THE background predicate as EXISTS subqueries that RIDE the UPDATE (atomic with the write): every pinned
- *  id must name an asset this user owns AND whose `kind` is `background`. Ownership alone is not the
+ *  id must name an asset this user owns AND uses as a `background`. Ownership alone is not the
  *  question — a user's own card / avatar / export asset id is owned but is not a background,
  *  and accepting one leaves the background plane semantically corrupt while the write reports success. */
 function ownedBackgroundGuards(db: Db, ownerId: UserId, ids: readonly AssetId[]): SQL[] {
@@ -97,7 +98,7 @@ function ownedBackgroundGuards(db: Db, ownerId: UserId, ids: readonly AssetId[])
       db
         .select({ one: sql`1` })
         .from(assets)
-        .where(and(eq(assets.id, id), eq(assets.ownerId, ownerId), eq(assets.kind, BACKGROUND_ASSET_KIND))),
+        .where(and(eq(assets.id, id), eq(assets.ownerId, ownerId), assetUsedAs(db, [BACKGROUND_ASSET_KIND]))),
     ),
   );
 }

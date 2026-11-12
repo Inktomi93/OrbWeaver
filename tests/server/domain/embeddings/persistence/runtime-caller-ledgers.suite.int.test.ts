@@ -8,6 +8,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import { assets, auditLogs, rpgSheets } from "@orb/db";
+import { loadAssetKinds } from "@orb/db/query";
 import { ProviderError } from "@orb/inference";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect } from "@orb/testkit/node";
@@ -37,9 +38,8 @@ test("the composed imagery orchestrator stores real image provenance and strikes
   if (image === undefined) {
     throw new Error("the real imagery producer returned no image");
   }
-  expect(await db.select().from(assets).where(eq(assets.id, image.assetId))).toMatchObject([
-    { ownerId: harness.ownerId, kind: "generated", mime: "image/png" },
-  ]);
+  expect(await db.select().from(assets).where(eq(assets.id, image.assetId))).toMatchObject([{ ownerId: harness.ownerId, mime: "image/png" }]);
+  expect((await loadAssetKinds(db, [image.assetId])).get(image.assetId)).toEqual(["generated"]);
   expect(await ownerCaller.imagery.readProvenance({ assetId: image.assetId })).toMatchObject({ model: connection.model, prompt: input.prompt });
   const before = await db.select().from(assets);
   fundingProvider.status(401);

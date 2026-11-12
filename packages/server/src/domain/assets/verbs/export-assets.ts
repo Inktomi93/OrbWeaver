@@ -26,7 +26,7 @@ export function createExportAssets(input: DbAssemblyInput<AssetsPortabilityConte
         filename: buildPortableAssetFilename({
           hash: meta.hash,
           id,
-          kind: meta.kind,
+          kinds: meta.kinds,
           mime: meta.mime,
         }),
         bytes,

@@ -65,7 +65,7 @@ test("public downloads sniff real bytes and store for the caller; a configured p
   expect(backgroundRead.mime).toBe(MIME);
   expect(Buffer.from(backgroundRead.bytes).equals(Buffer.from(backgroundBytes))).toBe(true);
   expect(await root.services.assets.listOwned({ principal: owner, limit: 10 })).toMatchObject([
-    { assetId: background.assetId, kind: "background", mime: MIME },
+    { assetId: background.assetId, kinds: ["background"], mime: MIME },
   ]);
   await expect(root.services.assets.readOwnedAssetBytes(await root.principalFor(root.ownerId), background.assetId)).rejects.toThrow(DomainNotFoundError);
   const before = await root.db.select().from(assets).orderBy(assets.id);
@@ -135,7 +135,7 @@ test("native inline images read the live cap and refuse excessive dimensions whi
   await root.services.settings.updateAppSettings({ principal: fixture.h.owner, partial: { maxImageBytes: HIGH_CAP } });
   expect((await fixture.turn()).aborted).toBe(false);
   const before = await inlineImageRows(fixture.h).generated();
-  expect(before).toMatchObject([{ ownerId: fixture.h.owner.userId, kind: "generated", size: PAYLOAD_SIZE, mime: MIME }]);
+  expect(before).toMatchObject([{ ownerId: fixture.h.owner.userId, size: PAYLOAD_SIZE, mime: MIME }]);
   await root.services.settings.updateAppSettings({ principal: fixture.h.owner, partial: { maxImageBytes: LOW_CAP } });
   // The turns spend the reply plan in order; each records whether its picture was stored, so one run names every cap.
   const pictures: Record<string, number> = {};

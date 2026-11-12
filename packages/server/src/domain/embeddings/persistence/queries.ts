@@ -26,7 +26,7 @@ import {
   imageIndexSkips,
 } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
-import { batchMany, batchStmt } from "@orb/db/query";
+import { assetUsedAs, batchMany, batchStmt } from "@orb/db/query";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -43,7 +43,7 @@ import type {
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UnreadableJsonText } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
-import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, not, sql } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { ExistingCaptionedRow } from "../contract/results.ts";
@@ -56,7 +56,7 @@ export async function purgeDisallowedImageRows(db: Db): Promise<void> {
       db
         .select({ id: assets.id })
         .from(assets)
-        .where(notInArray(assets.kind, [...EMBEDDABLE_ASSET_KINDS])),
+        .where(not(assetUsedAs(db, EMBEDDABLE_ASSET_KINDS))),
     ),
   );
 }

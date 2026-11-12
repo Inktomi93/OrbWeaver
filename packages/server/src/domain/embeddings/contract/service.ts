@@ -117,7 +117,7 @@ export interface EmbeddingsContext {
   readonly latches: EmbeddingLatches;
   readonly scheduleTimeout: ScheduleOp;
   readonly precomputedEmbedding?: PrecomputedEmbeddingOp | undefined;
-  readonly loadAssetKind: AssetEmbeddingReads["loadAssetKind"];
+  readonly loadAssetKinds: AssetEmbeddingReads["loadAssetKinds"];
   readonly loadAssetMime: AssetEmbeddingReads["loadAssetMime"];
   /** An asset's stored hash, the CAS key: the sha-256 of its bytes. `null` when the row is gone. */
   readonly loadAssetHash: AssetEmbeddingReads["loadAssetHash"];

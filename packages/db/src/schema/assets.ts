@@ -5,15 +5,16 @@
 // no existence oracle, no leak). The CAS bytes live in `infra/storage` keyed `<owner>/<ab>/<cd>/<hash>`;
 // this table is the metadata index the domain keeps coherent with the blob store.
 //
-// `kind` DERIVES the canonical `ASSET_KINDS` tuple from `@orb/contracts/assets` (the ONE home — the db
-// enum, the upload route, and the client all derive from it; §7.5); the column
-// never re-spells the union, and a tuple-built CHECK enforces it at the SQL level (tests/db/schema/enum-tuples.suite.test.ts pins db
-// === contracts).
+// A kind belongs to each use of a stored file, not to the file: `asset_kinds` holds one row per use, so the same bytes
+// stored as an attachment and later as an avatar are found under both. `kind` DERIVES the canonical `ASSET_KINDS` tuple
+// from `@orb/contracts/assets` (the ONE home: the db enum, the upload route, and the client all derive from it; §7.5);
+// the column never re-spells the union, and a tuple-built CHECK enforces it at the SQL level
+// (tests/db/schema/enum-tuples.suite.test.ts pins db === contracts).
 
 import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
@@ -31,7 +32,6 @@ export const assets = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    kind: text("kind", { enum: ASSET_KINDS }).notNull(),
     mime: nulFreeText("mime").notNull(),
     size: integer("size").notNull(),
     // sha-256 of the blob bytes = the CAS key. A card PNG's hash doubles as `characters.importHash`.
@@ -53,12 +53,30 @@ export const assets = sqliteTable(
   (table) => [
     // D21 — within-user dedup: the SAME bytes can exist once per owner (was a bare global `hash` unique).
     uniqueIndex("assets_owner_hash_unique").on(table.ownerId, table.hash),
-    check("assets_kind_check", sql.raw(`kind in (${ASSET_KIND_CHECK_LIST})`)),
     // The PHYSICAL floor under what the writers already refuse to produce. `size` is a
     // buffer length and `width`/`height` are header-parsed pixel counts; a negative one is not a small
     // image, it is a corrupt row, and a zero-dimension one is an image with no pixels. NULL stays legal
     // for the dimensions (a zip, a pdf, an unrecognized signature — see the column comment); the CHECK
     // constrains only the values that ARE present, which is what `is null or` buys.
     check("assets_measurements_check", sql.raw("size >= 0 and (width is null or width > 0) and (height is null or height > 0)")),
+  ],
+);
+
+/** The kinds an asset is used as. A store under a kind the asset does not hold yet adds a row; nothing removes one
+ *  while the asset lives, and the asset's delete takes them with it. */
+export const assetKinds = sqliteTable(
+  "asset_kinds",
+  {
+    assetId: nulFreeText("asset_id")
+      .$type<AssetId>()
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ASSET_KINDS }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.assetId, table.kind] }),
+    // The by-kind readers (the background list, the embeddable sweep, the kind-filtered asset list) start from the kind.
+    index("asset_kinds_kind_idx").on(table.kind),
+    check("asset_kinds_kind_check", sql.raw(`kind in (${ASSET_KIND_CHECK_LIST})`)),
   ],
 );

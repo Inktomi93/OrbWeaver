@@ -429,6 +429,11 @@ export const TABLE_SCOPING = {
     why: "discovery's distillation — scope derives through `characters` (its verbs' headers state the owner join).",
   },
   documentChunks: { sqlName: "document_chunks", scope: "parent", why: "databank chunk vectors — scope derives through `documents.ownerId`." },
+  assetKinds: {
+    sqlName: "asset_kinds",
+    scope: "parent",
+    why: "ownership DERIVES via `asset_id → assets.ownerId`; a row is one kind the parent asset is used as.",
+  },
   galleryItems: {
     sqlName: "gallery_items",
     scope: "parent",

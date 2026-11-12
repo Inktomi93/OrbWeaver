@@ -1,5 +1,5 @@
 // The PURE (zero-I/O) codec for the assets-portability bundle: the self-describing blob-file NAME
-// (`<hash>__<id>__<kind>__<mimeHex>.<ext>`, no sidecar manifest) + the chat-inline `asset:<id>` extractor +
+// (`<hash>__<id>__<kind[+kind]>__<mimeHex>.<ext>`, no sidecar manifest) + the chat-inline `asset:<id>` extractor +
 // the content-hash helper. `<id>` restores the blob under its ORIGINAL id so every FK/inline ref resolves
 // with no remap; `<hash>` is re-verified on import (poison defense); `.<ext>` is cosmetic, ignored on import.
 
@@ -7,10 +7,12 @@ import { assetKindSchema } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PortableAssetIdentity } from "../contract/portability.ts";
 
 const PART_SEPARATOR = "__";
+const KIND_SEPARATOR = "+";
 const EXPECTED_PARTS = 4;
 const HEX_ONLY = /^(?:[0-9a-f]{2})+$/;
 // Every capture is re-validated as a real AssetId before use, so a stray `asset:` in prose can't smuggle a bad id.
@@ -37,7 +39,7 @@ export function hashAssetBytes(bytes: Uint8Array): string {
 export function buildPortableAssetFilename(identity: PortableAssetIdentity): string {
   const mimeHex = Buffer.from(identity.mime, "utf8").toString("hex");
   const ext = EXT_BY_MIME[identity.mime] ?? DEFAULT_EXT;
-  return `${identity.hash}${PART_SEPARATOR}${identity.id}${PART_SEPARATOR}${identity.kind}${PART_SEPARATOR}${mimeHex}.${ext}`;
+  return `${identity.hash}${PART_SEPARATOR}${identity.id}${PART_SEPARATOR}${identity.kinds.join(KIND_SEPARATOR)}${PART_SEPARATOR}${mimeHex}.${ext}`;
 }
 
 /** Parse a bundle filename back to its identity, or `undefined` when malformed — the name is untrusted. */
@@ -57,8 +59,9 @@ export function parsePortableAssetFilename(filename: string): PortableAssetIdent
   if (!idParsed.success) {
     return;
   }
-  const kindParsed = assetKindSchema.safeParse(rawKind);
-  if (!kindParsed.success) {
+  // One kind per use, joined by `+`. A file written before an asset could hold several names one kind and reads the same.
+  const kindsParsed = z.array(assetKindSchema).min(1).safeParse(rawKind.split(KIND_SEPARATOR));
+  if (!kindsParsed.success) {
     return;
   }
   if (mimeHex.length === 0 || !HEX_ONLY.test(mimeHex)) {
@@ -68,7 +71,7 @@ export function parsePortableAssetFilename(filename: string): PortableAssetIdent
   if (mime.length === 0) {
     return;
   }
-  return { hash, id: idParsed.data, kind: kindParsed.data, mime };
+  return { hash, id: idParsed.data, kinds: [...new Set(kindsParsed.data)], mime };
 }
 
 /** Extract the distinct, valid `asset:<id>` references embedded in one message body; junk is dropped. */
