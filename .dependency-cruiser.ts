@@ -596,6 +596,10 @@ const SERVER_TEST_REACHES = {
   "tests/server/domain/chat/verbs/media-and-imagery-authority.int.test.ts": {
     "domain/sessions": "createResolveUserEnabled: the disabled-account read compose hands the media resolver",
   },
+  // The claim-ordering suite covers every claiming family, and the rpg family's refusal carries rpg's own code.
+  "tests/server/domain/chat/verbs/claim-after-refusal.suite.int.test.ts": {
+    "domain/rpg": "RPG_OP_CODES: the already-a-game refusal the rpg family's claim case asserts",
+  },
   // A rule's image size must reach the provider as the preset's dimensions, which imagery owns.
   "tests/server/domain/automation/engine/dispatch.int.test.ts": {
     "domain/imagery": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",

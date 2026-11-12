@@ -8,6 +8,7 @@
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import { handleSchema } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -128,7 +129,9 @@ test("invite: an unknown target handle is refused before the claim, and a share 
   // The service door: the transport's multi-human gate is not the ordering under test.
   const createInvite = h.root.services.chat.createInvite;
 
-  await expect(createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: "nobody-holds-this-handle" } })).rejects.toMatchObject({
+  await expect(
+    createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: handleSchema.parse("nobody-holds-this-handle") } }),
+  ).rejects.toMatchObject({
     code: "invite_target_unknown",
   });
   await watch.expectUnclaimed();
