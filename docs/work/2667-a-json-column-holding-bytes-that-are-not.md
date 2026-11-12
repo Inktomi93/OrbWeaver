@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P2
 area: server
+lane: wt/agent-a672cae2c753c5fe3
 ---
 
 # A JSON column holding bytes that are not JSON reaches its read seam as unreadable, not as a raw SyntaxError
