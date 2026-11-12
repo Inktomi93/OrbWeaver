@@ -19,6 +19,8 @@ const READS = [
   "connection.list",
   "settings.updateUserSettingsSection",
   "preset.create",
+  // Adding a chip edits the preset, and its autosave can reach the wire before the case ends.
+  "preset.update",
 ] as const;
 const POINTERS = [
   { name: "fine", viewport: { width: 1280, height: 900 }, coarse: false },

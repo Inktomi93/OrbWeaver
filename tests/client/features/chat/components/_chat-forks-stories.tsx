@@ -23,10 +23,10 @@ function Tab({ chatId }: { readonly chatId: ChatId }): ReactElement {
 }
 
 /** The production This-chat tab for one room, as its host sees it. */
-export function ChatContextTabStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+export function ChatContextTabStory({ chatId, width = 480 }: { readonly chatId: ChatId; readonly width?: number }): ReactElement {
   return (
     <CtClientProviders>
-      <Container role="group" aria-label="Chat context host" style={{ inlineSize: 480 }}>
+      <Container role="group" aria-label="Chat context host" style={{ inlineSize: width }}>
         <Tab chatId={chatId} />
       </Container>
     </CtClientProviders>

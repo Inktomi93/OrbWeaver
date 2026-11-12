@@ -208,7 +208,15 @@ function floorOf(element: HTMLElement, minimum: string): number {
   return width;
 }
 
-/** The inline room the parent leaves the row once every sibling sits at its floor, and the gap the parent puts
+// A positioned-out sibling (the topbar's visually hidden heading) takes no room and no gap in the row. WebKit resolves its
+// `min-width: auto` as `auto`, not Chromium's `0px`, so measuring it as a floor would fold every action on a phone.
+const OUT_OF_FLOW_POSITIONS: ReadonlySet<string> = new Set(["absolute", "fixed"]);
+
+function takesRowRoom(style: CSSStyleDeclaration): boolean {
+  return style.display !== "none" && !OUT_OF_FLOW_POSITIONS.has(style.position);
+}
+
+/** The inline room the parent leaves the row once every in-flow sibling sits at its floor, and the gap the parent puts
  *  between its boxes. */
 function roomFor(root: HTMLElement): { readonly room: number; readonly gap: number } {
   const parent = layoutParent(root);
@@ -228,7 +236,7 @@ function roomFor(root: HTMLElement): { readonly room: number; readonly gap: numb
       const childStyle = getComputedStyle(child);
       if (childStyle.display === "contents") {
         visit(child.children);
-      } else if (childStyle.display !== "none") {
+      } else if (takesRowRoom(childStyle)) {
         boxes += 1;
         floors += child === root ? 0 : floorOf(child, childStyle.minWidth);
       }
