@@ -1202,7 +1202,12 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   const activationCleanupError = (error: unknown, cleanupError: unknown): AggregateError =>
     new AggregateError([error, cleanupError], "plugin host: activation failed and its runtime could not be retired", { cause: error });
 
-  pool = poolResources.use(new WarmRuntimePool(workerMaximum, retireRuntime, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX, (binding: Binding) => binding.owner));
+  pool = poolResources.use(
+    new WarmRuntimePool(workerMaximum, retireRuntime, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX, {
+      ownerOf: (binding: Binding) => binding.owner,
+      residentOwners: () => Array.from(logicalBindings, (binding) => binding.owner),
+    }),
+  );
 
   const activateRuntime = async (
     binding: Binding,

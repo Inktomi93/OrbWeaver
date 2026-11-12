@@ -2,8 +2,9 @@
 // with the retired target: the request that needed the slot is served, the target's own next request is refused with
 // its failure, and closing the pool reports it. Another plugin's call never carries it.
 //
-// No owner holds the whole pool: an owner has at most its share of the Workers in use and of the request queue, a
-// request past it waits for that owner's own Worker, and a request that cannot proceed never holds the ones behind it.
+// No owner holds the whole pool (D349): while a second owner can run plugin code, an owner has at most its share of the
+// Workers in use, a request past it waits for that owner's own Worker, and a request that cannot proceed never holds
+// the ones behind it. A sole owner uses every Worker. Every owner keeps to its share of the request queue.
 // @subject packages/server/src/infra/plugin-host/warm-runtime-pool.ts
 import { DomainConflictError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node";
@@ -21,6 +22,9 @@ interface Target {
 }
 
 const ownerOf = (target: Target): string => target.owner;
+// The owners of enabled resident plugins: the member alone, or the member and another owner.
+const alone = { ownerOf, residentOwners: (): readonly string[] => ["member"] };
+const shared = { ownerOf, residentOwners: (): readonly string[] => ["member", "other"] };
 const retired = (): Promise<void> => Promise.resolve();
 const targetsOf = (owner: string, count: number): readonly Target[] =>
   Array.from({ length: count }, (_, index) => ({ owner, plugin: `${owner}-${String(index)}` }));
@@ -43,7 +47,7 @@ test("a failed retirement of the least recently used runtime refuses only that r
       ONE_RUNTIME,
       (target) => (target === failing ? Promise.reject(fault) : Promise.resolve()),
       QUEUE_LIMIT,
-      ownerOf,
+      shared,
     );
     const first = await pool.acquire(failing);
     first.ready();
@@ -57,7 +61,7 @@ test("a failed retirement of the least recently used runtime refuses only that r
 });
 
 test("an owner with its share of the Workers in use leaves one for another owner, and its next call waits for its own", async () => {
-  await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, ownerOf);
+  await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, shared);
   const share = pluginOwnerShare(WORKERS);
   const [overShare, ...held] = targetsOf("member", share + 1);
   const leases = await Promise.all(held.map((target) => pool.acquire(target)));
@@ -80,7 +84,7 @@ test("an owner with its share of the Workers in use leaves one for another owner
 });
 
 test("a call waiting on its own runtime's start never holds another owner's call behind it", async () => {
-  await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, ownerOf);
+  await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, shared);
   const [starting] = targetsOf("member", 1);
   if (starting === undefined) {
     throw new Error("the member has a plugin");
@@ -95,8 +99,8 @@ test("a call waiting on its own runtime's start never holds another owner's call
   expect(await granted(second)).toBe(true);
 });
 
-test("one owner alone uses all but one Worker at once, and keeps a warm runtime for every Worker", async () => {
-  await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, ownerOf);
+test("an owner alone uses every Worker at once, warm, with no wait", async () => {
+  await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, alone);
   const targets = targetsOf("member", WORKERS);
   // Every Worker holds one of the member's runtimes, warm and idle.
   for (const target of targets) {
@@ -104,18 +108,38 @@ test("one owner alone uses all but one Worker at once, and keeps a warm runtime 
     lease.ready();
     lease.release();
   }
-  // The cost of the share to an install with one owner: of four calls at once, the last waits for one of its own.
   const inUse = targets.map((target) => pool.acquire(target));
-  const share = pluginOwnerShare(WORKERS);
-  expect(await Promise.all(inUse.map((request) => granted(request)))).toEqual(targets.map((_, index) => index < share));
-  // The ones served run warm: the share bounds Workers in use, never the runtimes the owner keeps resident.
-  const served = await Promise.all(inUse.slice(0, share));
-  expect(served.map((lease) => lease.cold)).toEqual(served.map(() => false));
-  served[0]?.release();
-  expect(await granted(inUse.at(-1) ?? Promise.reject(new Error("the member made four calls")))).toBe(true);
+  expect(await Promise.all(inUse.map((request) => granted(request)))).toEqual(targets.map(() => true));
+  expect((await Promise.all(inUse)).map((lease) => lease.cold)).toEqual(targets.map(() => false));
 });
 
-test("one owner's waiting calls leave a place in the request queue for another owner", async () => {
+test("a second owner's first call while a sole owner holds every Worker waits for one to free, then is served before the first owner's next", async () => {
+  await using pool = new WarmRuntimePool<Target, string>(WORKERS, retired, QUEUE_LIMIT, alone);
+  const [later, ...held] = targetsOf("member", WORKERS + 1);
+  const leases = await Promise.all(held.map((target) => pool.acquire(target)));
+  for (const lease of leases) {
+    lease.ready();
+  }
+  if (later === undefined) {
+    throw new Error("the member has one more call");
+  }
+
+  // Nothing is free and nothing can be taken back, so the newcomer waits; once it is queued, the share binds. The
+  // member's next call is queued first, so serving in arrival order alone would hand it the first free Worker.
+  const next = pool.acquire(later);
+  const newcomer = pool.acquire({ owner: "newcomer", plugin: "first" });
+  expect(await granted(newcomer)).toBe(false);
+  expect(await granted(next)).toBe(false);
+
+  // The first Worker to free goes to the newcomer: the member, at its share now, waits for another of its own.
+  leases[0]?.release();
+  expect(await granted(newcomer)).toBe(true);
+  expect(await granted(next)).toBe(false);
+  leases[1]?.release();
+  expect(await granted(next)).toBe(true);
+});
+
+test("one owner's waiting calls, even a sole owner's, leave a place in the request queue for another owner", async () => {
   const [held, ...queued] = targetsOf("member", pluginOwnerShare(PLUGIN_RUNTIME_REQUEST_QUEUE_MAX) + 2);
   const overShare = queued.pop();
   if (held === undefined || overShare === undefined) {
@@ -129,7 +153,7 @@ test("one owner's waiting calls leave a place in the request queue for another o
     );
   const waits: Promise<string>[] = [];
   {
-    await using pool = new WarmRuntimePool<Target, string>(ONE_RUNTIME, retired, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX, ownerOf);
+    await using pool = new WarmRuntimePool<Target, string>(ONE_RUNTIME, retired, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX, alone);
     const lease = await pool.acquire(held);
     lease.ready();
     waits.push(...queued.map((target) => outcome(pool.acquire(target))));

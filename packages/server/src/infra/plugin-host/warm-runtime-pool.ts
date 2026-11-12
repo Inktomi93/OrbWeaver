@@ -1,10 +1,12 @@
 // infra/plugin-host/warm-runtime-pool — bounded physical Worker residency beneath logical enabled plugins.
 //
-// NO OWNER HOLDS THE WHOLE POOL. Workers are shared across owners, and a Worker in use can stay held for a span bound
-// (D347), so one owner holding every Worker makes another owner's call wait on it. Each owner may have at most
-// `pluginOwnerShare` of the Workers in use, and of the request queue, at once. A request that cannot proceed yet, its
-// owner at its share or its runtime still starting, is passed over, never waited on: requests behind it are served
-// in arrival order. An owner's call past its share waits for one of that owner's own Workers.
+// NO OWNER HOLDS THE WHOLE POOL (D349). Workers are shared across owners, and a Worker in use can stay held for a span
+// bound (D347), so one owner holding every Worker makes another owner's call wait on it. While more than one owner can
+// run plugin code here, each may have at most `pluginOwnerShare` of the Workers in use at once; a sole owner may use
+// them all. Each owner may always hold at most that share of the request queue, so a second owner's first request
+// always finds a place. A request that cannot proceed yet, its owner at its share or its runtime still starting, is
+// passed over, never waited on: requests behind it are served in arrival order. An owner's call past its share waits
+// for one of that owner's own Workers.
 
 import { DomainConflictError } from "@orb/kit/errors";
 import { pluginOwnerShare } from "./budgets.ts";
@@ -19,6 +21,13 @@ interface PoolRequest<T extends object> {
   readonly target: T;
   readonly resolve: (lease: WarmRuntimeLease) => void;
   readonly reject: (error: Error) => void;
+}
+
+/** Who owns a target, and the owners of every enabled resident plugin, running or asleep: with the owners of the
+ *  runtimes and requests the pool holds, they are the owners who can run plugin code here. */
+interface PoolOwners<T extends object, O> {
+  readonly ownerOf: (target: T) => O;
+  readonly residentOwners: () => Iterable<O>;
 }
 
 interface WarmRuntimeAcquireOptions {
@@ -41,8 +50,9 @@ export interface WarmRuntimeLease {
 
 /**
  * A bounded, fair cache of physical runtimes. Logical plugin instances live outside this pool: an idle entry
- * may be retired without invalidating its catalog or any host registrar callback. Requests are admitted FIFO;
- * when the pool is full, the least-recently-used unpinned runtime is retired before the head request proceeds.
+ * may be retired without invalidating its catalog or any host registrar callback. Requests are served in arrival
+ * order, passing over one that cannot proceed yet; when the pool is full, the least-recently-used unpinned runtime
+ * is retired before the request that needs its Worker proceeds.
  */
 export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
   private readonly entries = new Map<T, PoolEntry>();
@@ -58,10 +68,10 @@ export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
   private readonly retire: (target: T) => Promise<void>;
   private readonly requestMaximum: number;
   private readonly ownerOf: (target: T) => O;
-  private readonly ownerWorkerMaximum: number;
+  private readonly residentOwners: () => Iterable<O>;
   private readonly ownerRequestMaximum: number;
 
-  constructor(maximum: number, retire: (target: T) => Promise<void>, requestMaximum: number, ownerOf: (target: T) => O) {
+  constructor(maximum: number, retire: (target: T) => Promise<void>, requestMaximum: number, owners: PoolOwners<T, O>) {
     if (!Number.isInteger(maximum) || maximum < 1) {
       throw new Error("plugin host: warm runtime maximum must be a positive integer");
     }
@@ -71,8 +81,8 @@ export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
     this.maximum = maximum;
     this.retire = retire;
     this.requestMaximum = requestMaximum;
-    this.ownerOf = ownerOf;
-    this.ownerWorkerMaximum = pluginOwnerShare(maximum);
+    this.ownerOf = owners.ownerOf;
+    this.residentOwners = owners.residentOwners;
     this.ownerRequestMaximum = pluginOwnerShare(requestMaximum);
   }
 
@@ -274,8 +284,22 @@ export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
     return inUse;
   }
 
+  // The Workers one owner may have in use now: all of them while only one owner can run plugin code, its share once a
+  // second can. A second owner's first request counts the moment it is queued.
+  private ownerWorkerMaximum(): number {
+    const owners = new Set(this.residentOwners());
+    for (const target of this.entries.keys()) {
+      owners.add(this.ownerOf(target));
+    }
+    for (const request of this.requests) {
+      owners.add(this.ownerOf(request.target));
+    }
+    return owners.size > 1 ? pluginOwnerShare(this.maximum) : this.maximum;
+  }
+
   // Move the first request, in arrival order, that can move now; undefined when none can.
   private drainStep(): DrainStep<T> | undefined {
+    const ownerWorkerMaximum = this.ownerWorkerMaximum();
     for (const [index, request] of this.requests.entries()) {
       const cancelled = this.cancelled.get(request.target);
       if (cancelled !== undefined) {
@@ -290,7 +314,7 @@ export class WarmRuntimePool<T extends object, O> implements AsyncDisposable {
         continue;
       }
       // A warm runtime already in use costs its owner no further Worker; an idle one, or a new one, does.
-      const atShare = this.ownerInUse(this.ownerOf(request.target)) >= this.ownerWorkerMaximum;
+      const atShare = this.ownerInUse(this.ownerOf(request.target)) >= ownerWorkerMaximum;
       if (warm !== undefined && (warm.pins > 0 || !atShare)) {
         this.requests.splice(index, 1);
         request.resolve(this.lease(request.target, warm, false));

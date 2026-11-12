@@ -272,9 +272,10 @@ export const EVENT_QUEUE_DEPTH = 16;
  *  aggregate app-memory wall for pressure that has not reached the broker process yet. */
 export const PLUGIN_RUNTIME_REQUEST_QUEUE_MAX = 32;
 
-/** The most of a shared host capacity, Workers in use or places in the request queue, that one owner may hold at once:
- *  all but one, so another owner's call never waits on that owner. The owner is a resident plugin's installer or the
- *  member running a snippet. A capacity of one cannot be shared, so it is not divided. */
+/** The most of a shared host capacity, Workers in use or places in the request queue, that one owner may hold at once
+ *  while another owner can run plugin code: all but one, so that owner's call never waits on this one (D349). The owner
+ *  is a resident plugin's installer or the member running a snippet. A capacity of one cannot be shared, so it is not
+ *  divided. */
 export function pluginOwnerShare(capacity: number): number {
   return Math.max(1, capacity - 1);
 }
