@@ -257,7 +257,8 @@ test("a foreign picture spelled inside a markdown block stays unplaced and off t
 test("an owned asset that is not an image is refused as a picture block", async () => {
   await using box = await openBox();
   const bytes = new TextEncoder().encode("%PDF-1.7 not a picture");
-  const document = (await box.root.services.assets.store({ principal: box.host, bytes, kind: "attachment", mime: "application/pdf" })).assetId;
+  // A databank document: an asset the host owns that the store keeps only as a document.
+  const document = (await box.root.services.assets.store({ principal: box.host, bytes, kind: "document", mime: "application/pdf" })).assetId;
 
   await expect(box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(document), timeZone: UTC_TIME_ZONE })).rejects.toMatchObject({
     cause: { code: CHAT_OP_CODES.attachmentNotOwned },

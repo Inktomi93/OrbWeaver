@@ -49,10 +49,24 @@ export const ASSET_KIND_MEDIA = {
   plugin: ["zip", "image"],
 } as const satisfies Readonly<Record<AssetKind, readonly AssetMedia[]>>;
 
-/** Whether every blob of the kind is a picture: the only kinds an avatar field may point at. */
-export function isPictureAssetKind(kind: AssetKind): boolean {
+// Whether every blob of the kind is a picture.
+function isPictureAssetKind(kind: AssetKind): boolean {
   const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[kind];
   return media.length > 0 && media.every((medium) => medium === "image");
+}
+
+/** Whether a stored asset is a picture an avatar may point at: one of a picture kind, or one of a kind that also admits
+ *  images whose bytes the store itself read as an image when it wrote them. Both facts are the store's, never a type a
+ *  caller declared: a kind admits only the media its bytes were sniffed as, and `width` is set only from the store's
+ *  header sniff (`sniffImageBytes`), which answers for a PNG, JPEG, GIF, WebP or AVIF image and for nothing else, so a
+ *  video, a document or an archive row carries none.
+ *
+ *  @remarks
+ *  The kind alone is not enough: the store keeps one row per owner and content, so a picture first stored as a plugin's
+ *  fetched asset or a chat attachment stays that row when the same bytes are stored again as an avatar. */
+export function isPictureAsset(asset: { readonly kind: AssetKind; readonly width: number | null }): boolean {
+  const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[asset.kind];
+  return isPictureAssetKind(asset.kind) || (media.includes("image") && asset.width !== null);
 }
 
 /** The kinds `POST /api/assets/upload` serves: each has a client door that uploads it there. Every other kind enters
