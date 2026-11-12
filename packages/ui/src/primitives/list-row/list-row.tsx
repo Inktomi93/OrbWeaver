@@ -214,6 +214,7 @@ function ListRowBody({
   bodyRef,
   ariaLabel,
   ariaDescribedBy,
+  overlay,
   children,
 }: {
   slots: Slots;
@@ -228,6 +229,8 @@ function ListRowBody({
   ariaLabel: string;
   /** Space-joined subtitle/meta ids, or undefined when the row has neither descriptor. */
   ariaDescribedBy: string | undefined;
+  /** The floated actions lie over the clickable body, so the body declares the other side of that overlay. */
+  overlay: boolean;
   children: ReactNode;
 }): ReactElement {
   const ariaCurrent = selected ? "true" : undefined;
@@ -266,6 +269,7 @@ function ListRowBody({
       ref={bodyRef}
       tabIndex={disabled ? -1 : 0}
       type="button"
+      {...(overlay ? declaresOverlay("row-actions-over-body") : {})}
     >
       {children}
     </button>
@@ -344,6 +348,7 @@ export function ListRow({
         bodyRef={bodyRef}
         selected={selected}
         slots={slots}
+        overlay={actionsFloat}
       >
         <ListRowContent
           clickable={clickable}
