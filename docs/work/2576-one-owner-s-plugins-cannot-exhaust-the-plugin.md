@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P1
 area: plugins
+lane: wt/agent-a84eabc3e8d8f0a49
 ---
 
 # One owner's plugins cannot exhaust the plugin broker's IPC write queue

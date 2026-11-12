@@ -57,7 +57,7 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
       (result) => {
         if (result.imported.length === 0) {
           // Nothing landed: the dropzone's error line says why and the dialog stays open for another file.
-          setRefusal(cardImportRefusalLine(result.failed.length));
+          setRefusal(cardImportRefusalLine(result.failed));
           return;
         }
         const notice = importNotice(result);

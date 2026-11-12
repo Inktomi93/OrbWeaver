@@ -4,7 +4,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { CONFIG_SEARCH_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { CONFIG_CUSTOMIZE_LOOK_NAME, CONFIG_SEARCH_NAME } from "#client/features/config/lib/config-control-names.ts";
 import type { ConfigPanesStory } from "./_list-stories.tsx";
 
 const PANES_STORY = "tests/client/features/config/surfaces/_list-stories/ConfigPanesStory";
@@ -79,7 +79,7 @@ test("a member hit whose read is held leaves a reader who went back to typing in
 test("a search hit on a section inside a closed fold opens the fold", async ({ corpus, corpusViewer, mount, page }) => {
   await routeConfig(page, corpus, corpusViewer);
   await mount<typeof ConfigPanesStory>(PANES_STORY, { showList: true, initialGroup: "appearance" });
-  const fold = page.getByRole("button", { name: /Customize this look/u });
+  const fold = page.getByRole("button", { name: CONFIG_CUSTOMIZE_LOOK_NAME });
   await expect(fold).toHaveAttribute("aria-expanded", "false");
   await page.getByRole("combobox", { name: CONFIG_SEARCH_NAME }).fill("effects");
   await page
@@ -92,7 +92,7 @@ test("a search hit on a section inside a closed fold opens the fold", async ({ c
 test("the fold's name contains the label and the caption it shows", async ({ corpus, corpusViewer, mount, page }) => {
   await routeConfig(page, corpus, corpusViewer);
   await mount<typeof ConfigPanesStory>(PANES_STORY, { showList: true, initialGroup: "appearance" });
-  const fold = page.getByRole("button", { name: /Customize this look/u });
+  const fold = page.getByRole("button", { name: CONFIG_CUSTOMIZE_LOOK_NAME });
   await expect(fold).toBeVisible();
   const result = await accessibilityScan(page);
   const mismatched = result.violations.find(({ id }) => id === "label-content-name-mismatch")?.nodes ?? [];

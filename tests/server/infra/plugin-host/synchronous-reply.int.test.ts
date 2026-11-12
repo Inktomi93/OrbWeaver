@@ -5,7 +5,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 
 const SOURCE = 'const h = orb.host(1); h.log.info("random=" + h.random.next());';
 
-test("a non-finite app entropy value is refused after JSON transport, never coerced into guest zero", async () => {
+test("a non-finite app entropy value is refused after JSON transport, never coerced into guest zero", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn, random: () => Number.NaN });
   const caller = await root.internalCallerFor(root.ownerId);
   const room = (await caller.chat.startChat({ characterIds: [] })).chat;
@@ -14,7 +14,7 @@ test("a non-finite app entropy value is refused after JSON transport, never coer
   expect(result.logLines).toEqual([]);
 });
 
-test("the synchronous native codec preserves valid zero entropy and marshals a guest error without breaking the next run", async () => {
+test("the synchronous native codec preserves valid zero entropy and marshals a guest error without breaking the next run", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn, random: () => 0 });
   const caller = await root.internalCallerFor(root.ownerId);
   const room = (await caller.chat.startChat({ characterIds: [] })).chat;

@@ -292,3 +292,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D343 | [A rate measurement on a loaded box is labelled, not withheld](0343-a-rate-measurement-on-a-loaded-box-is-labelled-not-withheld.md) | active |
 | D344 | [A copy of a registry port that cannot import the registry stays hand-written](0344-a-copy-of-a-registry-port-outside-the-registry-stays-hand-written.md) | active |
 | D345 | [A user macro has two definition homes, the preset and the game](0345-a-user-macro-has-two-definition-homes-the-preset-and-the-game.md) | active |
+| D346 | [A host call past the CPU window ends the guest](0346-a-host-call-past-the-cpu-window-ends-the-guest.md) | active |
+| D347 | [A stuck plugin Worker ends alone](0347-a-stuck-plugin-worker-ends-alone.md) | active |

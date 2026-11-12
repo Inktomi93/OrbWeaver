@@ -1,6 +1,7 @@
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { CONFIG_CUSTOMIZE_LOOK_NAME } from "#client/features/config/lib/config-control-names.ts";
 import type { ConfigAnchorStory } from "./_anchor-stories.tsx";
 
 test.beforeEach(async ({ page }) => {
@@ -74,7 +75,7 @@ test("the group's Advanced fold keeps its open state when the content leaves and
   await using root = await createCorpusHarness();
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["sessions.me", "settings.getUserSettings", "settings.listThemes"]));
   await mount<typeof ConfigAnchorStory>("tests/client/features/config/surfaces/_anchor-stories/ConfigAnchorStory", {});
-  const fold = page.getByRole("button", { name: /Customize this look/u });
+  const fold = page.getByRole("button", { name: CONFIG_CUSTOMIZE_LOOK_NAME });
   await expect(fold).toHaveAttribute("aria-expanded", "false");
   await fold.click();
   await expect(fold).toHaveAttribute("aria-expanded", "true");

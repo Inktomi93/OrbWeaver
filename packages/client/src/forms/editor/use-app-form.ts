@@ -4,7 +4,6 @@
 // are PascalCase by necessity (createFormHook exposes them as JSX components: `<field.TextField>`).
 
 import { createFormHook } from "@tanstack/react-form";
-import { AvatarUploadField } from "./bound-fields/avatar-upload-field.tsx";
 import { BoundColorField } from "./bound-fields/color-field.tsx";
 import { DirtyPill, FormErrorBanner, SubmitButton } from "./bound-fields/form-chrome.tsx";
 import { MacroField } from "./bound-fields/macro-field.tsx";
@@ -31,7 +30,6 @@ export const { useAppForm } = createFormHook({
     SwitchField,
     ColorField: BoundColorField,
     MultiToggleField,
-    AvatarUploadField,
     MacroField,
   },
   formComponents: {

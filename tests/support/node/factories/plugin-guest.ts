@@ -48,8 +48,14 @@ interface GuestPlugin {
   readonly netHosts?: readonly string[];
 }
 
+/** What the guest helpers use of a root: its services and its clock, so a native-time root serves as well. */
+interface GuestRoot {
+  readonly services: ServerTestHarness["services"];
+  readonly clock: Pick<ServerTestHarness["clock"], "now">;
+}
+
 /** Install and enable the guest through the owner's own consent verbs; `ui.surface` carries the command. */
-export async function installGuest(root: ServerTestHarness, caller: Principal, plugin: GuestPlugin, ops: GuestOps): Promise<PluginId> {
+export async function installGuest(root: GuestRoot, caller: Principal, plugin: GuestPlugin, ops: GuestOps): Promise<PluginId> {
   const capabilities: PluginCapability[] = ["ui.surface", ...plugin.capabilities];
   const manifest = pluginManifestSchema.parse({
     id: plugin.slug,
@@ -120,7 +126,7 @@ for (const { answer, counts, throws, stalls, ...macro } of ${JSON.stringify(macr
 }
 
 interface GuestTarget {
-  readonly root: ServerTestHarness;
+  readonly root: GuestRoot;
   readonly caller: Principal;
   readonly pluginId: PluginId;
   /** The invoking room; `null` runs the command outside any room. */

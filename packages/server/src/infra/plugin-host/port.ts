@@ -48,9 +48,8 @@ import {
   PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
-  PLUGIN_MEMORY_LIMIT_BYTES,
+  PLUGIN_SNIPPET_LIMITS,
   PLUGIN_SNIPPET_RUNTIME_MAX,
-  SNIPPET_WALL_MS,
 } from "./budgets.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, LocalPluginHostSeams, PluginHostSeamDeps } from "./contract/port.ts";
 import { getPluginQuickJS } from "./module.ts";
@@ -192,11 +191,12 @@ function residentSandboxOptions(
   seams: LocalPluginHostSeams,
   log: Logger,
 ): Parameters<typeof Sandbox.create>[1] {
-  const { mirrorLog, netEgress } = seams;
+  const { mirrorLog, netEgress, spanReport } = seams;
   return {
     membrane: { grants, bridge: input.bridge, netEgress, log },
     ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
     ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog, log) } : {}),
+    ...(spanReport === undefined ? {} : { spanReport }),
   };
 }
 
@@ -319,14 +319,19 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
       // `void`-typed barrier that never rejects — it swallows this run's outcome so the NEXT invoke's `.then`
       // always fires; the caller's own `run` promise still carries the real result/rejection.
       // the tail is a void barrier that must never reject, or one failed invoke wedges the chain for later ones; the caller receives the real outcome from `return await run` on the next lines. Ends if the tail becomes the only reader of `run`.
-      resident.tail = run.then(
-        () => {
-          resident.queueDepth -= 1;
-        },
-        () => {
-          resident.queueDepth -= 1;
-        },
-      );
+      // The next invoke starts on a later macrotask, after every microtask of this one has run: a broker Worker posts
+      // this invoke's answer in those microtasks, and the broker charges guest spans to the oldest command it has not
+      // seen answered, so starting sooner would charge the next invoke's first span to this one (D347).
+      resident.tail = run
+        .then(
+          () => {
+            resident.queueDepth -= 1;
+          },
+          () => {
+            resident.queueDepth -= 1;
+          },
+        )
+        .then(() => new Promise<void>((resolve) => setImmediate(resolve)));
       return await run;
     },
 
@@ -358,7 +363,8 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         using sandbox = await Sandbox.create(hostSeams, {
           // A snippet has no manifest, so its profile omits net.fetch; the forwarded egress is never reached.
           membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress, log },
-          limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
+          limits: PLUGIN_SNIPPET_LIMITS,
+          ...(seams.spanReport === undefined ? {} : { spanReport: seams.spanReport }),
         });
         sandbox.setInvocationChat(input.chat);
         const outcome = await sandbox.evalGuest(input.code);
