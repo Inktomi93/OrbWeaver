@@ -127,7 +127,9 @@ async function map(flow: SurfaceFlow): Promise<Locator> {
   await closeContext(flow);
   const list = flow.page.locator(LIST);
   const panel = flow.page.locator('.shell-panel[data-panel-side="list"]');
-  const back = flow.page.getByRole("button", { name: sectionBackName(CONFIG_SECTION_LABEL), exact: true });
+  // A phone's topbar Back is named for the level it pops to: a world book from an entry, the group from a member, Settings from
+  // the group. Each press pops one level, so the walk climbs until the list is the screen.
+  const back = flow.page.getByRole("banner").getByRole("button", { name: namePattern(sectionBackName(NAME_HOLE)) });
   while ((await panel.getAttribute("data-panel-mode")) === "collapsed" && (await back.isVisible())) {
     await back.click();
   }
