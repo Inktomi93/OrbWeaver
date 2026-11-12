@@ -69,7 +69,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     // kind's PARSED params and a poison row has none; surfacing it for repair is the whole point of retry.
     if (!original.poison) {
       await assertRunAuthority(
-        { contributions, isBoxOwner: ctx.isBoxOwner },
+        { contributions, isBoxOwner: ctx.isBoxOwner, isAccountEnabled: ctx.isAccountEnabled },
         { caller: params.caller, account: runAccount(original) },
         original.kind,
         original.params,

@@ -116,6 +116,7 @@ export interface SearchDiscoveryComposeDeps {
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
   readonly isBoxOwner: WorkloadServiceContext["isBoxOwner"];
+  readonly isAccountEnabled: WorkloadServiceContext["isAccountEnabled"];
   /** chat's memory-enabled read (LATE-BOUND: chat composes after this seam), for the memory-off receipt. */
   readonly isMemoryEnabled: VacuousMemoryReceiptDeps["isMemoryEnabled"];
   readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
@@ -343,6 +344,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     requireOwner,
     isOwner,
     isBoxOwner: deps.isBoxOwner,
+    isAccountEnabled: deps.isAccountEnabled,
     isAdmin,
     emitUserEvent: deps.emitUserEvent,
   });

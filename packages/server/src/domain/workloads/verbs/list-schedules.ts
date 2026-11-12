@@ -18,7 +18,7 @@ async function tickRefusal(ctx: WorkloadServiceContext, schedule: WorkloadSchedu
     return null;
   }
   const refusal = await runAuthorityRefusal(
-    { contributions, isBoxOwner: ctx.isBoxOwner },
+    { contributions, isBoxOwner: ctx.isBoxOwner, isAccountEnabled: ctx.isAccountEnabled },
     { caller: null, account: schedule.ownerId },
     schedule.kind,
     params.data,
