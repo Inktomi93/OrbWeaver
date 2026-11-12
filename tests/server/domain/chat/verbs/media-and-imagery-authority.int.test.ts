@@ -15,6 +15,7 @@ import {
   isCharacterSeated,
   loadPresentHostUserId,
 } from "@orb/server/domain/chat";
+import { createResolveUserEnabled } from "@orb/server/domain/sessions";
 import { expect, test } from "@orb/testkit/node";
 import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import {
@@ -177,6 +178,7 @@ test("a present member's picture the room never placed reads no bytes, while a p
     assets: services.assets,
     mediaProcessing: { frameCount: () => Promise.resolve(1), prepareVideo: () => Promise.reject(new Error("a still image never prepares motion")) },
     forbidExternalMedia: () => false,
+    resolveUserEnabled: createResolveUserEnabled(root.app.sessions),
   });
 
   expect(await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "asset", assetId: membersPicture.assetId } })).toBeNull();

@@ -1,5 +1,6 @@
-// A stored picture reaches the model only when the room itself placed it, read off the real provider request on
-// the composition root; fork and duplicate carry the placing link with the body that cites it.
+// A stored picture reaches the model only when the room itself placed it and its owner is the host or in the room's
+// consent set, read off the real provider request on the composition root; fork and duplicate carry the placing link
+// with the body that cites it.
 // @subject packages/server/src/domain/chat/verbs/resolve-media-ref.ts
 // @subject packages/server/src/domain/chat/verbs/fork.ts
 // @subject packages/server/src/domain/chat/verbs/edit.ts
@@ -225,6 +226,21 @@ test("a host's edit citing a member's picture in the member's row never reaches 
   expect((await box.root.services.assets.resolveChatAssetRefs(box.host.userId, room, [picture])).map((ref) => ref.assetId)).toEqual([picture]);
   const url = await wireUrl(box, picture);
   expect(await turnImageUrls(box, room)).toEqual([url, url]);
+});
+
+test("a disabled member's attachment stops riding to the model, and rides again once they are re-enabled", async () => {
+  await using box = await openBox();
+  const room = await openRoom(box, [box.member]);
+  const attached = await store(box, box.member, "attachment");
+  await say(box, room, { as: box.member, content: "", attached: [attached] });
+  const url = await wireUrl(box, attached);
+  expect(await turnImageUrls(box, room)).toEqual([url]);
+
+  await box.root.services.admin.setEnabled({ principal: box.host, userId: box.member.userId, enabled: false });
+  expect(await turnImageUrls(box, room)).toEqual([]);
+
+  await box.root.services.admin.setEnabled({ principal: box.host, userId: box.member.userId, enabled: true });
+  expect(await turnImageUrls(box, room)).toEqual([url]);
 });
 
 test("a send links the typed pictures its author owns and never another member's", async () => {

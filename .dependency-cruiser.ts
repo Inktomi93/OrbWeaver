@@ -589,6 +589,13 @@ const TEST_CONSTANT_HOME_PATHS = Object.keys(TEST_CONSTANT_HOMES).map((path) => 
 // The suites that import a production constant or verb from another module's door (Spine-Testing §9 imports constants
 // from their home): each line names what it imports and why the suite needs it. No wire carries any of them.
 const SERVER_TEST_REACHES = {
+  // A hand-built media resolver admits another member's picture only when its owner is enabled, which sessions answers.
+  "tests/server/domain/chat/persistence/attachment-origin-links.int.test.ts": {
+    "domain/sessions": "createResolveUserEnabled: the disabled-account read compose hands the media resolver",
+  },
+  "tests/server/domain/chat/verbs/media-and-imagery-authority.int.test.ts": {
+    "domain/sessions": "createResolveUserEnabled: the disabled-account read compose hands the media resolver",
+  },
   // A rule's image size must reach the provider as the preset's dimensions, which imagery owns.
   "tests/server/domain/automation/engine/dispatch.int.test.ts": {
     "domain/imagery": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
