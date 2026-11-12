@@ -26,7 +26,7 @@
 // could reasonably believe they had changed Default, that their change was in effect, and that nothing else
 // had happened, with all three false at once. The first fork keeps its lack of an INTERRUPTION (there is
 // nothing to forget yet, which is the ruling below); what it gains is a sentence afterwards, over the
-// `notify` seam activation already uses (`lib/active-preset-notice.ts`). The editor BODY carries the
+// `notify` seam (`lib/active-preset-notice.ts`). The editor BODY carries the
 // forewarning half — `components/built-in-copy-on-write-notice.tsx`, stated where the edit happens.
 //
 // THE CHOICE (owner ruling): the copy-on-write is silent only while there is nothing to forget. Once the
