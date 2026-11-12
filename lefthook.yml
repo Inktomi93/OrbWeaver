@@ -73,7 +73,8 @@ pre-push:
       priority: 7
       run: pnpm typecheck
     # Fast tests that hold repository facts true: law, rule and comment citations, the doc check, the container
-    # security config, the workflow and Dependabot agreements and the feature class-name lint's reading of the ui recipes.
+    # security config, the workflow and Dependabot agreements, the ESLint parts' agreement with CI and coverage of the
+    # tree, and the feature class-name lint's reading of the ui recipes.
     # The other tooling tests stay hand-run.
     repo-integrity:
       priority: 8
