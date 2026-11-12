@@ -112,7 +112,9 @@ test("an AVIF image the store kept as an MP4 attachment is refused as an avatar,
   const owner = await harness.principalFor((await harness.actor()).id);
   // The avatar upload refuses the bytes as an image and as a video.
   for (const mime of ["image/avif", "video/mp4"]) {
-    await expect(harness.app.assets.store({ principal: owner, bytes: AVIF, kind: "avatar", mime, enforceMagic: true })).rejects.toThrow();
+    await expect(harness.app.assets.store({ principal: owner, bytes: AVIF, kind: "avatar", mime, enforceMagic: true })).rejects.toMatchObject({
+      refusal: ASSET_UPLOAD_REFUSAL_CODES.notAnImage,
+    });
   }
   // A chat attachment takes any MP4-family file under a video claim.
   const attached = await harness.app.assets.store({ principal: owner, bytes: AVIF, kind: "attachment", mime: "video/mp4", enforceMagic: true });
