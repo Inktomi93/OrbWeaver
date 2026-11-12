@@ -1,9 +1,8 @@
 ---
 kind: tooling
-status: blocked
+status: open
 updated: 2026-11-12
 priority: P2
-blocked: owner
 plan: checked-law
 ---
 
@@ -11,7 +10,7 @@ plan: checked-law
 
 ## What
 
-A whole run of `pnpm test:tools` on main fails in a few files that pass alone. The product findings and stale fixtures from the first triage are fixed. What remains are type-aware lint and dependency-cruiser self-tests that outrun their time inside a whole run: `tests/tooling/eslint-tests-coverage.int.test.ts`, `tests/tooling/native-response-lint.int.test.ts`, `tests/tooling/native-ui-satellite-boundary.test.ts`, the checker pass in `tests/tooling/native-compose-query-boundary.test.ts`, and the throttle ratio in `tests/tooling/snap/ops/motion-throttle.suite.int.test.ts`. The caption miscount has its own item. Tooling tests are outside the product test command, the pre-push list and CI.
+A whole run of `pnpm test:tools` on main still fails one case per run, a different one each time, each a 5 s case timeout while the box sits at full load. The repeated setup that made the lint and dependency-cruiser self-tests slow is fixed: generated path patterns, per-case checker processes, the config-time production indexes and per-snippet programs. What remains: `tests/tooling/eslint-ct-responder.test.ts` has one case that type-checks the real server router and takes about 3 s alone, and the browser-driven suites, tracked in their own item, keep the box saturated for the whole run. Tooling tests are outside the product test command, the pre-push list and CI.
 
 ## Why
 
@@ -19,7 +18,7 @@ A red tooling test is a checker nobody is watching, and some of these hold rules
 
 ## Done when
 
-Each remaining self-test either runs fast in-process or is deleted, as the owner ruled for tests that test the tester; none gets a larger time budget. The owner confirms the deletions first, because some of these files check rules the law cites. A whole run of `pnpm test:tools` passes on main.
+A whole run of `pnpm test:tools` passes on main twice in a row. No case gets a larger time budget or a slow tag to get there.
 
 ## Evidence
 
