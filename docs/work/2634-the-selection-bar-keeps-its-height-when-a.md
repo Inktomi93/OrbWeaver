@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-12
 priority: P1
 area: ui
+lane: wt/agent-a4fe6241d109f14ce
 plan: cross-surface-consistency
 ---
 
