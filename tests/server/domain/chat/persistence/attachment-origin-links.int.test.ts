@@ -1,11 +1,12 @@
-// Only host or present-owner assets reach byte processing, and an attached asset's message_assets link row
-// records its attached origin.
+// Only assets whose owner is present and enabled in the room reach byte processing, and an attached asset's
+// message_assets link row records its attached origin.
 // @subject packages/server/src/entry/compose/imagery.ts
 
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import { messageAssets } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { createResolveMediaRef } from "@orb/server/domain/chat";
+import { createResolveUserEnabled } from "@orb/server/domain/sessions";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusActors } from "@orb/testkit/node/composed";
 import { magicBytes } from "@orb/testkit/node/helpers";
@@ -14,7 +15,7 @@ import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { seatMember } from "../verbs/media-and-imagery-authority.fixtures.ts";
 
-test("only host or PRESENT owner assets reach byte processing; conversion remains deferred with caller quality and signal", async () => {
+test("only PRESENT owner assets reach byte processing, the turn's host included; conversion remains deferred with caller quality and signal", async () => {
   await using root = await createServerHarness();
   // The host's chat binding funds the member's committed attachment line.
   const { owner: host, secondUserId } = await seedCorpusActors(root);
@@ -40,10 +41,10 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
     assets: services.assets,
     mediaProcessing: { frameCount: () => Promise.resolve(1), prepareVideo },
     forbidExternalMedia: () => forbidden,
+    resolveUserEnabled: createResolveUserEnabled(root.app.sessions),
   });
   const signal = new AbortController().signal;
   const resolved = await resolve({
-    ownerId: host.userId,
     chatId: room.id,
     ref: { kind: "asset", assetId: asset.assetId },
     quality: { ...DEFAULT_ATTACHMENT_QUALITY, videoMaxResolution: "original" },
@@ -59,7 +60,7 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
   expect(Array.from(prepareVideo.mock.calls[0]?.[0] ?? [])).toEqual(Array.from(bytes));
   await services.chat.selfLeave({ principal: member, chatId: room.id });
   read.mockClear();
-  const refused = await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } });
+  const refused = await resolve({ chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } });
   let emitted: string | null = null;
   if (refused !== null) {
     emitted = typeof refused.url === "function" ? await refused.url() : refused.url;
@@ -67,11 +68,10 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
   expect(emitted).toBeNull();
   expect(prepareVideo).toHaveBeenCalledTimes(1);
   expect(read).not.toHaveBeenCalled();
-  expect(await resolve({ ownerId: member.userId, chatId: room.id, ref: { kind: "asset", assetId: asset.assetId } })).not.toBeNull();
   forbidden = true;
-  expect(await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toBeNull();
+  expect(await resolve({ chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toBeNull();
   forbidden = false;
-  expect(await resolve({ ownerId: host.userId, chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toEqual({
+  expect(await resolve({ chatId: room.id, ref: { kind: "external", url: "https://cdn.example/image" } })).toEqual({
     media: "image",
     url: "https://cdn.example/image",
   });

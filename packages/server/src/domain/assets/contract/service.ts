@@ -44,7 +44,7 @@ export interface AssetsContext {
    *  hash is an avatar/attachment the caller may render in a shared chat; `undefined` otherwise. Optional. */
   readonly loadCoParticipantOwner?: LoadCoParticipantOwnerOp;
   /** Chat-scoped render resolver: `(assetId, hash)` pairs among `assetIds` the caller may render in `chatId`
-   *  (structural `message_assets` reference + owner present + caller present). Optional. */
+   *  (structural `message_assets` reference + owner present and enabled + caller present). Optional. */
   readonly loadChatAssetRefs?: LoadChatAssetRefsOp;
   /** Gallery owner-only posture: does `ownerId` own `characterId`? Optional — absent skips the subject check. */
   readonly assertCharacterOwned?: CharacterOwnedOp;

@@ -69,6 +69,17 @@ paths:
   never on cwd or parent-pid alone; a sibling process can share both while it is
   still healthy.
 
+## Windows, macOS and Linux
+
+Server, inference and launcher code runs on native Windows and macOS installs and in the Linux container.
+
+- Use a Node API that behaves the same on all three. A POSIX-only mechanism needs a Windows path and a test.
+- Stop a child by closing its channel or by a deadline. A signal other than a forced kill does not reach a Windows child.
+- Treat a file mode, `O_NOFOLLOW` and a directory fsync as absent on Windows. `isDirectorySyncUnsupported` in `packages/server/src/primitives/errno/index.ts` reads the fsync answer.
+- Read an environment variable from a snapshot without regard to letter case on Windows, as `packages/inference/src/backends/agent-sdk/env.ts` does.
+- Split a host path with `node:path` or on both separators. A zip entry name always uses `/`.
+- A local run proves Linux only. `.github/workflows/install.yml` and `.github/workflows/contributor.yml` run on Windows and macOS after a push.
+
 ## infra
 
 - fflate's `zipSync` derives its DOS date from local time and throws on mtime 0 or

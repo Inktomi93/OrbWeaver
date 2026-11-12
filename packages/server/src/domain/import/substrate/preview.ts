@@ -61,7 +61,7 @@ function skippedItems(collected: ProfileCollected): ImportPreviewSkip[] {
     ...collected.refusedThemes.map(({ file }) => skip(file, "this theme could not be converted")),
     ...collected.skippedBackgrounds.map(({ file }) => skip(file, "not an image or video file")),
     ...collected.truncatedDirs.map(({ dir, kept, total }) =>
-      skip(dir.split("/").at(-1) ?? dir, `only the first ${String(kept)} of ${String(total)} entries are read`),
+      skip(dir.split(/[\\/]/u).at(-1) ?? dir, `only the first ${String(kept)} of ${String(total)} entries are read`),
     ),
     ...planeFiles
       .filter(({ count }) => count > 0)

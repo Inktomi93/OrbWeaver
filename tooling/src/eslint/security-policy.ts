@@ -471,7 +471,6 @@ const ROLE_DATA_EXPORTS = [
       "loadPresentHumanUserIds",
       "loadPresentCharacterSeats",
       "isCharacterSeated",
-      "isPresentParticipant",
       "loadParticipants",
       "characterSeatedInAnotherChat",
       "characterEverSeatedInChat",

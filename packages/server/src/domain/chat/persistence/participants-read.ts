@@ -118,16 +118,6 @@ export async function isCharacterSeated(db: Db, chatId: ChatId, characterId: Cha
   return rows.length > 0;
 }
 
-/** Is `userId` a PRESENT member (`leftSeq IS NULL`) of `chatId`, in any role? A gone chat reads false. */
-export async function isPresentParticipant(db: Db, chatId: ChatId, userId: UserId): Promise<boolean> {
-  const rows = await db
-    .select({ id: chatParticipants.id })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.userId, userId), eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)))
-    .limit(LIMIT_ONE);
-  return rows.length > 0;
-}
-
 /** The roster read (listParticipants / arbitration substrate). PRESENT members only
  *  (`leftSeq IS NULL` — Part III §1). Ordered by join order (`joinSeq`, then row id). */
 export async function loadParticipants(db: Db, chatId: ChatId): Promise<ParticipantRow[]> {

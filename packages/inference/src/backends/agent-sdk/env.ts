@@ -7,6 +7,7 @@
 // subscription only. Ordering is the security: host baseline → runtime knobs → escape hatch (ALLOWLISTED to
 // the Claude runtime knob namespace, then RESERVED filtered) → the auth pins LAST so nothing above can override.
 
+import process from "node:process";
 import type { ClaudeIsolationPinKey } from "@orb/contracts/preset";
 import {
   ANTHROPIC_API_KEY_ENV,
@@ -53,12 +54,32 @@ const SUPPORTED_HOST_ENV_KEYS = [
   "SSL_CERT_FILE",
   "SSL_CERT_DIR",
   "NODE_EXTRA_CA_CERTS",
+  // Windows: a child without the system root cannot open a socket, and its home and program lookup read these.
+  "SystemRoot",
+  "SystemDrive",
+  "windir",
+  "ComSpec",
+  "PATHEXT",
+  "USERPROFILE",
+  "HOMEDRIVE",
+  "HOMEPATH",
+  "USERNAME",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "ProgramData",
+  "ProgramFiles",
 ] as const;
 
+const WINDOWS_PLATFORM = "win32";
+
+// Windows names a variable in any letter case (`Path`, `SYSTEMROOT`) and a snapshot of the process environment keeps the
+// host's spelling, so there the lookup ignores case. Elsewhere `http_proxy` and `HTTP_PROXY` are two variables and the
+// lookup is exact.
 function hostEnvForClaudeChild(source: Readonly<Record<string, string>>): Record<string, string | undefined> {
+  const folded = process.platform === WINDOWS_PLATFORM ? new Map(Object.entries(source).map(([key, value]) => [key.toUpperCase(), value] as const)) : undefined;
   const out: Record<string, string | undefined> = {};
   for (const key of SUPPORTED_HOST_ENV_KEYS) {
-    out[key] = source[key];
+    out[key] = source[key] ?? folded?.get(key.toUpperCase());
   }
   return out;
 }
