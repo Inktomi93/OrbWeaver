@@ -22,6 +22,8 @@ type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
 const SUBJECTS = ["regex", "worldInfo", "rosterPreset"] as const;
 type Subject = (typeof SUBJECTS)[number];
 const STORY = "tests/client/features/config/surfaces/_collection-composition-stories/CollectionCompositionStory";
+// The virtualizer sizes this box to its rows' total height, whatever the scroll box around it measures.
+const ROWS_VIEWPORT = '[data-slot="virtual-list-viewport"]';
 const LONG_NAME = "A Copper Observatory and Northern Expedition Reference Archive";
 const REGIMES = [
   { name: "narrow desktop enlarged", viewport: { width: 1280, height: 900 }, width: 300, touch: false, enlarged: true, inline: false },
@@ -383,6 +385,62 @@ async function seedLongLibrary(caller: Caller, subject: (typeof WINDOWED_SUBJECT
     }
   }
 }
+
+/** Leaves the regex library one script, through the production verbs. */
+async function seedOneScript(caller: Caller): Promise<void> {
+  for (const script of await caller.regex.listScripts()) {
+    await caller.regex.removeScript({ scriptId: script.id });
+  }
+  await caller.regex.createScript({
+    input: createRegexScriptSchema.parse({ name: LONG_NAME, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+  });
+}
+
+test.describe("one script at enlarged browser text on a landscape phone", () => {
+  const landscape = { width: 844, height: 390 } as const;
+  test.use({ viewport: landscape, hasTouch: true, isMobile: true });
+  test("the list box is one row tall and the library's facts follow it directly", async ({ mount, page }) => {
+    await using _textSize = await setPlatformTextSize(page, PLATFORM_TEXT_SCALES[1]);
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { appearance } = await prepare(caller, page, "regex", true);
+    await seedOneScript(caller);
+    await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: landscape.width, height: landscape.height, appearance });
+    const content = page.locator('[data-slot="config-content"]');
+    const list = content.locator('[data-slot="virtual-list-scroll"]');
+    await expect(list.locator('[data-slot="list-row-body"]')).toHaveCount(1);
+    const insights = content.locator('[data-slot="config-library-insights"]');
+    await insights.scrollIntoViewIfNeeded();
+    const gap = await resolvedLength(page, `var(${TOKENS["spacing.section"].cssVar})`, list);
+    const rows = (await list.locator(ROWS_VIEWPORT).boundingBox())?.height ?? 0;
+    const [listBox, insightBox] = await Promise.all([list.boundingBox(), insights.boundingBox()]);
+    if (listBox === null || insightBox === null) {
+      throw new Error("The one-row list and its facts have no rendered boxes");
+    }
+    await page.screenshot({ path: test.info().outputPath("regex-one-row-844x390-200.png") });
+    expect(Math.abs(listBox.height - rows)).toBeLessThanOrEqual(1);
+    expect(insightBox.y - (listBox.y + listBox.height)).toBeLessThanOrEqual(gap + 1);
+  });
+});
+
+test.describe("one script on a wide desktop", () => {
+  test.use({ viewport: { width: 1440, height: 900 }, hasTouch: false, isMobile: false });
+  test("the list box still fills the pane below its one row", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { appearance } = await prepare(caller, page, "regex", false);
+    await seedOneScript(caller);
+    await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: 960, height: 900, appearance });
+    const content = page.locator('[data-slot="config-content"]');
+    const list = content.locator('[data-slot="virtual-list-scroll"]');
+    await expect(list.locator('[data-slot="list-row-body"]')).toHaveCount(1);
+    const floor = await resolvedLength(page, `var(${TOKENS["height.scroll-sm"].cssVar})`, list);
+    const rows = (await list.locator(ROWS_VIEWPORT).boundingBox())?.height ?? 0;
+    const height = (await list.boundingBox())?.height ?? 0;
+    // The fill ruling's control: with room, the box is the pane's free space, well past its one row and its floor.
+    expect(height).toBeGreaterThan(Math.max(rows, floor));
+  });
+});
 
 test.describe("coarse landscape enlarged, at enlarged browser text", () => {
   const landscape = { width: 844, height: 390 } as const;

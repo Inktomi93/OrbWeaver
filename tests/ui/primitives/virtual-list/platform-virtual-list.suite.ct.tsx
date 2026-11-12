@@ -4,12 +4,14 @@ import { resolvedLength } from "@orb/testkit/browser/spec";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { EdgeFadeStory, ResetHandshakeStory, ShortWindowStory, UnboundedStory } from "./_virtual-list-stories.tsx";
+import type { EdgeFadeStory, ResetHandshakeStory, ShortWindowStory, TallHostStory, UnboundedStory } from "./_virtual-list-stories.tsx";
 import { MANY_ROWS } from "./virtual-list-cases.ts";
 
 const STORIES = "tests/ui/primitives/virtual-list/_virtual-list-stories";
 const SCROLLED_PX = 1500;
 const SCROLL = '[data-slot="virtual-list-scroll"]';
+// The virtualizer sizes this box to its rows' total height, whatever the scroll box around it measures.
+const ROWS_VIEWPORT = '[data-slot="virtual-list-viewport"]';
 
 function scrollTopOf(page: Page): Promise<number> {
   return page.locator(SCROLL).evaluate((element) => element.scrollTop);
@@ -85,6 +87,34 @@ test("no fade is held when the rows below the window are shorter than the fade i
   await expect(scroller.getByRole("listitem")).toHaveCount(5);
   expect(await scroller.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
   await expect(scroller).not.toHaveAttribute("data-more", /.*/);
+});
+
+test("a growing list of one row under chrome taller than its parent floors at its row, not at the window token", async ({ mount, page }) => {
+  await mount<typeof ShortWindowStory>(`${STORIES}/ShortWindowStory`, { count: 1 });
+  const scroller = page.locator(SCROLL);
+  await expect(scroller.getByRole("listitem")).toHaveCount(1);
+  const floor = await resolvedLength(page, `var(${TOKENS["height.scroll-sm"].cssVar})`, scroller);
+  const rows = (await scroller.locator(ROWS_VIEWPORT).boundingBox())?.height ?? 0;
+  // Positive control: one row is shorter than the token, so the two floors differ.
+  expect(rows).toBeLessThan(floor);
+  expect(Math.abs(((await scroller.boundingBox())?.height ?? 0) - rows)).toBeLessThanOrEqual(1);
+});
+
+test("a growing list of one row with free space still fills its parent", async ({ mount, page }) => {
+  await mount<typeof TallHostStory>(`${STORIES}/TallHostStory`, { count: 1 });
+  const scroller = page.locator(SCROLL);
+  await expect(scroller.getByRole("listitem")).toHaveCount(1);
+  const [box, after, host] = await Promise.all([
+    scroller.boundingBox(),
+    page.locator('[data-slot="after-list"]').boundingBox(),
+    page.locator('[data-slot="tall-host"]').boundingBox(),
+  ]);
+  if (box === null || after === null || host === null) {
+    throw new Error("The tall host, its list and the block after it have no rendered boxes");
+  }
+  // The list takes every pixel the block after it leaves: the block sits at the host's foot.
+  expect(Math.abs(after.y + after.height - (host.y + host.height))).toBeLessThanOrEqual(1);
+  expect(box.height).toBeGreaterThan(((await scroller.locator(ROWS_VIEWPORT).boundingBox())?.height ?? 0) * 2);
 });
 
 test("no fade is held when every row already fits the window", async ({ mount, page }) => {

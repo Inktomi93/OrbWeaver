@@ -94,6 +94,8 @@ export const MIN_HEIGHT = {
   // One touch row in rem: a list that sits under chrome keeps this much window however tall the chrome grows.
   scrollShort: "min-block-(--height-scroll-short)",
   scrollSm: "min-block-(--height-scroll-sm)",
+  // A growing list's floor: the scroll-sm window, or its rows when shorter (`min-block-list-floor` in primitives.css).
+  listFloor: "min-block-list-floor",
   scrollMd: "min-block-(--height-scroll-md)",
   scrollLg: "min-block-(--height-scroll-lg)",
   roomThread: "min-block-(--height-room-thread-min)",

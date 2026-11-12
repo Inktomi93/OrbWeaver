@@ -77,6 +77,26 @@ export function EdgeFadeStory({
 
 const SHORT_HOST_PX = 240;
 const CHROME_PX = 320;
+const TALL_HOST_PX = 600;
+
+/** A growing list in a tall column with free space to fill, followed by a block that belongs after the list. */
+export function TallHostStory({ count }: { readonly count: number }): ReactElement {
+  return (
+    <CtIsolation subject="VirtualList" isolates="A growing window whose parent has far more free space than its rows">
+      <div data-slot="tall-host" style={{ display: "flex", flexDirection: "column", height: TALL_HOST_PX }}>
+        <VirtualList
+          aria-label="Sample list"
+          estimateSize={(): number => ROW_HEIGHT_PX}
+          getItemKey={(item): string => item.id}
+          grow={true}
+          items={rowsOf(count)}
+          renderItem={(item): ReactNode => <div style={{ height: ROW_HEIGHT_PX }}>{item.id}</div>}
+        />
+        <p data-slot="after-list">After the list</p>
+      </div>
+    </CtIsolation>
+  );
+}
 /** A growing list under chrome taller than its scrolling parent: the parent's free space is nothing. */
 export function ShortWindowStory({ count }: { readonly count: number }): ReactElement {
   return (

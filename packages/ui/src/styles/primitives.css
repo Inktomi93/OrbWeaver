@@ -51,6 +51,13 @@
   pointer-events: none;
 }
 
+/* A growing list's floor: the scroll-sm window, or the list's own rows when they are shorter, so one row is never followed
+ * by a floor of empty box. The list writes its content height inline as `--orb-list-content`; its fill is its flex
+ * growth and is untouched here. */
+@utility min-block-list-floor {
+  min-block-size: min(var(--height-scroll-sm), var(--orb-list-content, var(--height-scroll-sm)));
+}
+
 /* The gradient border ring (the CTA, the active tab, the active rail button): a `::after` overlay whose gradient is
  * masked to the border box minus the padding box, so only the border paints and the element's own fill and ink keep
  * their contrast. The gradient is a primary head over the polarity-fixed sheen foot. `orb-gradient-ring` is the plain

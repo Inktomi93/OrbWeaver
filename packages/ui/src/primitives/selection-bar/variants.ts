@@ -27,7 +27,9 @@ export const selectionBarVariants = tv({
   //
   // THE BAR NEVER SHRINKS BELOW ITS CONTENT. It is a flex item in its pane's column beside a list whose floor does not give
   // (ui-package-design §6.1), so a shrinkable bar paid for the floor and clipped to a strip. `shrink-0` leaves the one bound
-  // to `usePinnedBarCap`; when the floor and the capped bar do not fit together, the pane scrolls.
+  // to `usePinnedBarCap`; when the floor and the capped bar do not fit together, the pane scrolls. The cap is the larger of
+  // its share of the scroller and one of the bar's controls shown whole: a cap below the smallest thing the bar holds
+  // leaves nothing in it pressable.
   //
   // `min-inline-fit` bounds that minimum by the bar's own width: a group that is wider than the bar (enlarged text) wraps among
   // its own items on a line of its own, where its nowrap width would push the last verb past the pane's edge.

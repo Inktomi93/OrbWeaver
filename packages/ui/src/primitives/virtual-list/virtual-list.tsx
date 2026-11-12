@@ -69,6 +69,17 @@ export interface VirtualListProps<T> extends VariantProps<typeof virtualListVari
 const DEFAULT_END_APPROACH_ROWS = 8;
 /** The fade itself, gated on the scroll-position attribute this primitive writes. */
 const EDGE_FADE = "data-more:mask-b-from-90%";
+/** The custom property a growing list's floor reads its rows' height from (`min-block-list-floor`). */
+const LIST_CONTENT_PROPERTY = "--orb-list-content";
+
+// A growing list's rows' measured height, for its floor. Written to the DOM where the virtualizer settles a measurement:
+// with `directDomUpdates` a render sees only the estimate, so a render-time style would floor a list at rows it does not have.
+function publishContentHeight(el: HTMLElement | null, grow: boolean | undefined, totalSize: number): void {
+  if (el !== null && grow === true) {
+    el.style.setProperty(LIST_CONTENT_PROPERTY, `${String(totalSize)}px`);
+  }
+}
+
 /** The share of the box {@link EDGE_FADE} masks: its `from-90%` stop. */
 const EDGE_FADE_SHARE = 0.1;
 // "More below" only counts once the hidden rows are at least as tall as the fade: a list a few pixels past its box would
@@ -124,6 +135,7 @@ export function VirtualList<T>({
     directDomUpdatesMode: "position",
     // React 19: flushSync from the scroll path fires the "called from inside a lifecycle" warning.
     useFlushSync: false,
+    onChange: (instance): void => publishContentHeight(scrollRef.current, grow, instance.getTotalSize()),
   });
 
   // TanStack's default resize anchor reads its cached scroll offset. A programmatic landing updates the
@@ -170,6 +182,7 @@ export function VirtualList<T>({
   // effect re-syncs on `totalSize` — the virtualizer's authoritative content height, which is what moves
   // when rows finish measuring, so the cue is right on the frame the list settles rather than a frame late.
   const totalSize = virtualizer.getTotalSize();
+  useLayoutEffect(() => publishContentHeight(scrollRef.current, grow, totalSize), [grow, totalSize]);
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el === null || !fadeEdge) {
