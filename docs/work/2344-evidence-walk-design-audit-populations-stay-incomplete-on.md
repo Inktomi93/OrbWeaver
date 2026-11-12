@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-09
+updated: 2026-11-12
 priority: P3
 area: tooling
 plan: surface-walk
@@ -11,7 +11,7 @@ plan: surface-walk
 
 ## What
 
-Across the three evidence runs (surface-Nn5cKU, surface-q297LL, surface-2sWzKu) the design audit reports incomplete populations: quiet-state unmatchedOn, unmatchedOff and unresolved on switch roots, checkbox roots, setting rows and the theme collection; contrast, gray-on-color and border-contrast with unresolvedBackdrop or paint-layer-over-base; selection-idiom unmatchedSelected. Those subjects are withheld from judgement.
+Across the three evidence runs (surface-Nn5cKU, surface-q297LL, surface-2sWzKu) the design audit reports incomplete populations: quiet-state unmatchedOn, unmatchedOff and unresolved on switch roots, checkbox roots, setting rows and the theme collection; contrast, gray-on-color and border-contrast with unresolvedBackdrop or paint-layer-over-base; selection-idiom unmatchedSelected. Those subjects are withheld from judgement. In the desktop evidence walk the dominant withheld reason is unreadCover, on contrast, gray-on-color, inactive-control-legibility and text-over-art.
 
 ## Why
 
