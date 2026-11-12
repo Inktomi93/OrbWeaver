@@ -152,11 +152,13 @@ const ECHO_DECLARED = new RegExp(
 
 function registerEchoGeometryCase(width: number, scale: number): void {
   test(`echo at ${width} and ${scale}x text: no message row control lies over another, and only the art and its foot are declared`, async ({
+    browserName,
     corpus,
     corpusMedia,
     mount,
     page,
   }) => {
+    test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
     const caller = await root.internalCallerFor(root.ownerId);
     await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
     await caller.settings.updateUserSettingsSection({
