@@ -2035,6 +2035,16 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/notifications/persistence/**"],
+      rules: { "orb/notifications-inbox-owner": "error" },
+    },
+    {
+      files: ["packages/server/src/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/settings/persistence/**"],
+      rules: { "orb/settings-kv-owner": "error" },
+    },
+    {
+      files: ["packages/server/src/**/*.{ts,tsx}"],
       rules: {
         "orb/no-direct-users-read-reexport": "error",
         "orb/vector-scope-derived-reexport": "error",

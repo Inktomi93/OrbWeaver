@@ -58,6 +58,12 @@ const VECTOR_WRITE_METHODS = alternation(["insert", "update", "delete"]);
 const USERS_MESSAGE =
   "The users table is read and written only by domain/sessions and domain/admin (Spine-Identity-and-Auth §1, invariant 10). Take userId from the resolved Principal instead.";
 
+const INBOX_MESSAGE =
+  "The notifications inbox table is named only by domain/notifications/persistence: `notifications.record` is the one recipient chokepoint (Core-0 §8). Route a notification through the injected notifications.record op.";
+
+const SETTINGS_KV_MESSAGE =
+  "The settings key-value table is named only by domain/settings/persistence: settings has one writer (Core-0 §8). Read or write a tenant value through the settings KV port, or an app value through the settings service.";
+
 const VECTOR_MESSAGE =
   "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) and the debug probes (D20). Go through the search engine with a producer scope.";
 
@@ -77,6 +83,20 @@ export const TABLE_IMPORT_RESTRICTIONS = [
   {
     id: "no-direct-users-read-reexport",
     selectors: [tableExportDoor("'users'"), DB_STAR_EXPORT].map((selector) => ({ selector, message: USERS_MESSAGE })),
+  },
+  {
+    id: "notifications-inbox-owner",
+    selectors: [tableImportDoor("'notifications'"), tableExportDoor("'notifications'"), DB_WHOLE_MODULE_DOORS].map((selector) => ({
+      selector,
+      message: INBOX_MESSAGE,
+    })),
+  },
+  {
+    id: "settings-kv-owner",
+    selectors: [tableImportDoor("'settings'"), tableExportDoor("'settings'"), DB_WHOLE_MODULE_DOORS].map((selector) => ({
+      selector,
+      message: SETTINGS_KV_MESSAGE,
+    })),
   },
   {
     id: "vector-scope-derived",

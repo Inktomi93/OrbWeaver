@@ -253,7 +253,7 @@ Promoted here from code comments so they are discoverable; the code stays the so
 | **Notifications are durable-first** — INSERT the inbox row, THEN publish to the bus; a crash between the two never loses a delivered notification (the inbox is truth, the bus is best-effort). | `domain/notifications` |
 | **`notifications.record` is the ONE recipient chokepoint** — every producer routes through it, and it REFUSES an agent-principal recipient (agents never hold an inbox). Enforced once, inherited by all producers. | `domain/notifications` |
 | **Wire event unions are secret-unrepresentable** — the chat/notification event unions are closed discriminated unions of strict objects carrying only ids + literals; a secret/credential field is not expressible, so it cannot leak onto the bus. | `@orb/contracts/{chat,notifications}` |
-| **Settings has one writer.** `domain/settings` owns its KV table and exposes an opaque, registered-prefix port; each tenant owns its values' meaning. | `packages/server/src/domain/settings/persistence/kv.ts`; `SETTINGS_TENANT_PREFIXES` in `@orb/contracts/settings` |
+| **Settings has one writer.** `domain/settings` owns its KV table and exposes an opaque, registered-prefix port; each tenant owns its values' meaning. | `packages/server/src/domain/settings/persistence/kv.ts`; `SETTINGS_TENANT_PREFIXES` in `@orb/contracts/settings`; `orb/settings-kv-owner` refuses the table outside settings persistence |
 | **`users`-read chokepoint + audit-ordering** — only `admin` + `sessions` read the `users` table (every admin read checks authorization first); audit ordering is check→write→audit, so a refused write leaves NO phantom audit row. | `domain/admin` |
 
 ## 9. Retained tooling

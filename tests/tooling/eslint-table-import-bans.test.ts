@@ -16,7 +16,9 @@ const VECTOR = "orb/vector-scope-derived";
 const VECTOR_REEXPORT = "orb/vector-scope-derived-reexport";
 const VECTOR_WRITE = "orb/vector-scope-derived-write";
 const VECTOR_COSINE = "orb/vector-scope-derived-cosine";
-const RULES = [USERS, USERS_REEXPORT, VECTOR, VECTOR_REEXPORT, VECTOR_WRITE, VECTOR_COSINE] as const;
+const INBOX = "orb/notifications-inbox-owner";
+const SETTINGS_KV = "orb/settings-kv-owner";
+const RULES = [USERS, USERS_REEXPORT, VECTOR, VECTOR_REEXPORT, VECTOR_WRITE, VECTOR_COSINE, INBOX, SETTINGS_KV] as const;
 type Rule = (typeof RULES)[number];
 type Row = readonly [path: string, source: string, expected: Partial<Record<Rule, number>>];
 const VECTOR_TABLES = ["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"] as const;
@@ -61,19 +63,19 @@ const USERS_GATE_ROWS: readonly Row[] = [
   [
     "packages/server/src/entry/auth/identity.ts",
     `import * as schema from "${USERS_SCHEMA}";\nexport const identity = schema["users"];\n`,
-    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 1 },
+    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 1, [INBOX]: 1, [SETTINGS_KV]: 1 },
   ],
   ["packages/server/src/domain/billing/x.ts", `import { users } from "${USERS_SCHEMA}";\nexport const u = users;\n`, { [USERS]: 1 }],
   ["packages/server/src/domain/billing/barrel.ts", 'import { users } from "../../../../db/src/index.ts";\nexport const u = users;\n', { [USERS]: 1 }],
   [
     "packages/server/src/domain/billing/ns.ts",
     `import * as schema from "${USERS_SCHEMA}";\nexport const u = schema.users;\n`,
-    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 1 },
+    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 1, [INBOX]: 1, [SETTINGS_KV]: 1 },
   ],
   [
     "packages/server/src/domain/billing/bracket.ts",
     `import * as schema from "${USERS_SCHEMA}";\nexport const u = schema["users"];\n`,
-    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 1 },
+    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 1, [INBOX]: 1, [SETTINGS_KV]: 1 },
   ],
   [
     "packages/server/src/domain/billing/twice.ts",
@@ -182,12 +184,12 @@ const VECTOR_GATE_ROWS: readonly Row[] = [
   [
     "packages/server/src/domain/hub/namespace-write.ts",
     `import * as schema from "${VECTOR_SCHEMA}";\nexport const w = (db: { insert: (t: unknown) => void }): void => db.insert(schema.chatDigests);\n`,
-    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 2 },
+    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 2, [INBOX]: 1, [SETTINGS_KV]: 1 },
   ],
   [
     "packages/server/src/domain/hub/bracket-write.ts",
     `import * as schema from "${VECTOR_SCHEMA}";\nexport const w = (db: Record<string, (t: unknown) => void>): void => db["insert"](schema["chatDigests"]);\n`,
-    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 2 },
+    { [USERS]: 1, [VECTOR]: 1, [VECTOR_WRITE]: 2, [INBOX]: 1, [SETTINGS_KV]: 1 },
   ],
   [
     "packages/server/src/domain/search/persistence/aliased-write.ts",
@@ -413,6 +415,45 @@ test("only embeddings persistence writes a vector table, whatever the receiver o
   }
   const { actual, expected } = await verdicts(rows, [VECTOR_WRITE]);
   expect(actual).toEqual(expected);
+});
+
+// Each single-writer table: its rule, the table's export name, the one persistence home that may name it, and a
+// table of the same package the rule leaves alone.
+const SINGLE_WRITER_TABLES = [
+  [INBOX, "notifications", "packages/server/src/domain/notifications/persistence/queries.ts", "auditLogs"],
+  [SETTINGS_KV, "settings", "packages/server/src/domain/settings/persistence/kv.ts", "userSettings"],
+] as const;
+
+test("only its own persistence names the inbox or the settings key-value table, through any import door", CONFIG_TIMEOUT, async () => {
+  for (const [rule, table, home, neighbour] of SINGLE_WRITER_TABLES) {
+    const rows: Row[] = [];
+    for (const path of [
+      "packages/server/src/domain/chat/verbs/x.ts",
+      "packages/server/src/domain/notifications/verbs/x.ts",
+      "packages/server/src/domain/settings/verbs/x.ts",
+      "packages/server/src/entry/compose/x.ts",
+      "packages/server/src/foundation/observability/debug/x.ts",
+    ]) {
+      for (const source of [
+        `import { ${table} } from "@orb/db";\nexport const t = ${table};`,
+        `import { ${table} as t } from "@orb/db";\nexport const x = t;`,
+        `import type { ${table} } from "@orb/db";\nexport type T = typeof ${table};`,
+        `import { "${table}" as t } from "@orb/db";\nexport const x = t;`,
+        `import { ${table} } from "@orb/db/schema";\nexport const t = ${table};`,
+        `export { ${table} } from "@orb/db";`,
+        'import * as schema from "@orb/db";\nexport const t = schema;',
+        'export const load = async () => await import("@orb/db");',
+      ]) {
+        rows.push([path, source, { [rule]: 1 }]);
+      }
+      rows.push([path, `import { ${neighbour} } from "@orb/db";\nexport const t = ${neighbour};`, {}]);
+    }
+    for (const path of [home, "packages/client/src/features/probe.ts", "tests/server/domain/probe.int.test.ts"]) {
+      rows.push([path, `import { ${table} } from "@orb/db";\nexport const t = ${table};`, {}]);
+    }
+    const { actual, expected } = await verdicts(rows, [rule]);
+    expect(actual).toEqual(expected);
+  }
 });
 
 test("top-k cosine SQL is spelled only in search persistence", CONFIG_TIMEOUT, async () => {
