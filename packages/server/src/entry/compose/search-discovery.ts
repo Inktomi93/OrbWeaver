@@ -2,6 +2,7 @@
 // Workload admission is late-bound because chat contributes runners after this graph is constructed.
 
 import type { DomainEvent } from "@orb/contracts/events";
+import type { ResolveUserEnabled } from "@orb/contracts/identity";
 import type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { findSeedEmbedding } from "@orb/default-content";
@@ -116,6 +117,8 @@ export interface SearchDiscoveryComposeDeps {
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
   readonly isBoxOwner: WorkloadServiceContext["isBoxOwner"];
+  /** The disabled-account read the room document union narrows its crediting members by. */
+  readonly resolveUserEnabled: ResolveUserEnabled;
   /** chat's memory-enabled read (LATE-BOUND: chat composes after this seam), for the memory-off receipt. */
   readonly isMemoryEnabled: VacuousMemoryReceiptDeps["isMemoryEnabled"];
   readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
@@ -287,8 +290,8 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     roleClientsFor,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
     now,
-    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
-    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope),
+    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope, deps.resolveUserEnabled),
+    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope, deps.resolveUserEnabled),
   });
   const discovery = createDiscoveryService({
     resolveDigestSources: createDigestSources({

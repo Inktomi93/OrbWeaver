@@ -38,7 +38,7 @@ import type {
   StoreResult,
 } from "@orb/contracts/embeddings";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
-import type { Can, Principal } from "@orb/contracts/identity";
+import type { Can, Principal, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { SearchDocumentsOp } from "@orb/contracts/search";
 import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -197,6 +197,8 @@ export interface DatabankContext {
    *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
   readonly ensureChatMember: RequireParticipantOp;
   readonly resolveChatHost: ResolveChatHostOp;
+  /** The disabled-account read the D85 union narrows a room's crediting members by. */
+  readonly resolveUserEnabled: ResolveUserEnabled;
   /** The leak-safe reverse-room read `listAttachments` names its rooms through — chat's answer to "of
    *  these rooms, which may this caller see, and what are they called". Injected for the same reason the two
    *  guards above are: D18 rooms scope on `chat_participants`, and databank reads neither the roster nor

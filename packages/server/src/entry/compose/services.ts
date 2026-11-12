@@ -870,6 +870,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveChatCapability: (args) => connection.resolveChatCacheContext(args),
     getContributions: getWorkloadContributions,
     isBoxOwner,
+    resolveUserEnabled: createResolveUserEnabled(sessions),
     isMemoryEnabled: (ownerId) => isMemoryEnabledBinding.read().isMemoryEnabled(ownerId),
     emptyMemoryScope: (ownerId) => emptyMemoryScope(ownerId),
   });
@@ -989,6 +990,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     search,
     workloads,
     loadUserSettings: settings.loadUserSettings,
+    resolveUserEnabled: createResolveUserEnabled(sessions),
     emitChatEventLive,
   });
 

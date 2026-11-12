@@ -1,5 +1,6 @@
 // The state rounds' connection seam: the one structured-output call, the room preset window, and the funder's chat
-// connection resolved the way the turn resolves its own.
+// connection resolved the way the turn resolves its own. A round runs on a turn's connection (the turn refuses a
+// disabled host) or for a host who asked in person (populate, resync, promote), so none spends a disabled account.
 
 import type { Resolved } from "@orb/inference";
 import { isResolveRefusal, runStructuredChat, withPresetWindow } from "@orb/inference";

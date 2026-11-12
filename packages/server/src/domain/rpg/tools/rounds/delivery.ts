@@ -1,5 +1,6 @@
 // The READ-side delivery verdicts (the readonly-trackers pill, the fold guard) and the state-round fit check, both
-// over the room funder's chat connection.
+// over the room funder's chat connection. A member's read only resolves that connection's capability and sends no
+// request on it, so it spends nothing of a host's account, a disabled host's included.
 
 import { coEmitsProseWithTools } from "@orb/contracts/inference";
 import { buildToolRoundWireTools, constrainExtractionSchema, rpgExtractionSchema } from "@orb/contracts/rpg";
