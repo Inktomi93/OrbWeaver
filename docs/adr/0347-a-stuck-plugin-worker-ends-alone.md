@@ -28,7 +28,9 @@ The allowance covers the longest honest overrun, a synchronous seam call that wa
 
 **Only liveness replaces the broker.** The broker's main thread writes its watchdog a heartbeat, stamped with its send time, every `PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS`. It writes on its own pipe (`PLUGIN_BROKER_BEAT_FD`) from a timer no command or Worker touches, so no beat waits behind a frame. The write never blocks that thread: a beat due while the last is unwritten is skipped, so a stalled watchdog leaves the broker serving and costs at most one miss. The watchdog judges on the same period, after it has read the beats waiting in that pipe. An interval counts as missed only when that judgement finds no newer beat. After `PLUGIN_BROKER_HEARTBEAT_MISSES_MAX` consecutive misses the watchdog ends the broker, and the parent fails every command the broker held as host-unavailable. Before the first beat only the start-up deadline applies. No command timer ends the broker.
 
-The bound is eight times the worst send gap of healthy brokers, 125 ms, measured on floor runs at load up to 40 on 24 cores, 117 cold broker starts at load up to 36 with 40 GB free, and a whole surface walk. So a broker that stops answering ends about 1 s (40 intervals) later. Liveness means nothing on a swapping host, where a stall can outlast any bound. A full IPC queue ends no process: it refuses the one frame that would overflow it (D348).
+The bound is eight times the worst send gap of healthy brokers, 125 ms, measured on loaded floor runs, cold broker starts and a surface walk. So a broker that stops answering ends about 1 s later. Liveness means nothing on a swapping host, where a stall can outlast any bound. A full IPC queue ends no process: it refuses the one frame that would overflow it (D348).
+
+**Repeated broker losses are bounded.** A lone loss recovers at once. Inside `PLUGIN_BROKER_LOSS_WINDOW_MS` each further loss holds every plugin call for `pluginBrokerRestartHoldMs`, which doubles, so a loss a call can cause repeats only that often. One loss past `PLUGIN_BROKER_LOSSES_MAX` stops the host until the server restarts, and each resident plugin's row records why. Losses close together mean something reproduces one, and an outage the owner reads beats a silent loop.
 
 **A late command fails alone.** The parent times only each runtime's oldest outstanding command, from when it became the oldest, so time queued behind earlier commands is never charged to it. `EVENT_QUEUE_DEPTH` bounds the queue and refuses the next invoke. A runtime starts its next invoke one macrotask after the previous one answers, so the broker never charges that invoke's first span to the command before it. Past `PLUGIN_COMMAND_TIMEOUT_MS` for its kind, the parent fails that command as an ended invocation and asks the broker to end the runtime; the broker does so, as above, only if it still holds that command. For every kind, the worst case is under that backstop: the budget, the allowance and two checks, the settlement walls the kind waits out, the host work no span counts, one `HOST_FN_DEADLINE_MS` of slack, and the liveness bound. The slack is chosen, about twice the slowest Worker start measured (2.65 s).
 
@@ -36,14 +38,14 @@ The bound is eight times the worst send gap of healthy brokers, 125 ms, measured
 
 **Homes.**
 
-- `PLUGIN_WORKER_OVERRUN_MAX_MS`, `PLUGIN_WORKER_SPAN_CHECK_MS`, `PLUGIN_COMMAND_CPU_BUDGET_MS`, `PLUGIN_COMMAND_TIMEOUT_MS`, `PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS`, `PLUGIN_BROKER_HEARTBEAT_MISSES_MAX` and `PLUGIN_BROKER_LIVENESS_BOUND_MS` in `packages/server/src/infra/plugin-host/budgets.ts`; `PLUGIN_BROKER_BEAT_FD` in `packages/server/src/infra/plugin-host/process-protocol.ts`.
-- The heartbeat check in `packages/server/src/infra/plugin-host/broker-watchdog.ts` and `packages/server/src/infra/plugin-host/watchdog-policy.ts`.
+- `PLUGIN_WORKER_OVERRUN_MAX_MS`, `PLUGIN_WORKER_SPAN_CHECK_MS`, `PLUGIN_COMMAND_CPU_BUDGET_MS`, `PLUGIN_COMMAND_TIMEOUT_MS`, `PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS`, `PLUGIN_BROKER_HEARTBEAT_MISSES_MAX`, `PLUGIN_BROKER_LIVENESS_BOUND_MS` and the loss bound in `packages/server/src/infra/plugin-host/budgets.ts`; `PLUGIN_BROKER_BEAT_FD` in `packages/server/src/infra/plugin-host/process-protocol.ts`.
+- The heartbeat check in `broker-watchdog.ts` and `watchdog-policy.ts`.
 - The invoke queue in `packages/server/src/infra/plugin-host/port.ts`.
-- `CpuSpanReport` in `packages/server/src/infra/plugin-host/contract/port.ts`: built by `packages/server/src/infra/plugin-host/worker-runtime.ts` and called by each span in `packages/server/src/infra/plugin-host/cpu-guard.ts`.
+- `CpuSpanReport` in `packages/server/src/infra/plugin-host/contract/port.ts`: built by `worker-runtime.ts`, called by each span in `cpu-guard.ts`.
 - The heartbeat, `endStuckRuntime`, `commandOverran`, the span check and the `end-runtime` request in `packages/server/src/infra/plugin-host/broker-entry.ts`.
-- `handleRuntimeEnded`, `owedRefusal`, `armBackstop`, `backstop`, `PluginHostUnavailableError` and `onDisconnect` in `packages/server/src/infra/plugin-host/process-runtime.ts`.
+- `handleRuntimeEnded`, `owedRefusal`, `armBackstop`, `backstop`, `recordBrokerLoss`, `PluginHostUnavailableError` and `onDisconnect` in `packages/server/src/infra/plugin-host/process-runtime.ts`.
 - The strike classifier `isHostAdmissionRefusal` in `packages/server/src/domain/plugin/activation/activate.ts`.
-- Tests: `tests/server/infra/plugin-host/stuck-worker.int.test.ts`, `tests/server/infra/plugin-host/broker-bounds.test.ts`, `tests/server/infra/plugin-host/persistence/stall-strikes.int.test.ts` and `tests/server/infra/plugin-host/persistence/broker-liveness.int.test.ts`.
+- Tests: `tests/server/infra/plugin-host/`.
 
 ## Consequences
 

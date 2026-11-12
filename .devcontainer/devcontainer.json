@@ -21,10 +21,15 @@
         //
         // Run the Claude Code EXTENSION in permissive/bypass mode by default. The
         // extension defaults to "default" mode + a disabled dangerous-skip gate, so
-        // it prompts even though this is a sandbox. These two keys flip both. The
-        // container + firewall are the boundary (owner ruling: the point of
-        // the dev container is to run without prompts); the host keeps prompting (these
-        // are not in the committed .vscode/settings.json).
+        // it prompts even though this is a sandbox. These two keys flip both; the host
+        // keeps prompting (these are not in the committed .vscode/settings.json).
+        // Owner ruling: the point of the dev container is to run without prompts, with no
+        // egress proxy. The container and init-firewall.sh stop egress to addresses off the
+        // allowlist and to every host port. They do not stop a request to another site on a
+        // shared content network in the allowlist (one of npm's Cloudflare addresses serves
+        // any Cloudflare site), or data leaving inside DNS lookups through the resolvers.
+        // So the session credentials in /home/node/.claude are NOT protected from an agent
+        // steered by fetched content (README, "What the firewall stops").
         "claudeCode.allowDangerouslySkipPermissions": true,
         "claudeCode.initialPermissionMode": "bypassPermissions",
         "terminal.integrated.defaultProfile.linux": "zsh",

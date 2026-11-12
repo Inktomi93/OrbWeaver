@@ -19,6 +19,8 @@ const BROKER_ENTRY = fileURLToPath(new URL("./broker-entry.ts", import.meta.url)
 const BROKER_RESTART_DELAY_MS = 1000;
 const { directory, workerMaximum, memoryLimitBytes, nodeEnvironment, logLevel } = parsePluginBrokerWatchdogArguments(process.argv.slice(2));
 const stop = Promise.withResolvers<void>();
+// Set once the watchdog is told to stop: from then on it closes its relay to the broker and ends it.
+let stopping = false;
 let activeBroker: ChildProcess | undefined;
 let activeGeneration: string | undefined;
 let brokerSender: PluginIpcSender | undefined;
@@ -38,7 +40,9 @@ process.on("message", (value: unknown) => {
     stopBroker();
     return;
   }
-  if (message.generation !== activeGeneration || brokerSender === undefined) {
+  // A frame for a stopped generation, or one the app sent while this watchdog stops its broker, is part of a
+  // replacement or a shutdown: the broker it was for is ending, so it is dropped, not reported as a broken relay.
+  if (message.generation !== activeGeneration || brokerSender === undefined || stopping) {
     return;
   }
   // Any relay failure SIGKILLs the broker, whatever its class: its exit settles superviseOneBroker, which sends the
@@ -259,6 +263,7 @@ async function superviseOneBroker(): Promise<string> {
 }
 
 function stopBroker(): void {
+  stopping = true;
   stop.resolve();
   brokerSender?.close();
   activeBroker?.kill("SIGTERM");

@@ -1,7 +1,8 @@
 // @subject packages/server/src/infra/plugin-host/process-channel.ts
 // A full IPC queue refuses one frame, never the channel (D348). Each hop's sender refuses a plugin-sized frame past its
-// runtime's share or past the queue short of its control headroom and stays open; the watchdog's relay sends that
-// frame's refusal in its place. The scripted edge is the IPC channel, which holds every write until it is acknowledged.
+// share or past the queue short of its control headroom and stays open; the watchdog's relay sends that frame's refusal
+// in its place. A runtime that replaces another takes its share, so the replaced runtime's queued bytes never take a
+// bystander's room. The scripted edge is the IPC channel, which holds every write until it is acknowledged.
 import { expect, test } from "@orb/testkit/node";
 import {
   HOST_FN_RESULT_CAP_BYTES,
@@ -10,7 +11,7 @@ import {
   pluginIpcShareBytes,
 } from "#server/infra/plugin-host/budgets.ts";
 import type { RoutedIpcFrame } from "#server/infra/plugin-host/process-channel.ts";
-import { PluginIpcSender, relayFrame } from "#server/infra/plugin-host/process-channel.ts";
+import { PluginIpcSender, PluginIpcShares, relayFrame } from "#server/infra/plugin-host/process-channel.ts";
 import { channelFullBridgeResult, channelFullResponse, serializeMessage } from "#server/infra/plugin-host/process-protocol.ts";
 
 type PluginIpcSend = ConstructorParameters<typeof PluginIpcSender>[0];
@@ -46,18 +47,18 @@ function heldChannel(shareBytes = pluginIpcShareBytes(WORKER_MAXIMUM)): HeldChan
   return { sender, written, failures, drain };
 }
 
-function routed(runtimeId: string, refusal?: { readonly frame: string; readonly back: boolean }): RoutedIpcFrame {
-  return { kind: "frame", generation: GENERATION, frame: PLUGIN_FRAME, route: refusal === undefined ? { runtimeId } : { runtimeId, refusal } };
+function routed(share: string, refusal?: { readonly frame: string; readonly back: boolean }): RoutedIpcFrame {
+  return { kind: "frame", generation: GENERATION, frame: PLUGIN_FRAME, route: refusal === undefined ? { share } : { share, refusal } };
 }
 
 function envelopeBytes(message: PluginIpcMessage): number {
   return Buffer.byteLength(JSON.stringify(message), "utf8");
 }
 
-// Offer one runtime's frames until the sender refuses one; the count it took.
-function fillShare(sender: PluginIpcSender, runtimeId: string): number {
+// Offer one share's frames until the sender refuses one; the count it took.
+function fillShare(sender: PluginIpcSender, share: string): number {
   let accepted = 0;
-  while (sender.offer(routed(runtimeId))) {
+  while (sender.offer(routed(share))) {
     accepted += 1;
   }
   return accepted;
@@ -99,6 +100,27 @@ test("plugin frames stop short of the control headroom, so a refusal still fits 
   channel.sender.send(refusal);
   expect(channel.written.at(-1)).toEqual(refusal);
   expect(channel.failures).toEqual([]);
+});
+
+test("a runtime that replaces another mid-flood takes the replaced runtime's share, so a bystander's full share is served", () => {
+  // What one runtime's share takes on an empty channel: a bystander's full share.
+  const fullShare = fillShare(heldChannel().sender, "0");
+  const channel = heldChannel();
+  const shares = new PluginIpcShares();
+  for (const runtimeId of ["replaced", "flooding-1", "flooding-2"]) {
+    expect(fillShare(channel.sender, shares.acquire(runtimeId))).toBe(fullShare);
+  }
+
+  // The replaced runtime's Worker exits with its frames still queued, and its replacement floods at once.
+  shares.release("replaced");
+  const replacement = shares.acquire("replacement");
+  expect(fillShare(channel.sender, replacement)).toBe(0);
+  expect(fillShare(channel.sender, shares.acquire("bystander"))).toBe(fullShare);
+  expect(channel.failures).toEqual([]);
+
+  // Positive control: once the queued bytes drain, the replacement has its own full share.
+  channel.drain();
+  expect(fillShare(channel.sender, replacement)).toBe(fullShare);
 });
 
 test("the relay sends a refused request's refusal back to its producer and nothing on", () => {

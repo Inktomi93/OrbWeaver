@@ -2,10 +2,10 @@
 # scripts/dev/sandbox.sh — one-shot launcher for the Claude Code sandbox (.devcontainer/) WITHOUT
 # VS Code: ensures the dev container is built + running (devcontainers CLI, idempotent), then opens
 # a NEW terminal window shelled into it with Claude already started in permissive mode
-# (`--dangerously-skip-permissions` — the container + firewall are the boundary; owner ruling:
-#  the point of the dev container is to run without prompts). When Claude exits, the window
-# drops to a zsh inside the container instead of closing (so contributor commands are one keystroke
-# away). HOST-side script — never run inside the container ($DEVCONTAINER guard).
+# (`--dangerously-skip-permissions`; owner ruling: the point of the dev container is to run without
+# prompts. The firewall stops accidental egress, not a steered agent: .devcontainer/README.md). When
+# Claude exits, the window drops to a zsh inside the container instead of closing (so contributor
+# commands are one keystroke away). HOST-side script — never run inside the container ($DEVCONTAINER guard).
 #
 #   pnpm sandbox              build/start + open Claude in a new terminal window
 #   pnpm sandbox --here       same, but in THIS terminal (no new window; also the SSH fallback)
@@ -48,7 +48,7 @@ echo "▶ ensuring the sandbox container is up (first build takes a few minutes)
 npx --yes @devcontainers/cli "${UP_ARGS[@]}"
 
 # 2. The command that runs INSIDE the container. Claude in permissive mode is the point of the
-#    sandbox (the firewall + container are the boundary); on exit, fall through to zsh.
+#    sandbox; on exit, fall through to zsh.
 if [ "$SHELL_ONLY" = 1 ]; then
   INNER='exec zsh -l'
 else

@@ -43,7 +43,7 @@ import type { CharacterAvatarLinkContext } from "../contract/avatar-link.ts";
  *  WHERE; the asset the SET writes was not checked at all, so a caller-supplied `link.assetId` naming
  *  ANOTHER owner's asset landed on this owner's own card — a live pointer into a library the card's owner
  *  cannot read, and an FK that GC-roots the other owner's blob through a row they do not control. That is
- *  the failure `queries.ts::ensureAssetOwned` (the create/update front doors) and
+ *  the failure `queries.ts::ensureAvatarAsset` (the create/update front doors) and
  *  `ensureBackgroundOverrideOwned` (the carried background) already refuse; a maintenance op handed a
  *  caller-supplied id list has strictly less standing to skip it, not more.
  *

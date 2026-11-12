@@ -178,6 +178,17 @@ export async function getById(db: Db, ownerId: UserId, pluginId: PluginId): Prom
  *  query this table). Owner-scoped like every other read here, so a foreign or missing id is `false` with no
  *  existence leak; `false` is also the fail-CLOSED answer for a disabled or errored row, which is the point —
  *  a card must not become one more act after the owner turned the plugin off. */
+/** The plugin host stopped restarting its broker (D347): each of this owner's enabled plugins records why, in the
+ *  Plugins list that shows plugin health. The status stays `enabled`: the plugins did nothing, and a server restart
+ *  serves them again. */
+export async function recordHostHaltFor(handle: DatabaseHandle, ownerId: UserId, lastError: string, updatedAt: number): Promise<void> {
+  const db = databaseForOwner(handle);
+  await db
+    .update(plugins)
+    .set({ lastError, updatedAt })
+    .where(and(eq(plugins.ownerId, ownerId), eq(plugins.status, "enabled")));
+}
+
 export async function isPluginEnabledFor(handle: DatabaseHandle, ownerId: UserId, pluginId: PluginId): Promise<boolean> {
   const db = databaseForOwner(handle);
   const rows = await db

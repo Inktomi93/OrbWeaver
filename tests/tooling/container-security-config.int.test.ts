@@ -109,21 +109,20 @@ function workspaceImporters(repoRoot: string): readonly string[] {
 const FIREWALL_ADDRESSES: Readonly<Record<string, string>> = { "api.github.com": "140.82.112.5", "example.com": "203.0.113.10" };
 const FIREWALL_FALLBACK_ADDRESS = "192.0.2.10";
 const GITHUB_META_RANGE = "140.82.112.0/20";
-const FIREWALL_COMMANDS = ["iptables", "ip6tables", "iptables-save", "ipset", "ip", "curl", "dig", "aggregate"] as const;
+const FIREWALL_COMMANDS = ["iptables", "ip6tables", "iptables-save", "ipset", "curl", "dig", "aggregate"] as const;
 const FIREWALL_FAMILIES = ["iptables", "ip6tables"] as const;
 type FirewallFamily = (typeof FIREWALL_FAMILIES)[number];
 const ALLOWED_SET = "allowed-domains";
 const SSH_SET = "github-ssh";
 const FIREWALL_CHAINS = ["INPUT", "OUTPUT", "FORWARD"] as const;
-// The fake default route; the script admits its /24 as the host network.
-const FAKE_GATEWAY = "172.17.0.1";
-const FAKE_HOST_NETWORK = "172.17.0.0/24";
+// An answer no resolver gives for an address record; the script must stop on it under DROP.
+const JUNK_ANSWER = "not-an-address";
 
 /**
  * Node sources for the commands init-firewall.sh drives. A destination answers only when the allowlist the script
  * built covers it. `iptables`, `ip6tables` and `ipset` write every call, in order, to one `calls` file, and each ipset
- * is also a file of entries. `dig-fail` names one domain whose lookup times out; an `ip-fail` file makes the route
- * lookup fail.
+ * is also a file of entries. `dig-fail` names one domain whose lookup times out; `dig-junk` names one whose answer is
+ * not an address.
  */
 function firewallFakes(state: string): Readonly<Record<(typeof FIREWALL_COMMANDS)[number], string>> {
   const shared = `import { appendFileSync, existsSync, readFileSync } from "node:fs";
@@ -136,9 +135,6 @@ const record = (command) => appendFileSync(state + "/calls", [command, ...proces
     iptables: `${shared}record("iptables");\n`,
     ip6tables: `${shared}record("ip6tables");\n`,
     "iptables-save": "",
-    ip: `${shared}if (existsSync(state + "/ip-fail")) process.exit(1);
-process.stdout.write("default via ${FAKE_GATEWAY} dev eth0\\n");
-`,
     aggregate: "process.stdin.pipe(process.stdout);\n",
     ipset: `${shared}record("ipset");
 const [verb, set, entry] = process.argv.slice(2);
@@ -146,7 +142,8 @@ if (verb === "add") appendFileSync(state + "/set-" + set, entry + "\\n");
 `,
     dig: `${shared}const domain = process.argv.at(-1);
 if (existsSync(state + "/dig-fail") && readFileSync(state + "/dig-fail", "utf8") === domain) process.exit(9);
-process.stdout.write(domain + ".\\t60\\tIN\\tA\\t" + addressOf(domain) + "\\n");
+const junk = existsSync(state + "/dig-junk") && readFileSync(state + "/dig-junk", "utf8") === domain;
+process.stdout.write(domain + ".\\t60\\tIN\\tA\\t" + (junk ? ${JSON.stringify(JUNK_ANSWER)} : addressOf(domain)) + "\\n");
 `,
     curl: `${shared}import { BlockList } from "node:net";
 const url = new URL(process.argv.slice(2).find((arg) => arg.startsWith("https://")));
@@ -178,37 +175,39 @@ interface FirewallRun {
   readonly name: string;
   readonly meta: string | null;
   readonly digFail?: string;
-  readonly ipFail?: boolean;
+  readonly digJunk?: string;
   /** The allowlist entry a started run must hold, or `null` for a run that must not start. */
   readonly allows: string | null;
 }
 
 /**
- * The closed list of OUTPUT accepts each family may hold, spelled as the script spells them: loopback, DNS to each
- * resolver, HTTPS to the allowlist set, ssh to the GitHub set and the host network. Anything else, a destination of
- * all addresses included, is a widening.
+ * The closed list of INPUT and OUTPUT accepts each family may hold, each its chain and the rule as the script spells
+ * it. OUTPUT: loopback, DNS to each resolver, HTTPS to the allowlist set and ssh to the GitHub set. INPUT: loopback and
+ * replies. No host port is admitted either way, so a rule for the host network, or a destination of all addresses, is
+ * a widening.
  */
-function admittedOutputAccepts(resolvers: readonly string[]): Readonly<Record<FirewallFamily, readonly string[]>> {
+function admittedAccepts(resolvers: readonly string[]): Readonly<Record<FirewallFamily, readonly string[]>> {
   return {
     iptables: [
-      "-o lo -j ACCEPT",
-      ...resolvers.flatMap((resolver) => [`-p udp -d ${resolver} --dport 53 -j ACCEPT`, `-p tcp -d ${resolver} --dport 53 -j ACCEPT`]),
-      `-p tcp --dport 443 -m set --match-set ${ALLOWED_SET} dst -j ACCEPT`,
-      `-p tcp --dport 22 -m set --match-set ${SSH_SET} dst -j ACCEPT`,
-      `-d ${FAKE_HOST_NETWORK} -j ACCEPT`,
+      "INPUT -i lo -j ACCEPT",
+      "INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT",
+      "OUTPUT -o lo -j ACCEPT",
+      ...resolvers.flatMap((resolver) => [`OUTPUT -p udp -d ${resolver} --dport 53 -j ACCEPT`, `OUTPUT -p tcp -d ${resolver} --dport 53 -j ACCEPT`]),
+      `OUTPUT -p tcp --dport 443 -m set --match-set ${ALLOWED_SET} dst -j ACCEPT`,
+      `OUTPUT -p tcp --dport 22 -m set --match-set ${SSH_SET} dst -j ACCEPT`,
     ],
-    ip6tables: ["-o lo -j ACCEPT"],
+    ip6tables: ["INPUT -i lo -j ACCEPT", "OUTPUT -o lo -j ACCEPT"],
   };
 }
 
-// An appended or inserted OUTPUT rule that accepts, in any spelling of the flags: the rule body after the chain.
-const OUTPUT_ACCEPT_RE = /^(?:-t filter )?(?:-A|--append|-I|--insert) OUTPUT (?:\d+ )?(?<body>.*(?:-j|--jump) ACCEPT.*)$/u;
+// An appended or inserted INPUT or OUTPUT rule that accepts, in any spelling of the flags: its chain and the rule body.
+const ACCEPT_RE = /^(?:-t filter )?(?:-A|--append|-I|--insert) (?<chain>INPUT|OUTPUT) (?:\d+ )?(?<body>.*(?:-j|--jump) ACCEPT.*)$/u;
 // A call that creates a rule, a chain or a set; the DROP policies must already hold before the first one.
 const CREATES_RE = /^(?:(?:-t \S+ )?(?:-A|--append|-I|--insert|-N|--new-chain) |create )/u;
 
-/** Per family: did all three DROP policies land before its first rule or set, and which OUTPUT accepts fall outside the list. */
+/** Per family: did all three DROP policies land before its first rule or set, and which accepts fall outside the list. */
 function sequenceVerdict(calls: readonly string[], resolvers: readonly string[]): Record<string, unknown> {
-  const admitted = admittedOutputAccepts(resolvers);
+  const admitted = admittedAccepts(resolvers);
   return Object.fromEntries(
     FIREWALL_FAMILIES.map((family) => {
       const own = calls
@@ -217,24 +216,24 @@ function sequenceVerdict(calls: readonly string[], resolvers: readonly string[])
       const firstCreate = own.findIndex((args) => CREATES_RE.test(args));
       const before = firstCreate === -1 ? own : own.slice(0, firstCreate);
       const dropFirst = FIREWALL_CHAINS.every((chain) => before.includes(`-P ${chain} DROP`));
-      const strayOutputAccepts = own.flatMap((args) => {
-        const body = OUTPUT_ACCEPT_RE.exec(args)?.groups?.["body"];
-        return body === undefined || admitted[family].includes(body) ? [] : [args];
+      const strayAccepts = own.flatMap((args) => {
+        const groups = ACCEPT_RE.exec(args)?.groups;
+        return groups === undefined || admitted[family].includes(`${groups["chain"] ?? ""} ${groups["body"] ?? ""}`) ? [] : [args];
       });
-      return [family, { dropFirst, strayOutputAccepts }];
+      return [family, { dropFirst, strayAccepts }];
     }),
   );
 }
 
 /** Run the real script once over fresh fake state, and read back what it left: exit, self-test and every rule it set. */
 function runFirewall(repoRoot: string, state: string, resolvers: readonly string[], run: FirewallRun): Record<string, unknown> {
-  for (const file of ["calls", `set-${ALLOWED_SET}`, `set-${SSH_SET}`, "meta", "dig-fail", "ip-fail"]) {
+  for (const file of ["calls", `set-${ALLOWED_SET}`, `set-${SSH_SET}`, "meta", "dig-fail", "dig-junk"]) {
     rmSync(join(state, file), { force: true });
   }
   const plant: readonly (readonly [string, string | null | undefined])[] = [
     ["meta", run.meta],
     ["dig-fail", run.digFail],
-    ["ip-fail", run.ipFail === true ? "" : undefined],
+    ["dig-junk", run.digJunk],
   ];
   for (const [file, content] of plant) {
     if (typeof content === "string") {
@@ -301,12 +300,12 @@ test("the firewall starts and reaches GitHub whatever the range fetch answers, n
     { name: "a junk answer", meta: "<html>rate limited</html>", allows: FIREWALL_ADDRESSES["api.github.com"] ?? "" },
     { name: "a good answer", meta: goodMeta, allows: GITHUB_META_RANGE },
     { name: "a lookup that times out", meta: goodMeta, digFail: "sentry.io", allows: GITHUB_META_RANGE },
-    { name: "a failed route lookup mid-script", meta: goodMeta, ipFail: true, allows: null },
+    { name: "a junk lookup answer mid-script", meta: goodMeta, digJunk: "sentry.io", allows: null },
   ];
   const lockedDown = {
     acceptPolicies: [],
     finalPolicies: FIREWALL_FAMILIES.flatMap(() => FIREWALL_CHAINS.map(() => "DROP")),
-    sequence: Object.fromEntries(FIREWALL_FAMILIES.map((family) => [family, { dropFirst: true, strayOutputAccepts: [] }])),
+    sequence: Object.fromEntries(FIREWALL_FAMILIES.map((family) => [family, { dropFirst: true, strayAccepts: [] }])),
     log: expect.any(String),
   };
   for (const run of runs) {
@@ -640,8 +639,8 @@ test("every compose shape resolves (the base and every overlay)", ({ repoRoot, s
   expect(services["orbweaver"]?.ports?.map((port) => port["host_ip"])).toEqual(["127.0.0.1"]);
 });
 
-// The sandbox is PERMISSIVE by owner ruling: the container +
-// firewall are the boundary, and the point of the dev container is to run without prompts. These pins keep
+// The sandbox is PERMISSIVE by owner ruling: the point of the dev container is to run without prompts, and its
+// firewall stops accidental egress, not a steered agent (.devcontainer/README.md). These pins keep
 // the bypass CONTAINER-ONLY — the launcher and the devcontainer's own config carry it; the committed project
 // settings carry no mode at all, because a project-level pin overrides the owner's user-level `auto` in
 // every host session (that override was the whole pain the ruling settled).

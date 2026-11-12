@@ -30,7 +30,7 @@ import {
   canonicalTagsOf,
   cardOf,
   detailOf,
-  ensureAssetOwned,
+  ensureAvatarAsset,
   ensureBackgroundOverrideOwned,
   loadOwnedCharacterRow,
   loadOwnedCharacterWithAvatar,
@@ -171,7 +171,7 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
     // source is `kind:"asset"` referencing a freshly-stored OWN asset, so that belt passes on it unchanged.
     const input = await resolveBackgroundOverride(ctx, principal, rawInput);
     if (input.avatarAssetId !== null && input.avatarAssetId !== undefined) {
-      await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
+      await ensureAvatarAsset(ctx.db, ownerId, input.avatarAssetId);
     }
     // BG-C: a `kind:"asset"` carried background must reference the caller's OWN asset (the avatar-FK belt's
     // twin for the JSON `background_override` column); the persisted value is canonicalized in `flagEdits`.

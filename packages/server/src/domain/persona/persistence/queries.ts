@@ -3,10 +3,12 @@
 // ROOM-plane read; and the room's pin through its chat (`chats.anchorPersonaId`, the FK chain). `detailOf`
 // narrows the stored `metadata` blob at the read seam, so a corrupt row degrades to `null`.
 
+import { ASSET_UPLOAD_REFUSAL_CODES, isPictureAssetKind } from "@orb/contracts/assets";
 import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "@orb/contracts/persona";
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, chats, personas } from "@orb/db";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { PersonaCandidate } from "#primitives/serde/persona";
@@ -243,10 +245,14 @@ export async function loadOwnedCharacterCard(db: Db, ownerId: UserId, characterI
 
 /** Gate: a supplied avatar asset must belong to the caller (the FK alone proves existence, never
  *  ownership). A foreign/absent asset collapses to {@link AssetNotFoundError} (no existence leak). */
-export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
-  const rows = await db.select({ ownerId: assets.ownerId }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
-  if (rows[0]?.ownerId !== ownerId) {
+export async function ensureAvatarAsset(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
+  const rows = await db.select({ ownerId: assets.ownerId, kind: assets.kind }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
+  const row = rows[0];
+  if (row?.ownerId !== ownerId) {
     throw new AssetNotFoundError(assetId);
+  }
+  if (!isPictureAssetKind(row.kind)) {
+    throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${row.kind} asset`);
   }
 }
 
