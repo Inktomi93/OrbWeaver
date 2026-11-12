@@ -2,6 +2,10 @@ import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
 import type { collectAudit as collectAuditSamples, PixelPass, RawSamples, readCohortRenders } from "@orb/tooling/ui-audit";
 import type { Page } from "@playwright/test";
 
+// The engine's observation floor stands in for data readiness on a page nothing has witnessed. A surface checkpoint
+// has already proven its declared witnesses rendered and its DOM went quiet, so the census needs only a held reading.
+const WITNESSED_OBSERVE_MIN_MS = 0;
+
 /** Read the maintained design engine's static census and resolve pending backdrops with its native pixel pass. */
 export async function readSurfaceDesignAudit(page: Page): Promise<{
   readonly samples: RawSamples;
@@ -23,7 +27,7 @@ export async function readSurfaceDesignAudit(page: Page): Promise<{
     populationEvidenceGap,
     viewportFrameGap,
   } = await import("@orb/tooling/ui-audit");
-  const samples = rawSamples(await page.evaluate(collectSamplesJs(auditEngineOf(page))));
+  const samples = rawSamples(await page.evaluate(collectSamplesJs(auditEngineOf(page), WITNESSED_OBSERVE_MIN_MS)));
   const pixels = await resolvePixelBackdrops(page, samples);
   const audit = collectAudit(pixels.samples);
   const accounting = samples.subjectAccounting;

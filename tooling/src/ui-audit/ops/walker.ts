@@ -62,7 +62,7 @@ import { WALKER_TARGET_IDENTITY } from "./walker/target-identity.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
-/** WALKER_CORE's mutation observer calls this, but the declaration lived inside PRE_WALK_SETTLE — so any
+/** WALKER_CORE's mutation observer calls this, but the declaration lived inside the pre-walk settle — so any
  *  OTHER page pass that reuses WALKER_CORE (ops/hover.ts's forced-state pass) would install an observer
  *  whose callback throws `mutationCarriesElement is not defined` on the first DOM change, and an async
  *  throw inside an observer surfaces as a page error, which this instrument reports as a P0 script-error
@@ -80,7 +80,7 @@ export const WALKER_MUTATION_CARRIES = `  function mutationCarriesElement(record
 /** Settle and census execute in ONE page task. A Node-side wait followed by a second evaluate leaves a
  *  same-count replacement gap between "settled" and the identity snapshot — precisely the blindness #976
  *  closes. Child-list revision joins element count so replacement cannot masquerade as quiet. */
-const PRE_WALK_SETTLE = `  var preWalkRevision = 0;
+const preWalkSettle = (observeMinMs: number): string => `  var preWalkRevision = 0;
   var preWalkMutationCount = 0;
 ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function (records) {
     for (var pm = 0; pm < records.length; pm += 1) {
@@ -100,7 +100,7 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
     preWalkHeld = preWalkCurrent === preWalkLatest && preWalkRevision === preWalkLastRevision;
     preWalkLatest = preWalkCurrent;
     preWalkLastRevision = preWalkRevision;
-    if (preWalkHeld && Date.now() - preWalkStarted >= ${CENSUS_OBSERVE_MIN_MS}) break;
+    if (preWalkHeld && Date.now() - preWalkStarted >= ${observeMinMs}) break;
   }
   var preWalkPending = preWalkObserver.takeRecords();
   for (var pp = 0; pp < preWalkPending.length; pp += 1) {
@@ -146,12 +146,17 @@ export function auditEngineOf(page: Page): AuditEngine {
   return AUDIT_ENGINES.find((engine) => engine === name) ?? "unknown";
 }
 
-/** The walker for one page, evaluated with `page.evaluate(collectSamplesJs(auditEngineOf(page)))`. */
-export function collectSamplesJs(engine: AuditEngine): string {
+/**
+ * The walker for one page, evaluated with `page.evaluate(collectSamplesJs(auditEngineOf(page)))`.
+ *
+ * @param observeMinMs - The pre-walk observation floor. Lower it only for a caller that has already proven the
+ *   surface's data rendered through its own witnesses; the walk still waits for a held reading under the ceiling.
+ */
+export function collectSamplesJs(engine: AuditEngine, observeMinMs: number = CENSUS_OBSERVE_MIN_MS): string {
   return `(async () => {
   var auditEngine = ${JSON.stringify(engine)};
   try {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_STATE_GLOW}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}
+${preWalkSettle(observeMinMs)}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_STATE_GLOW}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}
   } finally {
     if (typeof preWalkObserver !== "undefined") preWalkObserver.disconnect();
     if (typeof walkObserver !== "undefined") {

@@ -133,6 +133,14 @@ Keep existing unfinished UI work and discovered product defects on their governe
 Run the synthetic walkthrough with `pnpm e2e:surface --data=synthetic --auth=local`.
 Run framework controls with `pnpm e2e:surface:controls`.
 Pass native selectors after `--`, for example `-- --project=desktop-1440-all-panes-evidence`.
+A whole evidence project does not fit the native budget. Run it in these shards, one at a time; together they select every case once:
+
+```bash
+pnpm e2e:surface --data=synthetic --auth=local -- --project=desktop-1440-all-panes-evidence -g "@surface-walk (Rail|Refinery) "
+pnpm e2e:surface --data=synthetic --auth=local -- --project=desktop-1440-all-panes-evidence -g "(@surface-walk Chat |Chat reading style )"
+pnpm e2e:surface --data=synthetic --auth=local -- --project=desktop-1440-all-panes-evidence -g "(@surface-walk (Config|Characters) |local humans keep isolated)"
+```
+
 Use native `--global-timeout=<milliseconds>` for an explicitly larger or smaller execution budget.
 The outer process deadline follows that exact native budget and adds only its cleanup reserve.
 The launcher refuses unlimited, repeated or invalid timeout overrides because they cannot own bounded cleanup.
