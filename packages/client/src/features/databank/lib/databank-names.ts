@@ -46,3 +46,19 @@ export const DATABANK_LIST_NAME = "Documents";
 
 /** The library and Home tile empty state before any document exists. */
 export const DATABANK_EMPTY_TITLE = "No documents yet";
+
+/** The maintenance command that rebuilds every document's search index. */
+export const DATABANK_REBUILD_ALL_NAME = "Rebuild all documents";
+
+/** The maintenance command that reads every uploaded file again. */
+export const DATABANK_REREAD_ALL_NAME = "Re-read all documents";
+
+/** A maintenance command's confirm, titled as the command's own question. */
+export function databankSweepConfirmTitle(command: string): string {
+  return `${command}?`;
+}
+
+/** The empty Home tile's door into the section, named for it. */
+export function databankOpenSectionName(section: string): string {
+  return `Open ${section}`;
+}

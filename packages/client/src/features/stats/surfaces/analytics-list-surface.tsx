@@ -26,7 +26,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, testId, useFocusListArrival } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "../lib/analytics-copy.ts";
-import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
+import { ANALYTICS_SEARCH_NAME, analyticsSortName } from "../lib/analytics-names.ts";
 import {
   ANALYTICS_DEFAULT_SORT,
   ANALYTICS_SORT_OPTIONS,
@@ -68,7 +68,7 @@ export function AnalyticsListSurface(): ReactElement {
           onValueChange={(picked): void => setSort((picked[0] ?? ANALYTICS_DEFAULT_SORT) as SortId)}
         >
           {ANALYTICS_SORT_OPTIONS.map((option) => (
-            <Toggle key={option.id} value={option.id} aria-label={`Sort by ${option.label}`}>
+            <Toggle key={option.id} value={option.id} aria-label={analyticsSortName(option.label)}>
               {option.label}
             </Toggle>
           ))}

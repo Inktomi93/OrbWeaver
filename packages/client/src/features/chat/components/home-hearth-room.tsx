@@ -69,6 +69,7 @@ import { useId } from "react";
 import { TrailingArrow } from "#components";
 import { useReturnedRow } from "../hooks/use-returned-row.ts";
 import { characterCredit, chatSummaryRowView } from "../lib/chat-summary-row.ts";
+import { homeResumeChatName } from "../lib/chat-surface-names.ts";
 
 type HearthChat = Parameters<typeof chatSummaryRowView>[0];
 
@@ -110,7 +111,7 @@ export function HomeHearthRoom({
       // same promise the visible "Resume →" affordance makes, which is also what keeps voice control
       // working (WCAG 2.5.3: the spoken name contains the read label).
       aria-describedby={creditRepeatsTitle ? scentId : `${scentId} ${creditId}`}
-      aria-label={`Resume ${title}`}
+      aria-label={homeResumeChatName(title)}
       // A REAL BUTTON, not a `div[role=button]` (side-eye rail-home P3-4, 2026-08-22). The synthesized pair
       // was VERIFIED WORKING before the finding was filed — Enter and Space both resumed the room — so this
       // is not a repair, it is the arm that makes the behaviour unregressable: `Card interactive` gets

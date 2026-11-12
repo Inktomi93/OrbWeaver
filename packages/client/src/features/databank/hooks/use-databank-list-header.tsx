@@ -42,7 +42,13 @@ import type { ListPaneHeaderView } from "#lib";
 import { openModal } from "#state";
 import { useDatabankBankHealth, useDatabankCensus, useDatabankListCensus } from "../hooks/use-databank-census.ts";
 import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "../lib/databank-copy.ts";
-import { DATABANK_ADD_DOCUMENT_TITLE, DATABANK_ADD_NAME, DATABANK_MAINTENANCE_NAME } from "../lib/databank-names.ts";
+import {
+  DATABANK_ADD_DOCUMENT_TITLE,
+  DATABANK_ADD_NAME,
+  DATABANK_MAINTENANCE_NAME,
+  DATABANK_REBUILD_ALL_NAME,
+  DATABANK_REREAD_ALL_NAME,
+} from "../lib/databank-names.ts";
 import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
 import { useOwnerSweep } from "./use-owner-sweep.tsx";
 
@@ -110,11 +116,11 @@ export function useDatabankListHeader(): ListPaneHeaderView {
               ) : null}
               <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("chunk-embed")}>
                 <Icon icon={RefreshCw} size="sm" />
-                Rebuild all documents
+                {DATABANK_REBUILD_ALL_NAME}
               </MenuItem>
               <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("re-extract")}>
                 <Icon icon={RefreshCw} size="sm" />
-                Re-read all documents
+                {DATABANK_REREAD_ALL_NAME}
               </MenuItem>
             </MenuGroup>
           </RowActionsMenu>
@@ -140,14 +146,14 @@ export function useDatabankListHeader(): ListPaneHeaderView {
                 : []),
               {
                 id: "databank-rebuild",
-                label: "Rebuild all documents",
+                label: DATABANK_REBUILD_ALL_NAME,
                 icon: RefreshCw,
                 disabled: sweep.pending || bankIsEmpty || countUnknown,
                 onSelect: (): void => sweep.ask("chunk-embed"),
               },
               {
                 id: "databank-reread",
-                label: "Re-read all documents",
+                label: DATABANK_REREAD_ALL_NAME,
                 icon: RefreshCw,
                 disabled: sweep.pending || bankIsEmpty || countUnknown,
                 onSelect: (): void => sweep.ask("re-extract"),

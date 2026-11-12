@@ -12,3 +12,16 @@ export const ROSTER_NAME_FIELD_NAME = "Name";
 
 /** The settings collection group, and so the Back that returns to it. */
 export const ROSTER_GROUP_LABEL = "Rosters";
+
+/** The saved-roster delete confirmation's title. */
+export const ROSTER_DELETE_TITLE = "Delete this roster?";
+
+/** A roster's start door, which recites what applying it brings (`rosterCountsSuffix`). */
+export function rosterStartChatName(roster: string, counts: string): string {
+  return `Start a chat with ${roster}${counts}`;
+}
+
+/** A saved roster's delete door, which keeps a bare name. */
+export function rosterDeleteName(roster: string): string {
+  return `Delete ${roster}`;
+}

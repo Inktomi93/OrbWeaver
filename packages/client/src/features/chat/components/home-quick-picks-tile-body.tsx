@@ -21,7 +21,7 @@ import type { FocusEvent, ReactElement, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat, setActiveSection } from "#state";
-import { CHAT_ALL_CHARACTERS_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_ALL_CHARACTERS_NAME, homeNewChatWithName } from "../lib/chat-surface-names.ts";
 
 const TRACK_SEPARATOR = /\s+/u;
 
@@ -221,7 +221,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
                 )}
               </PictureButton>
               {character.lastChatId === null ? null : (
-                <Button aria-label={`New chat with ${character.name}`} variant="ghost" onClick={(): void => startChatWith(character.id)} size="sm">
+                <Button aria-label={homeNewChatWithName(character.name)} variant="ghost" onClick={(): void => startChatWith(character.id)} size="sm">
                   New chat
                 </Button>
               )}

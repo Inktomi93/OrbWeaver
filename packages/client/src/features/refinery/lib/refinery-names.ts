@@ -6,6 +6,27 @@ export const REFINERY_VERSIONS_NAME = "Versions";
 export const REFINERY_HAND_EDIT_NAME = "Hand-edit";
 export const REFINERY_ITERATE_NAME = "Iterate";
 export const REFINERY_SAVE_AS_COPY_NAME = "Save as copy";
+
+/** A stage lane's first run. */
+export function refineryRunStageName(stage: string): string {
+  return `Run ${stage}`;
+}
+
+/** A stage lane's run once it has a result. */
+export function refineryRerunStageName(stage: string): string {
+  return `Re-run ${stage}`;
+}
+
+/** The apply row's commit, counting the kept fields it writes. */
+export function refineryApplyKeptLabel(count: number): string {
+  return `Apply ${String(count)} kept`;
+}
+
+/** The apply outcome's note after Save as copy. */
+export const REFINERY_COPY_UNTOUCHED_TEXT = "The live card is untouched. No snapshot was needed, nothing existing was written.";
+
+/** The apply outcome's note after an apply that snapshotted the live card first. */
+export const REFINERY_SNAPSHOT_TAKEN_TEXT = "Saved a snapshot first. Undo it from the character's History tab.";
 export const REFINERY_SESSION_STATE_NAME = "Session state";
 export const REFINERY_SEARCH_SESSIONS_NAME = "Search sessions by character or name";
 /** The list band's start control, and its entry in the band's overflow menu. */
