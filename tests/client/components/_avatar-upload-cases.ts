@@ -24,6 +24,7 @@ import {
   AVATAR_DROP_A_FILE,
   AVATAR_NOT_A_PICTURE,
   AVATAR_ONE_AT_A_TIME,
+  AVATAR_REPLACE_HINT,
   AVATAR_UPLOAD_FAILED,
   AVATAR_UPLOADING_NAME,
   AVATAR_WRITE_REFUSED,
@@ -57,6 +58,8 @@ interface Staged {
   readonly unmount: () => Promise<void>;
   /** Brings the control back, so a case can read what the row holds afterwards. */
   readonly remount: () => Promise<void>;
+  /** The surface's identity row: the box that holds the control and the fields beside it, whose parts must not move when the failure line comes. */
+  readonly identity: Locator;
 }
 
 interface StageArgs {
@@ -69,6 +72,8 @@ interface StageArgs {
   readonly refuseWrite: boolean;
   /** Holds the first write until the case releases or fails it; the server answers every later write. */
   readonly writeHold?: ServedHold;
+  /** The window width the case runs at, for a surface that takes its width from its mount. */
+  readonly width?: number;
 }
 
 export interface AvatarSurface {
@@ -126,10 +131,15 @@ async function expectPicture(control: Locator, asset: StoredAsset | { readonly h
   await expect(control.locator("img")).toHaveAttribute("src", blobUrl(asset.hash));
 }
 
-/** The control's own line says `line`, and the control is described by it. */
+/** The control's description is its hint, then the line that refuses it: the refusal glyph's own label sits between them. */
+function describedEndingWith(line: string): RegExp {
+  return new RegExp(`^${AVATAR_REPLACE_HINT.replaceAll(".", String.raw`\.`)} .*${line.replaceAll(/[$()*+.?[\\\]^{|}]/gu, String.raw`\$&`)}$`, "u");
+}
+
+/** The failure line says `line`, and the control is described by it. */
 async function expectLine(page: Page, control: Locator, line: string): Promise<void> {
   await expect(page.getByText(line, { exact: true })).toBeVisible();
-  await expect(control).toHaveAccessibleDescription(line);
+  await expect(control).toHaveAccessibleDescription(describedEndingWith(line));
 }
 
 /** What the CT file passes in: this module is Node-rooted and reaches no DOM declaration, and the client door carries the DOM. */
@@ -142,6 +152,18 @@ interface ClientSide {
       | { readonly files: readonly { readonly file: string; readonly type: string }[] }
       | { readonly text: string },
   ) => Promise<boolean>;
+  /** Holds `file` over `target`, entered and over with no drop; resolves to the gesture that takes it away again. */
+  readonly dragFileOver: (target: Locator, file: { readonly file: string; readonly type: string }) => Promise<() => Promise<void>>;
+  /** The refusal line as the browser laid it out and painted it. */
+  readonly readRefusalLine: (line: Locator) => Promise<{
+    readonly ink: string;
+    readonly destructiveInk: string;
+    readonly left: number;
+    readonly width: number;
+    readonly lines: number;
+  }>;
+  /** Whether the page's primary pointer can hover. */
+  readonly pageCanHover: (page: Page) => Promise<boolean>;
   /** The production size pre-check the control runs, which words the oversize line. */
   readonly oversizeUploadMessage: (file: File, maxBytes: number) => string | undefined;
   /** Counts every toast the page mounts; call before `mount()`. */
@@ -615,15 +637,172 @@ export const AVATAR_CASES: readonly AvatarCase[] = [
 
       await expect.poll(() => reason).not.toBe("");
       await expect(page.getByRole("alert")).toBeVisible();
-      const line = (await page.getByRole("alert").textContent()) ?? "";
+      const line = (await page.getByRole("alert").locator("span").textContent()) ?? "";
       // The server's reason is a clause, so the line carries it inside one sentence rather than starting a lowercase one after a period.
       expect(line).toContain(reason);
       expect(line).not.toMatch(/\. \p{Ll}/u);
-      await expect(control).toHaveAccessibleDescription(line);
+      await expect(control).toHaveAccessibleDescription(describedEndingWith(line));
       await absenceWindow(page, TOAST_WINDOW_MS);
       expect(await toasts()).toBe(0);
       expect(writes()).toBe(0);
       await expectPicture(control, current);
+    },
+  },
+];
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+const SUBPIXEL_PX = 1;
+const MOST_LINES = 2;
+const LAYOUT_HEIGHT_PX = 900;
+const PHONE_WIDTH_PX = 390;
+const DESKTOP_WIDTH_PX = 1440;
+const NOT_AN_IMAGE = { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("notes") } as const;
+const ERROR_GLYPH_NAME = "Error";
+
+function boxesOf(locator: Locator): Promise<readonly Box[]> {
+  return locator.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const { x, y, width, height } = node.getBoundingClientRect();
+      return { x, y, width, height };
+    }),
+  );
+}
+
+function expectSameBoxes(before: readonly Box[], after: readonly Box[]): void {
+  expect(after).toHaveLength(before.length);
+  for (const [at, box] of before.entries()) {
+    const now = after[at];
+    for (const edge of ["x", "y", "width", "height"] as const) {
+      expect(Math.abs((now?.[edge] ?? Number.NaN) - box[edge])).toBeLessThanOrEqual(SUBPIXEL_PX);
+    }
+  }
+}
+
+/**
+ * The failure line, at one window width: in the dropzone's refusal voice (destructive ink and its glyph), on a row that spans the
+ * host's identity row, at most two lines, and no box of that row moves as the line comes and as it clears.
+ */
+function layoutCase(width: number): AvatarCase {
+  return {
+    title: `a refusal's line is in the dropzone's refusal voice on a row spanning the host, at most two lines at ${String(width)}px, and no identity box moves as it comes and goes`,
+    run: async ({ surface, client, signedInConfig, page, mount }): Promise<void> => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const [current, next] = [await storePicture(root), await storePicture(root)];
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      await routeUploads(page, () => served(next));
+      await page.setViewportSize({ width, height: LAYOUT_HEIGHT_PX });
+      const { control, identity } = await surface.stage({ page, mount, caller, current, refuseWrite: false, width });
+      await expectPicture(control, current);
+      const before = await boxesOf(identity.locator("*"));
+      const host = await identity.boundingBox();
+      expect(host).not.toBeNull();
+
+      await pick(page, control, NOT_AN_IMAGE);
+
+      const line = page.locator('[data-slot="file-dropzone-error"]');
+      await expect(line).toHaveText(AVATAR_NOT_A_PICTURE);
+      await expect(line.getByRole("img", { name: ERROR_GLYPH_NAME })).toBeVisible();
+      const shown = await client.readRefusalLine(line);
+      expect(shown.ink).toBe(shown.destructiveInk);
+      expect(shown.lines).toBeLessThanOrEqual(MOST_LINES);
+      expect(Math.abs(shown.left - (host?.x ?? Number.NaN))).toBeLessThanOrEqual(SUBPIXEL_PX);
+      expect(shown.width).toBeGreaterThanOrEqual((host?.width ?? Number.NaN) - SUBPIXEL_PX);
+      expectSameBoxes(before, await boxesOf(identity.locator("*")));
+
+      await pick(page, control, PICKED_FILE);
+
+      await expectPicture(control, next);
+      await expect(line).toHaveCount(0);
+      expectSameBoxes(before, await boxesOf(identity.locator("*")));
+    },
+  };
+}
+
+/** The refusal-line geometry on a phone and on a desktop window. */
+export const AVATAR_LAYOUT_CASES: readonly AvatarCase[] = [layoutCase(PHONE_WIDTH_PX), layoutCase(DESKTOP_WIDTH_PX)];
+
+const DRAG_IMAGE = { file: "held.png", type: "image/png" } as const;
+
+/** The affordance cases for a pointer that hovers. */
+export const AVATAR_AFFORDANCE_CASES: readonly AvatarCase[] = [
+  {
+    title: "the replace mark is hidden at rest, shown by hover and by focus, and the control keeps the one name",
+    run: async ({ surface, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const current = await storePicture(root);
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const { control } = await surface.stage({ page, mount, caller, current, refuseWrite: false });
+      await expectPicture(control, current);
+      const mark = control.locator('[data-slot="picture-cue-mark"]');
+      await expect(control.getByRole("img", { name: /replace|drop|upload/iu })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: surface.controlName, exact: true })).toHaveCount(1);
+      await expect(control).toHaveAccessibleName(surface.controlName);
+
+      await page.mouse.move(0, 0);
+      await expect(mark).toHaveCSS("opacity", "0");
+      await control.hover();
+      await expect(mark).toHaveCSS("opacity", "1");
+      await page.mouse.move(0, 0);
+      await expect(mark).toHaveCSS("opacity", "0");
+      await control.focus();
+      await expect(mark).toHaveCSS("opacity", "1");
+    },
+  },
+  {
+    title: "a file held over the picture shows a drop layer that the focus ring never draws, and the layer clears when it leaves",
+    run: async ({ surface, client, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const current = await storePicture(root);
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const { control } = await surface.stage({ page, mount, caller, current, refuseWrite: false });
+      await expectPicture(control, current);
+      const drop = control.locator('[data-slot="picture-cue-drop"]');
+      await expect(drop).toHaveCSS("opacity", "0");
+
+      const leave = await client.dragFileOver(control, DRAG_IMAGE);
+
+      await expect(drop).toHaveCSS("opacity", "1");
+      await expect(drop).toHaveCSS("border-top-style", "dashed");
+      // The ring a focused control wears is a shadow; held over, with no focus, the control draws none.
+      await expect(control).toHaveCSS("box-shadow", "none");
+
+      await leave();
+      await expect(drop).toHaveCSS("opacity", "0");
+      await page.keyboard.press("Shift");
+      await control.focus();
+      await expect(control).not.toHaveCSS("box-shadow", "none");
+      await expect(drop).toHaveCSS("opacity", "0");
+    },
+  },
+];
+
+/** The affordance case for a pointer that cannot hover: the mark is there at rest, because a touch reader has no hover to find it by. */
+export const AVATAR_TOUCH_CASES: readonly AvatarCase[] = [
+  {
+    title: "the replace mark shows at rest where the pointer cannot hover",
+    run: async ({ surface, client, signedInConfig, page, mount }) => {
+      await using root = await createServerHarness(ROOT_OPTIONS);
+      const caller = await root.internalCallerFor(root.ownerId);
+      const current = await storePicture(root);
+      await routeAuthConfig(page, signedInConfig);
+      await routeBlobs(page, root);
+      const { control } = await surface.stage({ page, mount, caller, current, refuseWrite: false });
+      await expectPicture(control, current);
+      // The positive control: this page really is one that cannot hover.
+      expect(await client.pageCanHover(page)).toBe(false);
+      await expect(control.locator('[data-slot="picture-cue-mark"]')).toHaveCSS("opacity", "1");
     },
   },
 ];

@@ -16,7 +16,8 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
-import { AvatarUpload, DestructiveAction } from "#components";
+import type { AvatarUploadParts } from "#components";
+import { DestructiveAction, useAvatarUpload } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, usePromptMacroSuggestions, useTRPC, useTRPCClient } from "#data";
 import type { AutosaveSession } from "#forms/editor";
@@ -34,7 +35,6 @@ import {
   PERSONA_FROM_CARD_NAME,
   PERSONA_NAME_FIELD_NAME,
   PERSONA_TITLE_FIELD_NAME,
-  personaAvatarName,
 } from "../lib/persona-copy.ts";
 import type { PersonaFormValues, PersonaWireMetadata } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
@@ -116,6 +116,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
   const { form } = session;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  const avatar = usePersonaAvatar(persona);
   const duplicate = useDuplicatePersona({ trpc, invalidation });
   const duplicateInFlight = useRef(false);
   // MACU-2 — the builtin catalog UNION the active preset's user macros. A persona description is rendered
@@ -151,7 +152,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
     // The macro field's own measure, so the plain fields end on the macro field's edge.
     <Stack cap="code" gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
-        <AvatarTrigger persona={persona} />
+        {avatar.control}
         <Stack gap="row" className="min-inline-0" grow={true}>
           <form.AppField name="name">
             {(field): ReactElement => <field.TextField label={PERSONA_NAME_FIELD_NAME} hint="Characters call you this. It can't be empty." />}
@@ -168,6 +169,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
           <AutosaveStatus state={session.status} onRetry={session.retrySave} />
         </Stack>
       </Row>
+      {avatar.failureLine}
 
       <Stack gap="field">
         <form.AppField name="description">
@@ -266,21 +268,18 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
 }
 
 /** The avatar's upload door: the shared control, with the persona's own write. A refused write shows on the
- *  control's line, so the mutation declares it and no toast repeats it. */
-function AvatarTrigger({ persona }: { readonly persona: PersonaDetail }): ReactElement {
+ *  control's line, so the mutation declares it and no toast repeats it. The editor places the line under its identity row. */
+function usePersonaAvatar(persona: PersonaDetail): AvatarUploadParts {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation, failureShownInline: "the avatar control's line" });
-  return (
-    <AvatarUpload
-      avatarHash={persona.avatarHash}
-      commit={(stored): Promise<unknown> => update.mutateAsync({ personaId: persona.id, input: { avatarAssetId: stored.assetId } })}
-      hueSeed={persona.id}
-      initials={initialsFor(persona.name)}
-      name={personaAvatarName(persona.name)}
-      size="md"
-    />
-  );
+  return useAvatarUpload({
+    avatarHash: persona.avatarHash,
+    commit: (stored): Promise<unknown> => update.mutateAsync({ personaId: persona.id, input: { avatarAssetId: stored.assetId } }),
+    hueSeed: persona.id,
+    initials: initialsFor(persona.name),
+    size: "md",
+  });
 }
 
 /** Read-only provenance for a persona minted from a character card (`createFromCharacter`). */

@@ -572,10 +572,46 @@ test("a success toast on a mutation's own success path is a defect unless a ruli
     ["save.tsx", "useSave", "toast"],
     ["save.tsx", "useSave", "none"],
     ["save.tsx", "useDrop", "none"],
+    // Neither toast below sits on a mutation's success path, so no consumer owns them: each is a member of its own.
+    ["save.tsx", "run", "toast"],
+    ["save.tsx", "other", "toast"],
   ]);
   const success = facts.comparisons.find((entry) => entry.cohort === "feedback" && entry.column === "success");
-  expect(success?.defects.map((defect) => defect.at)).toEqual([`${FEATURE}/components/save.tsx:3`, `${FEATURE}/components/save.tsx:9`]);
+  expect(success?.defects.map((defect) => defect.at)).toEqual([
+    `${FEATURE}/components/save.tsx:3`,
+    `${FEATURE}/components/save.tsx:9`,
+    `${FEATURE}/components/save.tsx:18`,
+    `${FEATURE}/components/save.tsx:19`,
+  ]);
   expect(success?.kept.map((kept) => kept.at)).toEqual(["packages/client/src/features/imagery/components/image-detail-body.tsx:3"]);
+});
+
+test("a success toast no mutation's success path owns is a feedback member too, a defect unless a ruling names where it lands out of sight", ({ scratch }) => {
+  const root = plantDir(scratch, "feedback-unowned-success");
+  plant(root, {
+    "hooks/use-save.ts": 'export const useSave = createEntityMutation<A, B>({ errorToast: "Save failed.", busDriven: true });',
+    "hooks/use-import.ts": [
+      'import { useSave } from "./use-save.ts";',
+      "export function useImport(d) {",
+      "  const save = useSave(d);",
+      '  const finish = () => { notify.success("Import complete."); };',
+      '  const owned = () => save.mutate({}, { onSuccess: () => notify.success("Saved.") });',
+      "  return { finish, owned };",
+      "}",
+    ].join("\n"),
+    "lib/copy-notice.ts": 'export function copied() {\n  notify.success("Copied.");\n}',
+    "lib/other-notice.ts": 'export function told() {\n  notify.warn("Careful.");\n}',
+  });
+  plantFile(root, "packages/client/src/lib/copy-with-notice.ts", 'export function copyWithNotice() {\n  notify.success("Copied to the clipboard.");\n}');
+  const feedback = analyse(root, [], null).cohorts.find((entry) => entry.name === "feedback");
+  expect(
+    feedback?.members.map((member) => [member.path.split("/").at(-1), member.label, member.cells["success"]?.value, member.cells["failure"]?.value]),
+  ).toEqual([
+    ["use-import.ts", "useSave", "toast", "toast"],
+    ["use-import.ts", "finish", "toast", "not a mutation"],
+    ["copy-notice.ts", "copied", "toast", "not a mutation"],
+    ["copy-with-notice.ts", "copyWithNotice", "toast", "not a mutation"],
+  ]);
 });
 
 test("a caps-voiced Text whose words are a sentence or a label with a gloss is prose; a label, another voice and a Chip's label are not", ({ scratch }) => {

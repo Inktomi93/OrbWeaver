@@ -108,6 +108,10 @@ export const listRowVariants = tv({
   variants: {
     // A row whose body runs to several lines keeps its leading mark at the first.
     align: { start: { root: "items-start" } },
+    // A name beside a qualifier keeps the title floor. The title's flex basis is zero, so without a floor the title line counts the name as
+    // no width at all and fits the whole qualifier beside it, leaving the name a sliver; with the floor a qualifier that would take
+    // the name below it wraps to the next line, as one too long for the line already does.
+    qualified: { true: { title: "min-inline-(--width-title-floor)" } },
     titleQualifierFace: {
       mono: {},
       body: { titleQualifier: "font-sans", titleSeparator: "font-sans" },

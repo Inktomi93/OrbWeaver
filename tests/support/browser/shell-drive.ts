@@ -86,6 +86,18 @@ export async function settledReadingRow(list: Locator): Promise<{ readonly id: s
   throw new Error(`the reading row never settled: last ${JSON.stringify(previous)}`);
 }
 
+/** Hold a synthetic file over `target`: enter and over, with no drop, so the target's drag state stays on. Resolves to the gesture that takes the file away again. */
+export async function dragFileOver(target: Locator, file: { readonly file: string; readonly type: string }): Promise<() => Promise<void>> {
+  const dataTransfer = await target.page().evaluateHandle((data) => {
+    const dt = new DataTransfer();
+    dt.items.add(new File(["dragged-bytes"], data.file, { type: data.type }));
+    return dt;
+  }, file);
+  await target.dispatchEvent("dragenter", { dataTransfer });
+  await target.dispatchEvent("dragover", { dataTransfer });
+  return () => target.dispatchEvent("dragleave", { dataTransfer });
+}
+
 /**
  * Drag and drop a synthetic transfer onto `target` and report whether the drop's default was cancelled, which is
  * what stops the browser navigating the tab to a dropped file. The probe listens on window after the shell's own guard.

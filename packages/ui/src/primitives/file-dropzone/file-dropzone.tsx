@@ -8,9 +8,10 @@ import type { VariantProps } from "tailwind-variants";
 import type { AriaNameSource } from "#lib";
 import { HIDDEN_AT } from "#lib";
 import { useFieldIdentity, useFieldLabelled } from "#primitives/field";
-import { Check, Icon, TriangleAlert, Upload } from "#primitives/icons";
+import { Check, Icon, Upload } from "#primitives/icons";
 import { WebSpinner } from "#primitives/spinner";
 import { matchesAccept } from "./accept.ts";
+import { RefusalBody, RefusalLine } from "./refusal-line.tsx";
 import { fileDropzoneBoxVariants, fileDropzoneVariants } from "./variants.ts";
 
 /** A file dropped by a client-side pre-check: outside the `accept` vocabulary, or over `maxSizeBytes`. */
@@ -246,20 +247,12 @@ function FileDropzoneError({ message, id, inField, slots }: FileDropzoneErrorPro
   useEffect(() => {
     lineRef.current?.scrollIntoView({ block: "nearest" });
   }, []);
-  const line = (
-    <>
-      <Icon className={slots.errorIcon()} icon={TriangleAlert} label="Error" size="xs" />
-      <span className={slots.errorText()}>{message}</span>
-    </>
-  );
   return inField ? (
     <BaseField.Error className={slots.error()} data-slot="file-dropzone-error" match={true} ref={lineRef} render={<p />} role="alert">
-      {line}
+      <RefusalBody message={message} />
     </BaseField.Error>
   ) : (
-    <p className={slots.error()} data-slot="file-dropzone-error" id={id} ref={lineRef} role="alert">
-      {line}
-    </p>
+    <RefusalLine id={id} message={message} ref={lineRef} />
   );
 }
 
