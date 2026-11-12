@@ -1860,18 +1860,24 @@ async function messageCopyAndDelete(flow: Journey, message: MessageView): Promis
   if (chromium) {
     await flow.page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   }
-  const previousCopy = flow.page.locator('[data-slot="toast-root"]').filter({ has: flow.page.getByText(COPIED_TO_CLIPBOARD_NOTICE, { exact: true }) });
-  for (const notification of await previousCopy.all()) {
-    await notification.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
-  }
-  await expect(previousCopy).toHaveCount(0);
+  const copyNotices = flow.page.locator('[data-slot="toast-root"]').filter({ has: flow.page.getByText(COPIED_TO_CLIPBOARD_NOTICE, { exact: true }) });
+  // At enlarged text a notice can lie over the row the next menu opens from, and a toast holds while the pointer rests on it, so
+  // hovering through it never lets it time out. Close each one, as a reader would, before the next press.
+  const dismissCopyNotices = async (): Promise<void> => {
+    for (const notification of await copyNotices.all()) {
+      await notification.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
+    }
+    await expect(copyNotices).toHaveCount(0);
+  };
+  await dismissCopyNotices();
   let menu = await messageOperationMenu(flow, message);
   await menu.getByRole("menuitem", { name: MESSAGE_COPY_NAME, exact: true }).click();
-  await expect(flow.page.getByText(COPIED_TO_CLIPBOARD_NOTICE, { exact: true })).toBeVisible();
+  await expect(copyNotices).toBeVisible();
   if (chromium) {
     await expectClipboardContent(flow, message.content);
   }
   await messageOperationDone(flow, message, MESSAGE_COPY_NAME, "Native clipboard write completed with the production success acknowledgement");
+  await dismissCopyNotices();
   menu = await messageOperationMenu(flow, message);
   await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = flow.page.getByRole("alertdialog", { name: CHAT_DELETE_MESSAGE_TITLE, exact: true });

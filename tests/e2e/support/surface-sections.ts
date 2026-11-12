@@ -69,6 +69,7 @@ import { HOME_SECTION_LABEL } from "#client/features/home/lib/home-section-label
 import { EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { EXTENSIONS_SECTION_LABEL } from "#client/features/plugin/lib/extensions-section-label.ts";
 import {
+  NEW_PRESET_NAME,
   PRESET_BACK_TO_RACK_NAME,
   PRESET_DELETE_SECTION_TITLE,
   PRESET_EDITOR_NAME,
@@ -136,6 +137,7 @@ import {
   observe,
   openOverflowedMenu,
   pane,
+  pressOverflowed,
   publishWalk,
   ready,
   reveal,
@@ -1268,11 +1270,17 @@ async function createDisposablePreset(journey: Journey, onCreated: (created: Lis
   const before = new Set((await journey.client.preset.list.query()).map(({ id }) => id));
   const editor = journey.page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
   let created: ListedPreset | undefined;
+  const band = pane(journey, "list");
+  // A band with no room for the word keeps its primary as an icon named by the primary's menu label.
+  const newPreset = band
+    .getByRole("button", { name: "New", exact: true })
+    .or(band.getByRole("button", { name: NEW_PRESET_NAME, exact: true }))
+    .filter({ visible: true });
   await journey.action("presets/disposable/create", {
     action: async () => {
       const [response] = await Promise.all([
         journey.page.waitForResponse((item) => new URL(item.url()).origin === journey.run.origin && isTrpcRequestFor(item.url(), "preset.create")),
-        pane(journey, "list").getByRole("button", { name: "New", exact: true }).click(),
+        newPreset.click(),
       ]);
       created = await readTrpcOutput(response, "preset.create", presetDetailSchema);
       expect(
@@ -1716,7 +1724,12 @@ async function importDisposablePreset(
   const { journey } = run;
   const importedIds: ListedPreset["id"][] = [];
   await reveal(journey, "list");
-  await pane(journey, "list").getByRole("button", { name: PRESET_IMPORT_TITLE, exact: true }).click();
+  // A band out of room moves Import into its More menu under the same name.
+  await pressOverflowed(journey.page, {
+    inline: pane(journey, "list").getByRole("button", { name: PRESET_IMPORT_TITLE, exact: true }),
+    overflow: pane(journey, "list").getByRole("button", { name: BAND_OVERFLOW_LABEL, exact: true }),
+    name: PRESET_IMPORT_TITLE,
+  });
   const dialog = journey.page.getByRole("dialog", { name: PRESET_IMPORT_TITLE, exact: true });
   await dialog.locator('input[type="file"]').setInputFiles(exported.path);
   await expect(dialog.getByRole("button", { name: PRESET_IMPORT_NAME, exact: true })).toBeEnabled();
@@ -1750,6 +1763,8 @@ async function importDisposablePreset(
     "visited",
     `Real native exported file imported as separate ${imported.id}; no original-name collision or synthetic response`,
   );
+  // Where the band folds Import into its More menu, that menu's leaf is settled by this round trip.
+  run.proofs.set(`library/${PRESET_IMPORT_TITLE}`, `Native import of an exported file created separate ${imported.id}`);
   return await journey.client.preset.get.query({ id: imported.id });
 }
 
