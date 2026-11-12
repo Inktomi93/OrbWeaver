@@ -1,4 +1,5 @@
 // Startup adopts persisted autoindex as its baseline; later settings and account seeds reach live sweep ports.
+import { EMBEDDER_REBUILD_KINDS } from "@orb/contracts/workloads";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshDb } from "@orb/testkit/node/composed";
 
@@ -67,7 +68,7 @@ test("a post-compose account seed and returned sweep ports enqueue real owner an
   root.app.detachStaleSpaceReindex();
   await root.settleBackground();
   const bulkRuns = await root.services.workloads.list({ caller: owner, ownerId: null, status: "queued" });
-  for (const kind of ["index", "databank-reindex", "memory-backfill"] as const) {
+  for (const kind of EMBEDDER_REBUILD_KINDS) {
     expect(bulkRuns).toContainEqual(expect.objectContaining({ kind, mode: "bulk", ownerId: null }));
   }
 });

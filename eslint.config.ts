@@ -13,6 +13,7 @@ import {
   DESTRUCTIVE_EXEMPT,
   exportedLabels,
   exportedProductionValues,
+  exportedRosters,
   homeReasons,
   homes,
   listSlotSurfacePaths,
@@ -1842,6 +1843,7 @@ const localPlugin = createOrbPlugin({
   shellSlots: shellOwnedSlots(ROOT),
   exportedLabels: exportedLabels(ROOT),
   exportedProductionValues: exportedProductionValues(ROOT),
+  exportedRosters: exportedRosters(ROOT),
   appearanceVocabulary: appearanceChannelVocabulary(),
   browserUnsupported: withoutPolyfilled(UNSUPPORTED_AT_FLOOR, POLYFILLED_BUILTINS),
   browserUnsupportedBeforePolyfills: UNSUPPORTED_AT_FLOOR,
@@ -2584,6 +2586,7 @@ export default [
     plugins: { orb: localPlugin },
     rules: { "orb/no-hand-copied-label": ["error", { scope: "all" }] },
   },
+  { files: ["tests/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/no-restated-roster": "error" } },
   { files: ["tests/ui/**/*-stories.tsx", "tests/client/**/*-stories.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ct-story-root-composition": "error" } },
   {
     files: ["tests/**/*-stories.tsx", "tests/**/*.stories.tsx"],

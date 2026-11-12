@@ -8,7 +8,7 @@
 // is therefore a value computed from `{platform, env}`. A macOS/Windows boot remains unverified by construction.
 import { parseEnv } from "node:util";
 import type { AuthMode } from "@orb/contracts/identity";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, AUTH_MODES, SETUP_COMMAND } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, AUTH_MODES, SETUP_COMMAND, SIGN_IN_TARGET_MODES } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { ENV_FROM_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
@@ -150,7 +150,7 @@ test("the banner tells a local-mode operator to sign in, and never claims an AUT
 });
 
 test("a login mode already lets other devices in, so its banner never sends the operator back to setup", () => {
-  for (const mode of ["local", "oidc", "forward-header"]) {
+  for (const mode of SIGN_IN_TARGET_MODES) {
     const lines = startBannerLines({ port: 3000, mode, fallbackFilled: false, share: false }).filter((line) => line !== "");
     expect(lines.join("\n")).not.toContain(SETUP_COMMAND);
     expect(lines).toHaveLength(4);

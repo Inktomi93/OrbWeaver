@@ -55,6 +55,8 @@ import {
   TEST_FABRICATION_RESTRICTIONS,
 } from "./test-policy.ts";
 import { noTailRecorderReadRule } from "./test-recorders.ts";
+import type { ProductionRoster } from "./test-rosters.ts";
+import { restatedRosterRule } from "./test-rosters.ts";
 import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { textVoiceOnlyRule } from "./text-voices.ts";
@@ -150,6 +152,7 @@ export { shellOwnedSlots } from "./shell-slots.ts";
 export { homeReasons, homes, memberNamed, posixPath } from "./syntax.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
 export { OWNED_ROOT_ACQUISITIONS } from "./test-owners.ts";
+export { exportedRosters } from "./test-rosters.ts";
 export { conflicts, survives } from "./ui-classes/class-conflict.ts";
 export type { ClassExpression } from "./ui-classes/class-expression.ts";
 export { classesIn, classesWhen, guardsIn, opaqueIn } from "./ui-classes/class-expression.ts";
@@ -234,6 +237,8 @@ export function createOrbPlugin(options: {
   exportedLabels: ReadonlyMap<string, ExportedLabel>;
   /** The strings `exportedLabels` leaves out; `no-hand-copied-label` reads them under scope `all`. */
   exportedProductionValues: ReadonlyMap<string, ExportedLabel>;
+  /** Every exported production string tuple; `no-restated-roster` reads it. */
+  exportedRosters: readonly ProductionRoster[];
   appearanceVocabulary: AppearanceVocabulary;
   /** Compat keys some browser floor lacks (`unsupportedAtFloor`). */
   browserUnsupported: ReadonlyMap<string, readonly string[]>;
@@ -326,6 +331,7 @@ export function createOrbPlugin(options: {
       "no-tail-recorder-read": noTailRecorderReadRule,
       "owned-root-alias": ownedRootAliasRule,
       "no-hand-copied-label": handCopiedLabelRule(options.exportedLabels, options.exportedProductionValues),
+      "no-restated-roster": restatedRosterRule(options.exportedRosters),
       "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessControls),
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
       "assumes-single-replica": assumesSingleReplicaRule,
