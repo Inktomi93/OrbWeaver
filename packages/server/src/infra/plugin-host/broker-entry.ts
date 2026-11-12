@@ -9,7 +9,7 @@
 // its watchdog does, when this thread's heartbeat stops, and the heartbeat timer runs whatever the Workers are doing.
 
 import { randomUUID } from "node:crypto";
-import { fstatSync, writeSync } from "node:fs";
+import { fstatSync, write } from "node:fs";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
 import {
@@ -62,10 +62,13 @@ function supervised(): boolean {
 }
 // Beats go on their own pipe, never behind a frame: a large frame in the IPC queue would hold every beat sent after it
 // until it is read, and the watchdog would see a working broker as silent (D347). This thread still sends each beat,
-// so a hung main thread is silent on the pipe too. The pipe is written by descriptor, which the permission model
-// allows without a network grant, and synchronously: a beat never waits on a thread-pool callback, so a slow one
-// cannot hold the next beats back. A beat is a few hundred bytes and the pipe holds many seconds of them, so a write
-// blocks only once the watchdog has stopped reading for that long, which is the failure the watchdog exists to catch.
+// so a hung main thread is silent on the pipe too.
+//
+// THE WRITE NEVER BLOCKS THIS THREAD. The pipe is the child end of a socketpair the spawner hands over blocking, and
+// the permission model refuses the network grant a non-blocking socket would need, so the beat is written on the
+// thread pool, one at a time. A beat due while the last write is still pending is skipped, not queued: a watchdog
+// that stops reading holds one pool thread and no memory, and this thread goes on ending stuck Workers and
+// forwarding their messages. `EPIPE` means the watchdog is gone, and an unsupervised broker serves nothing.
 function isBeatPipe(fd: number): boolean {
   try {
     const stat = fstatSync(fd);
@@ -79,8 +82,9 @@ function isBeatPipe(fd: number): boolean {
 if (!isBeatPipe(PLUGIN_BROKER_BEAT_FD)) {
   throw new Error("plugin broker: refusing to run without its watchdog's heartbeat pipe");
 }
+let beatPending = false;
 const heartbeat = setInterval(() => {
-  if (!process.connected) {
+  if (!process.connected || beatPending) {
     return;
   }
   const beat = {
@@ -91,17 +95,18 @@ const heartbeat = setInterval(() => {
     execArgv: process.execArgv,
     nodeOptions: null,
   };
-  try {
-    writeSync(PLUGIN_BROKER_BEAT_FD, `${JSON.stringify(beat)}\n`);
-  } catch (error) {
-    // A closed beat pipe (EPIPE) means the watchdog is gone; an unsupervised broker serves nothing. Any other fault is a
-    // defect and stays loud.
-    if (error instanceof Error && Reflect.get(error, "code") === "EPIPE") {
-      abandon();
+  beatPending = true;
+  write(PLUGIN_BROKER_BEAT_FD, `${JSON.stringify(beat)}\n`, (error) => {
+    beatPending = false;
+    if (error === null) {
       return;
     }
-    throw error;
-  }
+    // Any fault but a closed pipe is a defect and stays loud.
+    if (error.code !== "EPIPE") {
+      throw error;
+    }
+    abandon();
+  });
 }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
 heartbeat.unref();
 

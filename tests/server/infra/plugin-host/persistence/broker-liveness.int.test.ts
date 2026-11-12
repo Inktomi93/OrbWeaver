@@ -2,7 +2,7 @@
 // The broker is replaced only when its own main thread stops answering its watchdog's heartbeat, never because a
 // command or a Worker is late, and a replacement strikes no plugin (D347). The strike count is read from the plugin's
 // row, which no door shows.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginStatus } from "@orb/contracts/plugin";
@@ -14,6 +14,7 @@ import {
   PLUGIN_BROKER_LIVENESS_BOUND_MS,
   PLUGIN_INVOCATION_CPU_MS,
   PLUGIN_WORKER_OVERRUN_MAX_MS,
+  PLUGIN_WORKER_SPAN_CHECK_MS,
 } from "#server/infra/plugin-host/budgets.ts";
 import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 import { BASE_GRANTS, createPluginProcessEdge, firstChild, installGuest, NATIVE_TIMEOUT_MS, NOOP_COMMAND } from "../process-runtime.fixtures.ts";
@@ -146,4 +147,62 @@ test("a broker whose every Worker is stuck in a native call keeps answering its 
   for (const guest of guests) {
     await guest.invoke("noop");
   }
+});
+
+// The broker ends a Worker stuck in one native call at its span bound, one check late at most: past the time a paused
+// watchdog's beat pipe takes to fill. The pause outlasts that end by two liveness bounds.
+const STUCK_ENDED_BY_MS = PLUGIN_INVOCATION_CPU_MS + PLUGIN_WORKER_OVERRUN_MAX_MS + PLUGIN_WORKER_SPAN_CHECK_MS;
+const PAUSE_SAMPLE_MS = 10 * PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS;
+const PAUSE_SAMPLES = Math.ceil((STUCK_ENDED_BY_MS + 2 * LIVENESS_BOUND_MS) / PAUSE_SAMPLE_MS);
+
+// The broker's thread count from its Linux process entry: a Worker ended is a thread gone.
+function brokerThreads(pid: number): number {
+  return readdirSync(`/proc/${String(pid)}/task`).length;
+}
+
+test("a watchdog paused past the time the beat pipe takes to fill leaves the broker's main thread running, and the same broker serves on after", {
+  tags: ["slow"],
+  timeout: PAUSE_SAMPLES * PAUSE_SAMPLE_MS + NATIVE_TIMEOUT_MS,
+}, async () => {
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
+  const culprit = await installGuest(root, "paused-culprit", `const h=orb.host(1);${NOOP_COMMAND}${STALL_COMMAND}`, BASE_GRANTS);
+  const bystander = await installGuest(root, "paused-bystander", `const h=orb.host(1);${NOOP_COMMAND}`, BASE_GRANTS);
+  expect((await culprit.enable()).status).toBe(ENABLED);
+  expect((await bystander.enable()).status).toBe(ENABLED);
+  await culprit.invoke("noop");
+  await bystander.invoke("noop");
+  const broker = brokerPid(edge);
+  const watchdog = firstChild(edge).pid;
+  if (watchdog === undefined) {
+    throw new Error("the production host did not spawn its watchdog");
+  }
+
+  // The stall crosses the watchdog into the broker before the pause; its answer waits for the resume.
+  const stalled: Promise<unknown> = culprit.invoke("stall").catch((error: unknown) => error);
+  await sleep(LIVENESS_BOUND_MS);
+  const threadsAtPause = brokerThreads(broker);
+
+  // A paused watchdog stops reading the beat pipe, which fills. A broker whose beat write blocked on it would sit in
+  // that write and could not end the stalled Worker; a running one ends it during the pause, a thread gone.
+  process.kill(watchdog, "SIGSTOP");
+  let fewestThreads = threadsAtPause;
+  try {
+    for (let sample = 0; sample < PAUSE_SAMPLES; sample += 1) {
+      await sleep(PAUSE_SAMPLE_MS);
+      fewestThreads = Math.min(fewestThreads, brokerThreads(broker));
+    }
+  } finally {
+    process.kill(watchdog, "SIGCONT");
+  }
+  expect(fewestThreads).toBeLessThan(threadsAtPause);
+
+  // After the resume the broker is the same process and was never replaced: its beats resumed within the bound.
+  expect(await stalled).toMatchObject({ code: "BAD_REQUEST" });
+  await sleep(LIVENESS_BOUND_MS);
+  expect(stoppedReports(edge)).toEqual([]);
+  expect(brokerPid(edge)).toBe(broker);
+  await culprit.invoke("noop");
+  await bystander.invoke("noop");
+  expect(await crashesOf(root.db, root.ownerId, bystander.pluginId)).toBe(0);
 });

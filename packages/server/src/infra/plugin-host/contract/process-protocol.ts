@@ -1,4 +1,4 @@
-import type { PluginLogLevel } from "@orb/contracts/plugin";
+import type { PluginHostRefusalCode, PluginLogLevel } from "@orb/contracts/plugin";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { NodeEnvironment } from "#primitives/node-environment";
 
@@ -78,6 +78,8 @@ export type PluginSyncOperation = (typeof PLUGIN_SYNC_OPERATIONS)[number];
 export interface RpcError {
   readonly name: string;
   readonly message: string;
+  /** Why a host-unavailable refusal was made, when the host can say; the guest reads it beside the name. */
+  readonly code?: PluginHostRefusalCode;
 }
 
 interface BrokerCommand {

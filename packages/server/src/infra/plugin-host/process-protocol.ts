@@ -1,5 +1,5 @@
-import type { PluginLogLevel } from "@orb/contracts/plugin";
-import { PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import type { PluginHostRefusalCode, PluginLogLevel } from "@orb/contracts/plugin";
+import { PLUGIN_CHANNEL_FULL_CODE, PLUGIN_HOST_REFUSAL_CODES, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
 import type {
   BrokerParentMessage,
   ParentBrokerMessage,
@@ -16,8 +16,8 @@ export const PLUGIN_BROKER_SYNC_TIMEOUT_MS = 10_000;
 /** The error name of a refusal the host made for a reason the plugin did not cause: a broker that stopped answering,
  *  a runtime replaced before the command ran, shutdown. The parent turns it into a refusal that is never a strike. */
 export const PLUGIN_HOST_UNAVAILABLE = "PluginHostUnavailable";
-/** What a call or reply refused by a full channel carries, under {@link PLUGIN_HOST_UNAVAILABLE}: the host's own
- *  capacity, which the plugin may retry and which is never a strike. */
+/** What a call or reply refused by a full channel carries, under {@link PLUGIN_HOST_UNAVAILABLE} and with
+ *  {@link PLUGIN_CHANNEL_FULL_CODE}: the host's own capacity, which the plugin may retry and which is never a strike. */
 export const PLUGIN_CHANNEL_FULL = "plugin host: a channel between the plugin host's processes is full; this call was refused, retry it";
 /** The error name of an invocation the host ended: at its settlement wall, or by terminating its stuck Worker. */
 export const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
@@ -107,7 +107,21 @@ export function parseWorkerBrokerMessage(message: unknown): WorkerBrokerMessage 
   return message["kind"] === "response" ? parseWorkerResponse(message) : null;
 }
 
+/** A {@link PLUGIN_HOST_UNAVAILABLE} refusal that says why in its code, which crosses every hop and reaches the guest
+ *  beside its name, so a plugin tells a full channel from a lost host without reading the message. */
+export class CodedHostUnavailableError extends Error {
+  readonly code: PluginHostRefusalCode;
+  constructor(code: PluginHostRefusalCode, message: string) {
+    super(message);
+    this.name = PLUGIN_HOST_UNAVAILABLE;
+    this.code = code;
+  }
+}
+
 export function rpcError(error: unknown): RpcError {
+  if (error instanceof CodedHostUnavailableError) {
+    return { name: error.name, message: error.message, code: error.code };
+  }
   if (error instanceof Error) {
     return { name: error.name, message: error.message };
   }
@@ -118,9 +132,20 @@ export function fromRpcError(error: RpcError | undefined, fallback: string): Err
   if (error === undefined) {
     return new Error(fallback);
   }
+  if (error.code !== undefined) {
+    return new CodedHostUnavailableError(error.code, error.message);
+  }
   const restored = new Error(error.message);
   restored.name = error.name;
   return restored;
+}
+
+// A refusal code off the wire: only a host-unavailable refusal carries one, and only a code the host mints.
+function parseRefusalCode(name: string, code: unknown): PluginHostRefusalCode | null | undefined {
+  if (code === undefined) {
+    return undefined;
+  }
+  return name === PLUGIN_HOST_UNAVAILABLE ? (PLUGIN_HOST_REFUSAL_CODES.find((known) => known === code) ?? null) : null;
 }
 
 export function isBridgeOperation(value: string): value is PluginBridgeOperation {
@@ -303,11 +328,16 @@ export function parseBrokerParentMessage(message: unknown): BrokerParentMessage 
   return parseBrokerRuntimeMessage(message["kind"], message);
 }
 
-function parseRpcError(errorValue: unknown): RpcError | undefined {
+/** An error off the wire, or undefined when it is not one. */
+export function parseRpcError(errorValue: unknown): RpcError | undefined {
   if (!isRecord(errorValue) || typeof errorValue["name"] !== "string" || typeof errorValue["message"] !== "string") {
     return;
   }
-  return { name: errorValue["name"], message: errorValue["message"] };
+  const code = parseRefusalCode(errorValue["name"], errorValue["code"]);
+  if (code === null) {
+    return;
+  }
+  return code === undefined ? { name: errorValue["name"], message: errorValue["message"] } : { name: errorValue["name"], message: errorValue["message"], code };
 }
 
 const BYTE_TAG = "$orbBytes";
@@ -390,10 +420,14 @@ export function parseMessageLine(line: string): unknown {
 
 /** The result a bridge call gets when a full channel refused it or its result. */
 export function channelFullBridgeResult(id: string): Extract<ParentBrokerMessage, { readonly kind: "bridge-result" }> {
-  return { kind: "bridge-result", id, ok: false, error: { name: PLUGIN_HOST_UNAVAILABLE, message: PLUGIN_CHANNEL_FULL } };
+  return { kind: "bridge-result", id, ok: false, error: channelFullError() };
 }
 
 /** The answer a command gets when a full channel refused it or its answer. */
 export function channelFullResponse(id: string): Extract<BrokerParentMessage, { readonly kind: "response" }> {
-  return { kind: "response", id, ok: false, error: { name: PLUGIN_HOST_UNAVAILABLE, message: PLUGIN_CHANNEL_FULL } };
+  return { kind: "response", id, ok: false, error: channelFullError() };
+}
+
+function channelFullError(): RpcError {
+  return { name: PLUGIN_HOST_UNAVAILABLE, message: PLUGIN_CHANNEL_FULL, code: PLUGIN_CHANNEL_FULL_CODE };
 }

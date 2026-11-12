@@ -24,7 +24,7 @@ The plugin host's processes talk over inherited IPC channels: app to watchdog, w
 - **A frame a plugin sizes carries a route:** its runtime and the small refusal frame that answers it. A relay never parses a frame.
 - **Each runtime has its own share of every queue.** `pluginIpcShareBytes` is what `PLUGIN_IPC_CONTROL_HEADROOM_BYTES` leaves, divided among `PLUGIN_BROKER_WORKER_MAX` Workers, with a floor of four capped host results. At the default Worker count each runtime has a quarter of the queue less the headroom, and no runtime's frames can take another's room. Where the floor binds the shares overlap, and the queue's own bound still holds.
 - **Host control frames may use the headroom; plugin frames never do.** Control frames are refusals, runtime notices, cancels, disposes and readiness. A refused call owes one refusal frame, and at most `HOST_CALLS_IN_FLIGHT_MAX` calls per runtime are in flight, so every refusal fits. A control frame that does not fit means a broken channel, and the channel fails as before.
-- **The refusal is coded and retryable.** Its name is `PLUGIN_HOST_UNAVAILABLE` and its message is `PLUGIN_CHANNEL_FULL`. A guest reads the name.
+- **The refusal is coded and retryable.** Its name is `PLUGIN_HOST_UNAVAILABLE`, its code `PLUGIN_CHANNEL_FULL_CODE` and its message `PLUGIN_CHANNEL_FULL`. The code crosses every hop to the guest beside the name, so a plugin tells a full channel from a lost host, which has no code, without reading the message.
 - **A host result is refused, never held.** A result too large for its runtime's share is replaced by the refusal at once, so no host memory stays pinned for a plugin that never takes it. The guest may retry.
 - **Strikes follow cause.** A refusal is a conflict and never a strike (D346). A guest that lets its invocation overrun its CPU window copying arguments out takes the strike for that overrun, as for any other runaway invocation. A bystander's frames use its own share, so its calls are never refused for another plugin's flood.
 - **The guest's CPU window bounds a flood too.** To fill a runtime's share with megabyte arguments a guest must copy about that many bytes out in one invocation, which ends at its CPU window first (D346). The share is the backstop across invocations and runtimes.
@@ -33,9 +33,9 @@ The plugin host's processes talk over inherited IPC channels: app to watchdog, w
 
 - `PLUGIN_IPC_QUEUE_MAX_BYTES`, `PLUGIN_IPC_CONTROL_HEADROOM_BYTES`, `PLUGIN_IPC_REFUSAL_MAX_BYTES` and `pluginIpcShareBytes` in `packages/server/src/infra/plugin-host/budgets.ts`.
 - `PluginIpcSender` and `relayFrame` in `packages/server/src/infra/plugin-host/process-channel.ts`; `PluginFrameRoute` in `packages/server/src/infra/plugin-host/contract/process-protocol.ts`.
-- `PLUGIN_CHANNEL_FULL`, `channelFullBridgeResult` and `channelFullResponse` in `packages/server/src/infra/plugin-host/process-protocol.ts`.
+- `PLUGIN_CHANNEL_FULL`, `CodedHostUnavailableError`, `channelFullBridgeResult` and `channelFullResponse` in `packages/server/src/infra/plugin-host/process-protocol.ts`; `PLUGIN_CHANNEL_FULL_CODE` and `PLUGIN_HOST_REFUSAL_CODES` in `packages/contracts/src/plugin/errors.ts`, mirrored for authors in `packages/plugin-sdk/shared.d.ts`; the guest error's `code` in `packages/server/src/infra/plugin-host/marshal.ts`.
 - `offer`, `answer` and `forwardBridge` in `packages/server/src/infra/plugin-host/broker-entry.ts`; the relays in `packages/server/src/infra/plugin-host/broker-watchdog.ts`; `command` and `sendBridgeResult` in `packages/server/src/infra/plugin-host/process-runtime.ts`.
-- Tests: `tests/server/infra/plugin-host/persistence/bridge-flood.int.test.ts`.
+- Tests: `tests/server/infra/plugin-host/persistence/bridge-flood.int.test.ts` and `tests/server/infra/plugin-host/process-channel.test.ts`.
 
 ## Consequences
 

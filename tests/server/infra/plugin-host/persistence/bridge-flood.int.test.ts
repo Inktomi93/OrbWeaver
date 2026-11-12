@@ -4,7 +4,7 @@
 // leaves another owner's plugin served and unstruck. The strike count is read from the plugin's row, which no door shows.
 import { readFileSync } from "node:fs";
 import type { PluginStatus } from "@orb/contracts/plugin";
-import { PLUGIN_KV_VALUE_MAX_BYTES } from "@orb/contracts/plugin";
+import { PLUGIN_CHANNEL_FULL_CODE, PLUGIN_KV_VALUE_MAX_BYTES } from "@orb/contracts/plugin";
 import { brandedId, createIdSource } from "@orb/kit/ids";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -23,15 +23,18 @@ const NET_HOST = "peer.test";
 const BULK_URL = `https://${NET_HOST}/bulk`;
 // Every flood runs real guests through a real broker and watchdog, each call carrying or returning about a megabyte.
 const FLOOD_TEST_TIMEOUT_MS = 120_000;
+// What one call settled as, from the guest's side: `ok`, or its error's name and, when the refusal has one, its code.
+const REPORT =
+  "const report = (s) => (s.status === 'fulfilled' ? 'ok' : String(s.reason && s.reason.name) + (s.reason && s.reason.code ? ':' + s.reason.code : ''));";
+// A full channel's refusal as the guest reads it.
+const CHANNEL_FULL = `${PLUGIN_HOST_UNAVAILABLE}:${PLUGIN_CHANNEL_FULL_CODE}`;
 // Each flooding invoke issues its whole in-flight allowance at once and reports what every call settled as.
 const FLOOD_OPS = {
   // Megabyte arguments that cross the channels before the host refuses them for their size: the bytes are the flood.
-  floodStore:
-    "async (h, room, a) => { const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, (_, i) => h.storage.set('k' + i, big))); return settled.map((s) => (s.status === 'fulfilled' ? 'ok' : String(s.reason && s.reason.name))); }",
+  floodStore: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, (_, i) => h.storage.set('k' + i, big))); return settled.map(report); }`,
   // Megabyte results, the flood in the other direction: tiny to ask for, so the guest spends little, and refused or
   // served when they cross back.
-  floodFetch:
-    "async (h, room, a) => { const settled = await Promise.allSettled(Array.from({ length: a.calls }, () => h.net.fetch(a.url))); return settled.map((s) => (s.status === 'fulfilled' ? 'ok' : String(s.reason && s.reason.name))); }",
+  floodFetch: `async (h, room, a) => { ${REPORT} const settled = await Promise.allSettled(Array.from({ length: a.calls }, () => h.net.fetch(a.url))); return settled.map(report); }`,
   // A burst a showcase plugin makes: every key of a full value read back at once.
   readBack:
     "async (h, room, a) => { const value = 'x'.repeat(a.bytes); for (let i = 0; i < a.calls; i++) { await h.storage.set('r' + i, value); } const read = await Promise.all(Array.from({ length: a.calls }, (_, i) => h.storage.get('r' + i))); return read.filter((v) => v === value).length; }",
@@ -121,13 +124,13 @@ async function floodArgs(run: GuestRun, calls: number): Promise<FloodOutcome> {
 }
 
 // Every flooding call that settled is served, refused for its size by the host, or refused by a full channel; a flood
-// the guest's CPU window ended is contained too. Nothing else, a lost broker included, appears.
+// the guest's CPU window ended is contained too. Nothing else appears: a lost host's refusal carries no code.
 function expectContained(outcomes: readonly FloodOutcome[], served: readonly string[]): void {
   for (const outcome of outcomes) {
     if (outcome.kind === "interrupted") {
       continue;
     }
-    expect(outcome.names.filter((name) => name !== PLUGIN_HOST_UNAVAILABLE && !served.includes(name))).toEqual([]);
+    expect(outcome.names.filter((name) => name !== CHANNEL_FULL && !served.includes(name))).toEqual([]);
   }
 }
 
@@ -174,15 +177,15 @@ test("three plugins of one owner flooding host calls with megabyte results are r
   const runs = await floodingPlugins(owners, 3);
 
   // The result frames fill the parent's channel, not the guest's CPU, so every flooding plugin reports its calls, and a
-  // full channel's coded refusal is among them.
+  // full channel's refusal, which the guest tells from a lost host by its code, is among them.
   const [pinged, ...outcomes] = await Promise.all([owners.ping(), ...runs.map((run) => run("floodFetch", { calls: HOST_CALLS_IN_FLIGHT_MAX, url: BULK_URL }))]);
   expect(pinged).toEqual({ ok: true, value: null });
   for (const outcome of outcomes) {
     if (!(outcome.ok && Array.isArray(outcome.value))) {
       throw new Error(`a flood invoke did not report its calls: ${JSON.stringify(outcome)}`);
     }
-    expect(outcome.value).toContain(PLUGIN_HOST_UNAVAILABLE);
-    expect(outcome.value.filter((name) => name !== PLUGIN_HOST_UNAVAILABLE && name !== "ok")).toEqual([]);
+    expect(outcome.value).toContain(CHANNEL_FULL);
+    expect(outcome.value.filter((name) => name !== CHANNEL_FULL && name !== "ok")).toEqual([]);
   }
   await expectBrokerKept(owners, broker);
 });
