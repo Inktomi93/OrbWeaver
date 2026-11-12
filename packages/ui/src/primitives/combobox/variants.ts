@@ -12,6 +12,7 @@ import {
   OVERLAY_ARROW,
   OVERLAY_MOTION,
   POPUP_SURFACE,
+  TITLE_FLOOR,
   tv,
 } from "#lib";
 
@@ -46,7 +47,7 @@ export const comboboxVariants = tv({
     // `self-stretch` fills the line the wrapped box stretches to, so the draft input's hit area is the field's own
     // height rather than its text-height box.
     input: [
-      "flex-1 self-stretch bg-transparent px-field text-field leading-field text-foreground outline-none min-inline-(--width-title-floor)",
+      `flex-1 self-stretch bg-transparent px-field text-field leading-field text-foreground outline-none ${TITLE_FLOOR}`,
       "placeholder:text-muted-foreground",
     ],
     positioner: "z-(--z-popover) outline-none",

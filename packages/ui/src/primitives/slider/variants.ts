@@ -60,6 +60,10 @@ export const sliderVariants = tv({
       // vendor's cross offset is always `top: 50%`.
       // eslint-disable-next-line better-tailwindcss/no-restricted-classes -- the `!` beats Base UI's inline `translate` on the thumb, which no variant can
       "-ms-(--size-slider-inset) -mbs-(--size-slider-inset) translate-none!",
+      // Base UI's range input is `position: fixed; width: 100%`. Under a size container a fixed box is positioned against that
+      // container, so the input, 100% of the pane wide and set at the thumb, ends a pane's width past the thumb and widens the
+      // pane's scroll. Layout containment makes the thumb the box the input is fixed to, so it stays the thumb's own size.
+      "contain-layout",
       "transition-shadow duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING_HAS,

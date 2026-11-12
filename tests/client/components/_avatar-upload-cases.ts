@@ -775,7 +775,7 @@ export const AVATAR_AFFORDANCE_CASES: readonly AvatarCase[] = [
       await routeBlobs(page, root);
       const { control } = await surface.stage({ page, mount, caller, current, refuseWrite: false });
       await expectPicture(control, current);
-      const mark = control.locator('[data-slot="picture-cue-mark"]');
+      const mark = control.locator('[data-slot="picture-button-mark"]');
       await expect(control.getByRole("img", { name: /replace|drop|upload/iu })).toHaveCount(0);
       await expect(page.getByRole("button", { name: surface.controlName, exact: true })).toHaveCount(1);
       await expect(control).toHaveAccessibleName(surface.controlName);
@@ -800,7 +800,7 @@ export const AVATAR_AFFORDANCE_CASES: readonly AvatarCase[] = [
       await routeBlobs(page, root);
       const { control } = await surface.stage({ page, mount, caller, current, refuseWrite: false });
       await expectPicture(control, current);
-      const drop = control.locator('[data-slot="picture-cue-drop"]');
+      const drop = control.locator('[data-slot="picture-button-drop"]');
       await expect(drop).toHaveCSS("opacity", "0");
 
       const leave = await client.dragFileOver(control, DRAG_IMAGE);
@@ -834,7 +834,7 @@ export const AVATAR_TOUCH_CASES: readonly AvatarCase[] = [
       await expectPicture(control, current);
       // The positive control: this page really is one that cannot hover.
       expect(await client.pageCanHover(page)).toBe(false);
-      await expect(control.locator('[data-slot="picture-cue-mark"]')).toHaveCSS("opacity", "1");
+      await expect(control.locator('[data-slot="picture-button-mark"]')).toHaveCSS("opacity", "1");
     },
   },
 ];

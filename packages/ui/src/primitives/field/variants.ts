@@ -15,7 +15,9 @@ export const fieldVariants = tv({
     // already correct there — this widening is pointer-fine only. `gap-row` (8px) is the exact next step
     // on the spacing scale and closes the reach to flush (8 − 8 = 0px overlap) without touching the
     // `field` intent token, which stays 6px everywhere else it is used (D3).
-    labelRow: `${INLINE_FIELD_ROW} pointer-fine:gap-row`,
+    // Below the pane width where a label and its touch-floor hint cannot share a line (enlarged text on a phone), the hint wraps under the label.
+    // Under the container step, never always: a wrapping row's minimum width is its widest part, which would narrow every label column.
+    labelRow: `${INLINE_FIELD_ROW} @max-cq-16:flex-wrap @max-cq-16:max-inline-full pointer-fine:gap-row`,
     // THE MEASURE RIDES THE BASE SLOT (#1653), not one compound arm. It was spelled ONLY inside the
     // `align:"track" + orientation:"horizontal"` compound below, so every DEFAULT `<Field description=…>`
     // in the app rendered `max-width: none`: measured in the CT browser with real Geist, the tag editor's

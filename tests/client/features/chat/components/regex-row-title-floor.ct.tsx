@@ -85,5 +85,52 @@ for (const phone of PHONES) {
         expect(column.scrolls).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       }
     });
+
+    test("a tier row's switch and More menu end inside the row at the largest browser text, and the normal-size row keeps them on the body's line", async ({
+      mount,
+      page,
+      corpusMedia,
+    }) => {
+      await using root = await createCorpusHarness();
+      const chatId = await hostRoom(root);
+      const host = await root.internalCallerFor(root.ownerId);
+      const tier = await host.regex.createScript({
+        input: createRegexScriptSchema.parse({ name: TIER_NAME, findRegex: "x", replaceString: "y", placement: ["AI_OUTPUT"], enabled: true }),
+      });
+      await host.regex.attachToChat({ chatId, scriptId: tier.id });
+      await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+      await routeTrpc(page, serveCorpusProcedures(host, TAB_PROCEDURES));
+      await corpusMedia();
+      await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId, width: phone.width });
+      await page.getByRole("button", { name: /^Regex/u }).click();
+      const row = page
+        .locator('[data-slot="list-row-root"]')
+        .filter({ has: page.locator('[data-slot="list-row-title"]').getByText(TIER_NAME, { exact: true }) });
+      await expect(row).toHaveCount(1);
+      const controls = row.locator('[data-slot="list-row-actions"]').getByRole("switch").or(row.locator('[data-slot="list-row-actions"]').getByRole("button"));
+      await expect(controls).toHaveCount(2);
+      const edges = async (): Promise<{ readonly past: number; readonly before: number; readonly line: boolean }> =>
+        row.evaluate((element) => {
+          const rowBox = element.getBoundingClientRect();
+          const body = element.querySelector('[data-slot="list-row-body"]')?.getBoundingClientRect();
+          const parts = [...element.querySelectorAll('[data-slot="list-row-actions"] :is([role="switch"], button)')].map((part) =>
+            part.getBoundingClientRect(),
+          );
+          return {
+            past: Math.max(...parts.map((box) => Math.round(box.right - rowBox.right))),
+            before: Math.max(...parts.map((box) => Math.round(rowBox.left - box.left))),
+            // Beside the body, not under it: the first control starts inside the body's own vertical extent.
+            line: parts.every((box) => box.top < (body?.bottom ?? 0)),
+          };
+        });
+      {
+        await using _textSize = await setPlatformTextSize(page, LARGEST_TEXT);
+        await expect.poll(async () => (await edges()).past).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+        expect((await edges()).before).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      }
+      // At the normal size the cluster seats beside the body, as it did before the row learned to hold its cluster.
+      await expect.poll(async () => (await edges()).past).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      expect((await edges()).line).toBe(true);
+    });
   });
 }

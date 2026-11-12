@@ -66,3 +66,14 @@ export function ChipRemoveTargetsStory(): ReactElement {
     </CtIsolation>
   );
 }
+
+/** A field in a pane of a fixed pixel width, so a rem-sized minimum in the field can outgrow the pane at enlarged text. */
+export function NarrowPaneStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtIsolation subject="Combobox" isolates="The draft input's minimum width against its pane at enlarged text, free of feature layout.">
+      <div data-slot="narrow-pane" style={{ inlineSize: width }}>
+        <Combobox aria-label="Keywords" defaultValue={["ember", "cinder"]} />
+      </div>
+    </CtIsolation>
+  );
+}

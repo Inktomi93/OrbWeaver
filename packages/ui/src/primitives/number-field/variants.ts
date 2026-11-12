@@ -19,19 +19,19 @@ import {
 // not clip its children for that reason: the steppers and the stepper-less input round their own outer corners.
 
 // Below the cq-12 step the stepped field's three parts do not fit one line (a phone column at 300% text is under 8rem), so
-// the steppers take a line of their own under the input: a two-track grid with the input spanning both, each part a full
-// step tall and no longer pulled over the group's edge. Each class is a whole literal so Tailwind's scanner sees it.
-// A stacked stepper is itself at least the touch target tall, so its hit area never reaches up over the input, and its
-// hit-area pseudo leaves the group's side edge rather than the input: the pair splits the column, so each pseudo grows
-// outward from its own end edge and never over its neighbour.
+// the steppers take a line of their own under the input: the input spans the grid, each part is a full step tall and no longer
+// pulled over the group's edge, and the steppers share a line only while two touch targets fit it; a narrower column gives each
+// its own line. The field is never narrower than one touch target, so every stepper's cell is at least the touch target wide and
+// its hit-area pseudo, which is the touch target square, stays inside the field's own box and never lies over a neighbour's.
+// A stacked stepper is its step tall, which is at least the touch target under a finger, so its hit area never reaches up over
+// the input. Each class is a whole literal so Tailwind's scanner sees it.
 const STACKED_ROW = {
   chip: "@max-cq-12:block-(--size-touch-target)",
   sm: "@max-cq-12:block-(--size-control-sm)",
   md: "@max-cq-12:block-(--size-control-md)",
   lg: "@max-cq-12:block-(--size-control-lg)",
 } as const satisfies Record<ControlSize, string>;
-const STACKED_STEPPER =
-  "@max-cq-12:my-0 @max-cq-12:inline-auto @max-cq-12:border-bs @max-cq-12:min-block-(--size-touch-target) @max-cq-12:before:translate-x-0 @max-cq-12:rtl:before:translate-x-0";
+const STACKED_STEPPER = "@max-cq-12:my-0 @max-cq-12:inline-auto @max-cq-12:border-bs @max-cq-12:before:translate-x-0 @max-cq-12:rtl:before:translate-x-0";
 const STACKED_DECREMENT_REACH = "@max-cq-12:before:inset-s-auto @max-cq-12:before:inset-e-0";
 const STACKED_INCREMENT_REACH = "@max-cq-12:before:inset-s-0 @max-cq-12:before:inset-e-auto";
 
@@ -99,10 +99,10 @@ export const numberFieldVariants = tv({
     // number twin is a datum, not prose.
     layout: {
       field: {
-        root: "inline-full",
-        group: "@max-cq-12:grid @max-cq-12:grid-cols-2 @max-cq-12:block-auto",
+        root: "inline-full min-inline-(--size-touch-target)",
+        group: "@max-cq-12:grid @max-cq-12:grid-cols-[repeat(auto-fit,minmax(var(--size-touch-target),1fr))] @max-cq-12:block-auto",
         decrement: `${STACKED_STEPPER} ${STACKED_DECREMENT_REACH} @max-cq-12:rounded-ss-none`,
-        input: "text-center text-field leading-field @max-cq-12:order-first @max-cq-12:col-span-2 @max-cq-12:my-0 @max-cq-12:rounded-t-control",
+        input: "text-center text-field leading-field @max-cq-12:order-first @max-cq-12:col-span-full @max-cq-12:my-0 @max-cq-12:rounded-t-control",
         increment: `${STACKED_STEPPER} ${STACKED_INCREMENT_REACH} @max-cq-12:rounded-se-none`,
       },
       inline: { root: "inline-(--width-number-inline)", input: "rounded-control px-field text-end font-mono text-code-field leading-code-field" },
@@ -110,12 +110,11 @@ export const numberFieldVariants = tv({
       tile: { root: "inline-full", group: "block-auto min-block-0", input: "my-0 rounded-control px-field text-center text-title leading-title" },
     },
   },
+  // A slot's classes in a compound variant go under `class`: a slot name beside the conditions is read as a condition and writes nothing.
   compoundVariants: CONTROL_SIZES.map((size) => ({
     size,
     layout: "field" as const,
-    decrement: STACKED_ROW[size],
-    input: STACKED_ROW[size],
-    increment: STACKED_ROW[size],
+    class: { decrement: STACKED_ROW[size], input: STACKED_ROW[size], increment: STACKED_ROW[size] },
   })),
   defaultVariants: { size: "sm", layout: "field" },
 });

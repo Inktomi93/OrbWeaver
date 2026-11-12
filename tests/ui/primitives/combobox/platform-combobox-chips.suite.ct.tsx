@@ -1,12 +1,12 @@
 // Combobox turns typed text into chips: Enter and comma commit, a pasted list splits, duplicates and the cap are refused,
 // and each chip keeps one inset from the field edge on both axes at every control step.
-import { hitExtent, touchFloorPx } from "@orb/testkit/browser/spec";
+import { hitExtent, LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize, touchFloorPx } from "@orb/testkit/browser/spec";
 import type { ControlSize } from "@orb/ui/lib";
 import { CONTROL_SIZES } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { ChipInsetStory, ChipRemoveTargetsStory, FreeTextChipsStory, RerenderingParentStory } from "./combobox-chips-stories.tsx";
+import type { ChipInsetStory, ChipRemoveTargetsStory, FreeTextChipsStory, NarrowPaneStory, RerenderingParentStory } from "./combobox-chips-stories.tsx";
 
 const STORIES = "tests/ui/primitives/combobox/combobox-chips-stories";
 
@@ -152,3 +152,19 @@ for (const coarse of [false, true]) {
     });
   });
 }
+
+// A phone pane's width in px: narrower than the title floor at the largest browser text (a rem length), wider than it at normal size.
+const PHONE_PANE_PX = 200;
+
+test("the draft input keeps its title floor at normal text and yields to a pane narrower than it at the largest browser text", async ({ mount, page }) => {
+  const draft = page.locator('[data-slot="combobox-input"]');
+  const pane = page.locator('[data-slot="narrow-pane"]');
+  const floorOf = (): Promise<number> => resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, page.locator("body"));
+  await mount<typeof NarrowPaneStory>(`${STORIES}/NarrowPaneStory`, { width: PHONE_PANE_PX });
+  expect((await draft.boundingBox())?.width).toBeGreaterThanOrEqual(await floorOf());
+  await using _text = await setPlatformTextSize(page, PLATFORM_TEXT_SCALES[2]);
+  await mount<typeof NarrowPaneStory>(`${STORIES}/NarrowPaneStory`, { width: PHONE_PANE_PX });
+  expect(await floorOf()).toBeGreaterThan(PHONE_PANE_PX);
+  const [box, host] = [await draft.boundingBox(), await pane.boundingBox()];
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual((host?.x ?? 0) + (host?.width ?? 0) + LAYOUT_SUBPIXEL_PX);
+});

@@ -21,6 +21,8 @@ const PROCEDURES = [
   "worldInfo.getBook",
   "worldInfo.listEntries",
   "settings.getUserSettings",
+  // The depth switch and the steppers edit the entry, and its autosave can reach the wire before the case ends.
+  "worldInfo.updateEntry",
 ] as const;
 const PHONE_WIDTHS = [320, 390] as const;
 // Rounding of two fractional boxes.
