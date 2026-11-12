@@ -679,6 +679,10 @@ const SERVER_TEST_REACHES = {
   "tests/server/entry/compose/scoped-timers.int.test.ts": {
     "domain/plugin": "pluginMacroName: no wire lists a plugin's registered macros, so the suite names the token by the plugin domain's own rule",
   },
+  // The broker-loss holds are judged on a stepped clock while the parent's production timers run beside it.
+  "tests/server/infra/plugin-host/persistence/broker-liveness.int.test.ts": {
+    "infra/timers": "systemTimers: the production timers that run beside the stepped clock the broker-loss holds are judged on",
+  },
   // A stuck Worker must end before the parent's command timeout fires on production timers, and a lost broker must
   // never add up to a disable.
   "tests/server/infra/plugin-host/stuck-worker.int.test.ts": {

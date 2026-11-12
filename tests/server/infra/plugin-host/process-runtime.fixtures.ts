@@ -6,7 +6,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { PluginHostSeamDeps } from "@orb/server/infra/plugin-host";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import type { NativeServerTestHarness } from "@orb/testkit/node/composed";
 import { makePluginBundle } from "@orb/testkit/node/composed";
 
 export const PLUGIN_PROCESS_OPERATIONS = { mint: "seam.mintId", read: "storage.get", write: "storage.set", variableWrite: "variables.set" } as const;
@@ -132,10 +132,10 @@ export function createPluginProcessEdge(): {
   };
 }
 
-type PluginService = ServerTestHarness["services"]["plugin"];
+type PluginService = NativeServerTestHarness["services"]["plugin"];
 
 interface InstalledGuest {
-  readonly caller: Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
+  readonly caller: Awaited<ReturnType<NativeServerTestHarness["principalFor"]>>;
   readonly pluginId: Awaited<ReturnType<PluginService["install"]>>["id"];
   readonly enable: () => ReturnType<PluginService["setGrant"]>;
   readonly invoke: (name: string) => ReturnType<PluginService["invokeUiCommand"]>;
@@ -146,7 +146,12 @@ interface InstalledGuest {
 }
 
 /** Install admitted bytes; enablement and every callback still use the actual plugin service. */
-export async function installGuest(root: ServerTestHarness, slug: string, source: string, capabilities: readonly PluginCapability[]): Promise<InstalledGuest> {
+export async function installGuest(
+  root: NativeServerTestHarness,
+  slug: string,
+  source: string,
+  capabilities: readonly PluginCapability[],
+): Promise<InstalledGuest> {
   const caller = await root.principalFor(root.ownerId);
   const manifest = pluginManifestSchema.parse({
     id: slug,

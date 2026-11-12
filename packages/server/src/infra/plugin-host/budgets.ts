@@ -11,6 +11,7 @@
 
 import type { PluginBudgets } from "@orb/contracts/plugin";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
+import { MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import type { PluginCommandOperation } from "./contract/process-protocol.ts";
 import { PLUGIN_BROKER_MESSAGE_MAX_BYTES, PLUGIN_BROKER_SYNC_TIMEOUT_MS } from "./process-protocol.ts";
 
@@ -62,6 +63,19 @@ export const PLUGIN_BROKER_HEARTBEAT_MISSES_MAX = Math.ceil(
 );
 /** How long a broker that stops answering keeps serving before its watchdog ends it. */
 export const PLUGIN_BROKER_LIVENESS_BOUND_MS = PLUGIN_BROKER_HEARTBEAT_MISSES_MAX * PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS;
+
+/** How long the host remembers a broker loss: losses further apart than this never add up (D347). */
+export const PLUGIN_BROKER_LOSS_WINDOW_MS = 10 * MS_PER_MINUTE;
+/** The broker losses inside the window the host recovers from; one more stops it until the server restarts (D347). */
+export const PLUGIN_BROKER_LOSSES_MAX = 4;
+// The hold after the second loss in the window; each further loss doubles it.
+const PLUGIN_BROKER_RESTART_HOLD_BASE_MS = 2 * MS_PER_SECOND;
+
+/** How long the host refuses plugin calls after the `loss`-th broker loss inside the window: none after the first, so a
+ *  lone loss recovers at once, then a hold that doubles with each further loss (D347). */
+export function pluginBrokerRestartHoldMs(loss: number): number {
+  return loss <= 1 ? 0 : PLUGIN_BROKER_RESTART_HOLD_BASE_MS * 2 ** (loss - 2);
+}
 
 /** The guest CPU one command may spend across all its spans, the spans of guest work that run while it waits its turn
  *  included: the activation and the work outside it for `create`, one invocation for `invoke`, the snippet's account for
