@@ -1746,7 +1746,7 @@ async function commitUserTurn(
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
   await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
   // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is where the
-  // claim sits — that path claims before them (R0 F4(a), every GENERATED turn claims), this one claims only
+  // claim sits — that path claims before them (D166: a generated turn claims the room), this one claims only
   // after the last refusal, just before the user row. Folding the trio would put the claim/no-claim decision
   // behind a helper whose name cannot carry it, which is the ordering bug this file has paid for before.
   const room = await loadRoom(ctx, chatId, membership.chat.anchorPersonaId);
@@ -1808,7 +1808,7 @@ async function commitUserTurn(
   const body = composeBodyWithAttachments(composed, attachments);
   // A picture typed into the text rather than attached is placed only when the sender owns it, like an edit.
   const typed = await ownedCitedAssetIds(ctx, principal.userId, body, attachments);
-  // A committed user line is THE claim (R0 F4(a)). After every refusal above, because the claim is one-way and
+  // The first user message claims the room (D166). After every refusal above, because the claim is one-way and
   // a refused send must leave the room unclaimed; before the row, because retained accounting refuses a husk's
   // canon write and the claim replays the creation stats over the canon present at claim.
   await deps.claimChat(chatId);
