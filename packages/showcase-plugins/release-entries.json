@@ -7,7 +7,7 @@
       "ui.js": "b17ba5d6eaa91ce1daebfc19d93e25302a3cc955eee054e58c3c1eef860ac107"
     },
     "card-atlas": {
-      "main.js": "7290d4bbda00166e6d70876a93aa176d08705c0dd5b44a88d51610fc7de801cf",
+      "main.js": "edf67c9a60088c4d4eb4c62b0139ae4b2d1b6108d401e286cf94dbed80332672",
       "manifest.json": "f2d089693977927289de8a194061a7897ef887a15fd95ac826e4888d07a6c64a"
     },
     "draft-polish": {
@@ -15,7 +15,7 @@
       "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
     },
     "keepsake-camera": {
-      "main.js": "5eae398df2f596bddbac3ee6a46c6d42dd31a9cc15774c4ad2e7b7c2c6c91fba",
+      "main.js": "cf2438c8a620c8644258003098a1a8b7356f38cb162a8ba86d1040213598b15f",
       "manifest.json": "aa75117db9699c40186d7f582b8187c6dfec639286bd0e87e5e715371302e903"
     },
     "oracle-deck": {
