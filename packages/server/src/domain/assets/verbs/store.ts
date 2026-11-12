@@ -3,6 +3,7 @@
 // in-process fire-and-forget for v1 (assumes single-replica); enforceMagic is the upload boundary's defense
 // — the route passes true, trusted non-HTTP callers omit it.
 
+import { ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { StoreParams } from "../contract/params.ts";
 import type { AssetsContext, AssetsService } from "../contract/service.ts";
@@ -12,7 +13,7 @@ export function createStore(ctx: AssetsContext): AssetsService["store"] {
   return async ({ principal, bytes, kind, mime, enforceMagic, maxBytes }: StoreParams) => {
     // Reject an over-cap blob before it reaches the CAS (defense in depth over the HTTP route's body cap).
     if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
-      throw new DomainOperationError("asset_too_large", `asset is ${bytes.byteLength} bytes, over the ${maxBytes}-byte cap`);
+      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.tooLarge, `asset is ${bytes.byteLength} bytes, over the ${maxBytes}-byte cap`);
     }
     const stored = await storeBlob(ctx.db, ctx.cas, {
       ownerId: principal.userId,

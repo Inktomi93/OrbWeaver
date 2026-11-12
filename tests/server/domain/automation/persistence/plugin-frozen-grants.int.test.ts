@@ -88,7 +88,9 @@ test("watchdog loss during activation fails closed without replay and permits on
   expect(edge.children).toHaveLength(2);
 });
 
-test("unexpected loss rejects a parked invocation and old callbacks before explicit recovery", { timeout: NATIVE_TIMEOUT_MS }, async () => {
+test("unexpected loss rejects a parked invocation and its old callbacks, and the next call is served by a new broker", {
+  timeout: NATIVE_TIMEOUT_MS,
+}, async () => {
   const edge = createPluginProcessEdge();
   await using root = await createServerHarness({ pluginSpawn: edge.spawn });
   const guest = await installGuest(
@@ -108,15 +110,13 @@ test("unexpected loss rejects a parked invocation and old callbacks before expli
   expect(child.kill("SIGKILL")).toBe(true);
   await exited;
   delivery.release();
-  expect(await running).toMatchObject([{ status: "rejected" }]);
-  // The lost broker is the host's failure, so the call is refused as host-unavailable, never a strike (D347).
-  await expect(guest.invoke("noop")).toThrowTRPCError("CONFLICT");
-  expect((await capturePluginRows(root.db, root.ownerId, guest.pluginId)).kv).toEqual([]);
-  expect(edge.children).toHaveLength(1);
-  await guest.disable();
-  expect((await guest.enable()).status).toBe("enabled");
+  // The lost broker is the host's failure, so the parked call is refused as host-unavailable, never a strike (D347).
+  expect(await running).toMatchObject([{ status: "rejected", reason: { code: "CONFLICT" } }]);
+  // The next call is served by a new broker from the plugin's durable source; the old runtime's parked write died with
+  // its broker and never lands.
   await expect(guest.invoke("noop")).resolves.toEqual({ toasts: [] });
   expect(edge.children).toHaveLength(2);
+  expect((await capturePluginRows(root.db, root.ownerId, guest.pluginId)).kv).toEqual([]);
 });
 
 test("a real write queued before disable cannot alter owned persistence after its runtime is revoked", { timeout: NATIVE_TIMEOUT_MS }, async () => {

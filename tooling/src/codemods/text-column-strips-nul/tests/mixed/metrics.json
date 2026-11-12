@@ -1,0 +1,18 @@
+{
+  "text-column-strips-nul-edits": [
+    {
+      "cardinality": {
+        "shape": "plain-text"
+      },
+      "count": 2
+    }
+  ],
+  "text-column-strips-nul-kept": [
+    {
+      "cardinality": {
+        "reason": "json-or-enum"
+      },
+      "count": 2
+    }
+  ]
+}

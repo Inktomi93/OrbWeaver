@@ -46,7 +46,7 @@ export function createRunSnippet(ctx: PluginContext): (params: RunSnippetParams)
       // membrane's capability gate refuses them first).
       const bridge = buildPluginBridge(ctx.ops, caller.userId, null, ctx.belts);
       // A snippet is a human-initiated one-shot — the cascade ROOT (automationDepth 0); a turn it triggers stamps 1.
-      return await ctx.host.runSnippet({ code, grants, bridge, chat: { chatId, canWrite: authority.canWrite, automationDepth: 0 } });
+      return await ctx.host.runSnippet({ code, grants, bridge, chat: { chatId, canWrite: authority.canWrite, automationDepth: 0 }, owner: caller.userId });
     } finally {
       release();
     }

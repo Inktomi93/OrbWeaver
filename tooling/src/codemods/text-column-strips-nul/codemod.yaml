@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "text-column-strips-nul"
+version: "0.1.0"
+description: "Move every one-argument drizzle text column in the db schema onto nulFreeText, which removes NUL on its way to the driver."
+author: "Orbweaver"
+license: "AGPL-3.0-only"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

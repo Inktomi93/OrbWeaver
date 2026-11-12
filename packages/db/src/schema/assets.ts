@@ -14,6 +14,7 @@ import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
@@ -24,17 +25,17 @@ export const assets = sqliteTable(
   "assets",
   {
     // TypeID PK (`asset_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<AssetId>().primaryKey(),
+    id: nulFreeText("id").$type<AssetId>().primaryKey(),
     // The single-owned partition key (D21). User hard-delete cascades their blobs' index rows.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     kind: text("kind", { enum: ASSET_KINDS }).notNull(),
-    mime: text("mime").notNull(),
+    mime: nulFreeText("mime").notNull(),
     size: integer("size").notNull(),
     // sha-256 of the blob bytes = the CAS key. A card PNG's hash doubles as `characters.importHash`.
-    hash: text("hash").notNull(),
+    hash: nulFreeText("hash").notNull(),
     // A STORED byte-fact: `isAnimated(bytes)` computed ONCE at store time so the
     // gallery grid + variant pipeline read it without re-sniffing. GIF ⇒ true, APNG (acTL), animated WebP.
     // Drives `resolveVariant`'s bailout (don't downscale an animated asset — sharp drops animation).

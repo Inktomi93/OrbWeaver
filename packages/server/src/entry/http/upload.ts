@@ -10,7 +10,7 @@
 // The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
 
 import type { AssetUploadRefusal } from "@orb/contracts/assets";
-import { assetKindSchema } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_REFUSAL_CODES, assetKindSchema } from "@orb/contracts/assets";
 import type { DocumentUploadRefusal } from "@orb/contracts/databank";
 import { DOCUMENT_DESTINATION_FORM_FIELD, documentDestinationSchema } from "@orb/contracts/databank";
 import { docUploadMime, EXTRACTION_OP_CODES } from "@orb/contracts/extraction";
@@ -44,8 +44,6 @@ const FORBIDDEN = 403;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
 const UNSUPPORTED_MEDIA_TYPE = 415;
-/** The store verb's over-cap refusal code (`domain/assets/verbs/store.ts`). */
-const ASSET_TOO_LARGE = "asset_too_large";
 const FALLBACK_MIME = "application/octet-stream";
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
 const UPLOAD_FIELD = "file";
@@ -133,16 +131,16 @@ function uploadRefusal(
   err: unknown,
 ): Response {
   if (err instanceof AssetContentRejectedError) {
-    return c.json({ error: err.reason }, UNSUPPORTED_MEDIA_TYPE);
+    return c.json({ error: err.reason, reason: err.refusal }, UNSUPPORTED_MEDIA_TYPE);
   }
-  if (err instanceof DomainOperationError && err.code === ASSET_TOO_LARGE) {
-    return c.json({ error: TOO_LARGE_REASON }, PAYLOAD_TOO_LARGE);
+  if (err instanceof DomainOperationError && err.code === ASSET_UPLOAD_REFUSAL_CODES.tooLarge) {
+    return c.json({ error: TOO_LARGE_REASON, reason: ASSET_UPLOAD_REFUSAL_CODES.tooLarge }, PAYLOAD_TOO_LARGE);
   }
   throw err;
 }
 
 function documentUploadRefusal(c: Parameters<typeof uploadRefusal>[0], error: unknown): Response {
-  if (error instanceof AssetContentRejectedError || (error instanceof DomainOperationError && error.code === ASSET_TOO_LARGE)) {
+  if (error instanceof AssetContentRejectedError || (error instanceof DomainOperationError && error.code === ASSET_UPLOAD_REFUSAL_CODES.tooLarge)) {
     return uploadRefusal(c, error);
   }
   const modeled = classifyDomainError(error);

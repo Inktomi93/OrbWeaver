@@ -27,6 +27,7 @@ import { NOTIFICATION_TYPES } from "@orb/contracts/notifications";
 import type { NotificationId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
@@ -44,9 +45,9 @@ const TYPE_CHECK_LIST = checkList(NOTIFICATION_TYPES);
 export const notifications = sqliteTable(
   "notifications",
   {
-    id: text("id").$type<NotificationId>().primaryKey(),
+    id: nulFreeText("id").$type<NotificationId>().primaryKey(),
     // The single recipient — the inbox is scoped by this FK; CASCADE so a deleted user's inbox goes too.
-    recipientUserId: text("recipient_user_id")
+    recipientUserId: nulFreeText("recipient_user_id")
       .$type<NotificationEvent["recipientUserId"]>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),

@@ -43,6 +43,7 @@ import {
   snippetResultSchema,
 } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
 import type { TimerScheduler } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
@@ -102,6 +103,8 @@ type BindingLifetime =
 
 type Binding = BindingLifetime & {
   readonly registry: Map<string, Binding>;
+  /** Whose share of the Workers this binding's runtime draws on. */
+  readonly owner: UserId;
   readonly timers: TimerScheduler;
   runtimeId: string | undefined;
   lifecycleGeneration: number;
@@ -167,6 +170,7 @@ interface AuthorityCommand {
 }
 
 type NewBindingInput = BindingLifetime & {
+  readonly owner: UserId;
   readonly bridge: PluginBridge;
   readonly grants: readonly PluginCapability[];
 };
@@ -859,8 +863,10 @@ class BrokerClient {
     }
   }
 
-  // A lost broker is the host's failure, never one plugin's: every command it held and every binding it served fails
-  // as host-unavailable, which the crash policy does not count as a strike (D347).
+  // A lost broker is the host's failure, never one plugin's: every command it held fails as host-unavailable, which the
+  // crash policy does not count as a strike (D347). An enabled plugin's logical instance is not crashed with it: its
+  // runtime is forgotten, as when the broker ends a stuck Worker, so its next call cold-starts on the new broker from
+  // its durable source with no owner action. A snippet's one-shot binding fails with the broker.
   private onDisconnect(cause: Error): void {
     const error = cause instanceof PluginHostUnavailableError ? cause : new PluginHostUnavailableError(cause.message);
     for (const [id, pending] of this.pending) {
@@ -879,12 +885,10 @@ class BrokerClient {
       if (binding.crashed !== null || !binding.dispatched) {
         continue;
       }
-      binding.crashed = error;
       clearAuthorities(binding);
       binding.invokeArgs.clear();
-      releaseBinding(binding);
-      binding.onCrash(error);
       binding.runtimeId = undefined;
+      binding.onEnded();
     }
     for (const binding of this.bindings.values()) {
       if (this.logicalBindings.has(binding) || binding.crashed !== null || !binding.dispatched) {
@@ -1098,7 +1102,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   const bridgeSettlement: Omit<BackgroundWork, keyof AsyncDisposable> = bridgeResources.use(createBackgroundWork(seams.log, seams.traces));
   let closed = false;
   let closing: Promise<void> | undefined;
-  let pool: Pick<WarmRuntimePool<Binding>, "acquire" | "discard" | "fail" | "remove">;
+  let pool: Pick<WarmRuntimePool<Binding, UserId>, "acquire" | "discard" | "fail" | "remove">;
 
   const runOwned = async <T>(operation: () => Promise<T>): Promise<T> => {
     if (closed) {
@@ -1198,7 +1202,12 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   const activationCleanupError = (error: unknown, cleanupError: unknown): AggregateError =>
     new AggregateError([error, cleanupError], "plugin host: activation failed and its runtime could not be retired", { cause: error });
 
-  pool = poolResources.use(new WarmRuntimePool(workerMaximum, retireRuntime, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX));
+  pool = poolResources.use(
+    new WarmRuntimePool(workerMaximum, retireRuntime, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX, {
+      ownerOf: (binding: Binding) => binding.owner,
+      residentOwners: () => Array.from(logicalBindings, (binding) => binding.owner),
+    }),
+  );
 
   const activateRuntime = async (
     binding: Binding,
@@ -1348,9 +1357,10 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     }
   };
 
-  const newBinding = ({ bridge, grants, ...lifetime }: NewBindingInput): Binding => {
+  const newBinding = ({ owner, bridge, grants, ...lifetime }: NewBindingInput): Binding => {
     const binding: Binding = {
       registry: bindings,
+      owner,
       timers,
       runtimeId: undefined,
       lifecycleGeneration: 0,
@@ -1380,8 +1390,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
 
   const operations: Omit<ProcessPluginHost, keyof AsyncDisposable> = {
     createInstance: async (input): Promise<CreateInstanceOutcomeOut> => {
-      const { bridge, mainJs, reloadMainJs, ...runtimeConfig } = input;
+      const { owner, bridge, mainJs, reloadMainJs, ...runtimeConfig } = input;
       const binding = newBinding({
+        owner,
         bridge,
         grants: input.grants,
         runtimeConfig,
@@ -1441,7 +1452,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       if (releaseAdmission === null) {
         throw new DomainConflictError(`the plugin host is running its maximum of ${PLUGIN_SNIPPET_RUNTIME_MAX} snippets — wait a moment and run it again`);
       }
-      const binding = newBinding({ bridge: input.bridge, grants: input.grants, releaseAdmission });
+      const binding = newBinding({ owner: input.owner, bridge: input.bridge, grants: input.grants, releaseAdmission });
       const lease = await pool.acquire(binding).catch((error: unknown) => {
         releaseBinding(binding);
         releaseOwnedBinding(binding);

@@ -17,10 +17,15 @@
 // an explicit `null` distinct from both. Array elements keep JSON's own rule (a hole/undefined element is
 // positional and reads `null`), because dropping one would renumber the rest.
 //
+// A NUL IS NOT TEXT (`#strings`): every string, a key or a value, is serialized without its NULs, so a hash over text
+// that a NUL-free store kept is the hash of the text before it was stored.
+//
 // STILL NOT MODELLED, deliberately, and no caller passes one: `Date` (serializes via `Object.keys` to
 // `{}` rather than its ISO string), `Map`/`Set` (likewise `{}`), and CYCLES (infinite recursion, not a
 // caught error). Every live input is a plain JSON tree built from zod-parsed values. Widening the
 // contract to accept those shapes would be a new engine, not a guard — file it if a caller ever needs one.
+
+import { withoutNul } from "#strings";
 
 // lib.es5.d.ts types `JSON.stringify` as always returning `string`, but it returns `undefined` for
 // `undefined`/function/symbol values (e.g. an explicit `{ a: undefined }` field surviving from a
@@ -32,6 +37,9 @@ const jsonText: (input: unknown) => string | undefined = JSON.stringify;
  *  (JSON's own rule), so an absent key and an explicit `null` are DIFFERENT identities — see the header
  *  for what this canonicalisation deliberately does not model. */
 export function stableStringify(value: unknown): string {
+  if (typeof value === "string") {
+    return JSON.stringify(withoutNul(value));
+  }
   if (value === null || typeof value !== "object") {
     return jsonText(value) ?? "null";
   }
@@ -44,6 +52,6 @@ export function stableStringify(value: unknown): string {
     // JSON's own object rule: a key whose value is `undefined` is not part of the value. Filtering HERE
     // (rather than mapping it to `null`) is what keeps absent and explicitly-null apart — see the header.
     .filter((key) => obj[key] !== undefined)
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
+    .map((key) => `${JSON.stringify(withoutNul(key))}:${stableStringify(obj[key])}`)
     .join(",")}}`;
 }

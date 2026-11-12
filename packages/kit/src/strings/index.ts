@@ -23,6 +23,17 @@
 // MORE than a word character at its boundary (markdown emphasis, `_`) adds those bytes at its own site.
 export const UNICODE_WORD_CHARS = "\\p{L}\\p{N}\\p{M}";
 
+// ── a NUL is not text ────────────────────────────────────────────────────────────────────────────────
+// THE ONE HOME of the rule that a NUL is not text in this app. The libSQL client stores a TEXT value whole and reads it
+// back cut at its first NUL, so the db's text column removes every NUL on its way to the driver, written or compared,
+// and every text identity (`stableStringify`'s hashes) removes it too, so a hash describes the text that is stored.
+const NUL = "\u0000";
+
+/** The text with every NUL removed. */
+export function withoutNul(text: string): string {
+  return text.replaceAll(NUL, "");
+}
+
 // ── the empty value ──────────────────────────────────────────────────────────────────────────────────
 // THE ONE GLYPH for a value that is missing: an unrecorded amount, an unset datum, an absent rank. A figure that
 // was measured and came out zero is `0`, never this. A screen reader reads the bare dash as nothing or as a

@@ -6,16 +6,21 @@
 // extend the kit `DomainNotFoundError` so the transport maps them to NOT_FOUND uniformly while tests can
 // discriminate (`rejects.toBeInstanceOf(...)`).
 
+import type { AssetUploadRefusalCode } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, GalleryItemId } from "@orb/kit/ids";
 
-/** The bytes handed to the store are not what their claimed type says, or are a type the store never serves.
- *  `reason` is the sentence an upload door shows the person; `message` keeps the operator's detail. */
+/** The bytes handed to the store are not what their claimed type says, are a type the store never serves, or are
+ *  not an image for a picture-only kind. `reason` is the sentence an upload door shows the person, `refusal` its
+ *  code, and `message` keeps the operator's detail. */
 export class AssetContentRejectedError extends DomainOperationError {
   public readonly reason: string;
-  constructor(reason: string, detail: string) {
-    super("asset_content_rejected", detail);
+  public readonly refusal: AssetUploadRefusalCode;
+  constructor(reason: string, detail: string, refusal: AssetUploadRefusalCode = ASSET_UPLOAD_REFUSAL_CODES.contentRejected) {
+    super(refusal, detail);
     this.reason = reason;
+    this.refusal = refusal;
     this.name = this.constructor.name;
   }
 }

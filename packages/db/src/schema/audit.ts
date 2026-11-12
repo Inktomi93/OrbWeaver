@@ -11,23 +11,24 @@
 import type { AuditLogId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const auditLogs = sqliteTable(
   "audit_logs",
   {
-    id: text("id").$type<AuditLogId>().primaryKey(),
+    id: nulFreeText("id").$type<AuditLogId>().primaryKey(),
     // The verb/event recorded (e.g. "character.delete", "owner.grant-admin"). Free-form by design.
-    action: text("action").notNull(),
+    action: nulFreeText("action").notNull(),
     // The acting principal — the D24 counter-case (see header). Nullable for SET NULL and for global
     // actor-less actions.
-    actorUserId: text("actor_user_id")
+    actorUserId: nulFreeText("actor_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // The kind of entity acted on (paired with the soft entity_id below). Nullable for global actions.
-    entityType: text("entity_type"),
+    entityType: nulFreeText("entity_type"),
     // The D24 sole soft-ref (see header). Polymorphic by entity_type.
-    entityId: text("entity_id"),
+    entityId: nulFreeText("entity_id"),
     // Structured context for the event, free-form per action: each of the many audit writers names its own
     // fields and no reader decodes them, so the column holds any JSON value and nothing narrower.
     metadata: text("metadata", { mode: "json" }).$type<JsonValue>(),

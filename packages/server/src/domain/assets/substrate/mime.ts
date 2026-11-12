@@ -13,6 +13,8 @@
 // Throws `AssetContentRejectedError` (a person-facing reason + the operator detail) on any mismatch — the ONE
 // verification point `storeBlob` calls when `enforceMagic` is set.
 
+import type { AssetKind, AssetUploadRefusalCode } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_REFUSAL_CODES, IMAGE_ONLY_ASSET_KINDS } from "@orb/contracts/assets";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { AssetContentRejectedError } from "../contract/errors.ts";
 
@@ -67,9 +69,17 @@ function imageName(mime: string): string {
   return IMAGE_NAMES[mime] ?? mime;
 }
 
-/** The one refusal for bytes that are not the type they claim; `detail` is the operator's `message`. */
-function refuse(reason: string, detail: string): never {
-  throw new AssetContentRejectedError(reason, `assets.store: ${detail}`);
+/** The one refusal for bytes the store will not keep; `detail` is the operator's `message`. */
+function refuse(reason: string, detail: string, refusal?: AssetUploadRefusalCode): never {
+  throw new AssetContentRejectedError(reason, `assets.store: ${detail}`, refusal);
+}
+
+/** A picture-only kind admits only bytes whose signature is an accepted image, whatever they claim to be and
+ *  whether or not the caller asked for the claim to be checked: every consumer draws them as a picture. */
+export function assertKindAdmits(bytes: Uint8Array, kind: AssetKind): void {
+  if (IMAGE_ONLY_ASSET_KINDS.some((imageOnly) => imageOnly === kind) && sniffMime(bytes) === OCTET_STREAM) {
+    refuse("it is not a PNG, JPEG, GIF or WebP image", `a ${kind} asset must be an image — no known image signature`, ASSET_UPLOAD_REFUSAL_CODES.notAnImage);
+  }
 }
 
 /** True iff `bytes[offset..]` equals the given ASCII/byte signature (a short buffer simply fails to match). */

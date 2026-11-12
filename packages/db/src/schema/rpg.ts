@@ -54,6 +54,7 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, foreignKey, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { chats, messages, messageVariants } from "./chat.ts";
@@ -73,9 +74,9 @@ import { users } from "./users.ts";
 export const rpgGames = sqliteTable(
   "rpg_games",
   {
-    id: text("id").$type<RpgGameId>().primaryKey(),
+    id: nulFreeText("id").$type<RpgGameId>().primaryKey(),
     // The chat this game belongs to — UNIQUE (one game per chat), CASCADE (a deleted chat erases the game).
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -85,13 +86,13 @@ export const rpgGames = sqliteTable(
     status: text("status", { enum: RPG_GAME_STATUSES }).notNull(),
     sessionNumber: integer("session_number").notNull().default(1),
     // The GM seat holder — born nullable (lite is seatless; SET NULL on user delete). Full's seat resolve reads it.
-    gmUserId: text("gm_user_id")
+    gmUserId: nulFreeText("gm_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // The preset-override KNOB (§4.11 #1) — nullable FK, SET NULL on preset delete (referential integrity is
     // why it is a COLUMN, not a config-blob field: a blob presetId dangles silently). NULL = augment the
     // user's own preset (lite's born default); full's create later SEEDS a GM-preset clone here.
-    gmPresetId: text("gm_preset_id")
+    gmPresetId: nulFreeText("gm_preset_id")
       .$type<PresetId>()
       .references(() => presets.id, { onDelete: "set null" }),
     // The full config blob (statProfile + lite dials). Typed JSON, parse-on-read at the `@orb/db/query` seam.
@@ -149,19 +150,19 @@ export const rpgGames = sqliteTable(
 export const rpgSnapshots = sqliteTable(
   "rpg_snapshots",
   {
-    id: text("id").$type<RpgSnapshotId>().primaryKey(),
-    gameId: text("game_id")
+    id: nulFreeText("id").$type<RpgSnapshotId>().primaryKey(),
+    gameId: nulFreeText("game_id")
       .$type<RpgGameId>()
       .notNull()
       .references(() => rpgGames.id, { onDelete: "cascade" }),
     // The assistant SLOT a TURN row flushed onto — NULL on a hand row (D124). CASCADE with its slot.
-    messageId: text("message_id")
+    messageId: nulFreeText("message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "cascade" }),
     // The assistant variant a TURN row is keyed to — UNIQUE among non-null (one snapshot per variant),
     // CASCADE (a deleted swipe deletes its snapshot). The swipe-rewind mechanism: each variant's snapshot
     // is its truth. NULL on a hand row: a hand write has no variant to rewind with.
-    variantId: text("variant_id")
+    variantId: nulFreeText("variant_id")
       .$type<MessageVariantId>()
       .references(() => messageVariants.id, { onDelete: "cascade" }),
     // A HAND row's ORDER STAMP: the chat's tail slot at write time (NULL = the game was turnless, so the
@@ -169,13 +170,13 @@ export const rpgSnapshots = sqliteTable(
     // CASCADE: a deleted as-of slot degrades this row's ORDERING, it must never delete durable game state
     // (the old anchor slot's CASCADE was the "NEVER delete an anchor" footgun). NULL on a turn row, which
     // carries its own `message_id` instead, and on a bookmark row, which has no place on the ladder.
-    asOfMessageId: text("as_of_message_id")
+    asOfMessageId: nulFreeText("as_of_message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "set null" }),
     // Ambient (§2.7) — engine-shaped storage, born nullable. Lite writes clock via the TIME_OF_DAY label.
     clock: text("clock", { mode: "json" }).$type<RpgClockTime>(),
-    calendarDate: text("calendar_date"),
-    location: text("location").notNull().default(""),
+    calendarDate: nulFreeText("calendar_date"),
+    location: nulFreeText("location").notNull().default(""),
     weather: text("weather", { mode: "json" }).$type<RpgWeather>(),
     // The PRESENCE plane (R2) — the `actorRefKey`s standing in the scene. It carried the cast NPC's whole
     // identity row until R2 made the NPC an actor; the column name stays (no DDL, no re-spell).
@@ -244,17 +245,17 @@ export const rpgSnapshots = sqliteTable(
 export const rpgSheets = sqliteTable(
   "rpg_sheets",
   {
-    id: text("id").$type<RpgSheetId>().primaryKey(),
-    gameId: text("game_id")
+    id: nulFreeText("id").$type<RpgSheetId>().primaryKey(),
+    gameId: nulFreeText("game_id")
       .$type<RpgGameId>()
       .notNull()
       .references(() => rpgGames.id, { onDelete: "cascade" }),
     // The actor: characterId XOR userId (the CHECK below enforces the XOR). CASCADE on identity delete —
     // a sheet is subordinate to its actor's identity (never retained past a hard delete of the character/user).
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .references(() => characters.id, { onDelete: "cascade" }),
-    userId: text("user_id")
+    userId: nulFreeText("user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
     sheet: text("sheet", { mode: "json" }).$type<RpgSheet>().notNull(),
@@ -291,23 +292,23 @@ export const rpgSheets = sqliteTable(
 export const rpgJournal = sqliteTable(
   "rpg_journal",
   {
-    id: text("id").$type<RpgJournalId>().primaryKey(),
-    gameId: text("game_id")
+    id: nulFreeText("id").$type<RpgJournalId>().primaryKey(),
+    gameId: nulFreeText("game_id")
       .$type<RpgGameId>()
       .notNull()
       .references(() => rpgGames.id, { onDelete: "cascade" }),
     type: text("type", { enum: RPG_JOURNAL_TYPES }).notNull(),
     // R4c — the free gloss carried by a `custom`-typed entry (the `relationship.label` shape). Born "" on the
     // seven built-in types; the CHECK above keeps `type` closed, and this is the escape the closed enum needs.
-    label: text("label").notNull().default(""),
-    title: text("title").notNull(),
-    content: text("content").notNull(),
+    label: nulFreeText("label").notNull().default(""),
+    title: nulFreeText("title").notNull(),
+    content: nulFreeText("content").notNull(),
     // NULL = hand/room entry (every lineage); non-null = model entry, rendered only while its variant is
     // the slot's selected variant (§2.5). CASCADE on variant delete (the dead-swipe leak is deliberate).
-    variantId: text("variant_id")
+    variantId: nulFreeText("variant_id")
       .$type<MessageVariantId>()
       .references(() => messageVariants.id, { onDelete: "cascade" }),
-    sourceMessageId: text("source_message_id")
+    sourceMessageId: nulFreeText("source_message_id")
       .$type<MessageId>()
       .references(() => messages.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -351,20 +352,20 @@ export const rpgJournal = sqliteTable(
 export const rpgTurnToolCalls = sqliteTable(
   "rpg_turn_tool_calls",
   {
-    id: text("id").$type<RpgTurnToolCallsId>().primaryKey(),
-    gameId: text("game_id")
+    id: nulFreeText("id").$type<RpgTurnToolCallsId>().primaryKey(),
+    gameId: nulFreeText("game_id")
       .$type<RpgGameId>()
       .notNull()
       .references(() => rpgGames.id, { onDelete: "cascade" }),
     // The assistant SLOT these calls rode. CASCADE with the slot (the calls describe that turn and nothing
     // else); mirrors `rpg_snapshots.message_id` rather than the journal's SET NULL, because unlike a journal
     // entry this row has no meaning once its turn is gone.
-    messageId: text("message_id")
+    messageId: nulFreeText("message_id")
       .$type<MessageId>()
       .notNull()
       .references(() => messages.id, { onDelete: "cascade" }),
     // The producing variant — UNIQUE (one record per swipe) and CASCADE.
-    variantId: text("variant_id")
+    variantId: nulFreeText("variant_id")
       .$type<MessageVariantId>()
       .notNull()
       .references(() => messageVariants.id, { onDelete: "cascade" }),
@@ -378,7 +379,7 @@ export const rpgTurnToolCalls = sqliteTable(
     // fabricating one would put a tool call the model never made in front of the reader. This is the durable
     // record: a provider throw otherwise leaves nothing but a transient warn line, and the person whose
     // state update went missing would have no way to learn it happened.
-    failure: text("failure"),
+    failure: nulFreeText("failure"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -412,14 +413,14 @@ export const rpgTurnToolCalls = sqliteTable(
 export const rpgCheckpoints = sqliteTable(
   "rpg_checkpoints",
   {
-    id: text("id").$type<RpgCheckpointId>().primaryKey(),
-    gameId: text("game_id")
+    id: nulFreeText("id").$type<RpgCheckpointId>().primaryKey(),
+    gameId: nulFreeText("game_id")
       .$type<RpgGameId>()
       .notNull()
       .references(() => rpgGames.id, { onDelete: "cascade" }),
-    snapshotId: text("snapshot_id").$type<RpgSnapshotId>().notNull(),
+    snapshotId: nulFreeText("snapshot_id").$type<RpgSnapshotId>().notNull(),
     snapshotKind: text("snapshot_kind", { enum: RPG_CHECKPOINT_SNAPSHOT_KINDS }).notNull().default(RPG_SNAPSHOT_KIND.bookmark),
-    label: text("label").notNull(),
+    label: nulFreeText("label").notNull(),
     trigger: text("trigger", { enum: RPG_CHECKPOINT_TRIGGERS }).notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

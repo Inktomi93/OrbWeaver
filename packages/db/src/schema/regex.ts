@@ -29,6 +29,7 @@ import type { RegexScriptBehavior } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { presets } from "./preset.ts";
@@ -46,13 +47,13 @@ export const regexScripts = sqliteTable(
   "regex_scripts",
   {
     // TypeID PK (`regex_script_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<RegexScriptId>().primaryKey(),
+    id: nulFreeText("id").$type<RegexScriptId>().primaryKey(),
     // KEEP `ownerId` (D23). User hard-delete cascades the owner's scripts (→ every junction row).
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
+    name: nulFreeText("name").notNull(),
     // Promoted so a list/picker toggles without parsing the blob; the executor reads it as the first gate.
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     // The typed behavior blob (see header). NOT NULL — a script with no behavior is not a script.
@@ -82,7 +83,7 @@ export const regexScripts = sqliteTable(
 export const globalRegexScripts = sqliteTable(
   "global_regex_scripts",
   {
-    regexScriptId: text("regex_script_id")
+    regexScriptId: nulFreeText("regex_script_id")
       .$type<RegexScriptId>()
       .primaryKey()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
@@ -98,11 +99,11 @@ export const globalRegexScripts = sqliteTable(
 export const characterRegexScripts = sqliteTable(
   "character_regex_scripts",
   {
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    regexScriptId: text("regex_script_id")
+    regexScriptId: nulFreeText("regex_script_id")
       .$type<RegexScriptId>()
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
@@ -122,11 +123,11 @@ export const characterRegexScripts = sqliteTable(
 export const presetRegexScripts = sqliteTable(
   "preset_regex_scripts",
   {
-    presetId: text("preset_id")
+    presetId: nulFreeText("preset_id")
       .$type<PresetId>()
       .notNull()
       .references(() => presets.id, { onDelete: "cascade" }),
-    regexScriptId: text("regex_script_id")
+    regexScriptId: nulFreeText("regex_script_id")
       .$type<RegexScriptId>()
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
@@ -142,11 +143,11 @@ export const presetRegexScripts = sqliteTable(
 export const chatRegexScripts = sqliteTable(
   "chat_regex_scripts",
   {
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    regexScriptId: text("regex_script_id")
+    regexScriptId: nulFreeText("regex_script_id")
       .$type<RegexScriptId>()
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),

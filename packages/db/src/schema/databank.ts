@@ -25,6 +25,7 @@ import { DOC_ORIGINS } from "@orb/contracts/databank";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -40,33 +41,33 @@ export const documents = sqliteTable(
   "documents",
   {
     // TypeID PK (`document_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<DocumentId>().primaryKey(),
+    id: nulFreeText("id").$type<DocumentId>().primaryKey(),
     // Top-level owned canon (D23 KEEP) — STAMPED ownerId, CASCADE.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     // Original uploaded bytes live in the per-user CAS (D21); NULL for origin 'text' (nothing to
     // re-extract). SET NULL — a purged blob degrades the doc, never blocks it.
-    sourceAssetId: text("source_asset_id")
+    sourceAssetId: nulFreeText("source_asset_id")
       .$type<AssetId>()
       .references(() => assets.id, { onDelete: "set null" }),
     // Display filename / scrape title; mutable metadata (rename verb).
-    name: text("name").notNull(),
-    mime: text("mime").notNull(),
+    name: nulFreeText("name").notNull(),
+    mime: nulFreeText("mime").notNull(),
     // 'upload'|'web'|'youtube'|'wiki'|'text' — derives DOC_ORIGINS (no re-spell).
     origin: text("origin", { enum: DOC_ORIGINS }).notNull(),
     // Scrape provenance; NULL for upload/text.
-    sourceUrl: text("source_url"),
+    sourceUrl: nulFreeText("source_url"),
     // THE CANON (binary → text, re-runnable).
-    extractedText: text("extracted_text").notNull(),
+    extractedText: nulFreeText("extracted_text").notNull(),
     // sha-256 of the SOURCE BYTES (re-upload dedup); for origin 'text', sha-256 of extractedText.
-    importHash: text("import_hash").notNull(),
+    importHash: nulFreeText("import_hash").notNull(),
     // source-byte size; for 'text', extractedText UTF-8 length.
     byteSize: integer("byte_size").notNull(),
     // EXTRACTOR_VERSION at extract time (the re-extract-on-upgrade selection predicate); "none" for
     // origin 'text' (no extractor ran).
-    extractorVersion: text("extractor_version").notNull(),
+    extractorVersion: nulFreeText("extractor_version").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // Bumped by rename + re-extract (a doc whose canon can be rewritten in place needs a visible write
     // timestamp; createdAt alone lies after the first re-extract).
@@ -86,11 +87,11 @@ export const documents = sqliteTable(
 export const globalDocuments = sqliteTable(
   "global_documents",
   {
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    documentId: text("document_id")
+    documentId: nulFreeText("document_id")
       .$type<DocumentId>()
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
@@ -101,11 +102,11 @@ export const globalDocuments = sqliteTable(
 export const characterDocuments = sqliteTable(
   "character_documents",
   {
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    documentId: text("document_id")
+    documentId: nulFreeText("document_id")
       .$type<DocumentId>()
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
@@ -116,11 +117,11 @@ export const characterDocuments = sqliteTable(
 export const chatDocuments = sqliteTable(
   "chat_documents",
   {
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    documentId: text("document_id")
+    documentId: nulFreeText("document_id")
       .$type<DocumentId>()
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),

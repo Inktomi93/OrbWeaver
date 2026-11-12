@@ -21,6 +21,7 @@ import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { assets } from "./assets.ts";
 import { personas } from "./persona.ts";
 import { users } from "./users.ts";
@@ -30,13 +31,13 @@ export const characters = sqliteTable(
   {
     // ── Identity (D28 flat row) ──────────────────────────────────────────────
     // TypeID PK (`character_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<CharacterId>().primaryKey(),
+    id: nulFreeText("id").$type<CharacterId>().primaryKey(),
     // The character handle is a free-form label (incl. the synthetic `__group__<chatId>` namespace),
     // NOT a branded entity id — its brand is the `CharacterHandle` identity-VALUE brand (the
     // `users.handle`/`Handle` class), so a user-facing username can never land in a card-slug position.
-    handle: text("handle").$type<CharacterHandle>().notNull(),
+    handle: nulFreeText("handle").$type<CharacterHandle>().notNull(),
     // KEEP `ownerId` (D23). User hard-delete cascades the owner's characters.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -75,16 +76,16 @@ export const characters = sqliteTable(
     // null = no card background). A true-solo room paints it at the app-root background layer, below the
     // chat-set override; GC-rooted by the `asset-refs` JSON live-source (`asset` kind only). Client-resolved.
     backgroundOverride: text("background_override", { mode: "json" }).$type<ThemeBackground>(),
-    importedFrom: text("imported_from"),
+    importedFrom: nulFreeText("imported_from"),
     // The card import identity (`cardImportHash`: parsed card, embedded book and art; the whole-file hash on
     // a row imported before it) — DISTINCT from `contentHash`. Null when authored; a seeded card carries the
     // identity of its own export, so restoring that export onto a box that seeded the same card dedups.
-    importHash: text("import_hash"),
+    importHash: nulFreeText("import_hash"),
     // The art-less identity a row that landed from a JSON card keeps once its PNG gives it art and `importHash`
     // re-keys to the with-art identity, so the JSON still finds it (D290). Null on every other row.
-    importTextHash: text("import_text_hash"),
+    importTextHash: nulFreeText("import_text_hash"),
     // The semantic-fields hash (always present — computed at create/edit).
-    contentHash: text("content_hash").notNull(),
+    contentHash: nulFreeText("content_hash").notNull(),
     // Advisory card-heft estimate (the ONE `estimateTokens` QuadChars algo via `substrate/card-tokens`) —
     // a DENORM of the card content, RESTAMPED on every content write (alongside `contentHash`, same sites).
     // notNull default 0. Exists as a QUERYABLE column so `largestCards`/`smallestCards` (FINAL §4.5) can be a
@@ -92,27 +93,27 @@ export const characters = sqliteTable(
     // provider `usage` post-turn); an empty card estimates to 0.
     tokenSize: integer("token_size").notNull().default(0),
     // ── Card content (FLAT on the row — D28; mirrors @orb/contracts/character `characterCardSchema`) ──
-    name: text("name").notNull(),
-    description: text("description"),
-    personality: text("personality"),
-    scenario: text("scenario"),
+    name: nulFreeText("name").notNull(),
+    description: nulFreeText("description"),
+    personality: nulFreeText("personality"),
+    scenario: nulFreeText("scenario"),
     // ALWAYS a list (greetings[0] = first message, rest = alternates; `groupOnly` marks a group-chat-only
     // greeting — the folded ST `group_only_greetings`); default `[]`, never null.
     greetings: text("greetings", { mode: "json" }).$type<Greeting[]>().notNull().default(sql`'[]'`),
-    exampleMessages: text("example_messages"),
-    systemPrompt: text("system_prompt"),
-    postHistoryInstructions: text("post_history_instructions"),
+    exampleMessages: nulFreeText("example_messages"),
+    systemPrompt: nulFreeText("system_prompt"),
+    postHistoryInstructions: nulFreeText("post_history_instructions"),
     // Character's Note @ Depth — the shared `{depth, role?}` directive + note text, or null.
     depthPrompt: text("depth_prompt", { mode: "json" }).$type<CardDepthPrompt>(),
-    creatorNotes: text("creator_notes"),
-    creator: text("creator"),
+    creatorNotes: nulFreeText("creator_notes"),
+    creator: nulFreeText("creator"),
     // Card author's freeform version STRING (e.g. "1.2") — NEVER an int counter (D28).
-    cardVersion: text("card_version"),
+    cardVersion: nulFreeText("card_version"),
     // ── V3 content promotions: the four `data.*` fields formerly carried in `residual_data`, now first-class
     //    typed columns (residual is for genuinely-UNKNOWN vendor keys only). Nullable: absent on a V2 /
     //    app-authored card. ──
     // Prompt-facing display name overriding `{{char}}` (ST V3 `data.nickname`).
-    nickname: text("nickname"),
+    nickname: nulFreeText("nickname"),
     // Provenance URLs / ids the card was sourced from (ST V3 `data.source`) — a NULLABLE list (absent ⇒ null,
     // distinct from an empty `[]`), so it uses `parseStringArrayColumn`, not the always-a-list `greetings` seam.
     source: text("source", { mode: "json" }).$type<string[]>(),
@@ -129,7 +130,7 @@ export const characters = sqliteTable(
     // into the `greetings` array as `groupOnly:true` entries (V3 promotion Phase B), so it does not ride here.
     residualData: text("residual_data", { mode: "json" }).$type<NonNullable<CharacterCard["residualData"]>>(),
     // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — must NOT delete the character.
-    avatarAssetId: text("avatar_asset_id")
+    avatarAssetId: nulFreeText("avatar_asset_id")
       .$type<AssetId>()
       .references(() => assets.id, { onDelete: "set null" }),
     // CardRefinery pipeline signals (derived, not user-authored).
@@ -163,14 +164,14 @@ export const characterSnapshots = sqliteTable(
   "character_snapshots",
   {
     // TypeID PK (`character_snapshot_…`); brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<CharacterSnapshotId>().primaryKey(),
-    characterId: text("character_id")
+    id: nulFreeText("id").$type<CharacterSnapshotId>().primaryKey(),
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
     // The full card snapshot as ONE opaque JSON blob.
     content: text("content", { mode: "json" }).$type<CharacterCard>().notNull(),
-    label: text("label"),
+    label: nulFreeText("label"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -188,11 +189,11 @@ export const characterSnapshots = sqliteTable(
 export const characterPersonas = sqliteTable(
   "character_personas",
   {
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    personaId: text("persona_id")
+    personaId: nulFreeText("persona_id")
       .$type<PersonaId>()
       .notNull()
       .references(() => personas.id, { onDelete: "cascade" }),

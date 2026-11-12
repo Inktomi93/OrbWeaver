@@ -4,7 +4,8 @@
 
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { chats } from "./chat.ts";
 import { userConnections } from "./connection.ts";
 
@@ -20,17 +21,17 @@ export const sessionEntries = sqliteTable(
   "session_entries",
   {
     // TypeID PK (`session_entry_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<SessionEntryId>().primaryKey(),
+    id: nulFreeText("id").$type<SessionEntryId>().primaryKey(),
     // The chat this SDK session caches (D8/D25 — the lineage hangs off the chat, not a `chats.sessionId`
     // back-pointer). CASCADE: a deleted chat drops its session cache.
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
     // The agent-sdk's OWN resume handle — the prompt-cache lineage id the SDK returns and we pass back to
     // resume the cached session next turn. The resume lookup key, so it is UNIQUE. This is NEVER the BFF
     // cookie token (that is `sessions.token_hash`, a different table) — only the SDK's session identifier.
-    sdkSessionId: text("sdk_session_id").notNull(),
+    sdkSessionId: nulFreeText("sdk_session_id").notNull(),
     // Per-chat monotonic lineage ordinal — the ordering axis. A reseed APPENDS the next ordinal (a new
     // deterministic seed); the highest `seq` is the newest lineage, and `is_primary` marks the live one. UNIQUE per chat.
     seq: integer("seq").notNull(),
@@ -43,7 +44,7 @@ export const sessionEntries = sqliteTable(
     // A hash of the canon prefix the seed was built from — the staleness GATE (D25 "detected vs canon,
     // not a flag"): re-hash the live canon and compare; a mismatch ⇒ canon diverged ⇒ reseed. Mirrors the
     // `content_hash` staleness pattern on the vector tables.
-    canonHash: text("canon_hash").notNull(),
+    canonHash: nulFreeText("canon_hash").notNull(),
     // The lineage the connection runs on now: the writer moves this seat onto every row it inserts or
     // re-adopts, so the other rows of that `(chat, connection)` are the reap candidates. NOT a staleness flag.
     isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
@@ -52,7 +53,7 @@ export const sessionEntries = sqliteTable(
     // funder change reseeds, and the primary is per `(chat, connection)`. CASCADE with the connection (its
     // runtime dir goes with the row). Historical rows that predated this identity were deleted by the
     // forward migration rather than assigned an owner the stored data could not prove.
-    connectionId: text("connection_id")
+    connectionId: nulFreeText("connection_id")
       .$type<UserConnectionId>()
       .notNull()
       .references(() => userConnections.id, { onDelete: "cascade" }),

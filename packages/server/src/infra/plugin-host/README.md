@@ -78,22 +78,22 @@ including Workers, every 25 ms. The watchdog kills and restarts it after RSS exc
 after heartbeat loss, or after an unexpected exit. App death closes the parent IPC channel, which makes the
 watchdog stop the broker rather than leaving an orphan.
 
-A watchdog restart does not revive a logical plugin: the app marks every resident crashed, rejects in-flight
-work, and requires an explicit fresh activation before it can use the new broker. Guest linear memory, live
+A broker restart rejects in-flight work as host-unavailable and keeps every logical plugin: an enabled plugin's
+next call starts a fresh runtime on the new broker from its durable source, as a wake after eviction does (D347).
+Guest linear memory, live
 QuickJS allocations, physical Workers, host-call results, protocol frames, and queued arguments each have
 independent finite bounds. The RSS watchdog has bounded detection overshoot; it is not a kernel-hard memory
 limit. In Docker the app and broker also share one container cgroup, so a broker overshoot that reaches the
 container limit can still make the container runtime OOM-kill the app. The composed pressure proof records
-Worker count, broker RSS, cold latency, throughput, kill, explicit logical failure, and recovery behavior.
+Worker count, broker RSS, cold latency, throughput, kill, and recovery behavior.
 The shipped pair is a 1 GiB monitored RSS threshold and four physical Workers. Measured deployments may set
 `PLUGIN_BROKER_MEMORY_LIMIT_BYTES` and `PLUGIN_BROKER_WORKER_MAX` together; neither V8 old-space nor
 `NODE_OPTIONS` changes either plugin budget.
 
 Every command has a parent-side deadline, and synchronous Worker calls have a bounded `Atomics.wait`. A command
-timeout terminates the inherited channel and its supervised processes, including every Worker. Broker death marks
-all logical residents crashed, including sleeping ones, rejects pending commands, and cancels pending bridge
-liveness. Intentional LRU eviction is the only wakeable teardown. No guest is silently replayed after an
-unplanned broker death; the lifecycle may explicitly activate a fresh instance later.
+past its deadline fails alone and the broker ends that runtime's Worker; no command timer ends the broker (D347).
+Broker death rejects pending commands and cancels pending bridge liveness. A logical plugin is rebuilt on its next
+call, never replayed in the background, and a snippet in flight fails with the broker.
 
 ## Sharp edges
 

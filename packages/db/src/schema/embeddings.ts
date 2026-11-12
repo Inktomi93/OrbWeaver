@@ -65,7 +65,7 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { vector32 } from "../custom-types/index.ts";
+import { nulFreeText, vector32 } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -90,19 +90,19 @@ const DECLARED_VECTOR_DIM = 1024;
 export const embeddingCalls = sqliteTable(
   "embedding_calls",
   {
-    id: text("id").$type<EmbeddingCallId>().primaryKey(),
-    invocationId: text("invocation_id").$type<EmbeddingInvocationId>().notNull(),
-    ownerId: text("owner_id")
+    id: nulFreeText("id").$type<EmbeddingCallId>().primaryKey(),
+    invocationId: nulFreeText("invocation_id").$type<EmbeddingInvocationId>().notNull(),
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    connectionId: text("connection_id")
+    connectionId: nulFreeText("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
-    provider: text("provider").$type<ProviderId>().notNull(),
-    model: text("model").notNull(),
-    servedModel: text("served_model"),
-    wire: text("wire").$type<Wire>().notNull(),
+    provider: nulFreeText("provider").$type<ProviderId>().notNull(),
+    model: nulFreeText("model").notNull(),
+    servedModel: nulFreeText("served_model"),
+    wire: nulFreeText("wire").$type<Wire>().notNull(),
     task: text("task", { enum: EMBEDDING_TASKS }).notNull(),
     inputCount: integer("input_count").notNull(),
     inputModalities: text("input_modalities", { mode: "json" }).$type<readonly Modality[]>().notNull(),
@@ -139,22 +139,22 @@ const EMBED_GENERATION_TASK_CHECK_LIST = checkList(EMBEDDING_TASKS);
 export const embedGenerations = sqliteTable(
   "embed_generations",
   {
-    id: text("id").$type<EmbedGenerationId>().primaryKey(),
-    ownerId: text("owner_id")
+    id: nulFreeText("id").$type<EmbedGenerationId>().primaryKey(),
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     task: text("task", { enum: EMBEDDING_TASKS }).notNull(),
     via: text("via", { enum: EMBEDDING_TASKS }).notNull(),
-    connectionId: text("connection_id")
+    connectionId: nulFreeText("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
     // Immutable diagnostic provenance after `connectionId` is SET NULL; it must stay write-only
     // because resolution through this historical id would bypass the deletion refusal. Ends if
     // deleted-connection diagnosis no longer needs the original id.
-    connectionRef: text("connection_ref").$type<UserConnectionId>().notNull(),
-    fingerprint: text("fingerprint").notNull(),
-    space: text("space").notNull(),
+    connectionRef: nulFreeText("connection_ref").$type<UserConnectionId>().notNull(),
+    fingerprint: nulFreeText("fingerprint").notNull(),
+    space: nulFreeText("space").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -169,12 +169,12 @@ export const embedGenerations = sqliteTable(
 export const embedGenerationTargets = sqliteTable(
   "embed_generation_targets",
   {
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     task: text("task", { enum: EMBEDDING_TASKS }).notNull(),
-    generationId: text("generation_id")
+    generationId: nulFreeText("generation_id")
       .$type<EmbedGenerationId>()
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
@@ -196,24 +196,24 @@ export const characterEmbeddings = sqliteTable(
   "character_embeddings",
   {
     // TypeID PK (`character_embedding_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<CharacterEmbeddingId>().primaryKey(),
+    id: nulFreeText("id").$type<CharacterEmbeddingId>().primaryKey(),
     // The producer FK (D28 — keys on the live card `characters.id`, NOT a retired cv). CASCADE: a deleted
     // character drops its embedding. This is the ONLY ownership link (owner derives via characters.ownerId).
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
     // The native vector (raw little-endian, `dim` wide — ../custom-types).
     embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // The staleness gate + cross-chat collapse key (replaces neo's `sourceText` comparison). NOT NULL.
-    contentHash: text("content_hash").notNull(),
+    contentHash: nulFreeText("content_hash").notNull(),
     // The advisory-stale CSLS mean-cosine ranking signal (a FLOAT) — written ONLY by `discovery` via
     // `writeHubScores`, read by `search`. A vector write (`embeddings.store`) MUST NOT touch it (the neo
     // reset bug); nullable, never defaulted by a store. Do NOT add a default or write it from the store path.
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag — `search`/`memory` compare only within one space.
-    model: text("model").notNull(),
-    generationId: text("generation_id")
+    model: nulFreeText("model").notNull(),
+    generationId: nulFreeText("generation_id")
       .$type<EmbedGenerationId>()
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
@@ -237,10 +237,10 @@ export const imageEmbeddings = sqliteTable(
   "image_embeddings",
   {
     // TypeID PK (`image_embedding_…`); brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<ImageEmbeddingId>().primaryKey(),
+    id: nulFreeText("id").$type<ImageEmbeddingId>().primaryKey(),
     // The producer FK (the per-user owned asset, D21). CASCADE: a deleted asset drops its embeddings. This
     // is the ONLY ownership link (owner-scope derives via the owned asset — no ownerId on the vector row).
-    assetId: text("asset_id")
+    assetId: nulFreeText("asset_id")
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
@@ -251,14 +251,14 @@ export const imageEmbeddings = sqliteTable(
     lens: text("lens", { enum: IMAGE_LENSES }).notNull(),
     // The staleness/collapse key. Both lenses for one asset share a content_hash (the immutable CAS bytes), so a
     // re-index de-dups. NOT NULL.
-    contentHash: text("content_hash").notNull(),
+    contentHash: nulFreeText("content_hash").notNull(),
     // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — RESERVED for image↔image use only (cross-modal
     // cosine scale mismatch means `search` deliberately omits it on text→image paths; docs/law/Knowledge-Cluster.md
     // invariant 3). Written ONLY by `discovery`; a vector write MUST NOT null it. Nullable, never defaulted.
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
-    model: text("model").notNull(),
-    generationId: text("generation_id")
+    model: nulFreeText("model").notNull(),
+    generationId: nulFreeText("generation_id")
       .$type<EmbedGenerationId>()
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
@@ -279,12 +279,12 @@ export const imageEmbeddings = sqliteTable(
 // the immutable per-user asset (D20/D21); deleting the asset also deletes its paid analysis. The metadata
 // retains the producer's original provenance, never the currently selected Utility model.
 export const imageAnalyses = sqliteTable("image_analyses", {
-  assetId: text("asset_id")
+  assetId: nulFreeText("asset_id")
     .$type<AssetId>()
     .primaryKey()
     .references(() => assets.id, { onDelete: "cascade" }),
-  contentHash: text("content_hash").notNull(),
-  caption: text("caption").notNull(),
+  contentHash: nulFreeText("content_hash").notNull(),
+  caption: nulFreeText("caption").notNull(),
   // A vector pins this accepted Utility result; a newer result refuses an older encoder completion.
   revision: integer("revision").notNull().default(1),
   captionMeta: text("caption_meta", { mode: "json" }).$type<ImageCaptionMeta>().notNull(),
@@ -304,10 +304,10 @@ export const chatDigests = sqliteTable(
   "chat_digests",
   {
     // TypeID PK (`chat_digest_…`); brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<ChatDigestId>().primaryKey(),
+    id: nulFreeText("id").$type<ChatDigestId>().primaryKey(),
     // The producer FK. CASCADE: a deleted chat drops its digests. The ONLY ownership link (owner-scope
     // derives via chat membership at search time — D20).
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -315,7 +315,7 @@ export const chatDigests = sqliteTable(
     // single cast char, the synthetic group-as-character (`__group__${chatId}`, a real hidden id), or a
     // per-witnessing cast char under `scoped`. FK → characters.id CASCADE (a deleted character drops its
     // scoped digests). NEVER the `''` sentinel, NEVER NULL — the UNIQUE below keys off the real id.
-    scopedCharacterId: text("scoped_character_id")
+    scopedCharacterId: nulFreeText("scoped_character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
@@ -327,20 +327,20 @@ export const chatDigests = sqliteTable(
     blockIdx: integer("block_idx").notNull(),
     // The distilled digest body (§2b: topicAnchor + significance-filtered facts + keywords, folded into one
     // stored text). What fills `{{memory}}` AND what is embedded. A digest always has a body — NOT NULL.
-    text: text("text").notNull(),
+    text: nulFreeText("text").notNull(),
     // The native vector (`dim` wide) — the distilled lens embedding (the sharp search key).
     embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
-    contentHash: text("content_hash").notNull(),
+    contentHash: nulFreeText("content_hash").notNull(),
     // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — discovery-only write, never nulled by a store.
     hubScore: real("hub_score"),
     // The mandatory first line of the digest (`[entities — scene]`) — kept as a retrieval facet.
-    topicAnchor: text("topic_anchor"),
+    topicAnchor: nulFreeText("topic_anchor"),
     // The 15–30 distinctive retrieval keywords (always a list; the lexical retrieval anchors).
     keywords: text("keywords", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     // The `(model, dim)` space tag.
-    model: text("model").notNull(),
-    generationId: text("generation_id")
+    model: nulFreeText("model").notNull(),
+    generationId: nulFreeText("generation_id")
       .$type<EmbedGenerationId>()
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
@@ -381,9 +381,9 @@ export const chatSegments = sqliteTable(
   "chat_segments",
   {
     // TypeID PK (`chat_segment_…`); brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<ChatSegmentId>().primaryKey(),
+    id: nulFreeText("id").$type<ChatSegmentId>().primaryKey(),
     // The producer FK. CASCADE: a deleted chat drops its segments. The ONLY ownership link (D20).
-    chatId: text("chat_id")
+    chatId: nulFreeText("chat_id")
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -402,16 +402,16 @@ export const chatSegments = sqliteTable(
     seqEnd: integer("seq_end").notNull(),
     // The verbatim transcript of the chunk (§2a) — stored + embedded; the ground truth a digest hit resolves
     // back to, returned directly so cross-chat reads never re-read N chats' canon per hit. NOT NULL.
-    text: text("text").notNull(),
+    text: nulFreeText("text").notNull(),
     // The native vector (`dim` wide) — the verbatim lens embedding.
     embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
-    contentHash: text("content_hash").notNull(),
+    contentHash: nulFreeText("content_hash").notNull(),
     // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — discovery-only write, never nulled by a store.
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
-    model: text("model").notNull(),
-    generationId: text("generation_id")
+    model: nulFreeText("model").notNull(),
+    generationId: nulFreeText("generation_id")
       .$type<EmbedGenerationId>()
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
@@ -443,11 +443,11 @@ export const chatSegments = sqliteTable(
 export const chatDigestSpeakers = sqliteTable(
   "chat_digest_speakers",
   {
-    digestId: text("digest_id")
+    digestId: nulFreeText("digest_id")
       .$type<ChatDigestId>()
       .notNull()
       .references(() => chatDigests.id, { onDelete: "cascade" }),
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
@@ -474,28 +474,28 @@ export const documentChunks = sqliteTable(
   "document_chunks",
   {
     // TypeID PK (`document_chunk_…`); brand is type-only, SQL is plain TEXT.
-    id: text("id").$type<DocumentChunkId>().primaryKey(),
+    id: nulFreeText("id").$type<DocumentChunkId>().primaryKey(),
     // The producer FK — the ONLY ownership link (owner derives via documents.ownerId). CASCADE.
-    documentId: text("document_id")
+    documentId: nulFreeText("document_id")
       .$type<DocumentId>()
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
     // Reading order; restore-on-retrieve (ST `index`).
     chunkIdx: integer("chunk_idx").notNull(),
     // The verbatim slice (chat_segments analogue).
-    content: text("content").notNull(),
+    content: nulFreeText("content").notNull(),
     // Offsets into documents.extractedText (exclusive end; the non-overlap span).
     charStart: integer("char_start").notNull(),
     charEnd: integer("char_end").notNull(),
     // The native vector (`dim` wide).
     embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // Staleness gate + dedup collapse key. NOT NULL.
-    contentHash: text("content_hash").notNull(),
+    contentHash: nulFreeText("content_hash").notNull(),
     // Advisory-stale hub score (a FLOAT) — discovery-only write, never nulled by a store; v1 always NULL.
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
-    model: text("model").notNull(),
-    generationId: text("generation_id")
+    model: nulFreeText("model").notNull(),
+    generationId: nulFreeText("generation_id")
       .$type<EmbedGenerationId>()
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
@@ -538,7 +538,7 @@ export const imageIndexSkips = sqliteTable(
     // The producer FK AND the natural PK — one skip verdict per asset (the bytes are immutable per assetId,
     // so the dimension verdict is permanent). CASCADE: a deleted asset drops its skip row. The ONLY
     // ownership link (owner-scope derives via the owned asset — no ownerId column, D20/D21).
-    assetId: text("asset_id")
+    assetId: nulFreeText("asset_id")
       .$type<AssetId>()
       .primaryKey()
       .references(() => assets.id, { onDelete: "cascade" }),
@@ -587,7 +587,7 @@ export const embedSpaceState = sqliteTable(
   "embed_space_state",
   {
     // The owner whose corpus this is. CASCADE: a deleted user's completion state goes with their vectors.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -596,10 +596,10 @@ export const embedSpaceState = sqliteTable(
     scope: text("scope", { enum: VECTOR_SCOPES }).notNull(),
     // The generation the last COMPLETED sweep of this scope promoted — the row `active-space.ts` folds into
     // the read tag `nearest.ts` filters on, and the survivor `retiredVectorStatements` deletes around.
-    activeGenerationId: text("active_generation_id")
+    activeGenerationId: nulFreeText("active_generation_id")
       .$type<EmbedGenerationId>()
       .references(() => embedGenerations.id, { onDelete: "set null" }),
-    candidateGenerationId: text("candidate_generation_id")
+    candidateGenerationId: nulFreeText("candidate_generation_id")
       .$type<EmbedGenerationId>()
       .references(() => embedGenerations.id, { onDelete: "set null" }),
     candidateEpoch: integer("candidate_epoch"),

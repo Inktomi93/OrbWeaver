@@ -13,6 +13,7 @@ import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { assets } from "./assets.ts";
 import { users } from "./users.ts";
 
@@ -20,21 +21,21 @@ export const personas = sqliteTable(
   "personas",
   {
     // TypeID PK (`persona_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<PersonaId>().primaryKey(),
+    id: nulFreeText("id").$type<PersonaId>().primaryKey(),
     // KEEP `ownerId` (D23) — the persona's own partition key, not a derivable mirror. User delete cascades.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
+    name: nulFreeText("name").notNull(),
     // ST persona "title" — a display subtitle for pickers/lists, never injected into the prompt.
     // First-class nullable column (D62 rider), not metadata-blob cargo: it's a list-rendered field.
-    title: text("title"),
-    description: text("description").notNull(),
+    title: nulFreeText("title"),
+    description: nulFreeText("description").notNull(),
     // ST persona favorites (mirrors `characters.starred`) — pickers sort/highlight starred first.
     starred: integer("starred", { mode: "boolean" }).notNull().default(false),
     // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — it must NOT delete the persona.
-    avatarAssetId: text("avatar_asset_id")
+    avatarAssetId: nulFreeText("avatar_asset_id")
       .$type<AssetId>()
       .references(() => assets.id, { onDelete: "set null" }),
     // Typed JSON blob (PersonaMetadata) — parsed at the read seam (@orb/db/query), never trusted raw.

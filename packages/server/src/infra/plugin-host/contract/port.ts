@@ -11,7 +11,7 @@ import type {
   PluginLogView,
   SnippetResult,
 } from "@orb/contracts/plugin";
-import type { IdSource } from "@orb/kit/ids";
+import type { IdSource, UserId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
 import type { Env } from "#foundation/env/record";
@@ -70,6 +70,8 @@ export interface CreateInstanceInputIn extends PluginInstanceCreateData {
 export interface CreateLogicalInstanceInputIn extends CreateInstanceInputIn {
   /** Installed plugins supply their durable re-reader; transient low-level callers need no cold wake. */
   readonly reloadMainJs?: () => Promise<string>;
+  /** The installer, whose share of the broker's Workers this plugin's runtime draws on. */
+  readonly owner: UserId;
 }
 
 /** The process host owns physical runtimes while consumers retain only the invocation operations. */
@@ -87,6 +89,8 @@ export interface ProcessPluginHost extends AsyncDisposable {
     readonly grants: readonly PluginCapability[];
     readonly bridge: PluginBridge;
     readonly chat: InvocationChat;
+    /** The member running it, whose share of the broker's Workers the snippet draws on. */
+    readonly owner: UserId;
   }) => Promise<SnippetResult>;
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   readonly dispose: (instance: PluginInstance) => void;

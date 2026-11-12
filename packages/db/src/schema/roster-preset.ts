@@ -19,6 +19,7 @@ import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { characters } from "./character.ts";
 import { personas } from "./persona.ts";
 import { users } from "./users.ts";
@@ -27,17 +28,17 @@ export const rosterPresets = sqliteTable(
   "roster_presets",
   {
     // TypeID PK (`roster_preset_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-    id: text("id").$type<RosterPresetId>().primaryKey(),
+    id: nulFreeText("id").$type<RosterPresetId>().primaryKey(),
     // KEEP `ownerId` (D23/D61 — true producer; `TABLE_SCOPING` in `#tenancy` carries the row). User delete cascades.
-    ownerId: text("owner_id")
+    ownerId: nulFreeText("owner_id")
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    description: text("description").notNull().default(""),
+    name: nulFreeText("name").notNull(),
+    description: nulFreeText("description").notNull().default(""),
     // Chat-open {{user}} POV to apply at start (StartChatParams.anchorPersonaId). Nullable; a deleted
     // persona degrades the preset (SET NULL), never blocks it.
-    anchorPersonaId: text("anchor_persona_id")
+    anchorPersonaId: nulFreeText("anchor_persona_id")
       .$type<PersonaId>()
       .references(() => personas.id, { onDelete: "set null" }),
     // OPTIONAL room-behavior payload — chat's GroupConfigInput, validated through `groupConfigSchema` at
@@ -63,12 +64,12 @@ export const rosterPresets = sqliteTable(
 export const rosterPresetMembers = sqliteTable(
   "roster_preset_members",
   {
-    presetId: text("preset_id")
+    presetId: nulFreeText("preset_id")
       .$type<RosterPresetId>()
       .notNull()
       .references(() => rosterPresets.id, { onDelete: "cascade" }),
     // A character delete cascades the seat out of each roster through its foreign key.
-    characterId: text("character_id")
+    characterId: nulFreeText("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
@@ -101,12 +102,12 @@ export const rosterPresetMembers = sqliteTable(
 export const rosterPresetRules = sqliteTable(
   "roster_preset_rules",
   {
-    presetId: text("preset_id")
+    presetId: nulFreeText("preset_id")
       .$type<RosterPresetId>()
       .notNull()
       .references(() => rosterPresets.id, { onDelete: "cascade" }),
     // A member of the automation catalogue's closed id tuple (see the header for why no DDL pin).
-    rulePresetId: text("rule_preset_id").$type<RulePresetId>().notNull(),
+    rulePresetId: nulFreeText("rule_preset_id").$type<RulePresetId>().notNull(),
     // Capture order = apply order (dense 0..n-1, normalized at the write verb — the members posture).
     // Cross-preset mint order is SEMANTICS (one write-through CEL env per dispatch batch), so the apply
     // re-mints in this order deterministically.

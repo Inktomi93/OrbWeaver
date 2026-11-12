@@ -11,7 +11,8 @@
 // ctx.rateLimit; transport/rate-limit is the one sanctioned server-side @orb/db importer.
 
 import { sql } from "drizzle-orm";
-import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { check, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 
 export const rateLimitBuckets = sqliteTable(
   "rate_limit_buckets",
@@ -19,7 +20,7 @@ export const rateLimitBuckets = sqliteTable(
     // NATURAL-KEY PK — a plain composite id string `scope:id:windowStart` (NO TypeID brand: this is not an
     // entity, it's a fixed-window counter slot). The `scope:` prefix is load-bearing — the lazy sweep keys
     // its `LIKE 'scope:%'` prefix scan on it, and the windowStart segment rolls the bucket over naturally.
-    key: text("key").primaryKey(),
+    key: nulFreeText("key").primaryKey(),
     // Incremented by the atomic upsert; the limiter compares it against the configured cap.
     count: integer("count").notNull().default(0),
     // The window's expiry (ms epoch). Drives Retry-After / msBeforeNext AND the lazy sweep predicate

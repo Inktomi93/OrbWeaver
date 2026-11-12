@@ -12,7 +12,8 @@
 
 import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { nulFreeText } from "../custom-types/index.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 
@@ -20,14 +21,14 @@ export const galleryItems = sqliteTable(
   "gallery_items",
   {
     // TypeID PK (`gallery_item_…`); brand is type-only, SQL is plain TEXT. App-minted, no DB default.
-    id: text("id").$type<GalleryItemId>().primaryKey(),
+    id: nulFreeText("id").$type<GalleryItemId>().primaryKey(),
     // The curated image. Owner derives through this FK (no stamped ownerId). Subordinate to the asset.
-    assetId: text("asset_id")
+    assetId: nulFreeText("asset_id")
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
     // Optional per-character association; SET NULL so the item survives the character's deletion.
-    subjectCharacterId: text("subject_character_id")
+    subjectCharacterId: nulFreeText("subject_character_id")
       .$type<CharacterId>()
       .references(() => characters.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
