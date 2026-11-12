@@ -296,9 +296,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       log: deps.logger,
       traces: deps.traces,
       // Every owner of a resident plugin reads why the host stopped on each of their enabled plugins.
-      onHalted: (reason, owners) => {
+      onHalted: (records) => {
         const at = now();
-        Promise.all([...owners].map((ownerId) => recordHostHaltFor(db, ownerId, reason, at))).catch((error: unknown) => {
+        Promise.all(Array.from(records, ([ownerId, reason]) => recordHostHaltFor(db, ownerId, reason, at))).catch((error: unknown) => {
           deps.logger.error({ err: error }, "plugin host: the halt could not be recorded on the plugin rows");
         });
       },

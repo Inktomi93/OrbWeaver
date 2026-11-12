@@ -2,6 +2,7 @@
 // @subject packages/server/src/entry/auth/seam.ts
 import {
   AUTH_FALLBACK_KEY,
+  AUTH_FALLBACK_TRUSTED_PEERS_KEY,
   AUTH_MODE_KEY,
   CSRF_HEADER,
   DEFAULT_USER_HANDLE_KEY,
@@ -27,6 +28,9 @@ const LAN_PEER = "192.168.1.27";
 const PROXY_PEER = "10.1.2.3";
 const PUBLIC_PEER = "203.0.113.9";
 const TRUSTED_PROXIES = ["10.0.0.0/8"];
+// An operator's widened owner-fallback peer set, and a peer inside it.
+const TRUSTED_PEER_RANGE = "10.0.0.0/8";
+const TRUSTED_LAN_PEER = "10.0.0.7";
 /** Verification's placeholder handle; the owner policy below deliberately differs from it (the D135 shape). */
 const PLACEHOLDER_HANDLE = castId<Handle>("owner");
 const REAL_OWNER_HANDLE = "owner@example.test";
@@ -91,6 +95,22 @@ test("#298 f2: a NON-loopback peer is DENIED the owner fallback → null (was ow
   const ensure = vi.spyOn(root.app.sessions, "ensureUser");
   expect(await authMe(root, { host: LOOPBACK })).toEqual(ANONYMOUS);
   expect(ensure).not.toHaveBeenCalled();
+});
+
+// Invariant 7: a widened peer set names SOCKETS. A request from outside it that forges a Host inside it, or a loopback
+// Host, claims nothing; the same request from a peer in the set is the owner.
+test("a forged Host inside the trusted peer range, or a loopback Host, admits no owner from a peer outside it", async () => {
+  const env = { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner", [AUTH_FALLBACK_TRUSTED_PEERS_KEY]: TRUSTED_PEER_RANGE };
+  await using outside = await createServerHarness({ physicalPeer: () => PUBLIC_PEER, env });
+  const ensure = vi.spyOn(outside.app.sessions, "ensureUser");
+  for (const host of [TRUSTED_LAN_PEER, LOOPBACK]) {
+    expect(await authMe(outside, { host })).toEqual(ANONYMOUS);
+  }
+  expect(ensure).not.toHaveBeenCalled();
+
+  // Positive control: the socket inside the range is the owner, whatever Host it names.
+  await using inside = await createServerHarness({ physicalPeer: () => TRUSTED_LAN_PEER, env });
+  expect(await authMe(inside, { host: TRUSTED_LAN_PEER })).toMatchObject({ authenticated: true, role: "owner" });
 });
 
 test("D135: the fallback Principal and the frozen-host Principal AGREE about the same caller", async () => {

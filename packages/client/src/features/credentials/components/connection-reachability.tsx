@@ -22,6 +22,7 @@
 // member who needs their LAN box admitted needs the admin, which is the honest multi-tenant posture.
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
@@ -137,7 +138,7 @@ function ReachabilityVerdict({ verdict, host }: { readonly verdict: CredentialHe
 /** The admission read + write, mounted only where it can actually be answered. */
 function EndpointAdmission(props: AdmitPrivateHostProps): ReactElement | null {
   const { data: me } = useSuspenseQuery(props.trpc.sessions.me.queryOptions());
-  if (me.globalRole !== "owner") {
+  if (!userRoleSatisfies(me.globalRole, "owner")) {
     return null;
   }
   return <OwnerEndpointAdmission {...props} />;

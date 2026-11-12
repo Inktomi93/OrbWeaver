@@ -2461,14 +2461,14 @@ if (canBrowse) {
  *  datum — the provider's order stands. */
 function sortRows(rows: readonly AtlasRow[], key: SortKey): readonly AtlasRow[] {
   if (key === "name") {
-    return [...rows].sort((a, b) => a.name.localeCompare(b.name));
+    return rows.toSorted((a, b) => a.name.localeCompare(b.name));
   }
   const field = SORT_FIELD[key];
   if (field === undefined) {
     return rows;
   }
   const dir = key === "oldest" ? 1 : -1;
-  return [...rows].sort((a, b) => {
+  return rows.toSorted((a, b) => {
     const av = a.n[field];
     const bv = b.n[field];
     if (av === undefined) {

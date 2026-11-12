@@ -338,7 +338,7 @@ async function keepMoment(title: string, styleKey: string, assetId: string, asse
       ...(asset === null ? {} : { mime: asset.mime, sizeBytes: asset.sizeBytes }),
     }),
   );
-  const keys = [...(await host.storage.list("moment:"))].sort();
+  const keys = (await host.storage.list("moment:")).toSorted();
   for (const key of keys.slice(0, Math.max(0, keys.length - ALBUM_MAX))) {
     await host.storage.delete(key);
   }
@@ -377,7 +377,7 @@ function parsedMoment(raw: string | null): StoredMoment | null {
 
 /** Load every kept moment, NEWEST first, as `[key, data]` pairs. Malformed rows are dropped, not fatal. */
 async function loadMoments(): Promise<readonly (readonly [string, StoredMoment])[]> {
-  const keys = [...(await host.storage.list("moment:"))].sort().reverse();
+  const keys = (await host.storage.list("moment:")).toSorted().reverse();
   const raw = await Promise.all(keys.map((key) => host.storage.get(key)));
   const out: (readonly [string, StoredMoment])[] = [];
   for (let i = 0; i < keys.length; i += 1) {

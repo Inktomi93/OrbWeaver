@@ -17,7 +17,7 @@ import { createPersistedStore } from "./create-persisted-store.ts";
 
 const TAG_ID = typeIdSchema(ID_PREFIX.tag);
 
-/** The §4.3 view axis — a single-home tuple, the union DERIVED (Spine §5.5). */
+/** The §4.3 view axis — a single-home tuple, the union DERIVED (Spine-TypeScript-and-Patterns §7.5). */
 const CHARACTER_VIEW_MODES = ["flat", "categorized"] as const;
 export type CharacterViewMode = (typeof CHARACTER_VIEW_MODES)[number];
 

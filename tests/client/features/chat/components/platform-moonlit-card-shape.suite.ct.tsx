@@ -141,7 +141,7 @@ test.describe("desktop", () => {
       }
     }
     const want = THEME_CHAT_STYLES.filter((chatStyle) => MESSAGE_ROW_SKINS[chatStyle].headerRule);
-    expect(ruled.sort()).toEqual([...want].sort());
+    expect(ruled.sort()).toEqual(want.toSorted());
     expect(want).toEqual(["ripple"]);
 
     await openReadingStyle(page, corpus, "ripple");

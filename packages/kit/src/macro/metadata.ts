@@ -135,5 +135,5 @@ export function macroArgDiagnostics(violations: readonly MacroArgViolation[], sp
 /** Autocomplete / browser query: the registry's composed metadata, stable name-sorted. Pure + isomorphic —
  *  the client calls it over a registry it composes itself (builtins, then the surface's user macros). */
 export function queryMacros(registry: MacroRegistry): readonly MacroMetadata[] {
-  return [...registry.allMetadata()].sort((a, b) => a.name.localeCompare(b.name));
+  return registry.allMetadata().toSorted((a, b) => a.name.localeCompare(b.name));
 }

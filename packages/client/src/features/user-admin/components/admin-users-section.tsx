@@ -8,6 +8,7 @@
 // is UX honesty over that floor, and its error state says so.
 
 import type { UserRole } from "@orb/contracts/identity";
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, UserPlus } from "@orb/ui/icons";
@@ -54,7 +55,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
   const [{ data: users }, { data: viewer }] = useSuspenseQueries({
     queries: [trpc.admin.listUsers.queryOptions(), trpc.sessions.me.queryOptions()],
   });
-  const viewerIsOwner = viewer.globalRole === "owner";
+  const viewerIsOwner = userRoleSatisfies(viewer.globalRole, "owner");
   const setRole = useSetRole({ trpc, invalidation });
   const setEnabled = useSetEnabled({ trpc, invalidation });
 

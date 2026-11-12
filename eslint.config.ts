@@ -680,12 +680,48 @@ const MODULE_LOADER_SYNTAX = [
   },
 ];
 
+// What a privilege role means is encoded once, in `@orb/contracts/identity` (`isHostRole`, `userRoleSatisfies`), the
+// file every reader shares, `can()` included (Spine-Identity-and-Auth.md invariant 6). These selectors refuse, in the
+// server and the client, a role literal (`host`, `member`, `owner`, `admin`) tested against an operand named for a role:
+// a `role`, `globalRole` or `viewerRole` field (optional chains too), a variable such as `derivedRole`, or a decoded
+// `participantRoleValue(...)`. The forms: an equality on either side, a `switch` case, an array literal's `includes` and an
+// `in` over an object literal. A message role (`user`, `assistant`) is not a privilege role and is not seen.
+const ROLE_LITERAL = "/^(host|member|owner|admin)$/";
+const ROLE_OPERAND = (side: string): string =>
+  [
+    `[${side}.property.name=/[rR]ole$/]`,
+    `[${side}.expression.property.name=/[rR]ole$/]`,
+    `[${side}.name=/[rR]ole$/]`,
+    `[${side}.callee.name=/[rR]oleValue$/]`,
+  ].join(", ");
+const ROLE_COMPARISON_MESSAGE =
+  "Test a privilege role through isHostRole or userRoleSatisfies from @orb/contracts/identity, the one encoding can() decides with (Spine-Identity-and-Auth.md invariant 6).";
+const ROLE_COMPARISON_SYNTAX = [
+  {
+    selector: `BinaryExpression[operator=/^[!=]==$/]:matches(${ROLE_OPERAND("left")}, ${ROLE_OPERAND("right")}):matches([left.value=${ROLE_LITERAL}], [right.value=${ROLE_LITERAL}])`,
+    message: ROLE_COMPARISON_MESSAGE,
+  },
+  {
+    selector: `SwitchStatement:matches(${ROLE_OPERAND("discriminant")}) > SwitchCase[test.value=${ROLE_LITERAL}]`,
+    message: ROLE_COMPARISON_MESSAGE,
+  },
+  {
+    selector: `CallExpression[callee.property.name='includes'][callee.object.type='ArrayExpression']:matches(${ROLE_OPERAND("arguments.0")}):matches([callee.object.elements.0.value=${ROLE_LITERAL}], [callee.object.elements.1.value=${ROLE_LITERAL}], [callee.object.elements.2.value=${ROLE_LITERAL}])`,
+    message: ROLE_COMPARISON_MESSAGE,
+  },
+  {
+    selector: `BinaryExpression[operator='in'][right.type='ObjectExpression']:matches(${ROLE_OPERAND("left")}):matches([right.properties.0.key.name=${ROLE_LITERAL}], [right.properties.0.key.value=${ROLE_LITERAL}])`,
+    message: ROLE_COMPARISON_MESSAGE,
+  },
+];
+
 const SERVER_SYNTAX = [
   {
     selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
     message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
   },
   ...MODULE_LOADER_SYNTAX,
+  ...ROLE_COMPARISON_SYNTAX,
 ];
 
 const SERVER_CLOCK_HOME = homes("packages/server/src/entry/lifecycle.ts");
@@ -789,7 +825,7 @@ const TRACK_STAMP_SYNTAX = {
 // Flat config replaces rule options, so each authored override carries the invariant.
 const restrictedSyntax = (...restrictions: object[]): Linter.RuleEntry => ["error", INVISIBLE_CONTROL_SYNTAX, ...restrictions];
 
-const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX];
+const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX, ...ROLE_COMPARISON_SYNTAX];
 
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
@@ -1849,6 +1885,8 @@ const RAW_STORAGE_HOMES = homes(
   "packages/client/src/lib/probe-mode.ts",
   "packages/client/src/main.tsx",
 );
+// The read-only DB probes Tier-2-Foundation.md names: they read @orb/db down, with no port.
+const DEBUG_DB_PROBES = "packages/server/src/foundation/observability/debug/inspect/**";
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
@@ -2028,15 +2066,28 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/server/src/infra/auth/**/*.{ts,tsx}"], rules: { "orb/infra-auth-no-userid": "error", "orb/infra-auth-pre-row-imports": "error" } },
     { files: ["packages/server/src/domain/discovery/**/*.{ts,tsx}"], rules: { "orb/discovery-no-stats-rollups": "error" } },
+    // DEBUG_DB_PROBES holds a read role in the users, inbox and vector rows; the rest of `debug/` holds none.
     {
-      files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/domain/sessions/**", "packages/server/src/domain/admin/**"],
+      files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}", "packages/server/src/foundation/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/sessions/**", "packages/server/src/domain/admin/**", DEBUG_DB_PROBES],
       rules: { "orb/no-direct-users-read": "error" },
+    },
+    {
+      files: ["packages/server/src/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/notifications/persistence/**", DEBUG_DB_PROBES],
+      rules: { "orb/notifications-inbox-owner": "error" },
+    },
+    {
+      files: ["packages/server/src/**/*.{ts,tsx}"],
+      ignores: ["packages/server/src/domain/settings/persistence/**"],
+      rules: { "orb/settings-kv-owner": "error" },
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
       rules: {
         "orb/no-direct-users-read-reexport": "error",
+        "orb/notifications-inbox-owner-reexport": "error",
+        "orb/settings-kv-owner-reexport": "error",
         "orb/vector-scope-derived-reexport": "error",
         "orb/users-write-plain-spelling": "error",
         "orb/handle-key-writer": "error",
@@ -2050,7 +2101,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
         "packages/server/src/domain/search/persistence/**",
         "packages/server/src/domain/chat/memory/persistence/**",
         "packages/server/src/domain/discovery/persistence/**",
-        "packages/server/src/foundation/observability/debug/**",
+        DEBUG_DB_PROBES,
       ],
       rules: { "orb/vector-scope-derived": "error" },
     },
@@ -2376,6 +2427,20 @@ export default [
     files: ["**/*.{ts,tsx}"],
     plugins: { orb: localPlugin },
     rules: { "orb/commented-code": "error" },
+  },
+  {
+    // Every block above that carries type information; the rule asks the checker whether the copied operand is an array.
+    files: [
+      ...SOURCE,
+      ...NODE_TOOL_SOURCE,
+      "tests/**/*.{ts,tsx,mts,cts}",
+      "scripts/**/*.tsx",
+      "playwright/**/*.{ts,tsx}",
+      "packages/showcase-plugins/bundles/*/{main,ui,frame}.ts",
+    ],
+    ignores: ["**/*.d.{ts,mts,cts}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/prefer-to-sorted": "error" },
   },
   {
     files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],

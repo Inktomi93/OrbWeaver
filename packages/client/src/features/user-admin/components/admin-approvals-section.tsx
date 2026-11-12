@@ -8,6 +8,7 @@
 // (admin.listUsers, filtered client-side to the pending set) and its own suspense boundary. Every verb behind
 // it is adminProcedure + requireAdmin — this section is convenience over that floor.
 
+import { userRoleSatisfies } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -48,7 +49,7 @@ function AdminApprovalsBody({ anchorId }: { readonly anchorId: string }): ReactE
 
   // The pending set: disabled, non-owner accounts. The owner is never disabled (server-enforced), so it can
   // never appear here. A human OR an agent row can be disabled; approving re-enables whichever it is.
-  const pending = users.filter((user) => !user.enabled && user.role !== "owner");
+  const pending = users.filter((user) => !(user.enabled || userRoleSatisfies(user.role, "owner")));
 
   return (
     <Section container={true} divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={anchorId}>

@@ -7,10 +7,11 @@
 // these tables is two chances for one of them to drift into "a .png that is not a PNG" and quietly turn a
 // refusal test green for the wrong reason.
 
-/** The formats these fixtures can produce. The first four are what `@orb/kit`'s `sniffMime` recognizes; the
- *  last two are the REFUSAL vocabulary — an SVG (valid UTF-8, no binary signature, and a script carrier) and
- *  a nested zip (the other thing an extension-trusting wall would happily admit). */
-const MAGIC_FORMATS = ["png", "jpeg", "gif", "webp", "svg", "zip"] as const;
+/** The formats these fixtures can produce. The first four are what `@orb/kit`'s `sniffMime` recognizes; `svg` and `zip`
+ *  are the REFUSAL vocabulary — an SVG (valid UTF-8, no binary signature, and a script carrier) and a nested zip (the
+ *  other thing an extension-trusting wall would happily admit); `mp4` and `webm` are the video signatures the asset
+ *  store's media check reads. */
+const MAGIC_FORMATS = ["png", "jpeg", "gif", "webp", "svg", "zip", "mp4", "webm"] as const;
 export type MagicFormat = (typeof MAGIC_FORMATS)[number];
 
 const SIGNATURES: Record<MagicFormat, readonly number[]> = {
@@ -23,6 +24,10 @@ const SIGNATURES: Record<MagicFormat, readonly number[]> = {
   // document from our own origin. It must sniff as UNKNOWN, which is what refuses it.
   svg: [...new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')],
   zip: [0x50, 0x4b, 0x03, 0x04], // "PK\x03\x04" — the local-file header.
+  // A 4-byte box size, then the ISO-BMFF `ftyp` box tag the store reads at byte 4, then a brand.
+  mp4: [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d],
+  // The Matroska/WebM EBML header magic at byte 0.
+  webm: [0x1a, 0x45, 0xdf, 0xa3],
 };
 
 /** `size` bytes whose HEAD is the named format's real signature, zero-padded to length. `size` is clamped up

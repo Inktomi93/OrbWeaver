@@ -64,6 +64,7 @@
 import type { ChatBusEvent, ChatDeltaEvent, DurableChatBusEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
 import { HIDDEN_TAG_BROKEN_CODE, projectViewForMember } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
+import { isHostRole } from "@orb/contracts/identity";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
@@ -96,7 +97,7 @@ interface ViewerRole {
  *  through `can()` — doing so would thread a Principal into this pure, I/O-free module for zero behavior
  *  change (`can(…, 'host', …)` reduces to exactly this comparison; the Principal is never read). */
 export function viewerHoldsHost(viewer: ViewerRole | undefined): boolean {
-  return viewer !== undefined && participantRoleValue(viewer.role) === "host";
+  return viewer !== undefined && isHostRole(participantRoleValue(viewer.role));
 }
 
 /** Is THIS caller entitled to the unstripped hidden-content payload (§3.6 "the host via the eye")? The host

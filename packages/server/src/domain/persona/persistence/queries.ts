@@ -243,17 +243,31 @@ export async function loadOwnedCharacterCard(db: Db, ownerId: UserId, characterI
   return { name: card.name, description: card.description, avatarAssetId: card.avatarAssetId };
 }
 
-/** Gate: a supplied avatar asset must belong to the caller (the FK alone proves existence, never
- *  ownership). A foreign/absent asset collapses to {@link AssetNotFoundError} (no existence leak). */
+/** Gate: a supplied avatar asset must belong to the caller (the FK alone proves existence, never ownership) and be of a
+ *  picture kind, since its readers draw it as an image. A foreign/absent asset collapses to {@link AssetNotFoundError}
+ *  (no existence leak); one of another kind is refused with its code. Every avatar writer checks through here, the
+ *  bulk import included. */
+export async function ensureAvatarAssets(db: Db, ownerId: UserId, assetIds: readonly AssetId[]): Promise<void> {
+  if (assetIds.length === 0) {
+    return;
+  }
+  const rows = await db
+    .select({ id: assets.id, kind: assets.kind })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...new Set(assetIds)])));
+  for (const assetId of assetIds) {
+    const row = rows.find(({ id }) => id === assetId);
+    if (row === undefined) {
+      throw new AssetNotFoundError(assetId);
+    }
+    if (!isPictureAssetKind(row.kind)) {
+      throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${row.kind} asset`);
+    }
+  }
+}
+
 export async function ensureAvatarAsset(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
-  const rows = await db.select({ ownerId: assets.ownerId, kind: assets.kind }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
-  const row = rows[0];
-  if (row?.ownerId !== ownerId) {
-    throw new AssetNotFoundError(assetId);
-  }
-  if (!isPictureAssetKind(row.kind)) {
-    throw new DomainOperationError(ASSET_UPLOAD_REFUSAL_CODES.notAnImage, `an avatar must be a picture; asset ${assetId} is a ${row.kind} asset`);
-  }
+  await ensureAvatarAssets(db, ownerId, [assetId]);
 }
 
 /** Does `ownerId` own `personaId`? Absent and foreign both answer `false`, so the answer leaks nothing. */

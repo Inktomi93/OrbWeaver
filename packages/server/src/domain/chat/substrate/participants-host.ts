@@ -23,6 +23,7 @@
 // row below it. Fail-safe means "skip the seat that cannot own", not "give up at the first host-labelled row".
 
 import type { ParticipantRoleState } from "@orb/contracts/identity";
+import { isHostRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import { participantRoleValue } from "#primitives/role-data/decode";
 
@@ -37,7 +38,7 @@ interface HostSeat {
  *  so the caller gets its OWN row type back with every field intact — the invite preview reads the host's
  *  `handle` off it, the handoff reads `userId`. See the file header for the `userId` belt's one answer. */
 export function hostSeatOf<T extends HostSeat>(participants: readonly T[]): T | undefined {
-  return participants.find((seat) => participantRoleValue(seat.role) === "host" && seat.userId !== null);
+  return participants.find((seat) => isHostRole(participantRoleValue(seat.role)) && seat.userId !== null);
 }
 
 /** The host's USER id, or `null` for a hostless room. The lookup every ownership read wants (cards/presets/

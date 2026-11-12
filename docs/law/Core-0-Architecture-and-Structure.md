@@ -52,12 +52,17 @@ The cake → tier 1 (packages). Invariants → tier 2 (types). dependency-cruise
 
 ```
 packages/
-  kit/        @orb/kit        pure primitives + engines; isomorphic (browser-safe); no node:*/domain/I/O — isomorphic npm deps (zod, luxon…) OK
-  contracts/  @orb/contracts  cross-boundary types + zod schemas (the wire)  → deps: kit
-  db/         @orb/db         drizzle schema + libsql client + migrations    → deps: kit, contracts
-  server/     @orb/server     business logic                                 → deps: kit, contracts, db
-  ui/         @orb/ui         sealed domain-agnostic primitives (D54)        → deps: kit; react/react-dom are PEERS; the primitive libs (Base UI, cmdk, ECharts…) sealed inside
-  client/     @orb/client     UI                                             → deps: kit, contracts, ui, server(devDep — type-only)
+  kit/               @orb/kit               pure primitives + engines; isomorphic (browser-safe); no node:*/domain/I/O — isomorphic npm deps (zod, luxon…) OK
+  contracts/         @orb/contracts         cross-boundary types + zod schemas (the wire)  → deps: kit
+  db/                @orb/db                drizzle schema + libsql client + migrations    → deps: kit, contracts
+  server/            @orb/server            business logic                                 → deps: kit, contracts, db, inference, default-content, showcase-plugins
+  inference/         @orb/inference         wires, providers, tasks and resolution         → deps: kit, contracts
+  default-content/   @orb/default-content   shipped default content                        → deps: kit
+  showcase-plugins/  @orb/showcase-plugins  the shipped example plugins                    → deps: contracts (kit allowed, D160); plugin-sdk(devDep — author types)
+  plugin-sdk/        @orb/plugin-sdk        plugin author declaration files                → deps: none
+  plugin-toolchain/  @orb/plugin-toolchain  author-time plugin build                       → deps: none; TypeScript is its runtime dependency
+  ui/                @orb/ui                sealed domain-agnostic primitives (D54)        → deps: kit; react/react-dom are PEERS; the primitive libs (Base UI, cmdk, ECharts…) sealed inside
+  client/            @orb/client            UI                                             → deps: kit, contracts, ui, server(devDep — type-only)
 ```
 
 `workspace:*` makes cross-package refs explicit; a package importing an undeclared package fails to
@@ -93,11 +98,12 @@ two call sites (server assemble + client render) → guaranteed-identical behavi
 name-leak/speaker-label handling (`stripSelfSpeakerLabel`, `parseSpeakerSpans`) is also `kit` — it runs
 at both persist and render. `chat` is a *consumer* of these engines, never their home.
 
-TS project references are **not** used: they require emit (`composite` ⇒ `declaration`), which fights
-our no-emit model (node runs the `.ts` SOURCE directly — tsc is the type ORACLE and nothing emits), and
-our `exports`→`.ts` map already gives cross-package
-go-to-def + boundary
-enforcement without them. **Revisit triggers** (only then): we start publishing a package to npm, or
+TS project references serve the editor only: the root `tsconfig.json` is a solution file (`files: []`) whose
+`references` list every world, so the language server places each file in its real program. No world is
+`composite` and nothing runs `tsc -b`: a build graph requires emit (`composite` ⇒ `declaration`), which fights
+our no-emit model (node runs the `.ts` SOURCE directly — tsc is the type ORACLE and nothing emits).
+`scripts/typecheck.ts` checks each world as its own program, and our `exports`→`.ts` map gives
+cross-package go-to-def + boundary enforcement. **Revisit triggers** (only then): we start publishing a package to npm, or
 per-package `tsc --noEmit` gets slow enough to want incremental `tsc -b` caching. (TS house style +
 the staged-config triggers live in `docs/law/Spine-TypeScript-and-Patterns.md`.)
 
@@ -202,7 +208,7 @@ directory gives each test one home, and the src tree stays clean. The fixture do
 
 **The test kit is a package.** `tests/support` is the workspace package `@orb/testkit`. It sits above the cake
 beside tooling (§9). Its `package.json` exports map holds its doors and no root entry: `@orb/testkit/iso`, `node`, `node/helpers`, `node/composed`,
-`node/rows`, `ct`, `ct-corpus`, `browser`, `browser/spec`, `tooling` and `sdk`; each is a barrel in its world directory, and `tests/support/README.md` says what it holds. The checked-in compiler configurations own their environments: `tsconfig.tests-iso.json`, `tsconfig.json` and `tsconfig.tests-dom.json`.
+`node/rows`, `node/auth`, `ct`, `ct-corpus`, `browser`, `browser/spec`, `tooling` and `sdk`; each is a barrel in its world directory, and `tests/support/README.md` says what it holds. The checked-in compiler configurations own their environments: `tsconfig.tests-iso.json`, `tsconfig.node.json` and `tsconfig.tests-dom.json`.
 The `test-helper-world-direction` rule in `.dependency-cruiser.ts` keeps the direction: iso imports no other world, node imports iso, browser imports both.
 
 The kit holds deterministic inputs, production-derived builders, external-edge adapters and recorders. Product logic stays in its owning layer behind its public API. `Spine-Testing.md` §2 owns the server test composition home; rebuilt tests do not assemble another domain graph.
@@ -251,9 +257,9 @@ Promoted here from code comments so they are discoverable; the code stays the so
 | - | - |
 | **ONE credential-mint site** — the brand-protected `ResolvedSecret` is constructed ONLY in the credentials substrate's mint; the brand is otherwise unforgeable. | `packages/server/src/domain/credentials/substrate/mint-secret.ts` |
 | **Notifications are durable-first** — INSERT the inbox row, THEN publish to the bus; a crash between the two never loses a delivered notification (the inbox is truth, the bus is best-effort). | `domain/notifications` |
-| **`notifications.record` is the ONE recipient chokepoint** — every producer routes through it, and it REFUSES an agent-principal recipient (agents never hold an inbox). Enforced once, inherited by all producers. | `domain/notifications` |
+| **`notifications.record` is the ONE recipient chokepoint** — every producer routes through it. D60 rules that it refuses an agent-principal recipient (agents never hold an inbox); under D60's build-state rider that refusal is the design of record, not the tree. No agent principal can exist yet: `USER_KINDS` holds `human` only, and the users kind CHECK admits no other. | `domain/notifications` |
 | **Wire event unions are secret-unrepresentable** — the chat/notification event unions are closed discriminated unions of strict objects carrying only ids + literals; a secret/credential field is not expressible, so it cannot leak onto the bus. | `@orb/contracts/{chat,notifications}` |
-| **Settings has one writer.** `domain/settings` owns its KV table and exposes an opaque, registered-prefix port; each tenant owns its values' meaning. | `packages/server/src/domain/settings/persistence/kv.ts`; `SETTINGS_TENANT_PREFIXES` in `@orb/contracts/settings` |
+| **Settings has one writer.** `domain/settings` owns its KV table and exposes an opaque, registered-prefix port; each tenant owns its values' meaning. | `packages/server/src/domain/settings/persistence/kv.ts`; `SETTINGS_TENANT_PREFIXES` in `@orb/contracts/settings`; `orb/settings-kv-owner` refuses the table outside settings persistence |
 | **`users`-read chokepoint + audit-ordering** — only `admin` + `sessions` read the `users` table (every admin read checks authorization first); audit ordering is check→write→audit, so a refused write leaves NO phantom audit row. | `domain/admin` |
 
 ## 9. Retained tooling

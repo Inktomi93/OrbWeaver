@@ -236,7 +236,7 @@ export function renderOwnerCssSurface(input: SurfaceInput, previous: readonly Ow
     "",
     "/** Every `data-appearance-*` root attribute and the values its variants match. */",
     `export const OWNER_CSS_APPEARANCE_ATTRIBUTES = ${JSON.stringify(
-      [...input.appearanceAttributes].sort((a, b) => a.name.localeCompare(b.name)),
+      input.appearanceAttributes.toSorted((a, b) => a.name.localeCompare(b.name)),
       null,
       2,
     )} as const;`,

@@ -244,7 +244,7 @@ export function printFindingsTable(findings: readonly Finding[], complete = true
     print(complete ? "no findings — clean" : "NO VERDICT   no emitted findings — one or more rule populations were not completely judged");
     return;
   }
-  const sorted = [...findings].sort((a, b) => a.severity.localeCompare(b.severity));
+  const sorted = findings.toSorted((a, b) => a.severity.localeCompare(b.severity));
   print("severity  rule                  selector                                message");
   for (const f of sorted) {
     const truncated = f.message.length > MESSAGE_COL_WIDTH ? `${f.message.slice(0, MESSAGE_COL_WIDTH)}…` : f.message;

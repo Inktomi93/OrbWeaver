@@ -19,7 +19,7 @@
 // `tsc` until it has both. Cards: exactly ONE visible (the newest), the rest disclosed as a mono count.
 // Named chip groups retain visible context. Larger groups disclose to protect the reading column.
 // Card buttons are neutral/outline and each card
-// carries an explicit dismiss; the composer's Send stays CONTENT's one `primary` (UI §4.3 rule 3).
+// carries an explicit dismiss; the composer's Send stays CONTENT's one `primary` (UI-Architecture-and-Layout §4.3 rule 3).
 //
 // THE BAND OWNS THE READING SURFACE, not the controls on it (`BandReadingSurface` below states why it is the composer's opaque recipe rather than the transcript's translucent plate).
 // One treatment at the anchor covers chips, cards, and every future S1 control; per-control backings would
@@ -182,7 +182,7 @@ const MODE_GLYPH: Record<ChatControlMode, LucideIcon> = {
  *  survives greyscale, low vision, an icon font that fails to load, and a reader who has never met the glyph.
  *  The alternative arm — distinct chip TONES (a coloured send pill) — was refused twice over: it is the
  *  colour-alone channel wearing a new hat, and a filled send pill next to the composer would be a second
- *  `primary` (UI §4.3 rule 3). The accessible name is the
+ *  `primary` (UI-Architecture-and-Layout §4.3 rule 3). The accessible name is the
  *  SAME word + the label, with NO separator punctuation, so the whole visible string is a substring of the
  *  name (WCAG 2.5.3 label-in-name — a "Send: …" name beside a "Send …" visible label would not be).
  *

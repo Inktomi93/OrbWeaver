@@ -276,7 +276,7 @@ export function appearanceReachReceipt(contract: RuntimeAppearanceContract): App
 }
 
 function firstTheme(entries: readonly ThemeEntry[], capability: string): ThemeEntry {
-  const first = [...entries].sort((left, right) => left.id.localeCompare(right.id))[0];
+  const first = entries.toSorted((left, right) => left.id.localeCompare(right.id))[0];
   return first ?? instrumentRefusal(`theme catalog is missing ${capability}`);
 }
 

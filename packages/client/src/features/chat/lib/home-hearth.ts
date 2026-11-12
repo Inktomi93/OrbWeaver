@@ -3,6 +3,7 @@
 // disagree about which room is the hero.
 
 import type { ChatSummary } from "@orb/contracts/chat";
+import { isHostRole } from "@orb/contracts/identity";
 
 type HearthCandidate = Pick<ChatSummary, "id" | "viewerLastTurnAt" | "viewerRole">;
 
@@ -18,7 +19,7 @@ export function splitHearth<Room extends HearthCandidate>(items: readonly Room[]
       latest = room.viewerLastTurnAt;
     }
   }
-  const hearth = spokenIn ?? items.find((room) => room.viewerRole === "member") ?? items[0];
+  const hearth = spokenIn ?? items.find((room) => !isHostRole(room.viewerRole)) ?? items[0];
   return { hearth, rest: items.filter((room) => room.id !== hearth?.id) };
 }
 
