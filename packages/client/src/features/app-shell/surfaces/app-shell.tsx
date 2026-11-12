@@ -129,6 +129,14 @@ function ContextPaneBody({
 
 /** Does a floating sheet carry a dismiss of its own? Only on a phone, whose sheet covers the screen and whose topbar
  *  holds no panel control; a desktop sheet is closed from its edge control, which stays where it was. */
+/** The topbar Back's name: the open sheet it closes, else the drilled member's own Back, else the place the section pops to. */
+function topbarBackLabel(layout: ShellLayout, contentLabel: string | null): string {
+  if (layout.backClosesSheet) {
+    return CONTEXT_SHEET_BACK_NAME;
+  }
+  return layout.drillBackLabel ?? sectionBackName(layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel);
+}
+
 function sheetDismisses(layout: ShellLayout, mode: PanelMode): boolean {
   return layout.mobileViewport && mode !== "docked";
 }
@@ -405,9 +413,7 @@ export function AppShell(): ReactElement {
                       onToggleList={(): void => layout.togglePanel("list")}
                       // The section resolves mode vocabulary without teaching the shell its feature state.
                       onBack={layout.backToList}
-                      backLabel={
-                        layout.backClosesSheet ? CONTEXT_SHEET_BACK_NAME : sectionBackName(layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel)
-                      }
+                      backLabel={topbarBackLabel(layout, contentLabel)}
                     />
                   )}
                 </SectionTopbarTitle>

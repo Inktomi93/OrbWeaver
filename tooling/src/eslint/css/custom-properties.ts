@@ -14,6 +14,7 @@ export const RUNTIME_CUSTOM_PROPERTIES: Readonly<Record<string, string>> = {
   "--orb-keyboard-inset": "app-shell/hooks/use-keyboard-inset-var.ts (the soft keyboard's inset, removed when it is down)",
   "--orb-media-x": "primitives/media-grid/media-grid.tsx (the pointer's inline offset in a cell)",
   "--orb-media-y": "primitives/media-grid/media-grid.tsx (the pointer's block offset in a cell)",
+  "--orb-list-content": "primitives/virtual-list/virtual-list.tsx (a growing list's rows' total height, for its floor)",
 };
 
 /** Names streamdown's code blocks write inline (its Shiki dual-theme spans); a test finds each in the installed package. */

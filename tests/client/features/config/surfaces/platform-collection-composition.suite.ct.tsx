@@ -11,8 +11,10 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { CONFIG_MORE_LIBRARY_ACTIONS_NAME } from "#client/features/config/lib/config-control-names.ts";
-import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { CONFIG_MORE_LIBRARY_ACTIONS_NAME, collectionEmptyTitle } from "#client/features/config/lib/config-control-names.ts";
+import { REGEX_GROUP_LABEL, REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { ROSTER_GROUP_LABEL } from "#client/features/roster-preset/lib/roster-names.ts";
+import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
 import type { CollectionCompositionStory } from "./_collection-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -20,6 +22,8 @@ type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
 const SUBJECTS = ["regex", "worldInfo", "rosterPreset"] as const;
 type Subject = (typeof SUBJECTS)[number];
 const STORY = "tests/client/features/config/surfaces/_collection-composition-stories/CollectionCompositionStory";
+// The virtualizer sizes this box to its rows' total height, whatever the scroll box around it measures.
+const ROWS_VIEWPORT = '[data-slot="virtual-list-viewport"]';
 const LONG_NAME = "A Copper Observatory and Northern Expedition Reference Archive";
 const REGIMES = [
   { name: "narrow desktop enlarged", viewport: { width: 1280, height: 900 }, width: 300, touch: false, enlarged: true, inline: false },
@@ -336,6 +340,7 @@ for (const order of LANDING_ORDERS) {
           throw new Error("The landing's first row and its facts must have rendered boxes");
         }
         await test.info().attach("landing-order", { body: JSON.stringify({ rowBox, insightBox }), contentType: "application/json" });
+        await page.screenshot({ path: test.info().outputPath(`${subject}-landing-order.png`) });
         // On a short screen the rows come first; otherwise the facts lead. Either way the first row is whole on screen.
         expect(insightBox.y < rowBox.y).toBe(!order.rowsFirst);
         expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(order.viewport.height);
@@ -380,6 +385,62 @@ async function seedLongLibrary(caller: Caller, subject: (typeof WINDOWED_SUBJECT
     }
   }
 }
+
+/** Leaves the regex library one script, through the production verbs. */
+async function seedOneScript(caller: Caller): Promise<void> {
+  for (const script of await caller.regex.listScripts()) {
+    await caller.regex.removeScript({ scriptId: script.id });
+  }
+  await caller.regex.createScript({
+    input: createRegexScriptSchema.parse({ name: LONG_NAME, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+  });
+}
+
+test.describe("one script at enlarged browser text on a landscape phone", () => {
+  const landscape = { width: 844, height: 390 } as const;
+  test.use({ viewport: landscape, hasTouch: true, isMobile: true });
+  test("the list box is one row tall and the library's facts follow it directly", async ({ mount, page }) => {
+    await using _textSize = await setPlatformTextSize(page, PLATFORM_TEXT_SCALES[1]);
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { appearance } = await prepare(caller, page, "regex", true);
+    await seedOneScript(caller);
+    await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: landscape.width, height: landscape.height, appearance });
+    const content = page.locator('[data-slot="config-content"]');
+    const list = content.locator('[data-slot="virtual-list-scroll"]');
+    await expect(list.locator('[data-slot="list-row-body"]')).toHaveCount(1);
+    const insights = content.locator('[data-slot="config-library-insights"]');
+    await insights.scrollIntoViewIfNeeded();
+    const gap = await resolvedLength(page, `var(${TOKENS["spacing.section"].cssVar})`, list);
+    const rows = (await list.locator(ROWS_VIEWPORT).boundingBox())?.height ?? 0;
+    const [listBox, insightBox] = await Promise.all([list.boundingBox(), insights.boundingBox()]);
+    if (listBox === null || insightBox === null) {
+      throw new Error("The one-row list and its facts have no rendered boxes");
+    }
+    await page.screenshot({ path: test.info().outputPath("regex-one-row-844x390-200.png") });
+    expect(Math.abs(listBox.height - rows)).toBeLessThanOrEqual(1);
+    expect(insightBox.y - (listBox.y + listBox.height)).toBeLessThanOrEqual(gap + 1);
+  });
+});
+
+test.describe("one script on a wide desktop", () => {
+  test.use({ viewport: { width: 1440, height: 900 }, hasTouch: false, isMobile: false });
+  test("the list box still fills the pane below its one row", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { appearance } = await prepare(caller, page, "regex", false);
+    await seedOneScript(caller);
+    await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: 960, height: 900, appearance });
+    const content = page.locator('[data-slot="config-content"]');
+    const list = content.locator('[data-slot="virtual-list-scroll"]');
+    await expect(list.locator('[data-slot="list-row-body"]')).toHaveCount(1);
+    const floor = await resolvedLength(page, `var(${TOKENS["height.scroll-sm"].cssVar})`, list);
+    const rows = (await list.locator(ROWS_VIEWPORT).boundingBox())?.height ?? 0;
+    const height = (await list.boundingBox())?.height ?? 0;
+    // The fill ruling's control: with room, the box is the pane's free space, well past its one row and its floor.
+    expect(height).toBeGreaterThan(Math.max(rows, floor));
+  });
+});
 
 test.describe("coarse landscape enlarged, at enlarged browser text", () => {
   const landscape = { width: 844, height: 390 } as const;
@@ -438,3 +499,57 @@ test.describe("two members that share a name", () => {
     await expect(insights.getByRole("button", { name: /^Open Unnamed script: Last edited$/u })).toHaveCount(1);
   });
 });
+
+const GROUP_LABELS = { regex: REGEX_GROUP_LABEL, worldInfo: WORLD_INFO_GROUP_LABEL, rosterPreset: ROSTER_GROUP_LABEL } as const satisfies Record<
+  Subject,
+  string
+>;
+
+/** Removes every member of the library through its production verb, so the landing takes its empty arm. */
+async function emptyLibrary(caller: Caller, subject: Subject): Promise<void> {
+  if (subject === "regex") {
+    for (const script of await caller.regex.listScripts()) {
+      await caller.regex.removeScript({ scriptId: script.id });
+    }
+  } else if (subject === "worldInfo") {
+    for (const book of await caller.worldInfo.listBooks()) {
+      await caller.worldInfo.removeBook({ bookId: book.id });
+    }
+  } else {
+    for (const roster of await caller.rosterPreset.list()) {
+      await caller.rosterPreset.remove({ presetId: roster.id });
+    }
+  }
+}
+
+for (const regime of REGIMES) {
+  test.describe(`${regime.name} empty library`, () => {
+    test.use({ viewport: regime.viewport, hasTouch: regime.touch, isMobile: regime.touch });
+    for (const subject of SUBJECTS) {
+      test(`${subject} with no members teaches its emptiness and offers one create door, with no list box and no rows`, async ({ mount, page }) => {
+        await using root = await createCorpusHarness();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { appearance } = await prepare(caller, page, subject, regime.enlarged);
+        await emptyLibrary(caller, subject);
+        await mount<typeof CollectionCompositionStory>(STORY, { group: subject, width: regime.width, height: regime.viewport.height, appearance });
+        const content = page.locator('[data-slot="config-content"]');
+        const empty = content.locator('[data-slot="empty-state-root"]');
+        // A short pane scrolls the empty state; each part is reached whole.
+        const title = empty.getByText(collectionEmptyTitle(GROUP_LABELS[subject]), { exact: true });
+        await title.scrollIntoViewIfNeeded();
+        await expect(title).toBeInViewport({ ratio: 1 });
+        await expectBoundedContent(content, regime.width);
+        const create = empty.locator('[data-slot="empty-state-action"]').getByRole("button");
+        await expect(create).toHaveCount(1);
+        await create.scrollIntoViewIfNeeded();
+        await expect(create).toBeInViewport({ ratio: 1 });
+        await create.click({ trial: true });
+        // The populated arm's chrome is absent: no list box with its floor, no rows, no filter.
+        await expect(content.locator('[data-slot="virtual-list-scroll"]')).toHaveCount(0);
+        await expect(content.locator('[data-slot="list-row-body"]')).toHaveCount(0);
+        await expect(content.locator('[data-slot="collection-control-row"]')).toHaveCount(0);
+        await page.screenshot({ path: test.info().outputPath(`${subject}-empty.png`) });
+      });
+    }
+  });
+}

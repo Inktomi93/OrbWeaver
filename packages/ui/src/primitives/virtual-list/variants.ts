@@ -4,9 +4,10 @@ import { GROW, HEIGHT, MAX_HEIGHT, MIN_HEIGHT, SCROLLER_CHAINED, tv } from "#lib
 export const virtualListVariants = tv({
   base: SCROLLER_CHAINED,
   variants: {
-    // A growing window is the parent's free space, never its rows (size containment), and never less than a few rows: a parent
-    // whose chrome leaves less hands the list its floor and its own scroller carries it (ui-package-design §6.1).
-    grow: { true: `${GROW.true} contain-size ${MIN_HEIGHT.scrollSm}`, false: GROW.false },
+    // A growing window is the parent's free space, never its rows (size containment), and never less than its floor: the
+    // scroll-sm window, or its own rows when they are shorter. A parent whose chrome leaves less hands the list its floor and
+    // its own scroller carries it (ui-package-design §6.1).
+    grow: { true: `${GROW.true} contain-size ${MIN_HEIGHT.listFloor}`, false: GROW.false },
     height: { fill: HEIGHT.fill, scrollMd: HEIGHT.scrollMd },
     maxHeight: { scrollLg: MAX_HEIGHT.scrollLg },
   },
