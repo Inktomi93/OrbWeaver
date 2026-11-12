@@ -107,11 +107,12 @@ type EmitChatEvent = (event: DurableChatBusEvent, claimStatement?: StatementToke
 interface ParticipantDeps {
   readonly emit: EmitChatEvent;
   /** The husk→real transition (R0 SS4.2). Every MUTATING roster/config verb here claims the room
-   *  BEFORE it writes -- tuning a room is 'doing something with it' (F4(a)), so it stops being an
+   *  BEFORE it writes -- tuning a room is 'doing something with it' (D166), so it stops being an
    *  abandonable husk. The five membership-lifecycle verbs deliberately abstain (see the NAMES note in
    *  the factory bodies): a departure is not effort, and each needs a second human whose invite claimed
-   *  the room already. Ordering is load-bearing -- claim AFTER the authority guard (a stranger must not
-   *  be able to flip a room's visibility) and BEFORE the write (`verbs/claim-chat.ts`). */
+   *  the room already. Ordering is load-bearing -- claim AFTER the authority guard and the verb's own
+   *  refusals (a stranger or a refused request must not flip a room's visibility) and BEFORE the write
+   *  (`verbs/claim-chat.ts`). */
   readonly claimChat: ClaimChatOp;
 }
 
@@ -238,7 +239,6 @@ async function characterParticipantView(
 function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setGroupConfig"] {
   return async ({ principal, chatId, config }: SetGroupConfigParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
     const parsed = groupConfigSchema.parse(config);
     // SEAL (D60 AP4a — F5): a GAME chat whose GM seat is AGENT-held may not be
     // flipped OFF narrator+merged (to `per-speaker`). narrator+merged keeps the GM tool loop on the narrator
@@ -256,6 +256,7 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
         );
       }
     }
+    await claimChat(chatId);
     await commitMetadataUpdate({
       ctx,
       ownerId: principal.userId,
@@ -285,7 +286,6 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
 function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setRoomOverrides"] {
   return async ({ principal, chatId, overrides }: SetRoomOverridesParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
     const parsed = roomOverridesSchema.safeParse(overrides);
     if (!parsed.success) {
       throw new ChatOperationError(
@@ -293,6 +293,7 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat
         `chat ${chatId}: room overrides accept only the three-field allowlist (scenario / mainPrompt / postHistory)`,
       );
     }
+    await claimChat(chatId);
     await commitMetadataUpdate({
       ctx,
       ownerId: principal.userId,
@@ -328,11 +329,11 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent, claimChat
 function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatDocumentVisibility"] {
   return async ({ principal, chatId, visibility }: SetChatDocumentVisibilityParams): Promise<ChatDocumentVisibility> => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
     const parsed = chatDocumentVisibilitySchema.safeParse(visibility);
     if (!parsed.success) {
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: databank visibility accepts only a { hidden: DocumentId[] } set`);
     }
+    await claimChat(chatId);
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
     // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, databankVisibility: parsed.data };
@@ -559,7 +560,6 @@ async function materializeExternal(ctx: ChatContext, principal: Principal, sourc
 function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setChatBackground"] {
   return async ({ principal, chatId, background }: SetChatBackgroundParams): Promise<ThemeBackground> => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
     const parsed = themeBackgroundSchema.safeParse(background);
     if (!parsed.success) {
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: invalid background source`);
@@ -579,6 +579,7 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
         throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: an asset background must reference an asset you own`);
       }
     }
+    await claimChat(chatId);
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
     // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, background: source };
@@ -604,7 +605,6 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
 function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setToolRecurseLimit"] {
   return async ({ principal, chatId, limit }: SetToolRecurseLimitParams): Promise<number> => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
     const parsed = toolRecurseLimitSchema.safeParse(limit);
     if (!parsed.success) {
       throw new ChatOperationError(
@@ -612,6 +612,7 @@ function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent, claimC
         `chat ${chatId}: toolRecurseLimit must be an integer between ${TOOL_RECURSE_LIMIT_MIN} and ${TOOL_RECURSE_LIMIT_MAX}`,
       );
     }
+    await claimChat(chatId);
     const effective: ChatMetadata = { ...chat.metadata, toolRecurseLimit: parsed.data };
     await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "toolRecurseLimit", value: parsed.data, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
@@ -724,7 +725,6 @@ async function seedJoinGreeting(
 function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
     // The character must be the host's own card (owner-scoped read — foreign or synthetic == missing, leak-free).
     // A roster character is always host-owned, keeping the stats rebuild's ownerId attribution consistent.
     await assertSeatableCharacters(ctx.db, principal.userId, [characterId]);
@@ -741,6 +741,9 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     if (existing !== undefined) {
       return characterParticipantView(existing, card, ctx.resolveAssetHash);
     }
+    // Before the seat: the claim replays the creation stats over the seats present at claim, and this seat's
+    // own delta below counts the new one.
+    await claimChat(chatId);
     const at = ctx.now();
     const joinSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const participantId = ctx.newParticipantId();
@@ -897,7 +900,6 @@ function seatKnobsSet(patch: SetSeatKnobsParams["patch"]): { talkativeness?: num
 function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setSeatKnobs"] {
   return async ({ principal, chatId, participantId, patch }: SetSeatKnobsParams) => {
     await requireHost(ctx, principal, chatId);
-    await claimChat(chatId);
     const seat = (await loadParticipants(ctx.db, chatId)).find((p) => p.id === participantId);
     if (seat === undefined || !isAiDriven(seat.kind)) {
       throw new ChatOperationError(CHAT_OP_CODES.participantNotFound, `chat ${chatId}: ${participantId} is not a present AI seat`);
@@ -906,6 +908,7 @@ function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
     const set = seatKnobsSet(patch);
     let row = seat;
     if (Object.keys(set).length > 0) {
+      await claimChat(chatId);
       const rows = await ctx.db
         .update(chatParticipants)
         .set(set)

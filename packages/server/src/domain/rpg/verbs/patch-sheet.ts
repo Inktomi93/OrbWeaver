@@ -138,12 +138,12 @@ export function createPatchSheet(ctx: RpgContext): Pick<RpgService, "patchSheet"
     // …and the second floor: WHOSE row is not the same question as WHICH FIELDS. Both refusals land before any
     // read of the current sheet, so a refused patch touches nothing and emits nothing.
     assertTrackerExceptionHost(ctx, params, role);
-    await ctx.claimChat(params.chatId);
     const { characterId, userId } = actorIds(params.actorRef);
 
     if (params.patch.attributes !== undefined) {
       assertAttributes(game, params.patch.attributes);
     }
+    await ctx.claimChat(params.chatId);
 
     const actor = characterId !== null ? { characterId } : { userId: userId as UserId };
     const current = (await findSheet(ctx.db, game.id, actor))?.sheet ?? defaultSheet();

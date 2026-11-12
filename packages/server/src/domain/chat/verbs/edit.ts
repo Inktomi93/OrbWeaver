@@ -142,7 +142,7 @@ import {
 interface EditDeps {
   readonly emit: ChatServiceDeps["emit"];
   readonly resolveForeignInputs: ResolveForeignInputsOp;
-  /** The husk→real transition (R0). Applied to the WHOLE bundle by {@link claiming}, not per verb. */
+  /** The husk→real transition (R0). Handed to every verb of the bundle by {@link claiming}. */
   readonly claimChat: ClaimChatOp;
   /** The room's in-flight turn registry: `moveMessage` refuses while it holds a turn for the chat. */
   readonly activeTurns: ActiveTurns;
@@ -169,6 +169,12 @@ type EditVerbs = Pick<
   | "reattributeMessages"
   | "reattributePersona"
 >;
+
+/** The room's claim as {@link claiming} hands it to a verb: called after the verb's last refusal, before its first write. */
+type RoomClaim = () => Promise<void>;
+
+/** One bundle verb before {@link claiming} wraps it: the service signature plus its room's claim. */
+type ClaimingVerb<K extends keyof EditVerbs> = (params: Parameters<EditVerbs[K]>[0], claim: RoomClaim) => ReturnType<EditVerbs[K]>;
 
 /** The §3.6 RETURN belt (see the file header): the ONE projection every edit-verb `MessageView` return routes
  *  through. Binds this domain's rpg deception verdict onto the shared `projectViewReturnForViewer` seam. A HOST
@@ -481,9 +487,9 @@ async function freezeSelectedVariant(
  *  Not purely a pointer move since D129-F: a greeting alternate selected after the freeze window closed is
  *  BAKED in the same batch ({@link freezeSelectedVariant}) — see that function for why the write belongs here
  *  and why it is a no-op everywhere else. */
-function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["selectVariant"] {
+function createSelectVariant(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"selectVariant"> {
   const emit = deps.emit;
-  return async ({ principal, chatId, messageId, variantId, timeZone }: SelectVariantParams) => {
+  return async ({ principal, chatId, messageId, variantId, timeZone }: SelectVariantParams, claim: RoomClaim) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const owner = await loadVariantMessageId(ctx.db, variantId);
@@ -546,6 +552,7 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
         statsDeltas.push(delta);
       }
     }
+    await claim();
     await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "variantSelected", chatId, messageId, view });
@@ -556,8 +563,8 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
 /** `editMessage` — author-or-host. Overwrites the selected variant's content in place + stamps editedAt.
  *  Persist order: canon-purity strip, then the runOnEdit receive-tier regex re-apply, then the write.
  *  Emits messageEdited. */
-function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editMessage"] {
-  return async ({ principal, chatId, messageId, content, timeZone }: EditMessageParams) => {
+function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"editMessage"> {
+  return async ({ principal, chatId, messageId, content, timeZone }: EditMessageParams, claim: RoomClaim) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     // A non-host edits the stripped view, so saving it would erase bytes they cannot read. The author test cannot
@@ -612,6 +619,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
         now,
       }),
     );
+    await claim();
     await commitRetainedCanonStats(ctx, chatId, statements, { deltas: statsDeltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     await deps.emit({ type: "messageEdited", chatId, messageId, view });
@@ -641,8 +649,8 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
  * Card-authored text steps in place. Any other body survives as a swipe beside the selected card alternate.
  * Choosing an alternate is not an edit: the row keeps the edit stamp it already held, never a new one.
  */
-function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["setSeededGreeting"] {
-  return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams) => {
+function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"setSeededGreeting"> {
+  return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams, claim: RoomClaim) => {
     const membership = await requireHost(ctx, principal, chatId);
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     if (!isSeededGreetingRow(slot)) {
@@ -686,6 +694,7 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp)
           ],
         }
       : appendSelectedVariant(ctx, { slot, content: alternate, ownerId: hostUserId, now });
+    await claim();
     await commitRetainedCanonStats(ctx, chatId, mutation.statements, {
       deltas: mutation.deltas,
       sources: [slot],
@@ -720,8 +729,8 @@ function createSetSeededGreeting(ctx: ChatContext, emit: EmitDurableChatEventOp)
  * through the receive tier once on its own turn — re-running AI_OUTPUT over it would transform
  * already-transformed prose, and the audit's whole promise is that nothing changes except the flaw.
  */
-function createApplyProseRewrite(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["applyProseRewrite"] {
-  return async ({ principal, chatId, messageId, variantId, expectedContentHash, content }: ApplyProseRewriteParams) => {
+function createApplyProseRewrite(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"applyProseRewrite"> {
+  return async ({ principal, chatId, messageId, variantId, expectedContentHash, content }: ApplyProseRewriteParams, claim: RoomClaim) => {
     const membership = await requireHost(ctx, principal, chatId);
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     if (slot.selectedVariantId !== variantId) {
@@ -732,6 +741,7 @@ function createApplyProseRewrite(ctx: ChatContext, emit: EmitDurableChatEventOp)
       throw new ChatOperationError(CHAT_OP_CODES.rewriteStale, `chat ${chatId}: the audited reply has changed since it was read`);
     }
     const mutation = appendSelectedVariant(ctx, { slot, content, ownerId: principal.userId, now: ctx.now() });
+    await claim();
     await commitRetainedCanonStats(ctx, chatId, mutation.statements, { deltas: mutation.deltas, sources: [slot], contributions: [slot.contributions] });
     const view = await reloadSlot(ctx, chatId, messageId);
     // `variantSelected` is the honest event: the slot gained a swipe AND its selection moved to it, which is
@@ -743,10 +753,11 @@ function createApplyProseRewrite(ctx: ChatContext, emit: EmitDurableChatEventOp)
 
 /** `setMessageHidden` — author-or-host. Holds the slot out of assembly (or restores it) — a pure slot-flag
  *  write, no content change. Emits messageHidden. */
-function createSetMessageHidden(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["setMessageHidden"] {
-  return async ({ principal, chatId, messageId, hidden }: SetMessageHiddenParams) => {
+function createSetMessageHidden(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"setMessageHidden"> {
+  return async ({ principal, chatId, messageId, hidden }: SetMessageHiddenParams, claim: RoomClaim) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    await claim();
     await ctx.db.batch(batchMany([setMessageHiddenStatement(ctx.db, messageId, hidden)]));
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "messageHidden", chatId, messageId, view });
@@ -851,8 +862,8 @@ async function writeEditedToolCall(ctx: ChatContext, params: EditToolCallParams,
   throw new ChatOperationError(CHAT_OP_CODES.toolCallChanged, "This tool call changed while it was being updated.");
 }
 
-function createEditToolCall(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["editToolCall"] {
-  return async (params: EditToolCallParams) => {
+function createEditToolCall(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"editToolCall"> {
+  return async (params: EditToolCallParams, claim: RoomClaim) => {
     const { principal, chatId, messageId, variantId } = params;
     const initial = await loadSlotInChat(ctx, chatId, messageId);
     await requireAuthorOrHost(ctx, principal, chatId, initial.authorUserId);
@@ -861,6 +872,7 @@ function createEditToolCall(ctx: ChatContext, emit: EmitDurableChatEventOp): Cha
     if (initial.selectedVariantId !== variantId || matching.length !== 1 || selected === undefined) {
       throw new ChatOperationError(CHAT_OP_CODES.toolCallChanged, "This tool call is no longer on the active swipe.");
     }
+    await claim();
     await writeEditedToolCall(ctx, params, selected);
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "messageEdited", chatId, messageId, view });
@@ -914,11 +926,12 @@ async function writeReasoning(
 }
 
 /** `editReasoning` — author-or-host. Overwrites the selected variant's reasoning text. Emits reasoningEdited. */
-function createEditReasoning(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["editReasoning"] {
-  return async ({ principal, chatId, messageId, reasoning }: EditReasoningParams) => {
+function createEditReasoning(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"editReasoning"> {
+  return async ({ principal, chatId, messageId, reasoning }: EditReasoningParams, claim: RoomClaim) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const ownerId = principal.userId;
+    await claim();
     return await writeReasoning(ctx, emit, {
       chatId,
       slot,
@@ -931,11 +944,12 @@ function createEditReasoning(ctx: ChatContext, emit: EmitDurableChatEventOp): Ch
 }
 
 /** `clearReasoning` — author-or-host. Nulls the selected variant's reasoning. Emits reasoningCleared. */
-function createClearReasoning(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["clearReasoning"] {
-  return async ({ principal, chatId, messageId }: ClearReasoningParams) => {
+function createClearReasoning(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"clearReasoning"> {
+  return async ({ principal, chatId, messageId }: ClearReasoningParams, claim: RoomClaim) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const ownerId = principal.userId;
+    await claim();
     return await writeReasoning(ctx, emit, {
       chatId,
       slot,
@@ -949,8 +963,8 @@ function createClearReasoning(ctx: ChatContext, emit: EmitDurableChatEventOp): C
 
 /** `deleteMessages` — gates each target's author independently, then deletes the set (variants cascade).
  *  Emits messagesDeleted. An empty set is an idempotent no-op. */
-function createDeleteMessages(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["deleteMessages"] {
-  return async ({ principal, chatId, messageIds }: DeleteMessagesParams): Promise<void> => {
+function createDeleteMessages(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"deleteMessages"> {
+  return async ({ principal, chatId, messageIds }: DeleteMessagesParams, claim: RoomClaim): Promise<void> => {
     if (messageIds.length === 0) {
       return;
     }
@@ -962,6 +976,8 @@ function createDeleteMessages(ctx: ChatContext, emit: EmitDurableChatEventOp): C
       }
       assertAuthorOrHost(ctx.can, { principal, role: membership.role, authorUserId: slot.authorUserId }, chatId);
     }
+    // Before the retained-owner read below, which counts only claimed rooms.
+    await claim();
     // Each removed slot's selected-variant contribution + its non-selected swipes are subtracted in the
     // same batch as the delete. Rows are read before the delete lands.
     const now = ctx.now();
@@ -1055,8 +1071,8 @@ function planResequence(ordered: readonly { readonly id: MessageId; readonly seq
 /** `moveMessage` — host-only. Reorders a slot to a new seq position via a parked, collision-free
  *  re-sequence. Refused (`locked`) while a turn is in flight: a running turn reads and appends canon by seq, so a
  *  reorder under it would land mid-generation. Emits messagesReordered. A no-op move emits nothing. */
-function createMoveMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ChatService["moveMessage"] {
-  return async ({ principal, chatId, messageId, toSeq }: MoveMessageParams): Promise<void> => {
+function createMoveMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ClaimingVerb<"moveMessage"> {
+  return async ({ principal, chatId, messageId, toSeq }: MoveMessageParams, claim: RoomClaim): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     if (activeTurns.countActive(chatId) > 0) {
       throw new ChatOperationError(CHAT_OP_CODES.locked, `chat ${chatId}: a turn is in flight; wait for it to finish before reordering`);
@@ -1076,6 +1092,7 @@ function createMoveMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activ
     const deltas = await loadVariableDeltas(ctx.db, chatId);
     // A standalone (out-of-turn) delta (`messageId === null`) is not reordered — it keeps its stamped seq.
     const refolded = foldChain(deltas.map((e) => ({ seq: e.messageId === null ? e.seq : (newSeqById.get(e.messageId) ?? e.seq), delta: e.delta })));
+    await claim();
     await ctx.db.batch(
       batchMany([
         shiftSeqRangeStatement(ctx.db, {
@@ -1095,8 +1112,8 @@ function createMoveMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activ
 /** `duplicateMessage` — author-or-host. Copies the slot's attribution + its selected variant's content/
  *  economics to a fresh tail slot. Refused (`locked`) while a turn is in flight: the copy would land inside the
  *  live turn's output and the room would read it as that turn's reply. Emits messageCommitted. */
-function createDuplicateMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ChatService["duplicateMessage"] {
-  return async ({ principal, chatId, messageId }: DuplicateMessageParams) => {
+function createDuplicateMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ClaimingVerb<"duplicateMessage"> {
+  return async ({ principal, chatId, messageId }: DuplicateMessageParams, claim: RoomClaim) => {
     const slot = await loadRetainedSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     if (activeTurns.countActive(chatId) > 0) {
@@ -1111,6 +1128,7 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitDurableChatEventOp, 
             ...(sourceMetadata.usageLegs === undefined ? {} : { usageLegs: sourceMetadata.usageLegs }),
             ...(sourceMetadata.providerMetadata === undefined ? {} : { providerMetadata: sourceMetadata.providerMetadata }),
           };
+    await claim();
     // Two concurrent duplicates read the same head; the loser re-allocates its seq and mints fresh ids.
     const view = await retryLostCanonHead(ctx.db, chatId, async (seq) => {
       const params = {
@@ -1228,8 +1246,8 @@ function voicedSlotDeltas(
  * The read below only picks that refusal: the gate is the fence term, in the same batch as the stamp, so a seat
  * removed after this read refuses the write as a stale capture.
  */
-function createReattributeMessages(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ChatService["reattributeMessages"] {
-  return async ({ principal, chatId, messageIds, characterId }: ReattributeMessagesParams): Promise<void> => {
+function createReattributeMessages(ctx: ChatContext, emit: EmitDurableChatEventOp, activeTurns: ActiveTurns): ClaimingVerb<"reattributeMessages"> {
+  return async ({ principal, chatId, messageIds, characterId }: ReattributeMessagesParams, claim: RoomClaim): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     // A regenerate in flight was voiced before this stamp and would commit its variant onto the re-voiced slot.
     if (activeTurns.countActive(chatId) > 0) {
@@ -1253,6 +1271,7 @@ function createReattributeMessages(ctx: ChatContext, emit: EmitDurableChatEventO
     if (moved.length === 0) {
       return;
     }
+    await claim();
     const now = ctx.now();
     const deltas = moved.flatMap((slot) => {
       const args = { ownerId: principal.userId, slot, variants: contributions.variants.filter((variant) => variant.messageId === slot.id), now };
@@ -1299,8 +1318,8 @@ async function resolveReattributeTargets(ctx: ChatContext, chatId: ChatId, autho
  *  belt (c) is satisfied by construction — the arm widens REACH (past the client's old 100-message window),
  *  never AUTHORITY. Nothing else is touched: content stays raw (D51 — identity macros resolve live off the
  *  stamp), and rpg snapshots / memory digests / exports are not this verb's rows. */
-function createReattributePersona(ctx: ChatContext, emit: EmitDurableChatEventOp): ChatService["reattributePersona"] {
-  return async ({ principal, chatId, scope, personaId }: ReattributePersonaParams): Promise<void> => {
+function createReattributePersona(ctx: ChatContext, emit: EmitDurableChatEventOp): ClaimingVerb<"reattributePersona"> {
+  return async ({ principal, chatId, scope, personaId }: ReattributePersonaParams, claim: RoomClaim): Promise<void> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const messageIds = await resolveReattributeTargets(ctx, chatId, principal.userId, scope);
     if (messageIds.length === 0) {
@@ -1325,42 +1344,38 @@ function createReattributePersona(ctx: ChatContext, emit: EmitDurableChatEventOp
     if (ownership.some((owned) => !owned)) {
       throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the target persona must be owned by the message author`);
     }
+    await claim();
     await ctx.db.batch(batchMany([reattributePersonaStatement(ctx.db, chatId, messageIds, personaId)]));
     const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
     await Promise.all(views.flatMap((view) => (view !== undefined ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })] : [])));
   };
 }
 
-/** The canon-edit verb bundle the composition root spreads into the full service. */
-/** CLAIM-BEFORE-EDIT, applied once for the whole bundle (R0 F4(a) -- a hand-edited room is a room the
+/** CLAIM-BEFORE-EDIT, handed once to every verb of the bundle (D166 -- a hand-edited room is a room the
  *  user did something with, and losing it to the reaper is the worse failure).
  *
- *  WHY A WRAPPER and not a call inside each of the ten verbs: the ordering invariant needs the claim
- *  AFTER an authority check (a stranger must not be able to flip a room's visibility) and BEFORE the
- *  write (the claim replays the creation stats over the canon present at claim -- after the write, the
- *  edited row would be counted by both the replay and the verb's own diff delta). Ten separate
- *  insertions is ten chances to put one in the wrong place, and a verb added later gets none at all.
- *  So the wrapper runs the MINIMUM guard every edit verb shares -- present membership -- and then
- *  claims; each verb re-runs its own stricter author-or-host row check immediately after, unchanged.
- *  The costs, both accepted and deliberate: one extra membership read per edit, and a MEMBER whose
- *  edit is then refused by the stricter check still claimed the room (they are a member of it, acting
- *  in it -- not a leak, and not a class the reaper should have taken). */
+ *  The ordering invariant needs the claim AFTER every refusal (a stranger or a refused request must not flip
+ *  a room's visibility) and BEFORE the write (the claim replays the creation stats over the canon present at
+ *  claim -- after the write, the edited row would be counted by both the replay and the verb's own diff
+ *  delta). Only the verb knows where its refusals end, so the wrapper runs the membership guard every edit
+ *  verb shares and hands the verb its room's claim; each verb calls it after its own checks, right before
+ *  its first write, and a verb that writes nothing never claims. */
 function claiming<P extends { readonly principal: EditMessageParams["principal"]; readonly chatId: ChatId }, R>(
   ctx: ChatContext,
   claimChat: ClaimChatOp,
-  verb: (params: P) => Promise<R>,
+  verb: (params: P, claim: RoomClaim) => Promise<R>,
 ): (params: P) => Promise<R> {
   return async (params: P): Promise<R> => {
     await requireParticipant(ctx, params.principal, params.chatId);
-    await claimChat(params.chatId);
-    return await verb(params);
+    return await verb(params, () => claimChat(params.chatId));
   };
 }
 
+/** The canon-edit verb bundle the composition root spreads into the full service. */
 export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
   const { emit, claimChat } = deps;
   const claim = <P extends { readonly principal: EditMessageParams["principal"]; readonly chatId: ChatId }, R>(
-    verb: (params: P) => Promise<R>,
+    verb: (params: P, claim: RoomClaim) => Promise<R>,
   ): ((params: P) => Promise<R>) => claiming(ctx, claimChat, verb);
   return {
     selectVariant: claim(createSelectVariant(ctx, deps)),
