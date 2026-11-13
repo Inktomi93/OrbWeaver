@@ -39,7 +39,7 @@ test("native withdrawal removes matching copies but retains a recipient's upgrad
   expect(captured.after.kv.map(({ value }) => value)).toEqual([CORPUS_PLUGIN_STORAGE_VALUE]);
   expect(captured.ownerInstalls).toEqual([]);
   expect(captured.remainingPublications).toEqual([]);
-  expect(captured.lateApplication).toEqual({ installedSlugs: [] });
+  expect(captured.lateApplication).toEqual({ installedSlugs: [], refused: [] });
   const recipientRpc = await root.internalCallerFor(recipient.id);
   expect(
     await recipientRpc.plugin.uiHostCall({ pluginId: captured.after.plugin.id, fn: "storage.get", argsJson: JSON.stringify([CORPUS_PLUGIN_STORAGE_KEY]) }),
