@@ -113,29 +113,29 @@ test.for(["AUTH_FALLBACK=owner", "AUTH_FALLBACK_TRUSTED_PEERS=172.16.0.0/12"])(
   },
 );
 
-// Windows reads `auth_mode` as AUTH_MODE, so the parse does on every platform; the share panel still names where the
-// value came from, and a launch-only key in another letter case is still refused in `.env`.
-// Four fresh processes, so it runs past the default case budget under load.
-test("a lower-case key sets its schema key from .env or the launch, keeps its source, and a lower-case launch-only key in .env refuses the boot", {
-  tags: "slow",
-}, ({ importStagingDir }) => {
-  const lower = AUTH_MODE_KEY.toLowerCase();
-  // Control: the upper-case line.
-  expect(boot(importStagingDir, "upper", `${AUTH_MODE_KEY}=local\n`)).toMatchObject({
-    env: { [AUTH_MODE_KEY]: "local" },
-    authModeSource: "env-file" satisfies AuthModeSource,
-  });
+// Windows reads `auth_mode` as AUTH_MODE, so the loader and the parse do on every platform, and the share panel still
+// names where the value came from. Only the loader's own name matching needs a process; the parse's refusals have their
+// cases in `env-name-case.test.ts`. Each case below starts one.
+const LOWER_AUTH_MODE = AUTH_MODE_KEY.toLowerCase();
 
-  expect(boot(importStagingDir, "lower", `${lower}=local\n`)).toMatchObject({
+test("a lower-case key in .env sets its schema key, and the file stays its source", ({ importStagingDir }) => {
+  expect(boot(importStagingDir, "lower", `${LOWER_AUTH_MODE}=local\n`)).toMatchObject({
     env: { [AUTH_MODE_KEY]: "local" },
     authModeSource: "env-file" satisfies AuthModeSource,
   });
-  expect(boot(importStagingDir, "launched", undefined, { [lower]: "local" })).toMatchObject({
+});
+
+test("a lower-case key from the launch sets its schema key, and the launch stays its source", ({ importStagingDir }) => {
+  expect(boot(importStagingDir, "launched", undefined, { [LOWER_AUTH_MODE]: "local" })).toMatchObject({
     env: { [AUTH_MODE_KEY]: "local" },
     authModeSource: "process-env" satisfies AuthModeSource,
   });
-  expect(boot(importStagingDir, "fallback", `${AUTH_FALLBACK_KEY.toLowerCase()}=owner\n`)).toEqual({
-    error: expect.stringContaining(`${AUTH_FALLBACK_KEY} must not be set in .env`),
+});
+
+// A file holds both lines on every platform, where a launch environment on Windows would merge them into one.
+test("a .env that sets one key in two spellings refuses the boot and names both", ({ importStagingDir }) => {
+  expect(boot(importStagingDir, "spellings", `${AUTH_MODE_KEY}=local\n${LOWER_AUTH_MODE}=single-user\n`)).toEqual({
+    error: expect.stringContaining(`${AUTH_MODE_KEY} and ${LOWER_AUTH_MODE}`),
   });
 });
 
