@@ -346,7 +346,7 @@ export function stageDecision(opts: {
   readonly auth?: StageAuthMode;
   readonly checkout?: string;
   readonly nowMs?: number;
-  readonly liveHolders?: readonly StageHolder[];
+  readonly liveHolders: readonly StageHolder[];
   /** This process's pid. With it, a live holder that is another process refuses a rebuild even under the
    *  same owner key, because two unlabelled runs of one checkout share that key. */
   readonly selfPid?: number;
@@ -358,7 +358,7 @@ export function stageDecision(opts: {
   if (row === null || opts.checkout === undefined || opts.nowMs === undefined) {
     return "rebuild";
   }
-  if (otherRunHolders(opts.liveHolders ?? [], opts.checkout, opts.selfPid).length > 0) {
+  if (otherRunHolders(opts.liveHolders, opts.checkout, opts.selfPid).length > 0) {
     return "refuse";
   }
   return row.holders === undefined && stageIdleMs(row, opts.nowMs) < OWN_STAGE_REPLACE_IDLE_MS ? "refuse" : "rebuild";
