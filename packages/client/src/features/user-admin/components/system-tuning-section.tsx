@@ -18,6 +18,7 @@ import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { draftNumber, envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
+import { ADMIN_PROMPT_CACHE_DEPTH_NAME } from "../lib/user-admin-names.ts";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
 // One editable scalar knob: how to READ its effective baseline off the resolved config, whether a stored
@@ -79,7 +80,7 @@ const KNOBS: readonly KnobDescriptor[] = [
   },
   {
     id: "promptCacheMinDepth",
-    label: "Prompt-cache depth floor (0–20)",
+    label: ADMIN_PROMPT_CACHE_DEPTH_NAME,
     hint: "How many of the newest exchanges stay OUT of the Anthropic prompt cache. 0 uses each turn's own computed minimum. A value deeper than a conversation disables caching for that chat entirely. Raise it sparingly.",
     step: 1,
     min: PROMPT_CACHE_MIN_DEPTH_FLOOR,

@@ -7,6 +7,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
+import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME, ADMIN_PROMPT_CACHE_DEPTH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import type { ConfigSaveFooterStory } from "./_config-save-footer-stories.tsx";
 
 // Any section's Save: the admin grammar with its section left open.
@@ -38,7 +39,7 @@ test("a valid admin draft reads as waiting for Save, then Saved once saved", asy
   await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
   await mount<typeof ConfigSaveFooterStory>(STORY, { group: "admin" });
   const footer = page.locator(FOOTER);
-  const depth = page.getByRole("textbox", { name: /^Prompt-cache depth floor/u });
+  const depth = page.getByRole("textbox", { name: ADMIN_PROMPT_CACHE_DEPTH_NAME });
   await expect(depth).toBeVisible();
   // Positive control: before any edit every section has reported and is saved.
   await expect(footer).toHaveText(SAVED);
@@ -59,7 +60,7 @@ test("an admin draft Save cannot send needs a fix, not Saved", async ({ mount, p
   await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
   await mount<typeof ConfigSaveFooterStory>(STORY, { group: "admin" });
   const footer = page.locator(FOOTER);
-  const cap = page.getByRole("textbox", { name: /^Max generated-image download/u });
+  const cap = page.getByRole("textbox", { name: ADMIN_MAX_IMAGE_DOWNLOAD_NAME });
   await expect(cap).toBeVisible();
   await expect(footer).toHaveText(SAVED);
 
@@ -71,7 +72,7 @@ test("an admin draft Save cannot send needs a fix, not Saved", async ({ mount, p
 
 // An emptied box is no number: it must read as needing a fix and offer no Save, not become 0 or the field's minimum.
 const NUMERIC_ADMIN_FIELDS = [
-  { section: "system tuning", name: /^Prompt-cache depth floor/u },
+  { section: "system tuning", name: ADMIN_PROMPT_CACHE_DEPTH_NAME },
   { section: "memory tuning", name: /^Block size/u },
   { section: "rate limits", name: /^Anonymous requests \/ min \/ IP/u },
 ] as const;
@@ -105,7 +106,7 @@ test("a section whose form refuses its field reads as needing a fix, not as a dr
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
   await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
   await mount<typeof ConfigSaveFooterStory>(STORY, { group: "admin", report: { id: "refused-field", state: "blocked" } });
-  await expect(page.getByRole("textbox", { name: /^Prompt-cache depth floor/u })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: ADMIN_PROMPT_CACHE_DEPTH_NAME })).toBeVisible();
   await expect(page.locator(FOOTER)).toContainText(NEEDS_A_FIX);
   await expect(page.locator(FOOTER)).not.toContainText("waiting for Save");
 });
