@@ -191,6 +191,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     deps;
   const { service: chat } = chatCompose;
   const chatGuards = createWiredChatGuards({ db, can });
+  // One enabled read for every standing question this plane asks: a rule author's, an ask actor's, a plugin
+  // installer's room standing, and each guest host call on the installer's account.
+  const isUserEnabled = createResolveUserEnabled(deps.sessions);
   const automationNotify = deps.publishAutomationEvent;
   const emitNotification = createRecordAndPublishNotification((params) => notifications.record(params), deps.publishNotification);
   const automationRuntime = createAutomationRuntimeOps<DrivableToolSet>({
@@ -273,7 +276,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     pluginSubscribers,
     transforms: automationTransforms,
     resolveAuthor: resolveOwnerPrincipal,
-    isAuthorEnabled: createResolveUserEnabled(deps.sessions),
+    isAuthorEnabled: isUserEnabled,
     executePluginSuggestion: suggestionExecutor.run,
     isPluginLive: (pluginId, ownerId) => isPluginEnabledFor(db, ownerId, pluginId),
     applyProseRewrite: async ({ authorUserId, chatId, messageId, variantId, expectedContentHash, content }) => {
@@ -317,7 +320,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   // Private pubsub has no domain/chat event sink.
   const pluginEventBus = createPluginEventBus(deps.logger, deps.traces);
   const pluginUiOutbox = createPluginUiOutbox(now);
-  const resolveChatAuthority = createPluginChatAuthority({ db, can });
+  const resolveChatAuthority = createPluginChatAuthority({ db, can, resolveUserEnabled: isUserEnabled });
   const registrarOps = createPluginRegistrarOps({
     logger: deps.logger,
     traces: deps.traces,
@@ -390,6 +393,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       findCardData: pluginRuntime.cardState.findCardData,
     },
     pubsub: { emit: createPluginEventEmitter(pluginEventBus) },
+    isInstallerEnabled: isUserEnabled,
     registrar: {
       ...registrarOps,
       registerMacros: (macros, invoke, scope) =>

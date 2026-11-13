@@ -3,7 +3,7 @@
 
 import type { ChatAutomationReads } from "@orb/contracts/automation";
 import type { ResolveViewerVisibility } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
 import type {
   InvocationChat,
@@ -389,6 +389,9 @@ export interface PluginHostOps {
       readonly data: Record<string, unknown>;
     }) => Promise<void>;
   };
+  /** The disabled-account read the bridge's `admitInstaller` asks per host call: the compose root's one enabled
+   *  resolver, the same instance the plugin chat authority reads. */
+  readonly isInstallerEnabled: ResolveUserEnabled;
   /** The runtime registrar seams (PL-A tool-use, D50 transform, event subscribe). Each takes a collected
    *  registration + the per-handler invoker + the per-activation {@link PluginActivationScope} (slug for
    *  namespacing, installer for the PL-C ceiling) and returns an `unregister` handle. `registerTool` is wired

@@ -57,7 +57,7 @@ export function createPluginRegistrarOps(deps: PluginRegistrarDeps): PluginRegis
             return;
           }
           const argsJson = JSON.stringify(capFactContent(fact, PLUGIN_READ_CONTENT_MAX_CHARS));
-          // Delivery rechecks the installer after fan-out admission; a departure while queued admits no guest.
+          // Delivery rechecks the installer after fan-out admission; a departure or a disable while queued admits no guest.
           superviseDetached(deps.newEventId(), "plugin.event.deliver", { eventType: fact.type, pluginSlug: scope.slug }, async () => {
             let eventChat: InvocationChat | null = null;
             if (fact.chatId !== null) {
