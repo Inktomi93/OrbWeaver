@@ -36,7 +36,8 @@ export interface PluginFrameAsset {
  *  caller is the entry hook, whose only interest is the log line and whether anything happened — the rows
  *  themselves arrive through the ordinary `list`. A slug the caller already holds at any version is skipped,
  *  which is also the whole idempotency story (the latch is belt, this is braces). `refused` names each published
- *  slug whose stored bundle this build's install parse refuses, with that refusal's message for the operator log. */
+ *  slug whose stored bundle this build's install parse refuses (an invalid manifest or an unserved host major), with
+ *  that refusal's message for the operator log. */
 export interface DistributedPluginApplication {
   readonly installedSlugs: readonly string[];
   readonly refused: readonly { readonly slug: string; readonly reason: string }[];

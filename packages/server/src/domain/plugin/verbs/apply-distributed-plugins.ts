@@ -20,15 +20,16 @@
 // is `PluginDistributionDeps.readPublishedBundle`, separate from `ctx.assets.readBytes` so the ordinary
 // owner-gated read is not quietly widened.
 //
-// A STORED BUNDLE THIS BUILD REFUSES IS SKIPPED AND REPORTED, NOT FATAL. A record published before a manifest
-// rule tightened (a task retired since) holds bytes the strict install parse now refuses with
-// `ManifestInvalidError`. That refusal is permanent for this build and specific to that one record, so it must
-// not stop the rest of the set from reaching the caller. The bundle still meets the strict parse: the install
-// verb refuses it before any write, so nothing of it lands, and the record stays as stored for an admin to
-// re-publish. Every other failure (a torn asset read, a storage or database fault) still fails the whole call,
-// because it may be transient and the seeder's latch must stay unset so the user is retried.
+// A STORED BUNDLE THIS BUILD REFUSES IS SKIPPED AND REPORTED, NOT FATAL. A record published under an earlier build
+// holds bytes the strict install parse may now refuse: `ManifestInvalidError` for a manifest rule tightened since (a
+// retired task), `HostVersionUnservedError` for a host major this build no longer serves. Either refusal is permanent
+// for this build and specific to that one record, so it must not stop the rest of the set from reaching the caller.
+// The bundle still meets the strict parse: the install verb refuses it before any write, so nothing of it lands, and
+// the record stays as stored for an admin to re-publish. Every other failure (a torn asset read, a storage or
+// database fault) still fails the whole call, because it may be transient and the seeder's latch must stay unset so
+// the user is retried.
 
-import { ManifestInvalidError } from "../contract/errors.ts";
+import { HostVersionUnservedError, ManifestInvalidError } from "../contract/errors.ts";
 import type { ApplyDistributedPluginsParams } from "../contract/params.ts";
 import type { DistributedPluginApplication } from "../contract/results.ts";
 import type { DistributionInstallDeps, PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
@@ -55,7 +56,7 @@ export function createApplyDistributedPlugins(
       try {
         await installDistributedCopy(deps, caller, bundle);
       } catch (error) {
-        if (!(error instanceof ManifestInvalidError)) {
+        if (!(error instanceof ManifestInvalidError || error instanceof HostVersionUnservedError)) {
           throw error;
         }
         refused.push({ slug: record.slug, reason: error.message });

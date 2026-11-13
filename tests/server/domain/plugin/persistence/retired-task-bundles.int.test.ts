@@ -1,6 +1,7 @@
 // A plugin bundle that names a retired task: a new upload is refused at the trust edge, an installed plugin's stored
 // bundle and row, written before the retirement, still reactivate with the task dropped, and a server-wide published
-// bundle written before it is skipped and reported while the rest of the published set still reaches a new user.
+// bundle this build refuses (a retired task, an unserved host major) is skipped and reported while the rest of the
+// published set still reaches a new user.
 // @subject packages/server/src/domain/plugin/persistence/plugins.ts
 // @subject packages/server/src/domain/plugin/verbs/apply-distributed-plugins.ts
 // @subject packages/server/src/domain/plugin/seeder/distributed.ts
@@ -29,6 +30,9 @@ const SERVES: Task[] = ["chat", "summarize"];
 const RETIRED_SERVES = ["chat", ...RETIRED_TASKS, "summarize"];
 const GUEST_SOURCE = "orb.host(1);";
 const LATER_PLUGIN = "later-plugin";
+const UNSERVED_PLUGIN = "unserved-plugin";
+// A well-formed host major past every one this build serves.
+const UNSERVED_HOST_MAJOR = Math.max(...PLUGIN_HOST_VERSIONS) + 1;
 const PUBLISH_GAP_MS = 60_000;
 const WARN_LEVEL = "warn" satisfies LogLevel;
 const LOG_SCAN_LIMIT = 200;
@@ -88,35 +92,49 @@ test("a new upload that names a retired task is refused, and an installed bundle
   expect(root.app.runtime.providers.registry.get(PROVIDER, root.ownerId)?.serves).toEqual(SERVES);
 });
 
-test("a published bundle that names a retired task is skipped and reported, and the published set after it still reaches a new user", async () => {
+test("a published bundle this build refuses is skipped and reported, and the published set after it still reaches a new user", async () => {
   await using root = await createServerHarness({ startJobs: false, logLevel: WARN_LEVEL });
   const admin = await root.principalFor(root.ownerId);
-  // The outdated record is published first, so the apply meets it before the valid one.
-  await root.services.plugin.installForAllUsers({ caller: admin, bundle: makePluginBundle(sdkManifest(), GUEST_SOURCE, root.clock.now()) });
-  root.clock.advance(PUBLISH_GAP_MS);
   const later = pluginManifestSchema.parse({ ...sdkManifest(), id: LATER_PLUGIN, name: "Later", providers: undefined });
-  await root.services.plugin.installForAllUsers({ caller: admin, bundle: makePluginBundle(later, GUEST_SOURCE, root.clock.now()) });
-
-  // The record as a publish made before the retirement stored it: its bytes, in the publisher's CAS, name the task.
-  const [published] = await root.db
-    .select({ mime: assets.mime })
-    .from(adminDistributedPlugins)
-    .innerJoin(assets, eq(assets.id, adminDistributedPlugins.bundleAssetId))
-    .where(eq(adminDistributedPlugins.slug, PLUGIN));
-  if (published === undefined) {
-    throw new Error("the publish stored no bundle asset");
+  const unserved = pluginManifestSchema.parse({ ...later, id: UNSERVED_PLUGIN, name: "Unserved" });
+  // The outdated records are published first, so the apply meets both before the valid one.
+  for (const manifest of [sdkManifest(), unserved, later]) {
+    await root.services.plugin.installForAllUsers({ caller: admin, bundle: makePluginBundle(manifest, GUEST_SOURCE, root.clock.now()) });
+    root.clock.advance(PUBLISH_GAP_MS);
   }
-  const outdated = await root.services.assets.store({
-    principal: admin,
-    bytes: makePluginBundle(retiredSdkManifest(), GUEST_SOURCE, root.clock.now()),
-    kind: "plugin",
-    mime: published.mime,
-  });
-  await root.db.update(adminDistributedPlugins).set({ bundleAssetId: outdated.assetId }).where(eq(adminDistributedPlugins.slug, PLUGIN));
+
+  // Each record as a publish made before this build stored it: bytes in the publisher's CAS that name a retired task,
+  // or pin a host major this build no longer serves.
+  const plantStored = async (slug: string, manifest: PluginManifest): Promise<string> => {
+    const [published] = await root.db
+      .select({ mime: assets.mime })
+      .from(adminDistributedPlugins)
+      .innerJoin(assets, eq(assets.id, adminDistributedPlugins.bundleAssetId))
+      .where(eq(adminDistributedPlugins.slug, slug));
+    if (published === undefined) {
+      throw new Error(`the publish of ${slug} stored no bundle asset`);
+    }
+    const stored = await root.services.assets.store({
+      principal: admin,
+      bytes: makePluginBundle(manifest, GUEST_SOURCE, root.clock.now()),
+      kind: "plugin",
+      mime: published.mime,
+    });
+    await root.db.update(adminDistributedPlugins).set({ bundleAssetId: stored.assetId }).where(eq(adminDistributedPlugins.slug, slug));
+    return stored.assetId;
+  };
+  const outdatedAssetId = await plantStored(PLUGIN, retiredSdkManifest());
+  await plantStored(UNSERVED_PLUGIN, { ...unserved, hostVersion: UNSERVED_HOST_MAJOR });
 
   const member = await root.principalFor((await root.actor()).id);
   const application = await root.services.plugin.applyDistributedPlugins({ caller: member });
-  expect(application).toEqual({ installedSlugs: [LATER_PLUGIN], refused: [{ slug: PLUGIN, reason: expect.stringMatching(/providers.+serves/s) }] });
+  expect(application).toEqual({
+    installedSlugs: [LATER_PLUGIN],
+    refused: [
+      { slug: PLUGIN, reason: expect.stringMatching(/providers.+serves/s) },
+      { slug: UNSERVED_PLUGIN, reason: expect.stringContaining(String(UNSERVED_HOST_MAJOR)) },
+    ],
+  });
   const held = await root.services.plugin.list({ caller: member });
   expect(held).toMatchObject([{ slug: LATER_PLUGIN, status: "disabled", grantedCapabilities: [], reconsentPending: true }]);
   // Nothing of the refused bundle landed for the member, and the record still points at the bytes it held.
@@ -129,7 +147,7 @@ test("a published bundle that names a retired task is skipped and reported, and 
     .select({ bundleAssetId: adminDistributedPlugins.bundleAssetId })
     .from(adminDistributedPlugins)
     .where(eq(adminDistributedPlugins.slug, PLUGIN));
-  expect(record).toEqual({ bundleAssetId: outdated.assetId });
+  expect(record).toEqual({ bundleAssetId: outdatedAssetId });
 
   // The new-user seeder treats the refusal as a finished pass: it latches and writes the refusal to the operator log.
   await root.app.distributedPluginApplier.ensureApplied(member);
@@ -138,5 +156,9 @@ test("a published bundle that names a retired task is skipped and reported, and 
     .logLines(LOG_SCAN_LIMIT)
     .map((line) => refusalLogSchema.safeParse(JSON.parse(line)))
     .flatMap((parsed) => (parsed.success && parsed.data.level === WARN_LEVEL ? [parsed.data] : []));
-  expect(refusals).toMatchObject([{ userId: member.userId, slug: PLUGIN, reason: application.refused[0]?.reason }]);
+  // The ring reads newest first; the lines are compared as a set, one per refused record.
+  expect(refusals).toHaveLength(application.refused.length);
+  expect(refusals).toEqual(
+    expect.arrayContaining(application.refused.map(({ slug, reason }) => expect.objectContaining({ userId: member.userId, slug, reason }))),
+  );
 });
