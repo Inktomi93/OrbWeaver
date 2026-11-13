@@ -11,9 +11,10 @@ type ValueMask = (value: string) => string;
 
 const maskWhole: ValueMask = () => PRIVATE_MASK;
 
-const SCHEME_AUTHORITY = /^[a-z][a-z0-9+.-]*:\/\//iu;
-// The last `@` before the path ends the userinfo, as the URL parser reads it.
-const USERINFO = /^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/iu;
+// The schemes whose authority the URL parser reads after any run of `/` and `\`, so `http:\h` and `http:h` are `http://h/`.
+const SPECIAL_SCHEMES: ReadonlySet<string> = new Set(["ftp:", "file:", "http:", "https:", "ws:", "wss:"]);
+// The URL parser drops these anywhere in its input, so `ht<TAB>tp:` is `http:` and `to<TAB>ken` is `token`.
+const PARSER_DROPPED = /[\t\n\r]/gu;
 
 // Private only as whole URL pair names: `?key=` is the usual API-key spelling and `?code=` an OAuth code. The shared
 // predicate stays without them, because it also judges JSON keys, where `code` and `key` are ordinary fields.
@@ -25,7 +26,8 @@ function sensitiveUrlPairName(name: string): boolean {
 
 function sensitivePairName(encoded: string): boolean {
   // URLSearchParams decodes as the query parser does, and leaves a malformed escape as written instead of throwing.
-  return sensitiveUrlPairName([...new URLSearchParams(`${encoded}=`).keys()][0] ?? encoded);
+  const name = encoded.replace(PARSER_DROPPED, "");
+  return sensitiveUrlPairName([...new URLSearchParams(`${name}=`).keys()][0] ?? name);
 }
 
 function maskPairs(section: string): string {
@@ -74,12 +76,39 @@ function decodedUserinfo(encoded: string): string {
  */
 export function diskSafeUrl(raw: string): DiskSafeUrl {
   const lead = strippedLeadLength(raw);
-  const url = raw.slice(lead);
-  // A file path has no authority, so nothing in it is userinfo; an `@` in a package path stays.
-  if (!SCHEME_AUTHORITY.test(url)) {
-    return raw as DiskSafeUrl;
+  // The query is masked even where the parser reads `raw` only against a base: navigation resolves it, token and all.
+  return `${raw.slice(0, lead)}${maskQueryAndFragment(maskUserinfo(raw.slice(lead)))}` as DiskSafeUrl;
+}
+
+// What the parser skips between a scheme and its authority, and what ends the authority, per scheme kind.
+const SPECIAL_SKIPPED = "/\\\t\n\r";
+const PLAIN_SKIPPED = "/\t\n\r";
+const SPECIAL_AUTHORITY_END = "/\\?#";
+const PLAIN_AUTHORITY_END = "/?#";
+
+/**
+ * Mask the userinfo the URL parser reads in `url`, in the operator's spelling. A value the parser cannot read alone, a
+ * file path among them, has no authority, so an `@` in a package path stays.
+ */
+function maskUserinfo(url: string): string {
+  const parsed = URL.parse(url);
+  if (parsed === null || (parsed.username === "" && parsed.password === "")) {
+    return url;
   }
-  return `${raw.slice(0, lead)}${maskQueryAndFragment(url.replace(USERINFO, `$1${PRIVATE_MASK}@`))}` as DiskSafeUrl;
+  const special = SPECIAL_SCHEMES.has(parsed.protocol);
+  const skipped = special ? SPECIAL_SKIPPED : PLAIN_SKIPPED;
+  const authorityEnd = special ? SPECIAL_AUTHORITY_END : PLAIN_AUTHORITY_END;
+  let start = url.indexOf(":") + 1;
+  while (start < url.length && skipped.includes(url.charAt(start))) {
+    start += 1;
+  }
+  let end = start;
+  while (end < url.length && !authorityEnd.includes(url.charAt(end))) {
+    end += 1;
+  }
+  // The last `@` before the path ends the userinfo, as the URL parser reads it.
+  const at = url.lastIndexOf("@", end - 1);
+  return at < start ? url : `${url.slice(0, start)}${PRIVATE_MASK}${url.slice(at)}`;
 }
 
 /** Whether `raw` names userinfo the URL parser would send: snap refuses it, so a credential is never an argument. */
