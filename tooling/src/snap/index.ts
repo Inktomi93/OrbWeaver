@@ -88,7 +88,6 @@ export {
 } from "./lib/lighthouse-report.ts";
 export { variantOut } from "./lib/out-names.ts";
 export { overflowAssertionLine } from "./lib/overflow-line.ts";
-export { scrubPrivateError } from "./lib/private-values.ts";
 export {
   filterRequests,
   matchesRequestFilter,
@@ -127,18 +126,12 @@ export {
 // stage already warming.
 export { boundStageRow, markStageSettled, markStageUnsettled, registerStageRunBinding, takeStageOutcome } from "./lib/stage-run-binding.ts";
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile } from "./lib/throttle.ts";
-// The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
-// (and so cli.ts enters through THIS door, per the front-door gate).
+// The mode surface — ops/command.ts's dispatch targets, exported so a caller can drive snap programmatically.
 // `auditSettledPage` is the liftable core: a Playwright page + a debugging port, no snap session; the
 // request ring is its twin (one Playwright page, bounded lifetime state). The ring lives in ops/ because
 // it is installed before any run arm exists.
 export { scanDeadCss } from "./ops/arms/dead-css.ts";
 export { auditSettledPage } from "./ops/arms/lighthouse.ts";
-// One invocation from its argv, and where its browser comes from: cli.ts launches one per run; a host holding one
-// Chromium for many invocations (a test file) passes `contextsIn` over a browser it launched with `launchSnapSession`.
-export type { RunBrowser, RunBrowserNeeds, SnapBrowserSource } from "./ops/browser-source.ts";
-export { contextsIn, LAUNCH_PER_RUN } from "./ops/browser-source.ts";
-export { runSnapCommand } from "./ops/command.ts";
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";
 export { splitTrailingEvals } from "./ops/drive-actions.ts";
 export { resolveFixtureTarget } from "./ops/fixture.ts";
@@ -146,8 +139,12 @@ export type { SnapFlagDescriptor } from "./ops/flag-grammar.ts";
 export { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "./ops/flag-grammar.ts";
 export { OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS } from "./ops/flags-classes.ts";
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
-// cli.ts's carved-out internal-flag dispatch (`--session-daemon` / `--stage-keeper`) — cli.ts consumes
-// this through the front door like every other command it dispatches.
+// The door every snap invocation runs through: cli.ts opens a launch-per-run host; a process that runs many
+// invocations opens a context-per-run host over one Chromium.
+export type { SnapHost, SnapRunBounds, SnapRunOutcome } from "./ops/host.ts";
+export { openSnapHost } from "./ops/host.ts";
+// The carved-out internal-flag dispatch (`--session-daemon` / `--stage-keeper`) that ops/command.ts runs before any
+// run slot opens.
 export { runInternalEntry } from "./ops/internal-entry.ts";
 export { materializeDevToolsAssets } from "./ops/materialize-devtools.ts";
 export { snapMatrix } from "./ops/matrix.ts";
@@ -162,9 +159,8 @@ export { completeSnapRun } from "./ops/run-bundle.ts";
 export { listSnapRunIndices, printSnapReport, printSnapReports, readSnapRunIndex, resolveSnapRunIndex } from "./ops/run-report.ts";
 export { parseScenarioSpec, runScenarioDetailed, snapScenario } from "./ops/scenario.ts";
 export { prepareScenario } from "./ops/scenario-prepare.ts";
-export { launchSnapSession } from "./ops/session.ts";
 // The stateful-session substrate: the admin verbs, the
-// client (boot + call + export), and the daemon's own entry — all three dispatched by cli.ts.
+// client (boot + call + export), and the daemon's own entry — all three dispatched by ops/command.ts.
 export { runSessionAdmin } from "./ops/session-admin.ts";
 export { runSessionCall, sessionRouteErrors } from "./ops/session-client.ts";
 export { runSessionDaemon } from "./ops/session-daemon.ts";
@@ -173,7 +169,7 @@ export { runSessionDaemon } from "./ops/session-daemon.ts";
 // way every other arm does. The export stays a front-door member for scripts and tests.
 export { ensureStage } from "./ops/stage.ts";
 export { tryResolveRef } from "./ops/stage-git.ts";
-// The band idle timer (#1163 arm b): `armStageKeeper` is `ensureStage`'s, `runStageKeeper` is cli.ts's
+// The band idle timer (#1163 arm b): `armStageKeeper` is `ensureStage`'s, `runStageKeeper` is ops/internal-entry.ts's
 // dispatch target for the `--stage-keeper` entry, and both are front-door members so a committed proof
 // can drive the SHIPPED timer against a planted row instead of re-spelling its rules.
 export { armStageKeeper, runStageKeeper, stageKeeperAlive } from "./ops/stage-keeper.ts";
@@ -183,11 +179,11 @@ export { markerRoot as stageMarkerRoot, readBands, setStageKeeper, stageBandVerd
 // The bounded reap ledger (#1163): which ARM ended a stage. `--stage-status` prints it; a proof reads it.
 export { describeStageReaps, readStageReaps, recordStageReap } from "./ops/stage-reap-log.ts";
 export { cloneMigratedStageDb, cloneStageDb } from "./ops/stage-source.ts";
-// The readiness verdict (#1837): cli.ts's own exit runs it — a stage this run BOOTED that never served a
-// settled app is kept warming for one retry or torn down. Front-door members so a proof can plant a booted row
+// The readiness verdict (#1837): a one-shot run's own exit runs it (ops/command.ts) — a stage this run BOOTED
+// that never served a settled app is kept warming for one retry or torn down. Front-door members so a proof can plant a booted row
 // and drive the SHIPPED teardown.
 export { settleStageReadiness, tearDownStageRow } from "./ops/stage-teardown.ts";
-// The stage wait queue (`--stage-wait`): cli.ts awaits `waitForStage` before the stage door; a proof drives the
+// The stage wait queue (`--stage-wait`): ops/command.ts awaits `waitForStage` before the stage door; a proof drives the
 // SHIPPED queue against a scratch home with injected deps.
 export {
   awaitStageWait,

@@ -17,7 +17,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
 
@@ -50,7 +50,9 @@ auditRuleTest(
   <div id="inner-realmenu" role="menu" style="${CARD};width:200px;height:80px">nested panel body</div>
 </div>`;
     await writeFile(join(scratch, "overlay-exemption.html"), relationalDocument(body));
-    const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "overlay-exemption.html"), ...AUDIT_ARGV]);
+    const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "overlay-exemption.html"), ...AUDIT_ARGV], {
+      timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+    });
 
     // One and only one: the class-word coincidence is judged (it was silently exempt before), and the
     // real popup role stays exempt — the rewrite must not trade one error for the other.
@@ -100,7 +102,7 @@ auditRuleTest(
 </div>
 <div id="real-stripe" style="${ACCENT_EDGE}">a real surface</div>`;
     await writeFile(join(scratch, "picker-art-exemption.html"), relationalDocument(body));
-    const res = await runSnap(["--file", join(scratch, "picker-art-exemption.html"), ...AUDIT_ARGV]);
+    const res = await runSnap(["--file", join(scratch, "picker-art-exemption.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
     for (const rule of ["side-tab", "border-accent-on-rounded"]) {
       const selectors = findingSelectors(res.stdout, rule);
@@ -137,7 +139,7 @@ auditRuleTest(
   </span>
 </div>`;
     await writeFile(join(scratch, "media-zoom-wrapper.html"), relationalDocument(body));
-    const res = await runSnap(["--file", join(scratch, "media-zoom-wrapper.html"), ...AUDIT_ARGV]);
+    const res = await runSnap(["--file", join(scratch, "media-zoom-wrapper.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     expect(findingSelectors(res.stdout, "animated-img-hover").length, "the wrapper-hover zoom must be caught").toBeGreaterThan(0);
   },
 );
@@ -160,7 +162,7 @@ auditRuleTest(
   </span>
 </div>`;
     await writeFile(join(scratch, "media-zoom-static.html"), relationalDocument(body));
-    const res = await runSnap(["--file", join(scratch, "media-zoom-static.html"), ...AUDIT_ARGV]);
+    const res = await runSnap(["--file", join(scratch, "media-zoom-static.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     expect(findingSelectors(res.stdout, "animated-img-hover")).toHaveLength(0);
     return readAuditReport(res.stdout);
   },
@@ -180,7 +182,7 @@ async function decorFixture(
   body: string,
 ): Promise<{ readonly stdout: string; readonly report: RelationalPopulationReport }> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return { stdout: res.stdout, report: await readAuditReport(res.stdout) };
 }
 
@@ -241,9 +243,11 @@ auditRuleTest(
     },
   ],
   "an embedded picker panel inside a card is not a nested card",
-  async ({ runSnap, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     const picker = `<div style="${CARD};width:300px"><input role="combobox" aria-label="Font" aria-expanded="true" aria-controls="face-list">${PICKER_LIST}</div>`;
-    const { report } = await decorFixture(scratch, runSnap, "nested-picker", `<div style="${OUTER}">${picker}</div>`);
+    // The parity case again, after the file's other runs have used the shared browser.
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+    const { report } = await decorFixture(scratch, parity, "nested-picker", `<div style="${OUTER}">${picker}</div>`);
     expect(report.populationAccounting?.["nested-card"]).toMatchObject({ affected: 0, excluded: { embeddedPicker: 1 } });
     return report;
   },

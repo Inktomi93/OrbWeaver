@@ -2,7 +2,7 @@
 // the opacity a glyph is judged at, and the pixel ring that settles a backdrop the walker could not resolve.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, configureRelationalCliBudget, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
@@ -10,7 +10,7 @@ configureRelationalCliBudget();
 
 async function audit(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<string> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return res.stdout;
 }
 
@@ -24,7 +24,7 @@ function inkOnWhite(style: string): string {
 
 test("a looping opacity animation is judged at rest: 7.00:1 at opacity 1, never the 1.59:1 its 0.3 frames show", async ({ runCli, runSnap, scratch }) => {
   // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
-  const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+  const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
   const stdout = await audit(scratch, parity, "pulse-at-rest", inkOnWhite("animation:cb-dim 2s linear infinite"));
   expect(stdout).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
   expect(stdout).not.toMatch(/^P\d\s+contrast\s/mu);
@@ -58,10 +58,12 @@ test("a label that fills its box is judged from the ground beside it, with the s
   expect(stdout).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
 });
 
-test("a label over striped art that reaches under its box stays withheld", async ({ runSnap, scratch }) => {
+test("a label over striped art that reaches under its box stays withheld", async ({ runCli, runSnap, scratch }) => {
   // The isolated row paints the z-index -1 stripes over its own ground and under the label.
   const stripes =
     '<span style="position:absolute;left:64px;right:0;top:2px;bottom:2px;z-index:-1;background-image:repeating-linear-gradient(90deg,#ffffff 0 3px,#000000 3px 6px)"></span>';
-  const stdout = await audit(scratch, runSnap, "label-over-art", themeRow(LIGHT_SWATCH + stripes));
+  // The parity case again, after the file's other runs have used the shared browser.
+  const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+  const stdout = await audit(scratch, parity, "label-over-art", themeRow(LIGHT_SWATCH + stripes));
   expect(stdout).toMatch(/POPULATION\s+contrast candidates=1 judged=0 affected=0 .*withheld\(unresolvedBackdrop=1\)/u);
 });

@@ -23,7 +23,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, expectPopulation, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, expectPopulation, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
@@ -41,7 +41,9 @@ const FOLD_SUBJECT = `<div style="height:3000px">
 
 test("a subject on the viewport fold is revealed and MEASURED, not withheld", async ({ runCli, runSnap, scratch }) => {
   await writeFile(join(scratch, "obscured-fold.html"), relationalDocument(FOLD_SUBJECT));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "obscured-fold.html"), "--viewport", VIEWPORT, ...AUDIT_ARGV]);
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "obscured-fold.html"), "--viewport", VIEWPORT, ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
 
   // THE DEFECT PROOF. Before the repair this read `obscured-unaskable=1` and the run was a NO VERDICT.
   expect(res.stdout, "a fold subject is reachable by scrolling, so its verdict is owed").toContain("obscured-unaskable=0");
@@ -59,7 +61,9 @@ const UNREACHABLE_SUBJECT = `<span id="unreachable" style="position:fixed;left:0
 
 test("a subject the reveal cannot make answerable STILL withholds its verdict", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "obscured-unreachable.html"), relationalDocument(UNREACHABLE_SUBJECT));
-  const res = await runSnap(["--file", join(scratch, "obscured-unreachable.html"), "--viewport", VIEWPORT, ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "obscured-unreachable.html"), "--viewport", VIEWPORT, ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
 
   // #797 SURVIVES — ITS INPUT CHANGED. The repair stopped counting "we asked in the wrong place" as
   // "we asked and got nothing"; it did not weaken the refusal, and a fix that silenced this row would
@@ -90,7 +94,7 @@ test("obscured targets scan past the old cap and retain a later distinct collisi
   const repeated = Array.from({ length: 23 }, () => collision("cast-row", "rule-count", "start", "2 rules")).join("");
   const distinct = collision("archive-row", "archive-label", "delete", "Archive");
   await writeFile(join(scratch, "obscured-populations.html"), relationalDocument(`${repeated}${distinct}`));
-  const auditRun = await runSnap(["--file", join(scratch, "obscured-populations.html"), ...AUDIT_ARGV]);
+  const auditRun = await runSnap(["--file", join(scratch, "obscured-populations.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = await readAuditReport(auditRun.stdout);
   expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toHaveLength(2);
   expect(report.populationAccounting?.["obscured-target"]).toMatchObject({
@@ -106,7 +110,9 @@ test("obscured withholding names the exact partially visible subject and centre"
     join(scratch, "obscured-unaskable.html"),
     relationalDocument('<p data-slot="edge-copy" style="position:fixed;left:-80px;top:20px;width:100px;height:24px">Edge copy</p>'),
   );
-  const result = await runSnap(["--file", join(scratch, "obscured-unaskable.html"), "--viewport", "400x240", ...AUDIT_ARGV]);
+  const result = await runSnap(["--file", join(scratch, "obscured-unaskable.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
   const report = await readAuditReport(result.stdout);
 
   expect(result.code).toBe(2);
@@ -127,7 +133,9 @@ test("obscured census recentres a partially visible subject before judging its c
       '<div style="height:220px"></div><button data-slot="bottom-action" style="display:block;width:160px;height:80px">Bottom action</button>',
     ),
   );
-  const result = await runSnap(["--file", join(scratch, "obscured-recentred.html"), "--viewport", "400x240", ...AUDIT_ARGV]);
+  const result = await runSnap(["--file", join(scratch, "obscured-recentred.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
   const report = await readAuditReport(result.stdout);
 
   expect(result.code).toBe(0);
@@ -150,7 +158,7 @@ const scrollerWith = (extra: string): string => `<div style="position:relative">
 
 test("a target clipped by a scroll ancestor is reachable by scrolling, not obscured", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "obscured-scroll-clipped.html"), relationalDocument(scrollerWith("")));
-  const result = await runSnap(["--file", join(scratch, "obscured-scroll-clipped.html"), ...AUDIT_ARGV]);
+  const result = await runSnap(["--file", join(scratch, "obscured-scroll-clipped.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = await readAuditReport(result.stdout);
 
   expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toEqual([]);
@@ -162,7 +170,7 @@ test("a target still covered after the scroller reveals it reports", async ({ ru
     join(scratch, "obscured-scroll-covered.html"),
     relationalDocument(scrollerWith(cover).replace("overflow-y:auto", "overflow-y:auto;position:relative")),
   );
-  const result = await runSnap(["--file", join(scratch, "obscured-scroll-covered.html"), ...AUDIT_ARGV]);
+  const result = await runSnap(["--file", join(scratch, "obscured-scroll-covered.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = await readAuditReport(result.stdout);
 
   expect(report.findings.filter(({ rule }) => rule === "obscured-target")).not.toEqual([]);
@@ -174,7 +182,9 @@ test("obscured census keeps a null compositor answer withheld after the centre i
     relationalDocument(`<span data-slot="null-hit" style="display:block;width:120px;height:40px">Null answer</span>
 <script>Object.defineProperty(document, "elementFromPoint", { value: function () { return null; } });</script>`),
   );
-  const result = await runSnap(["--file", join(scratch, "obscured-hit-test-null.html"), "--viewport", "400x240", ...AUDIT_ARGV]);
+  const result = await runSnap(["--file", join(scratch, "obscured-hit-test-null.html"), "--viewport", "400x240", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
   const report = await readAuditReport(result.stdout);
 
   expect(result.code).toBe(2);
@@ -196,7 +206,7 @@ const listBand = (
 
 async function auditBand(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<RelationalPopulationReport> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const result = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
+  const result = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return await readAuditReport(result.stdout);
 }
 
@@ -238,8 +248,10 @@ auditRuleTest(
     },
   ],
   "a title truncated before the inline button is judged clean",
-  async ({ runSnap, scratch }) => {
-    const report = await auditBand(scratch, runSnap, "band-census-cut", listBand("width:80px;overflow:hidden", "0px"));
+  async ({ runCli, runSnap, scratch }) => {
+    // The parity case again, after the file's other runs have used the shared browser.
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+    const report = await auditBand(scratch, parity, "band-census-cut", listBand("width:80px;overflow:hidden", "0px"));
     expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ affected: 0, withheld: { unaskable: 0 } });
     return report;
   },

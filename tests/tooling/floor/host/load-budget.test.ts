@@ -18,6 +18,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import {
   annotateRateLoad,
   BOX_LOAD_ENV,
+  beginLoadEpoch,
   boxFactor,
   boxLoadKnobError,
   budget,
@@ -151,6 +152,19 @@ test("a module's ceilings record stretches every base from its own value, all ag
   // A box that gets busier between reads still yields one record judged on one reading: the first.
   const readings = [QUIET, LOADED];
   expect(budgets(bases, () => readings.shift() ?? LOADED)).toEqual(bases);
+});
+
+test("a new load epoch reads a module's ceilings again, once, as a fresh process reads them at import", () => {
+  const bases = { short: 2000, long: 30_000 } as const;
+  const readings = [QUIET, LOADED, QUIET];
+  const ceilings = budgets(bases, () => readings.shift() ?? QUIET);
+  expect(ceilings).toEqual(bases);
+  beginLoadEpoch();
+  // The record made at import answers the next invocation from that invocation's own reading…
+  expect(ceilings).toEqual({ short: budget(2000, readLoaded), long: budget(30_000, readLoaded) });
+  // …and from one reading for all its keys: the busier box is not read again inside the epoch.
+  expect(ceilings.short).toBe(budget(2000, readLoaded));
+  expect(readings).toEqual([QUIET]);
 });
 
 test("T15 — the boundary is computeLoadFactor's own, not a second constant", () => {

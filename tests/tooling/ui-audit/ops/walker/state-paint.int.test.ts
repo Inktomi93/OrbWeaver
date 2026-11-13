@@ -5,7 +5,7 @@
 // have no pure-fixture form. Each fixture pins ONE property against its nearest legitimate twin.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -40,7 +40,9 @@ test("an escaped Tailwind class name no longer mangles the :hover strip — the 
 <a class="dark:hover:bg-light" href="#">Continue the story</a>
 <p style="padding:12px">a paragraph no state rule touches</p>`),
   );
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "escape-fix.html"), ...AUDIT_ARGV]);
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "escape-fix.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
@@ -73,7 +75,7 @@ test("the attribute census forces Base-UI state paint: a failing pair fires, the
 <div class="row cmd" id="valued">the cmdk valued form</div>
 <p style="padding:12px">a paragraph no state rule touches</p>`),
   );
-  const res = await runSnap(["--file", join(scratch, "attr-census.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "attr-census.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
   const hover = report.findings.filter(({ rule }) => rule === "hover-contrast");
@@ -120,7 +122,7 @@ test("a listener re-arming the forced attribute is caught by the pass-final veri
   }).observe(document.getElementById("stuck"), { attributes: true, attributeFilter: ["data-highlighted"] });
 </script>`),
   );
-  const res = await runSnap(["--file", join(scratch, "attr-stuck.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "attr-stuck.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
@@ -133,6 +135,7 @@ test("a listener re-arming the forced attribute is caught by the pass-final veri
 });
 
 test("state-gated glow is read under force: a non-house layer under [data-selected] and an element :hover glow fire; the house form stays silent", async ({
+  runCli,
   runSnap,
   scratch,
 }) => {
@@ -163,7 +166,10 @@ test("state-gated glow is read under force: a non-house layer under [data-select
 <div class="curscope" id="scopeA"><div class="gbox gcur" id="gcurA">token-exact under scope A</div></div>
 <div class="curscope" id="scopeB"><div class="gbox gcur" id="gcurB">token-exact under scope B</div></div>`),
   );
-  const res = await runSnap(["--file", join(scratch, "state-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV]);
+  // The parity case again, after the file's other runs have used the shared browser.
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "state-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
   const glow = report.findings.filter(({ rule }) => rule === "glow-shadow").map(({ selector }) => selector);
 

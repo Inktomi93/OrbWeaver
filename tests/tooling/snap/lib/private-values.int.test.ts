@@ -8,7 +8,7 @@ import { strToU8, unzipSync, zipSync } from "fflate";
 import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
 import { noteUrlSecrets } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import {
-  __resetPrivateValues,
+  forgetPrivateValues,
   privateText,
   scrubPrivateFile,
   scrubPrivateJson,
@@ -27,11 +27,11 @@ const READ_ONLY = 0o400;
 
 /** Reveal `values` for one case, and forget them at its end: Node suites share one module registry per worker. */
 function revealed(...values: readonly string[]): Disposable {
-  __resetPrivateValues();
+  forgetPrivateValues();
   for (const value of values) {
     privateText(value).reveal();
   }
-  return { [Symbol.dispose]: __resetPrivateValues };
+  return { [Symbol.dispose]: forgetPrivateValues };
 }
 
 async function scrubbed(scratch: string, entries: Readonly<Record<string, Uint8Array>>): Promise<Record<string, Uint8Array>> {

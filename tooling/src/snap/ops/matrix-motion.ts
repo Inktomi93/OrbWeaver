@@ -45,7 +45,7 @@ async function runMotionMatrixCell(host: ProbeSession | null, runArgs: Args, id:
   if (host === null) {
     return await runSnapDetailed(runArgs);
   }
-  const opened = await openSnapMatrixContext(host, runArgs);
+  const opened = await openSnapMatrixContext(host, runArgs, "owner");
   const destination = snapDestination(runArgs);
   try {
     return await runOnSession(

@@ -14,7 +14,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
 
@@ -35,7 +35,7 @@ interface AuditFixture {
 
 async function auditFixture({ scratch, runSnap, name, body }: AuditFixture): Promise<AuditRun> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const result = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
+  const result = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return { report: await readAuditReport(result.stdout), code: result.code };
 }
 
@@ -62,7 +62,7 @@ auditRuleTest(
   async ({ runCli, runSnap, scratch }) => {
     const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="padding:20px;width:100px;height:60px;background:#222"></div></div>`;
     // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
-    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
     const { report } = await auditFixture({ scratch, runSnap: parity, name: "tier-drift-defect", body });
     const findings = report.findings.filter(({ rule }) => rule === "tier-drift");
     expect(findings).toHaveLength(4);
@@ -234,9 +234,11 @@ auditRuleTest(
     },
   ],
   "a leading that diverges from a math-function tier token is a tier-drift",
-  async ({ runSnap, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     const body = `${LEADING_TIER_CSS}<div data-surface-tier="instrument"><span data-slot="list-row-title" style="display:block;width:160px;height:40px;background:#222;line-height:30px"></span></div>`;
-    const { report } = await auditFixture({ scratch, runSnap, name: "tier-leading-drift", body });
+    // The parity case again, after the file's other runs have used the shared browser.
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+    const { report } = await auditFixture({ scratch, runSnap: parity, name: "tier-leading-drift", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(1);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 3, judged: 3, emitted: 1, withheld: {} });
   },

@@ -18,7 +18,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
 
@@ -26,7 +26,7 @@ configureRelationalCliBudget();
 
 async function auditFixture(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<RelationalPopulationReport> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return await readAuditReport(res.stdout);
 }
 
@@ -53,7 +53,7 @@ auditRuleTest(
   async ({ runCli, runSnap, scratch }) => {
     const body = `<label for="sw-1">Show timestamps</label><button role="switch" id="sw-1" ${CONTROL}></button>`;
     // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
-    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
     const report = await auditFixture(scratch, parity, "name-label-for", body);
     expect(namesIn(report)).toHaveLength(0);
     return report;
@@ -475,9 +475,11 @@ auditRuleTest(
     },
   ],
   "an unnamed tabindex -1 node with a widget role is still judged",
-  async ({ runSnap, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     const body = `<div role="textbox" tabindex="-1" ${SCROLLER}><div aria-hidden="true">1</div></div>`;
-    const report = await auditFixture(scratch, runSnap, "name-roled-tabindex", body);
+    // The parity case again, after the file's other runs have used the shared browser.
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+    const report = await auditFixture(scratch, parity, "name-roled-tabindex", body);
     expect(namesIn(report)).toHaveLength(1);
     expect(report.populationAccounting?.["aria-name"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
   },

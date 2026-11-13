@@ -11,7 +11,15 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, findingSelectors, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import {
+  AUDIT_ARGV,
+  auditReport,
+  configureRelationalCliBudget,
+  findingSelectors,
+  RELATIONAL_CLI_TIMEOUT_MS,
+  readAuditReport,
+  relationalDocument,
+} from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
@@ -40,7 +48,9 @@ const GLOW_FIXTURE = `<style>
 
 test("the glow census sweeps pseudo layers, exempting the house discipline and judging every deviation from it", async ({ runCli, runSnap, scratch }) => {
   await writeFile(join(scratch, "pseudo-glow.html"), relationalDocument(GLOW_FIXTURE));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "pseudo-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV]);
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "pseudo-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
     readonly findings: readonly { readonly rule: string; readonly selector: string }[];
@@ -79,7 +89,7 @@ async function ctaRun(
   page: { readonly body: string; readonly hover: readonly string[] },
 ): Promise<{ readonly stdout: string; readonly report: RelationalPopulationReport }> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(`${CTA_FIXTURE}${page.body}`));
-  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...page.hover, ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...page.hover, ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return { stdout: res.stdout, report: await readAuditReport(res.stdout) };
 }
 

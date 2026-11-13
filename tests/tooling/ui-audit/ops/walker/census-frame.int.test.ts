@@ -20,7 +20,7 @@
 // would have traded a false positive for a false clean, which is the trade this repair exists to refuse.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, configureRelationalCliBudget } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
 import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -50,7 +50,9 @@ function wideBoard(widthPx: number): string {
 
 test("a document wider than its viewport refuses the run and NAMES the box that does not fit", async ({ runCli, runSnap, scratch }) => {
   await writeFile(join(scratch, "frame-crushed.html"), frameDocument(wideBoard(1200)));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "frame-crushed.html"), "--viewport", "600x800", ...AUDIT_ARGV]);
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "frame-crushed.html"), "--viewport", "600x800", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
 
   expect(res.stdout, "the run must announce that it has no geometry verdict, at the head of the transcript").toContain(FRAME_REFUSAL);
   // THE NUMBERS, so a reader can tell a crushed frame from a 1px rounding without re-running.
@@ -77,7 +79,7 @@ test("a document wider than its viewport refuses the run and NAMES the box that 
 
 test("the same document at a viewport it fits is MEASURED — the refusal is a tripwire, not a tax", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "frame-fits.html"), frameDocument(wideBoard(1200)));
-  const res = await runSnap(["--file", join(scratch, "frame-fits.html"), "--viewport", "1400x800", ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "frame-fits.html"), "--viewport", "1400x800", ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // The negative control the doctrine owes: identical bytes, a viewport that holds them, no refusal.
   expect(res.stdout, "a page that fits its viewport must not be refused").not.toContain(FRAME_REFUSAL);
@@ -90,9 +92,12 @@ test("the same document at a viewport it fits is MEASURED — the refusal is a t
  *  costs the document no width: the page fits its viewport and the overflow is entirely the box's own. */
 const CLIPPED_SPILL = `<div id="spill" style="width:60px;overflow:hidden;white-space:nowrap">this label carries far more text than sixty pixels can ever show</div>`;
 
-test("a real overflow on a page that FITS is still reported at full severity", async ({ runSnap, scratch }) => {
+test("a real overflow on a page that FITS is still reported at full severity", async ({ runCli, runSnap, scratch }) => {
   await writeFile(join(scratch, "frame-real-overflow.html"), frameDocument(CLIPPED_SPILL));
-  const res = await runSnap(["--file", join(scratch, "frame-real-overflow.html"), "--viewport", "1400x800", ...AUDIT_ARGV]);
+  // The parity case again, after the file's other runs have used the shared browser.
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "frame-real-overflow.html"), "--viewport", "1400x800", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
 
   // The planted positive control: the defect this instrument exists to find is untouched by the repair.
   expect(res.stdout, "the frame arm must not swallow a genuine truncation").toMatch(/^P1\s+text-overflow\s+.*#spill/mu);

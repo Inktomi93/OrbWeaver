@@ -19,7 +19,7 @@
 // the word — tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 8's class. The two arms below are the two directions.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
 
@@ -27,7 +27,7 @@ configureRelationalCliBudget();
 
 async function auditStdout(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<string> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return res.stdout;
 }
 
@@ -46,7 +46,7 @@ auditRuleTest(
   async ({ runCli, runSnap, scratch }) => {
     const body = '<h1 id="library-heading">Library</h1><h3 id="recent-heading">Recent</h3>';
     // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
-    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
     const selectors = findingSelectors(await auditStdout(scratch, parity, "heading-selector", body), "skipped-heading");
     // The walker anchors a unique id, so the offender is locatable — and the bare tag "h3" is exactly
     // what this may never be again.
@@ -185,8 +185,10 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "clipped-overflow", kind: "fires", reason: "the same wrapper with no inner padding puts its control past the clip, and the control itself is cut" }],
   "a wrapper that cuts the control it holds still fails, naming the control",
-  async ({ runSnap, scratch }) => {
-    const stdout = await auditStdout(scratch, runSnap, "clip-full-bleed-cut", bleedPopup("bleed-cut", "0px"));
+  async ({ runCli, runSnap, scratch }) => {
+    // The parity case again, after the file's other runs have used the shared browser.
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+    const stdout = await auditStdout(scratch, parity, "clip-full-bleed-cut", bleedPopup("bleed-cut", "0px"));
     const report = await readAuditReport(stdout);
     expect(report.findings.filter(({ rule }) => rule === "clipped-overflow")).toEqual([
       expect.objectContaining({ selector: "#bleed-cut", value: expect.stringContaining("#bleed-cut-action") }),

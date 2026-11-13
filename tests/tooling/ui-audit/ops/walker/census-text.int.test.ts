@@ -18,7 +18,7 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";
@@ -28,7 +28,7 @@ configureRelationalCliBudget();
 
 async function auditFixture(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<RelationalPopulationReport> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return await readAuditReport(res.stdout);
 }
 
@@ -56,7 +56,7 @@ auditRuleTest(
   async ({ runCli, runSnap, scratch }) => {
     const body = `<button disabled style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Pick one</span></button>`;
     // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
-    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
     const report = await auditFixture(scratch, parity, "inactive-descendant", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
@@ -939,7 +939,7 @@ test.for(COVERED_CAPTIONS)(
   async ([name, wallpaper, card, overPage, expected], { runSnap, scratch }) => {
     const file = join(scratch, `covered-${name.replaceAll(/[^a-z0-9]+/gu, "-")}.html`);
     await writeFile(file, relationalDocument(`${wallpaper}${card}${overPage}`));
-    const res = await runSnap(["--file", file, ...AUDIT_ARGV]);
+    const res = await runSnap(["--file", file, ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     const report = await readAuditReport(res.stdout);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
     // The FINDING line leads its value with the ratio: `contrast: P1 2.02:1 (need 4.5:1)`.
@@ -1186,7 +1186,7 @@ auditRuleTest(
 test("a stray face beside the picker still fires off-theme-font at its own element", async ({ runSnap, scratch }) => {
   const body = `<div role="listbox"><div role="option"><span ${FONT_PREVIEW_ATTRIBUTE}="${PREVIEW_FACE}" style="font-family:${PREVIEW_FACE}, serif">${PREVIEW_FACE}</span></div></div><p id="stray" style="font-family:${PREVIEW_FACE}, serif">A heading set in a face no token names.</p>`;
   await writeFile(join(scratch, "font-preview-stray.html"), relationalDocument(body));
-  const res = await runSnap(["--file", join(scratch, "font-preview-stray.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "font-preview-stray.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = await readAuditReport(res.stdout);
   expect(report.findings.filter(({ rule }) => rule === "off-theme-font")).toHaveLength(1);
   expect(findingSelectors(res.stdout, "off-theme-font")).toEqual(["#stray"]);
@@ -1283,7 +1283,7 @@ auditRuleTest(
 test("a face preview attribute outside a picker option declares nothing, so the face still fires off-theme-font", async ({ runSnap, scratch }) => {
   const body = `<p id="loose" ${FONT_PREVIEW_ATTRIBUTE}="${PREVIEW_FACE}" style="font-family:${PREVIEW_FACE}, serif">${PREVIEW_FACE}</p>`;
   await writeFile(join(scratch, "font-preview-loose.html"), relationalDocument(body));
-  const res = await runSnap(["--file", join(scratch, "font-preview-loose.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "font-preview-loose.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(findingSelectors(res.stdout, "off-theme-font")).toEqual(["#loose"]);
 });
 
@@ -1331,7 +1331,7 @@ auditRuleTest(
         `<div role="${group}" tabindex="-1"><div role="${item}" tabindex="-1"><span id="${item}" style="${MICRO}">Light theme</span></div></div>`,
     ).join("");
     await writeFile(join(scratch, "interactive-roving-items.html"), relationalDocument(body));
-    const res = await runSnap(["--file", join(scratch, "interactive-roving-items.html"), ...AUDIT_ARGV]);
+    const res = await runSnap(["--file", join(scratch, "interactive-roving-items.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     expect(new Set(findingSelectors(res.stdout, "undersized-ui-text"))).toEqual(new Set(ROVING_ITEMS.map(([, item]) => `#${item}`)));
   },
 );
@@ -1339,9 +1339,11 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "undersized-ui-text", kind: "fires", reason: "a button's whole label at the micro step is interactive text under the floor" }],
   "a button label at the micro step still fails undersized-ui-text",
-  async ({ runSnap, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     const body = `<button><span style="${MICRO}">Save changes</span></button>`;
-    const report = await auditFixture(scratch, runSnap, "interactive-button-label", body);
+    // The parity case again, after the file's other runs have used the shared browser.
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+    const report = await auditFixture(scratch, parity, "interactive-button-label", body);
     expect(report.findings.filter(({ rule }) => rule === "undersized-ui-text")).toHaveLength(1);
   },
 );

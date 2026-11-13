@@ -97,7 +97,7 @@ async function discoverMatrixInputs(opts: Args, baseName: string, host: ProbeSes
   const args = discoveryArgs(opts);
   if (host !== null) {
     const name = `${baseName}-matrix-discovery`;
-    const opened = await openSnapMatrixContext(host, args);
+    const opened = await openSnapMatrixContext(host, args, "owner");
     try {
       return await readMatrixDiscovery(opened.session, args);
     } finally {
@@ -130,7 +130,7 @@ async function runMatrixSessionCell(
   appearanceRows: SnapAppearanceMatrix["historicalRows"],
 ): Promise<SnapDetailedResult> {
   // The daemon launched its browser with every provision a cell may ask for, so a cell never asks for more here.
-  const cell = await contextsIn(host).open(runArgs, { requireCascadeRuntime: false });
+  const cell = await contextsIn(host, "owner").open(runArgs, { requireCascadeRuntime: false });
   const destination = snapDestination(runArgs);
   try {
     if (runArgs.scenario !== null) {

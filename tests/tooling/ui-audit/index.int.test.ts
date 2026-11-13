@@ -63,7 +63,7 @@ function page(bodyStyle: string): string {
 test("a planted contrast defect REDs the audit through the real cli", async ({ runCli, runSnap, scratch }) => {
   const file = join(scratch, "bad.html");
   await writeFile(file, page("background:#000;color:#000"));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "bad.html"), ...AUDIT]);
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "bad.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "contrast")).not.toEqual([]);
   await expect(res).toExitWith(1);
 });
@@ -71,7 +71,7 @@ test("a planted contrast defect REDs the audit through the real cli", async ({ r
 test("the passing twin exits clean — the red above is the plant, not the harness", async ({ runSnap, scratch }) => {
   const file = join(scratch, "good.html");
   await writeFile(file, page("background:#000;color:#fff"));
-  const res = await runSnap(["--file", join(scratch, "good.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "good.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   // The twin proves the PLANTED CLASS is absent (no contrast finding, no P1) — a fixture page still
   // legitimately trips the P2 font census (its default face is off the token ramp, and #23 now says so
   // with the measurement), which the exit verdict correctly ignores at the default --fail-on P1.
@@ -106,7 +106,7 @@ auditRuleTest(
   "a declared token face that does not exist here REDs the font census — the false clean is closed",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "unpaintable.html"), declaredFacePage("Geist, ui-sans-serif, system-ui, sans-serif"));
-    const res = await runSnap(["--file", join(scratch, "unpaintable.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "unpaintable.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const rows = findingRows(res.stdout, "off-theme-font");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toContain("geist");
@@ -123,7 +123,7 @@ auditRuleTest(
     // The probe's live positive direction: a face that IS installed here is judged as painting, so the
     // absence above is a measurement rather than a probe that answers "absent" to everything.
     await writeFile(join(scratch, "installed.html"), declaredFacePage('"Liberation Serif", serif'));
-    const present = await runSnap(["--file", join(scratch, "installed.html"), ...AUDIT]);
+    const present = await runSnap(["--file", join(scratch, "installed.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const presentRows = findingRows(present.stdout, "off-theme-font");
     expect(presentRows).toHaveLength(1);
     expect(presentRows[0]).toContain("paints");
@@ -197,7 +197,7 @@ auditRuleTest(
   "repeated sibling target instances collapse into one population finding with an honest capped denominator",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "tap-population.html"), repeatedTapTargetsPage([{ slot: "meter-row", count: 11 }]));
-    const res = await runSnap(["--file", join(scratch, "tap-population.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "tap-population.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "one authored target-size decision must not print once per rendered instance").toHaveLength(1);
@@ -236,7 +236,7 @@ auditRuleTest(
 <html data-app-ready="settled"><head><meta charset="utf-8"><title>type floor populations</title></head>
 <body style="margin:0;background:#000;color:#fff;font-family:system-ui"><main>${repeated}${distinct}</main></body></html>`,
     );
-    const result = await runSnap(["--file", join(scratch, "type-floor-populations.html"), "--fail-on", "P2", ...AUDIT]);
+    const result = await runSnap(["--file", join(scratch, "type-floor-populations.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as TypographyPopulationReport;
     const findings = report.findings.filter(({ rule }) => rule === "undersized-ui-text");
 
@@ -266,7 +266,7 @@ auditRuleTest(
         { slot: "meter-row", count: 3 },
       ]),
     );
-    const res = await runSnap(["--file", join(scratch, "tap-homes.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "tap-homes.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "grouping on data-slot=button alone would incorrectly merge these homes").toHaveLength(2);
@@ -299,7 +299,7 @@ auditRuleTest(
   <section data-slot="badge"><button data-slot="button" style="width:18px;height:18px">x</button><button data-slot="button" style="width:18px;height:18px">x</button></section>
 </main></body></html>`,
     );
-    const res = await runSnap(["--file", join(scratch, "rpg-target-homes.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "rpg-target-homes.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "four authored decisions must remain distinguishable after instance collapse").toHaveLength(4);
@@ -323,7 +323,7 @@ auditRuleTest(
   <button style="width:44px;height:44px">healthy twin</button>
 </main></body></html>`,
     );
-    const res = await runSnap(["--file", join(scratch, "nested-target.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "nested-target.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "DOM nesting alone cannot erase a separately-authored inner action").toHaveLength(2);
@@ -349,7 +349,7 @@ function switchPage(trackWidthPx: number): string {
 
 test("a planted near-square role=switch REDs the audit through the real cli", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "crescent.html"), switchPage(48));
-  const res = await runSnap(["--file", join(scratch, "crescent.html"), "--fail-on", "P2", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "crescent.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("control-aspect");
   expect(res.stdout, "the finding must name the measured aspect, not just the rule").toContain("1.09");
   await expect(res).toExitWith(1);
@@ -357,7 +357,7 @@ test("a planted near-square role=switch REDs the audit through the real cli", as
 
 test("the shipped 64x44 twin carries no control-aspect finding — the red above is the plant", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "pill.html"), switchPage(64));
-  const res = await runSnap(["--file", join(scratch, "pill.html"), "--fail-on", "P2", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "pill.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "control-aspect"), "the population row names the rule without filing anything — anchor on the verdict").toEqual([]);
   // The twin still legitimately trips the P2 font census (a bare fixture page's default face is off the
   // token ramp), so the exit code is not the discriminator here — the ABSENCE of the planted class is.
@@ -390,14 +390,14 @@ const AVATAR_SEAT =
 
 test("a real panel nested in a panel still REDs — the exclusion did not eat the rule", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "nested-panel.html"), panelInPanel(REAL_NESTED_PANEL));
-  const res = await runSnap(["--file", join(scratch, "nested-panel.html"), "--fail-on", "P3", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "nested-panel.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "nested-card").length).toBeGreaterThan(0);
   await expect(res).toExitWith(1);
 });
 
 test("a rounded-rect avatar seat inside a panel is NOT a nested card", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "avatar-seat.html"), panelInPanel(AVATAR_SEAT));
-  const res = await runSnap(["--file", join(scratch, "avatar-seat.html"), "--fail-on", "P3", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "avatar-seat.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "nested-card")).toEqual([]);
   // ZERO HYGIENE: the absence is only a verdict when the walk censused nodes at all.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
@@ -431,7 +431,7 @@ const PANEL_WITH_AN_ACTION =
 // that would also hide the NEXT test that creeps toward the default.
 test("a borderless panel whose class merely contains the card WORD is not a nested card", { timeout: scaledBudget(20_000) }, async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "card-word.html"), panelInPanel(CARD_WORD_BORDERLESS_PANEL));
-  const res = await runSnap(["--file", join(scratch, "card-word.html"), "--fail-on", "P3", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "card-word.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "nested-card")).toEqual([]);
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
@@ -439,14 +439,14 @@ test("a borderless panel whose class merely contains the card WORD is not a nest
 
 test("a MEASURED border still REDs when the class carries the card word — the name arm went, the box stayed", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "card-word-bordered.html"), panelInPanel(CARD_WORD_BORDERED_PANEL));
-  const res = await runSnap(["--file", join(scratch, "card-word-bordered.html"), "--fail-on", "P3", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "card-word-bordered.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "nested-card").length).toBeGreaterThan(0);
   await expect(res).toExitWith(1);
 });
 
 test("a shell whose only child is a control is not a nested card", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "control-shell.html"), panelInPanel(CONTROL_SHELL));
-  const res = await runSnap(["--file", join(scratch, "control-shell.html"), "--fail-on", "P3", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "control-shell.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "nested-card")).toEqual([]);
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
@@ -454,7 +454,7 @@ test("a shell whose only child is a control is not a nested card", async ({ runS
 
 test("a panel that merely CONTAINS a control is still judged — the wrapper arm stayed bounded", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "panel-with-action.html"), panelInPanel(PANEL_WITH_AN_ACTION));
-  const res = await runSnap(["--file", join(scratch, "panel-with-action.html"), "--fail-on", "P3", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "panel-with-action.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "nested-card").length).toBeGreaterThan(0);
   await expect(res).toExitWith(1);
 });
@@ -483,7 +483,7 @@ const CARD_IN_A_PANE =
 
 test("a one-side-border shell pane is NOT the outer card of a nesting pair", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "pane-divider.html"), shellPane(PANE_DIVIDER_BOX, CARD_IN_A_PANE));
-  const res = await runSnap(["--file", join(scratch, "pane-divider.html"), "--fail-on", "P3", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "pane-divider.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "nested-card")).toEqual([]);
   // ZERO HYGIENE: the absence is only a verdict when the walk censused nodes at all.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
@@ -492,7 +492,7 @@ test("a one-side-border shell pane is NOT the outer card of a nesting pair", asy
 
 test("the same pane with a SECOND border side is a box again — the pair still REDs", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "pane-two-sided.html"), shellPane(PANE_TWO_SIDED_BOX, CARD_IN_A_PANE));
-  const res = await runSnap(["--file", join(scratch, "pane-two-sided.html"), "--fail-on", "P3", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "pane-two-sided.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "nested-card").length).toBeGreaterThan(0);
   await expect(res).toExitWith(1);
 });
@@ -515,7 +515,7 @@ test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }
 test("the help states WHERE it audits, the stage flags, and the stage-db provenance limit", async ({ runSnap }) => {
   // `--help`, not a typo: snap answers a bad flag with `ARG ERROR` + a pointer AT the help rather than
   // reprinting 200 lines of it, which is a deliberate difference from the retired CLI's misuse path.
-  const res = await runSnap(["--help"]);
+  const res = await runSnap(["--help"], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("--isolated");
   expect(res.stdout).toContain("--ref <sha|branch|tag>");
   // The limitation is INHERITED from snap's stage and must not be inherited SILENTLY: a stage's db is
@@ -583,7 +583,7 @@ test("an app origin whose app never mounted is an INSTRUMENT ERROR, never a clea
 test("the SAME page over the SAME origin with the readiness flag audits normally — the fence is not a blanket refusal", async ({ runSnap }) => {
   const server = await serveOnce(SHELL_HTML.replace("<html>", '<html data-app-ready="settled">'));
   try {
-    const res = await runSnap(["/", "--base", server.base, ...AUDIT]);
+    const res = await runSnap(["/", "--base", server.base, ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toContain("INSTRUMENT ERROR");
     expect(res.stdout).toContain("design-audit=measured");
     await expect(res).toExitWith(0);
@@ -610,7 +610,7 @@ const FAILURE_SURFACE_HTML = `<!doctype html>
 
 test("a page declaring the app's not-found boundary is a NO VERDICT, never an audited surface", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "not-found.html"), FAILURE_SURFACE_HTML);
-  const res = await runSnap(["--file", join(scratch, "not-found.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "not-found.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout, "the refusal names the KIND the app declared, so a reader knows which non-surface this was").toContain("not-found");
   // The whole point: no verdict-shaped output at all. The old run printed every one of these over the
@@ -623,7 +623,7 @@ test("a page declaring the app's not-found boundary is a NO VERDICT, never an au
 
 test("the SAME page without the declare audits normally — the fence is the app's statement, not a shape heuristic", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "declare-free.html"), FAILURE_SURFACE_HTML.replace(' data-app-failure="not-found"', ""));
-  const res = await runSnap(["--file", join(scratch, "declare-free.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "declare-free.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("design-audit=measured");
   // The positive control for the assertion above: this identical markup DOES file the landmark finding.
@@ -636,7 +636,7 @@ test("the SAME page without the declare audits normally — the fence is the app
 test("an HTTP nav error is a NO VERDICT, not a violation with an empty report under it", async ({ runSnap }) => {
   const server = await serveOnce("<!doctype html><html><body>gone</body></html>", 404);
   try {
-    const res = await runSnap(["/", "--base", server.base, ...AUDIT]);
+    const res = await runSnap(["/", "--base", server.base, ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toContain("INSTRUMENT ERROR");
     expect(res.stdout, "the refusal states the HTTP fact — it is the finding for a human").toContain("HTTP 404");
     expect(res.stdout).not.toContain("POPULATION ");
@@ -651,7 +651,7 @@ test("an HTTP nav error is a NO VERDICT, not a violation with an empty report un
 // stalled on. Its findings are true of a page nobody asked about, filed under the name of one nobody saw.
 test("a reveal action that did not land is a NO VERDICT, not findings about the surface it stalled on", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "good.html"), page("background:#000;color:#fff"));
-  const res = await runSnap(["--file", join(scratch, "good.html"), "--click", "#no-such-control", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "good.html"), "--click", "#no-such-control", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("STEP FAILED");
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout, "the refusal names the queue, not the census — a different absence").toContain("reveal queue");
@@ -665,7 +665,7 @@ test("a reveal action that did not land is a NO VERDICT, not findings about the 
 // duty back to the orchestrator.
 test("the machine line publishes WHICH tree was audited", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "good.html"), page("background:#000;color:#fff"));
-  const res = await runSnap(["--file", join(scratch, "good.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "good.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("stage=live");
 });
 
@@ -678,7 +678,7 @@ test("a page the walk censused NOTHING on is an INSTRUMENT ERROR, never a clean 
   // every check family receives an empty list, and the audit reports "no findings — clean".
   const file = join(scratch, "empty.html");
   await writeFile(file, `<!doctype html>\n<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main></main></body></html>`);
-  const res = await runSnap(["--file", join(scratch, "empty.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "empty.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("census");
   // THE REFUSAL SAYS WHY, ON THE PROCESS'S OWN OUTPUT (#25). It writes no report artifact, so a harness
@@ -704,7 +704,7 @@ test("a relational-only fixture is judged, never refused as an empty census", as
     join(scratch, "relational-only.html"),
     `<!doctype html>\n<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body style="margin:0;background:#000;color:#fff"><main>${body}</main></body></html>`,
   );
-  const res = await runSnap(["--file", join(scratch, "relational-only.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "relational-only.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout, "the census families are not the judged families — a relational sample IS a census").not.toContain("censused 0 nodes");
   expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as { readonly findings: readonly Finding[] };
@@ -753,7 +753,7 @@ test("--upload populates the surface design-audit censuses — clean unuploaded,
 
   // Unuploaded: the exact false-clean shape #651 named — a real defect sits behind a file pick, and a
   // census that never populates the surface reports nothing wrong.
-  const clean = await runSnap(["--file", join(scratch, "upload.html"), ...AUDIT]);
+  const clean = await runSnap(["--file", join(scratch, "upload.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(clean.stdout, "contrast")).toEqual([]);
   await expect(clean).toExitWith(0);
 
@@ -761,7 +761,7 @@ test("--upload populates the surface design-audit censuses — clean unuploaded,
   // file-populated DOM instead of the empty dropzone.
   const fixture = join(scratch, "fixture.txt");
   await writeFile(fixture, "hello upload");
-  const uploaded = await runSnap(["--file", join(scratch, "upload.html"), "--upload", `#wrap=${fixture}`, ...AUDIT]);
+  const uploaded = await runSnap(["--file", join(scratch, "upload.html"), "--upload", `#wrap=${fixture}`, ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(uploaded.stdout, "contrast")).not.toEqual([]);
   await expect(uploaded).toExitWith(1);
 });
@@ -805,7 +805,7 @@ const OFF_CANVAS_CONTROL = '<button style="position:fixed;inset-inline-start:300
 
 test("a 413x16 control below the fold of an INNER scroller REDs — three rule families were blind to it", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "below-fold.html"), innerScrollerPage(""));
-  const res = await runSnap(["--file", join(scratch, "below-fold.html"), "--fail-on", "P2", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "below-fold.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout, "16px is under the 24px fine-pointer floor — and it is 900px down an inner scroller").toMatch(/^P1\s+tap-target/mu);
   // The denominator is not optional: a reader of a reach-bearing run is entitled to both numbers.
   expect(res.stdout).toContain("skipped-offviewport=0");
@@ -818,7 +818,7 @@ test("a 413x16 control below the fold of an INNER scroller REDs — three rule f
 
 test("an unreachable control is COUNTED and NAMED on the run — never silently dropped", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "off-canvas.html"), innerScrollerPage(OFF_CANVAS_CONTROL));
-  const res = await runSnap(["--file", join(scratch, "off-canvas.html"), "--fail-on", "P2", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "off-canvas.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout, "the human line must say what was skipped and why").toContain("SKIPPED");
   expect(res.stdout).toContain("skipped-offviewport=1");
   // The reachable defect in the same page still fires: counting the phantom did not mute the census.
@@ -837,7 +837,7 @@ test("a page where NO offered control can be reached is an INSTRUMENT ERROR, nev
 ${OFF_CANVAS_CONTROL}
 </main></body></html>`,
   );
-  const res = await runSnap(["--file", join(scratch, "all-off-canvas.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "all-off-canvas.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout, "the gap must name the reach, not the node census — they are different absences").toContain("viewport reach");
   await expect(res).toExitWith(2);
@@ -871,7 +871,7 @@ function consentBlock(alertFontPx: string, hostFontPx: string): string {
 
 test("an alert sentence set smaller than the endpoints it bounds is a caveat-outweighed finding", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "consent-pre.html"), consentBlock("10.5px", "15px"));
-  const res = await runSnap(["--file", join(scratch, "consent-pre.html"), "--fail-on", "P2", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "consent-pre.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout, "a 10.5px alert beside 15px hostnames inverts the reading order of a security argument").toContain("caveat-outweighed");
   expect(res.stdout, "the finding must name the measured pair, or a reader cannot act on it").toContain("10.5px alert under a 15px sibling");
   await expect(res).toExitWith(1);
@@ -879,7 +879,7 @@ test("an alert sentence set smaller than the endpoints it bounds is a caveat-out
 
 test("the shipped twin is silent — `prose` lifted the alert above the register it bounds", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "consent-post.html"), consentBlock("13px", "12px"));
-  const res = await runSnap(["--file", join(scratch, "consent-post.html"), "--fail-on", "P2", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "consent-post.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "caveat-outweighed"), "the alert now outweighs the endpoints — flagging it would indict the fix").toEqual([]);
   // The absence is only a verdict when the walk censused nodes at all.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
@@ -900,7 +900,7 @@ test("a quiet caption under the figure it explains is NOT an inversion — the r
   <p data-voice="gloss" style="font-size:10.5px">Counted from the last completed turn of every room you host.</p>
 </div></main></body></html>`,
   );
-  const res = await runSnap(["--file", join(scratch, "caption.html"), "--fail-on", "P2", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "caption.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(
     findingRows(res.stdout, "caveat-outweighed"),
     "a caption under a stat figure is what a caption is for — this shape fired 21x app-wide under the gloss anchor",
@@ -912,7 +912,7 @@ test("a quiet caption under the figure it explains is NOT an inversion — the r
 test("--upload refuses a path OUTSIDE the repo/scratchpad boundary — loudly, never a silent no-op", async ({ runSnap, scratch }) => {
   const file = join(scratch, "upload.html");
   await writeFile(file, UPLOAD_PAGE);
-  const res = await runSnap(["--file", join(scratch, "upload.html"), "--upload", "#wrap=/etc/hostname", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "upload.html"), "--upload", "#wrap=/etc/hostname", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("STEP FAILED");
   expect(res.stdout).toContain("boundary");
   // Exit 2, not 1, since #1081: a refused upload is an action that did not land, so the surface the walk
@@ -952,7 +952,7 @@ test("a page that fills after the ordinary wait is settled BEFORE the judged wal
   // 1500ms lands past the default 500ms operator wait — exactly like #976's real settings/theme reads.
   // The instrument's own evidence floor must include it before taking the one judged subject snapshot.
   await writeFile(join(scratch, "late-fill.html"), lateFillPage(1500));
-  const res = await runSnap(["--file", join(scratch, "late-fill.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "late-fill.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(0);
   const walked = Number(/dom-walk=(\d+)/u.exec(res.stdout)?.[1]);
@@ -965,7 +965,7 @@ test("the settled twin is a verdict — the refusal above is the plant, not a fe
   // The identical page filled inline instead of on a timer: same final DOM, same census, no growth after
   // the walk. If this refused too, the arm would have deleted the instrument rather than fixed it.
   await writeFile(join(scratch, "settled-fill.html"), lateFillPage(0));
-  const res = await runSnap(["--file", join(scratch, "settled-fill.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "settled-fill.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(0);
   // …and the RESULT line publishes the stability denominator that verdict rests on.
@@ -998,7 +998,7 @@ setInterval(() => {
 // hold together; this plant never does and must fail at the bounded ceiling instead of reporting clean.
 test("continuous same-count replacement is an INSTRUMENT ERROR, never count-stable evidence", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "same-count-replacement.html"), sameCountReplacementPage(true));
-  const res = await runSnap(["--file", join(scratch, "same-count-replacement.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "same-count-replacement.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("still moving at its ceiling");
   await expect(res).toExitWith(2);
@@ -1006,7 +1006,7 @@ test("continuous same-count replacement is an INSTRUMENT ERROR, never count-stab
 
 test("the non-replacing twin is a verdict — the revision fence does not refuse a stable equal count", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "same-count-stable.html"), sameCountReplacementPage(false));
-  const res = await runSnap(["--file", join(scratch, "same-count-stable.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "same-count-stable.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("dom-mutations=0");
   await expect(res).toExitWith(0);
@@ -1082,7 +1082,7 @@ test("custom light and dark requests prove catalog source, inline carrier, and e
       ["Custom Light", "light"],
       ["Custom Dark", "dark"],
     ] as const) {
-      const res = await runSnap(["/", "--base", server.base, "--theme", name, ...AUDIT]);
+      const res = await runSnap(["/", "--base", server.base, "--theme", name, ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
       expect(res.stdout).not.toContain("INSTRUMENT ERROR");
       expect(res.stdout).toContain("theme-source=custom");
       expect(res.stdout).toContain("theme-root=default");
@@ -1134,7 +1134,7 @@ test("a custom palette on a display:contents shell scope is the carrier, never a
   ] as const) {
     const server = await serveCustomThemeProof(contentsScopeMarkup(withDecoyTile));
     try {
-      const res = await runSnap(["/", "--base", server.base, "--theme", name, ...AUDIT]);
+      const res = await runSnap(["/", "--base", server.base, "--theme", name, ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
       expect(res.stdout).not.toContain("INSTRUMENT ERROR");
       expect(res.stdout, `${name}: a custom theme on the shell's contents scope must run, not refuse`).not.toContain("rendered provenance");
       expect(res.stdout).toContain("theme-source=custom");
@@ -1177,7 +1177,7 @@ function collapsedRowPage(clusterPx: number): string {
 
 test("a label collapsed to 0px is a truncated-to-nothing finding — the text is in the DOM and off the screen", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "collapsed.html"), collapsedRowPage(220));
-  const res = await runSnap(["--file", join(scratch, "collapsed.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "collapsed.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("truncated-to-nothing");
   expect(res.stdout, "the finding must carry the erased string, or a reader cannot tell WHAT vanished").toContain("Spire Trio");
   // THE BLIND SPOT, PINNED: text-overflow's block arm needs clientWidth > 0 and its inline arm needs a
@@ -1192,7 +1192,7 @@ auditRuleTest(
   "the same row with a narrow cluster keeps its label and mints nothing — the fence is the collapse, not the truncation",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "roomy.html"), collapsedRowPage(60));
-    const res = await runSnap(["--file", join(scratch, "roomy.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "roomy.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P1\s+truncated-to-nothing/mu);
     // The absence is only a verdict when the walk censused nodes at all.
     const census = CENSUS_RE.exec(res.stdout)?.[1];
@@ -1252,7 +1252,7 @@ auditRuleTest(
   "healthy quality candidates stay silent at their nearest legal boundaries",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "healthy-quality.html"), healthyQualityNeighboursPage());
-    const res = await runSnap(["--file", join(scratch, "healthy-quality.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "healthy-quality.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     for (const rule of ["broken-image", "repeated-container-text", "clipped-overflow", "edge-flush-cards"]) {
       expect(findingRows(res.stdout, rule), `${rule} must stay silent on its real healthy candidate`).toEqual([]);
     }
@@ -1271,7 +1271,7 @@ auditRuleTest(
   "a silent walker-proven rule reads judged or no-candidate from its own row",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "walker-proven-rows.html"), page("color:#111;background:#fff"));
-    const res = await runSnap(["--file", join(scratch, "walker-proven-rows.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "walker-proven-rows.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = await readAuditReport(res.stdout);
     expect(report.populationAccounting?.["gradient-text"]).toMatchObject({ affected: 0, withheld: {} });
     return report;
@@ -1306,7 +1306,7 @@ auditRuleTest(
   "quality candidates past their own defect thresholds fire",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "defective-quality.html"), defectiveQualityNeighboursPage());
-    const res = await runSnap(["--file", join(scratch, "defective-quality.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "defective-quality.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "broken-image")).toHaveLength(1);
     expect(findingRows(res.stdout, "repeated-container-text")).toHaveLength(1);
     expect(findingRows(res.stdout, "edge-flush-cards")).toHaveLength(1);
@@ -1321,7 +1321,7 @@ auditRuleTest(
   async ({ runSnap, scratch }) => {
     const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main><button tabindex="1">Positive</button></main></body></html>`;
     await writeFile(join(scratch, "tabindex-positive.html"), body);
-    const res = await runSnap(["--file", join(scratch, "tabindex-positive.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "tabindex-positive.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "tabindex-positive")).toHaveLength(1);
   },
 );
@@ -1332,7 +1332,7 @@ auditRuleTest(
   async ({ runSnap, scratch }) => {
     const body = `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body><main><button tabindex="0">Zero</button></main></body></html>`;
     await writeFile(join(scratch, "tabindex-zero.html"), body);
-    const res = await runSnap(["--file", join(scratch, "tabindex-zero.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "tabindex-zero.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "tabindex-positive")).toHaveLength(0);
     return readAuditReport(res.stdout);
   },
@@ -1346,7 +1346,7 @@ auditRuleTest(
       <p style="text-align:justify;width:300px">This paragraph is long enough to wrap across several lines so the justified alignment can visibly create rivers of white space between words.</p>
     </main></body></html>`;
     await writeFile(join(scratch, "justified-fires.html"), body);
-    const res = await runSnap(["--file", join(scratch, "justified-fires.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "justified-fires.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "justified-text")).toHaveLength(1);
   },
 );
@@ -1366,7 +1366,7 @@ auditRuleTest(
       <p style="text-align:justify;hyphens:auto;width:300px">This paragraph is long enough to wrap across several lines so the justified alignment with hyphenation avoids rivers of white space between words.</p>
     </main></body></html>`;
     await writeFile(join(scratch, "justified-silent.html"), body);
-    const res = await runSnap(["--file", join(scratch, "justified-silent.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "justified-silent.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "justified-text")).toHaveLength(0);
     return readAuditReport(res.stdout);
   },
@@ -1380,7 +1380,7 @@ auditRuleTest(
       <p style="text-transform:uppercase">This sentence has more than thirty characters and is not a heading element.</p>
     </main></body></html>`;
     await writeFile(join(scratch, "all-caps-fires.html"), body);
-    const res = await runSnap(["--file", join(scratch, "all-caps-fires.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "all-caps-fires.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "all-caps-body")).toHaveLength(1);
   },
 );
@@ -1400,7 +1400,7 @@ auditRuleTest(
       <p style="text-transform:uppercase">Short caps label</p>
     </main></body></html>`;
     await writeFile(join(scratch, "all-caps-silent.html"), body);
-    const res = await runSnap(["--file", join(scratch, "all-caps-silent.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "all-caps-silent.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "all-caps-body")).toHaveLength(0);
     return readAuditReport(res.stdout);
   },
@@ -1408,7 +1408,7 @@ auditRuleTest(
 
 test("a clipped label with NO ellipsis and no full-value affordance is still a text-overflow finding", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "bare-clip.html"), truncatedLabelPage("none"));
-  const res = await runSnap(["--file", join(scratch, "bare-clip.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "bare-clip.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "text-overflow").length).toBeGreaterThan(0);
   expect(res.stdout, "the finding must carry the measured spill, or it cannot be acted on").toMatch(/(?<!\d)\d+px spill/u);
   await expect(res).toExitWith(1);
@@ -1419,7 +1419,7 @@ auditRuleTest(
   "the SAME label truncated with an ellipsis mints nothing — the shipped idiom is not a defect",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "ellipsis.html"), truncatedLabelPage("ellipsis"));
-    const res = await runSnap(["--file", join(scratch, "ellipsis.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "ellipsis.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "text-overflow"), "text-overflow:ellipsis is the affordance the rule's own message asks for").toEqual([]);
     expect(res.stdout).toContain("p1=0");
     // ZERO HYGIENE (#409): the silence is only a verdict when the walk censused nodes at all.
@@ -1430,7 +1430,7 @@ auditRuleTest(
 
 test("a bare clip carrying the full value in a title mints nothing either — the value is one hover away", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "titled.html"), truncatedLabelPage("title"));
-  const res = await runSnap(["--file", join(scratch, "titled.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "titled.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "text-overflow")).toEqual([]);
   expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
 });
@@ -1448,7 +1448,7 @@ function overlapRowPage(buttonLeftPx: number): string {
 
 test("a badge whose own centre hit-tests to the button on top of it is an obscured-target finding", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "collide.html"), overlapRowPage(70));
-  const res = await runSnap(["--file", join(scratch, "collide.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "collide.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("obscured-target");
   expect(res.stdout, "the finding must name what the press ACTUALLY lands on").toContain("button");
   expect(res.stdout, "and the size of the collision, or it cannot be acted on").toMatch(/(?<!\d)\d+px overlap/u);
@@ -1460,7 +1460,7 @@ auditRuleTest(
   "the same pair side by side mints nothing — the rule is the hit test, not the row",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "beside.html"), overlapRowPage(160));
-    const res = await runSnap(["--file", join(scratch, "beside.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "beside.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P[01]\s+obscured-target/mu);
     const census = CENSUS_RE.exec(res.stdout)?.[1];
     expect(Number(census)).toBeGreaterThan(0);
@@ -1482,7 +1482,7 @@ test("a modal covering the page is NOT an obscured-target — deliberate stackin
   <div role="dialog" style="position:fixed;inset:0;background:#111"><p style="font-size:16px;padding:24px">the dialog on top</p></div>
 </main></body></html>`,
   );
-  const res = await runSnap(["--file", join(scratch, "overlay.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "overlay.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout, "every covered node would be a finding if geometry decided this").not.toMatch(/^P[01]\s+obscured-target/mu);
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
@@ -1513,7 +1513,7 @@ auditRuleTest(
   "same-slot siblings that disagree on height are ONE finding carrying the population, not one per short row",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "diverge.html"), cohortListPage(16));
-    const res = await runSnap(["--file", join(scratch, "diverge.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "diverge.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toMatch(/^P2\s+cohort-anatomy/mu);
     // The population IS the finding: a bare min/max cannot say which side is the defect, and an
     // operator fixing "16px" needs to know 3 rows are wrong and 4 are right.
@@ -1536,7 +1536,7 @@ auditRuleTest(
   "a uniform cohort mints nothing — and the silence is a judged zero, not a blind one",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "uniform.html"), cohortListPage(32));
-    const res = await runSnap(["--file", join(scratch, "uniform.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "uniform.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
     expect(res.stdout, "the uniform cohort itself must have reached the detector").toContain(
       "POPULATION   cohort-anatomy candidates=1 judged=1 affected=0 populations=0 representatives=0",
@@ -1559,7 +1559,7 @@ auditRuleTest(
   "a spread inside the ratio band is ordinary variation and mints nothing",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "narrow.html"), cohortListPage(24));
-    const res = await runSnap(["--file", join(scratch, "narrow.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "narrow.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
     return readAuditReport(res.stdout);
   },
@@ -1585,7 +1585,7 @@ auditRuleTest(
   "a label and its control at opposite ends of a wide row is a row-void naming the label",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "void.html"), voidRowPage(1000, "between"));
-    const res = await runSnap(["--file", join(scratch, "void.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "void.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toMatch(/^P2\s+row-void/mu);
     // The LABEL is what makes the finding actionable — an operator does not fix "a row", they fix the
     // "Avatar shape" row. A selector path alone would not identify it in a pane of forty.
@@ -1608,7 +1608,7 @@ auditRuleTest(
   "the same pair sitting adjacent mints nothing — the rule is the ocean, not the row",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "bound.html"), voidRowPage(1000, "gap"));
-    const res = await runSnap(["--file", join(scratch, "bound.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "bound.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+row-void/mu);
     expect(res.stdout, "the adjacent bound row itself must have reached the detector").toContain(
       "POPULATION   row-void candidates=1 judged=1 affected=0 populations=0 representatives=0",
@@ -1629,7 +1629,7 @@ auditRuleTest(
   "a narrow row with the same proportional spread mints nothing — a gap is only an ocean at scale",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "tight-row.html"), voidRowPage(260, "between"));
-    const res = await runSnap(["--file", join(scratch, "tight-row.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "tight-row.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+row-void/mu);
     return readAuditReport(res.stdout);
   },
@@ -1666,7 +1666,7 @@ auditRuleTest(
   "three vocabularies for one selection state is a finding naming the MECHANISMS, not the colours",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "idioms.html"), selectionPage([RING, FILL, RAIL]));
-    const res = await runSnap(["--file", join(scratch, "idioms.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "idioms.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toContain("selection-idiom");
     // The signature is the MECHANISM. Two regions using one accent through different channels are still
     // two vocabularies, and a reader learns channels — so the value must name them and their populations.
@@ -1686,7 +1686,7 @@ auditRuleTest(
   "one vocabulary repeated across the same population mints nothing",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "one-idiom.html"), selectionPage([RING, RING, RING, RING]));
-    const res = await runSnap(["--file", join(scratch, "one-idiom.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "one-idiom.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+selection-idiom/mu);
     // ONE cohort, not four (#1059): the four regions are four instances of the same authored component in
     // the same authored home, and the cohort key is `claim + home + state` now rather than the raw parent
@@ -1714,7 +1714,7 @@ auditRuleTest(
   "two vocabularies is the recommended end state and mints nothing",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "two-idioms.html"), selectionPage([RING, RING, RAIL, RAIL]));
-    const res = await runSnap(["--file", join(scratch, "two-idioms.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "two-idioms.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+selection-idiom/mu);
     return readAuditReport(res.stdout);
   },
@@ -1739,7 +1739,7 @@ auditRuleTest(
   "a region whose authored paint ends near its top is a pane-ink finding",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "thin.html"), inkPage(40));
-    const res = await runSnap(["--file", join(scratch, "thin.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "thin.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toMatch(/^P3\s+pane-ink/mu);
     // MEASURED ON AUTHORED PAINT, never the tallest descendant: a full-height transparent container spans
     // the region, so a max-descendant measure reports 100% ink on an empty pane.
@@ -1759,7 +1759,7 @@ auditRuleTest(
   "the same region filled to its height mints nothing",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "full.html"), inkPage(820));
-    const res = await runSnap(["--file", join(scratch, "full.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "full.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P3\s+pane-ink/mu);
     expect(res.stdout, "the filled pane itself must have reached the detector").toContain(
       "POPULATION   pane-ink candidates=1 judged=1 affected=0 populations=0 representatives=0",
@@ -1782,7 +1782,7 @@ auditRuleTest(
   "an OFF state louder than its ON state is a quiet-state finding — an ORDERING, not a threshold",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "loud-off.html"), switchWeightPage("#f5f5f5", "#7a4a12"));
-    const res = await runSnap(["--file", join(scratch, "loud-off.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "loud-off.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toContain("quiet-state");
     // Neither number is a violation on its own — the finding must show the RANK, which is the defect.
     expect(res.stdout, "the value must show both sides so the inversion is legible").toMatch(/OFF [\d.]+:1 vs ON [\d.]+:1/u);
@@ -1801,7 +1801,7 @@ auditRuleTest(
   "a muted OFF beneath an accent ON mints nothing",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "quiet-off.html"), switchWeightPage("#2a2a2a", "#f0a020"));
-    const res = await runSnap(["--file", join(scratch, "quiet-off.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "quiet-off.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+quiet-state/mu);
     return readAuditReport(res.stdout);
   },
@@ -1825,7 +1825,7 @@ auditRuleTest(
   "two simultaneous empty states are one finding — the Extensions 'pick one on the left' with nothing on the left",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "two-empty.html"), emptyStatePage(2, true));
-    const res = await runSnap(["--file", join(scratch, "two-empty.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "two-empty.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toContain("double-empty-state");
     expect(res.stdout, "the value must count the rendered states and the actionless ones").toContain("2 empty state(s) rendered at once");
   },
@@ -1836,7 +1836,7 @@ auditRuleTest(
   "one empty state with no action is still a finding — an empty pane owes a door out",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "dead-end.html"), emptyStatePage(1, false));
-    const res = await runSnap(["--file", join(scratch, "dead-end.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "dead-end.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toContain("double-empty-state");
     expect(res.stdout, "the actionless count is what distinguishes this arm").toContain("1 with no action");
   },
@@ -1854,7 +1854,7 @@ auditRuleTest(
   "a single empty state with its action mints nothing",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "one-empty.html"), emptyStatePage(1, true));
-    const res = await runSnap(["--file", join(scratch, "one-empty.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "one-empty.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+double-empty-state/mu);
     expect(res.stdout, "the actionable empty surface itself must have reached the detector").toContain(
       "POPULATION   double-empty-state candidates=1 judged=1 affected=0 populations=0 representatives=0",
@@ -1888,7 +1888,7 @@ auditRuleTest(
   "quiet-state reads OKLCH, not just the rgb() spelling a hex fixture normalizes to",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "oklch-loud-off.html"), oklchSwitchPage("oklch(0.99 0.005 60)", "oklch(0.55 0.14 60)"));
-    const res = await runSnap(["--file", join(scratch, "oklch-loud-off.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "oklch-loud-off.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).toContain("quiet-state");
     // A number-regex over "oklch(0.99 0.005 60)" yields 0.99/0.005/60 read as sRGB channels — a near-black
     // luminance for a near-white colour. If this ever reports an inverted or absent ratio, the parser
@@ -1911,7 +1911,7 @@ auditRuleTest(
     // Raw, this near-white fill would outshout the accent and fire. Composited at 12% over the dark page
     // it is a muted track — which is what the user actually sees, and the correct verdict.
     await writeFile(join(scratch, "oklch-alpha-off.html"), oklchSwitchPage("oklch(0.99 0.005 60 / 0.12)", "oklch(0.55 0.14 60)"));
-    const res = await runSnap(["--file", join(scratch, "oklch-alpha-off.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "oklch-alpha-off.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+quiet-state/mu);
     return readAuditReport(res.stdout);
   },
@@ -1943,7 +1943,7 @@ auditRuleTest(
   "a row sized by its own content mints nothing — the theme-picker false positive, pinned",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "content-driven.html"), contentDrivenRowPage(200));
-    const res = await runSnap(["--file", join(scratch, "content-driven.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "content-driven.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
     expect(res.stdout, "the content-driven cohort itself must have reached the detector").toContain(
       "POPULATION   cohort-anatomy candidates=1 judged=1 affected=0 populations=0 representatives=0",
@@ -1980,7 +1980,7 @@ auditRuleTest(
   "a declared field boundary below WCAG 1.4.11's 3:1 REDs, and the clearing twin is silent over a judged population",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "border-fields.html"), BORDER_FIELDS);
-    const res = await runSnap(["--file", join(scratch, "border-fields.html"), "--fail-on", "P2", ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "border-fields.html"), "--fail-on", "P2", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const rows = findingRows(res.stdout, "border-contrast");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toContain("#quiet");
@@ -2004,7 +2004,7 @@ auditRuleTest(
   "a borderless control is excluded by name, never a silent pass",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "borderless.html"), BORDERLESS_FIELD);
-    const res = await runSnap(["--file", join(scratch, "borderless.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "borderless.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(res.stdout, "border-contrast")).toEqual([]);
     expect(res.stdout).toMatch(/POPULATION\s+border-contrast candidates=1 judged=0 .*excluded\(noDeclaredBorder=1\)/u);
     return readAuditReport(res.stdout);
@@ -2069,7 +2069,7 @@ test.for([
   // An origin, not a file: the nav flags drive the app's bridge, which a static file refuses.
   const host = await serveOnce(hoverPage(".nav-links a:hover { color: #d2d2d2; background: #ffffff }", NAV_BRIDGE_STUB));
   try {
-    const res = await runSnap(["/", "--base", host.base, ...argv, ...AUDIT]);
+    const res = await runSnap(["/", "--base", host.base, ...argv, ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
     expect(res.stdout).not.toContain("INSTRUMENT ERROR");
@@ -2088,7 +2088,7 @@ auditRuleTest(
     // White on #101010 at rest (19:1). Under `.nav-links a:hover` the broader selector wins and the pair
     // becomes #d2d2d2 on white — 1.5:1, and invisible to every rest-state rule in this instrument.
     await writeFile(join(scratch, "hover-fires.html"), hoverPage(".nav-links a:hover { color: #d2d2d2; background: #ffffff }"));
-    const res = await runSnap(["--file", join(scratch, "hover-fires.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "hover-fires.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
     const hover = report.findings.filter(({ rule }) => rule === "hover-contrast");
@@ -2122,7 +2122,7 @@ auditRuleTest(
   "the hover twin exits clean, and the untouched paragraph is EXCLUDED rather than counted as a pass",
   async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "hover-passes.html"), hoverPage(".nav-links a:hover { color: #101010; background: #ffffff }"));
-    const res = await runSnap(["--file", join(scratch, "hover-passes.html"), ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "hover-passes.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
     const row = report.populationAccounting?.["hover-contrast"];
 
@@ -2156,7 +2156,7 @@ test("every forced :hover is RELEASED — the rest verdict is identical with the
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav>
 <p class="dim">this line is unreadable at rest and stays that way</p></main></body></html>`,
   );
-  const res = await runSnap(["--file", join(scratch, "hover-release.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "hover-release.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
   // The rest-state defect is reported ONCE, by `contrast`, exactly as it was before this rule existed.
@@ -2175,7 +2175,7 @@ test("a coarse-pointer run REFUSES the hover question instead of reporting a cle
   // hover state to judge. The pass says so by name and publishes NO accounting row — an `affected=0` row
   // here would read as "117 controls checked, all fine" on a device that cannot hover.
   await writeFile(join(scratch, "hover-coarse.html"), hoverPage(".nav-links a:hover { color: #d2d2d2; background: #ffffff }"));
-  const res = await runSnap(["--file", join(scratch, "hover-coarse.html"), "--mobile", ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "hover-coarse.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
   expect(hoverRow(res.stdout, "pass")).toBe("no-hover-media");
@@ -2202,7 +2202,7 @@ test("a control whose color transition covers the forced read is a NAMED exclusi
 </style></head>
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
   );
-  const res = await runSnap(["--file", join(scratch, "hover-transitioned.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "hover-transitioned.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
@@ -2240,7 +2240,7 @@ test("a candidate whose rest state does NOT read back is WITHHELD, never publish
 </style></head>
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
   );
-  const res = await runSnap(["--file", join(scratch, "hover-stuck.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "hover-stuck.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
@@ -2295,7 +2295,7 @@ test("an UNREADABLE stylesheet makes noHoverPaint a WITHHELD count, not an exclu
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav>
 <p style="padding:12px">a paragraph whose hover paint we now cannot rule out</p></main></body></html>`);
   try {
-    const res = await runSnap(["/", "--base", host.base, "--out", "hover-unreadable", ...AUDIT]);
+    const res = await runSnap(["/", "--base", host.base, "--out", "hover-unreadable", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
 
     expect(hoverRow(res.stdout, "sheets-unreadable")).toBe("1");
     // NO VERDICT, by name — the run states which bucket it cannot vouch for.
@@ -2330,7 +2330,7 @@ test("a forced-state pass that BREAKS is a NO VERDICT run, not a green one with 
 </head>
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
   );
-  const res = await runSnap(["--file", join(scratch, "hover-broke.html"), ...AUDIT]);
+  const res = await runSnap(["--file", join(scratch, "hover-broke.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
   expect(hoverRow(res.stdout, "pass")).toBe("BROKE");
@@ -2376,7 +2376,7 @@ auditRuleTest(
       join(scratch, "hint-fires.html"),
       tooltipTriggerPage('<button type="button" aria-label="Send message" data-base-ui-tooltip-trigger data-tooltip-describes="caller"></button>'),
     );
-    const res = await runSnap(["--file", join(scratch, "hint-fires.html"), "--mobile", ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "hint-fires.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
 
     // The ROW, not the exit code: this rule is P2 and the audit's failure threshold is P1, so a run
     // carrying exactly this finding still exits 0 — asserting the exit would be asserting the threshold.
@@ -2403,7 +2403,7 @@ auditRuleTest(
           '<span class="sr" id="hint-copy" role="tooltip">Local engine is off — enable it to send.</span>',
       ),
     );
-    const res = await runSnap(["--file", join(scratch, "hint-silent.html"), "--mobile", ...AUDIT]);
+    const res = await runSnap(["--file", join(scratch, "hint-silent.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
 
     expect(findingRows(res.stdout, "unreachable-hint")).toEqual([]);
     // Not a silent zero: the population is PRINTED with the reason it was judged inapplicable.
@@ -2435,7 +2435,7 @@ auditRuleTest(
           '<span class="sr" id="desc-one">Local engine is off.</span><span class="sr" id="tooltip-two">Enable it to send.</span>',
       ),
     );
-    const multi = await runSnap(["--file", join(scratch, "hint-multi-id.html"), "--mobile", ...AUDIT]);
+    const multi = await runSnap(["--file", join(scratch, "hint-multi-id.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(multi.stdout, "unreachable-hint")).toEqual([]);
     expect(multi.stdout).toContain("hasReachableDescription");
 
@@ -2445,7 +2445,7 @@ auditRuleTest(
         '<button type="button" aria-label="Send message" aria-describedby="no-such-node" data-base-ui-tooltip-trigger data-tooltip-describes="self"></button>',
       ),
     );
-    const dangling = await runSnap(["--file", join(scratch, "hint-dangling-id.html"), "--mobile", ...AUDIT]);
+    const dangling = await runSnap(["--file", join(scratch, "hint-dangling-id.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     expect(findingRows(dangling.stdout, "unreachable-hint")).toHaveLength(1);
     return readAuditReport(multi.stdout);
   },
@@ -2463,7 +2463,7 @@ test("a name-repeating tooltip is excluded, and a FINE pointer excludes the popu
   // cannot silently regress: naming the pointer must cost the run nothing.
   const trigger = '<button type="button" aria-label="Notifications" data-base-ui-tooltip-trigger data-tooltip-describes="name"></button>';
   await writeFile(join(scratch, "hint-name.html"), tooltipTriggerPage(trigger));
-  const named = await runSnap(["--file", join(scratch, "hint-name.html"), "--mobile", ...AUDIT]);
+  const named = await runSnap(["--file", join(scratch, "hint-name.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(named.stdout, "unreachable-hint")).toEqual([]);
   expect(named.stdout).toContain("tooltipRepeatsName");
 
@@ -2471,14 +2471,14 @@ test("a name-repeating tooltip is excluded, and a FINE pointer excludes the popu
     join(scratch, "hint-fine.html"),
     tooltipTriggerPage('<button type="button" aria-label="Send message" data-base-ui-tooltip-trigger data-tooltip-describes="caller"></button>'),
   );
-  const fine = await runSnap(["--file", join(scratch, "hint-fine.html"), ...AUDIT]);
+  const fine = await runSnap(["--file", join(scratch, "hint-fine.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(fine.stdout, "unreachable-hint"), "the SAME page that fires at coarse must not fire at fine").toEqual([]);
   expect(fine.stdout).toContain("excluded(finePointer=1)");
   expect(fine.stdout, "naming the pointer is a CLOSED negative — it must not cost the run its verdict").toContain("population-verdict=complete");
   expect(fine.stdout).not.toContain("withheld(finePointer");
 });
 
-test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never counted as clean", async ({ runSnap, scratch }) => {
+test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never counted as clean", async ({ runCli, runSnap, scratch }) => {
   // A raw Base UI trigger publishes no decision, so this instrument cannot tell "the tooltip repeats the
   // name" from "its words are unreachable" — that is missing evidence (#987 polarity), and a run carrying
   // it is NO VERDICT for this rule rather than a pass.
@@ -2486,7 +2486,8 @@ test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never coun
     join(scratch, "hint-bare.html"),
     tooltipTriggerPage('<button type="button" aria-label="Send message" data-base-ui-tooltip-trigger></button>'),
   );
-  const res = await runSnap(["--file", join(scratch, "hint-bare.html"), "--mobile", ...AUDIT]);
+  // The parity case again, after the file's other runs have used the shared browser.
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "hint-bare.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
 
   expect(findingRows(res.stdout, "unreachable-hint")).toEqual([]);
   expectPopulation(await readAuditReport(res.stdout), "unreachable-hint", { kind: "withheld", reason: "noDescriptionWiring" });

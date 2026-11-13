@@ -9,7 +9,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
 
@@ -31,7 +31,7 @@ interface AuditFixture {
 
 async function auditFixture({ scratch, runSnap, name, body, viewport = "1000x600" }: AuditFixture): Promise<AuditRun> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const result = await runSnap(["--file", join(scratch, `${name}.html`), "--viewport", viewport, ...AUDIT_ARGV]);
+  const result = await runSnap(["--file", join(scratch, `${name}.html`), "--viewport", viewport, ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return { report: await readAuditReport(result.stdout), code: result.code };
 }
 
@@ -58,7 +58,7 @@ auditRuleTest(
     // centre 280 is left of the card's 400..800 range, and the 60px intersection is well under half the
     // line's 360px width — the bulk is outside, only the edge is in.
     // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
-    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
     const { report } = await auditFixture({ scratch, runSnap: parity, name: "overhang-defect", body: `${CARD}${hero(100)}` });
     const findings = report.findings.filter(({ rule }) => rule === "headline-overhang");
     expect(findings).toHaveLength(1);
@@ -223,13 +223,15 @@ auditRuleTest(
     },
   ],
   "an inline leak clipped away by its container is withheld, never judged clean",
-  async ({ runSnap, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     // The paragraph is pushed 100px down inside an 8px-tall clipper, so the span's line fragment lands
     // entirely below the clip line and paints nothing. Note the near miss this fixture had to be built
     // around: a clipper that merely SHORTENS the fragment leaves real painted pixels, and that is judged
     // (and passes) rather than withheld — withholding is for a subject the walk could not measure at all.
     const clipped = `<div style="width:600px;height:8px;overflow:hidden"><div style="position:relative;top:100px">${inlineFill(20, 20, "Marker", "clipped-marker")}</div></div>`;
-    const { report, code } = await auditFixture({ scratch, runSnap, name: "leak-clipped", body: clipped });
+    // The parity case again, after the file's other runs have used the shared browser.
+    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+    const { report, code } = await auditFixture({ scratch, runSnap: parity, name: "leak-clipped", body: clipped });
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 0, withheld: { "clipped-away": 1 } });
     expect(code).toBe(2);

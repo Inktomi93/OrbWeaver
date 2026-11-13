@@ -9,8 +9,8 @@
 //   runCli       — spawn tooling/src/<tool>/cli.ts via floor/process/proc.spawnNiced (the tooling process's
 //                  lowered priority, the owner rule); returns { code, stdout, stderr } for `toExitWith`. Tests name TOOLS, not
 //                  paths — a tool move never sweeps test literals again.
-//   runSnap      — one snap invocation in-process through `runSnapCommand`, the door cli.ts runs, in a fresh context of
-//                  the file's one Chromium (`contextsIn`). The Chromium and the snap graph load on the file's first
+//   runSnap      — one snap invocation in-process through the snap host (`openSnapHost`, the door cli.ts runs), in a
+//                  fresh context of the file's one Chromium. The Chromium and the snap graph load on the file's first
 //                  run, so that case's budget carries them once; importing snap here would bill every tooling file.
 //                  A case whose subject is the process (exit wiring, argv misuse, an env knob read at import, a
 //                  launch-time browser option) keeps `runCli`; `expectSnapParity` holds the two doors to one output.
@@ -29,6 +29,7 @@ import process from "node:process";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import { exportProcessEnv, processEnvValue, withProcessEnv } from "@orb/tooling/floor/process/process-env";
+import type { SnapHost } from "@orb/tooling/snap";
 import { nonEmpty } from "../iso/non-empty.ts";
 import { expect, test as houseTest } from "./fixtures.ts";
 import type { AuditRuleProof, FiresAuditRuleProof, RelationalPopulationReport } from "./ui-audit-relational.ts";
@@ -48,59 +49,47 @@ export interface RunCliOpts {
   readonly timeoutMs?: number;
 }
 
+/** A bounded in-process snap run: the deadline its spawned-CLI twin had as `timeoutMs`. */
+export interface SnapRunOpts {
+  readonly timeoutMs: number;
+}
+
 export interface ToolFixtures {
   repoRoot: string;
   scratch: string;
   runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  /** One snap invocation in this process, through the CLI's own door (`runSnapCommand`), in an isolated context of
-   *  the test file's one shared Chromium; its `print`/`warn` lines are the result's stdout/stderr. */
-  runSnap: (args: readonly string[]) => Promise<CliResult>;
+  /** One snap invocation in this process, through the snap host the CLI also runs through, in an isolated context of
+   *  the test file's one shared Chromium; its `print`/`warn` lines are the result's stdout/stderr. Past `timeoutMs` the
+   *  host ends the run and the result is `timedOut`, as a spawned CLI's would be. */
+  runSnap: (args: readonly string[], opts: SnapRunOpts) => Promise<CliResult>;
   fakeBin: (name: string, moduleSource: string) => Promise<void>;
   plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>;
 }
 
-/** The file-scoped half of `runSnap`: the shared Chromium launches on the first run and closes at the file's end. */
-interface SnapHost {
-  readonly run: (args: readonly string[]) => Promise<CliResult>;
+/** The file-scoped half of `runSnap`: one snap host whose Chromium launches on the file's first run. */
+interface FileSnapHost {
+  readonly run: (args: readonly string[], opts: SnapRunOpts) => Promise<CliResult>;
   readonly close: () => Promise<void>;
 }
 
-// Loaded on first use, never at import: every tooling test imports this module, and most never drive snap.
-async function openSnapHost(): Promise<SnapHost> {
-  const snap = await import("@orb/tooling/snap");
-  const { installOutputSink } = await import("@orb/tooling/floor/cli/log");
-  const { closeProbeSession } = await import("@orb/tooling/floor/browser/browser");
-  const owner = await snap.launchSnapSession(snap.parseSnapArgs(["--no-failure-evidence"]));
-  const browser = snap.contextsIn(owner);
+// The snap graph loads on first use, never at import: every tooling test imports this module, and most never drive snap.
+function lazySnapHost(): FileSnapHost {
+  let host: Promise<SnapHost> | null = null;
   return {
-    run: async (args): Promise<CliResult> => {
+    run: async (args, opts): Promise<CliResult> => {
+      host ??= import("@orb/tooling/snap").then((snap) => snap.openSnapHost("context-per-run"));
       const stdout: string[] = [];
       const stderr: string[] = [];
-      const release = installOutputSink({ line: (text) => stdout.push(`${text}\n`), warn: (text) => stderr.push(`${text}\n`) });
-      let code: number;
-      try {
-        code = await snap.runSnapCommand(args, browser);
-      } finally {
-        release();
-      }
-      return { code, stdout: stdout.join(""), stderr: stderr.join(""), timedOut: false };
+      const outcome = await (await host).run(args, {
+        deadlineMs: opts.timeoutMs,
+        sink: { line: (text) => stdout.push(`${text}\n`), warn: (text) => stderr.push(`${text}\n`) },
+      });
+      const ended = outcome.kind === "exited" ? { code: outcome.code, timedOut: false } : { code: null, timedOut: true };
+      return { ...ended, stdout: stdout.join(""), stderr: stderr.join("") };
     },
     close: async (): Promise<void> => {
-      await closeProbeSession(owner);
-    },
-  };
-}
-
-function lazySnapHost(): SnapHost {
-  let opened: Promise<SnapHost> | null = null;
-  return {
-    run: async (args): Promise<CliResult> => {
-      opened ??= openSnapHost();
-      return await (await opened).run(args);
-    },
-    close: async (): Promise<void> => {
-      if (opened !== null) {
-        await (await opened).close();
+      if (host !== null) {
+        await (await host)[Symbol.asyncDispose]();
       }
     },
   };
@@ -253,7 +242,7 @@ export function removePlanted(root: string, rel: string): void {
   rmSync(ownedTarget(root, rel), { recursive: true });
 }
 
-export const test = houseTest.extend<ToolFixtures & { snapHost: SnapHost }>({
+export const test = houseTest.extend<ToolFixtures & { snapHost: FileSnapHost }>({
   snapHost: [
     async ({}, use): Promise<void> => {
       const host = lazySnapHost();
@@ -351,6 +340,8 @@ const SCRATCH_RE = new RegExp(`${RegExp.escape(tmpdir())}[\\\\/][A-Za-z0-9._-]*o
 const ISO_TS_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})/gu;
 const PID_RE = /\bpid=\d+/gu;
 const RESULT_MS_RE = /\b(\d+)ms\b/gu;
+// A RESULT pair named `<key>-ms` carries milliseconds; a RESULT line spells its wall-clock fields both ways.
+const RESULT_MS_PAIR_RE = /\b([a-z0-9-]+-ms)=\d+\b/gu;
 
 /** A string carrying a non-deterministic atom (or a RESULT line, whose ms fields are wall clock). */
 function needsNormalizing(v: string): boolean {
@@ -358,37 +349,55 @@ function needsNormalizing(v: string): boolean {
   SCRATCH_RE.lastIndex = 0;
   ISO_TS_RE.lastIndex = 0;
   PID_RE.lastIndex = 0;
-  return ROOT_RE.test(v) || SCRATCH_RE.test(v) || ISO_TS_RE.test(v) || PID_RE.test(v) || (v.includes("RESULT ") && RESULT_MS_RE.test(v));
+  RESULT_MS_RE.lastIndex = 0;
+  RESULT_MS_PAIR_RE.lastIndex = 0;
+  return (
+    ROOT_RE.test(v) ||
+    SCRATCH_RE.test(v) ||
+    ISO_TS_RE.test(v) ||
+    PID_RE.test(v) ||
+    (v.includes("RESULT ") && (RESULT_MS_RE.test(v) || RESULT_MS_PAIR_RE.test(v)))
+  );
 }
 
 function normalize(v: string): string {
   let out = v.replaceAll(ROOT_RE, "<root>").replaceAll(SCRATCH_RE, "<scratch>").replaceAll(ISO_TS_RE, "<ts>").replaceAll(PID_RE, "pid=<pid>");
   if (out.includes("RESULT ")) {
-    out = out.replaceAll(RESULT_MS_RE, "<ms>ms");
+    out = out.replaceAll(RESULT_MS_RE, "<ms>ms").replaceAll(RESULT_MS_PAIR_RE, "$1=<ms>");
   }
   return out;
 }
 
-// What differs between two runs of one argv on either door: the run slot's `<checkout>-<pid>-<stamp>` id and
-// wall-clock timings. The box load would too (its readings, the rate posture hashed from them, and the load-suspect
-// label crossing the threshold between two runs), so both runs read one planted box instead.
+// What differs between two runs of one argv on either door: the run slot's `<checkout>-<pid>-<stamp>` id, what
+// `normalize` masks on a line (so a RESULT line's wall-clock fields, never a ms figure on another line), and the stack
+// frames under a thrown run's TOOL ERROR line, which name the door that called. The box load would differ too, so
+// both runs read one planted box instead.
 const RUN_SLOT_RE = /-\d+-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\b/gu;
-const ANY_MS_RE = /\b\d+(?:\.\d+)?ms\b/gu;
-const MS_FIELD_RE = /\b([a-z-]+-ms)=\d+/gu;
+const STACK_FRAME_RE = /^ {4}at /u;
 const PARITY_BOX_LOAD = "0.2/24";
 
-function parityText(text: string): string {
-  return normalize(text).replaceAll(RUN_SLOT_RE, "-<run>").replaceAll(ANY_MS_RE, "<ms>ms").replaceAll(MS_FIELD_RE, "$1=<ms>");
+function parityLines(text: string): readonly string[] {
+  return text
+    .split("\n")
+    .filter((line) => !STACK_FRAME_RE.test(line))
+    .map((line) => normalize(line).replaceAll(RUN_SLOT_RE, "-<run>"));
 }
 
 /** Run one argv through the spawned snap CLI and through `runSnap` on one planted box load, require the same exit
- *  code and the same stdout once run identity and wall-clock timings are masked, and return the in-process result. */
-export async function expectSnapParity(fixtures: Pick<ToolFixtures, "runCli" | "runSnap">, args: readonly string[]): Promise<CliResult> {
-  const spawned = await fixtures.runCli("snap", args, { env: { [BOX_LOAD_ENV]: PARITY_BOX_LOAD } });
+ *  code, stdout and stderr once run identity and timings are masked, and return the in-process result. A knob in
+ *  `spawnedEnv` reaches the spawned CLI; the caller plants the same knob in this process for the in-process run. */
+export async function expectSnapParity(
+  fixtures: Pick<ToolFixtures, "runCli" | "runSnap">,
+  args: readonly string[],
+  opts: SnapRunOpts,
+  spawnedEnv: Readonly<Record<string, string>> = {},
+): Promise<CliResult> {
+  const spawned = await fixtures.runCli("snap", args, { env: { ...spawnedEnv, [BOX_LOAD_ENV]: PARITY_BOX_LOAD }, timeoutMs: opts.timeoutMs });
   // The in-process run reads the knob live from this process's env, so it is planted for exactly this call.
-  const inProcess = await withProcessEnv(BOX_LOAD_ENV, PARITY_BOX_LOAD, async () => await fixtures.runSnap(args));
+  const inProcess = await withProcessEnv(BOX_LOAD_ENV, PARITY_BOX_LOAD, async () => await fixtures.runSnap(args, opts));
   expect(inProcess.code, `spawned stderr:\n${spawned.stderr}`).toBe(spawned.code);
-  expect(parityText(inProcess.stdout)).toBe(parityText(spawned.stdout));
+  expect(parityLines(inProcess.stdout)).toEqual(parityLines(spawned.stdout));
+  expect(parityLines(inProcess.stderr)).toEqual(parityLines(spawned.stderr));
   return inProcess;
 }
 

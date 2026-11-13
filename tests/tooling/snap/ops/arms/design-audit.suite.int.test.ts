@@ -62,13 +62,13 @@ const READING_SURFACE = '<p style="%STYLE%;font-size:16px;margin:24px">the readi
 test("a planted 1:1 contrast defect REDs the arm, and its white-on-black twin exits clean over a real census", async ({ runCli, runSnap, scratch }) => {
   const bad = await plant(scratch, "bad.html", page(`<main>${READING_SURFACE.replace("%STYLE%", "background:#000;color:#000")}</main>`));
   // The parity case: the spawned CLI and the in-process door print the same verdict for the same argv.
-  const red = await expectSnapParity({ runCli, runSnap }, ["--file", bad, "--design-audit", ...QUIET]);
+  const red = await expectSnapParity({ runCli, runSnap }, ["--file", bad, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(red.stdout, "contrast")).not.toEqual([]);
   expect(red.stdout).toContain("design-audit=measured");
   await expect(red).toExitWith(EXIT.violations);
 
   const good = await plant(scratch, "good.html", page(`<main>${READING_SURFACE.replace("%STYLE%", "background:#000;color:#fff")}</main>`));
-  const clean = await runSnap(["--file", good, "--design-audit", ...QUIET]);
+  const clean = await runSnap(["--file", good, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(clean.stdout, "contrast")).toEqual([]);
   expect(clean.stdout).toContain("p1=0");
   await expect(clean).toExitWith(EXIT.clean);
@@ -96,13 +96,13 @@ test("#1325 — a fixed contentless painted layer is seen by BOTH doors now: --c
 
   // The per-selector door. Before the fold this printed `21.00:1 PASS` — the resolver could not see a
   // layer that is not an ancestor, and said so in its own comment.
-  const perSelector = await runSnap(["--file", file, "--contrast", "#layer-text", ...QUIET]);
+  const perSelector = await runSnap(["--file", file, "--contrast", "#layer-text", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(perSelector.stdout).not.toContain("21.00:1");
   expect(perSelector.stdout).toMatch(/CONTRAST\s+#layer-text: 1\.0\d:1/u);
   await expect(perSelector).toExitWith(EXIT.violations);
 
   // The whole-surface door, over the same fixture: the same layer, the same verdict.
-  const audited = await runSnap(["--file", file, "--design-audit", ...QUIET]);
+  const audited = await runSnap(["--file", file, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(audited.stdout, "contrast")).not.toEqual([]);
   await expect(audited).toExitWith(EXIT.violations);
 });
@@ -129,7 +129,7 @@ const ACCNAME_FIXTURE = page(
 
 test("#1324 — the door census reads aria-labelledby BEFORE aria-label: Alpha/Beta are not duplicates, Menu/Menu is", async ({ runSnap, scratch }) => {
   const file = await plant(scratch, "accname.html", ACCNAME_FIXTURE);
-  const audited = await runSnap(["--file", file, "--design-audit", "--fail-on", "P3", ...QUIET]);
+  const audited = await runSnap(["--file", file, "--design-audit", "--fail-on", "P3", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   const doors = findingRows(audited.stdout, "duplicate-action-door");
   // Exactly ONE duplicate, and it is the pair whose labelledby actually names one thing.
   expect(doors).toHaveLength(1);
@@ -142,7 +142,7 @@ test("#1324 — the door census reads aria-labelledby BEFORE aria-label: Alpha/B
   // THE ORACLE, in the same invocation: Playwright's own accname engine agrees with the key above.
   // Nothing else in the fleet computes a spec-correct name, so a hand-rolled key must be checked
   // against it rather than against itself.
-  const aria = await runSnap(["--file", file, "--aria", ...QUIET]);
+  const aria = await runSnap(["--file", file, "--aria", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(aria.stdout).toContain('"Alpha action"');
   expect(aria.stdout).toContain('"Beta action"');
   expect(aria.stdout).not.toContain('"Same label"');
@@ -161,7 +161,7 @@ const SELECTOR_FIXTURE = page(`<main style="background:#000;color:#fff">${twinSu
 
 test("#1326 — every emitted finding selector resolves to exactly one element, and the twin subtrees get distinct ones", async ({ runSnap, scratch }) => {
   const file = await plant(scratch, "selector.html", SELECTOR_FIXTURE);
-  const audited = await runSnap(["--file", file, "--design-audit", ...QUIET]);
+  const audited = await runSnap(["--file", file, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   const taps = findingRows(audited.stdout, "tap-target");
   expect(taps.length).toBeGreaterThan(0);
   // The Node-side proof, published on the machine line: the arm asked Playwright how many elements each
@@ -204,7 +204,7 @@ const BORDER_FIXTURE = page(
 
 test("border-contrast — a declared boundary below WCAG 1.4.11's 3:1 is a P2, and the clearing twin is silent", async ({ runSnap, scratch }) => {
   const file = await plant(scratch, "border.html", BORDER_FIXTURE);
-  const audited = await runSnap(["--file", file, "--design-audit", "--fail-on", "P2", ...QUIET]);
+  const audited = await runSnap(["--file", file, "--design-audit", "--fail-on", "P2", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   const rows = findingRows(audited.stdout, "border-contrast");
   expect(rows).toHaveLength(1);
   expect(rows[0]).toContain("#quiet");
@@ -222,7 +222,7 @@ test("border-contrast — a control that declares NO border is excluded by name,
       '<main style="background:#232323;color:#fff;padding:24px"><input aria-label="Bare" style="border:none;background:#333;width:200px;height:32px"></main>',
     ),
   );
-  const audited = await runSnap(["--file", file, "--design-audit", ...QUIET]);
+  const audited = await runSnap(["--file", file, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(audited.stdout, "border-contrast")).toEqual([]);
   expect(audited.stdout).toMatch(/POPULATION\s+border-contrast candidates=1 judged=0 .*excluded\(noDeclaredBorder=1\)/u);
 });
@@ -231,7 +231,7 @@ test("border-contrast — a control that declares NO border is excluded by name,
 
 test("a reveal action that did not land is NO VERDICT, not a scan of the wrong surface", async ({ runSnap, scratch }) => {
   const file = await plant(scratch, "reveal.html", page('<main style="background:#000;color:#fff"><p style="font-size:16px">present</p></main>'));
-  const refused = await runSnap(["--file", file, "--design-audit", "--click", "#no-such-control", ...QUIET]);
+  const refused = await runSnap(["--file", file, "--design-audit", "--click", "#no-such-control", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   await expect(refused).toExitWith(EXIT.toolError);
   expect(refused.stdout).toContain("INSTRUMENT ERROR");
   expect(refused.stdout).toContain("design-audit=NO-VERDICT");
@@ -245,7 +245,7 @@ test("a page the app declares a FAILURE SURFACE is refused on sight, tables and 
     "notfound.html",
     page('<main data-app-failure="not-found" style="background:#000;color:#fff"><p style="font-size:16px">there is nothing here</p></main>'),
   );
-  const refused = await runSnap(["--file", file, "--design-audit", ...QUIET]);
+  const refused = await runSnap(["--file", file, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   await expect(refused).toExitWith(EXIT.toolError);
   expect(refused.stdout).toContain("INSTRUMENT ERROR");
   expect(refused.stdout).not.toMatch(/^POPULATION/mu);
@@ -271,7 +271,7 @@ test("#1538 — the five verdict channels are INDEPENDENT: one withheld channel 
   // A clean surface: every channel the walk reached is `complete`, so this is the all-complete baseline the
   // arm below is measured against.
   const clean = await plant(scratch, "channels.html", page('<main style="background:#000;color:#fff"><p style="font-size:16px">legible copy here</p></main>'));
-  const baseline = await auditFact((await runSnap(["--file", clean, "--design-audit", "--json", ...QUIET])).stdout);
+  const baseline = await auditFact((await runSnap(["--file", clean, "--design-audit", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS })).stdout);
 
   expect(baseline).toMatchObject({
     censusCapVerdict: "complete",
@@ -298,7 +298,7 @@ test("#1538 — the five verdict channels are INDEPENDENT: one withheld channel 
         "</ul></main>",
     ),
   );
-  const run = await runSnap(["--file", partial, "--design-audit", "--json", ...QUIET]);
+  const run = await runSnap(["--file", partial, "--design-audit", "--json", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   const withheld = await auditFact(run.stdout);
 
   // THE INDEPENDENCE CLAIM, both halves: ONE channel says no-verdict and the OTHER FOUR still say
@@ -353,7 +353,7 @@ test("#1538 — a TRUNCATED selector proof publishes its remainder end-to-end, a
 });
 
 test("#1538 — --design-audit's help states the selector proof's LIMIT instead of promising locatability", async ({ runSnap }) => {
-  const help = await runSnap(["--help"]);
+  const help = await runSnap(["--help"], { timeoutMs: CLI_TIMEOUT_MS });
 
   // The old text promised "each with a locatable selector" while `/config` printed two unresolvable ones
   // and exited 0 (deliberately — #1326 keeps an instrument limit out of the app's verdict). The claim
@@ -365,7 +365,7 @@ test("#1538 — --design-audit's help states the selector proof's LIMIT instead 
 
 test("the arm is OFF by default: an ordinary snap run neither walks nor claims a design verdict", async ({ runSnap, scratch }) => {
   const file = await plant(scratch, "plain.html", page('<main style="background:#000;color:#000"><p style="font-size:16px">invisible</p></main>'));
-  const plain = await runSnap(["--file", file, ...QUIET]);
+  const plain = await runSnap(["--file", file, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   await expect(plain).toExitWith(EXIT.clean);
   expect(plain.stdout).toContain("design-audit=off");
   expect(plain.stdout).not.toContain("census=");
@@ -399,7 +399,7 @@ test("#1659 — an --eval-planted defect ENTERS the design-audit census, and the
     page(`<main style="background:#000">${READING_SURFACE.replace("%STYLE%", "background:#000;color:#fff")}</main>`),
   );
 
-  const planted = await runSnap(["--file", file, "--design-audit", "--eval", EVAL_PLANT, ...QUIET]);
+  const planted = await runSnap(["--file", file, "--design-audit", "--eval", EVAL_PLANT, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   // The eval itself ran and says so — the half that was ALREADY true before the fix, and which made the
   // silence so convincing.
   expect(planted.stdout).toContain('"planted": true');
@@ -409,13 +409,13 @@ test("#1659 — an --eval-planted defect ENTERS the design-audit census, and the
 
   // THE OTHER DIRECTION, in the same invocation family: without the plant the identical page is clean, so
   // the arm above cannot be satisfied by a detector that reds everything.
-  const bare = await runSnap(["--file", file, "--design-audit", ...QUIET]);
+  const bare = await runSnap(["--file", file, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(bare.stdout, "contrast")).toEqual([]);
   expect(Number(CENSUS_RE.exec(bare.stdout)?.[1])).toBeGreaterThan(0);
   await expect(bare).toExitWith(EXIT.clean);
 });
 
-test("#1659 FENCE (green before the fix too) — a trailing --eval still settles, and still runs exactly ONCE", async ({ runSnap, scratch }) => {
+test("#1659 FENCE (green before the fix too) — a trailing --eval still settles, and still runs exactly ONCE", async ({ runCli, runSnap, scratch }) => {
   // THIS ARM IS A REGRESSION FENCE, NOT A DEFECT PROOF, and says so because the distinction was worth a
   // verifier's time (v-V4): it passed against the PRE-fix `capture.ts` as well, since the old ordering
   // also ran a trailing `--eval` once and after settle. What it fences is the ordering change that landed
@@ -425,7 +425,8 @@ test("#1659 FENCE (green before the fix too) — a trailing --eval still settles
   // execution prints `"runs": 2`; a pre-settle read prints a `ready` that is not `settled`.
   // The DEFECT proof for #1659 is the arm above (a planted element entering the census).
   const file = await plant(scratch, "eval-once.html", page('<main><p style="font-size:16px">settled</p></main>'));
-  const run = await runSnap(["--file", file, "--design-audit", "--eval", EVAL_ONCE, ...QUIET]);
+  // The parity case again, after the file's other runs have used the shared browser.
+  const run = await expectSnapParity({ runCli, runSnap }, ["--file", file, "--design-audit", "--eval", EVAL_ONCE, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
 
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout).toContain('"runs": 1');

@@ -18,7 +18,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlink
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
-import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "@orb/tooling/floor/artifacts/artifact-out";
+import { artifactFile, beginInstrumentRun, finishInstrumentRun, withInstrumentRun } from "@orb/tooling/floor/artifacts/artifact-out";
 import { scaledBudget } from "../../_load-budget.ts";
 
 /** A snap-shaped run: resolve the artifact path up front (snap resolves `out` before it launches the
@@ -166,6 +166,16 @@ test("a persistent CORPUS kind is never slotted — a baseline saved by one run 
   expect(shot.startsWith(join(root, "reports", "runs", "snap"))).toBe(true);
   expect(baseline).toBe(join(root, "reports", "baselines", "home.png"));
   finishInstrumentRun();
+});
+
+test("a run whose completion throws still closes its slot, so the process's next run opens", async ({ plantedTree }) => {
+  // A host that runs several invocations in one process sees what a CLI never does: the run after a failed one.
+  const root = await plantedTree({ "reports/.keep": "" });
+  const failed = withInstrumentRun("snap", () => Promise.resolve(0), root, {
+    complete: () => Promise.reject(new Error("planted completion failure")),
+  });
+  await expect(failed).rejects.toThrow("planted completion failure");
+  await expect(withInstrumentRun("snap", () => Promise.resolve(0), root)).resolves.toBe(0);
 });
 
 // ── THE PLANTED CONTROL: the pre-#1164 fixed-path writer, driven the same way, LOSES a run ─────────────

@@ -1,7 +1,7 @@
 // Adversarial row-binding control for #984 through the shipped CLI and real Chromium geometry.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -14,7 +14,9 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
   <div><button style="width:80px;height:32px">Reset</button><button style="width:80px;height:32px">Save</button></div>
 </header>`),
   );
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV]);
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
   const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["row-void"]).toMatchObject({
     candidates: 1,
@@ -40,7 +42,7 @@ test("cohort-anatomy withholds an actively animating cohort instead of counting 
   <div data-slot="setting-row" style="height:16px">c</div>
 </section>`),
   );
-  const res = await runSnap(["--file", join(scratch, "animating-cohort.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "animating-cohort.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 0, withheld: { animating: 1 } });
   expect(report.findings.map(({ rule }) => rule)).not.toContain("cohort-anatomy");
@@ -57,7 +59,7 @@ test("cohort-anatomy judges a retained animation after its play state is finishe
   <div data-slot="setting-row" style="height:32px">c</div>
 </section>`),
   );
-  const res = await runSnap(["--file", join(scratch, "finished-cohort.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "finished-cohort.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 1, withheld: {} });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
@@ -96,7 +98,7 @@ test("cohort-anatomy excludes a cohort of inline prose runs and still judges a b
   <div data-slot="config-row" style="height:16px"><i></i></div>
 </div>`),
   );
-  const res = await runSnap(["--file", join(scratch, "inline-run-cohort.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "inline-run-cohort.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const report = await readAuditReport(res.stdout);
   // BOTH cohorts are candidates: the prose one is excluded with a reason, not dropped, so widening this
   // fence shows up in the denominator rather than as a quieter clean run.
@@ -133,9 +135,12 @@ auditRuleTest(
     },
   ],
   "a row of Text primitives is no cohort, and the same heights on a real component still report",
-  async ({ runSnap, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     await writeFile(join(scratch, "text-row.html"), relationalDocument(`${threeInARow("text", "text-row")}${threeInARow("band", "band-row")}`));
-    const res = await runSnap(["--file", join(scratch, "text-row.html"), ...AUDIT_ARGV]);
+    // The parity case again, after the file's other runs have used the shared browser.
+    const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "text-row.html"), ...AUDIT_ARGV], {
+      timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+    });
     const report = await readAuditReport(res.stdout);
     expect(report.findings.filter(({ rule }) => rule === "cohort-anatomy")).toHaveLength(1);
     return report;

@@ -309,14 +309,27 @@ export function publishesDebugging(session: ProbeSession): boolean {
   return DEBUG_PROFILES.has(session);
 }
 
+/** Whose request ring a context opened in a running browser records into: the owner's (a session daemon's matrix
+ *  cell, whose ring is the session's evidence), or one of the run's own, as a launch would give it. */
+const CONTEXT_RING_OWNERS = ["owner", "run"] as const;
+export type ContextRingOwner = (typeof CONTEXT_RING_OWNERS)[number];
+
 /** Build one isolated context within an already-launched Chromium: a matrix cell in a session daemon, or any run
  *  `contextsIn` hosts. The context gets the run's own pages, emulation, settings shim, capture rings and optional
  *  failure artifacts; the returned view keeps existing capture operations honest about which context they read. */
-export async function openSnapMatrixContext(owner: ProbeSession, opts: Args): Promise<{ readonly context: ProbeContext; readonly session: ProbeSession }> {
+export async function openSnapMatrixContext(
+  owner: ProbeSession,
+  opts: Args,
+  ring: ContextRingOwner,
+): Promise<{ readonly context: ProbeContext; readonly session: ProbeSession }> {
   const context = await openProbeContext(owner.browser, { ...buildLaunchOptions(opts, { cascade: null, debugging: null }), pages: opts.pages }, 0);
   context.diagnosticWindow.value = owner.diagnosticWindow.value;
   const session = probeSessionForContext(owner, context);
-  adoptRequestRing(owner, session, context);
+  if (ring === "owner") {
+    adoptRequestRing(owner, session, context);
+  } else {
+    installRequestRing(session);
+  }
   const cascade = CASCADE_RUNTIMES.get(owner);
   if (cascade !== undefined) {
     CASCADE_RUNTIMES.set(session, cascade);

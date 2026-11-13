@@ -238,15 +238,41 @@ export function budget(baseMs: number, read: BoxLoadReader = readBoxLoad, cap = 
   return Math.max(baseMs, Math.min(budgetCeilingMs(), scaled));
 }
 
+// Module ceilings are read once per load epoch. A process that is one invocation never leaves epoch 0, so its
+// ceilings are read at import; a host that runs several invocations in one process begins an epoch per invocation.
+let loadEpoch = 0;
+
+/** Begin a new invocation in this process: every module's ceilings are read again, once, at their next use. */
+export function beginLoadEpoch(): void {
+  loadEpoch += 1;
+}
+
 /**
- * A module's ceilings: every base in `bases` through {@link budget}, against one box reading.
+ * A module's ceilings: every base in `bases` through {@link budget}, against one box reading per load epoch.
  *
- * @remarks One record per module, so no ceiling is a hand pair a later edit can leave unscaled.
+ * @remarks One record per module, so no ceiling is a hand pair a later edit can leave unscaled. The record is read at
+ * creation and again on first use in each later epoch ({@link beginLoadEpoch}), never per key.
  */
 export function budgets<const K extends string>(bases: Readonly<Record<K, number>>, read: BoxLoadReader = readBoxLoad): Readonly<Record<K, number>> {
-  const box = read();
-  // `Object.fromEntries` widens its keys to string; the entries come from `bases` itself, so every key is present.
-  return Object.fromEntries(Object.entries<number>(bases).map(([name, base]) => [name, budget(base, () => box)])) as Record<K, number>;
+  const scaled = (): Readonly<Record<string, number>> => {
+    const box = read();
+    return Object.fromEntries(Object.entries<number>(bases).map(([name, base]) => [name, budget(base, () => box)]));
+  };
+  let epoch = loadEpoch;
+  let current = scaled();
+  const ceilingOf = (name: string): number | undefined => {
+    if (epoch !== loadEpoch) {
+      epoch = loadEpoch;
+      current = scaled();
+    }
+    return current[name];
+  };
+  // Getters keep the record's shape (spread, `toEqual`, key access) while each read lands in the current epoch.
+  // `Object.defineProperties` types its result as the plain object; every key of `bases` gets a getter, so every key is present.
+  return Object.defineProperties(
+    {},
+    Object.fromEntries(Object.keys(bases).map((name) => [name, { enumerable: true, get: (): number | undefined => ceilingOf(name) }])),
+  ) as Record<K, number>;
 }
 
 /** The two RESULT pairs every load-aware line carries: `load=<la1>/<cores>` and `budget-factor=<f>`. A

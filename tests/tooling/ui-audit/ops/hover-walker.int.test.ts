@@ -30,7 +30,7 @@
 // rule, so an inline rest colour makes even a correct `:hover` read as `noHoverChange`.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, configureRelationalCliBudget, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -85,7 +85,9 @@ test("an element painted by TWO hover subjects asks TWO questions — the pair m
   scratch,
 }) => {
   await writeFile(join(scratch, "two-subject-hover.html"), relationalDocument(TWO_SUBJECT_FIXTURE));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "two-subject-hover.html"), ...AUDIT_ARGV]);
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "two-subject-hover.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
 
   // RED-FIRST (#1092): `hoverPaintOf` was a single-subject map with deepest-wins, so the `.row` state was
   // never asked and this read `candidates=1 judged=1 … hover-subjects-forced=1` — a denominator that
@@ -99,7 +101,7 @@ test("an element painted by TWO hover subjects asks TWO questions — the pair m
 
 test("a compiled group-hover rule is JUDGED against its resolved ancestor, not the painted element", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "group-hover.html"), relationalDocument(GROUP_HOVER_FIXTURE));
-  const res = await runSnap(["--file", join(scratch, "group-hover.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "group-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // JUDGED — the whole point of #1084. Pre-#1073 this read `judged=1 … excluded(noHoverChange=1)` (a lie:
   // the forced element was the painted one); post-#1073 and pre-#1084 it read
@@ -113,7 +115,7 @@ test("a compiled group-hover rule is JUDGED against its resolved ancestor, not t
 
 test("the ATTRIBUTE twin of the group variant is judged the same way", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "group-attr.html"), relationalDocument(GROUP_ATTR_FIXTURE));
-  const res = await runSnap(["--file", join(scratch, "group-attr.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "group-attr.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout, "the attr half resolves the same anchor and forces it in page").toMatch(/POPULATION\s+hover-contrast candidates=1 judged=1 /u);
   expect(res.stdout).not.toContain("complexStateSelector");
@@ -123,7 +125,7 @@ test("the ATTRIBUTE twin of the group variant is judged the same way", async ({ 
 
 test("a SIBLING-combinator group variant stays WITHHELD — closest() has no answer for it", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "peer-hover.html"), relationalDocument(PEER_HOVER_FIXTURE));
-  const res = await runSnap(["--file", join(scratch, "peer-hover.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "peer-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // The refusal control. A derivation that accepted this would resolve the WRONG ancestor (or none) and
   // put the census straight back into publishing measurements it never took.
@@ -147,7 +149,7 @@ const SR_ONLY_HOVER_FIXTURE = `<style>
 
 test("screen-reader-only text is excluded from hover contrast, never judged", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "sr-only-hover.html"), relationalDocument(SR_ONLY_HOVER_FIXTURE));
-  const res = await runSnap(["--file", join(scratch, "sr-only-hover.html"), ...AUDIT_ARGV]);
+  const res = await runSnap(["--file", join(scratch, "sr-only-hover.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout, "the visible title is judged; the sr-only span is excluded by name").toMatch(
     /POPULATION\s+hover-contrast candidates=2 judged=1 .*excluded\([^)]*srOnly=1/u,
@@ -157,9 +159,12 @@ test("screen-reader-only text is excluded from hover contrast, never judged", as
   await expect(res).toExitWith(0);
 });
 
-test("a plain :hover rule on the painted element itself keeps being judged", async ({ runSnap, scratch }) => {
+test("a plain :hover rule on the painted element itself keeps being judged", async ({ runCli, runSnap, scratch }) => {
   await writeFile(join(scratch, "plain-hover.html"), relationalDocument(PLAIN_HOVER_FIXTURE));
-  const res = await runSnap(["--file", join(scratch, "plain-hover.html"), ...AUDIT_ARGV]);
+  // The parity case again, after the file's other runs have used the shared browser.
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "plain-hover.html"), ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
 
   // The fence that has been green on both sides of both fixes: a top-level `:hover` names its own
   // subject, and neither the depth guard nor the anchor derivation may swallow it.

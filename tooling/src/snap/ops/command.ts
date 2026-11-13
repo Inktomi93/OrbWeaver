@@ -1,11 +1,12 @@
 // One snap invocation from its argv: the report readers, the argv preamble, the internal and admin entries,
-// the stage door, and the run slot around the resolved mode. cli.ts is this door's process host with a browser
-// of each run's own; a host that keeps one Chromium for many invocations passes `contextsIn` instead.
+// the stage door, and the run slot around the resolved mode. Its one caller is the snap host (`ops/host.ts`).
 //
-// The browser source reaches the ordinary capture path only. The matrix, scenario, `--contexts` and session
-// modes own their browser lifetimes and launch as they always do, whichever source the caller passed.
+// The browser source reaches the ordinary capture path only. The matrix, scenario, `--contexts`, session and
+// `--isolated` modes own their browser or process lifetimes and launch as they always do under a launch-per-run
+// source; a context-per-run source refuses them (`ownLifetimeModes`) rather than let them launch beside it.
 import { withInstrumentRun } from "../../floor/artifacts/artifact-out.ts";
 import { print, prunedRuns, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
+import { instrumentRefusal } from "../../floor/browser/page-validate.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { SNAP_HELP } from "../contract/help.ts";
@@ -51,6 +52,20 @@ function printCliPreamble(opts: Args): number | null {
     return 0;
   }
   return null;
+}
+
+/** The modes that launch their own Chromium, boot a stage or run a session process, whatever browser source the
+ *  invocation was given; the flags that ask for each. */
+function ownLifetimeModes(opts: Args): readonly string[] {
+  return [
+    ...(opts.matrix ? ["--matrix"] : []),
+    ...(opts.scenario === null ? [] : ["--scenario"]),
+    ...(opts.contexts > 1 || opts.as !== null ? ["--contexts/--as"] : []),
+    ...(opts.session === null && opts.sessionExport === null ? [] : ["--session"]),
+    ...(opts.sessionDaemon === null && opts.stageKeeper === null && opts.stageWaiter === null ? [] : ["an internal entry"]),
+    ...(opts.isolated ? ["--isolated"] : []),
+    ...(opts.materializeDevToolsAssets ? ["--materialize-devtools-assets"] : []),
+  ];
 }
 
 async function runResolvedMode(opts: Args, browser: SnapBrowserSource): Promise<number> {
@@ -108,6 +123,14 @@ async function runParsed(opts: Args, argv: readonly string[], browser: SnapBrows
   const cliExit = printCliPreamble(opts);
   if (cliExit !== null) {
     return cliExit;
+  }
+  if (browser.kind === "context-per-run") {
+    const own = ownLifetimeModes(opts);
+    if (own.length > 0) {
+      return instrumentRefusal(
+        `${own.join(", ")} cannot run as a context of a shared browser: each launches a browser or a process of its own; run it through the snap CLI`,
+      );
+    }
   }
   if (opts.materializeDevToolsAssets) {
     return await materializeDevToolsAssets();

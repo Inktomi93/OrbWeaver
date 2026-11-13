@@ -207,7 +207,7 @@ interface ForcedReads {
  *  the class of change that makes a tool lie about itself. What IS pinned, in
  *  tests/tooling/ui-audit/ops/walker/core.int.test.ts, is the clean-run arm: `forceFailedGroups: 0` and
  *  `forceVerdict: "complete"` are asserted PRESENT, so the field cannot silently vanish or invert. Closing
- *  the failing arm needs a CDP fault injector at the probe layer (floor/browser/browser.ts), which would serve
+ *  the failing arm needs a CDP fault injector at the probe layer (floor/browser/cdp-fault.ts), which would serve
  *  every instrument, not just this one. */
 async function forceEveryGroup(session: HoverSession, groups: readonly HoverGroupRow[]): Promise<ForcedReads> {
   const reads = new Map<number, HoverForcedReadRow>();
