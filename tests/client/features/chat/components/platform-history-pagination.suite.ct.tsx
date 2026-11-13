@@ -41,6 +41,7 @@ import {
   CHAT_WINDOW_PRESS_FAILURE,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CORPUS_SOURCE_OUTCOME_COPY, jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
+import { INVALIDATE_ROOM_NAME } from "./_chat-room-shell-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -557,7 +558,7 @@ for (const regime of [
       await expect(busy).toHaveAttribute("aria-busy", "false");
       // The control: what one invalidation of the room's reads costs with these pages loaded.
       const idle = live.reads();
-      await page.getByRole("button", { name: "Invalidate the room", exact: true }).dispatchEvent("click");
+      await page.getByRole("button", { name: INVALIDATE_ROOM_NAME, exact: true }).dispatchEvent("click");
       await expect.poll(() => live.reads()).toBeGreaterThan(idle);
       await expect(busy).toHaveAttribute("aria-busy", "false");
       const once = live.reads() - idle;
@@ -1154,7 +1155,7 @@ for (const regime of [
         node.scrollTop = node.scrollHeight / 2;
       });
       await settledReadingRow(list);
-      const invalidate = page.getByRole("button", { name: "Invalidate the room", exact: true });
+      const invalidate = page.getByRole("button", { name: INVALIDATE_ROOM_NAME, exact: true });
       await earlier.dispatchEvent("click");
       for (const read of reads) {
         await read.requested;
@@ -1199,7 +1200,7 @@ for (const regime of [
       await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, invalidator: true, moment: { kind: "message", messageId: target.id } });
       const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
       await expect(earlier).toBeEnabled();
-      const invalidate = page.getByRole("button", { name: "Invalidate the room", exact: true });
+      const invalidate = page.getByRole("button", { name: INVALIDATE_ROOM_NAME, exact: true });
       await earlier.dispatchEvent("click");
       for (const read of reads) {
         await read.requested;

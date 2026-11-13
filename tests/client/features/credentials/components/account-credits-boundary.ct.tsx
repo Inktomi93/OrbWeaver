@@ -43,7 +43,8 @@ test("a held balance read shows the loading line, and a failed one the error blo
         held = true;
         return hold;
       }
-      return trpcError({ message: PROVIDER_MESSAGE });
+      // The code a rejected credential is classified under; a 500 never carries a message of its own.
+      return trpcError({ code: "PRECONDITION_FAILED", message: PROVIDER_MESSAGE });
     }),
   });
   await mount<typeof ConnectionActionGroupsStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
