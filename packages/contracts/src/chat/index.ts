@@ -387,6 +387,7 @@ export {
   handoffOfferSchema,
   historyFloor,
   INVITE_STATUSES,
+  INVITE_TARGET_UNKNOWN_CODE,
   invitePreviewSchema,
   inviteViewSchema,
   JOIN_HISTORY_VISIBILITIES,

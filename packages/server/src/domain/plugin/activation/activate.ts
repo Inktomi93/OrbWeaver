@@ -228,6 +228,18 @@ export function createActivate(
     }
 
     const { instance } = outcome;
+    // One guest call. A rejection that is not the host's own refusal is logged here, once, and rethrown. A caller
+    // that gave up on the call at its deadline already logged the overrun.
+    const callGuest: PluginInvokeHandler = async (handler, argsJson, chat, signal) => {
+      try {
+        return await ctx.host.invoke(instance, handler, argsJson, chat, signal);
+      } catch (err) {
+        if (!isHostAdmissionRefusal(err) && signal?.reason !== DEADLINE_ABORT_REASON) {
+          logPluginFailure(slug, invokeFailureKind(err), errorMessage(err), ctx.logger);
+        }
+        throw err;
+      }
+    };
     // The resident-tool invoke loop under the crash policy: a handler throw/deadline surfaces as
     // `ctx.host.invoke` REJECTING → bump the consecutive-crash counter (auto-disable + owner-notify at the
     // threshold) and RE-THROW so the tool-use registrar catches it as `threw` (errors-as-data to the model); a
@@ -235,21 +247,21 @@ export function createActivate(
     const invoke: PluginInvokeHandler = (handler, argsJson, chat, signal) =>
       ctx.invocations.run(async () => {
         try {
-          const result = await ctx.host.invoke(instance, handler, argsJson, chat, signal);
+          const result = await callGuest(handler, argsJson, chat, signal);
           await crashPolicy.recordCleanRun(input.pluginId);
           return result;
         } catch (err) {
           if (isHostAdmissionRefusal(err)) {
             throw err;
           }
-          // A caller that gave up on the call at its deadline already logged the overrun; the rejection still counts.
-          if (signal?.reason !== DEADLINE_ABORT_REASON) {
-            logPluginFailure(slug, invokeFailureKind(err), errorMessage(err), ctx.logger);
-          }
+          // A call its caller gave up on at a deadline still counts.
           await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });
           throw err;
         }
       });
+    // A query's re-entry: the same call with no crash-policy write, because a query writes nothing. Its clean run
+    // must not reset the count a write path built, or a plugin that crashes on every tool call stays enabled.
+    const invokeForRead: PluginInvokeHandler = (handler, argsJson, chat, signal) => ctx.invocations.run(() => callGuest(handler, argsJson, chat, signal));
     const scope: PluginActivationScope = { pluginId: input.pluginId, slug, installer: input.caller, matchAutomationEvents };
     let handles: PluginRegistrationHandle[];
     try {
@@ -288,7 +300,7 @@ export function createActivate(
       discardActivation(ctx, instance, handles);
       return await activationFailed(providerError, `provider registration failed: ${providerError}`);
     }
-    registry.set(input.pluginId, { instance, handles, invoke });
+    registry.set(input.pluginId, { instance, handles, invoke, invokeForRead });
     return { ok: true };
   };
 }

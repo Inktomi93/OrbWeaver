@@ -143,7 +143,16 @@ The port is published on `127.0.0.1` only. To reach the app from your phone or a
    `docker-compose.yaml`). The proxy must pass `X-Forwarded-Proto/Host/For` and must not buffer SSE. It must
    also pass the browser's `Host` through: Caddy does by default; in nginx set `proxy_set_header Host $host`.
    It must not add CORS headers or answer `OPTIONS` preflights for the app
-   (`docs/law/container-deployment-security.md` says why).
+   (`docs/law/container-deployment-security.md` says why). Check it from any machine once the proxy is up,
+   with your own address in place of `orb.example.com`:
+
+   ```bash
+   curl -sS -o /dev/null -D - -X OPTIONS https://orb.example.com/api/trpc/sessions.me -H "Origin: https://elsewhere.example" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: x-orb-csrf"
+   ```
+
+   A safe answer carries no header that starts with `access-control-`, whatever its status; the app itself
+   answers `415`. Any `access-control-allow-origin` or `access-control-allow-headers` line means the proxy
+   grants the preflight. Turn off its CORS setting for this site, then run the check again.
    The app sends no `Strict-Transport-Security` header, because it cannot know whether the same name is also
    reached over plain http. Once every visit to that name goes through HTTPS, set it at the proxy. In Caddy:
    `header Strict-Transport-Security "max-age=31536000"`.
