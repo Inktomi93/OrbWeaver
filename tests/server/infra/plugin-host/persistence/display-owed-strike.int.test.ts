@@ -2,6 +2,7 @@
 // A stall after a command returned leaves its plugin a strike owed to the next write-path call (D347). A display call
 // in between counts nothing, so it must leave that strike owed: it runs on a fresh runtime, and the next command still
 // takes the strike. The strike count is read from the plugin's row, which no door shows.
+// Slow by subject: the owed strike exists only once the broker's own span watchdog ends the stuck Worker in real time.
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginManifest } from "@orb/contracts/plugin";

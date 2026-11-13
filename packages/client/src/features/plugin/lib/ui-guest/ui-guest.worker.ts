@@ -38,7 +38,7 @@ import type { UiGuestBootMessage, UiGuestEventMessage, UiGuestInbound } from "#s
 import { UI_GUEST_BUDGETS } from "#src/lib/plugin-ui-guest-protocol.ts";
 // This module DRIVES; `ui-guest-realm` BUILDS — the same split `sandbox.ts` and `realm.ts` draw on the server.
 import type { GuestState } from "./ui-guest-realm.ts";
-import { callJsonParse, installRealm, LogRing, makeSeams, post, readError, withinEventBudget } from "./ui-guest-realm.ts";
+import { callJsonParse, installRealm, LogRing, makeSeams, openCpuWindow, post, readError, withinEventBudget } from "./ui-guest-realm.ts";
 
 /** Every network affordance this THREAD has. Removed once the WASM is loaded — see the file header. */
 const NETWORK_GLOBALS = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"] as const;
@@ -77,17 +77,15 @@ function loadModule(): Promise<QuickJSWASMModule> {
   return modulePromise;
 }
 
-/** Run a guest computation to settlement under a CPU budget: install the interrupt handler against REAL
- *  monotonic time, pump the job queue, and contain any throw / deadline / OOM as a message. The client mirror of
+/** Run a guest computation to settlement under a CPU budget: open a CPU window, pump the job queue, and contain any
+ *  throw / deadline / OOM as a message. The client mirror of
  *  `Sandbox.runToSettlement`, minus the settlement race — out here the HOST's wall-clock timer plus
  *  `terminate()` is the outer bound, and it is a stronger one than any in-thread deadline can be (a single
  *  interpreter thread cannot preempt itself once it stops running bytecode; another thread killing it can). */
 async function runToSettlement(state: GuestState, cpuMs: number, produce: () => ReturnType<QuickJSContext["evalCode"]>): Promise<string | null> {
   const { ctx } = state;
-  // `performance.now()` — the WORKER's, not the guest's (whose is a throwing stub). The DoS deadline must read
-  // a real monotonic clock so a frozen guest clock can never disable the kill.
-  const startMs = performance.now();
-  ctx.runtime.setInterruptHandler(() => performance.now() - startMs > cpuMs);
+  // The window stays open across the await, so the error read after it runs under this deadline too.
+  const window = openCpuWindow(ctx, cpuMs);
   // the message is the return value; boot posts it as `ready: false` and deliver as
   // `settled: false`, and the host kills the guest and reports the crash. Ends if a caller stops posting the return value.
   try {
@@ -99,7 +97,8 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
     }
     const handle = result.value;
     const native = ctx.resolvePromise(handle);
-    ctx.runtime.executePendingJobs();
+    // On the interrupt path the result holds the guest's `InternalError`; dispose it either way.
+    ctx.runtime.executePendingJobs().dispose();
     const settled = await native;
     handle.dispose();
     if (settled.error) {
@@ -112,7 +111,7 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
   } catch (err) {
     return err instanceof Error ? err.message : String(err);
   } finally {
-    ctx.runtime.removeInterruptHandler();
+    window.close();
   }
 }
 
