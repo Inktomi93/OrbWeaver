@@ -129,6 +129,7 @@ export interface ProfileCollectRecords
   extends Pick<
     CollectResult,
     | "unreadableCards"
+    | "invalidCards"
     | "unreadableWorlds"
     | "unreadablePresets"
     | "refusedThemes"

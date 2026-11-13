@@ -28,7 +28,7 @@ import type {
   CollectedWorld,
   CollectResult,
 } from "../contract/collection.ts";
-import { ImportInfraFailureError, ProfileImportLimitError } from "../contract/errors.ts";
+import { ImportInfraFailureError, importFailureReason, ProfileImportLimitError } from "../contract/errors.ts";
 import { ST_POWER_USER_KEY, stAppearancePatch } from "../substrate/appearance.ts";
 import { ST_BACKGROUND_DIR, stBackgroundMime, stBackgroundName } from "../substrate/background.ts";
 import { importFileHash, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
@@ -76,6 +76,7 @@ interface CollectState {
   readonly skippedBackgrounds: { file: string; reason: string }[];
   readonly unreadableGroups: string[];
   readonly unreadableCards: string[];
+  readonly invalidCards: { file: string; reason: string }[];
   readonly missingPersonaAvatars: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
@@ -251,6 +252,22 @@ function disambiguate(state: CollectState, base: string): CharacterHandle {
   return handle;
 }
 
+// One damaged card must not cost the folder its good ones: a card the parser refuses or throws on is recorded
+// with its reason and collection goes on. The file read stays outside, so a storage fault still ends the run.
+async function parseCardOrRecord(
+  state: CollectState,
+  file: string,
+  bytes: Uint8Array,
+  stem: string,
+): Promise<Awaited<ReturnType<typeof parseCardPng>> | undefined> {
+  try {
+    return await parseCardPng(bytes, stem);
+  } catch (error) {
+    state.invalidCards.push({ file, reason: importFailureReason(error) });
+    return undefined;
+  }
+}
+
 async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
   await using charsDir = await openPlane(fs, profileDir, CHARACTERS_DIR);
   if (charsDir === null) {
@@ -262,7 +279,10 @@ async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state
     }
     const bytes = await readStagedFile(fs, charsDir, ent.name);
     const stem = ent.name.replace(PNG_EXT, "");
-    const parsed = await parseCardPng(bytes, stem);
+    const parsed = await parseCardOrRecord(state, ent.name, bytes, stem);
+    if (parsed === undefined) {
+      continue;
+    }
     if (parsed === null) {
       state.unreadableCards.push(ent.name);
       continue;
@@ -797,6 +817,7 @@ export async function collectBundlesFromDir(
     skippedBackgrounds: [],
     unreadableGroups: [],
     unreadableCards: [],
+    invalidCards: [],
     missingPersonaAvatars: [],
     skippedChats: [],
     skippedCharacters: [],
@@ -858,6 +879,7 @@ export async function collectBundlesFromDir(
     orphanChatDirs,
     orphanBundles,
     unreadableCards: state.unreadableCards,
+    invalidCards: state.invalidCards,
     unreadableWorlds: state.unreadableWorlds,
     unreadablePresets: state.unreadablePresets,
     refusedThemes: state.refusedThemes,

@@ -7,6 +7,7 @@
 
 import type { CARD_REFUSAL_CODES } from "@orb/contracts/import";
 import { DomainOperationError } from "@orb/kit/errors";
+import { z } from "zod";
 
 // The chats wave (`importChats` into a non-owned/missing character) throws the SHARED `DomainNotFoundError`
 // (`@orb/kit/errors`) — the verb imports it from kit directly (the `noBarrelFile` gate forbids re-exporting it
@@ -52,4 +53,25 @@ export class ImportInfraFailureError extends DomainOperationError {
     this.operation = operation;
     this.cause = cause;
   }
+}
+
+function failureText(error: unknown): string {
+  // A raw schema error's own message is a JSON dump of its issues; the pretty form is the readable one.
+  if (error instanceof z.ZodError) {
+    return z.prettifyError(error);
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** The one-line reason a failed card carries into the import report. A schema refusal prints its message and then
+ *  the field it is at on an indented line of its own, so the last line alone would name a field and no fault. */
+export function importFailureReason(error: unknown): string {
+  const message = failureText(error);
+  const lines = message
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const last = lines.at(-1) ?? message;
+  const fault = last.startsWith("→") ? [lines.at(-2), last].filter((line) => line !== undefined).join(" ") : last;
+  return error instanceof ImportCardError ? `${error.code}: ${fault}` : fault;
 }

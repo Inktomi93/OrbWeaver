@@ -19,7 +19,7 @@ import type {
   CollectedWorld,
   CollectResult,
 } from "../contract/collection.ts";
-import { ProfileImportLimitError } from "../contract/errors.ts";
+import { importFailureReason, ProfileImportLimitError } from "../contract/errors.ts";
 import type { ImportPersonaInput } from "../contract/params.ts";
 import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
 import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnresolvedPinnedPersona, ImportWorldNote } from "../contract/results.ts";
@@ -103,6 +103,7 @@ function mergeTags(into: Map<string, string[]>, from: ReadonlyMap<string, readon
  *  the loop the file's most complex function. */
 function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<typeof collectBundlesFromDir>>): void {
   into.unreadableCards.push(...from.unreadableCards);
+  into.invalidCards.push(...from.invalidCards);
   into.unreadableWorlds.push(...from.unreadableWorlds);
   into.unreadablePresets.push(...from.unreadablePresets);
   into.refusedThemes.push(...from.refusedThemes);
@@ -148,6 +149,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
   let galleryImageCount = 0;
   const r: ProfileCollectRecords = {
     unreadableCards: [],
+    invalidCards: [],
     unreadableWorlds: [],
     unreadablePresets: [],
     refusedThemes: [],
@@ -436,7 +438,7 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves, found, d
     dryRun,
     found,
     preview: preview ?? null,
-    skippedCards,
+    skippedCards: [...collected.invalidCards, ...skippedCards],
     unreadableCards: collected.unreadableCards,
     unreadableWorlds: collected.unreadableWorlds,
     unreadablePresets: collected.unreadablePresets,
@@ -725,10 +727,7 @@ async function importCollectedBundles(
         skippedCardTags.push(...(await attachBundleTags(deps, bundle, result.characterId, tagNames)));
       }
     } catch (err) {
-      // The concise refusal reason for the report — the last line of a ZodError prettify is the actionable
-      // one ("Too big: expected string to have <=200 characters → at cardVersion").
-      const message = err instanceof Error ? err.message : String(err);
-      skippedCards.push({ file: bundle.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
+      skippedCards.push({ file: bundle.filename, reason: importFailureReason(err) });
     }
   }
   return {
