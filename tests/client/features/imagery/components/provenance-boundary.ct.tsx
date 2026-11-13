@@ -8,6 +8,9 @@ import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serv
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { IMAGE_PROVENANCE_EMPTY_TEXT, IMAGE_PROVENANCE_READ_LABEL } from "#client/features/imagery/lib/imagine-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ImageDetailShellStory } from "./_provenance-stories.tsx";
 
 const EXTRA_READS = [
@@ -57,8 +60,8 @@ test("a held provenance read shows the loading skeleton, a failed one the error 
   await hold.requested;
   await expect(dialog.locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
-  await expect(dialog.getByText("Couldn't load this image's details.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(queryFailedLabel(IMAGE_PROVENANCE_READ_LABEL), { exact: true })).toBeVisible();
   failing = false;
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(dialog.getByText("No generation details recorded for this image.", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(dialog.getByText(IMAGE_PROVENANCE_EMPTY_TEXT, { exact: true })).toBeVisible();
 });

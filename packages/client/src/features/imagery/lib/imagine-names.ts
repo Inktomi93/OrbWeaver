@@ -18,3 +18,29 @@ export const IMAGINE_PROMPT_NAME = "Image prompt";
 
 /** The image edit dialog's instruction field. */
 export const IMAGE_EDIT_INSTRUCTION_NAME = "Edit instruction";
+
+/** What each imagery dialog says when it was opened with nothing to work on. */
+export const IMAGINE_EMPTY_TEXT = "Nothing to imagine.";
+export const IMAGE_DETAIL_EMPTY_TEXT = "No image selected.";
+export const IMAGE_EDIT_EMPTY_TEXT = "No image to edit.";
+
+/** The imagine dialog's collapsed advanced controls: the door, and each field's name. */
+export const IMAGINE_MORE_OPTIONS_NAME = "More options";
+export const IMAGINE_COUNT_NAME = "Number of images";
+export const IMAGINE_SIZE_NAME = "Image size";
+export const IMAGINE_NEGATIVE_NAME = "Negative prompt";
+
+/** The imagine dialog's spend press: one image, and a count above one. */
+export const IMAGINE_GENERATE_NAME = "Generate";
+export function imagineGenerateCountLabel(count: number): string {
+  return `Generate ${count} images`;
+}
+
+/** The line that names who pays for a count above one. */
+export function imagineCountSpendText(count: number, hostPays: boolean): string {
+  return `Asks for ${count} images. ${hostPays ? "The room's host pays" : "You pay"} for each one that comes back, and some connections make only one.`;
+}
+
+/** The image detail dialog's provenance strip: its read in a failure line, and the state of an image with none recorded. */
+export const IMAGE_PROVENANCE_READ_LABEL = "this image's details";
+export const IMAGE_PROVENANCE_EMPTY_TEXT = "No generation details recorded for this image.";

@@ -2,6 +2,7 @@
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
+import { YOU_SHEET_ACCOUNT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
@@ -15,8 +16,10 @@ import {
   CORPUS_STAGE_LABELS,
   CORPUS_UNDERSTANDING_HEADING,
 } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { IMAGE_DETAIL_EMPTY_TEXT, IMAGE_EDIT_EMPTY_TEXT, IMAGINE_EMPTY_TEXT } from "#client/features/imagery/lib/imagine-names.ts";
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { REFINERY_START_SESSION_PICKER_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { ADMIN_APPROVALS_NOTE, ADMIN_CREATE_USER_NAME, ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
@@ -90,12 +93,9 @@ const GROUP_WITNESSES = {
     page.getByText("These rules watch your library and act on their own. No chat has to be open.", { exact: true }),
   ],
   admin: (page): Witnesses => [
-    page.getByRole("textbox", { name: "Max generated-image download (MB)", exact: true }),
-    page.getByRole("button", { name: "Create user", exact: true }),
-    page.getByText(
-      "Accounts awaiting approval can't sign in until you enable them. New sign-ins through your identity provider land here when approval is required.",
-      { exact: true },
-    ),
+    page.getByRole("textbox", { name: ADMIN_MAX_IMAGE_DOWNLOAD_NAME, exact: true }),
+    page.getByRole("button", { name: ADMIN_CREATE_USER_NAME, exact: true }),
+    page.getByText(ADMIN_APPROVALS_NOTE, { exact: true }),
   ],
   about: (page): Witnesses => [page.getByRole("button", { name: "Copy version for a bug report", exact: true })],
   regex: (page): Witnesses => [page.locator('[data-collection="regex"][data-slot="config-collection-landing"]').getByRole("listitem").first()],
@@ -123,7 +123,7 @@ const MODAL_SCENARIOS = {
   }),
   you: (page): ModalScenario => ({
     state: "loaded",
-    witnesses: [page.getByRole("dialog").getByRole("group", { name: "Account and settings", exact: true }).getByRole("button").first()],
+    witnesses: [page.getByRole("dialog").getByRole("group", { name: YOU_SHEET_ACCOUNT_NAME, exact: true }).getByRole("button").first()],
   }),
   addDocument: (page): ModalScenario => ({
     state: "loaded",
@@ -139,9 +139,9 @@ const MODAL_SCENARIOS = {
       page.getByRole("dialog").getByLabel("Password", { exact: true }),
     ],
   }),
-  imagine: (page): ModalScenario => ({ state: "empty", witnesses: [page.getByRole("dialog").getByText("Nothing to imagine.", { exact: true })] }),
-  imageDetail: (page): ModalScenario => ({ state: "empty", witnesses: [page.getByRole("dialog").getByText("No image selected.", { exact: true })] }),
-  imageEdit: (page): ModalScenario => ({ state: "empty", witnesses: [page.getByRole("dialog").getByText("No image to edit.", { exact: true })] }),
+  imagine: (page): ModalScenario => ({ state: "empty", witnesses: [page.getByRole("dialog").getByText(IMAGINE_EMPTY_TEXT, { exact: true })] }),
+  imageDetail: (page): ModalScenario => ({ state: "empty", witnesses: [page.getByRole("dialog").getByText(IMAGE_DETAIL_EMPTY_TEXT, { exact: true })] }),
+  imageEdit: (page): ModalScenario => ({ state: "empty", witnesses: [page.getByRole("dialog").getByText(IMAGE_EDIT_EMPTY_TEXT, { exact: true })] }),
   pluginDialog: (page): ModalScenario => ({
     state: "empty",
     witnesses: [

@@ -6,6 +6,7 @@
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { IMAGINE_GENERATE_NAME } from "#client/features/imagery/lib/imagine-names.ts";
 import type { ImagineReapStory } from "./_imagine-reap-stories.tsx";
 
 const STORY = "tests/client/features/imagery/components/_imagine-reap-stories/ImagineReapStory";
@@ -26,7 +27,7 @@ test("leaving a new room while its picture is generating does not reap it, and l
   await mount<typeof ImagineReapStory>(STORY, { chatId: room.id, otherChatId: other.id, prompt: PROMPT });
   await page.getByRole("button", { name: "Enter the new room", exact: true }).click();
 
-  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await page.getByRole("button", { name: IMAGINE_GENERATE_NAME, exact: true }).click();
   await generate.requested;
 
   await page.getByRole("button", { name: "Go to the landing", exact: true }).click();
