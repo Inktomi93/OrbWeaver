@@ -51,45 +51,54 @@ declare function defineTrpcRoutes<const R extends object>(routes: R & Routes<NoI
 declare const page: unknown;
 `;
 
-// The real route helper, whose `AppRouterRecord` is the server's own router record.
+// The real route helper, whose `AppRouterRecord` is the record of the router `@orb/server` exports.
 const REAL_HELPER = join(ROOT, "tests/support/node/route-trpc.ts");
 const REAL_PRELUDE = `
 import { routeTrpc } from ${JSON.stringify(relative(join(ROOT, "tests/client/features/probe"), REAL_HELPER))};
 declare const page: Parameters<typeof routeTrpc>[0];
 `;
 
-// The compiler options the repository's Node world checks with, so the real helper's imports resolve.
+// The router `@orb/server` names for the real helper: a tRPC router built with the server's own tRPC and zod, where
+// `health` takes no input and `echo` takes a message. It sits under the server package so its imports resolve as the
+// server's do.
+const ROUTER_FIXTURE = join(ROOT, "packages/server/src/transport/trpc/route-probe-router.ts");
+const ROUTER_FIXTURE_SOURCE = `
+import { initTRPC } from "@trpc/server";
+import { z } from "zod";
+const t = initTRPC.create();
+export const appRouter = t.router({
+  health: t.procedure.query(() => ({ ok: true }) as const),
+  echo: t.procedure.input(z.strictObject({ message: z.string() })).query(({ input }) => ({ message: input.message })),
+});
+export type AppRouter = typeof appRouter;
+`;
+const SERVER_PACKAGE = "@orb/server";
+
+// The compiler options the repository's Node world checks with, with `@orb/server` naming the router fixture.
 function realOptions(): ts.CompilerOptions {
   const config = ts.readConfigFile(join(ROOT, "tsconfig.node.json"), ts.sys.readFile);
-  return { ...ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT).options, noEmit: true };
+  const options = ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT).options;
+  return { ...options, paths: { ...options.paths, [SERVER_PACKAGE]: [ROUTER_FIXTURE] }, noEmit: true };
 }
 
-// A program of the spec and a route helper: the planted one gives the rule the route types without the repo graph,
-// the real one brings the server's router with it.
+const PLANTED_OPTIONS: ts.CompilerOptions = {
+  target: ts.ScriptTarget.ES2024,
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  jsx: ts.JsxEmit.Preserve,
+  strict: true,
+  skipLibCheck: true,
+  types: [],
+  noEmit: true,
+};
+
 // Files a program read from disk, parsed once per option set: a case's program differs only in its planted sources.
 const REAL_FILES = new Map<string, ts.SourceFile | undefined>();
 const PLANTED_FILES = new Map<string, ts.SourceFile | undefined>();
 
-function programFor(fileName: string, source: string, real: boolean): ts.Program {
-  const options: ts.CompilerOptions = real
-    ? realOptions()
-    : {
-        target: ts.ScriptTarget.ES2024,
-        module: ts.ModuleKind.ESNext,
-        moduleResolution: ts.ModuleResolutionKind.Bundler,
-        jsx: ts.JsxEmit.Preserve,
-        strict: true,
-        skipLibCheck: true,
-        types: [],
-        noEmit: true,
-      };
-  const planted = new Map([[fileName, source]]);
-  if (!real) {
-    planted.set(ROUTE_HELPER, ROUTER_RECORD);
-  }
+function plantedHost(options: ts.CompilerOptions, planted: ReadonlyMap<string, string>, onDisk: Map<string, ts.SourceFile | undefined>): ts.CompilerHost {
   const host = ts.createCompilerHost(options, true);
   const read = host.getSourceFile.bind(host);
-  const onDisk = real ? REAL_FILES : PLANTED_FILES;
   host.getSourceFile = (name, version, onError, create): ts.SourceFile | undefined => {
     const text = planted.get(name);
     if (text !== undefined) {
@@ -104,7 +113,34 @@ function programFor(fileName: string, source: string, real: boolean): ts.Program
   host.fileExists = (name): boolean => planted.has(name) || exists(name);
   const readFile = host.readFile.bind(host);
   host.readFile = (name): string | undefined => planted.get(name) ?? readFile(name);
-  return ts.createProgram([fileName, real ? REAL_HELPER : ROUTE_HELPER], options, host);
+  return host;
+}
+
+// A program of the spec and a route helper. The planted helper gives the rule the route types without the repo graph.
+// The real helper reaches the server's source graph through its error-code matchers, and parsing and binding that graph
+// costs more than a case's time limit, so its program resolves no import on its own: its files are the spec, the real
+// helper, and the router fixture with the tRPC and zod declarations a program of the fixture alone reads. The rule
+// reads the helper's `AppRouterRecord` alias and tRPC's record shape, and both resolve inside those files.
+function programFor(fileName: string, source: string, real: boolean): ts.Program {
+  if (!real) {
+    const planted = new Map([
+      [fileName, source],
+      [ROUTE_HELPER, ROUTER_RECORD],
+    ]);
+    return ts.createProgram([fileName, ROUTE_HELPER], PLANTED_OPTIONS, plantedHost(PLANTED_OPTIONS, planted, PLANTED_FILES));
+  }
+  const options = realOptions();
+  const planted = new Map([
+    [fileName, source],
+    [ROUTER_FIXTURE, ROUTER_FIXTURE_SOURCE],
+  ]);
+  const router = ts.createProgram([ROUTER_FIXTURE], options, plantedHost(options, planted, REAL_FILES));
+  const routerFiles = router
+    .getSourceFiles()
+    .filter((file) => !router.isSourceFileDefaultLibrary(file))
+    .map(({ fileName: name }) => name);
+  const closed = { ...options, noResolve: true, types: [] };
+  return ts.createProgram([fileName, REAL_HELPER, ...routerFiles], closed, plantedHost(closed, planted, REAL_FILES));
 }
 
 const probeSource = (body: string, header: string, real: boolean): string =>
@@ -361,10 +397,9 @@ test.for([
   expect(await findings(body)).toEqual([]);
 });
 
-// The server's own router record, read through the real route helper: the rule takes a procedure's request from it, so a
-// planted record cannot show the rule drifting from the router. `health` takes no input and `echo` takes a message.
-test("the real router record decides which procedures take a request", async () => {
-  // One lint, so one program of the server graph: the budget pays for it once.
+// A tRPC router's own record, read through the real route helper's `AppRouterRecord`: the rule takes a procedure's
+// request from it, so a hand-written record cannot show the rule drifting from tRPC or from the helper.
+test("a tRPC router record read through the real route helper decides which procedures take a request", async () => {
   const fixedEcho = `echo: () => ({ message: "x" })`;
   const body = [
     "await routeTrpc(page, { echo: ({ message }) => ({ message }) });",

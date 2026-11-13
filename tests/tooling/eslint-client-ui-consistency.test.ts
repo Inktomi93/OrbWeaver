@@ -176,9 +176,11 @@ const LIBRARY_ROW = "orb/library-surface-row";
 const LIST_SLOT_SURFACE = "packages/client/src/features/plugin/surfaces/extensions-switcher-surface.tsx";
 const TRANSCRIPT_SURFACE = "packages/client/src/features/chat/surfaces/message-list-surface.tsx";
 const RAW_ROW = "export const A = () => <ListRow title='a' />;";
+// Read once at import: the scan parses every client source.
+const LIST_SLOT_SURFACES = listSlotSurfacePaths(ROOT);
 
 test("a raw ListRow in a list-slot surface is a finding; LibraryRow, the transcript and other files pass", async () => {
-  expect(listSlotSurfacePaths(ROOT)).toContain(LIST_SLOT_SURFACE);
+  expect(LIST_SLOT_SURFACES).toContain(LIST_SLOT_SURFACE);
   expect(await findings(LIBRARY_ROW, RAW_ROW, LIST_SLOT_SURFACE)).toHaveLength(1);
   expect(await findings(LIBRARY_ROW, "export const A = () => <LibraryRow title='a' />;", LIST_SLOT_SURFACE)).toEqual([]);
   expect(await findings(LIBRARY_ROW, RAW_ROW, TRANSCRIPT_SURFACE)).toEqual([]);

@@ -1,13 +1,16 @@
 // The chromium processes a test's launcher left behind, read through the platform module: a descendant
 // census keyed on the command line, which the run-marker argument makes unique per launch, so a pid the OS
 // reuses never reads as the browser that carried it.
+import { readdirSync, readFileSync } from "node:fs";
 import process from "node:process";
 import { listProcesses, processGroupId, processInfo } from "@orb/tooling/floor/host/platform";
 import { runMarkerArg } from "@orb/tooling/floor/process/run-marker";
 
-// One sample is a full process-table read (tens of ms under load); a shorter interval starves the test's
-// own event loop, and a leaked chromium stays a descendant for far longer than this.
+// A shorter interval starves the test's own event loop when the whole-table fallback runs, and a leaked chromium
+// stays a descendant for far longer than this.
 const DEFAULT_SAMPLE_MS = 50;
+const PROC = "/proc";
+const PID_SEPARATOR_RE = /\s+/u;
 const CHROMIUM_RE = /headless_shell|chrome|chromium/u;
 
 function isChromiumCmdline(cmdline: string | undefined): cmdline is string {
@@ -24,9 +27,43 @@ export function identityKey(identity: ChromiumIdentity): string {
   return `${String(identity.pid)}:${identity.cmdline}`;
 }
 
+function readOrNull(path: string): string | null {
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+// A whole-box process table costs tens of ms per read and over 100 ms on a busy box, and the witness reads it every
+// sample on the test's own event loop. Linux names each thread's children in /proc/<pid>/task/<tid>/children, so
+// the table read is narrowed to the root's live descendants. Null means the kernel has no children files (or the
+// platform has no /proc), and the caller reads the whole table.
+function linuxDescendantPids(rootPid: number): readonly string[] | null {
+  if (readOrNull(`${PROC}/${String(rootPid)}/task/${String(rootPid)}/children`) === null) {
+    return null;
+  }
+  const pids: string[] = [];
+  const queue = [String(rootPid)];
+  for (let pid = queue.shift(); pid !== undefined; pid = queue.shift()) {
+    pids.push(pid);
+    let tasks: readonly string[] = [];
+    try {
+      tasks = readdirSync(`${PROC}/${pid}/task`);
+    } catch {
+      // The process exited between its parent's listing and this read; it has no children left to walk.
+    }
+    for (const task of tasks) {
+      queue.push(...(readOrNull(`${PROC}/${pid}/task/${task}/children`) ?? "").split(PID_SEPARATOR_RE).filter((child) => child !== ""));
+    }
+  }
+  return pids;
+}
+
 /** Chromium identities that are descendants NOW. Call while the launcher is still alive. */
 export function chromiumDescendantIdentities(rootPid: number): ChromiumIdentity[] {
-  const entries = listProcesses();
+  const descendants = linuxDescendantPids(rootPid);
+  const entries = descendants === null ? listProcesses() : listProcesses({ readDir: (path) => (path === PROC ? descendants : readdirSync(path)) });
   const children = new Map<number, number[]>();
   const byPid = new Map(entries.map((entry) => [entry.pid, entry] as const));
   for (const entry of entries) {

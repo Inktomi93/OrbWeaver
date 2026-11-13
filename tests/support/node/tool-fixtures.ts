@@ -424,18 +424,23 @@ function normalize(v: string): string {
 }
 
 // What differs between two runs of one argv on either door: the run slot's `<checkout>-<pid>-<stamp>` id, what
-// `normalize` masks on a line (so a RESULT line's wall-clock fields, never a ms figure on another line), and the stack
-// frames under a thrown run's TOOL ERROR line, which name the door that called. The box load would differ too, so
-// both runs read one planted box instead.
+// `normalize` masks on a line (so a RESULT line's wall-clock fields, never a ms figure on another line), the stack
+// frames under a thrown run's TOOL ERROR line, which name the door that called, and the racing-run census. The census
+// names the other snap runs live on this checkout, which in a whole tooling run are other files' runs starting and
+// ending between the two doors; tests/tooling/snap/ops/agent-readable-output.suite.int.test.ts pins it against a
+// planted racer. The box load would differ too, so both runs read one planted box instead.
 const RUN_SLOT_RE = /-\d+-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\b/gu;
 const STACK_FRAME_RE = /^ {4}at /u;
+const RACING_CENSUS_LINE = "CONCURRENT";
+// The census is the PROVENANCE line's last pair, and each run in it spells its pid and start with spaces.
+const RACING_CENSUS_PAIR_RE = /\bconcurrency=.*$/u;
 const PARITY_BOX_LOAD = "0.2/24";
 
 function parityLines(text: string): readonly string[] {
   return text
     .split("\n")
-    .filter((line) => !STACK_FRAME_RE.test(line))
-    .map((line) => normalize(line).replaceAll(RUN_SLOT_RE, "-<run>"));
+    .filter((line) => !(STACK_FRAME_RE.test(line) || line.startsWith(RACING_CENSUS_LINE)))
+    .map((line) => normalize(line).replaceAll(RUN_SLOT_RE, "-<run>").replace(RACING_CENSUS_PAIR_RE, "concurrency=<census>"));
 }
 
 /** Register a live design-audit proof. A case with a silent row returns the run's report, and every disposition is
