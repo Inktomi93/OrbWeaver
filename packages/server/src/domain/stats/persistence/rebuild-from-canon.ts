@@ -24,7 +24,7 @@ import {
   ownerStats,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
+import { batchMany, chunkRows } from "@orb/db/query";
 import type { IdSource, ModelId, UserId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
@@ -324,13 +324,13 @@ async function writeOwner(db: Db, ownerId: UserId, rows: OwnerRollupRows): Promi
     db.delete(modelStats).where(eq(modelStats.ownerId, ownerId)),
     db.insert(ownerStats).values(rows.ownerRow),
   ];
-  for (const chunk of chunkRows(rows.charRows, rowsPerInsert(CHAR_COLS))) {
+  for (const chunk of chunkRows(rows.charRows, CHAR_COLS)) {
     stmts.push(db.insert(characterStats).values(chunk));
   }
-  for (const chunk of chunkRows(rows.bucketRows, rowsPerInsert(DAILY_COLS))) {
+  for (const chunk of chunkRows(rows.bucketRows, DAILY_COLS)) {
     stmts.push(db.insert(dailyStats).values(chunk));
   }
-  for (const chunk of chunkRows(rows.modelRows, rowsPerInsert(MODEL_COLS))) {
+  for (const chunk of chunkRows(rows.modelRows, MODEL_COLS)) {
     stmts.push(db.insert(modelStats).values(chunk));
   }
   await db.batch(batchMany(stmts));
@@ -354,7 +354,7 @@ async function computeOwnerTimeline(db: Db, ownerId: UserId, now: number, idSour
   const { a, meta } = await foldOwnerCanon(db, ownerId);
   const rows = buildBucketRows({ ownerId, idSource }, a.bucketMap, meta, now);
   const stmts: BatchStmt[] = [db.delete(dailyStats).where(eq(dailyStats.ownerId, ownerId))];
-  for (const chunk of chunkRows(rows, rowsPerInsert(DAILY_COLS))) {
+  for (const chunk of chunkRows(rows, DAILY_COLS)) {
     stmts.push(db.insert(dailyStats).values(chunk));
   }
   await db.batch(batchMany(stmts));

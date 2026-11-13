@@ -10,7 +10,7 @@ export { chatRecencyExpr, memberVisibleChatScope } from "./chat-visibility.ts";
 export { isConstraintViolation } from "./db-errors.ts";
 export { fetchOwned } from "./fetch-owned.ts";
 export { immutableCollection, ROW_TUPLE_ALIAS, rowTuple } from "./immutable-rows.ts";
-export { chunkRows, rowsPerInsert } from "./insert-chunk.ts";
+export { chunkRows } from "./insert-chunk.ts";
 export { escapeLikeTerm } from "./like.ts";
 export { parseRecord, parseStringArray, parseStringArrayColumn } from "./parsers.ts";
 export { readableJson } from "./readable-json.ts";

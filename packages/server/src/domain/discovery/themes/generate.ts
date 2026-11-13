@@ -10,7 +10,7 @@ import type { RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { digestThemeAssignments, themeClusters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
+import { batchMany, chunkRows } from "@orb/db/query";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -262,10 +262,10 @@ async function replaceAll(db: Db, clusterRows: readonly ClusterRow[], assignRows
         db.delete(themeClusters)
       : db.delete(themeClusters).where(eq(themeClusters.ownerId, ownerId));
   const stmts: BatchStmt[] = [del];
-  for (const chunk of chunkRows(clusterRows, rowsPerInsert(CLUSTER_COLS))) {
+  for (const chunk of chunkRows(clusterRows, CLUSTER_COLS)) {
     stmts.push(db.insert(themeClusters).values(chunk));
   }
-  for (const chunk of chunkRows(assignRows, rowsPerInsert(ASSIGN_COLS))) {
+  for (const chunk of chunkRows(assignRows, ASSIGN_COLS)) {
     stmts.push(db.insert(digestThemeAssignments).values(chunk));
   }
   await db.batch(batchMany(stmts));

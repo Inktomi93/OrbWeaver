@@ -6,7 +6,7 @@
 import type { Db } from "@orb/db";
 import { characterKeywordProfiles, characters, keywordCooccurrence } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/query";
+import { batchMany, chunkRows } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
 import type { ComputeCooccurrenceOptions } from "../contract/params.ts";
@@ -127,10 +127,10 @@ async function replaceOwner(db: Db, ownerId: UserId, coocRows: readonly CoocInse
       .delete(characterKeywordProfiles)
       .where(inArray(characterKeywordProfiles.characterId, db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId)))),
   ];
-  for (const chunk of chunkRows(coocRows, rowsPerInsert(COOC_COLS))) {
+  for (const chunk of chunkRows(coocRows, COOC_COLS)) {
     stmts.push(db.insert(keywordCooccurrence).values(chunk));
   }
-  for (const chunk of chunkRows(profileRows, rowsPerInsert(PROFILE_COLS))) {
+  for (const chunk of chunkRows(profileRows, PROFILE_COLS)) {
     stmts.push(db.insert(characterKeywordProfiles).values(chunk));
   }
   await db.batch(batchMany(stmts));
