@@ -1776,6 +1776,18 @@ const DOMAIN_AUTHORITY = [
     to: { path: `${SRV}domain/$1/verbs/`, dependencyTypesNot: ["type-only"] },
   },
   {
+    name: "domain-contract-types-only",
+    comment:
+      "A domain's contract/ is its typed surface with no logic (Core-0 §4), and every consumer that derives from it loads what it imports at runtime. A type from anywhere stays legal; a runtime import reaches only the contract itself, @orb/contracts, @orb/kit and the server primitives.",
+    severity: "error",
+    from: { path: `${SRV}domain/([^/]+)/contract/` },
+    to: {
+      path: [`${SRV}(domain|infra|foundation|transport|entry)/`, DB, INFERENCE],
+      pathNot: `${SRV}domain/$1/contract/`,
+      dependencyTypesNot: ["type-only"],
+    },
+  },
+  {
     name: "domain-substrate-mediates-subsystems",
     comment: "Root composition surfaces may assemble subsystems; verbs receive them through substrate injection.",
     severity: "error",
