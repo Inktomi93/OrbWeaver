@@ -73,7 +73,7 @@ export const CHAT_OP_CODES = {
    *  the contract wire home (the `aborted` precedent below) — the client keys on the same literal
    *  (`data.reason`) to say WHICH refusal this is instead of a generic "couldn't swipe". */
   locked: TURN_LOCKED_OP_CODE,
-  /** An admitted verb met its room held closed for removal (a husk reap's delete). Thrown only after the
+  /** An admitted verb met its room held closed for removal (a husk reap's or the temporary-chat sweep's delete). Thrown only after the
    *  caller's own room gate, so a stranger still reads the leak-free not found. Derived from the contract home. */
   roomClosing: TURN_ROOM_CLOSING_OP_CODE,
   /** An admitted verb met a room whose host is outside its consent set (`ChatHostWithoutConsentError`), and the
