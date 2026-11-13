@@ -147,10 +147,14 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     </Button>
   );
   // A tile in its empty state takes the control as its own action; the masthead then draws none, so the page keeps one.
+  // While a tile cannot say yet, the masthead draws none either: a control drawn there would jump into the tile when the read lands.
   const [holders, setHolders] = useState<readonly string[]>([]);
-  const holdStart = (tileId: string, held: boolean): void => {
-    setHolders((current) => holdersAfter(current, tileId, held));
+  const [undecided, setUndecided] = useState<readonly string[]>([]);
+  const holdStart = (tileId: string, held: boolean | null): void => {
+    setHolders((current) => holdersAfter(current, tileId, held === true));
+    setUndecided((current) => holdersAfter(current, tileId, held === null));
   };
+  const mastheadStarts = holders.length === 0 && undecided.length === 0;
 
   return (
     // FORM tier (UI-Density-Law.md §3.1): home is a surface you land on and act from, so its islands
@@ -188,7 +192,14 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                   {masthead.map((tile) => (
                     <HomeTile gridRef={gridRef} column="masthead" key={tile.id} tile={tile} />
                   ))}
-                  {holders.length === 0 ? startChat : null}
+                  {mastheadStarts ? (
+                    startChat
+                  ) : (
+                    // The control's box stays in the row while it is drawn elsewhere or not yet, so the row neither shrinks nor rewraps.
+                    <Row aria-hidden="true" className="invisible" inert={true}>
+                      {startChat}
+                    </Row>
+                  )}
                 </Row>
                 {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
