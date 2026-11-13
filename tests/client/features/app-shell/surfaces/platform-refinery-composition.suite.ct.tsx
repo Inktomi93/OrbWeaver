@@ -22,6 +22,7 @@ import {
   REFINERY_VERSIONS_NAME,
   refineryOpenCardName,
 } from "#client/features/refinery/lib/refinery-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RefineryCompositionShellStory } from "./_refinery-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -247,7 +248,7 @@ for (const regime of REGIMES) {
       await expect(dialog.getByText("Depth 4 · system", { exact: true })).toBeVisible();
       await expect(dialog.getByText(liveDescription, { exact: true })).toHaveCount(0);
       await expect(dialog.getByRole("textbox")).toHaveCount(0);
-      const close = dialog.getByRole("button", { name: "Close", exact: true });
+      const close = dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true });
       await expect(close).toBeEnabled();
       await close.click();
       await expect(dialog).toBeHidden();
@@ -284,15 +285,15 @@ test("Versions asks before Restore overwrites the live card, and Cancel writes n
   await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   const context = page.locator(CONTEXT);
   await context.getByRole("tab", { name: REFINERY_VERSIONS_NAME, exact: true }).click();
-  await context.getByRole("button", { name: "Restore", exact: true }).click();
+  await context.getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toBeVisible();
   expect(calls.count("character.restore")).toBe(0);
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toBeHidden();
   expect(calls.count("character.restore")).toBe(0);
-  await context.getByRole("button", { name: "Restore", exact: true }).click();
-  await confirm.getByRole("button", { name: "Restore", exact: true }).click();
+  await context.getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
   await expect.poll(() => calls.count("character.restore")).toBe(1);
 });
 

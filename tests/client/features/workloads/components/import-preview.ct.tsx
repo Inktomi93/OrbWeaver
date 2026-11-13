@@ -33,6 +33,7 @@ import {
   IMPORT_NOTHING_FOUND_NOTE,
   previewKindLine,
 } from "#client/features/workloads/lib/portability-model.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
 // The preview over the real composed server: a picked SillyTavern folder really uploads as a dry run, the workload
@@ -199,7 +200,7 @@ for (const { name, width, appearance } of WIDTHS) {
     await expect(report.getByText("Preview card", { exact: false })).toBeVisible();
     expect((await actionGroupGeometry(page.getByRole("group", { name: "Import preview host", exact: true }), [confirm])).inlineOverflow).toBeLessThanOrEqual(1);
 
-    await preflight.getByRole("button", { name: "Cancel", exact: true }).click();
+    await preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
     await expect(preflight).toHaveCount(0);
     expect((await caller.character.list({})).items).toHaveLength(characters);
     expect(await caller.persona.list()).toHaveLength(personas);
@@ -228,7 +229,7 @@ test("cancelling while the folder is being read stops the dry run", async ({ mou
   await expect.poll(async () => (await caller.workloads.list({ kind: "import-st" })).map((row) => row.status)).toEqual(["queued"]);
 
   const preflight = page.getByRole("group", { name: /^Import \d+ files? from the folder you picked\?$/u });
-  await preflight.getByRole("button", { name: "Cancel", exact: true }).click();
+  await preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
 
   await expect(preflight).toHaveCount(0);
   await expect.poll(async () => (await caller.workloads.list({ kind: "import-st" })).map((row) => row.status)).toEqual(["cancelled"]);
@@ -369,7 +370,7 @@ test("Import and Cancel stay in reach at the foot of a review taller than the vi
   const preflight = page.getByRole("group", { name: PREFLIGHT });
   await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
   await expect(preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true })).toBeInViewport();
-  await expect(preflight.getByRole("button", { name: "Cancel", exact: true })).toBeInViewport();
+  await expect(preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true })).toBeInViewport();
 });
 
 test("Import hands focus to the progress region", async ({ mount, page, baseURL }, testInfo) => {
@@ -435,7 +436,7 @@ test("Cancel while the folder's bytes are still going up ends the upload request
 
   await pickFolder(page, folder);
   await sent;
-  await page.getByRole("group", { name: PREFLIGHT }).getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("group", { name: PREFLIGHT }).getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   expect((await ended).failure()?.errorText).toMatch(/abort/iu);
 });
 

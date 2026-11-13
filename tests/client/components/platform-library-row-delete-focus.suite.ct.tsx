@@ -1,6 +1,7 @@
 import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { Page } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RemovableRowsStory } from "./_library-list-rows-focus-stories.tsx";
 
 const STORY = "tests/client/components/_library-list-rows-focus-stories/RemovableRowsStory";
@@ -27,7 +28,7 @@ test("confirming a delete in a virtualized list hands focus to the next row, the
 test("a cancelled delete returns focus to its own trigger", async ({ page, mount }) => {
   await mount<typeof RemovableRowsStory>(STORY, { ids: IDS });
   await confirmDelete(page, "b");
-  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(
     page
       .locator('[data-slot="list-row-root"]')

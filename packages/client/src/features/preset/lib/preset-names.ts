@@ -10,6 +10,12 @@ export const PRESET_NAME_FIELD_NAME = "Preset name";
 export const PRESET_RENAME_NAME = "Rename preset";
 export const PRESET_SECTIONS_NAME = "Preset sections";
 export const PRESET_IMPORT_TITLE = "Import a preset";
+
+/** The variable editor's question field. */
+export const PRESET_VARIABLE_QUESTION_NAME = "Question";
+
+/** The variable editor's door to a new option row. */
+export const PRESET_VARIABLE_ADD_OPTION_NAME = "Add option";
 export const PRESET_IMPORT_NAME = "Import preset";
 
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */

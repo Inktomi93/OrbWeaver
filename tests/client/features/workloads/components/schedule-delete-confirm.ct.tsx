@@ -4,6 +4,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { scheduleDeleteName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
 /** The schedule this case adds; the corpus may hold another of its kind, so the first match is the one asked about. */
@@ -26,7 +27,7 @@ test("Delete schedule asks first: Cancel keeps the schedule, Delete removes it o
   await remove.click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toBeVisible();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   expect(await caller.workloads.listSchedules({})).toHaveLength(before);
 

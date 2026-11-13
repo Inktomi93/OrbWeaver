@@ -7,6 +7,7 @@ import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serv
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PluginDialogShellStory } from "./_plugin-dialog-stories.tsx";
 
 const EXTRA_READS = [
@@ -43,6 +44,6 @@ test("a held plugin dialog read shows the loading skeleton, a failed one the err
   hold.fail();
   await expect(dialog.getByText("Couldn't load this plugin dialog.", { exact: true })).toBeVisible();
   failing = false;
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(dialog.getByText("That dialog is no longer available", { exact: true })).toBeVisible();
 });

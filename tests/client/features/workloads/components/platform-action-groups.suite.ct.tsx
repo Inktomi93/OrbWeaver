@@ -20,6 +20,7 @@ import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-librar
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { SCHEDULE_CADENCE_LABELS, scheduleDeleteName, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
@@ -127,7 +128,7 @@ for (const regime of REGIMES) {
       const preflight = page.getByRole("group", { name: "Import “import-action-card.png”?", exact: true });
       await expect(preflight).toBeFocused();
       const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true });
-      const cancel = preflight.getByRole("button", { name: "Cancel", exact: true });
+      const cancel = preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(confirm).toBeEnabled();
       await measureActions(confirm.locator(".."), [confirm, cancel], testInfo, "card-preflight-actions");
       await confirm.focus();
@@ -209,7 +210,7 @@ for (const regime of REGIMES) {
       for (const radio of await review.getByRole("radio", { name: /^Merge into your existing persona/u }).all()) {
         await expect(radio).toBeChecked();
       }
-      await preflight.getByRole("button", { name: "Cancel", exact: true }).click();
+      await preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(preflight).toHaveCount(0);
       await expect(picker).toBeFocused();
       for (const persona of personas) {

@@ -8,6 +8,7 @@ import { RATE_LIMITS_SUBCATEGORY } from "#client/features/user-admin/lib/rate-li
 import { MEDIA_TRUST_SUBCATEGORY, MULTI_USER_SUBCATEGORY, OPERATIONS_SUBCATEGORY } from "#client/features/user-admin/lib/system-config-nav.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
 import { ADMIN_PROMPT_CACHE_DEPTH_NAME, ADMIN_RESET_DEFAULTS_NAME, adminResetSectionName } from "#client/features/user-admin/lib/user-admin-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AdminResetNamesStory } from "./_admin-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-action-groups-stories/AdminResetNamesStory";
@@ -74,7 +75,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       const confirm = page.getByRole("alertdialog");
       await expect(confirm).toBeVisible();
-      await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+      await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(confirm).toHaveCount(0);
       expect(calls.inputs("settings.updateAppSettings")).toEqual([]);
       await reset.focus();

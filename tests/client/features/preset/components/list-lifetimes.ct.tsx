@@ -5,7 +5,25 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { present } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { PRESET_EDITOR_VIEW_LABELS, PRESET_RESET_ARRANGEMENT_NAME, PRESET_RESET_ARRANGEMENT_TITLE } from "#client/features/preset/lib/preset-names.ts";
+import {
+  USER_MACRO_ADD_ARGUMENT_NAME,
+  USER_MACRO_ADD_INPUT_NAME,
+  USER_MACRO_ADD_OPTION_NAME,
+  USER_MACRO_ARG_NAME_FIELD_NAME,
+  USER_MACRO_EDITOR_TITLE,
+  USER_MACRO_INPUT_KIND_LABELS,
+  USER_MACRO_INPUT_KIND_NAME,
+  userMacroArgumentGroupName,
+  userMacroInputGroupName,
+  userMacroOptionGroupName,
+} from "#client/components/shared-control-names.ts";
+import {
+  PRESET_EDITOR_VIEW_LABELS,
+  PRESET_RESET_ARRANGEMENT_NAME,
+  PRESET_RESET_ARRANGEMENT_TITLE,
+  PRESET_VARIABLE_ADD_OPTION_NAME,
+  PRESET_VARIABLE_QUESTION_NAME,
+} from "#client/features/preset/lib/preset-names.ts";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
@@ -101,7 +119,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.data, exact: true }).click();
   await page.getByRole("button", { name: "{{cohort_macro}}", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Edit macro", exact: true });
+  const dialog = page.getByRole("dialog", { name: USER_MACRO_EDITOR_TITLE, exact: true });
   const arg = dialog.locator('input[name="userMacros[0].args[1].name"]');
   await arg.fill("second");
   await arg.press("End");
@@ -109,49 +127,78 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(arg).toBeFocused();
   await expect(arg).toHaveValue("second_edited");
   await expect.poll(() => arg.evaluate((node: HTMLInputElement) => node.selectionStart)).toBe("second_edited".length);
-  await dialog.getByRole("group", { name: "Argument 1", exact: true }).getByRole("button", { name: "Remove", exact: true }).click();
+  await dialog
+    .getByRole("group", { name: userMacroArgumentGroupName(1), exact: true })
+    .getByRole("button", { name: DIALOG_VERBS.remove, exact: true })
+    .click();
   await page.getByRole("alertdialog").getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
-  await expect(dialog.getByRole("group", { name: "Argument 2", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("group", { name: userMacroArgumentGroupName(2), exact: true })).toBeVisible();
   await expect(dialog.locator('input[name="userMacros[0].args[1].name"]')).toHaveValue("second_edited");
-  await confirmRemove(page, dialog.getByRole("group", { name: "Argument 1", exact: true }).getByRole("button", { name: "Remove", exact: true }));
+  await confirmRemove(
+    page,
+    dialog.getByRole("group", { name: userMacroArgumentGroupName(1), exact: true }).getByRole("button", { name: DIALOG_VERBS.remove, exact: true }),
+  );
   await expect(dialog.locator('input[name="userMacros[0].args[0].name"]')).toHaveValue("second_edited");
-  await expect(dialog.getByRole("button", { name: "Add argument", exact: true })).toBeFocused();
-  await dialog.getByRole("button", { name: "Add argument", exact: true }).click();
-  await dialog.getByRole("group", { name: "Argument 2", exact: true }).getByRole("textbox", { name: "Name", exact: true }).fill("added_arg");
-  await confirmRemove(page, dialog.getByRole("group", { name: "Argument 2", exact: true }).getByRole("button", { name: "Remove", exact: true }));
+  await expect(dialog.getByRole("button", { name: USER_MACRO_ADD_ARGUMENT_NAME, exact: true })).toBeFocused();
+  await dialog.getByRole("button", { name: USER_MACRO_ADD_ARGUMENT_NAME, exact: true }).click();
+  await dialog
+    .getByRole("group", { name: userMacroArgumentGroupName(2), exact: true })
+    .getByRole("textbox", { name: USER_MACRO_ARG_NAME_FIELD_NAME, exact: true })
+    .fill("added_arg");
+  await confirmRemove(
+    page,
+    dialog.getByRole("group", { name: userMacroArgumentGroupName(2), exact: true }).getByRole("button", { name: DIALOG_VERBS.remove, exact: true }),
+  );
 
   await confirmRemove(
     page,
     dialog
-      .getByRole("group", { name: "Macro input 1", exact: true })
-      .getByRole("group", { name: "Input option 1", exact: true })
-      .getByRole("button", { name: "Remove", exact: true }),
+      .getByRole("group", { name: userMacroInputGroupName(1), exact: true })
+      .getByRole("group", { name: userMacroOptionGroupName(1), exact: true })
+      .getByRole("button", { name: DIALOG_VERBS.remove, exact: true }),
   );
   await expect(dialog.locator('input[name="userMacros[0].inputs[0].options[0].label"]')).toHaveValue("Beta");
-  await expect(dialog.getByRole("group", { name: "Macro input 1", exact: true }).getByRole("button", { name: "Add option", exact: true })).toBeFocused();
-  await dialog.getByRole("group", { name: "Macro input 1", exact: true }).getByRole("button", { name: "Add option", exact: true }).click();
+  await expect(
+    dialog.getByRole("group", { name: userMacroInputGroupName(1), exact: true }).getByRole("button", { name: USER_MACRO_ADD_OPTION_NAME, exact: true }),
+  ).toBeFocused();
+  await dialog
+    .getByRole("group", { name: userMacroInputGroupName(1), exact: true })
+    .getByRole("button", { name: USER_MACRO_ADD_OPTION_NAME, exact: true })
+    .click();
   await dialog.locator('input[name="userMacros[0].inputs[0].options[1].label"]').fill("Inserted option");
   await confirmRemove(
     page,
     dialog
-      .getByRole("group", { name: "Macro input 1", exact: true })
-      .getByRole("group", { name: "Input option 2", exact: true })
-      .getByRole("button", { name: "Remove", exact: true }),
+      .getByRole("group", { name: userMacroInputGroupName(1), exact: true })
+      .getByRole("group", { name: userMacroOptionGroupName(2), exact: true })
+      .getByRole("button", { name: DIALOG_VERBS.remove, exact: true }),
   );
-  await dialog.getByRole("combobox", { name: "Kind", exact: true }).first().click();
-  await page.getByRole("option", { name: "Toggle: on/off", exact: true }).click();
+  await dialog.getByRole("combobox", { name: USER_MACRO_INPUT_KIND_NAME, exact: true }).first().click();
+  await page.getByRole("option", { name: USER_MACRO_INPUT_KIND_LABELS["boolean-toggle"], exact: true }).click();
   await expect(dialog.locator('input[name="userMacros[0].inputs[0].options[0].label"]')).toHaveCount(0);
-  await dialog.getByRole("combobox", { name: "Kind", exact: true }).first().click();
-  await page.getByRole("option", { name: "Single select: pick one option", exact: true }).click();
+  await dialog.getByRole("combobox", { name: USER_MACRO_INPUT_KIND_NAME, exact: true }).first().click();
+  await page.getByRole("option", { name: USER_MACRO_INPUT_KIND_LABELS["single-select"], exact: true }).click();
   await expect(dialog.locator('input[name="userMacros[0].inputs[0].options[0].label"]')).toHaveValue("Beta");
-  await confirmRemove(page, dialog.getByRole("group", { name: "Macro input 1", exact: true }).getByRole("button", { name: "Remove", exact: true }).first());
+  await confirmRemove(
+    page,
+    dialog
+      .getByRole("group", { name: userMacroInputGroupName(1), exact: true })
+      .getByRole("button", { name: DIALOG_VERBS.remove, exact: true })
+      .first(),
+  );
   await expect(dialog.locator('input[name="userMacros[0].inputs[0].name"]')).toHaveValue("second_input");
   await expect(dialog.locator('input[name="userMacros[0].inputs[0].options[0].label"]')).toHaveValue("Gamma");
-  await expect(dialog.getByRole("button", { name: "Add input", exact: true })).toBeFocused();
-  await dialog.getByRole("button", { name: "Add input", exact: true }).click();
+  await expect(dialog.getByRole("button", { name: USER_MACRO_ADD_INPUT_NAME, exact: true })).toBeFocused();
+  await dialog.getByRole("button", { name: USER_MACRO_ADD_INPUT_NAME, exact: true }).click();
   await dialog.locator('input[name="userMacros[0].inputs[1].name"]').fill("added_input");
-  await confirmRemove(page, dialog.getByRole("group", { name: "Macro input 2", exact: true }).getByRole("button", { name: "Remove", exact: true }).first());
+  await confirmRemove(
+    page,
+    dialog
+      .getByRole("group", { name: userMacroInputGroupName(2), exact: true })
+      .getByRole("button", { name: DIALOG_VERBS.remove, exact: true })
+      .first(),
+  );
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   await component.update({ presetId, revision: 1 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("1");
@@ -179,8 +226,8 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await confirmRemove(page, variable.getByRole("group", { name: "Option 1", exact: true }).getByRole("button", { name: "Remove", exact: true }));
   const remaining = variable.locator('input[name="variables[0].options[0].label"]');
   await expect(remaining).toHaveValue("Loud");
-  await expect(variable.getByRole("button", { name: "Add option", exact: true })).toBeFocused();
-  await variable.getByRole("button", { name: "Add option", exact: true }).click();
+  await expect(variable.getByRole("button", { name: PRESET_VARIABLE_ADD_OPTION_NAME, exact: true })).toBeFocused();
+  await variable.getByRole("button", { name: PRESET_VARIABLE_ADD_OPTION_NAME, exact: true }).click();
   await variable.locator('input[name="variables[0].options[1].label"]').fill("Inserted variable option");
   await confirmRemove(page, variable.getByRole("group", { name: "Option 2", exact: true }).getByRole("button", { name: "Remove", exact: true }));
   await remaining.press("End");
@@ -201,11 +248,11 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(remaining).toHaveValue("Louder draft");
   await expect(page.getByText("Restored draft, not saved", { exact: true })).toBeVisible();
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toHaveCount(0);
-  await variable.getByRole("button", { name: "Done", exact: true }).click();
+  await variable.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
   await page.getByRole("button", { name: AUTOSAVE_RESUME_NAME, exact: true }).press("Enter");
   await expect(page.getByText("Save failed.", { exact: true })).toBeVisible();
   failSaves = false;
-  await page.getByRole("button", { name: "Retry", exact: true }).press("Enter");
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).press("Enter");
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.options[0]?.label).toBe("Louder draft");
   expect(present(trpc.lastInput("preset.update")).config).not.toHaveProperty("variableRowIds");
@@ -288,13 +335,13 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("2");
   await expect(label).toHaveValue("Newer");
   await expect(label).toBeFocused();
-  await dialog.getByRole("button", { name: "Done", exact: true }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
   await page.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true }).click();
   await page.getByRole("alertdialog", { name: PRESET_RESET_ARRANGEMENT_TITLE, exact: true }).getByRole("button", { name: "Reset", exact: true }).click();
   await expect(page.getByRole("button", { name: "queued_variable", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Add variable", exact: true }).click();
-  await dialog.getByRole("textbox", { name: "Question", exact: true }).fill("New owner after reset");
-  await expect(dialog.getByRole("textbox", { name: "Question", exact: true })).toBeFocused();
+  await dialog.getByRole("textbox", { name: PRESET_VARIABLE_QUESTION_NAME, exact: true }).fill("New owner after reset");
+  await expect(dialog.getByRole("textbox", { name: PRESET_VARIABLE_QUESTION_NAME, exact: true })).toBeFocused();
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.question).toBe("New owner after reset");
   expect(present(trpc.lastInput("preset.update")).config).not.toHaveProperty("variableRowIds");

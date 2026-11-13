@@ -14,6 +14,7 @@ import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME } from "#client/features/app-shel
 import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { DATABANK_LANDING_NAME } from "#client/features/databank/lib/databank-names.ts";
 import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -307,7 +308,7 @@ test.describe("offline, where the first read of a pane waits for the network", (
       const pane = page.locator(PANE);
       await expect(pane.getByText(family.failed, { exact: true })).toBeVisible({ timeout: READ_RETRIES_MS });
       recover();
-      await pane.getByRole("button", { name: "Retry", exact: true }).click();
+      await pane.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
       await expect(family.landing(pane)).toBeVisible();
       await expect(pane.getByText(family.failed, { exact: true })).toHaveCount(0);
     });

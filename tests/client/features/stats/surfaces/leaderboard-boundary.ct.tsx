@@ -9,6 +9,7 @@ import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serv
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const SERVED = [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES].filter((path) => path !== "stats.leaderboard");
@@ -38,7 +39,7 @@ test("a held leaderboard read shows the loading skeleton, a failed one the share
   hold.fail();
   await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toBeVisible();
   failing = false;
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("list", { name: "Character leaderboard" })).toBeVisible();
 });

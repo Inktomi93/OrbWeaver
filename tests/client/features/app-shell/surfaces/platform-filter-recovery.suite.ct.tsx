@@ -11,6 +11,7 @@ import {
   REFINERY_START_SESSION_PICKER_NAME,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { FilterRecoveryShellStory } from "./_filter-recovery-stories.tsx";
 
@@ -89,7 +90,7 @@ for (const regime of [
       const name = form.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true });
       await expect(name).toBeFocused();
       await expect(form.locator('button[type="submit"]')).toBeDisabled();
-      await press(form.getByRole("button", { name: "Cancel", exact: true }));
+      await press(form.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }));
       await expect(form).toHaveCount(0);
       await expect(content.getByRole("button", { name: "Clear filter", exact: true })).toHaveCount(0);
       expect(calls.count("regex.createScript")).toBe(0);
