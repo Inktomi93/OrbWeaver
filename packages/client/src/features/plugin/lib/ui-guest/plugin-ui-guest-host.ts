@@ -209,6 +209,10 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       handleBootOutcome(message);
       return;
     }
+    if (message.kind === "stopped") {
+      kill("the plugin's interface ran past its CPU budget while it received a host result");
+      return;
+    }
     const settled: UiGuestSettledMessage = message;
     clearWall();
     if (!settled.ok) {

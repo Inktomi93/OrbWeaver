@@ -136,7 +136,7 @@ export function readError(ctx: QuickJSContext, handle: QuickJSHandle): string {
 // A host-authored error for the guest: an object on the realm's own `Error.prototype` whose fields are DEFINED, the
 // client twin of the server marshal's `newHostError`. Never `ctx.newError`: it captures a stack, which runs the
 // guest's `Error.prepareStackTrace`, and it SETS `message`, which runs any setter the guest put on
-// `Error.prototype`. A host result settles outside every CPU window, so guest code run there would be unbounded.
+// `Error.prototype`. Building a host value through guest code would let the guest run inside the host's own work.
 function newHostError(state: GuestState, fields: Readonly<Record<string, string>>): QuickJSHandle {
   const { ctx } = state;
   const error = ctx.newObject(state.errorPrototype);
@@ -355,14 +355,33 @@ function pump(ctx: QuickJSContext): () => void {
     if (!ctx.alive) {
       return;
     }
-    const startMs = performance.now();
-    ctx.runtime.setInterruptHandler(() => performance.now() - startMs > UI_GUEST_BUDGETS.eventCpuMs);
-    try {
-      ctx.runtime.executePendingJobs();
-    } finally {
-      ctx.runtime.removeInterruptHandler();
-    }
+    // Dispose the result: on the interrupt path it holds the guest's `InternalError`, and an undisposed handle at
+    // `ctx.dispose()` aborts the WASM module.
+    withinEventBudget(ctx, () => ctx.runtime.executePendingJobs().dispose());
   };
+}
+
+/** Run `work`, host code that calls into the realm, under a fresh `eventCpuMs` deadline against real monotonic time,
+ *  and say whether the deadline stopped guest code. The pump runs a continuation here, and the worker settles a host
+ *  result here: a resolve reads the result's `then`, and a guest can define a `then` getter on `Object.prototype`, so
+ *  a settle with no deadline runs that getter unbounded. A throw the interrupt caused counts as stopped. */
+export function withinEventBudget(ctx: QuickJSContext, work: () => void): boolean {
+  const startMs = performance.now();
+  const deadline = { passed: false };
+  ctx.runtime.setInterruptHandler(() => {
+    deadline.passed = performance.now() - startMs > UI_GUEST_BUDGETS.eventCpuMs;
+    return deadline.passed;
+  });
+  try {
+    work();
+  } catch (error) {
+    if (!deadline.passed) {
+      throw error;
+    }
+  } finally {
+    ctx.runtime.removeInterruptHandler();
+  }
+  return deadline.passed;
 }
 
 /** Parse a host result INSIDE the guest, through the realm's PRISTINE `JSON.parse`. The payload crosses as a

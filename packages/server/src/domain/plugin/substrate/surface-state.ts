@@ -15,6 +15,7 @@
 // did both. A miss reads `null`, which the anchored fan-out already renders as SILENCE (§4.9).
 
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
+import { DomainConflictError } from "@orb/kit/errors";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
@@ -67,7 +68,7 @@ export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStat
   return {
     set: (pluginId, surfaceId, chatId, state): void => {
       if (utf8ByteLength(JSON.stringify(state)) > SURFACE_STATE_MAX_BYTES) {
-        throw new Error(`plugin host: ui.setState state exceeds the ${SURFACE_STATE_MAX_BYTES}-byte cap`);
+        throw new DomainConflictError(`plugin host: ui.setState state exceeds the ${SURFACE_STATE_MAX_BYTES}-byte cap`);
       }
       const key = stateKey(pluginId, surfaceId, chatId);
       // Only a NEW key consumes a slot — an existing-key overwrite always proceeds (the storage.kv discipline).
@@ -91,7 +92,7 @@ export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStat
             { pluginId, surfaceId, chatId, cap: PLUGIN_SURFACE_STATE_MAX_KEYS },
             "plugin: ui.setState refused — this plugin is at its surface-state key cap (row 778)",
           );
-          throw new Error(`plugin host: ui.setState exceeds the ${PLUGIN_SURFACE_STATE_MAX_KEYS}-key state cap for this plugin`);
+          throw new DomainConflictError(`plugin host: ui.setState exceeds the ${PLUGIN_SURFACE_STATE_MAX_KEYS}-key state cap for this plugin`);
         }
       }
       states.set(key, state);

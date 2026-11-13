@@ -389,6 +389,58 @@ test("a native guest boot failure publishes ready:false and reports the original
   expect(page.workers()).toHaveLength(0);
 });
 
+/** A guest whose boot-time host call settles after boot, outside every event, into a `then` getter it put on
+ *  `Object.prototype`: a resolve reads that getter, so a looping one runs wherever the settle runs. */
+function thenGetterSource(loops: boolean): string {
+  return `const ui = orb.ui(1);
+let armed = false;
+Object.defineProperty(Object.prototype, "then", { configurable: true, get() { if (armed) { for (;;) {} } return undefined; } });
+ui.render("protocol", { kind: "stack", children: [{ kind: "text", value: "Settle guest booted" }] });
+armed = ${String(loops)};
+ui.host.storage.get("ledger").then((result) => {
+  ui.render("protocol", { kind: "stack", children: [{ kind: "text", value: "Settled: " + result.entry }] });
+});
+undefined;`;
+}
+
+test("a host result whose then getter loops stops the guest past its CPU budget and reports the crash", async ({ corpus, corpusViewer, mount, page }) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) =>
+      input.fn === "storage.get" && input.argsJson === '["ledger"]'
+        ? { resultJson: JSON.stringify({ entry: "Native ledger" }) }
+        : trpcError({ code: "NOT_FOUND" }),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  let source = thenGetterSource(true);
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: source }));
+  const retired: Promise<void>[] = [];
+  page.on("worker", (worker) => retired.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
+  await observeProtocol(page);
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
+  await expect(retry).toBeVisible();
+  await Promise.all(retired);
+  expect(page.workers()).toHaveLength(0);
+  await expect.poll(() => trpc.lastInput("plugin.reportUiCrash")).toMatchObject({ pluginId: plugin.id, surfaceId: "protocol" });
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+  const stopped = { kind: "stopped" } satisfies Extract<UiGuestOutbound, { kind: "stopped" }>;
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), OBSERVATIONS)).toContain(JSON.stringify(stopped));
+
+  // Control: the same guest with its getter disarmed settles the result and renders it, and reports nothing more.
+  source = thenGetterSource(false);
+  const nextWorker = page.waitForEvent("worker");
+  await retry.click();
+  await nextWorker;
+  await expect(page.getByText("Settled: Native ledger", { exact: true })).toBeVisible();
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+});
+
 test("a crash report that fails writes its log and raises no toast, because the person did not start it", async ({ corpus, corpusViewer, mount, page }) => {
   const plugin = makePluginRow();
   const trpc = await routeTrpc(page, {

@@ -38,7 +38,7 @@ import type { UiGuestBootMessage, UiGuestEventMessage, UiGuestInbound } from "#s
 import { UI_GUEST_BUDGETS } from "#src/lib/plugin-ui-guest-protocol.ts";
 // This module DRIVES; `ui-guest-realm` BUILDS — the same split `sandbox.ts` and `realm.ts` draw on the server.
 import type { GuestState } from "./ui-guest-realm.ts";
-import { callJsonParse, installRealm, LogRing, makeSeams, post, readError } from "./ui-guest-realm.ts";
+import { callJsonParse, installRealm, LogRing, makeSeams, post, readError, withinEventBudget } from "./ui-guest-realm.ts";
 
 /** Every network affordance this THREAD has. Removed once the WASM is loaded — see the file header. */
 const NETWORK_GLOBALS = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"] as const;
@@ -180,11 +180,18 @@ function settleHostCall(message: Extract<UiGuestInbound, { kind: "hostResult" }>
   }
   state.pending.delete(message.callId);
   state.inFlight -= 1;
-  if (message.ok) {
-    waiting.resolve(message.resultJson);
-    return;
+  // The settle can run guest code (a `then` getter the resolve reads), and it may land outside every event, where no
+  // host wall is armed, so it runs under the event budget. A guest it stops is reported as a crash.
+  const stopped = withinEventBudget(state.ctx, () => {
+    if (message.ok) {
+      waiting.resolve(message.resultJson);
+      return;
+    }
+    waiting.reject(message.code === undefined ? { message: message.message } : { message: message.message, code: message.code });
+  });
+  if (stopped) {
+    post({ kind: "stopped" });
   }
-  waiting.reject(message.code === undefined ? { message: message.message } : { message: message.message, code: message.code });
 }
 
 globalThis.onmessage = (event: MessageEvent<UiGuestInbound>): void => {

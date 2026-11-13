@@ -37,23 +37,25 @@ import type {
 import {
   PLUGIN_LOG_LEVELS,
   PLUGIN_SURFACE_TIERS,
+  PLUGIN_UI_HOST_CALL_FAILED,
   PluginInstallerDisabledError,
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
   snippetResultSchema,
 } from "@orb/contracts/plugin";
-import { DomainConflictError } from "@orb/kit/errors";
+import { DomainConflictError, DomainError, DomainInternalFaultError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { TimerScheduler } from "@orb/kit/time";
 import { MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
+import { EgressBlockedError, ImageRejectedError } from "#infra/network";
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
 import { createScopedTimers } from "#infra/timers";
 import { createAdmission } from "./admission.ts";
 import type { BridgeAuthority } from "./bridge-rpc.ts";
-import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyncCall } from "./bridge-rpc.ts";
+import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyncCall, MalformedBridgeArgumentsError } from "./bridge-rpc.ts";
 import {
   PLUGIN_AUTHORITY_TAIL_CALLS_MAX,
   PLUGIN_AUTHORITY_TAIL_MS,
@@ -69,12 +71,20 @@ import {
   pluginIpcShareBytes,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, CreateLogicalInstanceInputIn, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
+import type {
+  CreateInstanceInputIn,
+  CreateInstanceOutcomeOut,
+  CreateLogicalInstanceInputIn,
+  PluginHostSeamDeps,
+  PluginInvokePhase,
+  ProcessPluginHost,
+} from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, PluginIpcShares, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
 import {
+  CodedHostUnavailableError,
   channelFullBridgeResult,
   channelFullResponse,
   fromRpcError,
@@ -206,6 +216,7 @@ interface LeasedInvokeInput {
   readonly handler: PluginHandlerRef;
   readonly argsJson: PluginInvokeArgs;
   readonly chat: InvocationChat | null | undefined;
+  readonly phase: PluginInvokePhase;
 }
 
 function releaseBinding(binding: Binding): void {
@@ -1002,7 +1013,7 @@ class BrokerClient {
           if (error instanceof PluginInstallerDisabledError && binding.standingRefused.has(message.authorityId)) {
             binding.standingRefused.set(message.authorityId, true);
           }
-          this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(error) });
+          this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(this.guestFacingFailure(binding, message.operation, error)) });
           completion.resolve();
         },
       );
@@ -1018,6 +1029,17 @@ class BrokerClient {
     } catch (error) {
       this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(error) });
     }
+  }
+
+  // What the guest reads of a failed bridge operation. A named refusal keeps its name and text. Any other error, a
+  // database fault among them, crosses as one fixed sentence: its own message can carry server internals, such as a
+  // failed query's SQL and bound values. The operator still reads that error in the server log.
+  private guestFacingFailure(binding: Binding, operation: string, error: unknown): unknown {
+    if (isNamedBridgeRefusal(error)) {
+      return error;
+    }
+    getLog(this.seams.log).warn({ plugin: binding.label ?? SNIPPET_RUNNER, operation, err: error }, "plugin host: a bridge operation failed");
+    return new Error(PLUGIN_UI_HOST_CALL_FAILED);
   }
 
   // A host result goes on its plugin's runtime share. One that does not fit is refused, never held: the plugin may
@@ -1101,6 +1123,19 @@ class PluginHostUnavailableError extends DomainConflictError {
     super(message);
     this.name = PLUGIN_HOST_UNAVAILABLE;
   }
+}
+
+/** A failed bridge operation whose name and text a guest may read: a domain refusal (any {@link DomainError} but the
+ *  internal fault, which carries a tripwire's text), the host's coded unavailable refusal, an egress block, an image
+ *  rejection, or malformed arguments. Each names a fact about the guest's own call, never a server internal. */
+function isNamedBridgeRefusal(error: unknown): boolean {
+  return (
+    (error instanceof DomainError && !(error instanceof DomainInternalFaultError)) ||
+    error instanceof CodedHostUnavailableError ||
+    error instanceof EgressBlockedError ||
+    error instanceof ImageRejectedError ||
+    error instanceof MalformedBridgeArgumentsError
+  );
 }
 
 function unavailableError(): Error {
@@ -1513,7 +1548,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     lease.release();
   };
 
-  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat }: LeasedInvokeInput, generation: number): Promise<string> => {
+  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat, phase }: LeasedInvokeInput, generation: number): Promise<string> => {
     let builderId: string | undefined;
     try {
       requireLifecycle(binding, generation);
@@ -1531,7 +1566,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       const result = await commandWithAuthority({
         binding,
         operation: "invoke",
-        phase: "invocation",
+        phase,
         chat: chat ?? null,
         value: { handler, argsJson: boundArgs.wireArgs, chat },
       });
@@ -1621,7 +1656,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
     },
     invoke: async (...invokeParameters: Parameters<ProcessPluginHost["invoke"]>): Promise<string> => {
-      const [instance, handler, argsJson, chat, signal] = invokeParameters;
+      const [instance, handler, argsJson, chat, signal, phase = "invocation"] = invokeParameters;
       const binding = instances.get(instance);
       if (binding === undefined || binding.disposed) {
         throw new Error("plugin host: invoke on an unknown/disposed instance");
@@ -1629,14 +1664,16 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       if (binding.crashed !== null) {
         throw binding.crashed;
       }
+      // An owed strike is paid by the next write-path call, which counts it; a display call counts nothing, so it
+      // leaves the strike owed.
       const owed = binding.owedRefusal;
-      if (owed !== null) {
+      if (owed !== null && phase === "invocation") {
         binding.owedRefusal = null;
         throw owed;
       }
       const generation = binding.lifecycleGeneration;
       const lease = await pool.acquire(binding, { signal });
-      return await invokeWithLease({ binding, lease, handler, argsJson, chat }, generation);
+      return await invokeWithLease({ binding, lease, handler, argsJson, chat, phase }, generation);
     },
     runSnippet: async (input): Promise<SnippetResult> => {
       const releaseAdmission = acquireSnippetAdmission();

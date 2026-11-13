@@ -151,6 +151,13 @@ export type UiGuestSettledMessage =
   | { readonly kind: "settled"; readonly ok: true }
   | { readonly kind: "settled"; readonly ok: false; readonly message: string };
 
+/** A host result's settlement ran guest code past the event CPU budget (a resolve reads the result's `then`, which a
+ *  guest can define). A settlement can land outside every event, where no host wall is armed, so this message is the
+ *  only witness: the host kills the guest and reports the crash. */
+interface UiGuestStoppedMessage {
+  readonly kind: "stopped";
+}
+
 /** The browser could not reserve the guest's fixed WASM memory, so no guest code ran. A host condition, not a plugin
  *  fault: the surface collapses and the crash counter hears nothing. */
 export interface UiGuestUnavailableMessage {
@@ -164,4 +171,5 @@ export type UiGuestOutbound =
   | UiGuestLogMessage
   | UiGuestReadyMessage
   | UiGuestSettledMessage
+  | UiGuestStoppedMessage
   | UiGuestUnavailableMessage;
