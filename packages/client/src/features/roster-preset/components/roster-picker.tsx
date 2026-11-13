@@ -35,7 +35,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingSwitchRow } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, notify, viewerTimeZone } from "#lib";
+import { DIALOG_VERBS, notify, START_NEW_CHAT_NAME, viewerTimeZone } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
@@ -383,7 +383,7 @@ export function RosterPicker(): ReactElement {
                 }}
               >
                 <Icon icon={MessagesSquare} size="sm" />
-                Start a new chat
+                {START_NEW_CHAT_NAME}
               </Button>
             )
           }

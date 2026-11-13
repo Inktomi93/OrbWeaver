@@ -14,6 +14,7 @@ import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
 import type { SuggestionGroup } from "../lib/label-suggestion-groups.ts";
 import { groupSuggestions } from "../lib/label-suggestion-groups.ts";
+import { TAG_REJECT_NAME, TAG_SUGGESTIONS_EMPTY_TEXT } from "../lib/tag-list-name.ts";
 
 export function LabelsSuggestions(): ReactElement {
   return (
@@ -64,7 +65,7 @@ function SuggestionsBody(): ReactElement {
   if (groups.length === 0) {
     return (
       <Text role="status" ref={empty} tabIndex={-1} voice="gloss">
-        No suggested tags awaiting review.
+        {TAG_SUGGESTIONS_EMPTY_TEXT}
       </Text>
     );
   }
@@ -281,7 +282,7 @@ function SuggestionRow({
           });
         }}
       >
-        Reject
+        {TAG_REJECT_NAME}
       </Button>
     </Row>
   );

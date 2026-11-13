@@ -1,4 +1,6 @@
 // The census's selected production states; witnesses are body content, never just shell or section chrome.
+
+import { START_NEW_CHAT_NAME } from "@orb/client/lib";
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
@@ -8,7 +10,12 @@ import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts"
 import { COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { backgroundStateLabel } from "#client/features/credentials/lib/connections-copy.ts";
-import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
+import {
+  DATABANK_ADD_METHOD_NAME,
+  DATABANK_ATTACH_GROUP_NAME,
+  DATABANK_LIST_NAME,
+  DATABANK_RECENT_DOCUMENTS_NAME,
+} from "#client/features/databank/lib/databank-names.ts";
 import {
   CORPUS_MODEL_ROUTES_NAME,
   CORPUS_NONE_FOUND_TEXT,
@@ -17,8 +24,12 @@ import {
   CORPUS_UNDERSTANDING_HEADING,
 } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { IMAGE_DETAIL_EMPTY_TEXT, IMAGE_EDIT_EMPTY_TEXT, IMAGINE_EMPTY_TEXT } from "#client/features/imagery/lib/imagine-names.ts";
+import { EXTENSIONS_OPEN_PLUGINS_ACTION } from "#client/features/plugin/lib/extensions-copy.ts";
+import { PLUGIN_NO_COMMAND_SELECTED_TEXT } from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { PLUGIN_DIALOG_GONE_BODY, PLUGIN_DIALOG_GONE_TITLE } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { REFINERY_START_SESSION_PICKER_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { ROSTER_START_CHAT_LEAD } from "#client/features/roster-preset/lib/roster-names.ts";
 import { ADMIN_APPROVALS_NOTE, ADMIN_CREATE_USER_NAME, ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 
@@ -38,7 +49,7 @@ const SECTION_WITNESSES = {
   ],
   chats: (page): Witnesses => [
     page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("listitem").first(),
-    page.locator(".shell-content").getByRole("button", { name: /Start a new chat/i }),
+    page.locator(".shell-content").getByRole("button", { name: START_NEW_CHAT_NAME }),
   ],
   characters: (page): Witnesses => [
     page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("listitem").first(),
@@ -129,7 +140,7 @@ const MODAL_SCENARIOS = {
     state: "loaded",
     witnesses: [
       page.getByRole("dialog").getByRole("group", { name: DATABANK_ADD_METHOD_NAME, exact: true }),
-      page.getByRole("dialog").getByRole("group", { name: "Use this document in", exact: true }),
+      page.getByRole("dialog").getByRole("group", { name: DATABANK_ATTACH_GROUP_NAME, exact: true }),
     ],
   }),
   reauth: (page): ModalScenario => ({
@@ -145,18 +156,21 @@ const MODAL_SCENARIOS = {
   pluginDialog: (page): ModalScenario => ({
     state: "empty",
     witnesses: [
-      page.getByRole("dialog").getByText("That dialog is no longer available", { exact: true }),
-      page.getByRole("dialog").getByText("Its plugin was disabled or removed while it was open.", { exact: true }),
-      page.getByRole("dialog").getByRole("button", { name: "Open Plugins", exact: true }),
+      page.getByRole("dialog").getByText(PLUGIN_DIALOG_GONE_TITLE, { exact: true }),
+      page.getByRole("dialog").getByText(PLUGIN_DIALOG_GONE_BODY, { exact: true }),
+      page.getByRole("dialog").getByRole("button", { name: EXTENSIONS_OPEN_PLUGINS_ACTION, exact: true }),
     ],
   }),
-  pluginCommandArgs: (page): ModalScenario => ({ state: "empty", witnesses: [page.getByRole("dialog").getByText("No command selected.", { exact: true })] }),
+  pluginCommandArgs: (page): ModalScenario => ({
+    state: "empty",
+    witnesses: [page.getByRole("dialog").getByText(PLUGIN_NO_COMMAND_SELECTED_TEXT, { exact: true })],
+  }),
   savedRosters: (page): ModalScenario => ({
     state: "loaded",
     witnesses: [
       page
         .getByRole("dialog")
-        .getByRole("button", { name: /^Start a chat with / })
+        .getByRole("button", { name: new RegExp(`^${RegExp.escape(ROSTER_START_CHAT_LEAD)} `, "u") })
         .first(),
     ],
   }),

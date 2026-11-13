@@ -15,9 +15,10 @@ import { z } from "zod";
 import { SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CONFIG_SETTINGS_GROUPS_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
-import { CONTEXT_SHEET_BACK_NAME, sectionBackName } from "#client/lib/context-pane-names.ts";
+import { CONTEXT_SHEET_BACK_NAME, screenOverviewDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -554,7 +555,9 @@ test.describe("committed corpus shell on a phone", () => {
     await page.getByRole("dialog").getByRole("button", { name: SECTION_LABELS.settings, exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     // On a phone the roster is the screen, so the Settings roster carries the one main landmark.
-    await expect(page.getByRole("main", { name: SECTION_LABELS.settings, exact: true }).getByRole("region", { name: "Settings groups" })).toBeVisible();
+    await expect(
+      page.getByRole("main", { name: SECTION_LABELS.settings, exact: true }).getByRole("region", { name: CONFIG_SETTINGS_GROUPS_NAME }),
+    ).toBeVisible();
     await expect(rail(page).getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toHaveAttribute("aria-current", "page");
   });
 
@@ -656,7 +659,7 @@ test.describe("committed corpus shell on a phone", () => {
     await reachOnPhone(page, SECTION_LABELS.corpus);
     const list = listPanel(page);
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
-    await page.getByRole("button", { name: `Show ${CORPUS_MODE_LABELS.explore} overview`, exact: true }).click();
+    await page.getByRole("button", { name: screenOverviewDoorName(CORPUS_MODE_LABELS.explore), exact: true }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.locator(MAIN)).not.toHaveAttribute("inert", "");
     await page.getByRole("button", { name: `Show ${CORPUS_MODE_LABELS.explore} list`, exact: true }).click();

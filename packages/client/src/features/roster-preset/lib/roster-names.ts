@@ -16,9 +16,12 @@ export const ROSTER_GROUP_LABEL = "Rosters";
 /** The saved-roster delete confirmation's title. */
 export const ROSTER_DELETE_TITLE = "Delete this roster?";
 
+/** What every roster start door's name begins with. */
+export const ROSTER_START_CHAT_LEAD = "Start a chat with";
+
 /** A roster's start door, which recites what applying it brings (`rosterCountsSuffix`). */
 export function rosterStartChatName(roster: string, counts: string): string {
-  return `Start a chat with ${roster}${counts}`;
+  return `${ROSTER_START_CHAT_LEAD} ${roster}${counts}`;
 }
 
 /** A saved roster's delete door, which keeps a bare name. */

@@ -4,9 +4,10 @@
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { ANALYTICS_MODELS_NAME } from "#client/features/stats/lib/analytics-names.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
-import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
-import { sectionBackName } from "#client/lib/context-pane-names.ts";
+import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME, TAG_USAGE_TAB_NAME } from "#client/features/tag/lib/tag-list-name.ts";
+import { screenOverviewDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL } from "#client/lib/corpus-modes.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
@@ -113,15 +114,15 @@ test.describe("committed corpus workbench", () => {
     await modes.getByRole("radio", { name: CORPUS_MODE_LABELS.insights }).click();
     await expect(list.getByRole("textbox", { name: "Search characters", exact: true })).toBeVisible();
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
-    await expect(context.getByRole("tab", { name: "Models", exact: true })).toBeVisible();
+    await expect(context.getByRole("tab", { name: ANALYTICS_MODELS_NAME, exact: true })).toBeVisible();
     await expect(context.getByRole("tab", { name: CORPUS_CONTEXT_TAB_LABELS.archetypes, exact: true })).toHaveCount(0);
 
     // Labels: the tag library is the finder, its facts are CONTENT, and its one inspector explains labels.
     await modes.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
     await expect(list.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true })).toBeVisible();
     await expect(main.getByRole("heading", { name: CORPUS_MODE_LABELS.labels, level: 2 })).toBeVisible();
-    await expect(context.getByRole("region", { name: "Usage", exact: true })).toBeVisible();
-    await expect(context.getByRole("tab", { name: "Models", exact: true })).toHaveCount(0);
+    await expect(context.getByRole("region", { name: TAG_USAGE_TAB_NAME, exact: true })).toBeVisible();
+    await expect(context.getByRole("tab", { name: ANALYTICS_MODELS_NAME, exact: true })).toHaveCount(0);
   });
 
   test("desktop: a keyboard mode switch moves focus into the new mode's CONTENT", { tag: "@smoke" }, async ({ page, isMobile }) => {
@@ -167,7 +168,7 @@ test.describe("committed corpus workbench", () => {
     await main.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(list.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: `Show ${CORPUS_MODE_LABELS.labels} overview`, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: screenOverviewDoorName(CORPUS_MODE_LABELS.labels), exact: true })).toBeVisible();
   });
 
   test("phone Insights: the list door opens the leaderboard, a row drills, and Back returns to the dashboard", { tag: "@smoke" }, async ({
