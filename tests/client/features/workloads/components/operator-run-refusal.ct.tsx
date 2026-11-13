@@ -7,7 +7,7 @@ import { WORKLOAD_OWNER_ONLY_REFUSAL, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/
 import { noticeToast, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, plantMemberOperatorRun, plantMemberOperatorSchedule } from "@orb/testkit/node/composed";
-import { MODEL_RUN_ESTIMATE_FAILED } from "#client/components/model-run-confirm-copy.ts";
+import { SCHEDULE_SAVE_ESTIMATE_FAILED } from "#client/components/model-run-confirm-copy.ts";
 import { SCHEDULE_PAUSED_LABEL, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
@@ -91,7 +91,7 @@ test("a member's save of their own stored operator-tree schedule toasts the owne
   }
   await page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: null }), exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: /^Save/u }).click();
-  await expect(noticeToast(page, { title: MODEL_RUN_ESTIMATE_FAILED, description: WORKLOAD_OWNER_ONLY_REFUSAL })).toBeVisible();
+  await expect(noticeToast(page, { title: SCHEDULE_SAVE_ESTIMATE_FAILED, description: WORKLOAD_OWNER_ONLY_REFUSAL })).toBeVisible();
   expect(calls.count("workloads.updateSchedule")).toBe(0);
 });
 

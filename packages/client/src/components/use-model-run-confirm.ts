@@ -22,15 +22,21 @@ type EstimateRequest =
 
 type PendingRun = NonNullable<ModelRunConfirmDialogProps["pending"]>;
 
+type ConfirmRequest = Omit<PendingRun, "calls"> & {
+  readonly estimates: readonly EstimateRequest[];
+  /** The notice title when the count fails, for a caller whose act is not a run starting. @defaultValue {@link MODEL_RUN_ESTIMATE_FAILED} */
+  readonly estimateFailedTitle?: string;
+};
+
 export function useModelRunConfirm(): {
   /** Count the calls `estimates` would make together, then run, or hold the run for the confirm. */
-  readonly confirmThen: (request: Omit<PendingRun, "calls"> & { readonly estimates: readonly EstimateRequest[] }) => Promise<void>;
+  readonly confirmThen: (request: ConfirmRequest) => Promise<void>;
   readonly dialog: ModelRunConfirmDialogProps;
 } {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<PendingRun | null>(null);
-  const confirmThen = async ({ estimates, ...held }: Omit<PendingRun, "calls"> & { readonly estimates: readonly EstimateRequest[] }): Promise<void> => {
+  const confirmThen = async ({ estimates, estimateFailedTitle = MODEL_RUN_ESTIMATE_FAILED, ...held }: ConfirmRequest): Promise<void> => {
     // Fresh every time: the count is read the moment a person decides, never from an earlier visit's cache. With no
     // count there is no informed yes, so a failed estimate starts nothing and says why.
     const answers = await Promise.all(
@@ -44,7 +50,7 @@ export function useModelRunConfirm(): {
       notify.error(
         trpcErrorReason(err) === WORKLOAD_RUN_ACCOUNT_NOT_OWNER
           ? { title: WORKLOAD_RUN_ACCOUNT_REFUSAL }
-          : { title: MODEL_RUN_ESTIMATE_FAILED, description: errorMessage(err) },
+          : { title: estimateFailedTitle, description: errorMessage(err) },
       );
       return null;
     });
