@@ -189,7 +189,7 @@ async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollec
     metadata: narrowPersonaMetadata(parsed.metadata),
     artHash: avatarBytes === undefined ? null : sha256Hex(avatarBytes),
   }));
-  return reusedOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas }));
+  return reusedOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas, collisions: deps.personaCollisions }));
 }
 
 /** The planes whose items another domain keeps in the owner's library: books, presets, themes and backgrounds. Each

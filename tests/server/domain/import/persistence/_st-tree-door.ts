@@ -3,8 +3,16 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import type { ImportPreview, ImportPreviewKind } from "@orb/contracts/import";
-import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
+import type { ImportPreview, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
+import {
+  encodePersonaCollisionChoices,
+  importStartedSchema,
+  PERSONA_COLLISION_FIELD,
+  ST_SETTINGS_FILE,
+  TREE_DRY_RUN_FIELD,
+  TREE_DRY_RUN_VALUE,
+  TREE_FILE_FIELD,
+} from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { MaintenanceResult } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
@@ -65,13 +73,22 @@ export function chatOf(text: string): string {
 export const CHAT = chatOf("Aria greets you.");
 export const WORLD = '{"entries":{"0":{"uid":0,"key":["eldoria"],"comment":"Eldoria","content":"A forest.","order":100}}}';
 
+interface PostOptions {
+  readonly headers?: Readonly<Record<string, string>>;
+  /** The owner's answers to the persona collision review. */
+  readonly choices?: PersonaCollisionChoices;
+}
+
 export async function post(
   root: ServerTestHarness,
   files: Files,
   dryRunFields: readonly (string | File)[],
-  headers: Readonly<Record<string, string>> = CSRF_HEADERS,
+  { headers = CSRF_HEADERS, choices = {} }: PostOptions = {},
 ): Promise<Response> {
   const form = new FormData();
+  for (const choice of encodePersonaCollisionChoices(choices)) {
+    form.append(PERSONA_COLLISION_FIELD, choice);
+  }
   for (const [path, bytes] of Object.entries(files)) {
     const relPath = path.startsWith("/") ? path.slice(1) : `${WRAPPER}/${path}`;
     form.append(TREE_FILE_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], relPath), relPath);
@@ -82,9 +99,15 @@ export async function post(
   return await root.http.request(PORTABILITY_ROUTES.importTree, { method: "POST", headers, body: form });
 }
 
-/** Post the folder and stop at the admitted row: nothing has read the staged tree yet. */
-export async function admit(root: ServerTestHarness, files: Files, dryRunFields: readonly string[] = []): Promise<WorkloadId> {
-  const response = await post(root, files, dryRunFields);
+/** Post the folder and stop at the admitted row: nothing has read the staged tree yet. `choices` are the owner's
+ *  answers to the persona collision review, which the dry run and the run both honor. */
+export async function admit(
+  root: ServerTestHarness,
+  files: Files,
+  dryRunFields: readonly string[] = [],
+  choices: PersonaCollisionChoices = {},
+): Promise<WorkloadId> {
+  const response = await post(root, files, dryRunFields, { choices });
   expect(response.status).toBe(202);
   return importStartedSchema.parse(await response.json()).workloadId;
 }
@@ -108,8 +131,8 @@ export async function finish(root: ServerTestHarness, id: WorkloadId): Promise<I
   return (await finishRun(root, id)).preview;
 }
 
-export async function dryRun(root: ServerTestHarness, files: Files): Promise<ImportPreview> {
-  const preview = await finish(root, await admit(root, files, [TREE_DRY_RUN_VALUE]));
+export async function dryRun(root: ServerTestHarness, files: Files, choices: PersonaCollisionChoices = {}): Promise<ImportPreview> {
+  const preview = await finish(root, await admit(root, files, [TREE_DRY_RUN_VALUE], choices));
   if (preview === undefined) {
     throw new Error("a dry run reported no preview");
   }
