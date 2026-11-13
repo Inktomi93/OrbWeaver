@@ -1,7 +1,7 @@
 ---
 kind: decision
 status: open
-updated: 2026-11-12
+updated: 2026-11-13
 priority: P3
 area: embeddings
 plan: stored-data-integrity
@@ -11,7 +11,7 @@ plan: stored-data-integrity
 
 ## What
 
-The card text handed to embedding is capped by a fixed bound, and each embed backend then clamps it to the model's own window. With the smallest curated embedder a long card is embedded from a small fraction of its text, its opening, and the only trace is a log line. The decision not to thread the window into the cap is recorded at packages/server/src/domain/embeddings, in the embed-text header, with a test of the clamp. No surface tells the owner that search and recall see only the start of long cards under that model.
+A hosted embedder with a small input window indexes a long card from its opening only, and nothing tells the owner where the embedder is chosen. Local encoders window long text without loss and are exempt. Show a notice on the embed role slot in `packages/client/src/components/connection-role-slot.tsx` when the resolved embedding capability has no local text encoding and its input window is under a named threshold. The threshold is a constant in the contracts package, set below the card cap so an embedder one token under the cap gets no notice; the cap in `packages/server/src/domain/character/substrate/embed-text.ts` reads the same home.
 
 ## Why
 
@@ -19,7 +19,7 @@ Search quality for long cards depends on a setting whose effect is invisible. An
 
 ## Done when
 
-Owner ruling: a notice. Where the embedding model is chosen, the settings say that a model with a small window indexes only the opening of a long card. The sentence has one copy home, a component test shows it for a small-window model and not for a large one, and a rendered review has read it.
+The embed role slot shows the notice for a small hosted window and not for a large one or a local encoder, the threshold and the copy each have one home, a CT covers the three cases, and a rendered review has read it.
 
 ## Evidence
 

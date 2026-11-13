@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-10
+updated: 2026-11-13
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -19,7 +19,7 @@ Two controls with one name read as one destination to a screen reader and to sig
 
 ## Done when
 
-Each control has a distinct accessible name that says where it goes, using the shared settings naming home, the duplicate-action-door finding is gone from the Config evidence cases, and a production-mounted CT asserts the two names differ.
+The duplicate-action-door finding is gone from the Config evidence cases of a design-audit run, and the longer section label does not clip at narrow list widths. Already merged: the section reads Your connections from `packages/client/src/features/credentials/lib/connections-copy.ts`, and `tests/client/features/config/surfaces/config-list-arrival.ct.tsx` asserts no section row carries its band's name.
 
 ## Evidence
 

@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-11
+updated: 2026-11-13
 priority: P3
 area: tests
 plan: test-enforcement
@@ -11,7 +11,7 @@ plan: test-enforcement
 
 ## What
 
-Eight of nine refinery apply refusals had no server test, and the hole was only found by searching each union member across the test tree. The fix added a small type-level helper that fails the typecheck while a union member has no case, and names the missing member in the error. The rpg extraction registry got a second copy of the same helper. Other closed refusal and status unions in contracts have no such table.
+A type-level helper that forces a table to name every member of a union is written three times: `everyPlane` in `packages/contracts/src/rpg/extraction-prompt.ts`, `everyReason` in `tests/server/domain/refinery/verbs/apply-refusals.int.test.ts` and a third in the tone variant matrix stories under `tests/ui/primitives/`. One copy is production code in the contracts package, which cannot import the testkit, so the helper's one home is the kit package and all three import it. Then census the closed refusal and reason unions in the contracts package against the tests that walk them.
 
 ## Why
 
@@ -19,7 +19,7 @@ A closed union makes coverage enumerable, and a helper with one home lets every 
 
 ## Done when
 
-The helper has one home in the testkit's iso world, the two existing copies use it, and a census lists each exported refusal or reason union in contracts with the test table that covers it or none. Each uncovered union is listed on the item for a follow-up, not fixed here.
+The helper has one home in the kit package, the three copies import it, and each refusal or reason union in the contracts package with no test that walks its tuple is listed on this item or has its own item.
 
 ## Evidence
 

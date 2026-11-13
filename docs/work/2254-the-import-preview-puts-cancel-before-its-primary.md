@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-13
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-The SillyTavern import preview (import-library-section.tsx) puts its primary before Cancel, unlike every dialog footer. Found in acceptance part 1 and carried out of 2185.
+The import preflight in `packages/client/src/features/workloads/components/import-library-section.tsx` shows Import then Cancel, start-aligned, while every dialog footer shows Cancel then the submit, end-aligned. The order has no owner an inline card can reach: `FormDialog` and `FlowDialog` in `packages/client/src/components/form-dialog.tsx` own it for dialogs only, and the plan keeps the preflight an island, not a dialog. Extract the commit row from the dialog composites into one shared owner that fixes the order and the Cancel variant, and draw the preflight's row through it, end-aligned.
 
 ## Why
 
@@ -19,7 +19,7 @@ A reversed button order trains the wrong reach for the destructive or primary ac
 
 ## Done when
 
-The import preview's action order matches the dialog footer order through the same owner, with a CT that reads the order. Source: acceptance part 1 report.
+The dialog composites and the import preflight draw their Cancel and submit through one commit-row owner, the preflight reads Cancel then Import, and a CT reads the order on the preflight and on one dialog.
 
 ## Evidence
 
