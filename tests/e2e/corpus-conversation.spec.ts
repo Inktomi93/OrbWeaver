@@ -6,6 +6,8 @@ import type { Page } from "@playwright/test";
 import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import { PERSONA_PIN_CARD_HERE_NAME, personaCardPinName, personaSwitchName } from "#client/features/persona/lib/persona-copy.ts";
+import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { messageRow, openChatByTitle, openChatOptions, sendHeldTurn, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -104,13 +106,13 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
   await expect(assistant).toContainText(EDITED);
 
   await openPersonas(page, isMobile);
-  await page.getByRole("button", { name: `Switch to ${persona.name}`, exact: true }).click();
+  await page.getByRole("button", { name: personaSwitchName(persona.name, false), exact: true }).click();
   await expect(page.getByRole("button", { name: `${persona.name}, current persona`, exact: true })).toBeVisible();
   if (isMobile) {
-    await page.getByRole("button", { name: `Actions for ${persona.name}`, exact: true }).click();
-    await page.getByRole("menuitem", { name: "Pin card here", exact: true }).click();
+    await page.getByRole("button", { name: rowActionsName(persona.name), exact: true }).click();
+    await page.getByRole("menuitem", { name: PERSONA_PIN_CARD_HERE_NAME, exact: true }).click();
   } else {
-    await page.getByRole("button", { name: `Pin the card to ${persona.name}`, exact: true }).click();
+    await page.getByRole("button", { name: personaCardPinName(persona.name, false), exact: true }).click();
   }
   const pin = page.getByRole("button", { name: `Card is pinned to ${persona.name}. Press to unpin`, exact: true });
   await expect(pin).toHaveAttribute("aria-pressed", "true");

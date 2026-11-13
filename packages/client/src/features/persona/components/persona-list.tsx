@@ -19,7 +19,7 @@ import { notify, rowQualifiers, timeLib } from "#lib";
 import { selectPersonaEditor, usePersonaEditorId } from "#state";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
 import { useDefaultPersona } from "../hooks/use-playing-persona.ts";
-import { nowDefaultNotice } from "../lib/persona-copy.ts";
+import { nowDefaultNotice, PERSONA_FROM_CHARACTER_NAME, PERSONA_NEW_NAME, PERSONA_RESTORE_NAME } from "../lib/persona-copy.ts";
 import { resolveNewChatPersona } from "../lib/persona-current.ts";
 import { PersonaFromCharacterDialog } from "./persona-from-character-dialog.tsx";
 import { PersonaPanelRow } from "./persona-panel-row.tsx";
@@ -158,12 +158,6 @@ export function PersonaList(): ReactElement {
 }
 
 /** The list's BAND — its name and its three verbs. The playing-as identity lives on the row (see above). */
-/** Names the FORMAT: this control takes an Orbweaver persona backup only. A SillyTavern persona has no
- *  standalone file — it lives in the profile's settings — so that route is the profile-folder import under
- *  Backup & Restore, which the Personas help points to. */
-const IMPORT_LABEL = "Restore a persona from an Orbweaver backup file";
-const FROM_CHARACTER_LABEL = "New persona from a character";
-
 function PersonaHeader({
   onNew,
   onImport,
@@ -181,8 +175,8 @@ function PersonaHeader({
           band's grammar. `square` (not `sm`) so the icon-only triggers keep the token-driven coarse
           floor, and each tooltip is the SAME string as the aria-label so the two can't drift. */}
       <Row gap="field" align="center" wrap={true} justify="end">
-        <Tip text={FROM_CHARACTER_LABEL}>
-          <Button aria-label={FROM_CHARACTER_LABEL} variant="ghost" onClick={onFromCharacter} square={true}>
+        <Tip text={PERSONA_FROM_CHARACTER_NAME}>
+          <Button aria-label={PERSONA_FROM_CHARACTER_NAME} variant="ghost" onClick={onFromCharacter} square={true}>
             <Icon icon={Drama} size="sm" />
           </Button>
         </Tip>
@@ -195,8 +189,8 @@ function PersonaHeader({
           }}
         >
           {({ open }): ReactElement => (
-            <Tip text={IMPORT_LABEL}>
-              <Button aria-label={IMPORT_LABEL} variant="ghost" onClick={open} square={true}>
+            <Tip text={PERSONA_RESTORE_NAME}>
+              <Button aria-label={PERSONA_RESTORE_NAME} variant="ghost" onClick={open} square={true}>
                 <Icon icon={Upload} size="sm" />
               </Button>
             </Tip>
@@ -204,7 +198,7 @@ function PersonaHeader({
         </FileTrigger>
         <Button size="sm" onClick={onNew}>
           <Icon icon={Plus} size="sm" />
-          New persona
+          {PERSONA_NEW_NAME}
         </Button>
       </Row>
     </Row>

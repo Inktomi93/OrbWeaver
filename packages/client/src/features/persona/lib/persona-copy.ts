@@ -45,3 +45,62 @@ export const PERSONA_DELETE_NAME = "Delete";
 
 /** The editor's provenance line on a persona converted from a character. */
 export const PERSONA_FROM_CARD_NAME = "From a character card";
+
+/** The identity widget: its rail entry, its popover, and the rail trigger while no persona is playing. */
+export const PERSONA_PANEL_NAME = "Account & personas";
+
+/** The playing mark's label and the panel head's line above the playing persona. */
+export const PERSONA_PLAYING_AS_LABEL = "Playing as";
+
+/** The rail trigger while a persona is playing. */
+export function personaPlayingAsName(persona: string): string {
+  return `Playing as ${persona}`;
+}
+
+/** The panel's door to the Personas settings. */
+export const PERSONA_MANAGE_NAME = "Manage personas in Settings";
+
+/** The room block's door that moves the viewer's lines to the playing persona. */
+export const PERSONA_RESTAMP_NAME = "Restamp my messages to this persona";
+
+/** The host's menu that pins the card to another member's persona. */
+export const PERSONA_REPIN_NAME = "Re-pin…";
+
+/** A switcher row's body: the switch it offers, or that it is already the one playing. */
+export function personaSwitchName(subject: string, playing: boolean): string {
+  return playing ? `${subject}, current persona` : `Switch to ${subject}`;
+}
+
+/** The host's pin toggle on a switcher row, by whether the card is pinned to that persona. */
+export function personaCardPinName(subject: string, pinned: boolean): string {
+  return pinned ? `Card is pinned to ${subject}. Press to unpin` : `Pin the card to ${subject}`;
+}
+
+/** The coarse-pointer row menu's twin of the pin toggle. */
+export const PERSONA_PIN_CARD_HERE_NAME = "Pin card here";
+export const PERSONA_UNPIN_CARD_NAME = "Unpin card";
+
+/** A settings row's disclosure of its editor, by whether the editor is open. */
+export function personaDetailsToggleName(subject: string, expanded: boolean): string {
+  return expanded ? `Hide details for ${subject}` : `Show details for ${subject}`;
+}
+
+/** The delete confirmation's title. */
+export const PERSONA_DELETE_TITLE = "Delete this persona?";
+
+/** The first-run gate's title, and what it says when the create is refused. */
+export const PERSONA_FIRST_RUN_TITLE = "Who are you in the story?";
+export const PERSONA_FIRST_RUN_FAILED = "Couldn't create your persona. Try again.";
+
+/** The marks lesson's title. */
+export const PERSONA_MARKS_LESSON_TITLE = "The four marks";
+
+/** The list band's create button. */
+export const PERSONA_NEW_NAME = "New persona";
+
+/** The list band's door to minting a persona from a card, that picker dialog's title and its character search. */
+export const PERSONA_FROM_CHARACTER_NAME = "New persona from a character";
+
+/** The list band's import door. It names the format: a SillyTavern persona has no standalone file, so that route is the
+ *  profile-folder import under Backup & Restore, which the Personas help points to. */
+export const PERSONA_RESTORE_NAME = "Restore a persona from an Orbweaver backup file";

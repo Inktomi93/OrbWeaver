@@ -7,6 +7,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { dragFileOver, dropOn, pageCanHover, readRefusalLine, watchToastMounts } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
 import { AVATAR_CONTROL_NAME } from "#client/lib/avatar-upload-copy.ts";
 import type { AvatarSurface } from "../../../components/_avatar-upload-cases.ts";
 import { AVATAR_AFFORDANCE_CASES, AVATAR_CASES, AVATAR_LAYOUT_CASES, AVATAR_TOUCH_CASES } from "../../../components/_avatar-upload-cases.ts";
@@ -45,7 +46,7 @@ const SURFACE: AvatarSurface = {
       }),
     });
     await mount<typeof PersonaActionGroupsStory>(STORY, { width: width ?? DESKTOP_WIDTH_PX, appearance: appearanceSettingsSchema.parse({}) });
-    const show = page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true });
+    const show = page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true });
     await show.focus();
     await page.keyboard.press("Enter");
     const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
@@ -54,7 +55,7 @@ const SURFACE: AvatarSurface = {
       identity: editor.locator('[data-slot="persona-editor-identity"]'),
       writes: (): number => calls.count("persona.update"),
       storedHash: async (): Promise<string | null> => (await caller.persona.get({ personaId: persona.id })).avatarHash,
-      unmount: () => page.getByRole("button", { name: `Hide details for ${persona.name}`, exact: true }).click(),
+      unmount: () => page.getByRole("button", { name: personaDetailsToggleName(persona.name, true), exact: true }).click(),
       remount: () => show.click(),
     };
   },
