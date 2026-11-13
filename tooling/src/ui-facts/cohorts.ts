@@ -389,21 +389,18 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
         empty: {
           "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
             value: "none",
-            reason: "the Settings map renders every registered group, populated or not, so it has no empty arm (config-list-surface.tsx header)",
+            reason:
+              "the Settings map renders every config group, a total registry (client-architecture-state-and-gates.md §12, row 3), so the list is never empty and has no empty arm",
           },
         },
         focus: {
           "packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx": {
             value: "useFocusOnMount",
-            reason: "arrival lands on the omnibox, because the search is the surface (corpus-list-surface.tsx `CorpusListSurface` focus ruling)",
-          },
-          "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
-            value: "useFocusOnMount",
-            reason: "arrival lands on the active group's band, the map that owns the section's arrival (config-list-surface.tsx focus ruling)",
+            reason: "arrival lands on the omnibox, because the Corpus LIST is the search omnibox (UI-Architecture-and-Layout.md §4.1)",
           },
           "packages/client/src/features/tag/surfaces/labels-list-surface.tsx": {
             value: "useFocusOnMount",
-            reason: "the Labels finder owns phone arrival and the visible library owns desktop arrival (labels-list-surface.tsx header)",
+            reason: "the Labels finder owns phone arrival, because Labels lands on its LIST on phones (D271); the visible library owns desktop arrival",
           },
         },
       },

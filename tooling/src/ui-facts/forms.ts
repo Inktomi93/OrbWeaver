@@ -14,7 +14,7 @@ const SAVE_BAR_RULING =
   "entity editors autosave (UI-Primitives-and-Reuse.md §13.4), and the character editor's sticky identity bar carries that status with no Save or Discard (character-editor-surface.tsx header)";
 const BLOCKED_PROVIDER = "packages/client/src/features/credentials/components/add-connection-provider-fields.tsx";
 const BLOCKED_PROVIDER_RULING =
-  "the Close is on the notice that replaces the form when key storage blocks the provider, so no input exists to abandon (add-connection-form-body.tsx footer ruling)";
+  "the Close is on the notice that replaces the form when key storage blocks the provider: no input exists to abandon, and the dialog keeps its way out (client-architecture-lockdown.md §3)";
 const BUTTONS = new Set(["Button", "GlyphButton", "InlineAction", "DialogClose"]);
 
 export interface FormScan {
