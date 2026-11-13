@@ -1,6 +1,7 @@
 // The sse op — the curl-replacement for the tRPC SSE channel. Since SSE-1 a tab holds ONE socket:
 // this ATTACHES the chat ROOM for <chatId> and then opens `stream.connect`, printing every frame that
-// room delivers. Resolves on Ctrl-C or when the socket closes.
+// room delivers. Resolves on Ctrl-C or when the socket closes; a body that ends before the server's `return`
+// event is a dropped stream and exits non-zero.
 //
 // NOTE the withhold-not-throw gate (transport/trpc/stream/sources/chat.ts): a chatId you are not a
 // member of (or that doesn't exist yet) yields an OPEN, SILENT stream — silence can mean "not a
@@ -131,8 +132,9 @@ function reportFrames(frames: number, verdict: number): number {
   });
 }
 
-/** How a stream ended: its own `return` event, or a socket error carrying the server's detail. */
-type StreamEnd = { readonly ended: "complete" } | { readonly ended: "error"; readonly detail: string };
+/** How a stream ended: its own `return` event, a socket error carrying the server's detail, or a body that
+ *  stopped before either, which is a dropped stream and never a healthy close. */
+type StreamEnd = { readonly ended: "complete" } | { readonly ended: "error"; readonly detail: string } | { readonly ended: "early" };
 
 // One event's effect: `null` keeps reading.
 function dispatchEvent(event: SseEvent, onFrame: (event: SseEvent) => void): StreamEnd | null {
@@ -166,7 +168,7 @@ async function readStream(body: ReadableStream<Uint8Array>, onFrame: (event: Sse
       end = buffered.indexOf(EVENT_SEPARATOR);
     }
   }
-  return { ended: "complete" };
+  return { ended: "early" };
 }
 
 export async function sseOp(argv: readonly string[]): Promise<number> {
@@ -217,6 +219,10 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
     });
     if (end.ended === "error") {
       process.stderr.write(`! error: ${end.detail}\n`);
+      return reportFrames(frames, EXIT.violations);
+    }
+    if (end.ended === "early") {
+      process.stderr.write("! error: the stream ended before its return event\n");
       return reportFrames(frames, EXIT.violations);
     }
     process.stdout.write("· connection closed\n");
