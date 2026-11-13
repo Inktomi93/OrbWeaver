@@ -33,7 +33,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { PluginCardDataLookup, PluginCardDataTarget } from "../contract/params.ts";
-import type { PluginCardDataHit, PluginCardDataRead } from "../contract/results.ts";
+import type { PluginCardDataHit, PluginCardDataRead, PluginCardDataWrite } from "../contract/results.ts";
 
 const cardStateSchema = z.record(z.string(), z.unknown());
 
@@ -52,14 +52,18 @@ function cardStatePath(slug: string): string {
  *  `setCardData` always stores an object, so the only way a non-object lands under this key is a hostile IMPORTED
  *  card; reporting that as `null` (rather than parsing raw text into a crash, or handing back a scalar the
  *  `Record | null` contract forbids) is the safe, contract-honest answer. `t === "object"` guarantees `value` is
- *  the object's JSON text, so the `JSON.parse` cannot throw. */
+ *  the object's JSON text, so the `JSON.parse` cannot throw.
+ *
+ *  The `CASE` guards both functions for the reason {@link findPluginCardData} states: an uploaded card can nest past
+ *  SQLite's JSON limit, where they raise. Such a column holds no state a plugin could have written, so it reads as
+ *  no state. */
 export async function readPluginCardData(handle: DatabaseHandle, target: PluginCardDataTarget): Promise<PluginCardDataRead> {
   const db = databaseForOwner(handle);
   const path = cardStatePath(target.slug);
   const rows = await db
     .select({
-      type: sql<string | null>`json_type(${characters.extensions}, ${path})`,
-      value: sql<string | null>`json_extract(${characters.extensions}, ${path})`,
+      type: sql<string | null>`case when json_valid(${characters.extensions}) then json_type(${characters.extensions}, ${path}) end`,
+      value: sql<string | null>`case when json_valid(${characters.extensions}) then json_extract(${characters.extensions}, ${path}) end`,
     })
     .from(characters)
     .where(and(eq(characters.id, target.characterId), eq(characters.ownerId, target.ownerId)))
@@ -114,15 +118,22 @@ export async function findPluginCardData(handle: DatabaseHandle, { ownerId, slug
 
 /** Merge one plugin's per-card state under its reserved `plugin_<slug>` key on an INSTALLER-OWNED character's
  *  residual `extensions`, touching EXACTLY that one JSON path (an atomic single-statement `json_set` — sibling
- *  plugin keys stay byte-identical, even under concurrency). Returns `true` when a row was written (owned/found),
- *  `false` when no such owned character exists (the caller raises the leak-free NOT_FOUND). Does NOT bump
- *  `contentHash`/`updatedAt` and emits nothing — this is metadata, not card content (D148 clause d). */
-export async function writePluginCardData(handle: DatabaseHandle, target: PluginCardDataTarget, data: Record<string, unknown>): Promise<boolean> {
+ *  plugin keys stay byte-identical, even under concurrency). Answers `written` when a row was written, `absent`
+ *  when no such owned character exists (the caller raises the leak-free NOT_FOUND) and `unwritable` when the
+ *  character's extensions nest past SQLite's JSON limit, where `json_set` raises: the `json_valid` arm of the WHERE
+ *  keeps such a row out of the SET, and nothing is written. Does NOT bump `contentHash`/`updatedAt` and emits
+ *  nothing — this is metadata, not card content (D148 clause d). */
+export async function writePluginCardData(handle: DatabaseHandle, target: PluginCardDataTarget, data: Record<string, unknown>): Promise<PluginCardDataWrite> {
   const db = databaseForOwner(handle);
+  const owned = and(eq(characters.id, target.characterId), eq(characters.ownerId, target.ownerId));
   const updated = await db
     .update(characters)
     .set({ extensions: sql`json_set(coalesce(${characters.extensions}, '{}'), ${cardStatePath(target.slug)}, json(${JSON.stringify(data)}))` })
-    .where(and(eq(characters.id, target.characterId), eq(characters.ownerId, target.ownerId)))
+    .where(and(owned, sql`(${characters.extensions} is null or json_valid(${characters.extensions}))`))
     .returning({ id: characters.id });
-  return updated.length > 0;
+  if (updated.length > 0) {
+    return "written";
+  }
+  const [present] = await db.select({ id: characters.id }).from(characters).where(owned).limit(1);
+  return present === undefined ? "absent" : "unwritable";
 }

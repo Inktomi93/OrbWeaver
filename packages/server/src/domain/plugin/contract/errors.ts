@@ -201,6 +201,14 @@ export function asPluginActionError(error: unknown): DomainError {
 /** The instance auto-disabled after the crash threshold. Maps to SERVICE_UNAVAILABLE. */
 export class PluginCrashedError extends DomainUnavailableError {}
 
+/** `setCardData` on a character whose stored extensions nest past what the database's JSON functions accept: the
+ *  character is the installer's own and nothing was written. */
+export class PluginCardDataUnwritableError extends DomainOperationError {
+  constructor() {
+    super("plugin_card_data_unwritable", "this character's extension data is nested too deeply to hold per-card plugin state");
+  }
+}
+
 /** An owned-plugin verb (upgrade/setEnabled/uninstall/getLog) was handed a pluginId that is missing OR not the
  *  caller's — collapsed leak-free (no foreign-existence oracle; the owner-scoped read returns undefined either
  *  way). D148 uses the same refusal for unavailable character card data. Maps to NOT_FOUND. */

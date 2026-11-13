@@ -5,7 +5,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { PluginNotFoundError } from "../contract/errors.ts";
+import { PluginCardDataUnwritableError, PluginNotFoundError } from "../contract/errors.ts";
 import type { PluginRuntimeDeps, PluginRuntimeOps, PluginSuggestionExecutor } from "../contract/runtime-ports.ts";
 import { recordPluginFetchedAsset } from "../persistence/plugin-assets.ts";
 import { createShowcaseVersionReader } from "../substrate/showcase-version.ts";
@@ -58,8 +58,11 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
       setCardData: async ({ installerUserId, slug, characterId, data }): ReturnType<PluginRuntimeOps["cardState"]["setCardData"]> => {
         const id = typeIdSchema(ID_PREFIX.character).parse(characterId);
         const written = await deps.writeCardData({ characterId: id, ownerId: installerUserId, slug }, data);
-        if (!written) {
+        if (written === "absent") {
           throw new PluginNotFoundError({ characterId: id });
+        }
+        if (written === "unwritable") {
+          throw new PluginCardDataUnwritableError();
         }
       },
       getCardData: async ({ installerUserId, slug, characterId }): ReturnType<PluginRuntimeOps["cardState"]["getCardData"]> => {

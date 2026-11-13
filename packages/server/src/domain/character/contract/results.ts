@@ -1,6 +1,6 @@
 import type { CharacterId } from "@orb/kit/ids";
 
-export type { PluginCardDataHit, PluginCardDataRead } from "@orb/contracts/character";
+export type { PluginCardDataHit, PluginCardDataRead, PluginCardDataWrite } from "@orb/contracts/character";
 
 /** One character's per-item outcome inside `bulkAddCardTag`/`bulkRemoveCardTag` (internal to the
  *  domain — never crosses the wire; the wire shape is `@orb/contracts/character`'s `CharacterBulkTagResult`,

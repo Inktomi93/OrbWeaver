@@ -1001,6 +1001,11 @@ export interface PluginCardDataTarget {
  *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
  *  character. Homed HERE per §7.4. */
 export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };
+
+/** What a per-card plugin-state write did: `absent` when the caller owns no such character, `unwritable` when the
+ *  character's stored extensions nest past what the database's JSON functions accept, so one key cannot be set in place. */
+export const PLUGIN_CARD_DATA_WRITES = ["written", "absent", "unwritable"] as const;
+export type PluginCardDataWrite = (typeof PLUGIN_CARD_DATA_WRITES)[number];
 /** One plugin's stamp lookup over one owner's characters: `ownerId` and `slug` are host-stamped, `values` is guest text. */
 export interface PluginCardDataLookup {
   readonly ownerId: UserId;
