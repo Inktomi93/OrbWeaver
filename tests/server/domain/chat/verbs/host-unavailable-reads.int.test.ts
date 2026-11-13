@@ -1,7 +1,7 @@
 // A member's composer reads in a room whose host is disabled: the send-availability read answers unavailable with the
 // host-unavailable cause, the next-turn connection read describes no binding, and none of them reads the disabled
-// host's connection. A stranger and an unknown room read the same plain not found, with no cause. Re-enabling the host
-// restores the endpoint's verdict.
+// host's connection. A stranger and an unknown room read the same plain not found, with no cause, on those two reads
+// and on the context-fit read. Re-enabling the host restores the endpoint's verdict.
 // @subject packages/server/src/domain/chat/verbs/read.ts
 
 import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
@@ -113,10 +113,20 @@ test("a member's send-availability read names the unavailable host without diall
   expect(dialled.length).toBeGreaterThan(beforeResume);
 });
 
-test.for([AVAILABILITY_ROUTE, NEXT_TURN_ROUTE])("a stranger's %s read of a disabled host's room reads exactly as an unknown room does", async (route) => {
+const STRANGER_READS = [
+  { route: AVAILABILITY_ROUTE, hostDisabled: true },
+  { route: NEXT_TURN_ROUTE, hostDisabled: true },
+  // The context-fit read answers not found to a disabled host's own members, so only an enabled host's room tells its
+  // seat check from its consent check: without the seat check the stranger would be answered.
+  { route: CONTEXT_FIT_ROUTE, hostDisabled: false },
+] as const;
+
+test.for(STRANGER_READS)("a stranger's $route read reads exactly as an unknown room does", async ({ route, hostDisabled }) => {
   await using box = await disabledHostRoom();
   const { root, room, dialled } = box;
-  await box.setHostEnabled(false);
+  if (hostDisabled) {
+    await box.setHostEnabled(false);
+  }
   const asStranger = await signIn(root, await mintMember(root));
   const unknown = root.idSource.typeId(ID_PREFIX.chat);
 
