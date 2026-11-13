@@ -4,8 +4,8 @@ import { useState } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "#primitives/collapsible";
-import { Dialog, DialogPopup, DialogTitle } from "#primitives/dialog";
-import { ChevronDown, ChevronUp, Code, Expand, Icon } from "#primitives/icons";
+import { Dialog, DialogClose, DialogPopup, DialogTitle } from "#primitives/dialog";
+import { ChevronDown, ChevronUp, Code, Expand, Icon, X } from "#primitives/icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { SandboxFrame, useSandboxTheme } from "../sandbox-frame/index.ts";
 import { IMMERSIVE_CARD_LABELS } from "./control-labels.ts";
@@ -192,6 +192,9 @@ export function ImmersiveCard({
           <div className={slots.lightboxHeader()} data-slot="immersive-card-lightbox-header">
             <DialogTitle className={slots.lightboxTitle()}>{label}</DialogTitle>
             {rawToggle}
+            <DialogClose render={<Button variant="ghost" square={true} aria-label={IMMERSIVE_CARD_LABELS.closeFullscreen} />}>
+              <Icon icon={X} size="sm" />
+            </DialogClose>
           </div>
           <div className={slots.lightboxBody()} data-slot="immersive-card-lightbox-body">
             <CardBody fill={true} {...bodyProps} />

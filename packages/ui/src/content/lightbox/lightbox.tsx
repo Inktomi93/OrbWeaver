@@ -1,7 +1,10 @@
 import type { ReactElement } from "react";
-import { Dialog, DialogPopup } from "#primitives/dialog";
+import { Button } from "#primitives/button";
+import { Dialog, DialogClose, DialogPopup } from "#primitives/dialog";
+import { Icon, X } from "#primitives/icons";
 import type { MediaSource, MessageMediaProps } from "../message-media/index.ts";
 import { MessageMedia } from "../message-media/index.ts";
+import { LIGHTBOX_LABELS } from "./control-labels.ts";
 
 export interface LightboxProps {
   readonly open: boolean;
@@ -30,6 +33,11 @@ export function Lightbox({ open, onOpenChange, src, media, alt, dims, allowExter
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup className="bg-transparent p-block shadow-none max-inline-cq-48">
+        <div className="flex justify-end">
+          <DialogClose render={<Button variant="solid" square={true} aria-label={LIGHTBOX_LABELS.close} />}>
+            <Icon icon={X} size="sm" />
+          </DialogClose>
+        </div>
         <MessageMedia src={src} media={media} alt={alt} {...(dims === undefined ? {} : { dims })} {...(allowExternal === undefined ? {} : { allowExternal })} />
       </DialogPopup>
     </Dialog>

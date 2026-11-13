@@ -18,6 +18,15 @@ test("each icon-only control opens its tooltip on hover and keeps its accessible
   }
 });
 
+test("the fullscreen card closes from its visible close control", async ({ mount, page }) => {
+  await mount<typeof ImmersiveCardChromeStory>("tests/ui/content/immersive-card/_card-stories/ImmersiveCardChromeStory", {});
+  await page.getByRole("button", { name: IMMERSIVE_CARD_LABELS.fullscreen, exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: IMMERSIVE_CARD_LABELS.closeFullscreen, exact: true }).click();
+  await expect(dialog).toBeHidden();
+});
+
 test("the collapse button keeps its square box under the trigger's own block floor", async ({ mount, page }) => {
   await mount<typeof ImmersiveCardChromeStory>("tests/ui/content/immersive-card/_card-stories/ImmersiveCardChromeStory", {});
   const box = await page.getByRole("button", { name: IMMERSIVE_CARD_LABELS.collapse, exact: true }).boundingBox();

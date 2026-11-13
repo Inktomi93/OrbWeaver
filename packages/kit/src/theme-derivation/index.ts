@@ -829,8 +829,7 @@ const CHART_L_STEP = 0.001;
 const CHART_PIXEL_DISTANCE_FLOOR = 30;
 
 function quantizedRgb(color: Oklch): Rgb {
-  const { r, g, b } = oklchToSrgb(color);
-  return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+  return quantized(oklchToSrgb(color));
 }
 
 function chartContrast(fill: Oklch, surfaces: readonly Oklch[]): number {
@@ -1362,8 +1361,7 @@ export interface InputBorderInputs {
 }
 
 function quantizedPixel(color: Oklch): Rgb {
-  const { r, g, b } = oklchToSrgb(color);
-  return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+  return quantized(oklchToSrgb(color));
 }
 
 /**
