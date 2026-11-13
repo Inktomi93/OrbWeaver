@@ -385,8 +385,9 @@ export async function resolveApplyBasis(
     liveCard,
   });
   const cutoff = { createdAt: rewriteRow.createdAt, id: rewriteRow.id };
-  // ATOMIC (owner ruling — Apply is a commit, Keep/Discard is staging): one refused entry refuses the whole
-  // apply. Recovery is the user discarding the refused entries explicitly, never a silent partial write.
+  // ATOMIC (Apply is a commit, Keep/Discard is staging): one refused entry refuses the whole apply, because
+  // writing the rest would produce a card the user never reviewed as a whole. Recovery is the user discarding
+  // the refused entries explicitly, never a silent partial write.
   if (dropped.length > 0) {
     return { session, liveCard, applied: [], dropped, chosen: [], rewriteRunCutoff: cutoff };
   }

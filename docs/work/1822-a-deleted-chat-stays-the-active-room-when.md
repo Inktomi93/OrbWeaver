@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
+updated: 2026-11-13
 priority: P3
 area: chat
 ---
@@ -10,7 +10,7 @@ area: chat
 
 ## What
 
-Return Chats to its landing when the active chat is deleted while the room is not mounted.
+A room deleted or reaped elsewhere leaves this client pointing at it: the persisted active chat in `packages/client/src/state/active-chat-store.ts` keeps the stale id. The user channel carries no deleted event (`chatsChanged` in `packages/contracts/src/user-bus/index.ts` also fires for create, fork and rename), the expiry sweep tells the user channel nothing, and the store is ruled free of server calls. So the chat surface lands on the chat list when `chat.getChat` answers not found for the active id, which also covers a delete that happened while the tab was closed.
 
 ## Why
 
@@ -18,7 +18,7 @@ chatDeleted reaches chatDeletedFromList in packages/client/src/state/active-chat
 
 ## Done when
 
-A component test deletes the active chat remotely while the shell is on Home and finds Chats back at its landing. The fix lives in active-chat-store.ts or in a user-channel consumer of chatDeleted.
+When the active room's read answers not found the client clears the active chat and shows the chat list, with a component test for a delete from another session while on Home and one for a stale persisted id at load.
 
 ## Evidence
 

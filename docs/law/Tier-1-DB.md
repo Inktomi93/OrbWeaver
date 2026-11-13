@@ -91,6 +91,8 @@ Every schema change ships as a numbered migration. The committed baseline is his
 
    Homes: `packages/db/src/query/db-errors.ts`, `packages/server/src/domain/chat/persistence/canon-write.ts`, `packages/server/src/domain/chat/persistence/import-write.ts`.
 
+9. **The audit log is a database-only forensic record.** The app writes `audit_logs` and never reads it: no verb, route or screen selects from it, and no reader is planned. An operator reads it with database tools on a copy of the file. Retention is the life of the database: nothing prunes, rotates or exports a row, and a row outlives its actor and its entity (D24). Home: `packages/db/src/schema/audit.ts`.
+
 ## Invariants
 
 1. **`db` imports only `kit` + `contracts`.** *(resolve-time physics; dep-cruiser `db-cake`.)*

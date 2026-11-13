@@ -36,7 +36,7 @@ import { DISPLAY_PLACEMENT, useDisplayScripts, useInvalidation, useSuspenseQuery
 import { regexScriptTitle } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
-import { regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
+import { REGEX_ON_SCREEN_LIST, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination (#1725). */
@@ -60,7 +60,7 @@ export function RegexOnScreenGroup({ chatId, isHost }: RegexOnScreenGroupProps):
   // no rank claim — the canvas draws exactly that arm.
   const rows = [...inForce, ...owned.filter((script) => !script.enabled && script.placement.includes(DISPLAY_PLACEMENT))];
   return (
-    <Section data-slot="regex-on-screen" kicker={<>On screen</>}>
+    <Section data-slot="regex-on-screen" kicker={REGEX_ON_SCREEN_LIST}>
       <Text voice="gloss">
         Display scripts change what <b>you</b> see, now. Yours come from your library; the host can broadcast theirs.
       </Text>
@@ -93,10 +93,10 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
         ? {
             actions: (
               <Row align="center" gap="tight">
-                {/* The SAME "everywhere" name as a tier row's switch, because it is the same flag on the
-                    same library row — a display script turned off here is off in every room. */}
+                {/* The same "everywhere" setting as a tier row's switch, because it is the same flag on the same
+                    library row; the list word keeps the two switches of a script drawn in both places apart. */}
                 <Switch
-                  aria-label={regexScriptEverywhereSwitchName(name)}
+                  aria-label={regexScriptEverywhereSwitchName(name, REGEX_ON_SCREEN_LIST)}
                   checked={script.enabled}
                   onCheckedChange={(next): void => {
                     setEnabled.mutate({ scriptId: script.id, input: { enabled: next } });

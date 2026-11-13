@@ -140,6 +140,8 @@ export interface ReapWorkloadsArgs {
 export interface BootReclaimReport {
   readonly requeued: number;
   readonly reaped: number;
+  /** Rows whose owner had raised a cancel the dead process never finished: boot finished it. */
+  readonly cancelled: number;
 }
 
 /** The boot reclaim's args; `contributions` supplies each kind's declared `resume` policy. */

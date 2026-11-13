@@ -60,6 +60,10 @@ test.for([
   }
 });
 
+const WIRE_HOME = 'import { wireOf } from "../scenario-physical.ts";\n';
+const APPENDED_HOME = 'import { appendedBy } from "@orb/testkit/iso";\n';
+const WIRE_READ = "const { bodies } = await wireOf(h, act);\nbodies.at(-1);";
+
 test.for([
   ["at(-1)", "h.requests.at(-1);", 1],
   ["a bracketed key", 'h["requests"].at(-1);', 1],
@@ -81,17 +85,36 @@ test.for([
   ["a nested destructure", "const { wire: { requests } } = h;\nrequests.at(-1);", 1],
   ["a nested destructured rename", "const { wire: { requests: sent } } = h;\nsent.at(-1);", 1],
   ["a recorder parameter", "function last(requests) { return requests.at(-1); }", 1],
-  ["a view over an act bracket", "const { bodies } = await wireOf(h, act);\nconst prompts = bodies.map(String).filter(Boolean);\nprompts.at(-1);", 0],
+  [
+    "a view over an act bracket",
+    `${WIRE_HOME}const { bodies } = await wireOf(h, act);\nconst prompts = bodies.map(String).filter(Boolean);\nprompts.at(-1);`,
+    0,
+  ],
   ["a recorder bound by slice(0)", "const requests = h.requests.slice(0);\nrequests.at(-1);", 1],
   ["a recorder bound by a literal slice then a view", "const bodies = h.bodies.slice(1).filter(Boolean);\nbodies.at(-1);", 1],
   ["a recorder bound by slice(length - 1)", "const requests = h.requests.slice(h.requests.length - 1);\nrequests.at(-1);", 1],
   ["a destructure from a literal slice", "const { requests } = (await rootFor(b)).wire.slice(0);\nrequests.at(-1);", 1],
   ["a field of a slice result", "const requests = h.log.slice(0).requests;\nrequests.at(-1);", 1],
   ["a literal slice of a destructured recorder", "const { requests } = await rootFor(b);\nconst bodies = requests.slice(0);\nbodies.at(-1);", 1],
-  ["a field of an act bracket's result", "const bodies = (await wireOf(h, act)).bodies;\nbodies.at(-1);", 0],
-  ["an appended bracket", "const { entries: requests } = await appendedBy(h.requests, act);\nrequests.at(-1);", 0],
+  ["a field of an act bracket's result", `${WIRE_HOME}const bodies = (await wireOf(h, act)).bodies;\nbodies.at(-1);`, 0],
+  ["an appended bracket", `${APPENDED_HOME}const { entries: requests } = await appendedBy(h.requests, act);\nrequests.at(-1);`, 0],
   ["a bracketed act", "h.requests.slice(mark).at(-1);", 0],
-  ["an act bracket's own entries", "const { bodies } = await wireOf(h, act);\nbodies.map((body) => body.text).at(-1);", 0],
+  ["an act bracket's own entries", `${WIRE_HOME}const { bodies } = await wireOf(h, act);\nbodies.map((body) => body.text).at(-1);`, 0],
+  [
+    "a bracket imported under another name",
+    `import { wireOf as sentBy } from "./scenario-physical.ts";\nconst { bodies } = await sentBy(h, act);\nbodies.at(-1);`,
+    0,
+  ],
+  [
+    "a bracket from inside the testkit",
+    `import { appendedBy } from "../iso/non-empty.ts";\nconst { entries: requests } = await appendedBy(log, act);\nrequests.at(-1);`,
+    0,
+  ],
+  ["a file-local function under a bracket's name", `async function wireOf(h) {\n  return { bodies: h.bodies };\n}\n${WIRE_READ}`, 1],
+  ["a file-local arrow under a bracket's name", `const wireOf = async (h) => ({ bodies: h.bodies });\n${WIRE_READ}`, 1],
+  ["a bracket's name imported from another module", `import { wireOf } from "./helpers.ts";\n${WIRE_READ}`, 1],
+  ["another export of the home renamed to a bracket", `import { sentBodies as wireOf } from "../scenario-physical.ts";\n${WIRE_READ}`, 1],
+  ["a bracket's name that nothing binds", WIRE_READ, 1],
   ["a const holding a bracket", "const sent = h.requests.slice(mark);\nsent.at(-1);", 0],
   ["the first entry", "h.requests.at(0);", 0],
   ["a list that records nothing", "rows.at(-1);\nlines.pop();", 0],

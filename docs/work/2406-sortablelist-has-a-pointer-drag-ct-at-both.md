@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-10
+updated: 2026-11-13
 priority: P3
 area: testing
 plan: cross-surface-consistency
@@ -19,7 +19,7 @@ Pointer drag is the primary reorder path on a desktop and the stacked grip is ne
 
 ## Done when
 
-A production-mounted CT drags a row by its grip with the pointer at both list widths and asserts the new order, in Chromium and WebKit.
+A production-mounted CT drags a row by its grip with the pointer at both list widths and asserts the new order, in Chromium and WebKit, and passes repeated WebKit runs: the drag waits for the lifted state before it moves and for the drop to settle before it reads the order.
 
 ## Evidence
 

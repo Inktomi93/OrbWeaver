@@ -8,7 +8,13 @@ import type { ChatId } from "@orb/kit/ids";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { regexScriptEverywhereSwitchName, regexTierAllowedSwitchName, regexTierLever } from "#client/features/chat/lib/regex-section-model.ts";
+import {
+  REGEX_ON_SCREEN_LIST,
+  regexScriptEverywhereSwitchName,
+  regexTierAllowedSwitchName,
+  regexTierKicker,
+  regexTierLever,
+} from "#client/features/chat/lib/regex-section-model.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
 const TAB_STORY = "tests/client/features/chat/components/_chat-forks-stories/ChatContextTabStory";
@@ -44,8 +50,10 @@ async function hostRoom(root: Harness): Promise<{ readonly chatId: ChatId; reado
   throw new Error("The corpus has no room the owner hosts");
 }
 
-function script(name: string, placement: "AI_OUTPUT" | "DISPLAY", enabled: boolean): ReturnType<typeof createRegexScriptSchema.parse> {
-  return createRegexScriptSchema.parse({ name, findRegex: "x", replaceString: "y", placement: [placement], enabled });
+type Placement = "AI_OUTPUT" | "DISPLAY";
+
+function script(name: string, placement: Placement | readonly Placement[], enabled: boolean): ReturnType<typeof createRegexScriptSchema.parse> {
+  return createRegexScriptSchema.parse({ name, findRegex: "x", replaceString: "y", placement: [placement].flat(), enabled });
 }
 
 test("script rows, the on-screen roster and the tier levers are found by their stable names, and a flip writes to its own item", async ({
@@ -76,13 +84,13 @@ test("script rows, the on-screen roster and the tier levers are found by their s
   await expect(tierOn).toHaveAttribute("aria-checked", "true");
   await expect(tierOff).toHaveAttribute("aria-checked", "false");
 
-  const rowOn = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(roomOn.name), exact: true });
-  const rowOff = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(roomOff.name), exact: true });
+  const rowOn = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(roomOn.name, regexTierKicker("chat", labels)), exact: true });
+  const rowOff = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(roomOff.name, regexTierKicker("chat", labels)), exact: true });
   await expect(rowOn).toHaveAttribute("aria-checked", "true");
   await expect(rowOff).toHaveAttribute("aria-checked", "false");
 
-  const displayOn = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(shown.name), exact: true });
-  const displayOff = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(dimmed.name), exact: true });
+  const displayOn = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(shown.name, REGEX_ON_SCREEN_LIST), exact: true });
+  const displayOff = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(dimmed.name, REGEX_ON_SCREEN_LIST), exact: true });
   await expect(displayOn).toHaveAttribute("aria-checked", "true");
   await expect(displayOff).toHaveAttribute("aria-checked", "false");
 
@@ -94,4 +102,40 @@ test("script rows, the on-screen roster and the tier levers are found by their s
   await expect.poll(() => trpc.lastInput("regex.updateScript")).toMatchObject({ scriptId: dimmed.id, input: { enabled: true } });
   await tierOff.click();
   await expect.poll(() => trpc.lastInput("chat.setRegexAllow")).toMatchObject({ chatId, lever: { kind: "tier", tier: "global", enabled: true } });
+});
+
+test("a script drawn in two lists, and two scripts that share a title in two tiers, each have a switch name of their own", async ({
+  mount,
+  page,
+  corpusMedia,
+}) => {
+  await using root = await createCorpusHarness();
+  const { chatId, host } = await hostRoom(root);
+  const both = await host.regex.createScript({ input: script("Tint and trim", ["AI_OUTPUT", "DISPLAY"], true) });
+  const roomTwin = await host.regex.createScript({ input: script("Twin", "AI_OUTPUT", true) });
+  const globalTwin = await host.regex.createScript({ input: script("Twin", "AI_OUTPUT", false) });
+  await host.regex.attachToChat({ chatId, scriptId: both.id });
+  await host.regex.attachToChat({ chatId, scriptId: roomTwin.id });
+  await host.regex.attachGlobal({ scriptId: globalTwin.id });
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  const trpc = await routeTrpc(page, serveCorpusProcedures(host, TAB_PROCEDURES));
+  await corpusMedia();
+  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+  await page.getByRole("button", { name: /^Regex/u }).click();
+
+  const labels = new Map<RegexTierKey, string>();
+  const roomList = regexTierKicker("chat", labels);
+  const inRoom = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(both.name, roomList), exact: true });
+  const onScreen = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(both.name, REGEX_ON_SCREEN_LIST), exact: true });
+  await expect(inRoom).toHaveAttribute("aria-checked", "true");
+  await expect(onScreen).toHaveAttribute("aria-checked", "true");
+
+  const roomTwinSwitch = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(roomTwin.name, roomList), exact: true });
+  const globalTwinSwitch = page.getByRole("switch", { name: regexScriptEverywhereSwitchName(globalTwin.name, regexTierKicker("global", labels)), exact: true });
+  await expect(roomTwinSwitch).toHaveAttribute("aria-checked", "true");
+  await expect(globalTwinSwitch).toHaveAttribute("aria-checked", "false");
+  await globalTwinSwitch.click();
+  await expect.poll(() => trpc.lastInput("regex.updateScript")).toMatchObject({ scriptId: globalTwin.id, input: { enabled: true } });
+  await roomTwinSwitch.click();
+  await expect.poll(() => trpc.lastInput("regex.updateScript")).toMatchObject({ scriptId: roomTwin.id, input: { enabled: false } });
 });

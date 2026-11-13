@@ -215,8 +215,16 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   [TURN_HOST_UNAVAILABLE_OP_CODE]: HOST_UNAVAILABLE_COPY,
 };
 
+// A cause this build has no words for. The server this build shipped with never sends one, so the only way here is
+// a newer server, and a reload fetches the build that knows the cause.
+const SEND_UNAVAILABLE_UNKNOWN_REASON = "This chat can't send right now. Reload the page to see why.";
+
 /** The composer disabled-reason for a refusal key — the single home the Send button + the guided fire
- *  actions read, so the copy can't drift between the two surfaces. Exhaustive over {@link SendRefusalKey}. */
+ *  actions read, so the copy can't drift between the two surfaces. Exhaustive over {@link SendRefusalKey}.
+ *
+ *  @remarks The key starts as the availability read's `cause`, which the client types from the contract and never
+ *  parses: a newer server can answer a cause outside the union. This lookup is where that wire value is first
+ *  used as a key, so the own-key check here is the boundary check, and a disabled Send always carries a reason. */
 export function sendUnavailableReason(key: SendRefusalKey): string {
-  return SEND_UNAVAILABLE_REASON[key];
+  return Object.hasOwn(SEND_UNAVAILABLE_REASON, key) ? SEND_UNAVAILABLE_REASON[key] : SEND_UNAVAILABLE_UNKNOWN_REASON;
 }
