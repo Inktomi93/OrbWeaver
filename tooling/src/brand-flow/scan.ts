@@ -3,6 +3,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { BrandTable } from "../brand-names/index.ts";
+import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import type { OptionalInventory } from "../unwired/index.ts";
 import {
   homeFiles,
@@ -14,7 +15,6 @@ import {
   packageWorlds,
   pluginAuthorWorlds,
   publishedSdkSources,
-  TEST_WORLDS,
 } from "../unwired/index.ts";
 import type { CompareCandidate, DeclarationCandidate, WorldRecords } from "./collect.ts";
 import { collectWorld } from "./collect.ts";

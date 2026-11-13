@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { TEST_WORLDS, worldSpecs } from "@orb/tooling/floor/testing/test-worlds";
 import { z } from "zod";
 
 /** One run's peak resident memory may not pass this: 16 GiB, the memory bar D317 states. */
@@ -39,11 +40,22 @@ export interface EslintPart {
   readonly ignorePatterns: readonly string[];
 }
 
-// The test files the DOM test world `tsconfig.tests-dom.json` names; the node world excludes them.
-const DOM_TESTS = ["tests/**/*.dom.test.ts", "tests/**/*.dom.test-d.ts", "tests/**/*.spec.ts", "tests/**/*.tsx", "tests/e2e", "tests/support/browser"];
+const ROOT = resolve(import.meta.dirname, "..");
+const TESTS_DIR = "tests/";
+const [NODE_WORLD, DOM_WORLD, ISO_WORLD] = TEST_WORLDS;
+
+// The test files a later test world's tsconfig names for itself: its `include` specs under `tests/`, less a spec the
+// node world includes too, because a file two worlds name takes the node world's project. The parts read the specs
+// from the tsconfig, so a spec added to a world moves its files to that world's part with no edit here.
+function ownTestSpecs(world: string): readonly string[] {
+  const shared = new Set(worldSpecs(ROOT, NODE_WORLD).include);
+  return worldSpecs(ROOT, world).include.filter((spec) => spec.startsWith(TESTS_DIR) && !shared.has(spec));
+}
+
+const DOM_TESTS = ownTestSpecs(DOM_WORLD);
 // The component-test page the DOM world also names.
 const DOM_PAGE = "playwright";
-const ISO_TESTS = "tests/support/iso";
+const ISO_TESTS = ownTestSpecs(ISO_WORLD);
 
 // A package's own top-level files, its build and config scripts, take the node world's program `tsconfig.node.json`,
 // which holds every node test; they lint in `root`, which builds that program for the root scripts anyway. An ignore
@@ -59,9 +71,9 @@ export const ESLINT_PARTS = [
   { name: "server", targets: ["packages/server"], ignorePatterns: PACKAGE_TOP_FILES },
   { name: "ui", targets: ["packages/ui"], ignorePatterns: PACKAGE_TOP_FILES },
   { name: "packages", targets: ["packages"], ignorePatterns: ["packages/client/", "packages/server/", "packages/ui/", ...PACKAGE_TOP_FILES] },
-  { name: "tests-node", targets: ["tests"], ignorePatterns: [...DOM_TESTS, ISO_TESTS] },
+  { name: "tests-node", targets: ["tests"], ignorePatterns: [...DOM_TESTS, ...ISO_TESTS] },
   { name: "tests-dom", targets: [...DOM_TESTS, DOM_PAGE], ignorePatterns: [] },
-  { name: "tests-iso", targets: [ISO_TESTS], ignorePatterns: [] },
+  { name: "tests-iso", targets: ISO_TESTS, ignorePatterns: [] },
   { name: "tooling", targets: ["tooling"], ignorePatterns: [] },
   { name: "root", targets: ["."], ignorePatterns: ["packages/*/*/", "tests/", "tooling/", `${DOM_PAGE}/`] },
 ] as const satisfies readonly EslintPart[];
@@ -135,13 +147,12 @@ function main(): void {
     process.exitCode = 1;
     return;
   }
-  const root = resolve(import.meta.dirname, "..");
-  const flags = lintScriptFlags(root);
+  const flags = lintScriptFlags(ROOT);
   const scratch = mkdtempSync(join(tmpdir(), "orb-eslint-parts-"));
   try {
     const runs = parts.map((part) => {
       console.log(`eslint part ${part.name}: ${eslintPartArgs(part).join(" ")}`);
-      const run = runPart(root, scratch, flags, part);
+      const run = runPart(ROOT, scratch, flags, part);
       console.log(`eslint part ${part.name}: ${describeOutcome(run.outcome)}, peak ${run.peakMiB ?? "unknown"} MiB, ${run.wallSeconds} s`);
       return run;
     });

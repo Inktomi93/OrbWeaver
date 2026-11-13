@@ -1,5 +1,7 @@
 // The member scan: engine one indexes every world, then engine two asks find-references about the members engine one
 // found unused. A member is unwired only when neither engine finds a production use; a test-only use makes it test-only.
+
+import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import type { ReferenceKind, Site } from "./classify.ts";
 import { classifyReference, Sources, siteKey } from "./classify.ts";
 import type { DeliberateEntry } from "./deliberate.ts";
@@ -10,7 +12,7 @@ import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
 import { joinFacts, propertyFacts, propertyIndex } from "./occurrences.ts";
 import type { TypeMember } from "./type-members.ts";
 import { typeMembers } from "./type-members.ts";
-import { packageWorlds, TEST_WORLDS } from "./worlds.ts";
+import { packageWorlds } from "./worlds.ts";
 
 const UNWIRED_KINDS = ["builder-only", "test-only", "unreferenced"] as const;
 /** `builder-only`: something supplies it and nothing calls it. `test-only`: only tests call it. */
