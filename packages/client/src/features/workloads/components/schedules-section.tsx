@@ -19,7 +19,7 @@
 // retired pane surface used to hand down as props) and its own suspense boundary.
 
 import { userRoleSatisfies } from "@orb/contracts/identity";
-import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
+import { WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES } from "@orb/contracts/workloads";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -174,7 +174,8 @@ function ScheduleRow({
   // arm that is TOTAL: a schedule's next run is a wall-clock appointment at any distance, where "in 8 months"
   // is not a thing anyone can act on.
   const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : SCHEDULE_PAUSED_LABEL;
-  const refusal = schedule.enabled ? WORKLOAD_RUN_ACCOUNT_REFUSAL : `${SCHEDULE_PAUSED_LABEL} · ${WORKLOAD_RUN_ACCOUNT_REFUSAL}`;
+  const refusalSentence = schedule.refusal === undefined ? null : WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES[schedule.refusal];
+  const refusal = refusalSentence === null || schedule.enabled ? refusalSentence : `${SCHEDULE_PAUSED_LABEL} · ${refusalSentence}`;
   // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read, and a
   // paused one keeps its Paused state in front of it: resuming a refused schedule must not hide that it is paused.
   // The title already states the cadence and the owner.
@@ -182,8 +183,8 @@ function ScheduleRow({
     <ListRow
       title={WORKLOAD_KIND_LABELS[schedule.kind]}
       titleQualifier={scheduleQualifier(identity)}
-      subtitle={schedule.refusal === undefined ? nextRun : refusal}
-      subtitleWrap={schedule.refusal !== undefined}
+      subtitle={refusal ?? nextRun}
+      subtitleWrap={refusal !== null}
       stackActions={true}
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">

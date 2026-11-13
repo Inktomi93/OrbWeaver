@@ -3,7 +3,8 @@
 // `null` system caller) keeps the requested filter (undefined = the deployment-wide view).
 // Each row carries the refusal its tick meets, judged as the tick judges it, so a schedule that starts nothing says why.
 
-import { WORKLOAD_RUN_ACCOUNT_NOT_OWNER } from "@orb/contracts/workloads";
+import type { WorkloadRunAccountRefusalCode } from "@orb/contracts/workloads";
+import { WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ListSchedulesParams, WorkloadScheduleListItem, WorkloadScheduleRow } from "../contract/schedule.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
@@ -11,7 +12,7 @@ import { listSchedulesQuery } from "../persistence/schedule-queries.ts";
 import { resolveListOwnerFilter } from "../substrate/authorize.ts";
 import { runAuthorityRefusal } from "../substrate/params.ts";
 
-async function tickRefusal(ctx: WorkloadServiceContext, schedule: WorkloadScheduleRow): Promise<typeof WORKLOAD_RUN_ACCOUNT_NOT_OWNER | null> {
+async function tickRefusal(ctx: WorkloadServiceContext, schedule: WorkloadScheduleRow): Promise<WorkloadRunAccountRefusalCode | null> {
   const contributions = ctx.getContributions();
   const params = contributions[schedule.kind].params.safeParse(schedule.params);
   if (!params.success) {
@@ -23,7 +24,7 @@ async function tickRefusal(ctx: WorkloadServiceContext, schedule: WorkloadSchedu
     schedule.kind,
     params.data,
   );
-  return refusal instanceof DomainOperationError && refusal.code === WORKLOAD_RUN_ACCOUNT_NOT_OWNER ? WORKLOAD_RUN_ACCOUNT_NOT_OWNER : null;
+  return refusal instanceof DomainOperationError ? (WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES.find((code) => code === refusal.code) ?? null) : null;
 }
 
 export function createListSchedules(ctx: WorkloadServiceContext): Pick<WorkloadService, "listSchedules"> {

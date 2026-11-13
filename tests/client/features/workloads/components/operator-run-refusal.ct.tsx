@@ -1,15 +1,18 @@
 // A stored operator-tree run whose account is not the box owner says why it cannot run: on the holder's schedule row,
-// and in the toast the box owner reads when Retry on a member's row is refused.
+// and in the toast the box owner reads when Retry on a member's row is refused. A disabled owner's schedule names the
+// disabled account on its row.
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
+import type { StartWorkloadInput } from "@orb/contracts/workloads";
+import { WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { noticeToast, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, plantMemberOperatorRun, plantMemberOperatorSchedule } from "@orb/testkit/node/composed";
-import { SCHEDULE_PAUSED_LABEL, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { SCHEDULE_PAUSED_LABEL, scheduleEditName, scheduleEnabledSwitchName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
+const STATS = { kind: "reconcile-stats", params: {} } satisfies StartWorkloadInput;
 const SCHEDULES_STORY = "tests/client/features/workloads/components/_schedule-dialog-dismissal-stories/ScheduleDialogDismissalStory";
 const JOBS_STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
 const SCHEDULE_READS = [
@@ -53,6 +56,26 @@ test("a member's stored operator-tree schedule names the refusal on its row", as
   // The planted schedule is paused as well as refused, and the one row says both.
   expect(schedule.enabled).toBe(false);
   await expect(page.getByText(SCHEDULE_PAUSED_LABEL, { exact: false })).toBeVisible();
+});
+
+test("a disabled member's schedule names the disabled account on its row in place of a next run", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const member = await root.actor();
+  const owner = await root.internalCallerFor(root.ownerId);
+  const created = await (await root.internalCallerFor(member.id)).workloads.createSchedule({ input: STATS, cadence: "daily" });
+  await owner.admin.setEnabled({ userId: member.id, enabled: false });
+  await routeTrpc(page, serveCorpusProcedures(owner, SCHEDULE_READS));
+  await mount<typeof ScheduleDialogDismissalStory>(SCHEDULES_STORY, { width: 900 });
+
+  const schedule = (await owner.workloads.listSchedules({})).find((listed) => listed.id === created.id);
+  if (schedule === undefined) {
+    throw new Error("The box owner must see the member's schedule");
+  }
+  const switchName = scheduleEnabledSwitchName({ ...schedule, ownerHandle: member.handle });
+  const row = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("switch", { name: switchName, exact: true }) });
+  await expect(row).toHaveCount(1);
+  await expect(row.getByText(WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL, { exact: false })).toBeVisible();
+  await expect(row.getByText(/^Next /u)).toHaveCount(0);
 });
 
 test("the box owner's save on a member's operator-tree schedule toasts the refusal it meets", async ({ mount, page }) => {
