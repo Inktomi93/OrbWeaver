@@ -13,7 +13,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
-import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "#server/domain/plugin";
+import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "#server/domain/plugin/index.ts";
 
 const ENABLED = "enabled" satisfies PluginStatus;
 const ERRORED = "errored" satisfies PluginStatus;
