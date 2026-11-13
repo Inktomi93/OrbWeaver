@@ -13,12 +13,13 @@ import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
 import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { CONTEXT_SHEET_BACK_NAME, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { dataThemeOf } from "#client/lib/resolve-theme-scope-tokens.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
@@ -434,7 +435,7 @@ test.describe("committed corpus shell", () => {
     // document's surface is the settled one, so wait for it before reading Retry.
     await expect.poll(() => documents).toBe(2);
     await page.waitForLoadState("load");
-    const retry = page.getByRole("button", { name: "Retry", exact: true });
+    const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     await expect(retry).toBeVisible();
     await expect(page.getByRole("status", { name: ROUTE_PENDING_NAME })).toHaveCount(0);
     // Each document asked for the chunk once, so nothing loops.
@@ -460,7 +461,7 @@ test.describe("committed corpus shell", () => {
     });
     const reported = page.waitForResponse((response) => isTrpcRequestFor(response.url(), "clientError"));
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
     expect((await reported).ok()).toBe(true);
     expect(reports).toHaveLength(1);
     expect(reports[0]).toContain(ROUTE_CRASH);
@@ -726,7 +727,7 @@ test.describe("committed corpus shell on a phone", () => {
     test.skip(!isMobile, PHONE_ONLY);
     const owned = (await ownerActor(baseURL ?? "").trpc.character.list.query({ limit: HOME_QUICK_PICKS_LIMIT })).items.length;
     await openHome(page);
-    const faces = page.getByRole("list", { name: "Character quick-picks" }).getByRole("listitem");
+    const faces = page.getByRole("list", { name: HOME_QUICK_PICKS_NAME }).getByRole("listitem");
     await expect(faces).toHaveCount(Math.min(owned, HOME_QUICK_PICKS_LIMIT));
     const geometry = (): Promise<{ readonly edges: readonly number[]; readonly overflows: boolean }> =>
       faces.first().evaluate((face) => {
@@ -745,7 +746,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect.poll(geometry).toEqual({ edges: [0, 0], overflows: true });
     // Tabbing along the row reveals each face whole inside the shelf rather than leaving it cut at the edge.
     // Each face carries its portrait button and its new-chat button, so two Tabs from the first portrait reach the second.
-    const buttons = page.getByRole("list", { name: "Character quick-picks" }).getByRole("button");
+    const buttons = page.getByRole("list", { name: HOME_QUICK_PICKS_NAME }).getByRole("button");
     const secondPortrait = buttons.nth(2);
     await buttons.first().focus();
     await page.keyboard.press("Tab");

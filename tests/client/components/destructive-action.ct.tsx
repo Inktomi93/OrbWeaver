@@ -1,5 +1,6 @@
 // The control asks first: Cancel acts on nothing and returns focus, and a refused verb keeps the confirm open as its retry.
 import { expect, test } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { DestructiveActionRetryStory } from "./_destructive-action-stories.tsx";
 
 const STORY = "tests/client/components/_destructive-action-stories/DestructiveActionRetryStory";
@@ -9,7 +10,7 @@ test("Cancel and Escape act on nothing and hand focus back to the control", asyn
   const control = component.getByRole("button", { name: "Erase", exact: true });
   const confirm = page.getByRole("alertdialog", { name: "Erase this row?", exact: true });
   await control.click();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   await expect(control).toBeFocused();
   await control.click();

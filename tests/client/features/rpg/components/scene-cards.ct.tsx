@@ -9,6 +9,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_scene-cards-stories/RpgSceneCardsStory";
@@ -72,7 +73,7 @@ test("a failed archive read renders the shared error state directly under the se
   await expect(archive).not.toHaveRole("region");
 
   failing = false;
-  await error.getByRole("button", { name: "Retry", exact: true }).click();
+  await error.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toBeVisible();
   await expect(archive.locator('[data-slot="query-error"]')).toHaveCount(0);
 });
@@ -97,7 +98,7 @@ test("Retry on a failed archive read keeps keyboard focus inside the archive and
   });
   const component = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
 
   failing = false;
@@ -128,7 +129,7 @@ test("Retry that settles on an empty archive lands focus on the announced recove
   });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
 
   // Record what the status says at the moment it takes focus: that is what a screen reader reads out.
@@ -169,7 +170,7 @@ for (const hold of FOCUS_HOLDS) {
     });
     const component = await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
     const archive = page.locator(ARCHIVE);
-    const retry = archive.getByRole("button", { name: "Retry", exact: true });
+    const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     await expect(retry).toBeVisible();
 
     failing = false;
@@ -206,7 +207,7 @@ test("a retried read's pending box is the first load's pending box", async ({ co
   const firstPending = await height();
 
   firstLoad.fail();
-  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
   pending = retried;
   await retry.click();
@@ -228,7 +229,7 @@ test("a Retry that fails again hands keyboard focus to the new Retry button", as
   });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  const retry = archive.getByRole("button", { name: "Retry", exact: true });
+  const retry = archive.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
 
   failing = false;

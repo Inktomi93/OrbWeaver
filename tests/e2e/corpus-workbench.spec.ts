@@ -4,6 +4,7 @@
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-names.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
@@ -11,6 +12,7 @@ import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL } from "#client/lib/corpus-modes.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
+import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { pruneConfirmLabel } from "#client/lib/tag-model.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -45,7 +47,7 @@ test.describe("committed corpus workbench", () => {
     await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
     const list = page.locator(CORPUS_LIST);
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.insights }).click();
-    const search = list.getByRole("textbox", { name: "Search characters", exact: true });
+    const search = list.getByRole("textbox", { name: ANALYTICS_SEARCH_NAME, exact: true });
     await search.fill(ranked.name.slice(0, 3).toLowerCase());
     const bySwipes = list.getByRole("button", { name: "Sort by Swipes", exact: true });
     await bySwipes.click();
@@ -111,7 +113,7 @@ test.describe("committed corpus workbench", () => {
 
     // Insights: the leaderboard is the finder, the dashboard is CONTENT, and its dimension tabs replace Explore's.
     await modes.getByRole("radio", { name: CORPUS_MODE_LABELS.insights }).click();
-    await expect(list.getByRole("textbox", { name: "Search characters", exact: true })).toBeVisible();
+    await expect(list.getByRole("textbox", { name: ANALYTICS_SEARCH_NAME, exact: true })).toBeVisible();
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     await expect(context.getByRole("tab", { name: "Models", exact: true })).toBeVisible();
     await expect(context.getByRole("tab", { name: "Archetypes", exact: true })).toHaveCount(0);
@@ -251,7 +253,7 @@ test.describe("committed corpus workbench", () => {
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
     // The finder windows a large library, so its own filter brings this cell's row into the tree.
     await list.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).fill(name);
-    await list.getByRole("button", { name: `Actions for ${name}`, exact: true }).click();
+    await list.getByRole("button", { name: rowActionsName(name), exact: true }).click();
     await page.getByRole("menuitem", { name: ROW_DELETE_NAME }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);

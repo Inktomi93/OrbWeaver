@@ -16,6 +16,7 @@ import { CONFIG_MORE_LIBRARY_ACTIONS_NAME, collectionEmptyTitle } from "#client/
 import { REGEX_GROUP_LABEL, REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { ROSTER_GROUP_LABEL } from "#client/features/roster-preset/lib/roster-names.ts";
 import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CollectionCompositionStory } from "./_collection-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -240,9 +241,9 @@ for (const regime of REGIMES) {
       const form = content.getByRole("form", { name: REGEX_NEW_SCRIPT_NAME, exact: true });
       const field = form.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true });
       const create = form.locator('button[type="submit"]');
-      const cancel = form.getByRole("button", { name: "Cancel", exact: true });
+      const cancel = form.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(field).toBeFocused();
-      await expect(create).toHaveText("Create");
+      await expect(create).toHaveText(DIALOG_VERBS.create);
       await expect(create).toBeDisabled();
       await field.fill(name);
       await expect(field).toHaveValue(name);
@@ -295,7 +296,7 @@ for (const regime of REGIMES) {
       const before = await caller.regex.countScripts();
       await content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true }).click();
       await expect(content.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true })).toBeFocused();
-      await content.getByRole("button", { name: "Cancel", exact: true }).click();
+      await content.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       expect(await caller.regex.countScripts()).toBe(before);
       await content.getByRole("button", { name: CONFIG_MORE_LIBRARY_ACTIONS_NAME, exact: true }).click();
       await expect(page.getByRole("menuitem", { name: "Import a regex script", exact: true })).toBeVisible();

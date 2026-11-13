@@ -4,6 +4,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PERSONA_PLAYING_AS_LABEL } from "#client/features/persona/lib/persona-copy.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -34,6 +35,6 @@ for (const section of ["characters", "databank"] as const) {
     });
     expect(misses).toEqual([]);
     // The foot really holds the avatar, so the sweep above is not vacuous.
-    await expect(page.locator(".shell-rail-actions").getByRole("button", { name: /^Playing as /u })).toBeVisible();
+    await expect(page.locator(".shell-rail-actions").getByRole("button", { name: PERSONA_PLAYING_AS_LABEL })).toBeVisible();
   });
 }

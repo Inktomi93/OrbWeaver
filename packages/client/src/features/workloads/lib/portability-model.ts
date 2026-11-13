@@ -11,6 +11,7 @@ import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 import { cardImportFailedDetail, cardImportRefusalLine } from "#lib";
+import { IMPORT_LEFT_ON_DISK_PHRASE } from "./import-library-names.ts";
 
 /** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card
  *  `skippedOverlays` (#1598/#1709) — the planes THIS file's import deliberately did not assert (e.g. "book
@@ -133,7 +134,9 @@ export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts 
 /** The plan's own lines, for the preflight AND the summary: what stays on your disk and why, and how many
  *  uploads the folder takes. One builder, so the two surfaces cannot disagree. */
 export function planNotes(plan: TreeImportPlan): string[] {
-  const lines = skippedByReason(plan.skipped).map(({ reason, files }) => `${String(files)} file${files === 1 ? "" : "s"} will stay on your disk: ${reason}.`);
+  const lines = skippedByReason(plan.skipped).map(
+    ({ reason, files }) => `${String(files)} file${files === 1 ? "" : "s"} ${IMPORT_LEFT_ON_DISK_PHRASE}: ${reason}.`,
+  );
   if (plan.batches.length > 1) {
     lines.push(
       `The folder is over the per-upload cap, so it is sent as ${String(plan.batches.length)} uploads, one after another. Each one imports on its own.`,

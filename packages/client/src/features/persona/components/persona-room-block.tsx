@@ -14,7 +14,7 @@ import { useId } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, notify } from "#lib";
-import { CLEAR_PIN_NAME, personaWithPlayer, playerNameOf } from "../lib/persona-copy.ts";
+import { CLEAR_PIN_NAME, PERSONA_REPIN_NAME, PERSONA_RESTAMP_NAME, personaWithPlayer, playerNameOf } from "../lib/persona-copy.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -111,7 +111,7 @@ function ChatAnchorRow({ chat, personas, onCardPin }: PersonaRoomBlockProps): Re
           <MenuTrigger
             render={
               <Button className="shrink-0" variant="ghost" size="sm">
-                Re-pin…
+                {PERSONA_REPIN_NAME}
               </Button>
             }
           />
@@ -172,7 +172,7 @@ function ChatRestamp({ chat, personas }: { readonly chat: ChatDetail; readonly p
         size="sm"
       >
         <Icon icon={History} size="xs" />
-        Restamp my messages to this persona
+        {PERSONA_RESTAMP_NAME}
       </Button>
       <Text as="span" data-slot="restamp-scope" id={scopeId} voice="gloss">
         Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}", however far back they go. What you

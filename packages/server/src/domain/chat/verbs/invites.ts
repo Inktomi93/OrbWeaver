@@ -7,12 +7,12 @@
 // resolver built once inside chat's own composition root.
 //
 // Targeted invites: `createInvite` resolves `invitedHandle` through the injected `ctx.resolveHandle`
-// (exact handle→userId, no listing). An unknown/disabled handle is a coded `invite_target_unknown`
+// (exact handle→userId, no listing). An unknown/disabled handle is a coded `INVITE_TARGET_UNKNOWN_CODE`
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
 import type { ClaimChatOp, CreateInviteInput, InvitePreview, InviteView } from "@orb/contracts/chat";
-import { SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import { INVITE_TARGET_UNKNOWN_CODE, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
@@ -168,7 +168,7 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
       // dedicated (still-unbuilt) seat verb, never an invite.
       invitedUserId = await ctx.resolveHandle(input.invitedHandle);
       if (invitedUserId === null) {
-        throw new DomainOperationError("invite_target_unknown", "no invitable user with that exact handle");
+        throw new DomainOperationError(INVITE_TARGET_UNKNOWN_CODE, "no invitable user with that exact handle");
       }
     }
     const at = ctx.now();

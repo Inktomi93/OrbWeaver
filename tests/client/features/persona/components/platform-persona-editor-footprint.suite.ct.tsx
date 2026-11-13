@@ -7,6 +7,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { PERSONA_DESCRIPTION_FIELD_NAME, personaDetailsToggleName, personaEditName } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -53,10 +54,10 @@ for (const regime of REGIMES) {
         ]),
       );
       await mount<typeof PersonaActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
-      await page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true }).focus();
+      await page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true }).focus();
       await page.keyboard.press("Enter");
-      const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
-      const textarea = page.getByRole("textbox", { name: "Description", exact: true });
+      const editor = page.getByRole("group", { name: personaEditName(persona.name), exact: true });
+      const textarea = page.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true });
       await expect(textarea).toHaveValue(persona.description);
       await page.evaluate(() => document.fonts.ready.then(() => undefined));
       const counter = editor.getByText(`~${estimateTokens(persona.description)} tokens`, { exact: true });
@@ -134,15 +135,15 @@ test.describe("macro popup composition", () => {
       ]),
     );
     await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance });
-    await page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true }).focus();
+    await page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true }).focus();
     await page.keyboard.press("Enter");
-    const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
-    const textarea = editor.getByRole("textbox", { name: "Description", exact: true });
-    const field = editor.locator('[data-slot="field-root"]').filter({ has: page.getByRole("textbox", { name: "Description", exact: true }) });
+    const editor = page.getByRole("group", { name: personaEditName(persona.name), exact: true });
+    const textarea = editor.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true });
+    const field = editor.locator('[data-slot="field-root"]').filter({ has: page.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true }) });
     const label = field.locator('[data-slot="field-label"]');
     await label.click();
     await expect(textarea).toBeFocused();
-    await expect(textarea).toHaveAccessibleName("Description");
+    await expect(textarea).toHaveAccessibleName(PERSONA_DESCRIPTION_FIELD_NAME);
     await textarea.fill("Greetings ");
     await textarea.press("End");
     await textarea.pressSequentially("{{user");
@@ -181,7 +182,7 @@ test.describe("macro popup composition", () => {
     await expect.poll(async () => (await caller.persona.get({ personaId: persona.id })).description).toBe("Greetings {{user}}");
     const counterText = `~${estimateTokens("Greetings {{user}}")} tokens`;
     await expect(editor.getByText(counterText, { exact: true })).toBeVisible();
-    await expect(textarea).toHaveAccessibleName("Description");
+    await expect(textarea).toHaveAccessibleName(PERSONA_DESCRIPTION_FIELD_NAME);
     await expect(textarea).toHaveAccessibleDescription(counterText);
   });
 });

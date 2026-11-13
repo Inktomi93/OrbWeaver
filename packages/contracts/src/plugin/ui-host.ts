@@ -7,7 +7,10 @@ import { PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_KV_VALUE_MAX_BYTES } from "./host-v1.ts
 import { byteBoundedString } from "./ui.ts";
 
 /** The `data.reason` of every refusal `plugin.uiHostCall` answers as the caller's own mistake, one per way a call
- *  can be wrong. A plugin surface keys on these, never on the message text. */
+ *  can be wrong. This is also the closed allowlist of codes a scripted surface's guest receives: its rejected
+ *  host call carries the code as `code`, and plugin code keys on it, never on the message text. Each code names a
+ *  fact about the plugin's own call, row or storage, which its installer can already see. An isolated frame
+ *  receives none of them (`PLUGIN_FRAME_CALL_REFUSED`). */
 export const PLUGIN_UI_HOST_CALL_CODES = {
   notEnabled: "plugin_ui_not_enabled",
   notProxyable: "plugin_ui_not_proxyable",
@@ -19,6 +22,18 @@ export const PLUGIN_UI_HOST_CALL_CODES = {
   storageCap: "plugin_storage_cap",
 } as const;
 export type PluginUiHostCallCode = (typeof PLUGIN_UI_HOST_CALL_CODES)[keyof typeof PLUGIN_UI_HOST_CALL_CODES];
+
+const PLUGIN_UI_HOST_CALL_CODE_SET: ReadonlySet<string> = new Set(Object.values(PLUGIN_UI_HOST_CALL_CODES));
+
+/** Whether a refusal reason is one a scripted surface's guest may receive. */
+export function isPluginUiHostCallCode(reason: string): reason is PluginUiHostCallCode {
+  return PLUGIN_UI_HOST_CALL_CODE_SET.has(reason);
+}
+
+/** The message of every scripted guest host call that fails with no allowlisted code. It is one fixed sentence, so
+ *  a fault's server text, a not-found's id or any reason outside {@link PLUGIN_UI_HOST_CALL_CODES} never reaches
+ *  plugin code. */
+export const PLUGIN_UI_HOST_CALL_FAILED = "plugin host: the call could not be completed";
 
 /** The bounded transcript page accepted by the scripted UI relay. */
 export const PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX = 50;

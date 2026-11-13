@@ -17,7 +17,27 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { connectionRolePickerName } from "#client/components/shared-control-names.ts";
+import {
+  RULE_ACTIONS_ORDER_TEXT,
+  RULE_ADD_KEYWORD_NAME,
+  RULE_CHOOSE_IMAGE_SIZE_NAME,
+  RULE_EDITOR_AUTOSAVE_NOTE,
+  RULE_EDITOR_CLOSE_NAME,
+  RULE_EDITOR_NAME,
+  RULE_INCLUDE_AUTOMATION_EVENTS_NAME,
+  RULE_NAME_FIELD_NAME,
+  RULE_OUTPUTS_NAME,
+  RULE_RUN_NOW_NAME,
+  RULE_SCORE_VARIABLE_NAME,
+  RULE_SUGGESTED_TURNS_NAME,
+  RULE_WORLD_BOOK_NAME,
+  ruleConnectionsName,
+  ruleTestName,
+  ruleTestResultName,
+} from "#client/features/automation/lib/automation-names.ts";
 import { RULE_UNSET_EFFECTS, ruleEnabledSwitchName } from "#client/features/automation/lib/rule-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/automation/components/_rule-action-groups-stories/RuleActionGroupsStory";
@@ -117,7 +137,7 @@ for (const regime of REGIMES) {
       await disclosure.focus();
       await page.keyboard.press("Enter");
       const edit = page.getByRole("button", { name: `Edit ${name}`, exact: true });
-      const dryRun = page.getByRole("button", { name: `Test ${name}`, exact: true });
+      const dryRun = page.getByRole("button", { name: ruleTestName(name), exact: true });
       const more = page.getByRole("button", { name: `More actions for ${name}`, exact: true });
       await edit.focus();
       await page.keyboard.press("Tab");
@@ -136,16 +156,16 @@ for (const regime of REGIMES) {
       }
       await edit.focus();
       await page.keyboard.press("Enter");
-      const editor = page.getByRole("region", { name: "Rule editor", exact: true });
-      await expect(editor.getByRole("textbox", { name: "Rule name", exact: true })).toHaveValue(name);
-      await editor.getByRole("button", { name: "Close editor", exact: true }).focus();
+      const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
+      await expect(editor.getByRole("textbox", { name: RULE_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
+      await editor.getByRole("button", { name: RULE_EDITOR_CLOSE_NAME, exact: true }).focus();
       await page.keyboard.press("Enter");
       await expect(editor).toBeHidden();
       await expect(edit).toBeFocused();
       expect(calls.count("automation.updateRule")).toBe(0);
       await dryRun.focus();
       await page.keyboard.press("Enter");
-      const result = page.getByRole("status", { name: `Test result for ${name}`, exact: true });
+      const result = page.getByRole("status", { name: ruleTestResultName(name), exact: true });
       await expect(result).toContainText(/Condition would (?:NOT )?match\./u);
       expect(calls.count("automation.testRule")).toBe(1);
       const previousIds = new Set(beforeFires.map((fire) => fire.id));
@@ -153,7 +173,7 @@ for (const regime of REGIMES) {
       expect(added.map((fire) => fire.outcome)).toEqual(["test_run"]);
       await more.focus();
       await page.keyboard.press("Enter");
-      await expect(page.getByRole("menuitem", { name: "Run now", exact: true })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: RULE_RUN_NOW_NAME, exact: true })).toBeVisible();
       await expect(page.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(more).toBeFocused();
@@ -184,14 +204,14 @@ test.describe("rule editor field rows", () => {
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
     await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
-    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     const typeOf = (label: string): Promise<string> =>
       editor.getByText(label, { exact: true }).evaluate((node) => {
         const style = getComputedStyle(node);
         return `${style.fontSize}/${style.fontWeight}`;
       });
-    expect(await typeOf("When")).toBe(await typeOf("Rule name"));
-    const automationSwitch = editor.getByRole("switch", { name: "Include events caused by automation", exact: true });
+    expect(await typeOf("When")).toBe(await typeOf(RULE_NAME_FIELD_NAME));
+    const automationSwitch = editor.getByRole("switch", { name: RULE_INCLUDE_AUTOMATION_EVENTS_NAME, exact: true });
     await expect(automationSwitch.locator("xpath=ancestor::*[@data-orientation][1]")).toHaveAttribute("data-orientation", "horizontal");
   });
 
@@ -223,9 +243,9 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
-    await page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true }).click();
+    await page.getByRole("button", { name: ruleConnectionsName(captured.name), exact: true }).click();
     const slot = page.getByRole("group", { name: role.heading, exact: true });
-    await expect(slot.getByRole("combobox", { name: `${role.label} connection`, exact: true })).toContainText(`Same as my ${role.label} role`);
+    await expect(slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true })).toContainText(`Same as my ${role.label} role`);
     await expect(slot.getByRole("img", { name: ROLE_STATUS_LABELS.unset, exact: true })).toBeVisible();
     // The readout says what the fallback resolves to, so the picker and the readout read as one state.
     await expect(slot.getByText(RULE_UNSET_EFFECTS.generateImage ?? "", { exact: true })).toBeVisible();
@@ -256,7 +276,7 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
-    const trigger = page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true });
+    const trigger = page.getByRole("button", { name: ruleConnectionsName(captured.name), exact: true });
     await trigger.click();
     const panel = page
       .locator('[data-slot="collapsible-panel"]')
@@ -326,9 +346,9 @@ test.describe("rule editor field rows", () => {
           .getByRole("button")
           .filter({ has: page.getByText(captured.name, { exact: true }) })
           .click();
-        await page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true }).click();
+        await page.getByRole("button", { name: ruleConnectionsName(captured.name), exact: true }).click();
         const slot = page.getByRole("group", { name: role.heading, exact: true });
-        await expect(slot.getByRole("combobox", { name: `${role.label} connection`, exact: true })).toBeVisible();
+        await expect(slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true })).toBeVisible();
         await expect.poll(() => findings(page.getByRole("group", { name: "Rule action host", exact: true }))).toEqual([]);
         const panel = page
           .locator('[data-slot="collapsible-panel"]')
@@ -346,7 +366,7 @@ test.describe("rule editor field rows", () => {
         expect(badges.filter((right) => right > panelBox.x + panelBox.width + SUBPIXEL)).toEqual([]);
         // The picker takes a line of its own: it spans the slot to the held nested step, and its chrome is the tokens' width, so the value takes every
         // other pixel.
-        const picker = slot.getByRole("combobox", { name: `${role.label} connection`, exact: true });
+        const picker = slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true });
         const value = picker.locator('[data-slot="select-value"]');
         const [hostBox, slotBox, pickerBox, valueBox, iconBox, indent, inset, gap, edge] = await Promise.all([
           paintedBox(page.getByRole("group", { name: "Rule action host", exact: true })),
@@ -390,13 +410,13 @@ test.describe("rule editor field rows", () => {
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
     await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
-    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
-    await editor.getByRole("textbox", { name: "Rule name", exact: true }).fill("");
+    const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
+    await editor.getByRole("textbox", { name: RULE_NAME_FIELD_NAME, exact: true }).fill("");
     const held = editor.getByRole("status").filter({ hasText: "Not saved" });
     await expect(held).toBeVisible();
     const sizeOf = (node: Pick<typeof held, "evaluate">): Promise<number> => node.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
     const sentence = await sizeOf(held.locator("p").last());
-    const body = await sizeOf(editor.getByText("Actions run in this order", { exact: true }));
+    const body = await sizeOf(editor.getByText(RULE_ACTIONS_ORDER_TEXT, { exact: true }));
     expect(sentence).toBeGreaterThanOrEqual(body);
   });
 
@@ -417,8 +437,8 @@ test.describe("rule editor field rows", () => {
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
     await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
-    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
-    const line = editor.getByText(/^Edits save automatically when complete/u);
+    const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
+    const line = editor.getByText(RULE_EDITOR_AUTOSAVE_NOTE, { exact: true });
     const box = await line.boundingBox();
     if (box === null) {
       throw new Error("The explanatory line must render");
@@ -453,17 +473,17 @@ test.describe("rule editor field rows", () => {
       .filter({ has: page.getByText(target.name, { exact: true }) })
       .click();
     await page.getByRole("button", { name: `Edit ${target.name}`, exact: true }).click();
-    const outputs = page.getByRole("group", { name: "Outputs", exact: true });
-    await outputs.getByRole("switch", { name: "World book", exact: true }).click();
-    await outputs.getByRole("switch", { name: "Suggested turns", exact: true }).click();
+    const outputs = page.getByRole("group", { name: RULE_OUTPUTS_NAME, exact: true });
+    await outputs.getByRole("switch", { name: RULE_WORLD_BOOK_NAME, exact: true }).click();
+    await outputs.getByRole("switch", { name: RULE_SUGGESTED_TURNS_NAME, exact: true }).click();
 
     const warning = outputs.getByRole("alert");
     await expect(warning).toBeVisible();
-    await expect(warning).toContainText("World book");
-    await expect(warning).toContainText("Suggested turns");
+    await expect(warning).toContainText(RULE_WORLD_BOOK_NAME);
+    await expect(warning).toContainText(RULE_SUGGESTED_TURNS_NAME);
     const [alertBox, lastSwitchBox] = await Promise.all([
       warning.boundingBox(),
-      outputs.getByRole("switch", { name: "Score variable", exact: true }).boundingBox(),
+      outputs.getByRole("switch", { name: RULE_SCORE_VARIABLE_NAME, exact: true }).boundingBox(),
     ]);
     if (alertBox === null || lastSwitchBox === null) {
       throw new Error("The warning and the switch list must render");
@@ -472,7 +492,7 @@ test.describe("rule editor field rows", () => {
     // The stamp selects the tone's ink in the actual theme, and the paint proves the stamp reached the text.
     await expect(warning).toHaveAttribute("data-tone", "destructive");
     const ink = (locator: typeof warning): Promise<string> => locator.evaluate((node) => getComputedStyle(node).color);
-    expect(await ink(warning)).not.toBe(await ink(outputs.getByText("Outputs", { exact: true })));
+    expect(await ink(warning)).not.toBe(await ink(outputs.getByText(RULE_OUTPUTS_NAME, { exact: true })));
   });
 
   test("a filled rule field asks before its text goes, and an empty one leaves on the press", async ({ mount, page }) => {
@@ -499,7 +519,7 @@ test.describe("rule editor field rows", () => {
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
     await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
-    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     const add = editor.getByRole("button", { name: "Add negative prompt", exact: true });
     const remove = editor.getByRole("button", { name: "Remove negative prompt", exact: true });
     const field = editor.getByRole("textbox", { name: "Negative prompt", exact: true });
@@ -514,7 +534,7 @@ test.describe("rule editor field rows", () => {
     await field.fill("extra fingers");
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ negative: "extra fingers" });
     await remove.click();
-    await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+    await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
     // The empty removal above opened no confirm, so it must not decide where this Cancel leaves focus.
     await expect(remove).toBeFocused();
     await expect(field).toHaveValue("extra fingers");
@@ -557,10 +577,10 @@ test.describe("rule editor field rows", () => {
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
     await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
-    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     await editor.getByRole("button", { name: "Remove keyword 1", exact: true }).click();
     await page.getByRole("alertdialog", { name: "Remove keyword 1?", exact: true }).getByRole("button", { name: "Remove", exact: true }).click();
-    await expect(editor.getByRole("button", { name: "Add keyword", exact: true })).toBeFocused();
+    await expect(editor.getByRole("button", { name: RULE_ADD_KEYWORD_NAME, exact: true })).toBeFocused();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ keys: ["harbour"] });
   });
 
@@ -589,16 +609,16 @@ test.describe("rule editor field rows", () => {
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
     await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
-    const editor = page.getByRole("region", { name: "Rule editor", exact: true });
+    const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     await editor.getByRole("button", { name: "Add negative prompt", exact: true }).click();
     await editor.getByRole("textbox", { name: "Negative prompt", exact: true }).fill("extra fingers");
-    await editor.getByRole("button", { name: "Choose image size", exact: true }).click();
+    await editor.getByRole("button", { name: RULE_CHOOSE_IMAGE_SIZE_NAME, exact: true }).click();
     await editor.getByRole("combobox", { name: "Image size", exact: true }).click();
     await page.getByRole("option", { name: IMAGE_SIZE_LABELS[size], exact: true }).click();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ type: "generate_image", negative: "extra fingers", size });
     await editor.getByRole("button", { name: `Use the ${IMAGE_SIZE_MODE_DEFAULT}`, exact: true }).click();
-    await expect(editor.getByRole("button", { name: "Choose image size", exact: true })).toBeFocused();
-    await editor.getByRole("button", { name: "Choose image size", exact: true }).click();
+    await expect(editor.getByRole("button", { name: RULE_CHOOSE_IMAGE_SIZE_NAME, exact: true })).toBeFocused();
+    await editor.getByRole("button", { name: RULE_CHOOSE_IMAGE_SIZE_NAME, exact: true }).click();
     await editor.getByRole("combobox", { name: "Image size", exact: true }).click();
     await page.getByRole("option", { name: IMAGE_SIZE_LABELS[size], exact: true }).click();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ size });

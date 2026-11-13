@@ -127,7 +127,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.
     resolvePresetUserMacros: deps.rpgChatOps.resolvePromptUserMacros,
     // The present host's role row, the same read the turn's funder is frozen from (`resolveTurnIdentity`).
-    resolveRoomFunder: deps.rpgChatOps.resolveHostUserId,
+    resolveRoomFunder: deps.rpgChatOps.resolveConsentingHostUserId,
     resolveStateDelivery: buildResolveStateDelivery(rounds),
     resolveStateRoundFit: buildResolveStateRoundFit(rounds),
     runToolRound: buildRunToolRound(rounds),

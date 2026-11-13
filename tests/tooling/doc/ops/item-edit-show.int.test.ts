@@ -65,7 +65,11 @@ test("edit refuses an unknown id and an item missing the section, writing nothin
       "---\nkind: work\nstatus: open\nupdated: 2026-09-23\n---\n\n# A\n\n## What\n\nWhat.\n\n## Done when\n\nDone.\n\n## Evidence\n\nNone.\n",
   });
   const before = read(root, ITEM);
-  expect(editItem(7, { what: "x" }, root, LATER)).toEqual({ written: [], refusals: ["7: no such item under docs/work/ — pnpm doc overview lists them"] });
+  expect(editItem(7, { what: "x" }, root, LATER)).toEqual({
+    written: [],
+    created: [],
+    refusals: ["7: no such item under docs/work/ — pnpm doc overview lists them"],
+  });
   const missing = editItem(1, { what: "Fine.", why: "No such section here." }, root, LATER);
   expect(missing.written).toEqual([]);
   expect(missing.refusals).toHaveLength(1);

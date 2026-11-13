@@ -7,6 +7,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { pluginDetailsLabel, updateAvailableLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PluginActionGroupsStory, PluginInstallActionsStory } from "./_update-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/plugin/components/_update-action-groups-stories/PluginActionGroupsStory";
@@ -136,7 +137,7 @@ for (const regime of REGIMES) {
       const calls = await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "plugin.listDistributed"]));
       await mount<typeof PluginActionGroupsStory>(STORY, { width: regime.width, appearance, distribution: true });
       await page.locator('input[type="file"]').setInputFiles({ name: "layout-witness.zip", mimeType: "application/zip", buffer: Buffer.from(bundle) });
-      const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+      const cancel = page.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(cancel).toBeVisible();
       const group = cancel.locator("..");
       const distribute = group.getByRole("button").first();
@@ -180,7 +181,7 @@ for (const regime of REGIMES) {
         .setInputFiles({ name: "install-actions.zip", mimeType: "application/zip", buffer: Buffer.from(bundle) });
       await expect(page.getByRole("heading", { name: `Review ${manifest.name} ${manifest.version}`, exact: true })).toBeVisible();
       const install = page.getByRole("button", { name: "Install", exact: true });
-      const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+      const cancel = page.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(install).toBeEnabled();
       await install.focus();
       await page.keyboard.press("Tab");

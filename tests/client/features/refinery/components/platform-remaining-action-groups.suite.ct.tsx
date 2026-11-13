@@ -12,6 +12,7 @@ import {
   REFINERY_EDIT_SCOPE_NAME,
   REFINERY_HIDE_COMPARE_NAME,
   REFINERY_VERSION_DIFF_HEADING,
+  refineryRestoreVersionName,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -107,7 +108,7 @@ for (const regime of REGIMES) {
         appearance: regime.appearance,
       });
       const compare = page.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true });
-      const restore = page.getByRole("button", { name: "Restore", exact: true });
+      const restore = page.getByRole("button", { name: refineryRestoreVersionName("Manual layout reference"), exact: true });
       await expectContained(compare.locator(".."), [compare, restore]);
       await compare.focus();
       await page.keyboard.press("Enter");
@@ -144,6 +145,33 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test("each version's Restore names its version, and versions sharing a label are told apart oldest first", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false });
+  const { session, caller, card } = await seedSession(root, page);
+  // The walk orders by creation time, so each snapshot is made a second after the last.
+  for (const label of ["Manual layout reference", "Before the rename"]) {
+    root.clock.advance(1000);
+    await caller.character.snapshot({ characterId: card.id, label });
+  }
+  await mount<typeof RefineryRemainingActionsStory>(STORY, {
+    sessionId: session.id,
+    plane: "versions",
+    width: 960,
+    appearance: appearanceSettingsSchema.parse({}),
+  });
+  const restores = page.getByRole("button", { name: /^Restore /u });
+  await expect(restores).toHaveCount(3);
+  // The walk lists newest first; the ordinal counts from the oldest, so a later snapshot never renames an earlier one.
+  const expected = [
+    refineryRestoreVersionName("Before the rename"),
+    refineryRestoreVersionName("Manual layout reference", "#2"),
+    refineryRestoreVersionName("Manual layout reference", "#1"),
+  ];
+  for (const [index, name] of expected.entries()) {
+    await expect(restores.nth(index)).toHaveAccessibleName(name);
+  }
+});
 
 test("two runs of one stage in one round carry distinct names, oldest first", async ({ mount, page }) => {
   await using root = await createServerHarness({ startJobs: false });

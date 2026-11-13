@@ -16,10 +16,28 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
-import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import {
+  COLLISION_KEEP_ALL_NAME,
+  COLLISION_KEEP_BOTH_TITLE,
+  COLLISION_MERGE_ALL_NAME,
+  COLLISION_MERGE_TITLE,
+  IMPORT_FILE_PICKER_NAME,
+  IMPORT_FOLDER_NAME,
+  IMPORT_INTRO_LEAD,
+} from "#client/features/workloads/lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
+import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
+import {
+  cancelWorkloadName,
+  retryWorkloadName,
+  WORKLOAD_BULK_BADGE,
+  WORKLOAD_CANCEL_TITLE,
+  WORKLOAD_KEEP_RUNNING_NAME,
+  WORKLOAD_SCHEDULED_BADGE,
+} from "#client/features/workloads/lib/workloads-names.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { SCHEDULE_CADENCE_LABELS, scheduleDeleteName, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
@@ -115,10 +133,10 @@ for (const regime of REGIMES) {
       await routeImportReads(page, root);
       await routeTrpc(page, serveCorpusProcedures(caller, ["settings.getUserSettings", "sessions.me"]));
       await mount<typeof WorkloadActionGroupsStory>(STORY, { sectionId: "backup-import", width: regime.width, appearance: regime.appearance });
-      const intro = page.getByText(/^Restore a backup, or bring your SillyTavern library over\./u);
+      const intro = page.getByText(IMPORT_INTRO_LEAD);
       await expect(intro).toBeVisible();
       expect((await settledBox(intro)).width).toBeLessThanOrEqual((await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, intro)) + 1);
-      const picker = page.getByLabel("Import a backup or card file", { exact: true });
+      const picker = page.getByLabel(IMPORT_FILE_PICKER_NAME, { exact: true });
       await picker.focus();
       await expect(picker).toBeFocused();
       const chooserPromise = page.waitForEvent("filechooser");
@@ -127,11 +145,14 @@ for (const regime of REGIMES) {
       const preflight = page.getByRole("group", { name: "Import “import-action-card.png”?", exact: true });
       await expect(preflight).toBeFocused();
       const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true });
-      const cancel = preflight.getByRole("button", { name: "Cancel", exact: true });
+      const cancel = preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(confirm).toBeEnabled();
       await measureActions(confirm.locator(".."), [confirm, cancel], testInfo, "card-preflight-actions");
-      await confirm.focus();
+      // Cancel comes first in the commit row, so Tab from it reaches the submit and Shift+Tab returns.
+      await cancel.focus();
       await page.keyboard.press("Tab");
+      await expect(confirm).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
       await expect(cancel).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(preflight).toHaveCount(0);
@@ -194,22 +215,22 @@ for (const regime of REGIMES) {
       await testInfo.attach("actual-persona-review", { body: JSON.stringify(reviewed), contentType: "application/json" });
       const review = page.locator('[data-slot="persona-collision-review"]');
       await expect(review.getByRole("radiogroup")).toHaveCount(2);
-      const merge = review.getByRole("button", { name: "Merge all", exact: true });
-      const keep = review.getByRole("button", { name: "Keep all", exact: true });
+      const merge = review.getByRole("button", { name: COLLISION_MERGE_ALL_NAME, exact: true });
+      const keep = review.getByRole("button", { name: COLLISION_KEEP_ALL_NAME, exact: true });
       await measureActions(merge.locator(".."), [merge, keep], testInfo, "collision-bulk-actions");
       await merge.focus();
       await page.keyboard.press("Tab");
       await expect(keep).toBeFocused();
       await page.keyboard.press("Enter");
-      await expect(review.getByRole("radio", { name: /^Keep both/u })).toHaveCount(2);
-      for (const radio of await review.getByRole("radio", { name: /^Keep both/u }).all()) {
+      await expect(review.getByRole("radio", { name: COLLISION_KEEP_BOTH_TITLE })).toHaveCount(2);
+      for (const radio of await review.getByRole("radio", { name: COLLISION_KEEP_BOTH_TITLE }).all()) {
         await expect(radio).toBeChecked();
       }
       await merge.click();
-      for (const radio of await review.getByRole("radio", { name: /^Merge into your existing persona/u }).all()) {
+      for (const radio of await review.getByRole("radio", { name: COLLISION_MERGE_TITLE }).all()) {
         await expect(radio).toBeChecked();
       }
-      await preflight.getByRole("button", { name: "Cancel", exact: true }).click();
+      await preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(preflight).toHaveCount(0);
       await expect(picker).toBeFocused();
       for (const persona of personas) {
@@ -269,11 +290,13 @@ for (const regime of REGIMES) {
     }, testInfo) => {
       await using root = await createServerHarness(ROOT_OPTIONS);
       const caller = await root.internalCallerFor(root.ownerId);
-      const cancelled = await caller.workloads.start({ input: { kind: "import-token-usage-backfill", params: {} } });
+      const backfill = "import-token-usage-backfill";
+      const backfillLabel = WORKLOAD_KIND_LABELS[backfill];
+      const cancelled = await caller.workloads.start({ input: { kind: backfill, params: {} } });
       await caller.workloads.cancel({ id: cancelled.id });
       const dependency = await caller.workloads.start({ input: { kind: "assets-backfill", params: {} }, mode: "bulk" });
       const active = await caller.workloads.start({
-        input: { kind: "import-token-usage-backfill", params: {} },
+        input: { kind: backfill, params: {} },
         mode: "bulk",
         dependsOn: [dependency.id],
         scheduledAt: root.clock.now() + CADENCE_INTERVAL_MS.daily,
@@ -294,15 +317,17 @@ for (const regime of REGIMES) {
       );
       await routeOrbSocket(page, { awaitAttaches: 2 });
       await mount<typeof WorkloadActionGroupsStory>(STORY, { sectionId: "workloads-jobs", width: regime.width, appearance: regime.appearance });
-      const deferred = page.locator('[data-slot="workload-row"]').filter({ has: page.getByText("Scheduled", { exact: true }) });
-      const terminal = page.locator('[data-slot="workload-row"]').filter({ has: page.getByRole("button", { name: /^Retry: /u }) });
-      const cancel = deferred.getByRole("button", { name: /^Cancel: /u });
-      const retry = terminal.getByRole("button", { name: /^Retry: /u });
+      const deferred = page.locator('[data-slot="workload-row"]').filter({ has: page.getByText(WORKLOAD_SCHEDULED_BADGE, { exact: true }) });
+      const terminal = page
+        .locator('[data-slot="workload-row"]')
+        .filter({ has: page.getByRole("button", { name: retryWorkloadName(backfillLabel), exact: true }) });
+      const cancel = deferred.getByRole("button", { name: cancelWorkloadName(backfillLabel), exact: true });
+      const retry = terminal.getByRole("button", { name: retryWorkloadName(backfillLabel), exact: true });
       await expect(cancel).toBeEnabled();
-      await expect(deferred.getByText("Bulk", { exact: true })).toBeVisible();
+      await expect(deferred.getByText(WORKLOAD_BULK_BADGE, { exact: true })).toBeVisible();
       await expect(deferred.getByText("Waiting", { exact: true })).toBeVisible();
-      await expect(deferred.getByRole("button", { name: /^Retry: /u })).toHaveCount(0);
-      await expect(terminal.getByRole("button", { name: /^Cancel: /u })).toHaveCount(0);
+      await expect(deferred.getByRole("button", { name: retryWorkloadName(backfillLabel), exact: true })).toHaveCount(0);
+      await expect(terminal.getByRole("button", { name: cancelWorkloadName(backfillLabel), exact: true })).toHaveCount(0);
       await measureActions(cancel.locator(".."), [cancel], testInfo, "deferred-job-actions");
       await measureActions(retry.locator(".."), [retry], testInfo, "terminal-job-actions");
       // The header's run-a-job action shares one row with the filter tabs and may not leave the host at any regime.
@@ -313,8 +338,8 @@ for (const regime of REGIMES) {
       await expect(retry).toBeFocused();
       await cancel.focus();
       await page.keyboard.press("Enter");
-      const dialog = page.getByRole("alertdialog", { name: "Cancel this job?", exact: true });
-      const keep = dialog.getByRole("button", { name: "Keep running", exact: true });
+      const dialog = page.getByRole("alertdialog", { name: WORKLOAD_CANCEL_TITLE, exact: true });
+      const keep = dialog.getByRole("button", { name: WORKLOAD_KEEP_RUNNING_NAME, exact: true });
       await keep.focus();
       await page.keyboard.press("Enter");
       await expect(dialog).toBeHidden();

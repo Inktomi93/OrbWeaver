@@ -1,9 +1,4 @@
-import {
-  WORKLOAD_RUN_ACCOUNT_DISABLED,
-  WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
-  WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
-  WORKLOAD_RUN_ACCOUNT_REFUSAL,
-} from "@orb/contracts/workloads";
+import { WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES } from "@orb/contracts/workloads";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -43,10 +38,7 @@ export const useCreateSchedule = createEntityMutation<inferInput<Trpc["workloads
 
 // A schedule keeps its owner, so a retune is judged against that account whoever saves it. The server codes those
 // refusals, and each code's sentence is the contract's own.
-const RUN_ACCOUNT_REFUSALS: ReadonlyMap<string, string> = new Map([
-  [WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL],
-  [WORKLOAD_RUN_ACCOUNT_DISABLED, WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL],
-]);
+const RUN_ACCOUNT_REFUSALS: ReadonlyMap<string, string> = new Map(Object.entries(WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES));
 
 /** Retune a schedule in place (kind/params/cadence/mode). `enabled` is not here — that stays `setScheduleEnabled`.
  *  A refused run account toasts its reason, so the owner sees why a member's schedule cannot take the job. */

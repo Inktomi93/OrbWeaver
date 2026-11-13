@@ -3,8 +3,10 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { SCHEDULE_CADENCE_FIELD_NAME, SCHEDULE_CREATE_NAME, SCHEDULE_SAVE_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { SCHEDULE_CADENCE_LABELS, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
 const CREATED_SCHEDULE = { kind: "reconcile-stats", cadence: "daily", ownerHandle: null } as const satisfies ScheduleIdentity;
@@ -48,12 +50,12 @@ for (const viewport of VIEWPORTS) {
       await createTrigger.click();
       const createDialog = page.getByTestId(testId("createScheduleDialog"));
       await expect(createDialog).toBeVisible();
-      await expectPairedScheduleActions(createDialog, "Create schedule");
+      await expectPairedScheduleActions(createDialog, SCHEDULE_CREATE_NAME);
       if (viewport.label === "desktop") {
         await test.step("the geometry assertion rejects misaligned production actions", () => expectMisalignmentRejected(createDialog));
       }
-      await expectScheduleActionsAfterScroll(createDialog, "Create schedule");
-      await createDialog.getByRole("combobox", { name: "Runs", exact: true }).click();
+      await expectScheduleActionsAfterScroll(createDialog, SCHEDULE_CREATE_NAME);
+      await createDialog.getByRole("combobox", { name: SCHEDULE_CADENCE_FIELD_NAME, exact: true }).click();
       await page.getByRole("option", { name: SCHEDULE_CADENCE_LABELS.weekly, exact: true }).click();
       await dismissScheduleDialog(page, createDialog);
       await expect(createDialog).toHaveCount(0);
@@ -61,7 +63,7 @@ for (const viewport of VIEWPORTS) {
       expect(await caller.workloads.listSchedules({})).toEqual(schedulesBefore);
 
       await createTrigger.click();
-      await expect(createDialog.getByRole("combobox", { name: "Runs", exact: true })).toHaveText(SCHEDULE_CADENCE_LABELS.daily);
+      await expect(createDialog.getByRole("combobox", { name: SCHEDULE_CADENCE_FIELD_NAME, exact: true })).toHaveText(SCHEDULE_CADENCE_LABELS.daily);
       await dismissScheduleDialog(page, createDialog);
       await expect(createDialog).toHaveCount(0);
       await expect(createTrigger).toBeFocused();
@@ -71,9 +73,9 @@ for (const viewport of VIEWPORTS) {
       const editTrigger = createdRow.getByRole("button", { name: scheduleEditName(CREATED_SCHEDULE), exact: true });
       await editTrigger.click();
       const editDialog = page.getByTestId(testId("editScheduleDialog"));
-      await expectPairedScheduleActions(editDialog, "Save schedule");
-      await expectScheduleActionsAfterScroll(editDialog, "Save schedule");
-      const cadence = editDialog.getByRole("combobox", { name: "Runs", exact: true });
+      await expectPairedScheduleActions(editDialog, SCHEDULE_SAVE_NAME);
+      await expectScheduleActionsAfterScroll(editDialog, SCHEDULE_SAVE_NAME);
+      const cadence = editDialog.getByRole("combobox", { name: SCHEDULE_CADENCE_FIELD_NAME, exact: true });
       await expect(cadence).toHaveText(SCHEDULE_CADENCE_LABELS.daily);
       await cadence.click();
       await page.getByRole("option", { name: SCHEDULE_CADENCE_LABELS.weekly, exact: true }).click();
@@ -84,7 +86,7 @@ for (const viewport of VIEWPORTS) {
       expect(await caller.workloads.listSchedules({})).toEqual(schedulesBefore);
 
       await editTrigger.click();
-      await expect(editDialog.getByRole("combobox", { name: "Runs", exact: true })).toHaveText(SCHEDULE_CADENCE_LABELS.daily);
+      await expect(editDialog.getByRole("combobox", { name: SCHEDULE_CADENCE_FIELD_NAME, exact: true })).toHaveText(SCHEDULE_CADENCE_LABELS.daily);
       await dismissScheduleDialog(page, editDialog);
       await expect(editDialog).toHaveCount(0);
       await expect(editTrigger).toBeFocused();
@@ -93,25 +95,25 @@ for (const viewport of VIEWPORTS) {
 }
 
 async function expectMisalignmentRejected(dialog: import("@playwright/test").Locator): Promise<void> {
-  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   const transform = await cancel.evaluate((node) => {
     const original = node.style.transform;
     node.style.transform = `translateY(${node.getBoundingClientRect().height}px)`;
     return original;
   });
   try {
-    await expect(expectPairedScheduleActions(dialog, "Create schedule")).rejects.toThrow(/toBeLessThanOrEqual/u);
+    await expect(expectPairedScheduleActions(dialog, SCHEDULE_CREATE_NAME)).rejects.toThrow(/toBeLessThanOrEqual/u);
   } finally {
     await cancel.evaluate((node, original) => {
       node.style.transform = original;
     }, transform);
   }
-  await expectPairedScheduleActions(dialog, "Create schedule");
+  await expectPairedScheduleActions(dialog, SCHEDULE_CREATE_NAME);
 }
 
 async function expectPairedScheduleActions(dialog: import("@playwright/test").Locator, submitLabel: string): Promise<void> {
   const submit = dialog.getByRole("button", { name: submitLabel, exact: true });
-  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   await expect(submit).toBeVisible();
   await expect(cancel).toBeVisible();
   const [submitBox, cancelBox] = await Promise.all([submit.boundingBox(), cancel.boundingBox()]);
@@ -126,7 +128,7 @@ async function expectPairedScheduleActions(dialog: import("@playwright/test").Lo
   await expect(submit).toBeInViewport({ ratio: 1 });
   await expect(cancel).toBeInViewport({ ratio: 1 });
   const footer = dialog.locator('[data-slot="dialog-footer"]').filter({ has: dialog.page().getByRole("button", { name: submitLabel, exact: true }) });
-  await expect(footer.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(1);
+  await expect(footer.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true })).toHaveCount(1);
 }
 
 async function expectScheduleActionsAfterScroll(dialog: import("@playwright/test").Locator, submitLabel: string): Promise<void> {
@@ -148,7 +150,7 @@ async function expectScheduleActionsAfterScroll(dialog: import("@playwright/test
 }
 
 async function dismissScheduleDialog(page: import("@playwright/test").Page, dialog: import("@playwright/test").Locator): Promise<void> {
-  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   await expect(cancel).toBeVisible();
   await expect(cancel).toBeEnabled();
   const bounds = await cancel.boundingBox();

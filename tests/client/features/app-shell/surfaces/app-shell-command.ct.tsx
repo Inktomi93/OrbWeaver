@@ -1,12 +1,14 @@
 // The command palette through the production shell: its click and chord doors, the shortcut's own filter and
 // lifetime, focus return, and the result viewport's geometry while filtering.
+
 import { dispatchCommandKey } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { z } from "zod";
-import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
+import { COMMAND_MODAL_TITLE, COMMAND_NO_MATCHES_TEXT } from "#client/features/chat/lib/command-palette-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { JUMP_CHIP, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -194,7 +196,7 @@ test("an open New chat dialog owns the overlay, so the chord does nothing and it
   await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  const close = dialog.getByRole("button", { name: "Close", exact: true });
+  const close = dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true });
   await close.focus();
   expect(await dispatchCommandKey(page, { metaKey: true })).toBe(false);
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
@@ -229,7 +231,7 @@ test("filtering keeps the dialog, its search and its result viewport where they 
   expect(after.results?.height).toBeCloseTo(compactPx, 0);
 
   await search.fill("qxzqxzqxzqxz");
-  const empty = palette.getByText("No matches.", { exact: true });
+  const empty = palette.getByText(COMMAND_NO_MATCHES_TEXT, { exact: true });
   await expect(empty).toBeVisible();
   const [emptyBox, listBox] = [await empty.boundingBox(), await results.boundingBox()];
   expect((emptyBox?.y ?? 0) + (emptyBox?.height ?? 0) / 2).toBeCloseTo((listBox?.y ?? 0) + (listBox?.height ?? 0) / 2, 0);

@@ -10,9 +10,11 @@
 // per-model reasoning object, and the id a floating alias or a variant row shares its model facts with.
 
 import type { ModelCatalogEntry, ModelKind } from "@orb/contracts/inference";
+import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { fetchJson } from "../backends/http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../backends/http/sanitize.ts";
+import type { MirrorFetch } from "../contract/runtime.ts";
 
 const rowSchema = z
   .object({
@@ -144,35 +146,55 @@ function toEntry(row: RawRow, bases: ReadonlyMap<string, string>): ModelCatalogE
   };
 }
 
-/** The three lists that together are the catalog: chat (bare), embeddings, rerank. */
-const CATALOG_QUERIES = ["", `?output_modalities=${EMBEDDINGS_OUTPUT}`, `?output_modalities=${RERANK_OUTPUT}`] as const;
+/** One list of the catalog: its query, and the failure prefix a user may read. The label names the provider and
+ *  the list, never the request path or query. */
+interface CatalogList {
+  readonly query: string;
+  readonly label: string;
+}
 
-export async function fetchOpenRouterCatalog(args: {
+/** The three lists that together are the catalog: chat (bare) first, then embeddings and rerank. */
+const CHAT_LIST: CatalogList = { query: "", label: "OpenRouter models" };
+const KIND_LISTS: readonly CatalogList[] = [
+  { query: `?output_modalities=${EMBEDDINGS_OUTPUT}`, label: "OpenRouter embedding models" },
+  { query: `?output_modalities=${RERANK_OUTPUT}`, label: "OpenRouter rerank models" },
+];
+
+interface CatalogFetchArgs {
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
   readonly signal?: AbortSignal | undefined;
-}): Promise<ModelCatalogEntry[]> {
-  const root = `${args.baseUrl.replace(/\/$/u, "")}/models`;
-  const lists = await Promise.all(
-    CATALOG_QUERIES.map(async (query) => {
-      const result = await fetchJson({
-        fetch: args.fetch,
-        url: `${root}${query}`,
-        secrets: NO_PROVIDER_SECRETS,
-        label: `openrouter catalog${query}`,
-        ...(args.signal !== undefined ? { signal: args.signal } : {}),
-      });
-      const rows = catalogSchema.parse(result.json).data;
-      const bases = baseIdsBySlug(rows);
-      return rows.map((row) => toEntry(row, bases));
-    }),
-  );
+}
+
+async function fetchList(args: CatalogFetchArgs, list: CatalogList): Promise<ModelCatalogEntry[]> {
+  const result = await fetchJson({
+    fetch: args.fetch,
+    url: `${args.baseUrl.replace(/\/$/u, "")}/models${list.query}`,
+    secrets: NO_PROVIDER_SECRETS,
+    label: list.label,
+    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+  });
+  const rows = catalogSchema.parse(result.json).data;
+  const bases = baseIdsBySlug(rows);
+  return rows.map((row) => toEntry(row, bases));
+}
+
+/** The catalog, `complete` when every list answered. The chat list is the catalog's spine: its failure throws.
+ *  A failed embeddings or rerank list makes the answer `partial`, which the add dialog can still list and the
+ *  catalog mirror refuses to hold. */
+export async function fetchOpenRouterCatalog(args: CatalogFetchArgs): Promise<MirrorFetch<ModelCatalogEntry[]>> {
+  // `allSettled` never rejects, so the kind lists in flight when the chat list throws leave no unhandled rejection.
+  const kindLists = Promise.allSettled(KIND_LISTS.map((list) => fetchList(args, list)));
+  const chat = await fetchList(args, CHAT_LIST);
+  const kinds = await kindLists;
   // Dedupe by id in list order — a row present in two lists keeps its first (chat-list) entry.
   const byId = new Map<string, ModelCatalogEntry>();
-  for (const entry of lists.flat()) {
+  for (const entry of [chat, ...kinds.flatMap((kind) => (kind.status === "fulfilled" ? [kind.value] : []))].flat()) {
     if (!byId.has(entry.id)) {
       byId.set(entry.id, entry);
     }
   }
-  return [...byId.values()];
+  const entries = [...byId.values()];
+  const failures = kinds.flatMap((kind) => (kind.status === "rejected" ? [errorMessage(kind.reason)] : []));
+  return failures.length === 0 ? { complete: entries } : { partial: entries, reason: failures.join("; ") };
 }

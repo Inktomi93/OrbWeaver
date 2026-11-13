@@ -6,7 +6,19 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { TAG_EDITOR_CLOSE_NAME } from "#client/components/shared-control-names.ts";
+import {
+  editTagName,
+  mergeTagLegend,
+  TAG_DELETED_TEXT,
+  TAG_EDITOR_CLOSE_NAME,
+  TAG_EDITOR_NAME_FIELD_NAME,
+  TAG_MERGE_CONFIRM_NAME,
+  TAG_MERGE_DOOR_NAME,
+  TAG_MERGE_FAILED_TOAST,
+  TAG_MERGE_TARGET_NAME,
+} from "#client/components/shared-control-names.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { TagEditorChipStory } from "./_tag-editor-stories.tsx";
 
 const STORY = "tests/client/components/_tag-editor-stories/TagEditorChipStory";
@@ -17,7 +29,7 @@ const STREAM_ROUTES: TrpcRoutes<"stream.attach" | "stream.detach"> = {
 };
 
 async function expectMerged(page: Page, confirm: Locator, release: () => void): Promise<void> {
-  await expect(page.getByText("This tag was deleted.", { exact: true })).toBeVisible();
+  await expect(page.getByText(TAG_DELETED_TEXT, { exact: true })).toBeVisible();
   const response = page.waitForResponse((candidate) => candidate.url().includes("tag.mergeTags"));
   release();
   await (await response).finished();
@@ -25,11 +37,11 @@ async function expectMerged(page: Page, confirm: Locator, release: () => void): 
 }
 
 async function expectFailedMerge(page: Page, confirm: Locator, resumeWrites: () => void): Promise<void> {
-  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText("Couldn't merge the tags.", { exact: true })).toBeVisible();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Failed source draft");
+  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText(TAG_MERGE_FAILED_TOAST, { exact: true })).toBeVisible();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+  await expect(page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveValue("Failed source draft");
   resumeWrites();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: /^Saved$/u })).toBeVisible();
 }
 
@@ -103,8 +115,8 @@ for (const viewport of [
       });
       await using events = await forwardTagEvent(page, root);
       const component = await mount<typeof TagEditorChipStory>(STORY, { tag });
-      await page.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }).click();
-      const name = page.getByRole("textbox", { name: "Name", exact: true });
+      await page.getByRole("button", { name: editTagName(tag.name), exact: true }).click();
+      const name = page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true });
       await events.listening;
       await name.fill("");
       await name.pressSequentially("Two  Words");
@@ -152,16 +164,16 @@ for (const viewport of [
         });
         await using events = await forwardTagEvent(page, root);
         const component = await mount<typeof TagEditorChipStory>(STORY, { tag });
-        await page.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }).click();
-        const name = page.getByRole("textbox", { name: "Name", exact: true });
+        await page.getByRole("button", { name: editTagName(tag.name), exact: true }).click();
+        const name = page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true });
         await events.listening;
         await name.fill("Failed source draft");
-        await expect(page.getByRole("alert").filter({ hasText: "Save failed" })).toBeVisible();
-        await page.getByRole("button", { name: "Merge into…", exact: true }).click();
-        await page.getByRole("combobox", { name: "Merge target tag", exact: true }).click();
+        await expect(page.getByRole("alert").filter({ hasText: AUTOSAVE_SAVE_FAILED_TEXT })).toBeVisible();
+        await page.getByRole("button", { name: TAG_MERGE_DOOR_NAME, exact: true }).click();
+        await page.getByRole("combobox", { name: TAG_MERGE_TARGET_NAME, exact: true }).click();
         await page.getByRole("option", { name: target.name, exact: true }).click();
-        const confirm = page.getByRole("group", { name: `Merge "${tag.name}" into another tag`, exact: true });
-        await confirm.getByRole("button", { name: "Merge", exact: true }).click();
+        const confirm = page.getByRole("group", { name: mergeTagLegend(tag.name), exact: true });
+        await confirm.getByRole("button", { name: TAG_MERGE_CONFIRM_NAME, exact: true }).click();
         if (merging) {
           await expectMerged(page, confirm, release.resolve);
         } else {
@@ -189,9 +201,9 @@ for (const viewport of [
       });
       await routeOrbSocket(page);
       await mount<typeof TagEditorChipStory>(STORY, { tag });
-      await page.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }).click();
-      await page.getByRole("textbox", { name: "Name", exact: true }).fill("Flushed draft");
-      await expect(page.getByRole("alert").filter({ hasText: "Save failed" })).toBeVisible();
+      await page.getByRole("button", { name: editTagName(tag.name), exact: true }).click();
+      await page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true }).fill("Flushed draft");
+      await expect(page.getByRole("alert").filter({ hasText: AUTOSAVE_SAVE_FAILED_TEXT })).toBeVisible();
       failing = false;
       await page.getByRole("button", { name: TAG_EDITOR_CLOSE_NAME, exact: true }).click();
       await expect.poll(async () => (await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)?.name).toBe("Flushed draft");
@@ -214,19 +226,19 @@ for (const viewport of [
       });
       await routeOrbSocket(page);
       const component = await mount<typeof TagEditorChipStory>(STORY, { tag });
-      await page.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }).click();
-      await page.getByRole("textbox", { name: "Name", exact: true }).fill("Surviving dismissed draft");
-      await expect(page.getByRole("alert").filter({ hasText: "Save failed" })).toBeVisible();
-      await page.getByRole("button", { name: "Merge into…", exact: true }).click();
-      await page.getByRole("combobox", { name: "Merge target tag", exact: true }).click();
+      await page.getByRole("button", { name: editTagName(tag.name), exact: true }).click();
+      await page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true }).fill("Surviving dismissed draft");
+      await expect(page.getByRole("alert").filter({ hasText: AUTOSAVE_SAVE_FAILED_TEXT })).toBeVisible();
+      await page.getByRole("button", { name: TAG_MERGE_DOOR_NAME, exact: true }).click();
+      await page.getByRole("combobox", { name: TAG_MERGE_TARGET_NAME, exact: true }).click();
       await page.getByRole("option", { name: target.name, exact: true }).click();
-      const confirm = page.getByRole("group", { name: `Merge "${tag.name}" into another tag`, exact: true });
-      await confirm.getByRole("button", { name: "Merge", exact: true }).click();
+      const confirm = page.getByRole("group", { name: mergeTagLegend(tag.name), exact: true });
+      await confirm.getByRole("button", { name: TAG_MERGE_CONFIRM_NAME, exact: true }).click();
       await merging.requested;
-      await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+      await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       failing = false;
       await page.getByRole("button", { name: TAG_EDITOR_CLOSE_NAME, exact: true }).click();
-      await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveCount(0);
       merging.fail();
       await expect.poll(async () => (await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)?.name).toBe("Surviving dismissed draft");
       await component.unmount();
@@ -243,20 +255,20 @@ for (const viewport of [
       await routeTrpc(page, { ...serveCorpusProcedures(caller, READS), ...STREAM_ROUTES });
       await routeOrbSocket(page);
       await mount<typeof TagEditorChipStory>(STORY, { tag });
-      const edit = page.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true });
+      const edit = page.getByRole("button", { name: editTagName(tag.name), exact: true });
       await press(edit);
-      const trigger = page.getByRole("button", { name: "Merge into…", exact: true });
+      const trigger = page.getByRole("button", { name: TAG_MERGE_DOOR_NAME, exact: true });
       await press(trigger);
-      const group = page.getByRole("group", { name: `Merge "${tag.name}" into another tag`, exact: true });
-      await expect(page.getByRole("combobox", { name: "Merge target tag", exact: true })).toBeFocused();
-      await press(group.getByRole("button", { name: "Cancel", exact: true }));
+      const group = page.getByRole("group", { name: mergeTagLegend(tag.name), exact: true });
+      await expect(page.getByRole("combobox", { name: TAG_MERGE_TARGET_NAME, exact: true })).toBeFocused();
+      await press(group.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }));
       await expect(trigger).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(group).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(group).toHaveCount(0);
       await expect(trigger).toBeFocused();
-      await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(tag.name);
+      await expect(page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveValue(tag.name);
       await page.keyboard.press("Escape");
       await expect(edit).toBeFocused();
     });

@@ -5,12 +5,15 @@
 // (a week — the daily refresh workload has been failing for seven days straight), never a freshness gate:
 // capability flags are stable for far longer than a day, and a 1h TTL once expired the mirror long before
 // the daily refresh re-warmed it, so a restarted process silently lost every advertised capability.
+// A PARTIAL fetch (a catalog that lost one of its lists) is handed to the read that asked and never held or
+// stored: held, it would read as the whole catalog for the snapshot's week-long life, and the resolve path would
+// lose every row of the missing list. The earlier snapshot stays for the next warm.
 
 import { z } from "zod";
 import { scrubbedReason } from "../backends/wire/model-listing.ts";
 import type { Mirror, MirrorDeps } from "../contract/catalog.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
-import type { MirrorWarm } from "../contract/runtime.ts";
+import type { MirrorFetch, MirrorWarm } from "../contract/runtime.ts";
 
 const MS_PER_WEEK = 604_800_000;
 /** How long a failed live fetch is answered from memory. The several resolves of one connection write, or a burst of
@@ -55,7 +58,33 @@ export function createMirror<T>(args: { readonly key: string; readonly schema: z
     return true;
   };
 
-  const warmOnce = async (fetch: () => Promise<T>, secrets: ProviderScrubSet): Promise<MirrorWarm<T>> => {
+  /** Hold a failed or partial answer so a burst shares it, unless an invalidate superseded the warm. */
+  const holdFailure = (warm: MirrorWarm<T>, startedAt: number): MirrorWarm<T> => {
+    if (epoch === startedAt) {
+      failed = { at: deps.now(), warm };
+    }
+    return warm;
+  };
+
+  /** Hold and store a complete fetch, unless an invalidate superseded the warm that fetched it. */
+  const publish = async (value: T, startedAt: number): Promise<MirrorWarm<T>> => {
+    if (epoch !== startedAt) {
+      return { ok: true, value };
+    }
+    const at = deps.now();
+    seed(value, at);
+    await deps.snapshotStore.write(key, JSON.stringify({ fetchedAt: at, value }));
+    if (epoch !== startedAt) {
+      // Invalidated while the write was in flight: the invalidation's snapshot delete may have run first, so
+      // this write would outlive it and a later failed fetch would serve it. Take our own write back.
+      await deps.snapshotStore.deletePrefix(key);
+      return { ok: true, value };
+    }
+    deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "fetch" });
+    return { ok: true, value };
+  };
+
+  const warmOnce = async (fetch: () => Promise<MirrorFetch<T>>, secrets: ProviderScrubSet): Promise<MirrorWarm<T>> => {
     const startedAt = epoch;
     // the failure is warned (`deps.warn` below) and returned as `{ ok: false, reason }`, which the model-list read reports as `listed: false` and the resolve degrades on; `failed` holds it so a burst shares it.
     // Ends if a caller needs a throw.
@@ -67,29 +96,18 @@ export function createMirror<T>(args: { readonly key: string; readonly schema: z
         deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "snapshot" });
         return { ok: true, value: snapshot };
       }
-      const value = await fetch();
-      if (epoch !== startedAt) {
-        return { ok: true, value };
+      const fetched = await fetch();
+      if ("complete" in fetched) {
+        return await publish(fetched.complete, startedAt);
       }
-      const at = deps.now();
-      seed(value, at);
-      await deps.snapshotStore.write(key, JSON.stringify({ fetchedAt: at, value }));
-      if (epoch !== startedAt) {
-        // Invalidated while the write was in flight: the invalidation's snapshot delete may have run first, so
-        // this write would outlive it and a later failed fetch would serve it. Take our own write back.
-        await deps.snapshotStore.deletePrefix(key);
-        return { ok: true, value };
-      }
-      deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "fetch" });
-      return { ok: true, value };
+      deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "partial" });
+      const reason = scrubbedReason(fetched.reason, secrets);
+      deps.warn({ cache: key, reason }, "inference: catalog warm answered part of its lists — served to the read that asked, never held or stored");
+      return holdFailure({ ok: false, reason, partial: fetched.partial }, startedAt);
     } catch (err) {
       deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "failed" });
       deps.warn({ cache: key, err }, "inference: catalog cold-warm failed — capability degrades to the marked-estimated fallback");
-      const warm: MirrorWarm<T> = { ok: false, reason: scrubbedReason(err, secrets) };
-      if (epoch === startedAt) {
-        failed = { at: deps.now(), warm };
-      }
-      return warm;
+      return holdFailure({ ok: false, reason: scrubbedReason(err, secrets), partial: null }, startedAt);
     }
   };
 

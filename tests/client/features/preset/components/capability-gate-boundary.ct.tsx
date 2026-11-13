@@ -7,6 +7,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/te
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory";
@@ -56,7 +57,7 @@ test("a held capability read shows the gate's skeleton, a routing refusal its ba
   hold.fail();
   await expect(page.getByText(REFUSAL, { exact: true })).toBeVisible();
   phase = "serve";
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText(REFUSAL, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Temperature value", exact: true })).toBeVisible();
 });

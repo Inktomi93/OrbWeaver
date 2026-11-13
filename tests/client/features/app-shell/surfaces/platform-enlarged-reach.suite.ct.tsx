@@ -11,7 +11,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
-import { CHARACTER_ADD_TAG_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_ADD_TAG_NAME, CHARACTER_SELECT_MULTIPLE_NAME } from "#client/features/character/lib/character-names.ts";
 import { GREETING_STUDIO_NAME } from "#client/features/character/lib/greeting-copy.ts";
 import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
@@ -207,7 +207,7 @@ test.describe("on a phone", () => {
     await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]));
     await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
     await mount<typeof ShellAmbientStory>(SHELL_AMBIENT, {});
-    await page.getByRole("button", { name: /^Select( multiple)?$/u }).click();
+    await page.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
     const rows = page.getByRole("checkbox");
     await expect(rows.first()).toBeVisible();
     await scaleRoot(page, 3);

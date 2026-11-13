@@ -48,7 +48,12 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { LIST_OFF_SCREEN_HINT, selectCharacter, useSectionListMode } from "#state";
-import { CHARACTER_JUST_ADDED_SHELF_NAME, CHARACTER_RECENT_SHELF_NAME } from "../lib/character-names.ts";
+import {
+  CHARACTER_JUST_ADDED_SHELF_NAME,
+  CHARACTER_LANDING_RESUME_TITLE,
+  CHARACTER_RECENT_SHELF_NAME,
+  characterStarredShelfName,
+} from "../lib/character-names.ts";
 import { chattedStamp } from "../lib/character-shelf-stamp.ts";
 import { CharacterLandingDoors } from "./character-create-actions.tsx";
 import type { ShelfFace } from "./character-shelf.tsx";
@@ -313,13 +318,13 @@ function ResumeArm({
   const justAddedFaces = justAddedFacesOf(newestItems);
   const addedThisWeek = weekLineRows(newestItems, libraryCount);
   return (
-    <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? LEAD_GLOSS_COLLAPSED : LEAD_GLOSS_DOCKED} title="Pick up where you left off">
+    <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? LEAD_GLOSS_COLLAPSED : LEAD_GLOSS_DOCKED} title={CHARACTER_LANDING_RESUME_TITLE}>
       <Stack gap="section">
         {recentFaces.length === 0 ? null : (
           <CharacterShelf door="resume" faces={recentFaces} label={CHARACTER_RECENT_SHELF_NAME} legend="sorted by last chat" onOpen={selectCharacter} />
         )}
         {starredFaces.length === 0 ? null : (
-          <CharacterShelf door="open" faces={starredFaces} label={`Starred · ${String(starredCount)}`} legend={null} onOpen={selectCharacter} />
+          <CharacterShelf door="open" faces={starredFaces} label={characterStarredShelfName(starredCount)} legend={null} onOpen={selectCharacter} />
         )}
         {/* JUST ADDED belongs to the COLLAPSED arm alone (the artboards' own split). With the list docked the
             list itself is where newest rows are browsed, and a third shelf repeating it is this pane

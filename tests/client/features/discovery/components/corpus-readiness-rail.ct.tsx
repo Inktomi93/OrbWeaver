@@ -9,6 +9,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { READINESS_PASSES } from "#client/features/discovery/lib/corpus-readiness-passes.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CorpusCoverageStory } from "../surfaces/_coverage-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_coverage-stories/CorpusCoverageStory";
@@ -234,7 +235,7 @@ test("a paid door reads busy and cannot be pressed again while its spend is bein
   counting.release();
   const dialog = page.getByRole("alertdialog", { name: READINESS_PASSES.storyThemes.confirmTitle, exact: true });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.cancel }).click();
   await expect(door).not.toHaveAttribute("aria-busy", "true");
   await expect(door).toBeEnabled();
   await absenceWindow(page, ENQUEUE_WINDOW_MS);

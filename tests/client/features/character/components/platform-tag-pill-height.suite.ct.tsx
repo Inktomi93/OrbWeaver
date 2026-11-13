@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { removeActionName } from "@orb/ui/lib";
+import { editTagName } from "#client/components/shared-control-names.ts";
 import type { CharacterTagsRowStory } from "./_tag-row-stories.tsx";
 
 const STORY = "tests/client/features/character/components/_tag-row-stories/CharacterTagsRowStory";
@@ -26,10 +27,10 @@ for (const pointer of POINTERS) {
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "tag.listTagsWithUsage"]));
       await mount<typeof CharacterTagsRowStory>(STORY, { characterId: mintTypeId(ID_PREFIX.character, createSeededIds().next), tags });
       for (const tag of tags) {
-        const label = await settledBox(page.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }));
+        const label = await settledBox(page.getByRole("button", { name: editTagName(tag.name), exact: true }));
         const remove = await settledBox(page.getByRole("button", { name: removeActionName(tag.name), exact: true }));
         expect(remove.height, `${tag.name}: Remove is the label's height`).toBeCloseTo(label.height, 1);
-        const pill = page.locator('[data-slot="badge"]', { has: page.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }) });
+        const pill = page.locator('[data-slot="badge"]', { has: page.getByRole("button", { name: editTagName(tag.name), exact: true }) });
         const chrome = await pill.evaluate((element) => {
           const style = getComputedStyle(element);
           return ["padding-top", "padding-bottom", "border-top-width", "border-bottom-width"].reduce(

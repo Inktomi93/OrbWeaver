@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { notify } from "#lib";
+import { RULE_ACTION_PICKER_NAME, RULE_ACTIONS_ORDER_TEXT, RULE_ADD_ACTION_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { armGroups, armLabel, armTitle } from "../lib/rule-copy.ts";
 import { newRuleAction } from "../lib/rule-editor-model.ts";
@@ -49,7 +50,7 @@ export function RuleEditorActions({
         }));
         return (
           <Stack gap="block">
-            <Text>Actions run in this order</Text>
+            <Text>{RULE_ACTIONS_ORDER_TEXT}</Text>
             {values.actions.length === 0 ? <Text voice="gloss">Add an action and finish its fields before this rule can be saved.</Text> : null}
             <SortableList
               items={values.actionIds}
@@ -114,7 +115,7 @@ export function RuleEditorActions({
               }}
             />
             <Select
-              aria-label="Action to add"
+              aria-label={RULE_ACTION_PICKER_NAME}
               value={nextType}
               items={pickerItems}
               onValueChange={(value): void => {
@@ -150,7 +151,7 @@ export function RuleEditorActions({
                 }
               }}
             >
-              Add action
+              {RULE_ADD_ACTION_NAME}
             </Button>
           </Stack>
         );

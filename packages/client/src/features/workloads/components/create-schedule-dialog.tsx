@@ -13,12 +13,20 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
+import { FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, SCHEDULE_SAVE_ESTIMATE_FAILED, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
 import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations.ts";
 import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, WORKLOAD_KIND_LABELS, workloadKindItems } from "../lib/workloads-model.ts";
+import {
+  SCHEDULE_CADENCE_FIELD_NAME,
+  SCHEDULE_CREATE_FAILED,
+  SCHEDULE_CREATE_NAME,
+  SCHEDULE_CREATE_TITLE,
+  SCHEDULE_SAVE_NAME,
+  WORKLOAD_JOB_FIELD_NAME,
+} from "../lib/workloads-names.ts";
 import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model.ts";
 import { resolveScheduleMode, SCHEDULE_CADENCE_ITEMS, scheduleFormValuesFromRow, workloadKindBulkSchedulable } from "../lib/workloads-schedule-model.ts";
 import { MaintenanceKindNote } from "./maintenance-kind-note.tsx";
@@ -90,9 +98,10 @@ function ScheduleFormBody({
     // size of one run as the library stands now.
     await paidRun.confirmThen({
       title: `Schedule ${WORKLOAD_KIND_LABELS[kind]}?`,
-      confirmLabel: schedule === undefined ? "Create schedule" : "Save schedule",
+      confirmLabel: schedule === undefined ? SCHEDULE_CREATE_NAME : SCHEDULE_SAVE_NAME,
       recurring: true,
       estimates: [{ input, mode }],
+      estimateFailedTitle: SCHEDULE_SAVE_ESTIMATE_FAILED,
       run: async (): Promise<void> => {
         if (schedule === undefined) {
           await create.mutateAsync({ input, cadence: values.cadence, mode });
@@ -115,8 +124,9 @@ function ScheduleFormBody({
   const isPending = write.isPending;
   const hasError = write.error !== null;
   const pendingLabel = isEdit ? "Saving…" : "Creating…";
-  const idleLabel = isEdit ? "Save schedule" : "Create schedule";
+  const idleLabel = isEdit ? SCHEDULE_SAVE_NAME : SCHEDULE_CREATE_NAME;
   const submitLabel = isPending ? pendingLabel : idleLabel;
+  const failedLine = isEdit ? "Couldn't update the schedule. Try again." : SCHEDULE_CREATE_FAILED;
 
   return (
     <FormDialogPopup
@@ -135,10 +145,10 @@ function ScheduleFormBody({
         },
       }}
       testKey={isEdit ? "editScheduleDialog" : "createScheduleDialog"}
-      title={isEdit ? "Edit schedule" : "Create a schedule"}
+      title={isEdit ? "Edit schedule" : SCHEDULE_CREATE_TITLE}
     >
-      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Job" items={kindItems} />}</form.AppField>
-      <form.AppField name="cadence">{(field): ReactElement => <field.SelectField label="Runs" items={CADENCE_ITEMS} />}</form.AppField>
+      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label={WORKLOAD_JOB_FIELD_NAME} items={kindItems} />}</form.AppField>
+      <form.AppField name="cadence">{(field): ReactElement => <field.SelectField label={SCHEDULE_CADENCE_FIELD_NAME} items={CADENCE_ITEMS} />}</form.AppField>
       <WorkloadParamFields form={form} />
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
@@ -159,7 +169,7 @@ function ScheduleFormBody({
       {/* While the paid-run confirm is up it is the retry surface and says the failure itself; this line speaks once it is gone. */}
       {hasError && paidRun.dialog.pending === null ? (
         <Text role="alert" tone="destructive" voice="label">
-          {isEdit ? "Couldn't update the schedule. Try again." : "Couldn't create the schedule. Try again."}
+          {failedLine}
         </Text>
       ) : null}
       <ModelRunConfirmDialog {...paidRun.dialog} nested={true} />

@@ -19,7 +19,7 @@
 // would invite a reader to trust the shape because it "already looks right". A string cannot be mistaken for
 // validated data.
 
-import type { PluginLogLevel } from "@orb/contracts/plugin";
+import type { PluginLogLevel, PluginUiHostCallCode } from "@orb/contracts/plugin";
 
 /** The budget constants, MIRRORING `packages/server/src/infra/plugin-host/budgets.ts`. They are re-declared
  *  rather than imported because `infra` is server-only and above `contracts` in the cake; the reason each number
@@ -103,10 +103,12 @@ export interface UiGuestEventMessage {
   readonly values: Record<string, string>;
 }
 
-/** Settle a host call the guest made. `ok:false` carries a message the guest sees as a rejection. */
+/** Settle a host call the guest made. `ok:false` carries the rejection the guest sees: a `code` only for a refusal in
+ *  the contracts allowlist (`PLUGIN_UI_HOST_CALL_CODES`), with the server's sentence for it, and otherwise the
+ *  fixed `PLUGIN_UI_HOST_CALL_FAILED` sentence and no code. */
 type UiGuestHostResultMessage =
   | { readonly kind: "hostResult"; readonly callId: number; readonly ok: true; readonly resultJson: string }
-  | { readonly kind: "hostResult"; readonly callId: number; readonly ok: false; readonly message: string };
+  | { readonly kind: "hostResult"; readonly callId: number; readonly ok: false; readonly message: string; readonly code?: PluginUiHostCallCode };
 
 export type UiGuestInbound = UiGuestBootMessage | UiGuestEventMessage | UiGuestHostResultMessage;
 
