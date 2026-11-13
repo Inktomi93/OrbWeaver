@@ -23,6 +23,7 @@ import type {
   CrashPolicy,
   PluginActivationContext,
   PluginContext,
+  PluginHostPort,
   PluginProviderLifecycle,
   PluginRegistry,
 } from "../contract/service.ts";
@@ -230,9 +231,11 @@ export function createActivate(
     const { instance } = outcome;
     // One guest call. A rejection that is not the host's own refusal is logged here, once, and rethrown. A caller
     // that gave up on the call at its deadline already logged the overrun.
-    const callGuest: PluginInvokeHandler = async (handler, argsJson, chat, signal) => {
+    const callGuest = async (
+      ...[handler, argsJson, chat, signal, phase]: [...Parameters<PluginInvokeHandler>, Parameters<PluginHostPort["invoke"]>[5]?]
+    ): Promise<string> => {
       try {
-        return await ctx.host.invoke(instance, handler, argsJson, chat, signal);
+        return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase);
       } catch (err) {
         if (!isHostAdmissionRefusal(err) && signal?.reason !== DEADLINE_ABORT_REASON) {
           logPluginFailure(slug, invokeFailureKind(err), errorMessage(err), ctx.logger);
@@ -260,8 +263,10 @@ export function createActivate(
         }
       });
     // A query's re-entry: the same call with no crash-policy write, because a query writes nothing. Its clean run
-    // must not reset the count a write path built, or a plugin that crashes on every tool call stays enabled.
-    const invokeForRead: PluginInvokeHandler = (handler, argsJson, chat, signal) => ctx.invocations.run(() => callGuest(handler, argsJson, chat, signal));
+    // must not reset the count a write path built, or a plugin that crashes on every tool call stays enabled. It runs
+    // in the display phase, so the guest's own host calls may only read too.
+    const invokeForRead: PluginInvokeHandler = (handler, argsJson, chat, signal) =>
+      ctx.invocations.run(() => callGuest(handler, argsJson, chat, signal, "display"));
     const scope: PluginActivationScope = { pluginId: input.pluginId, slug, installer: input.caller, matchAutomationEvents };
     let handles: PluginRegistrationHandle[];
     try {

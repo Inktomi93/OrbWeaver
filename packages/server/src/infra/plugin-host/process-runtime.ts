@@ -71,7 +71,14 @@ import {
   pluginIpcShareBytes,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, CreateLogicalInstanceInputIn, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
+import type {
+  CreateInstanceInputIn,
+  CreateInstanceOutcomeOut,
+  CreateLogicalInstanceInputIn,
+  PluginHostSeamDeps,
+  PluginInvokePhase,
+  ProcessPluginHost,
+} from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, PluginIpcShares, parsePluginIpcMessage } from "./process-channel.ts";
@@ -209,6 +216,7 @@ interface LeasedInvokeInput {
   readonly handler: PluginHandlerRef;
   readonly argsJson: PluginInvokeArgs;
   readonly chat: InvocationChat | null | undefined;
+  readonly phase: PluginInvokePhase;
 }
 
 function releaseBinding(binding: Binding): void {
@@ -1540,7 +1548,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     lease.release();
   };
 
-  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat }: LeasedInvokeInput, generation: number): Promise<string> => {
+  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat, phase }: LeasedInvokeInput, generation: number): Promise<string> => {
     let builderId: string | undefined;
     try {
       requireLifecycle(binding, generation);
@@ -1558,7 +1566,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       const result = await commandWithAuthority({
         binding,
         operation: "invoke",
-        phase: "invocation",
+        phase,
         chat: chat ?? null,
         value: { handler, argsJson: boundArgs.wireArgs, chat },
       });
@@ -1648,7 +1656,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
     },
     invoke: async (...invokeParameters: Parameters<ProcessPluginHost["invoke"]>): Promise<string> => {
-      const [instance, handler, argsJson, chat, signal] = invokeParameters;
+      const [instance, handler, argsJson, chat, signal, phase = "invocation"] = invokeParameters;
       const binding = instances.get(instance);
       if (binding === undefined || binding.disposed) {
         throw new Error("plugin host: invoke on an unknown/disposed instance");
@@ -1656,14 +1664,16 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       if (binding.crashed !== null) {
         throw binding.crashed;
       }
+      // An owed strike is paid by the next write-path call, which counts it; a display call counts nothing, so it
+      // leaves the strike owed.
       const owed = binding.owedRefusal;
-      if (owed !== null) {
+      if (owed !== null && phase === "invocation") {
         binding.owedRefusal = null;
         throw owed;
       }
       const generation = binding.lifecycleGeneration;
       const lease = await pool.acquire(binding, { signal });
-      return await invokeWithLease({ binding, lease, handler, argsJson, chat }, generation);
+      return await invokeWithLease({ binding, lease, handler, argsJson, chat, phase }, generation);
     },
     runSnippet: async (input): Promise<SnippetResult> => {
       const releaseAdmission = acquireSnippetAdmission();

@@ -37,18 +37,10 @@ const THREE_ARGUMENTS = 3;
 export interface BridgeAuthority {
   readonly grants: ReadonlySet<PluginCapability>;
   readonly chat: InvocationChat | null;
-  /** Rehydration may rediscover registrations, but may not repeat an effect from the original activation. */
-  readonly phase: "activation" | "rehydration" | "invocation" | "snippet" | "lifecycle";
+  /** Rehydration may rediscover registrations, but may not repeat an effect from the original activation. A display
+   *  call holds its grants for reads only. */
+  readonly phase: "activation" | "rehydration" | "invocation" | "display" | "snippet" | "lifecycle";
 }
-
-const REHYDRATION_READ_OPERATIONS = new Set<PluginBridgeOperation>([
-  "variables.get",
-  "assets.read",
-  "storage.get",
-  "storage.list",
-  "character.getCardData",
-  "character.findCardData",
-]);
 
 const BRIDGE_HOST_FUNCTION = {
   "chat.listMessages": "chat.listMessages",
@@ -140,43 +132,68 @@ const DIRECT_CHAT_WRITES = new Set<PluginBridgeOperation>([
  *  own: a pubsub subscriber's own host calls meet this table too. */
 type BridgeReach = "installer" | "sandbox";
 
+/** What a host call does, read off its handler: `read` changes nothing; `write` mutates stored state or raises an
+ *  effect another party sees; `spend` calls a model or the network, or consumes a budget or a rate floor. A display
+ *  transform runs on every render, so its calls may only read. */
+const BRIDGE_EFFECTS = ["read", "write", "spend"] as const;
+type BridgeEffect = (typeof BRIDGE_EFFECTS)[number];
+
+interface BridgeOperationFacts {
+  readonly reach: BridgeReach;
+  readonly effect: BridgeEffect;
+}
+
 const BRIDGE_OPERATION_REACH = {
-  "chat.listMessages": "installer",
-  "chat.getVariables": "installer",
-  "chat.listCharacters": "installer",
-  "chat.applyVariableOps": "installer",
-  "chat.requestTurn": "installer",
-  "worldInfo.listBooks": "installer",
-  "worldInfo.listEntries": "installer",
-  "worldInfo.upsertEntry": "installer",
-  "imagery.generatePicture": "installer",
-  "variables.get": "installer",
-  "variables.set": "installer",
-  "variables.delete": "installer",
-  "assets.read": "installer",
-  "net.fetch": "installer",
-  "net.fetchAsset": "installer",
-  "search.documents": "installer",
-  "storage.get": "sandbox",
-  "storage.set": "sandbox",
-  "storage.delete": "sandbox",
-  "storage.list": "sandbox",
-  "storage.compareAndSet": "sandbox",
-  "notifications.post": "installer",
-  "llm.quiet": "installer",
-  suggest: "installer",
-  surfaceQuickReply: "installer",
-  "ui.setState": "sandbox",
-  "ui.toast": "sandbox",
-  "ui.openDialog": "sandbox",
-  "databank.ingest": "installer",
-  "character.ingest": "installer",
-  "character.ingestAsset": "installer",
-  "character.setCardData": "installer",
-  "character.getCardData": "installer",
-  "character.findCardData": "installer",
-  "pubsub.emit": "sandbox",
-} as const satisfies Record<PluginBridgeOperation, BridgeReach>;
+  "chat.listMessages": { reach: "installer", effect: "read" },
+  "chat.getVariables": { reach: "installer", effect: "read" },
+  "chat.listCharacters": { reach: "installer", effect: "read" },
+  "chat.applyVariableOps": { reach: "installer", effect: "write" },
+  "chat.requestTurn": { reach: "installer", effect: "spend" },
+  "worldInfo.listBooks": { reach: "installer", effect: "read" },
+  "worldInfo.listEntries": { reach: "installer", effect: "read" },
+  "worldInfo.upsertEntry": { reach: "installer", effect: "write" },
+  "imagery.generatePicture": { reach: "installer", effect: "spend" },
+  "variables.get": { reach: "installer", effect: "read" },
+  "variables.set": { reach: "installer", effect: "write" },
+  "variables.delete": { reach: "installer", effect: "write" },
+  "assets.read": { reach: "installer", effect: "read" },
+  "net.fetch": { reach: "installer", effect: "spend" },
+  "net.fetchAsset": { reach: "installer", effect: "spend" },
+  "search.documents": { reach: "installer", effect: "spend" },
+  "storage.get": { reach: "sandbox", effect: "read" },
+  "storage.set": { reach: "sandbox", effect: "write" },
+  "storage.delete": { reach: "sandbox", effect: "write" },
+  "storage.list": { reach: "sandbox", effect: "read" },
+  "storage.compareAndSet": { reach: "sandbox", effect: "write" },
+  "notifications.post": { reach: "installer", effect: "spend" },
+  "llm.quiet": { reach: "installer", effect: "spend" },
+  suggest: { reach: "installer", effect: "write" },
+  surfaceQuickReply: { reach: "installer", effect: "write" },
+  "ui.setState": { reach: "sandbox", effect: "write" },
+  "ui.toast": { reach: "sandbox", effect: "write" },
+  "ui.openDialog": { reach: "sandbox", effect: "write" },
+  "databank.ingest": { reach: "installer", effect: "write" },
+  "character.ingest": { reach: "installer", effect: "write" },
+  "character.ingestAsset": { reach: "installer", effect: "write" },
+  "character.setCardData": { reach: "installer", effect: "write" },
+  "character.getCardData": { reach: "installer", effect: "read" },
+  "character.findCardData": { reach: "installer", effect: "read" },
+  "pubsub.emit": { reach: "sandbox", effect: "write" },
+} as const satisfies Record<PluginBridgeOperation, BridgeOperationFacts>;
+
+type BridgeReadOperation = {
+  [O in PluginBridgeOperation]: (typeof BRIDGE_OPERATION_REACH)[O]["effect"] extends "read" ? O : never;
+}[PluginBridgeOperation];
+
+// The reads a rebuilding runtime may repeat. Each member must be a `read` row of the table above, which tsc holds.
+const REHYDRATION_READ_OPERATIONS: ReadonlySet<PluginBridgeOperation> = new Set<BridgeReadOperation>([
+  "variables.get",
+  "assets.read",
+  "storage.get",
+  "storage.list",
+  "character.getCardData",
+  "character.findCardData",
+]);
 
 function egressInApp(): never {
   throw new Error("plugin broker: egress runs in the app process; the broker has no network");
@@ -394,7 +411,9 @@ function authorizeUiState(authority: BridgeAuthority, args: readonly unknown[]):
 export function authorizeBridgeCall(authority: BridgeAuthority, operation: PluginBridgeOperation, args: readonly unknown[]): void {
   authorizePhase(authority, operation);
   const capability = bridgeCapability(operation, args);
-  if (!authority.grants.has(capability)) {
+  // A display call holds a grant only for the table's reads, so it meets the same refusal an ungranted call does.
+  const granted = authority.grants.has(capability) && (authority.phase !== "display" || BRIDGE_OPERATION_REACH[operation].effect === "read");
+  if (!granted) {
     throw new Error(`plugin broker: ${operation} lacks capability ${capability}`);
   }
   const chat = CHAT_SCOPED.has(operation) ? requireChatAuthority(authority, operation, args) : null;
@@ -430,7 +449,7 @@ export async function dispatchBridgeCall(
   liveness: PluginInvocationLiveness,
 ): Promise<unknown> {
   const { bridge, netEgress } = target;
-  if (BRIDGE_OPERATION_REACH[operation] === "installer") {
+  if (BRIDGE_OPERATION_REACH[operation].reach === "installer") {
     await bridge.admitInstaller();
   }
   switch (operation) {
