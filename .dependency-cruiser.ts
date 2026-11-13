@@ -530,6 +530,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/members-names.ts":
     "CHAT_INVITE_PEOPLE_NAME and its siblings: the Members panel, row menu, card viewer and join dialog names",
   "packages/client/src/features/chat/lib/command-palette-names.ts": "COMMAND_MODAL_TITLE and COMMAND_PALETTE_NAME: the command modal's title and input",
+  "packages/client/src/lib/chat-launch-names.ts": "NO_CHAT_SELECTED_TITLE: the Chats section's no-selection state a dead room returns the reader to",
   "packages/client/src/features/chat/lib/message-action-names.ts":
     "MESSAGE_EDIT_NAME and its siblings: the transcript row's action, tool call and wire viewer names",
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",
