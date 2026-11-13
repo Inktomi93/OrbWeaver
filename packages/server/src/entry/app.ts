@@ -153,7 +153,8 @@ function trpcJsonOnly(logger: Logger): MiddlewareHandler {
  * carries no content type, a cross-site page can send one with no custom header, and the loopback owner fallback
  * admits it as the owner. So a subscription outside POST must carry the CSRF header, which a cross-site page cannot
  * send without a preflight this app never answers. It reads tRPC's own path resolution (`info.type`), so no path
- * spelling reaches a subscription around it. Queries write nothing and stay open to GET.
+ * spelling reaches a subscription around it. Queries stay open to GET, so a query must not write; one still does:
+ * `plugin.transformForDisplay` runs the caller's display-transform plugins, and a crash advances their crash counter.
  */
 function refuseHeaderlessGetSubscription(
   request: { readonly method: string; readonly headers: Headers; readonly path: string },
