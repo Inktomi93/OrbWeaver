@@ -31,7 +31,7 @@ import { applyPatch, isItemPath, itemEditCommand, nextItemId, parseItemBatch, wo
 import { basenameOf, folderOf, numberedName, parseNumberedName, referencePatterns, slugify } from "../lib/names.ts";
 import { ITEM_SECTIONS, itemTemplate, templateItemFlags, unwrittenItemFlags } from "../lib/templates.ts";
 import { introducedDocProblems, pendingDocProblems } from "./check.ts";
-import { regenerateIndexes } from "./indexes.ts";
+import { ROLLED_BACK, regenerateIndexes, rollBack } from "./indexes.ts";
 import type { PriorFiles } from "./tree.ts";
 import {
   changedPaths,
@@ -40,7 +40,6 @@ import {
   governedPaths,
   highestHistoricId,
   mergeInProgress,
-  putBack,
   readDoc,
   rewriteTextFiles,
   root,
@@ -140,8 +139,8 @@ function commitWork(outcome: WriteOutcome, prior: PriorFiles, repoRoot: string):
       refusals: [`the work commit failed after it reached history — ${commit.reason}. Read git log and git status before writing again`],
     };
   }
-  putBack(outcome, prior, repoRoot);
-  return { written: [], created: [], refusals: [`the work commit failed — ${commit.reason}. Nothing changed: the item files and indexes are as they were`] };
+  rollBack(outcome, prior, repoRoot);
+  return { written: [], created: [], refusals: [`the work commit failed — ${commit.reason}. ${ROLLED_BACK}`] };
 }
 
 /** Run a write verb, committing its result when the caller asked. With `commit`, the blockers refuse
@@ -224,8 +223,7 @@ export function newItems(inputs: readonly NewItemInput[], repoRoot = root, date 
     writeDoc(doc.path, doc.source, repoRoot);
   }
   const minted = pending.map((doc) => doc.path);
-  const generated = regenerateIndexes(repoRoot);
-  return { written: [...minted, ...generated.written], created: [...minted, ...generated.created], refusals: [] };
+  return { written: [...minted, ...regenerateIndexes(repoRoot)], created: minted, refusals: [] };
 }
 
 export function newItem(input: NewItemInput, repoRoot = root, date = today()): WriteOutcome {
@@ -344,8 +342,7 @@ export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = ro
       renamed.push({ from, to: doc.path });
     }
   }
-  const generated = regenerateIndexes(repoRoot);
-  return { written: [...new Set([...written, ...generated.written])], created: [...created, ...generated.created], refusals: [], renamed };
+  return { written: [...new Set([...written, ...regenerateIndexes(repoRoot)])], created, refusals: [], renamed };
 }
 
 /** Stage both halves of every rename a retitling `set` made, in the checkout's real index, so the caller's own commit
@@ -435,8 +432,7 @@ export function editItem(id: number, sections: SectionContent<ItemEditFlag>, rep
     return { written: [], created: [], refusals: problems };
   }
   writeDoc(edit.doc.path, edit.doc.source, repoRoot);
-  const generated = regenerateIndexes(repoRoot);
-  return { written: [item.path, ...generated.written], created: generated.created, refusals: [] };
+  return { written: [item.path, ...regenerateIndexes(repoRoot)], created: [], refusals: [] };
 }
 
 /** What `show` found: the item files by id in the order given, and a refusal per id with no item. */

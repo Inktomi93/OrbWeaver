@@ -45,8 +45,7 @@ function mint(path: string, source: string, repoRoot: string): WriteOutcome {
     return { written: [], created: [], refusals };
   }
   writeDoc(path, formatted, repoRoot);
-  const generated = regenerateIndexes(repoRoot);
-  return { written: [path, ...generated.written], created: [path, ...generated.created], refusals: [] };
+  return { written: [path, ...regenerateIndexes(repoRoot)], created: [path], refusals: [] };
 }
 
 export function newAdr({ slug, title, content = {} }: NewDocInput<AdrSectionFlag>, repoRoot = root, date = today()): WriteOutcome {

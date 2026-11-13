@@ -189,7 +189,7 @@ export function runDocCommand(command: DocCommand, repoRoot = root): ExitCode {
     case "land-merged":
       return reportLanding("land --merged", landMerged(repoRoot, undefined, command.headMerge), repoRoot);
     case "index":
-      return report("index", { ...regenerateIndexes(repoRoot), refusals: [] });
+      return report("index", { written: regenerateIndexes(repoRoot), created: [], refusals: [] });
     case "review":
       return report("review", review(command.patterns, repoRoot));
     case "due":

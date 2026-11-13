@@ -160,32 +160,43 @@ test("a retitling set --commit whose commit git refuses puts back the renamed fi
   expect(git(root, "show", "HEAD:notes.ts")).toContain("0001-renamed.md");
 });
 
-test("an item --commit whose commit git refuses removes what the mint created and keeps a file another process wrote", TIMEOUT, async ({ plantedTree }) => {
-  const root = await repoWithItems(plantedTree);
-  newPlan({ slug: "foo", title: "Foo", rank: 1 }, root, TODAY);
-  commitAll(root, "docs: plan foo");
-  const tasks = join(root, "docs/plans/foo/tasks.md");
-  const minted = join(root, "docs/work/0004-d.md");
-  const refLock = join(root, ".git", "refs", "heads", "main.lock");
-  // Control: with nothing else writing, the plan's task list is the mint's own, so the failed commit removes it too.
-  const before = checkoutState(root);
-  writeFileSync(refLock, "");
-  const alone = runWrite(true, root, () => newItem(written({ ...MINT, plan: "foo", title: "D" }), root, TODAY));
-  expect(alone.refusals).toHaveLength(1);
-  rmSync(refLock);
-  expect(checkoutState(root)).toBe(before);
-  // Another process writes the task list after the snapshot and before the mint; the mint regenerates it, but did not create it.
-  writeFileSync(refLock, "");
-  const raced = runWrite(true, root, () => {
-    writeFileSync(tasks, "# Foo tasks, written by another process\n");
-    return newItem(written({ ...MINT, plan: "foo", title: "D" }), root, TODAY);
-  });
-  rmSync(refLock);
-  expect(raced.refusals).toHaveLength(1);
-  expect(raced.refusals[0]).toContain("cannot lock ref");
-  expect(existsSync(minted)).toBe(false);
-  expect(existsSync(tasks)).toBe(true);
-});
+test(
+  "an item --commit whose commit git refuses removes what the mint created and leaves the indexes matching another process's item",
+  TIMEOUT,
+  async ({ plantedTree }) => {
+    const root = await repoWithItems(plantedTree);
+    newPlan({ slug: "foo", title: "Foo", rank: 1 }, root, TODAY);
+    commitAll(root, "docs: plan foo");
+    const tasks = join(root, "docs/plans/foo/tasks.md");
+    const refLock = join(root, ".git", "refs", "heads", "main.lock");
+    // Control: with nothing else writing, the rollback removes the minted item, and its regeneration removes the task
+    // list the plan no longer has an item for.
+    const before = checkoutState(root);
+    writeFileSync(refLock, "");
+    const alone = runWrite(true, root, () => newItem(written({ ...MINT, plan: "foo", title: "D" }), root, TODAY));
+    expect(alone.refusals).toHaveLength(1);
+    rmSync(refLock);
+    expect(checkoutState(root)).toBe(before);
+    // Another process mints an item into the plan after the snapshot and before this mint. Its task list exists when
+    // this mint regenerates it, so this mint did not create it.
+    writeFileSync(refLock, "");
+    let theirs = "";
+    const raced = runWrite(true, root, () => {
+      const other = newItem(written({ ...MINT, plan: "foo", title: "Other" }), root, TODAY);
+      expect(other.created).toEqual(["docs/work/0004-other.md"]);
+      theirs = readFileSync(tasks, "utf8");
+      return newItem(written({ ...MINT, plan: "foo", title: "D" }), root, TODAY);
+    });
+    rmSync(refLock);
+    expect(raced.refusals).toHaveLength(1);
+    expect(raced.refusals[0]).toContain("cannot lock ref");
+    expect(existsSync(join(root, "docs/work/0005-d.md"))).toBe(false);
+    expect(existsSync(join(root, "docs/work/0004-other.md"))).toBe(true);
+    // The task list lists the other process's item and no longer links the removed one.
+    expect(theirs).toContain("0004-other.md");
+    expect(readFileSync(tasks, "utf8")).toBe(theirs);
+  },
+);
 
 test(
   "a set --commit whose commit reached history before HEAD moved on leaves the files written and names both commits",

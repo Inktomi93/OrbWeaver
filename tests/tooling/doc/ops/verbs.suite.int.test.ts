@@ -120,7 +120,7 @@ test("review sets updated on a glob of docs in one write, and index regenerates 
   expect(reviewed.written).toEqual(["docs/adr/0001-one.md", "docs/adr/0002-two.md"]);
   expect(read(root, "docs/adr/0002-two.md")).toContain("updated: 2026-09-23\n");
   expect(review(["docs/adr/nope-*.md"], root, TODAY).refusals[0]).toContain("selects no governed document");
-  expect(regenerateIndexes(root)).toEqual({ written: [], created: [] });
+  expect(regenerateIndexes(root)).toEqual([]);
 });
 
 test("index deletes a plan's tasks.md once its last item leaves the plan (F11)", async ({ plantedTree }) => {

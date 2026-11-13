@@ -19,7 +19,7 @@ import { landingMessage, parseBlocker, stagedLanding } from "../lib/items.ts";
 import { basenameOf, parseNumberedName } from "../lib/names.ts";
 import { loadPlans } from "./board.ts";
 import { introducedDocProblems } from "./check.ts";
-import { regenerateIndexes } from "./indexes.ts";
+import { ROLLED_BACK, regenerateIndexes, rollBack } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
 import { loadItems } from "./items.ts";
 import { textCiters } from "./remove.ts";
@@ -34,7 +34,6 @@ import {
   isMainBranch,
   landedCommit,
   mergedCommits,
-  putBack,
   readDoc,
   root,
   stagedWorkDeletions,
@@ -91,8 +90,7 @@ function record(item: WorkItem, evidence: string | null, repoRoot: string): Land
 }
 
 /** The bytes of every path the landing can write: the item files, the released docs and the generated files.
- *  A generated file the regeneration creates is absent here; the landing declares it created, so putting it back
- *  deletes it. */
+ *  A generated file the regeneration creates is absent here; the rollback's own regeneration settles it. */
 function priorFiles(paths: readonly string[], repoRoot: string): PriorFiles {
   const candidates = [...paths, ...governedPaths(repoRoot).filter(isGeneratedPath)];
   return new Map(candidates.map((path) => [path, readDoc(path, repoRoot).source] as const));
@@ -100,8 +98,8 @@ function priorFiles(paths: readonly string[], repoRoot: string): PriorFiles {
 
 /** The outcome of a landing whose stage or commit step failed after the write: nothing stays written. */
 function unwound(landing: WrittenLanding, repoRoot: string, refusal: string): LandOutcome {
-  putBack(landing.outcome, landing.prior, repoRoot);
-  return { written: [], created: [], refusals: [`${refusal}. Nothing changed: the item files and indexes are as they were`], skipped: [] };
+  rollBack(landing.outcome, landing.prior, repoRoot);
+  return { written: [], created: [], refusals: [`${refusal}. ${ROLLED_BACK}`], skipped: [] };
 }
 
 /** The shared half of every landing: resolve the ids, refuse what must not land, then write the releases,
@@ -164,9 +162,9 @@ function writeLanding(ids: readonly number[], evidence: string | null, repoRoot:
   for (const path of paths) {
     rmSync(join(repoRoot, path));
   }
-  const generated = regenerateIndexes(repoRoot);
-  const written = [...paths, ...released.map(({ doc }) => doc.path), ...generated.written];
-  return { outcome: { written, created: generated.created, refusals: [], skipped }, records, prior };
+  const written = [...paths, ...released.map(({ doc }) => doc.path), ...regenerateIndexes(repoRoot)];
+  // A landing deletes and rewrites; it authors no new file, and the indexes it regenerates are rebuilt on a rollback.
+  return { outcome: { written, created: [], refusals: [], skipped }, records, prior };
 }
 
 /** Land items: prove the evidence is on `main`, delete the item files, release their dependents,

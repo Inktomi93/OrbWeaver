@@ -148,6 +148,5 @@ export function removeDocs(targets: readonly string[], repoRoot = root): WriteOu
     const plan = !isItemPath(path) && basenameOf(path) === DESIGN_FILE;
     rmSync(join(repoRoot, plan ? folderOf(path) : path), { recursive: plan });
   }
-  const generated = regenerateIndexes(repoRoot);
-  return { written: [...paths, ...generated.written], created: generated.created, refusals: [] };
+  return { written: [...paths, ...regenerateIndexes(repoRoot)], created: [], refusals: [] };
 }
