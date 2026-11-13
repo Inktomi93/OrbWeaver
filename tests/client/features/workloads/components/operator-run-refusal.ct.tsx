@@ -142,6 +142,30 @@ test("a schedule save whose count fails for another reason still says the count 
   expect(calls.count("workloads.updateSchedule")).toBe(0);
 });
 
+test("a schedule save whose count is refused as forbidden for another reason still says the count failed", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const member = await root.actor();
+  const planted = await plantMemberOperatorSchedule(root, { boxOwnerId: root.ownerId, memberId: member.id });
+  const caller = await root.internalCallerFor(member.id);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
+  // A forbidden answer with no owner-only code: the notice keys on the code, not on the status.
+  const calls = await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, [...SCHEDULE_READS, "workloads.updateSchedule"]),
+    ...serveCorpusProcedures(caller, ["workloads.estimateModelCalls"], () => trpcError({ code: "FORBIDDEN" })),
+  });
+  await mount<typeof ScheduleDialogDismissalStory>(SCHEDULES_STORY, { width: 900 });
+
+  const schedule = (await caller.workloads.listSchedules({})).find((row) => row.id === planted);
+  if (schedule === undefined) {
+    throw new Error("The member must hold the planted schedule");
+  }
+  await page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: null }), exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Save/u }).click();
+  await expect(noticeToast(page, { title: SCHEDULE_SAVE_ESTIMATE_FAILED })).toBeVisible();
+  await expect(noticeToast(page, SCHEDULE_SAVE_OWNER_ONLY)).toHaveCount(0);
+  expect(calls.count("workloads.updateSchedule")).toBe(0);
+});
+
 test("the box owner's Retry on a member's operator-tree run toasts the refusal it meets", async ({ mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   const member = await root.actor();

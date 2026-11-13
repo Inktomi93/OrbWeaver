@@ -7,6 +7,10 @@ export const WORKLOAD_NOT_ADMISSIBLE = "not_admissible";
 /** Why a run that only the box owner may reach was refused to the person asking. */
 export const WORKLOAD_OWNER_ONLY_REFUSAL = "Only the box owner can run this job.";
 
+/** The code that refusal carries on the wire (a forbidden answer's `data.reason`), so a client names it without reading
+ *  the sentence. */
+export const WORKLOAD_ASKER_NOT_OWNER = "asker_not_owner";
+
 /** The coded refusal of an owner-only run whose account is not the box owner, whoever asks. A stored run, a schedule
  *  and a retry all meet it, and the client keys on this code, never on the message. */
 export const WORKLOAD_RUN_ACCOUNT_NOT_OWNER = "run_account_not_owner";
