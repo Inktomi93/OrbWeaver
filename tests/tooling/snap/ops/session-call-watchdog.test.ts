@@ -4,6 +4,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { SNAP_BASES_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { markCallPhase } from "../../../../tooling/src/snap/ops/call-phases.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { isTerminalSessionCallError, runSessionCallWithinBudget, sessionCallWatchdogBaseMs } from "../../../../tooling/src/snap/ops/session-call-watchdog.ts";
 import { refuseTerminalSessionRequest, sessionCallBudget } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
@@ -34,6 +35,22 @@ test("a never-resolving non-page call reaches a terminal timeout without a secon
   const error = await caughtError(runSessionCallWithinBudget(watchdogState(), diskSafeOp([], "heap parser"), () => never, 1));
   expect(error.message).toContain("ORB-LOAD-KILL");
   expect(isTerminalSessionCallError(error)).toBe(true);
+});
+
+test("a timed-out call names the phase it stopped in and the time each earlier phase took", async () => {
+  const hung = async (): Promise<number> => {
+    markCallPhase("navigate");
+    await sleep(QUIET_BUDGET_MS / 5);
+    markCallPhase("page-arm", "shot");
+    return await new Promise<number>(() => undefined);
+  };
+  const error = await caughtError(runSessionCallWithinBudget(watchdogState(), diskSafeOp([], "hung shot"), hung, QUIET_BUDGET_MS));
+  expect(error.message).toContain("ORB-LOAD-KILL");
+  expect(error.message).toMatch(/in flight: page-arm shot \d+ms; before it: navigate \d+ms\)/u);
+  // A mark after the call's ledger closed is dropped, so the next call's kill names only its own phases.
+  markCallPhase("settle");
+  const next = await caughtError(runSessionCallWithinBudget(watchdogState(), diskSafeOp([], "next hung call"), () => new Promise<number>(() => undefined), 1));
+  expect(next.message).toMatch(/\(no phase entered in \d+ms\)/u);
 });
 
 test("a rejection after a terminal timeout is owned instead of becoming unhandled", async () => {
