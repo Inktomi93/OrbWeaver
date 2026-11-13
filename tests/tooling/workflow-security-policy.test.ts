@@ -1,11 +1,33 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { parse } from "yaml";
 import { z } from "zod";
+
+// Raw text, not parsed yaml: the parser drops the version comment this policy requires.
+function unreviewablePins(source: string): string[] {
+  return source
+    .split("\n")
+    .filter((line) => /^\s*(?:-\s+)?uses:\s*\S+@/u.test(line))
+    .filter((line) => !/^\s*(?:-\s+)?uses:\s*[^@\s]+@[0-9a-f]{40}\s+#\s*v\d+(?:\.\d+)*\s*$/u.test(line))
+    .map((line) => line.trim());
+}
+
+test("every external action pin is a full commit SHA with a version comment", ({ repoRoot }) => {
+  const sha = "3d3c42e5aac5ba805825da76410c181273ba90b1";
+  expect(unreviewablePins(`      - uses: actions/checkout@${sha}`)).toHaveLength(1);
+  expect(unreviewablePins("      - uses: actions/checkout@v7")).toHaveLength(1);
+  expect(unreviewablePins("      - uses: actions/checkout@v7 # v7.0.1")).toHaveLength(1);
+  expect(unreviewablePins(`      - uses: actions/checkout@${sha} # v7.0.1`)).toEqual([]);
+  expect(unreviewablePins("      - uses: ./.github/actions/setup")).toEqual([]);
+  const files = [...readdirSync(join(repoRoot, ".github/workflows")).map((name) => join(".github/workflows", name)), ".github/actions/setup/action.yml"];
+  for (const file of files) {
+    expect(unreviewablePins(readFileSync(join(repoRoot, file), "utf8")), file).toEqual([]);
+  }
+});
 
 test("Scorecard runs only on the repository default branch, including manual dispatch", ({ repoRoot }) => {
   const { jobs } = z
