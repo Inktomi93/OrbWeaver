@@ -133,10 +133,14 @@ async function boot(message: UiGuestBootMessage): Promise<void> {
   // `JSON.parse` cannot interpose on the host's marshalling of the next result.
   using jsonNamespace = ctx.getProp(ctx.global, "JSON");
   const jsonParse = ctx.getProp(jsonNamespace, "parse");
+  // `Error.prototype` the same way, so a guest that later replaces `Error` cannot choose a host error's prototype.
+  using errorConstructor = ctx.getProp(ctx.global, "Error");
+  const errorPrototype = ctx.getProp(errorConstructor, "prototype");
 
   const state: GuestState = {
     ctx,
     jsonParse,
+    errorPrototype,
     handler: null,
     pending: new Map(),
     surfaceIds: new Set(message.surfaceIds),
@@ -180,7 +184,7 @@ function settleHostCall(message: Extract<UiGuestInbound, { kind: "hostResult" }>
     waiting.resolve(message.resultJson);
     return;
   }
-  waiting.reject(message.message);
+  waiting.reject(message.code === undefined ? { message: message.message } : { message: message.message, code: message.code });
 }
 
 globalThis.onmessage = (event: MessageEvent<UiGuestInbound>): void => {
