@@ -262,12 +262,12 @@ test("drift reads the repository: a stale doing item and an unlanded Closes trai
   expect(facts.unmergedBranches).toEqual(["wt/cb-live-docs"]);
   expect(drift(root)).toEqual([
     "2 is doing under lane cb-live with no live worktree and no unmerged branch — pnpm doc set 2 open",
-    `main commit ${closer} closes 3 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 3 --evidence ${closer}`,
+    `main commit ${closer} closes 3 but the item is still on the tree (landing is manual: no hook lands a merge) — pnpm doc land 3 --evidence ${closer}`,
   ]);
 });
 
 function unlanded(sha: string): string {
-  return `main commit ${sha} closes 1 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 1 --evidence ${sha}`;
+  return `main commit ${sha} closes 1 but the item is still on the tree (landing is manual: no hook lands a merge) — pnpm doc land 1 --evidence ${sha}`;
 }
 
 test("drift skips a Closes trailer whose id named a different item at the closing commit (a renumbering)", async ({ plantedTree }) => {
@@ -384,7 +384,7 @@ test("drift reports a Closes trailer buried deeper than a fixed recent-commit wi
     git(root, "commit", "--allow-empty", "-qm", `chore(x): filler ${String(i)}`);
   }
   expect(drift(root)).toEqual([
-    `main commit ${closer} closes 1 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 1 --evidence ${closer}`,
+    `main commit ${closer} closes 1 but the item is still on the tree (landing is manual: no hook lands a merge) — pnpm doc land 1 --evidence ${closer}`,
   ]);
 });
 
