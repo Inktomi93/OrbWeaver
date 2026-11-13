@@ -8,8 +8,9 @@ import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import type { WireOf } from "../scenario-physical.ts";
-import { openingOf, openingText, textRoom, wireOf, wireText } from "../scenario-physical.ts";
+import { openingOf, openingText, quietOf, textRoom, wireOf, wireText } from "../scenario-physical.ts";
 
 test("saved custom stopping strings reach the actual native stop set on a declared stop-capable endpoint", async () => {
   await using h = await textRoom(["The response ends here."]);
@@ -242,6 +243,36 @@ test("a guided swipe that is not a rewrite carries its steer but leaves the repl
   expect(replies).toEqual(["The lantern flares."]);
   expect(wire).toContain(REWRITE_STEER);
   expect(wire).not.toContain(REWRITE_TARGET);
+});
+
+test.for([
+  { title: "no steer at all", guided: { action: "rewrite" } },
+  { title: "a blank steer", guided: { action: "rewrite", input: "  \n " } },
+  { title: "an empty toggle list", guided: { action: "rewrite", rewriteToggles: [] } },
+] satisfies readonly { readonly title: string; readonly guided: SwipeGuided }[])(
+  "a rewrite swipe with $title is refused before any request is sent",
+  async ({ guided }) => {
+    await using h = await textRoom([], {
+      transcript: [
+        { role: "user", content: "hello" },
+        { role: "assistant", content: REWRITE_TARGET },
+      ],
+    });
+    const prior = (await readRoomCanon(h.root, h.owner, h.chatId)).findLast(({ role }) => role === "assistant");
+    if (prior === undefined) {
+      throw new Error("the rewrite transcript wrote no prior reply");
+    }
+    await quietOf(h, () =>
+      expect(h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: prior.id, guided })).rejects.toMatchObject({
+        code: CHAT_OP_CODES.emptyRewriteSteer,
+      }),
+    );
+  },
+);
+
+test("a rewrite swipe steered only by a picked toggle is not refused", async () => {
+  const { replies } = await swipeSeededReply({ action: "rewrite", rewriteToggles: ["concise"] });
+  expect(replies).toEqual(["The lantern flares."]);
 });
 
 const NORMAL_MARK = "NORMAL-TRIGGER-SECTION";
