@@ -161,6 +161,34 @@ test("a land --stage whose staging git refuses puts every written file back and 
   expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
 });
 
+test(
+  "a refused land --stage that regenerated a missing index leaves the index matching the restored tree and an unrelated file alone",
+  TIMEOUT,
+  async ({ plantedTree }) => {
+    const root = await repoWithItems(plantedTree);
+    const workIndex = join(root, "docs/work/README.md");
+    const beforeIndex = readFileSync(workIndex, "utf8");
+    expect(beforeIndex).toContain("0001-a.md");
+    // The index is missing when the landing starts, so the landing's regeneration brings it into existence.
+    rmSync(workIndex);
+    const unrelated = join(root, "docs/work/notes.txt");
+    writeFileSync(unrelated, "another process's notes\n");
+    const indexPath = join(root, ".git", "index");
+    const goodIndex = readFileSync(indexPath);
+    writeFileSync(indexPath, "not an index");
+    const refused = landStaged([1], root, TODAY);
+    writeFileSync(indexPath, goodIndex);
+    expect(refused.refusals).toHaveLength(1);
+    expect(refused.refusals[0]).toContain("update-index");
+    // The landed item and its released dependent are back, and the index lists the item again: it was rebuilt from the
+    // restored tree, not left as the landing wrote it.
+    expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(true);
+    expect(readFileSync(join(root, "docs/work/0002-b.md"), "utf8")).toContain("blocked: on 1");
+    expect(readFileSync(workIndex, "utf8")).toBe(beforeIndex);
+    expect(readFileSync(unrelated, "utf8")).toBe("another process's notes\n");
+  },
+);
+
 test("a repeated land --stage before the commit says the landing is already staged and changes nothing", TIMEOUT, async ({ plantedTree }) => {
   const root = await repoWithItems(plantedTree);
   expect(landStaged([1], root, TODAY).refusals).toEqual([]);
