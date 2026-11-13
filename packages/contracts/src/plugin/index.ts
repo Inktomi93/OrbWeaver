@@ -230,7 +230,14 @@ export {
   resolvePluginPrimaryButton,
 } from "./ui.ts";
 export type { PluginUiHostCallCode } from "./ui-host.ts";
-export { PLUGIN_UI_HOST_CALL_CODES, pluginKvKeySchema, pluginKvValueSchema, pluginUiHostArgsSchemas } from "./ui-host.ts";
+export {
+  isPluginUiHostCallCode,
+  PLUGIN_UI_HOST_CALL_CODES,
+  PLUGIN_UI_HOST_CALL_FAILED,
+  pluginKvKeySchema,
+  pluginKvValueSchema,
+  pluginUiHostArgsSchemas,
+} from "./ui-host.ts";
 export type {
   DistributedPluginView,
   PluginBundleAssetView,

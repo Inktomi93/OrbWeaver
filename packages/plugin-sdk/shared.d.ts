@@ -62,6 +62,27 @@ type PluginCapability =
 /** The `code` a `"PluginHostUnavailable"` rejection carries when the host can say why; absent otherwise. */
 type PluginHostRefusalCode = "channel_full";
 
+/** The `code` a rejected `orb.ui(1).host` call carries when the host refused it as that call's own mistake: the
+ *  plugin is not enabled, the function is not callable from a UI or not granted, the arguments are not JSON or do
+ *  not match, a room-scoped call has no room, the result is over its cap, or `storage.kv` is full. */
+type PluginUiHostCallCode =
+  | "plugin_ui_not_enabled"
+  | "plugin_ui_not_proxyable"
+  | "plugin_ui_not_granted"
+  | "plugin_ui_args_not_json"
+  | "plugin_ui_args_invalid"
+  | "plugin_ui_scope_required"
+  | "plugin_ui_result_too_large"
+  | "plugin_storage_cap";
+
+/** What a rejected `orb.ui(1).host` call rejects with. `code` is present only for a {@link PluginUiHostCallCode}
+ *  refusal; any other failure has no `code`, and its `message` is one fixed sentence. Key on `code`, never on
+ *  `message`. An isolated frame gets none of this: its refusals are the bare `"refused"`. */
+interface PluginUiHostCallError extends Error {
+  readonly name: "Error";
+  readonly code?: PluginUiHostCallCode;
+}
+
 /** An OPAQUE room token, minted per invocation by the host (`chat.current()`), valid only inside the
  *  invocation that minted it. Pass it back to room-scoped calls; never store, compare across calls, or
  *  fabricate one — a forged/stale handle fails resolution at the membrane. */
@@ -1012,7 +1033,8 @@ interface PluginUiV1 {
   render: (surfaceId: string, tree: PluginSurfaceSpec) => void;
   /** ONE handler per guest; a second call replaces the first. Events arrive locally — no network. */
   onEvent: (handler: (event: PluginUiEvent) => void | Promise<void>) => void;
-  /** The admitted host proxy subset; each call is re-gated server-side against the stored grant. */
+  /** The admitted host proxy subset; each call is re-gated server-side against the stored grant. A refused or
+   *  failed call rejects with a {@link PluginUiHostCallError}. */
   readonly host: {
     /** Room reads use the surface's mounting room; no guest-supplied room handle is accepted. */
     readonly chat: {
