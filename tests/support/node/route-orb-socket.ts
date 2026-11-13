@@ -81,10 +81,10 @@ export interface OrbSocketRecorder {
 export interface RouteOrbSocketOptions {
   /** Frames for each connection; a supplier can await producer events and must release its subscription when the signal aborts. */
   readonly frames?: readonly ScriptedFrame[] | ((signal: AbortSignal) => Promise<readonly ScriptedFrame[]>);
-  /** Serve the body only once this many attach requests have finished with successful HTTP responses (the handshake). @defaultValue 0 */
+  /** Serve the body only once this many attach entries have been admitted (the handshake). @defaultValue 0 */
   readonly awaitAttaches?: number;
   /**
-   * Serve the body only once each of these rooms has finished a successful attach. A count cannot say which room the
+   * Serve the body only once each of these rooms has an admitted attach entry. A count cannot say which room the
    * attaches were for: the always-on `notifications` room attaches first, so `awaitAttaches: 1` is met before a chat room
    * has joined, and frames scripted for that room reach a registry that drops them.
    */
@@ -106,8 +106,14 @@ export interface RouteOrbSocketOptions {
 
 const DEFAULT_SERVER_INSTANCE_ID = "orb-ct-server";
 
+// One decoded input with its position in the request, which is also its position in a batched response.
+interface DecodedAttach {
+  readonly entry: number;
+  readonly request: AttachRequest;
+}
+
 /** Decode the `stream.attach`/`stream.detach` inputs out of a (possibly batched) tRPC mutation request. */
-function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach"): AttachRequest[] {
+function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach"): DecodedAttach[] {
   const procs = decodeURIComponent(url.pathname.split("/api/trpc/")[1] ?? "").split(",");
   if (!procs.includes(`stream.${wanted}`)) {
     return [];
@@ -121,7 +127,7 @@ function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach
   const isBatch = url.searchParams.get("batch") === "1";
   const inputBody = isBatch ? body : { 0: body };
   const byIndex = typeof inputBody === "object" && inputBody !== null ? inputBody : {};
-  const attaches: AttachRequest[] = [];
+  const attaches: DecodedAttach[] = [];
   for (const [i, proc] of procs.entries()) {
     if (proc !== `stream.${wanted}`) {
       continue;
@@ -129,10 +135,25 @@ function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach
     const rawInput: unknown = Reflect.get(byIndex, String(i));
     const input = rawInput as Partial<Pick<ReturnType<typeof streamAttachInputSchema.parse>, "ref" | "sinceSeq">> | null | undefined;
     if (input?.ref !== undefined) {
-      attaches.push({ ref: input.ref, sinceSeq: input.sinceSeq ?? null });
+      attaches.push({ entry: i, request: { ref: input.ref, sinceSeq: input.sinceSeq ?? null } });
     }
   }
   return attaches;
+}
+
+// The transport answers HTTP 200 for a batch that holds a refusal and for a scripted `trpcError`, so the status cannot
+// say which entry the server admitted. Only an entry's own `result` member does; a refusal carries `error` instead.
+function admittedRefs(body: unknown, isBatch: boolean, decoded: readonly DecodedAttach[]): StreamRoomRef[] {
+  const envelopes: unknown = isBatch ? body : { 0: body };
+  if (typeof envelopes !== "object" || envelopes === null) {
+    return [];
+  }
+  return decoded
+    .filter(({ entry }) => {
+      const envelope: unknown = Reflect.get(envelopes, String(entry));
+      return typeof envelope === "object" && envelope !== null && Object.hasOwn(envelope, "result");
+    })
+    .map(({ request }) => request.ref);
 }
 
 /** Matches the ONE multiplexed socket subscription (`stream.connect`) — the procedure
@@ -153,13 +174,13 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
   const attached: AttachRequest[] = [];
   const detached: AttachRequest[] = [];
   let connects = 0;
-  let completedAttaches = 0;
+  let admittedAttaches = 0;
   const admittedRooms = new Set<string>();
   const handshake = Promise.withResolvers<boolean>();
   const served = Promise.withResolvers<void>();
   // A case that never awaits `served` must not see the handshake's failure as an unhandled rejection.
   void served.promise.catch(() => undefined);
-  const pendingAttaches = new Map<Request, readonly StreamRoomRef[]>();
+  const pendingAttaches = new Map<Request, readonly DecodedAttach[]>();
   let settled = false;
   const settleHandshake = (success: boolean): void => {
     if (settled) {
@@ -184,22 +205,32 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     }
   };
   const requestFinished = (request: Request): void => {
-    const refs = pendingAttaches.get(request);
-    if (refs === undefined) {
+    const decoded = pendingAttaches.get(request);
+    if (decoded === undefined) {
       return;
     }
     pendingAttaches.delete(request);
-    void request.response().then(
-      (response) => {
-        if (response === null || !response.ok()) {
+    const isBatch = new URL(request.url()).searchParams.get("batch") === "1";
+    const readAdmitted = async (): Promise<readonly StreamRoomRef[] | null> => {
+      const response = await request.response();
+      if (response === null || !response.ok()) {
+        return null;
+      }
+      const body: unknown = await response.json();
+      return admittedRefs(body, isBatch, decoded);
+    };
+    void readAdmitted().then(
+      (refs) => {
+        if (refs === null) {
           settleHandshake(false);
           return;
         }
-        completedAttaches += refs.length;
+        // A refused entry admits nothing and leaves the handshake open, so a later attach for its room can still join.
+        admittedAttaches += refs.length;
         for (const ref of refs) {
           admittedRooms.add(roomKey(ref));
         }
-        if (completedAttaches >= awaitAttaches && awaitedRooms.every((key) => admittedRooms.has(key))) {
+        if (admittedAttaches >= awaitAttaches && awaitedRooms.every((key) => admittedRooms.has(key))) {
           settleHandshake(true);
         }
       },
@@ -277,13 +308,10 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     }
 
     const requestAttaches = decodeStreamAttaches(req, url, "attach");
-    attached.push(...requestAttaches);
-    detached.push(...decodeStreamAttaches(req, url, "detach"));
+    attached.push(...requestAttaches.map(({ request }) => request));
+    detached.push(...decodeStreamAttaches(req, url, "detach").map(({ request }) => request));
     if (!settled && requestAttaches.length > 0) {
-      pendingAttaches.set(
-        req,
-        requestAttaches.map(({ ref }) => ref),
-      );
+      pendingAttaches.set(req, requestAttaches);
     }
     await route.fallback();
   });
