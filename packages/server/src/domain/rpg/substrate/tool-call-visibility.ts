@@ -13,6 +13,10 @@
 //   stripHiddenSpans('hall <lie truth="trapped"/> ok')
 //     → 'hall  ok',        hadHidden: true
 //
+// The encoded form also hides a tag whose opening bracket is JSON-escaped (a backslash-u escape in place of the
+// bracket): the raw text holds no bracket, so a strip over it removes nothing and the tag survives into the
+// payload. Decoding turns the escape back into the bracket, so the strip sees the tag.
+//
 // DECODE FIRST, strip the parsed keys and leaves, re-encode, so a member keeps every field the tag did not
 // touch and reads JSON that still parses. The same applies to an issue line's model-SENT value, which is a JSON
 // literal embedded in prose.
