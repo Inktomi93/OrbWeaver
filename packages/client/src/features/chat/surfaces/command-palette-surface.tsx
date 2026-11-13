@@ -33,7 +33,7 @@ import type { SectionId } from "#state";
 import { CommandPaletteSourceRegistryContext, closeModal, resumeChat, setActiveSection, useActiveChatId } from "#state";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { chatSummaryRowView } from "../lib/chat-summary-row.ts";
-import { COMMAND_PALETTE_NAME } from "../lib/command-palette-names.ts";
+import { COMMAND_NO_MATCHES_TEXT, COMMAND_PALETTE_NAME, COMMAND_RECENT_THREADS_NAME } from "../lib/command-palette-names.ts";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
@@ -107,7 +107,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
       <Command elevated={true} fill={true} filter={declaredTermFirstFilter} label={COMMAND_PALETTE_NAME} onEscape={closeModal}>
         <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" ref={searchRef} />
         <CommandList listSize="compact">
-          <CommandEmpty>No matches.</CommandEmpty>
+          <CommandEmpty>{COMMAND_NO_MATCHES_TEXT}</CommandEmpty>
 
           <QueryBoundary
             resetKeys={[]}
@@ -157,7 +157,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
 
 /** A query still in flight must reserve a visible, named group rather than making recents disappear. */
 function RecentThreadsLoading(): ReactElement {
-  return <CommandGroup heading="Recent threads">Loading recent threads…</CommandGroup>;
+  return <CommandGroup heading={COMMAND_RECENT_THREADS_NAME}>Loading recent threads…</CommandGroup>;
 }
 
 interface CommandsGroupProps {
@@ -273,7 +273,7 @@ function ThreadsGroup({ onJump }: ThreadsGroupProps): ReactElement | null {
     return null;
   }
   return (
-    <CommandGroup heading="Recent threads">
+    <CommandGroup heading={COMMAND_RECENT_THREADS_NAME}>
       {page.items.map((chat) => (
         <ThreadRow chat={chat} key={chat.id} onJump={onJump} />
       ))}

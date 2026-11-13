@@ -18,6 +18,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { configSettingLabel } from "#state";
 import { useUpdateMessageHandling } from "../hooks/use-chat-settings-mutations.ts";
 import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model.ts";
 import {
@@ -82,16 +83,24 @@ function MessageHandlingBody({
       <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_MESSAGE_HANDLING_SUBCATEGORY }}>
         <SettingRowGroup>
           <SettingRow settingId="enter-sends">
-            <form.AppField name="enterSends">{(field): ReactElement => <field.SwitchField label="Enter to send" />}</form.AppField>
+            <form.AppField name="enterSends">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "enterSends")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="continue-on-send">
-            <form.AppField name="continueOnSend">{(field): ReactElement => <field.SwitchField label="Send continues the reply" />}</form.AppField>
+            <form.AppField name="continueOnSend">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "continueOnSend")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="empty-enter-generates">
-            <form.AppField name="generateOnEmptySend">{(field): ReactElement => <field.SwitchField label="Empty Enter generates a reply" />}</form.AppField>
+            <form.AppField name="generateOnEmptySend">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "generateOnEmptySend")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="auto-continue">
-            <form.AppField name="autoContinue">{(field): ReactElement => <field.SwitchField label="Auto-continue" />}</form.AppField>
+            <form.AppField name="autoContinue">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "autoContinue")} />}
+            </form.AppField>
           </SettingRow>
           {/* The bound the switch modulates: DISABLED rather than hidden when auto-continue is off, so the
               coupling is visible and the stored value stays readable (the auto-swipe details below hide
@@ -101,7 +110,12 @@ function MessageHandlingBody({
               <SettingRow settingId="auto-continue-rounds">
                 <form.AppField name="autoContinueRounds">
                   {(field): ReactElement => (
-                    <field.NumberField label="Auto-continue rounds" disabled={!on} max={AUTO_CONTINUE_ROUNDS_MAX} min={AUTO_CONTINUE_ROUNDS_MIN} />
+                    <field.NumberField
+                      label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "autoContinueRounds")}
+                      disabled={!on}
+                      max={AUTO_CONTINUE_ROUNDS_MAX}
+                      min={AUTO_CONTINUE_ROUNDS_MIN}
+                    />
                   )}
                 </form.AppField>
               </SettingRow>
@@ -132,24 +146,36 @@ function MessageHandlingBody({
               </form.Subscribe>
             }
           >
-            <form.AppField name="autoSwipeEnabled">{(field): ReactElement => <field.SwitchField label="Auto-swipe short replies" />}</form.AppField>
+            <form.AppField name="autoSwipeEnabled">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "autoSwipe")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="custom-stopping-strings">
             <form.AppField name="customStoppingStrings">
-              {(field): ReactElement => <field.TextareaField label="Custom stopping strings" placeholder="###" rows={3} />}
+              {(field): ReactElement => (
+                <field.TextareaField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "customStoppingStrings")} placeholder="###" rows={3} />
+              )}
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="offer-choices">
-            <form.AppField name="offerChoices">{(field): ReactElement => <field.SwitchField label="Offer choices in new chats" />}</form.AppField>
+            <form.AppField name="offerChoices">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "offerChoices")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="reactions">
-            <form.AppField name="reactionsEnabled">{(field): ReactElement => <field.SwitchField label="Reactions in new chats" />}</form.AppField>
+            <form.AppField name="reactionsEnabled">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "reactionsEnabled")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="character-reactions">
-            <form.AppField name="charactersCanReact">{(field): ReactElement => <field.SwitchField label="Characters can react in new chats" />}</form.AppField>
+            <form.AppField name="charactersCanReact">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "charactersCanReact")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="run-card-scripts">
-            <form.AppField name="runCardScripts">{(field): ReactElement => <field.SwitchField label="Run story-card scripts" />}</form.AppField>
+            <form.AppField name="runCardScripts">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "runCardScripts")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="temp-chat-ttl">
             <form.AppField name="tempChatTtlHours">

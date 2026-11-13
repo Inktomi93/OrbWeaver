@@ -46,6 +46,7 @@ import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
+import { CHAT_TRANSCRIPT_NAME } from "../lib/chat-surface-names.ts";
 import { Track } from "../lib/chat-track.tsx";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { contextFitLabel } from "../lib/context-room.ts";
@@ -431,7 +432,7 @@ function ChatThread({
         <PrintCoverage edges={edges} />
         <MessageList
           ref={listHandleRef}
-          ariaLabel="Conversation messages"
+          ariaLabel={CHAT_TRANSCRIPT_NAME}
           items={items}
           getItemKey={messageItemKey}
           estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
