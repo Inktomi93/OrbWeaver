@@ -31,6 +31,12 @@ export function importPreviewProfileLabel(profile: string): string {
   return `Profile ${profile}`;
 }
 
+/** The count line's note for entries of a folder sent in several uploads that could not be checked against the other
+ *  uploads: some may already be there, or be counted twice. */
+export function importPreviewUncomparedNote(count: number): string {
+  return `${String(count)} not compared with the other uploads, so the count may be high`;
+}
+
 /** Why a folder's dry run failed, by what the request met. */
 export const IMPORT_PREVIEW_FAILURE = {
   unreachable: "Could not reach the server.",

@@ -237,7 +237,8 @@ export function classifyDomainError(err: unknown): TRPCError | null {
 /**
  * The honest, leak-free reason for a mapped error — the discriminator the error formatter rides on
  * `data.reason` so the client keys on a structured field, never message text. Two producers, both closed
- * vocabularies: a `DomainOperationError`'s `.code` (e.g. `owner_not_present`/`agent_disabled`) and a
+ * vocabularies: a `DomainOperationError`'s `.code` (e.g. `owner_not_present`/`agent_disabled`; a
+ * `DomainForbiddenError`'s optional `.code` rides the same way, when its thrower names the refusal) and a
  * `ProviderError`'s `kind` under the `provider_` prefix. Every other mapped error — including the leak-free
  * NOT_FOUND collapse — is intentionally codeless, so nothing beyond the reason string ever reaches the wire
  * (no cause chain, no internals). `undefined` ⇒ the formatter emits no `reason` field (JSON drops the key).
@@ -247,7 +248,9 @@ export function classifyDomainError(err: unknown): TRPCError | null {
  * is the lazy version of this change rather than the intended one.
  */
 export function domainReason(error: { cause?: unknown }): string | undefined {
-  if (error.cause instanceof DomainOperationError) {
+  // A forbidden refusal carries a code only when its thrower set one, a fixed constant naming the refusal. Every other
+  // forbidden answer stays codeless, so a refused caller learns nothing beyond the status and its own sentence.
+  if (error.cause instanceof DomainOperationError || error.cause instanceof DomainForbiddenError) {
     return error.cause.code;
   }
   return error.cause instanceof ProviderError ? `${PROVIDER_REASON_PREFIX}${error.cause.kind}` : undefined;

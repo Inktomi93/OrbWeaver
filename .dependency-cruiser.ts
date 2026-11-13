@@ -1065,6 +1065,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
       "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",
   },
+  "tests/client/features/workloads/hooks/use-library-import.dom.test.ts": {
+    "packages/client/src/features/workloads/hooks/use-library-import.ts":
+      "useLibraryImport: the feature-private folder-preview run, whose late-event and answer-ordering rules only its own callbacks can be driven through",
+  },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",
   },

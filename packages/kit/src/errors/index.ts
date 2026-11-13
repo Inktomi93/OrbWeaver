@@ -45,9 +45,13 @@ export class DomainConflictError extends DomainError {
  * the action is gated. Maps to tRPC FORBIDDEN.
  */
 export class DomainForbiddenError extends DomainError {
-  constructor(message: string) {
+  /** A fixed code a client keys on instead of the message, for a refusal it says in its own words. Absent for every
+   *  other refusal, which stays codeless on the wire. */
+  readonly code: string | undefined;
+  constructor(message: string, code?: string) {
     super(message);
     this.name = this.constructor.name;
+    this.code = code;
   }
 }
 

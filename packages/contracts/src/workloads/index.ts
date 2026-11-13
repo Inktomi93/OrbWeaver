@@ -17,6 +17,7 @@
 export type { WorkloadRunAccountRefusalCode } from "./admission.ts";
 export {
   requireWorkloadFunder,
+  WORKLOAD_ASKER_NOT_OWNER,
   WORKLOAD_NOT_ADMISSIBLE,
   WORKLOAD_OWNER_ONLY_REFUSAL,
   WORKLOAD_RESULT_INVALID,

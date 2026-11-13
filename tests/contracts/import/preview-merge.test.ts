@@ -1,9 +1,10 @@
 // The merge of a split folder's previews marks an entry a repeat when an earlier upload's entry holds all of its
-// identities, and keeps every other entry as its own upload judged it.
+// identities, and keeps every other entry as its own upload judged it. Its counts are exact over every entry, the
+// unlisted tail of a capped upload included, and name the writes no other upload could be compared with.
 // @subject packages/contracts/src/import/preview.ts
 
 import type { ImportPreview, ImportPreviewItem, ImportPreviewKind } from "@orb/contracts/import";
-import { mergeImportPreviews } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_LIST_MAX, importPreviewListOf, mergeImportPreviews } from "@orb/contracts/import";
 import { expect, test } from "@orb/testkit/node";
 
 const KIND = "themes" satisfies ImportPreviewKind;
@@ -14,12 +15,12 @@ function itemAt(
   identities: readonly string[],
   flag: Partial<Pick<ImportPreviewItem, "inLibrary" | "repeat">> = {},
 ): ImportPreviewItem {
-  return { source: { profile, path }, name: path, identities, ...flag };
+  return { source: { profile, path }, sourceDigest: `${profile}/${path}`, name: path, identities, ...flag };
 }
 
 /** One upload's preview whose only entries are theme files. */
 function uploadOf(...items: readonly ImportPreviewItem[]): ImportPreview {
-  const empty = { total: 0, items: [] };
+  const empty = importPreviewListOf([]);
   return {
     kinds: {
       characters: empty,
@@ -27,7 +28,7 @@ function uploadOf(...items: readonly ImportPreviewItem[]): ImportPreview {
       personas: empty,
       worlds: empty,
       presets: empty,
-      themes: { total: items.length, items },
+      themes: importPreviewListOf(items),
       backgrounds: empty,
       groups: empty,
       orphans: empty,
@@ -91,6 +92,99 @@ test("an entry the library holds keeps that verdict, and what an upload already 
     ["held.json", "library"],
     ["first.json", "repeat"],
   ]);
+});
+
+/** More entries than a preview lists, so the upload sends the first of them and counts the rest. The last entry,
+ *  the one past the cap, carries `flagTail`. */
+function tailedUpload(profile: string, flagTail: Partial<Pick<ImportPreviewItem, "inLibrary" | "repeat">> = {}): ImportPreview {
+  const entries = Array.from({ length: IMPORT_PREVIEW_LIST_MAX + 1 }, (_, i) =>
+    itemAt(profile, `${profile}-${String(i)}.json`, [`${profile}-${String(i)}`], i === IMPORT_PREVIEW_LIST_MAX ? flagTail : {}),
+  );
+  return uploadOf(...entries);
+}
+
+test("the counts of a kind past the list cap are exact: an owned entry past the cap is not a write", () => {
+  const merged = mergeImportPreviews([tailedUpload("alice", { inLibrary: true })]);
+
+  // The control: the list really holds fewer entries than the upload has, so a count read off it would be short.
+  expect(merged.kinds[KIND].items).toHaveLength(IMPORT_PREVIEW_LIST_MAX);
+  expect(merged.kinds[KIND].total).toBe(IMPORT_PREVIEW_LIST_MAX + 1);
+  expect(merged.kinds[KIND].counts).toEqual({ inLibrary: 1, repeat: 0, writes: IMPORT_PREVIEW_LIST_MAX, withoutArt: 0, uncompared: 0 });
+});
+
+test("a split folder whose uploads each have an unlisted tail counts the writes it could not compare with the other upload", () => {
+  const merged = mergeImportPreviews([tailedUpload("alice"), tailedUpload("bob", { repeat: true })]);
+
+  const { total, counts } = merged.kinds[KIND];
+  expect(total).toBe(2 * (IMPORT_PREVIEW_LIST_MAX + 1));
+  // Alice's tail is an unflagged write nobody compared; bob's tail entry is its own upload's repeat, known exactly.
+  expect(counts).toEqual({ inLibrary: 0, repeat: 1, writes: total - 1, withoutArt: 0, uncompared: 1 });
+});
+
+/** A file every upload of a split folder carries, as many of them as `count`: each upload lists the first of them and
+ *  counts the rest, and an entry past the list cap has the same source in every upload. */
+function sharedUpload(count: number, flag: Partial<Pick<ImportPreviewItem, "inLibrary" | "repeat">> = {}): ImportPreview {
+  return uploadOf(...Array.from({ length: count }, (_, i) => itemAt("alice", `shared-${String(i)}.json`, [], flag)));
+}
+
+test("entries every upload of a split folder carries are counted once however many uploads hold them, owned or not", () => {
+  const past = IMPORT_PREVIEW_LIST_MAX + 1;
+
+  const fresh = mergeImportPreviews([sharedUpload(past), sharedUpload(past)]).kinds[KIND];
+  const owned = mergeImportPreviews([sharedUpload(past, { inLibrary: true }), sharedUpload(past, { inLibrary: true })]).kinds[KIND];
+
+  // Each upload sends no identities for these, so a write among them is a bound; the entry past the cap is one write.
+  expect(fresh.total).toBe(past);
+  expect(fresh.counts).toEqual({ inLibrary: 0, repeat: 0, writes: past, withoutArt: 0, uncompared: past });
+  expect(owned.total).toBe(past);
+  expect(owned.counts).toEqual({ inLibrary: past, repeat: 0, writes: 0, withoutArt: 0, uncompared: 0 });
+});
+
+test("an entry one upload lists and another leaves in its tail is counted once, whichever upload lists it", () => {
+  const past = IMPORT_PREVIEW_LIST_MAX + 1;
+  const last = itemAt("alice", "last.json", ["last"], { inLibrary: true });
+  const filler = (profile: string): ImportPreviewItem[] =>
+    Array.from({ length: IMPORT_PREVIEW_LIST_MAX }, (_, i) =>
+      itemAt(profile, `${profile}-${String(i)}.json`, [`${profile}-${String(i)}`], { inLibrary: true }),
+    );
+
+  const tailFirst = mergeImportPreviews([uploadOf(...filler("alice"), last), uploadOf(last)]).kinds[KIND];
+  const tailSecond = mergeImportPreviews([uploadOf(last), uploadOf(...filler("alice"), last)]).kinds[KIND];
+
+  expect(tailFirst.total).toBe(past);
+  expect(tailSecond.total).toBe(past);
+  expect(tailFirst.counts.inLibrary).toBe(past);
+  expect(tailSecond.counts.inLibrary).toBe(past);
+});
+
+test("an unlisted entry past the digests an upload sends cannot be matched, so it is counted as the upload counted it and named uncompared", () => {
+  // Far past the cap and the digests together; the bound itself is read off what the list sends.
+  const entries = 20 * IMPORT_PREVIEW_LIST_MAX;
+  const upload = sharedUpload(entries);
+  const digested = upload.kinds[KIND].tail.writes.length;
+  const unmatched = entries - IMPORT_PREVIEW_LIST_MAX - digested;
+
+  const merged = mergeImportPreviews([upload, sharedUpload(entries)]).kinds[KIND];
+
+  // The control: the digests stop short of the tail, so some entries are the same file in both uploads and cannot be told.
+  expect(digested).toBeGreaterThan(0);
+  expect(unmatched).toBeGreaterThan(0);
+  // Those count twice, a bound the count says it is; every other entry counts once.
+  expect(merged.total).toBe(entries + unmatched);
+  expect(merged.counts.uncompared).toBe(merged.counts.writes);
+});
+
+test("one upload with an unlisted tail has no other upload to be compared with, so none of it is uncompared", () => {
+  expect(mergeImportPreviews([tailedUpload("alice")]).kinds[KIND].counts.uncompared).toBe(0);
+});
+
+test("in a split folder a listed entry with no identities is uncompared, and an entry the library holds is not", () => {
+  const merged = mergeImportPreviews([
+    uploadOf(itemAt("alice", "a.json", []), itemAt("alice", "held.json", [], { inLibrary: true })),
+    uploadOf(itemAt("bob", "b.json", ["b"])),
+  ]);
+
+  expect(merged.kinds[KIND].counts).toEqual({ inLibrary: 1, repeat: 0, writes: 2, withoutArt: 0, uncompared: 1 });
 });
 
 test("an entry that holds several identities is a repeat only when earlier entries hold every one of them", () => {

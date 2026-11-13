@@ -3,14 +3,14 @@
 // yes (`model-run-confirm-dialog.tsx` is what they read). An estimate that fails starts nothing; a run that fails
 // rejects to its caller, whose mutation owns the message.
 
-import { WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
+import { WORKLOAD_ASKER_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { errorMessage } from "@orb/kit/error-message";
 import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { readFresh, useTRPC } from "#data";
-import { notify, trpcErrorCode, trpcErrorReason } from "#lib";
+import { notify, trpcErrorReason } from "#lib";
 import { MODEL_RUN_ESTIMATE_FAILED } from "./model-run-confirm-copy.ts";
 import type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 
@@ -52,7 +52,7 @@ export function useModelRunConfirm(): {
       // The estimate judges who the run answers to before it counts, so a refused account or a non-owner asker is the reason, not the count.
       if (trpcErrorReason(err) === WORKLOAD_RUN_ACCOUNT_NOT_OWNER) {
         notify.error({ title: WORKLOAD_RUN_ACCOUNT_REFUSAL });
-      } else if (ownerOnlyNotice !== undefined && trpcErrorCode(err) === "FORBIDDEN") {
+      } else if (ownerOnlyNotice !== undefined && trpcErrorReason(err) === WORKLOAD_ASKER_NOT_OWNER) {
         notify.error(ownerOnlyNotice);
       } else {
         notify.error({ title: estimateFailedTitle, description: errorMessage(err) });

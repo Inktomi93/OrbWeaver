@@ -1,4 +1,4 @@
-// The open room's read failure: the room's roster failing before the room can draw, or its transcript failing once it has. A
+// The open room's read failure, drawn by the transcript's boundary when the room's roster or its transcript read fails. A
 // not-found answer never reaches it: that room is gone, and `useRoomRead` (`../hooks/use-room-read.ts`) leaves it for the chat
 // list instead of offering a retry that could never succeed.
 //

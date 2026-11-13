@@ -32,12 +32,10 @@ import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
 import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-flank.tsx";
-import { RoomReadFailure } from "../components/room-read-failure.tsx";
 import { flankReservation, useFlankPresentation } from "../hooks/use-flank-presentation.ts";
 import { useFlankReserve } from "../hooks/use-flank-reserve.ts";
 import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
 import { useRoomEndWhileWriting } from "../hooks/use-room-end-while-writing.ts";
-import type { RoomRead } from "../hooks/use-room-read.ts";
 import { useRoomRead } from "../hooks/use-room-read.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
 import { Track } from "../lib/chat-track.tsx";
@@ -94,10 +92,11 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // render after it, which yields.
   const bodyMounted: boolean = useDeferredValue(true, false);
   // The transcript mounts with the body whether or not the roster has answered, so its read leaves beside the roster's instead of
-  // after it; the room's own chrome (the composer and its next-reply line, the bars, the contributions) waits for a ready room, so a
-  // room that turns out gone never draws it.
-  const bodyDrawn = bodyMounted && read.kind !== "failed";
-  const chromeDrawn = bodyDrawn && read.kind === "ready";
+  // after it. The room's own chrome (the composer with its Chat options, the next-reply line, the contributions) waits until the
+  // roster has answered, so a room that turns out gone never draws it. A failed read draws it over the transcript's failure plate:
+  // Chat options keeps Close chat and the other actions that need no roster, so a failure that persists is never a dead end.
+  const bodyDrawn = bodyMounted;
+  const chromeDrawn = bodyDrawn && read.kind !== "loading";
   const surfaceRef = useRef<HTMLDivElement>(null);
   // Gated on the chrome so this parent effect runs after the transcript's and the composer's own focus effects.
   useFocusOnMount(surfaceRef, chromeDrawn);
@@ -295,7 +294,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                 ) : null}
               </>
             ) : (
-              <RoomBodyStandIn read={read} />
+              <RoomTranscriptSkeleton />
             )}
           </Stack>
         </Stack>
@@ -304,26 +303,9 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   );
 }
 
-function assertNever(value: never): never {
-  throw new Error(`ChatRoomSurface: unhandled room read ${JSON.stringify(value)}`);
-}
-
-/** What stands where the body will be: the skeleton while the room loads or its body defers a render, the plate when its read failed. */
-function RoomBodyStandIn({ read }: { readonly read: Exclude<RoomRead, { readonly kind: "gone" }> }): ReactElement {
-  switch (read.kind) {
-    case "loading":
-    case "ready":
-      return <RoomTranscriptSkeleton />;
-    case "failed":
-      return <RoomReadFailure onRetry={read.retry} />;
-    default:
-      return assertNever(read);
-  }
-}
-
 type RoomAnchorNodes = ReturnType<typeof resolveRoomAnchor>;
 
-/** The writing region under the transcript: the selection bar, the above-composer band and the composer. A ready room draws it. */
+/** The writing region under the transcript: the selection bar, the above-composer band and the composer. A room whose roster has answered, ready or failed, draws it. */
 function RoomWriting({
   chatId,
   composerRef,
