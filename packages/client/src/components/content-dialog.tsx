@@ -5,6 +5,7 @@ import type { StackProps } from "@orb/ui/layout";
 import { DialogBody, Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode, Ref } from "react";
 import { DIALOG_VERBS } from "#lib";
+import { CommitRow } from "./commit-row.tsx";
 import type { NonEmptyLabel } from "./non-empty-label.ts";
 
 type DialogPopupProps = ComponentProps<typeof DialogPopup>;
@@ -106,25 +107,34 @@ export function ContentDialog<L extends string>({
         </DialogHeader>
         <DialogBody {...bodyProps} container={bodyContainer} focusTarget={bodyFocusTarget} grow={true} gap="block">
           {children}
-          {dismiss.at === "footer" ? (
-            <DialogFooter>
-              <DialogClose
-                render={
-                  <Button
-                    {...(dismiss.primary === true ? {} : { variant: "ghost" as const })}
-                    {...(dismiss.control === undefined ? {} : { ref: dismiss.control })}
-                  >
-                    {dismiss.label}
-                  </Button>
-                }
-              />
-              {footer}
-            </DialogFooter>
-          ) : null}
+          {dismiss.at === "footer" ? <DialogFooter>{footerRow(dismiss, footer)}</DialogFooter> : null}
           {dismiss.at === "header" && footer !== undefined ? <DialogFooter>{footer}</DialogFooter> : null}
         </DialogBody>
       </DialogPopup>
     </Dialog>
+  );
+}
+
+/** A dismiss with actions after it is a commit row: Cancel, then the actions. A primary dismiss, or one alone, is the dialog's single act. */
+function footerRow(dismiss: Extract<ContentDismiss, { at: "footer" }>, footer: ReactNode): ReactElement {
+  if (dismiss.primary !== true && footer !== undefined) {
+    return (
+      <CommitRow cancelLabel={dismiss.label} {...(dismiss.control === undefined ? {} : { cancelRef: dismiss.control })}>
+        {footer}
+      </CommitRow>
+    );
+  }
+  return (
+    <>
+      <DialogClose
+        render={
+          <Button {...(dismiss.primary === true ? {} : { variant: "ghost" as const })} {...(dismiss.control === undefined ? {} : { ref: dismiss.control })}>
+            {dismiss.label}
+          </Button>
+        }
+      />
+      {footer}
+    </>
   );
 }
 

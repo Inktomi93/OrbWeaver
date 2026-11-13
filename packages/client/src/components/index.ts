@@ -7,6 +7,7 @@ export type { BandProps } from "./band.tsx";
 export { Band } from "./band.tsx";
 export { CharacterPicker } from "./character-picker.tsx";
 export { CollectionGrid } from "./collection-grid.tsx";
+export { CommitRow } from "./commit-row.tsx";
 export { ConfirmDialog, DestructiveAction } from "./confirm-dialog.tsx";
 export type { ConfirmedAction } from "./confirmed-action.ts";
 export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";

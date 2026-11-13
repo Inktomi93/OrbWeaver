@@ -46,3 +46,19 @@ test("Enter on a blocked submit commits nothing, and Cancel still closes", async
   await expect(dialog).toHaveCount(0);
   await expect(component.getByRole("status", { name: "Submissions", exact: true })).toHaveText("0");
 });
+
+test("the footer reads Cancel then the submit, end-aligned, with Cancel quiet", async ({ mount, page }) => {
+  const component = await mount<typeof FormDialogBodyStateStory>(BODY_STORY);
+  await component.getByRole("button", { name: "Open draft", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Draft form", exact: true });
+  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const submit = dialog.getByRole("button", { name: "Keep draft", exact: true });
+  const [cancelBox, submitBox, rowBox] = await Promise.all([cancel.boundingBox(), submit.boundingBox(), submit.locator("..").boundingBox()]);
+  if (cancelBox === null || submitBox === null || rowBox === null) {
+    throw new Error("The footer's buttons have no box");
+  }
+  expect(cancelBox.x + cancelBox.width).toBeLessThanOrEqual(submitBox.x);
+  expect(Math.abs(submitBox.x + submitBox.width - (rowBox.x + rowBox.width))).toBeLessThanOrEqual(1);
+  // A quiet Cancel draws no border of its own; an outline Cancel would.
+  await expect(cancel).toHaveCSS("border-top-width", "0px");
+});

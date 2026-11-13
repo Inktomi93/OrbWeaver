@@ -6,10 +6,11 @@ import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, X } from "@orb/ui/icons";
-import { Corner, DialogBody, Row, Stack } from "@orb/ui/layout";
+import { Corner, DialogBody, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId, useRef, useState } from "react";
 import { DIALOG_VERBS, testId } from "#lib";
+import { CommitRow } from "./commit-row.tsx";
 import type { NonEmptyLabel } from "./non-empty-label.ts";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
@@ -172,26 +173,17 @@ function SubmitButton<L extends string>({ submit, formId }: { readonly submit: F
 export function FormDialogPopup<L extends string>({ submit, footerLead, children, ...frame }: FormDialogPopupProps<L>): ReactElement {
   const formId = useId();
   const titleId = useId();
-  const cancel = <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />;
   return (
     <DialogFrame {...frame} titleId={titleId}>
       <PromptBody formId={formId} submit={submit} titleId={titleId}>
         {children}
       </PromptBody>
-      {footerLead === undefined ? (
-        <DialogFooter>
-          {cancel}
+      <DialogFooter>
+        {footerLead}
+        <CommitRow>
           <SubmitButton formId={formId} submit={submit} />
-        </DialogFooter>
-      ) : (
-        <DialogFooter>
-          {footerLead}
-          <Row grow={true} gap="row" justify="end">
-            {cancel}
-            <SubmitButton formId={formId} submit={submit} />
-          </Row>
-        </DialogFooter>
-      )}
+        </CommitRow>
+      </DialogFooter>
     </DialogFrame>
   );
 }
