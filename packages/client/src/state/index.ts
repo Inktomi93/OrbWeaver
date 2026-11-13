@@ -101,6 +101,7 @@ export { CommandPaletteSourceRegistryContext } from "./command-palette-source-re
 export { CommandPaletteSourceRegistryProvider } from "./command-palette-source-registry-provider.tsx";
 export type { ComposerDraftSnapshot, ComposerDraftWrite } from "./composer-draft-store.ts";
 export {
+  clearComposerDraft,
   readComposerDraft,
   readComposerDraftSnapshot,
   replaceComposerDraft,

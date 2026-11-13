@@ -13,6 +13,7 @@ import type { ShellAmbientStory, ShellBusStory } from "@orb/testkit/browser";
 import { seedActiveChat, seedShellState } from "@orb/testkit/browser/spec";
 import type { ServedHold, TrpcRecorder } from "@orb/testkit/ct";
 import {
+  absenceWindow,
   createShellAmbientReads,
   holdServed,
   noticeToast,
@@ -29,11 +30,19 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { z } from "zod";
 import { queryFailedLabel } from "#client/data/query-state-copy.ts";
-import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_ROOM_READ_LABEL, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import {
+  CHAT_GONE_DRAFT_NOTICE,
+  CHAT_LIST_NAME,
+  CHAT_MESSAGE_INPUT_NAME,
+  CHAT_ROOM_READ_LABEL,
+  CHAT_SEND_NAME,
+} from "#client/features/chat/lib/chat-surface-names.ts";
 import { SEND_FAILED_TITLE } from "#client/features/chat/lib/send-failure-copy.ts";
 import { NO_CHAT_SELECTED_TITLE } from "#client/lib/chat-launch-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
+import { COPIED_TO_CLIPBOARD_NOTICE } from "#client/lib/clipboard-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -261,6 +270,80 @@ for (const { name, deliver } of DELIVERIES) {
   });
 }
 
+// The composer draft store persists under a per-user key that ends in its store name; the blob's drafts are keyed by room.
+const COMPOSER_DRAFT_STORE = "composer-draft";
+const NOTICE_BEAT_MS = 1000;
+
+async function storedDrafts(page: Page): Promise<Readonly<Record<string, string>>> {
+  const stored = await page.evaluate((name) => {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key?.endsWith(name) === true) {
+        return localStorage.getItem(key);
+      }
+    }
+    return null;
+  }, COMPOSER_DRAFT_STORE);
+  if (stored === null) {
+    return {};
+  }
+  return z.object({ state: z.object({ drafts: z.record(z.string(), z.string()).optional() }).optional() }).parse(JSON.parse(stored)).state?.drafts ?? {};
+}
+
+/** Open `room` idle with the room's own deletion event and the owner's list change both delivered, ready for the delete. */
+async function openRoomToBeDeleted(args: {
+  readonly page: Page;
+  readonly mountRoom: () => Promise<unknown>;
+  readonly root: Root;
+  readonly corpus: CorpusPlayback;
+  readonly cleanup: AsyncDisposableStack;
+}): Promise<{ readonly caller: Caller; readonly room: OwnerRoom }> {
+  const { page, mountRoom, root, corpus, cleanup } = args;
+  const { caller } = await serveShell(root, corpus, page, { section: "chats" });
+  const [room] = await ownerRooms(caller);
+  await seedActiveChat(page, room.id);
+  const forwarded = await forwardRoomDeletion({ page, root, chatId: room.id, cleanup, deliver: ["chatDeleted", "chatsChanged"] });
+  await mountRoom();
+  await expect(openRoom(page, room)).toBeVisible();
+  await forwarded.listening;
+  await expect.poll(forwarded.roomAttached).toBe(true);
+  return { caller, room };
+}
+
+test("a draft typed into a room another session deletes is offered back in a notice, and the store keeps no entry for the room", async ({
+  corpus,
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const { caller, room } = await openRoomToBeDeleted({ page, mountRoom: () => mount<typeof ShellBusStory>(BUS_STORY, {}), root, corpus, cleanup });
+  await page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(DRAFT);
+  // The control for the absence below: the draft is on disk under the room before the room is deleted.
+  await expect.poll(async () => (await storedDrafts(page))[room.id]).toBe(DRAFT);
+  await caller.chat.delete({ chatId: room.id });
+  await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
+  const notice = noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title, description: CHAT_GONE_DRAFT_NOTICE.description });
+  await expect(notice).toHaveCount(1);
+  await expect.poll(async () => Object.keys(await storedDrafts(page))).not.toContain(room.id);
+  await notice.getByRole("button", { name: CHAT_GONE_DRAFT_NOTICE.copyName, exact: true }).click();
+  await expect(noticeToast(page, { title: COPIED_TO_CLIPBOARD_NOTICE })).toHaveCount(1);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(DRAFT);
+});
+
+test("a room another session deletes while its composer is empty leaves no draft notice", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  const { caller, room } = await openRoomToBeDeleted({ page, mountRoom: () => mount<typeof ShellBusStory>(BUS_STORY, {}), root, corpus, cleanup });
+  await caller.chat.delete({ chatId: room.id });
+  await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
+  // The notice mounts a beat after the call that raises it, so the absence is read after the beat the positive case needs.
+  await absenceWindow(page, NOTICE_BEAT_MS);
+  await expect(noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title })).toHaveCount(0);
+  expect(Object.keys(await storedDrafts(page))).not.toContain(room.id);
+});
+
 test("a restored room that still exists opens its room with its composer, not the chat list", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const { caller } = await serveShell(root, corpus, page, { section: "chats" });
@@ -330,7 +413,11 @@ test("a room reached again from Home after another session deleted it lands on t
   await expect(page.locator(ROOM_SURFACE)).toHaveCount(0);
 });
 
-test("a send that finds the room already deleted shows one notice and lands on the chat list", async ({ corpus, mount, page }) => {
+test("a send that finds the room already deleted shows its refusal and the draft notice once each, and lands on the chat list", async ({
+  corpus,
+  mount,
+  page,
+}) => {
   await using root = await createCorpusHarness();
   const { caller } = await serveShell(root, corpus, page, { section: "chats" });
   const [room] = await ownerRooms(caller);
@@ -343,7 +430,9 @@ test("a send that finds the room already deleted shows one notice and lands on t
   await input.fill(DRAFT);
   await page.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
   await expect(noticeToast(page, { title: SEND_FAILED_TITLE })).toHaveCount(1);
-  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(1);
+  // The refused draft is still in the composer when the room is left, so the reader is told what became of it: no other notice appears.
+  await expect(noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title })).toHaveCount(1);
+  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(2);
   await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
 });
 

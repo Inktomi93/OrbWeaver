@@ -165,3 +165,11 @@ export const CHAT_TRANSCRIPT_NAME = "Conversation messages";
 
 /** The Preview tab's diagnostics drawer: the build and shape traces under the budget instrument. */
 export const CHAT_PREVIEW_DIAGNOSTICS_LABEL = "Diagnostics";
+
+/** The notice a reader gets when the open room is deleted under an unsent draft: what happened, what became of the text, and the copy that keeps it. */
+export const CHAT_GONE_DRAFT_NOTICE = {
+  title: "This chat was deleted.",
+  description: "Your unsent message went with it. Copy the text to keep it.",
+  copyName: "Copy message",
+  copyFallback: "The text is no longer saved.",
+} as const;

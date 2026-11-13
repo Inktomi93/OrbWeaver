@@ -9,7 +9,8 @@
 // is `failed` or keeps the readable room; it never leaves.
 //
 // The leave runs in an effect, never in render, and it is this file's alone: a room that is gone is left for the chat list,
-// where a retry could never succeed. The gone room's cached reads are dropped as it unmounts, so a later visit starts clean.
+// where a retry could never succeed. The gone room's cached reads are dropped as it unmounts, so a later visit starts clean,
+// and its unsent draft is released with a notice that offers the text back.
 
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +19,7 @@ import { useEffect } from "react";
 import type { Trpc } from "#data";
 import { forgetGoneRoom, roomRosterOptions, useTRPC } from "#data";
 import { trpcErrorCode } from "#lib";
-import { chatDeletedFromList } from "#state";
+import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
 
 type RoomChat = inferOutput<Trpc["chat"]["getChat"]>;
 
@@ -77,7 +78,7 @@ export function useRoomRead(chatId: ChatId): RoomRead {
     if (!gone) {
       return;
     }
-    chatDeletedFromList(chatId);
+    leaveGoneRoom(chatId);
     // The room unmounts on its way to the list, so nothing observes its reads when they are dropped.
     return (): void => forgetGoneRoom({ queryClient, trpc }, chatId);
   }, [gone, chatId, queryClient, trpc]);

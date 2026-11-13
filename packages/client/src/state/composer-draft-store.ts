@@ -14,7 +14,8 @@
 // draft is transient; matches the prior local state)" — the ruling is superseded, and only for the reload
 // leg: text a user typed and did not send is theirs, and a refresh/crash/tab-restore losing it is the same
 // papercut a remount was, one tier up. NAV-AWAY DISCARD IS DELIBERATELY NOT BUILT HERE (it is an owner
-// design pass, still open on the board): this store persists, it never decides when a draft dies.
+// design pass, still open on the board): this store persists, it never decides when a draft dies. Its caller does, when the room
+// itself is gone (`clearComposerDraft`): a draft under a room that no longer exists can never be sent.
 //
 // THE PERSISTED BLOB IS BOUNDED AND SANITIZED, because a scopeKey→text map is unbounded by construction —
 // one room per key, forever, in a ~5MB origin-wide localStorage every other `orb:*` store shares:
@@ -80,6 +81,15 @@ export type ComposerDraftWrite = (text: string) => void;
 export function setComposerDraft(scopeKey: string, text: string): void {
   const next = { ...omitKey(useComposerDraftStore.getState().drafts, scopeKey), [scopeKey]: text };
   useComposerDraftStore.setState({ drafts: next, revision: useComposerDraftStore.getState().revision + 1 }, false, "composerDraft/set");
+}
+
+/** Drop a room's draft entry, for a room that no longer exists. A pending replacement of that draft is void with it. */
+export function clearComposerDraft(scopeKey: string): void {
+  useComposerDraftStore.setState(
+    { drafts: omitKey(useComposerDraftStore.getState().drafts, scopeKey), revision: useComposerDraftStore.getState().revision + 1 },
+    false,
+    "composerDraft/clear",
+  );
 }
 
 /** Capture text without trimming: Undo must restore the person's exact input. */
