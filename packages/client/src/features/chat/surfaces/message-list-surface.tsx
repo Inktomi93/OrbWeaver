@@ -29,8 +29,8 @@ import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
-import { chatDeletedFromList, isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
+import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
+import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
@@ -42,6 +42,7 @@ import { useChatStyle } from "../hooks/use-chat-style.ts";
 import { useCorpusAnchor } from "../hooks/use-corpus-anchor.ts";
 import { useGreetingAlternates } from "../hooks/use-greeting-alternates.ts";
 import { useJumpToLatest } from "../hooks/use-jump-to-latest.ts";
+import { useLeaveGoneRoom } from "../hooks/use-leave-gone-room.ts";
 import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import type { ChatRowProjection } from "../hooks/use-message-items.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
@@ -106,12 +107,7 @@ export interface MessageListSurfaceProps {
  * chat list, where a retry could never succeed.
  */
 function RoomReadFailure({ chatId, error, onRetry }: { readonly chatId: ChatId; readonly error: unknown; readonly onRetry: () => void }): ReactElement {
-  const gone = trpcErrorCode(error) === "NOT_FOUND";
-  useEffect(() => {
-    if (gone) {
-      chatDeletedFromList(chatId);
-    }
-  }, [gone, chatId]);
+  useLeaveGoneRoom(chatId, error);
   return (
     <Track of={Stack} track="chat">
       <QueryErrorState label="this conversation" onRetry={onRetry} plate="error" />

@@ -35,6 +35,7 @@ import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-
 import { flankReservation, useFlankPresentation } from "../hooks/use-flank-presentation.ts";
 import { useFlankReserve } from "../hooks/use-flank-reserve.ts";
 import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
+import { useLeaveGoneRoom } from "../hooks/use-leave-gone-room.ts";
 import { useRoomEndWhileWriting } from "../hooks/use-room-end-while-writing.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
 import { Track } from "../lib/chat-track.tsx";
@@ -61,7 +62,7 @@ function resolveRoomAnchor(
     .map((c) => ({ id: c.id, node: c.body(state) }));
 }
 
-export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRenderers }: ChatRoomSurfaceProps): ReactElement {
+export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRenderers }: ChatRoomSurfaceProps): ReactElement | null {
   const chatId = handle.id;
   const headingId = useId();
   const trpc = useTRPC();
@@ -71,7 +72,10 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // FIRST frame — `useStartChat` seeds this exact `getChat` key from `startChat`'s own response — so a
   // brand-new room wears its card's theme immediately instead of re-skinning itself later (the 2026-08-06
   // owner dogfood, now fixed by the row existing rather than by a second card-reading resolver).
-  const { data: roomChat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: roomChat, error: roomReadError } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  // The room's own row answering not found while the room is open (a delete this client was never told of, or a stale restored id) leaves
+  // the room; the cached transcript must not keep it readable and sendable.
+  const roomGone = useLeaveGoneRoom(chatId, roomReadError);
   const carried = useCarriedAppearance(chatId);
   const roomTheme = resolveRoomTheme(carried);
   // Names the room's focus target (finding #2): the chat title, else "Chat room" (a not-yet-resolved room).
@@ -111,6 +115,11 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);
   const composerRoomContributions = resolveRoomAnchor(surfaceContributors, "composer-room", roomState);
   const composerMediaContributions = resolveRoomAnchor(surfaceContributors, "composer-media", roomState);
+
+  // Nothing is drawn for a room that is gone: the list replaces it on the next commit, with no composer or failure plate between.
+  if (roomGone) {
+    return null;
+  }
 
   // `min-w-0` beside `min-h-0`: inside the flank ROW the thread is a horizontal flex child, and without it
   // a long unbreakable line in the transcript would push the column past its share instead of scrolling.
