@@ -39,6 +39,7 @@ import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
+import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { JsonObject, JsonValue } from "@orb/kit/json";
 import { jsonObjectOf } from "@orb/kit/json";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
@@ -727,7 +728,7 @@ function orbEntryPositionFromSt(raw: unknown): "before" | "after" | null {
 /** Resolve an at-depth `inject` directive from an ST entry, or `null` when it is not at-depth. At-depth is
  *  ST's `extensions.position:4` (embedded chara_card book) or a top-level numeric `position:4` (native ST
  *  world-info entry); `depth`/`role` sit beside whichever encoding carried it (role via the message-role
- *  bimap). A missing/invalid depth ⇒ no directive (the entry renders into the system half). */
+ *  bimap). A missing, invalid or over-cap depth ⇒ no directive (the entry renders into the system half). */
 function stEntryInjectDirective(entry: Record<string, unknown>, rawPosition: unknown): Record<string, unknown> | null {
   const ext = isPlainObject(entry["extensions"]) ? entry["extensions"] : undefined;
   const atDepth = Number(ext?.["position"]) === ST_POSITION_AT_DEPTH || Number(rawPosition) === ST_POSITION_AT_DEPTH;
@@ -735,7 +736,8 @@ function stEntryInjectDirective(entry: Record<string, unknown>, rawPosition: unk
     return null;
   }
   const depth = Number(ext?.["depth"] ?? entry["depth"]);
-  if (!(Number.isInteger(depth) && depth >= 0)) {
+  // A depth past the injection cap is as unusable as a negative one: no directive, as the persona import reads it.
+  if (!(Number.isInteger(depth) && depth >= 0 && depth <= MAX_INJECTION_DEPTH)) {
     return null;
   }
   const role = messageRoleFromSt(ext?.["role"] ?? entry["role"]);

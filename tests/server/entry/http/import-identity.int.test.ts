@@ -148,6 +148,26 @@ test("a JSON card, then its PNG, then the JSON again is one character, and the s
   expect(await charactersNamed(root, "Lantern Keeper")).toBe(2);
 });
 
+test("a lore entry whose injection depth is past the cap imports with no depth directive, and one inside the cap keeps its depth", async () => {
+  await using root = await harness();
+  // ST position 4 is at-depth; the first depth is past any chat's length and past the injection cap.
+  const book = `{"name":"Deep Lore","entries":[{"keys":["far"],"content":"Far lore.","comment":"Far","insertion_order":1,"extensions":{"position":4,"depth":100000000}},{"keys":["near"],"content":"Near lore.","comment":"Near","insertion_order":2,"extensions":{"position":4,"depth":3}}]}`;
+
+  const result = await dialog(root, "deep.json", card("Deep Keeper", { book }));
+
+  expect(result.failed).toEqual([]);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [stored] = await caller.worldInfo.listBooks();
+  if (stored === undefined) {
+    throw new Error("the card's embedded book did not import");
+  }
+  const entries = await caller.worldInfo.listEntries({ bookId: stored.id });
+  expect(entries.map((entry) => [entry.content, entry.metadata?.inject?.depth]).toSorted()).toEqual([
+    ["Far lore.", undefined],
+    ["Near lore.", 3],
+  ]);
+});
+
 test("two different embedded books under one name land as the name and its numbered twin, each linked to its own card", async () => {
   await using root = await harness();
   const book = (content: string): string =>
