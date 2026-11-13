@@ -1,6 +1,7 @@
 // The persona switcher with a room open, on the production shell: the head reads label-then-name, the room block's two
 // doors share a start edge, and a phone's persona rows stay at the touch floor instead of adding an inset on top of it.
 
+import { YOU_TAB_LABEL } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_PROCEDURES } from "@orb/testkit/ct";
@@ -133,7 +134,7 @@ test.describe("on a phone", () => {
   test("the You sheet's persona rows are the touch floor tall, with no inset stacked on it", async ({ corpus, mount, page }) => {
     await routeRoom(page, corpus, await root.internalCallerFor(root.ownerId));
     await mount<typeof AppShellStory>(STORY, {});
-    await page.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     const rows = page.locator('[data-slot="drawer-popup"] [data-slot="persona-switch-row"]');
     await expect(rows.first()).toBeVisible();
     const floor = await resolvedLength(page, `var(${TOKENS["size.control-md"].cssVar})`);

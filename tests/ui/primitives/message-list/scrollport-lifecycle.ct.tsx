@@ -1,5 +1,6 @@
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { expect, test } from "@playwright/test";
+import { UNNAMED_LOG_NAME } from "#ui/primitives/log-viewer/log-viewer-names.ts";
 import type { LogViewerScrollportStory, MessageListScrollportStory } from "./_scrollport-stories.tsx";
 
 const OBSERVERS = "data-scrollport-observers";
@@ -74,7 +75,7 @@ test("pin-prompt holds the prompt and releases its spacer when the measured repl
 
 test("the virtualized log caller keeps its own reader anchor and follows a pinned capped append", async ({ mount, page }) => {
   await mount<typeof LogViewerScrollportStory>("tests/ui/primitives/message-list/_scrollport-stories/LogViewerScrollportStory");
-  const log = page.getByRole("log", { name: "Log entries", exact: true });
+  const log = page.getByRole("log", { name: UNNAMED_LOG_NAME, exact: true });
   await expect(log).toHaveAttribute("data-slot", "message-list-scroll");
   await expect(log.getByText("Log line 259", { exact: true })).toBeVisible();
   const tail = await log.evaluate((node) => node.scrollTop);

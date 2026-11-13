@@ -12,13 +12,13 @@ import type { Locator, TestInfo } from "@playwright/test";
 import { CONNECTIONS_LIST_NAME } from "#client/features/credentials/lib/connections-copy.ts";
 import {
   ADD_MODEL_ACTION_LABELS,
-  BACK_TO_CONNECTIONS_NAME,
   CONNECTIONS_GROUP_LABEL,
   MODEL_ALREADY_ADDED_LABEL,
   MODEL_SELECTED_LABEL,
   MODEL_TOOLS_LABEL,
   MODEL_VISION_LABEL,
 } from "#client/features/credentials/lib/credentials-names.ts";
+import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 import type { ConnectionReadoutStory } from "./_connection-readout-stories.tsx";
@@ -173,7 +173,7 @@ for (const regime of REGIMES) {
       }
       const opener = page.locator('[data-slot="list-row-body"]').filter({ hasText: LABEL });
       await opener.click();
-      const back = page.getByRole("button", { name: BACK_TO_CONNECTIONS_NAME, exact: true });
+      const back = page.getByRole("button", { name: sectionBackName(CONNECTIONS_GROUP_LABEL), exact: true });
       const done = page.getByRole("button", { name: DIALOG_VERBS.done, exact: true });
       await expect(back).toBeFocused();
       await expect(group).toBeVisible();

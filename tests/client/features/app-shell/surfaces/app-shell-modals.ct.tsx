@@ -320,7 +320,7 @@ test.describe("on the corpus owner's own settings", () => {
     await expect(label).toBeVisible();
     const fontPx = (locator: Locator): Promise<number> => locator.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
     expect(await fontPx(teaching)).toBeGreaterThanOrEqual(await fontPx(label));
-    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
     await expect(dialog).toHaveCount(0);
   });
 

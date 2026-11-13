@@ -260,7 +260,7 @@ test("P4 immersive HTML: a planted :::card settles routed under the D294 grant, 
     // ── FE (Scene archive): the Scene tab lists the card by title (rpg-card-archive — the visible-transcript
     // card list, newest first). The card is discoverable from the game panel, not just inline. ──
     await openGamePanel(page);
-    await openContextTab(page, "Scene");
+    await openContextTab(page, RPG_CONTEXT_TAB_LABELS.scene);
     const archive = page.locator('[data-slot="rpg-card-archive"]');
     await expect(archive).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(archive).toContainText(CARD_TITLE);

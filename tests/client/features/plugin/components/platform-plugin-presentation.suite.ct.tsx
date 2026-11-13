@@ -27,6 +27,7 @@ import {
   pluginPermissionsLabel,
 } from "#client/features/plugin/lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "#client/features/plugin/lib/plugin-model-copy.ts";
+import { UNNAMED_LOG_NAME } from "#ui/primitives/log-viewer/log-viewer-names.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
 import type { PluginHideFocusStory } from "./_hide-focus-stories.tsx";
@@ -293,7 +294,7 @@ for (const { width, touch, mobile } of [
         await expect(row.getByRole("group", { name: pluginPermissionsLabel(plugin.name), exact: true })).toBeVisible();
         const activity = row.getByRole("button", { name: recentActivityName(plugin.name), exact: true });
         await activity.click();
-        await expect(activity.locator("..").getByRole("log", { name: "Log entries", exact: true })).toBeVisible();
+        await expect(activity.locator("..").getByRole("log", { name: UNNAMED_LOG_NAME, exact: true })).toBeVisible();
         await expect(row.getByRole("button", { name: moreActionsName(plugin.name), exact: true })).toBeVisible();
         const update = row.getByRole("button", { name: pluginCheckForUpdatesLabel(plugin.name), exact: true });
         await expect(update).toHaveCount(plugin.updateSource === null ? 0 : 1);

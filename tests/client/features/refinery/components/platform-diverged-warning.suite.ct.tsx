@@ -10,6 +10,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { DROP_REASON_COPY } from "#client/features/refinery/lib/reason-copy.ts";
 import {
+  REFINERY_CONFLICT_PANE_LABELS,
   REFINERY_GREETING_ADDED_NOTE,
   REFINERY_KEEP_CLEARING_VERB,
   REFINERY_KEEP_VERB,
@@ -93,7 +94,7 @@ for (const regime of REGIMES) {
       const sessionStateGeometry = await actionGroupGeometry(masthead, [sessionState, ...(await sessionState.getByTestId(testId("refineryChip")).all())]);
       await test.info().attach("session-state-bounds", { body: JSON.stringify(sessionStateGeometry), contentType: "application/json" });
       expect(sessionStateGeometry.inlineOverflow).toBeLessThanOrEqual(1);
-      for (const label of ["Base: the session pin", "Live: changed under the session", "Rewrite: what Keep applies"]) {
+      for (const label of [REFINERY_CONFLICT_PANE_LABELS.base, REFINERY_CONFLICT_PANE_LABELS.live, REFINERY_CONFLICT_PANE_LABELS.rewrite]) {
         await expect(review.getByText(label, { exact: true })).toBeVisible();
       }
       for (const text of [PIN, LIVE, REWRITE]) {

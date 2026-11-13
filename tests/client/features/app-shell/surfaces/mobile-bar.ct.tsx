@@ -1,6 +1,8 @@
 // The rail on a phone is the mobile bar: tab labels ride the label step and fit the narrowest bar, the current
 // section always holds exactly one visible tab, Home is one affordance at every width, and the You tab speaks the
 // count of what its sheet hosts.
+
+import { YOU_TAB_LABEL } from "@orb/client/lib";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -139,7 +141,7 @@ test.describe("the You tab", () => {
     const rows = inbox.items.slice(0, WAITING_ROWS);
     expect(rows).toHaveLength(WAITING_ROWS);
     const viewer = await caller.sessions.me();
-    const you = rail(page).getByRole("button", { name: "You", exact: true });
+    const you = rail(page).getByRole("button", { name: YOU_TAB_LABEL, exact: true });
     // What the tab says about itself: the text of every node its description names; an id with no node says nothing.
     const description = (): Promise<string> =>
       you.evaluate((el) =>

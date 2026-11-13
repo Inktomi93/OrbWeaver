@@ -7,7 +7,13 @@ import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
-import { CHAT_INVITE_PEOPLE_NAME, INVITE_OUTSTANDING_HEADING, INVITE_TARGET_UNKNOWN_TEXT } from "#client/features/chat/lib/members-names.ts";
+import {
+  CHAT_INVITE_PEOPLE_NAME,
+  INVITE_BY_HANDLE_NAME,
+  INVITE_OUTSTANDING_HEADING,
+  INVITE_SEND_NAME,
+  INVITE_TARGET_UNKNOWN_TEXT,
+} from "#client/features/chat/lib/members-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -68,8 +74,8 @@ test("an invite to a handle nobody holds says so inline, from the server's own r
   await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_MEMBERS_ENTRY_PREFIX)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "Invite by handle", exact: true }).click();
+  await dialog.getByRole("button", { name: INVITE_BY_HANDLE_NAME, exact: true }).click();
   await dialog.getByRole("textbox", { name: "Handle" }).fill("nobody-holds-this-handle");
-  await dialog.getByRole("button", { name: "Send invite", exact: true }).click();
+  await dialog.getByRole("button", { name: INVITE_SEND_NAME, exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText(INVITE_TARGET_UNKNOWN_TEXT);
 });

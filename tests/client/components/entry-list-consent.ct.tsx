@@ -1,3 +1,4 @@
+import { DIALOG_VERBS } from "@orb/client/lib";
 import { routeTrpc } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
@@ -20,7 +21,7 @@ test("a replaced entry snapshot invalidates obsolete consent and returns focus w
   await expect(page.getByText("Nothing removed", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Remove Beta", exact: true }).click();
-  await page.getByRole("alertdialog", { name: "Remove “Beta”?", exact: true }).getByRole("button", { name: "Remove", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "Remove “Beta”?", exact: true }).getByRole("button", { name: DIALOG_VERBS.remove, exact: true }).click();
   await expect(page.getByText("Removed Beta", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove Beta", exact: true })).toBeFocused();
   await page.getByRole("button", { name: "Remove Gamma", exact: true }).click();

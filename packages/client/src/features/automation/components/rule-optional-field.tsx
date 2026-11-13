@@ -6,6 +6,7 @@ import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
+import { ruleFieldAddName } from "../lib/automation-names.ts";
 import { RuleRemoveField } from "./rule-remove-field.tsx";
 
 interface RuleOptionalFieldProps {
@@ -27,7 +28,7 @@ export function RuleOptionalField({ name, value, onAdd, onRemove, children }: Ru
     return (
       <Button ref={focus.target()} variant="ghost" justify="start" onClick={onAdd}>
         <Icon icon={ChevronRight} size="sm" />
-        Add {name}
+        {ruleFieldAddName(name)}
       </Button>
     );
   }

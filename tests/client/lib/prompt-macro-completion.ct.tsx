@@ -2,6 +2,7 @@
 // The builtin catalog's ranked hits fall in several categories out of order; the list names each category once,
 // and the arrow keys walk the rows in the order they are drawn.
 import { expect, test } from "@playwright/test";
+import { MACRO_SUGGESTIONS_NAME } from "#ui/primitives/macro-textarea/macro-textarea-names.ts";
 import type { BuiltinMacroCompletionStory } from "./_prompt-macro-completion-stories.tsx";
 
 const STORY = "tests/client/lib/_prompt-macro-completion-stories/BuiltinMacroCompletionStory";
@@ -16,7 +17,7 @@ test("typing {{c lists each category once and logs no duplicate-key error", asyn
   const component = await mount<typeof BuiltinMacroCompletionStory>(STORY);
   const field = component.getByRole("textbox", { name: "Macro field", exact: true });
   await field.pressSequentially("{{c");
-  const list = component.getByRole("listbox", { name: "Macro suggestions", exact: true });
+  const list = component.getByRole("listbox", { name: MACRO_SUGGESTIONS_NAME, exact: true });
   await expect(list).toBeVisible();
   const headers = await list.locator('[data-slot="macro-textarea-group-header"]').allTextContents();
   const rows = await list.getByRole("option").count();
@@ -31,7 +32,7 @@ test("ArrowDown walks the options in the order they are drawn", async ({ mount }
   const component = await mount<typeof BuiltinMacroCompletionStory>(STORY);
   const field = component.getByRole("textbox", { name: "Macro field", exact: true });
   await field.pressSequentially("{{c");
-  const list = component.getByRole("listbox", { name: "Macro suggestions", exact: true });
+  const list = component.getByRole("listbox", { name: MACRO_SUGGESTIONS_NAME, exact: true });
   const drawn = await list.getByRole("option").evaluateAll((nodes) => nodes.map((node) => node.id));
   expect(drawn.length).toBeGreaterThan(2);
   await expect(field).toHaveAttribute("aria-activedescendant", drawn[0] ?? "");

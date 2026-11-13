@@ -39,6 +39,7 @@ import { StatusChip } from "#components";
 import { DIALOG_VERBS, testId } from "#lib";
 import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
 import {
+  REFINERY_CONFLICT_PANE_LABELS,
   REFINERY_GREETING_ADDED_NOTE,
   REFINERY_RECONFIRM_NOTE,
   REFINERY_REOPEN_VERB,
@@ -93,9 +94,9 @@ function blockOf(review: ReviewEntry): CompareBlock {
               {REFINERY_RECONFIRM_NOTE}
             </Text>
           </Row>
-          <ConflictPane label="Base: the session pin" text={original} />
-          <ConflictPane label="Live: changed under the session" text={live} />
-          <ConflictPane label="Rewrite: what Keep applies" text={entry.text} />
+          <ConflictPane label={REFINERY_CONFLICT_PANE_LABELS.base} text={original} />
+          <ConflictPane label={REFINERY_CONFLICT_PANE_LABELS.live} text={live} />
+          <ConflictPane label={REFINERY_CONFLICT_PANE_LABELS.rewrite} text={entry.text} />
         </Stack>
       ),
     };

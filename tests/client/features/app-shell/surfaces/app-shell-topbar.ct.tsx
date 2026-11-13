@@ -10,8 +10,10 @@ import {
   LIST_PANEL_NOUN,
   panelEdgeName,
   RENAME_CHAT_NAME,
+  sectionBackName,
   TRAIL_OVERFLOW_LABEL,
   testId,
+  YOU_TAB_LABEL,
 } from "@orb/client/lib";
 import { LIST_OFF_SCREEN_HINT } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
@@ -279,7 +281,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
   /** Push the first character: CONTENT is the screen and the lead control is the one way back. */
   async function pushMember(page: Page): Promise<Locator> {
     await library(page).getByRole("button").first().click();
-    const back = page.getByRole("button", { name: "Back to Characters", exact: true });
+    const back = page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true });
     await expect(back).toBeVisible();
     return back;
   }
@@ -301,7 +303,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
           .join(" | ");
       });
     // Polled to settled: while a view transition runs, hit testing answers the snapshot, not the button.
-    await expect.poll(samples).toBe(Array.from({ length: 5 }, () => "Back to Characters").join(" | "));
+    await expect.poll(samples).toBe(Array.from({ length: 5 }, () => sectionBackName(SECTION_LABELS.characters)).join(" | "));
     await back.click();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
   });
@@ -342,7 +344,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(".shell-rail")).toBeVisible();
     await expect(page.getByRole("button", { name: JUMP_CHIP })).toHaveCount(0);
-    await page.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     await expect(page.locator('[data-slot="drawer-popup"]').getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true })).toBeVisible();
   });
 
@@ -707,7 +709,7 @@ test.describe("an open named group room", () => {
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellStory>(STORY, {});
     await library(page).getByRole("button").first().click();
-    await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true })).toBeVisible();
     await expect.poll(() => visibleTitles(page)).toBe(1);
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(page.locator('[data-slot="context-bracket-band"] h2')).toBeVisible();
@@ -833,7 +835,7 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
         await expect.poll(() => hitExtent(control, "y")).toBeGreaterThanOrEqual(floor);
         await expect.poll(() => hitExtent(control, "x")).toBeGreaterThanOrEqual(floor);
       }
-      await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+      await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
       await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     });
   }

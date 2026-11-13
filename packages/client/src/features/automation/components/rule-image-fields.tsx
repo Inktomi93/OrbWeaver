@@ -7,7 +7,14 @@ import { defaultChoiceName } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AutosaveSession } from "#forms/editor";
-import { IMAGE_MODE_LABELS, IMAGE_NEGATIVE_PROMPT_FIELD_NAME, IMAGE_SIZE_FIELD_NAME, IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
+import {
+  IMAGE_MODE_LABELS,
+  IMAGE_NEGATIVE_PROMPT_FIELD_NAME,
+  IMAGE_NEGATIVE_PROMPT_NOUN,
+  IMAGE_SIZE_FIELD_NAME,
+  IMAGE_SIZE_LABELS,
+  IMAGE_SIZE_MODE_DEFAULT,
+} from "#lib";
 import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
 import { RULE_CHOOSE_IMAGE_SIZE_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
@@ -50,7 +57,7 @@ export function RuleImageFields({
       <form.AppField name={`actions[${index}].negative`}>
         {(field): ReactElement => (
           <RuleOptionalField
-            name="negative prompt"
+            name={IMAGE_NEGATIVE_PROMPT_NOUN}
             onAdd={(): void => field.handleChange("")}
             onRemove={(): void => field.handleChange(undefined)}
             value={field.state.value}

@@ -4,6 +4,7 @@
 import { emulateSoftKeyboard } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { MACRO_SUGGESTIONS_NAME } from "#ui/primitives/macro-textarea/macro-textarea-names.ts";
 import type { MacroCompletionPlacementStory } from "./_macro-completion-placement-stories.tsx";
 
 const STORY = "tests/ui/primitives/macro-textarea/_macro-completion-placement-stories/MacroCompletionPlacementStory";
@@ -24,7 +25,7 @@ interface Box {
 async function openList(component: Locator): Promise<{ field: Locator; list: Locator }> {
   const field = component.getByRole("textbox", { name: "Macro field", exact: true });
   await field.pressSequentially("{{");
-  const list = component.getByRole("listbox", { name: "Macro suggestions", exact: true });
+  const list = component.getByRole("listbox", { name: MACRO_SUGGESTIONS_NAME, exact: true });
   await expect(list).toBeVisible();
   return { field, list };
 }

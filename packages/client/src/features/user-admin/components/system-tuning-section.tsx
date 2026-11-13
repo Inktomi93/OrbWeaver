@@ -18,7 +18,7 @@ import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { draftNumber, envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
-import { ADMIN_PROMPT_CACHE_DEPTH_NAME } from "../lib/user-admin-names.ts";
+import { ADMIN_DATABANK_UPLOAD_CAP_NAME, ADMIN_PROMPT_CACHE_DEPTH_NAME, ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME } from "../lib/user-admin-names.ts";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
 // One editable scalar knob: how to READ its effective baseline off the resolved config, whether a stored
@@ -39,7 +39,7 @@ interface KnobDescriptor {
 const KNOBS: readonly KnobDescriptor[] = [
   {
     id: "promptTransformDeadlineMs",
-    label: "Prompt-transform deadline (ms)",
+    label: ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME,
     hint: "Per-transform time budget; a transform that outruns it is SKIPPED (the draft passes through unchanged).",
     step: 50,
     min: 1,
@@ -70,7 +70,7 @@ const KNOBS: readonly KnobDescriptor[] = [
   },
   {
     id: "maxDatabankBytes",
-    label: "Databank upload cap (bytes)",
+    label: ADMIN_DATABANK_UPLOAD_CAP_NAME,
     hint: "Max single-document upload. May only TIGHTEN below the 20 MiB route belt; an over-belt value is ignored.",
     step: 1_048_576,
     min: 100_000,

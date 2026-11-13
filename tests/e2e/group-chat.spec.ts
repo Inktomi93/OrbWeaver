@@ -123,7 +123,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     await expect(
       page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME }).getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.members, exact: true }),
     ).toBeVisible();
-    await openContextTab(page, "This chat");
+    await openContextTab(page, CHAT_CONTEXT_TAB_LABELS.settings);
     // OPEN THE HOST BAND BEFORE CLAIMING THE SECTION IS ABSENT (#1851). The tab is an index of disclosures
     // (#830) and a closed panel is REMOVED from the DOM, so this count was 0 for a solo room and a group
     // room alike — a negative that could not fail. With the band open the claim is about `showGroup`, which

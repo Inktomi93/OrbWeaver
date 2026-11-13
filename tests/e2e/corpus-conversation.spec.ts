@@ -7,6 +7,7 @@ import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME, characterGalleryName } from
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { PERSONA_PIN_CARD_HERE_NAME, personaCardPinName, personaSwitchName } from "#client/features/persona/lib/persona-copy.ts";
+import { YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { messageRow, openChatByTitle, openChatOptions, sendHeldTurn, waitForAppReady } from "./support/chat-room.ts";
@@ -42,7 +43,7 @@ async function openPersonas(page: Page, isMobile: boolean): Promise<void> {
   if (isMobile) {
     // Home preserves the active room; Back to Chats would instead clear its persona context.
     await jumpTo(page, SECTION_LABELS.home);
-    await page.getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   } else {
     await page.getByRole("button", { name: /^(?:Playing as .+|Account & personas)$/u }).click();
   }

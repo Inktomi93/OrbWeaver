@@ -23,7 +23,7 @@ import { CONTEXT_SHEET_BACK_NAME, screenOverviewDoorName, sectionBackName } from
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
-import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { dataThemeOf } from "#client/lib/resolve-theme-scope-tokens.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
@@ -55,7 +55,7 @@ const ROUTE_CRASH = "corpus shell route render crashed";
 // The topbar's list toggle in both regimes: a desktop names the panel, a phone names the screen a tap lands on.
 const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 // The phone's curated bar: three tab sections and the You sheet's door.
-const PHONE_BAR = [SECTION_LABELS.home, SECTION_LABELS.chats, SECTION_LABELS.characters, "You"] as const;
+const PHONE_BAR = [SECTION_LABELS.home, SECTION_LABELS.chats, SECTION_LABELS.characters, YOU_TAB_LABEL] as const;
 const PHONE_ONLY = "The bottom bar, the You sheet and push-and-Back are the phone's navigation model";
 const PROBE_GREETING = "The shell probe waits.";
 const PROBE_NAMES = ["Shell Probe Aster", "Shell Probe Birch"] as const;
@@ -177,7 +177,7 @@ async function reachOnPhone(page: Page, label: string): Promise<void> {
     await tab.click();
     return;
   }
-  await rail(page).getByRole("button", { name: "You", exact: true }).click();
+  await rail(page).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: label, exact: true }).click();
   // The sheet aria-hides the frame behind it, so the frame is read only once the sheet is gone.
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -542,7 +542,7 @@ test.describe("committed corpus shell on a phone", () => {
   test("the You sheet routes an overflow section and closes; its Settings row lands on the Settings section", { tag: "@smoke" }, async ({ page, isMobile }) => {
     test.skip(!isMobile, PHONE_ONLY);
     await openHome(page);
-    await rail(page).getByRole("button", { name: "You", exact: true }).click();
+    await rail(page).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
     await expect(sheet.getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toBeVisible();
@@ -552,7 +552,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.locator(GRID)).toHaveAttribute("data-section", "presets");
 
-    await rail(page).getByRole("button", { name: "You", exact: true }).click();
+    await rail(page).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: SECTION_LABELS.settings, exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     // On a phone the roster is the screen, so the Settings roster carries the one main landmark.

@@ -11,10 +11,10 @@ import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { DIALOG_VERBS, useFocusOnSwap } from "#lib";
+import { DIALOG_VERBS, sectionBackName, useFocusOnSwap } from "#lib";
 import { openConfigTo } from "#state";
 import { useRemoveConnection } from "../hooks/use-connections-mutations.ts";
-import { BACK_TO_CONNECTIONS_NAME } from "../lib/credentials-names.ts";
+import { CONNECTIONS_GROUP_LABEL } from "../lib/credentials-names.ts";
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
 
@@ -34,7 +34,7 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
   return (
     <Row align="center" wrap={true} data-slot="connection-editor-header" gap="field">
       <Row align="center" className="min-inline-0" floor="title" grow={true} gap="field">
-        <Button aria-label={BACK_TO_CONNECTIONS_NAME} className="shrink-0" variant="ghost" onClick={onDone} ref={backRef} size="sm">
+        <Button aria-label={sectionBackName(CONNECTIONS_GROUP_LABEL)} className="shrink-0" variant="ghost" onClick={onDone} ref={backRef} size="sm">
           <Icon icon={ArrowLeft} size="sm" />
         </Button>
         <Text className="min-inline-0" wrap="anywhere" voice="label">

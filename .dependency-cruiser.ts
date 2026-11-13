@@ -518,6 +518,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/character/lib/character-actions.ts":
     "CHARACTER_ACTIONS: the character verb registry whose labels the row menu, context kebab and bulk bar print",
   "packages/ui/src/primitives/toast/toast-names.ts": "TOAST_CLOSE_NAME and its siblings: the names a toast prints",
+  "packages/ui/src/primitives/macro-textarea/macro-textarea-names.ts": "MACRO_SUGGESTIONS_NAME: the macro completion list's name",
+  "packages/ui/src/primitives/log-viewer/log-viewer-names.ts": "UNNAMED_LOG_NAME: the name a log viewer prints for a log with no name",
+  "packages/ui/src/content/message-media/message-media-names.ts": "MEDIA_UNAVAILABLE_TEXT: the tile a message image that cannot load prints",
+  "packages/client/src/lib/image-size-copy.ts":
+    "IMAGE_NEGATIVE_PROMPT_NOUN and IMAGE_NEGATIVE_PROMPT_FIELD_NAME: the image field's name, which the rule editor's optional field controls are named by",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
   "packages/client/src/forms/entity-form-base.ts": "DEFAULT_DEBOUNCE_MS: the autosave debounce a held-window case waits past to see a second write",

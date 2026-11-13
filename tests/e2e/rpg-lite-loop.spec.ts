@@ -199,7 +199,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     // FE (born-default): open the takeover; the Scene tab shows its honest empty affordances, no fabricated state.
     await openNewestChat(page);
     await openGamePanel(page);
-    await openContextTab(page, "Scene");
+    await openContextTab(page, RPG_CONTEXT_TAB_LABELS.scene);
     await expect(page.locator('[data-slot="rpg-scene-tab"]')).toBeVisible({ timeout: WAIT_SURFACE_MS });
 
     // ── HAND-WRITE every plane over the API (each door is deterministic — no model). ──
@@ -317,7 +317,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     // on a button at rest; the inline `<input>` appears only on CLICK. So the assertions here are
     // rest-text + one click-to-reveal proof; LABELS + NAME + beat stay plain text. Each comparand comes
     // straight from getTrackerView above.
-    await openContextTab(page, "Scene");
+    await openContextTab(page, RPG_CONTEXT_TAB_LABELS.scene);
     const scene = page.locator('[data-slot="rpg-scene-tab"]');
     // Ambient location AT REST: a static-text edit button carrying the value (host canEditShared).
     const locationRest = scene.getByRole("button", { name: "Location value" });
@@ -481,7 +481,7 @@ test("rpg-lite (born default): a recorded character turn + state capture moves t
     // static text on its edit button (display-at-rest, DESIGN §12.4.1) — the model-independent DOM witness.
     // Assert the rest text EQUALS the persisted snapshot location (never a stale frame): ONE unconditional
     // parity assertion, both outcomes covered.
-    await openContextTab(page, "Scene");
+    await openContextTab(page, RPG_CONTEXT_TAB_LABELS.scene);
     const sceneTab = page.locator('[data-slot="rpg-scene-tab"]');
     await expect(sceneTab).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(sceneTab.getByRole("button", { name: "Location value" })).toContainText(after.ambient?.location ?? "", { timeout: WAIT_SURFACE_MS });

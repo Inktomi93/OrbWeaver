@@ -6,6 +6,7 @@ import { cn } from "#lib";
 import { Textarea } from "#primitives/textarea";
 import type { MacroTrigger } from "./macro-textarea-logic.ts";
 import { computeMacroInsertion, detectTrigger } from "./macro-textarea-logic.ts";
+import { MACRO_SUGGESTIONS_NAME } from "./macro-textarea-names.ts";
 import { seatListbox } from "./macro-textarea-placement.ts";
 import { macroTextareaBoxVariants, macroTextareaVariants } from "./variants.ts";
 
@@ -349,7 +350,7 @@ export function MacroTextarea({
         className={slots.textarea()}
       />
       {open ? (
-        <div aria-label="Macro suggestions" className={slots.listbox()} data-slot="macro-textarea-listbox" id={listboxId} ref={seatListbox} role="listbox">
+        <div aria-label={MACRO_SUGGESTIONS_NAME} className={slots.listbox()} data-slot="macro-textarea-listbox" id={listboxId} ref={seatListbox} role="listbox">
           {rowsList.map((row) =>
             row.kind === "header" ? (
               <div className={slots.groupLabel()} data-slot="macro-textarea-group-header" key={`header-${row.label}`} role="presentation">

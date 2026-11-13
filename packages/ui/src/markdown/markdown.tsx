@@ -8,6 +8,7 @@ import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
 import { DICE_COMPONENTS, remarkInlineDice } from "./dice-inline.tsx";
 import { MARKDOWN_INLINE_CODE_COMPONENTS } from "./inline-code-component.tsx";
 import { MARKDOWN_LIST_COMPONENTS } from "./list-components.tsx";
+import { MARKDOWN_RENDER_FAILED_TEXT } from "./markdown-names.ts";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
 import {
   MARKDOWN_REMARK_PLUGINS,
@@ -130,7 +131,7 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
   override render(): ReactNode {
     if (this.state.failed) {
-      return <div className="text-body leading-body text-muted-foreground">Content failed to render.</div>;
+      return <div className="text-body leading-body text-muted-foreground">{MARKDOWN_RENDER_FAILED_TEXT}</div>;
     }
     return this.props.children;
   }

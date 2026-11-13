@@ -157,6 +157,13 @@ export const REFINERY_ORIGINAL_CARD_NOTE = "Read-only authored fields pinned whe
 /** The versions tab's empty state. */
 export const REFINERY_NO_VERSIONS_TITLE = "No versions yet";
 
+/** The diverged review's three panes: the pinned base, the live text and the rewrite Keep applies. */
+export const REFINERY_CONFLICT_PANE_LABELS = {
+  base: "Base: the session pin",
+  live: "Live: changed under the session",
+  rewrite: "Rewrite: what Keep applies",
+} as const;
+
 /** What each versions read is called in its failure line, `queryFailedLabel(REFINERY_READ_LABELS.x)`. */
 export const REFINERY_READ_LABELS = {
   versions: "this card's versions",
