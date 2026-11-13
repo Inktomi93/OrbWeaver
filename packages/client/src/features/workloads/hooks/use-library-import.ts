@@ -21,11 +21,16 @@
 // import-st workload that writes nothing, and their merged preview names what a real run would bring and skip.
 // The real import still re-sends the folder on confirm, so a dropped preview strands no staged upload.
 //
+// The dry run carries the owner's persona answers, and a changed answer judges the personas again without sending the
+// folder again: the persona files alone (`settings.json` and its avatars) go up as a second, small dry run, and its
+// persona counts replace the folder preview's. The preview is held back (`reading`) until that answer lands, so a
+// count judged under an old answer is never shown beside the answers on screen.
+//
 // The `.zip` subscription itself lives in <BundleWorkloadTracker>, mounted only while running; this hook
 // owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
 
 import type { ImportPreview, PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices } from "@orb/contracts/import";
-import { DEFAULT_PERSONA_COLLISION_CHOICE, mergeImportPreviews } from "@orb/contracts/import";
+import { DEFAULT_PERSONA_COLLISION_CHOICE, mergeImportPreviews, personaCollisionChoiceFor } from "@orb/contracts/import";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useEffect, useRef, useState } from "react";
 import type { TreeImportCaps, TreeImportPlan } from "#data";
@@ -34,6 +39,8 @@ import {
   importBundle,
   importCharacters,
   importTree,
+  personaFilesOf,
+  plannedFiles,
   planServedFolderImport,
   relativePathOf,
   UnsupportedFolderLayoutError,
@@ -44,7 +51,7 @@ import {
 import { IMPORT_FOLDER_WRONG_FOLDER } from "../lib/import-folder-copy.ts";
 import { IMPORT_PREVIEW_FAILURE } from "../lib/import-library-names.ts";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
-import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport } from "../lib/portability-model.ts";
+import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, withPersonaCounts } from "../lib/portability-model.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
 import { useCancelWorkload } from "./use-workload-mutations.ts";
 
@@ -141,8 +148,8 @@ export interface LibraryImport {
   readonly reset: () => void;
   /** Wired into the workload tracker while `state.status === "running"`. */
   readonly track: LibraryImportTrack;
-  /** Wired into the workload tracker while the staged folder's preview runs. */
-  readonly previewTrack: LibraryImportTrack;
+  /** Wired into the tracker of one dry-run workload while the staged folder's preview runs; it hears only that workload. */
+  readonly previewTrack: (workloadId: WorkloadId) => LibraryImportTrack;
 }
 
 function isZip(file: File): boolean {
@@ -164,14 +171,30 @@ interface FolderRun {
   done: BundleCounts;
 }
 
-/** A folder's dry run, one upload after another. Held in a ref for the same reason as {@link FolderRun}. */
+/** A folder's dry run, one upload after another. Held in a ref for the same reason as {@link FolderRun}. A run that
+ *  judges the personas again is the same shape: its one upload is the persona files, and `base` is the folder preview
+ *  its persona counts amend. */
 interface PreviewRun {
   /** Ends the upload in flight when the preview is dropped. */
   readonly upload: AbortController;
   readonly plan: TreeImportPlan;
+  /** The persona answers every upload of this run is sent under. */
+  readonly choices: PersonaCollisionChoices;
+  readonly base: ImportPreview | null;
   index: number;
   workloadId: WorkloadId | null;
   readonly previews: ImportPreview[];
+}
+
+/** The folder preview the staged pick last finished, which a changed persona answer amends. */
+interface FolderPreview {
+  readonly plan: TreeImportPlan;
+  readonly preview: ImportPreview;
+}
+
+/** Whether two answer sets say the same thing for every collision. An unlisted collision is the default answer. */
+function sameAnswers(a: PersonaCollisionChoices, b: PersonaCollisionChoices): boolean {
+  return [...Object.keys(a), ...Object.keys(b)].every((key) => personaCollisionChoiceFor(a, key) === personaCollisionChoiceFor(b, key));
 }
 
 export function useLibraryImport(): LibraryImport {
@@ -183,6 +206,9 @@ export function useLibraryImport(): LibraryImport {
   const requestEpoch = useRef(0);
   const folderRun = useRef<FolderRun | null>(null);
   const previewRun = useRef<PreviewRun | null>(null);
+  const folderPreview = useRef<FolderPreview | null>(null);
+  // The answers on screen, kept beside the state because a dry run that ends reads them from a callback, not a render.
+  const answers = useRef<PersonaCollisionChoices>({});
   const conflictTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearConflictTimer = (): void => {
@@ -214,7 +240,7 @@ export function useLibraryImport(): LibraryImport {
   };
 
   /** Stop the running dry run so a later pick is not refused as a second running import. */
-  const dropPreview = (): void => {
+  const stopPreviewRun = (): void => {
     const run = previewRun.current;
     previewRun.current = null;
     clearConflictTimer();
@@ -226,11 +252,49 @@ export function useLibraryImport(): LibraryImport {
     }
   };
 
+  /** Forget the staged pick's preview altogether: its run and the finished folder preview a changed answer would amend. */
+  const dropPreview = (): void => {
+    stopPreviewRun();
+    folderPreview.current = null;
+  };
+
+  /** Judge the personas again under the answers now on screen: the persona files go up alone as a dry run, and what it
+   *  counts replaces the folder preview's persona counts. Whatever dry run was in flight is superseded. */
+  const rejudgePersonas = (): void => {
+    const held = folderPreview.current;
+    if (held === null) {
+      return;
+    }
+    stopPreviewRun();
+    const plan: TreeImportPlan = { ...held.plan, batches: [personaFilesOf(plannedFiles(held.plan))] };
+    const run: PreviewRun = { upload: new AbortController(), plan, choices: answers.current, base: held.preview, index: 0, workloadId: null, previews: [] };
+    previewRun.current = run;
+    sendPreviewBatch(run);
+  };
+
+  /** Every upload has been judged: show the preview, or judge the personas again if an answer changed while the folder was read. */
+  const finishPreview = (run: PreviewRun): void => {
+    // The last upload's workload has ended; a run superseded below must not cancel it.
+    run.workloadId = null;
+    const judged = mergeImportPreviews(run.previews);
+    if (run.base !== null) {
+      setPreview(run, { status: "ready", preview: withPersonaCounts(run.base, judged) });
+      previewRun.current = null;
+      return;
+    }
+    folderPreview.current = { plan: run.plan, preview: judged };
+    if (!sameAnswers(run.choices, answers.current)) {
+      rejudgePersonas();
+      return;
+    }
+    setPreview(run, { status: "ready", preview: judged });
+    previewRun.current = null;
+  };
+
   const sendPreviewBatch = (run: PreviewRun, attempt = 0): void => {
     const batch = run.plan.batches[run.index];
     if (batch === undefined) {
-      setPreview(run, { status: "ready", preview: mergeImportPreviews(run.previews) });
-      previewRun.current = null;
+      finishPreview(run);
       return;
     }
     const position = { index: run.index, total: run.plan.batches.length };
@@ -238,7 +302,7 @@ export function useLibraryImport(): LibraryImport {
     setPreview(run, { status: "reading", workloadId: null, progress: NO_PROGRESS, batch: position });
     // the .catch below calls failPreview(), which leaves the staged import available and shows why. A refusal
     // for a running import is retried while this run is still the live one.
-    importTree(batch, {}, run.plan.layout, { dryRun: true, signal: run.upload.signal })
+    importTree(batch, run.choices, run.plan.layout, { dryRun: true, signal: run.upload.signal })
       .then(({ workloadId }) => {
         if (previewRun.current !== run) {
           cancelWorkload.mutate({ id: workloadId });
@@ -265,8 +329,14 @@ export function useLibraryImport(): LibraryImport {
     if (state.status !== "staged" || state.preview.status !== "failed" || state.plan === null || !state.plan.previewable) {
       return;
     }
-    dropPreview();
-    const run: PreviewRun = { upload: new AbortController(), plan: state.plan, index: 0, workloadId: null, previews: [] };
+    // A failed persona judgement leaves the folder's own preview, which is all it amends; a failed folder read has none.
+    if (folderPreview.current !== null) {
+      rejudgePersonas();
+      return;
+    }
+    stopPreviewRun();
+    const run: PreviewRun = { upload: new AbortController(), plan: state.plan, choices: state.choices, base: null, index: 0, workloadId: null, previews: [] };
+    answers.current = state.choices;
     previewRun.current = run;
     sendPreviewBatch(run);
   };
@@ -308,8 +378,9 @@ export function useLibraryImport(): LibraryImport {
         if (epoch === requestEpoch.current) {
           const choices = Object.fromEntries(collisions.map((c): [string, PersonaCollisionChoice] => [c.key, DEFAULT_PERSONA_COLLISION_CHOICE]));
           setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices, preview: NO_PREVIEW });
+          answers.current = choices;
           if (plan.previewable && plan.batches.length > 0) {
-            const run: PreviewRun = { upload: new AbortController(), plan, index: 0, workloadId: null, previews: [] };
+            const run: PreviewRun = { upload: new AbortController(), plan, choices, base: null, index: 0, workloadId: null, previews: [] };
             previewRun.current = run;
             sendPreviewBatch(run);
           }
@@ -420,28 +491,41 @@ export function useLibraryImport(): LibraryImport {
     },
   };
 
-  const previewTrack: LibraryImportTrack = {
-    onProgress: (progress) => {
-      setState((prev) => (prev.status === "staged" && prev.preview.status === "reading" ? { ...prev, preview: { ...prev.preview, progress } } : prev));
-    },
-    onSucceeded: (_counts, preview) => {
+  // An event counts only while the live run is still on the workload it came from: a superseded run's tracker stays
+  // mounted until its replacement commits, and a finished upload's tracker until the next one's id lands, so a late
+  // event from either would otherwise finish or advance the run that replaced it.
+  const previewTrack = (workloadId: WorkloadId): LibraryImportTrack => {
+    const liveRun = (): PreviewRun | null => {
       const run = previewRun.current;
-      if (run === null) {
-        return;
-      }
-      if (preview === null) {
-        failPreview(run, UNREADABLE_PREVIEW);
-        return;
-      }
-      run.previews.push(preview);
-      run.index += 1;
-      sendPreviewBatch(run);
-    },
-    onFailed: (message) => {
-      if (previewRun.current !== null) {
-        failPreview(previewRun.current, message);
-      }
-    },
+      return run !== null && run.workloadId === workloadId ? run : null;
+    };
+    const events: LibraryImportTrack = {
+      onProgress: (progress) => {
+        if (liveRun() !== null) {
+          setState((prev) => (prev.status === "staged" && prev.preview.status === "reading" ? { ...prev, preview: { ...prev.preview, progress } } : prev));
+        }
+      },
+      onSucceeded: (_counts, preview) => {
+        const run = liveRun();
+        if (run === null) {
+          return;
+        }
+        if (preview === null) {
+          failPreview(run, UNREADABLE_PREVIEW);
+          return;
+        }
+        run.previews.push(preview);
+        run.index += 1;
+        sendPreviewBatch(run);
+      },
+      onFailed: (message) => {
+        const run = liveRun();
+        if (run !== null) {
+          failPreview(run, message);
+        }
+      },
+    };
+    return events;
   };
 
   const confirm = (): void => {
@@ -455,14 +539,21 @@ export function useLibraryImport(): LibraryImport {
     importFiles(state.files);
   };
 
+  /** Record the answers now on screen, and judge the personas again when a finished preview was counted under others. */
+  const answer = (choices: PersonaCollisionChoices): void => {
+    answers.current = choices;
+    setState((prev) => (prev.status === "staged" ? { ...prev, choices } : prev));
+    rejudgePersonas();
+  };
+
   const chooseCollision = (key: string, choice: PersonaCollisionChoice): void => {
-    setState((prev) => (prev.status === "staged" ? { ...prev, choices: { ...prev.choices, [key]: choice } } : prev));
+    answer({ ...answers.current, [key]: choice });
   };
 
   const chooseAllCollisions = (choice: PersonaCollisionChoice): void => {
-    setState((prev) =>
-      prev.status === "staged" ? { ...prev, choices: Object.fromEntries(prev.collisions.map((c): [string, PersonaCollisionChoice] => [c.key, choice])) } : prev,
-    );
+    if (state.status === "staged") {
+      answer(Object.fromEntries(state.collisions.map((c): [string, PersonaCollisionChoice] => [c.key, choice])));
+    }
   };
 
   const reset = (): void => {

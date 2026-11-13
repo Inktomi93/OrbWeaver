@@ -8,6 +8,7 @@ import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadL
 import {
   DEFAULT_ADMISSION_KEY,
   startWorkloadEnvelope,
+  WORKLOAD_ASKER_NOT_OWNER,
   WORKLOAD_KINDS,
   WORKLOAD_NOT_ADMISSIBLE,
   WORKLOAD_OWNER_ONLY_REFUSAL,
@@ -70,7 +71,7 @@ export async function runAuthorityRefusal<K extends WorkloadKind>(
     return null;
   }
   if (asker.caller !== null && !(await deps.isBoxOwner(asker.caller.userId))) {
-    return new DomainForbiddenError(WORKLOAD_OWNER_ONLY_REFUSAL);
+    return new DomainForbiddenError(WORKLOAD_OWNER_ONLY_REFUSAL, WORKLOAD_ASKER_NOT_OWNER);
   }
   if (asker.account === null || !(await deps.isBoxOwner(asker.account))) {
     return new DomainOperationError(WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL);

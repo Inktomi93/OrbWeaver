@@ -80,11 +80,17 @@ function isReviewFile(relPath: string): boolean {
   return relPath.split("/").at(-1) === ST_SETTINGS_FILE || relPath.split("/").includes(AVATARS_DIR_SEGMENT);
 }
 
+/** The persona files among `files`: all that the folder's personas are read from, so uploading them alone (a dry run)
+ *  judges the personas again under new answers without sending the rest of the folder. */
+export function personaFilesOf(files: readonly File[]): readonly File[] {
+  return files.filter((file) => isReviewFile(relativePathOf(file)));
+}
+
 /** Ask the server which personas in the picked folder share a name with one you already own but differ in
  *  content. Read-only: nothing is staged. A folder with no `settings.json` has nothing to ask and makes no
  *  request. */
 export async function reviewTreePersonas(files: readonly File[]): Promise<readonly PersonaCollision[]> {
-  const reviewed = files.filter((file) => isReviewFile(relativePathOf(file)));
+  const reviewed = personaFilesOf(files);
   if (!reviewed.some((file) => relativePathOf(file).split("/").at(-1) === ST_SETTINGS_FILE)) {
     return [];
   }

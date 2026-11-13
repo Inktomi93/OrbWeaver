@@ -55,11 +55,11 @@ const SSE_PING_MS = 15_000;
  * message and rides `data.reason`.
  */
 
-// The error formatter rides the honest domain reason code on `data.reason` (a DomainOperationError's
-// `.code`, or `provider_<kind>` for a classified provider failure — see domainReason), and a coded refusal's
-// stated facts on `data.detail` (domainDetail). Additive:
-// `data.reason` is typed `string | undefined` end-to-end, so the inferred client error shape gains the
-// optional field; a codeless error serialises without the key.
+// The error formatter rides the honest domain reason code on `data.reason` (a DomainOperationError's `.code`, a
+// DomainForbiddenError's optional `.code`, or `provider_<kind>` for a classified provider failure — see domainReason),
+// and a coded refusal's stated facts on `data.detail` (domainDetail). Additive: `data.reason` is typed
+// `string | undefined` end-to-end, so the inferred client error shape gains the optional field; a codeless error
+// serialises without the key.
 //
 // IT ALSO SUBSTITUTES THE MESSAGE OF EVERY INTERNAL_SERVER_ERROR (see UNCLASSIFIED_FAULT_MESSAGE above).
 //
