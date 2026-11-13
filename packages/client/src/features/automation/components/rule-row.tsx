@@ -65,6 +65,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { deleteConfirmTitle, notify } from "#lib";
 import { useMobileViewport } from "#state";
+import { ruleConnectionsName, ruleRunNowName, ruleTestName, ruleTestResultName } from "../lib/automation-names.ts";
 import {
   armLabel,
   hasSpendArm,
@@ -125,7 +126,7 @@ function TestResultView({ rule, result }: TestResultViewProps): ReactElement {
   const tools = useQuery(trpc.automation.listRuleTools.queryOptions(undefined, { enabled: rule.actions.some((action) => action.type === "run_tool") }));
   const verdict = predicateVerdict(result.predicate);
   return (
-    <Stack aria-label={`Test result for ${rule.name}`} gap="tight" role="status">
+    <Stack aria-label={ruleTestResultName(rule.name)} gap="tight" role="status">
       <Row gap="block" align="center">
         <Badge tone={verdict.tone} size="sm">
           {verdict.label}
@@ -308,7 +309,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                   Edit
                 </Button>
               )}
-              <Button variant="outline" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
+              <Button variant="outline" size="sm" aria-label={ruleTestName(rule.name)} loading={testRule.isPending} onClick={onTest}>
                 Test
               </Button>
               <RowActionsMenu
@@ -328,7 +329,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                   detail={runRefusal ?? undefined}
                   disabled={runRefusal !== null || runNow.isPending}
                   icon={spends ? Coins : Play}
-                  label={spends ? "Run now: spends a model call" : "Run now"}
+                  label={ruleRunNowName(spends)}
                   onClick={onRunNow}
                 />
               </RowActionsMenu>
@@ -367,7 +368,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                 arms spend nothing through a binding, and on an unreadable rule (its arms are unknown). */}
             {bindingTasks.length === 0 ? null : (
               <Collapsible>
-                <CollapsibleTrigger aria-label={`Connections for ${rule.name}`} size="control">
+                <CollapsibleTrigger aria-label={ruleConnectionsName(rule.name)} size="control">
                   <Text voice="label">Connections</Text>
                 </CollapsibleTrigger>
                 <CollapsiblePanel offset="row">

@@ -13,6 +13,7 @@ import { nonEmpty } from "@orb/testkit/iso";
 import { prepareBackupFolder } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
+import { OWNER_RULE_RATE_FIELD_NAME } from "#client/features/automation/lib/automation-names.ts";
 import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
@@ -193,7 +194,7 @@ test.describe("committed corpus settings", () => {
     const before = await host.trpc.automation.getOwnerBudgets.query(undefined);
     const next = before.maxFiresPerHour === 20 ? 21 : 20;
     await openGroup(page, "automation");
-    const input = page.getByRole("textbox", { name: "Runs per hour", exact: true });
+    const input = page.getByRole("textbox", { name: OWNER_RULE_RATE_FIELD_NAME, exact: true });
     await input.fill(String(next));
     await input.press("Tab");
     await expect.poll(async () => (await host.trpc.automation.getOwnerBudgets.query(undefined)).maxFiresPerHour).toBe(next);

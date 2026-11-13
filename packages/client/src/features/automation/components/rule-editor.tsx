@@ -11,6 +11,7 @@ import { createAutosaveEntityForm } from "#forms/editor";
 import { useFocusOnSwap, viewerTimeZone } from "#lib";
 import type { RuleCreation } from "#state";
 import { useRuleAutosave } from "../hooks/use-rule-autosave.ts";
+import { RULE_EDITOR_AUTOSAVE_NOTE, RULE_EDITOR_CLOSE_NAME, RULE_EDITOR_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { ruleEditorCommitSchema } from "../lib/contract/rule-editor.ts";
 import { ruleClockLine } from "../lib/rule-copy.ts";
@@ -59,9 +60,9 @@ export function RuleEditor({
   };
   if (rule?.actionsCorrupt === true) {
     return (
-      <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1}>
+      <Card ref={surface} role="region" aria-label={RULE_EDITOR_NAME} tabIndex={-1}>
         <Text>These stored actions cannot be read. Editing is unavailable; no replacement has been saved.</Text>
-        <Button onClick={onClose}>Close editor</Button>
+        <Button onClick={onClose}>{RULE_EDITOR_CLOSE_NAME}</Button>
       </Card>
     );
   }
@@ -71,28 +72,28 @@ export function RuleEditor({
   const confirmed = rule ?? (observedRow ? null : acknowledged);
   if (confirmed === null && (needsExistingRow || observedRow)) {
     return (
-      <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1}>
+      <Card ref={surface} role="region" aria-label={RULE_EDITOR_NAME} tabIndex={-1}>
         <Text role="alert">This rule is no longer available. Its draft is retained, but saving cannot recreate a deleted rule.</Text>
-        <Button onClick={onClose}>Close editor</Button>
+        <Button onClick={onClose}>{RULE_EDITOR_CLOSE_NAME}</Button>
       </Card>
     );
   }
   const serverValues = confirmed === null ? emptyRuleEditor(chatId) : keepRowIdentities(ruleEditorValues(editableRule(confirmed), identity), submitted);
   return (
     // Capped at the editor content column: in the full-width library pane the fields otherwise stretch past 800px.
-    <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1} width="full" cap="column">
+    <Card ref={surface} role="region" aria-label={RULE_EDITOR_NAME} tabIndex={-1} width="full" cap="column">
       <RuleForm entityId={identity} serverValues={serverValues} save={saveRemembered}>
         {(session): ReactElement => (
           <Stack gap="section">
             <Row gap="field" align="center" justify="between">
               <Heading level={4}>{chatId === null ? "Library-wide rule" : "Chat rule"}</Heading>
               <Button variant="ghost" onClick={onClose}>
-                Close editor
+                {RULE_EDITOR_CLOSE_NAME}
               </Button>
             </Row>
             <RuleEditorSaveStatus session={session} error={failure} uncreated={confirmed === null} />
             <Text cap="prose" voice="gloss">
-              Edits save automatically when complete. New rules start off; enable the rule separately when you are ready.
+              {RULE_EDITOR_AUTOSAVE_NOTE}
             </Text>
             <Text cap="prose" voice="gloss">
               {ruleClockLine({ stored: confirmed?.timeZone, viewerZone: viewerTimeZone(), unknownZone })}

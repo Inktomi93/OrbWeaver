@@ -8,6 +8,7 @@ import type { ReactElement } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { IMAGE_MODE_LABELS, IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
 import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
+import { RULE_CHOOSE_IMAGE_SIZE_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleCharacterField } from "./rule-character-field.tsx";
 import { RuleOptionalField } from "./rule-optional-field.tsx";
@@ -72,7 +73,7 @@ export function RuleImageFields({
           field.state.value === undefined ? (
             <Button ref={sizeFocus.target()} variant="ghost" justify="start" onClick={(): void => field.handleChange(SIZE_PRESET_NAMES[0])}>
               <Icon icon={ChevronRight} size="sm" />
-              Choose image size
+              {RULE_CHOOSE_IMAGE_SIZE_NAME}
             </Button>
           ) : (
             <Stack gap="tight">

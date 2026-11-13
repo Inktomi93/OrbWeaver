@@ -5,9 +5,11 @@
 // or assertion, as the `name`, `hasText` or `hasNotText` of a locator's options, as a `selectOption` label, or as the
 // value a name attribute is asserted to hold. A conditional or a `??` in that position is read arm by arm, so
 // `isMobile ? { name: "You" } : { name: "Me" }` is two sites. A constant the spec declares, a member of a local object
-// or list, a `for…of` variable over a local list and a constant imported from a test file by a relative path are
-// followed to their literal, and the site is counted once, where the literal is written. A call and a name imported
-// from a package are bindings and not sites. A name a helper takes as a parameter and passes on is out of reach.
+// or list, a `for…of` variable over a local list and a constant imported from a test file, by a relative path or
+// through an `@orb/testkit` entry and its `export *` and `export { … } from` re-exports, are followed to their
+// literal, and the site is counted once, where the literal is written. A call and a name imported from a production
+// package or a `#<package>/*` path are bindings and not sites. A name a helper takes as a parameter and passes on is
+// out of reach.
 //
 // The class is a judgement on text alone, so `exported` means "a production .ts module exports this exact string and
 // no other production file spells it", not "the component under test renders that export". A rewrite still reads
@@ -16,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import ts from "typescript";
+import { z } from "zod";
 import { execNicedSync } from "../floor/process/proc.ts";
 
 /** The text-target calls whose first argument is a name or visible text. */
@@ -49,6 +52,8 @@ const GUEST_GLOBS = ["packages/showcase-plugins/bundles/*.ts"] as const;
 const MARKUP_TEXT = />([^<>{}$]+)</gu;
 // Test files whose strings are the test's own content: stories, fixtures, the corpus and shared support.
 const AUTHORED_FILE = /^tests\/support\/|\/_[^/]*stories|stories\.|fixture|corpus|_surface-scenarios/u;
+// The testkit package, whose export map turns an `@orb/testkit/*` specifier into a test file.
+const TESTKIT_ROOT = "tests/support";
 // A fragment shorter than this matches too much prose to name a home by substring.
 const MIN_SUBSTRING_PIECE = 6;
 // The tracked-file list of the whole tree outgrows execFileSync's default buffer.
@@ -173,8 +178,11 @@ function nameArguments(call: ts.CallExpression): ts.Expression[] {
   return [...text, ...options, ...attributeValue(name, call)];
 }
 
-/** Reads a test file a spec imports by a relative path; `undefined` when it is not a tracked test file. */
+/** Reads a test file a spec imports; `undefined` when it is not a tracked test file. */
 export type TestFileReader = (path: string) => CensusSource | undefined;
+
+/** A bare specifier that names a test file, such as `@orb/testkit/ct`, and the path it resolves to. */
+export type TestAliases = ReadonlyMap<string, string>;
 
 // One parsed test file and its declarations: the value each const declares, and the `for…of` lists a loop variable walks.
 interface ParsedTest {
@@ -182,14 +190,36 @@ interface ParsedTest {
   readonly file: ts.SourceFile;
   /** name → its one declaration; a name declared twice in the file is shadowed somewhere and stays unresolved. */
   readonly declared: ReadonlyMap<string, ts.VariableDeclaration | null>;
-  /** local name → the relative module and the name it exports. */
+  /** local or re-exported name → the test module and the name it exports. */
   readonly imported: ReadonlyMap<string, { readonly from: string; readonly name: string }>;
+  /** The test modules an `export *` passes on. */
+  readonly starFrom: readonly string[];
 }
 
-function parsedTest(source: CensusSource): ParsedTest {
+// The test file a module specifier names, or undefined for a production package or path.
+function testModuleOf(specifier: ts.Expression | undefined, path: string, aliases: TestAliases): string | undefined {
+  if (specifier === undefined || !ts.isStringLiteral(specifier)) {
+    return undefined;
+  }
+  return specifier.text.startsWith(".") ? join(dirname(path), specifier.text) : aliases.get(specifier.text);
+}
+
+// Named bindings an import or a re-export carries: local or exported name → the name the module exports.
+function namedBindings(statement: ts.Statement): readonly ts.ImportOrExportSpecifier[] {
+  if (ts.isImportDeclaration(statement)) {
+    const bindings = statement.importClause?.namedBindings;
+    return bindings !== undefined && ts.isNamedImports(bindings) ? bindings.elements : [];
+  }
+  return ts.isExportDeclaration(statement) && statement.exportClause !== undefined && ts.isNamedExports(statement.exportClause)
+    ? statement.exportClause.elements
+    : [];
+}
+
+function parsedTest(source: CensusSource, aliases: TestAliases): ParsedTest {
   const file = parse(source);
   const declared = new Map<string, ts.VariableDeclaration | null>();
   const imported = new Map<string, { readonly from: string; readonly name: string }>();
+  const starFrom: string[] = [];
   const visit = (node: ts.Node): void => {
     if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
       declared.set(node.name.text, declared.has(node.name.text) ? null : node);
@@ -198,21 +228,19 @@ function parsedTest(source: CensusSource): ParsedTest {
   };
   visit(file);
   for (const statement of file.statements) {
-    const bindings = ts.isImportDeclaration(statement) ? statement.importClause?.namedBindings : undefined;
-    if (
-      ts.isImportDeclaration(statement) &&
-      ts.isStringLiteral(statement.moduleSpecifier) &&
-      statement.moduleSpecifier.text.startsWith(".") &&
-      bindings !== undefined &&
-      ts.isNamedImports(bindings)
-    ) {
-      const from = join(dirname(source.path), statement.moduleSpecifier.text);
-      for (const element of bindings.elements) {
-        imported.set(element.name.text, { from, name: (element.propertyName ?? element.name).text });
-      }
+    const from =
+      ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement) ? testModuleOf(statement.moduleSpecifier, source.path, aliases) : undefined;
+    if (from === undefined) {
+      continue;
+    }
+    if (ts.isExportDeclaration(statement) && statement.exportClause === undefined) {
+      starFrom.push(from);
+    }
+    for (const element of namedBindings(statement)) {
+      imported.set(element.name.text, { from, name: (element.propertyName ?? element.name).text });
     }
   }
-  return { source, file, declared, imported };
+  return { source, file, declared, imported, starFrom };
 }
 
 // A name expression and the file it is written in.
@@ -224,17 +252,21 @@ interface Located {
 // Resolves spec-local constants to the text they hold, so a literal reaches the census at its declaration.
 class NameResolver {
   readonly #read: TestFileReader;
+  readonly #aliases: TestAliases;
   readonly #parsed = new Map<string, ParsedTest | undefined>();
   readonly #seen = new Set<ts.Node>();
+  // `path\nname` pairs already looked up, so an `export *` cycle ends.
+  readonly #followed = new Set<string>();
 
-  constructor(read: TestFileReader) {
+  constructor(read: TestFileReader, aliases: TestAliases) {
     this.#read = read;
+    this.#aliases = aliases;
   }
 
   parsed(path: string): ParsedTest | undefined {
     if (!this.#parsed.has(path)) {
       const source = this.#read(path);
-      this.#parsed.set(path, source === undefined ? undefined : parsedTest(source));
+      this.#parsed.set(path, source === undefined ? undefined : parsedTest(source, this.#aliases));
     }
     return this.#parsed.get(path);
   }
@@ -260,13 +292,11 @@ class NameResolver {
     return [];
   }
 
-  // What a name declares: a const's initializer, the list a `for…of` variable walks, or a relatively imported export.
+  // What a name declares: a const's initializer, the list a `for…of` variable walks, or an export of a test module.
   #declaredValue(name: string, at: ParsedTest): Located[] {
     const declaration = at.declared.get(name);
     if (declaration === undefined) {
-      const link = at.imported.get(name);
-      const home = link === undefined ? undefined : this.parsed(link.from);
-      return link === undefined || home === undefined ? [] : this.#declaredValue(link.name, home);
+      return this.#importedValue(name, at);
     }
     if (declaration === null || this.#seen.has(declaration)) {
       return [];
@@ -277,6 +307,25 @@ class NameResolver {
       return [{ at, node: loop.expression }];
     }
     return declaration.initializer === undefined ? [] : [{ at, node: declaration.initializer }];
+  }
+
+  // A name the file imports or re-exports by name, else the first `export *` module that declares it.
+  #importedValue(name: string, at: ParsedTest): Located[] {
+    const key = `${at.source.path}\n${name}`;
+    if (this.#followed.has(key)) {
+      return [];
+    }
+    this.#followed.add(key);
+    const link = at.imported.get(name);
+    const links = link === undefined ? at.starFrom.map((from) => ({ from, name })) : [link];
+    for (const { from, name: exported } of links) {
+      const home = this.parsed(from);
+      const found = home === undefined ? [] : this.#declaredValue(exported, home);
+      if (found.length > 0) {
+        return found;
+      }
+    }
+    return [];
   }
 
   // `LABELS.key` or `LABELS["key"]` of a local object literal, or any element of a local list.
@@ -319,8 +368,8 @@ function siteOf({ at, node }: Located): NameSite {
  * test file by a relative path, is followed to its literal and counted where that literal is written, so a site can
  * sit in another file and two specs can reach one site.
  */
-export function nameSites(source: CensusSource, read: TestFileReader = NO_TEST_FILES): NameSite[] {
-  const resolver = new NameResolver((path) => (path === source.path ? source : read(path)));
+export function nameSites(source: CensusSource, read: TestFileReader = NO_TEST_FILES, aliases: TestAliases = new Map()): NameSite[] {
+  const resolver = new NameResolver((path) => (path === source.path ? source : read(path)), aliases);
   const at = resolver.parsed(source.path);
   if (at === undefined) {
     return [];
@@ -544,6 +593,14 @@ function trackedFiles(repoRoot: string, globs: readonly string[]): CensusSource[
     .map((path) => ({ path, text: readFileSync(join(repoRoot, path), "utf8") }));
 }
 
+// Each `@orb/testkit` entry and the test file its export map points at.
+function testkitAliases(repoRoot: string): TestAliases {
+  const manifest = z
+    .object({ name: z.string(), exports: z.record(z.string(), z.string()) })
+    .parse(JSON.parse(readFileSync(join(repoRoot, TESTKIT_ROOT, "package.json"), "utf8")));
+  return new Map(Object.entries(manifest.exports).map(([entry, target]) => [join(manifest.name, entry), join(TESTKIT_ROOT, target)]));
+}
+
 /** Run the census over the checkout's tracked files, sorted by file, line and column. */
 export function runCensus(repoRoot: string): CensusRow[] {
   const tests = trackedFiles(
@@ -555,7 +612,10 @@ export function runCensus(repoRoot: string): CensusRow[] {
   const evidence: TestEvidence = { authored: authoredStrings(testFiles) };
   const byPath = new Map(testFiles.map((source) => [source.path, source]));
   const read: TestFileReader = (path) => byPath.get(path);
-  const sites = new Map(tests.flatMap((source) => nameSites(source, read)).map((site) => [`${site.file}:${String(site.line)}:${String(site.column)}`, site]));
+  const aliases = testkitAliases(repoRoot);
+  const sites = new Map(
+    tests.flatMap((source) => nameSites(source, read, aliases)).map((site) => [`${site.file}:${String(site.line)}:${String(site.column)}`, site]),
+  );
   return [...sites.values()]
     .map((site) => classifySite(site, index, evidence))
     .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column);
