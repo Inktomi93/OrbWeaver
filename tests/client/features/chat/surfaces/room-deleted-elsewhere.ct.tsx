@@ -1,4 +1,4 @@
-// @subject packages/client/src/features/chat/surfaces/chat-room-surface.tsx
+// @subject packages/client/src/features/chat/surfaces/message-list-surface.tsx
 // A room deleted where this client never heard of it leaves its id as the active chat. When the room's own read answers not found, the
 // Chats section returns to its list instead of holding a dead room: a delete made from another session while this one sat on Home,
 // and a stale id restored from storage at load.
