@@ -391,7 +391,12 @@ export function openCpuWindow(ctx: QuickJSContext, budgetMs: number): { readonly
   return {
     passed: (): boolean => window.passed,
     close: (): void => {
-      openWindows.splice(openWindows.indexOf(window), 1);
+      // A second close finds nothing; splicing at -1 would close the newest window, another caller's.
+      const at = openWindows.indexOf(window);
+      if (at === -1) {
+        return;
+      }
+      openWindows.splice(at, 1);
       if (openWindows.length === 0) {
         ctx.runtime.removeInterruptHandler();
       }
