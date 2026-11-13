@@ -13,7 +13,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
+import { FormDialogPopup, FormDialogRoot, ModelRunConfirmDialog, SCHEDULE_SAVE_ESTIMATE_FAILED, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
@@ -101,6 +101,7 @@ function ScheduleFormBody({
       confirmLabel: schedule === undefined ? SCHEDULE_CREATE_NAME : SCHEDULE_SAVE_NAME,
       recurring: true,
       estimates: [{ input, mode }],
+      estimateFailedTitle: SCHEDULE_SAVE_ESTIMATE_FAILED,
       run: async (): Promise<void> => {
         if (schedule === undefined) {
           await create.mutateAsync({ input, cadence: values.cadence, mode });

@@ -381,6 +381,29 @@ test("Import and Cancel stay in reach at the foot of a review taller than the vi
   await expect(preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true })).toBeInViewport();
 });
 
+test("the preflight reads Cancel then Import, end-aligned, with Cancel quiet", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profile");
+  await stageFolder(root, folder);
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const preflight = page.getByRole("group", { name: PREFLIGHT });
+  await expect(preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  const cancel = preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
+  const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
+  const [cancelBox, confirmBox, rowBox] = await Promise.all([cancel.boundingBox(), confirm.boundingBox(), confirm.locator("..").boundingBox()]);
+  if (cancelBox === null || confirmBox === null || rowBox === null) {
+    throw new Error("The preflight's buttons have no box");
+  }
+  expect(cancelBox.x + cancelBox.width).toBeLessThanOrEqual(confirmBox.x);
+  expect(Math.abs(confirmBox.x + confirmBox.width - (rowBox.x + rowBox.width))).toBeLessThanOrEqual(1);
+  await expect(cancel).toHaveCSS("border-top-width", "0px");
+});
+
 test("Import hands focus to the progress region", async ({ mount, page, baseURL }, testInfo) => {
   await using root = await createServerHarness(ROOT_OPTIONS);
   const folder = testInfo.outputPath("profile");

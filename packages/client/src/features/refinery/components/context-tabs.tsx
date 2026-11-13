@@ -29,7 +29,13 @@ import type { RefineryContextState } from "#lib";
 import { DIALOG_VERBS, groupOrdinalQualifiers, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
-import { REFINERY_VERSION_DIFF_HEADING, REFINERY_VERSION_LOADING_TEXT, refineryCompareToggleName } from "../lib/refinery-names.ts";
+import {
+  REFINERY_UNLABELED_VERSION,
+  REFINERY_VERSION_DIFF_HEADING,
+  REFINERY_VERSION_LOADING_TEXT,
+  refineryCompareToggleName,
+  refineryRestoreVersionName,
+} from "../lib/refinery-names.ts";
 import { SETUP_ORIGINAL_CARD_ROW, SETUP_SCHEMA_ROWS, SETUP_VIEW_ACTION, schemaDoorActionOf, setupDoorName } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -303,6 +309,10 @@ export function SetupTab({
 
 type SnapshotRow = SnapshotList[number];
 
+function versionLabelOf(snapshot: SnapshotRow): string {
+  return snapshot.label ?? REFINERY_UNLABELED_VERSION;
+}
+
 function classOf(snapshot: SnapshotRow): { word: string; tone: RenderHintTone } {
   const label = snapshot.label ?? "";
   if (label.startsWith(REFINERY_SNAPSHOT_PREFIX)) {
@@ -352,12 +362,15 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
       />
     );
   }
+  // The walk lists newest first. Two snapshots can share a label, so a twin carries an ordinal counted from the oldest,
+  // and a later snapshot never renames an earlier one.
+  const qualifiers = groupOrdinalQualifiers(rows.map(versionLabelOf).toReversed()).toReversed();
   return (
     <ContextTabBody data-testid={testId("refineryVersionsTab")} kind="rows">
       {/* NOT "the LIVE card" (caps mid-sentence is "the one place the app raises its voice at the reader"). The contrast is real and survives in
           words — the live card against the session's pinned original — and the sentence carries it. */}
       <Text voice="gloss">Restoring changes the live card only. The session still compares against its own pinned original.</Text>
-      {rows.map((snapshot) => {
+      {rows.map((snapshot, index) => {
         const klass = classOf(snapshot);
         return (
           <Card key={snapshot.id}>
@@ -365,7 +378,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
               <Row align="center" gap="field">
                 <RefineryChip tone={klass.tone}>{klass.word}</RefineryChip>
                 <Text truncate="fill" voice="gloss">
-                  {snapshot.label ?? "unlabeled"}
+                  {versionLabelOf(snapshot)}
                 </Text>
               </Row>
               <Row wrap={true} gap="field">
@@ -381,7 +394,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
                   }}
                   onConfirm={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })}
                   trigger={
-                    <Button variant="ghost" size="sm">
+                    <Button aria-label={refineryRestoreVersionName(versionLabelOf(snapshot), qualifiers[index])} variant="ghost" size="sm">
                       {DIALOG_VERBS.restore}
                     </Button>
                   }

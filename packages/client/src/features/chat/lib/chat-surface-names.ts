@@ -158,3 +158,12 @@ export function homeResumeChatName(title: string): string {
 export function homeNewChatWithName(character: string): string {
   return `New chat with ${character}`;
 }
+
+/** Home's list of character quick picks. */
+export const HOME_QUICK_PICKS_NAME = "Character quick-picks";
+
+/** The new-chat picker's character field. */
+export const NEW_CHAT_CHARACTERS_FIELD_NAME = "Choose characters";
+
+/** The transcript's message log. */
+export const CHAT_TRANSCRIPT_NAME = "Conversation messages";

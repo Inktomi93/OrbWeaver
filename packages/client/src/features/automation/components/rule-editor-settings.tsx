@@ -6,6 +6,7 @@ import { Select } from "@orb/ui/select";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
 import type { AutosaveSession } from "#forms/editor";
+import { RULE_INCLUDE_AUTOMATION_EVENTS_NAME, RULE_NAME_FIELD_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { triggerLabel } from "../lib/rule-copy.ts";
 import { RuleOptionalField } from "./rule-optional-field.tsx";
@@ -21,7 +22,7 @@ export function RuleEditorSettings({
   const triggers = chatId === null ? DOMAIN_TRIGGER_TYPES : [...CHAT_TRIGGER_TYPES, ...DOMAIN_TRIGGER_TYPES];
   return (
     <Stack gap="block">
-      <form.AppField name="name">{(field): ReactElement => <field.TextField label="Rule name" />}</form.AppField>
+      <form.AppField name="name">{(field): ReactElement => <field.TextField label={RULE_NAME_FIELD_NAME} />}</form.AppField>
       <form.AppField name="description">
         {(field): ReactElement => (
           <RuleOptionalField
@@ -94,7 +95,7 @@ export function RuleEditorSettings({
         {(field): ReactElement => (
           // The ruled switch row (label left, control right), so a described switch does not stack a third line under the single-line fields.
           <SettingSwitchRow
-            label="Include events caused by automation"
+            label={RULE_INCLUDE_AUTOMATION_EVENTS_NAME}
             description="Off by default. When on, the existing depth cap still stops recursive chains."
             checked={field.state.value}
             onChange={field.handleChange}

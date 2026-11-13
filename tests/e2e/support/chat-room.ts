@@ -31,6 +31,7 @@ import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_OPTIONS_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { CHAT_GROUP_BEHAVIOR_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import {
   CHAT_COMPOSER_NAME,
@@ -365,7 +366,7 @@ export async function openNewestChat(page: Page): Promise<void> {
  *  gone. Still opened via KEYBOARD (focus + Enter): keyboard activation bypasses hit-testing, which is the
  *  posture that survived the move as well as it served the old topbar mount. */
 export async function openChatOptions(page: Page): Promise<void> {
-  const options = page.getByRole("button", { name: "Chat options" });
+  const options = page.getByRole("button", { name: CHAT_OPTIONS_NAME });
   await expect(options).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await options.focus();
   await options.press("Enter");

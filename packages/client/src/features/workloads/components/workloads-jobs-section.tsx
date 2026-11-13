@@ -6,7 +6,8 @@
 // Suspends on workloads.list + sessions.me. workloads.list server-scopes a plain caller to its own rows; an
 // owner/admin viewer gets the deployment-wide view, resolving each foreign row's owner handle through a
 // gated admin.listUsers read that never fires for a plain user. That read also names the box owner, whose rows offer
-// Cancel and Retry only to the box owner (`viewerActsOnRow`, D17). Filters are client-side tabs over the one
+// Cancel and Retry only to the box owner (`viewerActsOnRow`, D17); when it fails, a delegated admin reads why the controls
+// on other people's rows are hidden, with a Retry. Filters are client-side tabs over the one
 // bounded list read; each active row tails its own `workloads` ROOM on the tab's ONE socket (SSE-1 S5).
 
 import { userRoleSatisfies } from "@orb/contracts/identity";
@@ -23,6 +24,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations.ts";
+import { OTHERS_CONTROLS_HIDDEN_TEXT } from "../lib/workloads-failure-copy.ts";
 import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav.ts";
 import {
   groupWorkloadsByLane,
@@ -145,6 +147,22 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
                 Run a job…
               </Button>
             </Row>
+            {!isOwner && usersQuery.isError ? (
+              <Row align="center" gap="row" wrap={true}>
+                <Text role="status" ink="muted" voice="label">
+                  {OTHERS_CONTROLS_HIDDEN_TEXT}
+                </Text>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(): void => {
+                    usersQuery.refetch().catch(globalThis.reportError);
+                  }}
+                >
+                  {DIALOG_VERBS.retry}
+                </Button>
+              </Row>
+            ) : null}
             {WORKLOAD_FILTERS.map((id) => {
               const rows = workloads.filter((workload) => workloadFilterMatches(id, workload.status));
               return (

@@ -495,6 +495,8 @@ const TEST_CONSTANT_HOMES = {
     "APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: the Message details section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
     "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the Message style section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/chat-behavior-message-handling-model.ts":
+    "CHAT_MESSAGE_HANDLING_SUBCATEGORY: the Message handling section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/app-shell/lib/appearance-effects-model.ts":
     "APPEARANCE_EFFECTS_SUBCATEGORY: the Effects section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/auth/lib/reauth-names.ts": "REAUTH_MODAL_TITLE: the re-auth prompt's title, which its landing test names the dialog by",
@@ -528,6 +530,8 @@ const TEST_CONSTANT_HOMES = {
     "ROUTE_PENDING_NAME: the router's pending mark, which a slow-guard case reads to prove the window is open",
   "packages/client/src/components/shared-control-names.ts":
     "TAG_NAME_FIELD_NAME and its siblings: the names of controls a shared component mounts for several features",
+  "packages/client/src/components/model-run-confirm-copy.ts":
+    "MODEL_RUN_ESTIMATE_FAILED: the notice title a paid run raises when its call count cannot be read, which the schedule save case reads",
   "packages/client/src/features/chat/lib/transcript-copy.ts":
     "CHAT_PRINT_COVERAGE and the history pager's status line: the transcript copy a print or pager case reads",
   "packages/client/src/features/chat/lib/chat-surface-names.ts":
@@ -539,6 +543,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/members-names.ts":
     "CHAT_INVITE_PEOPLE_NAME and its siblings: the Members panel, row menu, card viewer and join dialog names",
   "packages/client/src/features/chat/lib/command-palette-names.ts": "COMMAND_MODAL_TITLE and COMMAND_PALETTE_NAME: the command modal's title and input",
+  "packages/client/src/lib/chat-launch-names.ts": "NO_CHAT_SELECTED_TITLE: the Chats section's no-selection state a dead room returns the reader to",
   "packages/client/src/features/chat/lib/message-action-names.ts":
     "MESSAGE_EDIT_NAME and its siblings: the transcript row's action, tool call and wire viewer names",
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",
@@ -575,7 +580,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
     "approveLabel, enablePluginLabel, showInChatSwitchName, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action and switch names required by the no-copied-label contract",
   "packages/client/src/features/automation/lib/rule-copy.ts": "ruleEnabledSwitchName: the per-rule enable switch name",
+  "packages/client/src/features/automation/lib/automation-names.ts":
+    "RULE_EDITOR_NAME, ruleTestName and their siblings: the rule list, row, editor and library-wide section names",
   "packages/client/src/features/workloads/lib/workloads-schedule-model.ts": "scheduleEnabledSwitchName: the per-schedule enable switch name",
+  "packages/client/src/features/workloads/lib/workloads-failure-copy.ts":
+    "OTHERS_CONTROLS_HIDDEN_TEXT: the line a delegated admin reads when the account list fails",
   "packages/client/src/features/preset/lib/assembly-model.ts": "sectionEnabledSwitchName: the per-section enable switch name on a rack row and in its drill-in",
   "packages/client/src/features/chat/lib/regex-section-model.ts":
     "regexScriptEverywhereSwitchName and regexTierAllowedSwitchName: the regex script and tier switch names",

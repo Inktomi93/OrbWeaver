@@ -38,8 +38,8 @@ type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) =
 /** The CAS store for BACKGROUND blobs. A separate port from the avatar one (which is deliberately narrowed to
  *  `kind:"avatar"` and returns only an id): a `BackgroundLibraryEntry` needs the content HASH — the picker
  *  builds `blobUrl(hash)` from it with no async id→hash round-trip — and the kind differs. `enforceMagic` is
- *  bound TRUE at the composition root: a background's mime is only extension-derived here, so the bytes are
- *  verified against the claim before they enter the CAS. */
+ *  bound TRUE at the composition root: a picture's mime is its sniffed type and any other file's is its extension's,
+ *  so the bytes are verified against the claim before they enter the CAS. */
 type ImportBackgroundStore = (params: Pick<StoreParams, "principal" | "bytes" | "mime" | "maxBytes">) => Promise<Pick<StoredAsset, "assetId" | "hash">>;
 
 /** What the owner already holds, asked of each owning domain without writing. A dry run's preview names an item

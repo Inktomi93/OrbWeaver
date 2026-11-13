@@ -148,8 +148,11 @@ for (const regime of REGIMES) {
       const cancel = preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(confirm).toBeEnabled();
       await measureActions(confirm.locator(".."), [confirm, cancel], testInfo, "card-preflight-actions");
-      await confirm.focus();
+      // Cancel comes first in the commit row, so Tab from it reaches the submit and Shift+Tab returns.
+      await cancel.focus();
       await page.keyboard.press("Tab");
+      await expect(confirm).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
       await expect(cancel).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(preflight).toHaveCount(0);

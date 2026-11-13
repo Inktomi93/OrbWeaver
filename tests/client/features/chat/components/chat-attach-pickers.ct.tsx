@@ -20,6 +20,7 @@ import {
   CHAT_BOOK_PICKER_READ,
   CHAT_DOCUMENT_PICKER_READ,
   CHAT_DOCUMENT_SEARCH_NAME,
+  chatAttachItemName,
 } from "#client/features/chat/lib/chat-attach-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
@@ -123,10 +124,10 @@ test("a refused attach is said in the picker", async ({ mount, page, corpusMedia
 
   await page.getByRole("button", { name: /^World books/u }).click();
   await page.getByRole("button", { name: CHAT_ATTACH_BOOK_NAME, exact: true }).click();
-  await page.getByRole("button", { name: `Attach ${book.name} to this chat`, exact: true }).click();
+  await page.getByRole("button", { name: chatAttachItemName(book.name), exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(CHAT_ATTACH_BOOK_FAILURE, { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: `Attach ${book.name} to this chat`, exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: chatAttachItemName(book.name), exact: true })).toBeEnabled();
 });
 
 test("a script attach in flight keeps the picker open, so its failure is said in the picker", async ({ mount, page, corpusMedia }) => {
@@ -146,7 +147,7 @@ test("a script attach in flight keeps the picker open, so its failure is said in
   await page.getByRole("button", { name: /^Regex/u }).click();
   await page.getByRole("button", { name: CHAT_ATTACH_SCRIPT_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("checkbox", { name: `Attach ${script.name} to this chat`, exact: true }).click();
+  await dialog.getByRole("checkbox", { name: chatAttachItemName(script.name), exact: true }).click();
   await dialog.getByRole("button", { name: CHAT_ATTACH_SCRIPTS_COMMIT_NAME, exact: true }).click();
   await hold.requested;
   await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();

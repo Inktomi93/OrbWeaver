@@ -41,7 +41,7 @@ import {
   GROUP_VISIBILITY_FIELD_NAME,
 } from "#client/features/chat/lib/chat-settings-names.ts";
 import { GROUP_ADVANCED_LABEL, GROUP_VISIBILITY_LABELS } from "#client/features/chat/lib/group-config-model.ts";
-import { MEMBER_TALKATIVENESS_NAME } from "#client/features/chat/lib/members-names.ts";
+import { MEMBER_TALKATIVENESS_NAME, memberRemoveName } from "#client/features/chat/lib/members-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import {
   characterChipNames,
@@ -163,7 +163,7 @@ test("removing a character through the Members row menu drops the seat server-si
 
     // The newly-wired `removeCharacterFromChat`, driven through its ONE user-facing affordance.
     await openMemberRowMenu(page, CHARACTERS[1].name);
-    await page.getByRole("menuitem", { name: `Remove ${CHARACTERS[1].name} from chat` }).click();
+    await page.getByRole("menuitem", { name: memberRemoveName(CHARACTERS[1].name) }).click();
 
     // Server truth first: the seat is gone from the PRESENT roster (leftSeq-stamped out).
     await expect.poll(async () => (await characterSeats(chat.id)).map((s) => s.displayName), { timeout: WAIT_SURFACE_MS }).toEqual([CHARACTERS[0].name]);

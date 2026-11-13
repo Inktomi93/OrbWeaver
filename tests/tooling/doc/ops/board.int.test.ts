@@ -119,11 +119,11 @@ test("land --merged lands the Closes ids of the merged commits with the merge co
   // Idempotent (F10): the same trailer landing again writes nothing and mints no second commit.
   const landed = git(root, "rev-parse", "HEAD");
   const again = landItems([1], landed, root, "2026-09-30");
-  expect(again).toEqual({ written: [], refusals: [], skipped: [`1: already landed at ${landed.slice(0, 12)}`] });
+  expect(again).toEqual({ written: [], created: [], refusals: [], skipped: [`1: already landed at ${landed.slice(0, 12)}`] });
   expect(git(root, "rev-parse", "HEAD")).toBe(landed);
   // Off main, or with no trailer, the door is silent.
   git(root, "checkout", "-q", "lane");
-  expect(landMerged(root, TODAY)).toEqual({ written: [], refusals: [], skipped: [] });
+  expect(landMerged(root, TODAY)).toEqual({ written: [], created: [], refusals: [], skipped: [] });
 });
 
 test("land --merged lands a Closes trailer through a merge commit `git merge` commits itself (--no-ff)", async ({ plantedTree }) => {

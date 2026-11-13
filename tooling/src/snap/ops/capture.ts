@@ -25,6 +25,7 @@ import { EVAL_ARM } from "./arms/eval.ts";
 import type { RunArms } from "./arms/registry.ts";
 import { pageArms } from "./arms/registry.ts";
 import { SHOT_ARM } from "./arms/shot.ts";
+import { markCallPhase } from "./call-phases.ts";
 import { navigate, settlePage } from "./drive.ts";
 import { driveActions, splitTrailingEvals } from "./drive-actions.ts";
 import { awaitThemeStamp } from "./theme-stamp.ts";
@@ -32,8 +33,9 @@ import { awaitThemeStamp } from "./theme-stamp.ts";
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 async function runPageArms(ctx: ArmPageContext): Promise<void> {
-  for (const [, lifecycle] of pageArms()) {
+  for (const [arm, lifecycle] of pageArms()) {
     if (lifecycle.enabled(ctx)) {
+      markCallPhase("page-arm", arm);
       await lifecycle.run(ctx);
     }
   }
@@ -84,13 +86,17 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
   const armPlan: ShotPlan = { url: plan.url, out, produceShot: plan.produceShot };
   // the caught failure is stored in outcome.navError, which capture() returns; verdict.ts outcomeTotals counts it into navigation failures and report.ts prints NAV ERROR. Ends if navError stops being read there.
   try {
+    markCallPhase("navigate");
     outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url, outcome.driveFailures);
     // #1227: `data-app-ready` is not the whole readiness contract when a THEME was requested — the stamp
     // lands one settings hop later, and everything below (the drive queue, every capture, the shot) would
     // otherwise sample the default palette under a themed label.
+    markCallPhase("theme-stamp");
     outcome.themeStampGap = (await awaitThemeStamp(page, evidence.settingsEvidence)).gap;
+    markCallPhase("after-navigation");
     await runArms?.afterNavigation({ page, opts, pageIndex, url: plan.url, navError: outcome.navError, evidenceWindow: armEvidenceWindow });
     if (opts.checkpoint) {
+      markCallPhase("checkpoint");
       // Raw string, not a function — the tooling program is DOM-less and carries no __orb ambient.
       await page.evaluate("window.__orb && window.__orb.resetEvidence()");
       if (evidence.diagnosticWindow.value === 0) {
@@ -110,12 +116,14 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     // guarantee survives for the common `--goto x --eval y` shape while a mid-chain eval runs mid-chain.
     const pageActions = opts.actions.filter((entry) => entry.action.page === pageIndex);
     const split = splitTrailingEvals(pageActions);
+    markCallPhase("drive");
     const driven = await driveActions({ page, actions: split.drive, opts, pageIndex, ...(runArms === null ? {} : { lifecycle: runArms }) });
     outcome.navFailures = driven.navFailures;
     outcome.stepFailures = driven.stepFailures;
     outcome.driveFailures.push(...driven.driveFailures);
     outcome.evalResults = driven.evalResults;
     outcome.fileActions = driven.fileActions;
+    markCallPhase("settle");
     await settlePage(page, opts);
     // TRAILING EVALS RUN BEFORE THE RUN-ARM SETTLE HOOK (#1659), and that ordering is the whole reason
     // `--eval` can be a positive control at all. They used to execute inside the page-arm pass on the line
@@ -128,15 +136,19 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     // Called by hand, the `SHOT_ARM` precedent in the nav-failure arm below: one arm needs a position the
     // registry's single pass cannot express.
     if (split.trailingEvals.length > 0) {
+      markCallPhase("trailing-evals");
       await EVAL_ARM.lifecycle.run({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: split.trailingEvals, ratePosture });
     }
+    markCallPhase("after-settle");
     await runArms?.afterSettle({ page, opts, pageIndex });
     // …and the page-arm pass is handed NO trailing evals: the values are already on the outcome (the arm's
     // print/pairs/facts read them from there), so passing them again would evaluate every expression twice.
     await runPageArms({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: [], ratePosture });
     // The shot is the last page arm, and an element shot drops touch emulation: every later reader
     // (the run arms, the environment verdict, the next checkpoint or call) must see the device again.
+    markCallPhase("reassert-device");
     await reassertOwnerDevice(page, evidence.environmentContract.applied);
+    markCallPhase("console-diagnostics");
     const consoleGap = await collectOrbConsoleDiagnostics(page, evidence.evidence.diagnostics, evidence.evidence.diagnosticCompleteness, opts.file !== null);
     if (consoleGap !== null) {
       evidence.evidence.pageErrors.push(consoleGap, exactScope(evidence.evidence.contextIndex, pageIndex, evidence.diagnosticWindow.value));
@@ -150,6 +162,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     if (plan.produceShot) {
       // only the optional rescue shot's own failure is dropped; the nav failure that triggered this branch is already stored in outcome.navError by the outer catch, and verdict.ts and report.ts read it. Ends if the outer catch stops setting navError before this fallback.
       try {
+        markCallPhase("page-arm", "shot");
         await SHOT_ARM.lifecycle.run({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: [], ratePosture });
         await reassertOwnerDevice(page, evidence.environmentContract.applied);
       } catch {

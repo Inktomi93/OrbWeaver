@@ -21,11 +21,17 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { CHAT_DELETE_NAME, CHAT_LEAVE_CONFIRM_TITLE, CHAT_LEAVE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
+import {
+  CHAT_DELETE_NAME,
+  CHAT_LEAVE_CONFIRM_NAME,
+  CHAT_LEAVE_CONFIRM_TITLE,
+  CHAT_LEAVE_NAME,
+  CHAT_OPTIONS_NAME,
+  CHAT_SELECT_MESSAGES_NAME,
+} from "#client/features/chat/lib/chat-options-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
-const CHAT_OPTIONS_NAME = "Chat options";
 const SERVED = [
   ...SECTION_PROCEDURES,
   ...SHELL_MOUNT_PROCEDURES,
@@ -128,6 +134,6 @@ test("a member who confirms Leave chat from Chat options is out of the room", as
   await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
   await page.getByRole("menuitem", { name: CHAT_LEAVE_NAME, exact: true }).click();
   const confirm = page.getByRole("alertdialog", { name: CHAT_LEAVE_CONFIRM_TITLE, exact: true });
-  await confirm.getByRole("button", { name: "Leave", exact: true }).click();
+  await confirm.getByRole("button", { name: CHAT_LEAVE_CONFIRM_NAME, exact: true }).click();
   await expect.poll(async () => (await host.chat.getChat({ chatId })).participants.some((person) => person.userId === memberId)).toBe(false);
 });

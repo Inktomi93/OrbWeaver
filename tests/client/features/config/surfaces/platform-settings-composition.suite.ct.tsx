@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { OWNER_RULE_RATE_FIELD_NAME } from "#client/features/automation/lib/automation-names.ts";
 import { EXPORT_DOWNLOAD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 
 const STORY = "tests/support/browser/ct-settings-composition-stories/SettingsCompositionStory";
@@ -145,7 +146,7 @@ for (const { name, width, viewport, hasTouch, isMobile } of REGIMES) {
       await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "automation.getOwnerBudgets"]));
       await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "automation-budget", width });
-      const input = page.getByRole("textbox", { name: "Runs per hour", exact: true });
+      const input = page.getByRole("textbox", { name: OWNER_RULE_RATE_FIELD_NAME, exact: true });
       await expect(input).toBeVisible();
       const field = page.locator('[data-slot="field-root"]').filter({ has: input });
       await expectReadingPair(page, field);

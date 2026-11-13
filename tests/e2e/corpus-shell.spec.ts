@@ -14,7 +14,7 @@ import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
 import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { CHARACTER_HERO_NAME_FIELD_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { CONTEXT_SHEET_BACK_NAME, sectionBackName } from "#client/lib/context-pane-names.ts";
@@ -728,7 +728,7 @@ test.describe("committed corpus shell on a phone", () => {
     test.skip(!isMobile, PHONE_ONLY);
     const owned = (await ownerActor(baseURL ?? "").trpc.character.list.query({ limit: HOME_QUICK_PICKS_LIMIT })).items.length;
     await openHome(page);
-    const faces = page.getByRole("list", { name: "Character quick-picks" }).getByRole("listitem");
+    const faces = page.getByRole("list", { name: HOME_QUICK_PICKS_NAME }).getByRole("listitem");
     await expect(faces).toHaveCount(Math.min(owned, HOME_QUICK_PICKS_LIMIT));
     const geometry = (): Promise<{ readonly edges: readonly number[]; readonly overflows: boolean }> =>
       faces.first().evaluate((face) => {
@@ -747,7 +747,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect.poll(geometry).toEqual({ edges: [0, 0], overflows: true });
     // Tabbing along the row reveals each face whole inside the shelf rather than leaving it cut at the edge.
     // Each face carries its portrait button and its new-chat button, so two Tabs from the first portrait reach the second.
-    const buttons = page.getByRole("list", { name: "Character quick-picks" }).getByRole("button");
+    const buttons = page.getByRole("list", { name: HOME_QUICK_PICKS_NAME }).getByRole("button");
     const secondPortrait = buttons.nth(2);
     await buttons.first().focus();
     await page.keyboard.press("Tab");

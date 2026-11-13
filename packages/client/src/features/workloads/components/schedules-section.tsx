@@ -19,7 +19,7 @@
 // retired pane surface used to hand down as props) and its own suspense boundary.
 
 import { userRoleSatisfies } from "@orb/contracts/identity";
-import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
+import { WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES } from "@orb/contracts/workloads";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -33,8 +33,9 @@ import { useState } from "react";
 import { DestructiveAction, QueryBoundary, useFirstBootRows } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { testId, timeLib } from "#lib";
+import { DIALOG_VERBS, testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
+import { OTHERS_CONTROLS_HIDDEN_TEXT } from "../lib/workloads-failure-copy.ts";
 import { UNRESOLVED_OWNER_HANDLE, viewerActsOnRow, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
 import { SCHEDULE_DELETE_CONFIRM_NAME, SCHEDULE_NEW_NAME, WORKLOAD_BULK_BADGE } from "../lib/workloads-names.ts";
 import {
@@ -107,6 +108,22 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
             </Button>
           )}
         </Row>
+        {!viewerIsOwner && usersQuery.isError ? (
+          <Row align="center" gap="row" wrap={true}>
+            <Text role="status" ink="muted" voice="label">
+              {OTHERS_CONTROLS_HIDDEN_TEXT}
+            </Text>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(): void => {
+                usersQuery.refetch().catch(globalThis.reportError);
+              }}
+            >
+              {DIALOG_VERBS.retry}
+            </Button>
+          </Row>
+        ) : null}
         {schedules.length === 0 ? (
           <EmptyState
             title="No schedules yet. Recurring jobs you set up appear here."
@@ -175,7 +192,8 @@ function ScheduleRow({
   // arm that is TOTAL: a schedule's next run is a wall-clock appointment at any distance, where "in 8 months"
   // is not a thing anyone can act on.
   const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : SCHEDULE_PAUSED_LABEL;
-  const refusal = schedule.enabled ? WORKLOAD_RUN_ACCOUNT_REFUSAL : `${SCHEDULE_PAUSED_LABEL} · ${WORKLOAD_RUN_ACCOUNT_REFUSAL}`;
+  const refusalSentence = schedule.refusal === undefined ? null : WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES[schedule.refusal];
+  const refusal = refusalSentence === null || schedule.enabled ? refusalSentence : `${SCHEDULE_PAUSED_LABEL} · ${refusalSentence}`;
   // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read, and a
   // paused one keeps its Paused state in front of it: resuming a refused schedule must not hide that it is paused.
   // The title already states the cadence and the owner.
@@ -183,8 +201,8 @@ function ScheduleRow({
     <ListRow
       title={WORKLOAD_KIND_LABELS[schedule.kind]}
       titleQualifier={scheduleQualifier(identity)}
-      subtitle={schedule.refusal === undefined ? nextRun : refusal}
-      subtitleWrap={schedule.refusal !== undefined}
+      subtitle={refusal ?? nextRun}
+      subtitleWrap={refusal !== null}
       stackActions={true}
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">

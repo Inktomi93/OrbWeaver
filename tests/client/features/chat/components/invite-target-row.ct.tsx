@@ -1,12 +1,13 @@
 // @subject packages/client/src/features/chat/components/invite-dialog.tsx
 // An outstanding targeted invite names the handle it is for, in its row and in its Revoke control; a share link names none.
+// A handle nobody holds is refused inline, keyed on the refusal code the server sends.
 import type { ChatId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
-import { CHAT_INVITE_PEOPLE_NAME, INVITE_OUTSTANDING_HEADING } from "#client/features/chat/lib/members-names.ts";
+import { CHAT_INVITE_PEOPLE_NAME, INVITE_OUTSTANDING_HEADING, INVITE_TARGET_UNKNOWN_TEXT } from "#client/features/chat/lib/members-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -54,4 +55,21 @@ test("the outstanding invite for a person names their handle and its Revoke cont
   await expect(dialog.getByText(handle)).toHaveCount(1);
   // The control: both invites are listed, so the share link's Revoke is on screen and carries no handle.
   await expect(dialog.getByRole("button", { name: /^Revoke this/u })).toHaveCount(2);
+});
+
+test("an invite to a handle nobody holds says so inline, from the server's own refusal code", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const chatId = await hostedRoom(root);
+  const host = await root.internalCallerFor(root.ownerId);
+  await seedShellState(page, { activeSection: "chats" });
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, serveCorpusProcedures(host, [...READS, "invites.createInvite"]));
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_MEMBERS_ENTRY_PREFIX)}`, "u") }).click();
+  await page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Invite by handle", exact: true }).click();
+  await dialog.getByRole("textbox", { name: "Handle" }).fill("nobody-holds-this-handle");
+  await dialog.getByRole("button", { name: "Send invite", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toHaveText(INVITE_TARGET_UNKNOWN_TEXT);
 });

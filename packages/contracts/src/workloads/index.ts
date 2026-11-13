@@ -14,6 +14,7 @@
 //
 // `axes.ts` is the root of the directory-module: its siblings import it, it imports none of them.
 
+export type { WorkloadRunAccountRefusalCode } from "./admission.ts";
 export {
   requireWorkloadFunder,
   WORKLOAD_NOT_ADMISSIBLE,
@@ -22,6 +23,8 @@ export {
   WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
   WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
   WORKLOAD_RUN_ACCOUNT_REFUSAL,
+  WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES,
+  WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES,
 } from "./admission.ts";
 export type { IndexSource, ScheduleCadence, WireWorkloadKind, WorkloadKind, WorkloadMode, WorkloadStatus } from "./axes.ts";
 export {

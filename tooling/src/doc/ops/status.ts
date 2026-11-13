@@ -65,7 +65,7 @@ export function setStatus({ status, paths, by, docKind = null, blocked = null }:
     refusals.push(`--blocked is a parked plan's wake condition and belongs to status ${PARKED} only`);
   }
   if (refusals.length > 0) {
-    return { written: [], refusals };
+    return { written: [], created: [], refusals };
   }
   const edit = (path: string, patch: Readonly<Record<string, string | null>>): DocEdit => ({
     from: path,
@@ -87,12 +87,15 @@ export function setStatus({ status, paths, by, docKind = null, blocked = null }:
   }
   const problems = introducedDocProblems(edits, repoRoot);
   if (problems.length > 0) {
-    return { written: [], refusals: problems };
+    return { written: [], created: [], refusals: problems };
   }
   for (const { doc } of edits) {
     writeDoc(doc.path, doc.source, repoRoot);
   }
   const written = [...edits.map(({ doc }) => doc.path), ...regenerateIndexes(repoRoot)];
+  const created: readonly string[] = [];
   // The successor's `supersedes` field names the old doc by this write's own hand.
-  return status === SUPERSEDED ? { written, refusals: [], citers: citingLines(paths, by === null ? [] : [by], repoRoot) } : { written, refusals: [] };
+  return status === SUPERSEDED
+    ? { written, created, refusals: [], citers: citingLines(paths, by === null ? [] : [by], repoRoot) }
+    : { written, created, refusals: [] };
 }

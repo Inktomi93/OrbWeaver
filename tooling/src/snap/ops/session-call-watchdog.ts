@@ -7,6 +7,7 @@ import { budget, loadKillError } from "../../floor/host/load-budget.ts";
 import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { SnapAction } from "../contract/types.ts";
 import { SNAP_BASES_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
+import { openCallPhaseLedger } from "./call-phases.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
@@ -126,12 +127,15 @@ export async function runSessionCallWithinBudget(
   baseMs: number = SESSION_CALL_BASE_MS,
 ): Promise<number> {
   const startedAt = Date.now();
+  using phases = openCallPhaseLedger(startedAt);
   const budgetMs = budget(baseMs);
   const ceilingAt = startedAt + Math.max(budgetMs, budget(SESSION_NAVIGATION_CALL_BASE_MS));
   let deadlineAt = startedAt + budgetMs;
   const deadline = Promise.withResolvers<Error>();
   const expire = (): void => {
-    deadline.resolve(loadKillError({ what: `session ${state.name} call \`${op}\``, budgetMs: deadlineAt - startedAt, baseMs }));
+    deadline.resolve(
+      loadKillError({ what: `session ${state.name} call \`${op}\` (${phases.describe(Date.now())})`, budgetMs: deadlineAt - startedAt, baseMs }),
+    );
   };
   let timer = setTimeout(expire, budgetMs);
   const unsubscribe =

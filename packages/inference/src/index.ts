@@ -208,7 +208,9 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     return row.baseUrl;
   };
-  // The OpenRouter catalog is keyless: nothing secret rides the dial, so nothing is scrubbed from its reason.
+  // The OpenRouter catalog is keyless: nothing secret rides the dial, so nothing is scrubbed from its reason. A
+  // catalog that lost its embeddings or rerank list comes back `partial`, which the mirror serves to the read that
+  // asked and never holds or stores.
   const warmOpenRouterCatalog = (): Promise<MirrorWarm<ModelCatalogEntry[]>> =>
     openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl() }), NO_PROVIDER_SECRETS);
   const warmOpenRouter = async (): Promise<void> => {
@@ -264,7 +266,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return fetchEndpointModels(endpointArgs);
     };
     const mirror = endpointModels(baseUrl, modelInfoApi, tenant);
-    const warm = await mirror.warm(fetchRows, secrets);
+    const warm = await mirror.warm(async () => ({ complete: await fetchRows() }), secrets);
     // A list warmed for another model on this server carries none of this model's own probes.
     if (warm.ok && provider.wire === "openai-compat") {
       await probeUnprobedModel(mirror, endpointArgs, connection.model);
@@ -275,8 +277,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const warmAgentSdkCatalog = (identity: SpawnIdentity): Promise<MirrorWarm<AgentSdkModel[]>> => {
     const agentSdkBackend = built.agentSdk;
     return agentSdkBackend === undefined
-      ? Promise.resolve({ ok: false, reason: "The Claude runtime is not installed." })
-      : agentSdkCatalog.warm(() => agentSdkBackend.catalog(identity), resolvedScrubSet({ credential: identity.credential, transport: null }));
+      ? Promise.resolve({ ok: false, reason: "The Claude runtime is not installed.", partial: null })
+      : agentSdkCatalog.warm(
+          async () => ({ complete: await agentSdkBackend.catalog(identity) }),
+          resolvedScrubSet({ credential: identity.credential, transport: null }),
+        );
   };
   const warmAgentSdk = async (identity: SpawnIdentity): Promise<void> => {
     await warmAgentSdkCatalog(identity);
@@ -289,7 +294,9 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
     return (
       await detectedServer(baseUrl).warm(
-        () => detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, scheduleTimeout: deps.scheduleTimeout }),
+        async () => ({
+          complete: await detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, scheduleTimeout: deps.scheduleTimeout }),
+        }),
         secrets,
       )
     ).ok;

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import type { OverflowMenuForm, OverflowMenuItem } from "./overflow-menu-form.ts";
 
 /** One action in the band's row: its inline control and the menu form that stands in for it when the row has no room. A
@@ -10,6 +10,8 @@ interface ListBandAction {
   readonly inline: ReactNode;
   readonly menu: readonly [OverflowMenuForm, ...OverflowMenuForm[]];
   readonly compact?: OverflowMenuItem;
+  /** The compact icon's button, for a surface that returns focus to the band's primary. */
+  readonly compactRef?: Ref<HTMLButtonElement>;
 }
 
 /** Section data for the shell-owned list band; feature actions cannot replace its identity anatomy. */

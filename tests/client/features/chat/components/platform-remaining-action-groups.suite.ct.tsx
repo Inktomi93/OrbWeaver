@@ -12,7 +12,12 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
-import { CHAT_GALLERY_ADD_NAME, CHAT_GALLERY_ADD_PICKER_TITLE, CHAT_GALLERY_EMPTY_TITLE } from "#client/features/chat/lib/chat-surface-names.ts";
+import {
+  CHAT_GALLERY_ADD_NAME,
+  CHAT_GALLERY_ADD_PICKER_TITLE,
+  CHAT_GALLERY_EMPTY_TITLE,
+  characterGalleryName,
+} from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE, toolCallVisibilityName } from "#client/features/chat/lib/message-action-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { GalleryActionsStory, GameTrackerActionsStory, ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
@@ -141,7 +146,7 @@ for (const regime of REGIMES) {
         const opener = page.getByRole("button", { name: "Open character gallery", exact: true });
         await opener.focus();
         await page.keyboard.press("Enter");
-        const gallery = page.getByRole("dialog", { name: `${card.name}'s gallery`, exact: true });
+        const gallery = page.getByRole("dialog", { name: characterGalleryName(card.name), exact: true });
         const add = gallery.getByRole("button", { name: CHAT_GALLERY_ADD_NAME, exact: true });
         const close = gallery.getByRole("button", { name: DIALOG_VERBS.close, exact: true });
         await expect(add).toBeEnabled();

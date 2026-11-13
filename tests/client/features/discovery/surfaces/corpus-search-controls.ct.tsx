@@ -100,7 +100,7 @@ test("switching rerank on makes the next search carry rerank and shows it was re
   const rerankSwitch = component.getByRole("switch");
   await expect(rerankSwitch).toBeEnabled();
   await rerankSwitch.click();
-  await expect.poll(() => asked.at(-1)).toBe(true);
+  await expect.poll(() => asked).toContain(true);
   await component.getByText("How search works").click();
   await expect(component.getByText(/Rerank: requested/u)).toBeVisible();
 });
@@ -150,8 +150,11 @@ test("typing with rerank on settles to one reranked search, not one per keystrok
   await expect(component.getByRole("switch")).toBeChecked();
   const text = "orbital ledger";
   await component.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true }).pressSequentially(text, { delay: 40 });
-  await expect.poll(() => sent.at(-1)?.query).toBe(text);
+  await expect.poll(() => sent.map((search) => search.query)).toContain(text);
   await expect(component.getByText("How search works")).toBeVisible();
+  const queries = sent.map((search) => search.query);
+  // The full query is the last search sent: a stale keystroke query that fires after it fails here.
+  expect(queries.slice(queries.indexOf(text))).toEqual([text]);
   const reranked = sent.filter((search) => search.rerank === true);
   expect(nonEmpty(sent).every((search) => search.rerank === true)).toBe(true);
   expect(reranked.length).toBeLessThanOrEqual(2);

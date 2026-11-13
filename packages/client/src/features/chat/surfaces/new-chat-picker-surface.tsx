@@ -75,7 +75,7 @@ import { CharacterPicker } from "#components";
 import { PICKER_FIRST_OPEN_BOX, PICKER_FIRST_OPEN_BOX_WITH_DOOR, useStartChat, useTRPC } from "#data";
 import { BLANK_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#lib";
 import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
-import { CHAT_MORE_BELOW_CUE, CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_MORE_BELOW_CUE, CHAT_SAVED_ROSTER_DOOR_NAME, NEW_CHAT_CHARACTERS_FIELD_NAME } from "../lib/chat-surface-names.ts";
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -215,7 +215,7 @@ export function NewChatPicker(): ReactElement {
         autoFocusSearch={true}
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}
-        label="Choose characters"
+        label={NEW_CHAT_CHARACTERS_FIELD_NAME}
         leading={leadingDoor}
         listSize="pickerWindow"
         onEscape={dismiss}

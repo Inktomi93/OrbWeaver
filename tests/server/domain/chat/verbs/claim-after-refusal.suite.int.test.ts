@@ -8,6 +8,7 @@
 // @subject packages/server/src/domain/rpg/snapshot-edit.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import { INVITE_TARGET_UNKNOWN_CODE } from "@orb/contracts/chat";
 import { handleSchema } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
@@ -150,7 +151,7 @@ test("invite: an unknown target handle is refused before the claim, and a share 
   await expect(
     createInvite({ principal: h.owner, chatId: h.chatId, input: { invitedHandle: handleSchema.parse("nobody-holds-this-handle") } }),
   ).rejects.toMatchObject({
-    code: "invite_target_unknown",
+    code: INVITE_TARGET_UNKNOWN_CODE,
   });
   await watch.expectUnclaimed();
 
