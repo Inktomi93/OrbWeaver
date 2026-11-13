@@ -11,6 +11,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { CappedFieldCounter } from "#forms/editor";
 import { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
+import { IMAGINE_COUNT_NAME, IMAGINE_MORE_OPTIONS_NAME, IMAGINE_NEGATIVE_NAME, IMAGINE_SIZE_NAME, imagineCountSpendText } from "../lib/imagine-names.ts";
 
 const IMAGE_COUNTS = Array.from({ length: MAX_IMAGE_COUNT - MIN_IMAGE_COUNT + 1 }, (_, index) => String(MIN_IMAGE_COUNT + index));
 // The default sends no size, so the server keeps choosing the shape each mode's composition assumes.
@@ -41,12 +42,12 @@ export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, n
   const sizeLabelId = useId();
   return (
     <Collapsible>
-      <CollapsibleTrigger>More options</CollapsibleTrigger>
+      <CollapsibleTrigger>{IMAGINE_MORE_OPTIONS_NAME}</CollapsibleTrigger>
       <CollapsiblePanel holds="controls">
         <Stack paddingBlockStart="row" gap="block">
           <Stack gap="field">
             <Text as="span" id={countLabelId} voice="label">
-              Number of images
+              {IMAGINE_COUNT_NAME}
             </Text>
             {/* Filled cells share the dialog's width, so a single digit still meets the touch floor on a phone. */}
             <ToggleGroup
@@ -69,7 +70,7 @@ export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, n
           </Stack>
           <Stack gap="field">
             <Text as="span" id={sizeLabelId} voice="label">
-              Image size
+              {IMAGINE_SIZE_NAME}
             </Text>
             <ToggleGroup
               aria-labelledby={sizeLabelId}
@@ -91,10 +92,10 @@ export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, n
           </Stack>
           <Stack gap="field">
             <Text as="span" voice="label">
-              Negative prompt
+              {IMAGINE_NEGATIVE_NAME}
             </Text>
             <Textarea
-              aria-label="Negative prompt"
+              aria-label={IMAGINE_NEGATIVE_NAME}
               disabled={busy}
               maxLength={MAX_NEGATIVE_CHARS}
               maxRows={NEGATIVE_MAX_ROWS}
@@ -111,7 +112,7 @@ export function ImagineOptions({ busy, hostPays, count, onCount, size, onSize, n
           <Stack aria-live="polite" role="status">
             {count > MIN_IMAGE_COUNT && hostPays !== undefined ? (
               <Text cap="prose" data-slot="imagine-count-spend" voice="reading">
-                Asks for {count} images. {hostPays ? "The room's host pays" : "You pay"} for each one that comes back, and some connections make only one.
+                {imagineCountSpendText(count, hostPays)}
               </Text>
             ) : null}
           </Stack>

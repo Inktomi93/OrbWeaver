@@ -15,6 +15,7 @@ import { useCreateUser } from "../hooks/use-admin-mutations.ts";
 import { useCreateUserForm } from "../hooks/use-create-user-form.ts";
 import type { CreateUserFormValues } from "../lib/admin-model.ts";
 import { ROLE_ITEMS } from "../lib/admin-model.ts";
+import { ADMIN_CREATE_USER_NAME, adminCreateUserLabel } from "../lib/user-admin-names.ts";
 
 export interface AdminCreateUserDialogProps {
   readonly open: boolean;
@@ -54,7 +55,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
     <FormDialogPopup
       description="Mint a loginable local account. Admins can manage users and system settings; only the box owner can change roles later."
       submit={{
-        label: createUser.isPending ? "Creating…" : "Create user",
+        label: adminCreateUserLabel(createUser.isPending),
         disabled: createUser.isPending,
         testKey: "adminCreateUserSubmit",
         onSubmit: (): void => {
@@ -63,7 +64,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
         },
       }}
       testKey="adminCreateUserDialog"
-      title="Create user"
+      title={ADMIN_CREATE_USER_NAME}
     >
       <form.AppField name="handle">{(field): ReactElement => <field.TextField label="Handle" placeholder="e.g. mira" autoComplete="off" />}</form.AppField>
       <form.AppField name="password">

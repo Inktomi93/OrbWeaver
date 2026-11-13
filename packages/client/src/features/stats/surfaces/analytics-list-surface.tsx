@@ -26,7 +26,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, testId, useFocusListArrival } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "../lib/analytics-copy.ts";
-import { ANALYTICS_SEARCH_NAME, analyticsSortName } from "../lib/analytics-names.ts";
+import { ANALYTICS_LEADERBOARD_NAME, ANALYTICS_SEARCH_NAME, analyticsSortName } from "../lib/analytics-names.ts";
 import {
   ANALYTICS_DEFAULT_SORT,
   ANALYTICS_SORT_OPTIONS,
@@ -150,7 +150,7 @@ function LeaderboardBody({
 
   return (
     <VirtualList
-      aria-label="Character leaderboard"
+      aria-label={ANALYTICS_LEADERBOARD_NAME}
       height="fill"
       estimateSize={(): number => ESTIMATED_ROW_PX.ranked}
       fadeEdge={true}

@@ -19,7 +19,17 @@ import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
-import { DEFERRED_TURN_CHAT_GONE_COPY, DEFERRED_TURN_HOST_UNAVAILABLE_COPY } from "../lib/notifications-copy.ts";
+import {
+  ACCEPT_HANDOFF_NAME,
+  acceptInvitationName,
+  DEFERRED_TURN_CHAT_GONE_COPY,
+  DEFERRED_TURN_HOST_UNAVAILABLE_COPY,
+  declineInvitationName,
+  dismissRowName,
+  KICKED_ROW_COPY,
+  openPluginsName,
+  REVIEW_PLUGIN_CONSENT_NAME,
+} from "../lib/notifications-copy.ts";
 
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 
@@ -37,7 +47,7 @@ const ROW_COPY: {
   readonly [K in NotificationType]: (payload: Extract<NotificationEvent, { type: K }>, pluginName: string | undefined) => string;
 } = {
   invite: (p) => `Invited to a chat by ${p.invitedByHandle}`,
-  kicked: () => "You were removed from a chat",
+  kicked: () => KICKED_ROW_COPY,
   "handoff-nominated": () => "You've been nominated to host a chat",
   "handoff-accepted": (p) => `Your chat is now hosted by ${p.newHostHandle}`,
   "deferred-turn-dropped": (p) => (p.reason === "consent" ? DEFERRED_TURN_HOST_UNAVAILABLE_COPY : DEFERRED_TURN_CHAT_GONE_COPY),
@@ -227,11 +237,11 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
       <Row gap="field" align="center" wrap={true} justify="end">
         {isInvite && !acted ? (
           <>
-            <Button aria-label={`Accept invitation from ${item.payload.invitedByHandle}`} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>
+            <Button aria-label={acceptInvitationName(item.payload.invitedByHandle)} type="button" disabled={isPending} size="sm" onClick={acceptInvite}>
               {DIALOG_VERBS.accept}
             </Button>
             <Button
-              aria-label={`Decline invitation from ${item.payload.invitedByHandle}`}
+              aria-label={declineInvitationName(item.payload.invitedByHandle)}
               type="button"
               disabled={isPending}
               variant="outline"
@@ -243,18 +253,18 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
           </>
         ) : null}
         {isHandoff && !acted && !acceptedHandoff ? (
-          <Button aria-label="Accept the host handoff" type="button" disabled={isPending} size="sm" onClick={(): void => onRequestHandoff(item)}>
+          <Button aria-label={ACCEPT_HANDOFF_NAME} type="button" disabled={isPending} size="sm" onClick={(): void => onRequestHandoff(item)}>
             {DIALOG_VERBS.accept}
           </Button>
         ) : null}
         {isConsent ? (
-          <Button aria-label="Review what your plugins ask for" type="button" disabled={isPending} size="sm" onClick={reviewConsent}>
+          <Button aria-label={REVIEW_PLUGIN_CONSENT_NAME} type="button" disabled={isPending} size="sm" onClick={reviewConsent}>
             Review
           </Button>
         ) : null}
         {disabledPluginName === undefined ? null : (
           <Button
-            aria-label={`Open Plugins, ${disabledPluginName}`}
+            aria-label={openPluginsName(disabledPluginName)}
             type="button"
             disabled={isPending}
             variant="outline"
@@ -275,7 +285,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
             real second answer — but Dismiss is the escape hatch, never the row's point. */}
         {isInvite && !acted ? null : (
           <Button
-            aria-label={`Dismiss: ${rowCopy(item.payload, disabledPluginName)}`}
+            aria-label={dismissRowName(rowCopy(item.payload, disabledPluginName))}
             type="button"
             disabled={isPending}
             variant="ghost"

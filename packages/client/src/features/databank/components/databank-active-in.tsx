@@ -39,6 +39,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 import { selectChat, setActiveSection } from "#state";
+import { DATABANK_NOWHERE_YET_TEXT } from "../lib/databank-names.ts";
 import { CharacterAttachments } from "./databank-character-attachments.tsx";
 
 /**
@@ -80,7 +81,7 @@ function ActiveInBody({ documentId, documentName }: { readonly documentId: Docum
       <CharacterAttachments characters={attachments.characters} documentId={documentId} documentName={documentName} />
       {/* Never render nothing: "no attachments" is a real, common state and a blank block reads as a
           failed load. */}
-      {nowhere ? <Text voice="gloss">Nowhere yet: attach it to one of your characters, or from a chat's Databank panel.</Text> : null}
+      {nowhere ? <Text voice="gloss">{DATABANK_NOWHERE_YET_TEXT}</Text> : null}
     </Stack>
   );
 }

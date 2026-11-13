@@ -53,6 +53,7 @@ import {
   EXTENSIONS_NO_SELECTION_BODY,
   EXTENSIONS_NO_SELECTION_TITLE,
   EXTENSIONS_OPEN_PLUGINS_ACTION,
+  EXTENSIONS_PAGE_LOADING_NAME,
   EXTENSIONS_REVIEW_PLUGINS_ACTION,
 } from "../lib/extensions-copy.ts";
 
@@ -229,7 +230,7 @@ export function ExtensionsPageSurface(): ReactElement {
         fallback={
           <InsetPane>
             <Stack gap="block" role="status">
-              <Text voice="label">Loading plugin page…</Text>
+              <Text voice="label">{EXTENSIONS_PAGE_LOADING_NAME}</Text>
               <SkeletonRows count={3} shape="line" />
             </Stack>
           </InsetPane>

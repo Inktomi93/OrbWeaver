@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { revokeSessionName, userActionsName } from "#client/features/user-admin/lib/admin-model.ts";
+import { ADMIN_SESSIONS_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import type { AdminUsersStory } from "./_admin-users-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-users-stories/AdminUsersStory";
@@ -24,7 +25,7 @@ test("a session's Revoke waits for its confirm: Cancel keeps the session, the co
   await mount<typeof AdminUsersStory>(STORY, {});
 
   await page.getByRole("button", { name: userActionsName(handle), exact: true }).click();
-  await page.getByRole("menu").getByRole("menuitem", { name: "Sessions…", exact: true }).click();
+  await page.getByRole("menu").getByRole("menuitem", { name: ADMIN_SESSIONS_NAME, exact: true }).click();
   const revoke = page.getByRole("dialog").getByRole("button", { name: revokeSessionName(DEVICE), exact: true });
   await revoke.click();
   const confirm = page.getByRole("alertdialog");

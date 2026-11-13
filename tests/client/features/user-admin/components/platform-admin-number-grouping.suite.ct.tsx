@@ -2,6 +2,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { ADMIN_MEMORY_MIN_MATCH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import type { AdminActionGroupsStory, AdminMemoryTuningStory } from "./_admin-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-action-groups-stories/AdminActionGroupsStory";
@@ -85,7 +86,7 @@ for (const { locale, typed } of LOCALES) {
       await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "settings.getAppSettingsWithOverrides"]));
       await mount<typeof AdminMemoryTuningStory>(MEMORY_STORY, { width: 960, appearance });
-      const field = page.getByRole("textbox", { name: "Minimum match", exact: true });
+      const field = page.getByRole("textbox", { name: ADMIN_MEMORY_MIN_MATCH_NAME, exact: true });
       await field.fill(locale === "de-DE" ? "0,5" : "0.5");
       await field.press("Tab");
       await expect(field).toHaveValue(locale === "de-DE" ? "0,5" : "0.5");

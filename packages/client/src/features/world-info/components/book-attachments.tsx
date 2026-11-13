@@ -15,6 +15,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachWorldBookGlobal, useDetachWorldBookGlobal } from "../hooks/use-world-info-mutations.ts";
+import { worldInfoAttachedByPersonasKicker } from "../lib/world-info-names.ts";
 import { CharacterAttachRow, PersonaAttachRow } from "./attachment-rows.tsx";
 
 const PICKER_PAGE_LIMIT = 100;
@@ -94,7 +95,7 @@ function PersonasSection({
   personas,
 }: AttachmentSectionProps & { readonly personas: inferOutput<Trpc["persona"]["list"]> }): ReactElement {
   return (
-    <Section kicker={`Attached by personas · ${attachments.personaIds.length}`}>
+    <Section kicker={worldInfoAttachedByPersonasKicker(attachments.personaIds.length)}>
       {personas.length === 0 ? (
         <Text voice="gloss">No personas yet. Create one from the rail-foot Account &amp; personas panel.</Text>
       ) : (

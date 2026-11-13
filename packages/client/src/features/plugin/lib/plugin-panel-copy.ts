@@ -12,6 +12,11 @@ export const CHAT_PLUGINS_OPEN_LABEL = `Open ${CHAT_PLUGINS_TAB_LABEL} tab`;
 /** The plugin dialog's title before any guest content names it. */
 export const PLUGIN_DIALOG_TITLE = "Plugin";
 
+/** The plugin dialog's body once its plugin is gone, and the line shown while it loads. */
+export const PLUGIN_DIALOG_GONE_TITLE = "That dialog is no longer available";
+export const PLUGIN_DIALOG_GONE_BODY = "Its plugin was disabled or removed while it was open.";
+export const PLUGIN_DIALOG_LOADING_NAME = "Loading plugin dialog…";
+
 /** The page shell's kicker: it names the class, so a faked app screen inside a plugin is contradicted. */
 export const PLUGIN_SURFACE_KICKER = "Plugin";
 

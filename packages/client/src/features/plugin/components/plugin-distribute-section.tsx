@@ -31,6 +31,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTR
 import { DIALOG_VERBS, notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
+import { PLUGIN_DISTRIBUTE_ACTION_NAME } from "../lib/plugin-copy.ts";
 import { PLUGIN_DISTRIBUTE_SUBCATEGORY } from "../lib/plugin-distribute-nav.ts";
 import { useDistributePlugin, useWithdrawPlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
@@ -170,7 +171,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
             />
             <Row wrap={true} gap="field" justify="start">
               <Button loading={distribute.isPending} onClick={onDistribute}>
-                Distribute to everyone
+                {PLUGIN_DISTRIBUTE_ACTION_NAME}
               </Button>
               <Button
                 variant="ghost"

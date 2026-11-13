@@ -14,7 +14,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { collidingNameQualifiers, positionQualifier, REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY, trpcErrorReason } from "#lib";
 import { openChatMoment, openConfigTo } from "#state";
-import { CORPUS_NO_RESULT_TEXT, corpusLexicalNoMatchText, corpusResultsStatusText } from "../lib/corpus-control-names.ts";
+import { CORPUS_NO_RESULT_TEXT, CORPUS_READ_LABELS, corpusLexicalNoMatchText, corpusResultsStatusText } from "../lib/corpus-control-names.ts";
 import { chatSubtitle, groupByEvidence, snippetForDisplay } from "../lib/corpus-result-text.ts";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, isNearestOnly, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
@@ -84,7 +84,7 @@ function UnifiedResults({
         trpcErrorReason(error) === SEARCH_SPACE_REINDEXING ? (
           <SearchPaused over={over} onTextInstead={onTextInstead} />
         ) : (
-          <QueryErrorState label="the search" onRetry={retry} />
+          <QueryErrorState label={CORPUS_READ_LABELS.search} onRetry={retry} />
         )
       }
       resetKeys={[query.trim(), over, rerank]}

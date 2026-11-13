@@ -2,7 +2,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CONFIG_ADVANCED_THEME_TOOLS_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { CONFIG_ADVANCED_THEME_TOOLS_NAME, CONFIG_NEW_THEME_LEAD, CONFIG_THEME_CSS_FIELD_NAME } from "#client/features/config/lib/config-control-names.ts";
 import {
   OWNER_CSS_APPEARANCE_ATTRIBUTES,
   OWNER_CSS_SHELL_CLASSES,
@@ -39,9 +39,9 @@ async function openThemeCssEditor(page: Page): Promise<void> {
 }
 
 async function typeIntoEditor(page: Page, text: string): Promise<void> {
-  await page.getByRole("button", { name: /^New theme/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONFIG_NEW_THEME_LEAD)}`, "u") }).click();
   await page.getByRole("button", { name: CONFIG_ADVANCED_THEME_TOOLS_NAME }).click();
-  const editor = page.getByRole("textbox", { name: "Custom theme CSS" });
+  const editor = page.getByRole("textbox", { name: CONFIG_THEME_CSS_FIELD_NAME });
   await editor.click();
   await page.keyboard.type(text);
 }
@@ -101,12 +101,12 @@ test("a planted stale slot warns in the editor and names the closest current slo
 
 test("a current slot raises no warning", async ({ page }) => {
   await typeIntoEditor(page, `[data-slot="${SLOT}"] { color: red; }`);
-  await expect(page.getByRole("textbox", { name: "Custom theme CSS" })).toContainText(`[data-slot="${SLOT}"]`);
+  await expect(page.getByRole("textbox", { name: CONFIG_THEME_CSS_FIELD_NAME })).toContainText(`[data-slot="${SLOT}"]`);
   await expect(page.locator(".cm-lint-marker-warning")).toHaveCount(0);
 });
 
 test("accepting a slot completion writes the name into the selector", async ({ page }) => {
   await typeIntoEditor(page, `[data-slot="${SLOT.slice(0, -1)}`);
   await completionOption(page, SLOT).click();
-  await expect(page.getByRole("textbox", { name: "Custom theme CSS" })).toContainText(`[data-slot="${SLOT}"`);
+  await expect(page.getByRole("textbox", { name: CONFIG_THEME_CSS_FIELD_NAME })).toContainText(`[data-slot="${SLOT}"`);
 });

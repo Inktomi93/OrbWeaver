@@ -23,6 +23,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTR
 import { testId, timeLib } from "#lib";
 import { useSetEnabled } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_APPROVALS_SUBCATEGORY } from "../lib/admin-approvals-nav.ts";
+import { ADMIN_APPROVALS_NOTE } from "../lib/user-admin-names.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
@@ -55,7 +56,7 @@ function AdminApprovalsBody({ anchorId }: { readonly anchorId: string }): ReactE
     <Section container={true} divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminApprovalsSection")}>
         <Text cap="prose" voice="label" ink="muted">
-          Accounts awaiting approval can't sign in until you enable them. New sign-ins through your identity provider land here when approval is required.
+          {ADMIN_APPROVALS_NOTE}
         </Text>
 
         {pending.length === 0 ? (

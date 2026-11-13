@@ -11,6 +11,8 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Tone } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { REFINERY_KEEP_CLEARING_VERB, REFINERY_KEEP_VERB, REFINERY_REOPEN_VERB } from "#client/features/refinery/lib/refinery-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_action-groups-stories/RefineryActionGroupsStory";
@@ -81,23 +83,25 @@ test("the open field's state chip and its queue row's chip read the same for a k
   const session = await serveRewriteSession(page, caller);
   await mount<typeof RefineryActionGroupsStory>(STORY, { sessionId: session.id, width: WIDTH, appearance: DEFAULT_APPEARANCE_SETTINGS });
   const review = page.getByTestId(testId("refineryAcceptReview"));
-  const discards = review.getByRole("button", { name: /^Discard /u });
+  const discards = review.getByRole("button", { name: new RegExp(`^${RegExp.escape(DIALOG_VERBS.discard)} `, "u") });
   await expect(discards.first()).toBeVisible();
-  const labels = (await discards.allTextContents()).map((text) => text.replace(/^Discard /u, ""));
-  const notesLabel = ((await review.getByRole("button", { name: /^Keep \(empties field\) /u }).textContent()) ?? "").replace(/^Keep \(empties field\) /u, "");
+  const labels = (await discards.allTextContents()).map((text) => text.replace(new RegExp(`^${RegExp.escape(DIALOG_VERBS.discard)} `, "u"), ""));
+  const notesLabel = (
+    (await review.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_KEEP_CLEARING_VERB)} `, "u") }).textContent()) ?? ""
+  ).replace(new RegExp(`^${RegExp.escape(REFINERY_KEEP_CLEARING_VERB)} `, "u"), "");
   const greetingLabel = labels.find((label) => label.includes("greeting")) ?? "";
   const descriptionLabel = labels.find((label) => label !== notesLabel && label !== greetingLabel) ?? "";
 
-  await review.getByRole("button", { name: `Keep ${descriptionLabel}`, exact: true }).click();
-  await review.getByRole("button", { name: `Discard ${notesLabel}`, exact: true }).click();
+  await review.getByRole("button", { name: `${REFINERY_KEEP_VERB} ${descriptionLabel}`, exact: true }).click();
+  await review.getByRole("button", { name: `${DIALOG_VERBS.discard} ${notesLabel}`, exact: true }).click();
   const island = review.locator('[data-slot="compare-block-state"]');
   const undecidedIsland = await readChip(island);
   const queuedKept = await readChip(review.locator('[data-queue-state="kept"] [data-slot="badge"]'));
   const queuedDiscarded = await readChip(review.locator('[data-queue-state="discarded"] [data-slot="badge"]'));
 
-  await review.getByRole("button", { name: `Reopen ${descriptionLabel}`, exact: true }).click();
+  await review.getByRole("button", { name: `${REFINERY_REOPEN_VERB} ${descriptionLabel}`, exact: true }).click();
   const openKept = await readChip(island);
-  await review.getByRole("button", { name: `Reopen ${notesLabel}`, exact: true }).click();
+  await review.getByRole("button", { name: `${REFINERY_REOPEN_VERB} ${notesLabel}`, exact: true }).click();
   const openDiscarded = await readChip(island);
 
   expect(openKept).toEqual(queuedKept);

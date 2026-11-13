@@ -8,7 +8,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/te
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
+import { EXTENSIONS_GONE_TITLE, EXTENSIONS_PAGE_LOADING_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ExtensionsPagePickStory, ExtensionsPageStory } from "./_extensions-page-stories.tsx";
 
@@ -33,7 +33,7 @@ test("a held page read shows the loading status, a failed one the error block, a
   });
   await mount<typeof ExtensionsPageStory>(STORY, { pluginId: mintTypeId(ID_PREFIX.plugin, createSeededIds().next), surfaceId: "missing_page" });
   await hold.requested;
-  await expect(page.getByText("Loading plugin page…", { exact: true })).toBeVisible();
+  await expect(page.getByText(EXTENSIONS_PAGE_LOADING_NAME, { exact: true })).toBeVisible();
   hold.fail();
   await expect(page.getByText("Couldn't load this plugin page.", { exact: true })).toBeVisible();
   phase = "serve";

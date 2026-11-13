@@ -36,6 +36,7 @@ import { ConfigMobileTeaching } from "../components/config-mobile-teaching.tsx";
 import { ConfigModifiedMark } from "../components/config-modified-mark.tsx";
 import { ConfigSearchInput } from "../components/config-search-input.tsx";
 import { useConfigModified } from "../hooks/use-modified-sections.ts";
+import { CONFIG_SETTINGS_GROUPS_NAME } from "../lib/config-control-names.ts";
 import { CONFIG_MODIFIED_MARKER, SAVE_FAILED_MARKER } from "../lib/config-copy.ts";
 import { CONFIG_SHELF_LABELS, configShelfLabelId } from "../lib/config-nav-model.ts";
 import { useConfigSubcategoryParts } from "../lib/config-subcategories.ts";
@@ -104,7 +105,7 @@ export function ConfigListSurface({ groups, preserveContentFocus }: ConfigListSu
     <ListPage
       body="pane"
       data-slot="config-list"
-      label="Settings groups"
+      label={CONFIG_SETTINGS_GROUPS_NAME}
       ref={surfaceRef}
       search={<ConfigSearchInput groups={groups} />}
       skipTo="Skip to settings"

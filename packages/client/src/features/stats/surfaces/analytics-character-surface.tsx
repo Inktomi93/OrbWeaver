@@ -24,6 +24,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { CORPUS_MODE_LABELS, sectionBackName, testId, timeLib, useFocusOnMount } from "#lib";
 import { useMobileViewport } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
+import { ANALYTICS_CHARACTER_IDENTITY_TEXT } from "../lib/analytics-copy.ts";
 import {
   formatAccountingLabel,
   formatCompact,
@@ -115,7 +116,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
       <DetailHeader back={{ label: sectionBackName(CORPUS_MODE_LABELS.insights), onClick: onBack }} title={stats.name} />
       <Stack gap="tight">
         <Text voice="gloss" role="note">
-          This character · Aggregate only
+          {ANALYTICS_CHARACTER_IDENTITY_TEXT}
         </Text>
         {stats.lastActivityAt === null ? null : (
           // Relative in the text — the one time vocabulary this column speaks — with the exact stamp a press away.
