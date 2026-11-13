@@ -75,6 +75,6 @@ export const AVATAR_RING_ITEMS: readonly SelectOption[] = [
 ] satisfies readonly { value: AppearanceSettings["avatarRing"]; label: string }[];
 
 export const MESSAGE_ACTIONS_ITEMS: readonly SelectOption[] = [
-  { value: "hover", label: "Reveal on hover" },
+  { value: "hover", label: "Reveal on hover, always shown on touch" },
   { value: "expanded", label: "Always visible" },
 ] satisfies readonly { value: AppearanceSettings["messageActions"]; label: string }[];

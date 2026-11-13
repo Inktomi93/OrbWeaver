@@ -9,10 +9,11 @@
 // scope-key flip mid-send (the "first send doesn't clear the composer" bug) and the double-mint on a retry.
 
 import type { AssetId, ChatId } from "@orb/kit/ids";
+import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
+import { createEntityMutation, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
 import { notify, trpcErrorCode, turnMutationToast, viewerTimeZone } from "#lib";
 import { holdRoomForSend, subscribeUserMessageCommitted } from "#state";
 import { SEND_FAILED_TITLE } from "../lib/send-failure-copy.ts";
@@ -23,7 +24,8 @@ const useSendMutation = createEntityMutation<inferInput<Trpc["chat"]["send"]>, u
   // busDriven: the turn's messageCommitted/turnCompleted bus events already run the full chatReads
   // invalidation; a mutation-side invalidate here would double-refetch (the observed 4-5x/send storm).
   busDriven: true,
-  errorToast: (error) => turnMutationToast(error, SEND_FAILED_TITLE),
+  // A refusal that finds no such room says nothing here: whether the room is gone is `runSend`'s to find out, and a gone room has its own notice.
+  errorToast: (error) => (trpcErrorCode(error) === "NOT_FOUND" ? null : turnMutationToast(error, SEND_FAILED_TITLE)),
 });
 
 export interface UseSendMessageOptions {
@@ -49,6 +51,7 @@ async function uploadAttachments(upload: ReturnType<typeof useUploadAsset>, atta
 export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResult {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  const queryClient = useQueryClient();
   const upload = useUploadAsset();
   const sendMutation = useSendMutation({ trpc, invalidation });
   const [isPending, setIsPending] = useState(false);
@@ -75,9 +78,17 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
         ...(attachmentAssetIds.length > 0 ? { attachmentAssetIds } : {}),
       });
     } catch (error) {
-      // The server found no such room: re-read it, and a room that is gone is left for the chat list (`useRoomRead`).
+      // The server found no such room: re-read it. A room that proves gone is left for the chat list (`useRoomRead`) with the one
+      // notice that offers the unsent text back; a room that still reads says the send failed.
       if (trpcErrorCode(error) === "NOT_FOUND") {
-        invalidation.invalidateFilters([trpc.chat.getChat.queryFilter({ chatId: opts.chatId })]);
+        await queryClient.query({ ...roomRosterOptions(trpc, { chatId: opts.chatId }), staleTime: 0 }).then(
+          () => notify.error(SEND_FAILED_TITLE),
+          (reread: unknown) => {
+            if (trpcErrorCode(reread) !== "NOT_FOUND") {
+              notify.error(SEND_FAILED_TITLE);
+            }
+          },
+        );
       }
       throw error;
     } finally {

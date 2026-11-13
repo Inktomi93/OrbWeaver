@@ -167,6 +167,8 @@ export function renderRowBubble(args: {
   readonly footer: ReactNode;
   /** The transcript's last row, which takes `RowSkin.lastRowFloor`. */
   readonly lastRow: boolean;
+  /** The row's actions-only bar overlays its first line (`HeaderShape.ownLine` is false). */
+  readonly headerOverlaid: boolean;
   readonly trainParagraphs: readonly string[] | null;
   readonly skin: RowSkin;
   readonly decoration: BubbleDecoration | null;
@@ -188,6 +190,7 @@ export function renderRowBubble(args: {
   const facts = messageBoxFacts(args.skin, args.decoration, {
     role: args.role,
     lastRowFloor: args.lastRow && args.skin.lastRowFloor,
+    headerOverlaid: args.headerOverlaid,
     editing: args.editing,
     receded: args.message.excludedFromPrompt,
   });

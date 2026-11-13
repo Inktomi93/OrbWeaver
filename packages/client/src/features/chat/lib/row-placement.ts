@@ -2,10 +2,8 @@
 // by `MessageRow` and `GhostMessageRow` alike so neither pays for the decision in complexity.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { ActionsReveal } from "./message-actions-reveal.ts";
 import type { RowSkin } from "./message-row-variants.ts";
 
 /** {@link headerShape}'s answer: whether the bar names the speaker, and whether it takes a line. */
@@ -55,20 +53,12 @@ export function rowAlignFor(skin: RowSkin, role: MessageRole): "start" | "center
 }
 
 /** The header bar's shape for this skin and row. A bar that names its speaker always takes a line; an
- *  actions-only bar (`RowSkin.actionsRow`, stock document) takes one on the last row only and otherwise
- *  overlays the row's top trailing corner, so the page runs on without a gap per message. */
-export function headerShape(skin: RowSkin, lastRow: boolean): HeaderShape {
+ *  actions-only bar (`RowSkin.actionsRow`, stock document) takes one where its actions show at rest, the last row and
+ *  every row at a touch pointer, and otherwise overlays the row's top trailing corner, so the page runs on without a
+ *  gap per message. */
+export function headerShape(skin: RowSkin, lastRow: boolean, coarse: boolean): HeaderShape {
   const identity = skin.actionsRow.identity;
-  return { identity, ownLine: identity || lastRow };
-}
-
-/** How a row's header actions reveal: always on the transcript's last row (or when the reader set them to
- *  show), else on hover and focus, and an actions-only bar never pins itself on at a touch pointer. */
-export function actionsRevealFor(skin: RowSkin, lastRow: boolean, setting: AppearanceSettings["messageActions"] | undefined): ActionsReveal {
-  if (lastRow || setting === "expanded") {
-    return "expanded";
-  }
-  return skin.actionsRow.identity ? "hover" : "focus";
+  return { identity, ownLine: identity || lastRow || coarse };
 }
 
 /** The settled transcript's last row id. While a turn is live the ghost is the tail, so no row is last. */

@@ -43,6 +43,7 @@ import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/noti
 import { EXTENSIONS_NO_SELECTION_BODY, EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { NEW_PRESET_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
+import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
 import { JUMP_CHIP, namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -462,6 +463,51 @@ async function actDuringNextRoomMount(page: Page, selector: string, act: "click"
   );
 }
 
+/**
+ * Presses the list row of a second room the reader has already entered once, so its roster is cached: the press paints the room's title
+ * in the commit that opens it, and the room's own arrival focus waits on the deferred render after it. That gap is where a late
+ * arrival could take focus from a field the reader opened on the title. `beforePress` runs once the open room is settled again,
+ * before the press.
+ */
+async function pressCachedRoomRow(
+  page: Page,
+  corpus: CorpusPlayback,
+  mountRoom: (chatId: ChatId) => Promise<unknown>,
+  beforePress: () => Promise<void>,
+): Promise<void> {
+  // Wide enough that the docked list still leaves the title group room for the whole title: a cut title turns its control into the
+  // reveal, whose press shows the title and offers Rename, so there is no Rename control to press as the title paints.
+  await page.setViewportSize({ width: 2200, height: 1000 });
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
+  const caller = await ownerCaller();
+  const rows = (await caller.chat.listChats({ limit: 100 })).items;
+  const open = namedGroupRoom(rows);
+  // A second room the viewer hosts: only a host's title is a Rename control.
+  const others = rows.filter((row) => row.id !== open.id && (row.title ?? "") !== "" && row.participantPortraits.length > 1);
+  const details = await Promise.all(others.map((row) => caller.chat.getChat({ chatId: row.id })));
+  const nextIndex = details.findIndex((detail) => detail.viewerIsHost);
+  const next = others[nextIndex];
+  if (next === undefined) {
+    throw new Error("The corpus has no second named group room the owner hosts");
+  }
+  await routeRoom(page, corpus, caller);
+  await mountRoom(open.id);
+  await expectPrimaryRoomHeading(page, open.title ?? "");
+  // The list is windowed, so a row is brought up by the pane's own search before it is pressed.
+  const pressRow = async (row: { readonly title: string | null; readonly participantNames: readonly string[] }): Promise<void> => {
+    await page.locator(LIST_SEARCH).fill(row.title ?? "");
+    await page.locator(LIST_PANE).getByText(deriveChatTitle(row.title, row.participantNames), { exact: true }).first().click();
+  };
+  await pressRow(next);
+  await expectPrimaryRoomHeading(page, next.title ?? "");
+  await expect(page.locator(ROOM_BODY)).toHaveCount(1);
+  await pressRow(open);
+  await expectPrimaryRoomHeading(page, open.title ?? "");
+  await expect(page.locator(ROOM_BODY)).toHaveCount(1);
+  await beforePress();
+  await pressRow(next);
+}
+
 async function expectRoomMounted(page: Page): Promise<void> {
   await expect(page.locator("html")).toHaveAttribute(ACTED_DURING_MOUNT, "true");
   await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
@@ -474,6 +520,50 @@ test.describe("arrival focus on a room switch", () => {
     await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
     const surface = page.locator('[data-slot="chat-room-surface"]');
     await expect.poll(() => surface.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  });
+
+  test("a rename opened as the pressed room's title paints keeps its field and the words typed into it", async ({ corpus, mount, page }) => {
+    await pressCachedRoomRow(
+      page,
+      corpus,
+      (chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }),
+      async () => {
+        // A pointer cannot land inside the gap on demand, so the click runs at the mutation that paints the pressed room's title: the
+        // press commit draws it from the cached roster, and the body, with the room's own arrival focus, follows in the deferred render.
+        // The open room's Rename control is already there, so the pressed room's is the one whose name differs.
+        await page.evaluate((renameControls) => {
+          const openName = document.querySelector(renameControls)?.getAttribute("aria-label");
+          const observer = new MutationObserver(() => {
+            const control = [...document.querySelectorAll<HTMLElement>(renameControls)].find((candidate) => candidate.getAttribute("aria-label") !== openName);
+            if (control !== undefined) {
+              observer.disconnect();
+              control.click();
+            }
+          });
+          observer.observe(document, { subtree: true, childList: true });
+        }, `button[aria-label^="${RENAME_CHAT_NAME}"]`);
+      },
+    );
+    await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
+    await expect(page.locator(ROOM_BODY)).toHaveCount(1);
+    const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
+    await expect(field).toBeFocused();
+    await page.keyboard.type("The harbour job");
+    await expect(field).toHaveValue("The harbour job");
+  });
+
+  test("the same press with no rename lands focus in the room it entered", async ({ corpus, mount, page }) => {
+    await pressCachedRoomRow(
+      page,
+      corpus,
+      (chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }),
+      async () => undefined,
+    );
+    await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
+    await expect(page.locator(ROOM_BODY)).toHaveCount(1);
+    const surface = page.locator(ROOM_SURFACE);
+    await expect.poll(() => surface.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+    await expect(page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true })).toHaveCount(0);
   });
 
   test("the list search focused while the room body mounts keeps its focus and its typing", async ({ corpus, mount, page }) => {
@@ -506,37 +596,6 @@ test.describe("an open named group room", () => {
       await expect(rename).toBeFocused();
       await expectPrimaryRoomHeading(page, room.title);
     });
-  });
-
-  test("a rename opened while the room body is still mounting keeps its field and the words typed into it", async ({ corpus, mount, page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
-    const room = await openNamedRoom(page, corpus, await ownerCaller());
-    // A pointer cannot land inside one commit gap on demand, so the click runs at the mutation that paints the title. The room's
-    // composer can mount in that same commit (both wait on the room's roster), so the witness is the room's arrival focus: the
-    // click must land before the room takes focus, the window where a late arrival could take the field away.
-    await page.addInitScript(
-      ({ button, surface, witness }) => {
-        const observer = new MutationObserver(() => {
-          const control = document.querySelector<HTMLElement>(button);
-          if (control !== null) {
-            observer.disconnect();
-            document.documentElement.setAttribute(witness, String((document.activeElement?.closest(surface) ?? null) === null));
-            control.click();
-          }
-        });
-        observer.observe(document, { subtree: true, childList: true });
-      },
-      { button: `button[aria-label^="${RENAME_CHAT_NAME}"]`, surface: ROOM_SURFACE, witness: ACTED_DURING_MOUNT },
-    );
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
-    await expect(page.locator("html")).toHaveAttribute(ACTED_DURING_MOUNT, "true");
-    await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
-    await expect(page.locator(ROOM_BODY)).toHaveCount(1);
-    const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
-    await expect(field).toBeFocused();
-    await page.keyboard.type("The harbour job");
-    await expect(field).toHaveValue("The harbour job");
   });
 
   for (const [name, rootPx] of [

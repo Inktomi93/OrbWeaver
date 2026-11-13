@@ -228,7 +228,7 @@ function FrameRow({
       reach={FRAME_INSET[inset].reach}
       pinned={stickyPin(stickyOutside, stickyInside)}
       // An actions-only bar stays a trailing chip at rest. Its pinned frame spans the reading width so
-      // partially covered text cannot look like a complete line. Off the last row it remains an overlay.
+      // partially covered text cannot look like a complete line. Off its own line it remains an overlay.
       width={chip && !pinned ? "fit" : undefined}
       reverse={flip}
       wrap={true}

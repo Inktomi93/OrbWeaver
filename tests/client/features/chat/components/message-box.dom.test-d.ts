@@ -11,6 +11,7 @@ const SHARED = {
   phoneCap: false,
   corners: "card",
   lastRowFloor: false,
+  headerOverlaid: true,
   editing: false,
   receded: false,
   positioned: false,

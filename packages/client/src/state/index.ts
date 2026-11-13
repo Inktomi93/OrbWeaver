@@ -101,6 +101,7 @@ export { CommandPaletteSourceRegistryContext } from "./command-palette-source-re
 export { CommandPaletteSourceRegistryProvider } from "./command-palette-source-registry-provider.tsx";
 export type { ComposerDraftSnapshot, ComposerDraftWrite } from "./composer-draft-store.ts";
 export {
+  clearComposerDraft,
   readComposerDraft,
   readComposerDraftSnapshot,
   replaceComposerDraft,
@@ -109,6 +110,7 @@ export {
   useComposerDraftRevision,
 } from "./composer-draft-store.ts";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store.ts";
+export { notePendingAttachments, takePendingAttachments } from "./composer-pending-attachments.ts";
 export type { ConfigFocus } from "./config-focus-store.ts";
 export { setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";

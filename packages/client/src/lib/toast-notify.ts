@@ -8,7 +8,7 @@
 // mapping at all, so a CT could have gone green against a toast the app never renders.
 
 import type { createToastManager } from "@orb/ui/toast";
-import type { Notify, NotifyInput } from "./notify.ts";
+import type { Notify, NotifyInput, NotifyNotice } from "./notify.ts";
 import { toNotice } from "./notify.ts";
 
 type ToastManager = ReturnType<typeof createToastManager>;
@@ -18,11 +18,20 @@ type ToastManager = ReturnType<typeof createToastManager>;
  *  fit in five seconds (side-eye INFRA-WARN-DEAF P2-2). Title-only notices keep the default. */
 const DESCRIBED_NOTICE_TIMEOUT_MS = 12_000;
 
+/** A persistent notice never auto-dismisses (Base UI's timeout 0); a described one gets the longer life; a title-only one keeps the default. */
+function timeoutOf({ description, persistent }: NotifyNotice): number | undefined {
+  if (persistent === true) {
+    return 0;
+  }
+  return description === undefined ? undefined : DESCRIBED_NOTICE_TIMEOUT_MS;
+}
+
 /** Builds the toast-backed `Notify`. `type` is what the toast seal tints and glyphs; `priority: "high"`
  *  is reserved for `error` (Base UI promotes it to `role="alertdialog"`). */
 export function createToastNotify(toastManager: ToastManager): Notify {
   function add(notice: NotifyInput, type: "success" | "warning" | "error" | undefined, priority: "high" | undefined): void {
-    const { title, description, action } = toNotice(notice);
+    const resolved = toNotice(notice);
+    const { title, description, action } = resolved;
     // The user has acted on the notice, so the action dismisses it — after the handler runs, once, here for every caller.
     const id = toastManager.add({
       actionProps:
@@ -37,7 +46,7 @@ export function createToastNotify(toastManager: ToastManager): Notify {
             },
       description,
       priority,
-      timeout: description === undefined ? undefined : DESCRIBED_NOTICE_TIMEOUT_MS,
+      timeout: timeoutOf(resolved),
       title,
       type,
     });

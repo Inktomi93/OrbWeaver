@@ -14,7 +14,8 @@ import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
 import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
-import { chatDeletedFromList, isLanding, openConfigTo, openNewChatPicker, useActiveChatHandle } from "#state";
+import { isLanding, openConfigTo, openNewChatPicker, useActiveChatHandle } from "#state";
+import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
 import { createWarningSurface } from "../lib/turn-warning-surface.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface.tsx";
@@ -79,10 +80,10 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
       openRerankModel: OPEN_RERANK_MODEL,
     }),
   );
-  // `chatDeletedFromList` is a no-op unless the deleted chat IS the active one, so wiring it here is the
+  // `leaveGoneRoom` is a no-op unless the deleted chat IS the active one, so wiring it here is the
   // whole transition: a host delete elsewhere, a husk reap, or the TTL sweep firing against this very tab all
   // land the reader on the landing surface instead of a room whose row is gone (R3 — the verifier's R1-3).
-  const busDeps: ChatBusDeps = { ...baseBusDeps, ...warningSurface, onTurnAbort: surfaceTurnAbort, onChatDeleted: chatDeletedFromList };
+  const busDeps: ChatBusDeps = { ...baseBusDeps, ...warningSurface, onTurnAbort: surfaceTurnAbort, onChatDeleted: leaveGoneRoom };
 
   if (isLanding(handle)) {
     return <ChatLandingSurface onNewChat={openNewChatPicker} />;
