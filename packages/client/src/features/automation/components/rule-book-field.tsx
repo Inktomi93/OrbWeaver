@@ -7,6 +7,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { RULE_WORLD_BOOK_NAME } from "../lib/automation-names.ts";
 
 interface RuleBookFieldProps {
   readonly chatId: ChatId | null;
@@ -51,7 +52,7 @@ function BookSelect({ chatId, value, onChange, error, onBlur, books }: RuleBookF
   const unavailable = value.length > 0 && !items.some((item) => item.value === value);
   return (
     <Stack gap="tight">
-      <Field label="World book" error={error}>
+      <Field label={RULE_WORLD_BOOK_NAME} error={error}>
         {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the label association flows through Base UI's FieldRootContext at render time, the same as `SelectField`. */}
         <Select
           onOpenChange={(open): void => {

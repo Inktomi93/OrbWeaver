@@ -2,6 +2,7 @@
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
+import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_INTRO } from "#client/features/automation/lib/automation-names.ts";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
@@ -79,8 +80,8 @@ const GROUP_WITNESSES = {
     page.getByText("A key is saved when you add a connection that needs one.", { exact: true }),
   ],
   automation: (page): Witnesses => [
-    page.getByRole("textbox", { name: "Runs per hour", exact: true }),
-    page.getByText("These rules watch your library and act on their own. No chat has to be open.", { exact: true }),
+    page.getByRole("textbox", { name: OWNER_RULE_RATE_FIELD_NAME, exact: true }),
+    page.getByText(OWNER_RULES_INTRO, { exact: true }),
   ],
   admin: (page): Witnesses => [
     page.getByRole("textbox", { name: "Max generated-image download (MB)", exact: true }),
