@@ -11,7 +11,7 @@ plan: checked-law
 
 ## What
 
-The tar, tunnel, media and git children and two Workers each inherit the process environment at their call site; the scrub at boot is the only guard. The git mirror test that proves the scrub skips on Windows.
+The tunnel child started in `packages/server/src/infra/relay/quick-tunnel.ts` inherits the process environment, because its package takes no environment option. Every other child takes its environment from one builder, and a lint entry refuses a launch with none. The scrub at boot is the only guard for the tunnel child.
 
 ## Why
 
@@ -19,7 +19,7 @@ A spawn added tomorrow inherits whatever the process holds, and nothing fails.
 
 ## Done when
 
-Each inheriting spawn takes its environment from one builder, a lint entry refuses a spawn, execFile or Worker call in server source without an explicit env, and the proof runs on Windows as well.
+The tunnel child takes its environment from the builder, by owning that spawn or by a package option, and the lint entry has no exempt launch in server source besides the packaged probe.
 
 ## Evidence
 
