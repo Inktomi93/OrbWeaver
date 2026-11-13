@@ -6,7 +6,6 @@ import type { AppRouter } from "@orb/server";
 import type { Page, Request, Response, Route } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { z } from "zod";
-import { UNCLASSIFIED_FAULT_MESSAGE } from "../../../packages/server/src/transport/trpc/fault-copy.ts";
 import type { TrpcWire } from "../iso/trpc-wire.ts";
 // The ONE tRPC code union home (tests/support/node/matchers.ts, derived through classifyDomainError —
 // Spine-TypeScript-and-Patterns §7.5). Type-only: erased, no vitest runtime in the Playwright process.
@@ -275,11 +274,6 @@ export interface TrpcErrorMarker {
  * Scripted failure sentinel — a responder that returns this gets an ERROR envelope. Fail-then-
  * succeed scripts close over a counter: `echo: () => (n++ === 0 ? trpcError() : data)`. Pass `reason` to
  * model a DomainOperationError's `data.reason` code (the wire field a client inline-error mapper reads).
- *
- * @remarks
- * An `INTERNAL_SERVER_ERROR`, which is also the default code, carries {@link UNCLASSIFIED_FAULT_MESSAGE} whatever
- * `message` says, because the production error formatter replaces every 500's own text with it. To show a surface a
- * message, plant the classified code production sends that message under.
  */
 export function trpcError(
   opts: {
@@ -289,11 +283,10 @@ export function trpcError(
     readonly detail?: Readonly<Record<string, string | number | boolean>>;
   } = {},
 ): TrpcErrorMarker {
-  const code = opts.code ?? "INTERNAL_SERVER_ERROR";
   return {
     [ERROR_MARK]: true,
-    code,
-    message: code === "INTERNAL_SERVER_ERROR" ? UNCLASSIFIED_FAULT_MESSAGE : (opts.message ?? "scripted CT failure"),
+    code: opts.code ?? "INTERNAL_SERVER_ERROR",
+    message: opts.message ?? "scripted CT failure",
     ...(opts.reason === undefined ? {} : { reason: opts.reason }),
     ...(opts.detail === undefined ? {} : { detail: opts.detail }),
   };

@@ -202,23 +202,6 @@ test("a served 500 carries production's unclassified-fault message, not the serv
   expect(served).toMatchObject({ error: { message: UNCLASSIFIED_FAULT_MESSAGE, data: { code: "INTERNAL_SERVER_ERROR" } } });
 });
 
-test("a planted 500 carries production's unclassified-fault message whatever text it was given, and a classified refusal keeps its own", async ({ page }) => {
-  const planted = "a planted message the formatter never sends for a 500";
-  const refusal = "A classified refusal keeps the words its error carries";
-  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: `<h1>${HEADING}</h1>` }));
-  await page.goto(ORIGIN);
-  await routeTrpc(page, {
-    health: () => trpcError(),
-    "tag.listTags": () => trpcError({ message: planted }),
-    "preset.list": () => trpcError({ code: "CONFLICT", message: refusal, reason: "duplicate_name" }),
-  });
-  const wire = (path: string): Promise<unknown> => page.evaluate(async (url) => (await fetch(url)).json(), `/api/trpc/${path}`);
-  expect(await wire("health")).toMatchObject({ error: { message: UNCLASSIFIED_FAULT_MESSAGE, data: { code: "INTERNAL_SERVER_ERROR" } } });
-  expect(await wire("tag.listTags")).toMatchObject({ error: { message: UNCLASSIFIED_FAULT_MESSAGE, data: { code: "INTERNAL_SERVER_ERROR" } } });
-  // The control: the substitution is the 500's alone.
-  expect(await wire("preset.list")).toMatchObject({ error: { message: refusal, data: { code: "CONFLICT", reason: "duplicate_name" } } });
-});
-
 test("a non-Error throw is served as production's unclassified-fault message", async ({ page }) => {
   // A composed caller only ever rejects with a TRPCError, so this caller stands in. It throws the way a procedure that
   // honours an aborted signal does when the abort reason is not an Error.
