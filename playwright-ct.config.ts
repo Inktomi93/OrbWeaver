@@ -79,6 +79,7 @@ export default defineConfig<CtCorpusOptions>({
         "**/platform-*.suite.ct.tsx",
         "**/features/chat/components/appearance-message-style-section.ct.tsx",
         "**/features/chat/components/composer-two-rows.ct.tsx",
+        "**/features/chat/components/context-tab-strip-fade.ct.tsx",
         "**/features/app-shell/surfaces/context-rail-focus.ct.tsx",
         "**/features/app-shell/surfaces/new-chat-picker-keystroke.ct.tsx",
         "**/content/theme-scope/emitted-contrast.ct.tsx",
