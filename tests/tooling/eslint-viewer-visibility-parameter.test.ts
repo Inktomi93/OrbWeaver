@@ -190,6 +190,61 @@ test.for([
     ].join("\n"),
     found: 0,
   },
+  {
+    name: "an answer forwarded to an overload whose implementation takes unknown",
+    source: [
+      "function sink(visibility: ViewerVisibility): number;",
+      "function sink(visibility: unknown): number {\n  return keep(visibility);\n}",
+      "export function read(visibility: ViewerVisibility): number {\n  return sink(visibility);\n}",
+    ].join("\n"),
+    found: 1,
+  },
+  {
+    name: "an answer forwarded to an overload whose implementation checks it",
+    source: [
+      "function sink(chatId: string, visibility: ViewerVisibility): number;",
+      "function sink(chatId: string, visibility: ViewerVisibility): number {\n  assertResolvedVisibility(visibility, chatId);\n  return readRows(visibility.historyFloorSeq);\n}",
+      "export function read(chatId: string, visibility: ViewerVisibility): number {\n  return sink(chatId, visibility);\n}",
+    ].join("\n"),
+    found: 0,
+  },
+  {
+    name: "an answer passed through a generic identity function",
+    source: [
+      "function same<T>(value: T): T {\n  return value;\n}",
+      "export function read(visibility: ViewerVisibility): number {\n  return readRows(same(visibility).historyFloorSeq);\n}",
+    ].join("\n"),
+    found: 1,
+  },
+  {
+    name: "answers held in an array",
+    source: "export function read(answers: readonly ViewerVisibility[]): number {\n  return readRows(answers[0]?.historyFloorSeq ?? 0);\n}",
+    found: 1,
+  },
+  {
+    name: "an answer held in a promise",
+    source: "export async function read(answer: Promise<ViewerVisibility>): Promise<number> {\n  return readRows((await answer).historyFloorSeq);\n}",
+    found: 1,
+  },
+  {
+    name: "an answer handed to a callee typed any",
+    source: "declare const loose: any;\nexport function read(visibility: ViewerVisibility): number {\n  return loose(visibility);\n}",
+    found: 1,
+  },
+  {
+    name: "a parameter whose type holds itself and no answer",
+    source: [
+      "type Json = string | number | readonly Json[] | { readonly [key: string]: Json };",
+      "export function read(value: Json): number {\n  return keep(value);\n}",
+    ].join("\n"),
+    found: 0,
+  },
+  {
+    name: "an answer taken as a constructor parameter property",
+    source:
+      "export class Reader {\n  constructor(private readonly visibility: ViewerVisibility) {}\n  read(): number {\n    return readRows(this.visibility.historyFloorSeq);\n  }\n}",
+    found: 1,
+  },
 ])("the visibility parameter rule judges $name", ({ source, found }, { scratch }) => {
   expect(refusals(lint(scratch, FILE, `${PREAMBLE}\n${source}`))).toBe(found);
 });

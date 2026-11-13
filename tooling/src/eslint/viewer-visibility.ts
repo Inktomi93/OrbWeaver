@@ -35,10 +35,24 @@ interface Carrier {
   readonly member: string | null;
 }
 
-function carriesBrand(type: ts.Type, checker: ts.TypeChecker): boolean {
+// An array, a tuple or a promise of answers holds answers too: none of them can be checked as one. `seen` stops the walk
+// on a type that holds itself, such as a JSON value that is a union with an array of itself.
+function carriesBrand(type: ts.Type, checker: ts.TypeChecker, seen: Set<ts.Type> = new Set()): boolean {
   const target = checker.getNonNullableType(type);
+  if (seen.has(target)) {
+    return false;
+  }
+  seen.add(target);
   if (target.isUnion()) {
-    return target.types.some((part) => carriesBrand(part, checker));
+    return target.types.some((part) => carriesBrand(part, checker, seen));
+  }
+  const element = checker.isArrayType(target) || checker.isTupleType(target) ? checker.getIndexTypeOfType(target, ts.IndexKind.Number) : undefined;
+  if (element !== undefined) {
+    return carriesBrand(element, checker, seen);
+  }
+  const awaited = checker.getPropertyOfType(target, "then") === undefined ? undefined : checker.getAwaitedType(target);
+  if (awaited !== undefined && awaited !== target) {
+    return carriesBrand(awaited, checker, seen);
   }
   return checker
     .getPropertiesOfType(target)
@@ -67,6 +81,30 @@ function carryingMembers(type: ts.Type, checker: ts.TypeChecker): readonly strin
 }
 
 const bindingOf = (node: TSESTree.Node): TSESTree.Node => (node.type === T.AssignmentPattern ? node.left : node);
+
+// A synthesized signature, such as the one a call through an `any` value resolves to, has no declaration in the
+// compiler's own record, whatever the public type says.
+function declarationOf(signature: ts.Signature): ts.SignatureDeclaration | ts.JSDocSignature | undefined {
+  return signature.getDeclaration();
+}
+
+// The parameter that runs for argument `index`: an overload's implementation when it has one, and its declared type,
+// so a generic `T` or an implementation's `unknown` is what a hand-off reaches, not the caller's instantiation.
+function runningParameter(signature: ts.Signature, index: number, checker: ts.TypeChecker): ts.ParameterDeclaration | undefined {
+  const declared = declarationOf(signature);
+  if (declared === undefined || ts.isJSDocSignature(declared)) {
+    return undefined;
+  }
+  const name = ts.isFunctionDeclaration(declared) || ts.isMethodDeclaration(declared) ? declared.name : undefined;
+  const symbol = name === undefined ? undefined : checker.getSymbolAtLocation(name);
+  const implementation = symbol?.declarations?.find(
+    (declaration): declaration is ts.FunctionDeclaration | ts.MethodDeclaration =>
+      (ts.isFunctionDeclaration(declaration) || ts.isMethodDeclaration(declaration)) && declaration.body !== undefined,
+  );
+  const { parameters } = implementation ?? declared;
+  const last = parameters.at(-1);
+  return parameters[index] ?? (last?.dotDotDotToken === undefined ? undefined : last);
+}
 
 function aliased(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): ts.Symbol | undefined {
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
@@ -143,8 +181,9 @@ export const viewerVisibilityParameterRule: OrbRule = {
       return Number.POSITIVE_INFINITY;
     };
 
-    // A whole binding handed to a call whose parameter there also carries the answer: that callee's parameter is judged
-    // in its own file. A parameter typed `unknown` or `object` is not judged, so a hand-off to it is a use.
+    // A whole binding handed to a call whose running parameter also carries the answer: that callee's parameter is
+    // judged in its own file. A parameter declared `unknown`, `object` or a bare type parameter is not judged, so a
+    // hand-off to it is a use.
     const forwarded = (identifier: TSESTree.Node): boolean => {
       const { parent } = identifier;
       if (parent?.type !== T.CallExpression) {
@@ -152,12 +191,11 @@ export const viewerVisibilityParameterRule: OrbRule = {
       }
       const index = parent.arguments.findIndex((argument) => argument === identifier);
       const signature = index === -1 ? undefined : checker.getResolvedSignature(toTs.get(parent));
-      const target = signature?.parameters[index];
-      const declaration = target?.valueDeclaration;
-      if (target === undefined || declaration === undefined) {
+      const parameter = signature === undefined ? undefined : runningParameter(signature, index, checker);
+      if (parameter === undefined) {
         return false;
       }
-      const type = checker.getTypeOfSymbolAtLocation(target, declaration);
+      const type = checker.getTypeAtLocation(parameter);
       return carriesBrand(type, checker) || carryingMembers(type, checker).length > 0;
     };
 
@@ -187,7 +225,10 @@ export const viewerVisibilityParameterRule: OrbRule = {
       }
       for (const param of fn.params) {
         const carriers = carriersOf(fn, param);
-        if (carriers === null || carriers.some((carrier) => unchecked(fn, carrier))) {
+        // A parameter property stores the answer on the instance before the constructor body runs, so no check in that
+        // body comes first, and every method reads the stored copy.
+        const stored = param.type === T.TSParameterProperty && carriers !== null && carriers.length > 0;
+        if (carriers === null || stored || carriers.some((carrier) => unchecked(fn, carrier))) {
           context.report({ node: param, message: MESSAGE });
         }
       }
