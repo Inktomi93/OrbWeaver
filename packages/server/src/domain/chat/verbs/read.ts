@@ -881,13 +881,23 @@ function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatServ
   };
 }
 
+/** No connection the next turn can run on: what a member reads for a host outside the consent set. */
+const NO_NEXT_TURN_CONNECTION: NextTurnConnectionView = { state: "unset" };
+
+/** The connection the room's next turn would run on, for any present member. Same order as
+ *  {@link createCheckSendAvailability}: seat, then host consent, so a disabled host's binding is never read and its
+ *  state and provider label are never described. */
 function createGetNextTurnConnection(ctx: ChatContext, deps: ReadDeps): ChatService["getNextTurnConnection"] {
   return async ({ principal, chatId }: GetChatParams): Promise<NextTurnConnectionView> => {
     await requireParticipant(ctx, principal, chatId);
-    const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
-    if (hostUserId === null) {
+    const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+    if (consent.kind === "hostless") {
       throw new ChatNotFoundError(chatId);
     }
+    if (consent.kind === "withheld") {
+      return NO_NEXT_TURN_CONNECTION;
+    }
+    const { hostUserId } = consent;
     const view = await deps.getNextTurnConnection({ funderUserId: hostUserId });
     if (view.state === "unset" || principal.userId === hostUserId) {
       return view;

@@ -1,6 +1,7 @@
 // A member's composer reads in a room whose host is disabled: the send-availability read answers unavailable with the
-// host-unavailable cause, and neither it nor the context-fit read dials the disabled host's endpoint. A stranger and an
-// unknown room read the same plain not found, with no cause. Re-enabling the host restores the endpoint's verdict.
+// host-unavailable cause, the next-turn connection read describes no binding, and none of them reads the disabled
+// host's connection. A stranger and an unknown room read the same plain not found, with no cause. Re-enabling the host
+// restores the endpoint's verdict.
 // @subject packages/server/src/domain/chat/verbs/read.ts
 
 import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
@@ -11,12 +12,14 @@ import { expect, test } from "@orb/testkit/node";
 import type { AuthModeRoot, SignedIn } from "@orb/testkit/node/auth";
 import { createAuthModeRoot, mintMember, signIn } from "@orb/testkit/node/auth";
 import { seedChat, seedChatInvite, seedInvitedChatParticipant, servePhysicalPeer } from "@orb/testkit/node/composed";
+import { vi } from "vitest";
 import { z } from "zod";
 
 const ENGINE_PROVIDER = "vllm";
 const ENGINE_MODEL = "room-model";
 const AVAILABILITY_ROUTE = "/api/trpc/chat.checkSendAvailability";
 const CONTEXT_FIT_ROUTE = "/api/trpc/chat.previewContextFit";
+const NEXT_TURN_ROUTE = "/api/trpc/chat.getNextTurnConnection";
 const answerSchema = z.union([
   z.strictObject({ result: z.strictObject({ data: z.unknown() }) }),
   z.strictObject({ error: z.looseObject({ message: z.string(), data: z.looseObject({ code: z.string(), reason: z.string().optional() }) }) }),
@@ -110,7 +113,7 @@ test("a member's send-availability read names the unavailable host without diall
   expect(dialled.length).toBeGreaterThan(beforeResume);
 });
 
-test("a stranger's send-availability read of a disabled host's room reads exactly as an unknown room does, with no cause", async () => {
+test.for([AVAILABILITY_ROUTE, NEXT_TURN_ROUTE])("a stranger's %s read of a disabled host's room reads exactly as an unknown room does", async (route) => {
   await using box = await disabledHostRoom();
   const { root, room, dialled } = box;
   await box.setHostEnabled(false);
@@ -118,8 +121,8 @@ test("a stranger's send-availability read of a disabled host's room reads exactl
   const unknown = root.idSource.typeId(ID_PREFIX.chat);
 
   const beforeReads = dialled.length;
-  const stranger = await readOverWire(root, asStranger, AVAILABILITY_ROUTE, room);
-  const missing = await readOverWire(root, asStranger, AVAILABILITY_ROUTE, unknown);
+  const stranger = await readOverWire(root, asStranger, route, room);
+  const missing = await readOverWire(root, asStranger, route, unknown);
   if ("result" in stranger || "result" in missing) {
     throw new Error(`a stranger's read answered ${JSON.stringify(stranger)} and an unknown room's ${JSON.stringify(missing)}`);
   }
@@ -128,8 +131,30 @@ test("a stranger's send-availability read of a disabled host's room reads exactl
   expect(stranger.error.data).toEqual({ ...missing.error.data });
   expect(stranger.error.message.replace(room, unknown)).toBe(missing.error.message);
   expect(dialled).toHaveLength(beforeReads);
-  // Positive control: the same room, read by its member, carries the cause.
-  expect(await readOverWire(root, box.asPlayer, AVAILABILITY_ROUTE, room)).toMatchObject({ result: { data: { cause: TURN_HOST_UNAVAILABLE_OP_CODE } } });
+  // Positive control: the same room, read by its member, answers.
+  expect(await readOverWire(root, box.asPlayer, route, room)).toMatchObject({ result: { data: expect.any(Object) } });
+});
+
+test("a member's next-turn connection read in a disabled host's room describes no binding and reads none", async () => {
+  await using box = await disabledHostRoom();
+  const { root, room, asPlayer } = box;
+  const bindingReads = vi.spyOn(root.services.connection, "getBoundConnection");
+  try {
+    // Positive control: an enabled host's binding is read and described, its own label withheld from a member.
+    const configured = await readOverWire(root, asPlayer, NEXT_TURN_ROUTE, room);
+    expect(configured).toMatchObject({ result: { data: { state: "configured", connectionLabel: null, providerLabel: expect.any(String) } } });
+    expect(bindingReads).toHaveBeenCalledTimes(1);
+
+    await box.setHostEnabled(false);
+    expect(await readOverWire(root, asPlayer, NEXT_TURN_ROUTE, room)).toEqual({ result: { data: { state: "unset" } } });
+    expect(bindingReads).toHaveBeenCalledTimes(1);
+
+    await box.setHostEnabled(true);
+    expect(await readOverWire(root, asPlayer, NEXT_TURN_ROUTE, room)).toEqual(configured);
+    expect(bindingReads).toHaveBeenCalledTimes(2);
+  } finally {
+    bindingReads.mockRestore();
+  }
 });
 
 test("a member's context-fit read in a disabled host's room refuses before it dials the host's endpoint", async () => {

@@ -158,7 +158,8 @@ export interface ChatService {
    *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. A host
    *  outside the room's consent set reads `host_unavailable`, and its connection is never read. */
   readonly checkSendAvailability: (params: GetChatParams) => Promise<RoomSendAvailability>;
-  /** Current host's persisted chat binding; member-safe and independent of runtime availability. */
+  /** Current host's persisted chat binding; member-safe and independent of runtime availability. A host outside the
+   *  room's consent set reads `unset`, and its binding is never read. */
   readonly getNextTurnConnection: (params: GetChatParams) => Promise<NextTurnConnectionView>;
   /** Read ONE roster character's card, field-clamped to the room's `memberCardVisibility` (D22 — the host
    *  always sees `full`). Member-gated + roster-scoped: a non-participant OR a `characterId` not seated in
