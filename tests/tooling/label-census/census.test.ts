@@ -66,6 +66,47 @@ test("a ui spec cannot reach a client export, and reaches its own package's", ()
   ]);
 });
 
+const NAMES_HELPER: CensusSource = {
+  path: "tests/client/features/chat/_row-names.ts",
+  text: 'export const SHARED_ROW_NAME = "Pinned row"; export const UNUSED_NAME = "Never located";',
+};
+
+const CONSTANT_SPEC: CensusSource = {
+  path: "tests/client/features/chat/row-constants.ct.tsx",
+  text: [
+    'import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";',
+    'import { SHARED_ROW_NAME } from "./_row-names.ts";',
+    'const LOCAL = "Nowhere at all";',
+    'const NAMES = { remove: "Remove", unused: "Story note" } as const;',
+    'const ORDER = ["Cancel", "Guest only"];',
+    "for (const label of ORDER) { await page.getByRole('button', { name: label }).click(); }",
+    "await page.getByRole('button', { name: LOCAL }).click();",
+    "await page.getByRole('button', { name: LOCAL, exact: true }).focus();",
+    "await page.getByRole('button', { name: NAMES.remove }).click();",
+    "await page.getByText(SHARED_ROW_NAME).click();",
+    "await page.getByRole('button', { name: DIALOG_VERBS.cancel }).click();",
+    "await expect(row).toHaveAccessibleDescription('Story note');",
+    "await expect(row).toHaveAttribute('aria-label', 'Pinned row');",
+    "await expect(row).toHaveAttribute('data-slot', 'row-body');",
+    "await select.selectOption({ label: 'Remove' });",
+  ].join("\n"),
+};
+
+test("a spec's own constants, a relatively imported one and the attribute and description assertions count where the text is written", () => {
+  const read = (path: string): CensusSource | undefined => (path === NAMES_HELPER.path ? NAMES_HELPER : undefined);
+  const sites = nameSites(CONSTANT_SPEC, read).map((site) => `${site.file.split("/").at(-1) ?? ""}:${String(site.line)} ${site.text}`);
+  expect(sites).toEqual([
+    'row-constants.ct.tsx:5 "Cancel"',
+    'row-constants.ct.tsx:5 "Guest only"',
+    'row-constants.ct.tsx:3 "Nowhere at all"',
+    'row-constants.ct.tsx:4 "Remove"',
+    '_row-names.ts:1 "Pinned row"',
+    "row-constants.ct.tsx:12 'Story note'",
+    "row-constants.ct.tsx:13 'Pinned row'",
+    "row-constants.ct.tsx:15 'Remove'",
+  ]);
+});
+
 test("the feature filter keeps the production owner's rows and names the test directory for the rest", () => {
   const index = productionIndex(PRODUCTION);
   const rows = nameSites(SPEC).map((site) => classifySite(site, index, { authored: authoredStrings([STORY]) }));

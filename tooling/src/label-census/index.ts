@@ -2,17 +2,19 @@
 // where production keeps that text (Spine-Testing §9, labels come from their production home).
 //
 // A site is a string, template, regex, concatenation or `new RegExp` passed as the text argument of a text locator
-// or assertion, or as the `name`, `hasText` or `hasNotText` of a locator's options. A conditional or a `??` in that
-// position is read arm by arm, so `isMobile ? { name: "You" } : { name: "Me" }` is two sites. An identifier or a call
-// is already a binding and is not a site. A name a helper takes as a parameter and passes on is out of reach: the
-// census reads the literal only where it meets the locator.
+// or assertion, as the `name`, `hasText` or `hasNotText` of a locator's options, as a `selectOption` label, or as the
+// value a name attribute is asserted to hold. A conditional or a `??` in that position is read arm by arm, so
+// `isMobile ? { name: "You" } : { name: "Me" }` is two sites. A constant the spec declares, a member of a local object
+// or list, a `for…of` variable over a local list and a constant imported from a test file by a relative path are
+// followed to their literal, and the site is counted once, where the literal is written. A call and a name imported
+// from a package are bindings and not sites. A name a helper takes as a parameter and passes on is out of reach.
 //
 // The class is a judgement on text alone, so `exported` means "a production .ts module exports this exact string and
 // no other production file spells it", not "the component under test renders that export". A rewrite still reads
 // the component before it trusts the class.
 
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import ts from "typescript";
 import { execNicedSync } from "../floor/process/proc.ts";
 
@@ -26,10 +28,16 @@ const TEXT_CALLS = new Set([
   "toHaveText",
   "toContainText",
   "toHaveAccessibleName",
+  "toHaveAccessibleDescription",
 ]);
-/** The calls whose options object carries a name or text filter. */
-const OPTION_CALLS = new Set(["getByRole", "filter", "locator", "getByLabel", "getByText", "getByTestId"]);
-const OPTION_KEYS = new Set(["name", "hasText", "hasNotText"]);
+const LOCATOR_OPTION_KEYS: ReadonlySet<string> = new Set(["name", "hasText", "hasNotText"]);
+/** The calls whose options object carries a name or text filter, and the keys that hold it. */
+const OPTION_CALLS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ...["getByRole", "filter", "locator", "getByLabel", "getByText", "getByTestId"].map((call) => [call, LOCATOR_OPTION_KEYS] as const),
+  ["selectOption", new Set(["label"])],
+]);
+/** The attributes whose asserted value is a name or visible text: `toHaveAttribute(<attribute>, <text>)`. */
+const NAME_ATTRIBUTES = new Set(["aria-label", "aria-description", "title", "placeholder", "alt"]);
 
 /** The trees the census reads, and the production roots it classifies against. */
 export const CENSUS_TEST_ROOTS = ["tests/client", "tests/e2e", "tests/ui"] as const;
@@ -132,13 +140,25 @@ function arms(node: ts.Expression): ts.Expression[] {
   return [node];
 }
 
-// The name and text filters of a locator's options argument, each arm of a conditional options object included.
-function optionValues(argument: ts.Expression): ts.Expression[] {
+// The name and text filters of an options argument, each arm of a conditional options object included.
+function optionValues(argument: ts.Expression, keys: ReadonlySet<string>): ts.Expression[] {
   return arms(argument)
     .filter((options) => ts.isObjectLiteralExpression(options))
     .flatMap((options) => options.properties.filter((property) => ts.isPropertyAssignment(property)))
-    .filter((property) => ts.isIdentifier(property.name) && OPTION_KEYS.has(property.name.text))
+    .filter((property) => ts.isIdentifier(property.name) && keys.has(property.name.text))
     .map((property) => property.initializer);
+}
+
+// The asserted value of `toHaveAttribute(<name attribute>, <text>)`.
+function attributeValue(name: string, call: ts.CallExpression): ts.Expression[] {
+  const [attribute, value] = call.arguments;
+  return name === "toHaveAttribute" &&
+    attribute !== undefined &&
+    ts.isStringLiteralLike(attribute) &&
+    NAME_ATTRIBUTES.has(attribute.text) &&
+    value !== undefined
+    ? [value]
+    : [];
 }
 
 // The expressions of one call that hold a name, before they are split into arms.
@@ -148,36 +168,175 @@ function nameArguments(call: ts.CallExpression): ts.Expression[] {
     return [];
   }
   const text = TEXT_CALLS.has(name) ? call.arguments.slice(0, 1) : [];
-  const options = OPTION_CALLS.has(name) ? call.arguments.flatMap(optionValues) : [];
-  return [...text, ...options];
+  const keys = OPTION_CALLS.get(name);
+  const options = keys === undefined ? [] : call.arguments.flatMap((argument) => optionValues(argument, keys));
+  return [...text, ...options, ...attributeValue(name, call)];
 }
 
-/** Every hand-written name site in one test file, in source order. */
-export function nameSites(source: CensusSource): NameSite[] {
+/** Reads a test file a spec imports by a relative path; `undefined` when it is not a tracked test file. */
+export type TestFileReader = (path: string) => CensusSource | undefined;
+
+// One parsed test file and its declarations: the value each const declares, and the `for…of` lists a loop variable walks.
+interface ParsedTest {
+  readonly source: CensusSource;
+  readonly file: ts.SourceFile;
+  /** name → its one declaration; a name declared twice in the file is shadowed somewhere and stays unresolved. */
+  readonly declared: ReadonlyMap<string, ts.VariableDeclaration | null>;
+  /** local name → the relative module and the name it exports. */
+  readonly imported: ReadonlyMap<string, { readonly from: string; readonly name: string }>;
+}
+
+function parsedTest(source: CensusSource): ParsedTest {
   const file = parse(source);
-  const sites: NameSite[] = [];
-  const take = (node: ts.Expression): void => {
-    for (const arm of arms(node)) {
-      if (ts.isArrayLiteralExpression(arm)) {
-        for (const element of arm.elements) {
-          take(element);
-        }
-      } else if (isNameExpression(arm)) {
-        const at = file.getLineAndCharacterOfPosition(arm.getStart(file));
-        sites.push({ file: source.path, line: at.line + 1, column: at.character + 1, text: arm.getText(file) });
-      }
-    }
-  };
+  const declared = new Map<string, ts.VariableDeclaration | null>();
+  const imported = new Map<string, { readonly from: string; readonly name: string }>();
   const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node)) {
-      for (const argument of nameArguments(node)) {
-        take(argument);
-      }
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+      declared.set(node.name.text, declared.has(node.name.text) ? null : node);
     }
     ts.forEachChild(node, visit);
   };
   visit(file);
-  return sites;
+  for (const statement of file.statements) {
+    const bindings = ts.isImportDeclaration(statement) ? statement.importClause?.namedBindings : undefined;
+    if (
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text.startsWith(".") &&
+      bindings !== undefined &&
+      ts.isNamedImports(bindings)
+    ) {
+      const from = join(dirname(source.path), statement.moduleSpecifier.text);
+      for (const element of bindings.elements) {
+        imported.set(element.name.text, { from, name: (element.propertyName ?? element.name).text });
+      }
+    }
+  }
+  return { source, file, declared, imported };
+}
+
+// A name expression and the file it is written in.
+interface Located {
+  readonly at: ParsedTest;
+  readonly node: ts.Expression;
+}
+
+// Resolves spec-local constants to the text they hold, so a literal reaches the census at its declaration.
+class NameResolver {
+  readonly #read: TestFileReader;
+  readonly #parsed = new Map<string, ParsedTest | undefined>();
+  readonly #seen = new Set<ts.Node>();
+
+  constructor(read: TestFileReader) {
+    this.#read = read;
+  }
+
+  parsed(path: string): ParsedTest | undefined {
+    if (!this.#parsed.has(path)) {
+      const source = this.#read(path);
+      this.#parsed.set(path, source === undefined ? undefined : parsedTest(source));
+    }
+    return this.#parsed.get(path);
+  }
+
+  // Every name expression an argument can hold: its arms, the elements of a list, and what a local constant declares.
+  resolve(node: ts.Expression, at: ParsedTest): Located[] {
+    return arms(node).flatMap((arm) => this.#resolveArm(arm, at));
+  }
+
+  #resolveArm(arm: ts.Expression, at: ParsedTest): Located[] {
+    if (isNameExpression(arm)) {
+      return [{ at, node: arm }];
+    }
+    if (ts.isArrayLiteralExpression(arm)) {
+      return arm.elements.flatMap((element) => this.resolve(ts.isSpreadElement(element) ? element.expression : element, at));
+    }
+    if (ts.isIdentifier(arm)) {
+      return this.#declaredValue(arm.text, at).flatMap(({ at: home, node }) => this.resolve(node, home));
+    }
+    if (ts.isPropertyAccessExpression(arm) || ts.isElementAccessExpression(arm)) {
+      return this.#memberValue(arm, at);
+    }
+    return [];
+  }
+
+  // What a name declares: a const's initializer, the list a `for…of` variable walks, or a relatively imported export.
+  #declaredValue(name: string, at: ParsedTest): Located[] {
+    const declaration = at.declared.get(name);
+    if (declaration === undefined) {
+      const link = at.imported.get(name);
+      const home = link === undefined ? undefined : this.parsed(link.from);
+      return link === undefined || home === undefined ? [] : this.#declaredValue(link.name, home);
+    }
+    if (declaration === null || this.#seen.has(declaration)) {
+      return [];
+    }
+    this.#seen.add(declaration);
+    const loop = declaration.parent.parent;
+    if (ts.isForOfStatement(loop)) {
+      return [{ at, node: loop.expression }];
+    }
+    return declaration.initializer === undefined ? [] : [{ at, node: declaration.initializer }];
+  }
+
+  // `LABELS.key` or `LABELS["key"]` of a local object literal, or any element of a local list.
+  #memberValue(member: ts.PropertyAccessExpression | ts.ElementAccessExpression, at: ParsedTest): Located[] {
+    const key = memberKey(member);
+    const holders = ts.isIdentifier(member.expression) ? this.#declaredValue(member.expression.text, at) : [];
+    return holders.flatMap(({ at: home, node }) =>
+      arms(node).flatMap((holder) => {
+        if (ts.isArrayLiteralExpression(holder)) {
+          return this.resolve(holder, home);
+        }
+        if (!ts.isObjectLiteralExpression(holder) || key === undefined) {
+          return [];
+        }
+        return holder.properties
+          .filter((property) => ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === key)
+          .flatMap((property) => (ts.isPropertyAssignment(property) ? this.resolve(property.initializer, home) : []));
+      }),
+    );
+  }
+}
+
+const NO_TEST_FILES: TestFileReader = () => undefined;
+
+// The property a member read names, when it names one by a literal.
+function memberKey(member: ts.PropertyAccessExpression | ts.ElementAccessExpression): string | undefined {
+  if (ts.isPropertyAccessExpression(member)) {
+    return member.name.text;
+  }
+  return ts.isStringLiteralLike(member.argumentExpression) ? member.argumentExpression.text : undefined;
+}
+
+function siteOf({ at, node }: Located): NameSite {
+  const position = at.file.getLineAndCharacterOfPosition(node.getStart(at.file));
+  return { file: at.source.path, line: position.line + 1, column: position.character + 1, text: node.getText(at.file) };
+}
+
+/**
+ * Every hand-written name site one test file reaches, in source order. A constant the spec declares, or imports from a
+ * test file by a relative path, is followed to its literal and counted where that literal is written, so a site can
+ * sit in another file and two specs can reach one site.
+ */
+export function nameSites(source: CensusSource, read: TestFileReader = NO_TEST_FILES): NameSite[] {
+  const resolver = new NameResolver((path) => (path === source.path ? source : read(path)));
+  const at = resolver.parsed(source.path);
+  if (at === undefined) {
+    return [];
+  }
+  const found: Located[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      for (const argument of nameArguments(node)) {
+        found.push(...resolver.resolve(argument, at));
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(at.file);
+  const unique = new Map(found.map((located) => [`${located.at.source.path}\n${String(located.node.getStart(located.at.file))}`, located]));
+  return [...unique.values()].map(siteOf);
 }
 
 /** Where production keeps its strings. */
@@ -392,9 +551,12 @@ export function runCensus(repoRoot: string): CensusRow[] {
     CENSUS_TEST_ROOTS.flatMap((root) => [`${root}/*.ts`, `${root}/*.tsx`]),
   );
   const index = productionIndex(trackedFiles(repoRoot, [...PRODUCTION_GLOBS, ...GUEST_GLOBS]));
-  const evidence: TestEvidence = { authored: authoredStrings(trackedFiles(repoRoot, ["tests/*.ts", "tests/*.tsx"])) };
-  return tests
-    .flatMap((source) => nameSites(source))
+  const testFiles = trackedFiles(repoRoot, ["tests/*.ts", "tests/*.tsx"]);
+  const evidence: TestEvidence = { authored: authoredStrings(testFiles) };
+  const byPath = new Map(testFiles.map((source) => [source.path, source]));
+  const read: TestFileReader = (path) => byPath.get(path);
+  const sites = new Map(tests.flatMap((source) => nameSites(source, read)).map((site) => [`${site.file}:${String(site.line)}:${String(site.column)}`, site]));
+  return [...sites.values()]
     .map((site) => classifySite(site, index, evidence))
     .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column);
 }
