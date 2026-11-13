@@ -1,6 +1,7 @@
 // Unified search dispatch preserves each producer category's scope.
 // Room-derived scans require current host membership in SQL before ranking (D16/D20).
 // Character-card and image scans retain their producer ownership rules.
+// Every scan here is the caller's own, on the caller's own encoder; no target runs on another account's index.
 
 import type { MemoryRetrievalMode, SearchScope } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";

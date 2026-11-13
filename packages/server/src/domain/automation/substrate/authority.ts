@@ -6,6 +6,10 @@
 // how one of them ends up comparing `role === "host"` itself, which is precisely what `can()` exists to prevent.
 //
 // Fail-CLOSED on every uncertainty: no such user, not a present member, or a `can()` throw ⇒ false.
+//
+// A disabled account stands nowhere (owner-ruled: a disabled human is treated exactly like a departed one). Its
+// chat rules stop firing and its asks stop executing, so nothing a member does in its room spends its
+// connections. Its own requests cannot arrive (no session), so this read is the only gate its rules meet.
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AuthorityDeps, PendingSuggestion } from "../contract/ops.ts";
@@ -28,10 +32,10 @@ export function holdsOwnerAuthority(deps: Pick<AuthorityDeps, "isAuthorEnabled">
   return deps.isAuthorEnabled(userId);
 }
 
-/** Does `userId` hold HOST authority over `chatId` right now? */
+/** Does `userId` hold HOST authority over `chatId` right now? An enabled account's present host seat, decided by `can()`. */
 export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId, userId: UserId): Promise<boolean> {
-  const [principal, role] = await Promise.all([deps.resolveAuthor(userId), loadCallerRole(deps.db, chatId, userId)]);
-  if (role === undefined) {
+  const [principal, role, enabled] = await Promise.all([deps.resolveAuthor(userId), loadCallerRole(deps.db, chatId, userId), deps.isAuthorEnabled(userId)]);
+  if (role === undefined || !enabled) {
     return false;
   }
   // the `false` is the denial verdict itself: `decideChat` in
@@ -52,7 +56,7 @@ export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId
  *  - RULE: the author must still host. The ask was "may THIS author's rule act here".
  *  - PLUGIN: the installer need not host, because the authority is the yes of the host who saw the card. So the
  *    host recorded at raise must still host (re-proved through `can()`, like every host check here), and the
- *    installer must still hold the SAME membership: a removal
+ *    installer must still be enabled and hold the SAME membership: a removal
  *    followed by a re-invite reuses the row, and only the recorded instance tells the two stays apart. The
  *    plugin's installed-and-enabled half is the confirm verb's injected `isPluginLive` read.
  *
@@ -64,9 +68,16 @@ export async function askActorStillStands(deps: AuthorityDeps, ask: PendingSugge
     return await holdsChatHostAuthority(deps, ask.chatId, ask.actorUserId);
   }
   const { hostUserId, installerMembership } = ask.standing;
-  const [stillHosts, membership] = await Promise.all([
+  const [stillHosts, membership, installerEnabled] = await Promise.all([
     holdsChatHostAuthority(deps, ask.chatId, hostUserId),
     loadMembershipInstance(deps.db, ask.chatId, ask.actorUserId),
+    deps.isAuthorEnabled(ask.actorUserId),
   ]);
-  return stillHosts && membership !== undefined && membership.joinSeq === installerMembership.joinSeq && membership.joinedAt === installerMembership.joinedAt;
+  return (
+    stillHosts &&
+    installerEnabled &&
+    membership !== undefined &&
+    membership.joinSeq === installerMembership.joinSeq &&
+    membership.joinedAt === installerMembership.joinedAt
+  );
 }

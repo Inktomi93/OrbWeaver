@@ -116,6 +116,8 @@ export interface SearchDiscoveryComposeDeps {
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: WorkloadServiceContext["getContributions"];
   readonly isBoxOwner: WorkloadServiceContext["isBoxOwner"];
+  /** The disabled-account read: workloads refuse a disabled payer, and the room document union narrows its
+   *  crediting members by it. */
   readonly isAccountEnabled: WorkloadServiceContext["isAccountEnabled"];
   /** chat's memory-enabled read (LATE-BOUND: chat composes after this seam), for the memory-off receipt. */
   readonly isMemoryEnabled: VacuousMemoryReceiptDeps["isMemoryEnabled"];
@@ -288,8 +290,8 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     roleClientsFor,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
     now,
-    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
-    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope),
+    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope, deps.isAccountEnabled),
+    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope, deps.isAccountEnabled),
   });
   const discovery = createDiscoveryService({
     resolveDigestSources: createDigestSources({

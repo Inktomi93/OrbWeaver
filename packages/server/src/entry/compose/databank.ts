@@ -57,6 +57,7 @@ export interface DatabankComposeDeps {
   /** The per-user settings loader — `getDatabankSettings(ownerId)` reads the user's `databank` section
    *  (chunk params for ingest + retrieval params for gather), replacing the schema-default stub. */
   readonly loadUserSettings: SettingsService["loadUserSettings"];
+  readonly resolveUserEnabled: DatabankAssemblyContext["resolveUserEnabled"];
   /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the regex precedent).
    *  Threaded here because every databank junction write has a member-visible projection in the rooms
    *  that credit the document (the D85 rack), and `databankChanged` is a per-USER channel that never
@@ -140,6 +141,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     ensureChatHost: chatGuards.requireHost,
     ensureChatMember: chatGuards.requireParticipant,
     resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
+    resolveUserEnabled: deps.resolveUserEnabled,
     // The SHARED leak-safe reverse-room read — the same factory regex's roster and the preset
     // CONTEXT's GM bindings wire. A `chat_documents` row outlives its attacher's seat, so the "Active in"
     // roster names PRESENT rooms only.

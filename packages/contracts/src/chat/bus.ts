@@ -282,8 +282,18 @@ export const TURN_ABORTED_OP_CODE = "aborted" as const;
  *  never on message text, and the server's `CHAT_OP_CODES.locked` derives this literal. The refusal is total
  *  (no turn ran, nothing was written), and it is the ONE turn error whose cause the user can act on — so the
  *  client maps it to honest copy naming the other turn instead of its generic "couldn't swipe" toast
- *  (`features/chat/lib/turn-abort-notice.ts`). */
+ *  (`packages/client/src/lib/turn-abort-notice.ts`). */
 export const TURN_LOCKED_OP_CODE = "locked" as const;
+
+/** The `DomainOperationError.code` a turn surfaces when it meets its room being removed (a husk reap holds the
+ *  room closed for its delete): the same wire-vocabulary home as `locked`, so the client can tell "the chat is
+ *  going away" from "another reply is generating". Nothing was written, and the room will not come back. */
+export const TURN_ROOM_CLOSING_OP_CODE = "room_closing" as const;
+
+/** The `DomainOperationError.code` a turn surfaces when the room's host is outside its consent set (disabled, or
+ *  gone from the room). Only a caller who holds a present seat reads it; everyone else reads the leak-free not
+ *  found. It names no account state: a member is told the host is unavailable, never why. */
+export const TURN_HOST_UNAVAILABLE_OP_CODE = "host_unavailable" as const;
 
 /** The `DomainOperationError.code` `chat.setUserMacroValues` refuses an off-vocabulary select pick with
  * — the same wire-vocabulary home as the two twins above, for the same reason: the picks pane keys

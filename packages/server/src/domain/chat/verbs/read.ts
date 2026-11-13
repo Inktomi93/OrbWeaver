@@ -11,7 +11,8 @@
 // postHistoryInstructions, `char_description`/`scenario`/`dialogue_examples` the card text, and the `persona`
 // marker another human's persona description.
 // The member-gated read on this path builds NO rendered bytes: `previewContextFit` returns only the boundary id +
-// budget numbers off a ctx it never serializes.
+// budget numbers off a ctx it never serializes. Its gather still runs memory and databank retrieval on the host's
+// encoder, so every preview refuses a host outside the room's consent set, a disabled host like a departed one.
 //
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
@@ -85,7 +86,7 @@ import { getLog } from "#foundation/observability";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { MacroRenderEnv, TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatServiceDeps, LoadParticipantViewsBatchOp, LoadParticipantViewsOp } from "../contract/context.ts";
-import { ChatNotFoundError } from "../contract/errors.ts";
+import { ChatHostWithoutConsentError, ChatNotFoundError } from "../contract/errors.ts";
 import type { ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type {
@@ -459,6 +460,11 @@ async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: Ch
   const hostUserId = hostUserIdOf(participants);
   if (hostUserId === null) {
     throw new ChatNotFoundError(chatId);
+  }
+  // A member's fit read gathers memory and databank retrieval on the host's encoder, so a disabled host refuses
+  // exactly as a departed one does, the rule `loadRoom` applies to a turn.
+  if (!(await presentAndEnabledHumanUserIdsOf(ctx, participants)).includes(hostUserId)) {
+    throw new ChatHostWithoutConsentError(chatId);
   }
   const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId });
   const room = await resolveRoomInputs(ctx, deps, chatId, { ...opts, model: connection.model });

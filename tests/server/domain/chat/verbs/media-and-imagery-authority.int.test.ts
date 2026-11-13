@@ -1,6 +1,7 @@
 // @subject packages/server/src/entry/compose/imagery.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
@@ -219,7 +220,8 @@ test("a member's picture request spends neither the Utility nor the image connec
   await setHostEnabled(false);
   const beforeRefusals = requests.length;
   await expect(extract()).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(generate()).rejects.toBeInstanceOf(DomainNotFoundError);
+  // The chat post tells its present member why; the imagery preview keeps its leak-free not found.
+  await expect(generate()).rejects.toMatchObject({ code: TURN_HOST_UNAVAILABLE_OP_CODE });
   expect(requests).toHaveLength(beforeRefusals);
   images.length = 0;
 

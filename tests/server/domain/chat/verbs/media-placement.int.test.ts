@@ -9,10 +9,10 @@
 // @subject packages/server/src/domain/chat/persistence/message-asset-links.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { assetIdsInContent, contentSpanRaw } from "@orb/kit/content";
-import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -291,8 +291,10 @@ test("an owed turn whose host is disabled at drain drops and tells the member, w
   });
   // The drop consumed the row: a re-enabled host's next drain finds nothing owed.
   expect(await box.root.services.chat.drainDeferredTurns({ all: true })).toEqual({ ran: 0, dropped: 0 });
-  // A send while the host is disabled refuses as for a hostless room, so nothing queues.
-  await expect(box.root.services.chat.send({ principal: player, chatId: room, content: TURN_CUE })).rejects.toBeInstanceOf(DomainNotFoundError);
+  // A send while the host is disabled refuses with the host-unavailable reason, so nothing queues.
+  await expect(box.root.services.chat.send({ principal: player, chatId: room, content: TURN_CUE })).rejects.toMatchObject({
+    code: TURN_HOST_UNAVAILABLE_OP_CODE,
+  });
 
   // Queued, disabled, then re-enabled before the drain: the owed turn runs, and the host's picture rides it.
   await setHostEnabled(true);
@@ -306,7 +308,7 @@ test("an owed turn whose host is disabled at drain drops and tells the member, w
   expect(imageUrls(turn[0] ?? "")).toEqual([await wireUrl(box, attached)]);
 });
 
-test("a member's swipe in a room whose host is disabled refuses before any provider request, and runs once the host is re-enabled", async () => {
+test("a member's turn in a room whose host is disabled refuses with the host-unavailable reason before any provider request, and runs once the host is re-enabled", async () => {
   await using box = await openBox();
   const { host, player, room } = await memberHostedRoom(box);
   // The host's own send runs live, so the room has a reply to regenerate.
@@ -315,12 +317,30 @@ test("a member's swipe in a room whose host is disabled refuses before any provi
   if (reply === undefined) {
     throw new Error("the host's turn committed no reply");
   }
-  const swipe = (): ReturnType<typeof box.root.services.chat.swipe> => box.root.services.chat.swipe({ principal: player, chatId: room, messageId: reply.id });
+  const { chat } = box.root.services;
+  const swipe = (): ReturnType<typeof chat.swipe> => chat.swipe({ principal: player, chatId: room, messageId: reply.id });
+  // Every member turn verb that resolves the room refuses alike.
+  const turns: Readonly<Record<string, () => Promise<unknown>>> = {
+    send: () => chat.send({ principal: player, chatId: room, content: TURN_CUE }),
+    commitMessage: () => chat.commitMessage({ principal: player, chatId: room, content: TURN_CUE }),
+    swipe,
+    continueTurn: () => chat.continueTurn({ principal: player, chatId: room, messageId: reply.id }),
+    generate: () => chat.generate({ principal: player, chatId: room }),
+    impersonateStream: async () => {
+      for await (const delta of chat.impersonateStream({ principal: player, chatId: room })) {
+        throw new Error(`the refused impersonation streamed ${JSON.stringify(delta)}`);
+      }
+    },
+  };
 
   await box.root.services.admin.setEnabled({ principal: box.host, userId: host.userId, enabled: false });
   const idle = box.chatBodies.length;
-  await expect(swipe()).rejects.toBeInstanceOf(DomainNotFoundError);
+  for (const [verb, run] of Object.entries(turns)) {
+    await expect(run(), verb).rejects.toMatchObject({ code: TURN_HOST_UNAVAILABLE_OP_CODE });
+  }
   expect(box.chatBodies.slice(idle)).toEqual([]);
+  // The room still reads as the member's own: the refusal moved no canon.
+  expect((await chat.listMessages({ principal: player, chatId: room })).messages.map(({ id }) => id)).toEqual(sent.messages.map(({ id }) => id));
 
   await box.root.services.admin.setEnabled({ principal: box.host, userId: host.userId, enabled: true });
   const resumed = box.chatBodies.length;
