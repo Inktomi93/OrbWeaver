@@ -489,10 +489,12 @@ const SLOW_HOST_SOURCE = `const ui = orb.ui(1);
 ui.render("protocol", { kind: "stack", children: [
   { kind: "text", value: "Slow host guest ready" },
   { kind: "button", label: "Wait then fail", actionId: "wait" },
-  { kind: "button", label: "Spin", actionId: "spin" }
+  { kind: "button", label: "Spin", actionId: "spin" },
+  { kind: "button", label: "Linger", actionId: "linger" }
 ] });
 ui.onEvent(async ({ event }) => {
   if (event.actionId === "spin") { for (;;) {} }
+  if (event.actionId === "linger") { await ui.host.storage.get("lingering"); return; }
   await ui.host.storage.get("ledger");
   throw new (class extends Error {
     get message() { let n = 0; for (let i = 0; i < ${MESSAGE_WORK_ITERATIONS}; i++) { n += i; } return ${JSON.stringify(SLOW_HOST_FAILURE_MESSAGE)}; }
@@ -542,6 +544,49 @@ test("an event that waits past its CPU budget on a host call and then throws rep
   const spin = trpc.requireLastInput("plugin.reportUiCrash").reason;
   expect(spin).toContain("InternalError");
   expect(spin).not.toContain(SLOW_HOST_FAILURE_MESSAGE);
+});
+
+// The host sends an event without waiting for the last one to settle, so a later event can be waiting on its own host
+// call when an earlier one reads its error. Wall time is the subject here too.
+test("an event that fails while a later event still waits on a host call reports its own error", async ({ corpus, corpusViewer, mount, page }) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) =>
+      input.fn === "storage.get" && (input.argsJson === '["ledger"]' || input.argsJson === '["lingering"]')
+        ? { resultJson: '"Native ledger"' }
+        : trpcError({ code: "NOT_FOUND" }),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  let arrivals = 0;
+  const { promise: lingering, resolve: releaseLingering } = Promise.withResolvers<void>();
+  await page.route(
+    (url) => url.pathname.includes(UI_HOST_CALL_PATH),
+    async (route) => {
+      arrivals += 1;
+      if (arrivals === 1) {
+        const arrivedAt = await page.evaluate(() => performance.now());
+        await page.waitForFunction(({ since, budgetMs }) => performance.now() - since > budgetMs, { since: arrivedAt, budgetMs: UI_GUEST_BUDGETS.eventCpuMs });
+      } else {
+        await lingering;
+      }
+      await route.fallback();
+    },
+  );
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: SLOW_HOST_SOURCE }));
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+
+  await page.getByRole("button", { name: "Wait then fail", exact: true }).click();
+  await expect.poll(() => arrivals).toBe(1);
+  await page.getByRole("button", { name: "Linger", exact: true }).click();
+  await expect.poll(() => arrivals).toBe(2);
+  await expect.poll(() => trpc.count("plugin.reportUiCrash")).toBe(1);
+  releaseLingering();
+  expect(trpc.requireLastInput("plugin.reportUiCrash").reason).toContain(SLOW_HOST_FAILURE_MESSAGE);
 });
 
 test("a crash report that fails writes its log and raises no toast, because the person did not start it", async ({ corpus, corpusViewer, mount, page }) => {

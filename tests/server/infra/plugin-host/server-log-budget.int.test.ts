@@ -1,22 +1,23 @@
-// Every server-log line a plugin's guest causes draws on one window of one drain's volume: its log lines, its failed
-// host calls and its failed calls. Past the budget the server log drops them, the plugin's own log keeps its lines,
-// and one line counts the drops when the window closes or the plugin is disabled.
+// Every server-log line a plugin's guest causes draws on one window: its log lines and its failed calls share one
+// drain's volume, and host faults on its bridge calls have a small share of their own. Past a share the server log drops
+// the line, the plugin's own log keeps its lines, and one line counts the drops when the window closes or the plugin is
+// disabled. The cases share one root and one broker; each owns a plugin of its own, so each owns its own window.
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 // @subject packages/server/src/domain/plugin/activation/activate.ts
 // @subject packages/server/src/domain/plugin/substrate/surface-state.ts
 
 import { spawn } from "node:child_process";
-import type { PluginManifest } from "@orb/contracts/plugin";
+import type { PluginLogView, PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_LOG_LINES_MAX, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
+import { afterAll, beforeAll } from "vitest";
 import { z } from "zod";
-import { PLUGIN_SERVER_LOG_WINDOW_MS } from "#server/infra/plugin-host/budgets.ts";
+import { PLUGIN_COMMAND_TIMEOUT_MS, PLUGIN_SERVER_LOG_FAULT_LINES, PLUGIN_SERVER_LOG_WINDOW_MS } from "#server/infra/plugin-host/budgets.ts";
 
-const PLUGIN_SLUG = "chattyrender";
 const LOG_SCAN_LIMIT = 2000;
 const THROW = "throw";
 // Not a TypeID, so the card-state read fails past the bridge's own argument check.
@@ -25,11 +26,14 @@ const CROWD_COMMAND = "crowd";
 const CAP_REFUSALS = 5;
 // A stop for the loop well past any key cap, so a cap that never refuses ends the command instead of spinning.
 const CROWD_KEY_LIMIT = 1000;
-// The display transform reads `<tag>:<logs>:<fails>:<throw?>`: it logs `<tag> <i>` logs times, makes fails card-state
-// reads that fail and swallows each, then throws when asked.
-const GUEST = `const h = orb.host(1);
+// Every enabled plugin's display transform sees every render, so a render names the plugin it is for. The transform
+// reads `<slug>:<tag>:<logs>:<fails>:<throw?>`: it logs `<tag> <i>` logs times, makes fails card-state reads that fail
+// and swallows each, then throws when asked.
+function guest(slug: string): string {
+  return `const h = orb.host(1);
 h.transforms.registerDisplay({ name: "chatty", apply: async ({ text }) => {
-  const [tag, logs, fails, end] = text.split(":");
+  const [target, tag, logs, fails, end] = text.split(":");
+  if (target !== ${JSON.stringify(slug)}) return text;
   for (let i = 0; i < Number(logs); i++) h.log.info(tag + " " + i);
   for (let i = 0; i < Number(fails); i++) {
     try { await h.character.getCardData(${JSON.stringify(MALFORMED_CHARACTER_ID)}); } catch {}
@@ -44,11 +48,12 @@ h.ui.registerCommand({ name: ${JSON.stringify(CROWD_COMMAND)}, describe: "Fill t
   }
   h.log.info(String(refused));
 } });`;
+}
 
-function manifest(): PluginManifest {
+function manifest(slug: string): PluginManifest {
   return pluginManifestSchema.parse({
-    id: PLUGIN_SLUG,
-    name: "Chatty render",
+    id: slug,
+    name: `Chatty ${slug}`,
     version: "1.0.0",
     description: "Logs and fails on every render.",
     hostVersion: PLUGIN_HOST_VERSIONS[0],
@@ -62,6 +67,7 @@ function lines(tag: string, count: number): string[] {
 }
 
 const serverLogEntrySchema = z.looseObject({
+  level: z.string().optional(),
   plugin: z.string().optional(),
   pluginSlug: z.string().optional(),
   operation: z.string().optional(),
@@ -86,8 +92,8 @@ function kindOf(entry: ServerLogEntry): EntryKind {
 
 interface Chatty {
   readonly pluginId: PluginId;
-  /** Run the command that crowds the surface state, and return its log line. */
-  readonly crowd: () => Promise<string | undefined>;
+  /** Run one of the guest's commands, and return its plugin log. */
+  readonly command: (name: string) => Promise<readonly PluginLogView[]>;
   /** Every server-log entry, oldest first. */
   readonly allEntries: () => ServerLogEntry[];
   readonly render: (tag: string, logs: number, fails?: number, end?: typeof THROW) => Promise<void>;
@@ -96,109 +102,155 @@ interface Chatty {
   readonly counted: () => number[];
 }
 
-async function installChatty(root: ServerTestHarness): Promise<Chatty> {
-  const owner = await root.principalFor(root.ownerId);
-  const plugin = manifest();
-  const installed = await seedInstalledPlugin(root, { caller: owner, bundle: makePluginBundle(plugin, GUEST, root.clock.now()), grant: [] });
-  await seedPluginGrant(root, { caller: owner, pluginId: installed.outcome.id, grant: plugin.capabilities, acknowledgedNetHosts: [], enable: true });
-  const rpc = await root.internalCallerFor(root.ownerId);
-  const chatId = root.idSource.typeId(ID_PREFIX.chat);
-  const messageId = root.idSource.typeId(ID_PREFIX.message);
+async function installChatty(harness: ServerTestHarness, slug: string): Promise<Chatty> {
+  const owner = await harness.principalFor(harness.ownerId);
+  const plugin = manifest(slug);
+  const installed = await seedInstalledPlugin(harness, { caller: owner, bundle: makePluginBundle(plugin, guest(slug), harness.clock.now()), grant: [] });
+  await seedPluginGrant(harness, { caller: owner, pluginId: installed.outcome.id, grant: plugin.capabilities, acknowledgedNetHosts: [], enable: true });
+  const rpc = await harness.internalCallerFor(harness.ownerId);
+  const chatId = harness.idSource.typeId(ID_PREFIX.chat);
+  const messageId = harness.idSource.typeId(ID_PREFIX.message);
   const allEntries = (): ServerLogEntry[] =>
-    root.observability
+    harness.observability
       .logLines(LOG_SCAN_LIMIT)
       .map((line) => serverLogEntrySchema.parse(JSON.parse(line)))
       .reverse();
-  const serverLog = (): ServerLogEntry[] => allEntries().filter((entry) => entry.plugin === PLUGIN_SLUG || entry.pluginSlug === PLUGIN_SLUG);
+  const serverLog = (): ServerLogEntry[] => allEntries().filter((entry) => entry.plugin === slug || entry.pluginSlug === slug);
   const pluginId = installed.outcome.id;
   return {
     pluginId,
-    crowd: async (): Promise<string | undefined> => {
-      await rpc.plugin.invokeUiCommand({ pluginId, name: CROWD_COMMAND, args: "{}", chatId: null });
-      return (await root.services.plugin.getLog({ caller: owner, pluginId })).at(-1)?.message;
+    command: async (name): Promise<readonly PluginLogView[]> => {
+      await rpc.plugin.invokeUiCommand({ pluginId, name, args: "{}", chatId: null });
+      return await harness.services.plugin.getLog({ caller: owner, pluginId });
     },
     allEntries,
     render: async (tag, logs, fails, end): Promise<void> => {
-      await rpc.plugin.transformForDisplay({ chatId, messageId, text: [tag, logs, fails ?? 0, end ?? ""].join(":") });
+      await rpc.plugin.transformForDisplay({ chatId, messageId, text: [slug, tag, logs, fails ?? 0, end ?? ""].join(":") });
     },
     serverLog,
     counted: () => serverLog().flatMap((entry) => (entry.dropped === undefined ? [] : [entry.dropped])),
   };
 }
 
+// The hook boots a root and starts a real broker with every case's activation, which outruns the default hook budget.
+const BROKER_START_HOOK_TIMEOUT_MS = 30_000;
+const SLUGS = { lines: "chattylines", failures: "chattyfailures", cap: "chattycap", faults: "chattyfaults" } as const;
+let root: ServerTestHarness;
+let chatty: Readonly<Record<keyof typeof SLUGS, Chatty>>;
+
+// The broker starts with the first activation, so every case's plugin is installed here and no case pays for it.
+beforeAll(async () => {
+  root = await createServerHarness({ pluginSpawn: spawn, logLevel: "info" });
+  chatty = {
+    lines: await installChatty(root, SLUGS.lines),
+    failures: await installChatty(root, SLUGS.failures),
+    cap: await installChatty(root, SLUGS.cap),
+    faults: await installChatty(root, SLUGS.faults),
+  };
+}, BROKER_START_HOOK_TIMEOUT_MS);
+
+afterAll(async () => {
+  await root[Symbol.asyncDispose]();
+});
+
 test("past its budget a display transform's lines leave the server log, and one line counts them", async () => {
   const underBudget = 3;
   const pastBudget = 5;
   const nextWindow = 2;
-  await using root = await createServerHarness({ pluginSpawn: spawn, logLevel: "info" });
-  const chatty = await installChatty(root);
   const owner = await root.principalFor(root.ownerId);
+  const { lines: plugin } = chatty;
 
   // Control: under the budget every line reaches the server log.
-  await chatty.render("under", underBudget);
-  expect(chatty.serverLog().map((entry) => entry.msg)).toEqual(lines("under", underBudget));
+  await plugin.render("under", underBudget);
+  expect(plugin.serverLog().map((entry) => entry.msg)).toEqual(lines("under", underBudget));
 
-  await chatty.render("fill", PLUGIN_LOG_LINES_MAX - underBudget);
-  await chatty.render("past", pastBudget);
+  await plugin.render("fill", PLUGIN_LOG_LINES_MAX - underBudget);
+  await plugin.render("past", pastBudget);
   const budgeted = [...lines("under", underBudget), ...lines("fill", PLUGIN_LOG_LINES_MAX - underBudget)];
-  expect(chatty.serverLog().map((entry) => entry.msg)).toEqual(budgeted);
+  expect(plugin.serverLog().map((entry) => entry.msg)).toEqual(budgeted);
   // The plugin's own log still holds the lines the server log dropped.
-  const pluginLog = await root.services.plugin.getLog({ caller: owner, pluginId: chatty.pluginId });
+  const pluginLog = await root.services.plugin.getLog({ caller: owner, pluginId: plugin.pluginId });
   expect(pluginLog.slice(-pastBudget).map((line) => line.message)).toEqual(lines("past", pastBudget));
-  expect(chatty.counted()).toEqual([]);
+  expect(plugin.counted()).toEqual([]);
 
   // The window closes on its own, with no further line from the plugin, and counts what it dropped.
   root.timers.advance(PLUGIN_SERVER_LOG_WINDOW_MS);
-  expect(chatty.serverLog().length).toBe(budgeted.length + 1);
-  expect(chatty.counted()).toEqual([pastBudget]);
+  expect(plugin.serverLog().length).toBe(budgeted.length + 1);
+  expect(plugin.counted()).toEqual([pastBudget]);
 
   // Control: the next window admits lines again.
-  await chatty.render("next", nextWindow);
+  await plugin.render("next", nextWindow);
   expect(
-    chatty
+    plugin
       .serverLog()
       .slice(-nextWindow)
       .map((entry) => entry.msg),
   ).toEqual(lines("next", nextWindow));
 });
 
-test("failed host calls and failed calls share the window, and disabling the plugin writes the count at once", async () => {
+test("a failed call shares the guest's window, and disabling the plugin writes the count at once", async () => {
   const failsUnder = 2;
   const failsPast = 3;
-  await using root = await createServerHarness({ pluginSpawn: spawn, logLevel: "info" });
-  const chatty = await installChatty(root);
   const owner = await root.principalFor(root.ownerId);
+  const { failures: plugin } = chatty;
 
   // Control: under the budget each failed host call and the failed call write their line.
-  await chatty.render("under", 0, failsUnder, THROW);
+  await plugin.render("under", 0, failsUnder, THROW);
   const underLines: EntryKind[] = [...Array.from({ length: failsUnder }, (): EntryKind => "failed-host-call"), "failed-call"];
-  expect(chatty.serverLog().map(kindOf)).toEqual(underLines);
+  expect(plugin.serverLog().map(kindOf)).toEqual(underLines);
 
   // The clock stands still, so the timer that closes a dropping window asks for exactly one window.
   const windowTimers = (): number => root.timers.armed().filter((ms) => ms === PLUGIN_SERVER_LOG_WINDOW_MS).length;
   const otherWindowTimers = windowTimers();
-  await chatty.render("fill", PLUGIN_LOG_LINES_MAX - underLines.length);
-  await chatty.render("past", 0, failsPast, THROW);
-  const budgeted: EntryKind[] = [...underLines, ...Array.from({ length: PLUGIN_LOG_LINES_MAX - underLines.length }, (): EntryKind => "guest-line")];
-  expect(chatty.serverLog().map(kindOf)).toEqual(budgeted);
+  // The failed call took one line of the guest's share; the fill takes the rest.
+  await plugin.render("fill", PLUGIN_LOG_LINES_MAX - 1);
+  await plugin.render("past", 0, failsPast, THROW);
+  // Past the guest's share the failed call is dropped; the host faults land on their own share.
+  const budgeted: EntryKind[] = [
+    ...underLines,
+    ...Array.from({ length: PLUGIN_LOG_LINES_MAX - 1 }, (): EntryKind => "guest-line"),
+    ...Array.from({ length: failsPast }, (): EntryKind => "failed-host-call"),
+  ];
+  expect(plugin.serverLog().map(kindOf)).toEqual(budgeted);
   expect(windowTimers()).toBe(otherWindowTimers + 1);
 
-  // Disabling the plugin writes the count now and cancels the timer that would write it again. (Advancing the clock
-  // here would also fire the disposed runtime's retirement backstop before the broker answers it.)
-  await root.services.plugin.setEnabled({ caller: owner, pluginId: chatty.pluginId, enabled: false });
-  expect(chatty.serverLog().map(kindOf)).toEqual([...budgeted, "dropped-count"]);
-  expect(chatty.counted()).toEqual([failsPast + 1]);
+  // Disabling the plugin writes the count now and cancels the timer that would write it again.
+  await root.services.plugin.setEnabled({ caller: owner, pluginId: plugin.pluginId, enabled: false });
+  expect(plugin.serverLog().map(kindOf)).toEqual([...budgeted, "dropped-count"]);
+  expect(plugin.counted()).toEqual([1]);
   expect(windowTimers()).toBe(otherWindowTimers);
+  // The disposed runtime's retirement settles, so a later case's clock advance cannot fire its backstop.
+  await expect.poll(() => root.timers.armed().includes(PLUGIN_COMMAND_TIMEOUT_MS.dispose)).toBe(false);
 });
 
 test("a plugin held at its surface-state key cap writes the refusal to the server log once", async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn, logLevel: "info" });
-  const chatty = await installChatty(root);
-  const capLines = (): ServerLogEntry[] => chatty.allEntries().filter((entry) => entry.pluginId === chatty.pluginId && entry.cap !== undefined);
+  const { cap: plugin } = chatty;
+  const capLines = (): ServerLogEntry[] => plugin.allEntries().filter((entry) => entry.pluginId === plugin.pluginId && entry.cap !== undefined);
 
   // Control: the guest was refused each time it reached past the cap.
-  expect(await chatty.crowd()).toBe(String(CAP_REFUSALS));
+  expect((await plugin.command(CROWD_COMMAND)).at(-1)?.message).toBe(String(CAP_REFUSALS));
   expect(capLines()).toHaveLength(1);
-  expect(await chatty.crowd()).toBe(String(CAP_REFUSALS));
+  expect((await plugin.command(CROWD_COMMAND)).at(-1)?.message).toBe(String(CAP_REFUSALS));
   expect(capLines()).toHaveLength(1);
+});
+
+test("a guest that fills its window still leaves its host faults in the server log, up to their own share", async () => {
+  const { faults: plugin } = chatty;
+  // A render makes a few failing reads so it stays well inside one display call's deadline.
+  const failsPerRender = 4;
+  const renders = Math.ceil((PLUGIN_SERVER_LOG_FAULT_LINES + 1) / failsPerRender);
+  const faultLines = (): number => plugin.serverLog().filter((entry) => kindOf(entry) === "failed-host-call").length;
+
+  await plugin.render("fill", PLUGIN_LOG_LINES_MAX);
+  expect(plugin.serverLog().map(kindOf)).toEqual(Array.from({ length: PLUGIN_LOG_LINES_MAX }, (): EntryKind => "guest-line"));
+  // The guest's share is full: its next line is dropped, while host faults still land on their own share.
+  await plugin.render("past", 1, failsPerRender);
+  expect(faultLines()).toBe(failsPerRender);
+  for (let render = 1; render < renders; render += 1) {
+    await plugin.render("past", 0, failsPerRender);
+  }
+  // The fault share is bounded too: a guest that provokes faults gets no second channel past it.
+  expect(faultLines()).toBe(PLUGIN_SERVER_LOG_FAULT_LINES);
+  root.timers.advance(PLUGIN_SERVER_LOG_WINDOW_MS);
+  expect(plugin.counted()).toEqual([1 + renders * failsPerRender - PLUGIN_SERVER_LOG_FAULT_LINES]);
 });
