@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle, requireShowcaseBundle } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -199,7 +200,7 @@ for (const regime of REGIMES) {
       const confirmation = page.getByRole("alertdialog", { name: "Clear this note?", exact: true });
       await expect(confirmation).toBeVisible();
       expect(calls.count("plugin.invokeUiAction")).toBe(0);
-      await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
+      await confirmation.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(clear).toBeFocused();
       await note.fill("field witness");
       await apply.click();

@@ -13,6 +13,7 @@ import type { Page } from "@playwright/test";
 import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
 import { PLUGIN_SURFACE_KICKER } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { BACKGROUND_JOB_LOGS } from "#client/lib/background-jobs.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 /** The server refuses a plugin the owner does not have, so a request for any other id is a defect, not an answer. */
@@ -177,9 +178,9 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   await expect(page.getByText(`Refused: ${RELAY_FAILURE_MESSAGE}`, { exact: true })).toBeVisible();
   expect(trpc.count("plugin.reportUiCrash")).toBe(0);
   expect(page.workers()).toHaveLength(1);
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Crash guest", exact: true }).click();
-  const retry = page.getByRole("button", { name: "Retry", exact: true });
+  const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
   await Promise.all(retired);
   expect(retired).toHaveLength(1);
@@ -263,7 +264,7 @@ test("a native guest boot failure publishes ready:false and reports the original
   page.on("worker", (worker) => retired.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
   await observeProtocol(page);
   const component = await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await expect
     .poll(() => trpc.lastInput("plugin.reportUiCrash"))
     .toMatchObject({ pluginId: plugin.id, surfaceId: "protocol", reason: expect.stringContaining(BOOT_FAILURE_MESSAGE) });
@@ -276,7 +277,7 @@ test("a native guest boot failure publishes ready:false and reports the original
   expect(trpc.count("plugin.reportUiCrash")).toBe(1);
   source = UI_SOURCE;
   const nextWorker = page.waitForEvent("worker");
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await nextWorker;
   await expect(page.getByText("Native browser ready", { exact: true })).toBeVisible();
   expect(retired).toHaveLength(2);
@@ -318,7 +319,7 @@ test("a crash report that fails writes its log and raises no toast, because the 
     pluginId: plugin.id,
     controlNotice: CONTROL_NOTICE,
   });
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await logged;
   expect(trpc.count("plugin.reportUiCrash")).toBe(1);
   await page.getByRole("button", { name: CONTROL_NOTICE, exact: true }).click();
@@ -413,7 +414,7 @@ memoryTest(
     page.on("worker", (worker) => closed.push(new Promise<void>((resolve) => worker.once("close", () => resolve()))));
     await observeProtocol(page);
     await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
-    const retry = page.getByRole("button", { name: "Retry", exact: true });
+    const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     const unavailable = expect.objectContaining({
       kind: "unavailable" satisfies UiGuestUnavailableMessage["kind"],
       message: expect.stringMatching(/the browser could not reserve \d+ bytes for the plugin's interface:/u),

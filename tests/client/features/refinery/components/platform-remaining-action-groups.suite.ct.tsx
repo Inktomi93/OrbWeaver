@@ -13,6 +13,7 @@ import {
   REFINERY_HIDE_COMPARE_NAME,
   REFINERY_VERSION_DIFF_HEADING,
 } from "#client/features/refinery/lib/refinery-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_remaining-action-groups-stories/RefineryRemainingActionsStory";
@@ -107,7 +108,7 @@ for (const regime of REGIMES) {
         appearance: regime.appearance,
       });
       const compare = page.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true });
-      const restore = page.getByRole("button", { name: "Restore", exact: true });
+      const restore = page.getByRole("button", { name: DIALOG_VERBS.restore, exact: true });
       await expectContained(compare.locator(".."), [compare, restore]);
       await compare.focus();
       await page.keyboard.press("Enter");

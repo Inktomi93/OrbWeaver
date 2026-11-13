@@ -10,6 +10,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { NotificationActionGroupsStory } from "./_ct-stories.tsx";
 
 const STORY = "tests/client/features/notifications/_ct-stories/NotificationActionGroupsStory";
@@ -172,7 +173,7 @@ for (const regime of REGIMES) {
       await acceptHandoff.click();
       const disclosure = page.getByRole("alertdialog", { name: "Accept hosting this chat?", exact: true });
       await expect(disclosure).toContainText("Nothing is copied into your library");
-      await disclosure.getByRole("button", { name: "Cancel", exact: true }).click();
+      await disclosure.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(disclosure).toHaveCount(0);
       expect(routes.count("invites.acceptHostHandoff")).toBe(0);
       expect((await owner.chat.getChat({ chatId: handedRoom.id })).pendingHostUserId).toBe(reader.id);

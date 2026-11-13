@@ -6,6 +6,7 @@ import { watchToastMounts } from "@orb/testkit/browser/spec";
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ConfirmFailureStory } from "./_confirm-failure-stories.tsx";
 
 const STORY = "tests/client/components/_confirm-failure-stories/ConfirmFailureStory";
@@ -46,7 +47,7 @@ test("a rejection after the confirm was cancelled is toasted once, since no line
   await page.getByRole("button", { name: "Write", exact: true }).click();
   await page.getByRole("button", { name: "Write it", exact: true }).click();
   await hold.requested;
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   hold.fail();
   await expect(page.locator(TOAST_ROOT)).toBeVisible();
