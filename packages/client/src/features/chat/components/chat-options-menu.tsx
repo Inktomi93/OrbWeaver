@@ -44,6 +44,7 @@ import { useDeleteChat, useSetGameEngaged, useStartGame, useUpdateChatTitle } fr
 import { useSelfLeave } from "../hooks/use-membership-mutations.ts";
 import {
   BACK_TO_PARENT_CHAT_LABEL,
+  CHAT_CLOSE_NAME,
   CHAT_DELETE_NAME,
   CHAT_LEAVE_CONFIRM_NAME,
   CHAT_LEAVE_CONFIRM_TITLE,
@@ -357,7 +358,7 @@ function TrailingItems({ onRename }: { readonly onRename: (() => void) | undefin
       )}
       <MenuItem onClick={goToLanding}>
         <Icon icon={X} size="sm" />
-        Close chat
+        {CHAT_CLOSE_NAME}
       </MenuItem>
     </>
   );

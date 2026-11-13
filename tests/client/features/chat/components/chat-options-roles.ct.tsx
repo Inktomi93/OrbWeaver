@@ -42,6 +42,7 @@ const SERVED = [
   "rpg.listTurnToolCalls",
 ] as const;
 const ROLES = ["host", "member"] as const;
+const TRANSCRIPT_LOADING = '[data-slot="transcript-loading"]';
 type RoomReadIntercept = NonNullable<Parameters<typeof serveCorpusProcedures<"chat.getChat">>[2]>;
 
 test.use({ hasTouch: false, isMobile: false, viewport: { width: 1440, height: 900 } });
@@ -104,14 +105,17 @@ for (const role of ROLES) {
   });
 }
 
-test("while the room read is still out, Chat options offers no role-gated action, then the member's own once it lands", async ({ corpus, mount, page }) => {
+test("while the room read is still out, Chat options is not offered, then it offers the member's own once the read lands", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const pending = holdServed();
   const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "member", () => pending);
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await pending.requested;
-  expect(await openRoleGatedActions(page)).toEqual({ host: 0, leave: 0, game: 0 });
+  // The room's frame is drawn and waiting on the read; its composer, the menu's one home, is not.
+  await expect(page.locator(TRANSCRIPT_LOADING)).toBeVisible();
+  await expect(page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true })).toHaveCount(0);
   pending.release();
+  expect(await openRoleGatedActions(page)).toEqual({ host: 0, leave: 1, game: 0 });
   await expect(page.getByRole("menuitem", { name: CHAT_LEAVE_NAME, exact: true })).toHaveCount(1);
   await expect(page.getByRole("menuitem", { name: GAME_MODE_ON_LABEL, exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true })).toHaveCount(0);

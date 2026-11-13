@@ -32,6 +32,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { z } from "zod";
 import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { CHAT_CLOSE_NAME, CHAT_OPTIONS_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import {
   CHAT_GONE_DRAFT_NOTICE,
   CHAT_LIST_NAME,
@@ -525,23 +526,47 @@ test("a room left because it answered not found opens again from the list once i
   await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toHaveCount(0);
 });
 
-test("a room whose roster read fails stays the active room, shows the failure plate, and Retry opens it", async ({ corpus, mount, page }) => {
-  await using root = await createCorpusHarness();
+/** Restore a room whose roster read fails until `recover` is called. */
+async function serveFailingRoom(root: Root, corpus: CorpusPlayback, page: Page): Promise<{ readonly room: OwnerRoom; readonly recover: () => void }> {
   let failing = true;
+  let failingId: ChatId | undefined;
   const { caller } = await serveShell(root, corpus, page, {
     section: "chats",
-    getChat: (chatId) => (failing && chatId === room.id ? trpcError() : null),
+    getChat: (chatId) => (failing && chatId === failingId ? trpcError() : null),
   });
   const [room] = await ownerRooms(caller);
+  failingId = room.id;
   await seedActiveChat(page, room.id);
+  return {
+    room,
+    recover: (): void => {
+      failing = false;
+    },
+  };
+}
+
+test("a room whose roster read fails stays the active room, draws its composer over the failure plate, and Retry opens it", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { room, recover } = await serveFailingRoom(root, corpus, page);
   await mount<typeof ShellAmbientStory>(STORY, {});
   // The default schedule retries a server failure before the plate shows; a not-found would have settled at once and left.
   await expect(page.getByText(queryFailedLabel(CHAT_ROOM_READ_LABEL), { exact: true })).toBeVisible();
   await expect(page.locator(ROOM_SURFACE)).toBeVisible();
   await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toHaveCount(0);
-  failing = false;
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
+  recover();
   await page.locator(ROOM_SURFACE).getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(openRoom(page, room)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(CHAT_ROOM_READ_LABEL), { exact: true })).toHaveCount(0);
+});
+
+test("a reader whose room read keeps failing leaves it by Close chat in Chat options", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await serveFailingRoom(root, corpus, page);
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await expect(page.getByText(queryFailedLabel(CHAT_ROOM_READ_LABEL), { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
+  await page.getByRole("menuitem", { name: CHAT_CLOSE_NAME, exact: true }).click();
+  await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
+  await expect(page.locator(ROOM_SURFACE)).toHaveCount(0);
 });

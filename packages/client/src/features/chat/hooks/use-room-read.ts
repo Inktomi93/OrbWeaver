@@ -11,6 +11,14 @@
 // The leave runs in an effect, never in render, and it is this file's alone: a room that is gone is left for the chat list,
 // where a retry could never succeed. The gone room's cached reads are dropped as it unmounts, so a later visit starts clean,
 // and its unsent draft is released with a notice that offers the text back.
+//
+// What each state draws (the room surface reads the state, never re-derives it):
+// - loading: the room's frame and the transcript's skeleton, and no composer. The composer is the one home of Chat options, and a
+//   room that turns out gone must never have drawn either.
+// - ready: the whole room.
+// - failed: the whole room, the transcript showing the failure plate with Retry. Chat options offers only what needs no roster,
+//   Close chat among it, so a failure that persists is never a dead end.
+// - gone: nothing; the chat list replaces the room.
 
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,12 +31,12 @@ import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
 
 type RoomChat = inferOutput<Trpc["chat"]["getChat"]>;
 
-/** What the open room may draw: a skeleton, the room, nothing while it is left, or the failure plate with its retry. */
+/** The open room's read state; the header states what each one draws. */
 export type RoomRead =
   | { readonly kind: "loading" }
   | { readonly kind: "ready"; readonly chat: RoomChat }
   | { readonly kind: "gone" }
-  | { readonly kind: "failed"; readonly retry: () => void };
+  | { readonly kind: "failed" };
 
 /** The parts of a query result the verdict reads. */
 interface ReadState {
@@ -45,23 +53,18 @@ function settledNotFound(read: ReadState): boolean {
   return settled(read) && trpcErrorCode(read.error) === "NOT_FOUND";
 }
 
-function roomReadOf(roster: ReadState & { readonly data: RoomChat | undefined; readonly refetch: () => Promise<unknown> }, gone: boolean): RoomRead {
+function roomReadOf(roster: ReadState & { readonly data: RoomChat | undefined; readonly errorUpdateCount: number }, gone: boolean): RoomRead {
   if (gone) {
     return { kind: "gone" };
   }
   if (roster.data !== undefined) {
     return { kind: "ready", chat: roster.data };
   }
-  if (settled(roster)) {
-    return {
-      kind: "failed",
-      retry: (): void => {
-        // The read's own error state carries a failed refetch; the catch owns anything else.
-        roster.refetch().catch(globalThis.reportError);
-      },
-    };
-  }
-  return { kind: "loading" };
+  // A read that has failed with no data stays failed while it is fetched again. TanStack puts a dataless query back to pending,
+  // its error cleared, the moment it refetches, and the readers the room draws on failing (its composer among them) refetch it as
+  // they mount; reading that as loading would take them away again, a loop. The failure count outlives the refetch. A not-found is
+  // never a failure: settled, it is gone above. The transcript reads the same roster under its boundary, so its plate's Retry is this read's retry.
+  return roster.errorUpdateCount > 0 && trpcErrorCode(roster.error) !== "NOT_FOUND" ? { kind: "failed" } : { kind: "loading" };
 }
 
 /** The open room's read state, and the one leave for a room whose own read answers not found. */
