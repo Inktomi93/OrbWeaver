@@ -73,6 +73,38 @@ test("a sweep past the TTL keeps a temporary room whose turn is still running an
   await expect(h.caller.chat.getChat({ chatId: busy })).rejects.toMatchObject(NOT_FOUND);
 });
 
+test("a sweep deletes the caller's expired temporary rooms, started or not, and keeps a fresh temporary room, a started ordinary room and another host's expired temporary room", async () => {
+  await using h = await textRoom([], { memoryEnabled: false });
+  const member = await h.root.principalFor((await h.root.actor()).id);
+  const memberCaller = await h.root.internalCallerFor(member.userId);
+  const [idle, started] = await temporaryRooms(h, 2);
+  const theirs = (await memberCaller.chat.startChat({ characterIds: [], opening: "none", temporary: true })).chat.id;
+  if (idle === undefined || started === undefined) {
+    throw new Error("the case opened fewer than two temporary rooms");
+  }
+  // A line in the room starts it, so only the temporary arm of the sweep can take it, never the husk arm.
+  await h.caller.chat.commitMessage({ chatId: started, content: "hello", timeZone: UTC_TIME_ZONE });
+  await h.root.settleBackground();
+  await expireTemporaryRooms(h);
+  const [fresh] = await temporaryRooms(h, 1);
+  if (fresh === undefined) {
+    throw new Error("the case opened no fresh temporary room");
+  }
+
+  expect(await h.caller.chat.reapTemporaryChats()).toEqual({ reaped: 2 });
+  for (const gone of [idle, started]) {
+    await expect(h.caller.chat.getChat({ chatId: gone })).rejects.toMatchObject(NOT_FOUND);
+  }
+  // The ordinary room, titled by the helper, is as old as the swept ones.
+  for (const kept of [fresh, h.chatId]) {
+    expect(await h.caller.chat.getChat({ chatId: kept })).toMatchObject({ id: kept });
+  }
+  // The sweep is per host: the other host's room is expired and eligible, and survives only because it is theirs.
+  expect(await memberCaller.chat.getChat({ chatId: theirs })).toMatchObject({ id: theirs });
+  expect(await memberCaller.chat.reapTemporaryChats()).toEqual({ reaped: 1 });
+  await expect(memberCaller.chat.getChat({ chatId: theirs })).rejects.toMatchObject(NOT_FOUND);
+});
+
 test("a send that arrives while the sweep is deleting a temporary room is refused as a closing room, and one after finds no room", async () => {
   using held = await freshHeldDb();
   await using h = await textRoom([], { server: { db: held.db } });
