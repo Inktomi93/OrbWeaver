@@ -3,6 +3,7 @@
 // persona, because the pending cookie alone names the join. Plain state (a submit-once confirm, the
 // credential-form carve-out).
 
+import type { PendingJoinErrorCode } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
@@ -13,17 +14,19 @@ import { useEffect, useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import { confirmPendingJoin, pendingJoinPreviewOptions, QueryErrorState, useSuspenseQuery } from "#data";
 import { focusFirstInvalidFieldIn } from "#forms/editor";
-import { inviteRoomSentence, testId } from "#lib";
+import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
-import { pendingJoinRefusalCopy } from "../lib/pending-join-copy.ts";
 import {
   BACK_TO_SIGN_IN_NAME,
   INVITE_LOADING_NAME,
   INVITED_HEADING,
   JOINER_PERSONA_NAME_REQUIRED,
+  PENDING_JOIN_ACCOUNT_EXISTS_LEAD,
+  PENDING_JOIN_ALREADY_SIGNED_IN_TEXT,
   PENDING_JOIN_APPROVAL_NOTE,
   PENDING_JOIN_APPROVAL_TITLE,
   PENDING_JOIN_NOT_NOW_NAME,
+  PENDING_JOIN_REFUSED_TEXT,
   pendingJoinConfirmLabel,
 } from "../lib/pending-join-names.ts";
 import { InviteUnavailable } from "./invite-unavailable.tsx";
@@ -35,6 +38,25 @@ type ConfirmState =
   | { readonly kind: "confirming" }
   | { readonly kind: "approval" }
   | { readonly kind: "refused"; readonly copy: string };
+
+/** The copy for a confirm refusal. Exhaustive: a new wire code fails `tsc` here. */
+function refusalCopy(code: PendingJoinErrorCode | null, providerName: string): string {
+  switch (code) {
+    case null:
+    case "invalid_request":
+      return PENDING_JOIN_REFUSED_TEXT;
+    case "already_signed_in":
+      return PENDING_JOIN_ALREADY_SIGNED_IN_TEXT;
+    case "join_unavailable":
+      return `${DEAD_INVITE_SENTENCE} Or continue with ${providerName}.`;
+    case "account_exists":
+      return `${PENDING_JOIN_ACCOUNT_EXISTS_LEAD} Continue with ${providerName} to sign in.`;
+    default: {
+      const exhaustive: never = code;
+      return String(exhaustive);
+    }
+  }
+}
 
 export interface LoginPendingJoinProps {
   readonly providerName: string;
@@ -107,7 +129,7 @@ function PendingJoinCard({ providerName, onJoined, onDismiss }: LoginPendingJoin
     confirmPendingJoin({ persona }).then(
       (result) => {
         if (!result.ok) {
-          setState({ kind: "refused", copy: pendingJoinRefusalCopy(result.code, providerName) });
+          setState({ kind: "refused", copy: refusalCopy(result.code, providerName) });
           return;
         }
         if (result.signedIn) {
@@ -116,7 +138,7 @@ function PendingJoinCard({ providerName, onJoined, onDismiss }: LoginPendingJoin
         }
         setState({ kind: "approval" });
       },
-      () => setState({ kind: "refused", copy: pendingJoinRefusalCopy(null, providerName) }),
+      () => setState({ kind: "refused", copy: refusalCopy(null, providerName) }),
     );
   };
 

@@ -47,6 +47,11 @@ export function pendingJoinConfirmLabel(confirming: boolean): string {
 export const JOINER_PERSONA_NAME_FIELD = "Your name in the story";
 export const JOINER_PERSONA_NAME_REQUIRED = "Give your persona a name.";
 
+/** The sentences a refused confirm shows, by the wire code the server refused with. */
+export const PENDING_JOIN_REFUSED_TEXT = "Joining didn't go through. Try again in a minute.";
+export const PENDING_JOIN_ALREADY_SIGNED_IN_TEXT = "You're already signed in. Open the invite link again from the app.";
+export const PENDING_JOIN_ACCOUNT_EXISTS_LEAD = "An account already exists for this identity.";
+
 /** The state of a confirm that made the account but left it disabled for an admin. */
 export const PENDING_JOIN_APPROVAL_TITLE = "Waiting for approval";
 export const PENDING_JOIN_APPROVAL_NOTE = "Your account is created and has a seat in the room. An admin must approve it before you can sign in.";

@@ -1,6 +1,4 @@
 // The census's selected production states; witnesses are body content, never just shell or section chrome.
-
-import { START_NEW_CHAT_NAME } from "@orb/client/lib";
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
@@ -32,6 +30,7 @@ import { REFINERY_START_SESSION_PICKER_NAME } from "#client/features/refinery/li
 import { ROSTER_START_CHAT_LEAD } from "#client/features/roster-preset/lib/roster-names.ts";
 import { ADMIN_APPROVALS_NOTE, ADMIN_CREATE_USER_NAME, ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { START_NEW_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
 type Scenario = Omit<Exclude<SurfaceAuditRequest, { readonly state: "error" }>, "checks" | "requireBothFormKeys">;

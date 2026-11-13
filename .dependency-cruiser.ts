@@ -560,7 +560,6 @@ const TEST_CONSTANT_HOMES = {
     "ADMIN_CREATE_USER_NAME and its siblings: the Admin pane's create-user, approvals, sessions, embed and reset names and its override field names",
   "packages/client/src/features/auth/lib/pending-join-names.ts":
     "PENDING_JOIN_NOT_NOW_NAME and its siblings: the sign-in card's headings and presses, and the invite arms' headings, notes and persona field",
-  "packages/client/src/features/auth/lib/pending-join-copy.ts": "pendingJoinRefusalCopy: the line the pending-join card shows for each refused confirm",
   "packages/client/src/features/discovery/lib/character-facet.ts": "characterFacetLine: the genre, tone and setting line a browse row prints",
   "packages/client/src/features/discovery/lib/corpus-vocabulary.ts": "distilledCensus: the distilled-against-library phrasing the Corpus list band prints",
   "packages/client/src/features/refinery/lib/reason-copy.ts":

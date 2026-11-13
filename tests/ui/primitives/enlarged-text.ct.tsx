@@ -4,7 +4,6 @@
 import { enlargedTextFindings as findings, LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
-import { DATABANK_FETCH_ADD_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { EndRowStory, FullDialogStory, LabelsStory, NumberRowStory, PopoverFieldsStory } from "./_enlarged-text-stories.tsx";
 
 const STORIES = "tests/ui/primitives/_enlarged-text-stories";
@@ -63,7 +62,7 @@ for (const factor of SCALES) {
       await mount<typeof FullDialogStory>(`${STORIES}/FullDialogStory`, {});
       await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
       const footer = page.locator('[data-slot="dialog-footer"]');
-      const control = footer.getByRole("button", { name: DATABANK_FETCH_ADD_NAME, exact: true });
+      const control = footer.getByRole("button", { name: "Carry it over", exact: true });
       await expect
         .poll(async () => {
           const [within, box] = await Promise.all([footer.boundingBox(), control.boundingBox()]);

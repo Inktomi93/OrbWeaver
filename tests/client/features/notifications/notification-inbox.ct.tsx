@@ -25,7 +25,7 @@ const STORY = "tests/client/features/notifications/_ct-stories/NotificationInbox
 const INBOX_PROCEDURES = ["notifications.list", "notifications.markAllRead", "notifications.dismiss", "plugin.list"] as const;
 // The bell's name leads with its base name and may carry a count after it; the dismiss press leads with its verb and names the row after it.
 const BELL = new RegExp(`^${RegExp.escape(NOTIFICATIONS_BELL_NAME)}`, "u");
-const DISMISS_NAME_PATTERN = new RegExp(`^${RegExp.escape(DISMISS_NAME_LEAD)}`, "u");
+const DISMISS_NAME_PATTERN = new RegExp(`^${RegExp.escape(DISMISS_NAME_LEAD)} `, "u");
 // The server's default page, which the client's list asks for by omission.
 const PAGE_SIZE = 50;
 const POPUP = '[data-slot="popover-popup"]';

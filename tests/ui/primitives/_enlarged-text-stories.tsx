@@ -8,7 +8,6 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Toggle } from "@orb/ui/toggle";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import { DATABANK_FETCH_ADD_NAME } from "#client/features/databank/lib/databank-names.ts";
 
 const BODY_LINES = Array.from({ length: 40 }, (_, line) => `Line ${line + 1} of a body that is taller than the dialog.`);
 
@@ -40,7 +39,7 @@ export function FullDialogStory(): ReactElement {
             ))}
           </Stack>
           <DialogFooter>
-            <Button className="min-inline-(--width-popup-floor)">{DATABANK_FETCH_ADD_NAME}</Button>
+            <Button className="min-inline-(--width-popup-floor)">Carry it over</Button>
           </DialogFooter>
         </DialogPopup>
       </Dialog>

@@ -59,7 +59,8 @@ export const DATABANK_REBUILD_HINT = "Use this after a settings change, or if se
 export const DATABANK_REBUILD_DOCUMENT_NAME = "Rebuild search index for this document";
 
 /** The context pane's active-in block when nothing attaches the document, and its title once the document is gone. */
-export const DATABANK_NOWHERE_YET_TEXT = "Nowhere yet: attach it to one of your characters, or from a chat's Databank panel.";
+export const DATABANK_NOWHERE_YET_LEAD = "Nowhere yet";
+export const DATABANK_NOWHERE_YET_TEXT = `${DATABANK_NOWHERE_YET_LEAD}: attach it to one of your characters, or from a chat's Databank panel.`;
 export const DATABANK_DOCUMENT_NOT_FOUND_TITLE = "Document not found";
 
 /** The list header's recheck of the bank, as a menu item and as a menu row. */

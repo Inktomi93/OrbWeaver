@@ -24,8 +24,9 @@ export const WORLD_INFO_PRIORITY_NAME = "Priority";
 export const WORLD_INFO_FIRE_MODE_NAME = "Fire mode";
 
 /** The book editor's personas attachment section, counting the personas that attach the book. */
+export const WORLD_INFO_ATTACHED_BY_PERSONAS_LEAD = "Attached by personas";
 export function worldInfoAttachedByPersonasKicker(count: number): string {
-  return `Attached by personas · ${String(count)}`;
+  return `${WORLD_INFO_ATTACHED_BY_PERSONAS_LEAD} · ${String(count)}`;
 }
 
 /** The entry editor's fields. */

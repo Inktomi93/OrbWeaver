@@ -4,7 +4,6 @@ import { unnamedLandmarkElementFindings } from "@orb/testkit/browser/spec";
 import { routeAuthConfig } from "@orb/testkit/ct";
 import type { Page, Request, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { pendingJoinRefusalCopy } from "#client/features/auth/lib/pending-join-copy.ts";
 import {
   BACK_TO_SIGN_IN_NAME,
   continueWithName,
@@ -15,13 +14,13 @@ import {
   JOIN_CREATE_ACCOUNT_NAME,
   JOINER_PERSONA_NAME_FIELD,
   JOINER_PERSONA_NAME_REQUIRED,
+  PENDING_JOIN_ACCOUNT_EXISTS_LEAD,
   PENDING_JOIN_APPROVAL_NOTE,
   PENDING_JOIN_APPROVAL_TITLE,
   SIGN_IN_NAME,
 } from "#client/features/auth/lib/pending-join-names.ts";
 import type { PendingJoinStory } from "./_pending-join-stories.tsx";
 import {
-  ACCOUNT_EXISTS_CODE,
   APPROVAL_RESPONSE,
   JOIN_DESTINATION_LABEL,
   JOIN_PERSONA,
@@ -202,7 +201,7 @@ test("a refused confirm stays unsigned and renders the server refusal inline", a
   await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
   await page.getByRole("textbox", { name: JOINER_PERSONA_NAME_FIELD, exact: true }).fill(JOIN_PERSONA.name);
   await page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(pendingJoinRefusalCopy(ACCOUNT_EXISTS_CODE, PENDING_AUTH_CONFIG.oidcProviderName));
+  await expect(page.getByRole("alert")).toContainText(PENDING_JOIN_ACCOUNT_EXISTS_LEAD);
   await expect(page.getByRole("heading", { name: JOIN_DESTINATION_LABEL, exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: PENDING_JOIN_APPROVAL_TITLE, exact: true })).toHaveCount(0);
   expect(confirms).toHaveLength(1);

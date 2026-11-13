@@ -12,6 +12,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
   DATABANK_DOCUMENT_NOT_FOUND_TITLE,
+  DATABANK_NOWHERE_YET_LEAD,
   DATABANK_NOWHERE_YET_TEXT,
   DATABANK_USE_IN_EVERY_CHAT_NAME,
   DATABANK_VIEW_SOURCE_NAME,
@@ -70,7 +71,7 @@ test("a held attachments read shows the loading skeleton, a failed one the error
   await expect(context.getByText(DATABANK_USE_IN_EVERY_CHAT_NAME, { exact: true })).toBeVisible();
   hold.fail();
   await expect(context.getByText("Couldn't load where this document is active.", { exact: true })).toBeVisible();
-  await expect(context.getByText(DATABANK_NOWHERE_YET_TEXT, { exact: true })).toHaveCount(0);
+  await expect(context.getByText(DATABANK_NOWHERE_YET_LEAD)).toHaveCount(0);
   failing = false;
   await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(context.getByText("Couldn't load where this document is active.", { exact: true })).toHaveCount(0);

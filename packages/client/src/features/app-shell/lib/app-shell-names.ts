@@ -30,6 +30,6 @@ export const SKIP_TO_CONTENT_NAME = "Skip to content";
 export const YOU_SHEET_ACCOUNT_NAME = "Account and settings";
 export const YOU_SHEET_MORE_HEADING = "More";
 
-/** The Background section's library grid, and its press that opens the add-a-background form. */
+/** The Background section's library grid and the Settings map's label for the same setting, and the press that opens the add-a-background form. */
 export const BACKGROUND_IMAGE_NAME = "Background image";
 export const ADD_BACKGROUND_NAME = "Add background";

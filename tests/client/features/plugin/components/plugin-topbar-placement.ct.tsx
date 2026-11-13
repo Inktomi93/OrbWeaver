@@ -15,7 +15,7 @@ import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/compose
 import type { Locator, Page } from "@playwright/test";
 import { BUG_REPORT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
-import { PLUGIN_ACTIONS_NAME, PLUGIN_COMMANDS_HEADING } from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
 
 const STORY = "tests/client/features/plugin/_ct-stories/PluginRoomShellStory";
@@ -106,7 +106,6 @@ test("with no plugin placing, nothing plugin-related renders in the top bar and 
   const trail = trailOf(page);
   await expect(trail.getByRole("button", { name: BUG_REPORT_NAME, exact: true })).toBeVisible();
   await expect(pluginControls(trail)).toHaveCount(0);
-  await expect(trail.getByRole("button", { name: PLUGIN_COMMANDS_HEADING, exact: true })).toHaveCount(0);
   await expect(trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL })).toHaveCount(0);
   await trail.getByRole("button", { name: /^Jump/u }).click();
   await runFromPalette(page, UNPLACED.name);

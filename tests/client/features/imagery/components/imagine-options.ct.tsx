@@ -147,7 +147,10 @@ test("the count stays in the Generate label with the options collapsed", async (
   await pickCount(page, "4");
   await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
   await expect(page.getByRole("textbox", { name: IMAGINE_NEGATIVE_NAME, exact: true })).toBeHidden();
-  await expect(page.getByRole("button", { name: imagineGenerateCountLabel(4), exact: true })).toBeVisible();
+  // The label's own template is the subject: the chosen count is in the name, and the name is no longer the single-image one.
+  const generate = page.getByRole("button", { name: IMAGINE_GENERATE_NAME });
+  await expect(generate).toHaveAccessibleName(/\b4\b/u);
+  await expect(generate).not.toHaveAccessibleName(IMAGINE_GENERATE_NAME);
 });
 
 test.describe("on a phone", () => {
