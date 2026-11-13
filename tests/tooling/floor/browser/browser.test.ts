@@ -1,5 +1,5 @@
 import { expect, test } from "@orb/testkit/tooling";
-import { closeProbeSession, parseCdpFaultSpec, withProbeSession } from "@orb/tooling/floor/browser/browser";
+import { buildUrl, closeProbeSession, parseCdpFaultSpec, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { vi } from "vitest";
 
 test("probe cleanup attempts every context and the browser when one context close throws", async () => {
@@ -92,4 +92,29 @@ test("the CDP fault spec REFUSES anything it cannot inject, including a spec tha
   expect(() => parseCdpFaultSpec("DOM.requestNode@0")).toThrow("CDP FAULT REFUSED");
   expect(() => parseCdpFaultSpec("DOM.requestNode@first")).toThrow("CDP FAULT REFUSED");
   expect(() => parseCdpFaultSpec("  ,  ")).toThrow("names no protocol method");
+});
+
+// ── the route join ────────────────────────────────────────────────────────────
+// A base that carries a token in its query is how a tokened deployment is addressed. The route belongs to the base's
+// path: appended after the query it becomes part of the token's value, so the browser sends, and the scrubber notes, a
+// value the page never echoes.
+
+test("a route joins the base path, ahead of the query and fragment the base carries", () => {
+  const rooted = buildUrl("http://snap.test:8080/?token=T", "/");
+  expect(rooted).toBe("http://snap.test:8080/?token=T");
+  expect(new URL(rooted).searchParams.get("token")).toBe("T");
+
+  const nested = buildUrl("http://snap.test:8080/app/?token=T", "chat");
+  expect(nested).toBe("http://snap.test:8080/app/chat?token=T");
+  expect(new URL(nested).pathname).toBe("/app/chat");
+
+  expect(buildUrl("http://snap.test:8080?token=T", "/chat?tab=memory")).toBe("http://snap.test:8080/chat?token=T&tab=memory");
+  expect(buildUrl("http://snap.test:8080/#access_token=T", "/chat")).toBe("http://snap.test:8080/chat#access_token=T");
+  expect(buildUrl("http://snap.test:8080/?token=T#access_token=U", "/chat?tab=memory#latest")).toBe("http://snap.test:8080/chat?token=T&tab=memory#latest");
+});
+
+test("a base with no query keeps exactly one slash at the join", () => {
+  expect(buildUrl("http://snap.test:8080", "/")).toBe("http://snap.test:8080/");
+  expect(buildUrl("http://snap.test:8080/", "/chat")).toBe("http://snap.test:8080/chat");
+  expect(buildUrl("http://snap.test:8080/app", "chat?tab=memory#latest")).toBe("http://snap.test:8080/app/chat?tab=memory#latest");
 });

@@ -3,32 +3,11 @@
 import { globSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import ts from "typescript";
+import { loadWorld } from "../floor/testing/test-worlds.ts";
 
 /** The package worlds, which hold every production file. */
 export function packageWorlds(root: string): readonly string[] {
   return globSync("packages/*/tsconfig.json", { cwd: root }).sort();
-}
-
-/** The test worlds: a use found only here is test-only. */
-export const TEST_WORLDS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"] as const;
-
-/** One world's program. `realpath` keeps a workspace package on its source path rather than its
- *  `node_modules` link, or every cross-package reference is lost. */
-function loadWorld(root: string, config: string): ts.ParsedCommandLine {
-  const parsed = ts.getParsedCommandLineOfConfigFile(
-    join(root, config),
-    {},
-    {
-      ...ts.sys,
-      onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
-        throw new Error(`${config}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`);
-      },
-    },
-  );
-  if (parsed === undefined) {
-    throw new Error(`${config}: no parsed configuration`);
-  }
-  return parsed;
 }
 
 // The router's emitted declarations inline every wire shape, so a world that imports `@orb/server` through them

@@ -22,13 +22,13 @@ import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, embedRefusalOf, em
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
 import {
-  capabilityBadges,
   credentialReadout,
   declaredOverrideCount,
   diagnosticsSetCount,
   hostLabel,
   inferredKindOf,
   purposeNotes,
+  servableRoles,
 } from "../lib/connection-editor-model.ts";
 
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
@@ -263,8 +263,8 @@ function AvailableConnectionEditorBody({
             />
             <Stack gap="tight">
               <Text voice="label">What it can be used for</Text>
-              <CapabilityRail badges={capabilityBadges(capabilityView.capability, capabilityView.tasks)} />
-              <Text voice="gloss">This connection is greyed out in Model roles for a role it can't serve, with the same reason.</Text>
+              <CapabilityRail roles={servableRoles(capabilityView.capability, capabilityView.tasks)} />
+              <Text voice="gloss">This connection is greyed out in Model roles for a role it can't serve, with the reason.</Text>
             </Stack>
             <PurposeNotes notes={purposeNotes(capabilityView.capability, provider.auth === "endpoint")} />
             <Row align="start" gap="field" justify="between">

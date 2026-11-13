@@ -53,6 +53,8 @@ export interface RegexTierRowProps {
   readonly alsoAt: readonly string[];
   /** The row's own tier — decides the detach item and half of the toast rule above. */
   readonly scope: RegexTierKey;
+  /** The heading of the group that draws this row; the switch name carries it. */
+  readonly list: string;
   /** A member renders the identical row with every control OMITTED (§8.1 permission-OMIT at row level). */
   readonly isHost: boolean;
   /** A chat-tier row the viewer's library does not hold. */
@@ -65,7 +67,7 @@ export interface RegexTierRowProps {
   readonly effectiveCount: number | null;
 }
 
-export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qualifier, effectiveCount }: RegexTierRowProps): ReactElement {
+export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYours, qualifier, effectiveCount }: RegexTierRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRegexScriptEnabled({ trpc, invalidation });
@@ -104,7 +106,9 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
             // from the room and must be chosen, not stumbled into.
             actions: (
               <Row align="center" gap="tight" wrap={true}>
-                {notYours ? null : <Switch aria-label={regexScriptEverywhereSwitchName(name)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />}
+                {notYours ? null : (
+                  <Switch aria-label={regexScriptEverywhereSwitchName(name, list)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />
+                )}
                 {menu}
               </Row>
             ),

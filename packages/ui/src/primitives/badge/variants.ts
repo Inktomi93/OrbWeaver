@@ -10,7 +10,8 @@ export const badgeVariants = tv({
   base: `${INLINE_FIELD_ROW} rounded-full font-medium whitespace-nowrap select-none`,
   variants: {
     variant: {
-      solid: "bg-tone-solid text-tone-foreground",
+      // The clear edge keeps the filled pill the same box as the two edged styles, so a status set that mixes them is one height.
+      solid: "border border-transparent bg-tone-solid text-tone-foreground",
       soft: TONE_SOFT,
       outline: TONE_OUTLINE,
     },

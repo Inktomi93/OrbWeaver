@@ -24,8 +24,9 @@
 // reads, so the badge carries its cost signal where a person scans for library access and asks
 // "what can this cost me".
 //
-// A consequence line STATES ITS BOUND when the capability has one (`notify`'s minute, `storage.kv`'s 256 keys,
-// `worldinfo.write`'s 64 entries, and the hourly floors on `net.fetch`, `net.fetch_asset`, `llm.quiet` and `search.query`). The numbers are
+// A consequence line STATES ITS BOUND when the capability has one (`notify`'s minute, `storage.kv`'s key cap,
+// `worldinfo.write`'s 64 entries, and the hourly floors on `net.fetch`, `net.fetch_asset`, `llm.quiet` and `search.query`). The
+// key cap reads the contracts constant the server enforces. The other numbers are
 // prose copies of server constants (`domain/plugin/substrate/rate-floor.ts`) and drift is a copy bug, not a
 // security one — the belt is enforced server-side either way — but a bound a person cannot see is a bound
 // they cannot weigh.
@@ -37,6 +38,7 @@
 
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { PluginBuiltAgainst, PluginCapability, PluginStatus } from "@orb/contracts/plugin";
+import { PLUGIN_KV_MAX_KEYS } from "@orb/contracts/plugin";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 
 /** One capability as the consent screen speaks it. */
@@ -99,7 +101,7 @@ export const CAPABILITY_COPY_ROWS = [
   {
     id: "storage.kv",
     label: "Keep its own private storage",
-    consequence: "A key/value store only this plugin can see, up to 256 keys.",
+    consequence: `A key/value store only this plugin can see, up to ${PLUGIN_KV_MAX_KEYS} keys.`,
   },
   {
     // #788 seam-11 read half. BENIGN band (neither spend nor risk): reading back the bytes of a file in YOUR own

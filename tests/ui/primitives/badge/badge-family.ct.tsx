@@ -1,5 +1,6 @@
 // D336 step four: InlineToken and IndicatorDot each paint their own skin from the tone's roles, under each seed and a nested
-// custom scope. Neither draws a hover paint, so no hover media query is read.
+// custom scope. Neither draws a hover paint, so no hover media query is read. A status set mixes the Badge's fill styles, so the
+// pill is one height whichever style it wears.
 
 import { SEED_SCOPES } from "@orb/testkit/iso";
 import { TONES } from "@orb/ui/tokens";
@@ -53,6 +54,13 @@ function readRow(row: Locator): Promise<readonly Reading[]> {
       { label: "ring edge", actual: read(ring, "border-block-start-color"), expected: role("text") },
       { label: "ring edge width", actual: read(ring, "border-block-start-width"), expected: "1px" },
       { label: "ring box", actual: box(ring), expected: probeBox },
+      ...["sm", "compact"].flatMap((size) =>
+        ["solid", "outline"].map((variant) => ({
+          label: `${size} ${variant} pill is as tall as the soft pill`,
+          actual: read(`[data-case="pill-${size}-${variant}"]`, "block-size"),
+          expected: read(`[data-case="pill-${size}-soft"]`, "block-size"),
+        })),
+      ),
     ];
   });
 }
