@@ -58,7 +58,15 @@ export type {
 } from "./collection-contracts.ts";
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
-export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "./config-search-tokens.ts";
+export {
+  applyConfigToken,
+  CONFIG_PLUGIN_TOKEN,
+  CONFIG_QUERY_TOKENS,
+  findHighlightRanges,
+  parseConfigQuery,
+  partialConfigToken,
+  partialValueToken,
+} from "./config-search-tokens.ts";
 export type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
   ADD_CONNECTION_DOOR,
@@ -292,7 +300,7 @@ export {
 } from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
-export { CLEAR_SEARCH_NAME, NO_MATCHES_TITLE } from "./search-empty-names.ts";
+export { CLEAR_FILTER_NAME, CLEAR_SEARCH_NAME, NO_MATCHES_TITLE } from "./search-empty-names.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, leaseSessionDocumentHost, sessionDocument } from "./session-document-host.ts";

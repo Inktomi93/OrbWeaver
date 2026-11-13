@@ -2,9 +2,10 @@
 
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
+import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { WORLD_BOOKS_LIST_NAME } from "#client/features/world-info/lib/world-books-list-name.ts";
-import { WORLD_INFO_BOOK_DETAILS_NAME, WORLD_INFO_EDIT_DETAILS_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import { WORLD_INFO_BOOK_DETAILS_NAME, WORLD_INFO_EDIT_DETAILS_NAME, WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
 import { COLLECTION_LARGE_GROUP } from "#client/lib/collection-contracts.ts";
 import { connectionSummary } from "#client/lib/connection-roles.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -22,7 +23,7 @@ function corpus(): CorpusWire {
 }
 
 async function selectWorldBook(page: Page, name: string): Promise<void> {
-  await page.getByRole("textbox", { name: "Filter world info", exact: true }).fill(name);
+  await page.getByRole("textbox", { name: collectionFilterName(WORLD_INFO_GROUP_LABEL), exact: true }).fill(name);
   await page.getByRole("button", { name, exact: true }).click();
 }
 

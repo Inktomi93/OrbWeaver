@@ -2,6 +2,7 @@
 // and at each rung the topbar's Back is named for where that press goes: the book, the library, then Settings.
 import type { WorldBookId } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
+import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
 import { WORLD_INFO_GROUP_LABEL, WORLD_INFO_NEW_ENTRY_NAME } from "#client/features/world-info/lib/world-info-names.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -46,7 +47,7 @@ test.describe("committed corpus settings back stack", () => {
     await expect(page.getByRole("button", { name: SHELL_BACK })).toBeVisible();
 
     // Rung 2: a row drills into the member.
-    await page.getByRole("textbox", { name: "Filter world info", exact: true }).fill(book.name);
+    await page.getByRole("textbox", { name: collectionFilterName(WORLD_INFO_GROUP_LABEL), exact: true }).fill(book.name);
     await page.getByRole("button", { name: book.name, exact: true }).click();
     await expect(page.locator(BOOK_EDITOR)).toBeVisible();
     await expect(page.getByRole("main").getByRole("heading", { name: book.name })).toHaveCount(1);

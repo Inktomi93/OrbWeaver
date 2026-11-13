@@ -572,6 +572,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/send-failure-copy.ts": "SEND_FAILED_TITLE: the toast a failed send raises for a reason the turn copy does not name",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
+  "packages/client/src/lib/config-search-tokens.ts": "CONFIG_PLUGIN_TOKEN: the Settings map's plugin narrowing token a completion row leads with",
   "packages/client/src/lib/use-focus-on-mount.ts":
     "PRESS_RENDER_WINDOW_MS: how long after a press a surface may still arrive from the body on that press's account",
   "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",

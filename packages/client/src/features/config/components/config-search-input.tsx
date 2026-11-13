@@ -23,7 +23,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Tip } from "#components";
 import { useSettingsViewerView, useTRPC } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
-import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
+import { applyConfigToken, CONFIG_PLUGIN_TOKEN, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSearchRow } from "#state";
 import {
   openConfigTo,
@@ -175,7 +175,7 @@ function menuTokens(partial: string, groupNames: readonly string[], pluginSlugs:
   const completions: readonly ConfigQueryToken[] = {
     shelf: shelfCompletions(valued.value).map((name) => ({ token: `@shelf:${name}`, hint: `the ${name} shelf` })),
     in: nameCompletions(valued.value, groupNames).map((name) => ({ token: `@in:${name}`, hint: "a settings group" })),
-    plugin: nameCompletions(valued.value, pluginSlugs).map((name) => ({ token: `@plugin:${name}`, hint: "an installed plugin" })),
+    plugin: nameCompletions(valued.value, pluginSlugs).map((name) => ({ token: `${CONFIG_PLUGIN_TOKEN}${name}`, hint: "an installed plugin" })),
   }[valued.kind];
   return completions.length === 0 ? null : completions;
 }
