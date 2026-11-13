@@ -118,7 +118,7 @@ test("beginBootTrace abort stops tracing and removes its browser instrumentation
 });
 
 test("beginBootTrace bounds a stalled presentation, retains raw events, and performs terminal cleanup", async ({ scratch }) => {
-  // legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
+  // Fake timers drive the real setTimeout load budget in boot-trace.ts past its window without waiting it out.
   vi.useFakeTimers();
   try {
     let tracingComplete: (() => void) | undefined;
@@ -167,7 +167,7 @@ test("beginBootTrace bounds a stalled presentation, retains raw events, and perf
 
 for (const failureMode of ["completion", "presentation-and-completion", "end-command"] as const) {
   test(`beginBootTrace retains collected events when ${failureMode} stalls`, async ({ scratch }) => {
-    // legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/iso/clock.ts
+    // Fake timers drive the real setTimeout load budgets in boot-trace.ts past their windows without waiting them out.
     vi.useFakeTimers();
     try {
       const event = { name: "retained-before-stop", ts: 1 };
