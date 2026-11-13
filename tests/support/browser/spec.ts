@@ -33,6 +33,7 @@ export {
   persistedOverrides,
   pixel,
   resolvedLength,
+  seedActiveChat,
   seedShellState,
   settledBox,
   settledReadingRow,
