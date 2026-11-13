@@ -550,6 +550,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and its siblings: the Corpus list, browse, gem shelf and model-route list names",
+  "packages/client/src/features/discovery/lib/character-facet.ts": "characterFacetLine: the genre, tone and setting line a browse row prints",
+  "packages/client/src/features/discovery/lib/corpus-vocabulary.ts": "distilledCensus: the distilled-against-library phrasing the Corpus list band prints",
+  "packages/client/src/features/refinery/lib/reason-copy.ts":
+    "DROP_REASON_COPY: the refusal text each dropped field's chip and note print, which the review and action-group suites read",
   "packages/client/src/features/config/lib/theme-row-names.ts": "themeActionsName: the name of a Looks theme row's actions menu",
   "packages/client/src/features/workloads/lib/import-folder-copy.ts":
     "IMPORT_FOLDER_WRONG_FOLDER: the sentence the SillyTavern folder import prints when the folder is not a user folder",
@@ -1016,9 +1020,6 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
       "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",
-  },
-  "tests/client/features/refinery/components/platform-action-groups.suite.ct.tsx": {
-    "packages/client/src/features/refinery/lib/reason-copy.ts": "DROP_REASON_COPY: production queue refusal text used by rendered action-group assertions",
   },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",

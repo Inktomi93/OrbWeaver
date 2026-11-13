@@ -97,6 +97,7 @@ import { CorpusReadinessRail } from "../components/corpus-readiness-rail.tsx";
 import { CorpusThemeSection } from "../components/corpus-theme-section.tsx";
 import { CorpusUnderstandingInvitation } from "../components/corpus-understanding-invitation.tsx";
 import { deriveCorpusAnalysisState } from "../lib/corpus-analysis-state.ts";
+import { CORPUS_UNDERSTANDING_HEADING } from "../lib/corpus-control-names.ts";
 
 // SECTION ARRIVAL BELONGS TO THE OMNIBOX, AND THIS SURFACE STOPPED COMPETING FOR IT (side-eye corpus
 // re-pass #2, P2-4). Both corpus surfaces called `useFocusOnMount` on their own root — a `tabIndex={-1}`
@@ -218,7 +219,7 @@ function CorpusHomeBody(): ReactElement {
       <Row align="end" gap="section" justify="between" stackBelow="cq-40" alignBelow="stretch-cq-40">
         <Stack className="min-inline-0" grow={true} gap="tight">
           <Text as="span" voice="kicker">
-            Library understanding
+            {CORPUS_UNDERSTANDING_HEADING}
           </Text>
           <Heading cap="reading" level={2} voice="masthead">
             {state.headline}

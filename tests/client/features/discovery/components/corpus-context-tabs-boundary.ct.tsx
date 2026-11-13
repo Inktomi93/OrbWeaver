@@ -9,6 +9,9 @@ import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serv
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_PARAM_NAMES, CORPUS_READ_LABELS } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
@@ -42,15 +45,15 @@ test("a held catalog read shows the loading skeleton, a failed one the shared er
   });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const context = await openContextTab(page, "Archetypes");
+  const context = await openContextTab(page, CORPUS_CONTEXT_TAB_LABELS.archetypes);
   await hold.requested;
   await expect(context.locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
-  await expect(context.getByText("Couldn't load archetypes.", { exact: true })).toBeVisible();
+  await expect(context.getByText(queryFailedLabel(CORPUS_READ_LABELS.archetypes), { exact: true })).toBeVisible();
   failing = false;
-  await context.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(context.getByText("Couldn't load archetypes.", { exact: true })).toHaveCount(0);
-  await expect(context.getByRole("combobox", { name: "Clusters" })).toBeVisible();
+  await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(context.getByText(queryFailedLabel(CORPUS_READ_LABELS.archetypes), { exact: true })).toHaveCount(0);
+  await expect(context.getByRole("combobox", { name: CORPUS_PARAM_NAMES.clusters })).toBeVisible();
 });
 
 test("a failed art-archetypes read says so in its own section and leaves the writing section standing", async ({ mount, page }) => {
@@ -72,15 +75,15 @@ test("a failed art-archetypes read says so in its own section and leaves the wri
   });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const context = await openContextTab(page, "Archetypes");
+  const context = await openContextTab(page, CORPUS_CONTEXT_TAB_LABELS.archetypes);
   await hold.requested;
   await expect(context.locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
-  await expect(context.getByText("Couldn't load the art archetypes.", { exact: true })).toBeVisible();
-  await expect(context.getByText("Couldn't load the writing archetypes.", { exact: true })).toHaveCount(0);
+  await expect(context.getByText(queryFailedLabel(CORPUS_READ_LABELS.artArchetypes), { exact: true })).toBeVisible();
+  await expect(context.getByText(queryFailedLabel(CORPUS_READ_LABELS.writingArchetypes), { exact: true })).toHaveCount(0);
   failing = false;
-  await context.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(context.getByText("Couldn't load the art archetypes.", { exact: true })).toHaveCount(0);
+  await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(context.getByText(queryFailedLabel(CORPUS_READ_LABELS.artArchetypes), { exact: true })).toHaveCount(0);
 });
 
 const SIMILARITY_READS = ["discovery.duplicateCharacters", "discovery.duplicateChats", "discovery.imageDuplicates"] as const;
@@ -105,15 +108,15 @@ test("a held nearest-pairs read shows the loading skeleton, a failed one the sha
   });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const context = await openContextTab(page, "Similarity");
+  const context = await openContextTab(page, CORPUS_CONTEXT_TAB_LABELS.similarity);
   await hold.requested;
   await expect(context.locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
-  await expect(context.getByText("Couldn't load the similarity graph.", { exact: true })).toBeVisible();
+  await expect(context.getByText(queryFailedLabel(CORPUS_READ_LABELS.similarityGraph), { exact: true })).toBeVisible();
   failing = false;
-  await context.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(context.getByText("Couldn't load the similarity graph.", { exact: true })).toHaveCount(0);
-  await expect(context.getByRole("combobox", { name: "Min similarity" })).toBeVisible();
+  await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(context.getByText(queryFailedLabel(CORPUS_READ_LABELS.similarityGraph), { exact: true })).toHaveCount(0);
+  await expect(context.getByRole("combobox", { name: CORPUS_PARAM_NAMES.minSimilarity })).toBeVisible();
 });
 
 test("changing a nearest-pairs knob keeps the settled pairs on screen while the new read is held", async ({ mount, page }) => {
@@ -132,8 +135,8 @@ test("changing a nearest-pairs knob keeps the settled pairs on screen while the 
   });
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const context = await openContextTab(page, "Similarity");
-  const knob = context.getByRole("combobox", { name: "Min similarity" });
+  const context = await openContextTab(page, CORPUS_CONTEXT_TAB_LABELS.similarity);
+  const knob = context.getByRole("combobox", { name: CORPUS_PARAM_NAMES.minSimilarity });
   await expect(knob).toBeVisible();
   await expect(context.locator('[aria-busy="true"]')).toHaveCount(0);
   const settled = await context
@@ -159,8 +162,8 @@ test("a room pair's button name contains the relation badge it shows", async ({ 
   );
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const context = await openContextTab(page, "Similarity");
-  await expect(context.getByRole("combobox", { name: "Min similarity" })).toBeVisible();
+  const context = await openContextTab(page, CORPUS_CONTEXT_TAB_LABELS.similarity);
+  await expect(context.getByRole("combobox", { name: CORPUS_PARAM_NAMES.minSimilarity })).toBeVisible();
   const forked = context.getByRole("button", { name: /compare rooms/u }).filter({ has: page.getByText("forked", { exact: true }) });
   await expect(forked.first()).toBeVisible();
   await expect(forked.first()).toHaveAccessibleName(/, forked, /u);
@@ -172,8 +175,8 @@ test("each archetype card is a group named for its archetype, so a character in 
   await routeTrpc(page, serveCorpusProcedures(caller, [...SERVED, "discovery.catalog", "discovery.visualArchetypes"]));
   await seedShellState(page, { activeSection: "corpus" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  const context = await openContextTab(page, "Archetypes");
-  await expect(context.getByRole("combobox", { name: "Clusters" })).toBeVisible();
+  const context = await openContextTab(page, CORPUS_CONTEXT_TAB_LABELS.archetypes);
+  await expect(context.getByRole("combobox", { name: CORPUS_PARAM_NAMES.clusters })).toBeVisible();
   // A card's first door opens the archetype and carries its name, so the card's group is named by it.
   const cards = await context
     .getByRole("group")

@@ -6,7 +6,7 @@ import { createShellAmbientReads, heldThenFailing, routeTrpc, serveCorpusProcedu
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { queryFailedLabel } from "#client/data/query-state-copy.ts";
-import { CORPUS_DISTILLED_CATALOG_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { CORPUS_DISTILLED_CATALOG_NAME, CORPUS_PARAM_NAMES, CORPUS_READ_LABELS } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CorpusSearchControlsStory } from "./_search-controls-stories.tsx";
 
@@ -22,7 +22,7 @@ const SERVED = [
   "discovery.browseCharacters",
 ] as const;
 const FACETS = "discovery.characterFacets";
-const FAILED = queryFailedLabel("your catalog filters");
+const FAILED = queryFailedLabel(CORPUS_READ_LABELS.catalogFilters);
 const BROWSE = { query: "", targetId: "characters" } as const;
 
 // The story's list pane is not height-bounded the way the shell bounds it, so the window must be tall enough that the
@@ -38,7 +38,7 @@ test("the settled browse lists the library's first character under its filters",
   }
   await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, [...SERVED, FACETS]) });
   await mount<typeof CorpusSearchControlsStory>(STORY, BROWSE);
-  await expect(page.getByRole("combobox", { name: "Sort", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: CORPUS_PARAM_NAMES.sort, exact: true })).toBeVisible();
   await expect(page.getByRole("list", { name: CORPUS_DISTILLED_CATALOG_NAME, exact: true }).getByText(first.name, { exact: true }).first()).toBeVisible();
 });
 
@@ -60,10 +60,10 @@ test("a held facet read shows the row skeleton, a failed one the error block, an
   await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
   read.hold.fail();
   await expect(page.getByText(FAILED, { exact: true })).toBeVisible();
-  await expect(page.getByRole("combobox", { name: "Sort", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: CORPUS_PARAM_NAMES.sort, exact: true })).toHaveCount(0);
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByRole("combobox", { name: "Sort", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: CORPUS_PARAM_NAMES.sort, exact: true })).toBeVisible();
   await expect(page.getByRole("list", { name: CORPUS_DISTILLED_CATALOG_NAME, exact: true }).getByText(first.name, { exact: true }).first()).toBeVisible();
   await expect(page.getByText(FAILED, { exact: true })).toHaveCount(0);
 });

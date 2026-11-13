@@ -3,7 +3,7 @@
 
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
-import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
@@ -107,14 +107,14 @@ test.describe("committed corpus workbench", () => {
     await expect(modes.getByRole("radio", { name: CORPUS_MODE_LABELS.explore })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context.getByText(CORPUS_WHOLE_LABEL, { exact: true })).toBeVisible();
-    await expect(context.getByRole("tab", { name: "Archetypes", exact: true })).toBeVisible();
+    await expect(context.getByRole("tab", { name: CORPUS_CONTEXT_TAB_LABELS.archetypes, exact: true })).toBeVisible();
 
     // Insights: the leaderboard is the finder, the dashboard is CONTENT, and its dimension tabs replace Explore's.
     await modes.getByRole("radio", { name: CORPUS_MODE_LABELS.insights }).click();
     await expect(list.getByRole("textbox", { name: "Search characters", exact: true })).toBeVisible();
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     await expect(context.getByRole("tab", { name: "Models", exact: true })).toBeVisible();
-    await expect(context.getByRole("tab", { name: "Archetypes", exact: true })).toHaveCount(0);
+    await expect(context.getByRole("tab", { name: CORPUS_CONTEXT_TAB_LABELS.archetypes, exact: true })).toHaveCount(0);
 
     // Labels: the tag library is the finder, its facts are CONTENT, and its one inspector explains labels.
     await modes.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();

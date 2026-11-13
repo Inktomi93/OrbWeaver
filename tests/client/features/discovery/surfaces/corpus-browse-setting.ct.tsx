@@ -6,6 +6,8 @@ import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { characterFacetLine } from "#client/features/discovery/lib/character-facet.ts";
+import { CORPUS_NOT_DISTILLED_TEXT, CORPUS_PARAM_NAMES, corpusFacetOptionLabel } from "#client/features/discovery/lib/corpus-control-names.ts";
 import type { CorpusSearchControlsStory } from "./_search-controls-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_search-controls-stories/CorpusSearchControlsStory";
@@ -55,14 +57,14 @@ test("the browse lists settings as a facet, shows them on the rows and narrows t
     },
   });
   const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "", targetId: "characters" });
-  const castleLine = component.getByText(`Fantasy · gritty · ${CASTLE}`, { exact: true });
+  const castleLine = component.getByText(characterFacetLine("fantasy", "gritty", CASTLE), { exact: true });
   const loomLine = component.getByText(LOOM, { exact: true });
   await expect(castleLine).toBeVisible();
   await expect(loomLine).toBeVisible();
   // No genre, tone or setting: the same placeholder either way, with no stray separator.
-  await expect(component.getByText("Not distilled", { exact: true })).toBeVisible();
+  await expect(component.getByText(CORPUS_NOT_DISTILLED_TEXT, { exact: true })).toBeVisible();
   // The line is text inside a whole-row button, so it reads at the label step, not the micro gloss.
-  const [lineSize, labelSize] = await component.getByText("Not distilled", { exact: true }).evaluate((node, labelVar) => {
+  const [lineSize, labelSize] = await component.getByText(CORPUS_NOT_DISTILLED_TEXT, { exact: true }).evaluate((node, labelVar) => {
     const probe = document.createElement("span");
     probe.style.fontSize = `var(${labelVar})`;
     node.append(probe);
@@ -72,18 +74,18 @@ test("the browse lists settings as a facet, shows them on the rows and narrows t
   }, TOKENS["text.label"].cssVar);
   expect(lineSize).toBe(labelSize);
   // A facet with nothing but its "All" entry is disabled and points at the visible line that says why; one with choices stays live.
-  const genreSelect = component.getByRole("combobox", { name: "Genre", exact: true });
+  const genreSelect = component.getByRole("combobox", { name: CORPUS_PARAM_NAMES.genre, exact: true });
   await expect(genreSelect).toBeDisabled();
-  await expect(component.getByRole("combobox", { name: "Setting", exact: true })).toBeEnabled();
+  await expect(component.getByRole("combobox", { name: CORPUS_PARAM_NAMES.setting, exact: true })).toBeEnabled();
   const reasonId = await genreSelect.getAttribute("aria-describedby");
   expect(reasonId).not.toBeNull();
   await expect(component.locator(`[id="${reasonId}"]`)).toBeVisible();
 
-  await component.getByRole("combobox", { name: "Setting", exact: true }).click();
-  await page.getByRole("option", { name: `${CASTLE} (1)`, exact: true }).click();
+  await component.getByRole("combobox", { name: CORPUS_PARAM_NAMES.setting, exact: true }).click();
+  await page.getByRole("option", { name: corpusFacetOptionLabel(CASTLE, 1), exact: true }).click();
 
   await expect(castleLine).toBeVisible();
   await expect(loomLine).toHaveCount(0);
-  await expect(component.getByText("Not distilled", { exact: true })).toHaveCount(0);
+  await expect(component.getByText(CORPUS_NOT_DISTILLED_TEXT, { exact: true })).toHaveCount(0);
   expect(asked.at(-1)).toBe(CASTLE);
 });
