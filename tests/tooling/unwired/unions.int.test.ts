@@ -63,6 +63,40 @@ test("the unions scan reports an unbuilt member with its dead branch, check and 
   expect(report.disagreements).toEqual([]);
 });
 
+// A tuple element read from a constant is the member its type names: `CODE.clamped` is `knob_clamped`, which nothing
+// builds, and `CODE.dropped` is `knob_dropped`, which a literal builds in the tuple's slot. `LOOSE` is the control: an
+// element typed `string` names no member, so the tuple stays out and its `loose` is never judged.
+const CONSTANT_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/codes.ts": 'export const CODE = { dropped: "knob_dropped", clamped: "knob_clamped", spare: "knob_spare" } as const;',
+  "packages/a/src/kinds.ts": [
+    'import { CODE } from "./codes.ts";',
+    "export const KINDS = [",
+    "  CODE.dropped,",
+    "  CODE.clamped,",
+    '  "own",',
+    "] as const;",
+    "export type Kind = (typeof KINDS)[number];",
+    "export const take = (kind: Kind): Kind => kind;",
+    'export const built = [take("knob_dropped"), take("own")];',
+    'export const title: string = "t";',
+    'export const LOOSE = [title, "loose"] as const;',
+    "export const takeLoose = (kind: (typeof LOOSE)[number]): string => kind;",
+  ].join("\n"),
+};
+
+test("the unions scan reads a tuple element built from a constant as the literal its type names, and still skips a tuple with a string-typed element", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(CONSTANT_TREE);
+  const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  expect(report.unwired.map(({ kind, home, member, file, line }) => ({ kind, home, member, file, line }))).toEqual([
+    { kind: "unbuilt", home: "KINDS", member: "knob_clamped", file: "packages/a/src/kinds.ts", line: 4 },
+  ]);
+  expect(report.scanned).toBe(1);
+  expect(report.disagreements).toEqual([]);
+});
+
 // Construction evidence belongs to the vocabulary whose slot it lands in. `KINDS_A` and `KINDS_B` share the text
 // `shared`; only `KINDS_B`'s slot is ever built with it. The remaining tuples are controls that must clear: a slot
 // that unions two vocabularies builds `dual` in both, and a slot derived from one tuple builds its own member.
