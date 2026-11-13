@@ -182,7 +182,8 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
   void served.promise.catch(() => undefined);
   const pendingAttaches = new Map<Request, readonly DecodedAttach[]>();
   let settled = false;
-  const settleHandshake = (success: boolean): void => {
+  // `failure` is why the handshake gave up, or null once every awaited attach was admitted.
+  const settleHandshake = (failure: string | null): void => {
     if (settled) {
       return;
     }
@@ -191,17 +192,22 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     page.off("requestfailed", requestFailed);
     page.off("close", closeHandshake);
     pendingAttaches.clear();
-    handshake.resolve(success);
-    if (!success) {
-      served.reject(new Error("The socket handshake failed before its frames were served"));
+    handshake.resolve(failure === null);
+    if (failure !== null) {
+      const unattached = awaitedRooms.filter((key) => !admittedRooms.has(key));
+      const attaches =
+        unattached.length > 0
+          ? `Rooms that never attached: ${unattached.join(", ")}.`
+          : `${admittedAttaches} of ${awaitAttaches} awaited attaches were admitted.`;
+      served.reject(new Error(`The socket handshake failed before its frames were served: ${failure}. ${attaches}`));
     }
   };
   const closeHandshake = (): void => {
-    settleHandshake(false);
+    settleHandshake("the page closed");
   };
   const requestFailed = (request: Request): void => {
     if (pendingAttaches.has(request)) {
-      settleHandshake(false);
+      settleHandshake("an attach request failed");
     }
   };
   const requestFinished = (request: Request): void => {
@@ -222,7 +228,7 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     void readAdmitted().then(
       (refs) => {
         if (refs === null) {
-          settleHandshake(false);
+          settleHandshake("an attach response was not a success");
           return;
         }
         // A refused entry admits nothing and leaves the handshake open, so a later attach for its room can still join.
@@ -231,11 +237,11 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
           admittedRooms.add(roomKey(ref));
         }
         if (admittedAttaches >= awaitAttaches && awaitedRooms.every((key) => admittedRooms.has(key))) {
-          settleHandshake(true);
+          settleHandshake(null);
         }
       },
       () => {
-        settleHandshake(false);
+        settleHandshake("an attach response could not be read");
       },
     );
   };
@@ -244,7 +250,7 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     page.on("requestfailed", requestFailed);
     page.once("close", closeHandshake);
   } else {
-    settleHandshake(true);
+    settleHandshake(null);
   }
 
   const awaitSuccessfulAttaches = async (route: Route): Promise<boolean> => {
