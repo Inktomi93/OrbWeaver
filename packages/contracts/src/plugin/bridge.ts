@@ -227,6 +227,12 @@ export interface PluginBridge {
    *  installer's OWN CAS — its honest cost is an art GRID's (a fresh browse page is ~30 covers), which a
    *  belt priced for text egress starved. Same closure mechanics as `admitEgress`; THROWS over ceiling. */
   readonly admitAssetEgress: () => void;
+  /** CHECK that the installer still stands: REJECTS when the installer's account is disabled (owner-ruled to stand
+   *  as a departed member). The app-side dispatch awaits it before every host call that reaches the installer's
+   *  rooms, data, connections, credentials or egress, so a guest that was already running when its installer was
+   *  disabled spends nothing on that account. Same closure mechanics as `admitEgress`: infra calls it without
+   *  knowing whose standing it checked. */
+  readonly admitInstaller: () => Promise<void>;
   /** Surface transient quick-reply chips into the admitted chat (`surfaceQuickReply`; the automation-bus
    *  `quickReplySurfaced` event). Host-authority gated UPSTREAM in the membrane (same write ceiling as
    *  the plugin's other chat writes) via `InvocationChat.canWrite`. The domain builder closes over the `pluginId`
