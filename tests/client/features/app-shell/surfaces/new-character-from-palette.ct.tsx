@@ -120,7 +120,7 @@ test.describe("phone", () => {
       };
     });
     expect(ring.focusVisible).toBe(true);
-    expect(ring.outline || ring.shadow).toBe(true);
+    expect([ring.outline, ring.shadow]).toContain(true);
   });
 
   test("a second palette run from the list it landed on opens the form again, and nothing opens it later unasked", async ({ mount, page }) => {

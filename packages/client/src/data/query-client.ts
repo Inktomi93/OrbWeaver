@@ -41,7 +41,7 @@ const QUERY_RETRIES = 2;
 const FINAL_ANSWER_CODES: ReadonlySet<string | undefined> = new Set(["BAD_REQUEST", "NOT_FOUND"]);
 
 /** The default query retry: a final answer is not repeated, and other failures keep the shared schedule. */
-export function retryUnlessRefused(failureCount: number, error: unknown): boolean {
+function retryUnlessRefused(failureCount: number, error: unknown): boolean {
   return !FINAL_ANSWER_CODES.has(trpcErrorCode(error)) && failureCount < QUERY_RETRIES;
 }
 

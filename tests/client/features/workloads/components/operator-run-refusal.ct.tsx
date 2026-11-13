@@ -127,7 +127,7 @@ test("a schedule save whose count fails for another reason still says the count 
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
   const calls = await routeTrpc(page, {
     ...serveCorpusProcedures(caller, [...SCHEDULE_READS, "workloads.updateSchedule"]),
-    "workloads.estimateModelCalls": () => trpcError({ code: "INTERNAL_SERVER_ERROR" }),
+    ...serveCorpusProcedures(caller, ["workloads.estimateModelCalls"], () => trpcError({ code: "INTERNAL_SERVER_ERROR" })),
   });
   await mount<typeof ScheduleDialogDismissalStory>(SCHEDULES_STORY, { width: 900 });
 

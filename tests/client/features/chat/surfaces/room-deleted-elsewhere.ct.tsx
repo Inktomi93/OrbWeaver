@@ -20,6 +20,7 @@ import {
   SECTION_LABELS,
   SECTION_PROCEDURES,
   serveCorpusProcedures,
+  trpcError,
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -49,8 +50,8 @@ async function serveShell(
     ...createShellAmbientReads(corpus, root.ownerId),
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "chat.send"]),
     // The page's rooms attach to the scripted socket; the attach itself is the transport's, answered void as the server does.
-    "stream.attach": () => null,
-    "stream.detach": () => null,
+    "stream.attach": ({ ref }) => (ref.channel === "user" || ref.channel === "chat" ? null : trpcError({ code: "NOT_FOUND" })),
+    "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "chat" ? null : trpcError({ code: "NOT_FOUND" })),
   });
   await seedShellState(page, { activeSection: section });
   return { caller, rpc };
