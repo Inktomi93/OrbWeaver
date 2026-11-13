@@ -31,7 +31,7 @@ import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { EditableTagChip, QueryBoundary, ViewerDialog } from "#components";
-import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode, viewerTimeZone } from "#lib";
 import { MEMBER_CARD_GONE_TITLE, MEMBER_CARD_READ } from "../lib/members-names.ts";
 
@@ -50,11 +50,6 @@ function isNotFound(error: unknown): boolean {
 
 const PENDING_TITLE = "Character card";
 
-// A card that vanished from the roster is a typed gone state, so a NOT_FOUND is not retried; any other failure keeps the shared rule.
-function retryUnlessGone(failureCount: number, error: unknown): boolean {
-  return !isNotFound(error) && retryUnlessBadRequest(failureCount, error);
-}
-
 // The dialog shell stays mounted across the read, so its open animation plays once and its close animation plays at all. The body
 // mounts only while the dialog is open, so the read is never eager per roster row.
 export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: MemberCardViewerProps): ReactElement {
@@ -62,7 +57,6 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
   // The header names the card once it lands, observing the body's request; the boundary below owns the loading and failure.
   const { data: card, error } = useQuery({
     ...trpc.chat.getMemberCard.queryOptions({ chatId, characterId, timeZone: viewerTimeZone() }),
-    retry: retryUnlessGone,
     enabled: open,
   });
   return (
@@ -113,10 +107,7 @@ function LoadedMemberCard({
   readonly onManage: () => void;
 }): ReactElement {
   const trpc = useTRPC();
-  const { data: card } = useSuspenseQuery({
-    ...trpc.chat.getMemberCard.queryOptions({ chatId, characterId, timeZone: viewerTimeZone() }),
-    retry: retryUnlessGone,
-  });
+  const { data: card } = useSuspenseQuery(trpc.chat.getMemberCard.queryOptions({ chatId, characterId, timeZone: viewerTimeZone() }));
   return <MemberCard card={card} onManage={onManage} />;
 }
 

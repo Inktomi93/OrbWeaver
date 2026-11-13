@@ -177,9 +177,9 @@ test("a restored room that still exists opens its room, not the chat list", asyn
   await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toHaveCount(0);
 });
 
-test("a stale room id restored at load lands on the chat list", async ({ corpus, mount, page }) => {
+test("a stale room id restored at load lands on the chat list on its first not-found answer, without a retry burst", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
-  const { caller } = await serveShell(root, corpus, page, "chats");
+  const { caller, rpc } = await serveShell(root, corpus, page, "chats");
   const gone = await ownerRoomId(caller);
   await caller.chat.delete({ chatId: gone });
   await seedActiveChat(page, gone);
@@ -187,6 +187,11 @@ test("a stale room id restored at load lands on the chat list", async ({ corpus,
   await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
   await expect(page.locator(ROOM_SURFACE)).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toHaveCount(0);
+  // A not-found answer is final: each room read is asked by at most the two readers that mount around it, never re-sent on the retry
+  // schedule (its third attempt is what a burst would add).
+  const Readers = 2;
+  expect(rpc.count("chat.getChat")).toBeLessThanOrEqual(Readers);
+  expect(rpc.count("chat.listMessages")).toBeLessThanOrEqual(Readers);
 });
 
 test("a room reached again from Home after another session deleted it lands on the chat list", async ({ corpus, mount, page }) => {
