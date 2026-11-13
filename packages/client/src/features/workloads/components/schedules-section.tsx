@@ -36,7 +36,14 @@ import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspe
 import { testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
 import { UNRESOLVED_OWNER_HANDLE, viewerActsOnRow, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
-import { scheduleDeleteName, scheduleEditName, scheduleEnabledSwitchName, scheduleName, scheduleQualifier } from "../lib/workloads-schedule-model.ts";
+import {
+  SCHEDULE_PAUSED_LABEL,
+  scheduleDeleteName,
+  scheduleEditName,
+  scheduleEnabledSwitchName,
+  scheduleName,
+  scheduleQualifier,
+} from "../lib/workloads-schedule-model.ts";
 import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav.ts";
 import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog.tsx";
 
@@ -166,14 +173,16 @@ function ScheduleRow({
   // languages, and the reader has to work out that they are the same kind of fact. The absolute stamp is the
   // arm that is TOTAL: a schedule's next run is a wall-clock appointment at any distance, where "in 8 months"
   // is not a thing anyone can act on.
-  const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : "Paused";
-  // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read. The title
-  // already states the cadence and the owner.
+  const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : SCHEDULE_PAUSED_LABEL;
+  const refusal = schedule.enabled ? WORKLOAD_RUN_ACCOUNT_REFUSAL : `${SCHEDULE_PAUSED_LABEL} · ${WORKLOAD_RUN_ACCOUNT_REFUSAL}`;
+  // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read, and a
+  // paused one keeps its Paused state in front of it: resuming a refused schedule must not hide that it is paused.
+  // The title already states the cadence and the owner.
   return (
     <ListRow
       title={WORKLOAD_KIND_LABELS[schedule.kind]}
       titleQualifier={scheduleQualifier(identity)}
-      subtitle={schedule.refusal === undefined ? nextRun : WORKLOAD_RUN_ACCOUNT_REFUSAL}
+      subtitle={schedule.refusal === undefined ? nextRun : refusal}
       subtitleWrap={schedule.refusal !== undefined}
       stackActions={true}
       actions={

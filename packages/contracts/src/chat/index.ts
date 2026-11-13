@@ -249,8 +249,8 @@ export {
   SMART_UTILITY_SWITCH_LABEL,
   storedGroupConfigSchema,
 } from "./metadata.ts";
-export type { NextTurnConnectionView } from "./next-turn-connection.ts";
-export { nextTurnConnectionViewSchema } from "./next-turn-connection.ts";
+export type { NextTurnConnectionView, RoomSendAvailability, RoomUnavailableCause } from "./next-turn-connection.ts";
+export { nextTurnConnectionViewSchema, roomSendAvailabilitySchema } from "./next-turn-connection.ts";
 export type {
   CallerInChatOp,
   ChatLivePublish,

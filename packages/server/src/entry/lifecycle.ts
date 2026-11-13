@@ -19,7 +19,7 @@ import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { ServerRestartPort } from "#domain/admin";
 
-import { createSessionsRolePolicy } from "#domain/sessions";
+import { createResolveUserEnabled, createSessionsRolePolicy } from "#domain/sessions";
 import type { CertificateBootOutcome, ShareBootOutcome, ShareGraph } from "#domain/share";
 
 import { OWNER_CLAIM_URL_FILE_NAME } from "#foundation/data-layout";
@@ -530,6 +530,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         db: bootDb,
         setEnabled: built.services.plugin.setEnabled,
         resolvePrincipal: createHostPrincipalResolver(bootSessions),
+        isOwnerEnabled: createResolveUserEnabled(bootSessions),
       });
       // Independent of the three above (the examples attach to nothing) — the rows land installed, disabled and
       // ungranted, so the owner's first act on the Plugins pane is a real consent.

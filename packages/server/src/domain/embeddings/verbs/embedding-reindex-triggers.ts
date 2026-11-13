@@ -115,6 +115,8 @@ export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): Embe
     const starts = enabled && !autoindexEnabled;
     autoindexEnabled = enabled;
     if (starts) {
+      // No account asks for the catch-up, so the run-account check has no account to refuse. The guard is per row:
+      // every bulk sweep skips the rows of a disabled owner, whose encoder each row would spend.
       supervise("embeddings.autoindex.catchup", EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
         deps.startWorkload({ input: { kind: "index", params: { source: "all" } }, caller: null, funderUserId: null, mode: "bulk", ownerId: null }),
       );

@@ -83,6 +83,9 @@ export const CHAT_OP_CODES = {
   /** `undoContinue`/`revertContinue` on a variant that was never continued (the `preContinue*`/
    *  `lastContinuation*` snapshot columns are empty — D26; nothing to restore). */
   noContinuation: "no_continuation",
+  /** A `swipe` with a `rewrite` steer that carries neither text nor a picked toggle. The request would end on the
+   *  reply being rewritten, which the model reads as a prefill to continue, not as a reply to revise. */
+  emptyRewriteSteer: "empty_rewrite_steer",
   /** A turn aborted (user-cancelled / stale / error) — the lifecycle refusal surfaced to the caller. Derived
    *  from the contract wire home so the client can key on the same literal (`data.reason`) without a re-spell. */
   aborted: TURN_ABORTED_OP_CODE,

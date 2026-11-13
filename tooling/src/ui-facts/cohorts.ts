@@ -1,5 +1,6 @@
 // The composition cohorts (area C): which template, row composite, dialog anatomy, dismiss path and confirm each section uses.
 
+import ts from "typescript";
 import type { Elem, FileFacts, Rendered } from "../eslint/index.ts";
 import {
   attrString,
@@ -212,6 +213,87 @@ function dialogMember(facts: FileFacts, dialog: Elem): Member {
   });
 }
 
+// ── modal popovers ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The cohort name the composition report lists every site of.
+ *
+ * @remarks An anchored popover whose body carries input takes `modal`, by the rule on `Popover` in
+ * packages/ui/src/primitives/popover/popover.tsx. It is a different shape from a centred dialog, so it is counted apart.
+ */
+export const MODAL_POPOVER_COHORT = "modal-popover";
+const POPOVER = "Popover";
+const POPOVER_TRIGGER = "PopoverTrigger";
+const DETACHED_TRIGGER = "detached handle";
+const CONTROLLED_OPEN = "controlled open";
+const NO_TRIGGER = "none";
+const RUNTIME = "runtime";
+const RUNTIME_RENDER = "runtime render";
+
+/** `modal` as written: `true`, Base UI's `trap-focus`, a runtime value, or null when the popover is unfenced. */
+function modalOf(popover: Elem): string | null {
+  const attr = popover.attrs.get("modal");
+  if (attr === undefined) {
+    return null;
+  }
+  const literal = attrString(attr);
+  if (literal !== undefined) {
+    return literal;
+  }
+  const expression =
+    attr.initializer === undefined
+      ? "true"
+      : attr.initializer
+          .getText()
+          .replace(/^\{|\}$/gu, "")
+          .trim();
+  if (expression === "false") {
+    return null;
+  }
+  return expression === "true" ? "true" : RUNTIME;
+}
+
+/** The JSX element nearest above `elem` with the tag, or null. */
+function nearestTag(elem: Elem, tag: string): ts.JsxElement | null {
+  for (let node: ts.Node = elem.element.parent; !ts.isSourceFile(node); node = node.parent) {
+    if (ts.isJsxElement(node) && node.openingElement.tagName.getText() === tag) {
+      return node;
+    }
+  }
+  return null;
+}
+
+const jsxTagOf = (element: ts.JsxElement | ts.JsxSelfClosingElement): string => (ts.isJsxElement(element) ? element.openingElement : element).tagName.getText();
+
+/** The element a trigger renders: its own button with no `render`, the tag a literal `render` names, or a runtime render. */
+function renderedTrigger(trigger: Elem): string {
+  const render = trigger.attrs.get("render");
+  if (render === undefined) {
+    return POPOVER_TRIGGER;
+  }
+  const shown = render.initializer !== undefined && ts.isJsxExpression(render.initializer) ? render.initializer.expression : undefined;
+  return shown !== undefined && (ts.isJsxElement(shown) || ts.isJsxSelfClosingElement(shown)) ? jsxTagOf(shown) : RUNTIME_RENDER;
+}
+
+/** What opens the popover: the element its own trigger renders, a trigger elsewhere through a handle, or its `open` prop alone. */
+function triggerOf(facts: FileFacts, popover: Elem): Cell {
+  const trigger = facts.elems.find((elem) => elem.tag === POPOVER_TRIGGER && nearestTag(elem, POPOVER) === popover.element);
+  if (trigger !== undefined) {
+    return cell(renderedTrigger(trigger), trigger.line);
+  }
+  if (popover.attrs.has("handle")) {
+    return cell(DETACHED_TRIGGER, popover.line);
+  }
+  return cell(popover.attrs.has("open") ? CONTROLLED_OPEN : NO_TRIGGER, popover.line);
+}
+
+function modalPopoverMembers(facts: FileFacts): readonly Member[] {
+  return facts.elems.flatMap((elem) => {
+    const modal = elem.tag === POPOVER && elem.kind !== "raw" ? modalOf(elem) : null;
+    return modal === null ? [] : [member(facts, POPOVER, { modal: cell(modal, elem.line), trigger: triggerOf(facts, elem) })];
+  });
+}
+
 // ── destructive actions ──────────────────────────────────────────────────────────────────────────
 
 const DESTRUCTIVE_WORD = /^(?:Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b/iu;
@@ -389,21 +471,18 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
         empty: {
           "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
             value: "none",
-            reason: "the Settings map renders every registered group, populated or not, so it has no empty arm (config-list-surface.tsx header)",
+            reason:
+              "the Settings map renders every config group, a total registry (client-architecture-state-and-gates.md §12, row 3), so the list is never empty and has no empty arm",
           },
         },
         focus: {
           "packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx": {
             value: "useFocusOnMount",
-            reason: "arrival lands on the omnibox, because the search is the surface (corpus-list-surface.tsx `CorpusListSurface` focus ruling)",
-          },
-          "packages/client/src/features/config/surfaces/config-list-surface.tsx": {
-            value: "useFocusOnMount",
-            reason: "arrival lands on the active group's band, the map that owns the section's arrival (config-list-surface.tsx focus ruling)",
+            reason: "arrival lands on the omnibox, because the Corpus LIST is the search omnibox (UI-Architecture-and-Layout.md §4.1)",
           },
           "packages/client/src/features/tag/surfaces/labels-list-surface.tsx": {
             value: "useFocusOnMount",
-            reason: "the Labels finder owns phone arrival and the visible library owns desktop arrival (labels-list-surface.tsx header)",
+            reason: "the Labels finder owns phone arrival, because Labels lands on its LIST on phones (D271); the visible library owns desktop arrival",
           },
         },
       },
@@ -454,6 +533,14 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
           ? []
           : facts.elems.filter((elem) => DIALOG_TAGS.has(elem.tag) && elem.kind !== "raw").map((elem) => dialogMember(facts, elem)),
       ),
+    },
+    {
+      name: MODAL_POPOVER_COHORT,
+      what: "modal popovers: an anchored popover fenced with `modal` because its body carries input, and what opens it",
+      // A census, not a convention: every site is listed in the composition report with its trigger.
+      columns: [],
+      info: ["modal", "trigger"],
+      members: client.flatMap(modalPopoverMembers),
     },
     {
       name: "context-tab",

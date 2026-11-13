@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-07
+updated: 2026-11-13
 priority: P2
 area: connection
 ---
@@ -18,7 +18,7 @@ A user adding a chat model sees an embeddings query string and cannot act on it.
 
 ## Done when
 
-The notice names the provider and the failure class only, a chat list loads when only the embeddings sub-catalog fails, and tests pin both.
+The notice names the provider and the failure class only, and a chat list loads in the add dialog when only the embeddings or rerank list fails. A partial list never reaches the catalog mirror or its stored snapshot: `openRouterCatalog.warm` in `packages/inference/src/index.ts` fails or marks the result partial, so the earlier snapshot survives. Tests cover the notice, the dialog list and the mirror path.
 
 ## Evidence
 

@@ -319,23 +319,18 @@ async function commitSummaries(db: Db, stmts: readonly BatchStmt[]): Promise<voi
 }
 
 /** Stage each distilled label as a `source:'auto', status:'pending'` suggestion through the injected tag seam;
- *  returns the count NEWLY attached (idempotent + no-downgrade — a re-run/accepted tag doesn't re-count). */
-async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: readonly StagedLabel[], signal: AbortSignal | undefined): Promise<number> {
-  let tagsStaged = 0;
+ *  the seam is idempotent and never downgrades an accepted tag. */
+async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: readonly StagedLabel[], signal: AbortSignal | undefined): Promise<void> {
   for (const label of stagedLabels) {
     signal?.throwIfAborted();
-    const attached = await deps.attachCardTagByName({
+    await deps.attachCardTagByName({
       ownerId: label.ownerId,
       characterId: label.characterId,
       tagName: label.tag,
       source: "auto",
       status: "pending",
     });
-    if (attached) {
-      tagsStaged += 1;
-    }
   }
-  return tagsStaged;
 }
 
 /** Build the idempotent `character_summaries` upsert for one card (keyed by `characterId`, D28). `set` omits

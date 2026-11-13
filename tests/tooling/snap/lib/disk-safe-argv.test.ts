@@ -80,6 +80,25 @@ test("a URL flag with userinfo is refused at parse without quoting it, and a cre
   expect(parseSnapArgs(["--base-credentials-env", "L4_UNSET_CREDENTIALS", "/"]).errors.join(" ")).toContain("does not set");
 });
 
+// A special scheme needs no `//`: the parser reads a backslash as a slash, drops tabs and newlines anywhere, and takes
+// `http:h` as `http://h/`. Each spelling below navigates with the token, so each is masked as the parser reads it.
+test.for([
+  ["a backslash for the slashes", "http:\\h.test?token=t0k", "http:\\h.test?token=<private>"],
+  ["no slashes at all", "http:h.test/?token=t0k", "http:h.test/?token=<private>"],
+  ["a tab inside the scheme", "ht\ttp://h.test/?token=t0k", "ht\ttp://h.test/?token=<private>"],
+  ["a tab inside the pair name", "http://h.test/?to\tken=t0k", "http://h.test/?to\tken=<private>"],
+  ["userinfo after mixed slashes", "http:/\\u:hunter2@h.test/?a=1", "http:/\\<private>@h.test/?a=1"],
+] as const)("a URL spelled with %s is masked as the parser reads it", ([_name, raw, masked]) => {
+  expect(diskSafeUrl(raw)).toBe(masked);
+  expect(diskSafeUrl(masked)).toBe(masked);
+});
+
+test("a spelling the parser reads only against a base still loses its token, and an @ outside an authority stays", () => {
+  expect(diskSafeUrl("http\\:/h.test/?token=t0k")).toBe("http\\:/h.test/?token=<private>");
+  expect(diskSafeUrl("/a@b/x?api_key=k")).toBe("/a@b/x?api_key=<private>");
+  expect(diskSafeUrl("mailto:a@b.test?subject=s")).toBe("mailto:a@b.test?subject=s");
+});
+
 test("a binding URL keeps a file path whole, an @ in a package directory included", () => {
   expect(diskSafeUrl("/repo/node_modules/.pnpm/@scope+pkg/x.html")).toBe("/repo/node_modules/.pnpm/@scope+pkg/x.html");
   const masked = diskSafeUrl("http://u:hunter2@h.test/?session=s3");

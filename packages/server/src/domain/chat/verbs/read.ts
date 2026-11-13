@@ -45,6 +45,7 @@ import type {
   MessageView,
   NextTurnConnectionView,
   ParticipantData,
+  RoomSendAvailability,
   ShapeTrace,
   TeachingIdentity,
   TeachingKnobs,
@@ -57,9 +58,10 @@ import {
   DEFAULT_GROUP_CONFIG,
   NO_HISTORY_FLOOR,
   projectViewForMember,
+  TURN_HOST_UNAVAILABLE_OP_CODE,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
-import type { GenerationCapability, SendAvailability, UnavailableCause } from "@orb/contracts/inference";
+import type { GenerationCapability, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
 import {
@@ -441,6 +443,20 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
   );
 }
 
+/** The room host a preview may run as. A member's fit read gathers memory and databank retrieval on the host's encoder
+ *  and reads the host's connection, so a disabled host refuses exactly as a departed one does, the rule `loadRoom`
+ *  applies to a turn. Run it before any read of the host's connection. */
+async function requireConsentingHost(ctx: ChatContext, chatId: ChatId): Promise<UserId> {
+  const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+  if (consent.kind === "hostless") {
+    throw new ChatNotFoundError(chatId);
+  }
+  if (consent.kind === "withheld") {
+    throw new ChatHostWithoutConsentError(chatId);
+  }
+  return consent.hostUserId;
+}
+
 /** Resolve the {@link PreviewInputs} for a chat: the present roster → host + seated characters + personas, then the
  *  connection (`model`) + the cross-domain assemble inputs. A hostless room is unusable (leak-free
  *  NOT_FOUND). The seated characters are reordered to put `speakerCharacterId` primary when supplied.
@@ -457,16 +473,7 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
  *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
  *  the turn wouldn't. */
 async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, opts: PreviewInputsOpts): Promise<PreviewInputs> {
-  // A member's fit read gathers memory and databank retrieval on the host's encoder, so a disabled host refuses
-  // exactly as a departed one does, the rule `loadRoom` applies to a turn.
-  const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
-  if (consent.kind === "hostless") {
-    throw new ChatNotFoundError(chatId);
-  }
-  if (consent.kind === "withheld") {
-    throw new ChatHostWithoutConsentError(chatId);
-  }
-  const { hostUserId } = consent;
+  const hostUserId = await requireConsentingHost(ctx, chatId);
   const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId });
   const room = await resolveRoomInputs(ctx, deps, chatId, { ...opts, model: connection.model });
   return {
@@ -852,28 +859,45 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   };
 }
 
+/** A member's reading of a room whose host is outside the consent set: the same code a refused send carries. */
+const HOST_UNAVAILABLE: RoomSendAvailability = { available: false, cause: TURN_HOST_UNAVAILABLE_OP_CODE };
+
 /** The honest-refusal pre-send gate: the deterministic serveability verdict for the room HOST's chat
- *  connection — the one every turn in this room runs on. Member-gated (any participant may read it — the composer disables SEND on it). A
- *  hostless room is a leak-free NOT_FOUND (as `resolvePreviewInputs`). Fires no turn/API call. */
+ *  connection — the one every turn in this room runs on. Member-gated (any participant may read it — the composer
+ *  disables SEND on it), so a stranger and an unknown room read the same NOT_FOUND before any host read. A hostless
+ *  room is a leak-free NOT_FOUND, as its send is. A host outside the consent set reads `host_unavailable`, the
+ *  reason a member's refused send names, and its connection is never resolved or probed. Fires no turn/API call. */
 function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatService["checkSendAvailability"] {
-  return async ({ principal, chatId }: GetChatParams): Promise<SendAvailability> => {
+  return async ({ principal, chatId }: GetChatParams): Promise<RoomSendAvailability> => {
     await requireParticipant(ctx, principal, chatId);
-    const participants = await loadParticipants(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(participants);
-    if (hostUserId === null) {
+    const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+    if (consent.kind === "hostless") {
       throw new ChatNotFoundError(chatId);
     }
-    return deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
+    if (consent.kind === "withheld") {
+      return HOST_UNAVAILABLE;
+    }
+    return deps.checkSendAvailability({ funderUserId: consent.hostUserId, chatId });
   };
 }
 
+/** No connection the next turn can run on: what a member reads for a host outside the consent set. */
+const NO_NEXT_TURN_CONNECTION: NextTurnConnectionView = { state: "unset" };
+
+/** The connection the room's next turn would run on, for any present member. Same order as
+ *  {@link createCheckSendAvailability}: seat, then host consent, so a disabled host's binding is never read and its
+ *  state and provider label are never described. */
 function createGetNextTurnConnection(ctx: ChatContext, deps: ReadDeps): ChatService["getNextTurnConnection"] {
   return async ({ principal, chatId }: GetChatParams): Promise<NextTurnConnectionView> => {
     await requireParticipant(ctx, principal, chatId);
-    const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
-    if (hostUserId === null) {
+    const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+    if (consent.kind === "hostless") {
       throw new ChatNotFoundError(chatId);
     }
+    if (consent.kind === "withheld") {
+      return NO_NEXT_TURN_CONNECTION;
+    }
+    const { hostUserId } = consent;
     const view = await deps.getNextTurnConnection({ funderUserId: hostUserId });
     if (view.state === "unset" || principal.userId === hostUserId) {
       return view;
@@ -955,6 +979,9 @@ function renderCardField(value: string | null, renderCtx: AssembleContext, rando
  *      SAME leak-free NOT_FOUND (you cannot read an arbitrary character's card through a chat you happen to be
  *      in). Checked against the roster's present character seats, never against the character table directly.
  *
+ *  The card is the host's, so it serves only while the host consents ({@link hostConsentOf}): a disabled host's card
+ *  is withheld with the same NOT_FOUND a hostless room answers, after both checks above.
+ *
  *  The room host always resolves to `full` (`resolveCardVisibility`); every other present member sees the
  *  host-configured level. `clampMemberCard` NULLS every field above the effective level SERVER-SIDE (the
  *  prompt-steering internals — `systemPrompt`/`postHistoryInstructions` — and the character's rendered `lore`
@@ -972,14 +999,20 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     // Belt 2 + the host owner: resolve the room's present roster ONCE — the host (card owner for every load
     // below) and the present character seats (the roster-scope gate). A hostless room is unusable (leak-free).
     const participants = await loadParticipants(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(participants);
     const seated = participants.some((r) => {
       const actor = classifyParticipant(r);
       return actor?.kind === "character" && actor.characterId === characterId;
     });
-    if (hostUserId === null || !seated) {
+    const consent = await hostConsentOf(ctx, participants);
+    if (consent.kind === "hostless" || !seated) {
       throw new ChatNotFoundError(chatId);
     }
+    // A disabled host's card is withheld exactly as a departed host's is: the member gets the hostless answer. The
+    // seat check above runs first, so a stranger and an unknown chat id learn nothing about the host's account.
+    if (consent.kind === "withheld") {
+      throw new ChatHostWithoutConsentError(chatId);
+    }
+    const { hostUserId, consentSet } = consent;
     // Load the card under the HOST's ownership (the seat's card belongs to the host, D18) — the caller-supplied
     // bits `clampMemberCard` needs. A gone/mid-delete card is a leak-free NOT_FOUND (nothing to project).
     const card = await ctx.getCard({ ownerId: hostUserId, characterId });
@@ -987,9 +1020,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
       throw new ChatNotFoundError(chatId);
     }
     const visibility = resolveCardVisibility(membership.role, configuredCardVisibility(membership.chat));
-    // Same enabled-axis narrowing as `resolvePreviewInputs` above — a member card render is also an honesty
-    // instrument about who the room would actually resolve a persona for.
-    const memberCardPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+    // The anchor persona resolves over the consent set the host check read, the set a live turn resolves personas for.
     const [tags, lore, avatarHash, anchorPersona] = await Promise.all([
       ctx.resolveCharacterTags({ ownerId: hostUserId, characterId }),
       loadCharacterCardLore(ctx.db, { characterId, ownerId: hostUserId }),
@@ -998,8 +1029,8 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
         chatId,
         hostUserId,
         anchorPersonaId: membership.chat.anchorPersonaId,
-        presentHumanUserIds: memberCardPresentHumanUserIds,
-        humanSeats: humanSeatPersonasOf(participants, memberCardPresentHumanUserIds),
+        presentHumanUserIds: consentSet,
+        humanSeats: humanSeatPersonasOf(participants, consentSet),
       }),
     ]);
     // PURE projection — fields above the effective level become null HERE, server-side (never sent over the
@@ -1545,10 +1576,11 @@ const CONTEXT_FIT_UNBOUND: ContextFitUnbound = { unbound: true };
 function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService["previewContextFit"] {
   return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitAnswer> => {
     const membership = await requireParticipant(ctx, principal, chatId);
+    // Consent first: a disabled host's connection is neither probed nor reflected back as "unbound".
+    const hostUserId = await requireConsentingHost(ctx, chatId);
     // The same verdict the composer's send gate reads, so the fit and the send button agree on "unbound".
-    const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
-    const availability = hostUserId === null ? null : await deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
-    if (availability !== null && !availability.available && availability.cause === NO_CONNECTION) {
+    const availability = await deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
+    if (!availability.available && availability.cause === NO_CONNECTION) {
       return CONTEXT_FIT_UNBOUND;
     }
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {

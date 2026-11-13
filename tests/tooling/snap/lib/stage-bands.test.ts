@@ -356,8 +356,10 @@ test("a same-sha --fresh or unhealthy rebuild refuses while another checkout hol
   expect(stageDecision({ ...ask, row: { ...stage, holders: [] }, fresh: true, healthy: true, liveHolders: [] })).toBe("rebuild");
   // Unknown holders refuse while the use is recent, and rebuild once it is old.
   const { holders: _unknown, ...unknownHolders } = stage;
-  expect(stageDecision({ ...ask, row: unknownHolders, fresh: true, healthy: true })).toBe("refuse");
-  expect(stageDecision({ ...ask, row: { ...unknownHolders, lastUsedAt: USED_PAST_REPLACE_IDLE }, fresh: true, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ ...ask, row: unknownHolders, fresh: true, healthy: true, liveHolders: [] })).toBe("refuse");
+  expect(stageDecision({ ...ask, row: { ...unknownHolders, lastUsedAt: USED_PAST_REPLACE_IDLE }, fresh: true, healthy: true, liveHolders: [] })).toBe(
+    "rebuild",
+  );
 });
 
 test("a holder is live while its process runs, or otherwise until its stamp ages past the threshold", () => {

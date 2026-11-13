@@ -1,7 +1,9 @@
 // @subject packages/client/src/features/chat/components/chat-character-bar.tsx
 // A muted seat's initials stay legible: the seat recedes, and its initials (pseudo-element text axe cannot read) are
-// measured from the framebuffer on every avatar pigment, the weakest one included.
+// measured from the framebuffer on every avatar pigment, the weakest one included, under every shipped theme.
 
+import { dataThemeOf } from "@orb/client/lib";
+import { DATA_THEME_ATTR } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelFilledTextContrast, seedShellState } from "@orb/testkit/browser/spec";
@@ -42,16 +44,24 @@ test("a muted seat's initials clear the text contrast floor on every avatar pigm
       "rpg.listTurnToolCalls",
     ]),
   );
-  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  // The room paints the strip twice (above the transcript, and a hidden twin inside a short one); the first is the one a reader sees.
-  const initials = page.locator('[data-slot="character-chip"][data-muted] [data-slot="avatar-fallback"]').first();
-  await expect(initials).toBeVisible();
-  for (const step of PIGMENT_STEPS) {
-    // The seat's own hue is a hash of its id; walk the production pigment ramp so the weakest tile is always measured.
-    await initials.evaluate((tile, hue) => {
-      tile.style.backgroundColor = `var(--pigment-avatar-${String(hue)})`;
-    }, step);
-    const { ratio, describe } = await pixelFilledTextContrast(page, initials);
-    expect(ratio, `pigment ${String(step)}: ${describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  // The pigments derive from the active theme's primary, so the floor is measured under every shipped theme the owner can pick.
+  const seeds = (await host.settings.listThemes()).filter((theme) => theme.isSeed);
+  expect(seeds.length).toBeGreaterThan(1);
+  for (const seed of seeds) {
+    await host.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: seed.id } });
+    await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+    // The shell stamps the seed's palette on the root; Hearth stamps none and paints the base ramp.
+    await expect.poll(() => page.locator("html").getAttribute(DATA_THEME_ATTR)).toBe(dataThemeOf(seed));
+    // The room paints the strip twice (above the transcript, and a hidden twin inside a short one); the first is the one a reader sees.
+    const initials = page.locator('[data-slot="character-chip"][data-muted] [data-slot="avatar-fallback"]').first();
+    await expect(initials).toBeVisible();
+    for (const step of PIGMENT_STEPS) {
+      // The seat's own hue is a hash of its id; walk the production pigment ramp so the weakest tile is always measured.
+      await initials.evaluate((tile, hue) => {
+        tile.style.backgroundColor = `var(--pigment-avatar-${String(hue)})`;
+      }, step);
+      const { ratio, describe } = await pixelFilledTextContrast(page, initials);
+      expect(ratio, `${seed.name}, pigment ${String(step)}: ${describe}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
   }
 });

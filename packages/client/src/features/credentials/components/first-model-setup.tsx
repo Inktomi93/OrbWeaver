@@ -1,6 +1,7 @@
 // The first-model step of "Add a connection": the first connection that can chat becomes the Chat model, and the same
 // step asks which model background work runs on (this one, another connection, a new one, or none for now). Whichever
 // is picked gets Allow background work turned on, said before it happens, because a role binding alone never runs.
+// Finish applies the pick; closing the step applies nothing, so each choice's note names Finish as what does it.
 
 import type { RoutableTask } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
@@ -16,7 +17,7 @@ import { useEffect, useId, useState } from "react";
 import { useSetBinding, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useSuspenseQuery } from "#data";
-import { CHAT_ROLE_DOOR, connectionSummary, MEMORY_COST_SENTENCE, notify } from "#lib";
+import { ALLOW_BACKGROUND_SETTING, CHAT_ROLE_DOOR, connectionSummary, MEMORY_COST_SENTENCE, notify } from "#lib";
 import { openConfigTo } from "#state";
 import { CLAUDE_SUBSCRIPTION_NOTICE, isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 
@@ -31,11 +32,14 @@ function isUtilityChoice(value: unknown): value is UtilityChoice {
   return (UTILITY_CHOICES as readonly unknown[]).includes(value);
 }
 
-/** What each choice tells the person will happen, read before they press Finish. */
+const FINISH = "Finish";
+
+/** What each choice tells the person will happen. Each names the control that does it, because closing the step
+ *  applies nothing: only {@link FINISH} or the Utility add writes the role and the switch. */
 const CHOICE_NOTES: Record<UtilityChoice, string> = {
-  same: "Allow background work is turned on for it, so these can run while you chat.",
-  existing: "Allow background work is turned on for the one you pick, so these can run while you chat.",
-  add: "You add it next. Allow background work is on for it, so these can run while you chat.",
+  same: `${FINISH} turns on ${ALLOW_BACKGROUND_SETTING} for it, so these can run while you chat.`,
+  existing: `${FINISH} turns on ${ALLOW_BACKGROUND_SETTING} for the one you pick, so these can run while you chat.`,
+  add: `You add it next, with ${ALLOW_BACKGROUND_SETTING} on, so these can run while you chat.`,
   later: "Until you pick one under Model roles, memory summaries, captions and extraction wait.",
 };
 
@@ -120,6 +124,7 @@ export function FirstModelSetup({
   }, [chatBinding]);
   const labelId = useId();
   const reasonId = useId();
+  const noteId = useId();
   const name = connectionSummary(chat);
 
   const utilityRow = (): ConnectionListItem | undefined => {
@@ -190,7 +195,7 @@ export function FirstModelSetup({
         ) : null}
       </Stack>
       <RadioGroup
-        aria-describedby={subscription ? reasonId : undefined}
+        aria-describedby={subscription ? `${reasonId} ${noteId}` : noteId}
         aria-labelledby={labelId}
         disabled={saving || chatState.pending || chatState.failure !== null}
         onValueChange={(value): void => {
@@ -218,7 +223,7 @@ export function FirstModelSetup({
           value={otherId}
         />
       ) : null}
-      <Text cap="prose" prose={true} voice="gloss">
+      <Text id={noteId} cap="prose" prose={true} voice="gloss">
         {CHOICE_NOTES[choice]}
       </Text>
       {failure === null ? null : (
@@ -238,7 +243,7 @@ export function FirstModelSetup({
             loading={saving}
             onClick={finish}
           >
-            Finish
+            {FINISH}
           </Button>
         )}
       </DialogFooter>

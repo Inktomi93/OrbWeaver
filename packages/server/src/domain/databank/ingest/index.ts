@@ -52,6 +52,8 @@ interface RunDocumentArgs {
   readonly signal: AbortSignal;
   readonly acc: IngestAccumulator;
   readonly touchedOwners: Set<UserId>;
+  /** The pass's enabled read, resolved once per owner. */
+  readonly ownerEnabled: (ownerId: UserId) => Promise<boolean>;
 }
 
 /** Accumulate per-document counts into the run-level result. */
@@ -61,10 +63,14 @@ class IngestAccumulator {
   private chunksNoop = 0;
   private chunksPruned = 0;
   private reExtracted = 0;
+  private skipped = 0;
   private readonly failed: { documentId: DocumentId; error: string }[] = [];
 
   addDocument(): void {
     this.documents += 1;
+  }
+  addSkipped(): void {
+    this.skipped += 1;
   }
   addCounts(counts: DocCounts): void {
     this.chunksUpserted += counts.chunksUpserted;
@@ -84,6 +90,7 @@ class IngestAccumulator {
       chunksNoop: this.chunksNoop,
       chunksPruned: this.chunksPruned,
       reExtracted: this.reExtracted,
+      skipped: this.skipped,
       failed: this.failed,
     };
   }
@@ -151,6 +158,28 @@ async function maybeReExtract(ctx: DatabankContext, doc: LoadedDocument, acc: In
   return { ...doc, extractedText: extracted.text, extractorVersion: extracted.meta.extractorVersion, updatedAt: at };
 }
 
+/** The document a pass works on, or `undefined` when the pass was cancelled or the row is gone. A disabled owner's
+ *  document is skipped and counted: nothing is spent on that account, as for a departed one. Its chunks stay as
+ *  they were, so the first pass after a re-enable embeds what the document is missing. */
+async function admitDocument(
+  ctx: DatabankContext,
+  { documentId, signal, acc, ownerEnabled }: Pick<RunDocumentArgs, "documentId" | "signal" | "acc" | "ownerEnabled">,
+): Promise<LoadedDocument | undefined> {
+  if (isAborted(signal)) {
+    return undefined;
+  }
+  const doc = await loadDocument(ctx.db, documentId);
+  if (isAborted(signal) || doc === undefined) {
+    // A document deleted between enqueue and dispatch — no work, no failure (its chunks CASCADEd away).
+    return undefined;
+  }
+  if (!(await ownerEnabled(doc.ownerId))) {
+    acc.addSkipped();
+    return undefined;
+  }
+  return doc;
+}
+
 /** Resolve the document id set a reindex covers. `document` scope → the one id (owner-checked when scoped);
  *  `owner` scope → every id of the owner, or box-wide for the null-owner bulk sweep. */
 async function resolveReindexIds(ctx: DatabankContext, ownerId: UserId | null, scope: ReindexScope): Promise<DocumentId[]> {
@@ -179,13 +208,15 @@ function announceIngest(ctx: DatabankContext, touchedOwners: ReadonlySet<UserId>
 
 export function createDatabankIngest(input: DbAssemblyInput<DatabankContext>): DatabankIngest {
   const ctx: DatabankContext = { ...input, db: databaseForOwner(input.db) };
-  const runDocument = async ({ documentId, mode, signal, acc, touchedOwners }: RunDocumentArgs): Promise<void> => {
-    if (isAborted(signal)) {
-      return;
-    }
-    const doc = await loadDocument(ctx.db, documentId);
-    if (isAborted(signal) || doc === undefined) {
-      // A document deleted between enqueue and dispatch — no work, no failure (its chunks CASCADEd away).
+  // One enabled read per owner per pass, however many of their documents it covers.
+  const enabledReads = (): RunDocumentArgs["ownerEnabled"] => {
+    const owners = new Map<UserId, Promise<boolean>>();
+    return (ownerId) => owners.getOrInsertComputed(ownerId, () => ctx.resolveUserEnabled(ownerId));
+  };
+  const runDocument = async (args: RunDocumentArgs): Promise<void> => {
+    const { documentId, mode, signal, acc, touchedOwners } = args;
+    const doc = await admitDocument(ctx, args);
+    if (doc === undefined) {
       return;
     }
     acc.addDocument();
@@ -210,7 +241,7 @@ export function createDatabankIngest(input: DbAssemblyInput<DatabankContext>): D
       const acc = new IngestAccumulator();
       const touchedOwners = new Set<UserId>();
       try {
-        await runDocument({ documentId, mode: "chunk-embed", signal, acc, touchedOwners });
+        await runDocument({ documentId, mode: "chunk-embed", signal, acc, touchedOwners, ownerEnabled: enabledReads() });
         return acc.result();
       } finally {
         announceIngest(ctx, touchedOwners);
@@ -222,13 +253,14 @@ export function createDatabankIngest(input: DbAssemblyInput<DatabankContext>): D
       // the owners whose documents it already re-embedded (an abort mid-pass would otherwise leave half-new
       // chunk counts on every device until something unrelated moved).
       const touchedOwners = new Set<UserId>();
+      const ownerEnabled = enabledReads();
       try {
         const ids = await resolveReindexIds(ctx, ownerId, scope);
         for (const [index, id] of ids.entries()) {
           if (isAborted(signal)) {
             break;
           }
-          await runDocument({ documentId: id, mode, signal, acc, touchedOwners });
+          await runDocument({ documentId: id, mode, signal, acc, touchedOwners, ownerEnabled });
           onProgress?.(index + 1, ids.length);
         }
         return acc.result();

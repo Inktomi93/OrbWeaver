@@ -7,9 +7,9 @@ refuseDirectInvocation(import.meta.url, "pnpm test-audit <verb>");
 
 /** A line or a range; an en dash reads as a hyphen. */
 const SPAN = String.raw`\d+(?:[-–]\d+)?`;
-/** A repository path under a source root, with optional lines right after it: `:12`, `:20-24`, or a list such as `:12, 15-18`. */
+/** A repository path under a source root, with optional lines right after it: `:12`, `:20-24`, or a list such as `:12, 15-18`. A list stays on its line: a number that opens the next line is prose. */
 const CITATION = new RegExp(
-  String.raw`((?:packages|tooling|scripts|tests)\/[\w./@[\]+-]*[\w\]-]\.(?:tsx?|mjs|cjs|js|css|json|sh|sql|html))(?::(${SPAN}(?:,\s*${SPAN})*))?`,
+  String.raw`((?:packages|tooling|scripts|tests)\/[\w./@[\]+-]*[\w\]-]\.(?:tsx?|mjs|cjs|js|css|json|sh|sql|html))(?::(${SPAN}(?:,[ \t]*${SPAN})*))?`,
   "gu",
 );
 const SPAN_BOUNDS = /(\d+)(?:[-–](\d+))?/u;

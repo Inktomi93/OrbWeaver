@@ -658,6 +658,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         userRuntimeDirs.remove(ownerId, tool);
       }
     },
+    providerWire: async (providerId, ownerId) =>
+      runtimeRef().providers.registry.get(providerId, ownerId)?.wire ?? (await ports.claimedProviderWire(providerId, ownerId)),
   });
 
   const runtime = await createInferenceRuntime({
@@ -1377,6 +1379,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     ...createVectorSweepOps({
       embeddings,
       listCorpusOwners: searchDiscovery.listCorpusOwners,
+      isAccountEnabled: createResolveUserEnabled(sessions),
       vacuousMemoryReceipt: searchDiscovery.vacuousMemoryReceipt,
     }),
     // The databank and memory sweeps settle on it the way the `index` sweep does.

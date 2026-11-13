@@ -361,7 +361,7 @@ async function computeOwnerTimeline(db: Db, ownerId: UserId, now: number, idSour
   return rows.length;
 }
 
-async function computeOwner(db: Db, ownerId: UserId, now: number, idSource: IdSource): Promise<{ charCount: number; bucketCount: number; modelCount: number }> {
+async function computeOwner(db: Db, ownerId: UserId, now: number, idSource: IdSource): Promise<{ charCount: number }> {
   const { a, meta } = await foldOwnerCanon(db, ownerId);
   ownerExtrema(a.owner, meta);
 
@@ -369,9 +369,5 @@ async function computeOwner(db: Db, ownerId: UserId, now: number, idSource: IdSo
   const ownedCharacters = (await db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, oid))).map((row) => row.id);
   const rows = buildOwnerRows({ ownerId: oid, ownedCharacterIds: ownedCharacters, idSource }, a, meta, now);
   await writeOwner(db, ownerId, rows);
-  return {
-    charCount: rows.charRows.length,
-    bucketCount: rows.bucketRows.length,
-    modelCount: rows.modelRows.length,
-  };
+  return { charCount: rows.charRows.length };
 }

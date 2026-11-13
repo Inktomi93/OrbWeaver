@@ -9,8 +9,16 @@ import { unzipSync, zipSync } from "fflate";
 import type { DiskSafeText, PrivateText } from "../contract/disk-safe-argv.ts";
 import { PRIVATE_MASK } from "../contract/disk-safe-argv.ts";
 
-/** Shorter text is replaced only where it is a whole string: a value like `a` would otherwise rewrite the evidence. */
-const SUBSTRING_MIN_CHARS = 4;
+/**
+ * How long a value of each kind must be to be replaced inside longer text; a shorter one is replaced only where it is
+ * a whole string, or a value like `a` would rewrite the evidence. A `secret` is typed by the operator or named as one
+ * (`token`, `password`). A `urlWord` comes from a URL pair named `key` or `code`, which often holds an ordinary word
+ * (`?key=home`), so only a value as long as a generated key or code is replaced inside page text.
+ */
+const SUBSTRING_MIN_CHARS = { secret: 4, urlWord: 16 } as const;
+
+/** What kind of private value a {@link privateText} holds, which sets how short it may be and still be scrubbed inside text. */
+export type PrivateValueKind = keyof typeof SUBSTRING_MIN_CHARS;
 const JSON_LINE_ENTRY = /\.(?:trace|network)$/u;
 const PIXEL_ENTRY = /\.(?:jpe?g|png|webp)$/u;
 const TRACE_SCRATCH_PREFIX = "orb-snap-trace-";
@@ -31,7 +39,7 @@ function spellingsOf(value: string): readonly string[] {
   return [value, json, jsonSpelling(json)].flatMap((text) => [text, encodeURI(text), encodeURIComponent(text), formSpelling(text)]);
 }
 
-function notePrivateValue(value: string): void {
+function notePrivateValue(value: string, kind: PrivateValueKind): void {
   if (value === "") {
     return;
   }
@@ -39,7 +47,7 @@ function notePrivateValue(value: string): void {
   for (const spelling of spellings) {
     wholeStrings.add(spelling);
   }
-  if (value.length >= SUBSTRING_MIN_CHARS) {
+  if (value.length >= SUBSTRING_MIN_CHARS[kind]) {
     // Longest first: a noted value inside a longer one would otherwise leave the longer one's tail behind.
     substrings = [...new Set([...substrings, ...spellings])].toSorted((left, right) => right.length - left.length);
   }
@@ -47,13 +55,15 @@ function notePrivateValue(value: string): void {
 
 class PrivateValue implements PrivateText {
   readonly #value: string;
+  readonly #kind: PrivateValueKind;
 
-  constructor(value: string) {
+  constructor(value: string, kind: PrivateValueKind) {
     this.#value = value;
+    this.#kind = kind;
   }
 
   reveal(): string {
-    notePrivateValue(this.#value);
+    notePrivateValue(this.#value, this.#kind);
     return this.#value;
   }
 
@@ -71,8 +81,8 @@ class PrivateValue implements PrivateText {
 }
 
 /** Hold a value an operator handed snap in private. The only mint of {@link PrivateText}. */
-export function privateText(value: string): PrivateText {
-  return new PrivateValue(value);
+export function privateText(value: string, kind: PrivateValueKind = "secret"): PrivateText {
+  return new PrivateValue(value, kind);
 }
 
 /** Replace every revealed private value in text read back from a page. The only mint of {@link DiskSafeText}. */

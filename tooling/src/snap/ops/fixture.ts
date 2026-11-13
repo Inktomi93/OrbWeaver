@@ -21,6 +21,7 @@
 // fixture actually seeds) is a loud refusal, never a guess.
 
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
 import { httpJsonSync, httpOkSync } from "../../floor/http/http-probe.ts";
 import { SESSION_COOKIE_MINTED } from "../../floor/http/session-cookie.ts";
@@ -28,7 +29,7 @@ import { readMember } from "../../floor/instrument/member.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
-import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
+import { diskSafeUrl, urlCarriesCredentials } from "../lib/disk-safe-argv.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -46,13 +47,27 @@ function stripSlash(url: string): string {
   return url.replace(TRAILING_SLASH_RE, "");
 }
 
+const FIXTURE_SERVER_URL_ENV = "SNAP_FIXTURE_SERVER_URL";
+const FIXTURE_BASE_URL_ENV = "SNAP_FIXTURE_BASE_URL";
+
+// The credential door the `--fixture-*` flags pass at parse time, applied to their env fallbacks: a fixture origin takes
+// no userinfo, which would reach the health probe's URL and the browser's navigation. The refusal names the variable and
+// quotes none of its value, which is the credential.
+function fixtureEnvUrl(env: Record<string, string | undefined>, name: string): string | undefined {
+  const value = env[name];
+  if (value !== undefined && urlCarriesCredentials(value)) {
+    throw new UsageError(`${name} carries user:password credentials. A fixture origin takes no credentials: set it without them`);
+  }
+  return value;
+}
+
 /** Resolve the fixture's two origins: explicit override \> env (SNAP_FIXTURE_SERVER_URL /
  *  SNAP_FIXTURE_BASE_URL) \> the offset-pair defaults. Pure apart from the env read (injectable for tests).
  *  An unparseable server URL falls back to the default port for the refusal lines rather than throwing —
  *  the health probe below will refuse loudly on the same URL anyway, with a reason a human can act on. */
 export function resolveFixtureTarget(override: FixtureTargetOverride = {}, env: Record<string, string | undefined> = inheritedProcessEnv()): FixtureTarget {
-  const serverUrl = stripSlash(override.serverUrl ?? env["SNAP_FIXTURE_SERVER_URL"] ?? FIXTURE_SERVER_URL_DEFAULT);
-  const baseUrl = stripSlash(override.baseUrl ?? env["SNAP_FIXTURE_BASE_URL"] ?? FIXTURE_BASE_URL_DEFAULT);
+  const serverUrl = stripSlash(override.serverUrl ?? fixtureEnvUrl(env, FIXTURE_SERVER_URL_ENV) ?? FIXTURE_SERVER_URL_DEFAULT);
+  const baseUrl = stripSlash(override.baseUrl ?? fixtureEnvUrl(env, FIXTURE_BASE_URL_ENV) ?? FIXTURE_BASE_URL_DEFAULT);
   let serverPort = FIXTURE_PORTS.server;
   // a URL that does not parse keeps the default port; fixtureStatus then probes the same URL, the probe child's fetch fails, httpOkSync is false and fixtureVerdict returns { up: false, reason } which contexts.ts prints through fixtureRefusalLine. Ends if fixtureVerdict stops refusing on an unanswered healthz.
   try {

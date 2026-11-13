@@ -8,8 +8,9 @@ import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
+import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import type { WireOf } from "../scenario-physical.ts";
-import { openingOf, openingText, textRoom, wireOf, wireText } from "../scenario-physical.ts";
+import { openingOf, openingText, quietOf, textRoom, wireOf, wireText } from "../scenario-physical.ts";
 
 test("saved custom stopping strings reach the actual native stop set on a declared stop-capable endpoint", async () => {
   await using h = await textRoom(["The response ends here."]);
@@ -189,8 +190,12 @@ test.for([
 const REWRITE_TARGET = "The lantern gutters as the stranger steps inside.";
 const REWRITE_STEER = "make it terse";
 
+type SwipeGuided = NonNullable<Parameters<ChatRoot["root"]["services"]["chat"]["swipe"]>[0]["guided"]>;
+
 /** Swipe the room's seeded reply, steered or not, and return the one provider request with the outcome's replies. */
-async function swipeSeededReply(guided: boolean): Promise<{ readonly body: JsonValue; readonly wire: string; readonly replies: readonly string[] }> {
+async function swipeSeededReply(
+  guided: SwipeGuided | undefined,
+): Promise<{ readonly body: JsonValue; readonly wire: string; readonly replies: readonly string[] }> {
   await using h = await textRoom(["The lantern flares."], {
     transcript: [
       { role: "user", content: "hello" },
@@ -206,7 +211,7 @@ async function swipeSeededReply(guided: boolean): Promise<{ readonly body: JsonV
       principal: h.owner,
       chatId: h.chatId,
       messageId: prior.id,
-      ...(guided ? { guided: { action: "rewrite", input: REWRITE_STEER } } : {}),
+      ...(guided !== undefined ? { guided } : {}),
     }),
   );
   expect(bodies).toHaveLength(1);
@@ -214,7 +219,7 @@ async function swipeSeededReply(guided: boolean): Promise<{ readonly body: JsonV
 }
 
 test("a guided rewrite sends the reply it rewrites, then its instruction as the closing user turn", async () => {
-  const { body, replies } = await swipeSeededReply(true);
+  const { body, replies } = await swipeSeededReply({ action: "rewrite", input: REWRITE_STEER });
   expect(replies).toEqual(["The lantern flares."]);
   if (body === null || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body["messages"])) {
     throw new Error("the actual native rewrite request has no messages");
@@ -227,10 +232,47 @@ test("a guided rewrite sends the reply it rewrites, then its instruction as the 
 });
 
 test("an unguided swipe of the same reply regenerates from the context before it", async () => {
-  const { wire, replies } = await swipeSeededReply(false);
+  const { wire, replies } = await swipeSeededReply(undefined);
   expect(replies).toEqual(["The lantern flares."]);
   expect(wire).toContain("hello");
   expect(wire).not.toContain(REWRITE_TARGET);
+});
+
+test("a guided swipe that is not a rewrite carries its steer but leaves the reply it replaces out", async () => {
+  const { wire, replies } = await swipeSeededReply({ action: "response", input: REWRITE_STEER });
+  expect(replies).toEqual(["The lantern flares."]);
+  expect(wire).toContain(REWRITE_STEER);
+  expect(wire).not.toContain(REWRITE_TARGET);
+});
+
+test.for([
+  { title: "no steer at all", guided: { action: "rewrite" } },
+  { title: "a blank steer", guided: { action: "rewrite", input: "  \n " } },
+  { title: "an empty toggle list", guided: { action: "rewrite", rewriteToggles: [] } },
+] satisfies readonly { readonly title: string; readonly guided: SwipeGuided }[])(
+  "a rewrite swipe with $title is refused before any request is sent",
+  async ({ guided }) => {
+    await using h = await textRoom([], {
+      transcript: [
+        { role: "user", content: "hello" },
+        { role: "assistant", content: REWRITE_TARGET },
+      ],
+    });
+    const prior = (await readRoomCanon(h.root, h.owner, h.chatId)).findLast(({ role }) => role === "assistant");
+    if (prior === undefined) {
+      throw new Error("the rewrite transcript wrote no prior reply");
+    }
+    await quietOf(h, () =>
+      expect(h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: prior.id, guided })).rejects.toMatchObject({
+        code: CHAT_OP_CODES.emptyRewriteSteer,
+      }),
+    );
+  },
+);
+
+test("a rewrite swipe steered only by a picked toggle is not refused", async () => {
+  const { replies } = await swipeSeededReply({ action: "rewrite", rewriteToggles: ["concise"] });
+  expect(replies).toEqual(["The lantern flares."]);
 });
 
 const NORMAL_MARK = "NORMAL-TRIGGER-SECTION";

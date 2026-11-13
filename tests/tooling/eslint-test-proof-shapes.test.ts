@@ -15,6 +15,7 @@ const ALIAS = "orb/owned-root-alias";
 const SUITE = "tests/server/domain/probe/probe.int.test.ts";
 const TOOL_SUITE = "tests/tooling/snap/probe.test.ts";
 const SPEC = "tests/client/features/probe/probe.ct.tsx";
+const E2E_SPEC = "tests/e2e/probe.spec.ts";
 const TOOL_SOURCE = "tooling/src/snap/lib/probe.ts";
 const ADAPTER = "tooling/src/floor/host/platform.ts";
 const MINT = "tooling/src/snap/ops/session.ts";
@@ -109,14 +110,22 @@ test.for([
   ["another role", 'page.getByRole("status").first();', 0],
   ["a scoped alert read whole", 'list.getByRole("alert");\nlist.locator(\'[role="alert"]:not([data-before-retry])\');', 0],
 ] as const)("a first-alert read: %s", CONFIG_LOAD, async ([, source, expected], { repoRoot }) => {
-  expect(await count(repoRoot, SYNTAX, source, SPEC)).toBe(expected);
+  for (const path of [SPEC, E2E_SPEC]) {
+    expect(await count(repoRoot, SYNTAX, source, path), path).toBe(expected);
+  }
 });
 
 test.for([
   ["a cast of a literal", "export const a = {} as AppliedLoadEmulation;", 1],
   ["a cast through unknown", "export const b = value as unknown as AppliedLoadEmulation;", 1],
   ["an angle-bracket assertion", "export const c = <AppliedLoadEmulation>value;", 1],
+  ["a qualified name", "export const e = value as loadEmulation.AppliedLoadEmulation;", 1],
+  ["an import type", 'export const f = value as import("../contract/load-emulation.ts").AppliedLoadEmulation;', 1],
+  ["a local alias of the brand", "type Mint = AppliedLoadEmulation;\nexport const g = {} as Mint;", 1],
+  ["an import renamed to hide the brand", 'import type { AppliedLoadEmulation as Mint } from "../contract/load-emulation.ts";', 1],
+  ["an import under its own name", 'import type { AppliedLoadEmulation } from "../contract/load-emulation.ts";', 0],
   ["another type", "export const d = value as DriveBudgets;", 0],
+  ["another type behind a qualified name", "export const h = value as loadEmulation.DriveBudgets;", 0],
 ] as const)("a forged load emulation: %s", CONFIG_LOAD, async ([, source, expected], { repoRoot }) => {
   for (const path of [TOOL_SOURCE, TOOL_SUITE, ADAPTER]) {
     expect(await count(repoRoot, SYNTAX, source, path), path).toBe(expected);

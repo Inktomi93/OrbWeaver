@@ -20,7 +20,7 @@
 // verifiable offline; the floor is deliberately conservative — it only refuses assets that are degenerate
 // under any plausible reading, and it is one tunable constant here if that judgement ever needs to move.)
 
-import { sniffImageBytes } from "@orb/kit/image-sniff";
+import { isCompleteImage, sniffImageBytes } from "@orb/kit/image-sniff";
 import type { ImageAdmissionVerdict } from "../contract/results.ts";
 
 // The admission floor: an asset whose shorter edge is under this many pixels is refused before caption+embed
@@ -30,17 +30,18 @@ const MIN_IMAGE_EDGE_PX = 16;
 /**
  * Decide whether `bytes` fall below the image admission floor. `belowFloor` is `true` ONLY when the header
  * yields BOTH dimensions and the shorter one is `< MIN_IMAGE_EDGE_PX`. An unparseable header (either
- * dimension `null`) is NOT below-floor — the floor is a dimension gate, not a decode gate, so
- * such an asset proceeds to embed exactly as before. The returned `width`/`height` are the sniffed values
- * (or `null`), for the skip-record's attribution.
+ * dimension `null`) is NOT below-floor — the floor is a dimension gate, not a decode gate. Whether the file
+ * is whole is a separate fact, `complete`, which the indexer refuses on before the floor is asked. The
+ * returned `width`/`height` are the sniffed values (or `null`), for the skip-record's attribution.
  */
 export function imageBelowFloor(bytes: Uint8Array): ImageAdmissionVerdict {
   const sniffed = sniffImageBytes(bytes);
   const recognized = sniffed !== null;
+  const complete = isCompleteImage(bytes);
   const width = sniffed?.width ?? null;
   const height = sniffed?.height ?? null;
   if (width === null || height === null) {
-    return { recognized, belowFloor: false, width, height };
+    return { recognized, complete, belowFloor: false, width, height };
   }
-  return { recognized, belowFloor: Math.min(width, height) < MIN_IMAGE_EDGE_PX, width, height };
+  return { recognized, complete, belowFloor: Math.min(width, height) < MIN_IMAGE_EDGE_PX, width, height };
 }

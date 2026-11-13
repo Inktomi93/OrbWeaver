@@ -18,6 +18,7 @@ import type {
   WriteHubScoresOp,
 } from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent, DomainEvent } from "@orb/contracts/events";
+import type { ResolveUserEnabled } from "@orb/contracts/identity";
 import type { ResolveUtilityPresetParams } from "@orb/contracts/preset";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClientsFor } from "@orb/contracts/role-clients";
@@ -143,6 +144,8 @@ export interface EmbeddingsContext {
   /** The entity OWNER by id (the sweeps' funder read; the indexer context carries the same pair). */
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
   readonly loadAssetOwner: AssetEmbeddingReads["loadAssetOwner"];
+  /** The sessions enabled read. A sweep row embeds on its owner's encoder, so a disabled owner's rows are skipped. */
+  readonly isAccountEnabled: ResolveUserEnabled;
   /** The chat's PRESENT host (chat's own read), `null` for a hostless room: the funder whose generation a
    *  memory prune pins. */
   readonly loadChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;

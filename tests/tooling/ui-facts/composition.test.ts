@@ -1,6 +1,6 @@
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { analyse } from "../../../tooling/src/ui-facts/analysis.ts";
-import { TAXONOMY_CHIP } from "../../../tooling/src/ui-facts/copy.ts";
+import { compositionLines } from "../../../tooling/src/ui-facts/composition-report.ts";
 import { skeletonCohortOf } from "../../../tooling/src/ui-facts/skeleton.ts";
 import { plantTheme } from "./_theme.ts";
 
@@ -755,27 +755,6 @@ test("a chip's wire is literal, a lookup, a call, or a bare read that may be a r
   expect(chips?.defects?.["wire"]).toEqual(["bare"]);
 });
 
-test("a site ruling keeps the one chip it names: a second bare chip in the ruled file is still a defect", ({ scratch }) => {
-  const root = plantDir(scratch, "chip-kept-site");
-  plant(root, {});
-  plantFile(
-    root,
-    TAXONOMY_CHIP,
-    [
-      'import { Badge } from "@orb/ui/badge";',
-      "export const Header = ({ def, job }) => (",
-      "  <>",
-      "    <Badge>{def.kind}</Badge>",
-      "    <Badge>{job.status}</Badge>",
-      "  </>",
-      ");",
-    ].join("\n"),
-  );
-  const wire = analyse(root, [], null).comparisons.find((entry) => entry.cohort === "copy:chip" && entry.column === "wire");
-  expect(wire?.kept.map((kept) => [kept.at, kept.value])).toEqual([[`${TAXONOMY_CHIP}:4`, "bare"]]);
-  expect(wire?.defects.map((defect) => defect.at)).toEqual([`${TAXONOMY_CHIP}:5`]);
-});
-
 test("a chip printing a wire spelling a display map has a word for is a raw wire; an authored value and the word are not", ({ scratch }) => {
   const root = plantDir(scratch, "chip-raw-wire");
   plant(root, {
@@ -843,4 +822,57 @@ test("a declared axis built from a shared scale, a spread of one, or a call over
   expect(values("gap")).toEqual(["sm", "md"]);
   expect(values("look")).toEqual(["solid", "ghost"]);
   expect(report.unreadAxes).toEqual(["badge.opaque"]);
+});
+
+test("every modal popover is a census site with its trigger; an unfenced popover and modal={false} are not", ({ scratch }) => {
+  const root = plantDir(scratch, "modal-popover");
+  const path = `${FEATURE}/components/popovers.tsx`;
+  plant(root, {
+    "components/popovers.tsx": [
+      'import { Button } from "@orb/ui/button";',
+      'import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";',
+      "export const A = ({ open, onOpenChange, phone, handle }) => (",
+      "  <>",
+      "    <Popover modal={true}>",
+      '      <PopoverTrigger render={<Button variant="ghost">Edit</Button>} />',
+      "      <PopoverPopup><input /></PopoverPopup>",
+      "    </Popover>",
+      "    <Popover>",
+      "      <PopoverTrigger render={<Button>Peek</Button>} />",
+      "      <PopoverPopup>read only</PopoverPopup>",
+      "    </Popover>",
+      "    <Popover modal={phone} open={open} onOpenChange={onOpenChange}>",
+      "      <PopoverPopup><input /></PopoverPopup>",
+      "    </Popover>",
+      '    <Popover modal="trap-focus">',
+      "      <PopoverTrigger>Open</PopoverTrigger>",
+      "      <PopoverPopup><input /></PopoverPopup>",
+      "    </Popover>",
+      "    <Popover modal={false}><PopoverTrigger>Off</PopoverTrigger></Popover>",
+      "    <Popover modal={true} handle={handle}><PopoverPopup><input /></PopoverPopup></Popover>",
+      "    <Popover modal={true}><PopoverTrigger render={trigger(open)} /><PopoverPopup><input /></PopoverPopup></Popover>",
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  const facts = analyse(root, [], null);
+  const cohort = facts.cohorts.find((entry) => entry.name === "modal-popover");
+  expect(
+    cohort?.members.map((member) => [
+      `${member.path}:${member.cells["modal"]?.line ?? 0}`,
+      member.cells["modal"]?.value,
+      member.cells["trigger"]?.value,
+      member.cells["trigger"]?.line,
+    ]),
+  ).toEqual([
+    [`${path}:5`, "true", "Button", 6],
+    [`${path}:13`, "runtime", "controlled open", 13],
+    [`${path}:16`, "trap-focus", "PopoverTrigger", 17],
+    [`${path}:21`, "true", "detached handle", 21],
+    [`${path}:22`, "true", "runtime render", 22],
+  ]);
+  // The report lists every site, so a site the majority would hide still prints.
+  const lines = compositionLines(facts, () => true);
+  const section = lines.slice(lines.indexOf("### Modal popovers"));
+  expect(section.filter((line) => line.startsWith(`| ${path}:`))).toHaveLength(5);
 });

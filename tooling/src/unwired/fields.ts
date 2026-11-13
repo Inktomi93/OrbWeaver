@@ -624,6 +624,9 @@ function staging(
   return { rows: staged.rows.map(({ known: _known, neverWritten: _neverWritten, ...row }) => row), stage: staged.stage };
 }
 
+const MS_PER_SECOND = 1000;
+const seconds = (startedMs: number): string => `${((performance.now() - startedMs) / MS_PER_SECOND).toFixed(1)}s`;
+
 /** Run both engines over the worlds of `root` for dead data. */
 export function scanFields(options: ScanOptions): FieldsReport {
   const { worlds, testWorlds } = scanWorlds(options);
@@ -634,9 +637,11 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs));
   const facts: PropertyFacts[] = [];
   for (const config of configs) {
+    const started = performance.now();
     using world = NativeWorld.open(options.root, config);
-    options.log(`${config}: ${tallyWorld(tally, declared, world)} fields`);
+    const count = tallyWorld(tally, declared, world);
     facts.push(propertyFacts(world, homes.get(config)));
+    options.log(`${config}: ${count} fields in ${seconds(started)}`);
   }
   const references = joinFacts(facts);
   tallySites(tally, declared, references);
@@ -706,7 +711,9 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const control = rolled
     .filter(({ field }) => !reported.has(field.key) && isProduction(field.site.file))
     .sort((a, b) => a.field.key.localeCompare(b.field.key))[0]?.field;
+  const stagedAt = performance.now();
   const staged = staging(options.root, sources, findings, control);
+  options.log(`literal stage: ${seconds(stagedAt)}`);
   return {
     scanned: tally.size,
     ...sortDeliberate(staged.rows, options.deliberate),
