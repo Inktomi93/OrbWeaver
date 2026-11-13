@@ -26,6 +26,8 @@ This doc governs the shipped container: `Dockerfile`, `docker-compose.yaml` and 
 
 A reverse proxy, tunnel or CDN in front of the app must not add `Access-Control-Allow-*` response headers for the app, and must not answer a CORS preflight (`OPTIONS`) on its behalf. The tRPC mount's cross-site defence is that a JSON body, or the `x-orb-csrf` header every request outside POST carries, makes the browser send a preflight first, and the app grants none, so a proxy that grants it lets a cross-site page drive the app with the visitor's credential.
 
+The app cannot see what answers in front of it, so this check is the operator's duty. `docker/README.md` ("LAN and HTTPS") gives the command that sends a cross-site preflight to a deployment and names the safe answer. The app does not probe its own public address.
+
 ## The deployed surface
 
 Each row names the code that holds the control and the test that pins it.
