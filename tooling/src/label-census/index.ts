@@ -2,8 +2,13 @@
 // where production keeps that text (Spine-Testing §9, labels come from their production home).
 //
 // A site is a string, template, regex, concatenation or `new RegExp` passed as the text argument of a text locator
-// or assertion, as the `name`, `hasText` or `hasNotText` of a locator's options, as a `selectOption` label, or as the
-// value a name attribute is asserted to hold. A conditional or a `??` in that position is read arm by arm, so
+// or assertion, a page's `toHaveTitle` among them, as the `name`, `hasText` or `hasNotText` of a locator's options, as a `selectOption` label, or as the
+// value a name attribute is asserted to hold, or as the value a text read (`textContent`, `innerText`, their `all…`
+// forms, or a name attribute's `getAttribute`, through any trim or case change) is compared with by `toBe`, `toEqual`,
+// `toStrictEqual`, `toContain`, `toMatch`, `===`, `!==`, `==` or `!=`. A selector string a `locator`, `waitForSelector`
+// or DOM query call takes yields one site per name it spells: a `text=` engine value, a `:has-text`, `:text` or
+// `:text-is` argument, or the value of a name attribute selector. A `toMatchAriaSnapshot` snapshot yields one site per
+// node name and per text content. A conditional or a `??` in that position is read arm by arm, so
 // `isMobile ? { name: "You" } : { name: "Me" }` is two sites. A constant the spec declares, a member of a local object
 // or list, a `for…of` variable over a local list and a constant imported from a test file, by a relative path or
 // through an `@orb/testkit` entry and its `export *` and `export { … } from` re-exports, are followed to their
@@ -12,8 +17,29 @@
 // whose plain parameter reaches a name position, makes each literal passed for it a site at the call; a destructured
 // parameter, a method on an object and a callback a helper receives are not followed.
 //
-// A text a story the spec mounts authors is that story's. A text several production files hold is filed under the one
-// in the spec's own feature, then one in a feature the spec imports from, then the first in path order.
+// A selector or snapshot placeholder that resolves to one spec literal is read as that literal: a name the literal
+// spells inside itself, or that is the literal whole, counts where the literal is written, and a name the literal is
+// part of counts at the string, filled in. So a selector constant composed into a template still counts.
+//
+// Not read, each because no sound reading exists: a placeholder that resolves to no one spec literal, such as a
+// production name or a call, leaves its name a binding; a helper parameter that reaches only a selector or snapshot
+// reaches it inside a template, which the census does not evaluate; a `text=/…/` selector engine is a regex in a
+// string, with no fixed boundary between pattern and text; an XPath selector is a second grammar the census does not
+// parse; `includes`, `startsWith` or `endsWith` on a text read tests a fragment, and the classes judge whole names; a
+// field's value (`fill`, `toHaveValue`, `inputValue`) is data, not a name; a literal passed to a production label
+// function is that function's subject, not a name; and `aria-roledescription`, `aria-valuetext` and the fields of an
+// `accessibility.snapshot()` result describe a role or a value, not the name the classes judge.
+//
+// Beside the sites, the census lists oracle candidates: a call to a production label function whose name varies,
+// written where an assertion reads a name (a matcher's name argument, a compared text read, or a locator's name or
+// text filter inside the `expect` subject, directly or through a spec constant), or in a spec constant one of those
+// reads. `branching` functions return text and branch or return text more than once; `template` functions return one
+// template that splices in an argument. Each row is a candidate for a reader to judge, not a verdict: a locator that
+// finds a control by such a name is listed too. The function is matched by its exported name.
+//
+// A text, or a template whose every fixed word a story the spec mounts writes, is that story's. A text several
+// production files hold is filed under the one in the spec's own feature, then one in a feature the spec imports
+// from, then the first in path order.
 //
 // The class is a judgement on text alone, so `exported` means "a production .ts module exports this exact string and
 // no other production file spells it", not "the component under test renders that export". A rewrite still reads
@@ -36,21 +62,49 @@ const TEXT_CALLS = new Set([
   "toContainText",
   "toHaveAccessibleName",
   "toHaveAccessibleDescription",
+  "toHaveTitle",
 ]);
 const LOCATOR_OPTION_KEYS: ReadonlySet<string> = new Set(["name", "hasText", "hasNotText"]);
 /** The calls whose options object carries a name or text filter, and the keys that hold it. */
 const OPTION_CALLS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
-  ...["getByRole", "filter", "locator", "getByLabel", "getByText", "getByTestId"].map((call) => [call, LOCATOR_OPTION_KEYS] as const),
+  ...["getByRole", "filter", "locator"].map((call) => [call, LOCATOR_OPTION_KEYS] as const),
   ["selectOption", new Set(["label"])],
 ]);
 /** The attributes whose asserted value is a name or visible text: `toHaveAttribute(<attribute>, <text>)`. */
 const NAME_ATTRIBUTES = new Set(["aria-label", "aria-description", "title", "placeholder", "alt"]);
+// The reads whose result is an element's text, and the string methods a spec shapes that text with before comparing.
+const TEXT_READS = new Set(["textContent", "innerText", "allTextContents", "allInnerTexts"]);
+const DOM_TEXT_PROPERTIES = new Set(["textContent", "innerText"]);
+const TEXT_SHAPERS = new Set(["trim", "trimStart", "trimEnd", "toLowerCase", "toUpperCase"]);
+const EXPECT_MODIFIERS = new Set(["not", "resolves"]);
+const COMPARE_MATCHERS = new Set(["toBe", "toEqual", "toStrictEqual", "toContain", "toMatch"]);
+const EQUALITY_TOKENS: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.EqualsEqualsEqualsToken,
+  ts.SyntaxKind.ExclamationEqualsEqualsToken,
+  ts.SyntaxKind.EqualsEqualsToken,
+  ts.SyntaxKind.ExclamationEqualsToken,
+]);
+// The calls whose first argument is a CSS or Playwright selector.
+const SELECTOR_CALLS = new Set(["locator", "waitForSelector", "$", "$$", "$eval", "$$eval", "querySelector", "querySelectorAll", "closest", "matches"]);
+const TEXT_PSEUDO = /:(has-text|text|text-is)\((["'])(.*?)\2\)/gu;
+const NAME_ATTRIBUTE_SELECTOR = /\[(aria-label|aria-description|title|placeholder|alt)\s*[~|^$*]?=\s*(["'])(.*?)\2\s*[is]?\]/gu;
+// A snapshot node `- button "Save"`, and its text content `- paragraph: Saved` or `- text: Saved`.
+const SNAPSHOT_NAME = /^[ \t]*-[ \t]+[a-z]+[ \t]+"((?:[^"\\]|\\.)*)"/gmu;
+const SNAPSHOT_CONTENT = /^[ \t]*-[ \t]+[a-z]+(?:[ \t]+"(?:[^"\\]|\\.)*")?(?:[ \t]+\[[^\]]*\])*:[ \t]+(\S.*)$/gmu;
+const HOLE = "\u0000";
+// Private-use characters that bracket a resolved placeholder's index inside a selector or snapshot string.
+const MARK_OPEN = "\uE000";
+const MARK_CLOSE = "\uE001";
+const MARKS = /\uE000(\d+)\uE001/gu;
+const WHOLE_MARK = /^\uE000(\d+)\uE001$/u;
 
 /** The trees the census reads, and the production roots it classifies against. */
 export const CENSUS_TEST_ROOTS = ["tests/client", "tests/e2e", "tests/ui"] as const;
 // Plain git pathspecs: `*` crosses directories, so one pattern also takes a file directly under the root.
 const PRODUCTION_GLOBS = ["packages/*/src/*.ts", "packages/*/src/*.tsx"] as const;
 const GUEST_ROOT = "packages/showcase-plugins/";
+// The packages that render a name; a server, contracts or content template writes logs, paths and queries.
+const RENDERER_ROOTS = ["packages/client/", "packages/ui/"] as const;
 // Guest bundles build their markup as one string, so the text between tags is read from the source text.
 const GUEST_GLOBS = ["packages/showcase-plugins/bundles/*.ts"] as const;
 const MARKUP_TEXT = />([^<>{}$]+)</gu;
@@ -78,7 +132,11 @@ const GIT_LIST_MAX_BUFFER = 67_108_864;
  * `inline-also-authored`: production spells it and a story or fixture authors it too.
  * `authored`: only a story, fixture or corpus file spells it.
  * `guest`: only guest plugin markup spells it.
- * `unresolved`: no production or test file spells it.
+ * `composed`: no file spells it whole, and an untagged `packages/client` or `packages/ui` template with at least six
+ *   fixed letters fits it in order around filled holes, as `Back to ${label}` composes "Back to Chats". A fit names
+ *   candidates, not the renderer: a hole takes any text, so `Remove ${name}` fits every text after "Remove ", and
+ *   a template that only builds a key or a class name counts as much as one that renders.
+ * `unresolved`: no production or test file spells it, and no production template composes it.
  * `unresolved-template`: no production file spells every fixed word, or its only words are short ones several files spell.
  * `no-words`: a computed name with no fixed word in it.
  * `non-word`: a literal with fewer than two letters in a row, such as a count.
@@ -92,12 +150,17 @@ export const CENSUS_CLASSES = [
   "inline-also-authored",
   "authored",
   "guest",
+  "composed",
   "unresolved",
   "unresolved-template",
   "no-words",
   "non-word",
 ] as const;
 export type CensusClass = (typeof CENSUS_CLASSES)[number];
+
+/** How an oracle candidate's label function varies: by a branch, or by the value one template splices in. */
+export const ORACLE_KINDS = ["branching", "template"] as const;
+export type OracleKind = (typeof ORACLE_KINDS)[number];
 
 export interface CensusSource {
   readonly path: string;
@@ -110,6 +173,8 @@ export interface NameSite {
   readonly column: number;
   /** The site's source text, quotes included. */
   readonly text: string;
+  /** The name a selector or an aria snapshot spells inside the site's text, when the site is one of those. */
+  readonly value?: string;
 }
 
 export interface CensusRow extends NameSite {
@@ -185,8 +250,119 @@ function nameArguments(call: ts.CallExpression): ts.Expression[] {
   const text = TEXT_CALLS.has(name) ? call.arguments.slice(0, 1) : [];
   const keys = OPTION_CALLS.get(name);
   const options = keys === undefined ? [] : call.arguments.flatMap((argument) => optionValues(argument, keys));
-  return [...text, ...options, ...attributeValue(name, call)];
+  return [...text, ...options, ...attributeValue(name, call), ...comparedValues(call)];
 }
+
+const unwrapped = (node: ts.Expression): ts.Expression =>
+  ts.isParenthesizedExpression(node) || ts.isAwaitExpression(node) || ts.isNonNullExpression(node) || ts.isAsExpression(node)
+    ? unwrapped(node.expression)
+    : node;
+
+// A read of an element's text or name: `textContent()`, `allTextContents()`, `getAttribute("aria-label")`, a DOM node's
+// `textContent`, each through any `trim` or case change.
+function readsText(node: ts.Expression): boolean {
+  const read = unwrapped(node);
+  if (ts.isPropertyAccessExpression(read)) {
+    return DOM_TEXT_PROPERTIES.has(read.name.text);
+  }
+  if (!(ts.isCallExpression(read) && ts.isPropertyAccessExpression(read.expression))) {
+    return false;
+  }
+  const method = read.expression.name.text;
+  if (TEXT_SHAPERS.has(method)) {
+    return readsText(read.expression.expression);
+  }
+  const [attribute] = read.arguments;
+  return (
+    TEXT_READS.has(method) || (method === "getAttribute" && attribute !== undefined && ts.isStringLiteralLike(attribute) && NAME_ATTRIBUTES.has(attribute.text))
+  );
+}
+
+// What an `expect` chain asserts on: `expect(x)`, `expect.soft(x)`, the value `expect.poll(() => x)` reads, through any
+// `.not` or `.resolves`; a `.rejects` matcher reads the rejection, not the text. `undefined` when the call is no matcher of an `expect` chain.
+function expectSubject(call: ts.CallExpression): ts.Expression | undefined {
+  if (!ts.isPropertyAccessExpression(call.expression)) {
+    return undefined;
+  }
+  let receiver = call.expression.expression;
+  while (ts.isPropertyAccessExpression(receiver) && EXPECT_MODIFIERS.has(receiver.name.text)) {
+    receiver = receiver.expression;
+  }
+  if (!ts.isCallExpression(receiver)) {
+    return undefined;
+  }
+  const head = receiver.expression;
+  const [first] = receiver.arguments;
+  if (ts.isIdentifier(head) && head.text === "expect") {
+    return first;
+  }
+  if (!(ts.isPropertyAccessExpression(head) && ts.isIdentifier(head.expression) && head.expression.text === "expect")) {
+    return undefined;
+  }
+  if (head.name.text === "poll" && first !== undefined && (ts.isArrowFunction(first) || ts.isFunctionExpression(first))) {
+    return returnedValue(first);
+  }
+  return head.name.text === "soft" ? first : undefined;
+}
+
+// The one value a callback returns: its expression body, or a block whose only statement returns.
+function returnedValue(callback: ts.ArrowFunction | ts.FunctionExpression): ts.Expression | undefined {
+  if (!ts.isBlock(callback.body)) {
+    return callback.body;
+  }
+  const [only] = callback.body.statements;
+  return callback.body.statements.length === 1 && only !== undefined && ts.isReturnStatement(only) ? only.expression : undefined;
+}
+
+// The expected value of `expect(<text read>).toBe(<text>)` and its siblings.
+function comparedValues(call: ts.CallExpression): ts.Expression[] {
+  const subject = expectSubject(call);
+  const matcher = ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : "";
+  return subject !== undefined && COMPARE_MATCHERS.has(matcher) && readsText(subject) ? call.arguments.slice(0, 1) : [];
+}
+
+// The other side of `<text read> === <text>`, `!==`, `==` or `!=`.
+function equatedValue(node: ts.BinaryExpression): ts.Expression[] {
+  if (!EQUALITY_TOKENS.has(node.operatorToken.kind)) {
+    return [];
+  }
+  if (readsText(node.left)) {
+    return [node.right];
+  }
+  return readsText(node.right) ? [node.left] : [];
+}
+
+// The selector strings of one call: the first argument of `locator`, `waitForSelector`, `querySelector` and the rest.
+function selectorArguments(call: ts.CallExpression): ts.Expression[] {
+  const name = calleeName(call);
+  return name !== undefined && SELECTOR_CALLS.has(name) ? call.arguments.slice(0, 1) : [];
+}
+
+// The aria snapshot a `toMatchAriaSnapshot` matcher compares against.
+function snapshotArguments(call: ts.CallExpression): ts.Expression[] {
+  return calleeName(call) === "toMatchAriaSnapshot" && expectSubject(call) !== undefined ? call.arguments.slice(0, 1) : [];
+}
+
+/** The names a selector string spells: a `text=` engine value, a `:has-text`, `:text` or `:text-is` argument, and the value of a name attribute selector. */
+export function selectorValues(selector: string): string[] {
+  const engines = selector
+    .split(">>")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith("text=") && !part.startsWith("text=/"))
+    .map((part) => unquoted(part.slice("text=".length)));
+  const pseudo = [...selector.matchAll(TEXT_PSEUDO)].map(([, , , text = ""]) => text);
+  const attributes = [...selector.matchAll(NAME_ATTRIBUTE_SELECTOR)].map(([, , , text = ""]) => text);
+  return [...engines, ...pseudo, ...attributes].filter((value) => value !== "" && !value.includes(HOLE));
+}
+
+/** The names an aria snapshot spells: each node's quoted name and each `text:` or role-content value. */
+export function snapshotValues(snapshot: string): string[] {
+  const quoted = [...snapshot.matchAll(SNAPSHOT_NAME)].map(([, name = ""]) => name);
+  const content = [...snapshot.matchAll(SNAPSHOT_CONTENT)].map(([, text = ""]) => unquoted(text.trim())).filter((text) => !text.startsWith("/"));
+  return [...quoted, ...content].filter((value) => value !== "" && !value.includes(HOLE));
+}
+
+const unquoted = (text: string): string => /^(["'])(.*)\1$/u.exec(text)?.[2] ?? text;
 
 /** Reads a test file a spec imports; `undefined` when it is not a tracked test file. */
 export type TestFileReader = (path: string) => CensusSource | undefined;
@@ -278,6 +454,16 @@ function parsedTest(source: CensusSource, aliases: TestAliases): ParsedTest {
 interface Located {
   readonly at: ParsedTest;
   readonly node: ts.Expression;
+  /** Set when the node is a selector or snapshot and this is one name it spells. */
+  readonly value?: string;
+}
+
+// The plain name positions of a call or a comparison: a text locator, an option, an asserted attribute or text read.
+function plainPositions(node: ts.Node): ts.Expression[] {
+  if (ts.isCallExpression(node)) {
+    return nameArguments(node);
+  }
+  return ts.isBinaryExpression(node) ? equatedValue(node) : [];
 }
 
 // Resolves spec-local constants to the text they hold, so a literal reaches the census at its declaration.
@@ -285,9 +471,11 @@ class NameResolver {
   readonly #read: TestFileReader;
   readonly #aliases: TestAliases;
   readonly #parsed = new Map<string, ParsedTest | undefined>();
+  // Declarations and `path\nname` imports one top-level resolve has entered, so a cycle ends. Cleared after each
+  // top-level resolve: a constant a second position reads must resolve again, or a selector would lose its value.
   readonly #seen = new Set<ts.Node>();
-  // `path\nname` pairs already looked up, so an `export *` cycle ends.
   readonly #followed = new Set<string>();
+  #depth = 0;
   readonly #flowing = new Map<HelperFunction, ReadonlySet<number>>();
 
   constructor(read: TestFileReader, aliases: TestAliases) {
@@ -305,7 +493,16 @@ class NameResolver {
 
   // Every name expression an argument can hold: its arms, the elements of a list, and what a local constant declares.
   resolve(node: ts.Expression, at: ParsedTest): Located[] {
-    return arms(node).flatMap((arm) => this.#resolveArm(arm, at));
+    this.#depth += 1;
+    try {
+      return arms(node).flatMap((arm) => this.#resolveArm(arm, at));
+    } finally {
+      this.#depth -= 1;
+      if (this.#depth === 0) {
+        this.#seen.clear();
+        this.#followed.clear();
+      }
+    }
   }
 
   #resolveArm(arm: ts.Expression, at: ParsedTest): Located[] {
@@ -398,10 +595,9 @@ class NameResolver {
         .map((arm) => (ts.isIdentifier(arm) ? names.indexOf(arm.text) : -1))
         .filter((position) => position >= 0);
     const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node)) {
-        for (const position of [...nameArguments(node), ...this.helperArguments(node, at)].flatMap(positions)) {
-          flowing.add(position);
-        }
+      const reached = [...plainPositions(node), ...(ts.isCallExpression(node) ? this.helperArguments(node, at) : [])];
+      for (const position of reached.flatMap(positions)) {
+        flowing.add(position);
       }
       ts.forEachChild(node, visit);
     };
@@ -439,9 +635,61 @@ function memberKey(member: ts.PropertyAccessExpression | ts.ElementAccessExpress
   return ts.isStringLiteralLike(member.argumentExpression) ? member.argumentExpression.text : undefined;
 }
 
-function siteOf({ at, node }: Located): NameSite {
+function siteOf({ at, node, value }: Located): NameSite {
   const position = at.file.getLineAndCharacterOfPosition(node.getStart(at.file));
-  return { file: at.source.path, line: position.line + 1, column: position.character + 1, text: node.getText(at.file) };
+  const site = { file: at.source.path, line: position.line + 1, column: position.character + 1, text: node.getText(at.file) };
+  return value === undefined ? site : { ...site, value };
+}
+
+// A selector or snapshot's text with each placeholder that resolves to one spec literal marked by its index, and every
+// other placeholder as a HOLE, so a name spliced from a binding can be told apart.
+function markedText(node: ts.Expression, at: ParsedTest, resolver: NameResolver): { text: string; literals: Located[] } | undefined {
+  if (ts.isStringLiteralLike(node)) {
+    return { text: node.text, literals: [] };
+  }
+  if (!ts.isTemplateExpression(node)) {
+    return undefined;
+  }
+  const literals: Located[] = [];
+  const holes = node.templateSpans.map((span) => {
+    const [only, ...rest] = resolver.resolve(span.expression, at);
+    if (only === undefined || rest.length > 0 || !ts.isStringLiteralLike(only.node)) {
+      return HOLE;
+    }
+    literals.push(only);
+    return `${MARK_OPEN}${String(literals.length - 1)}${MARK_CLOSE}`;
+  });
+  return { text: [node.head.text, ...node.templateSpans.map((span, position) => `${holes[position] ?? HOLE}${span.literal.text}`)].join(""), literals };
+}
+
+// Each name a selector or snapshot string spells. A name that is one spec literal whole counts where that literal is
+// written, as a plain site; any other counts at the string, its marked placeholders filled in.
+function spelledValues(located: readonly Located[], read: (text: string) => string[], resolver: NameResolver): Located[] {
+  return located.flatMap((site) => {
+    const marked = markedText(site.node, site.at, resolver);
+    if (marked === undefined) {
+      return [];
+    }
+    const literalAt = (position: string | undefined): Located | undefined => marked.literals[Number(position)];
+    // A placeholder literal that is a selector fragment of its own spells its names inside itself.
+    const inside = marked.literals.flatMap((literal) =>
+      ts.isStringLiteralLike(literal.node) ? read(literal.node.text).map((value) => ({ ...literal, value })) : [],
+    );
+    return [
+      ...inside,
+      ...read(marked.text).map((value) => {
+        const whole = literalAt(WHOLE_MARK.exec(value)?.[1]);
+        if (whole !== undefined) {
+          return whole;
+        }
+        const filled = value.replaceAll(MARKS, (_, position: string) => {
+          const literal = literalAt(position)?.node;
+          return literal !== undefined && ts.isStringLiteralLike(literal) ? literal.text : HOLE;
+        });
+        return { ...site, value: filled };
+      }),
+    ];
+  });
 }
 
 /**
@@ -456,16 +704,21 @@ export function nameSites(source: CensusSource, read: TestFileReader = NO_TEST_F
     return [];
   }
   const found: Located[] = [];
+  const resolveAll = (expressions: readonly ts.Expression[]): Located[] => expressions.flatMap((expression) => resolver.resolve(expression, at));
   const visit = (node: ts.Node): void => {
+    found.push(...resolveAll([...plainPositions(node), ...(ts.isCallExpression(node) ? resolver.helperArguments(node, at) : [])]));
     if (ts.isCallExpression(node)) {
-      for (const argument of [...nameArguments(node), ...resolver.helperArguments(node, at)]) {
-        found.push(...resolver.resolve(argument, at));
-      }
+      found.push(
+        ...spelledValues(resolveAll(selectorArguments(node)), selectorValues, resolver),
+        ...spelledValues(resolveAll(snapshotArguments(node)), snapshotValues, resolver),
+      );
     }
     ts.forEachChild(node, visit);
   };
   visit(at.file);
-  const unique = new Map(found.map((located) => [`${located.at.source.path}\n${String(located.node.getStart(located.at.file))}`, located]));
+  const unique = new Map(
+    found.map((located) => [`${located.at.source.path}\n${String(located.node.getStart(located.at.file))}\n${located.value ?? ""}`, located]),
+  );
   return [...unique.values()].map(siteOf);
 }
 
@@ -477,6 +730,10 @@ export interface ProductionIndex {
   readonly spelled: ReadonlyMap<string, ReadonlySet<string>>;
   /** A template fragment without its edge spaces → the files whose templates hold it, for a computed name's fixed words. */
   readonly fragments: ReadonlyMap<string, ReadonlySet<string>>;
+  /** A production template's whole text as an anchored pattern, each hole any text, and the files that write it. */
+  readonly templates: readonly { readonly pattern: RegExp; readonly homes: ReadonlySet<string> }[];
+  /** An exported label function whose name varies → how it varies, and the files that export a function by that name. */
+  readonly labelFunctions: ReadonlyMap<string, { readonly kind: OracleKind; readonly homes: ReadonlySet<string> }>;
   readonly texts: readonly CensusSource[];
 }
 
@@ -539,13 +796,107 @@ function templateFragments(file: ts.SourceFile): string[] {
   return found.filter((value) => value !== "");
 }
 
+// Each untagged template a renderer file writes, as an anchored pattern source. A tagged template is a query or style,
+// not text. A template with fewer fixed letters than a short piece composes mostly from its holes, so `${n} ref${s}` or
+// `${slug}.png` would fit unrelated prose, and is left out.
+function templatePatterns(path: string, file: ts.SourceFile): string[] {
+  const found: string[] = [];
+  if (!RENDERER_ROOTS.some((root) => path.startsWith(root))) {
+    return found;
+  }
+  const visit = (node: ts.Node): void => {
+    if (ts.isTemplateExpression(node) && !ts.isTaggedTemplateExpression(node.parent)) {
+      const pieces = [node.head.text, ...node.templateSpans.map((span) => span.literal.text)];
+      if (pieces.join("").replaceAll(/[^A-Za-z]/gu, "").length >= MIN_SUBSTRING_PIECE) {
+        found.push(`^${pieces.map((piece) => RegExp.escape(piece)).join(".+")}$`);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return found;
+}
+
+const isFunctionLike = (node: ts.Node): node is HelperFunction => ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+
+const isText = (node: ts.Expression): boolean => arms(node).some((arm) => ts.isStringLiteralLike(arm) || ts.isTemplateExpression(arm));
+
+// How a label function's name varies: `branching` when it returns text and branches (a conditional, an `if` or a
+// `switch`) or returns text more than once; `template` when it returns one template that splices in a value and takes
+// an argument. A function nested in its body is its own function and is not read.
+function labelFunctionKind(fn: HelperFunction): OracleKind | undefined {
+  if (fn.body === undefined) {
+    return undefined;
+  }
+  const returned: ts.Expression[] = ts.isBlock(fn.body) ? [] : [fn.body];
+  const branches: ts.Node[] = [];
+  const visit = (node: ts.Node): void => {
+    if (isFunctionLike(node)) {
+      return;
+    }
+    if (ts.isReturnStatement(node) && node.expression !== undefined) {
+      returned.push(node.expression);
+    }
+    if (ts.isConditionalExpression(node) || ts.isIfStatement(node) || ts.isSwitchStatement(node)) {
+      branches.push(node);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(fn.body);
+  const texts = returned.filter(isText);
+  if (texts.length === 0) {
+    return undefined;
+  }
+  if (branches.length > 0 || texts.length > 1) {
+    return "branching";
+  }
+  return fn.parameters.length > 0 && texts.some((text) => arms(text).some((arm) => ts.isTemplateExpression(arm))) ? "template" : undefined;
+}
+
+// A module's exported label functions and how each one's name varies.
+function labelFunctions(file: ts.SourceFile): [string, OracleKind][] {
+  const kindOf = (name: string, fn: HelperFunction): [string, OracleKind][] => {
+    const kind = labelFunctionKind(fn);
+    return kind === undefined ? [] : [[name, kind]];
+  };
+  return file.statements.filter(hasExport).flatMap((statement) => {
+    if (ts.isFunctionDeclaration(statement)) {
+      return statement.name === undefined ? [] : kindOf(statement.name.text, statement);
+    }
+    if (!ts.isVariableStatement(statement)) {
+      return [];
+    }
+    return statement.declarationList.declarations.flatMap((declaration) => {
+      const named = declaredFunction(declaration);
+      return named === undefined ? [] : kindOf(...named);
+    });
+  });
+}
+
+function addLabelFunctions(functions: Map<string, { kind: OracleKind; homes: Set<string> }>, path: string, file: ts.SourceFile): void {
+  for (const [name, kind] of labelFunctions(file)) {
+    const known = functions.getOrInsertComputed(name, () => ({ kind, homes: new Set() }));
+    known.homes.add(path);
+    // Two exports sharing a name are matched as one; a branching one makes the name branching.
+    known.kind = known.kind === "branching" ? known.kind : kind;
+  }
+}
+
 /** Index production sources: what each `.ts` module exports, and where every string is spelled. */
 export function productionIndex(sources: readonly CensusSource[]): ProductionIndex {
   const exported = new Map<string, Set<string>>();
   const spelled = new Map<string, Set<string>>();
   const fragments = new Map<string, Set<string>>();
+  const templates = new Map<string, Set<string>>();
+  const functions = new Map<string, { kind: OracleKind; homes: Set<string> }>();
   for (const source of sources) {
     const file = parse(source);
+    if (!source.path.startsWith(GUEST_ROOT)) {
+      addLabelFunctions(functions, source.path, file);
+    }
+    for (const pattern of templatePatterns(source.path, file)) {
+      addTo(templates, pattern, source.path);
+    }
     for (const value of spellings(source, file)) {
       addTo(spelled, value, source.path);
     }
@@ -558,7 +909,14 @@ export function productionIndex(sources: readonly CensusSource[]): ProductionInd
       }
     }
   }
-  return { exported, spelled, fragments, texts: sources };
+  return {
+    exported,
+    spelled,
+    fragments,
+    templates: [...templates].map(([pattern, homes]) => ({ pattern: new RegExp(pattern, "su"), homes })),
+    labelFunctions: functions,
+    texts: sources,
+  };
 }
 
 /** The fixed words of a computed name: template text, regex text outside its operators, and concatenated strings. */
@@ -671,7 +1029,15 @@ function classifyLiteral(site: NameSite, value: string, index: ProductionIndex, 
   if (spelledIn.length > 0) {
     return { ...site, class: "guest", feature: testFeature(site.file), homes: spelledIn };
   }
-  return { ...site, class: evidence.authored.has(value) ? "authored" : "unresolved", feature: testFeature(site.file), homes: [] };
+  if (evidence.authored.has(value)) {
+    return { ...site, class: "authored", feature: testFeature(site.file), homes: [] };
+  }
+  const composers = sorted(index.templates.filter(({ pattern }) => pattern.test(value)).flatMap(({ homes }) => [...homes]));
+  if (composers.length > 0) {
+    const homes = [...new Set(composers)];
+    return { ...site, class: "composed", feature: preferredFeature(homes, site.file, evidence), homes };
+  }
+  return { ...site, class: "unresolved", feature: testFeature(site.file), homes: [] };
 }
 
 // The production files that spell a fixed word: as a whole string or trimmed template fragment, or, for a long word,
@@ -698,7 +1064,7 @@ function homesOfWords(words: readonly string[], index: ProductionIndex): string[
 
 /** Classify one site against the production index. */
 export function classifySite(site: NameSite, index: ProductionIndex, evidence: TestEvidence): CensusRow {
-  const value = literalValue(site.text);
+  const value = site.value ?? literalValue(site.text);
   if (value !== undefined) {
     return classifyLiteral(site, value, index, evidence);
   }
@@ -706,12 +1072,135 @@ export function classifySite(site: NameSite, index: ProductionIndex, evidence: T
   if (words.length === 0) {
     return { ...site, class: "no-words", feature: testFeature(site.file), homes: [] };
   }
+  const mounted = evidence.mounted?.get(site.file);
+  if (mounted !== undefined && words.every((word) => mounted.has(word))) {
+    return { ...site, class: "authored", feature: testFeature(site.file), homes: [] };
+  }
   const homes = homesOfWords(words, index);
   const ambiguous = homes.length > 1 && words.every((word) => word.length < MIN_SUBSTRING_PIECE);
   if (homes.length > 0 && !ambiguous) {
     return { ...site, class: "inline-template", feature: preferredFeature(homes, site.file, evidence), homes };
   }
   return { ...site, class: words.some((word) => evidence.authored.has(word)) ? "authored" : "unresolved-template", feature: testFeature(site.file), homes: [] };
+}
+
+const byPosition = <T extends NameSite>(rows: readonly T[]): T[] =>
+  rows.toSorted((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column);
+
+/** A call to a production label function whose name varies, written where an assertion reads a name: a candidate for a
+ *  reader to judge, not a verdict. */
+export interface OracleRow extends NameSite {
+  /** The function's exported name. */
+  readonly function: string;
+  readonly kind: OracleKind;
+  /** The production feature that exports it. */
+  readonly feature: string;
+  /** The production files that export a function by that name, sorted. */
+  readonly homes: readonly string[];
+}
+
+// local name → the name a production module exports, for each named import; a namespace import maps to "*".
+function productionImports(file: ts.SourceFile, path: string, aliases: TestAliases): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const statement of file.statements) {
+    if (!ts.isImportDeclaration(statement) || statement.importClause === undefined) {
+      continue;
+    }
+    const clause = statement.importClause;
+    // A relative path into `packages/` is a production module too.
+    const testModule = testModuleOf(statement.moduleSpecifier, path, aliases);
+    if (testModule !== undefined && !testModule.startsWith("packages/")) {
+      continue;
+    }
+    const bindings = clause.namedBindings;
+    if (bindings !== undefined && ts.isNamespaceImport(bindings)) {
+      found.set(bindings.name.text, "*");
+    }
+    for (const element of namedBindings(statement)) {
+      found.set(element.name.text, (element.propertyName ?? element.name).text);
+    }
+  }
+  return found;
+}
+
+// The production function a call names, through a named or a namespace import.
+function importedCallee(call: ts.CallExpression, imports: ReadonlyMap<string, string>): string | undefined {
+  const callee = call.expression;
+  if (ts.isIdentifier(callee)) {
+    const name = imports.get(callee.text);
+    return name === "*" ? undefined : name;
+  }
+  return ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && imports.get(callee.expression.text) === "*"
+    ? callee.name.text
+    : undefined;
+}
+
+// An identifier that names a value, not the member a property access reads.
+const isValueName = (node: ts.Node): node is ts.Identifier =>
+  ts.isIdentifier(node) && !(ts.isPropertyAccessExpression(node.parent) && node.parent.name === node);
+
+/**
+ * Every call to a production label function whose name varies, written where an assertion reads a name: the text of
+ * `toHaveText`, `toHaveAccessibleName` and their siblings, an asserted name attribute, the value a text read is compared
+ * with, or a name or text filter of a locator inside the `expect` subject, directly or through a spec constant the
+ * subject reads. A spec constant that holds such a call is followed to its declaration.
+ */
+export function oracleCalls(source: CensusSource, index: ProductionIndex, evidence: TestEvidence, aliases: TestAliases = new Map()): OracleRow[] {
+  const at = parsedTest(source, aliases);
+  const imports = productionImports(at.file, source.path, aliases);
+  const found = new Map<ts.CallExpression, { readonly name: string; readonly kind: OracleKind; readonly homes: ReadonlySet<string> }>();
+  const seen = new Set<ts.Node>();
+  const declaredValue = (node: ts.Node): ts.Expression | undefined => (isValueName(node) ? at.declared.get(node.text)?.initializer : undefined);
+  const collect = (node: ts.Node): void => {
+    if (seen.has(node)) {
+      return;
+    }
+    seen.add(node);
+    const value = declaredValue(node);
+    if (value !== undefined) {
+      collect(value);
+    }
+    const name = ts.isCallExpression(node) ? importedCallee(node, imports) : undefined;
+    const known = name === undefined ? undefined : index.labelFunctions.get(name);
+    if (name !== undefined && known !== undefined && ts.isCallExpression(node)) {
+      found.set(node, { name, ...known });
+    }
+    ts.forEachChild(node, collect);
+  };
+  const subjects = new Set<ts.Node>();
+  // The locators an `expect` subject builds, through the spec constants it reads: each one's name positions.
+  const collectSubject = (node: ts.Node): void => {
+    if (subjects.has(node)) {
+      return;
+    }
+    subjects.add(node);
+    const value = declaredValue(node);
+    if (value !== undefined) {
+      collectSubject(value);
+    }
+    if (ts.isCallExpression(node)) {
+      nameArguments(node).forEach(collect);
+    }
+    ts.forEachChild(node, collectSubject);
+  };
+  const visit = (node: ts.Node): void => {
+    const subject = ts.isCallExpression(node) ? expectSubject(node) : undefined;
+    if (subject !== undefined && ts.isCallExpression(node)) {
+      nameArguments(node).forEach(collect);
+      collectSubject(subject);
+    }
+    if (ts.isBinaryExpression(node)) {
+      equatedValue(node).forEach(collect);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(at.file);
+  return byPosition(
+    [...found].map(([call, { name, kind, homes: files }]) => {
+      const homes = sorted(files);
+      return { ...siteOf({ at, node: call }), function: name, kind, feature: preferredFeature(homes, source.path, evidence), homes };
+    }),
+  );
 }
 
 function trackedFiles(repoRoot: string, globs: readonly string[]): CensusSource[] {
@@ -741,13 +1230,19 @@ function mountedStrings(source: CensusSource, byPath: ReadonlyMap<string, Census
   return new Set(
     [...imported, ...named].flatMap((path) => {
       const story = byPath.get(path);
-      return story === undefined ? [] : [...fileStrings(story)];
+      return story === undefined ? [] : [...fileStrings(story), ...templateFragments(parse(story))];
     }),
   );
 }
 
-/** Run the census over the checkout's tracked files, sorted by file, line and column. */
-export function runCensus(repoRoot: string): CensusRow[] {
+/** The census of one checkout: the hand-written name sites, and the assertions that build their name with a label function. */
+export interface Census {
+  readonly rows: readonly CensusRow[];
+  readonly oracles: readonly OracleRow[];
+}
+
+/** Run the census over the checkout's tracked files, each list sorted by file, line and column. */
+export function runCensus(repoRoot: string): Census {
   const tests = trackedFiles(
     repoRoot,
     CENSUS_TEST_ROOTS.flatMap((root) => [`${root}/*.ts`, `${root}/*.tsx`]),
@@ -763,15 +1258,18 @@ export function runCensus(repoRoot: string): CensusRow[] {
   const read: TestFileReader = (path) => byPath.get(path);
   const aliases = testkitAliases(repoRoot);
   const sites = new Map(
-    tests.flatMap((source) => nameSites(source, read, aliases)).map((site) => [`${site.file}:${String(site.line)}:${String(site.column)}`, site]),
+    tests
+      .flatMap((source) => nameSites(source, read, aliases))
+      .map((site) => [`${site.file}:${String(site.line)}:${String(site.column)}\n${site.value ?? ""}`, site]),
   );
-  return [...sites.values()]
-    .map((site) => classifySite(site, index, evidence))
-    .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column);
+  return {
+    rows: byPosition([...sites.values()].map((site) => classifySite(site, index, evidence))),
+    oracles: byPosition(tests.flatMap((source) => oracleCalls(source, index, evidence, aliases))),
+  };
 }
 
 /** The rows whose feature starts with `prefix`. */
-export function inFeature(rows: readonly CensusRow[], prefix: string | undefined): CensusRow[] {
+export function inFeature<T extends { readonly feature: string }>(rows: readonly T[], prefix: string | undefined): T[] {
   return prefix === undefined ? [...rows] : rows.filter((row) => row.feature.startsWith(prefix));
 }
 
@@ -788,4 +1286,16 @@ export function formatCensus(rows: readonly CensusRow[]): string {
   const totals = present.map((cls) => String(rows.filter((row) => row.class === cls).length));
   lines.push(`total | ${totals.join(" | ")} | ${String(rows.length)} | ${String(new Set(rows.map((row) => row.file)).size)}`);
   return lines.join("\n");
+}
+
+/** A per-feature count of {@link OracleRow} calls: features by call count, then by name. */
+export function formatOracles(oracles: readonly OracleRow[]): string {
+  const counts = (group: readonly OracleRow[]): string =>
+    [...ORACLE_KINDS.map((kind) => group.filter((row) => row.kind === kind).length), group.length, new Set(group.map((row) => row.file)).size].join(" | ");
+  const ordered = [...Map.groupBy(oracles, (row) => row.feature)].sort(([a, x], [b, y]) => y.length - x.length || a.localeCompare(b));
+  return [
+    `feature | ${ORACLE_KINDS.join(" | ")} | oracle candidates | files`,
+    ...ordered.map(([feature, group]) => `${feature} | ${counts(group)}`),
+    `total | ${counts(oracles)}`,
+  ].join("\n");
 }

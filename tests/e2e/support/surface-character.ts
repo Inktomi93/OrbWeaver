@@ -11,7 +11,7 @@ import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
 import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
-import { selectActionName } from "@orb/ui/lib";
+import { editActionName, selectActionName } from "@orb/ui/lib";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import {
@@ -84,7 +84,7 @@ import {
   characterGalleryName,
   chatsWithCharacterName,
 } from "#client/features/chat/lib/chat-surface-names.ts";
-import { PERSONA_DESCRIPTION_FIELD_NAME, PERSONA_FROM_CARD_NAME, PERSONA_NAME_FIELD_NAME, personaEditName } from "#client/features/persona/lib/persona-copy.ts";
+import { PERSONA_DESCRIPTION_FIELD_NAME, PERSONA_FROM_CARD_NAME, PERSONA_NAME_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { censusSuffix } from "#client/lib/census-title.ts";
 import { LIST_PANEL_NOUN, listPaneLabel, panelCloseName, panelEdgeName, screenListDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
@@ -1146,7 +1146,7 @@ async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacte
   const personaRow = content.getByRole("button", { name: persona.name, exact: true });
   await personaRow.scrollIntoViewIfNeeded();
   await personaRow.click();
-  const editor = content.getByRole("group", { name: personaEditName(persona.name), exact: true });
+  const editor = content.getByRole("group", { name: editActionName(persona.name), exact: true });
   await expect(editor.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).toHaveValue(persona.name);
   await expect(editor.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true })).toHaveValue(
     "A disposable native command witness for {{user}} and {{char}}.",

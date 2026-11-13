@@ -3,10 +3,11 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import { defaultChoiceName } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AutosaveSession } from "#forms/editor";
-import { IMAGE_MODE_LABELS, IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
+import { IMAGE_MODE_LABELS, IMAGE_NEGATIVE_PROMPT_FIELD_NAME, IMAGE_SIZE_FIELD_NAME, IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
 import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
 import { RULE_CHOOSE_IMAGE_SIZE_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
@@ -54,7 +55,7 @@ export function RuleImageFields({
             onRemove={(): void => field.handleChange(undefined)}
             value={field.state.value}
           >
-            <field.MacroField label="Negative prompt" suggestions={[]} />
+            <field.MacroField label={IMAGE_NEGATIVE_PROMPT_FIELD_NAME} suggestions={[]} />
           </RuleOptionalField>
         )}
       </form.AppField>
@@ -77,7 +78,7 @@ export function RuleImageFields({
             </Button>
           ) : (
             <Stack gap="tight">
-              <field.SelectField label="Image size" items={SIZE_PRESET_NAMES.map((value) => ({ value, label: IMAGE_SIZE_LABELS[value] }))} />
+              <field.SelectField label={IMAGE_SIZE_FIELD_NAME} items={SIZE_PRESET_NAMES.map((value) => ({ value, label: IMAGE_SIZE_LABELS[value] }))} />
               <Button
                 variant="ghost"
                 justify="start"
@@ -86,7 +87,7 @@ export function RuleImageFields({
                   field.handleChange(undefined);
                 }}
               >
-                {`Use the ${IMAGE_SIZE_MODE_DEFAULT}`}
+                {defaultChoiceName(IMAGE_SIZE_MODE_DEFAULT)}
               </Button>
             </Stack>
           )

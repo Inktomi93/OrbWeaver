@@ -27,8 +27,6 @@ export const IMAGE_EDIT_EMPTY_TEXT = "No image to edit.";
 /** The imagine dialog's collapsed advanced controls: the door, and each field's name. */
 export const IMAGINE_MORE_OPTIONS_NAME = "More options";
 export const IMAGINE_COUNT_NAME = "Number of images";
-export const IMAGINE_SIZE_NAME = "Image size";
-export const IMAGINE_NEGATIVE_NAME = "Negative prompt";
 
 /** The imagine dialog's spend press: one image, and a count above one. */
 export const IMAGINE_GENERATE_NAME = "Generate";

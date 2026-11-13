@@ -22,3 +22,7 @@ export const IMAGE_SIZE_LABELS: Record<SizePresetName, string> = {
 
 /** What leaving the size unset means: the server keeps the shape each image mode composes for. */
 export const IMAGE_SIZE_MODE_DEFAULT = "mode default";
+
+/** The size and negative-prompt fields' names, in the /imagine options and the rule editor's image action alike. */
+export const IMAGE_SIZE_FIELD_NAME = "Image size";
+export const IMAGE_NEGATIVE_PROMPT_FIELD_NAME = "Negative prompt";

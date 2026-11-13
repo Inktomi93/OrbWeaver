@@ -1,11 +1,18 @@
 // The actual preset editor restores the originating chevron after a section drill-in, including its pivot.
+
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { editActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
-import { PRESET_BACK_TO_ACTIONS_NAME, PRESET_BACK_TO_RACK_NAME, PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
+import {
+  PRESET_BACK_TO_ACTIONS_NAME,
+  PRESET_BACK_TO_RACK_NAME,
+  PRESET_CHAT_HISTORY_LABEL,
+  PRESET_EDITOR_VIEW_LABELS,
+} from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -40,10 +47,12 @@ for (const { width, height, density } of [
       await mount<typeof PresetActionGroupsStory>(STORY, { width: viewport.width, appearance, subject: "editor", presetId: preset.id });
       const prompt = page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.prompt, exact: true });
       await prompt.click();
-      const pivot = page.getByRole("button", { name: "Edit Chat history", exact: true });
+      const pivot = page.getByRole("button", { name: editActionName(PRESET_CHAT_HISTORY_LABEL), exact: true });
       await expect(pivot).toBeVisible();
       await expect(prompt).toBeFocused();
-      const ordinary = page.getByRole("button", { name: /^Edit (?!Chat history$)/u }).first();
+      const ordinary = page
+        .getByRole("button", { name: new RegExp(`^${RegExp.escape(editActionName(""))}(?!${RegExp.escape(PRESET_CHAT_HISTORY_LABEL)}$)`, "u") })
+        .first();
       for (const trigger of [ordinary, pivot]) {
         await trigger.focus();
         await page.keyboard.press("Enter");
@@ -56,7 +65,7 @@ for (const { width, height, density } of [
       await actions.click();
       await expect(actions).toBeFocused();
       // The chevron ends its row, and the editor's scroller clips anything past it: the row's end inset is what leaves the focus ring its paint.
-      const chevron = page.getByRole("button", { name: "Edit Response", exact: true });
+      const chevron = page.getByRole("button", { name: editActionName("Response"), exact: true });
       await chevron.focus();
       const ringWidth = await resolvedLength(page, `var(${TOKENS["border-width.rule"].cssVar})`, chevron);
       const ringOffset = await resolvedLength(page, `var(${TOKENS["focus-ring.offset"].cssVar})`, chevron);
@@ -69,7 +78,7 @@ for (const { width, height, density } of [
         return (box?.left ?? Number.NaN) + (clip?.clientLeft ?? 0) + (clip?.clientWidth ?? 0) - node.getBoundingClientRect().right;
       });
       expect(room).toBeGreaterThanOrEqual(ringWidth + ringOffset);
-      for (const name of ["Edit Response", "Edit Rewrite"]) {
+      for (const name of [editActionName("Response"), editActionName("Rewrite")]) {
         const trigger = page.getByRole("button", { name, exact: true });
         await trigger.focus();
         await trigger.press("Enter");

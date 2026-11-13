@@ -1,4 +1,4 @@
-import { IMAGE_SIZE_LABELS, ROOM_PICTURES_NOTE } from "@orb/client/lib";
+import { IMAGE_NEGATIVE_PROMPT_FIELD_NAME, IMAGE_SIZE_FIELD_NAME, IMAGE_SIZE_LABELS, ROOM_PICTURES_NOTE } from "@orb/client/lib";
 import { MAX_NEGATIVE_CHARS } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -15,9 +15,7 @@ import {
   IMAGINE_GENERATE_NAME,
   IMAGINE_HOST_PAYS_TEXT,
   IMAGINE_MORE_OPTIONS_NAME,
-  IMAGINE_NEGATIVE_NAME,
   IMAGINE_PROMPT_NAME,
-  IMAGINE_SIZE_NAME,
   IMAGINE_YOU_PAY_TEXT,
   imagineGenerateCountLabel,
 } from "#client/features/imagery/lib/imagine-names.ts";
@@ -49,7 +47,7 @@ test("the options stay collapsed until asked for, and an untouched form sends on
   const calls = await routeImagine(page);
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
   await expect(page.getByRole("textbox", { name: IMAGINE_PROMPT_NAME, exact: true })).toHaveValue(SEED_PROMPT);
-  await expect(page.getByRole("textbox", { name: IMAGINE_NEGATIVE_NAME, exact: true })).toBeHidden();
+  await expect(page.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true })).toBeHidden();
   await page.getByRole("button", { name: IMAGINE_GENERATE_NAME, exact: true }).click();
   await expect.poll(() => calls.count("chat.generateImage")).toBe(1);
   const input = calls.lastInput("chat.generateImage");
@@ -64,8 +62,8 @@ test("count, size and negative chosen in the options travel on the mutation inpu
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
   await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
   await page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true }).getByRole("button", { name: "3", exact: true }).click();
-  await page.getByRole("group", { name: IMAGINE_SIZE_NAME, exact: true }).getByRole("button", { name: IMAGE_SIZE_LABELS.portrait, exact: true }).click();
-  await page.getByRole("textbox", { name: IMAGINE_NEGATIVE_NAME, exact: true }).fill("  extra fingers  ");
+  await page.getByRole("group", { name: IMAGE_SIZE_FIELD_NAME, exact: true }).getByRole("button", { name: IMAGE_SIZE_LABELS.portrait, exact: true }).click();
+  await page.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true }).fill("  extra fingers  ");
   await expect(page.locator('[data-slot="imagine-count-spend"]')).toBeVisible();
   await page.getByRole("button", { name: imagineGenerateCountLabel(3), exact: true }).click();
   await expect.poll(() => calls.count("chat.generateImage")).toBe(1);
@@ -146,7 +144,7 @@ test("the count stays in the Generate label with the options collapsed", async (
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
   await pickCount(page, "4");
   await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
-  await expect(page.getByRole("textbox", { name: IMAGINE_NEGATIVE_NAME, exact: true })).toBeHidden();
+  await expect(page.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true })).toBeHidden();
   // The label's own template is the subject: the chosen count is in the name, and the name is no longer the single-image one.
   const generate = page.getByRole("button", { name: IMAGINE_GENERATE_NAME });
   await expect(generate).toHaveAccessibleName(/\b4\b/u);
@@ -176,13 +174,13 @@ test("choosing a count above one moves nothing above the charge line, and the ne
   await routeImagine(page);
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
   await page.getByRole("button", { name: IMAGINE_MORE_OPTIONS_NAME, exact: true }).click();
-  const size = page.getByRole("group", { name: IMAGINE_SIZE_NAME, exact: true });
+  const size = page.getByRole("group", { name: IMAGE_SIZE_FIELD_NAME, exact: true });
   const before = await settledBox(size);
   await page.getByRole("group", { name: IMAGINE_COUNT_NAME, exact: true }).getByRole("button", { name: "3", exact: true }).click();
   await expect(page.locator('[data-slot="imagine-count-spend"]')).toBeVisible();
   expect((await settledBox(size)).y).toBe(before.y);
 
-  const negative = page.getByRole("textbox", { name: IMAGINE_NEGATIVE_NAME, exact: true });
+  const negative = page.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true });
   await negative.fill("x".repeat(MAX_NEGATIVE_CHARS * 0.5));
   await expect(page.getByText(`${MAX_NEGATIVE_CHARS * 0.5}/${MAX_NEGATIVE_CHARS}`, { exact: true })).toHaveCount(0);
   await negative.fill("x".repeat(MAX_NEGATIVE_CHARS * 0.9));

@@ -22,6 +22,7 @@ import {
   readTrpcOutput,
   SURFACE_CHECKS,
 } from "@orb/testkit/node/helpers";
+import { editActionName } from "@orb/ui/lib";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { TAG_EDITOR_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
@@ -97,7 +98,6 @@ import {
   PRESET_SECTION_ACTIONS_NAME,
   PRESET_SECTION_NAME_FIELD_NAME,
   PRESET_SECTIONS_NAME,
-  presetEditDrillName,
   presetMoveToZoneLabel,
   presetSectionEditorName,
   presetTemplateEditorName,
@@ -1248,7 +1248,7 @@ async function presetViews(journey: Journey, editor: Locator, prefix: string): P
 }
 
 async function presetDrills(journey: Journey, body: Locator, prefix: string): Promise<void> {
-  const controls = body.getByRole("button", { name: namePattern(presetEditDrillName(NAME_HOLE)) });
+  const controls = body.getByRole("button", { name: namePattern(editActionName(NAME_HOLE)) });
   const count = await controls.count();
   for (let index = 0; index < count; index += 1) {
     const trigger = controls.nth(index);
@@ -1610,7 +1610,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     if (section === undefined) {
       throw new Error("Disposable section left its canonical preset");
     }
-    const trigger = body.getByRole("button", { name: presetEditDrillName(section.name), exact: true });
+    const trigger = body.getByRole("button", { name: editActionName(section.name), exact: true });
     await expect(trigger).toHaveCount(1);
     await trigger.click();
     const drill = body.getByRole("region", { name: namePattern(presetSectionEditorName(NAME_HOLE)) });

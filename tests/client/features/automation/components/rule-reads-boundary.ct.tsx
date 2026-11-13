@@ -11,6 +11,7 @@ import type { TrpcRoutes } from "@orb/testkit/ct";
 import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { editActionName } from "@orb/ui/lib";
 import type { Locator, Page } from "@playwright/test";
 import {
   RULE_ACTION_PICKER_NAME,
@@ -88,7 +89,7 @@ async function openEditor(page: Page, ruleName: string): Promise<Locator> {
     .getByRole("button")
     .filter({ has: page.getByText(ruleName, { exact: true }) })
     .click();
-  await page.getByRole("button", { name: `Edit ${ruleName}`, exact: true }).click();
+  await page.getByRole("button", { name: editActionName(ruleName), exact: true }).click();
   return page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
 }
 

@@ -9,6 +9,7 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { CopyButton } from "@orb/ui/copy-button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Row, Stack } from "@orb/ui/layout";
+import { moreActionsName, recentActivityName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -196,7 +197,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                       onConfirm: (): void => uninstall.mutate({ pluginId: plugin.id }),
                       title: `Remove "${plugin.name}"?`,
                     }}
-                    label={`More actions for ${plugin.name}`}
+                    label={moreActionsName(plugin.name)}
                   >
                     <MenuItem disabled={upgrade.isPending} onClick={open}>
                       Install a bundle from a file…
@@ -344,7 +345,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               <Collapsible>
                 {/* "Recent activity for ${name}" already CONTAINS its visible words (2.5.3 containment — the
             rule-row precedent's own phrasing); only the size arm was missing here. */}
-                <CollapsibleTrigger aria-label={`Recent activity for ${plugin.name}`} size="control">
+                <CollapsibleTrigger aria-label={recentActivityName(plugin.name)} size="control">
                   <Text voice="label">Recent activity</Text>
                 </CollapsibleTrigger>
                 <CollapsiblePanel>

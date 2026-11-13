@@ -5,11 +5,11 @@
 import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { CONFIG_NOT_SAVED_LABEL, CONFIG_SECTION_NEEDS_FIX_TEXT, CONFIG_SECTION_WAITING_TEXT } from "#client/features/config/lib/config-control-names.ts";
+import { CONFIG_SECTION_NEEDS_FIX_TEXT, CONFIG_SECTION_WAITING_TEXT } from "#client/features/config/lib/config-control-names.ts";
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
 import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME, ADMIN_PROMPT_CACHE_DEPTH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
-import { AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { AUTOSAVE_NOT_SAVED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { ConfigSaveFooterStory } from "./_config-save-footer-stories.tsx";
 
 // Any section's Save: the admin grammar with its section left open.
@@ -18,8 +18,8 @@ const ANY_ADMIN_SAVE = new RegExp(`^${RegExp.escape(adminSaveName(ADMIN_SAVE_LAB
 const STORY = "tests/client/features/config/surfaces/_config-save-footer-stories/ConfigSaveFooterStory";
 const FOOTER = '[data-slot="config-save-footer"]';
 const SAVED = AUTOSAVE_SAVED_TEXT;
-const WAITING_FOR_SAVE = new RegExp(`${RegExp.escape(CONFIG_NOT_SAVED_LABEL)}\\s*${RegExp.escape(CONFIG_SECTION_WAITING_TEXT)}`, "u");
-const NEEDS_A_FIX = new RegExp(`${RegExp.escape(CONFIG_NOT_SAVED_LABEL)}\\s*${RegExp.escape(CONFIG_SECTION_NEEDS_FIX_TEXT)}`, "u");
+const WAITING_FOR_SAVE = new RegExp(`${RegExp.escape(AUTOSAVE_NOT_SAVED_TEXT)}\\s*${RegExp.escape(CONFIG_SECTION_WAITING_TEXT)}`, "u");
+const NEEDS_A_FIX = new RegExp(`${RegExp.escape(AUTOSAVE_NOT_SAVED_TEXT)}\\s*${RegExp.escape(CONFIG_SECTION_NEEDS_FIX_TEXT)}`, "u");
 const SERVED = [
   ...SECTION_PROCEDURES,
   "settings.getUserSettings",

@@ -4,7 +4,6 @@
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { sortablePositionName } from "../../../../packages/ui/src/primitives/sortable/sortable-names.ts";
 import type { ReorderableTracksStory } from "./sortable-stories.tsx";
 
 const STORY = "tests/ui/primitives/sortable/sortable-stories/ReorderableTracksStory";
@@ -49,10 +48,8 @@ test("the live region names the row and its position, never its id", async ({ mo
   await alpha.focus();
   await page.keyboard.press("Space");
   const announcements = page.locator("[aria-live]").filter({ hasText: "Alpha" });
-  const picked = sortablePositionName("Alpha", 1, rows);
-  const moved = sortablePositionName("Alpha", 2, rows);
-  // The control: the two lines differ only by the rank, so the cases below prove the rank is spoken and moves.
-  expect(moved).not.toBe(picked);
+  const picked = `Alpha, position 1 of ${String(rows)}`;
+  const moved = `Alpha, position 2 of ${String(rows)}`;
   await expect(announcements.first()).toContainText(picked);
   await page.keyboard.press("ArrowDown");
   await expect(announcements.first()).toContainText(moved);

@@ -41,6 +41,7 @@ import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { trpcErrorCode, viewerTimeZone } from "#lib";
 import { isPlainMarkerSection, sectionKind } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
+import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import { selectPresetSection } from "#state";
 import { AssemblyPreview } from "../prompt-assembly/assembly-preview.tsx";
 import { deriveZones } from "../prompt-assembly/derive-zones.ts";
@@ -188,10 +189,10 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
 
       <Section kicker="Pivot">
         {zones.missingPivot ? (
-          <DatumRow label="Chat history" suffix="add one on the rack" value="missing" />
+          <DatumRow label={PRESET_CHAT_HISTORY_LABEL} suffix="add one on the rack" value="missing" />
         ) : (
           <DatumRow
-            label="Chat history"
+            label={PRESET_CHAT_HISTORY_LABEL}
             suffix={zones.duplicatePivotIndexes.length === 0 ? null : `${zones.duplicatePivotIndexes.length} duplicate: only the first splits`}
             value={`placed · ${String(zones.pivotIndex + 1)} of ${String(sections.length)}`}
           />

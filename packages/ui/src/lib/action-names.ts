@@ -1,15 +1,12 @@
-// The ITEM-ACTION accessible-name grammars that are spelled in BOTH packages — `Remove <subject>`,
-// `Select <subject>` and `Copy <subject>`. They live here, not beside `rowActionsName` in
-// `@orb/client/lib`, because the cake runs `kit ← ui ← client` (constitution §2): `combobox`'s chip
-// remove, `table`'s row checkbox and `copy-button` are `@orb/ui` primitives, and a primitive
-// importing a client module is an upward import — illegal, and unresolvable at the package boundary.
-// So the grammar homes at the LOWEST package that spells it, and `@orb/client/lib` re-exports them
-// the way it already re-exports `cn`. ONE function, one spelling.
+// ITEM-ACTION grammars: one function per `<verb> <subject>` sentence, the control's accessible name or its visible
+// text, whichever package renders it. They live in `@orb/ui` because the cake runs `kit ← ui ← client` (constitution
+// §2): a primitive (`combobox`'s chip remove, `table`'s row checkbox, `copy-button`) cannot import a client module,
+// and a client feature imports this one through `@orb/ui/lib`. A new grammar homes here even when only the client
+// spells it, so the next primitive that needs it finds it; `rowActionsName` predates that and stays in
+// `@orb/client/lib`. ONE function, one spelling.
 //
-// The defect they close is the one #2261 closed for `Actions for <subject>`: a copy change had to be
-// chased through ~25 test locators that never imported the thing they assert, so a spec could keep
-// asserting a name the product no longer builds (#2245 asserted a guessed one). With the builder, the
-// component and its tests call the same function and a drifted spelling is a COMPILE error.
+// A component and its tests build the name with the same function, so a reworded grammar moves every
+// locator with the component, and a spec cannot keep asserting a name the product no longer builds.
 //
 // `subject` is whatever the affordance names — a chip's own text, a file name, a tag, a row's
 // disambiguated subject (`rowActionSubject`). This module holds the GRAMMAR, never the subject policy.
@@ -39,6 +36,26 @@ export function hideActionName(subject: string): string {
 /** The accessible name of a control that copies its subject to the clipboard — `Copy <subject>`. */
 export function copyActionName(subject: string): string {
   return `Copy ${subject}`;
+}
+
+/** The accessible name of a control that opens its subject's editor, or of that editor's region — `Edit <subject>`. */
+export function editActionName(subject: string): string {
+  return `Edit ${subject}`;
+}
+
+/** The accessible name of a row's overflow menu trigger — `More actions for <subject>`. */
+export function moreActionsName(subject: string): string {
+  return `More actions for ${subject}`;
+}
+
+/** The accessible name of a row's disclosure of its recent runs — `Recent activity for <subject>`. */
+export function recentActivityName(subject: string): string {
+  return `Recent activity for ${subject}`;
+}
+
+/** The text of a control that picks a named default instead of an explicit choice — `Use the <subject>`. */
+export function defaultChoiceName(subject: string): string {
+  return `Use the ${subject}`;
 }
 
 /**

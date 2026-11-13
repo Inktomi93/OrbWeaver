@@ -4,7 +4,17 @@
 
 export { isRenderableColor, isSafeColor } from "@orb/kit/safe-color";
 export { ACCENT_HOVER } from "./accent-hover.ts";
-export { copyActionName, hideActionName, removeActionName, revealActionName, selectActionName } from "./action-names.ts";
+export {
+  copyActionName,
+  defaultChoiceName,
+  editActionName,
+  hideActionName,
+  moreActionsName,
+  recentActivityName,
+  removeActionName,
+  revealActionName,
+  selectActionName,
+} from "./action-names.ts";
 export type { AmbientScope, BubbleScope, BubbleScopes, PickedFill, PickedFills, ProseInks } from "./ambient-scope.ts";
 export { AmbientScopeContext, PROSE_INK_FIELDS } from "./ambient-scope.ts";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
