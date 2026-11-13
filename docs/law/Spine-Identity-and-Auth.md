@@ -107,7 +107,8 @@ Code comments cite the numbered invariants below as "invariant N":
    (`packages/server/src/entry/app.ts`), on every credential path. The guard refuses any POST to
    `/api/trpc/*` whose content type does not select tRPC's JSON handler (415). `application/json` is not
    CORS-simple and the app mounts no CORS middleware, so a cross-origin page cannot send it without a
-   preflight the app never answers. The guard is required, not defense in depth: `@trpc/server`'s
+   preflight the app never answers. A proxy in front of the app must not answer one either
+   (`docs/law/container-deployment-security.md`, "A proxy in front of the app"). The guard is required, not defense in depth: `@trpc/server`'s
    `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` as mutations,
    and `multipart/form-data` is CORS-simple, so without the guard a plain cross-origin `<form>` reaches the
    mount on any ambient credential. `application/json` (with or without `; charset=utf-8`) runs on every
