@@ -288,3 +288,31 @@ test("a profile import stores each persona avatar under the type its bytes are, 
     drawn: "image/png",
   });
 });
+
+test("a persona whose avatar file is not a picture imports without it, the report names the file, and the rest of the profile lands", async () => {
+  await using box = await uploadBox();
+  const { app } = box.root;
+  const settings = { ["power_user"]: { personas: { "notes.png": "Notes", "drawn.png": "Drawn" } } };
+  const row = await ranRow(
+    box,
+    await uploadProfile(box, {
+      [ST_SETTINGS_FILE]: JSON.stringify(settings),
+      [`${ST_AVATARS}/notes.png`]: "a harmless note",
+      [`${ST_AVATARS}/drawn.png`]: magicBytes("png"),
+    }),
+  );
+  const reportPath = row.kind === "import-st" && !row.poison ? row.result?.reportPath : undefined;
+  const report = reportPath === undefined ? "" : await readFile(reportPath, "utf8");
+  const personas = await app.services.persona.list({ principal: box.target });
+  const hasArt = (name: string): boolean | null => {
+    const persona = personas.find((candidate) => candidate.name === name);
+    return persona === undefined ? null : persona.avatarAssetId !== null;
+  };
+
+  expect({ status: row.status, notes: hasArt("Notes"), drawn: hasArt("Drawn"), reportNamesFile: report.includes("notes.png") }).toEqual({
+    status: "succeeded",
+    notes: false,
+    drawn: true,
+    reportNamesFile: true,
+  });
+});
