@@ -4,9 +4,11 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import {
   DATABANK_ADD_NAME,
+  DATABANK_ADD_NAME_FIELD_NAME,
   DATABANK_ADD_TEXT_FIELD_NAME,
   DATABANK_FETCH_ADD_NAME,
   DATABANK_FROM_LINK_NAME,
+  DATABANK_LINK_FIELD_NAME,
   DATABANK_PASTE_TEXT_NAME,
   DATABANK_UPLOAD_FILE_NAME,
 } from "#client/features/databank/lib/databank-names.ts";
@@ -25,7 +27,7 @@ test("Enter in the paste arm's name field adds the document", async ({ mount, pa
   await mount<typeof AddDocumentStory>(STORY, {});
   await page.getByRole("button", { name: DATABANK_PASTE_TEXT_NAME, exact: true }).click();
   await page.getByRole("textbox", { name: DATABANK_ADD_TEXT_FIELD_NAME, exact: true }).fill("The bloodlines of the house.");
-  const name = page.getByRole("textbox", { name: "Name", exact: true });
+  const name = page.getByRole("textbox", { name: DATABANK_ADD_NAME_FIELD_NAME, exact: true });
   await name.fill(DOCUMENT_NAME);
   await name.press("Enter");
 
@@ -38,7 +40,7 @@ test("clicking Add in the paste arm adds the document", async ({ mount, page }) 
   await routeTrpc(page, serveCorpusProcedures(caller, ["databank.createFromText"]));
   await mount<typeof AddDocumentStory>(STORY, {});
   await page.getByRole("button", { name: DATABANK_PASTE_TEXT_NAME, exact: true }).click();
-  await page.getByRole("textbox", { name: "Name", exact: true }).fill(DOCUMENT_NAME);
+  await page.getByRole("textbox", { name: DATABANK_ADD_NAME_FIELD_NAME, exact: true }).fill(DOCUMENT_NAME);
   await page.getByRole("textbox", { name: DATABANK_ADD_TEXT_FIELD_NAME, exact: true }).fill("The bloodlines of the house.");
   await page.getByRole("button", { name: DATABANK_ADD_NAME, exact: true }).click();
 
@@ -50,7 +52,7 @@ test("Enter in the link field fetches, and a refused fetch leaves focus on the f
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["databank.scrapeWeb"]));
   await mount<typeof AddDocumentStory>(STORY, {});
   await page.getByRole("button", { name: DATABANK_FROM_LINK_NAME, exact: true }).click();
-  const link = page.getByRole("textbox", { name: "Link", exact: true });
+  const link = page.getByRole("textbox", { name: DATABANK_LINK_FIELD_NAME, exact: true });
   await link.fill(REFUSED_LINK);
   await link.press("Enter");
 
@@ -65,7 +67,7 @@ test("a failed fetch started by the button hands focus to the field too", async 
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["databank.scrapeWeb"]));
   await mount<typeof AddDocumentStory>(STORY, {});
   await page.getByRole("button", { name: DATABANK_FROM_LINK_NAME, exact: true }).click();
-  const link = page.getByRole("textbox", { name: "Link", exact: true });
+  const link = page.getByRole("textbox", { name: DATABANK_LINK_FIELD_NAME, exact: true });
   await link.fill(REFUSED_LINK);
   await page.getByRole("button", { name: DATABANK_FETCH_ADD_NAME, exact: true }).click();
 

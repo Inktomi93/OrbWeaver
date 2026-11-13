@@ -43,8 +43,9 @@ export function pendingJoinConfirmLabel(confirming: boolean): string {
   return confirming ? JOIN_CONFIRMING_NAME : JOIN_CREATE_ACCOUNT_NAME;
 }
 
-/** The persona name both signup doors ask for, and the line a confirm without one shows. */
+/** The persona fields both signup doors ask for, and the line a confirm without a name shows. */
 export const JOINER_PERSONA_NAME_FIELD = "Your name in the story";
+export const JOINER_PERSONA_DESCRIPTION_FIELD = "Description";
 export const JOINER_PERSONA_NAME_REQUIRED = "Give your persona a name.";
 
 /** The sentences a refused confirm shows, by the wire code the server refused with. */

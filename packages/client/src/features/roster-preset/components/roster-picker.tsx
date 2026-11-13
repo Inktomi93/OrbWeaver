@@ -42,7 +42,7 @@ import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-r
 import { useActiveRosterChat, useRoomGameCapture, useRosterRuleCapture, useRulePresetCatalogue, useSavedRosters } from "../hooks/use-saved-rosters.ts";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine, rulesetLine } from "../lib/roster-copy.ts";
-import { ROSTER_DELETE_TITLE, rosterDeleteName, rosterStartChatName } from "../lib/roster-names.ts";
+import { ROSTER_DELETE_TITLE, rosterAddToChatName, rosterDeleteName, rosterStartChatName } from "../lib/roster-names.ts";
 
 /** One roster row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
  *  viewer HOSTS it (program doc §6 — the add door is capability-driven and HIDDEN for a non-host, the
@@ -107,7 +107,7 @@ function RosterRow(props: {
             Start
           </Button>
           {canAddToChat ? (
-            <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onAddToChat(roster)} aria-label={`Add ${roster.name} to this chat${counts}`}>
+            <Button disabled={busy} variant="ghost" size="sm" onClick={(): void => onAddToChat(roster)} aria-label={rosterAddToChatName(roster.name, counts)}>
               <Icon icon={UserPlus} size="sm" />
               Add to chat
             </Button>

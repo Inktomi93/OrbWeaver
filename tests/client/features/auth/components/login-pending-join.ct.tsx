@@ -12,6 +12,7 @@ import {
   INVITED_HEADING,
   JOIN_CONFIRMING_NAME,
   JOIN_CREATE_ACCOUNT_NAME,
+  JOINER_PERSONA_DESCRIPTION_FIELD,
   JOINER_PERSONA_NAME_FIELD,
   JOINER_PERSONA_NAME_REQUIRED,
   PENDING_JOIN_ACCOUNT_EXISTS_LEAD,
@@ -138,7 +139,7 @@ test("an unnamed persona focuses its error without a request, then submits only 
   expect(confirms).toHaveLength(0);
 
   await name.fill(`  ${JOIN_PERSONA.name}  `);
-  await page.getByRole("textbox", { name: "Description", exact: true }).fill(`  ${JOIN_PERSONA.description}  `);
+  await page.getByRole("textbox", { name: JOINER_PERSONA_DESCRIPTION_FIELD, exact: true }).fill(`  ${JOIN_PERSONA.description}  `);
   await submit.click();
   await expect(page.getByRole("heading", { name: JOIN_DESTINATION_LABEL, exact: true })).toBeVisible();
   await expect(page.getByText(`chat=${PENDING_ROOM.chatId} section=chats`, { exact: true })).toBeVisible();

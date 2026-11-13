@@ -392,6 +392,10 @@ export function reConsentLine(addedCapabilities: readonly PluginCapability[], ad
  *  shows these. `CHECK_FOR_UPDATES_LABEL` triggers the check; the verdicts map 1:1 to `PluginUpdateCheck`
  *  (a showcase row can only reach `unreachable` by dropping out of the batch — nothing was fetched for it). */
 export const CHECK_FOR_UPDATES_LABEL = "Check for updates";
+/** The row's check press, named for the plugin it checks. */
+export function pluginCheckForUpdatesLabel(pluginName: string): string {
+  return `Check ${pluginName} for updates`;
+}
 /** The settled `up-to-date` line. */
 export const UPDATE_UP_TO_DATE_LINE = "Up to date: this is the latest version from its source.";
 /** The settled `unreachable` line — leak-free by design (the server never says WHY, so neither do we). */

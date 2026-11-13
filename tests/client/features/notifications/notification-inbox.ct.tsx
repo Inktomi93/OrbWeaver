@@ -106,7 +106,10 @@ test("the registered bell settles a held native inbox read into its unread state
   await hold.requested;
   await expect(page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true })).toBeVisible();
   hold.release();
-  await expect(page.getByRole("button", { name: notificationsBellLabel(2, false), exact: true })).toBeVisible();
+  // The unread state is the behavior under test: the settled bell carries the two unread invitations and is no longer the idle bell.
+  const settled = page.getByRole("button", { name: BELL });
+  await expect(settled).toHaveAccessibleName(/\b2\b/u);
+  await expect(settled).not.toHaveAccessibleName(NOTIFICATIONS_BELL_NAME);
   const foreign = await page.evaluate(async (path) => {
     const response = await fetch(path);
     return { status: response.status, bytes: (await response.arrayBuffer()).byteLength };

@@ -26,7 +26,7 @@ import { useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { rosterRuleKnobGloss, rulesetLine } from "../lib/roster-copy.ts";
-import { ROSTER_NAME_FIELD_NAME } from "../lib/roster-names.ts";
+import { ROSTER_DESCRIPTION_FIELD_NAME, ROSTER_NAME_FIELD_NAME } from "../lib/roster-names.ts";
 
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
  *  stay BRANDED end to end (`CharacterId`; the wire's `z.input` accepts them). */
@@ -161,7 +161,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
       <Field label={ROSTER_NAME_FIELD_NAME}>
         <Input onChange={(e): void => setName(e.target.value)} value={name} />
       </Field>
-      <Field label="Description">
+      <Field label={ROSTER_DESCRIPTION_FIELD_NAME}>
         <Input onChange={(e): void => setDescription(e.target.value)} value={description} />
       </Field>
       <Row align="center" gap="field">

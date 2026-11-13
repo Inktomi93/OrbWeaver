@@ -10,10 +10,11 @@ import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { queryFailedLabel } from "#client/data/query-state-copy.ts";
 import {
+  REFINERY_COMPARE_NAME,
+  REFINERY_HIDE_COMPARE_NAME,
   REFINERY_NO_VERSIONS_TITLE,
   REFINERY_READ_LABELS,
   REFINERY_VERSION_LOADING_TEXT,
-  refineryCompareToggleName,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { VersionsTabStory } from "./_versions-stories.tsx";
@@ -73,13 +74,13 @@ test("a held snapshot compare shows its loading line, a failed one the error blo
     ...serveCorpusProcedures(caller, ["character.getSnapshot"], read.intercept),
   });
   await mount<typeof VersionsTabStory>(STORY, { characterId: character.id, sessionId: mintTypeId(ID_PREFIX.refinerySession, createSeededIds().next) });
-  await page.getByRole("button", { name: refineryCompareToggleName(false), exact: true }).click();
+  await page.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true }).click();
   await read.hold.requested;
   await expect(page.getByText(REFINERY_VERSION_LOADING_TEXT, { exact: true })).toBeVisible();
   read.hold.fail();
   await expect(page.getByText(queryFailedLabel(REFINERY_READ_LABELS.version), { exact: true })).toBeVisible();
   // The failure stays inside the compared row: the walk and its toggle stand.
-  await expect(page.getByRole("button", { name: refineryCompareToggleName(true), exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText(queryFailedLabel(REFINERY_READ_LABELS.version), { exact: true })).toHaveCount(0);

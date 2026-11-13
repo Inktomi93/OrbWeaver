@@ -22,6 +22,7 @@ import {
   consentAskKind,
   firstConsentLine,
   grantSummaryLine,
+  pluginCheckForUpdatesLabel,
   pluginUpdateFromCommitLabel,
   pluginUpdateToLabel,
   REMOVE_PLUGIN_DESCRIPTION,
@@ -146,7 +147,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   return (
     <Row align="center" wrap={true} gap="field" justify="start">
       <Button
-        aria-label={`Check ${plugin.name} for updates`}
+        aria-label={pluginCheckForUpdatesLabel(plugin.name)}
         variant="outline"
         loading={check.isPending}
         onClick={(): void => {

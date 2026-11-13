@@ -55,6 +55,7 @@ import {
   DATABANK_ADD_TEXT_FIELD_NAME,
   DATABANK_ATTACH_GROUP_NAME,
   DATABANK_FROM_LINK_NAME,
+  DATABANK_LINK_FIELD_NAME,
   DATABANK_PASTE_TEXT_NAME,
   DATABANK_UPLOAD_FILE_NAME,
   databankFetchAddLabel,
@@ -464,7 +465,11 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
         {(source): ReactElement => (
           <form.AppField name={LINK_FIELD}>
             {(field): ReactElement => (
-              <field.TextField {...(runnerFailed[source] ? { describedBy: failureId, invalid: true } : {})} label="Link" placeholder="https://…" />
+              <field.TextField
+                {...(runnerFailed[source] ? { describedBy: failureId, invalid: true } : {})}
+                label={DATABANK_LINK_FIELD_NAME}
+                placeholder="https://…"
+              />
             )}
           </form.AppField>
         )}

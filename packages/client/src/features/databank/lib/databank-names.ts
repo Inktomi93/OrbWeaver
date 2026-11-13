@@ -45,6 +45,7 @@ export const DATABANK_ADD_TEXT_FIELD_NAME = "Text";
 export const DATABANK_UPLOAD_FILE_NAME = "Upload a file";
 export const DATABANK_FROM_LINK_NAME = "From a link";
 export const DATABANK_ATTACH_GROUP_NAME = "Use this document in";
+export const DATABANK_LINK_FIELD_NAME = "Link";
 export const DATABANK_FETCH_ADD_NAME = "Fetch and add";
 
 /** The link press's name, by whether the fetch is running. */

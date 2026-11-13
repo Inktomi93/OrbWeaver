@@ -9,6 +9,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import {
   PLUGIN_DISTRIBUTE_ACTION_NAME,
   PLUGIN_INSTALL_NAME,
+  pluginCheckForUpdatesLabel,
   pluginDetailsLabel,
   pluginUpdateToLabel,
   updateAvailableLabel,
@@ -103,7 +104,7 @@ for (const regime of REGIMES) {
       );
       await mount<typeof PluginActionGroupsStory>(STORY, { width: regime.width, appearance });
       await page.getByRole("button", { name: pluginDetailsLabel(manifest.name), exact: true }).click();
-      const check = page.getByRole("button", { name: `Check ${manifest.name} for updates`, exact: true });
+      const check = page.getByRole("button", { name: pluginCheckForUpdatesLabel(manifest.name), exact: true });
       await check.click();
       const update = page.getByRole("button", { name: pluginUpdateToLabel(manifest.name, NEXT_VERSION), exact: true });
       await expect(update).toHaveText(updateAvailableLabel(NEXT_VERSION));

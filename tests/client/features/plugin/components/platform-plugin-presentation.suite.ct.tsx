@@ -18,7 +18,13 @@ import { captureCookieAuth, createCorpusHarness, makePluginBundle, requireShowca
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8 } from "fflate";
-import { enablePluginLabel, pluginCardLabel, pluginDetailsLabel, pluginPermissionsLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import {
+  enablePluginLabel,
+  pluginCardLabel,
+  pluginCheckForUpdatesLabel,
+  pluginDetailsLabel,
+  pluginPermissionsLabel,
+} from "#client/features/plugin/lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "#client/features/plugin/lib/plugin-model-copy.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
@@ -288,7 +294,7 @@ for (const { width, touch, mobile } of [
         await activity.click();
         await expect(activity.locator("..").getByRole("log", { name: "Log entries", exact: true })).toBeVisible();
         await expect(row.getByRole("button", { name: `More actions for ${plugin.name}`, exact: true })).toBeVisible();
-        const update = row.getByRole("button", { name: `Check ${plugin.name} for updates`, exact: true });
+        const update = row.getByRole("button", { name: pluginCheckForUpdatesLabel(plugin.name), exact: true });
         await expect(update).toHaveCount(plugin.updateSource === null ? 0 : 1);
       }
       const affinityRow = page.getByRole("group", { name: pluginCardLabel(affinity.name), exact: true });
