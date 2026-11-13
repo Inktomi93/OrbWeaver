@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
-import { useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
 import { ROW_RENAME_NAME } from "#lib";
 import {
   enterSelectionMode,
@@ -120,7 +120,7 @@ function useGameModeActions(chatId: ChatId): GameModeActions {
  *  themselves). */
 function GameMenuSection({ chatId, actions }: { readonly chatId: ChatId; readonly actions: GameModeActions }): ReactElement | null {
   const trpc = useTRPC();
-  const detailQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const detailQuery = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const { pending, start, setMode } = actions;
   const labelId = useId();
   const descriptionId = useId();
@@ -174,7 +174,7 @@ function GameMenuSection({ chatId, actions }: { readonly chatId: ChatId; readonl
  *  chain and the item is a permission omit, never a dead door. */
 function ParentChatItem({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const trpc = useTRPC();
-  const detailQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const detailQuery = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   // Optional-chained like the game section: the CT harness answers an unlisted proc with `null`.
   const parentChatId = detailQuery.data?.parentChatId ?? null;
   const lineageQuery = useGatedQuery(parentChatId === null ? null : chatId, (id) => trpc.chat.getChatLineage.queryOptions({ chatId: id }));

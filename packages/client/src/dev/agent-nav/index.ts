@@ -19,6 +19,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
+import { roomRosterOptions } from "#data";
 import type { ContributorRegistry } from "#lib";
 import { CORPUS_MODES, deriveChatTitle, isCorpusMode } from "#lib";
 import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "#src/lib/agent-bridge.ts";
@@ -140,7 +141,7 @@ async function resolveDirectChatId(idOrTitle: string, trpc: Trpc, queryClient: Q
   }
   // The parse decides whether the caller named an opaque id or a display title; anything else falls through to the honest miss.
   // null sends `openChat` on to `resolveListedChat`, whose failed list query and whose miss both return an `ok:false` NavResult the caller reads (the `page === null` and "no chat matches" returns). Ends if `openChat` stops falling through to the list arm.
-  const chat = await queryClient.query(trpc.chat.getChat.queryOptions({ chatId: parsed.data })).catch(() => null);
+  const chat = await queryClient.query(roomRosterOptions(trpc, { chatId: parsed.data })).catch(() => null);
   return chat?.id ?? null;
 }
 

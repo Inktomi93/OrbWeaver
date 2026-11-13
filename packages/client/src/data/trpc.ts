@@ -7,14 +7,22 @@
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
+import type { ChatId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { QueryClient } from "@tanstack/react-query";
-import type { TRPCClient, TRPCClientErrorLike } from "@trpc/client";
-import { createTRPCClient, httpBatchLink, httpSubscriptionLink, loggerLink, splitLink } from "@trpc/client";
+import type { HTTPLinkOptions, TRPCClient, TRPCClientErrorLike } from "@trpc/client";
+import { createTRPCClient, httpBatchLink, httpLink, httpSubscriptionLink, loggerLink, splitLink } from "@trpc/client";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { createTRPCContext, createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { formatTrpcOp, IS_DEV } from "#lib";
 import { PostEventSource } from "./bus/post-event-source.ts";
+
+declare module "@trpc/client" {
+  interface OperationContext {
+    /** Send this operation alone instead of in a batch; {@link createTrpcClient} states which reads set it. */
+    readonly skipBatch?: boolean;
+  }
+}
 
 /** The one mount path (mirrors `entry/app.ts` TRPC_ENDPOINT). */
 const TRPC_URL = "/api/trpc";
@@ -86,8 +94,22 @@ const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> =
  *      every client CT that drives a query failed with "Stream closed before head was
  *      received", until the stub grows a jsonl producer.
  * Revisit only with both addressed; the CSRF header itself is fine (identical `headers` seam).
+ *
+ * A batch is one response written after its slowest call settles, so a fast read batched beside a slow one
+ * waits for it. A read that gates input therefore skips batching: an operation whose context carries
+ * `skipBatch` rides an `httpLink` built from the same options as the batch link, so it passes the same
+ * server checks (the mount reads the method, content type and CSRF header per request, never the batch flag).
+ * The room's roster read is that read ({@link roomRosterOptions}): the composer waits for it, and it must never
+ * wait for the room's transcript.
  */
 export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
+  // One option set for both request links, so a header or fetch rule added here reaches the unbatched link too.
+  const request = {
+    url,
+    methodOverride: "POST",
+    fetch: jsonOnlyFetch,
+    headers: () => ({ [CSRF_HEADER]: "1" }),
+  } as const satisfies HTTPLinkOptions<AppRouter["_def"]["_config"]["$types"]>;
   return createTRPCClient<AppRouter>({
     links: [
       splitLink({
@@ -107,18 +129,27 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
           }),
           // Query inputs can exceed a URL ceiling; POST preserves them under the server's JSON-body cap.
           // TanStack Query owns read caching, and the mount already admits native method overrides.
-          httpBatchLink({
-            url,
-            maxItems: TRPC_BATCH_MAX_ITEMS,
-            maxURLLength: TRPC_BATCH_MAX_URL_LENGTH,
-            methodOverride: "POST",
-            fetch: jsonOnlyFetch,
-            headers: () => ({ [CSRF_HEADER]: "1" }),
+          splitLink({
+            condition: (op) => op.context.skipBatch === true,
+            true: httpLink(request),
+            false: httpBatchLink({ ...request, maxItems: TRPC_BATCH_MAX_ITEMS, maxURLLength: TRPC_BATCH_MAX_URL_LENGTH }),
           }),
         ],
       }),
     ],
   });
+}
+
+/**
+ * The room's roster read (`chat.getChat`), the one spelling every reader and warmer of that key uses.
+ *
+ * @remarks
+ * It rides alone, never batched, whichever reader starts the fetch: the room draws its composer from this read,
+ * and a batch would hold it until the room's transcript read answers.
+ */
+// biome-ignore lint/nursery/useExplicitReturnType: the matching `queryOptions` overload's output type is not exported by `@trpc/tanstack-react-query`, and `ReturnType` picks the skip-token overload, which types the read's data as `{}`.
+export function roomRosterOptions(trpc: Trpc, input: { readonly chatId: ChatId }) {
+  return trpc.chat.getChat.queryOptions(input, { trpc: { context: { skipBatch: true } } });
 }
 
 /**

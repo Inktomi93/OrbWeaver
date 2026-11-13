@@ -123,6 +123,23 @@ test.describe("phone", () => {
     expect([ring.outline, ring.shadow]).toContain(true);
   });
 
+  test("from an open character's screen, a pointer press on Cancel closes the form and returns focus to the topbar's lead control", async ({ mount, page }) => {
+    const [first] = (await (await root.internalCallerFor(root.ownerId)).character.list({})).items;
+    if (first === undefined) {
+      throw new Error("The committed corpus holds no character");
+    }
+    await seedShellState(page, { activeSection: "characters" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await page.getByText(first.name, { exact: true }).first().click();
+    await expect(page.locator(TRAIL).getByRole("button", { name: CHARACTER_NEW_NAME, exact: true })).toHaveCount(0);
+    await runFromPalette(page);
+    const dialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+    await expect(dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true })).toBeFocused();
+    await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator(LEAD_CONTROL).first()).toBeFocused();
+  });
+
   test("a second palette run from the list it landed on opens the form again, and nothing opens it later unasked", async ({ mount, page }) => {
     const [first] = (await (await root.internalCallerFor(root.ownerId)).character.list({})).items;
     if (first === undefined) {

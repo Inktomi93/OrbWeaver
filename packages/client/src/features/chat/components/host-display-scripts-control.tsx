@@ -16,7 +16,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useSetHostDisplayScripts } from "../hooks/use-context-panel-mutations.ts";
 
 export interface HostDisplayScriptsControlProps {
@@ -27,7 +27,7 @@ export interface HostDisplayScriptsControlProps {
 export function HostDisplayScriptsControl({ chatId }: HostDisplayScriptsControlProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const setEnabled = useSetHostDisplayScripts({ trpc, invalidation });
   return (
     // `SettingSwitchRow`, not a hand-paired Field+Switch: the composite is the ONE home for the row

@@ -17,7 +17,7 @@ import { Row, Stack, Surface } from "@orb/ui/layout";
 import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { Fragment, useDeferredValue, useId, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
@@ -32,11 +32,13 @@ import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
 import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-flank.tsx";
+import { RoomReadFailure } from "../components/room-read-failure.tsx";
 import { flankReservation, useFlankPresentation } from "../hooks/use-flank-presentation.ts";
 import { useFlankReserve } from "../hooks/use-flank-reserve.ts";
 import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
-import { useLeaveGoneRoom } from "../hooks/use-leave-gone-room.ts";
 import { useRoomEndWhileWriting } from "../hooks/use-room-end-while-writing.ts";
+import type { RoomRead } from "../hooks/use-room-read.ts";
+import { useRoomRead } from "../hooks/use-room-read.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
 import { Track } from "../lib/chat-track.tsx";
 import { MessageListSurface } from "./message-list-surface.tsx";
@@ -65,37 +67,40 @@ function resolveRoomAnchor(
 export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRenderers }: ChatRoomSurfaceProps): ReactElement | null {
   const chatId = handle.id;
   const headingId = useId();
-  const trpc = useTRPC();
 
+  // Every part of the room draws from this one read state: the body only for a ready room, a skeleton while it loads, the
+  // failure plate when the roster read fails, and nothing for a gone room, which the hook leaves for the chat list.
+  const read = useRoomRead(chatId);
   // Sole-character chrome takeover: in a true-solo room, that character's theme override wins at the chat
   // root; multi-human/group keeps the viewer's own theme (undefined here). The room's roster is warm on the
   // FIRST frame — `useStartChat` seeds this exact `getChat` key from `startChat`'s own response — so a
   // brand-new room wears its card's theme immediately instead of re-skinning itself later (the 2026-08-06
   // owner dogfood, now fixed by the row existing rather than by a second card-reading resolver).
-  const { data: roomChat, error: roomReadError } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  // The room's own row answering not found while the room is open (a delete this client was never told of, or a stale restored id) leaves
-  // the room; the cached transcript must not keep it readable and sendable.
-  const roomGone = useLeaveGoneRoom(chatId, roomReadError);
   const carried = useCarriedAppearance(chatId);
   const roomTheme = resolveRoomTheme(carried);
   // Names the room's focus target (finding #2): the chat title, else "Chat room" (a not-yet-resolved room).
   // Without this explicit label the tabindex=-1 focus DIV's name falls to name-from-content — concatenating
   // the whole toolbar (Characters · Jump to latest · Attach · Send…) into one string.
   const roomLabel =
-    roomChat === undefined
-      ? "Chat room"
-      : deriveChatTitle(
-          roomChat.title,
-          roomChat.participants.map((participant) => participant.displayName),
-        );
+    read.kind === "ready"
+      ? deriveChatTitle(
+          read.chat.title,
+          read.chat.participants.map((participant) => participant.displayName),
+        )
+      : "Chat room";
 
   // Entering a room commits inside a view-transition update callback, which holds the main thread for the whole
   // sync commit. That commit carries the room frame only; the transcript and composer mount in the deferred
   // render after it, which yields.
   const bodyMounted: boolean = useDeferredValue(true, false);
+  // The transcript mounts with the body whether or not the roster has answered, so its read leaves beside the roster's instead of
+  // after it; the room's own chrome (the composer and its next-reply line, the bars, the contributions) waits for a ready room, so a
+  // room that turns out gone never draws it.
+  const bodyDrawn = bodyMounted && read.kind !== "failed";
+  const chromeDrawn = bodyDrawn && read.kind === "ready";
   const surfaceRef = useRef<HTMLDivElement>(null);
-  // Gated on the body so this parent effect runs after the transcript's and the composer's own focus effects.
-  useFocusOnMount(surfaceRef, bodyMounted);
+  // Gated on the chrome so this parent effect runs after the transcript's and the composer's own focus effects.
+  useFocusOnMount(surfaceRef, chromeDrawn);
   const composerRef = useRef<HTMLDivElement>(null);
   useRoomEndWhileWriting(surfaceRef, composerRef);
 
@@ -108,16 +113,17 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   useFlankTrackFlip(flankRowRef, flank.occupiesRow, flank.panelMode);
   const threadRef = useRef<HTMLDivElement>(null);
   const composerRegionRef = useRef<HTMLDivElement>(null);
-  // The row and the region mount with the body, a render after the surface.
-  useFlankReserve(flankRowRef, threadRef, composerRegionRef, !flank.panelMode && bodyMounted);
+  // The row and the region mount with the chrome, a render or more after the surface.
+  useFlankReserve(flankRowRef, threadRef, composerRegionRef, !flank.panelMode && chromeDrawn);
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);
   const composerRoomContributions = resolveRoomAnchor(surfaceContributors, "composer-room", roomState);
   const composerMediaContributions = resolveRoomAnchor(surfaceContributors, "composer-media", roomState);
+  const flankNodes = chromeDrawn ? flankContributions : [];
 
   // Nothing is drawn for a room that is gone: the list replaces it on the next commit, with no composer or failure plate between.
-  if (roomGone) {
+  if (read.kind === "gone") {
     return null;
   }
 
@@ -145,7 +151,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
             chatId={chatId}
             surfaceContributors={surfaceContributors}
             toolRenderers={toolRenderers}
-            leading={<ChatCharacterBar chatId={chatId} inTranscript={true} />}
+            leading={read.kind === "ready" ? <ChatCharacterBar chatId={chatId} inTranscript={true} /> : null}
           />
         </ChoiceSendProvider>
       </MessageThreadAnchor>
@@ -188,11 +194,11 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
             {roomLabel}
           </Heading>
           {/* The character strip is presence-at-a-glance for the room's roster — size-gated inside. */}
-          <ChatCharacterBar chatId={chatId} />
+          {read.kind === "ready" ? <ChatCharacterBar chatId={chatId} /> : null}
           {/* Everything below the room's chrome, so the short room rule (styles/globals.css) can split it between reading
               and writing. */}
           <Stack minHeight="shrinks" grow={true} gap="field" data-slot="chat-room-body">
-            {bodyMounted ? (
+            {bodyDrawn ? (
               <>
                 {/* THE FLANK ROW IS UNCONDITIONAL, AND THAT IS THE #680 FIX — the fork it replaces was the P0.
                  *  A `flankContributions.length === 0 ? thread : <wrapper>` fork made the room's HEIGHT CHAIN a
@@ -266,52 +272,110 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   still starts on the row's top edge, where the transcript does. Stacked, the row's `gap` already
                   separates the column from the thread. */}
                     <FlankColumn columnRef={flankColumnRef} flank={flank} id={flankId}>
-                      {flankContributions.map((c) => (
+                      {flankNodes.map((c) => (
                         <Fragment key={c.id}>{c.node}</Fragment>
                       ))}
                     </FlankColumn>
                   </Row>
                   <FlankEdge controlRef={flankControlRef} controls={flankId} flank={flank} />
                 </RoomFlankAnchor>
-                <MessageSelectionBar chatId={chatId} />
-                {/* THE ROOM'S ONE TRACK (#213): a band between the transcript and the composer is part of the same
-              vertical stack, so it takes the same centred box — otherwise a contribution renders at its own
-              content width against the left edge of the pane while the two things it sits between centre.
-              The writing region also keeps clear what the thread's box gives up on its inline end (the plugin
-              column in the row, or the edge control's corner), so the thread's rows and the composer centre on one axis. */}
-                <RoomComposerAnchor regionRef={composerRegionRef} reservation={flankReservation(flank)}>
-                  {aboveComposerContributions.length === 0 ? null : (
-                    // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
-                    // contribution that is mounted but currently paints nothing (the control band with no live
-                    // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
-                    // empty flex child still costs the column one `gap="field"` step between the transcript and the
-                    // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
-                    // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
-                    // non-empty.
-                    <Track of={Stack} track="composer" gap="row" hiddenAt="empty" data-slot="chat-above-composer">
-                      {aboveComposerContributions.map((c) => (
-                        <Fragment key={c.id}>{c.node}</Fragment>
-                      ))}
-                    </Track>
-                  )}
-                  {/* The writing region the short room holds at its end while focus is in it. */}
-                  <Stack ref={composerRef}>
-                    <ComposerSlot
-                      chatId={chatId}
-                      actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                      roomContributions={composerRoomContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                      mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                    />
-                  </Stack>
-                </RoomComposerAnchor>
+                {chromeDrawn ? (
+                  <RoomWriting
+                    chatId={chatId}
+                    composerRef={composerRef}
+                    regionRef={composerRegionRef}
+                    reservation={flankReservation(flank)}
+                    contributions={{
+                      above: aboveComposerContributions,
+                      action: composerActionContributions,
+                      room: composerRoomContributions,
+                      media: composerMediaContributions,
+                    }}
+                  />
+                ) : null}
               </>
             ) : (
-              <RoomTranscriptSkeleton />
+              <RoomBodyStandIn read={read} />
             )}
           </Stack>
         </Stack>
       </Surface>
     </ThemeScope>
+  );
+}
+
+function assertNever(value: never): never {
+  throw new Error(`ChatRoomSurface: unhandled room read ${JSON.stringify(value)}`);
+}
+
+/** What stands where the body will be: the skeleton while the room loads or its body defers a render, the plate when its read failed. */
+function RoomBodyStandIn({ read }: { readonly read: Exclude<RoomRead, { readonly kind: "gone" }> }): ReactElement {
+  switch (read.kind) {
+    case "loading":
+    case "ready":
+      return <RoomTranscriptSkeleton />;
+    case "failed":
+      return <RoomReadFailure onRetry={read.retry} />;
+    default:
+      return assertNever(read);
+  }
+}
+
+type RoomAnchorNodes = ReturnType<typeof resolveRoomAnchor>;
+
+/** The writing region under the transcript: the selection bar, the above-composer band and the composer. A ready room draws it. */
+function RoomWriting({
+  chatId,
+  composerRef,
+  regionRef,
+  reservation,
+  contributions,
+}: {
+  readonly chatId: ChatId;
+  readonly composerRef: RefObject<HTMLDivElement | null>;
+  readonly regionRef: RefObject<HTMLDivElement | null>;
+  readonly reservation: ReturnType<typeof flankReservation>;
+  readonly contributions: {
+    readonly above: RoomAnchorNodes;
+    readonly action: RoomAnchorNodes;
+    readonly room: RoomAnchorNodes;
+    readonly media: RoomAnchorNodes;
+  };
+}): ReactElement {
+  return (
+    <>
+      <MessageSelectionBar chatId={chatId} />
+      {/* THE ROOM'S ONE TRACK (#213): a band between the transcript and the composer is part of the same
+          vertical stack, so it takes the same centred box — otherwise a contribution renders at its own
+          content width against the left edge of the pane while the two things it sits between centre.
+          The writing region also keeps clear what the thread's box gives up on its inline end (the plugin
+          column in the row, or the edge control's corner), so the thread's rows and the composer centre on one axis. */}
+      <RoomComposerAnchor regionRef={regionRef} reservation={reservation}>
+        {contributions.above.length === 0 ? null : (
+          // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
+          // contribution that is mounted but currently paints nothing (the control band with no live
+          // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
+          // empty flex child still costs the column one `gap="field"` step between the transcript and the
+          // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
+          // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
+          // non-empty.
+          <Track of={Stack} track="composer" gap="row" hiddenAt="empty" data-slot="chat-above-composer">
+            {contributions.above.map((c) => (
+              <Fragment key={c.id}>{c.node}</Fragment>
+            ))}
+          </Track>
+        )}
+        {/* The writing region the short room holds at its end while focus is in it. */}
+        <Stack ref={composerRef}>
+          <ComposerSlot
+            chatId={chatId}
+            actionContributions={contributions.action.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+            roomContributions={contributions.room.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+            mediaContributions={contributions.media.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+          />
+        </Stack>
+      </RoomComposerAnchor>
+    </>
   );
 }
 

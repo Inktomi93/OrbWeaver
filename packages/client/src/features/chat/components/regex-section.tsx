@@ -41,7 +41,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS } from "#lib";
 import { useSetRegexAllow } from "../hooks/use-chat-regex-mutations.ts";
 import { regexRowHomes, regexTierAllowedSwitchName, regexTierLabels, regexTierLever, regexTierLeverCount, regexTierRows } from "../lib/regex-section-model.ts";
@@ -120,7 +120,7 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
   // The seat names the tier labels use. `getChat` is already loaded for this tab (three sibling sections
   // read it), and the lookup is by the tier key's OWN character id — an exact seat match, never a
   // re-derivation of which characters the turn seats (that decision is the read's).
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   // The viewer's own library ids — the #1739 "previous host" test on the room's own tier (a chat-tier row
   // outside the host's library was attached by someone who is no longer here). Shared cache entry with the
   // `On screen` roster below, so it costs no second request.

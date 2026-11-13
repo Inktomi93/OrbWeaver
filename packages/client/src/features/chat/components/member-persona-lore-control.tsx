@@ -6,7 +6,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useSetMemberPersonaLore } from "../hooks/use-context-panel-mutations.ts";
 
 export interface MemberPersonaLoreControlProps {
@@ -18,7 +18,7 @@ export interface MemberPersonaLoreControlProps {
 export function MemberPersonaLoreNotice({ chatId }: MemberPersonaLoreControlProps): ReactElement | null {
   const trpc = useTRPC();
   // Non-suspending on purpose: the line must never hold the World books rows behind a second read.
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   if (chat === undefined || chat.memberPersonaLore) {
     return null;
   }
@@ -33,7 +33,7 @@ export function MemberPersonaLoreNotice({ chatId }: MemberPersonaLoreControlProp
 export function MemberPersonaLoreControl({ chatId }: MemberPersonaLoreControlProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const setEnabled = useSetMemberPersonaLore({ trpc, invalidation });
   return (
     <SettingSwitchRow

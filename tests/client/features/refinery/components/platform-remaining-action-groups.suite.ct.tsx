@@ -8,6 +8,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import {
+  REFINERY_COMPARE_NAME,
   REFINERY_EDIT_SCOPE_NAME,
   REFINERY_SCOPE_NAME,
   REFINERY_USE_FOR_APPLY_VERB,
@@ -179,20 +180,25 @@ test("each version's Compare and Restore name its version and its row shows the 
   for (const [index, name] of expected.entries()) {
     await expect(restores.nth(index)).toHaveAccessibleName(name);
   }
-  const compares = page.getByRole("button", { name: /^Compare /u });
+  const compares = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_COMPARE_NAME)} `, "u") });
   await expect(compares).toHaveCount(3);
-  const comparing = [
-    refineryCompareToggleName(false, "Before the rename"),
-    refineryCompareToggleName(false, "Manual layout reference", "#2"),
-    refineryCompareToggleName(false, "Manual layout reference", "#1"),
-  ];
-  for (const [index, name] of comparing.entries()) {
-    await expect(compares.nth(index)).toHaveAccessibleName(name);
-  }
+  await expect(compares.first()).toHaveAccessibleName(refineryCompareToggleName(false, "Before the rename"));
   // Sighted readers get the same ordinal the names carry; a row with a label of its own prints none.
   await expect(page.getByText(refineryVersionRowLabel("Manual layout reference", "#2"), { exact: true })).toBeVisible();
   await expect(page.getByText(refineryVersionRowLabel("Manual layout reference", "#1"), { exact: true })).toBeVisible();
   await expect(page.getByText("Before the rename", { exact: true })).toBeVisible();
+  // Each twin's Compare ends with the ordinal its own row prints, read off the page rather than built by the names module, so the two
+  // twins' Compare names differ.
+  const twinLabel = "Manual layout reference";
+  const printed = await page.getByText(new RegExp(`^${RegExp.escape(twinLabel)} `, "u")).allTextContents();
+  const ordinals = printed.map((text) => text.slice(twinLabel.length).trim());
+  expect(new Set(ordinals).size).toBe(2);
+  const twinCompares = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_COMPARE_NAME)} ${RegExp.escape(twinLabel)}`, "u") });
+  await expect(twinCompares).toHaveCount(ordinals.length);
+  for (const [index, ordinal] of ordinals.entries()) {
+    expect(ordinal).not.toBe("");
+    await expect(twinCompares.nth(index)).toHaveAccessibleName(new RegExp(` ${RegExp.escape(ordinal)}$`, "u"));
+  }
 });
 
 test("two runs of one stage in one round carry distinct names, oldest first", async ({ mount, page }) => {

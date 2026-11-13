@@ -66,7 +66,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { roomRosterOptions, useTRPC } from "#data";
 import { testId } from "#lib";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
 
@@ -148,7 +148,7 @@ function CharacterBarStrip({
 /** Seats from the same `chat.getChat` the message list + Context panel already read. */
 export function ChatCharacterBar({ chatId, inTranscript = false }: ChatCharacterBarProps): ReactElement | null {
   const trpc = useTRPC();
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   const roster = filterCharacters(chat?.participants ?? []);
   const humans = resolveHumanParticipants(chat?.participants ?? []);
   const characters: readonly CharacterSeat[] = roster.map((member) => ({

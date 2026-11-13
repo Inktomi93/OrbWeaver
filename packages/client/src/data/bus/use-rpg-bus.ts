@@ -38,7 +38,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { notify } from "#lib";
 import { applyRpgRoundEvent, clearRpgRounds } from "#state";
 import type { Invalidation } from "../invalidation.ts";
-import { useTRPC } from "../trpc.ts";
+import { roomRosterOptions, useTRPC } from "../trpc.ts";
 import { useGatedQuery } from "../use-gated-query.ts";
 import { useBusRoom } from "./use-bus-room.ts";
 
@@ -57,7 +57,7 @@ export function useRpgBus(chatId: ChatId | null, deps: RpgBusDeps): void {
   // The pointer read rides the room's own warm `chat.getChat` cache (TanStack dedupes it with the header /
   // options-menu readers) — a game that is BORN while this chat is open re-renders here as soon as that read
   // refetches, and the room attaches then.
-  const chatQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const chatQuery = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const isGame = isRpgEngaged(chatQuery.data?.rpg ?? null);
   const ref: Extract<StreamRoomRef, { channel: "rpg" }> | null = chatId === null || !isGame ? null : { channel: "rpg", chatId };
   useBusRoom<"rpg">(ref, {

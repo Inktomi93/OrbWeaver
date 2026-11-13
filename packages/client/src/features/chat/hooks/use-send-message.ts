@@ -75,7 +75,7 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
         ...(attachmentAssetIds.length > 0 ? { attachmentAssetIds } : {}),
       });
     } catch (error) {
-      // The server found no such room: re-read it, and a room that is gone is left for the chat list (`useLeaveGoneRoom`).
+      // The server found no such room: re-read it, and a room that is gone is left for the chat list (`useRoomRead`).
       if (trpcErrorCode(error) === "NOT_FOUND") {
         invalidation.invalidateFilters([trpc.chat.getChat.queryFilter({ chatId: opts.chatId })]);
       }
