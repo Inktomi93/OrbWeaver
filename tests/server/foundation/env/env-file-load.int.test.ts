@@ -115,9 +115,10 @@ test.for(["AUTH_FALLBACK=owner", "AUTH_FALLBACK_TRUSTED_PEERS=172.16.0.0/12"])(
 
 // Windows reads `auth_mode` as AUTH_MODE, so the parse does on every platform; the share panel still names where the
 // value came from, and a launch-only key in another letter case is still refused in `.env`.
-test("a lower-case key sets its schema key from .env or the launch, keeps its source, and a lower-case launch-only key in .env refuses the boot", ({
-  importStagingDir,
-}) => {
+// Four fresh processes, so it runs past the default case budget under load.
+test("a lower-case key sets its schema key from .env or the launch, keeps its source, and a lower-case launch-only key in .env refuses the boot", {
+  tags: "slow",
+}, ({ importStagingDir }) => {
   const lower = AUTH_MODE_KEY.toLowerCase();
   // Control: the upper-case line.
   expect(boot(importStagingDir, "upper", `${AUTH_MODE_KEY}=local\n`)).toMatchObject({
