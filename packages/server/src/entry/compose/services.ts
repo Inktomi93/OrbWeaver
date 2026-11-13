@@ -658,6 +658,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         userRuntimeDirs.remove(ownerId, tool);
       }
     },
+    providerWire: async (providerId, ownerId) =>
+      runtimeRef().providers.registry.get(providerId, ownerId)?.wire ?? (await ports.claimedProviderWire(providerId, ownerId)),
   });
 
   const runtime = await createInferenceRuntime({

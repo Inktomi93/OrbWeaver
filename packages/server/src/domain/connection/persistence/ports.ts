@@ -6,7 +6,14 @@ import type { ConnectionPorts, ConnectionPortsDeps } from "../contract/service.t
 import { lookupBinding } from "./bindings.ts";
 import { createSnapshotStore } from "./catalog-snapshot.ts";
 import { fetchConnectionById } from "./connections.ts";
-import { deleteAdminProviderRow, listProviderRows, putAdminProviderRow, releasePluginProviderClaims, replacePluginProviderRows } from "./provider-rows.ts";
+import {
+  claimedProviderWire,
+  deleteAdminProviderRow,
+  listProviderRows,
+  putAdminProviderRow,
+  releasePluginProviderClaims,
+  replacePluginProviderRows,
+} from "./provider-rows.ts";
 
 export function createConnectionPorts(input: DbAssemblyInput<ConnectionPortsDeps>): ConnectionPorts {
   const deps: ConnectionPortsDeps = { ...input, db: databaseForOwner(input.db) };
@@ -26,5 +33,6 @@ export function createConnectionPorts(input: DbAssemblyInput<ConnectionPortsDeps
       removePlugin: (pluginId) => releasePluginProviderClaims(db, pluginId),
     },
     snapshotStore: createSnapshotStore(deps.catalogSettings),
+    claimedProviderWire: (providerId, ownerId) => claimedProviderWire(db, ownerId, providerId),
   };
 }

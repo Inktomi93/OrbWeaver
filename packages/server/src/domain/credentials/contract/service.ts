@@ -10,7 +10,7 @@
 // consequences, because only this domain writes `user_credentials`.
 
 import type { CredentialStorageStatus, CredentialView, RecordProbeOutcomeOp, RelabelCredentialOp, ResolvedSecret } from "@orb/contracts/credentials";
-import type { Wire } from "@orb/contracts/inference";
+import type { ProviderId, Wire } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { InferenceDeps, ProviderRegistry } from "@orb/inference";
@@ -52,6 +52,9 @@ export interface CredentialContext {
   /** Remove the owner's per-user runtime state for one wire (the agent-sdk CLI's config directory). `remove`
    *  calls it once the owner holds no key on that wire, so a remaining key keeps its runtime's state. */
   readonly releaseRuntimeState: (ownerId: UserId, wire: Wire) => void;
+  /** The wire of a provider the owner holds a key for, including a plugin provider whose install is disabled
+   *  (read from the owner's claim, which {@link CredentialContext.findProvider} does not serve), or undefined. */
+  readonly providerWire: (providerId: ProviderId, ownerId: UserId) => Promise<Wire | undefined>;
 }
 
 /** The credential surface. The turn-time `resolve` is the only consumer-facing construction of a
