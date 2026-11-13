@@ -622,7 +622,7 @@ function replaceFirewallAgentFor(context: EgressContext): EnvAllowlist {
 /** The env belt: `EGRESS_ALLOWLIST` plus the OIDC issuer and `FORWARD_AUTH_JWKS` URLs. One read per egress for the
  *  connect gate and the write-time admission, so the two cannot disagree about a declared host. */
 function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "FORWARD_AUTH_JWKS" | "OIDC_ISSUER">): EnvAllowlist {
-  const allowlist = operatorEgressAllowlist(record.EGRESS_ALLOWLIST);
+  const { allowlist } = operatorEgressAllowlist(record.EGRESS_ALLOWLIST);
   // SECURITY: an identity URL admits its own host at its own port only. A member's endpoint write is judged against
   // this belt, so admitting the host at every port would hand any member every port on the identity provider's box.
   for (const url of identityUrls(record)) {
@@ -637,20 +637,39 @@ function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "FORWARD_AUTH
   return allowlist;
 }
 
-/** `EGRESS_ALLOWLIST`: a bare host admits every port, `host:port` only that port. */
-function operatorEgressAllowlist(raw: string | undefined): Map<string, ReadonlySet<number> | null> {
+// One written `EGRESS_ALLOWLIST` entry, or null when its port does not parse: as in the private-endpoint allowlist, that
+// refuses the entry. `readable` is false for a subject that is neither a hostname nor an IP address; it stays a key, so
+// the boot warning changes no admission, and no request host can equal it.
+function readOperatorEntry(written: string): { readonly subject: string; readonly port: number | null; readonly readable: boolean } | null {
+  const split = splitEntryPort(written.toLowerCase());
+  if (split === null || split.subject === "") {
+    return null;
+  }
+  return { ...split, readable: isHostnameEntry(split.subject) || parseIp(split.subject) !== null };
+}
+
+/** `EGRESS_ALLOWLIST`: a bare host admits every port, `host:port` only that port. `unreadable` names each entry that
+ *  admits nothing. */
+function operatorEgressAllowlist(raw: string | undefined): {
+  readonly allowlist: Map<string, ReadonlySet<number> | null>;
+  readonly unreadable: readonly string[];
+} {
+  const entries = (raw ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "")
+    .map((written) => ({ written, read: readOperatorEntry(written) }));
+  const unreadable = entries.filter(({ read }) => read === null || !read.readable).map(({ written }) => written);
   const scoped = new Map<string, Set<number>>();
   const bare = new Set<string>();
-  for (const entry of (raw ?? "").split(",")) {
-    // An unreadable port refuses the entry, as in the private-endpoint allowlist: it admits nothing.
-    const split = splitEntryPort(entry.trim().toLowerCase());
-    if (split === null || split.subject === "") {
+  for (const { read } of entries) {
+    if (read === null) {
       continue;
     }
-    if (split.port === null) {
-      bare.add(split.subject);
+    if (read.port === null) {
+      bare.add(read.subject);
     } else {
-      scoped.set(split.subject, (scoped.get(split.subject) ?? new Set()).add(split.port));
+      scoped.set(read.subject, (scoped.get(read.subject) ?? new Set()).add(read.port));
     }
   }
   // The narrower spelling is the host's last word, the precedence the private-endpoint allowlist rules.
@@ -660,7 +679,17 @@ function operatorEgressAllowlist(raw: string | undefined): Map<string, ReadonlyS
       allowlist.set(host, null);
     }
   }
-  return allowlist;
+  return { allowlist, unreadable };
+}
+
+/** The boot warning for each `EGRESS_ALLOWLIST` entry that admits nothing, from the same parse the egress belt reads.
+ *  The boot disclaimer logs them; an entry here is ignored, so the egress belt allows exactly what it would without it. */
+export function egressAllowlistWarnings(raw: string | undefined): readonly string[] {
+  return operatorEgressAllowlist(raw).unreadable.map(
+    (entry) =>
+      `EGRESS_ALLOWLIST entry "${entry}" is not a host name or an IP address, with or without a :port, so it admits nothing. ` +
+      "Write a host such as ollama.lan, or a host and port such as ollama.lan:11434.",
+  );
 }
 
 // The identity provider URLs the server itself dials: OIDC discovery and the forward-header key set. A malformed

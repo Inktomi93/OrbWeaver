@@ -15,6 +15,7 @@ export {
   ANY_HOST,
   createScopedEgress,
   EgressBlockedError,
+  egressAllowlistWarnings,
   installEgressFirewall,
   isRecordedEgressBlock,
   systemConnector,
