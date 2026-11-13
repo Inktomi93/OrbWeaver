@@ -4,7 +4,7 @@
 // @subject packages/contracts/src/import/preview.ts
 
 import type { ImportPreview, ImportPreviewItem, ImportPreviewKind } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TAIL_MAX, importPreviewListOf, mergeImportPreviews } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_LIST_MAX, importPreviewListOf, mergeImportPreviews } from "@orb/contracts/import";
 import { expect, test } from "@orb/testkit/node";
 
 const KIND = "themes" satisfies ImportPreviewKind;
@@ -158,12 +158,19 @@ test("an entry one upload lists and another leaves in its tail is counted once, 
 });
 
 test("an unlisted entry past the digests an upload sends cannot be matched, so it is counted as the upload counted it and named uncompared", () => {
-  const entries = IMPORT_PREVIEW_LIST_MAX + IMPORT_PREVIEW_TAIL_MAX + 1;
+  // Far past the cap and the digests together; the bound itself is read off what the list sends.
+  const entries = 20 * IMPORT_PREVIEW_LIST_MAX;
+  const upload = sharedUpload(entries);
+  const digested = upload.kinds[KIND].tail.writes.length;
+  const unmatched = entries - IMPORT_PREVIEW_LIST_MAX - digested;
 
-  const merged = mergeImportPreviews([sharedUpload(entries), sharedUpload(entries)]).kinds[KIND];
+  const merged = mergeImportPreviews([upload, sharedUpload(entries)]).kinds[KIND];
 
-  // The one entry past the digests is the same file in both uploads and counts twice: a bound the count says it is.
-  expect(merged.total).toBe(entries + 1);
+  // The control: the digests stop short of the tail, so some entries are the same file in both uploads and cannot be told.
+  expect(digested).toBeGreaterThan(0);
+  expect(unmatched).toBeGreaterThan(0);
+  // Those count twice, a bound the count says it is; every other entry counts once.
+  expect(merged.total).toBe(entries + unmatched);
   expect(merged.counts.uncompared).toBe(merged.counts.writes);
 });
 

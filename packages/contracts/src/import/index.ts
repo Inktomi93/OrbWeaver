@@ -35,7 +35,6 @@ export type {
 export {
   IMPORT_PREVIEW_KINDS,
   IMPORT_PREVIEW_LIST_MAX,
-  IMPORT_PREVIEW_TAIL_MAX,
   IMPORT_PREVIEW_TEXT_MAX,
   importPreviewListOf,
   importPreviewSchema,
