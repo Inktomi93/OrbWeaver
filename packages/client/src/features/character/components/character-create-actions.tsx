@@ -19,12 +19,12 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { useId, useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, useOpenRequests } from "#lib";
-import { selectCharacter } from "#state";
+import { newCharacterDoorRef, selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
 import { characterDoors } from "../lib/character-door-requests.ts";
 import {
@@ -38,8 +38,17 @@ import {
 import { CHARACTER_CREATE_FAILED, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
-/** The minimal create: name + one-line description, handle auto-derived from the name. */
-function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void }): ReactElement {
+/** The minimal create: name + one-line description, handle auto-derived from the name. A door's own dialog returns focus to the
+ *  door that opened it; a request from another section (`new-character-host.tsx`) names where focus goes on close. */
+export function NewCharacterDialog({
+  open,
+  onOpenChange,
+  finalFocus,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly finalFocus?: ComponentProps<typeof FormDialog>["finalFocus"];
+}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   // Every failure has a line here while the dialog is open, so the toast speaks only once the dialog is gone.
@@ -85,6 +94,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
   return (
     <FormDialog
       description="Give them a name and a one-line description. You can flesh out the rest in the editor."
+      {...(finalFocus === undefined ? {} : { finalFocus })}
       onOpenChange={onOpenChange}
       open={open}
       submit={{ label: DIALOG_VERBS.create, disabled: incomplete || create.isPending, onSubmit: onCreate }}
@@ -166,7 +176,7 @@ export function CharacterLandingDoors(): ReactElement {
   const [importOpen, setImportOpen] = useState(false);
   return (
     <Row align="center" wrap={true} cap="fit" gap="field">
-      <Button onClick={(): void => setCreateOpen(true)} size="sm">
+      <Button onClick={(): void => setCreateOpen(true)} ref={newCharacterDoorRef} size="sm">
         <Icon icon={Plus} size="sm" />
         New character
       </Button>
@@ -227,11 +237,11 @@ export function CharacterNewDoor({ iconOnly = false }: { readonly iconOnly?: boo
   return (
     <>
       {iconOnly ? (
-        <Button aria-label={CHARACTER_NEW_NAME} onClick={(): void => setOpen(true)} size="sm" square={true} type="button">
+        <Button aria-label={CHARACTER_NEW_NAME} onClick={(): void => setOpen(true)} ref={newCharacterDoorRef} size="sm" square={true} type="button">
           <Icon icon={Plus} size="sm" />
         </Button>
       ) : (
-        <Button onClick={(): void => setOpen(true)} size="sm">
+        <Button onClick={(): void => setOpen(true)} ref={newCharacterDoorRef} size="sm">
           <Icon icon={Plus} size="sm" />
           {CHARACTER_NEW_SHORT_LABEL}
         </Button>
