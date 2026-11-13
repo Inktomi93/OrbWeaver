@@ -39,12 +39,13 @@ export interface Invalidation {
   /** The bus half — routes a `ChatBusEvent` through the exhaustive map. Fire-and-forget: the carrier lands at once,
    *  and the events one task delivers share one refetch on the next task. */
   readonly invalidate: (event: ChatBusEvent) => void;
-  /** The user-bus half — routes a `UserBusEvent` through `USER_BUS_FILTERS`. Fire-and-forget. */
+  /** The user-bus half — routes a `UserBusEvent` through `USER_BUS_FILTERS`. Fire-and-forget, and joins the same
+   *  wave as {@link Invalidation.invalidate}: the events one task delivers share one refetch on the next task. */
   readonly invalidateUser: (event: UserBusEvent) => void;
   /** The rpg-bus half — routes an `RpgBusEvent` through `RPG_BUS_FILTERS` (the feature-root game bus,
-   *  `rpg.stream`). Fire-and-forget. */
+   *  `rpg.stream`). Fire-and-forget; joins the wave. */
   readonly invalidateRpg: (event: RpgBusEvent) => void;
-  /** The automation-room half — routes an `AutomationBusEvent` through its exhaustive central map. */
+  /** The automation-room half — routes an `AutomationBusEvent` through its exhaustive central map; joins the wave. */
   readonly invalidateAutomation: (event: AutomationBusEvent) => void;
   /** Gap-heal — on automation-room reconnect, blanket-invalidate the durable reads its live-only events move. */
   readonly gapHealAutomation: (chatId: ChatId) => void;
@@ -214,16 +215,18 @@ function combinedRefetchTarget(targets: ReadonlySet<RefetchTarget>): RefetchTarg
 // Hook facades are recreated per render; an initial read owes one reconciliation across all of them.
 const initialReads = new WeakMap<Query, Set<RefetchTarget>>();
 
-// The room events one task delivers share one refetch. `held` maps a query to the refetch the wave started in place of
-// a read that predates one of its events; that refetch reads nothing until `gate` opens at the flush.
-interface ChatWave {
+// The bus events one task delivers share one refetch. `held` maps a query to the refetch the wave started in place of
+// a read that predates one of its events; that refetch reads nothing until `gate` opens at the flush. `seen` maps each
+// query an event stales to the read it had in flight at that event, so the flush can tell a read that started since.
+interface BusWave {
   readonly filters: InvalidateQueryFilters[];
   readonly gate: PromiseWithResolvers<void>;
   readonly held: Map<Query, Promise<unknown>>;
+  readonly seen: Map<Query, Promise<unknown> | undefined>;
 }
 
 // Keyed by client, not facade, for the same reason as `initialReads`.
-const chatWaves = new WeakMap<QueryClient, ChatWave>();
+const busWaves = new WeakMap<QueryClient, BusWave>();
 
 // Query.fetch(options) and Query.setOptions are @internal in @tanstack/query-core 5.104.5. This is their only use;
 // tests/client/data/invalidation-chat-hold.dom.test.ts pins that the swapped queryFn reaches no other fetch.
@@ -266,17 +269,33 @@ function refetches(filter: InvalidateQueryFilters, query: Query): boolean {
 }
 
 /** Whether `query` holds a read in flight from before this event that the wave must replace. An initial read has no
- *  carrier to protect; `retainInitialReads` reconciles it at the flush. */
-function predatesWave(wave: ChatWave, filter: InvalidateQueryFilters, query: Query): boolean {
+ *  carrier to protect; `retainInitialReads` owes it one reconciliation from the event on. */
+function predatesWave(wave: BusWave, filter: InvalidateQueryFilters, query: Query): boolean {
   return query.state.data !== undefined && query.state.fetchStatus !== "idle" && wave.held.get(query) !== query.promise && refetches(filter, query);
 }
 
-function replaceStaleRead(wave: ChatWave, query: Query): void {
+/** Whether the flush still owes `query` the wave's refetch. A query first cached after the event, or reading through a
+ *  fetch started since (a held refetch included), already reads past every event of the wave. */
+function owedAtFlush(wave: BusWave, query: Query): boolean {
+  return wave.seen.has(query) && (query.promise === undefined || query.promise === wave.seen.get(query));
+}
+
+function replaceStaleRead(wave: BusWave, query: Query): void {
   // Marked first, so a held refetch an unmount reverts still owes its refetch on the next mount.
   query.invalidate();
   const held = holdRefetch(query, wave.gate.promise);
   if (held !== undefined) {
     wave.held.set(query, held);
+  }
+}
+
+// The wave's first event to stale `query` fixes the read the flush compares against.
+function joinWave(wave: BusWave, filter: InvalidateQueryFilters, query: Query): void {
+  if (!wave.seen.has(query)) {
+    wave.seen.set(query, query.promise);
+  }
+  if (predatesWave(wave, filter, query)) {
+    replaceStaleRead(wave, query);
   }
 }
 
@@ -335,36 +354,34 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       }
     });
   };
-  const flushChatWave = (wave: ChatWave): void => {
-    chatWaves.delete(deps.queryClient);
+  const flushBusWave = (wave: BusWave): void => {
+    busWaves.delete(deps.queryClient);
     wave.gate.resolve();
-    const unheld = (query: Query): boolean => {
-      const held = wave.held.get(query);
-      return held === undefined || held !== query.promise;
-    };
     invalidateFilters(
-      collapseFilters(wave.filters).map((filter) => ({ ...filter, predicate: (query) => unheld(query) && (filter.predicate?.(query) ?? true) })),
+      collapseFilters(wave.filters).map((filter) => ({
+        ...filter,
+        predicate: (query) => owedAtFlush(wave, query) && (filter.predicate?.(query) ?? true),
+      })),
     );
   };
-  const openChatWave = (): ChatWave => {
-    const wave: ChatWave = { filters: [], gate: Promise.withResolvers<void>(), held: new Map() };
-    chatWaves.set(deps.queryClient, wave);
-    setTimeout(() => flushChatWave(wave), 0);
+  const openBusWave = (): BusWave => {
+    const wave: BusWave = { filters: [], gate: Promise.withResolvers<void>(), held: new Map(), seen: new Map() };
+    busWaves.set(deps.queryClient, wave);
+    setTimeout(() => flushBusWave(wave), 0);
     return wave;
   };
   // A read in flight at an event predates it and would land over the carrier, so it is replaced at once by the wave's
-  // held refetch; everything else refetches once at the flush.
-  const enqueueChatWave = (filters: readonly InvalidateQueryFilters[]): void => {
+  // held refetch, and an initial read owes its reconciliation at once; everything else refetches once at the flush.
+  const enqueueBusWave = (filters: readonly InvalidateQueryFilters[]): void => {
     if (filters.length === 0) {
       return;
     }
-    const wave = chatWaves.get(deps.queryClient) ?? openChatWave();
+    const wave = busWaves.get(deps.queryClient) ?? openBusWave();
     wave.filters.push(...filters);
     for (const filter of filters) {
+      retainInitialReads(filter);
       for (const query of deps.queryClient.getQueryCache().findAll(filter)) {
-        if (predatesWave(wave, filter, query)) {
-          replaceStaleRead(wave, query);
-        }
+        joinWave(wave, filter, query);
       }
     }
   };
@@ -378,7 +395,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       if (IS_DEV) {
         busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
       }
-      enqueueChatWave(filters);
+      enqueueBusWave(filters);
     },
     invalidateUser: (event): void => {
       const handler = USER_BUS_FILTERS[event.type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];
@@ -386,7 +403,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       if (IS_DEV) {
         busInvalidate(event.type, "user", filters.map(filterKeyName));
       }
-      invalidateFilters(filters);
+      enqueueBusWave(filters);
     },
     invalidateRpg: (event): void => {
       const handler = RPG_BUS_FILTERS[event.type] as (e: RpgBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];
@@ -394,14 +411,14 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       if (IS_DEV) {
         busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
       }
-      invalidateFilters(filters);
+      enqueueBusWave(filters);
     },
     invalidateAutomation: (event): void => {
       const filters = automationEventFilters(event, deps.trpc);
       if (IS_DEV) {
         busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
       }
-      invalidateFilters(filters);
+      enqueueBusWave(filters);
     },
     invalidateAllUserRoots: (): void => {
       invalidateFilters(allUserRootFilters(deps.trpc));
