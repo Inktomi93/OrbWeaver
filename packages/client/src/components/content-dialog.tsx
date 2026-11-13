@@ -119,7 +119,7 @@ export function ContentDialog<L extends string>({
 function footerRow(dismiss: Extract<ContentDismiss, { at: "footer" }>, footer: ReactNode): ReactElement {
   if (dismiss.primary !== true && footer !== undefined) {
     return (
-      <CommitRow cancelLabel={dismiss.label} {...(dismiss.control === undefined ? {} : { cancelRef: dismiss.control })}>
+      <CommitRow surface="dialog" cancelLabel={dismiss.label} {...(dismiss.control === undefined ? {} : { cancelRef: dismiss.control })}>
         {footer}
       </CommitRow>
     );

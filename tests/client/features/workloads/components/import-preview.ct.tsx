@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { RETRY_NAME } from "@orb/client/lib";
+import { DIALOG_VERBS, RETRY_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ImportPreview } from "@orb/contracts/import";
@@ -384,7 +384,7 @@ test("the preflight reads Cancel then Import, end-aligned, with Cancel quiet", a
   await pickFolder(page, folder);
   const preflight = page.getByRole("group", { name: PREFLIGHT });
   await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
-  const cancel = preflight.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
   const [cancelBox, confirmBox, rowBox] = await Promise.all([cancel.boundingBox(), confirm.boundingBox(), confirm.locator("..").boundingBox()]);
   if (cancelBox === null || confirmBox === null || rowBox === null) {

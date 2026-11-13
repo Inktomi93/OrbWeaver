@@ -142,7 +142,7 @@ function ImportPreflight({
         )}
         {/* Pinned to the foot of the pane's scroll, so Import and Cancel stay in reach however tall the review grows. */}
         <Row ground="card" layer="raised" paddingBlock="field" placed="pinnedEnd">
-          <CommitRow onCancel={onCancel}>
+          <CommitRow surface="island" onCancel={onCancel}>
             <Button
               onClick={onConfirm}
               disabled={preview.status === "reading" || nothingNote !== null}

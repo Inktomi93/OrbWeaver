@@ -180,7 +180,7 @@ export function FormDialogPopup<L extends string>({ submit, footerLead, children
       </PromptBody>
       <DialogFooter>
         {footerLead}
-        <CommitRow>
+        <CommitRow surface="dialog">
           <SubmitButton formId={formId} submit={submit} />
         </CommitRow>
       </DialogFooter>

@@ -1,4 +1,5 @@
 // The owned footer: Cancel and the submit, Enter as the submit, a body fresh on every open and focus back on the opener.
+import { DIALOG_VERBS } from "@orb/client/lib";
 import { expect, test } from "@playwright/test";
 import type { FormDialogBodyStateStory, FormDialogDismissalStory } from "./_form-dialog-stories.tsx";
 
@@ -51,7 +52,7 @@ test("the footer reads Cancel then the submit, end-aligned, with Cancel quiet", 
   const component = await mount<typeof FormDialogBodyStateStory>(BODY_STORY);
   await component.getByRole("button", { name: "Open draft", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Draft form", exact: true });
-  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   const submit = dialog.getByRole("button", { name: "Keep draft", exact: true });
   const [cancelBox, submitBox, rowBox] = await Promise.all([cancel.boundingBox(), submit.boundingBox(), submit.locator("..").boundingBox()]);
   if (cancelBox === null || submitBox === null || rowBox === null) {
