@@ -6,12 +6,23 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { DEFERRED_TURN_HOST_UNAVAILABLE_COPY } from "#client/features/notifications/lib/notifications-copy.ts";
+import {
+  acceptInvitationName,
+  DEFERRED_TURN_HOST_UNAVAILABLE_COPY,
+  DISMISS_NAME_LEAD,
+  declineInvitationName,
+  LOAD_MORE_DISMISSED_LABEL,
+  LOAD_MORE_LABEL,
+  NOTIFICATIONS_BELL_NAME,
+  notificationsBellLabel,
+  SHOW_DISMISSED_LABEL,
+} from "#client/features/notifications/lib/notifications-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { NotificationInboxStory } from "./_ct-stories.tsx";
 
 const STORY = "tests/client/features/notifications/_ct-stories/NotificationInboxStory";
 const INBOX_PROCEDURES = ["notifications.list", "notifications.markAllRead", "notifications.dismiss", "plugin.list"] as const;
-const BELL = /^Notifications/u;
+const BELL = NOTIFICATIONS_BELL_NAME;
 // The server's default page, which the client's list asks for by omission.
 const PAGE_SIZE = 50;
 const POPUP = '[data-slot="popover-popup"]';
@@ -90,9 +101,9 @@ test("the registered bell settles a held native inbox read into its unread state
   );
   await mount<typeof NotificationInboxStory>("tests/client/features/notifications/_ct-stories/NotificationInboxStory", {});
   await hold.requested;
-  await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true })).toBeVisible();
   hold.release();
-  await expect(page.getByRole("button", { name: "Notifications (2 unread)", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: notificationsBellLabel(2, false), exact: true })).toBeVisible();
   const foreign = await page.evaluate(async (path) => {
     const response = await fetch(path);
     return { status: response.status, bytes: (await response.arrayBuffer()).byteLength };
@@ -117,7 +128,7 @@ test("the captured read stage keeps pending invitation actions without marking t
   expect(() => createCorpusViewerReadResponder("notifications.list", snapshots.foreignBefore.viewerUserId, snapshot)).toThrow("snapshot viewer does not match");
   const trpc = await routeTrpc(page, { "notifications.list": respond });
   await mount<typeof NotificationInboxStory>("tests/client/features/notifications/_ct-stories/NotificationInboxStory", {});
-  const bell = page.getByRole("button", { name: "Notifications", exact: true });
+  const bell = page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true });
   await expect(bell.locator('[data-slot="badge"]')).toBeVisible();
   // StrictMode replays the initial owner; opening the already-read inbox must not add another read.
   const initialInputs = structuredClone(trpc.inputs("notifications.list"));
@@ -129,8 +140,8 @@ test("the captured read stage keeps pending invitation actions without marking t
   const invitations = snapshot.read.output.items.flatMap((item) => (item.payload.type === "invite" ? [item.payload] : []));
   expect(invitations).toHaveLength(2);
   for (const [index, invitation] of invitations.entries()) {
-    const accept = page.getByRole("button", { name: `Accept invitation from ${invitation.invitedByHandle}`, exact: true });
-    const decline = page.getByRole("button", { name: `Decline invitation from ${invitation.invitedByHandle}`, exact: true });
+    const accept = page.getByRole("button", { name: acceptInvitationName(invitation.invitedByHandle), exact: true });
+    const decline = page.getByRole("button", { name: declineInvitationName(invitation.invitedByHandle), exact: true });
     await expect(accept).toHaveCount(invitations.length);
     await expect(decline).toHaveCount(invitations.length);
     await expect(accept.nth(index)).toBeVisible();
@@ -165,14 +176,14 @@ test("older rows load on request and a row dismissed on another device stays out
   const remaining = await rpc.notifications.list({ limit: NOTIFICATIONS_LIST_MAX_LIMIT });
   await routeTrpc(page, serveCorpusProcedures(rpc, ["notifications.list", "notifications.markAllRead"]));
   await mount<typeof NotificationInboxStory>("tests/client/features/notifications/_ct-stories/NotificationInboxStory", {});
-  await page.getByRole("button", { name: "Notifications", exact: true }).click();
+  await page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true }).click();
   const rows = page.locator('[data-slot="inbox-row"]');
   await expect(rows).toHaveCount(firstPage.items.length);
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true }).click();
   await expect(rows).toHaveCount(remaining.items.length);
   const older = page.locator('[data-slot="inbox-dismissed-row"]');
   await expect(older).toHaveCount(0);
-  await page.getByRole("button", { name: "Show dismissed", exact: true }).click();
+  await page.getByRole("button", { name: SHOW_DISMISSED_LABEL, exact: true }).click();
   const archive = await rpc.notifications.list({ state: "dismissed" });
   expect(archive.items.map((item) => item.id)).toContain(dismissed.id);
   await expect(older).toHaveCount(archive.items.length);
@@ -194,7 +205,7 @@ test("a failed inbox read offers a retry and never claims the inbox is empty", a
   await mount<typeof NotificationInboxStory>(STORY, {});
   await openBell(page);
   const popup = page.locator(POPUP);
-  const retry = popup.getByRole("button", { name: "Retry", exact: true });
+  const retry = popup.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
   await expect(popup.locator('[data-slot="empty-state"]')).toHaveCount(0);
   failing = false;
@@ -217,14 +228,14 @@ test("a Load more press lands while a background refetch is running", async ({ c
     serveCorpusProcedures(rpc, INBOX_PROCEDURES, (input) => (armed && input !== undefined && !("cursor" in input) ? hold : undefined)),
   );
   await mount<typeof NotificationInboxStory>(STORY, {});
-  await expect(page.getByRole("button", { name: /unread/u })).toBeVisible();
+  await expect(page.getByRole("button", { name: notificationsBellLabel(firstPage, true), exact: true })).toBeVisible();
   armed = true;
   await openBell(page);
   await hold.requested;
   armed = false;
   const rows = page.locator(ROW);
   await expect(rows).toHaveCount(firstPage);
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true }).click();
   await expect.poll(() => rows.count()).toBeGreaterThan(firstPage);
   hold.release();
 });
@@ -235,7 +246,7 @@ test("a background refetch neither raises nor clears a Load more failure", async
     throw new Error("The shared corpus omitted its native notification reader");
   }
   await using root = await createCorpusHarness();
-  const { rpc } = await seededInbox(root, reader.userId);
+  const { rpc, firstPage } = await seededInbox(root, reader.userId);
   let failRefetch = false;
   let failPage = false;
   const trpc = await routeTrpc(
@@ -246,13 +257,13 @@ test("a background refetch neither raises nor clears a Load more failure", async
     }),
   );
   await mount<typeof NotificationInboxStory>(STORY, {});
-  await expect(page.getByRole("button", { name: /unread/u })).toBeVisible();
+  await expect(page.getByRole("button", { name: notificationsBellLabel(firstPage, true), exact: true })).toBeVisible();
   const reads = trpc.count("notifications.list");
   failRefetch = true;
   await openBell(page);
   await expect.poll(() => trpc.count("notifications.list")).toBeGreaterThan(reads);
   const popup = page.locator(POPUP);
-  const loadMore = popup.getByRole("button", { name: "Load more", exact: true });
+  const loadMore = popup.getByRole("button", { name: LOAD_MORE_LABEL, exact: true });
   await expect(loadMore).toBeVisible();
   const failure = popup.getByRole("alert");
   await expect(failure).toHaveCount(0);
@@ -261,11 +272,7 @@ test("a background refetch neither raises nor clears a Load more failure", async
   await loadMore.click();
   await expect(failure).toHaveCount(1);
   const beforeDismiss = trpc.count("notifications.list");
-  await popup
-    .locator(ROW)
-    .first()
-    .getByRole("button", { name: /^Dismiss/u })
-    .click();
+  await popup.locator(ROW).first().getByRole("button", { name: DISMISS_NAME_LEAD }).click();
   await expect.poll(() => trpc.count("notifications.list")).toBeGreaterThan(beforeDismiss);
   await expect(failure).toHaveCount(1);
 });
@@ -282,7 +289,7 @@ test("the keyboard stays with the list when a page loads, and the last page does
   await openBell(page);
   const rows = page.locator(ROW);
   await expect(rows).toHaveCount(firstPage);
-  const loadMore = page.getByRole("button", { name: "Load more", exact: true });
+  const loadMore = page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true });
   await loadMore.focus();
   await page.keyboard.press("Enter");
   await expect(rows.nth(firstPage)).toBeFocused();
@@ -309,7 +316,7 @@ test("Show dismissed lands the reader on what it revealed", async ({ corpus, mou
   await mount<typeof NotificationInboxStory>(STORY, {});
   await openBell(page);
   await expect(page.locator(ROW)).toHaveCount(firstPage);
-  await page.getByRole("button", { name: "Show dismissed", exact: true }).focus();
+  await page.getByRole("button", { name: SHOW_DISMISSED_LABEL, exact: true }).focus();
   await page.keyboard.press("Enter");
   const first = page.locator(DISMISSED_ROW).first();
   await expect(first).toBeFocused();
@@ -324,7 +331,7 @@ test("opening the bell cannot put a decision one Enter away", async ({ corpus, m
   }
   await routeTrpc(page, { "notifications.list": createCorpusViewerReadResponder("notifications.list", reader.userId, snapshots.readerRead) });
   await mount<typeof NotificationInboxStory>(STORY, {});
-  await page.getByRole("button", { name: "Notifications", exact: true }).click();
+  await page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true }).click();
   await expect(page.locator(POPUP)).toBeFocused();
 });
 
@@ -341,11 +348,11 @@ test("past the first page the bell says its unread count is a floor, and dismiss
   const { firstPage: unread } = await seededInbox(root, reader.userId);
   await routeTrpc(page, serveCorpusProcedures(rpc, INBOX_PROCEDURES));
   await mount<typeof NotificationInboxStory>(STORY, {});
-  await expect(page.getByRole("button", { name: `Notifications (${unread}+ unread)`, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: notificationsBellLabel(unread, true), exact: true })).toBeVisible();
   await openBell(page);
-  await page.getByRole("button", { name: "Show dismissed", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Load more dismissed", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(1);
+  await page.getByRole("button", { name: SHOW_DISMISSED_LABEL, exact: true }).click();
+  await expect(page.getByRole("button", { name: LOAD_MORE_DISMISSED_LABEL, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true })).toHaveCount(1);
 });
 
 test("an unbroken notice wraps inside its row", async ({ corpus, mount, page }) => {
@@ -389,7 +396,7 @@ test("an inbox that ends on a page boundary offers no Load more", async ({ corpu
   await mount<typeof NotificationInboxStory>(STORY, {});
   await openBell(page);
   await expect(page.locator(ROW)).toHaveCount(PAGE_SIZE);
-  await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true })).toHaveCount(0);
 });
 
 test("a press that brings no row leaves nothing armed, so a later refetch cannot move focus", async ({ corpus, mount, page }) => {
@@ -411,16 +418,13 @@ test("a press that brings no row leaves nothing armed, so a later refetch cannot
   await expect(rows).toHaveCount(PAGE_SIZE);
   // The row the cursor promised leaves on another device, so the pressed page lands empty.
   await rpc.notifications.dismiss({ notificationId: oldest.id });
-  const loadMore = page.getByRole("button", { name: "Load more", exact: true });
+  const loadMore = page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true });
   await loadMore.click();
   await expect(loadMore).toHaveCount(0);
   await root.services.notifications.record({ event: newest.payload });
   await root.services.notifications.record({ event: newest.payload });
   const reads = trpc.count("notifications.list");
-  await rows
-    .first()
-    .getByRole("button", { name: /^Dismiss/u })
-    .click();
+  await rows.first().getByRole("button", { name: DISMISS_NAME_LEAD }).click();
   await expect.poll(() => trpc.count("notifications.list")).toBeGreaterThan(reads);
   await expect(rows).toHaveCount(PAGE_SIZE + 1);
   await expect(rows.nth(PAGE_SIZE)).not.toBeFocused();
@@ -447,12 +451,9 @@ test("a list invalidate during a pressed page still ends in that page", async ({
   await openBell(page);
   const rows = page.locator(ROW);
   await expect(rows).toHaveCount(firstPage);
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
+  await page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true }).click();
   await hold.requested;
-  await rows
-    .first()
-    .getByRole("button", { name: /^Dismiss/u })
-    .click();
+  await rows.first().getByRole("button", { name: DISMISS_NAME_LEAD }).click();
   await expect.poll(() => rows.count()).toBeGreaterThan(firstPage);
   hold.release();
 });
@@ -480,16 +481,12 @@ test("the dismissed list takes the same press: an invalidate cannot drop its pag
   );
   await mount<typeof NotificationInboxStory>(STORY, {});
   await openBell(page);
-  await page.getByRole("button", { name: "Show dismissed", exact: true }).click();
+  await page.getByRole("button", { name: SHOW_DISMISSED_LABEL, exact: true }).click();
   const older = page.locator(DISMISSED_ROW);
   await expect(older).toHaveCount(PAGE_SIZE);
-  await page.getByRole("button", { name: "Load more dismissed", exact: true }).click();
+  await page.getByRole("button", { name: LOAD_MORE_DISMISSED_LABEL, exact: true }).click();
   await hold.requested;
-  await page
-    .locator(ROW)
-    .first()
-    .getByRole("button", { name: /^Dismiss/u })
-    .click();
+  await page.locator(ROW).first().getByRole("button", { name: DISMISS_NAME_LEAD }).click();
   await expect.poll(() => older.count()).toBeGreaterThan(PAGE_SIZE);
   hold.release();
 });
@@ -504,8 +501,8 @@ test("Show dismissed sits above the rows, in reach with every page loaded", asyn
   await routeTrpc(page, serveCorpusProcedures(rpc, INBOX_PROCEDURES));
   await mount<typeof NotificationInboxStory>(STORY, {});
   await openBell(page);
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
-  const toggle = page.getByRole("button", { name: "Show dismissed", exact: true });
+  await page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true }).click();
+  const toggle = page.getByRole("button", { name: SHOW_DISMISSED_LABEL, exact: true });
   const first = page.locator(ROW).first();
   await expect(first).toBeVisible();
   const [toggleBox, firstBox] = [await toggle.boundingBox(), await first.boundingBox()];

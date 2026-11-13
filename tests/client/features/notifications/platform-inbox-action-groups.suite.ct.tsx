@@ -10,6 +10,21 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import {
+  ACCEPT_HANDOFF_NAME,
+  acceptInvitationName,
+  DECLINE_INVITATION_NAME_LEAD,
+  DISMISS_NAME_LEAD,
+  dismissRowName,
+  HANDOFF_ACCEPT_CONFIRM_TITLE,
+  HANDOFF_NOTHING_COPIED_DESCRIPTION,
+  INBOX_CAUGHT_UP_TITLE,
+  KICKED_ROW_COPY,
+  NOTIFICATIONS_BELL_NAME,
+  openPluginsName,
+  REVIEW_PLUGIN_CONSENT_NAME,
+} from "#client/features/notifications/lib/notifications-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { NotificationActionGroupsStory } from "./_ct-stories.tsx";
 
 const STORY = "tests/client/features/notifications/_ct-stories/NotificationActionGroupsStory";
@@ -92,15 +107,15 @@ async function seedInbox(root: ServerTestHarness, appearance: AppearanceSettings
 function actionMarker(page: Page, item: InboxView): Locator {
   switch (item.payload.type) {
     case "invite":
-      return page.getByRole("button", { name: `Accept invitation from ${item.payload.invitedByHandle}`, exact: true });
+      return page.getByRole("button", { name: acceptInvitationName(item.payload.invitedByHandle), exact: true });
     case "handoff-nominated":
-      return page.getByRole("button", { name: "Accept the host handoff", exact: true });
+      return page.getByRole("button", { name: ACCEPT_HANDOFF_NAME, exact: true });
     case "plugins-awaiting-consent":
-      return page.getByRole("button", { name: "Review what your plugins ask for", exact: true });
+      return page.getByRole("button", { name: REVIEW_PLUGIN_CONSENT_NAME, exact: true });
     case "plugin-disabled":
-      return page.getByRole("button", { name: `Open Plugins, ${PLUGIN_NAME}`, exact: true });
+      return page.getByRole("button", { name: openPluginsName(PLUGIN_NAME), exact: true });
     case "kicked":
-      return page.getByRole("button", { name: "Dismiss: You were removed from a chat", exact: true });
+      return page.getByRole("button", { name: dismissRowName(KICKED_ROW_COPY), exact: true });
     case "automation-notice":
     case "deferred-turn-dropped":
     case "handoff-accepted":
@@ -165,45 +180,45 @@ for (const regime of REGIMES) {
         presentation: regime.coarse ? "sheet" : "bar",
       });
       if (!regime.coarse) {
-        await page.getByRole("button", { name: "Notifications", exact: true }).click();
+        await page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true }).click();
       }
       await expectInboxActions(page, inbox.items, testInfo);
-      const acceptHandoff = page.getByRole("button", { name: "Accept the host handoff", exact: true });
+      const acceptHandoff = page.getByRole("button", { name: ACCEPT_HANDOFF_NAME, exact: true });
       await acceptHandoff.click();
-      const disclosure = page.getByRole("alertdialog", { name: "Accept hosting this chat?", exact: true });
-      await expect(disclosure).toContainText("Nothing is copied into your library");
-      await disclosure.getByRole("button", { name: "Cancel", exact: true }).click();
+      const disclosure = page.getByRole("alertdialog", { name: HANDOFF_ACCEPT_CONFIRM_TITLE, exact: true });
+      await expect(disclosure).toContainText(HANDOFF_NOTHING_COPIED_DESCRIPTION);
+      await disclosure.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(disclosure).toHaveCount(0);
       expect(routes.count("invites.acceptHostHandoff")).toBe(0);
       expect((await owner.chat.getChat({ chatId: handedRoom.id })).pendingHostUserId).toBe(reader.id);
       if (!regime.coarse) {
-        await page.getByRole("button", { name: "Notifications", exact: true }).click();
+        await page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true }).click();
       }
-      const decline = page.getByRole("button", { name: /^Decline invitation from /u });
+      const decline = page.getByRole("button", { name: DECLINE_INVITATION_NAME_LEAD });
       await decline.click();
       await expect(decline).toHaveCount(0);
       expect((await owner.invites.listInvites({ chatId: invitedRoom.id })).find((row) => row.id === invited.invite.id)?.remainingUses).toBe(1);
-      const review = page.getByRole("button", { name: "Review what your plugins ask for", exact: true });
+      const review = page.getByRole("button", { name: REVIEW_PLUGIN_CONSENT_NAME, exact: true });
       await review.click();
       expect(await caller.plugin.list()).toEqual(pluginsBefore);
       if (!regime.coarse) {
-        await page.getByRole("button", { name: "Notifications", exact: true }).click();
+        await page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true }).click();
       }
       await expect(review).toBeVisible();
-      const open = page.getByRole("button", { name: `Open Plugins, ${PLUGIN_NAME}`, exact: true });
+      const open = page.getByRole("button", { name: openPluginsName(PLUGIN_NAME), exact: true });
       await open.click();
       expect(await caller.plugin.list()).toEqual(pluginsBefore);
       if (!regime.coarse) {
-        await page.getByRole("button", { name: "Notifications", exact: true }).click();
+        await page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true }).click();
       }
       const rows = page.locator('[data-slot="inbox-row"]');
-      const dismissals = page.getByRole("button", { name: /^Dismiss: /u });
+      const dismissals = page.getByRole("button", { name: DISMISS_NAME_LEAD });
       while (await dismissals.count()) {
         const before = await rows.count();
         await dismissals.first().click();
         await expect(rows).toHaveCount(before - 1);
       }
-      await expect(page.getByText("You're all caught up", { exact: true })).toBeVisible();
+      await expect(page.getByText(INBOX_CAUGHT_UP_TITLE, { exact: true })).toBeVisible();
       expect(await caller.plugin.list()).toEqual(pluginsBefore);
       expect((await owner.chat.getChat({ chatId: handedRoom.id })).pendingHostUserId).toBe(reader.id);
     });

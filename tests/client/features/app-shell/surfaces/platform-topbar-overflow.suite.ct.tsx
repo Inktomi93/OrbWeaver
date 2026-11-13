@@ -15,6 +15,7 @@ import {
   DATABANK_REREAD_ALL_NAME,
   databankSweepConfirmTitle,
 } from "#client/features/databank/lib/databank-names.ts";
+import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
 import { NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "#client/features/preset/lib/preset-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -75,7 +76,7 @@ test("an action leaves the topbar row for the menu as it narrows and returns as 
 });
 
 for (const form of [
-  { label: "Notifications", surface: { role: "dialog", name: "Notifications" } },
+  { label: NOTIFICATIONS_BELL_NAME, surface: { role: "dialog", name: NOTIFICATIONS_BELL_NAME } },
   { label: "Report a bug", surface: { role: "textbox", name: "What happened?" } },
 ] as const) {
   test(`the trail's ${form.label} menu entry opens the surface its inline control opens`, async ({ mount, page }) => {
