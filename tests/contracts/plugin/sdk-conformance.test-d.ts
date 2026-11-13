@@ -11,6 +11,7 @@ import type {
   PluginPageHero as ContractPageHero,
   PluginHostRefusalCode as ContractRefusalCode,
   PluginToastLevel as ContractToastLevel,
+  PluginUiHostCallCode as ContractUiHostCallCode,
   PluginFrameCall,
   pluginFrameResultMessage,
   pluginUiHostArgsSchemas,
@@ -166,6 +167,8 @@ test("closed vocabularies and node fields match the app contracts", () => {
   expectTypeOf<PluginSurfaceTier>().toEqualTypeOf<ContractTier>();
   expectTypeOf<PluginToastLevel>().toEqualTypeOf<ContractToastLevel>();
   expectTypeOf<PluginHostRefusalCode>().toEqualTypeOf<ContractRefusalCode>();
+  expectTypeOf<PluginUiHostCallCode>().toEqualTypeOf<ContractUiHostCallCode>();
+  expectTypeOf<NonNullable<PluginUiHostCallError["code"]>>().toEqualTypeOf<ContractUiHostCallCode>();
   expectTypeOf<PluginCommandArgSpec["type"]>().toEqualTypeOf<ContractCommandArgSpec["type"]>();
   expectTypeOf<PluginCommandPlacement>().toEqualTypeOf<ContractCommandPlacement>();
   const declared = { kind: "keyValue", rows: [] } as const;

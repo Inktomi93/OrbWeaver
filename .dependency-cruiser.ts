@@ -574,6 +574,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
     "approveLabel, enablePluginLabel, showInChatSwitchName, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action and switch names required by the no-copied-label contract",
   "packages/client/src/features/automation/lib/rule-copy.ts": "ruleEnabledSwitchName: the per-rule enable switch name",
+  "packages/client/src/features/automation/lib/automation-names.ts":
+    "RULE_EDITOR_NAME, ruleTestName and their siblings: the rule list, row, editor and library-wide section names",
   "packages/client/src/features/workloads/lib/workloads-schedule-model.ts": "scheduleEnabledSwitchName: the per-schedule enable switch name",
   "packages/client/src/features/workloads/lib/workloads-failure-copy.ts":
     "OTHERS_CONTROLS_HIDDEN_TEXT: the line a delegated admin reads when the account list fails",

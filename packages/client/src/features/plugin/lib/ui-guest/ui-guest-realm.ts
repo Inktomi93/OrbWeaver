@@ -9,7 +9,7 @@
 // The security posture lives at the sites below and is not re-summarised here; the worker's own header carries
 // the whole-sandbox story.
 
-import type { PluginLogLevel, UiProxyableHostFunction } from "@orb/contracts/plugin";
+import type { PluginLogLevel, PluginUiHostCallCode, UiProxyableHostFunction } from "@orb/contracts/plugin";
 import { PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX } from "@orb/contracts/plugin";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock } from "@orb/kit/time";
@@ -59,14 +59,22 @@ const AMBIENT_STUBS = `
   })();
 `;
 
+// A refused host call as the guest receives it: the code is present only for an allowlisted refusal.
+interface GuestHostRefusal {
+  readonly message: string;
+  readonly code?: PluginUiHostCallCode;
+}
+
 export interface GuestState {
   readonly ctx: QuickJSContext;
   /** The realm's PRISTINE `JSON.parse`, captured before any guest code ran — the inbound host-result channel. */
   readonly jsonParse: QuickJSHandle;
+  /** The realm's own `Error.prototype`, captured before any guest code ran — every host-built error's prototype. */
+  readonly errorPrototype: QuickJSHandle;
   /** The guest's `onEvent` handler, if it registered one. Owned for the worker's lifetime. */
   handler: QuickJSHandle | null;
   /** Host calls the guest is awaiting, by callId — the deferred each is parked on. */
-  readonly pending: Map<number, { resolve: (json: string) => void; reject: (message: string) => void }>;
+  readonly pending: Map<number, { resolve: (json: string) => void; reject: (refusal: GuestHostRefusal) => void }>;
   readonly surfaceIds: ReadonlySet<string>;
   nextCallId: number;
   inFlight: number;
@@ -125,6 +133,20 @@ export function readError(ctx: QuickJSContext, handle: QuickJSHandle): string {
   return String(dumped);
 }
 
+// A host-authored error for the guest: an object on the realm's own `Error.prototype` whose fields are DEFINED, the
+// client twin of the server marshal's `newHostError`. Never `ctx.newError`: it captures a stack, which runs the
+// guest's `Error.prepareStackTrace`, and it SETS `message`, which runs any setter the guest put on
+// `Error.prototype`. A host result settles outside every CPU window, so guest code run there would be unbounded.
+function newHostError(state: GuestState, fields: Readonly<Record<string, string>>): QuickJSHandle {
+  const { ctx } = state;
+  const error = ctx.newObject(state.errorPrototype);
+  for (const [key, text] of Object.entries(fields)) {
+    using value = ctx.newString(text);
+    ctx.defineProp(error, key, { value, configurable: true, enumerable: false });
+  }
+  return error;
+}
+
 /** Install `orb.ui(1)` — the ONE door, and the entire surface a scripted guest sees. */
 export function installRealm(deps: RealmDeps): void {
   const { ctx } = deps;
@@ -142,9 +164,9 @@ export function installRealm(deps: RealmDeps): void {
     if (major !== 1) {
       // Loudly, and by TYPE: a guest feature-detects on `e.name`, never on a message substring (the server's
       // `HostVersionError` posture — the class NAME is what crosses a realm boundary intact).
-      const error = ctx.newError(`orb.ui(${String(major)}) is not served — this host serves version 1`);
-      ctx.setProp(error, "name", ctx.newString("HostVersionError"));
-      return { error };
+      return {
+        error: newHostError(deps.current(), { name: "HostVersionError", message: `orb.ui(${String(major)}) is not served — this host serves version 1` }),
+      };
     }
     return buildSurface(deps);
   });
@@ -276,7 +298,7 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
         // stops a runaway guest before it floods the network at all, which is cheaper for everyone and is the
         // difference between a contained bug and a visible one.
         if (state.inFlight >= UI_GUEST_BUDGETS.hostCallsInFlightMax) {
-          using err = ctx.newError(`too many concurrent host calls (>${UI_GUEST_BUDGETS.hostCallsInFlightMax})`);
+          using err = newHostError(state, { name: "Error", message: `too many concurrent host calls (>${UI_GUEST_BUDGETS.hostCallsInFlightMax})` });
           deferred.reject(err);
           // both settle arms run the SAME pump(ctx) —
           // this is the manual job-queue pump the guest realm requires on any settle, not error swallowing; the
@@ -293,8 +315,10 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
             using parsed = callJsonParse(ctx, state.jsonParse, json);
             deferred.resolve(parsed);
           },
-          reject: (message: string): void => {
-            using err = ctx.newError(message);
+          // The code is defined only when the host forwarded one, so a guest reads `code === undefined` on every
+          // other failure (the SDK's `PluginUiHostCallError`).
+          reject: ({ message, code }: GuestHostRefusal): void => {
+            using err = newHostError(state, code === undefined ? { name: "Error", message } : { name: "Error", message, code });
             deferred.reject(err);
           },
         });

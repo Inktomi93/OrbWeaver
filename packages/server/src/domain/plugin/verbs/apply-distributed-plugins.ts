@@ -19,8 +19,19 @@
 // immediately stores its OWN copy (D21: no shared bytes), so nothing cross-owner survives the call. The seam
 // is `PluginDistributionDeps.readPublishedBundle`, separate from `ctx.assets.readBytes` so the ordinary
 // owner-gated read is not quietly widened.
+//
+// A STORED BUNDLE THIS BUILD REFUSES IS SKIPPED AND REPORTED, NOT FATAL. A record published under an earlier build
+// holds bytes the strict install parse may now refuse: `ManifestInvalidError` for a manifest rule tightened since (a
+// retired task), `HostVersionUnservedError` for a host major this build no longer serves. Either refusal is permanent
+// for this build and specific to that one record, so it must not stop the rest of the set from reaching the caller.
+// The bundle still meets the strict parse: the install verb refuses it before any write, so nothing of it lands, and
+// the record stays as stored for an admin to re-publish. Every other failure (a torn asset read, a storage or
+// database fault) still fails the whole call, because it may be transient and the seeder's latch must stay unset so
+// the user is retried.
 
+import { HostVersionUnservedError, ManifestInvalidError } from "../contract/errors.ts";
 import type { ApplyDistributedPluginsParams } from "../contract/params.ts";
+import type { DistributedPluginApplication } from "../contract/results.ts";
 import type { DistributionInstallDeps, PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
 import { listDistributions } from "../persistence/distributed-plugins.ts";
 
@@ -33,6 +44,7 @@ export function createApplyDistributedPlugins(
   return async ({ caller }: ApplyDistributedPluginsParams) => {
     const records = await listDistributions(ctx.db);
     const installedSlugs: string[] = [];
+    const refused: DistributedPluginApplication["refused"][number][] = [];
     // Serial: the set is small (a deployment publishes a handful), and each iteration is a bundle read plus a
     // CAS write plus two verb calls — the install fan-out's reasoning, at the other axis.
     for (const record of records) {
@@ -41,9 +53,17 @@ export function createApplyDistributedPlugins(
         continue;
       }
       const bundle = await deps.readPublishedBundle(record.bundleAssetId);
-      await installDistributedCopy(deps, caller, bundle);
+      try {
+        await installDistributedCopy(deps, caller, bundle);
+      } catch (error) {
+        if (!(error instanceof ManifestInvalidError || error instanceof HostVersionUnservedError)) {
+          throw error;
+        }
+        refused.push({ slug: record.slug, reason: error.message });
+        continue;
+      }
       installedSlugs.push(record.slug);
     }
-    return { installedSlugs };
+    return { installedSlugs, refused };
   };
 }

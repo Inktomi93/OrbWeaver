@@ -133,10 +133,14 @@ async function boot(message: UiGuestBootMessage): Promise<void> {
   // `JSON.parse` cannot interpose on the host's marshalling of the next result.
   using jsonNamespace = ctx.getProp(ctx.global, "JSON");
   const jsonParse = ctx.getProp(jsonNamespace, "parse");
+  // `Error.prototype` the same way, so a guest that later replaces `Error` cannot choose a host error's prototype.
+  using errorConstructor = ctx.getProp(ctx.global, "Error");
+  const errorPrototype = ctx.getProp(errorConstructor, "prototype");
 
   const state: GuestState = {
     ctx,
     jsonParse,
+    errorPrototype,
     handler: null,
     pending: new Map(),
     surfaceIds: new Set(message.surfaceIds),
@@ -178,7 +182,13 @@ function settleHostCall(message: Extract<UiGuestInbound, { kind: "hostResult" }>
   state.inFlight -= 1;
   // The settle can run guest code (a `then` getter the resolve reads), and it may land outside every event, where no
   // host wall is armed, so it runs under the event budget. A guest it stops is reported as a crash.
-  const stopped = withinEventBudget(state.ctx, () => (message.ok ? waiting.resolve(message.resultJson) : waiting.reject(message.message)));
+  const stopped = withinEventBudget(state.ctx, () => {
+    if (message.ok) {
+      waiting.resolve(message.resultJson);
+      return;
+    }
+    waiting.reject(message.code === undefined ? { message: message.message } : { message: message.message, code: message.code });
+  });
   if (stopped) {
     post({ kind: "stopped" });
   }

@@ -6,6 +6,14 @@ import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
+import {
+  RULE_GUIDANCE_OUTPUT_NAME,
+  RULE_OUTPUTS_NAME,
+  RULE_REWRITE_OUTPUT_NAME,
+  RULE_SCORE_VARIABLE_NAME,
+  RULE_SUGGESTED_TURNS_NAME,
+  RULE_WORLD_BOOK_NAME,
+} from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
 import { RuleOptionalField } from "./rule-optional-field.tsx";
@@ -25,10 +33,10 @@ export function RuleAnalysisFields({
   readonly chatId: ChatId | null;
 }): ReactElement {
   const confirming = [
-    action.routes.steer?.apply === "confirm" ? "Guidance" : null,
-    action.routes.lore?.apply === "confirm" ? "World book" : null,
-    action.routes.suggest === undefined ? null : "Suggested turns",
-    action.routes.rewrite === undefined ? null : "Rewrite suggestions",
+    action.routes.steer?.apply === "confirm" ? RULE_GUIDANCE_OUTPUT_NAME : null,
+    action.routes.lore?.apply === "confirm" ? RULE_WORLD_BOOK_NAME : null,
+    action.routes.suggest === undefined ? null : RULE_SUGGESTED_TURNS_NAME,
+    action.routes.rewrite === undefined ? null : RULE_REWRITE_OUTPUT_NAME,
   ].filter((name) => name !== null);
   return (
     <Stack gap="block">
@@ -48,12 +56,12 @@ export function RuleAnalysisFields({
       <Text voice="gloss">
         Enable at least one output route. Only one route may ask for confirmation. Analysis is unavailable while this chat has an active game.
       </Text>
-      <Stack gap="block" role="group" aria-label="Outputs">
-        <Text voice="label">Outputs</Text>
+      <Stack gap="block" role="group" aria-label={RULE_OUTPUTS_NAME}>
+        <Text voice="label">{RULE_OUTPUTS_NAME}</Text>
         <form.AppField name={`actions[${index}].routes.steer`}>
           {(field): ReactElement => (
             <SettingSwitchRow
-              label="Guidance"
+              label={RULE_GUIDANCE_OUTPUT_NAME}
               checked={field.state.value !== undefined}
               onChange={(checked): void => field.handleChange(checked ? { apply: "direct" } : undefined)}
             />
@@ -67,7 +75,7 @@ export function RuleAnalysisFields({
         <form.AppField name={`actions[${index}].routes.lore`}>
           {(field): ReactElement => (
             <SettingSwitchRow
-              label="World book"
+              label={RULE_WORLD_BOOK_NAME}
               checked={field.state.value !== undefined}
               onChange={(checked): void => field.handleChange(checked ? { apply: "confirm", bookId: "" } : undefined)}
             />
@@ -95,7 +103,7 @@ export function RuleAnalysisFields({
           {(field): ReactElement => (
             <Stack gap="tight">
               <SettingSwitchRow
-                label="Suggested turns"
+                label={RULE_SUGGESTED_TURNS_NAME}
                 checked={action.routes.suggest !== undefined}
                 onChange={(checked): void => {
                   const { suggest: _removed, ...rest } = action.routes;
@@ -103,7 +111,7 @@ export function RuleAnalysisFields({
                 }}
               />
               <SettingSwitchRow
-                label="Rewrite suggestions"
+                label={RULE_REWRITE_OUTPUT_NAME}
                 checked={action.routes.rewrite !== undefined}
                 onChange={(checked): void => {
                   const { rewrite: _removed, ...rest } = action.routes;
@@ -116,7 +124,7 @@ export function RuleAnalysisFields({
         <form.AppField name={`actions[${index}].routes.vars`}>
           {(field): ReactElement => (
             <SettingSwitchRow
-              label="Score variable"
+              label={RULE_SCORE_VARIABLE_NAME}
               checked={field.state.value !== undefined}
               onChange={(checked): void => field.handleChange(checked ? { key: "" } : undefined)}
             />
