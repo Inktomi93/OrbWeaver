@@ -37,9 +37,11 @@ import {
 } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
+  counted,
   IMPORT_CONFIRM_NAMES,
   IMPORT_CONSEQUENCE,
   IMPORT_NOTHING_FOUND_NOTE,
+  KIND_NOUNS,
   previewKindLine,
 } from "#client/features/workloads/lib/portability-model.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -629,4 +631,8 @@ test("a folder of two profiles that hold the same card says the second one adds 
     [BOB, true],
   ]);
   await expect(report).toContainText(previewKindLine("characters", preview.kinds.characters));
+  // The same line, read apart from the function that builds it: the kind's own count, then a note carrying the number of
+  // repeats the verdicts above hold. A line built without its repeat note has no number after the count.
+  const repeats = verdicts.filter(([, repeat]) => repeat).length;
+  await expect(report).toContainText(`${counted(preview.kinds.characters.total, KIND_NOUNS.characters)}, ${String(repeats)} `);
 });
