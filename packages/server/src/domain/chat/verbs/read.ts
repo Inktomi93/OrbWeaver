@@ -955,6 +955,9 @@ function renderCardField(value: string | null, renderCtx: AssembleContext, rando
  *      SAME leak-free NOT_FOUND (you cannot read an arbitrary character's card through a chat you happen to be
  *      in). Checked against the roster's present character seats, never against the character table directly.
  *
+ *  The card is the host's, so it serves only while the host consents ({@link hostConsentOf}): a disabled host's card
+ *  is withheld with the same NOT_FOUND a hostless room answers, after both checks above.
+ *
  *  The room host always resolves to `full` (`resolveCardVisibility`); every other present member sees the
  *  host-configured level. `clampMemberCard` NULLS every field above the effective level SERVER-SIDE (the
  *  prompt-steering internals — `systemPrompt`/`postHistoryInstructions` — and the character's rendered `lore`
@@ -972,14 +975,20 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     // Belt 2 + the host owner: resolve the room's present roster ONCE — the host (card owner for every load
     // below) and the present character seats (the roster-scope gate). A hostless room is unusable (leak-free).
     const participants = await loadParticipants(ctx.db, chatId);
-    const hostUserId = hostUserIdOf(participants);
     const seated = participants.some((r) => {
       const actor = classifyParticipant(r);
       return actor?.kind === "character" && actor.characterId === characterId;
     });
-    if (hostUserId === null || !seated) {
+    const consent = await hostConsentOf(ctx, participants);
+    if (consent.kind === "hostless" || !seated) {
       throw new ChatNotFoundError(chatId);
     }
+    // A disabled host's card is withheld exactly as a departed host's is: the member gets the hostless answer. The
+    // seat check above runs first, so a stranger and an unknown chat id learn nothing about the host's account.
+    if (consent.kind === "withheld") {
+      throw new ChatHostWithoutConsentError(chatId);
+    }
+    const { hostUserId, consentSet } = consent;
     // Load the card under the HOST's ownership (the seat's card belongs to the host, D18) — the caller-supplied
     // bits `clampMemberCard` needs. A gone/mid-delete card is a leak-free NOT_FOUND (nothing to project).
     const card = await ctx.getCard({ ownerId: hostUserId, characterId });
@@ -987,9 +996,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
       throw new ChatNotFoundError(chatId);
     }
     const visibility = resolveCardVisibility(membership.role, configuredCardVisibility(membership.chat));
-    // Same enabled-axis narrowing as `resolvePreviewInputs` above — a member card render is also an honesty
-    // instrument about who the room would actually resolve a persona for.
-    const memberCardPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+    // The anchor persona resolves over the consent set the host check read, the set a live turn resolves personas for.
     const [tags, lore, avatarHash, anchorPersona] = await Promise.all([
       ctx.resolveCharacterTags({ ownerId: hostUserId, characterId }),
       loadCharacterCardLore(ctx.db, { characterId, ownerId: hostUserId }),
@@ -998,8 +1005,8 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
         chatId,
         hostUserId,
         anchorPersonaId: membership.chat.anchorPersonaId,
-        presentHumanUserIds: memberCardPresentHumanUserIds,
-        humanSeats: humanSeatPersonasOf(participants, memberCardPresentHumanUserIds),
+        presentHumanUserIds: consentSet,
+        humanSeats: humanSeatPersonasOf(participants, consentSet),
       }),
     ]);
     // PURE projection — fields above the effective level become null HERE, server-side (never sent over the
