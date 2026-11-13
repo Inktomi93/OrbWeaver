@@ -85,6 +85,29 @@ interface PluginUiHostCallError extends Error {
   readonly code?: PluginUiHostCallCode;
 }
 
+/** Why a server guest's `llm.quiet` failed: the provider failure's kind, with no upstream text. */
+type PluginLlmFailureKind =
+  | "rate_limit"
+  | "auth_failed"
+  | "billing"
+  | "moderation"
+  | "refused"
+  | "forbidden"
+  | "invalid"
+  | "model_unavailable"
+  | "server"
+  | "max_output"
+  | "aborted"
+  | "unknown";
+
+/** What a failed `llm.quiet` rejects with: one fixed `message`, the failure's `kind`, and whether a retry may succeed.
+ *  Key on `kind` and `retryable`, never on `message`; the provider, the model and the upstream reply never cross. */
+interface PluginLlmFailure extends Error {
+  readonly name: "Error";
+  readonly kind: PluginLlmFailureKind;
+  readonly retryable: boolean;
+}
+
 /** An OPAQUE room token, minted per invocation by the host (`chat.current()`), valid only inside the
  *  invocation that minted it. Pass it back to room-scoped calls; never store, compare across calls, or
  *  fabricate one — a forged/stale handle fails resolution at the membrane. */
@@ -844,7 +867,8 @@ interface PluginHostV1 {
   readonly llm: {
     /** SPEND — one bounded, non-canon generation on the installer's own connection (30/hour per plugin).
      *  No chat scope needed; writes nothing; you get a string. `opts.schema` = structured output;
-     *  `opts.imageAssetIds` = vision inputs from the installer's own CAS. capability: llm.quiet */
+     *  `opts.imageAssetIds` = vision inputs from the installer's own CAS. A provider failure rejects with a
+     *  {@link PluginLlmFailure}. capability: llm.quiet */
     quiet: (prompt: string, opts?: PluginQuietOptions) => Promise<string>;
   };
 

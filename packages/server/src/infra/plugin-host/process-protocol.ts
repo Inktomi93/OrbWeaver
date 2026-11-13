@@ -1,5 +1,11 @@
-import type { PluginHostRefusalCode, PluginLogLevel } from "@orb/contracts/plugin";
-import { PLUGIN_CHANNEL_FULL_CODE, PLUGIN_HOST_REFUSAL_CODES, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import type { PluginHostRefusalCode, PluginLlmFailureKind, PluginLogLevel } from "@orb/contracts/plugin";
+import {
+  PLUGIN_CHANNEL_FULL_CODE,
+  PLUGIN_HOST_REFUSAL_CODES,
+  PLUGIN_LLM_FAILURE_KINDS,
+  PLUGIN_LOG_LEVELS,
+  PLUGIN_UI_HOST_CALL_FAILED,
+} from "@orb/contracts/plugin";
 import type {
   BrokerParentMessage,
   ParentBrokerMessage,
@@ -118,9 +124,24 @@ export class CodedHostUnavailableError extends Error {
   }
 }
 
+/** A failed model call as the guest reads it: the fixed sentence under the name `Error`, with the failure's kind and
+ *  whether a retry may succeed. The upstream text, the reset time, the provider and the model stay in the server. */
+export class PluginLlmFailureError extends Error {
+  readonly kind: PluginLlmFailureKind;
+  readonly retryable: boolean;
+  constructor(kind: PluginLlmFailureKind, retryable: boolean) {
+    super(PLUGIN_UI_HOST_CALL_FAILED);
+    this.kind = kind;
+    this.retryable = retryable;
+  }
+}
+
 export function rpcError(error: unknown): RpcError {
   if (error instanceof CodedHostUnavailableError) {
     return { name: error.name, message: error.message, code: error.code };
+  }
+  if (error instanceof PluginLlmFailureError) {
+    return { name: error.name, message: error.message, llmFailure: { kind: error.kind, retryable: error.retryable } };
   }
   if (error instanceof Error) {
     return { name: error.name, message: error.message };
@@ -135,9 +156,24 @@ export function fromRpcError(error: RpcError | undefined, fallback: string): Err
   if (error.code !== undefined) {
     return new CodedHostUnavailableError(error.code, error.message);
   }
+  if (error.llmFailure !== undefined) {
+    return new PluginLlmFailureError(error.llmFailure.kind, error.llmFailure.retryable);
+  }
   const restored = new Error(error.message);
   restored.name = error.name;
   return restored;
+}
+
+// A model-call failure off the wire: a known kind and a boolean, or nothing; anything else refuses the whole error.
+function parseLlmFailure(value: unknown): RpcError["llmFailure"] | null {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value) || typeof value["retryable"] !== "boolean") {
+    return null;
+  }
+  const kind = PLUGIN_LLM_FAILURE_KINDS.find((known) => known === value["kind"]);
+  return kind === undefined ? null : { kind, retryable: value["retryable"] };
 }
 
 // A refusal code off the wire: only a host-unavailable refusal carries one, and only a code the host mints.
@@ -337,10 +373,16 @@ export function parseRpcError(errorValue: unknown): RpcError | undefined {
     return;
   }
   const code = parseRefusalCode(errorValue["name"], errorValue["code"]);
-  if (code === null) {
+  const llmFailure = parseLlmFailure(errorValue["llmFailure"]);
+  if (code === null || llmFailure === null) {
     return;
   }
-  return code === undefined ? { name: errorValue["name"], message: errorValue["message"] } : { name: errorValue["name"], message: errorValue["message"], code };
+  return {
+    name: errorValue["name"],
+    message: errorValue["message"],
+    ...(code === undefined ? {} : { code }),
+    ...(llmFailure === undefined ? {} : { llmFailure }),
+  };
 }
 
 const BYTE_TAG = "$orbBytes";

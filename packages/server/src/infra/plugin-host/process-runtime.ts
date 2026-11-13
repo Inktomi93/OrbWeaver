@@ -44,6 +44,7 @@ import {
   pluginSurfaceRegistrationMetaSchema,
   snippetResultSchema,
 } from "@orb/contracts/plugin";
+import { ProviderError } from "@orb/inference";
 import { DomainConflictError, DomainError, DomainInternalFaultError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { TimerScheduler } from "@orb/kit/time";
@@ -93,6 +94,7 @@ import {
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
   PLUGIN_STALE_RUNTIME,
+  PluginLlmFailureError,
   parseBrokerParentMessage,
   parseMessageLine,
   rpcError,
@@ -1039,7 +1041,8 @@ class BrokerClient {
       return error;
     }
     getLog(this.seams.log).warn({ plugin: binding.label ?? SNIPPET_RUNNER, operation, err: error }, "plugin host: a bridge operation failed");
-    return new Error(PLUGIN_UI_HOST_CALL_FAILED);
+    // A model failure also says why, by its closed kind alone: the guest can tell a rate limit from a bad key.
+    return error instanceof ProviderError ? new PluginLlmFailureError(error.kind, error.retryable) : new Error(PLUGIN_UI_HOST_CALL_FAILED);
   }
 
   // A host result goes on its plugin's runtime share. One that does not fit is refused, never held: the plugin may
