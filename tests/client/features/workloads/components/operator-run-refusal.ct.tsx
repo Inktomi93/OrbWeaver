@@ -6,7 +6,7 @@ import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { noticeToast, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, plantMemberOperatorRun, plantMemberOperatorSchedule } from "@orb/testkit/node/composed";
-import { scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { SCHEDULE_PAUSED_LABEL, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
@@ -50,6 +50,9 @@ test("a member's stored operator-tree schedule names the refusal on its row", as
   expect(others).toEqual([]);
   await expect(page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: null }), exact: true })).toHaveCount(1);
   await expect(page.getByText(WORKLOAD_RUN_ACCOUNT_REFUSAL, { exact: false })).toBeVisible();
+  // The planted schedule is paused as well as refused, and the one row says both.
+  expect(schedule.enabled).toBe(false);
+  await expect(page.getByText(SCHEDULE_PAUSED_LABEL, { exact: false })).toBeVisible();
 });
 
 test("the box owner's Retry on a member's operator-tree run toasts the refusal it meets", async ({ mount, page }) => {
