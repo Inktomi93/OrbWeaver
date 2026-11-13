@@ -5,6 +5,7 @@
 
 import { readFile } from "node:fs/promises";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { magicBytes } from "@orb/testkit/node/helpers";
 import { admit, finishRun, harness, settings } from "./_st-tree-door.ts";
@@ -34,7 +35,7 @@ test("a JPEG named .png lands as a JPEG background, and a text file named .png i
 
   // Control: a PNG named .png lands under its own type beside the relabelled JPEG.
   expect(imported).toEqual({ [DAWN]: JPEG, [DUSK]: PNG });
-  expect(library.some((entry) => entry.name === "Notes")).toBe(false);
+  expect(nonEmpty(library).some((entry) => entry.name === "Notes")).toBe(false);
   expect(report).toMatch(/`[^`]*Notes\.png` — \S/u);
   expect(report).not.toMatch(/`[^`]*Dawn\.png` — /u);
 });
