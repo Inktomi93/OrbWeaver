@@ -58,12 +58,26 @@ function stateKey(pluginId: PluginId, surfaceId: string, chatId: ChatId | null):
   return chatId === null ? `${pluginId}:${surfaceId}` : `${pluginId}:${surfaceId}:${chatId}`;
 }
 
+function keyCount(states: ReadonlyMap<string, unknown>, pluginId: PluginId): number {
+  const prefix = `${pluginId}:`;
+  let count = 0;
+  for (const existing of states.keys()) {
+    if (existing.startsWith(prefix)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 /** Mint the process-wide surface-state plane — ONE per service at compose (the resident-registry /
  *  suggestion-store precedent), shared by the write op + the read verb + the deactivate sweep. The
  *  {@link PluginSurfaceStateStore} type is homed in `contract/service.ts` (the SnippetGate/NotifyFloor
  *  convention: the seam TYPE lives in contract, the factory in substrate). */
 export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStateStore {
   const states = new Map<string, Record<string, unknown>>();
+  // A key frees only when the plugin's whole plane is cleared, so a plugin at the cap stays there until then, and the
+  // operator line is written once per stay. Per refused call, a guest looping `setState` would write it per call.
+  const atCap = new Set<string>();
   const log = getLog(logger);
   return {
     set: (pluginId, surfaceId, chatId, state): void => {
@@ -75,30 +89,25 @@ export function createPluginSurfaceStateStore(logger: Logger): PluginSurfaceStat
       // A fresh key past the cap is REFUSED, so a `setState(mint(), …)` loop cannot grow the plane unbounded
       //. The count is a prefix scan over the shared Map; the cap is small so the scan stays
       // tiny (at most PLUGIN_SURFACE_STATE_MAX_KEYS keys per plugin).
-      if (!states.has(key)) {
-        const prefix = `${pluginId}:`;
-        let count = 0;
-        for (const existing of states.keys()) {
-          if (existing.startsWith(prefix)) {
-            count += 1;
-          }
-        }
-        if (count >= PLUGIN_SURFACE_STATE_MAX_KEYS) {
-          // LOUD, not silent (§4.9): with the room dimension this cap is reachable by a legitimate
-          // per-room widget in a 65th room, and a widget that just stops updating with no trace is exactly the
-          // undiagnosable failure the plugin log exists to prevent. The guest sees the rejection; an operator
-          // sees WHICH plugin and WHICH room, which is what a board-row-778 decision would be made from.
+      if (!states.has(key) && keyCount(states, pluginId) >= PLUGIN_SURFACE_STATE_MAX_KEYS) {
+        // LOUD, not silent (§4.9): with the room dimension this cap is reachable by a legitimate
+        // per-room widget in a 65th room, and a widget that just stops updating with no trace is exactly the
+        // undiagnosable failure the plugin log exists to prevent. The guest sees the rejection; an operator
+        // sees WHICH plugin and WHICH room, which is what a board-row-778 decision would be made from.
+        if (!atCap.has(pluginId)) {
+          atCap.add(pluginId);
           log.warn(
             { pluginId, surfaceId, chatId, cap: PLUGIN_SURFACE_STATE_MAX_KEYS },
             "plugin: ui.setState refused — this plugin is at its surface-state key cap (row 778)",
           );
-          throw new DomainConflictError(`plugin host: ui.setState exceeds the ${PLUGIN_SURFACE_STATE_MAX_KEYS}-key state cap for this plugin`);
         }
+        throw new DomainConflictError(`plugin host: ui.setState exceeds the ${PLUGIN_SURFACE_STATE_MAX_KEYS}-key state cap for this plugin`);
       }
       states.set(key, state);
     },
     get: (pluginId, surfaceId, chatId): Record<string, unknown> | null => states.get(stateKey(pluginId, surfaceId, chatId)) ?? null,
     clearForPlugin: (pluginId): void => {
+      atCap.delete(pluginId);
       const prefix = `${pluginId}:`;
       for (const key of states.keys()) {
         if (key.startsWith(prefix)) {
