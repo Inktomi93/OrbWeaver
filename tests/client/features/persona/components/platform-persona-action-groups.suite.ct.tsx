@@ -5,6 +5,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { editActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import {
   PERSONA_DELETE_NAME,
@@ -80,7 +81,7 @@ for (const regime of REGIMES) {
       const expand = page.getByRole("button", { name: personaDetailsToggleName(name, false), exact: true });
       await expand.focus();
       await page.keyboard.press("Enter");
-      const editor = page.getByRole("group", { name: `Edit ${name}`, exact: true });
+      const editor = page.getByRole("group", { name: editActionName(name), exact: true });
       const footer = editor.locator('[data-slot="persona-editor-footer"]');
       const duplicate = footer.getByRole("button", { name: PERSONA_DUPLICATE_NAME, exact: true });
       const exportButton = footer.getByRole("button", { name: PERSONA_EXPORT_NAME, exact: true });
@@ -188,7 +189,7 @@ for (const regime of REGIMES) {
       await mount<typeof PersonaActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
       await page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true }).focus();
       await page.keyboard.press("Enter");
-      const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
+      const editor = page.getByRole("group", { name: editActionName(persona.name), exact: true });
       const title = editor.getByRole("textbox", { name: PERSONA_TITLE_FIELD_NAME, exact: true });
       await expect(title).toHaveValue(persona.title ?? "");
       const nextTitle = "A locally saved qualification identity";

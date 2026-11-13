@@ -42,5 +42,5 @@ test("a connection that can serve Utility but does not hold it shows Utility as 
   await expect(usedFor).not.toContainText(CONNECTION_ROLE_LABELS.summarize);
   // The background state is its own line, outside both role groups.
   await expect(page.getByText(backgroundStateLabel(false), { exact: true }).first()).toBeVisible();
-  await expect(canServe).not.toContainText(backgroundStateLabel(false));
+  await expect(canServe).not.toContainText("Background work off");
 });

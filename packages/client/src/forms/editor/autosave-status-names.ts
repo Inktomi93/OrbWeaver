@@ -4,6 +4,9 @@
 /** A settled save. */
 export const AUTOSAVE_SAVED_TEXT = "Saved";
 
+/** A held write: a field is refusing its value, so nothing is attempted. */
+export const AUTOSAVE_NOT_SAVED_TEXT = "Not saved";
+
 /** A refused or failed write; the readout appends a full stop and a Retry door when a retry can succeed. */
 export const AUTOSAVE_SAVE_FAILED_TEXT = "Save failed";
 

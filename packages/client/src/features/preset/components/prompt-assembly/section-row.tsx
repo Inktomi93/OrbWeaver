@@ -20,6 +20,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Hash, Icon, Lock, Zap } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
@@ -30,7 +31,6 @@ import { useFocusOnSwap } from "#lib";
 import { isTemplatedMarker, sectionEnabledSwitchName, sectionGlyphIcon, sectionKind, triggersPillLabel } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
 import type { PresetEditorValues } from "#src/features/preset/lib/preset-editor-values.ts";
-import { presetEditDrillName } from "#src/features/preset/lib/preset-names.ts";
 import { estimateSectionTokens } from "./estimate-tokens.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 
@@ -160,7 +160,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               <Switch aria-label={sectionEnabledSwitchName(section)} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
             )}
           </form.AppField>
-          <Button aria-label={presetEditDrillName(name)} variant="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} square={true} type="button">
+          <Button aria-label={editActionName(name)} variant="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} square={true} type="button">
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>

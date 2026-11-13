@@ -63,11 +63,6 @@ export function presetMoveToZoneLabel(inSetup: boolean): string {
   return inSetup ? "Move below the conversation" : "Move above the conversation";
 }
 
-/** A rack row's or an Actions row's door into its editor. */
-export function presetEditDrillName(subject: string): string {
-  return `Edit ${subject}`;
-}
-
 /** The section drill-in region, named for the section it edits. */
 export function presetSectionEditorName(section: string): string {
   return `${section}: section editor`;

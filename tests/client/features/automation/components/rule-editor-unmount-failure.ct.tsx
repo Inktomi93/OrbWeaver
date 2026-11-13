@@ -1,10 +1,12 @@
 // A rule edit flushed by closing the editor fails after the editor has unmounted: the failure still reaches the user.
+
 import { automationRuleEditableSchema } from "@orb/contracts/automation";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { ALERTS_REGION_NAME, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { editActionName } from "@orb/ui/lib";
 import { RULE_EDITOR_CLOSE_NAME, RULE_EDITOR_NAME, RULE_NAME_FIELD_NAME, RULE_SAVE_FAILED_TOAST } from "#client/features/automation/lib/automation-names.ts";
 import type { RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
@@ -44,7 +46,7 @@ test("a rule edit flushed by Close editor that then fails is still said, by the 
     .getByRole("button")
     .filter({ has: page.getByText(rule.name, { exact: true }) })
     .click();
-  await page.getByRole("button", { name: `Edit ${rule.name}`, exact: true }).click();
+  await page.getByRole("button", { name: editActionName(rule.name), exact: true }).click();
   const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
   // One browser task: the edit and the close land before the form's debounce can run, so only the teardown flush writes.
   await editor.getByRole("textbox", { name: RULE_NAME_FIELD_NAME, exact: true }).evaluate(

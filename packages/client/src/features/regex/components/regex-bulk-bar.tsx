@@ -29,6 +29,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { Button } from "@orb/ui/button";
 import { Ban, Globe, Icon, SlidersHorizontal } from "@orb/ui/icons";
+import { moreActionsName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -175,7 +176,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
               );
             },
           }}
-          label={`More actions for ${scriptCount(count)}`}
+          label={moreActionsName(scriptCount(count))}
           triggerSize="icon"
         >
           <MenuItem onClick={(): void => setPlacementOpen(true)}>

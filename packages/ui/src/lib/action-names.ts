@@ -1,5 +1,5 @@
-// The ITEM-ACTION accessible-name grammars that are spelled in BOTH packages — `Remove <subject>`,
-// `Select <subject>` and `Copy <subject>`. They live here, not beside `rowActionsName` in
+// The ITEM-ACTION accessible-name grammars: one function per `<verb> <subject>` sentence, for every feature that
+// spells it. `Remove`, `Select` and `Copy` are spelled in both packages; they live here, not beside `rowActionsName` in
 // `@orb/client/lib`, because the cake runs `kit ← ui ← client` (constitution §2): `combobox`'s chip
 // remove, `table`'s row checkbox and `copy-button` are `@orb/ui` primitives, and a primitive
 // importing a client module is an upward import — illegal, and unresolvable at the package boundary.
@@ -39,6 +39,26 @@ export function hideActionName(subject: string): string {
 /** The accessible name of a control that copies its subject to the clipboard — `Copy <subject>`. */
 export function copyActionName(subject: string): string {
   return `Copy ${subject}`;
+}
+
+/** The accessible name of a control that opens its subject's editor, or of that editor's region — `Edit <subject>`. */
+export function editActionName(subject: string): string {
+  return `Edit ${subject}`;
+}
+
+/** The accessible name of a row's overflow menu trigger — `More actions for <subject>`. */
+export function moreActionsName(subject: string): string {
+  return `More actions for ${subject}`;
+}
+
+/** The accessible name of a row's disclosure of its recent runs — `Recent activity for <subject>`. */
+export function recentActivityName(subject: string): string {
+  return `Recent activity for ${subject}`;
+}
+
+/** The text of a control that picks a named default instead of an explicit choice — `Use the <subject>`. */
+export function defaultChoiceName(subject: string): string {
+  return `Use the ${subject}`;
 }
 
 /**

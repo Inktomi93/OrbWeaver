@@ -1,4 +1,12 @@
-import { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT, ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS, ROW_DELETE_NAME } from "@orb/client/lib";
+import {
+  IMAGE_NEGATIVE_PROMPT_FIELD_NAME,
+  IMAGE_SIZE_FIELD_NAME,
+  IMAGE_SIZE_LABELS,
+  IMAGE_SIZE_MODE_DEFAULT,
+  ROLE_ROWS_ORDERED,
+  ROLE_STATUS_LABELS,
+  ROW_DELETE_NAME,
+} from "@orb/client/lib";
 import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema, automationTriggerFor } from "@orb/contracts/automation";
 import { MAX_IMAGE_COUNT, MIN_IMAGE_COUNT, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
@@ -15,6 +23,7 @@ import { channelName, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { defaultChoiceName, editActionName, moreActionsName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { connectionRolePickerName } from "#client/components/shared-control-names.ts";
@@ -37,6 +46,7 @@ import {
   ruleTestResultName,
 } from "#client/features/automation/lib/automation-names.ts";
 import { RULE_UNSET_EFFECTS, ruleEnabledSwitchName } from "#client/features/automation/lib/rule-copy.ts";
+import { AUTOSAVE_NOT_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
@@ -136,9 +146,9 @@ for (const regime of REGIMES) {
       const disclosure = page.getByRole("button").filter({ has: page.getByText(name, { exact: true }) });
       await disclosure.focus();
       await page.keyboard.press("Enter");
-      const edit = page.getByRole("button", { name: `Edit ${name}`, exact: true });
+      const edit = page.getByRole("button", { name: editActionName(name), exact: true });
       const dryRun = page.getByRole("button", { name: ruleTestName(name), exact: true });
-      const more = page.getByRole("button", { name: `More actions for ${name}`, exact: true });
+      const more = page.getByRole("button", { name: moreActionsName(name), exact: true });
       await edit.focus();
       await page.keyboard.press("Tab");
       await expect(dryRun).toBeFocused();
@@ -203,7 +213,7 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
-    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    await page.getByRole("button", { name: editActionName(captured.name), exact: true }).click();
     const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     const typeOf = (label: string): Promise<string> =>
       editor.getByText(label, { exact: true }).evaluate((node) => {
@@ -409,10 +419,10 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
-    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    await page.getByRole("button", { name: editActionName(captured.name), exact: true }).click();
     const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     await editor.getByRole("textbox", { name: RULE_NAME_FIELD_NAME, exact: true }).fill("");
-    const held = editor.getByRole("status").filter({ hasText: "Not saved" });
+    const held = editor.getByRole("status").filter({ hasText: AUTOSAVE_NOT_SAVED_TEXT });
     await expect(held).toBeVisible();
     const sizeOf = (node: Pick<typeof held, "evaluate">): Promise<number> => node.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
     const sentence = await sizeOf(held.locator("p").last());
@@ -436,7 +446,7 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
-    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    await page.getByRole("button", { name: editActionName(captured.name), exact: true }).click();
     const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     const line = editor.getByText(RULE_EDITOR_AUTOSAVE_NOTE, { exact: true });
     const box = await line.boundingBox();
@@ -472,7 +482,7 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(target.name, { exact: true }) })
       .click();
-    await page.getByRole("button", { name: `Edit ${target.name}`, exact: true }).click();
+    await page.getByRole("button", { name: editActionName(target.name), exact: true }).click();
     const outputs = page.getByRole("group", { name: RULE_OUTPUTS_NAME, exact: true });
     await outputs.getByRole("switch", { name: RULE_WORLD_BOOK_NAME, exact: true }).click();
     await outputs.getByRole("switch", { name: RULE_SUGGESTED_TURNS_NAME, exact: true }).click();
@@ -518,11 +528,11 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
-    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    await page.getByRole("button", { name: editActionName(captured.name), exact: true }).click();
     const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     const add = editor.getByRole("button", { name: "Add negative prompt", exact: true });
     const remove = editor.getByRole("button", { name: "Remove negative prompt", exact: true });
-    const field = editor.getByRole("textbox", { name: "Negative prompt", exact: true });
+    const field = editor.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true });
     const confirm = page.getByRole("alertdialog", { name: "Remove negative prompt?", exact: true });
 
     await add.click();
@@ -576,7 +586,7 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
-    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    await page.getByRole("button", { name: editActionName(captured.name), exact: true }).click();
     const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     await editor.getByRole("button", { name: "Remove keyword 1", exact: true }).click();
     await page.getByRole("alertdialog", { name: "Remove keyword 1?", exact: true }).getByRole("button", { name: "Remove", exact: true }).click();
@@ -608,18 +618,18 @@ test.describe("rule editor field rows", () => {
       .getByRole("button")
       .filter({ has: page.getByText(captured.name, { exact: true }) })
       .click();
-    await page.getByRole("button", { name: `Edit ${captured.name}`, exact: true }).click();
+    await page.getByRole("button", { name: editActionName(captured.name), exact: true }).click();
     const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
     await editor.getByRole("button", { name: "Add negative prompt", exact: true }).click();
-    await editor.getByRole("textbox", { name: "Negative prompt", exact: true }).fill("extra fingers");
+    await editor.getByRole("textbox", { name: IMAGE_NEGATIVE_PROMPT_FIELD_NAME, exact: true }).fill("extra fingers");
     await editor.getByRole("button", { name: RULE_CHOOSE_IMAGE_SIZE_NAME, exact: true }).click();
-    await editor.getByRole("combobox", { name: "Image size", exact: true }).click();
+    await editor.getByRole("combobox", { name: IMAGE_SIZE_FIELD_NAME, exact: true }).click();
     await page.getByRole("option", { name: IMAGE_SIZE_LABELS[size], exact: true }).click();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ type: "generate_image", negative: "extra fingers", size });
-    await editor.getByRole("button", { name: `Use the ${IMAGE_SIZE_MODE_DEFAULT}`, exact: true }).click();
+    await editor.getByRole("button", { name: defaultChoiceName(IMAGE_SIZE_MODE_DEFAULT), exact: true }).click();
     await expect(editor.getByRole("button", { name: RULE_CHOOSE_IMAGE_SIZE_NAME, exact: true })).toBeFocused();
     await editor.getByRole("button", { name: RULE_CHOOSE_IMAGE_SIZE_NAME, exact: true }).click();
-    await editor.getByRole("combobox", { name: "Image size", exact: true }).click();
+    await editor.getByRole("combobox", { name: IMAGE_SIZE_FIELD_NAME, exact: true }).click();
     await page.getByRole("option", { name: IMAGE_SIZE_LABELS[size], exact: true }).click();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ size });
 

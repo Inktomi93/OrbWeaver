@@ -12,12 +12,14 @@ import { isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE } from "@orb/contrac
 import { exportCharacterPath, exportChatPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { slugifyHandle } from "@orb/kit/slug";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { relativePathOf } from "#client/data/import-tree.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
 import { IMPORT_ANOTHER_NAME, IMPORT_FOLDER_NAME, IMPORT_PREVIEW_REPORT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -120,7 +122,7 @@ async function expectRenderedInLibrary(page: Page, name: string): Promise<void> 
   // section bar there, so the section deep link is the one door to Characters that exists on every viewport.
   await page.goto("/characters");
   await waitForAppReady(page);
-  const back = page.getByRole("button", { name: "Back to Characters", exact: true });
+  const back = page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true });
   const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   await expect(search.or(back).first()).toBeVisible();
   if (await back.isVisible()) {
