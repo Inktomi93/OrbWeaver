@@ -1,6 +1,8 @@
 // Saved providers stay read-only because changing one invalidates credential, URL, model and kind.
 // Disclosure tiers keep advanced controls collapsed; layout follows the settings container width.
 // Capability and cache readback describe the resolved connection, not upstream acceptance or hits.
+// The Purpose tier's background switch is the one control for `allowBackground`; the list row and the Model-roles
+// repair show its state and open this editor, so no surface carries a second toggle for the same flag.
 
 import { EMBED_SPACE_FIELDS, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";

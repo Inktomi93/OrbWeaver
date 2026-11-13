@@ -12,7 +12,6 @@ import type { IndicatorDotProps } from "@orb/ui/indicator-dot";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
@@ -20,15 +19,16 @@ import { useId, useRef, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "#lib";
 import {
-  allowBackgroundSwitchName,
   backgroundRepairs,
   bindRefusal,
+  CONNECTIONS_LIST_ADDRESS,
   connectionHost,
   connectionSummary,
   EMBED_REFUSAL_SLOTS,
   embedderCheckingText,
   embedRefusalOf,
   embedRefusalText,
+  openConnectionName,
   REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,
   ROLE_STATUS_LABELS,
@@ -37,8 +37,8 @@ import {
   roleStatus,
   VECTOR_ROLES,
 } from "#lib";
-import { openConfigTo } from "#state";
-import { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
+import { openConfigTo, requestConnectionEditor } from "#state";
+import { useSetBinding } from "./connection-role-mutations.ts";
 import { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";
 import { useReindexConfirm } from "./reindex-confirm.tsx";
 import { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
@@ -99,11 +99,13 @@ const READOUT_TONE = {
 //     actually failed, and a chat model that cannot embed is not broken.
 //  3. THE INLINE BACKGROUND REFUSAL is stated twice and they are not duplicates. In the PICKER it is the
 //     option's own disabled reason (`bindRefusal`), so a user scanning the list learns why a row is
-//     unpickable without picking it. In the ROW it is the REPAIR — the same sentence plus the switch that
-//     resolves it — because §5.3a makes the slot the FIRST enforcement point ("so the user learns at
+//     unpickable without picking it. In the ROW it is the REPAIR — the same sentence plus a door to the
+//     connection's editor — because §5.3a makes the slot the FIRST enforcement point ("so the user learns at
 //     authoring time") and a refusal with no adjacent remedy sends the user to the connection list to find a
-//     switch nobody has told them the name of. Resolve's `canFund` still re-checks: the flag can flip after
-//     the binding is written, so this is the friendly gate and never the only one.
+//     switch nobody has told them the name of. The door opens the editor rather than carrying a switch of
+//     its own: one control sets the flag, so no surface wonders which of two toggles wins. Resolve's
+//     `canFund` still re-checks: the flag can flip after the binding is written, so this is the friendly
+//     gate and never the only one.
 //
 // THE ROW ITSELF is `components/connection-role-slot.tsx`, shared with a rule's editor.
 //
@@ -150,7 +152,6 @@ export function ConnectionRoleSlot({
   const headingId = useId();
   const deps = { trpc, invalidation };
   const setBinding = useSetBinding(deps);
-  const update = useUpdateConnection(deps);
   const pickerLabel = `${row.label} connection`;
   // The confirm opens from the picker's own popup, which is gone by the time it closes; focus returns to the picker.
   const pickerRef = useRef<HTMLButtonElement>(null);
@@ -266,12 +267,7 @@ export function ConnectionRoleSlot({
           <EmbedderNote check={shownCheck} refused={embedRefusal} />
           {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
           {repairs.map((connection) => (
-            <BackgroundRepair
-              key={connection.id}
-              connection={connection}
-              pending={update.isPending}
-              onAllow={(): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: true } })}
-            />
+            <BackgroundRepair key={connection.id} connection={connection} />
           ))}
         </Stack>
       </Stack>
@@ -403,28 +399,25 @@ function RequirementRail({ verdicts }: { readonly verdicts: readonly RoleRequire
   );
 }
 
-/** §5.3a's inline repair: the refusal sentence `bindRefusal` already returns, plus the switch that resolves
- *  it. The switch writes the SAME `allowBackground` field the connection row's switch writes and names it
- *  the same way, so a user who meets the refusal on either surface meets one switch, not two. */
-function BackgroundRepair({
-  connection,
-  pending,
-  onAllow,
-}: {
-  readonly connection: ConnectionListItem;
-  readonly pending: boolean;
-  readonly onAllow: () => void;
-}): ReactElement {
-  const label = allowBackgroundSwitchName(connection);
+/** §5.3a's inline repair: the connection's background state and the door to its editor, where the one switch
+ *  that sets it lives. The slot never writes the flag itself. */
+function BackgroundRepair({ connection }: { readonly connection: ConnectionListItem }): ReactElement {
   return (
-    <Stack gap="tight">
-      <Text voice="gloss">{connectionSummary(connection)} doesn&apos;t allow background work. Turn it on to use it here.</Text>
-      <Row gap="field" align="center">
-        <Switch aria-label={label} checked={false} disabled={pending} onCheckedChange={(): void => onAllow()} />
-        <Text voice="gloss" as="span">
-          {label}
-        </Text>
-      </Row>
-    </Stack>
+    <Row align="center" gap="field" justify="between" wrap={true}>
+      <Text voice="gloss" cap="prose">
+        {connectionSummary(connection)} doesn&apos;t allow background work. Turn it on in its settings to use it here.
+      </Text>
+      <Button
+        variant="ghost"
+        onClick={(): void => {
+          openConfigTo(CONNECTIONS_LIST_ADDRESS.group, CONNECTIONS_LIST_ADDRESS.sub);
+          requestConnectionEditor(connection.id);
+        }}
+        size="sm"
+        type="button"
+      >
+        {openConnectionName(connection)}
+      </Button>
+    </Row>
   );
 }

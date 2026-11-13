@@ -1,7 +1,7 @@
 // The CONNECTIONS section (Settings → Connections) — the user's connection rows: label · provider · model ·
-// key, the Model roles each row may serve, the background switch, and a row MENU carrying §5.3a's
-// no-defaults survivability actions. Owns its own `QueryBoundary` (one
-// contributed section per read).
+// key, the Model roles each row may serve, the background state, and a row MENU carrying §5.3a's
+// no-defaults survivability actions. Owns its own `QueryBoundary` (one contributed section per read). The
+// background switch is the editor's alone: the row shows the state, and its body is the editor's door.
 //
 // THE BADGE RAIL SITS OUTSIDE THE ROW BODY, ON PURPOSE. `ListRow`'s `leading`/`markers`/`subtitleLead` all
 // render INSIDE the body — which becomes a native `<button>` the moment the row is `clickable` (the editor
@@ -32,20 +32,18 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
-import { Switch } from "@orb/ui/switch";
 import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useId, useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu, useFirstBootRows, useReindexConfirm, useUpdateConnection } from "#components";
+import { useEffect, useRef, useState } from "react";
+import { QueryBoundary, RowActionsMenu, useFirstBootRows, useReindexConfirm } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { allowBackgroundSwitchName, connectionSummary } from "#lib";
+import { connectionSummary } from "#lib";
 import { clearConnectionEditorRequest, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
-import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
-import { ADD_CONNECTION_NAME } from "../lib/connections-copy.ts";
+import { ADD_CONNECTION_NAME, backgroundStateLabel } from "../lib/connections-copy.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRebindsEmbedder, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
@@ -264,7 +262,6 @@ function ConnectionRow({
 }): ReactElement {
   const deps = { trpc, invalidation };
   const remove = useRemoveConnection(deps);
-  const update = useUpdateConnection(deps);
   const applyEverywhere = useUseForEverything(deps);
   const reindex = useReindexConfirm();
   const [addModelOpen, setAddModelOpen] = useState(false);
@@ -276,18 +273,6 @@ function ConnectionRow({
   const subtitle = [connection.providerLabel, connection.baseUrl, key].filter((part) => part !== null).join(" · ");
   const sweepRoles = sweepRoleLabels(connection);
   const boundRoles = boundRoleLabels(connection.id, bindings);
-  // THE SWITCH'S SUBJECT RIDES ITS ACCESSIBLE NAME, NOT ITS PIXELS — measured, not preferred. The row it
-  // belongs to is the row it is IN, so a sighted reader already has the subject; spelling it visibly made
-  // the trailing cluster wider than the identity block and truncated the connection's own name to
-  // "local-light · reranker · Xenova/ms…" while the switch label spelled that model in full (snap
-  // `config_to_connections`, 870px). A screen-reader user has no row context, so the NAME keeps it — which
-  // is also why the shipped one-word "background" gloss had to go.
-  // The Model-roles REPAIR switch is the opposite case and spells its subject visibly: it sits in a role
-  // row and writes a DIFFERENT row's flag, so there is no context to inherit.
-  const switchLabel = CONNECTION_FORM_COPY.backgroundLabel;
-  const switchName = allowBackgroundSwitchName(connection);
-  // The name stays the item's; the visible badge says why the switch is disabled.
-  const unavailableId = useId();
 
   return (
     <Stack gap="tight">
@@ -306,83 +291,53 @@ function ConnectionRow({
         onClick={(): void => onEdit(connection.id)}
         title={name}
         subtitle={subtitle}
-        // THE ROW STACKS INSTEAD OF SQUEEZING (#2486). Dropping the switch's visible gloss below ~480px
-        // bought the name ~130px and still was not enough: a 52-character auto-minted label truncated to
-        // "local-light · encoder · jinaai…" at the 486 settings body (snap `config_to_connections`,
-        // 486x1700) while the cluster beside it kept its full intrinsic width — which is why the CT could
-        // only pin "the identity is never narrower than its controls" rather than the layout. `list.html`
-        // Board D answers with a STACK: identity full width, switch and kebab on their own line, the switch
-        // keeping its shipped silhouette and its label "on a single line beside it". So the gloss comes back
-        // at every width and the name never yields to its own controls. The mechanism is the PRIMITIVE's
-        // (`@container/list-row` on the row's own box), never this call site's — every list surface in the
-        // app has this shape and three of them solving it three ways is the drift `ListRow` exists to
-        // prevent.
-        // TWO SIBLINGS IN THE SLOT, NOT ONE WRAPPER ROW, AND THAT IS THE STACK'S DOING. The `actions` slot
-        // is itself the flex row (`gap-field`, `items-center`), so an outer `<Row>` here rendered
-        // identically inline — and in the STACKED arm it collapsed the slot to ONE child, which makes
-        // `justify-between` a no-op: MEASURED on the isolated stage at 486x1700, the kebab sat glued to the
-        // switch's gloss instead of at the row's end, where Board D draws it.
-        stackActions={true}
+        // The background switch lives in the editor this row opens; the row shows its state in the rail below.
         actions={
-          <>
-            <Row gap="field" align="center" wrap={true}>
-              <Switch
-                aria-label={switchName}
-                aria-describedby={providerUnavailable ? unavailableId : undefined}
-                checked={connection.allowBackground}
-                disabled={providerUnavailable || update.isPending}
-                onCheckedChange={(checked): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: checked } })}
-              />
-              <Text voice="gloss" as="span" wrap="word">
-                {switchLabel}
-              </Text>
-            </Row>
-            <RowActionsMenu
-              label={`More actions for ${name}`}
-              destructive={{
-                confirmLabel: "Remove",
-                description: removalDescription(boundRoles, key),
-                label: "Remove",
-                onConfirm: (): void => remove.mutate({ connectionId: connection.id }),
-                title: `Remove "${connection.label}"?`,
-              }}
-            >
-              {sweepRoles.length === 0 ? null : (
-                <MenuItem
-                  stacked={true}
-                  disabled={applyEverywhere.isPending}
-                  onClick={(): void => {
-                    const write = (): void => applyEverywhere.mutate({ connectionId: connection.id });
-                    if (sweepRebindsEmbedder(connection)) {
-                      reindex.guard({ kind: "everywhere", connectionId: connection.id }, write);
-                    } else {
-                      write();
-                    }
-                  }}
-                >
-                  <Text voice="label" as="span" ink="inherit">
-                    Use this connection for everything it can serve
-                  </Text>
-                  <Text voice="gloss" as="span">
-                    Sets {joinRoleLabels(sweepRoles)} to this connection. You can change any of them after.
-                  </Text>
-                </MenuItem>
-              )}
-              {provider === null || addModel === null ? null : (
-                <MenuItem stacked={true} onClick={(): void => setAddModelOpen(true)}>
-                  <Text voice="label" as="span" ink="inherit">
-                    {addModelActionLabel(addModel)}
-                  </Text>
-                  <Text voice="gloss" as="span">
-                    {addModelActionGloss(addModel, providerDisplayLabel(provider))}
-                  </Text>
-                </MenuItem>
-              )}
-            </RowActionsMenu>
-          </>
+          <RowActionsMenu
+            label={`More actions for ${name}`}
+            destructive={{
+              confirmLabel: "Remove",
+              description: removalDescription(boundRoles, key),
+              label: "Remove",
+              onConfirm: (): void => remove.mutate({ connectionId: connection.id }),
+              title: `Remove "${connection.label}"?`,
+            }}
+          >
+            {sweepRoles.length === 0 ? null : (
+              <MenuItem
+                stacked={true}
+                disabled={applyEverywhere.isPending}
+                onClick={(): void => {
+                  const write = (): void => applyEverywhere.mutate({ connectionId: connection.id });
+                  if (sweepRebindsEmbedder(connection)) {
+                    reindex.guard({ kind: "everywhere", connectionId: connection.id }, write);
+                  } else {
+                    write();
+                  }
+                }}
+              >
+                <Text voice="label" as="span" ink="inherit">
+                  Use this connection for everything it can serve
+                </Text>
+                <Text voice="gloss" as="span">
+                  Sets {joinRoleLabels(sweepRoles)} to this connection. You can change any of them after.
+                </Text>
+              </MenuItem>
+            )}
+            {provider === null || addModel === null ? null : (
+              <MenuItem stacked={true} onClick={(): void => setAddModelOpen(true)}>
+                <Text voice="label" as="span" ink="inherit">
+                  {addModelActionLabel(addModel)}
+                </Text>
+                <Text voice="gloss" as="span">
+                  {addModelActionGloss(addModel, providerDisplayLabel(provider))}
+                </Text>
+              </MenuItem>
+            )}
+          </RowActionsMenu>
         }
       />
-      <ConnectionBadges connection={connection} providerUnavailable={providerUnavailable} unavailableId={unavailableId} />
+      <ConnectionBadges connection={connection} providerUnavailable={providerUnavailable} />
       {reindex.dialog}
       {provider === null || addModel === null ? null : (
         <AddModelOnKeyDialog
@@ -400,21 +355,19 @@ function ConnectionRow({
 }
 
 /** The row's status rail: provider availability, the Model roles this connection CAN serve (a statement
- *  about the model, never what the user bound), and the other two condition badges. `task` is sealed —
- *  badge text is always the Model-roles label, never the schema word. */
+ *  about the model, never what the user bound), the model-check badge and the background state. `task` is
+ *  sealed — badge text is always the Model-roles label, never the schema word. */
 function ConnectionBadges({
   connection,
   providerUnavailable,
-  unavailableId,
 }: {
   readonly connection: ConnectionListItem;
   readonly providerUnavailable: boolean;
-  readonly unavailableId: string;
 }): ReactElement {
   return (
     <Row gap="field" align="center" wrap={true}>
       {providerUnavailable ? (
-        <Badge id={unavailableId} tone="warning" size="sm" whitespace="normal">
+        <Badge tone="warning" size="sm" whitespace="normal">
           Provider unavailable
         </Badge>
       ) : null}
@@ -429,11 +382,9 @@ function ConnectionBadges({
           Model not in list
         </Badge>
       ) : null}
-      {connection.allowBackground ? null : (
-        <Badge tone="warning" size="sm" whitespace="normal">
-          Background work off
-        </Badge>
-      )}
+      <Text voice="gloss" tone={connection.allowBackground ? undefined : "warning"}>
+        {backgroundStateLabel(connection.allowBackground)}
+      </Text>
     </Row>
   );
 }
