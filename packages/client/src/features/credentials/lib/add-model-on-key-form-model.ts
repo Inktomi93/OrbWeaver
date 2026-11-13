@@ -5,21 +5,22 @@
 // its key. This file holds the action's copy, which rows offer it, and the dialog's form values.
 
 import type { ProviderAuth } from "@orb/contracts/inference";
+import { ADD_MODEL_ACTION_LABELS } from "./credentials-names.ts";
 import { MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** What the new connection shares with the row it was opened from. The row's own key is the §5.3a case; an
  *  endpoint row with no key shares its server, and a built-in row shares nothing but the provider. */
 const ADD_MODEL_ACTION_COPY = {
   key: {
-    label: "Add another model on this key",
+    label: ADD_MODEL_ACTION_LABELS.key,
     gloss: (provider: string): string => `A new connection on ${provider} with the same key: you only pick the model.`,
   },
   server: {
-    label: "Add another model on this server",
+    label: ADD_MODEL_ACTION_LABELS.server,
     gloss: (provider: string): string => `A new connection on ${provider} at the same address: you only pick the model.`,
   },
   builtin: {
-    label: "Add another built-in model",
+    label: ADD_MODEL_ACTION_LABELS.builtin,
     gloss: (provider: string): string => `A new connection on ${provider}: you only pick the model.`,
   },
 } as const;

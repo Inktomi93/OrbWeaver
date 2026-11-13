@@ -34,6 +34,7 @@ import {
   WORKLOAD_CANCEL_TITLE,
   WORKLOAD_KEEP_RUNNING_NAME,
   WORKLOAD_SCHEDULED_BADGE,
+  WORKLOAD_WAITING_BADGE,
 } from "#client/features/workloads/lib/workloads-names.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { SCHEDULE_CADENCE_LABELS, scheduleDeleteName, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
@@ -133,7 +134,7 @@ for (const regime of REGIMES) {
       await routeImportReads(page, root);
       await routeTrpc(page, serveCorpusProcedures(caller, ["settings.getUserSettings", "sessions.me"]));
       await mount<typeof WorkloadActionGroupsStory>(STORY, { sectionId: "backup-import", width: regime.width, appearance: regime.appearance });
-      const intro = page.getByText(IMPORT_INTRO_LEAD);
+      const intro = page.getByText(new RegExp(`^${RegExp.escape(IMPORT_INTRO_LEAD)}`, "u"));
       await expect(intro).toBeVisible();
       expect((await settledBox(intro)).width).toBeLessThanOrEqual((await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, intro)) + 1);
       const picker = page.getByLabel(IMPORT_FILE_PICKER_NAME, { exact: true });
@@ -222,12 +223,12 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Tab");
       await expect(keep).toBeFocused();
       await page.keyboard.press("Enter");
-      await expect(review.getByRole("radio", { name: COLLISION_KEEP_BOTH_TITLE })).toHaveCount(2);
-      for (const radio of await review.getByRole("radio", { name: COLLISION_KEEP_BOTH_TITLE }).all()) {
+      await expect(review.getByRole("radio", { name: new RegExp(`^${RegExp.escape(COLLISION_KEEP_BOTH_TITLE)}`, "u") })).toHaveCount(2);
+      for (const radio of await review.getByRole("radio", { name: new RegExp(`^${RegExp.escape(COLLISION_KEEP_BOTH_TITLE)}`, "u") }).all()) {
         await expect(radio).toBeChecked();
       }
       await merge.click();
-      for (const radio of await review.getByRole("radio", { name: COLLISION_MERGE_TITLE }).all()) {
+      for (const radio of await review.getByRole("radio", { name: new RegExp(`^${RegExp.escape(COLLISION_MERGE_TITLE)}`, "u") }).all()) {
         await expect(radio).toBeChecked();
       }
       await preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
@@ -325,7 +326,7 @@ for (const regime of REGIMES) {
       const retry = terminal.getByRole("button", { name: retryWorkloadName(backfillLabel), exact: true });
       await expect(cancel).toBeEnabled();
       await expect(deferred.getByText(WORKLOAD_BULK_BADGE, { exact: true })).toBeVisible();
-      await expect(deferred.getByText("Waiting", { exact: true })).toBeVisible();
+      await expect(deferred.getByText(WORKLOAD_WAITING_BADGE, { exact: true })).toBeVisible();
       await expect(deferred.getByRole("button", { name: retryWorkloadName(backfillLabel), exact: true })).toHaveCount(0);
       await expect(terminal.getByRole("button", { name: cancelWorkloadName(backfillLabel), exact: true })).toHaveCount(0);
       await measureActions(cancel.locator(".."), [cancel], testInfo, "deferred-job-actions");

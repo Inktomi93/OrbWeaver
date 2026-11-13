@@ -23,6 +23,7 @@ import {
 } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { DIALOG_PENDING_VERBS } from "#lib";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
 import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations.ts";
 import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, WORKLOAD_KIND_LABELS, workloadKindItems } from "../lib/workloads-model.ts";
@@ -31,7 +32,9 @@ import {
   SCHEDULE_CREATE_FAILED,
   SCHEDULE_CREATE_NAME,
   SCHEDULE_CREATE_TITLE,
+  SCHEDULE_EDIT_TITLE,
   SCHEDULE_SAVE_NAME,
+  SCHEDULE_UPDATE_FAILED,
   WORKLOAD_JOB_FIELD_NAME,
 } from "../lib/workloads-names.ts";
 import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model.ts";
@@ -131,10 +134,10 @@ function ScheduleFormBody({
   const write = isEdit ? update : create;
   const isPending = write.isPending;
   const hasError = write.error !== null;
-  const pendingLabel = isEdit ? "Saving…" : "Creating…";
+  const pendingLabel = isEdit ? DIALOG_PENDING_VERBS.saving : DIALOG_PENDING_VERBS.creating;
   const idleLabel = isEdit ? SCHEDULE_SAVE_NAME : SCHEDULE_CREATE_NAME;
   const submitLabel = isPending ? pendingLabel : idleLabel;
-  const failedLine = isEdit ? "Couldn't update the schedule. Try again." : SCHEDULE_CREATE_FAILED;
+  const failedLine = isEdit ? SCHEDULE_UPDATE_FAILED : SCHEDULE_CREATE_FAILED;
 
   return (
     <FormDialogPopup
@@ -153,7 +156,7 @@ function ScheduleFormBody({
         },
       }}
       testKey={isEdit ? "editScheduleDialog" : "createScheduleDialog"}
-      title={isEdit ? "Edit schedule" : SCHEDULE_CREATE_TITLE}
+      title={isEdit ? SCHEDULE_EDIT_TITLE : SCHEDULE_CREATE_TITLE}
     >
       <form.AppField name="kind">{(field): ReactElement => <field.SelectField label={WORKLOAD_JOB_FIELD_NAME} items={kindItems} />}</form.AppField>
       <form.AppField name="cadence">{(field): ReactElement => <field.SelectField label={SCHEDULE_CADENCE_FIELD_NAME} items={CADENCE_ITEMS} />}</form.AppField>

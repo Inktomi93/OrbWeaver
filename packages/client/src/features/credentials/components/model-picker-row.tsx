@@ -5,6 +5,7 @@ import { Badge } from "@orb/ui/badge";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { MODEL_ALREADY_ADDED_LABEL, MODEL_SELECTED_LABEL, MODEL_TOOLS_LABEL, MODEL_VISION_LABEL } from "../lib/credentials-names.ts";
 import type { PickerEntry } from "../lib/model-picker-model.ts";
 import { formatContextLength, formatPromptPrice, hasTools, hasVision } from "../lib/model-picker-model.ts";
 
@@ -45,10 +46,10 @@ function ModelMetadata({ entry, picked, current }: Parameters<typeof ModelPicker
     <Row align="center" className="min-inline-0 @cq-32:shrink-0" wrap={true} gap="field">
       {vision ? (
         <Badge tone="info" variant="solid" size="sm">
-          Vision
+          {MODEL_VISION_LABEL}
         </Badge>
       ) : null}
-      {tools ? <Badge size="sm">Tools</Badge> : null}
+      {tools ? <Badge size="sm">{MODEL_TOOLS_LABEL}</Badge> : null}
       {context === null ? null : (
         <Text as="span" voice="datumMono">
           {context}
@@ -59,10 +60,10 @@ function ModelMetadata({ entry, picked, current }: Parameters<typeof ModelPicker
           {price}
         </Text>
       )}
-      {current ? <Badge size="sm">Already added</Badge> : null}
+      {current ? <Badge size="sm">{MODEL_ALREADY_ADDED_LABEL}</Badge> : null}
       {picked ? (
         <Badge tone="primary" size="sm">
-          Selected
+          {MODEL_SELECTED_LABEL}
         </Badge>
       ) : null}
     </Row>

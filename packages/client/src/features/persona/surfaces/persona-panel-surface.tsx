@@ -30,7 +30,14 @@ import type { SwitchRoom } from "../components/persona-switch-list.tsx";
 import { PersonaSwitchList } from "../components/persona-switch-list.tsx";
 import type { PlayingPersonaState } from "../hooks/use-playing-persona.ts";
 import { useCardPin, useDefaultPersona, usePlayingPersona, useSwitchPersona } from "../hooks/use-playing-persona.ts";
-import { PERSONA_MANAGE_NAME, PERSONA_PANEL_NAME, PERSONA_PLAYING_AS_LABEL, personaPlayingAsName } from "../lib/persona-copy.ts";
+import {
+  PERSONA_MANAGE_NAME,
+  PERSONA_NEW_CHAT_GLOSS,
+  PERSONA_NO_SEAT_GLOSS,
+  PERSONA_PANEL_NAME,
+  PERSONA_PLAYING_AS_LABEL,
+  personaPlayingAsName,
+} from "../lib/persona-copy.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -176,9 +183,9 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
 
 function headGloss(state: PlayingPersonaState): string {
   if (state.chat !== null) {
-    return state.playing === null ? "No persona set. Pick one below." : PERSONA_PLAYING_AS_LABEL;
+    return state.playing === null ? PERSONA_NO_SEAT_GLOSS : PERSONA_PLAYING_AS_LABEL;
   }
-  return state.newChat?.source === "default" ? "New chats start as (your default)" : "New chats start as (last played)";
+  return state.newChat?.source === "default" ? PERSONA_NEW_CHAT_GLOSS.default : PERSONA_NEW_CHAT_GLOSS.lastPlayed;
 }
 
 /** WHO you play: in a room the seat (an empty seat says so rather than borrowing a persona the room never

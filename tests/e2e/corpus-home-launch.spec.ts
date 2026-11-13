@@ -8,15 +8,16 @@ import { z } from "zod";
 import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
-import { PERSONA_PLAYING_AS_LABEL } from "#client/features/persona/lib/persona-copy.ts";
+import { personaPlayingAsName } from "#client/features/persona/lib/persona-copy.ts";
 import { BLANK_CHAT_NAME, NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#client/lib/chat-launch-names.ts";
-import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { chatWithActionName } from "#client/lib/row-qualifiers.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
 import { assistantRows, charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
+import { NAME_HOLE, namePattern } from "./support/surface-walker.ts";
 import { batchResultData, mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
 
 const startedChat = z.object({ chat: z.object({ id: typeIdSchema(ID_PREFIX.chat) }) });
@@ -64,7 +65,9 @@ test.describe("committed corpus room launches", () => {
     // those same reads, so it is the barrier that makes the absence below mean something. Which persona it names depends on
     // what earlier specs left (the default outranks the last played), so the barrier is the resolved form, not a name.
     // A phone has only the You tab.
-    await expect(page.getByRole("button", isMobile ? { name: "You", exact: true } : { name: PERSONA_PLAYING_AS_LABEL })).toBeVisible();
+    await expect(
+      page.getByRole("button", isMobile ? { name: YOU_TAB_LABEL, exact: true } : { name: namePattern(personaPlayingAsName(NAME_HOLE)) }),
+    ).toBeVisible();
     await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
   });
 

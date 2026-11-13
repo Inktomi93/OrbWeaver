@@ -138,11 +138,13 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
+  "^tests/client/components/_entry-list-labels\\.ts$": "the add label the entry-list rebase story authors and its spec finds the button by",
   "^tests/client/components/_form-dialog-labels\\.ts$": "the title the form dialog create story authors and its spec finds the dialog by",
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
+  "^tests/ui/primitives/list-row/state-attribute-cases\\.ts$": "the selected row title the state-attribute story authors and its spec reads",
   "^tests/ui/primitives/virtual-list/virtual-list-cases\\.ts$": "the long-list row count the virtual-list stories mount and their spec passes",
 } as const satisfies Readonly<Record<string, string>>;
 // The only files of a browser package outside `src/` that its `src/` imports; each is judged by a reachable rule.
@@ -390,6 +392,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/settings/contract/keys.ts":
     "APP_SETTINGS_KEY: the settings row the app override lives in, which the whole-blob guard suite plants a newer build's blob into",
   "packages/client/src/features/credentials/lib/connections-copy.ts": "ADD_CONNECTION_NAME: the add-connection button's name",
+  "packages/client/src/features/credentials/lib/credentials-names.ts": "SAVED_KEYS_EMPTY_TITLE and SAVED_KEYS_EMPTY_DESCRIPTION: the Saved keys empty state",
+  "packages/client/src/features/rpg/lib/rpg-names.ts":
+    "RPG_CONTEXT_TAB_LABELS and the Game tab tracker row names: the game tabs e2e opens and the tracker controls the chat suite measures",
   "packages/client/src/features/rpg/lib/context-layout.ts":
     "SATELLITES_TO_BODY_FONT_SCALE: the font scale at which the satellite row and date line leave the Waystone band",
   "packages/client/src/features/character/lib/greeting-copy.ts":
@@ -617,7 +622,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/stats/lib/leaderboard-row-attr.ts":
     "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME and TAG_FILTER_NAME: the Labels finder's list and filter names",
-  "packages/client/src/features/stats/lib/analytics-names.ts": "ANALYTICS_SEARCH_NAME: the Insights leaderboard list's search name",
+  "packages/client/src/features/stats/lib/analytics-names.ts":
+    "ANALYTICS_LEADERBOARD_NAME and its siblings: the Insights leaderboard list, models tab and figure names",
   "packages/client/src/features/stats/lib/analytics-copy.ts":
     "APPROX_DATES_MARK and APPROX_DATES_NOTE: the mark and note Insights prints for approximate message dates",
   "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",

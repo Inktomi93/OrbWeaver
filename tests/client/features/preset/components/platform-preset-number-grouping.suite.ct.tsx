@@ -3,7 +3,7 @@ import { presetDetailSchema } from "@orb/contracts/preset";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
+import { PRESET_EDITOR_VIEW_LABELS, PRESET_REPLAY_LIFETIME_NAME } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_list-lifetime-stories/PresetListLifetimeStory";
@@ -54,7 +54,7 @@ for (const { locale, grouped, decimal, point, shown } of LOCALES) {
       await temperature.press("Tab");
       await expect(temperature).toHaveValue(shown);
       // A field that takes no input takes no paste either.
-      const lifetime = page.getByRole("textbox", { name: "Response replay lifetime (seconds)", exact: true });
+      const lifetime = page.getByRole("textbox", { name: PRESET_REPLAY_LIFETIME_NAME, exact: true });
       await expect(lifetime).toBeDisabled();
       await lifetime.evaluate((input, text) => {
         const data = new DataTransfer();

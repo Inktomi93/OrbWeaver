@@ -13,6 +13,7 @@
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { MARKER_COPY } from "../components/prompt-assembly/marker-copy.ts";
+import { PRESET_LITERAL_TEXT_LABEL } from "./preset-names.ts";
 
 /** One place a name is written. `sectionId` is present only for a SECTION consumer — it is the key the
  *  panel's selection echo needs (§16 row 19); a template/nudge consumer has no rack row to select. */
@@ -53,7 +54,7 @@ function sectionLabel(section: PromptSection): string {
   if (section.name.trim() !== "") {
     return section.name;
   }
-  return section.type === "marker" ? MARKER_COPY[section.marker].label : "Literal text";
+  return section.type === "marker" ? MARKER_COPY[section.marker].label : PRESET_LITERAL_TEXT_LABEL;
 }
 
 /** The text a section contributes for scanning — a literal's content or a templated marker's CUSTOM

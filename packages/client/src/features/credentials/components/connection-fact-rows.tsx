@@ -29,6 +29,7 @@ import { DestructiveAction } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
 import { boundRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
+import { ENDPOINT_QUIRKS_LABEL, FACT_RESET_VERB } from "../lib/credentials-names.ts";
 
 export interface FactRowListProps {
   readonly rows: readonly FactRow[];
@@ -99,11 +100,11 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
         <Row className="shrink-0" endBelow="cq-32" gap="field">
           {row.overridden ? (
             <DestructiveAction
-              confirm={{ confirmLabel: "Reset", description: "Your override is removed.", title: `Reset ${row.name}?` }}
+              confirm={{ confirmLabel: FACT_RESET_VERB, description: "Your override is removed.", title: `Reset ${row.name}?` }}
               onConfirm={(): void => onReset(row)}
               trigger={
                 <Button aria-label={`Reset ${row.name}`} disabled={busy} variant="ghost" size="sm">
-                  Reset
+                  {FACT_RESET_VERB}
                 </Button>
               }
             />
@@ -271,7 +272,7 @@ export function QuirksBlock({
   }
   return (
     <Stack gap="tight">
-      <Text voice="label">Endpoint quirks</Text>
+      <Text voice="label">{ENDPOINT_QUIRKS_LABEL}</Text>
       <Text voice="gloss">
         How this kind of server behaves, and where each answer came from. Read-only: override a line only when this box differs from the others of its kind.
       </Text>

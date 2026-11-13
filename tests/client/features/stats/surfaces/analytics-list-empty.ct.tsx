@@ -8,8 +8,8 @@ import { routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProce
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "#client/features/stats/lib/analytics-copy.ts";
-import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const LIST = '.shell-panel[data-panel-side="list"]';
@@ -32,7 +32,7 @@ test("an Insights LIST with no activity draws the empty state, and a search with
   await mount<typeof ShellAmbientStory>(STORY, {});
   await page.getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true }).click();
   const list = page.locator(LIST);
-  const search = list.getByLabel(ANALYTICS_SEARCH_NAME, { exact: true });
+  const search = list.getByLabel(CHARACTER_SEARCH_NAME, { exact: true });
   await expect(search).toBeVisible();
 
   await expect(list.locator(EMPTY_STATE).getByText(ANALYTICS_NO_ACTIVITY_TEXT, { exact: true })).toBeVisible();

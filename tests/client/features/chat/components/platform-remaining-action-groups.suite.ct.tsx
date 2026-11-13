@@ -19,6 +19,7 @@ import {
   characterGalleryName,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE, toolCallVisibilityName } from "#client/features/chat/lib/message-action-names.ts";
+import { trackerDefaultMaxName, trackerLabelFieldName, trackerRemoveName } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { GalleryActionsStory, GameTrackerActionsStory, ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -36,6 +37,17 @@ const REGIMES = [
   { name: "phone portrait enlarged", width: 390, viewport: { width: 390, height: 844 }, coarse: true, appearance: ENLARGED_APPEARANCE_SETTINGS },
   { name: "phone landscape enlarged", width: 844, viewport: { width: 844, height: 390 }, coarse: true, appearance: ENLARGED_APPEARANCE_SETTINGS },
 ] as const;
+
+/** The band and lock buttons name the action a press takes; these are the literals the reader hears for the def's state. */
+function trackerToggleNames(def: { readonly label: string; readonly pinned?: boolean; readonly locked?: boolean }): {
+  readonly band: string;
+  readonly lock: string;
+} {
+  return {
+    band: def.pinned === true ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`,
+    lock: def.locked === true ? `Let the story write ${def.label} again` : `Lock ${def.label}: the story can no longer write it`,
+  };
+}
 
 async function measure(region: Locator, controls: readonly Locator[], testInfo: TestInfo, label: string): Promise<void> {
   const geometry = await actionGroupGeometry(region, controls);
@@ -251,7 +263,16 @@ for (const regime of REGIMES) {
       const chatId = (await caller.chat.startChat({ characterIds: [], opening: "none" })).chat.id;
       await seedRpgGame(root, { principal: await root.principalFor(root.ownerId), chatId, mode: "lite", ruleset: "freeform" });
       const defs = [
-        rpgTrackerDefSchema.parse({ key: "long-meter", label: TRACKER_LABEL, shape: "meter", write: "delta", subject: "actor", max: Number.MAX_SAFE_INTEGER }),
+        rpgTrackerDefSchema.parse({
+          key: "long-meter",
+          label: TRACKER_LABEL,
+          shape: "meter",
+          write: "delta",
+          subject: "actor",
+          max: Number.MAX_SAFE_INTEGER,
+          pinned: true,
+          locked: true,
+        }),
         rpgTrackerDefSchema.parse({ key: "text-track", label: "Weather", shape: "text", write: "set", subject: "game" }),
       ];
       await caller.rpg.updateConfig({ chatId, patch: { trackers: defs } });
@@ -278,13 +299,21 @@ for (const regime of REGIMES) {
       for (const [index, def] of defs.entries()) {
         const row = rows.nth(index);
         // A value's rest button is named by its field, then by the text it shows.
-        const label = row.getByRole("button", { name: `Tracker ${index + 1} label: ` });
-        const band = row.getByRole("button", { name: `Show ${def.label} as a band orb`, exact: true });
-        const lock = row.getByRole("button", { name: `Lock ${def.label}: the story can no longer write it`, exact: true });
-        const remove = row.getByRole("button", { name: `Remove ${def.label}`, exact: true });
-        const maximum = row.getByRole("button", { name: `${def.label} default max: ` });
-        await expect(label).toBeVisible();
-        await expect(maximum).toHaveCount(def.shape === "meter" ? 1 : 0);
+        const label = row.getByRole("button", { name: new RegExp(`^${RegExp.escape(trackerLabelFieldName(index))}: `, "u") });
+        // The band and lock buttons name the action a press takes, so the pinned and locked meter and the plain text tracker
+        // between them show all four names; each is the literal the reader hears.
+        const names = trackerToggleNames(def);
+        const band = row.getByRole("button", { name: names.band, exact: true });
+        const lock = row.getByRole("button", { name: names.lock, exact: true });
+        const remove = row.getByRole("button", { name: trackerRemoveName(def.label), exact: true });
+        const maximum = row.getByRole("button", { name: new RegExp(`^${RegExp.escape(trackerDefaultMaxName(def.label))}: `, "u") });
+        // Each builder above finds its control; these literals pin what the reader hears, so a broken builder fails here.
+        await expect(label).toHaveAccessibleName(new RegExp(`^Tracker ${String(index + 1)} label: `, "u"));
+        await expect(remove).toHaveAccessibleName(`Remove ${def.label}`);
+        await expect(row.getByRole("button", { name: new RegExp(`^${RegExp.escape(`${def.label} hint`)}`, "u") })).toHaveCount(1);
+        const meters = def.shape === "meter" ? 1 : 0;
+        await expect(row.getByRole("button", { name: new RegExp(`^${RegExp.escape(`${def.label} default max`)}: `, "u") })).toHaveCount(meters);
+        await expect(maximum).toHaveCount(meters);
         const controls = def.shape === "meter" ? [label, maximum, band, lock, remove] : [label, band, lock, remove];
         await measure(label.locator("..").locator(".."), controls, testInfo, `tracker-${def.shape}-cluster`);
         await measure(page.getByRole("group", { name: "Game action host", exact: true }), controls, testInfo, `tracker-${def.shape}-host`);
@@ -301,7 +330,7 @@ for (const regime of REGIMES) {
         }
         await label.focus();
         await page.keyboard.press("Enter");
-        const input = row.getByRole("textbox", { name: `Tracker ${index + 1} label`, exact: true });
+        const input = row.getByRole("textbox", { name: trackerLabelFieldName(index), exact: true });
         await expect(input).toBeFocused();
         await input.fill("Uncommitted tracker draft");
         await input.press("Escape");

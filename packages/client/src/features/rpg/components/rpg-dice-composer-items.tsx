@@ -13,6 +13,7 @@ import { roomRosterOptions, useGatedQuery, useInvalidation, useTRPC } from "#dat
 import { notify } from "#lib";
 import { readComposerDraft, requestComposerFocus, setComposerDraft } from "#state";
 import { useRollDice } from "../hooks/use-rpg-mutations.ts";
+import { RPG_ABILITY_CHECK_NAME, RPG_SCORE_UNSET_HINT } from "../lib/rpg-names.ts";
 
 function insertStamp(chatId: ChatId, stamp: string): void {
   const current = readComposerDraft(chatId);
@@ -68,7 +69,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
         <MenuSubmenuRoot>
           <MenuSubmenuTrigger>
             <Icon icon={Dices} size="sm" />
-            Ability check
+            {RPG_ABILITY_CHECK_NAME}
           </MenuSubmenuTrigger>
           <MenuPopup>
             <MenuGroup>
@@ -91,7 +92,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
                     </Text>
                     {modifier === null ? (
                       <Text as="span" voice="gloss" id={descriptionId}>
-                        Set your score in Status first.
+                        {RPG_SCORE_UNSET_HINT}
                       </Text>
                     ) : null}
                   </MenuItem>

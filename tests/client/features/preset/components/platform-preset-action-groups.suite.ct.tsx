@@ -9,6 +9,7 @@ import {
   NEW_PRESET_NAME,
   PRESET_ACTIVATE_NAME,
   PRESET_ACTIVE_RADIOGROUP_NAME,
+  PRESET_ACTIVE_STATUS,
   PRESET_NAME_FIELD_NAME,
   PRESET_RENAME_NAME,
   PRESET_RESET_ARRANGEMENT_NAME,
@@ -92,7 +93,7 @@ for (const regime of REGIMES) {
       // This isolated body has no app-root user bus; a fresh production mount reads the persisted active arm.
       await mounted.unmount();
       await mount<typeof PresetActionGroupsStory>(STORY, props);
-      await expect(page.getByText("Active", { exact: true })).toBeVisible();
+      await expect(page.getByText(PRESET_ACTIVE_STATUS, { exact: true })).toBeVisible();
       await expect(activate).toHaveCount(0);
       await expect(rename).toBeVisible();
       await expect(reset).toBeVisible();

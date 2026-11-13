@@ -49,6 +49,7 @@ import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEdit
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { collectArchivedCards } from "../lib/archived-cards.ts";
 import { CHECKPOINT_TRIGGER_LABELS, JOURNAL_TYPE_LABELS } from "../lib/journal-labels.ts";
+import { RPG_JOURNAL_ADD_ENTRY_NAME, RPG_JOURNAL_EMPTY_LEAD, RPG_JOURNAL_NO_CARDS_LINE, RPG_JOURNAL_SCOPE_LABELS } from "../lib/rpg-names.ts";
 import type { BeatEdit } from "./rpg-beat-row.tsx";
 import { BeatRow } from "./rpg-beat-row.tsx";
 import { RpgCardRow } from "./rpg-card-row.tsx";
@@ -102,7 +103,7 @@ function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJ
           floor="third"
         />
       }
-      actions={[{ key: "entry", label: "Add entry", onAdd: (title: string): void => onCreate({ type, title }) }]}
+      actions={[{ key: "entry", label: RPG_JOURNAL_ADD_ENTRY_NAME, onAdd: (title: string): void => onCreate({ type, title }) }]}
     />
   );
 }
@@ -141,7 +142,9 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     // No dead end: the empty chronicle still offers the host the first page.
     return (
       <Stack gap="section">
-        <Text>Nothing chronicled yet: {state.isHost ? "the story writes it, or you can start the first page below." : "the story writes the first page."}</Text>
+        <Text>
+          {RPG_JOURNAL_EMPTY_LEAD} {state.isHost ? "the story writes it, or you can start the first page below." : "the story writes the first page."}
+        </Text>
         {composer}
       </Stack>
     );
@@ -188,7 +191,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
 function JournalCards({ cards, chatId }: { readonly cards: readonly ArchivedCard[]; readonly chatId: ChatId }): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (cards.length === 0) {
-    return <Text>No cards yet: the story crafts them.</Text>;
+    return <Text>{RPG_JOURNAL_NO_CARDS_LINE}</Text>;
   }
   const newestFirst = cards.toSorted((a, b) => b.createdAt - a.createdAt);
   return (
@@ -352,10 +355,10 @@ export function RpgJournalTab({ state }: RpgJournalTabProps): ReactElement {
           }
         }}
       >
-        <Toggle value="all">All</Toggle>
-        <Toggle value="marks">Marks</Toggle>
+        <Toggle value="all">{RPG_JOURNAL_SCOPE_LABELS.all}</Toggle>
+        <Toggle value="marks">{RPG_JOURNAL_SCOPE_LABELS.marks}</Toggle>
         {/* APPLICABILITY-omit: a game without immersive cards has no Cards scope (never a disabled twin). */}
-        {cardsEnabled ? <Toggle value="cards">Cards</Toggle> : null}
+        {cardsEnabled ? <Toggle value="cards">{RPG_JOURNAL_SCOPE_LABELS.cards}</Toggle> : null}
       </ToggleGroup>
       {SCOPE_BODY[effectiveScope](state, cardsEnabled)}
     </Stack>

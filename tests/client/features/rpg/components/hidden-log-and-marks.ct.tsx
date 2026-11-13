@@ -7,6 +7,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { RPG_JOURNAL_SCOPE_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -131,7 +132,7 @@ test("a hand-made mark says nothing about how it was made", async ({ mount, page
   const chatId = await mountRoom(root, page, LIE_GREETING);
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.journal" });
 
-  await page.getByText("Marks", { exact: true }).click();
+  await page.getByText(RPG_JOURNAL_SCOPE_LABELS.marks, { exact: true }).click();
   await expect(page.locator('[data-slot="rpg-mark-row"]')).toHaveCount(1);
   await expect(page.locator('[data-slot="rpg-mark-trigger"]')).toHaveCount(0);
 });

@@ -53,6 +53,7 @@ import type { RowDeleteFocus } from "#components";
 import { LibraryRow, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { PRESET_UNREADABLE_ROW_MARKER, ROW_EXPORT_NAME, timeLib, unreadableConfigCause } from "#lib";
+import { PRESET_BUILT_IN_SUBTITLE, presetActivateRowName } from "../lib/preset-names.ts";
 import { presetRowSubtitle } from "../lib/preset-row-view.ts";
 
 /** How many §12.2 cluster slots THIS list reserves on every row — the state dot + the kebab, which is now
@@ -107,7 +108,7 @@ export function PresetLibraryRow({
 }: PresetLibraryRowProps): ReactElement {
   // ONE label in both states: the press only ever ACTIVATES, so a pressed-state name that promised an
   // un-activate would describe an action this control does not have. `aria-pressed` carries the state.
-  const activateLabel = `Activate ${preset.name} for generation`;
+  const activateLabel = presetActivateRowName(preset.name);
   const activate = (): void => {
     if (!active) {
       onActivate(preset.id);
@@ -164,7 +165,7 @@ export function PresetLibraryRow({
       }
       {...(preset.isSystemDefault
         ? {
-            subtitle: "Built-in default",
+            subtitle: PRESET_BUILT_IN_SUBTITLE,
             // THE BUILT-IN IS DUPLICABLE (side-eye 2026-08-19 P3). It was the one preset in the library you
             // could not copy: `actions` was withheld whole because the row is un-renameable and un-deletable,
             // so the Duplicate that has nothing to do with either went with them. The only copy path was

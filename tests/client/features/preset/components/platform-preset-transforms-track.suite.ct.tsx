@@ -5,7 +5,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
+import { PRESET_EDITOR_VIEW_LABELS, PRESET_SPEAKER_NAMES_LABEL } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -104,7 +104,7 @@ for (const regime of [
       );
       await mount<typeof PresetActionGroupsStory>(STORY, { width: regime.viewport.width, appearance, subject: "editor", presetId: preset.id });
       await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.transforms, exact: true }).click();
-      await expect(page.getByRole("combobox", { name: "Speaker names", exact: true })).toBeVisible();
+      await expect(page.getByRole("combobox", { name: PRESET_SPEAKER_NAMES_LABEL, exact: true })).toBeVisible();
       const groups = page.locator('[data-slot="setting-row-group"]');
       // Delivery, Collapsing, Inline reasoning parsing and Post-processing each own one group.
       await expect(groups).toHaveCount(4);

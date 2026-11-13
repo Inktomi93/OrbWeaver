@@ -16,6 +16,14 @@ export const PRESET_VARIABLE_QUESTION_NAME = "Question";
 
 /** The variable editor's door to a new option row. */
 export const PRESET_VARIABLE_ADD_OPTION_NAME = "Add option";
+
+/** The variable editor's `ordinal`th option row, counted from 1, and its remove confirm. */
+export function presetVariableOptionGroupName(ordinal: number): string {
+  return `Option ${String(ordinal)}`;
+}
+export function presetVariableOptionRemoveTitle(ordinal: number): string {
+  return `Remove option ${String(ordinal)}?`;
+}
 export const PRESET_IMPORT_NAME = "Import preset";
 
 /** The editor header's activate command; the list's radiogroup names the same pick differently. */
@@ -24,8 +32,9 @@ export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
 /** The editor header's reset door, its name and tooltip alike. */
 export const PRESET_RESET_ARRANGEMENT_NAME = "Reset to starter arrangement";
 
-/** The reset door's confirm. */
+/** The reset door's confirm: its title and its confirm button. */
 export const PRESET_RESET_ARRANGEMENT_TITLE = "Reset to the starter arrangement?";
+export const PRESET_RESET_ARRANGEMENT_CONFIRM = "Reset";
 
 /** The library pane's search field. */
 export const PRESET_SEARCH_NAME = "Search presets";
@@ -65,6 +74,70 @@ export function presetMoveToZoneLabel(inSetup: boolean): string {
 
 /** The rack's chat history pivot; its drill door is `editActionName` over it. */
 export const PRESET_CHAT_HISTORY_LABEL = "Chat history";
+
+/** A library row's activate radio, named for the preset it picks. */
+export function presetActivateRowName(preset: string): string {
+  return `Activate ${preset} for generation`;
+}
+
+/** The chip the editor header and the readout wear while this preset is the active one. */
+export const PRESET_ACTIVE_STATUS = "Active";
+
+/** The library pane's list region. */
+export const PRESET_LIST_NAME = "Presets list";
+
+/** The built-in row's subtitle. */
+export const PRESET_BUILT_IN_SUBTITLE = "Built-in default";
+
+/** A text section with no name of its own, and the add menu's option that mints one. */
+export const PRESET_LITERAL_TEXT_LABEL = "Literal text";
+
+/** The Params view's quality block: its kicker and its select. */
+export const PRESET_QUALITY_LABEL = "Quality";
+
+/** The response replay lifetime field. */
+export const PRESET_REPLAY_LIFETIME_NAME = "Response replay lifetime (seconds)";
+
+/** The transforms tab's speaker-name select. */
+export const PRESET_SPEAKER_NAMES_LABEL = "Speaker names";
+
+/** The Actions view's template filter. */
+export const PRESET_TEMPLATE_FILTER_NAME = "Filter templates";
+
+/** The Data view's variables: the add door and the editor dialog's title. */
+export const PRESET_ADD_VARIABLE_NAME = "Add variable";
+export const PRESET_EDIT_VARIABLE_TITLE = "Edit variable";
+
+/** The lead of a row's line naming knobs the bound model does not honor. */
+export const PRESET_NOT_HONORED_LEAD = "Set but not honored by this model:";
+
+/** The readout pane's heading when no preset is picked, and its active-preset block kicker. */
+export const PRESET_READOUT_ACTIVE_LABEL = "Active preset";
+
+/** The Prompt readout's budget block. */
+export const PRESET_READOUT_BUDGET_LABEL = "Budget";
+
+/** The Prompt readout's assembled-preview toggle, one name per state. */
+export const PRESET_SHOW_PREVIEW_NAME = "Show assembled preview";
+export const PRESET_HIDE_PREVIEW_NAME = "Hide assembled preview";
+
+/** The Prompt readout's pricing states. */
+export const PRESET_READOUT_PRICING_STATUS = "Pricing these rows against the bound chat…";
+export const PRESET_READOUT_NOT_HOST_PRICED = "This chat cannot be priced. Its host resolves the prompt, and you are not it.";
+
+/** The Actions readout's refusal for a chat the viewer does not host. */
+export const PRESET_READOUT_NOT_HOST_INSPECTED = "This chat cannot be inspected. Its host resolves the prompt, and you are not it.";
+
+/** An Actions readout row's region, named for its action. */
+export function presetActionReadoutName(action: string): string {
+  return `Action readout: ${action}`;
+}
+
+/** The Transforms readout's stage status when its read failed. */
+export const PRESET_READOUT_STAGE_UNREAD = "couldn’t read";
+
+/** The capability panel's connection picker. */
+export const PRESET_CAPABILITY_CONNECTION_NAME = "Connection to describe";
 
 /** The section drill-in region, named for the section it edits. */
 export function presetSectionEditorName(section: string): string {

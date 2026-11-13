@@ -16,6 +16,7 @@ import { QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, roomRosterOptions, SkeletonRows, useCardFrameSrc, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
+import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
 import { RpgCardRow } from "./rpg-card-row.tsx";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -90,7 +91,7 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   // device opens leaves one number behind; that is bounded by the rooms a person plays and costs bytes.
   return (
     <Stack gap="field" data-slot="rpg-card-archive">
-      <Kicker>Cards</Kicker>
+      <Kicker>{RPG_JOURNAL_SCOPE_LABELS.cards}</Kicker>
       <QueryBoundary
         resetKeys={[chatId]}
         fallback={<SkeletonRows count={ARCHIVE_PENDING_ROWS} />}
@@ -111,7 +112,7 @@ function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactEleme
   const [openKey, setOpenKey] = useState<string | null>(null);
   const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();
   if (cards.length === 0) {
-    return <RpgDoorwayLine>No cards yet: the story crafts them, and they land here.</RpgDoorwayLine>;
+    return <RpgDoorwayLine>{RPG_SCENE_NO_CARDS_LINE}</RpgDoorwayLine>;
   }
   return (
     <Stack gap="field">

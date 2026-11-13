@@ -10,6 +10,15 @@ import { moreActionsName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import { CONNECTIONS_LIST_NAME } from "#client/features/credentials/lib/connections-copy.ts";
+import {
+  ADD_MODEL_ACTION_LABELS,
+  BACK_TO_CONNECTIONS_NAME,
+  CONNECTIONS_GROUP_LABEL,
+  MODEL_ALREADY_ADDED_LABEL,
+  MODEL_SELECTED_LABEL,
+  MODEL_TOOLS_LABEL,
+  MODEL_VISION_LABEL,
+} from "#client/features/credentials/lib/credentials-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 import type { ConnectionReadoutStory } from "./_connection-readout-stories.tsx";
@@ -129,8 +138,8 @@ async function expectPaintedLabel(row: Locator, label: string): Promise<void> {
 
 async function expectModelFacts(row: Locator, entry: ModelCatalogEntry, testInfo: TestInfo): Promise<void> {
   await expect(row).toContainText(entry.id);
-  await expect(row.getByText("Vision", { exact: true })).toBeVisible();
-  await expect(row.getByText("Tools", { exact: true })).toBeVisible();
+  await expect(row.getByText(MODEL_VISION_LABEL, { exact: true })).toBeVisible();
+  await expect(row.getByText(MODEL_TOOLS_LABEL, { exact: true })).toBeVisible();
   await expect(row.getByText("200K", { exact: true })).toBeVisible();
   await expect(row.getByText("$1/M", { exact: true })).toBeVisible();
   const geometry = await actionGroupGeometry(row, await row.locator('[data-slot="badge"]').all());
@@ -154,7 +163,7 @@ for (const regime of REGIMES) {
       await seedHosted(caller, false, LABEL);
       await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...READS]));
       await mount<typeof ConnectionReadoutStory>(GROUP_STORY, { width: regime.width, height: regime.viewport.height, appearance: regime.appearance });
-      const group = page.getByRole("heading", { name: "Connections", level: 2, exact: true });
+      const group = page.getByRole("heading", { name: CONNECTIONS_GROUP_LABEL, level: 2, exact: true });
       const heading = page.getByRole("heading", { name: CONNECTIONS_LIST_NAME, level: 3, exact: true });
       await expect(group).toBeVisible();
       expect((await settledBox(heading)).height).toBeLessThanOrEqual(1);
@@ -164,7 +173,7 @@ for (const regime of REGIMES) {
       }
       const opener = page.locator('[data-slot="list-row-body"]').filter({ hasText: LABEL });
       await opener.click();
-      const back = page.getByRole("button", { name: "Back to Connections", exact: true });
+      const back = page.getByRole("button", { name: BACK_TO_CONNECTIONS_NAME, exact: true });
       const done = page.getByRole("button", { name: DIALOG_VERBS.done, exact: true });
       await expect(back).toBeFocused();
       await expect(group).toBeVisible();
@@ -254,7 +263,7 @@ for (const regime of REGIMES) {
         await expectPaintedLabel(row, entry.name);
         await expectModelFacts(row, entry, testInfo);
       }
-      await expect(editor.getByRole("option").filter({ hasText: NORMAL.id }).getByText("Selected", { exact: true })).toBeVisible();
+      await expect(editor.getByRole("option").filter({ hasText: NORMAL.id }).getByText(MODEL_SELECTED_LABEL, { exact: true })).toBeVisible();
       const longLabel = editor.getByRole("option").getByText(LONG_ID, { exact: true });
       await longLabel.scrollIntoViewIfNeeded();
       await expect(longLabel).toBeVisible();
@@ -267,8 +276,8 @@ for (const regime of REGIMES) {
       const row = page.locator('[data-slot="list-row-root"]').filter({ hasText: LABEL });
       const menu = row.getByRole("button", { name: new RegExp(`^${RegExp.escape(moreActionsName(""))}`, "u") });
       await menu.click();
-      await page.getByRole("menuitem", { name: /^Add another model on this key/u }).click();
-      const dialog = page.getByRole("dialog", { name: "Add another model on this key", exact: true });
+      await page.getByRole("menuitem", { name: new RegExp(`^${RegExp.escape(ADD_MODEL_ACTION_LABELS.key)}`, "u") }).click();
+      const dialog = page.getByRole("dialog", { name: ADD_MODEL_ACTION_LABELS.key, exact: true });
       const bounds = await settledBox(dialog);
       const dialogCap = await resolvedLength(page, `var(${TOKENS["width.dialog-lg"].cssVar})`, dialog);
       const inset = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`, dialog);
@@ -279,7 +288,7 @@ for (const regime of REGIMES) {
       });
       expect(Math.abs(bounds.width - Math.min(viewportWidth - inset * 2, dialogCap))).toBeLessThanOrEqual(1);
       const current = dialog.getByRole("option").filter({ has: page.getByText(NORMAL.name, { exact: true }) });
-      await expect(current.getByText("Already added", { exact: true })).toBeVisible();
+      await expect(current.getByText(MODEL_ALREADY_ADDED_LABEL, { exact: true })).toBeVisible();
       await expectPaintedLabel(current, NORMAL.name);
       const batch = dialog.getByRole("option").filter({ has: page.getByText(BATCH.name, { exact: true }) });
       await batch.scrollIntoViewIfNeeded();
@@ -298,7 +307,7 @@ for (const regime of REGIMES) {
       await testInfo.attach("settled-batch-hit", { body: JSON.stringify(hit), contentType: "application/json" });
       expect(hit.ownsHit).toBe(true);
       await batch.click();
-      await expect(batch.getByText("Selected", { exact: true })).toBeVisible();
+      await expect(batch.getByText(MODEL_SELECTED_LABEL, { exact: true })).toBeVisible();
       await expectPaintedLabel(batch, BATCH.name);
       await expect(dialog.locator('[data-slot="model-picker-picked"]')).toContainText(BATCH.id);
       await dialog.screenshot({ path: testInfo.outputPath("picker-normal-batch-facts.png") });

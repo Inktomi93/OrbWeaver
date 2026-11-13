@@ -148,7 +148,7 @@ export type { CorpusMode, CorpusModeContribution } from "./corpus-modes.ts";
 export { CORPUS_MODE_LABELS, CORPUS_MODES, CORPUS_WHOLE_LABEL, isCorpusMode } from "./corpus-modes.ts";
 export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
-export { DIALOG_VERBS } from "./dialog-verbs.ts";
+export { DIALOG_PENDING_VERBS, DIALOG_VERBS } from "./dialog-verbs.ts";
 export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
 export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
@@ -291,7 +291,7 @@ export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
 export { dataThemeOf, isSeedThemeName, resolveThemeScopeTokens, type SeedThemeName } from "./resolve-theme-scope-tokens.ts";
 export { RETRY_NAME } from "./retry-names.ts";
 export { ESTIMATED_ROW_PX } from "./row-estimates.ts";
-export { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME } from "./row-menu-names.ts";
+export { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME, rowStarToggleName } from "./row-menu-names.ts";
 export {
   chatWithActionName,
   collidingNameQualifiers,

@@ -12,6 +12,7 @@ import {
   PRESET_BACK_TO_RACK_NAME,
   PRESET_CHAT_HISTORY_LABEL,
   PRESET_EDITOR_VIEW_LABELS,
+  PRESET_TEMPLATE_FILTER_NAME,
 } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
@@ -88,7 +89,7 @@ for (const { width, height, density } of [
         await expect(trigger).toBeFocused();
         await expect(trigger).toBeInViewport({ ratio: 1 });
         await page.screenshot({ path: test.info().outputPath(`${name.toLowerCase().replaceAll(" ", "-")}-focus.png`) });
-        const filter = page.getByRole("textbox", { name: "Filter templates", exact: true });
+        const filter = page.getByRole("textbox", { name: PRESET_TEMPLATE_FILTER_NAME, exact: true });
         await filter.fill("no-template-matches-this-filter");
         await expect(page.getByText('No template matches "no-template-matches-this-filter"', { exact: false })).toBeVisible();
         await filter.clear();

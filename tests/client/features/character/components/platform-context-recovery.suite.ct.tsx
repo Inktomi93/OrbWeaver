@@ -40,7 +40,7 @@ import {
   CHARACTER_RESET_LOOK_NAME,
   CHARACTER_SAVE_FAILURE,
 } from "#client/features/character/lib/character-names.ts";
-import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT, AUTOSAVE_SAVING_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
@@ -426,7 +426,7 @@ for (const regime of REGIMES) {
         await font.click();
         await page.getByRole("option", { name: FONT, exact: true }).click();
         await pending.requested;
-        await expect(status).toHaveText("Saving…");
+        await expect(status).toHaveText(AUTOSAVE_SAVING_TEXT);
         await expect(font).toHaveText(FONT);
         expect((await caller.character.get({ characterId: card.id })).themeOverride).toBeNull();
         await testInfo.attach("look-pending-save", { body: await page.screenshot(), contentType: "image/png" });

@@ -25,10 +25,18 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { RequiredFormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, testId } from "#lib";
+import { DIALOG_PENDING_VERBS, notify, testId } from "#lib";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { useCreatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
-import { PERSONA_DESCRIPTION_FIELD_NAME, PERSONA_FIRST_RUN_FAILED, PERSONA_FIRST_RUN_TITLE, PERSONA_NAME_FIELD_NAME } from "../lib/persona-copy.ts";
+import {
+  PERSONA_DESCRIPTION_FIELD_NAME,
+  PERSONA_FIRST_RUN_CREATE_NAME,
+  PERSONA_FIRST_RUN_FAILED,
+  PERSONA_FIRST_RUN_FINISH_NAME,
+  PERSONA_FIRST_RUN_FINISHING_LABEL,
+  PERSONA_FIRST_RUN_TITLE,
+  PERSONA_NAME_FIELD_NAME,
+} from "../lib/persona-copy.ts";
 
 /** The lowest id in the set — a total order BOTH ends agree on and every device computes identically, so
  *  "which persona does the gate offer to recover" never depends on the server's list ordering. That ordering
@@ -110,9 +118,9 @@ export function FirstRunPersonaDialog(): ReactElement | null {
   const canSubmit = name.trim().length > 0 && !pending;
   // The verb NAMES THE REMAINING WORK. Once the persona exists, "Create persona" would offer to mint a second
   // one; what is left is the pointer the seed write failed to set.
-  let submitLabel = pending ? "Creating…" : "Create persona";
+  let submitLabel = pending ? DIALOG_PENDING_VERBS.creating : PERSONA_FIRST_RUN_CREATE_NAME;
   if (recoverable) {
-    submitLabel = pending ? "Finishing…" : "Finish setting up";
+    submitLabel = pending ? PERSONA_FIRST_RUN_FINISHING_LABEL : PERSONA_FIRST_RUN_FINISH_NAME;
   }
   /**
    * THE FIELDS ARE WRITTEN ON THE RECOVERY ARM TOO. They are editable and pre-filled there, so a reader who

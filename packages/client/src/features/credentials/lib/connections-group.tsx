@@ -6,11 +6,12 @@
 
 import { ExternalLink } from "@orb/ui/icons";
 import type { ConfigGroupDefinition } from "#state";
+import { CONNECTIONS_GROUP_LABEL } from "./credentials-names.ts";
 
 export const connectionsGroup: ConfigGroupDefinition = {
   id: "connections",
   shelf: "user",
-  label: "Connections",
+  label: CONNECTIONS_GROUP_LABEL,
   icon: ExternalLink,
   description: "Your providers, keys and models, and which one each role uses.",
   body: { kind: "sections" },

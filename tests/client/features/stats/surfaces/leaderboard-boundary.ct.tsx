@@ -8,7 +8,8 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
-import { ANALYTICS_LEADERBOARD_NAME, ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-names.ts";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
+import { ANALYTICS_LEADERBOARD_NAME } from "#client/features/stats/lib/analytics-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -54,7 +55,7 @@ test("a search typed after a failed read shows its rows instead of the standing 
   await seedShellState(page, { activeSection: "analytics" });
   await mount<typeof ShellAmbientStory>(STORY, {});
   await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toBeVisible();
-  await page.getByRole("textbox", { name: ANALYTICS_SEARCH_NAME, exact: true }).fill("a");
+  await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill("a");
   await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("list", { name: ANALYTICS_LEADERBOARD_NAME })).toBeVisible();
 });
@@ -73,7 +74,7 @@ test("a search keystroke keeps the prior rows on screen while the next page is h
   const firstRow = list.getByRole("listitem").first();
   await expect(firstRow).toBeVisible();
   const name = (await firstRow.textContent()) ?? "";
-  await page.getByRole("textbox", { name: ANALYTICS_SEARCH_NAME, exact: true }).fill("zz");
+  await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill("zz");
   await hold.requested;
   await expect(firstRow).toBeVisible();
   await expect(firstRow).toHaveText(name);

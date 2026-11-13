@@ -2,6 +2,9 @@
 // loading the pane's component graph. The per-row grammars (`userActionsName`, `revokeSessionName`) stay in
 // `admin-model.ts` with the form shape they sit beside.
 
+/** The verb on a session row's revoke button and its confirm. */
+export const SESSION_REVOKE_VERB = "Revoke";
+
 const CREATE_USER_NAME = "Create user";
 const CREATING_USER_NAME = "Creating…";
 

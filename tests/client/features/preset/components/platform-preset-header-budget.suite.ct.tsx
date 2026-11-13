@@ -10,12 +10,13 @@ import {
   PRESET_ACTIVATE_NAME,
   PRESET_EDITOR_NAME,
   PRESET_EDITOR_VIEW_LABELS,
+  PRESET_QUALITY_LABEL,
   PRESET_RENAME_NAME,
   PRESET_RESET_ARRANGEMENT_NAME,
   PRESET_RESET_ARRANGEMENT_TITLE,
   PRESET_SECTIONS_NAME,
 } from "#client/features/preset/lib/preset-names.ts";
-import { AUTOSAVE_SAVE_FAILED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT, AUTOSAVE_SAVING_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
@@ -79,7 +80,7 @@ for (const regime of REGIMES) {
       const reset = editor.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true });
       const status = editor.locator('[data-slot="autosave-status"]');
       await expect(title).toBeVisible();
-      await expect(status).toHaveText("Saved");
+      await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
       const tabs = editor.getByRole("tablist", { name: PRESET_SECTIONS_NAME, exact: true });
       await expect(tabs).toHaveCount(1);
       const tabBoxes = await tabs.getByRole("tab").evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().y));
@@ -138,7 +139,7 @@ test.describe("coarse narrow save failure", () => {
     });
     await mount<typeof PresetActionGroupsStory>(STORY, { width: 390, appearance, subject: "editor", presetId: preset.id });
     const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
-    const quality = editor.getByRole("combobox", { name: "Quality", exact: true });
+    const quality = editor.getByRole("combobox", { name: PRESET_QUALITY_LABEL, exact: true });
     await quality.focus();
     await page.keyboard.press("Space");
     await page.keyboard.press("Home");
@@ -147,7 +148,7 @@ test.describe("coarse narrow save failure", () => {
     await firstSave.requested;
     const status = editor.locator('[data-slot="autosave-status"]');
     try {
-      await expect(status).toHaveText("Saving…");
+      await expect(status).toHaveText(AUTOSAVE_SAVING_TEXT);
     } finally {
       firstSave.fail();
     }
@@ -169,7 +170,7 @@ test.describe("coarse narrow save failure", () => {
     expect((await caller.preset.get({ id: preset.id })).config).toEqual(preset.config);
     await retry.focus();
     await page.keyboard.press("Enter");
-    await expect(status).toHaveText("Saved");
+    await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
     await expect.poll(async () => (await caller.preset.get({ id: preset.id })).config.params.quality).toBe(QUALITY_LEVELS[0]);
     expect(calls.count("preset.update")).toBe(2);
   });

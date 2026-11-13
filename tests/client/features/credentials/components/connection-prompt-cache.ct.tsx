@@ -7,6 +7,17 @@ import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import {
+  CONNECTION_EDITOR_TIER_TITLES,
+  ENDPOINT_QUIRKS_LABEL,
+  FACT_RESET_VERB,
+  PROMPT_CACHE_DEPTH_NAME,
+  PROMPT_CACHE_IMPLICIT_GLOSS,
+  PROMPT_CACHE_PREFIX_REQUEST_LEAD,
+  PROMPT_CACHE_RETENTION_24H_LABEL,
+  PROMPT_CACHE_RETENTION_IN_MEMORY_LABEL,
+  PROMPT_CACHE_RETENTION_INHERIT_LABEL,
+} from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionPromptCacheStory } from "./_prompt-cache-stories.tsx";
 
 /** The connection label the cache tier names its switches after. */
@@ -120,7 +131,7 @@ async function installCacheRoute(page: Page, captured: CacheCapture): Promise<Tr
 
 async function openCacheTier(page: Page): Promise<Locator> {
   await page.getByRole("button", { name: /^Caching route · /u }).click();
-  await page.getByRole("button", { name: /^Prompt caching/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONNECTION_EDITOR_TIER_TITLES.promptCache)}`, "u") }).click();
   const tier = page.locator('[data-slot="connection-prompt-cache"]');
   await expect(tier).toBeVisible();
   return tier;
@@ -137,21 +148,19 @@ test("native implicit caching explains provider ownership without invented contr
     width: 486,
   });
   const tier = await openCacheTier(page);
-  await expect(
-    tier.getByText("Provider-managed implicit prefix caching is available; eligibility and hits are determined upstream.", { exact: true }),
-  ).toBeVisible();
+  await expect(tier.getByText(PROMPT_CACHE_IMPLICIT_GLOSS.supported, { exact: true })).toBeVisible();
   await expect(tier.getByRole("switch")).toHaveCount(0);
   await expect(tier.getByRole("combobox")).toHaveCount(0);
   await expect(tier.getByRole("radio")).toHaveCount(0);
   await expect(tier.getByText(/a tenth/u)).toHaveCount(0);
-  await page.getByRole("button", { name: /^Advanced/u }).click();
-  await expect(page.getByText("Endpoint quirks", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONNECTION_EDITOR_TIER_TITLES.advanced)}`, "u") }).click();
+  await expect(page.getByText(ENDPOINT_QUIRKS_LABEL, { exact: true })).toBeVisible();
   const concurrency = page.locator('[data-fact="features.concurrency.summarize"]');
   await expect(concurrency.getByText(String(foldFeatures(builtinProvider("google")?.features).concurrency?.summarize), { exact: true })).toBeVisible();
   await concurrency.getByRole("button", { name: "Override utility calls at once", exact: true }).click();
   const limit = concurrency.getByRole("textbox", { name: "utility calls at once: your value", exact: true });
   await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX + 1));
-  await expect(concurrency.getByRole("alert")).toHaveText(`The maximum is ${SUMMARIZE_CONCURRENCY_MAX}.`);
+  await expect(concurrency.getByRole("alert")).toHaveText(`The maximum is ${String(SUMMARIZE_CONCURRENCY_MAX)}.`);
   await expect(concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true })).toBeDisabled();
   await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX));
   await expect(concurrency.getByRole("alert")).toHaveCount(0);
@@ -160,7 +169,7 @@ test("native implicit caching explains provider ownership without invented contr
   await expect(concurrency).toBeFocused();
   await expect(concurrency.getByRole("button", { name: "Reset utility calls at once", exact: true })).toBeVisible();
   await concurrency.getByRole("button", { name: "Reset utility calls at once", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Reset", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: FACT_RESET_VERB, exact: true }).click();
   await expect(concurrency).toBeFocused();
   await expect(concurrency.getByRole("button", { name: "Override utility calls at once", exact: true })).toBeVisible();
   expect(captured.physicalRequests.length).toBeGreaterThan(0);
@@ -189,8 +198,10 @@ test("automatic placement disables manual markers but leaves applicable retentio
     width: 870,
   });
   const tier = await openCacheTier(page);
+  // Anthropic caches only what a request marks, so the implicit line says the provider does none of its own.
+  await expect(tier.getByText(PROMPT_CACHE_IMPLICIT_GLOSS.unsupported, { exact: true })).toBeVisible();
   const system = tier.getByRole("switch", { name: itemSwitchName(PROMPT_CACHE_SYSTEM_SETTING, ROUTE_LABEL), exact: true });
-  const depth = tier.getByRole("textbox", { name: "History cache depth", exact: true });
+  const depth = tier.getByRole("textbox", { name: PROMPT_CACHE_DEPTH_NAME, exact: true });
   await expect(system).toBeEnabled();
   await expect(depth).toBeEnabled();
   const automatic = tier.getByRole("switch", { name: itemSwitchName(PROMPT_CACHE_AUTOMATIC_SETTING, ROUTE_LABEL), exact: true });
@@ -212,10 +223,10 @@ test("earlier OpenAI retention offers only its supported provider choices", asyn
   });
   const tier = await openCacheTier(page);
   await tier.getByRole("combobox", { name: "Provider prefix retention on Caching route", exact: true }).click();
-  await expect(page.getByRole("option", { name: "Inherit provider default", exact: true })).toBeVisible();
-  await expect(page.getByRole("option", { name: "In memory", exact: true })).toHaveCount(0);
-  await page.getByRole("option", { name: "Up to 24 hours", exact: true }).click();
-  await expect(tier.getByRole("combobox", { name: "Provider prefix retention on Caching route", exact: true })).toHaveText("Up to 24 hours");
+  await expect(page.getByRole("option", { name: PROMPT_CACHE_RETENTION_INHERIT_LABEL, exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: PROMPT_CACHE_RETENTION_IN_MEMORY_LABEL, exact: true })).toHaveCount(0);
+  await page.getByRole("option", { name: PROMPT_CACHE_RETENTION_24H_LABEL, exact: true }).click();
+  await expect(tier.getByRole("combobox", { name: "Provider prefix retention on Caching route", exact: true })).toHaveText(PROMPT_CACHE_RETENTION_24H_LABEL);
   await expect.poll(() => calls.lastInput("connection.update")).toEqual(captured.expectedUpdate);
 });
 
@@ -244,7 +255,7 @@ for (const width of [870, 486]) {
           .map((animation) => animation.finished),
       );
     });
-    const paragraphs = tier.locator('p[data-voice="gloss"]').filter({ hasNotText: /^App prefix request:/u });
+    const paragraphs = tier.locator('p[data-voice="gloss"]').filter({ hasNotText: new RegExp(`^${RegExp.escape(PROMPT_CACHE_PREFIX_REQUEST_LEAD)}`, "u") });
     expect(await paragraphs.count()).toBeGreaterThan(3);
     for (const paragraph of await paragraphs.all()) {
       await expectCacheProse(paragraph);

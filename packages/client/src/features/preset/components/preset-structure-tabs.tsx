@@ -45,6 +45,7 @@ import type { AppFormInstance } from "#forms/editor";
 import { closePresetSectionDrill, drillPresetSection, selectPresetSection, useDrilledPresetSectionId, useSelectedPresetSectionId } from "#state";
 import { makeSection } from "../lib/assembly-model.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_SPEAKER_NAMES_LABEL } from "../lib/preset-names.ts";
 import { CONTINUE_POSTFIX_ITEMS, continuePostfixLabel, NAMES_BEHAVIOR_ITEMS, namesBehaviorLabel } from "../lib/preset-nav.ts";
 import { AssemblyToolbar } from "./assembly-toolbar.tsx";
 import { MessageHandlingSection } from "./message-handling-section.tsx";
@@ -107,7 +108,7 @@ function DeliveryTab({ form, capability }: { readonly form: AppForm; readonly ca
                   // they cost no width in the 200px control column the trigger renders inside.
                   hint="How speaker names are attached to each message. None leaves them out unless several humans or characters share the room; Default prefixes on a persona switch and wherever several humans or characters share the room; Content always prefixes “Name: ”; Completion sends them in the API's own `name` field."
                   items={NAMES_BEHAVIOR_ITEMS}
-                  label="Speaker names"
+                  label={PRESET_SPEAKER_NAMES_LABEL}
                   placeholder={namesBehaviorLabel(DEFAULT_NAMES_BEHAVIOR)}
                 />
               )}

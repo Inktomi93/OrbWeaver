@@ -5,7 +5,7 @@ import { absenceWindow, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { editActionName } from "@orb/ui/lib";
-import { PERSONA_NAME_REQUIRED, personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
+import { PERSONA_NAME_FIELD_NAME, PERSONA_NAME_REQUIRED, personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
 import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
@@ -37,7 +37,7 @@ test("clearing the name shows the required error and the saved name stands", asy
   await page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true }).focus();
   await page.keyboard.press("Enter");
   const editor = page.getByRole("group", { name: editActionName(persona.name), exact: true });
-  const name = editor.getByRole("textbox", { name: "Name", exact: true });
+  const name = editor.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true });
   await name.fill("");
   await name.blur();
   await expect(editor.getByText(PERSONA_NAME_REQUIRED, { exact: true })).toBeVisible();

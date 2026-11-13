@@ -9,6 +9,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_NO_CARDS_LINE } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
@@ -144,7 +145,7 @@ test("Retry that settles on an empty archive lands focus on the announced recove
   failing = false;
   await retry.focus();
   await page.keyboard.press("Enter");
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   const focused = archive.locator(":focus");
   await expect(focused).toHaveRole("status");
   await expect(focused).toHaveAccessibleName(/\S/);
@@ -176,7 +177,7 @@ for (const hold of FOCUS_HOLDS) {
     failing = false;
     await retry.focus();
     await page.keyboard.press("Enter");
-    await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+    await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
     await expect(archive.locator(":focus")).toHaveRole("status");
     await hold.leave?.(archive);
     const holder = (): Promise<string | null> =>
@@ -252,7 +253,7 @@ test("a pending archive read shows the labelled skeleton, then the settled card 
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   await messages.requested;
   const archive = page.locator(ARCHIVE);
-  await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
+  await expect(archive.getByText(RPG_JOURNAL_SCOPE_LABELS.cards, { exact: true })).toBeVisible();
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
 
   messages.release();
@@ -317,7 +318,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   expect(await height()).not.toBeCloseTo(cardHeight, 0);
   pending = null;
   firstVisit.release();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   const emptyHeight = await height();
   expect(emptyHeight).not.toBeCloseTo(cardHeight, 0);
   await emptyMount.unmount();
@@ -329,7 +330,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   await expect(reserved).toHaveCount(1);
   expect(await height()).toBeCloseTo(emptyHeight, 0);
   revisit.release();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
 });
 
 test("an archive with no cards yet renders the empty doorway under its label", async ({ corpus, mount, page }) => {
@@ -338,8 +339,8 @@ test("an archive with no cards yet renders the empty doorway under its label", a
   await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"]) });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_JOURNAL_SCOPE_LABELS.cards, { exact: true })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toHaveCount(0);
 });
 
@@ -375,6 +376,7 @@ test.describe("at phone width with a coarse pointer", () => {
     await expect(chip).toHaveText(stamp);
     await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
     // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
+    // A card with no note ends its name at the stamp: the literal pins the builder's no-note arm.
     await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
 
     expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);

@@ -36,6 +36,18 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { TRACKER_SHAPE_LABEL } from "../lib/host-console-labels.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
+import {
+  RPG_NEW_TRACKER_NAME,
+  RPG_SET_SCORES_NAME,
+  trackerDefaultMaxName,
+  trackerHintName,
+  trackerLabelFieldName,
+  trackerLockName,
+  trackerRemoveFromBandName,
+  trackerRemoveName,
+  trackerShowOnBandName,
+  trackerUnlockName,
+} from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgGameMacros } from "./rpg-game-macros.tsx";
@@ -94,9 +106,9 @@ function TrackerRow({
   // tooltip. Spelled once here so the two can never drift apart.
   // BAND vocabulary + Eye glyph, never "pin" (an owner ruling): "pin" is the HAND-LOCK's word
   // (RpgFieldLock's "Pinned by hand"). Band = visibility, so it speaks visibility.
-  const bandLabel = def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`;
-  const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label}: the story can no longer write it`;
-  const removeLabel = `Remove ${def.label}`;
+  const bandLabel = def.pinned ? trackerRemoveFromBandName(def.label) : trackerShowOnBandName(def.label);
+  const lockLabel = def.locked ? trackerUnlockName(def.label) : trackerLockName(def.label);
+  const removeLabel = trackerRemoveName(def.label);
   const swatch = trackColorProps(resolveTrackerColor(def.color, index));
   return (
     <DefRow slot="rpg-tracker-row">
@@ -112,7 +124,7 @@ function TrackerRow({
             />
           ) : null}
           <TrackerValue
-            ariaLabel={`Tracker ${index + 1} label`}
+            ariaLabel={trackerLabelFieldName(index)}
             display={def.label}
             onEdit={(next): void => {
               const trimmed = next.trim();
@@ -129,7 +141,7 @@ function TrackerRow({
               default max
             </Text>
             <TrackerValue
-              ariaLabel={`${def.label} default max`}
+              ariaLabel={trackerDefaultMaxName(def.label)}
               display={def.max === null ? NO_VALUE : String(def.max)}
               editValue={def.max === null ? "" : String(def.max)}
               kind="numeric"
@@ -189,7 +201,7 @@ function TrackerRow({
           </Tip>
         )}
       </Row>
-      <HintEditor ariaLabel={`${def.label} hint`} hint={def.hint} max={RPG_HINT_MAX} onEdit={(next): void => patch({ hint: next })} />
+      <HintEditor ariaLabel={trackerHintName(def.label)} hint={def.hint} max={RPG_HINT_MAX} onEdit={(next): void => patch({ hint: next })} />
     </DefRow>
   );
 }
@@ -254,7 +266,7 @@ function AddTracker({ onAdd }: { readonly onAdd: (label: string, shape: RpgTrack
   const [subject, setSubject] = useState<RpgTrackerDef["subject"]>("actor");
   return (
     <AddRow
-      ariaLabel="New tracker name"
+      ariaLabel={RPG_NEW_TRACKER_NAME}
       placeholder="name it first (e.g. Grit)"
       trailing={
         <Tip text="Who this tracker belongs to">
@@ -427,7 +439,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
                 setContextTab("rpg.status");
               }}
             >
-              Set character scores
+              {RPG_SET_SCORES_NAME}
             </Button>
           </>
         )}

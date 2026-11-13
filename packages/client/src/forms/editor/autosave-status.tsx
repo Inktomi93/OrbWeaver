@@ -12,6 +12,7 @@ import {
   AUTOSAVE_RESUME_NAME,
   AUTOSAVE_SAVE_FAILED_TEXT,
   AUTOSAVE_SAVED_TEXT,
+  AUTOSAVE_SAVING_TEXT,
 } from "./autosave-status-names.ts";
 
 export interface AutosaveStatusProps {
@@ -91,7 +92,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
   }
   // Saving…/Saved: polite so the transition is announced without interrupting (role="status" carries an
   // implicit aria-live="polite"; both are set so the intent reads plainly at the call site).
-  const settled = state === "saving" ? "Saving…" : AUTOSAVE_SAVED_TEXT;
+  const settled = state === "saving" ? AUTOSAVE_SAVING_TEXT : AUTOSAVE_SAVED_TEXT;
   return (
     <Text data-slot="autosave-status" voice="gloss" role="status" aria-live="polite">
       {settled}

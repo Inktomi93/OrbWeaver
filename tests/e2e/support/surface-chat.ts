@@ -43,10 +43,8 @@ import {
   CHAT_SAVED_REPLY_NAME,
   CHAT_SEARCH_NAME,
   CHAT_SEND_NAME,
-  CHAT_STAR_NAME,
   CHAT_STOP_NAME,
   CHAT_STOPPING_NAME,
-  CHAT_UNSTAR_NAME,
   chatRowActionsName,
   reactionChoiceName,
   reactionPillName,
@@ -90,7 +88,7 @@ import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "#client/lib/flank-names.ts";
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { CHAT_PLUGINS_TAB_LABEL } from "#client/lib/registry-contracts.ts";
-import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
+import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_RENAME_NAME, ROW_STAR_NAME, ROW_UNSTAR_NAME } from "#client/lib/row-menu-names.ts";
 import { NO_MATCHES_TITLE } from "#client/lib/search-empty-names.ts";
 import { SELECTION_CLEAR_NAME, selectionCountLabel } from "../../../packages/ui/src/primitives/selection-bar/selection-bar-names.ts";
 import { TOAST_CLOSE_NAME } from "../../../packages/ui/src/primitives/toast/toast-names.ts";
@@ -1520,8 +1518,8 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     });
     observe(flow, "commands/lifecycle/Rename", "visited", "Native rename Save persisted and repainted the disposable subject");
     for (const [label, starred] of [
-      [CHAT_STAR_NAME, true],
-      [CHAT_UNSTAR_NAME, false],
+      [ROW_STAR_NAME, true],
+      [ROW_UNSTAR_NAME, false],
     ] as const) {
       room = await commandRoom(flow, chat.id, title);
       const starMenu = await chatRowMenu(flow, room);
@@ -1539,7 +1537,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
             .filter({ has: flow.page.getByRole("button", { name: renamed, exact: true }) });
           await row.hover();
           await row.getByRole("button", { name: namePattern(chatRowActionsName(NAME_HOLE)) }).click();
-          await expect(flow.page.getByRole("menu").getByRole("menuitem", { name: starred ? CHAT_UNSTAR_NAME : CHAT_STAR_NAME, exact: true })).toBeVisible();
+          await expect(flow.page.getByRole("menu").getByRole("menuitem", { name: starred ? ROW_UNSTAR_NAME : ROW_STAR_NAME, exact: true })).toBeVisible();
           await flow.page.getByRole("menu").press("Escape");
         },
       });

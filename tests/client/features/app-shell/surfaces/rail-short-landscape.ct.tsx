@@ -35,6 +35,8 @@ for (const section of ["characters", "databank"] as const) {
     });
     expect(misses).toEqual([]);
     // The foot really holds the avatar, so the sweep above is not vacuous.
-    await expect(page.locator(".shell-rail-actions").getByRole("button", { name: PERSONA_PLAYING_AS_LABEL })).toBeVisible();
+    await expect(
+      page.locator(".shell-rail-actions").getByRole("button", { name: new RegExp(`^${RegExp.escape(PERSONA_PLAYING_AS_LABEL)} `, "u") }),
+    ).toBeVisible();
   });
 }

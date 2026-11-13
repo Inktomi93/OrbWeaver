@@ -41,6 +41,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { useReadoutBinding } from "#src/features/preset/hooks/use-readout-binding.ts";
 import { qualityMappingGloss } from "#src/features/preset/lib/effective-knobs.ts";
+import { PRESET_ACTIVE_STATUS, PRESET_READOUT_ACTIVE_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import type { PresetEditorView } from "#src/features/preset/lib/preset-nav.ts";
 import { PRESET_EDITOR_VIEWS } from "#src/features/preset/lib/preset-nav.ts";
 import { templateStoredText } from "#src/features/preset/lib/template-rows.ts";
@@ -109,12 +110,12 @@ function ActiveProfile({
 }): ReactElement {
   return (
     <Stack gap="section" padding="block">
-      <Section kicker="Active preset">
+      <Section kicker={PRESET_READOUT_ACTIVE_LABEL}>
         <Row align="center" gap="field">
           <Text voice="label">{name}</Text>
           {/* The SAME chip the LIST row and the editor header wear — one state, one reading (F-07). */}
           <Badge tone="primary" size="sm">
-            Active
+            {PRESET_ACTIVE_STATUS}
           </Badge>
         </Row>
         {isSystemDefault ? <Text voice="gloss">The built-in preset runs generation until you activate one of your own.</Text> : null}

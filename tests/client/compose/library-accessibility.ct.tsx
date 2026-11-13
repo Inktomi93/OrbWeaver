@@ -16,6 +16,7 @@ import {
   characterStarredShelfName,
 } from "#client/features/character/lib/character-names.ts";
 import { CHAT_COMPOSER_NAME, CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { ROW_STAR_NAME, ROW_UNSTAR_NAME } from "#client/lib/row-menu-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CAPTION = "Wayfinding witness";
@@ -165,17 +166,53 @@ for (const scenario of CAPTION_CASES) {
   });
 }
 
+test("native chat row menu names its star toggle for the action a click takes", async ({ page, corpus, mount }) => {
+  await using root = await createFirstBootHarness();
+  const subjects = await librarySubjects(root);
+  await subjects.caller.chat.star({ chatId: subjects.plainRoom, starred: true });
+  const rooms = (await subjects.caller.chat.listChats({ limit: 100 })).items;
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
+  await routeLibrary(page, subjects);
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  const list = page.getByRole("list", { name: CHAT_LIST_NAME, exact: true });
+  // The toggle names the action, so a starred room offers Unstar and an unstarred one offers Star.
+  for (const { chatId, offered, withheld } of [
+    { chatId: subjects.captionedRoom, offered: ROW_STAR_NAME, withheld: ROW_UNSTAR_NAME },
+    { chatId: subjects.plainRoom, offered: ROW_UNSTAR_NAME, withheld: ROW_STAR_NAME },
+  ]) {
+    const title = rooms.find((room) => room.id === chatId)?.title;
+    if (title === undefined || title === null) {
+      throw new Error("The production chat list omitted a titled room");
+    }
+    const row = list.locator('[data-slot="virtual-list-row"]').filter({ has: page.getByRole("button", { name: title, exact: true }) });
+    // The row's one menu trigger; its name carries a relative stamp this case does not own.
+    const trigger = row.locator('[aria-haspopup="menu"]');
+    await expect(trigger).toHaveCount(1);
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: offered, exact: true })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: withheld, exact: true })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+  }
+});
+
 test("native library starred shelf opens the character editor by keyboard even when the character has a room", async ({ page, corpus, mount }) => {
   await using root = await createFirstBootHarness();
   const subjects = await librarySubjects(root);
-  const count = await subjects.caller.character.count({ starred: true, archived: false });
+  const starredTotal = await subjects.caller.character.count({ starred: true, archived: false });
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeLibrary(page, subjects);
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   await mount<typeof ShellAmbientStory>(STORY, {});
   const face = page
-    .getByRole("list", { name: characterStarredShelfName(count), exact: true })
+    .getByRole("list", { name: characterStarredShelfName(starredTotal), exact: true })
     .getByRole("button", { name: characterFaceName(subjects.starred.name, null, true, false), exact: true });
+  // The seed stars one character; the shelf count and the starred tail are pinned by the literal the reader hears.
+  await expect(page.getByRole("list", { name: "Starred · 1", exact: true })).toBeVisible();
+  await expect(face).toHaveAccessibleName(`${subjects.starred.name}, starred`);
   await expect(face).toHaveAccessibleDescription("");
   await face.focus();
   await page.keyboard.press("Enter");

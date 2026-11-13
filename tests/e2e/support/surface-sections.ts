@@ -25,7 +25,7 @@ import {
 import { editActionName } from "@orb/ui/lib";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";
-import { TAG_EDITOR_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
+import { CHARACTER_SEARCH_NAME, TAG_EDITOR_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
 import { chatTitleQualifiers } from "#client/features/chat/lib/chat-summary-row.ts";
 import {
@@ -142,7 +142,7 @@ import {
   rosterStartChatName,
 } from "#client/features/roster-preset/lib/roster-names.ts";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "#client/features/stats/lib/analytics-copy.ts";
-import { ANALYTICS_SEARCH_NAME, analyticsSortName } from "#client/features/stats/lib/analytics-names.ts";
+import { analyticsSortName } from "#client/features/stats/lib/analytics-names.ts";
 import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features/stats/lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
@@ -1102,7 +1102,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
   if (subject === undefined) {
     throw new Error("The actual leaderboard page has no admitted original character identity");
   }
-  const search = pane(journey, "list").getByRole("textbox", { name: ANALYTICS_SEARCH_NAME, exact: true });
+  const search = pane(journey, "list").getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   const row = pane(journey, "list").locator(`[${LEADERBOARD_ROW_ATTR}=${JSON.stringify(subject.characterId)}]`);
   await journey.action(`corpus/insights/character/${subject.characterId}/reveal-original`, {
     action: async () => {

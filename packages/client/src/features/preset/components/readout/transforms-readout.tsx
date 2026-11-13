@@ -35,6 +35,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { regexPlacementStep } from "#lib";
+import { PRESET_READOUT_STAGE_UNREAD } from "#src/features/preset/lib/preset-names.ts";
 
 // ONE VOCABULARY WITH THE CENTER (side-eye F-23): every step's name below is the string the control that
 // EDITS it carries — the regex placements come from the shared `regexPlacementStep` map the editor dialog's
@@ -128,7 +129,7 @@ function Pipeline({ config, attached }: { readonly config: PromptConfig; readonl
       return "off";
     }
     if (attached.kind === "failed") {
-      return "couldn’t read";
+      return PRESET_READOUT_STAGE_UNREAD;
     }
     if (attached.kind === "pending") {
       return "…";

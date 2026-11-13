@@ -41,7 +41,15 @@ import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { trpcErrorCode, viewerTimeZone } from "#lib";
 import { isPlainMarkerSection, sectionKind } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
-import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
+import {
+  PRESET_CHAT_HISTORY_LABEL,
+  PRESET_HIDE_PREVIEW_NAME,
+  PRESET_LITERAL_TEXT_LABEL,
+  PRESET_READOUT_BUDGET_LABEL,
+  PRESET_READOUT_NOT_HOST_PRICED,
+  PRESET_READOUT_PRICING_STATUS,
+  PRESET_SHOW_PREVIEW_NAME,
+} from "#src/features/preset/lib/preset-names.ts";
 import { selectPresetSection } from "#state";
 import { AssemblyPreview } from "../prompt-assembly/assembly-preview.tsx";
 import { deriveZones } from "../prompt-assembly/derive-zones.ts";
@@ -83,7 +91,7 @@ function sectionName(section: PromptSection): string {
   if (section.name.trim() !== "") {
     return section.name;
   }
-  return section.type === "marker" ? MARKER_COPY[section.marker].label : "Literal text";
+  return section.type === "marker" ? MARKER_COPY[section.marker].label : PRESET_LITERAL_TEXT_LABEL;
 }
 
 /** The panel, with the binding resolved to its arm. The bound arm is its own component so the read's hook is
@@ -121,10 +129,10 @@ function BoundPricing({
   return (
     <QueryBoundary
       resetKeys={[chatId, presetId]}
-      fallback={<PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRICING_STATUS} />}
+      fallback={<PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRESET_READOUT_PRICING_STATUS} />}
       renderError={(error, retry): ReactElement =>
         trpcErrorCode(error) === "FORBIDDEN" ? (
-          <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={NOT_HOST_STATUS} />
+          <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRESET_READOUT_NOT_HOST_PRICED} />
         ) : (
           <>
             <QueryErrorState label="the bound chat's costs" onRetry={retry} />
@@ -137,9 +145,6 @@ function BoundPricing({
     </QueryBoundary>
   );
 }
-
-const PRICING_STATUS = "Pricing these rows against the bound chat…";
-const NOT_HOST_STATUS = "This chat cannot be priced. Its host resolves the prompt, and you are not it.";
 
 function BoundPricedSections({
   chatId,
@@ -182,6 +187,7 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
   }, [previewOpen]);
   // The pivot is structure, not cost, so it reads the zones without the bound chat's pricing.
   const zones = deriveZones(sections, (section) => barTokens(section, null) ?? 0);
+  const previewToggleName = previewOpen ? PRESET_HIDE_PREVIEW_NAME : PRESET_SHOW_PREVIEW_NAME;
 
   return (
     <Stack gap="section">
@@ -209,7 +215,7 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
           size="sm"
           type="button"
         >
-          {previewOpen ? "Hide assembled preview" : "Show assembled preview"}
+          {previewToggleName}
         </Button>
         {/* THE DISCLOSURE SCROLLS ITSELF INTO VIEW (side-eye F-13). At 1280×800 the trigger sits at y≈780,
             so opening it rendered the entire preview below the fold and the ONLY feedback was the label
@@ -248,7 +254,7 @@ function PricedSections({
 
   return (
     <>
-      <Section kicker="Budget">
+      <Section kicker={PRESET_READOUT_BUDGET_LABEL}>
         <Stack gap="tight">
           <Row align="center" gap="field">
             <Badge tone="info" size="sm">

@@ -10,6 +10,7 @@ import { makePromptConfig } from "@orb/testkit/iso";
 import { createCorpusHarness, installMacroGuest, seedRpgGame } from "@orb/testkit/node/composed";
 import { USER_MACRO_TEMPLATE_NAME } from "#client/components/shared-control-names.ts";
 import { PRESET_EDITOR_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { RPG_MACRO_BROWSER_LABEL } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgContextTabBesidePresetsStory, RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -56,7 +57,7 @@ test("the browser names each macro's source, links the preset's and the plugin's
 
   // eslint-disable-next-line orb/no-hand-copied-label -- RPG owns this literal trigger; the exported chat group label names a different feature's disclosure.
   await page.getByRole("button", { name: "Advanced", exact: true }).click();
-  await page.getByRole("button", { name: "Macro browser", exact: true }).click();
+  await page.getByRole("button", { name: RPG_MACRO_BROWSER_LABEL, exact: true }).click();
   const rows = page.locator('[data-slot="rpg-game-macros"]');
   const rowOf = (name: string): ReturnType<typeof rows.locator> => rows.locator("div", { has: page.locator("code", { hasText: `{{${name}}}` }) }).last();
 
@@ -110,7 +111,7 @@ test("the browser's preset link opens the editor of the preset it names", async 
 
   // eslint-disable-next-line orb/no-hand-copied-label -- RPG owns this literal trigger; the exported chat group label names a different feature's disclosure.
   await page.getByRole("button", { name: "Advanced", exact: true }).click();
-  await page.getByRole("button", { name: "Macro browser", exact: true }).click();
+  await page.getByRole("button", { name: RPG_MACRO_BROWSER_LABEL, exact: true }).click();
   const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
   await expect(editor).toHaveCount(0);
   await page.getByRole("button", { name: "Preset", exact: true }).click();

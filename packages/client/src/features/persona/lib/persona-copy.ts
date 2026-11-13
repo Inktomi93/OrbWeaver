@@ -47,6 +47,15 @@ export const PERSONA_PANEL_NAME = "Account & personas";
 /** The playing mark's label and the panel head's line above the playing persona. */
 export const PERSONA_PLAYING_AS_LABEL = "Playing as";
 
+/** The panel head's line in a room whose seat has no persona. */
+export const PERSONA_NO_SEAT_GLOSS = "No persona set. Pick one below.";
+
+/** The panel head's line outside a room, by where a new chat's persona comes from. */
+export const PERSONA_NEW_CHAT_GLOSS = {
+  default: "New chats start as (your default)",
+  lastPlayed: "New chats start as (last played)",
+} as const;
+
 /** The rail trigger while a persona is playing. */
 export function personaPlayingAsName(persona: string): string {
   return `Playing as ${persona}`;
@@ -86,6 +95,11 @@ export const PERSONA_DELETE_TITLE = "Delete this persona?";
 /** The first-run gate's title, and what it says when the create is refused. */
 export const PERSONA_FIRST_RUN_TITLE = "Who are you in the story?";
 export const PERSONA_FIRST_RUN_FAILED = "Couldn't create your persona. Try again.";
+
+/** The first-run gate's submit: create the persona, or on the recovery arm finish the pointer the seed write missed. */
+export const PERSONA_FIRST_RUN_CREATE_NAME = "Create persona";
+export const PERSONA_FIRST_RUN_FINISH_NAME = "Finish setting up";
+export const PERSONA_FIRST_RUN_FINISHING_LABEL = "Finishing…";
 
 /** The marks lesson's title. */
 export const PERSONA_MARKS_LESSON_TITLE = "The four marks";

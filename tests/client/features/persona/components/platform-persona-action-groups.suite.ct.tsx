@@ -13,12 +13,13 @@ import {
   PERSONA_DUPLICATE_NAME,
   PERSONA_EXPORT_NAME,
   PERSONA_FROM_CHARACTER_NAME,
+  PERSONA_NAME_FIELD_NAME,
   PERSONA_NEW_NAME,
   PERSONA_RESTORE_NAME,
   PERSONA_TITLE_FIELD_NAME,
   personaDetailsToggleName,
 } from "#client/features/persona/lib/persona-copy.ts";
-import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT, AUTOSAVE_SAVING_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
@@ -79,14 +80,18 @@ for (const regime of REGIMES) {
       }
       expect(nameBox.width).toBeGreaterThanOrEqual(titleFloor);
       const expand = page.getByRole("button", { name: personaDetailsToggleName(name, false), exact: true });
+      // Each state's name is the literal the reader hears, so a swapped arm in the name builder fails here.
+      await expect(expand).toHaveAccessibleName(`Show details for ${name}`);
       await expand.focus();
       await page.keyboard.press("Enter");
+      await expect(page.getByRole("button", { name: `Hide details for ${name}`, exact: true })).toBeVisible();
+      await expect(expand).toHaveCount(0);
       const editor = page.getByRole("group", { name: editActionName(name), exact: true });
       const footer = editor.locator('[data-slot="persona-editor-footer"]');
       const duplicate = footer.getByRole("button", { name: PERSONA_DUPLICATE_NAME, exact: true });
       const exportButton = footer.getByRole("button", { name: PERSONA_EXPORT_NAME, exact: true });
       const remove = footer.getByRole("button", { name: PERSONA_DELETE_NAME, exact: true });
-      await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+      await expect(editor.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
       await duplicate.focus();
       await page.keyboard.press("Tab");
       await expect(exportButton).toBeFocused();
@@ -197,7 +202,7 @@ for (const regime of REGIMES) {
       await firstSave.requested;
       const status = editor.locator('[data-slot="autosave-status"]');
       try {
-        await expect(status).toHaveText("Saving…");
+        await expect(status).toHaveText(AUTOSAVE_SAVING_TEXT);
         expect((await caller.persona.get({ personaId: persona.id })).title).toBe(persona.title);
       } finally {
         firstSave.fail();

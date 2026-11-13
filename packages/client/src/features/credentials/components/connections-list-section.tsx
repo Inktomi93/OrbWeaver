@@ -47,6 +47,7 @@ import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/
 import { ADD_CONNECTION_NAME, backgroundStateLabel, CAN_SERVE_LABEL, connectionRailGroupName, USED_FOR_LABEL } from "../lib/connections-copy.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRebindsEmbedder, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
+import { CONNECTIONS_EMPTY_TITLE } from "../lib/credentials-names.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
 import { AddModelOnKeyDialog } from "./add-model-on-key-dialog.tsx";
 import { ConnectionEditor } from "./connection-editor.tsx";
@@ -183,7 +184,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
       {connections.length === 0 ? (
         <EmptyState
           icon={<Icon icon={Plus} size="lg" />}
-          title="No connections yet"
+          title={CONNECTIONS_EMPTY_TITLE}
           description="Add a provider key or your own server so your roles can reach a model."
           action={
             <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" wrap={true} onClick={(): void => setAddOpen(true)}>

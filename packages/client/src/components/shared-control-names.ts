@@ -110,10 +110,5 @@ export function createTagName(tag: string): string {
   return `Create "${tag}"`;
 }
 
-/** The character search box, in the character library and in a world book's character attachments. */
+/** The character search box: the character library, a world book's character attachments and the Insights leaderboard. */
 export const CHARACTER_SEARCH_NAME = "Search characters";
-
-/** A row menu's star toggle for the row's current state; the menu's own name carries the subject. */
-export function starToggleName(starred: boolean): string {
-  return starred ? "Unstar" : "Star";
-}

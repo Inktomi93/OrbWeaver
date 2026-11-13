@@ -12,6 +12,7 @@ import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME, NEW_CHAT_CHARACTERS_FIELD_NAME }
 import { COMMAND_PALETTE_NAME, COMMAND_RECENT_THREADS_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { backgroundStateLabel } from "#client/features/credentials/lib/connections-copy.ts";
+import { SAVED_KEYS_EMPTY_DESCRIPTION, SAVED_KEYS_EMPTY_TITLE } from "#client/features/credentials/lib/credentials-names.ts";
 import {
   DATABANK_ADD_METHOD_NAME,
   DATABANK_ATTACH_GROUP_NAME,
@@ -93,7 +94,7 @@ const GROUP_WITNESSES = {
   "chat-behavior": (page): Witnesses => [page.getByRole("switch", { name: configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "enterSends"), exact: true })],
   workloads: (page): Witnesses => [
     page.getByRole("tablist", { name: WORKLOAD_FILTER_TABS_NAME, exact: true }),
-    page.getByRole("button", { name: SCHEDULE_NEW_NAME }).first(),
+    page.getByRole("button", { name: new RegExp(`^${RegExp.escape(SCHEDULE_NEW_NAME)}`, "u") }).first(),
   ],
   backup: (page): Witnesses => [
     page.getByRole("group", { name: EXPORT_INCLUDE_LEGEND, exact: true }).getByRole("checkbox").first(),
@@ -103,8 +104,8 @@ const GROUP_WITNESSES = {
     // The row shows the background state; its switch lives in the editor the row opens.
     page.locator('[data-slot="config-content"]').getByText(backgroundStateLabel(true), { exact: true }).first(),
     page.getByRole("combobox", { name: "Chat connection", exact: true }),
-    page.getByText("No keys yet", { exact: true }),
-    page.getByText("A key is saved when you add a connection that needs one.", { exact: true }),
+    page.getByText(SAVED_KEYS_EMPTY_TITLE, { exact: true }),
+    page.getByText(SAVED_KEYS_EMPTY_DESCRIPTION, { exact: true }),
   ],
   automation: (page): Witnesses => [
     page.getByRole("textbox", { name: OWNER_RULE_RATE_FIELD_NAME, exact: true }),

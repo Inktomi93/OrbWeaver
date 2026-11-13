@@ -30,7 +30,9 @@ import { castId } from "@orb/kit/ids";
 import { revealActionName } from "@orb/ui/lib";
 import type { Page, Response } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { RPG_CONTEXT_TAB_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { GAME_STRIP_LABEL } from "#client/lib/registry-contracts.ts";
 import { IMMERSIVE_CARD_LABELS } from "../../packages/ui/src/content/immersive-card/control-labels.ts";
 import { assistantRows, messageRow, openContextTab, openNewestChat, witnessTurn } from "./support/chat-room.ts";
 import { CASE_LIVE_LOOP_MS, CASE_LIVE_TURN_MS, CASE_STREAM_MS, WAIT_ROUND_TRIP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
@@ -87,7 +89,7 @@ async function openGamePanel(page: Page): Promise<void> {
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  await expect(page.getByRole("toolbar", { name: "Game" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("toolbar", { name: GAME_STRIP_LABEL })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** The greeting assistant row id (the durable row `startChat` seeded) — the deterministic edit target for the
@@ -144,7 +146,7 @@ test("P3 deception: a planted lie is host-revealed (eye + standing-lie inventory
     // the same server-truth — the host CAN see the deception on the panel. The truth string is the comparand. ──
     await openNewestChat(page);
     await openGamePanel(page);
-    await openContextTab(page, "Status");
+    await openContextTab(page, RPG_CONTEXT_TAB_LABELS.status);
     // The truth sits behind its reveal gate, out of the DOM until the host asks for it.
     const veiled = page.locator('[data-slot="rpg-veiled-section"]');
     await expect(veiled).toBeVisible({ timeout: WAIT_SURFACE_MS });
@@ -392,7 +394,7 @@ test("P5 plot: the snapshot plot plane renders on the act rail, advances, and a 
     // ── FE: the Quests tab's act rail (rpg-act-rail) renders the plot — the current act embered. ──
     await openNewestChat(page);
     await openGamePanel(page);
-    await openContextTab(page, "Quests");
+    await openContextTab(page, RPG_CONTEXT_TAB_LABELS.quests);
     // The rail is a COMPACT design: the story title + the CURRENT (embered) act's title + a dot rail
     // (● I ◉ II ○ III) — it does NOT render every act's title as text. Assert the current act title + the
     // story title (the embered-act witness — act 2's "The Hunt", not act 1's "Arrival").

@@ -5,6 +5,7 @@
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { RPG_JOURNAL_ADD_ENTRY_NAME, RPG_JOURNAL_EMPTY_LEAD, RPG_JOURNAL_NO_CARDS_LINE, RPG_JOURNAL_SCOPE_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
@@ -45,17 +46,17 @@ test("a failed transcript read leaves the All chronicle standing, and the Cards 
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.journal" });
   const journal = page.locator('[data-slot="rpg-journal-tab"]');
   // All: the chronicle and the host's composer render while the transcript fails, and no archive error stands in for them.
-  await expect(journal.getByText(/Nothing chronicled yet/u)).toBeVisible();
-  await expect(journal.getByRole("button", { name: "Add entry", exact: true })).toBeVisible();
+  await expect(journal.getByText(new RegExp(RegExp.escape(RPG_JOURNAL_EMPTY_LEAD), "u"))).toBeVisible();
+  await expect(journal.getByRole("button", { name: RPG_JOURNAL_ADD_ENTRY_NAME, exact: true })).toBeVisible();
   await expect(journal.getByText(ARCHIVE_ERROR, { exact: true })).toHaveCount(0);
-  await journal.getByRole("button", { name: "Cards", exact: true }).click();
+  await journal.getByRole("button", { name: RPG_JOURNAL_SCOPE_LABELS.cards, exact: true }).click();
   await expect(journal.getByText(ARCHIVE_ERROR, { exact: true })).toBeVisible();
   phase = "hold";
   await journal.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await hold.requested;
   await expect(journal.locator('[aria-busy="true"]')).toBeVisible();
-  await expect(journal.getByRole("button", { name: "Marks", exact: true })).toBeVisible();
+  await expect(journal.getByRole("button", { name: RPG_JOURNAL_SCOPE_LABELS.marks, exact: true })).toBeVisible();
   hold.release();
-  await expect(journal.getByText(/No cards yet/u)).toBeVisible();
+  await expect(journal.getByText(RPG_JOURNAL_NO_CARDS_LINE, { exact: true })).toBeVisible();
   await expect(journal.getByText(ARCHIVE_ERROR, { exact: true })).toHaveCount(0);
 });

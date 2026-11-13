@@ -8,7 +8,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
-import { retryWorkloadName, WORKLOAD_JOB_FIELD_NAME, workloadOwnerPart } from "#client/features/workloads/lib/workloads-names.ts";
+import { retryWorkloadName, WORKLOAD_JOB_FIELD_NAME, workloadOwnerLabel } from "#client/features/workloads/lib/workloads-names.ts";
 import type { RunDependencyStory } from "./_run-dependency-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
@@ -120,7 +120,7 @@ test("an admin sees no Retry on the owner's run of the operator's tree, and keep
   const rows = page.locator('[data-slot="workload-row"]').filter({ hasText: OPERATOR_IMPORT });
   await expect(rows).toHaveCount(2);
   await expect(rows.getByRole("button", { name: RETRY_OPERATOR_IMPORT, exact: true })).toHaveCount(1);
-  await expect(rows.filter({ hasNotText: workloadOwnerPart(ownerHandle) }).getByRole("button", { name: RETRY_OPERATOR_IMPORT, exact: true })).toBeVisible();
+  await expect(rows.filter({ hasNotText: workloadOwnerLabel(ownerHandle) }).getByRole("button", { name: RETRY_OPERATOR_IMPORT, exact: true })).toBeVisible();
 });
 
 test("the owner keeps Retry on the operator's tree", async ({ mount, page }) => {

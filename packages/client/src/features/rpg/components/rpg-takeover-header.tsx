@@ -34,6 +34,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { RPG_READ_ONLY_LABEL } from "../lib/rpg-names.ts";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator.tsx";
 import { RpgSatelliteRow } from "./rpg-satellite-row.tsx";
 
@@ -200,7 +201,7 @@ export function RpgTakeoverHeader({
           <Badge size="sm">
             <Icon icon={Lock} size="xs" />
             <Text as="span" voice="gloss" ink="inherit">
-              Read-only
+              {RPG_READ_ONLY_LABEL}
             </Text>
           </Badge>
           <HintTrigger className="" hint="This model can't update trackers. They still steer the story; edit them by hand." subject="Read-only trackers" />

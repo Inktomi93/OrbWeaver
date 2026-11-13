@@ -39,6 +39,7 @@ import { RpgStatusTab } from "../components/rpg-status-tab.tsx";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import type { RpgContextTabsDeps } from "./rpg-game-chat.ts";
 import { makeIsGameChat, peekChatDetail } from "./rpg-game-chat.ts";
+import { RPG_CONTEXT_TAB_LABELS } from "./rpg-names.ts";
 
 /** Build the lite game-tab contributions, bound to the door's cross-domain read channel. */
 export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTabDef<CommittedChatContext>[] {
@@ -84,53 +85,53 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
   return [
     {
       id: "rpg.status",
-      label: "Status",
+      label: RPG_CONTEXT_TAB_LABELS.status,
       icon: HeartPulse,
       strip: "game",
       when: isGameChat,
       // A game chat lands on Status (the game-state centerpiece) — not Members, the
       // declared-order first. A stored prior selection still wins.
       defaultTab: isGameChat,
-      body: gameTab("Status", (state) => <RpgStatusTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.status, (state) => <RpgStatusTab state={state} />),
     },
     {
       id: "rpg.inventory",
-      label: "Inventory",
+      label: RPG_CONTEXT_TAB_LABELS.inventory,
       icon: Backpack,
       strip: "game",
       when: isGameChat,
-      body: gameTab("Inventory", (state) => <RpgInventoryTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.inventory, (state) => <RpgInventoryTab state={state} />),
     },
     {
       id: "rpg.scene",
-      label: "Scene",
+      label: RPG_CONTEXT_TAB_LABELS.scene,
       icon: Drama,
       strip: "game",
       when: isGameChat,
-      body: gameTab("Scene", (state) => <RpgSceneTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.scene, (state) => <RpgSceneTab state={state} />),
     },
     {
       id: "rpg.quests",
-      label: "Quests",
+      label: RPG_CONTEXT_TAB_LABELS.quests,
       icon: Flag,
       strip: "game",
       when: isGameChat,
-      body: gameTab("Quests", (state) => <RpgQuestsTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.quests, (state) => <RpgQuestsTab state={state} />),
     },
     {
       id: "rpg.journal",
-      label: "Journal",
+      label: RPG_CONTEXT_TAB_LABELS.journal,
       icon: BookOpen,
       strip: "game",
       when: isGameChat,
-      body: gameTab("Journal", (state) => <RpgJournalTab state={state} />),
+      body: gameTab(RPG_CONTEXT_TAB_LABELS.journal, (state) => <RpgJournalTab state={state} />),
     },
     {
       // The ONE PHASE-locked tab ("Map"): when shown it carries its reason as `disabledReason` and OPENS
       // onto the planned-feature body, so the bracket's cell does NOT mark it `aria-disabled` — announcing
       // "unavailable" over a tab that Enter and a click both open is two stories.
       id: "rpg.map",
-      label: "Map",
+      label: RPG_CONTEXT_TAB_LABELS.map,
       icon: MapIcon,
       strip: "game",
       // HIDDEN WHILE THE MAP PROGRAM IS PARKED (owner ruling): a tab that opens onto "not built yet" is a dead end.
@@ -153,7 +154,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       // `getConfigView` boundary, a second server-side host gate); a non-game / PAUSED chat renders the
       // Game DOOR (start a freeform|d20 game / turn a preserved game back on).
       id: "rpg.game",
-      label: "Game",
+      label: RPG_CONTEXT_TAB_LABELS.game,
       icon: Crown,
       strip: "meta",
       // HOST-ONLY — the crown-gold glyph at rest in the admin rail. `when` is the real gate
@@ -164,7 +165,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       when: isHostCommitted,
       body: (s): ReactNode => {
         if (isHostGameChat(s)) {
-          return gameTab("Game", (state) => <RpgGameTab state={state} />)(s);
+          return gameTab(RPG_CONTEXT_TAB_LABELS.game, (state) => <RpgGameTab state={state} />)(s);
         }
         if (!isHostCommitted(s)) {
           return null;

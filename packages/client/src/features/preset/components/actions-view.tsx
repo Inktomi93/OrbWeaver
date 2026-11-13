@@ -50,6 +50,7 @@ import type { AppFormInstance } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import { closePresetTemplateDrill, drillPresetTemplate, selectPresetTemplate, useDrilledPresetTemplateId, useSelectedPresetTemplateId } from "#state";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_TEMPLATE_FILTER_NAME } from "../lib/preset-names.ts";
 import type { TemplateRow, TemplateRowCluster } from "../lib/template-rows.ts";
 import {
   ACTIONS_TAB_TEACH,
@@ -156,7 +157,7 @@ export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProp
             every group. The chrome is the host's; the matching is the row model's (`templateRowMatches`). */}
         <Row align="center" gap="tight">
           <Icon icon={Search} size="sm" ink="muted" />
-          <Input aria-label="Filter templates" onValueChange={setFilter} placeholder="Filter templates…" value={filter} />
+          <Input aria-label={PRESET_TEMPLATE_FILTER_NAME} onValueChange={setFilter} placeholder={`${PRESET_TEMPLATE_FILTER_NAME}…`} value={filter} />
         </Row>
 
         {groups.length === 0 ? (
