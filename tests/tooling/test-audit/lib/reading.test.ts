@@ -37,6 +37,15 @@ test("a citation keeps every line it names: a comma list, and a range written wi
   expect(productionRefs("packages/kit/src/a.ts:12, then the second branch")).toEqual([{ path: "packages/kit/src/a.ts", startLine: 12, endLine: 12 }]);
 });
 
+test("a comma list ends at a line break: a number that opens the next line is not a cited line", () => {
+  expect(productionRefs("packages/kit/src/a.ts:12,\n3 callers use it")).toEqual([{ path: "packages/kit/src/a.ts", startLine: 12, endLine: 12 }]);
+  // Control: the same list on one line keeps its second entry.
+  expect(productionRefs("packages/kit/src/a.ts:12, 3")).toEqual([
+    { path: "packages/kit/src/a.ts", startLine: 12, endLine: 12 },
+    { path: "packages/kit/src/a.ts", startLine: 3, endLine: 3 },
+  ]);
+});
+
 const DIFF = [
   "diff --git a/src/a.ts b/src/a.ts",
   "index 1111111..2222222 100644",
