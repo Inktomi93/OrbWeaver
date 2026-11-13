@@ -52,6 +52,23 @@ test("a member's stored operator-tree schedule names the refusal on its row", as
   await expect(page.getByText(WORKLOAD_RUN_ACCOUNT_REFUSAL, { exact: false })).toBeVisible();
 });
 
+test("the box owner's save on a member's operator-tree schedule toasts the refusal it meets", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const member = await root.actor();
+  const planted = await plantMemberOperatorSchedule(root, { boxOwnerId: root.ownerId, memberId: member.id });
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, serveCorpusProcedures(caller, [...SCHEDULE_READS, "workloads.estimateModelCalls", "workloads.updateSchedule"]));
+  await mount<typeof ScheduleDialogDismissalStory>(SCHEDULES_STORY, { width: 900 });
+
+  const schedule = (await caller.workloads.listSchedules({})).find((row) => row.id === planted);
+  if (schedule === undefined) {
+    throw new Error("The box owner must see the member's planted schedule");
+  }
+  await page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: member.handle }), exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Save/u }).click();
+  await expect(noticeToast(page, { title: WORKLOAD_RUN_ACCOUNT_REFUSAL })).toBeVisible();
+});
+
 test("the box owner's Retry on a member's operator-tree run toasts the refusal it meets", async ({ mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   const member = await root.actor();
