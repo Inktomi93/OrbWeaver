@@ -1,6 +1,6 @@
 // @instrument-proof: #2448 — the density-preview twin's persistence guard read the settings mutation's POST
 // body as an ARRAY (`Array.isArray(body) ? body[0] : null`). A tRPC `httpBatchLink` body is never an array:
-// `arrayToDict` (@trpc/client 11.18.0, dist/httpUtils-BNq9QC3d.mjs:24-38) posts `{"0": input}`, keyed by the
+// `arrayToDict` (@trpc/client 11.23.0, dist/httpUtils-CAZsqwOQ.mjs:62-69) posts `{"0": input}`, keyed by the
 // procedure's POSITION in the comma-joined path, and this stack runs no transformer so there is no
 // `{json:…}` envelope either. The guard therefore published `section=null density=null` on a body carrying
 // both, `persistence-isolation` failed at both matrix endpoints, and the null read exactly like "the client

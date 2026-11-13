@@ -16,6 +16,7 @@ import {
   REFINERY_NO_RUNS_TITLE,
   REFINERY_ORIGINAL_CARD_NOTE,
   REFINERY_ORIGINAL_CARD_TITLE,
+  REFINERY_RUNS_TAB_LABEL,
   REFINERY_SCOPE_NAME,
   REFINERY_SESSION_STATE_NAME,
   REFINERY_SETUP_TAB_LABEL,
@@ -187,7 +188,7 @@ for (const regime of REGIMES) {
       await expect(owner).not.toBeInViewport();
       await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator(CONTEXT);
-      await expect(context.getByRole("tab", { name: "Runs", exact: true })).toHaveAttribute("aria-selected", "true");
+      await expect(context.getByRole("tab", { name: REFINERY_RUNS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
       await expect(context.getByText(REFINERY_NO_RUNS_TITLE, { exact: true })).toBeVisible();
       const go = context.getByRole("button", { name: REFINERY_GO_TO_SCORE_NAME, exact: true });
       await expect(go).toBeVisible();

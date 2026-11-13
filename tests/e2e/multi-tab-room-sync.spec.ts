@@ -23,7 +23,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
-import { CHAT_ADD_CHARACTER_NAME, CHAT_ADD_CHARACTER_PLACEHOLDER } from "#client/features/chat/lib/members-names.ts";
+import { CHAT_ADD_CHARACTER_NAME, CHAT_ADD_CHARACTER_PLACEHOLDER, memberRemoveName } from "#client/features/chat/lib/members-names.ts";
 import {
   assistantRows,
   characterChipNames,
@@ -121,7 +121,7 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     await openDetailPanel(tabA);
     await openContextTab(tabA, CHAT_CONTEXT_TAB_LABELS.members);
     await openMemberRowMenu(tabA, CHARACTERS[2].name);
-    await tabA.getByRole("menuitem", { name: `Remove ${CHARACTERS[2].name} from chat` }).click();
+    await tabA.getByRole("menuitem", { name: memberRemoveName(CHARACTERS[2].name) }).click();
 
     await expect.poll(async () => (await characterSeats(room.chatId)).length, { timeout: WAIT_SURFACE_MS }).toBe(2);
     await expect.poll(async () => (await characterChipNames(tabB)).length, { timeout: WAIT_SURFACE_MS }).toBe(2);

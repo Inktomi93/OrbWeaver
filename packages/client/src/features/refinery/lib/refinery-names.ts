@@ -24,6 +24,9 @@ export function refineryCompareToggleName(comparing: boolean): string {
 /** The sessions list's empty state before any session exists. */
 export const REFINERY_NO_SESSIONS_TITLE = "No refinery sessions yet";
 
+/** The context pane's run history tab, its resting tab. */
+export const REFINERY_RUNS_TAB_LABEL = "Runs";
+
 /** The Context pane's setup tab. */
 export const REFINERY_SETUP_TAB_LABEL = "Setup";
 

@@ -5,6 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { EXPORT_DOWNLOAD_NAME, EXPORT_INCLUDE_LEGEND } from "#client/features/workloads/lib/workloads-names.ts";
 
 for (const regime of [
   { label: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false },
@@ -26,7 +27,7 @@ for (const regime of [
         width: regime.width,
         paneInset: true,
       });
-      const include = page.getByRole("group", { name: "Include", exact: true });
+      const include = page.getByRole("group", { name: EXPORT_INCLUDE_LEGEND, exact: true });
       const checkboxes = include.getByRole("checkbox");
       await expect(checkboxes.first()).toBeVisible();
       expect(await checkboxes.count()).toBeGreaterThan(1);
@@ -69,7 +70,7 @@ for (const regime of [
       expect(pitch).toBeGreaterThanOrEqual(floor);
       expect(Math.min(...verticalOverlaps)).toBeGreaterThan(0);
       expect(Math.max(...controlStarts) - Math.min(...controlStarts)).toBeLessThanOrEqual(1);
-      const download = page.getByRole("button", { name: "Download my library", exact: true });
+      const download = page.getByRole("button", { name: EXPORT_DOWNLOAD_NAME, exact: true });
       await expect(download).toBeEnabled();
       for (const checkbox of await checkboxes.all()) {
         await checkbox.uncheck();

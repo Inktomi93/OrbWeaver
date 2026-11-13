@@ -32,7 +32,7 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
-import { messageArticleName } from "../lib/message-action-names.ts";
+import { MESSAGE_SELECT_NAME, messageArticleName } from "../lib/message-action-names.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
@@ -389,7 +389,7 @@ export function MessageRow({
         {/* The checkbox's touch square lives inside its own layout box, so it cannot reach into the next row's avatar reach. */}
         {selecting ? (
           <Row align="center" touchFloor="block">
-            <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} />
+            <Checkbox aria-label={MESSAGE_SELECT_NAME} checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} />
           </Row>
         ) : null}
         {/* #1728 arm B — flex for `anchored`, a three-rail GRID for `gutterCentred`, whose rails centre the

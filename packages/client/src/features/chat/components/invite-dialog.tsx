@@ -5,7 +5,7 @@
 // host-only, with per-row Revoke on pending. Uses DISMISS mode (not PROMPT) because the form body carries
 // its own submit and the dialog's exit is just "Done".
 
-import { SIGNUP_INVITES_MINTABLE, SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import { INVITE_TARGET_UNKNOWN_CODE, SIGNUP_INVITES_MINTABLE, SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -34,13 +34,13 @@ import {
   useSuspenseQuery,
   useTRPC,
 } from "#data";
-import { DIALOG_VERBS, notify, testId, timeLib, trpcErrorCode } from "#lib";
+import { DIALOG_VERBS, notify, testId, timeLib, trpcErrorReason } from "#lib";
 import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
 import { asksSignup, inviteExpiryItems, inviteJoinLink, signupBounds, signupBoundsNotice, toCreateInviteInput } from "../lib/invite-form-model.ts";
-import { INVITE_OUTSTANDING_HEADING, INVITE_OUTSTANDING_READ } from "../lib/members-names.ts";
+import { INVITE_OUTSTANDING_HEADING, INVITE_OUTSTANDING_READ, INVITE_TARGET_UNKNOWN_TEXT } from "../lib/members-names.ts";
 
 type InviteView = inferOutput<Trpc["invites"]["listInvites"]>[number];
 
@@ -78,9 +78,8 @@ export function InviteDialog({ chatId, open, onOpenChange, finalFocus }: InviteD
   );
 }
 
-// The one BAD_REQUEST createInvite's handle path emits is invite_target_unknown.
-function isBadRequest(error: unknown): boolean {
-  return trpcErrorCode(error) === "BAD_REQUEST";
+function isUnknownTarget(error: unknown): boolean {
+  return trpcErrorReason(error) === INVITE_TARGET_UNKNOWN_CODE;
 }
 
 // D259 — the sign-up switch is drawn for a global admin in a mode that mints signup invites. A render gate
@@ -117,8 +116,8 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
       setMintedLink(inviteJoinLink(token, share, globalThis.location.origin));
       return values;
     } catch (error) {
-      if (values.mode === "handle" && isBadRequest(error)) {
-        setHandleError("No invitable user with that exact handle.");
+      if (values.mode === "handle" && isUnknownTarget(error)) {
+        setHandleError(INVITE_TARGET_UNKNOWN_TEXT);
       } else if (input.allowSignup === true) {
         // Inline, not a toast: a toast paints under the modal backdrop. The server measures the expiry on its
         // own clock, so a longest-expiry link from a device whose clock runs ahead is refused here too.

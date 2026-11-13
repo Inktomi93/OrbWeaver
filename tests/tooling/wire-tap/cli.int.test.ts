@@ -4,8 +4,8 @@
 // event. Silence-on-connect cannot read as proof of events, so the assertions name the planted frames.
 // The wire grammar below is @trpc/server's own sseStreamConsumer contract (connected/ping/return named
 // events + default `message` events whose SSE id is the envelope ordinal), read from the installed
-// v11.18 source at the move.
-import type { Server } from "node:http";
+// v11.23 source.
+import type { IncomingMessage, Server } from "node:http";
 import { createServer } from "node:http";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CliResult, ToolFixtures } from "@orb/testkit/tooling";
@@ -14,10 +14,17 @@ import { scaledBudget } from "../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(30_000);
 const TAP_COOKIE = "orb_session_insecure=tap-cookie";
+const METHOD_NOT_ALLOWED = 405;
+const FORBIDDEN = 403;
 
 /** The same wire, with the frames removed: a stream that opens and closes having delivered NOTHING —
  *  which the op's own header says can mean "not a member", not only "no events" (#409). */
 const SILENT_SSE_BODY = ["event: connected", "data: {}", "", "event: return", "data: {}", "", ""].join("\n");
+
+/** A stream the server cut before its `return` event: one frame, then the body ends. */
+const EARLY_END_SSE_BODY = ["event: connected", "data: {}", "", "id: 1", 'data: {"channel":"chat","seq":7,"event":{"type":"planted-frame-one"}}', "", ""].join(
+  "\n",
+);
 
 const SSE_BODY = [
   "event: connected",
@@ -35,9 +42,18 @@ const SSE_BODY = [
   "",
 ].join("\n");
 
+/** The status the fixture refuses a connect with, or `null` to serve it. */
+function connectRefusal(req: IncomingMessage, cookie: string | undefined): number | null {
+  if (req.method !== "POST") {
+    return METHOD_NOT_ALLOWED;
+  }
+  return req.headers[CSRF_HEADER] === undefined || (cookie !== undefined && req.headers.cookie !== cookie) ? FORBIDDEN : null;
+}
+
 /** The loopback stand-in for the dev stack: answers the attach POST with a batched tRPC result and the
- *  connect with the scripted SSE stream. Like the server, it refuses a connect without the CSRF header, and
- *  `cookie`, when set, is the one the connect must carry. */
+ *  connect with the scripted SSE stream. It refuses a connect without the CSRF header, and a connect that is not
+ *  a POST, because the app's client opens the stream as a JSON POST and the tap must too. `cookie`, when set, is
+ *  the one the connect must carry. */
 function fixtureServer(body: string = SSE_BODY, cookie?: string): Promise<{ server: Server; port: number }> {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
@@ -47,9 +63,9 @@ function fixtureServer(body: string = SSE_BODY, cookie?: string): Promise<{ serv
         res.end('[{"result":{"data":{"ok":true}}}]');
         return;
       }
-      const refused = req.headers[CSRF_HEADER] === undefined || (cookie !== undefined && req.headers.cookie !== cookie);
-      if (url.includes("stream.connect") && refused) {
-        res.writeHead(403);
+      const refusal = url.includes("stream.connect") ? connectRefusal(req, cookie) : null;
+      if (refusal !== null) {
+        res.writeHead(refusal);
         res.end();
         return;
       }
@@ -104,6 +120,33 @@ test("a stream that delivered NO frames reports an empty population, never a bar
     expect(res.stdout).toContain("frames=0");
     expect(res.stdout).toContain("NO frames");
     await expect(res).toExitWith(0);
+  } finally {
+    server.close();
+  }
+});
+
+test("a stream that ends before its `return` event exits non-zero and names the early end", async ({ runCli }) => {
+  const { server, port } = await fixtureServer(EARLY_END_SSE_BODY);
+  try {
+    const res = await runCli("wire-tap", ["sse", "chat-proof-early"], {
+      timeoutMs: CLI_TIMEOUT_MS,
+      // biome-ignore lint/style/useNamingConvention: SSE_TAP_BASE is the tap's own env-var spelling.
+      env: { SSE_TAP_BASE: `http://127.0.0.1:${port}` },
+    });
+    expect(res.stdout).toContain("seq=7  planted-frame-one");
+    expect(res.stderr).toContain("ended before");
+    expect(res.stdout).not.toContain("connection closed");
+    await expect(res).toExitWith(1);
+  } finally {
+    server.close();
+  }
+});
+
+test("the fixture refuses a connect sent as GET, so the frame cases prove the tap POSTs", async () => {
+  const { server, port } = await fixtureServer();
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/trpc/stream.connect`, { headers: { [CSRF_HEADER]: "1" } });
+    expect(response.status).toBe(METHOD_NOT_ALLOWED);
   } finally {
     server.close();
   }

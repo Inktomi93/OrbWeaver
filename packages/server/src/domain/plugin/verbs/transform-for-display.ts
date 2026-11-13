@@ -21,6 +21,10 @@
 //
 // THE REFUSAL POSTURE IS D53's, verbatim: a transform that throws or outruns its deadline is SKIPPED — the fold
 // keeps the prior text and moves on. A display transform can never blank a message, and it can never block one.
+//
+// THIS IS A QUERY, SO IT WRITES NO PLUGIN STATE. Each guest call runs through the resident's `invokeForRead`, which
+// logs a failure and leaves the crash counter alone: a clean run must not reset the count a write path built, and a
+// failed one is a skip, never a strike.
 
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginDisplayTransformRegistration } from "@orb/contracts/plugin";
@@ -37,11 +41,11 @@ import { logPluginFailure } from "../substrate/failure-log.ts";
  *  waiting on a model. Overrun ⇒ that transform is skipped and the row keeps the text it had. */
 const PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS = 200;
 
-/** One resident's crash-policy'd re-entry, curried to the (handler, argsJson) pair this seam uses. */
+/** One resident's read-path re-entry, curried to the (handler, argsJson) pair this seam uses. */
 type ResidentInvoke = (handler: PluginDisplayTransformRegistration["handler"], argsJson: string, signal: AbortSignal) => Promise<string>;
 
 /** Why a transform left the row's text alone. A throw or rejected invoke already reached the log through the
- *  resident's crash-policy'd `invoke`, so only a deadline overrun is logged here. */
+ *  resident's `invokeForRead`, so only a deadline overrun is logged here. */
 type Outcome = { readonly text: string } | { readonly skip: "deadline" | "failed" };
 
 /** Run ONE display transform under the deadline. Returns the new text, or why it was skipped (throw, rejected
@@ -53,7 +57,7 @@ async function applyBounded(
   scheduleTimeout: ScheduleOp,
 ): Promise<Outcome> {
   let cancelTimer: (() => void) | undefined;
-  // Aborted on the deadline so the orphaned invocation's later rejection counts a crash without a second log line.
+  // Aborted on the deadline so the orphaned invocation's later rejection logs no second line.
   const orphan = new AbortController();
   const deadline = new Promise<Outcome>((resolve) => {
     cancelTimer = scheduleTimeout(() => {
@@ -61,8 +65,8 @@ async function applyBounded(
       resolve({ skip: "deadline" });
     }, PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
   });
-  // the rejection was already logged by the resident's `invoke`; the
-  // caller keeps the row's prior text. Ends if `invoke` stops logging the failures it rethrows.
+  // the rejection was already logged by the resident's `invokeForRead`; the
+  // caller keeps the row's prior text. Ends if `invokeForRead` stops logging the failures it rethrows.
   try {
     const answer = await Promise.race([invoke(transform.handler, argsJson, orphan.signal), deadline]);
     return typeof answer === "string" ? { text: answer } : answer;
@@ -87,12 +91,11 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
         continue;
       }
       for (const transform of resident.instance.displayTransforms) {
-        // The re-entry runs through the resident's crash-policy'd `invoke` (never `ctx.host.invoke` directly),
-        // so a throwing/hung display transform bumps `consecutive_crashes` toward the 3-strike auto-disable
-        // exactly like a tool, event or surface-action handler. `null` chat scope: a display transform reads the
-        // text it was handed and nothing else — admitting a room would hand it a `chat.read` window this seam
-        // has no reason to open.
-        steps.push({ slug: row.slug, transform, invoke: (handler, json, signal) => resident.invoke(handler, json, null, signal) });
+        // The re-entry runs through the resident's `invokeForRead` (never `ctx.host.invoke` directly), so it shares
+        // the resident's invocation lifetime and failure log and writes no crash state. `null` chat scope: a display
+        // transform reads the text it was handed and nothing else — admitting a room would hand it a `chat.read`
+        // window this seam has no reason to open.
+        steps.push({ slug: row.slug, transform, invoke: (handler, json, signal) => resident.invokeForRead(handler, json, null, signal) });
       }
     }
     if (steps.length === 0) {

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { CharacterPicker, QueryBoundary } from "#components";
 import { SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS } from "#lib";
+import { RULE_CHARACTER_UNAVAILABLE_TEXT } from "../lib/automation-names.ts";
 
 /** A selected character is read by identity, never searched for in the first library page. */
 export function RuleCharacterField({
@@ -33,7 +34,7 @@ export function RuleCharacterField({
               <Text>
                 {label}: {value}
               </Text>
-              <Text voice="gloss">The selected character is unavailable. Its saved identity is retained until you replace it.</Text>
+              <Text voice="gloss">{RULE_CHARACTER_UNAVAILABLE_TEXT}</Text>
               <Button variant="ghost" justify="start" onClick={retry}>
                 {DIALOG_VERBS.retry}
               </Button>

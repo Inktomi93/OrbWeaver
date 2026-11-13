@@ -14,6 +14,7 @@ import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import { notify } from "#lib";
 import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
+import { RULE_ADD_KEYWORD_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
 import { RuleRemoveField } from "./rule-remove-field.tsx";
@@ -79,7 +80,7 @@ export function RuleLoreFields({
                 form.pushFieldValue(`keywordIds[${index}]`, crypto.randomUUID());
               }}
             >
-              Add keyword
+              {RULE_ADD_KEYWORD_NAME}
             </Button>
           </Stack>
         )}

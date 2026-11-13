@@ -1,4 +1,4 @@
-import { DIALOG_VERBS, testId } from "@orb/client/lib";
+import { testId } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { OPERATOR_TREE_WORKLOAD_KIND } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
@@ -8,6 +8,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
+import { retryWorkloadName, WORKLOAD_JOB_FIELD_NAME, workloadOwnerPart } from "#client/features/workloads/lib/workloads-names.ts";
 import type { RunDependencyStory } from "./_run-dependency-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
@@ -18,7 +19,7 @@ const SCHEDULE_STORY = "tests/client/features/workloads/components/_schedule-dia
 const OPERATOR_IMPORT = WORKLOAD_KIND_LABELS[OPERATOR_TREE_WORKLOAD_KIND];
 const ANY_MEMBER_JOB = WORKLOAD_KIND_LABELS["reconcile-stats"];
 const RELOAD_READS_NAME = "Reload reads";
-const RETRY_OPERATOR_IMPORT = `${DIALOG_VERBS.retry}: ${OPERATOR_IMPORT}`;
+const RETRY_OPERATOR_IMPORT = retryWorkloadName(OPERATOR_IMPORT);
 const STAGED_UPLOAD = { stagedDir: "tree-upload", stagedDigest: "0".repeat(64) };
 const LATER_MS = 3_600_000;
 
@@ -71,7 +72,7 @@ async function seedEndedImports(root: ServerTestHarness, admin: UserId): Promise
 
 async function openRunPicker(page: Page): Promise<void> {
   await page.getByTestId(testId("workloadsRunButton")).click();
-  await page.getByTestId(testId("runWorkloadDialog")).getByRole("combobox", { name: "Job", exact: true }).click();
+  await page.getByTestId(testId("runWorkloadDialog")).getByRole("combobox", { name: WORKLOAD_JOB_FIELD_NAME, exact: true }).click();
 }
 
 test("a member's run picker leaves out the operator import", async ({ mount, page }) => {
@@ -99,7 +100,7 @@ test("a member's schedule picker leaves out the operator import", async ({ mount
   await mount<typeof ScheduleDialogDismissalStory>(SCHEDULE_STORY, { width: 1440 });
 
   await page.getByTestId(testId("scheduleCreateButton")).click();
-  await page.getByTestId(testId("createScheduleDialog")).getByRole("combobox", { name: "Job", exact: true }).click();
+  await page.getByTestId(testId("createScheduleDialog")).getByRole("combobox", { name: WORKLOAD_JOB_FIELD_NAME, exact: true }).click();
 
   await expect(page.getByRole("option", { name: ANY_MEMBER_JOB, exact: true })).toBeVisible();
   await expect(page.getByRole("option", { name: OPERATOR_IMPORT, exact: true })).toBeHidden();
@@ -110,12 +111,16 @@ test("an admin sees no Retry on the owner's run of the operator's tree, and keep
   const admin = (await root.actor({ role: "admin" })).id;
   await seedEndedImports(root, admin);
   await serve(root, page, admin);
+  const ownerHandle = (await (await root.internalCallerFor(admin)).admin.listUsers()).find((user) => user.id === root.ownerId)?.handle;
+  if (ownerHandle === undefined) {
+    throw new Error("the admin user list names the box owner");
+  }
   await mount<typeof RunDependencyStory>(RUN_STORY, { reloadName: RELOAD_READS_NAME });
 
   const rows = page.locator('[data-slot="workload-row"]').filter({ hasText: OPERATOR_IMPORT });
   await expect(rows).toHaveCount(2);
   await expect(rows.getByRole("button", { name: RETRY_OPERATOR_IMPORT, exact: true })).toHaveCount(1);
-  await expect(rows.filter({ hasNotText: "for " }).getByRole("button", { name: RETRY_OPERATOR_IMPORT, exact: true })).toBeVisible();
+  await expect(rows.filter({ hasNotText: workloadOwnerPart(ownerHandle) }).getByRole("button", { name: RETRY_OPERATOR_IMPORT, exact: true })).toBeVisible();
 });
 
 test("the owner keeps Retry on the operator's tree", async ({ mount, page }) => {

@@ -49,6 +49,9 @@ export const MESSAGE_VIEW_WIRE_TRACE_NAME = "View wire trace…";
 /** The row's reaction door (`message-actions-row.tsx`, ordered AFTER Edit/Fork by the #786 owner ruling). */
 export const MESSAGE_REACTION_ADD_NAME = "Add a reaction";
 
+/** The row's checkbox in bulk selection mode. */
+export const MESSAGE_SELECT_NAME = "Select message";
+
 /**
  * The transcript article's name: the speaker and the row's own number (`#3`, the `message-readout` label), `Aria · #3`.
  *

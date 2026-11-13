@@ -1,6 +1,8 @@
 // Durable chat metadata: real rename/star UI writes survive reload through native queries.
 // Exact transcript identity and content are covered by scripted-chat.spec.ts.
+
 import { expect, test } from "@playwright/test";
+import { CHAT_STAR_NAME, CHAT_UNSTAR_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { openOrCreateChat, renameOpenChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
 import { runName } from "./support/run-names.ts";
 import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";
@@ -37,7 +39,7 @@ test.describe("chat persistence", () => {
     await openRowKebab(page);
     // The menu item text reflects current state ("Star" when unstarred, "Unstar" when starred).
     const starItem = page.getByRole("menuitem", { name: STAR_MENU_ITEM });
-    const wasStarred = (await starItem.textContent())?.trim() === "Unstar";
+    const wasStarred = (await starItem.textContent())?.trim() === CHAT_UNSTAR_NAME;
     const starResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.star") && r.status() < 500);
     await starItem.click();
     await starResp;
@@ -47,7 +49,7 @@ test.describe("chat persistence", () => {
     await reopenFirstChat(page);
     // Re-open the kebab and assert the label flipped + persisted: unstarred→"Unstar", starred→"Star".
     await openRowKebab(page);
-    const expectedLabel = wasStarred ? "Star" : "Unstar";
+    const expectedLabel = wasStarred ? CHAT_STAR_NAME : CHAT_UNSTAR_NAME;
     await expect(page.getByRole("menuitem", { name: expectedLabel })).toBeVisible({
       timeout: WAIT_SHORT_MS,
     });

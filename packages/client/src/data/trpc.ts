@@ -72,8 +72,8 @@ const jsonOnlyFetch: NonNullable<Parameters<typeof httpBatchLink>[0]["fetch"]> =
  * `httpBatchLink` — NOT `httpBatchStreamLink` — is a DELIBERATE, probed choice (2026-08-02), not
  * un-migrated legacy. The stream link's per-response flushing on mixed-speed batches is real, but it
  * costs two things on THIS stack:
- *   1. It silently kills `responseMeta`'s error visibility. The tRPC server's jsonl branch (11.18.0,
- *      the pinned version) calls `initResponse({ …, errors: [] })` — hardcoded empty, because the head
+ *   1. It silently kills `responseMeta`'s error visibility. The tRPC server's jsonl branch (11.23.0,
+ *      the installed version) calls `initResponse({ …, errors: [] })` — hardcoded empty, because the head
  *      is flushed before any procedure resolves (`resolveResponse`, the
  *      `info.accept === "application/jsonl"` branch). Our
  *      `entry/app.ts` mounts `responseMeta: ({ errors }) => rateLimitResponseMeta(errors)`, so

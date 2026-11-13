@@ -21,6 +21,16 @@ export const WORKLOAD_RUN_ACCOUNT_DISABLED = "run_account_disabled";
 /** {@link WORKLOAD_RUN_ACCOUNT_DISABLED}'s sentence. A stored run shows it as the failed row's reason. */
 export const WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL = "This job runs for an account that is disabled.";
 
+/** The coded run-account refusals a schedule's tick can meet, which its list row names. */
+export const WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES = [WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_DISABLED] as const;
+export type WorkloadRunAccountRefusalCode = (typeof WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES)[number];
+
+/** Each run-account refusal's sentence, the one a client shows for its code. */
+export const WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES: Readonly<Record<WorkloadRunAccountRefusalCode, string>> = {
+  [WORKLOAD_RUN_ACCOUNT_NOT_OWNER]: WORKLOAD_RUN_ACCOUNT_REFUSAL,
+  [WORKLOAD_RUN_ACCOUNT_DISABLED]: WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
+};
+
 /** Missing admitted liability for a generative workload. */
 export const WORKLOAD_UNFUNDED = "workload_unfunded";
 

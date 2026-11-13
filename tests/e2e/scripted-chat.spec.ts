@@ -5,7 +5,7 @@ import { castId } from "@orb/kit/ids";
 import { nonEmpty } from "@orb/testkit/iso";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page } from "@playwright/test";
-import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME, CHAT_STOP_NAME, CHAT_TRANSCRIPT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import type { HeldTurn } from "./support/chat-room.ts";
 import { messageRow, openCharacterRoom, renameOpenChat, sendByKey, sendHeldTurn, waitForAppReady } from "./support/chat-room.ts";
@@ -62,7 +62,7 @@ async function assertIdle(page: Page, timeout = 5000): Promise<void> {
 }
 
 async function readRenderedCanon(page: Page, count: number): Promise<(readonly [string | null, string | null, readonly string[]])[]> {
-  const rows = page.getByRole("log", { name: "Conversation messages", exact: true }).locator('[data-slot="message-list-row"]');
+  const rows = page.getByRole("log", { name: CHAT_TRANSCRIPT_NAME, exact: true }).locator('[data-slot="message-list-row"]');
   const active = rows.and(page.locator('[tabindex="0"]'));
   await active.focus();
   await active.press("Home");

@@ -629,6 +629,9 @@ export const createInviteSchema = z.strictObject({
 });
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 
+/** The refusal code (`data.reason`) for a targeted invite whose handle names no invitable user. */
+export const INVITE_TARGET_UNKNOWN_CODE = "invite_target_unknown";
+
 /** Preview an invite before confirming (the accept = preview-then-confirm flow). Carries the raw token. */
 export const previewInviteSchema = z.strictObject({
   token: z.string().min(INVITE_TOKEN_MIN),

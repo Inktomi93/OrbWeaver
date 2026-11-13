@@ -18,3 +18,15 @@ export const CHAT_LEAVE_MEMBER_NOTE = "You'll lose access until someone invites 
 
 /** The room menu's door into bulk message selection. */
 export const CHAT_SELECT_MESSAGES_NAME = "Select messages…";
+
+/** The room menu's trigger. */
+export const CHAT_OPTIONS_NAME = "Chat options";
+
+/** The room menu's door to the room's settings in the context pane. */
+export const CHAT_SETTINGS_DOOR_NAME = "Chat settings";
+
+/** The room menu's door to a fresh room with the same characters. */
+export const CHAT_NEW_WITH_SAME_CHARACTERS_NAME = "New chat with the same characters";
+
+/** The leave confirm's commit, from the room menu and from the viewer's own Members row. */
+export const CHAT_LEAVE_CONFIRM_NAME = "Leave";

@@ -10,6 +10,7 @@ import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME, bugReportPrepareLabel, SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { HOME_QUICK_PICKS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES, touchDrag } from "./app-shell-ct.ts";
@@ -204,7 +205,7 @@ test.describe("one shell at the narrowest phone", () => {
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.locator("main.shell-content")).toBeVisible();
     // The content region spends no inline padding of its own on a phone, so Home's swipe shelf reaches both edges.
-    const faces = page.getByRole("list", { name: "Character quick-picks" });
+    const faces = page.getByRole("list", { name: HOME_QUICK_PICKS_NAME });
     await expect(faces.getByRole("button").first()).toBeVisible();
     await expect
       .poll(() =>

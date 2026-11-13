@@ -21,7 +21,7 @@ import type { FocusEvent, ReactElement, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat, setActiveSection } from "#state";
-import { CHAT_ALL_CHARACTERS_NAME, homeNewChatWithName } from "../lib/chat-surface-names.ts";
+import { CHAT_ALL_CHARACTERS_NAME, HOME_QUICK_PICKS_NAME, homeNewChatWithName } from "../lib/chat-surface-names.ts";
 
 const TRACK_SEPARATOR = /\s+/u;
 
@@ -121,7 +121,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
       ref={shelfRef}
     >
       {/* `contents`: the faces are the list and the door is not one of them, yet all share the one row. */}
-      <Contents aria-label="Character quick-picks" role="list">
+      <Contents aria-label={HOME_QUICK_PICKS_NAME} role="list">
         {shown.map((character) => {
           // The ladder is pitch → visible tag line → NOTHING (#119): the handle/slug is row IDENTITY, not
           // caption copy, so a card with neither reads with one line instead of a lowercase slug. The name
