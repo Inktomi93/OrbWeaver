@@ -107,6 +107,31 @@ test("a spec's own constants, a relatively imported one and the attribute and de
   ]);
 });
 
+const KIT_ENTRY: CensusSource = {
+  path: "tests/support/node/ct.ts",
+  text: 'export * from "./labels.ts"; export { RENAMED_ROW as KIT_ROW_NAME } from "./rows.ts";',
+};
+const KIT_LABELS: CensusSource = { path: "tests/support/node/labels.ts", text: 'export const KIT_REGION_NAME = "Alerts";' };
+const KIT_ROWS: CensusSource = { path: "tests/support/node/rows.ts", text: 'export const RENAMED_ROW = "Pinned row";' };
+
+const KIT_SPEC: CensusSource = {
+  path: "tests/client/features/chat/row-kit.ct.tsx",
+  text: [
+    'import { KIT_REGION_NAME, KIT_ROW_NAME } from "@orb/testkit/ct";',
+    "await page.getByRole('region', { name: KIT_REGION_NAME }).click();",
+    "await page.getByText(KIT_ROW_NAME).click();",
+  ].join("\n"),
+};
+
+test("a constant imported through a testkit alias is followed through the entry's re-exports to where it is written", () => {
+  const kit = new Map([KIT_ENTRY, KIT_LABELS, KIT_ROWS].map((source) => [source.path, source]));
+  const sites = nameSites(KIT_SPEC, (path) => kit.get(path), new Map([["@orb/testkit/ct", KIT_ENTRY.path]]));
+  expect(sites.map((site) => `${site.file}:${String(site.line)} ${site.text}`)).toEqual([
+    'tests/support/node/labels.ts:1 "Alerts"',
+    'tests/support/node/rows.ts:1 "Pinned row"',
+  ]);
+});
+
 test("the feature filter keeps the production owner's rows and names the test directory for the rest", () => {
   const index = productionIndex(PRODUCTION);
   const rows = nameSites(SPEC).map((site) => classifySite(site, index, { authored: authoredStrings([STORY]) }));
