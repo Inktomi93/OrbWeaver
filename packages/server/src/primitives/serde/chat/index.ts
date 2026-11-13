@@ -26,7 +26,7 @@
 
 import type { MessageKind, TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY } from "@orb/contracts/chat";
-import { jsonValueSchema, parseJsonText } from "@orb/kit/json";
+import { boundedJsonObjectSchema, parseJsonText } from "@orb/kit/json";
 import type { MessageRole } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";
@@ -627,8 +627,9 @@ function importedNumber(value: unknown): number | undefined {
 /** Both parse paths produce the one VariantMetadata shape. Flatten swipe_info extra before promotion: live
  *  stats readers address top-level reasoning_duration, and token_count supports import backfill; nested
  *  sidecars would silently resolve null. extra wins collisions over contextual swipe residue. All other
- *  foreign keys live under opaque importResidue, never the modeled providerMetadata plane. jsonValueSchema
- *  proves residue is storable JSON; invalid or empty residue is omitted. The fix is one writer shape, not
+ *  foreign keys live under opaque importResidue, never the modeled providerMetadata plane. boundedJsonObjectSchema
+ *  proves residue is storable JSON with an iterative, depth-capped walk, because the file is untrusted and a recursive
+ *  walk overflows the stack on deep nesting; invalid, over-deep or empty residue is omitted. The fix is one writer shape, not
  *  dual-shape readers.
  */
 function variantMetadata(swipeEntry: unknown): VariantMetadata | null {
@@ -653,7 +654,7 @@ function variantMetadata(swipeEntry: unknown): VariantMetadata | null {
     ),
   );
   const residue = Object.fromEntries(Object.entries(flat).filter(([k]) => !promoted.has(k)));
-  const parsedResidue = Object.keys(residue).length === 0 ? undefined : jsonValueSchema.safeParse(residue);
+  const parsedResidue = Object.keys(residue).length === 0 ? undefined : boundedJsonObjectSchema.safeParse(residue);
   const out: VariantMetadata = {
     ...(reasoningMs === undefined ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: reasoningMs }),
     ...(tokenCount === undefined ? {} : { [VARIANT_METADATA_TOKEN_COUNT_KEY]: tokenCount }),
