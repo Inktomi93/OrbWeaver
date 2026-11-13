@@ -56,6 +56,23 @@ test.describe("desktop", () => {
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole("button", { name: BAND_NEW })).toBeFocused();
   });
+
+  test("with the list collapsed only the content mounts its host: the form opens for each run, and Cancel returns focus to the landing's New", async ({
+    mount,
+    page,
+  }) => {
+    await seedShellState(page, { activeSection: "home", panelOverrides: { characters: { list: "collapsed" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.getByRole("heading", { level: 1, name: SECTION_LABELS.home, exact: true })).toBeAttached();
+    const dialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+    for (const _run of [1, 2]) {
+      await runFromPalette(page);
+      await expect(dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true })).toBeFocused();
+      await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true })).toBeFocused();
+    }
+  });
 });
 
 test.describe("phone", () => {
@@ -87,5 +104,24 @@ test.describe("phone", () => {
     await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+  });
+
+  test("a second palette run from the list it landed on opens the form again, and nothing opens it later unasked", async ({ mount, page }) => {
+    const [first] = (await (await root.internalCallerFor(root.ownerId)).character.list({})).items;
+    if (first === undefined) {
+      throw new Error("The committed corpus holds no character");
+    }
+    await mount<typeof AppShellStory>(STORY, {});
+    await expect(page.getByRole("heading", { level: 1, name: SECTION_LABELS.home, exact: true })).toBeAttached();
+    const dialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+    for (const _run of [1, 2]) {
+      await runFromPalette(page);
+      await expect(dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true })).toBeFocused();
+      await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+    }
+    await page.getByText(first.name, { exact: true }).first().click();
+    await expect(page.getByRole("heading", { level: 1 })).toBeAttached();
+    await expect(dialog).toHaveCount(0);
   });
 });

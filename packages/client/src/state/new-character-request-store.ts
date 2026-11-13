@@ -28,17 +28,18 @@ export function takeNewCharacterRequest(): boolean {
 }
 
 /** Call `listener` for the pending request and for each one filed while subscribed. A host that mounts after the request was
- *  filed (the switch to Characters mounts it) still hears it. */
+ *  filed (the switch to Characters mounts it) still hears it. The listener is not selector-sliced: a slice remembered across
+ *  the listener's own take would hold a stale `true` and miss the next request. */
 export function onNewCharacterRequest(listener: () => void): () => void {
-  return useNewCharacterRequestStore.subscribe(
-    (state) => state.requested,
-    (requested) => {
-      if (requested) {
-        listener();
-      }
-    },
-    { fireImmediately: true },
-  );
+  const unsubscribe = useNewCharacterRequestStore.subscribe((state) => {
+    if (state.requested) {
+      listener();
+    }
+  });
+  if (useNewCharacterRequestStore.getState().requested) {
+    listener();
+  }
+  return unsubscribe;
 }
 
 const newCharacterDoors = new Set<HTMLElement>();
