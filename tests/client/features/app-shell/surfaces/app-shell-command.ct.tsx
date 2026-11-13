@@ -1,6 +1,7 @@
 // The command palette through the production shell: its click and chord doors, the shortcut's own filter and
 // lifetime, focus return, and the result viewport's geometry while filtering.
 
+import { YOU_TAB_LABEL } from "@orb/client/lib";
 import { dispatchCommandKey } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_LABELS, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -240,7 +241,7 @@ test("filtering keeps the dialog, its search and its result viewport where they 
 test("the palette's focused combobox exposes its roving selection, opened from the phone's You sheet", async ({ mount, page }) => {
   await page.setViewportSize(PHONE);
   await mount<typeof AppShellStory>(STORY, {});
-  await page.getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   await page.getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true }).click();
   const palette = page.getByRole("dialog", PALETTE);
   const search = palette.getByRole("combobox");

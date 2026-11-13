@@ -3,13 +3,13 @@
 // that keeps an unplaced command reachable.
 
 import { spawn } from "node:child_process";
-import { MESSAGE_TOOLS_LABEL, TRAIL_OVERFLOW_LABEL } from "@orb/client/lib";
+import { MESSAGE_TOOLS_LABEL, sectionBackName, TRAIL_OVERFLOW_LABEL, YOU_TAB_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_TOAST_COOLDOWN_SECONDS, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -202,8 +202,8 @@ test("a phone keeps the top bar row clear: placed commands are You sheet rows an
   const show = (chatId: ChatId): Promise<unknown> => mount<typeof PluginRoomShellStory>(STORY, { chatId });
   await openRoom({ root, corpus, page, show }, [DRAW, UNPLACED], PHONE);
   await expect(pluginControls(trailOf(page))).toHaveCount(0);
-  await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
-  await page.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
+  await page.locator(".shell-rail").getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   await page.getByRole("button", { name: attributed("Draw"), exact: true }).click();
   await expect(reached(page, DRAW.name)).toBeVisible();
   root.clock.advance(PLUGIN_TOAST_COOLDOWN_SECONDS * MS_PER_SECOND);

@@ -1,5 +1,6 @@
 // Templates in two kinds share a label ("Past tense" steers and greeting-transforms); the Actions tab names each one's doors apart.
 
+import { TEMPLATE_DEFS } from "@orb/contracts/preset";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -10,7 +11,10 @@ import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.ts
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
 const WIDTH = 960;
-const SHARED_LABEL = "Past tense";
+const SHARED_LABEL = TEMPLATE_DEFS.map(({ label }) => label).find((label, index, labels) => labels.indexOf(label) !== index);
+if (SHARED_LABEL === undefined) {
+  throw new Error("No two templates share a label");
+}
 
 test("templates that share a label across kinds have distinct door names on the Actions tab", async ({ mount, page }) => {
   await using root = await createCorpusHarness();

@@ -35,7 +35,8 @@
 // text filter inside the `expect` subject, directly or through a spec constant), or in a spec constant one of those
 // reads. `branching` functions return text and branch or return text more than once; `template` functions return one
 // template that splices in an argument. Each row is a candidate for a reader to judge, not a verdict: a locator that
-// finds a control by such a name is listed too. The function is matched by its exported name.
+// finds a control by such a name is listed too. The function is matched by its exported name. A candidate a row of
+// `tooling/src/label-census/judged-oracles.ts` covers carries that row's reason; that file states the key and the rule.
 //
 // A text, or a template whose every fixed word a story the spec mounts writes, is that story's. A text several
 // production files hold is filed under the one in the spec's own feature, then one in a feature the spec imports
@@ -50,6 +51,8 @@ import { dirname, join } from "node:path";
 import ts from "typescript";
 import { z } from "zod";
 import { execNicedSync } from "../floor/process/proc.ts";
+import type { OracleJudgement } from "./judged-oracles.ts";
+import { JUDGED_ORACLES } from "./judged-oracles.ts";
 
 /** The text-target calls whose first argument is a name or visible text. */
 const TEXT_CALLS = new Set([
@@ -1097,6 +1100,66 @@ export interface OracleRow extends NameSite {
   readonly feature: string;
   /** The production files that export a function by that name, sorted. */
   readonly homes: readonly string[];
+  /** The case the call sits in, as {@link enclosingScope} names it. */
+  readonly scope: string;
+  /** The reason a reader recorded that this candidate is not a defect; absent while it is unjudged. */
+  readonly judged?: string;
+}
+
+const TEST_CALLEES: ReadonlySet<string> = new Set(["test", "it", "describe"]);
+const MODULE_SCOPE = "(module)";
+
+// A `test(...)`, `it(...)` or `describe(...)` call, bare or through a member such as `test.only` or `test.describe`.
+function isCaseCall(call: ts.CallExpression): boolean {
+  const callee = call.expression;
+  const head = ts.isPropertyAccessExpression(callee) ? callee.expression : callee;
+  return ts.isIdentifier(head) && TEST_CALLEES.has(head.text);
+}
+
+// The name a function-like node declares, through the const that holds an arrow or function expression.
+function declaredName(node: ts.Node): string | undefined {
+  if ((ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) && node.name !== undefined) {
+    return node.name.getText();
+  }
+  return (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && ts.isVariableDeclaration(node.parent) && ts.isIdentifier(node.parent.name)
+    ? node.parent.name.text
+    : undefined;
+}
+
+/** The case a call sits in: the title of the nearest enclosing `test`, `it` or `describe` call as written, else the name of
+ *  the nearest named function, else `(module)`. A judgement keys on it with the file and the function, so it survives line drift. */
+export function enclosingScope(node: ts.Node, file: ts.SourceFile): string {
+  for (let at = node.parent; !ts.isSourceFile(at); at = at.parent) {
+    const title = ts.isCallExpression(at) && isCaseCall(at) ? at.arguments[0] : undefined;
+    if (title !== undefined && (ts.isStringLiteralLike(title) || ts.isTemplateExpression(title))) {
+      return ts.isStringLiteralLike(title) ? title.text : title.getText(file).slice(1, -1);
+    }
+    const name = declaredName(at);
+    if (name !== undefined) {
+      return name;
+    }
+  }
+  return MODULE_SCOPE;
+}
+
+const judgementKey = ({ file, scope, function: name }: { readonly file: string; readonly scope: string; readonly function: string }): string =>
+  `${file}\n${scope}\n${name}`;
+
+/** Each candidate with the reason recorded against it, and every judgement that matches no candidate, so a stale row is
+ *  reported rather than kept. One judgement covers every call of its function in its case. */
+export function judgeOracles(
+  oracles: readonly OracleRow[],
+  judgements: readonly OracleJudgement[],
+): { readonly oracles: readonly OracleRow[]; readonly stale: readonly OracleJudgement[] } {
+  const reasons = new Map(judgements.map((judgement) => [judgementKey(judgement), judgement.reason]));
+  const matched = new Set(oracles.map(judgementKey));
+  return {
+    oracles: oracles.map((row) => {
+      const reason = reasons.get(judgementKey(row));
+      return reason === undefined ? row : { ...row, judged: reason };
+    }),
+    stale: judgements.filter((judgement) => !matched.has(judgementKey(judgement))),
+  };
 }
 
 // local name → the name a production module exports, for each named import; a namespace import maps to "*".
@@ -1198,7 +1261,14 @@ export function oracleCalls(source: CensusSource, index: ProductionIndex, eviden
   return byPosition(
     [...found].map(([call, { name, kind, homes: files }]) => {
       const homes = sorted(files);
-      return { ...siteOf({ at, node: call }), function: name, kind, feature: preferredFeature(homes, source.path, evidence), homes };
+      return {
+        ...siteOf({ at, node: call }),
+        function: name,
+        kind,
+        feature: preferredFeature(homes, source.path, evidence),
+        homes,
+        scope: enclosingScope(call, at.file),
+      };
     }),
   );
 }
@@ -1239,6 +1309,8 @@ function mountedStrings(source: CensusSource, byPath: ReadonlyMap<string, Census
 export interface Census {
   readonly rows: readonly CensusRow[];
   readonly oracles: readonly OracleRow[];
+  /** The judgements in {@link JUDGED_ORACLES} that match no current candidate. */
+  readonly staleJudgements: readonly OracleJudgement[];
 }
 
 /** Run the census over the checkout's tracked files, each list sorted by file, line and column. */
@@ -1262,9 +1334,11 @@ export function runCensus(repoRoot: string): Census {
       .flatMap((source) => nameSites(source, read, aliases))
       .map((site) => [`${site.file}:${String(site.line)}:${String(site.column)}\n${site.value ?? ""}`, site]),
   );
+  const judged = judgeOracles(byPosition(tests.flatMap((source) => oracleCalls(source, index, evidence, aliases))), JUDGED_ORACLES);
   return {
     rows: byPosition([...sites.values()].map((site) => classifySite(site, index, evidence))),
-    oracles: byPosition(tests.flatMap((source) => oracleCalls(source, index, evidence, aliases))),
+    oracles: judged.oracles,
+    staleJudgements: judged.stale,
   };
 }
 
@@ -1288,14 +1362,34 @@ export function formatCensus(rows: readonly CensusRow[]): string {
   return lines.join("\n");
 }
 
-/** A per-feature count of {@link OracleRow} calls: features by call count, then by name. */
+const isUnjudgedBranching = (row: OracleRow): boolean => row.kind === "branching" && row.judged === undefined;
+
+/** A per-feature count of {@link OracleRow} calls by kind, and of the branching ones no judgement covers: features by call
+ *  count, then by name. */
 export function formatOracles(oracles: readonly OracleRow[]): string {
   const counts = (group: readonly OracleRow[]): string =>
-    [...ORACLE_KINDS.map((kind) => group.filter((row) => row.kind === kind).length), group.length, new Set(group.map((row) => row.file)).size].join(" | ");
+    [
+      ...ORACLE_KINDS.map((kind) => group.filter((row) => row.kind === kind).length),
+      group.filter(isUnjudgedBranching).length,
+      group.length,
+      new Set(group.map((row) => row.file)).size,
+    ].join(" | ");
   const ordered = [...Map.groupBy(oracles, (row) => row.feature)].sort(([a, x], [b, y]) => y.length - x.length || a.localeCompare(b));
   return [
-    `feature | ${ORACLE_KINDS.join(" | ")} | oracle candidates | files`,
+    `feature | ${ORACLE_KINDS.join(" | ")} | unjudged branching | oracle candidates | files`,
     ...ordered.map(([feature, group]) => `${feature} | ${counts(group)}`),
     `total | ${counts(oracles)}`,
+  ].join("\n");
+}
+
+/** Every branching candidate no judgement covers, and every judgement that matches no candidate, one line each. */
+export function formatJudgements(oracles: readonly OracleRow[], stale: readonly OracleJudgement[]): string {
+  const unjudged = oracles.filter(isUnjudgedBranching).map((row) => `${row.file}:${String(row.line)} ${row.function} in "${row.scope}"`);
+  const unmatched = stale.map((judgement) => `${judgement.file} ${judgement.function} in "${judgement.scope}"`);
+  return [
+    `unjudged branching candidates: ${String(unjudged.length)}`,
+    ...unjudged,
+    `judgements matching no candidate: ${String(unmatched.length)}`,
+    ...unmatched,
   ].join("\n");
 }

@@ -11,7 +11,7 @@ import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME, TAG_USAGE_TAB_N
 import { screenOverviewDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL } from "#client/lib/corpus-modes.ts";
-import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { pruneConfirmLabel } from "#client/lib/tag-model.ts";
@@ -28,7 +28,7 @@ const MAIN = "main.shell-content";
 async function openCorpusOnPhone(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
-  await page.getByRole("button", { name: "You", exact: true }).click();
+  await page.getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }

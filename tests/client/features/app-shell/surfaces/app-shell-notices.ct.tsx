@@ -1,7 +1,7 @@
 // The shell's notice overlay and its stray-file guard: a notice never moves the content column, a burst stays inside
 // the overlay's cap, the empty overlay passes the pointer through, and only a file nothing else handled is swallowed.
 
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextToggleLabel, sectionBackName } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
@@ -208,7 +208,7 @@ test.describe("with an open sheet and keyboard", () => {
     await page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: card.name, exact: true }).click();
     // The push to the card's screen runs a view transition, which takes hit tests until it ends; a click inside it is
     // retried by scrolling the page, which moves every box this test then measures.
-    await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true })).toBeVisible();
     // Document-timeline animations only: a scroll-driven animation (the rail's scroll fades) reads "running" for as long
     // as its scroller exists and moves nothing.
     await page.waitForFunction(() =>

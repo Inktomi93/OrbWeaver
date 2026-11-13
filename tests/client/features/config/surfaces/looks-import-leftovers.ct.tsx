@@ -20,7 +20,6 @@ import {
   THEME_IMPORT_OUTCOME,
   themeImportGroupLine,
   themeImportGroupNamesLabel,
-  themeImportLeftoverTitle,
   themeImportLeftoverToggleName,
 } from "#client/features/config/lib/theme-import-copy.ts";
 import type { LooksImportStory } from "./_looks-import-stories.tsx";
@@ -74,7 +73,7 @@ test("a SillyTavern theme that left settings behind says each group under its ow
   // The note names the landed theme and the count, and says the rest imported. A display setting is among the leftovers, so the
   // action is the Appearance group's line alone: the outcome line carries no second instruction.
   const note = page.locator(NOTE);
-  await expect(note).toContainText(themeImportLeftoverTitle(ST_LANDED_NAME, Object.keys(LEFTOVERS).length, true));
+  await expect(note).toContainText(`4 SillyTavern settings in “${ST_LANDED_NAME}” weren't brought over`);
   await expect(note.getByText(THEME_IMPORT_OUTCOME.created, { exact: true })).toBeVisible();
   // Each reason group has its own sentence, with its own subject and count: the display settings by the labels the Appearance
   // controls wear, the others by how many of them there are.
@@ -123,7 +122,7 @@ test("a theme you already have is reported as reused, and its note never claims 
   await expect.poll(() => rpc.count("settings.importThemeFile")).toBe(2);
 
   const note = page.locator(NOTE);
-  await expect(note).toContainText(themeImportLeftoverTitle(ST_LANDED_NAME, Object.keys(LEFTOVERS).length, false));
+  await expect(note).toContainText("4 SillyTavern settings in this file aren't part of a theme here");
   await expect(note).toContainText(THEME_IMPORT_OUTCOME.reused);
   await expect(note).not.toContainText(THEME_IMPORT_OUTCOME.created);
 });

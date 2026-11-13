@@ -2,9 +2,12 @@
 // An empty field holds nothing to lose, so it leaves on the press.
 
 import { Button } from "@orb/ui/button";
+import { removeActionName } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import { DestructiveAction } from "#components";
+import { DIALOG_VERBS } from "#lib";
 import type { RemovalFocus } from "../hooks/use-removal-focus.ts";
+import { ruleFieldRemoveConfirmName } from "../lib/automation-names.ts";
 import { RuleRemoveEmptyField } from "./rule-remove-empty-field.tsx";
 
 interface RuleRemoveFieldProps {
@@ -27,7 +30,11 @@ export function RuleRemoveField({ name, value, onRemove, focus }: RuleRemoveFiel
   }
   return (
     <DestructiveAction
-      confirm={{ confirmLabel: "Remove", description: "What you wrote here leaves this rule. This can't be undone.", title: `Remove ${name}?` }}
+      confirm={{
+        confirmLabel: DIALOG_VERBS.remove,
+        description: "What you wrote here leaves this rule. This can't be undone.",
+        title: ruleFieldRemoveConfirmName(name),
+      }}
       finalFocus={focus.finalFocus}
       onConfirm={(): void => {
         focus.confirmed();
@@ -35,7 +42,7 @@ export function RuleRemoveField({ name, value, onRemove, focus }: RuleRemoveFiel
       }}
       trigger={
         <Button variant="ghost" justify="start">
-          Remove {name}
+          {removeActionName(name)}
         </Button>
       }
     />

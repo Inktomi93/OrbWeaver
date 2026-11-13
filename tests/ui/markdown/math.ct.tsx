@@ -1,5 +1,6 @@
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
+import { MARKDOWN_RENDER_FAILED_TEXT } from "#ui/markdown/markdown-names.ts";
 import type { MathStory } from "./_math-stories.tsx";
 
 const STORY = "tests/ui/markdown/_math-stories/MathStory";
@@ -39,7 +40,7 @@ After the equation.`,
     await expect(component.locator(".katex-error")).toBeVisible();
     await expect(component).toContainText("Before the equation.");
     await expect(component).toContainText("After the equation.");
-    await expect(component.getByText("Content failed to render.", { exact: true })).toHaveCount(0);
+    await expect(component.getByText(MARKDOWN_RENDER_FAILED_TEXT, { exact: true })).toHaveCount(0);
   });
 }
 

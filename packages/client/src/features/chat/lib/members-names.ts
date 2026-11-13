@@ -40,6 +40,10 @@ export const INVITE_OUTSTANDING_HEADING = "Outstanding invites";
 /** What that list reads, as its failed-read sentence names it. */
 export const INVITE_OUTSTANDING_READ = "the outstanding invites";
 
+/** The invite dialog's handle mode and the submit that mode shows. */
+export const INVITE_BY_HANDLE_NAME = "Invite by handle";
+export const INVITE_SEND_NAME = "Send invite";
+
 /** The invite dialog's inline refusal when a handle names no invitable user. */
 export const INVITE_TARGET_UNKNOWN_TEXT = "No invitable user with that exact handle.";
 

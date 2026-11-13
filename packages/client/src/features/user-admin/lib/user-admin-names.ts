@@ -34,4 +34,6 @@ export function adminResetSectionName(sectionLabel: string): string {
 /** Override fields whose names a spec finds them by. */
 export const ADMIN_MAX_IMAGE_DOWNLOAD_NAME = "Max generated-image download (MB)";
 export const ADMIN_PROMPT_CACHE_DEPTH_NAME = "Prompt-cache depth floor (0–20)";
+export const ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME = "Prompt-transform deadline (ms)";
+export const ADMIN_DATABANK_UPLOAD_CAP_NAME = "Databank upload cap (bytes)";
 export const ADMIN_MEMORY_MIN_MATCH_NAME = "Minimum match";

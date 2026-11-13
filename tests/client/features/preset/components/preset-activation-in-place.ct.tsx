@@ -126,7 +126,7 @@ test("pressing the editor header's Activate leaves focus on the status that now 
 
   await expect(activate).toHaveCount(0);
   await expect(status).toBeFocused();
-  await expect(status).toMatchAriaSnapshot("- status: Active");
+  await expect(status).toMatchAriaSnapshot(`- status: ${PRESET_ACTIVE_STATUS}`);
   await absenceWindow(page, TOAST_WINDOW_MS);
   expect(await toasts()).toBe(0);
   expect((await caller.settings.getUserSettings()).config.seeds.defaultPresetId).toBe(preset.id);

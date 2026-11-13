@@ -2,6 +2,7 @@
 // Its own module so the destructive-confirm exemption covers this control alone, never the filled-field confirm.
 
 import { Button } from "@orb/ui/button";
+import { removeActionName } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 
 interface RuleRemoveEmptyFieldProps {
@@ -13,7 +14,7 @@ interface RuleRemoveEmptyFieldProps {
 export function RuleRemoveEmptyField({ name, onRemove }: RuleRemoveEmptyFieldProps): ReactElement {
   return (
     <Button variant="ghost" justify="start" onClick={onRemove}>
-      Remove {name}
+      {removeActionName(name)}
     </Button>
   );
 }

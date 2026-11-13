@@ -1,3 +1,4 @@
+import { DIALOG_VERBS } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -14,7 +15,7 @@ import type { SuggestionActionGroupsStory } from "./_suggestion-action-groups-st
 const STORY = "tests/client/features/tag/surfaces/_suggestion-action-groups-stories/SuggestionActionGroupsStory";
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 const REVIEW_WRITES = {
-  apply: { label: "Apply", chosen: "tag.attachTag", other: "tag.detachTag" },
+  apply: { label: DIALOG_VERBS.apply, chosen: "tag.attachTag", other: "tag.detachTag" },
   reject: { label: TAG_REJECT_NAME, chosen: "tag.detachTag", other: "tag.attachTag" },
 } as const;
 
@@ -103,7 +104,7 @@ for (const regime of REGIMES) {
         });
         const mounted = await mount<typeof SuggestionActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
         const row = page.getByRole("group", { name: `Suggested ${tag.name} for ${firstName}`, exact: true });
-        const apply = row.getByRole("button", { name: "Apply", exact: true });
+        const apply = row.getByRole("button", { name: DIALOG_VERBS.apply, exact: true });
         const reject = row.getByRole("button", { name: TAG_REJECT_NAME, exact: true });
         await apply.focus();
         await page.keyboard.press("Tab");
@@ -125,7 +126,7 @@ for (const regime of REGIMES) {
         await page.keyboard.press("Enter");
         await expect(row).toBeHidden();
         const remaining = page.getByRole("group", { name: `Suggested ${tag.name} for ${secondName}`, exact: true });
-        await expect(remaining.getByRole("button", { name: "Apply", exact: true })).toBeFocused();
+        await expect(remaining.getByRole("button", { name: DIALOG_VERBS.apply, exact: true })).toBeFocused();
         expect((await caller.tag.listPendingSuggestions()).map((entry) => entry.characterId)).toEqual([second.id]);
         const adopted = await caller.tag.listAttachedEntities({ tagId: tag.id, targetType: "character" });
         const adoptedTargets = { apply: [first.id], reject: [] };

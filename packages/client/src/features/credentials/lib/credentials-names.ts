@@ -11,9 +11,6 @@ export const CONNECTIONS_EMPTY_TITLE = "No connections yet";
 export const SAVED_KEYS_EMPTY_TITLE = "No keys yet";
 export const SAVED_KEYS_EMPTY_DESCRIPTION = "A key is saved when you add a connection that needs one.";
 
-/** The connection editor header's back button. */
-export const BACK_TO_CONNECTIONS_NAME = "Back to Connections";
-
 /** The key field, in the add dialog and in the connection editor's Essential tier. */
 export const API_KEY_FIELD_NAME = "API key";
 

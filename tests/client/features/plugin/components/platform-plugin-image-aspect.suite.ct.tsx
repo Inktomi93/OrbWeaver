@@ -12,6 +12,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { MEDIA_UNAVAILABLE_TEXT } from "#ui/content/message-media/message-media-names.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 
 type ImageAspect = NonNullable<PluginImageNode["aspect"]>;
@@ -85,7 +86,7 @@ async function expectImageAspect({ section, aspect, state, originalPath, body }:
     expectedRatio = RATIOS[aspect ?? "square"];
   } else if (state === "broken") {
     await section.scrollIntoViewIfNeeded();
-    media = section.getByText("Media unavailable", { exact: true });
+    media = section.getByText(MEDIA_UNAVAILABLE_TEXT, { exact: true });
     expectedRatio = RATIOS[aspect ?? "square"];
   } else {
     media = section.getByRole("img", { name: `${label} image`, exact: true });

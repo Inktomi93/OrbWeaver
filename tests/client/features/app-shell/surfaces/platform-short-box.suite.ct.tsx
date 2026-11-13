@@ -1,5 +1,7 @@
 // A box 24rem tall or less has one scroller: a picker's list takes what its dialog's chrome leaves and nothing nests inside it.
 // Layer: CT. Production entry: the AppShell opening the registered `newChat` and `command` modals over the corpus root's own reads.
+
+import { NEW_CHAT_DIALOG_TITLE } from "@orb/client/lib";
 import { LAYOUT_SUBPIXEL_PX, resolvedLength, seedShellState, setRootFontScale, settledBox } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -89,7 +91,7 @@ test.describe("coarse landscape", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog.locator(ROW).first()).toBeVisible();
     await expect(dialog.getByRole("button", { name: CHAT_SAVED_ROSTER_DOOR_NAME, exact: true }).first()).toBeAttached();
-    await expectLandscapeRegime(dialog, "New chat", true);
+    await expectLandscapeRegime(dialog, NEW_CHAT_DIALOG_TITLE, true);
     const found = await geometry(page);
     await test.info().attach("short-picker-geometry", { body: JSON.stringify(found), contentType: "application/json" });
     // The library is longer than the window, so the list has something to scroll: the absence below is not vacuous.
@@ -111,7 +113,7 @@ test.describe("coarse small landscape, stacked", () => {
     await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
     const dialog = page.getByRole("dialog");
     await expect(dialog.locator(ROW).first()).toBeVisible();
-    await expectLandscapeRegime(dialog, "New chat", true);
+    await expectLandscapeRegime(dialog, NEW_CHAT_DIALOG_TITLE, true);
     const door = dialog.getByRole("button", { name: CHAT_SAVED_ROSTER_DOOR_NAME, exact: true });
     await expect(door).toHaveCount(1);
     await expect(door).toBeVisible();
@@ -170,7 +172,7 @@ for (const regime of [
       await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
       const dialog = page.getByRole("dialog");
       await expect(dialog.locator(ROW).first()).toBeVisible();
-      await expectLandscapeRegime(dialog, "New chat", false);
+      await expectLandscapeRegime(dialog, NEW_CHAT_DIALOG_TITLE, false);
       const found = await geometry(page);
       const window = await resolvedLength(page, `var(${TOKENS["height.picker-window"].cssVar})`, dialog);
       expect(found.list.scroll).toBeGreaterThan(found.list.client + LAYOUT_SUBPIXEL_PX);
@@ -197,7 +199,7 @@ for (const regime of [
       const dialog = page.getByRole("dialog");
       await setRootFontScale(page, channelName("fontScale"), ENLARGED_TEXT);
       await expect(dialog.locator(ROW).first()).toBeVisible();
-      await expectLandscapeRegime(dialog, "New chat", false);
+      await expectLandscapeRegime(dialog, NEW_CHAT_DIALOG_TITLE, false);
     });
   });
 }

@@ -6,6 +6,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import {
   PERSONA_FIRST_RUN_CREATE_NAME,
   PERSONA_FIRST_RUN_FAILED,
+  PERSONA_FIRST_RUN_FINISH_NAME,
   PERSONA_FIRST_RUN_TITLE,
   PERSONA_NAME_FIELD_NAME,
 } from "#client/features/persona/lib/persona-copy.ts";
@@ -39,6 +40,31 @@ test("with no persona the first-run ask is forced open: no close control, Escape
   await expect(create).toBeEnabled();
   await gate.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true }).fill("   ");
   await expect(create).toBeDisabled();
+});
+
+test("a persona no pointer names reopens the ask on its recovery arm, which offers to finish rather than create", async ({ corpus, mount, page }) => {
+  const { firstBoot } = corpus;
+  if (firstBoot === undefined) {
+    throw new Error("The corpus has no first-boot cohort");
+  }
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  if ((await caller.persona.list()).length === 0) {
+    throw new Error("The corpus viewer has no persona");
+  }
+  await routeTrpc(page, {
+    // The create landed and the seed write did not: a persona exists and the settings still name none.
+    ...serveCorpusProcedures(caller, ["persona.list"]),
+    "settings.getUserSettings": () => firstBoot.reads.settings.output,
+  });
+  await mount<typeof FirstRunPersonaDialogStory>("tests/client/features/persona/anchors/_first-run-persona-stories/FirstRunPersonaDialogStory", {});
+
+  const gate = page.getByRole("dialog", { name: PERSONA_FIRST_RUN_TITLE, exact: true });
+  await expect(gate.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).not.toHaveValue("");
+  // The persona exists, so the submit offers to finish the setup, never to create a second one.
+  const submit = page.getByTestId(testId("firstRunPersonaCreate"));
+  await expect(submit).toHaveAccessibleName(PERSONA_FIRST_RUN_FINISH_NAME);
+  await expect(submit).not.toHaveAccessibleName(PERSONA_FIRST_RUN_CREATE_NAME);
 });
 
 test("a create in flight says so, and a refused one is said by the ask's own sentence", async ({ corpus, mount, page }) => {

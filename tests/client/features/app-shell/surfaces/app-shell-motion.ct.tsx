@@ -3,7 +3,7 @@
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
 
 import { spawn } from "node:child_process";
-import { contextToggleLabel, SIDECAR_PANELS_NOUN } from "@orb/client/lib";
+import { contextToggleLabel, SIDECAR_PANELS_NOUN, sectionBackName } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { emulateMedia, LAYOUT_SUBPIXEL_PX, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
@@ -936,7 +936,7 @@ test.describe("on a phone", () => {
         attributeOldValue: true,
       });
     });
-    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     // The phone arms no FLIP, so nothing would ever end one: the stamp is released in the commit that wrote it.
     await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-list-flip", /.*/u);

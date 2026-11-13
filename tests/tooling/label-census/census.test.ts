@@ -1,6 +1,15 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { CensusClass, CensusSource, TestEvidence } from "../../../tooling/src/label-census/index.ts";
-import { authoredStrings, classifySite, inFeature, nameSites, oracleCalls, productionIndex } from "../../../tooling/src/label-census/index.ts";
+import {
+  authoredStrings,
+  classifySite,
+  formatJudgements,
+  inFeature,
+  judgeOracles,
+  nameSites,
+  oracleCalls,
+  productionIndex,
+} from "../../../tooling/src/label-census/index.ts";
 
 // The production row renders a template; its placeholder is split so this file holds no template syntax in a string.
 const REACHED_TEMPLATE = ["{`Reached $", "{count} of the limit`}"].join("");
@@ -465,6 +474,43 @@ test("a label function in a locator's name inside the expect subject, or in a lo
     "3 notificationsBellLabel",
     "4 refineryTestOnCardLabel",
     "5 refineryTestOnCardLabel",
+  ]);
+});
+
+const JUDGED_SPEC: CensusSource = {
+  path: "tests/client/features/chat/judged.ct.tsx",
+  text: [
+    'import { starName, pinName } from "#client/features/chat/lib/chat-names.ts";',
+    'test("a starred row", async () => {',
+    "  await expect(row).toHaveAccessibleName(starName(true));",
+    "  await expect(row).toHaveAccessibleName(starName(false));",
+    "});",
+    'test("a pinned row", async () => { await expect(row).toHaveAccessibleName(pinName(true)); });',
+    "function helper() { return expect(row).toHaveAccessibleName(pinName(false)); }",
+    "await expect(row).toHaveAccessibleName(starName(true));",
+  ].join("\n"),
+};
+
+test("a judgement covers its function's calls in its own case, a candidate no row covers prints unjudged, and a row no candidate matches is stale", () => {
+  const rows = oracleCalls(JUDGED_SPEC, productionIndex([LABEL_FUNCTIONS]), { authored: new Set() });
+  const judged = judgeOracles(rows, [
+    { file: JUDGED_SPEC.path, scope: "a starred row", function: "starName", reason: "locates the row" },
+    { file: JUDGED_SPEC.path, scope: "helper", function: "pinName", reason: "locates the pin" },
+    { file: JUDGED_SPEC.path, scope: "a starred row", function: "pinName", reason: "matches no call" },
+  ]);
+  expect(judged.oracles.map((row) => `${String(row.line)} ${row.function} | ${row.scope} | ${row.judged ?? "unjudged"}`)).toEqual([
+    "3 starName | a starred row | locates the row",
+    "4 starName | a starred row | locates the row",
+    "6 pinName | a pinned row | unjudged",
+    "7 pinName | helper | locates the pin",
+    "8 starName | (module) | unjudged",
+  ]);
+  expect(formatJudgements(judged.oracles, judged.stale).split("\n")).toEqual([
+    "unjudged branching candidates: 2",
+    `${JUDGED_SPEC.path}:6 pinName in "a pinned row"`,
+    `${JUDGED_SPEC.path}:8 starName in "(module)"`,
+    "judgements matching no candidate: 1",
+    `${JUDGED_SPEC.path} pinName in "a starred row"`,
   ]);
 });
 

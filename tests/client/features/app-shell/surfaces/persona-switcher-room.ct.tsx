@@ -1,6 +1,7 @@
 // The persona switcher with a room open, on the production shell: the head reads label-then-name, the room block's two
 // doors share a start edge, and a phone's persona rows stay at the touch floor instead of adding an inset on top of it.
 
+import { YOU_TAB_LABEL } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_PROCEDURES } from "@orb/testkit/ct";
@@ -12,6 +13,7 @@ import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
 import {
   PERSONA_MANAGE_NAME,
   PERSONA_NEW_CHAT_GLOSS,
+  PERSONA_NO_SEAT_GLOSS,
   PERSONA_PANEL_NAME,
   PERSONA_PLAYING_AS_LABEL,
   PERSONA_RESTAMP_NAME,
@@ -81,6 +83,23 @@ test.describe("on a desktop", () => {
     expect(await iconLeft(restamp)).toBeCloseTo(await iconLeft(manage), 0);
   });
 
+  test("in a room whose seat has no persona, the head says so rather than claiming one is playing", async ({ corpus, mount, page }) => {
+    const caller = await root.internalCallerFor(root.ownerId);
+    const rooms = (await caller.chat.listChats({ limit: 100 })).items;
+    const details = await Promise.all(rooms.map((room) => caller.chat.getChat({ chatId: room.id })));
+    const emptySeat = details.find((detail) => detail.viewerActivePersonaId === null);
+    if (emptySeat === undefined) {
+      throw new Error("The corpus viewer has no room with an empty seat");
+    }
+    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+    await routeRoom(page, corpus, caller);
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: emptySeat.id });
+    await page.locator(".shell-rail-actions").getByRole("button", { name: PERSONA_PANEL_NAME, exact: true }).click();
+    const head = page.getByRole("dialog", { name: PERSONA_PANEL_NAME, exact: true }).locator('[data-slot="persona-who-head"]');
+    await expect(head.getByText(PERSONA_NO_SEAT_GLOSS, { exact: true })).toBeVisible();
+    await expect(head.getByText(PERSONA_PLAYING_AS_LABEL, { exact: true })).toHaveCount(0);
+  });
+
   // With no room open the head says where a new chat's persona comes from; the seeds pick the arm, so each case names
   // the line its own seeds must produce.
   for (const { source, gloss } of [
@@ -133,7 +152,7 @@ test.describe("on a phone", () => {
   test("the You sheet's persona rows are the touch floor tall, with no inset stacked on it", async ({ corpus, mount, page }) => {
     await routeRoom(page, corpus, await root.internalCallerFor(root.ownerId));
     await mount<typeof AppShellStory>(STORY, {});
-    await page.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.locator(".shell-rail").getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     const rows = page.locator('[data-slot="drawer-popup"] [data-slot="persona-switch-row"]');
     await expect(rows.first()).toBeVisible();
     const floor = await resolvedLength(page, `var(${TOKENS["size.control-md"].cssVar})`);

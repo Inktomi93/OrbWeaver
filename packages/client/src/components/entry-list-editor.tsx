@@ -9,6 +9,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { Key, ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { DIALOG_VERBS } from "#lib";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 export interface EntryListEditorProps<TItem> {
@@ -100,13 +101,13 @@ export function EntryListEditor<TItem>({
                     size="sm"
                     variant="ghost"
                   >
-                    Remove
+                    {DIALOG_VERBS.remove}
                   </Button>
                   <ConfirmDialog
                     open={removal.items === items && removal.index === index}
                     onOpenChange={(open): void => setRemoval({ items, index: open ? index : null, invalidated: false })}
                     {...(removal.invalidated ? { finalFocus: addButton } : {})}
-                    confirmLabel="Remove"
+                    confirmLabel={DIALOG_VERBS.remove}
                     // Callers can nest this list in a dialog, where Base UI otherwise suppresses its backdrop.
                     forceRender={true}
                     onConfirm={(): void => onRemove(index)}

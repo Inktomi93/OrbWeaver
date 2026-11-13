@@ -10,7 +10,7 @@ import { devices } from "@playwright/test";
 import { JOIN_CREATE_ACCOUNT_NAME, SIGN_IN_NAME } from "#client/features/auth/lib/pending-join-names.ts";
 import { JOIN_CHAT_NAME } from "#client/features/chat/lib/members-names.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
-import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { ActorClient } from "./support/actors.ts";
@@ -239,7 +239,7 @@ test.describe("local corpus auth guard", () => {
     test.skip(!isMobile, "The You sheet is the phone's account door");
     await page.goto("/");
     await waitForAppReady(page);
-    await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByTestId(testId("accountSurface"))).toContainText(capturedOwner().handle);
     await expect(sheet.getByTestId(testId("accountLogout"))).toBeEnabled();

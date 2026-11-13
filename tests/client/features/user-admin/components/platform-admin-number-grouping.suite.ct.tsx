@@ -2,13 +2,17 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { ADMIN_MEMORY_MIN_MATCH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
+import {
+  ADMIN_DATABANK_UPLOAD_CAP_NAME,
+  ADMIN_MEMORY_MIN_MATCH_NAME,
+  ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME,
+} from "#client/features/user-admin/lib/user-admin-names.ts";
 import type { AdminActionGroupsStory, AdminMemoryTuningStory } from "./_admin-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-action-groups-stories/AdminActionGroupsStory";
 const MEMORY_STORY = "tests/client/features/user-admin/components/_admin-action-groups-stories/AdminMemoryTuningStory";
-const DEADLINE_LABEL = "Prompt-transform deadline (ms)";
-const CAP_LABEL = "Databank upload cap (bytes)";
+const DEADLINE_LABEL = ADMIN_PROMPT_TRANSFORM_DEADLINE_NAME;
+const CAP_LABEL = ADMIN_DATABANK_UPLOAD_CAP_NAME;
 // A separator-free reading of a number over 999: the digits a person types, never a locale's grouping.
 const RAW_DIGITS = /^\d{4,}$/u;
 

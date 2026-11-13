@@ -9,6 +9,7 @@ import { editActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { PERSONA_DESCRIPTION_FIELD_NAME, personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
+import { MACRO_SUGGESTIONS_NAME } from "#ui/primitives/macro-textarea/macro-textarea-names.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -148,7 +149,7 @@ test.describe("macro popup composition", () => {
     await textarea.fill("Greetings ");
     await textarea.press("End");
     await textarea.pressSequentially("{{user");
-    const popup = editor.getByRole("listbox", { name: "Macro suggestions", exact: true });
+    const popup = editor.getByRole("listbox", { name: MACRO_SUGGESTIONS_NAME, exact: true });
     await expect(popup).toBeVisible();
     const selected = popup.getByRole("option", { selected: true });
     await expect(selected).toContainText("{{user}}");

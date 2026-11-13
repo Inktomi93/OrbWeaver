@@ -4,7 +4,7 @@
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Every surface runs every cell of EVERY_CELL; an exception is named beside it in QUALIFIED.
 
-import { BLANK_CHAT_NAME, CHAT_NAME_FIELD_NAME, contextToggleLabel, testId } from "@orb/client/lib";
+import { BLANK_CHAT_NAME, CHAT_NAME_FIELD_NAME, contextToggleLabel, DIALOG_VERBS, testId } from "@orb/client/lib";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -536,7 +536,7 @@ test.describe("character Import at normal size on the desktop", () => {
     const heading = dialog.getByRole("heading", { name: IMPORT_DOOR });
     await expect(heading).toBeFocused();
     await expect(heading).toHaveCSS("outline-style", "none");
-    const close = await dialog.getByRole("button", { name: "Close", exact: true }).boundingBox();
+    const close = await dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).boundingBox();
     const text = await heading.evaluate((node) => {
       const range = document.createRange();
       range.selectNodeContents(node);

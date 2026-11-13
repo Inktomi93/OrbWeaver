@@ -40,7 +40,13 @@ import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
 import { asksSignup, inviteExpiryItems, inviteJoinLink, signupBounds, signupBoundsNotice, toCreateInviteInput } from "../lib/invite-form-model.ts";
-import { INVITE_OUTSTANDING_HEADING, INVITE_OUTSTANDING_READ, INVITE_TARGET_UNKNOWN_TEXT } from "../lib/members-names.ts";
+import {
+  INVITE_BY_HANDLE_NAME,
+  INVITE_OUTSTANDING_HEADING,
+  INVITE_OUTSTANDING_READ,
+  INVITE_SEND_NAME,
+  INVITE_TARGET_UNKNOWN_TEXT,
+} from "../lib/members-names.ts";
 
 type InviteView = inferOutput<Trpc["invites"]["listInvites"]>[number];
 
@@ -180,7 +186,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                 }}
               >
                 <Toggle value="link">Share link</Toggle>
-                <Toggle value="handle">Invite by handle</Toggle>
+                <Toggle value="handle">{INVITE_BY_HANDLE_NAME}</Toggle>
               </ToggleGroup>
             )}
           </form.AppField>
@@ -281,7 +287,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
           <Row gap="field" justify="end">
             <form.Subscribe selector={(state): string => state.values.mode}>
               {(mode): ReactElement => (
-                <form.SubmitButton data-testid={testId("inviteSubmit")}>{mode === "handle" ? "Send invite" : "Create link"}</form.SubmitButton>
+                <form.SubmitButton data-testid={testId("inviteSubmit")}>{mode === "handle" ? INVITE_SEND_NAME : "Create link"}</form.SubmitButton>
               )}
             </form.Subscribe>
           </Row>

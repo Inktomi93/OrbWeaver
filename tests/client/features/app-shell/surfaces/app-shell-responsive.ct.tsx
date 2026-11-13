@@ -1,7 +1,7 @@
 // The shell at phone widths on the production registry: the You sheet and its handoffs, the one-shell screens and
 // their landmarks, the phone drawers and sheets, and the reading order of the tab bar.
 
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextToggleLabel, sectionBackName, YOU_TAB_LABEL } from "@orb/client/lib";
 import { dispatchCommandKey, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -39,7 +39,7 @@ test.afterAll(async () => {
 });
 
 function youTab(page: Page): Locator {
-  return page.locator(".shell-rail").getByRole("button", { name: "You", exact: true });
+  return page.locator(".shell-rail").getByRole("button", { name: YOU_TAB_LABEL, exact: true });
 }
 
 function sheet(page: Page): Locator {
@@ -58,7 +58,7 @@ async function openFirstCharacter(page: Page): Promise<void> {
   const library = page.locator(LIST).getByRole("list", { name: CHARACTER_LIBRARY_NAME });
   await library.getByRole("button").first().click();
   await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true })).toBeVisible();
 }
 
 test.describe("the You sheet", () => {
@@ -402,7 +402,7 @@ for (const viewport of [NARROWEST, PHONE]) {
         return (main?.y ?? 0) + (main?.height ?? 0);
       })
       .toBeCloseTo((gridBox?.y ?? 0) + (gridBox?.height ?? 0), 0);
-    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
     await expect(tabBar).toBeVisible();
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
   });

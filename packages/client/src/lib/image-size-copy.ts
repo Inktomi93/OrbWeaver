@@ -26,3 +26,5 @@ export const IMAGE_SIZE_MODE_DEFAULT = "mode default";
 /** The size and negative-prompt fields' names, in the /imagine options and the rule editor's image action alike. */
 export const IMAGE_SIZE_FIELD_NAME = "Image size";
 export const IMAGE_NEGATIVE_PROMPT_FIELD_NAME = "Negative prompt";
+/** The same field inside a sentence, as the rule editor's Add and Remove controls say it. */
+export const IMAGE_NEGATIVE_PROMPT_NOUN = IMAGE_NEGATIVE_PROMPT_FIELD_NAME.toLowerCase();

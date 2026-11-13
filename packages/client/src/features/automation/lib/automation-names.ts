@@ -13,6 +13,9 @@ export const RULE_EDITOR_AUTOSAVE_NOTE = "Edits save automatically when complete
 /** The rule name field. */
 export const RULE_NAME_FIELD_NAME = "Rule name";
 
+/** The trigger picker: the event a rule waits for. */
+export const RULE_TRIGGER_FIELD_NAME = "When";
+
 /** The switch that lets a rule react to events another rule caused. */
 export const RULE_INCLUDE_AUTOMATION_EVENTS_NAME = "Include events caused by automation";
 
@@ -33,6 +36,15 @@ export const RULE_SCORE_VARIABLE_NAME = "Score variable";
 
 /** The keyword list's add button. */
 export const RULE_ADD_KEYWORD_NAME = "Add keyword";
+
+/** An optional rule field's Add control and the confirm a filled field's Remove asks, named for the field in lower
+ *  case. Its Remove control is `removeActionName` from `@orb/ui/lib`. */
+export function ruleFieldAddName(field: string): string {
+  return `Add ${field}`;
+}
+export function ruleFieldRemoveConfirmName(field: string): string {
+  return `Remove ${field}?`;
+}
 
 /** The image action's door to an explicit size. */
 export const RULE_CHOOSE_IMAGE_SIZE_NAME = "Choose image size";

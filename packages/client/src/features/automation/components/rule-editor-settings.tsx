@@ -6,7 +6,7 @@ import { Select } from "@orb/ui/select";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
 import type { AutosaveSession } from "#forms/editor";
-import { RULE_INCLUDE_AUTOMATION_EVENTS_NAME, RULE_NAME_FIELD_NAME } from "../lib/automation-names.ts";
+import { RULE_INCLUDE_AUTOMATION_EVENTS_NAME, RULE_NAME_FIELD_NAME, RULE_TRIGGER_FIELD_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { triggerLabel } from "../lib/rule-copy.ts";
 import { RuleOptionalField } from "./rule-optional-field.tsx";
@@ -47,7 +47,7 @@ export function RuleEditorSettings({
               }
               return (
                 <Field
-                  label="When"
+                  label={RULE_TRIGGER_FIELD_NAME}
                   description={
                     <>
                       {transformOnly ? "Rewrites apply when a reply starts." : "Only supported events are listed."}
