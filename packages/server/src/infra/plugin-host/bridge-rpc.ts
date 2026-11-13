@@ -134,8 +134,56 @@ const DIRECT_CHAT_WRITES = new Set<PluginBridgeOperation>([
   "surfaceQuickReply",
 ]);
 
+/** Whose resources a host call reaches. An `installer` call touches the installer's rooms, data, connections,
+ *  credentials or egress, so it runs only while the installer stands (`PluginBridge.admitInstaller`). A `sandbox`
+ *  call touches only the plugin's own storage, UI state or private bus, which reaches no account resource on its
+ *  own: a pubsub subscriber's own host calls meet this table too. */
+type BridgeReach = "installer" | "sandbox";
+
+const BRIDGE_OPERATION_REACH = {
+  "chat.listMessages": "installer",
+  "chat.getVariables": "installer",
+  "chat.listCharacters": "installer",
+  "chat.applyVariableOps": "installer",
+  "chat.requestTurn": "installer",
+  "worldInfo.listBooks": "installer",
+  "worldInfo.listEntries": "installer",
+  "worldInfo.upsertEntry": "installer",
+  "imagery.generatePicture": "installer",
+  "variables.get": "installer",
+  "variables.set": "installer",
+  "variables.delete": "installer",
+  "assets.read": "installer",
+  "net.fetch": "installer",
+  "net.fetchAsset": "installer",
+  "search.documents": "installer",
+  "storage.get": "sandbox",
+  "storage.set": "sandbox",
+  "storage.delete": "sandbox",
+  "storage.list": "sandbox",
+  "storage.compareAndSet": "sandbox",
+  "notifications.post": "installer",
+  "llm.quiet": "installer",
+  suggest: "installer",
+  surfaceQuickReply: "installer",
+  "ui.setState": "sandbox",
+  "ui.toast": "sandbox",
+  "ui.openDialog": "sandbox",
+  "databank.ingest": "installer",
+  "character.ingest": "installer",
+  "character.ingestAsset": "installer",
+  "character.setCardData": "installer",
+  "character.getCardData": "installer",
+  "character.findCardData": "installer",
+  "pubsub.emit": "sandbox",
+} as const satisfies Record<PluginBridgeOperation, BridgeReach>;
+
 function egressInApp(): never {
   throw new Error("plugin broker: egress runs in the app process; the broker has no network");
+}
+
+function standingInApp(): never {
+  throw new Error("plugin broker: the installer's standing is checked in the app process");
 }
 
 // Every op forwards its `liveness` as the RPC's cancellation seam (`AsyncCall`'s optional 3rd arg): a guest
@@ -192,6 +240,7 @@ export function createRemoteBridge(call: AsyncCall): PluginBridge {
     suggest: (chatId, act, liveness) => call("suggest", [chatId, act], liveness) as Promise<void>,
     admitEgress: egressInApp,
     admitAssetEgress: egressInApp,
+    admitInstaller: standingInApp,
     surfaceQuickReply: (chatId, choices, liveness) => call("surfaceQuickReply", [chatId, choices], liveness) as Promise<void>,
     ui: {
       setState: (surfaceId, state, chatId, liveness) => call("ui.setState", [surfaceId, state, chatId], liveness) as Promise<void>,
@@ -378,6 +427,9 @@ export async function dispatchBridgeCall(
   liveness: PluginInvocationLiveness,
 ): Promise<unknown> {
   const { bridge, netEgress } = target;
+  if (BRIDGE_OPERATION_REACH[operation] === "installer") {
+    await bridge.admitInstaller();
+  }
   switch (operation) {
     case "chat.listMessages":
       exact(args, 2, operation);

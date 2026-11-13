@@ -676,6 +676,7 @@ export async function openPreparedSurfaceRoot(prepared: PreparedSurfaceData, opt
       logger: root.logger,
       setEnabled: root.services.plugin.setEnabled,
       resolvePrincipal: root.principalFor,
+      isOwnerEnabled: root.workloadExecution.isAccountEnabled,
     });
     const restored = await pluginPosture(db);
     if (activation.failed !== 0 || JSON.stringify(restored) !== JSON.stringify(prepared.provenance.plugins)) {

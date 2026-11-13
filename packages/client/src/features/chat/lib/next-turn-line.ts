@@ -2,7 +2,8 @@
 // the room HOST's chat role (the frozen host seat funds it), so only a host viewer's own chat-role read can
 // fail for the viewer; a room that can reply is a state with no sentence (the chat page names no model).
 
-import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/inference";
+import type { RoomUnavailableCause } from "@orb/contracts/chat";
+import type { ResolvedConnectionView } from "@orb/contracts/inference";
 import type { SendRefusalKey } from "#lib";
 import { ADD_CONNECTION_DOOR, ADD_CONNECTION_PATH, CHAT_ROLE_DOOR, MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
@@ -14,7 +15,7 @@ export interface NextTurnInputs {
   /** The room read (`chat.getChat`) failed, so whether the viewer is the host is unknown. */
   readonly chatFailed: boolean;
   /** The room's pre-send verdict: `null` = serveable, a cause = refused, `undefined` = unresolved. */
-  readonly availabilityCause: UnavailableCause | null | undefined;
+  readonly availabilityCause: RoomUnavailableCause | null | undefined;
   /** The host viewer's own chat-role resolution (`connection.resolveChatCapability`). */
   readonly resolved: Pick<ResolvedConnectionView, "connectionId" | "providerId" | "model"> | undefined;
   readonly resolveFailed: boolean;
@@ -73,7 +74,7 @@ function lacksChatConnection({ rows }: CreditConnections): boolean {
  * The composer's refusal key for a refused send: the host-side `no-chat-connection` split of `no-connection`
  * on the same predicate the line's door uses, so the tooltips and the line point at the same fix.
  */
-export function sendRefusalKey(cause: UnavailableCause, viewerIsHost: boolean | undefined, connections: CreditConnections): SendRefusalKey {
+export function sendRefusalKey(cause: RoomUnavailableCause, viewerIsHost: boolean | undefined, connections: CreditConnections): SendRefusalKey {
   if (nextTurnStatesRefusal(cause) && viewerIsHost === false) {
     return "host-no-chat-connection";
   }
@@ -93,13 +94,13 @@ function hostUnsetLine(connections: CreditConnections): NextTurnLine {
  * Whether the line states this send refusal. For such a cause the line is the room's one statement of it,
  * so the composer's refusal line stands down and its disabled controls are described by the line.
  */
-export function nextTurnStatesRefusal(cause: UnavailableCause | null | undefined): cause is "no-connection" {
+export function nextTurnStatesRefusal(cause: RoomUnavailableCause | null | undefined): cause is "no-connection" {
   return cause === "no-connection";
 }
 
 /** Whether the line's chat-role read may fire: a host viewer, in a room whose verdict has settled (or failed)
  *  without the `no-connection` refusal, which that read would only answer with a `BAD_REQUEST`. */
-export function nextTurnReadsChatRole(viewerIsHost: boolean | undefined, cause: UnavailableCause | null | undefined, verdictFailed: boolean): boolean {
+export function nextTurnReadsChatRole(viewerIsHost: boolean | undefined, cause: RoomUnavailableCause | null | undefined, verdictFailed: boolean): boolean {
   const verdictSettled = cause !== undefined || verdictFailed;
   return viewerIsHost === true && verdictSettled && !nextTurnStatesRefusal(cause);
 }

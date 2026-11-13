@@ -2,7 +2,7 @@
 // @subject packages/inference/src/resolve/availability.ts
 // The composer's pre-send verdict against a physical endpoint: the model list says a server is up or down, and the
 // sleep route, which many OpenAI-compatible servers and proxies do not serve, says only whether it is asleep.
-import type { SendAvailability } from "@orb/contracts/inference";
+import type { RoomSendAvailability } from "@orb/contracts/chat";
 import { builtinProvider } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, servePhysicalPeer } from "@orb/testkit/node/composed";
@@ -47,7 +47,7 @@ interface EngineAnswers {
 }
 
 interface EngineReading {
-  readonly verdict: SendAvailability;
+  readonly verdict: RoomSendAvailability;
   /** Every path the server dialled before the verdict, so a case can prove the read it depends on happened. */
   readonly asked: readonly string[];
 }
