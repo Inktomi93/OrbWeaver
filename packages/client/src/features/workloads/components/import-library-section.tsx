@@ -242,6 +242,9 @@ export function ImportLibrarySection(): ReactElement {
     }
   }, [outcome]);
 
+  const previewing = staged?.preview.status === "reading" ? staged.preview.workloadId : null;
+  const previewTracker = previewing === null ? null : <BundleWorkloadTracker key={previewing} workloadId={previewing} {...previewTrack(previewing)} />;
+
   return (
     <Stack gap="block">
       <Text ink="muted" cap="prose">
@@ -302,15 +305,7 @@ export function ImportLibrarySection(): ReactElement {
           onConfirm={confirm}
         />
       )}
-      {staged?.preview.status === "reading" && staged.preview.workloadId !== null ? (
-        <BundleWorkloadTracker
-          key={staged.preview.workloadId}
-          workloadId={staged.preview.workloadId}
-          onProgress={previewTrack.onProgress}
-          onSucceeded={previewTrack.onSucceeded}
-          onFailed={previewTrack.onFailed}
-        />
-      ) : null}
+      {previewTracker}
       <ImportInFlight ref={outcomeRef} state={state} track={track} />
       {outcome !== null ? (
         <Stack aria-label={IMPORT_RESULT_NAME} focusTarget={true} gap="block" ref={resultRef} role="group" tabIndex={-1}>

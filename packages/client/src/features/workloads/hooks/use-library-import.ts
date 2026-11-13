@@ -148,8 +148,8 @@ export interface LibraryImport {
   readonly reset: () => void;
   /** Wired into the workload tracker while `state.status === "running"`. */
   readonly track: LibraryImportTrack;
-  /** Wired into the workload tracker while the staged folder's preview runs. */
-  readonly previewTrack: LibraryImportTrack;
+  /** Wired into the tracker of one dry-run workload while the staged folder's preview runs; it hears only that workload. */
+  readonly previewTrack: (workloadId: WorkloadId) => LibraryImportTrack;
 }
 
 function isZip(file: File): boolean {
@@ -491,28 +491,41 @@ export function useLibraryImport(): LibraryImport {
     },
   };
 
-  const previewTrack: LibraryImportTrack = {
-    onProgress: (progress) => {
-      setState((prev) => (prev.status === "staged" && prev.preview.status === "reading" ? { ...prev, preview: { ...prev.preview, progress } } : prev));
-    },
-    onSucceeded: (_counts, preview) => {
+  // An event counts only while the live run is still on the workload it came from: a superseded run's tracker stays
+  // mounted until its replacement commits, and a finished upload's tracker until the next one's id lands, so a late
+  // event from either would otherwise finish or advance the run that replaced it.
+  const previewTrack = (workloadId: WorkloadId): LibraryImportTrack => {
+    const liveRun = (): PreviewRun | null => {
       const run = previewRun.current;
-      if (run === null) {
-        return;
-      }
-      if (preview === null) {
-        failPreview(run, UNREADABLE_PREVIEW);
-        return;
-      }
-      run.previews.push(preview);
-      run.index += 1;
-      sendPreviewBatch(run);
-    },
-    onFailed: (message) => {
-      if (previewRun.current !== null) {
-        failPreview(previewRun.current, message);
-      }
-    },
+      return run !== null && run.workloadId === workloadId ? run : null;
+    };
+    const events: LibraryImportTrack = {
+      onProgress: (progress) => {
+        if (liveRun() !== null) {
+          setState((prev) => (prev.status === "staged" && prev.preview.status === "reading" ? { ...prev, preview: { ...prev.preview, progress } } : prev));
+        }
+      },
+      onSucceeded: (_counts, preview) => {
+        const run = liveRun();
+        if (run === null) {
+          return;
+        }
+        if (preview === null) {
+          failPreview(run, UNREADABLE_PREVIEW);
+          return;
+        }
+        run.previews.push(preview);
+        run.index += 1;
+        sendPreviewBatch(run);
+      },
+      onFailed: (message) => {
+        const run = liveRun();
+        if (run !== null) {
+          failPreview(run, message);
+        }
+      },
+    };
+    return events;
   };
 
   const confirm = (): void => {
