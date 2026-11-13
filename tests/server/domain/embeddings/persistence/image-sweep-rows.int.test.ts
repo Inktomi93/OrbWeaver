@@ -223,6 +223,31 @@ test("an avatar whose stored bytes are not a decodable image fails alone like a 
   expect(new Set((await root.db.select().from(imageEmbeddings)).map((row) => row.assetId))).toEqual(new Set([kept]));
 });
 
+// A cut that keeps the PNG signature: inside the IHDR header, and just past it, so the dimensions still read.
+const SIGNED_PREFIX_BYTES = [12, 64] as const;
+
+test.for(SIGNED_PREFIX_BYTES)("an avatar cut to its first %i bytes keeps its signature and still fails alone as corrupt", async (prefix) => {
+  await using lifetime = new AsyncDisposableStack();
+  const { root, owner, assetIds } = await unindexedAvatars(1, lifetime);
+  const [kept] = assetIds;
+  const [, whole] = await shippedAvatars(2);
+  if (kept === undefined || whole === undefined) {
+    throw new Error("the case stores one good avatar and cuts a second");
+  }
+  const stored = await storeThenDamageBlob(
+    root,
+    whole.bytes,
+    () => root.app.assets.store({ principal: owner, ...whole, kind: "avatar" }),
+    whole.bytes.subarray(0, prefix),
+  );
+
+  const result = await root.app.embeddings.embedAssets({ ownerId: null, force: false, signal: signal() });
+
+  // The kept avatar is a complete PNG of the same format, so the refusal is the cut, not the format.
+  expect(result).toEqual({ embedded: 1, skipped: 0, failedAssets: [stored.assetId] });
+  expect(new Set((await root.db.select().from(imageEmbeddings)).map((row) => row.assetId))).toEqual(new Set([kept]));
+});
+
 test("a failure that is not a missing file stops the sweep instead of failing each asset", async () => {
   await using lifetime = new AsyncDisposableStack();
   const { root } = await unindexedAvatars(2, lifetime);

@@ -137,7 +137,7 @@ async function loadAdmittedAsset(ctx: EmbeddingsContext, assetId: AssetId, force
     return null;
   }
   const admission = imageBelowFloor(bytes);
-  if (!admission.recognized) {
+  if (!(admission.recognized && admission.complete)) {
     throw new AssetFileCorruptError(assetId);
   }
   if (!admission.belowFloor) {

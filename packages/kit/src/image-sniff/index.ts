@@ -468,14 +468,200 @@ function isAvif(bytes: Uint8Array): boolean {
  *     `dimensions-unknown` (the guard always requires dimensions), where before the 0s passed every cap
  *     comparison. More fail-closed at a network boundary, which is that guard's stated posture.
  *   • `domain/embeddings`'s `imageBelowFloor` no longer classifies a 0-extent image as below-floor (its
- *     documented rule is that unknown dimensions are NOT below-floor), so such an asset proceeds to embed
- *     exactly as a truncated header already does. That ruling is preserved as written, not reversed. */
+ *     documented rule is that unknown dimensions are NOT below-floor), so a complete such file proceeds to
+ *     embed. A file cut short is refused apart from the floor, by {@link isCompleteImage}. */
 function withDimensionFloor(dimensions: Dimensions): Dimensions {
   const { width, height } = dimensions;
   if (width === null || height === null || width < MIN_DIMENSION || height < MIN_DIMENSION) {
     return NO_DIMENSIONS;
   }
   return dimensions;
+}
+
+// ── Completeness: does the file reach its format's end? ─────────────────────────────────────────────────────
+//
+// A file cut short can keep its signature and even its dimension header (a 64-byte PNG prefix still holds IHDR),
+// so the sniff above cannot tell it from a whole image. Each format states where it ends, and these walks follow
+// that structure to the end without decoding: PNG to its IEND chunk, JPEG to its EOI marker, GIF to its trailer,
+// WebP to the length its RIFF header declares, AVIF through every top-level box. Bytes after the end (an appended
+// payload) do not make a PNG, JPEG, GIF or WebP incomplete. AVIF has no end marker, so bytes past its last box read
+// as a box cut short: a truncated `mdat` and an appended payload look the same, and the walk refuses both. A walk
+// that meets a field it cannot read answers "incomplete".
+
+const PNG_CHUNK_OVERHEAD = 12; // length(4) + type(4) + crc(4)
+const JPEG_EOI = 0xd9;
+const JPEG_SOS = 0xda;
+const JPEG_STUFFED = 0x00;
+const JPEG_RST_MIN = 0xd0;
+const JPEG_RST_MAX = 0xd7;
+const GIF_SCREEN_END = 13; // signature(6) + logical screen descriptor(7)
+const GIF_SCREEN_FLAGS = 10;
+const GIF_IMAGE_FLAGS = 9; // offset of the packed field inside an image descriptor
+const GIF_IMAGE_DESCRIPTOR_LEN = 10; // separator(1) + position and size(8) + packed field(1)
+const GIF_EXTENSION = 0x21;
+const GIF_EXTENSION_HEAD_LEN = 2; // introducer(1) + label(1), before the extension's sub-blocks
+const GIF_IMAGE = 0x2c;
+const GIF_TRAILER = 0x3b;
+const GIF_COLOR_TABLE_FLAG = 128; // the packed field's high bit
+const GIF_COLOR_TABLE_SIZE_MOD = 8; // the packed field's low three bits
+const GIF_RGB = 3;
+const RIFF_PAYLOAD_START = 8; // "RIFF"(4) + size(4)
+const RIFF_SIZE_OFFSET = 4;
+const BOX_SIZE_TO_END = 0;
+const BOX_SIZE_LARGE = 1;
+const BOX_LARGE_HEADER_LEN = 16; // size(4) + type(4) + largesize(8)
+const SHIFT_32 = 4_294_967_296; // << 32
+
+function u32LE(b: Uint8Array, o: number): number {
+  return u16LE(b, o) + u16LE(b, o + OFF.jpegLenField) * SHIFT_16;
+}
+
+function pngComplete(b: Uint8Array): boolean {
+  let offset = PNG_SIGNATURE.length;
+  while (offset + PNG_CHUNK_OVERHEAD <= b.length) {
+    const next = offset + PNG_CHUNK_OVERHEAD + u32BE(b, offset);
+    if (next > b.length) {
+      return false;
+    }
+    if (fourccAt(b, offset + FOURCC_LEN, "IEND")) {
+      return true;
+    }
+    offset = next;
+  }
+  return false;
+}
+
+/** The offset just past an entropy-coded scan: the next marker that is neither a stuffed `FF 00` nor a restart,
+ *  or `null` when the bytes end inside the scan. */
+function jpegScanEnd(b: Uint8Array, start: number): number | null {
+  for (let p = start; p + 1 < b.length; p += 1) {
+    const next = b[p + 1] ?? 0;
+    if (b[p] === JPEG_MARKER_PREFIX && next !== JPEG_STUFFED && next !== JPEG_MARKER_PREFIX && (next < JPEG_RST_MIN || next > JPEG_RST_MAX)) {
+      return p;
+    }
+  }
+  return null;
+}
+
+/** One step of the JPEG marker walk from the marker at `p`: the next marker's offset, `true` at the end-of-image
+ *  marker, or `false` where the bytes cannot be followed. A start-of-scan segment steps past its scan data. */
+function jpegStep(b: Uint8Array, p: number): number | boolean {
+  if (b[p] !== JPEG_MARKER_PREFIX) {
+    return false;
+  }
+  const marker = b[p + OFF.jpegMarker] ?? 0;
+  if (marker === JPEG_EOI) {
+    return true;
+  }
+  if (marker === JPEG_MARKER_PREFIX) {
+    return p + OFF.jpegMarker;
+  }
+  if (isJpegStandalone(marker)) {
+    return p + OFF.jpegLenField;
+  }
+  if (p + OFF.jpegLenField + OFF.jpegLenField > b.length) {
+    return false;
+  }
+  const segLen = u16BE(b, p + OFF.jpegLenField);
+  if (segLen < OFF.jpegLenField) {
+    return false;
+  }
+  const next = p + OFF.jpegLenField + segLen;
+  return marker === JPEG_SOS ? (jpegScanEnd(b, next) ?? false) : next;
+}
+
+function jpegComplete(b: Uint8Array): boolean {
+  let p: number | boolean = OFF.jpegScanStart;
+  while (typeof p === "number" && p + OFF.jpegLenField <= b.length) {
+    p = jpegStep(b, p);
+  }
+  return p === true;
+}
+
+/** Bytes a GIF color table takes, from the packed field that declares it. */
+function gifColorTableLen(flags: number): number {
+  return flags >= GIF_COLOR_TABLE_FLAG ? GIF_RGB * 2 ** ((flags % GIF_COLOR_TABLE_SIZE_MOD) + 1) : 0;
+}
+
+/** The offset past a run of GIF data sub-blocks (each a length byte and its data, ended by a zero length), or
+ *  `null` when the bytes end first. */
+function gifSubBlocksEnd(b: Uint8Array, start: number): number | null {
+  let p = start;
+  while (p < b.length) {
+    const size = b[p] ?? 0;
+    p += 1 + size;
+    if (size === 0) {
+      return p;
+    }
+  }
+  return null;
+}
+
+function gifComplete(b: Uint8Array): boolean {
+  if (b.length < GIF_SCREEN_END) {
+    return false;
+  }
+  let p: number | null = GIF_SCREEN_END + gifColorTableLen(b[GIF_SCREEN_FLAGS] ?? 0);
+  while (p !== null && p < b.length) {
+    const block = b[p];
+    if (block === GIF_TRAILER) {
+      return true;
+    }
+    if (block === GIF_EXTENSION) {
+      p = gifSubBlocksEnd(b, p + GIF_EXTENSION_HEAD_LEN);
+    } else if (block === GIF_IMAGE && p + GIF_IMAGE_DESCRIPTOR_LEN <= b.length) {
+      // The descriptor, its local color table, the LZW minimum code size byte, then the image data sub-blocks.
+      p = gifSubBlocksEnd(b, p + GIF_IMAGE_DESCRIPTOR_LEN + gifColorTableLen(b[p + GIF_IMAGE_FLAGS] ?? 0) + 1);
+    } else {
+      return false;
+    }
+  }
+  return false;
+}
+
+function webpComplete(b: Uint8Array): boolean {
+  return b.length >= RIFF_PAYLOAD_START && b.length >= RIFF_PAYLOAD_START + u32LE(b, RIFF_SIZE_OFFSET);
+}
+
+function isoBmffComplete(b: Uint8Array): boolean {
+  let offset = 0;
+  while (offset < b.length) {
+    if (offset + BOX_HEADER_LEN > b.length) {
+      return false;
+    }
+    const size = u32BE(b, offset);
+    if (size === BOX_SIZE_TO_END) {
+      return true;
+    }
+    const boxLen =
+      size === BOX_SIZE_LARGE && offset + BOX_LARGE_HEADER_LEN <= b.length
+        ? u32BE(b, offset + BOX_HEADER_LEN) * SHIFT_32 + u32BE(b, offset + BOX_HEADER_LEN + FOURCC_LEN)
+        : size;
+    if (boxLen < BOX_HEADER_LEN || offset + boxLen > b.length) {
+      return false;
+    }
+    offset += boxLen;
+  }
+  return true;
+}
+
+/** Whether `bytes` hold a whole image: a recognized format whose structure reaches its end inside the buffer.
+ *  `false` for a file cut short, even one that keeps its signature and dimension header, and for bytes no
+ *  format claims. Pure, never decodes; unlike {@link sniffImageBytes} it walks the whole file, skipping chunk
+ *  payloads where the format gives their lengths. */
+export function isCompleteImage(bytes: Uint8Array): boolean {
+  switch (sniffMime(bytes)) {
+    case PNG_MIME:
+      return pngComplete(bytes);
+    case JPEG_MIME:
+      return jpegComplete(bytes);
+    case GIF_MIME:
+      return gifComplete(bytes);
+    case WEBP_MIME:
+      return webpComplete(bytes);
+    case OCTET_STREAM:
+      return isAvif(bytes) && isoBmffComplete(bytes);
+  }
 }
 
 /** The full byte-facts of an image buffer — `{mime, width, height, animated}` — or `null` when no
