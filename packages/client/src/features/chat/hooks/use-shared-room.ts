@@ -3,13 +3,13 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "#data";
+import { roomRosterOptions, useTRPC } from "#data";
 import { presentMemberCount } from "../lib/roster.ts";
 
 const SHARED_ROOM_FLOOR = 2;
 
 export function useSharedRoom(chatId: ChatId): boolean {
   const trpc = useTRPC();
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   return presentMemberCount(chat?.participants ?? []) >= SHARED_ROOM_FLOOR;
 }

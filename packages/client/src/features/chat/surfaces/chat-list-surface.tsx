@@ -52,7 +52,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { ListPage } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useGatedQuery, useTRPC } from "#data";
+import { QueryErrorState, roomRosterOptions, SkeletonRows, useGatedQuery, useTRPC } from "#data";
 import { ESTIMATED_ROW_PX, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import {
@@ -194,7 +194,7 @@ interface ChatListBodyProps {
  *  neither earns the sentence. */
 function useOpenChatJoinsList(activeChatId: ChatId | null): boolean {
   const trpc = useTRPC();
-  const { data: openChat } = useGatedQuery(activeChatId, (chatId) => trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: openChat } = useGatedQuery(activeChatId, (chatId) => roomRosterOptions(trpc, { chatId }));
   return openChat !== undefined && !openChat.temporary && !openChat.archived;
 }
 

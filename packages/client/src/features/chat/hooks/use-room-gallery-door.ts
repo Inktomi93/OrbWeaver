@@ -4,14 +4,14 @@
 
 import { viewerGalleryCharacter } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 import { openCharacterGallery } from "#state";
 
 /** The gallery a viewer can open from `chatId`: its character's name and the opener, or `null` when the
  *  viewer owns no character there (or there is no room). The room read is cache-first. */
 export function useRoomGalleryDoor(chatId: ChatId | null): { readonly characterName: string; readonly open: () => void } | null {
   const trpc = useTRPC();
-  const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data: chat } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const seat = chat === undefined ? null : viewerGalleryCharacter(chat);
   const characterId = seat?.characterId ?? null;
   if (chatId === null || seat === null || characterId === null) {

@@ -9,7 +9,7 @@ import { MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubm
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { readComposerDraft, requestComposerFocus, setComposerDraft } from "#state";
 import { useRollDice } from "../hooks/use-rpg-mutations.ts";
@@ -35,7 +35,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const rollDice = useRollDice({ trpc, invalidation });
-  const { data: detail } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data: detail } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const engaged = isRpgEngaged(detail?.rpg ?? null);
   const { data: game } = useGatedQuery(engaged ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const ruleset = game?.publicConfig.ruleset;

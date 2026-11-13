@@ -41,7 +41,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useTRPC } from "#data";
 import { IMAGE_MODE_LABELS, ROOM_PICTURES_NOTE, useElapsedSeconds, useFocusOnSwap, viewerTimeZone } from "#lib";
 import type { ImagineSeed } from "#state";
 import { closeModal, holdRoomForSend, useImagineSeed } from "#state";
@@ -277,7 +277,7 @@ function useImagineRoom(
   trpc: Trpc,
   chatId: ChatId,
 ): { readonly galleryCharacterName: string | undefined; readonly shared: boolean; readonly hostPays: boolean | undefined } {
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   if (chat === undefined) {
     return { galleryCharacterName: undefined, shared: false, hostPays: undefined };
   }

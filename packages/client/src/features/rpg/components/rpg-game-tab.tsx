@@ -29,7 +29,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { QueryBoundary, SettingCheckboxRow, Tip } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, roomRosterOptions, SkeletonRows, useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { notify } from "#lib";
 import { requestRpgStatusSheet, setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -328,7 +328,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const invalidation = useInvalidation();
   const resync = useResyncFromStory({ trpc, invalidation });
   const restamp = useReattributePersona({ trpc, invalidation });
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const [restampFirst, setRestampFirst] = useState(false);
   const personaId = chat.viewerActivePersonaId;
   const canRestamp = personaId !== null;

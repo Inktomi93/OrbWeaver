@@ -20,7 +20,7 @@ import { resolveCharactersCanReact, resolveReactionsEnabled } from "@orb/contrac
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useSetCharactersCanReact, useSetReactionsEnabled } from "../hooks/use-context-panel-mutations.ts";
 
@@ -32,7 +32,7 @@ export interface ReactionTogglesProps {
 export function ReactionsEnabledControl({ chatId }: ReactionTogglesProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const prefs = useChatBehaviorPrefs();
   const setEnabled = useSetReactionsEnabled({ trpc, invalidation });
   return (
@@ -51,7 +51,7 @@ export function ReactionsEnabledControl({ chatId }: ReactionTogglesProps): React
 export function CharactersCanReactControl({ chatId }: ReactionTogglesProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const prefs = useChatBehaviorPrefs();
   const setEnabled = useSetCharactersCanReact({ trpc, invalidation });
   return (

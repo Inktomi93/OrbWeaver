@@ -5,7 +5,7 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { PersonaId } from "@orb/kit/ids";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 
 /** Where the restamp would point: the viewer's current persona in this chat, or `null` with none picked. */
 export interface ReattributeTarget {
@@ -15,7 +15,7 @@ export interface ReattributeTarget {
 /** `null` on any row that is not the viewer's own user line, and while the room read is unsettled. */
 export function useReattributeTarget(message: MessageView): ReattributeTarget | null {
   const trpc = useTRPC();
-  const { data: chat } = useGatedQuery(message.chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data: chat } = useGatedQuery(message.chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   // Optional-chained throughout: the CT harness answers an unlisted proc with `null`.
   const viewerUserId = chat?.viewerUserId;
   if (viewerUserId === undefined || message.role !== "user" || message.authorUserId !== viewerUserId) {

@@ -10,14 +10,15 @@ import type { Locator, Page } from "@playwright/test";
 import {
   REFINERY_COMPARE_NAME,
   REFINERY_EDIT_SCOPE_NAME,
-  REFINERY_HIDE_COMPARE_NAME,
   REFINERY_SCOPE_NAME,
   REFINERY_USE_FOR_APPLY_VERB,
   REFINERY_USE_LATEST_VERB,
   REFINERY_VERSION_DIFF_HEADING,
   REFINERY_VIEW_RUN_VERB,
+  refineryCompareToggleName,
   refineryOpenCardName,
   refineryRestoreVersionName,
+  refineryVersionRowLabel,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -112,12 +113,12 @@ for (const regime of REGIMES) {
         width: regime.width,
         appearance: regime.appearance,
       });
-      const compare = page.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true });
+      const compare = page.getByRole("button", { name: refineryCompareToggleName(false, "Manual layout reference"), exact: true });
       const restore = page.getByRole("button", { name: refineryRestoreVersionName("Manual layout reference"), exact: true });
       await expectContained(compare.locator(".."), [compare, restore]);
       await compare.focus();
       await page.keyboard.press("Enter");
-      const hide = page.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true });
+      const hide = page.getByRole("button", { name: refineryCompareToggleName(true, "Manual layout reference"), exact: true });
       await expect(hide).toBeFocused();
       await expect(page.getByText(REFINERY_VERSION_DIFF_HEADING, { exact: true })).toBeVisible();
       await expectContained(hide.locator(".."), [hide, restore]);
@@ -151,7 +152,10 @@ for (const regime of REGIMES) {
   });
 }
 
-test("each version's Restore names its version, and versions sharing a label are told apart oldest first", async ({ mount, page }) => {
+test("each version's Compare and Restore name its version and its row shows the ordinal, so versions sharing a label are told apart oldest first", async ({
+  mount,
+  page,
+}) => {
   await using root = await createServerHarness({ startJobs: false });
   const { session, caller, card } = await seedSession(root, page);
   // The walk orders by creation time, so each snapshot is made a second after the last.
@@ -175,6 +179,25 @@ test("each version's Restore names its version, and versions sharing a label are
   ];
   for (const [index, name] of expected.entries()) {
     await expect(restores.nth(index)).toHaveAccessibleName(name);
+  }
+  const compares = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_COMPARE_NAME)} `, "u") });
+  await expect(compares).toHaveCount(3);
+  await expect(compares.first()).toHaveAccessibleName(refineryCompareToggleName(false, "Before the rename"));
+  // Sighted readers get the same ordinal the names carry; a row with a label of its own prints none.
+  await expect(page.getByText(refineryVersionRowLabel("Manual layout reference", "#2"), { exact: true })).toBeVisible();
+  await expect(page.getByText(refineryVersionRowLabel("Manual layout reference", "#1"), { exact: true })).toBeVisible();
+  await expect(page.getByText("Before the rename", { exact: true })).toBeVisible();
+  // Each twin's Compare ends with the ordinal its own row prints, read off the page rather than built by the names module, so the two
+  // twins' Compare names differ.
+  const twinLabel = "Manual layout reference";
+  const printed = await page.getByText(new RegExp(`^${RegExp.escape(twinLabel)} `, "u")).allTextContents();
+  const ordinals = printed.map((text) => text.slice(twinLabel.length).trim());
+  expect(new Set(ordinals).size).toBe(2);
+  const twinCompares = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_COMPARE_NAME)} ${RegExp.escape(twinLabel)}`, "u") });
+  await expect(twinCompares).toHaveCount(ordinals.length);
+  for (const [index, ordinal] of ordinals.entries()) {
+    expect(ordinal).not.toBe("");
+    await expect(twinCompares.nth(index)).toHaveAccessibleName(new RegExp(` ${RegExp.escape(ordinal)}$`, "u"));
   }
 });
 

@@ -29,7 +29,7 @@
 
 import type { ChatReactionsView, MessageReactionGroup } from "@orb/contracts/chat";
 import type { ChatId, ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 
 const EMPTY_GROUPS: readonly MessageReactionGroup[] = [];
 
@@ -39,7 +39,7 @@ const EMPTY_GROUPS: readonly MessageReactionGroup[] = [];
  *  never a second round-trip or a client-side guess at identity. */
 export function useViewerSeatId(chatId: ChatId | null): ChatParticipantId | null {
   const trpc = useTRPC();
-  const { data } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   if (data === undefined) {
     return null;
   }

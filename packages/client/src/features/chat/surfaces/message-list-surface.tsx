@@ -27,15 +27,16 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
-import { chatDeletedFromList, isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
+import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
 import { resolveGenerationCredit } from "../components/message-row-parts.tsx";
+import { RoomReadFailure } from "../components/room-read-failure.tsx";
 import { TranscriptWindow } from "../components/transcript-window.tsx";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useChatStyle } from "../hooks/use-chat-style.ts";
@@ -100,22 +101,10 @@ export interface MessageListSurfaceProps {
   readonly leading?: ReactNode;
 }
 
-/**
- * The room's read failure. A room deleted or reaped where this client never heard of it (another tab, a host's delete, the expiry
- * sweep, a delete while the tab was closed) leaves its id as the active chat: the user channel carries no deleted event and the
- * active-chat store makes no server call, so the room's own read answering not found is the one signal. It returns the reader to the
- * chat list, where a retry could never succeed.
- */
-function RoomReadFailure({ chatId, error, onRetry }: { readonly chatId: ChatId; readonly error: unknown; readonly onRetry: () => void }): ReactElement {
-  const gone = trpcErrorCode(error) === "NOT_FOUND";
-  useEffect(() => {
-    if (gone) {
-      chatDeletedFromList(chatId);
-    }
-  }, [gone, chatId]);
+function TranscriptLoading(): ReactElement {
   return (
-    <Track of={Stack} track="chat">
-      <QueryErrorState label="this conversation" onRetry={onRetry} plate="error" />
+    <Track of={Stack} track="chat" data-slot="transcript-loading" plate="loading">
+      <SkeletonRows count={3} />
     </Track>
   );
 }
@@ -143,11 +132,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         // bands on a photo. The timing was never the defect: #454's rAF sampler proves the skeleton paints
         // on the first room frame of a Resume; it was invisible, so Resume — the most-pressed action in the
         // app — read as an empty room for ~400ms. Both classes are inert on a plain background.
-        fallback={
-          <Track of={Stack} track="chat" data-slot="transcript-loading" plate="loading">
-            <SkeletonRows count={3} />
-          </Track>
-        }
+        fallback={<TranscriptLoading />}
         // THE ERROR STATE IS PART OF THE COLUMN TOO (#681) — the same argument as the fallback directly
         // above, for the state on the other side of the same read. It took the transcript's TRACK and a
         // surface of its own; over art it had neither, so the muted "Couldn't load…" line and its Retry
@@ -156,7 +141,9 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         // control, and `muted-foreground` is floored against `card` (the `error` plate states the ink
         // routing in full). Both classes are inert on a plain background.
         // The track is a box around the state, so the plate rides the component's own `plate`.
-        renderError={(error, retry): ReactElement => <RoomReadFailure chatId={chatId} error={error} onRetry={retry} />}
+        // A not-found answer keeps the loading rows, never the plate: the room surface reads that answer as gone and leaves, and its
+        // verdict can land a commit after this boundary catches, so a plate here would show for a room that is already leaving.
+        renderError={(error, retry): ReactElement => (trpcErrorCode(error) === "NOT_FOUND" ? <TranscriptLoading /> : <RoomReadFailure onRetry={retry} />)}
       >
         {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>
@@ -211,7 +198,7 @@ function ChatThread({
   readonly history: ReactNode;
 }): ReactElement {
   const trpc = useTRPC();
-  const { data: chatDetail } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chatDetail } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const messages = messagesPage.messages;
   const participants = buildParticipantsById(chatDetail.participants);
   // Merge the two CHAT IDENTITY wire halves (D137: the chat-level participant floor ∪ this page's own stamped

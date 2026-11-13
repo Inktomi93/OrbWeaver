@@ -9,7 +9,7 @@ import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { pressForPage, QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
+import { pressForPage, QueryErrorState, roomRosterOptions, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
 import { RETRY_NAME } from "#lib";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
 import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY, CHAT_WINDOW_PRESS_FAILURE } from "../lib/chat-surface-names.ts";
@@ -36,7 +36,7 @@ interface TranscriptWindowProps {
 
 export function TranscriptWindow(props: TranscriptWindowProps): ReactElement {
   const trpc = useTRPC();
-  useQuery(trpc.chat.getChat.queryOptions({ chatId: props.chatId }));
+  useQuery(roomRosterOptions(trpc, { chatId: props.chatId }));
   const moment = useChatMoment(props.chatId);
   return moment === null ? <OrdinaryThread {...props} /> : <AnchoredThread {...props} target={moment.target} />;
 }

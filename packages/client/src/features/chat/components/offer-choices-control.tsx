@@ -21,7 +21,7 @@ import { resolveOfferChoices } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useSetOfferChoices } from "../hooks/use-context-panel-mutations.ts";
 
@@ -33,7 +33,7 @@ export interface OfferChoicesControlProps {
 export function OfferChoicesControl({ chatId }: OfferChoicesControlProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const prefs = useChatBehaviorPrefs();
   const setEnabled = useSetOfferChoices({ trpc, invalidation });
   return (

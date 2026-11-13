@@ -1,6 +1,6 @@
 // Central invalidation seam: bus handlers call invalidate(event)/invalidateUser(event), mutations
 // route `invalidates` filters through invalidateFilters — nothing else calls invalidateQueries
-// directly (gate `orb/no-inline-invalidate-outside-seam`).
+// directly (gate `orb/no-inline-invalidate-outside-seam`). A room left as gone drops its own reads here too (`forgetGoneRoom`).
 //
 // The chat half ALSO APPLIES the event's `view` carrier into the room's message-list cache before it
 // invalidates (`applyCanonView`) — the refetch stays, but the row it will confirm is already correct.
@@ -298,6 +298,17 @@ function joinWave(wave: BusWave, filter: InvalidateQueryFilters, query: Query): 
   if (predatesWave(wave, filter, query)) {
     replaceStaleRead(wave, query);
   }
+}
+
+/**
+ * Drop a gone room's own reads, its roster and its canon tail in both shapes, so a later visit to the same id starts from a fresh read
+ * instead of the not-found answer it left with. Call it once nothing observes them: a dropped read that is still observed is rebuilt
+ * and fetched on the observer's next render.
+ */
+export function forgetGoneRoom(deps: { readonly queryClient: QueryClient; readonly trpc: Trpc }, chatId: ChatId): void {
+  deps.queryClient.removeQueries(deps.trpc.chat.getChat.queryFilter({ chatId }));
+  deps.queryClient.removeQueries(deps.trpc.chat.listMessages.queryFilter({ chatId }));
+  deps.queryClient.removeQueries(deps.trpc.chat.listMessages.infiniteQueryFilter({ chatId }));
 }
 
 export function createInvalidation(deps: { readonly queryClient: QueryClient; readonly trpc: Trpc }): Invalidation {

@@ -42,7 +42,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DestructiveAction, QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, roomRosterOptions, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
@@ -213,7 +213,7 @@ function ArchivedCards({
 }): ReactElement {
   const trpc = useTRPC();
   const [{ data: messages }, { data: chat }] = useSuspenseQueries({
-    queries: [trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), trpc.chat.getChat.queryOptions({ chatId: state.chatId })],
+    queries: [trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), roomRosterOptions(trpc, { chatId: state.chatId })],
   });
   return children(collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: state.viewerUserId }));
 }
@@ -318,7 +318,7 @@ const NO_CARDS: readonly ArchivedCard[] = [];
 function ChronicleWithSettledCards({ state, cardsEnabled }: { readonly state: RpgPanelState; readonly cardsEnabled: boolean }): ReactElement {
   const trpc = useTRPC();
   const messages = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
-  const chat = useQuery({ ...trpc.chat.getChat.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
+  const chat = useQuery({ ...roomRosterOptions(trpc, { chatId: state.chatId }), enabled: cardsEnabled });
   const cards =
     messages.data === undefined || chat.data === undefined
       ? NO_CARDS

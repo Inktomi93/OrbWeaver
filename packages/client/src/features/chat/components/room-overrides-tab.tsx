@@ -14,7 +14,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useTRPC } from "#data";
 import { useSetChatBackground, useSetRoomOverrides } from "../hooks/use-context-panel-mutations.ts";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model.ts";
 import { RoomOverridesForm } from "./room-overrides-form.tsx";
@@ -62,7 +62,7 @@ export function ChatBackgroundSection({ chatId, background }: ChatBackgroundSect
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setBackground = useSetChatBackground({ trpc, invalidation });
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   const carried = resolveCarriedBackground(chat?.participants, background);
 
   return (
