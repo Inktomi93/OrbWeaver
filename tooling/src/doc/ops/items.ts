@@ -21,6 +21,7 @@ import type {
   RenamedItem,
   SectionContent,
   WorkItem,
+  WrittenPaths,
 } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { sectionsOf, splitDocument, structuralHeadings, withFields, withSectionText } from "../lib/frontmatter-write.ts";
@@ -58,9 +59,9 @@ refuseDirectInvocation(import.meta.url, "pnpm doc <item|set|land>");
 /** The outcome every write verb reports: what it wrote, or why it wrote nothing. A landing verb also
  *  names what it SKIPPED (an item already done), which is neither a write nor a refusal. A `--commit`
  *  verb names the commit it made. A retitling `set` names the files it moved, and the moves whose two halves
- *  it staged. A `status superseded` names the lines that still cite the superseded doc. */
-export interface WriteOutcome {
-  readonly written: readonly string[];
+ *  it staged. A `status superseded` names the lines that still cite the superseded doc. Every verb declares
+ *  the paths it created, which a failed commit removes. */
+export interface WriteOutcome extends WrittenPaths {
   readonly refusals: readonly string[];
   readonly skipped?: readonly string[];
   readonly committed?: string;
@@ -126,20 +127,21 @@ function commitWork(outcome: WriteOutcome, prior: PriorFiles, repoRoot: string):
   }
   const paths = [...new Set([...outcome.written, ...uncommittedBoardPaths(repoRoot)])];
   if (changedPaths(paths, repoRoot).length === 0) {
-    return { written: outcome.written, refusals: [], skipped: ["nothing to commit — the write changed nothing"] };
+    return { written: outcome.written, created: outcome.created, refusals: [], skipped: ["nothing to commit — the write changed nothing"] };
   }
   const commit = commitPaths(paths, workCommitMessage(itemIdsOf(paths), TOOL_TRAILER), repoRoot);
   if (commit.ok) {
-    return { written: paths, refusals: [], committed: commit.sha };
+    return { written: paths, created: outcome.created, refusals: [], committed: commit.sha };
   }
   if ("stranded" in commit) {
     return {
       written: paths,
+      created: outcome.created,
       refusals: [`the work commit failed after it reached history — ${commit.reason}. Read git log and git status before writing again`],
     };
   }
-  putBack(outcome.written, prior, repoRoot);
-  return { written: [], refusals: [`the work commit failed — ${commit.reason}. Nothing changed: the item files and indexes are as they were`] };
+  putBack(outcome, prior, repoRoot);
+  return { written: [], created: [], refusals: [`the work commit failed — ${commit.reason}. Nothing changed: the item files and indexes are as they were`] };
 }
 
 /** Run a write verb, committing its result when the caller asked. With `commit`, the blockers refuse
@@ -150,7 +152,7 @@ export function runWrite(commit: boolean, repoRoot: string, write: () => WriteOu
   }
   const blockers = commitBlockers(repoRoot);
   if (blockers.length > 0) {
-    return { written: [], refusals: blockers };
+    return { written: [], created: [], refusals: blockers };
   }
   const prior = priorTextFiles(repoRoot);
   return commitWork(write(), prior, repoRoot);
@@ -207,7 +209,7 @@ function itemSource(input: NewItemInput, date: string): string {
 export function newItems(inputs: readonly NewItemInput[], repoRoot = root, date = today()): WriteOutcome {
   const early = inputs.flatMap((input) => inputProblems(input, repoRoot));
   if (early.length > 0) {
-    return { written: [], refusals: early };
+    return { written: [], created: [], refusals: early };
   }
   const first = nextItemId(loadItems(repoRoot), highestHistoricId("work", repoRoot));
   const pending: readonly GovernedDoc[] = inputs.map((input, index) => ({
@@ -216,12 +218,14 @@ export function newItems(inputs: readonly NewItemInput[], repoRoot = root, date 
   }));
   const refusals = pendingDocProblems(pending, repoRoot);
   if (refusals.length > 0) {
-    return { written: [], refusals };
+    return { written: [], created: [], refusals };
   }
   for (const doc of pending) {
     writeDoc(doc.path, doc.source, repoRoot);
   }
-  return { written: [...pending.map((doc) => doc.path), ...regenerateIndexes(repoRoot)], refusals: [] };
+  const minted = pending.map((doc) => doc.path);
+  const generated = regenerateIndexes(repoRoot);
+  return { written: [...minted, ...generated.written], created: [...minted, ...generated.created], refusals: [] };
 }
 
 export function newItem(input: NewItemInput, repoRoot = root, date = today()): WriteOutcome {
@@ -294,7 +298,11 @@ function laneRefusals(items: readonly WorkItem[], patch: ItemPatch, repoRoot: st
  *  the file and rewrites every reference to the old name. */
 export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = root, date = today()): WriteOutcome {
   if (patch.state === "done") {
-    return { written: [], refusals: [`done is reached by landing, which deletes the item: pnpm doc land ${ids.map(String).join(" ")} --evidence <sha>`] };
+    return {
+      written: [],
+      created: [],
+      refusals: [`done is reached by landing, which deletes the item: pnpm doc land ${ids.map(String).join(" ")} --evidence <sha>`],
+    };
   }
   const byId = new Map(loadItems(repoRoot).map((item) => [item.id, item] as const));
   const refusals = ids.filter((id) => !byId.has(id)).map((id) => `${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`);
@@ -316,24 +324,28 @@ export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = ro
     }
   }
   if (refusals.length > 0) {
-    return { written: [], refusals };
+    return { written: [], created: [], refusals };
   }
   const problems = introducedDocProblems(edits, repoRoot);
   if (problems.length > 0) {
-    return { written: [], refusals: problems };
+    return { written: [], created: [], refusals: problems };
   }
   const written: string[] = [];
+  const created: string[] = [];
   const renamed: RenamedItem[] = [];
   for (const { from, doc } of edits) {
     writeDoc(doc.path, doc.source, repoRoot);
     written.push(doc.path);
     if (from !== doc.path) {
+      // `itemEdit` refuses a new name that exists, so the retitled file is this write's own.
+      created.push(doc.path);
       rmSync(join(repoRoot, from));
       written.push(from, ...rewriteReferences(from, doc.path, repoRoot));
       renamed.push({ from, to: doc.path });
     }
   }
-  return { written: [...new Set([...written, ...regenerateIndexes(repoRoot)])], refusals: [], renamed };
+  const generated = regenerateIndexes(repoRoot);
+  return { written: [...new Set([...written, ...generated.written])], created: [...created, ...generated.created], refusals: [], renamed };
 }
 
 /** Stage both halves of every rename a retitling `set` made, in the checkout's real index, so the caller's own commit
@@ -401,17 +413,18 @@ function replaceSections(
 export function editItem(id: number, sections: SectionContent<ItemEditFlag>, repoRoot = root, date = today()): WriteOutcome {
   const item = loadItems(repoRoot).find((candidate) => candidate.id === id);
   if (item === undefined) {
-    return { written: [], refusals: [`${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`] };
+    return { written: [], created: [], refusals: [`${String(id)}: no such item under ${DOC_TOOL_TREES.work} — pnpm doc overview lists them`] };
   }
   const original = readDoc(item.path, repoRoot).source;
   const replaced = replaceSections(item.path, original, sections);
   if ("refusals" in replaced) {
-    return { written: [], refusals: replaced.refusals };
+    return { written: [], created: [], refusals: replaced.refusals };
   }
   const edit: DocEdit = { from: item.path, doc: { path: item.path, source: formattedDoc(withFields(replaced.source, { updated: date })) } };
   if (headingList(edit.doc.source) !== headingList(original)) {
     return {
       written: [],
+      created: [],
       refusals: [
         `${item.path}: the edit would change its sections from [${headingList(original)}] to [${headingList(edit.doc.source)}] — check the text for an unclosed code fence`,
       ],
@@ -419,10 +432,11 @@ export function editItem(id: number, sections: SectionContent<ItemEditFlag>, rep
   }
   const problems = introducedDocProblems([edit], repoRoot);
   if (problems.length > 0) {
-    return { written: [], refusals: problems };
+    return { written: [], created: [], refusals: problems };
   }
   writeDoc(edit.doc.path, edit.doc.source, repoRoot);
-  return { written: [item.path, ...regenerateIndexes(repoRoot)], refusals: [] };
+  const generated = regenerateIndexes(repoRoot);
+  return { written: [item.path, ...generated.written], created: generated.created, refusals: [] };
 }
 
 /** What `show` found: the item files by id in the order given, and a refusal per id with no item. */

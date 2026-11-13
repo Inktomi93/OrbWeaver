@@ -137,16 +137,17 @@ export function removeDocs(targets: readonly string[], repoRoot = root): WriteOu
   const resolved = targets.map((target) => resolve(target, repoRoot));
   const refusals = resolved.flatMap((entry) => ("refusal" in entry ? [entry.refusal] : []));
   if (refusals.length > 0) {
-    return { written: [], refusals };
+    return { written: [], created: [], refusals };
   }
   const paths = [...new Set(resolved.flatMap((entry) => ("path" in entry ? [entry.path] : [])))];
   const citers = [...structuralCiters(paths, repoRoot), ...textCiters(paths, repoRoot)];
   if (citers.length > 0) {
-    return { written: [], refusals: citers };
+    return { written: [], created: [], refusals: citers };
   }
   for (const path of paths) {
     const plan = !isItemPath(path) && basenameOf(path) === DESIGN_FILE;
     rmSync(join(repoRoot, plan ? folderOf(path) : path), { recursive: plan });
   }
-  return { written: [...paths, ...regenerateIndexes(repoRoot)], refusals: [] };
+  const generated = regenerateIndexes(repoRoot);
+  return { written: [...paths, ...generated.written], created: generated.created, refusals: [] };
 }

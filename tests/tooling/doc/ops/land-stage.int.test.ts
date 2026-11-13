@@ -85,7 +85,7 @@ test(
     const merge = commitAll(root, `Merge lane\n\nCloses: 1\n${TRAILER}`);
     expect(git(root, "rev-list", "--parents", "-n1", "HEAD").split(" ")).toHaveLength(3);
     expect(git(root, "diff", "--name-status", "HEAD^1", "HEAD", "--", "docs/work/0001-a.md")).toBe("D\tdocs/work/0001-a.md");
-    const already = { written: [], refusals: [], skipped: [`1: already landed at ${merge.slice(0, SHORT_SHA)}`] };
+    const already = { written: [], created: [], refusals: [], skipped: [`1: already landed at ${merge.slice(0, SHORT_SHA)}`] };
     expect(landMerged(root, TODAY, false)).toEqual(already);
     expect(landMerged(root, TODAY, true)).toEqual(already);
     expect(git(root, "rev-parse", "HEAD")).toBe(merge);
@@ -97,7 +97,7 @@ test("a plain commit after land --stage is likewise landed already for land --me
   const root = await repoWithItems(plantedTree);
   expect(landStaged([1], root, TODAY).refusals).toEqual([]);
   const commit = commitAll(root, `feat(x): the work\n\nCloses: 1\n${TRAILER}`);
-  expect(landMerged(root, TODAY, true)).toEqual({ written: [], refusals: [], skipped: [`1: already landed at ${commit.slice(0, SHORT_SHA)}`] });
+  expect(landMerged(root, TODAY, true)).toEqual({ written: [], created: [], refusals: [], skipped: [`1: already landed at ${commit.slice(0, SHORT_SHA)}`] });
   expect(git(root, "rev-parse", "HEAD")).toBe(commit);
 });
 

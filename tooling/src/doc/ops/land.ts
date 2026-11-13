@@ -91,7 +91,8 @@ function record(item: WorkItem, evidence: string | null, repoRoot: string): Land
 }
 
 /** The bytes of every path the landing can write: the item files, the released docs and the generated files.
- *  A generated file the regeneration creates is absent here, so putting it back deletes it. */
+ *  A generated file the regeneration creates is absent here; the landing declares it created, so putting it back
+ *  deletes it. */
 function priorFiles(paths: readonly string[], repoRoot: string): PriorFiles {
   const candidates = [...paths, ...governedPaths(repoRoot).filter(isGeneratedPath)];
   return new Map(candidates.map((path) => [path, readDoc(path, repoRoot).source] as const));
@@ -99,8 +100,8 @@ function priorFiles(paths: readonly string[], repoRoot: string): PriorFiles {
 
 /** The outcome of a landing whose stage or commit step failed after the write: nothing stays written. */
 function unwound(landing: WrittenLanding, repoRoot: string, refusal: string): LandOutcome {
-  putBack(landing.outcome.written, landing.prior, repoRoot);
-  return { written: [], refusals: [`${refusal}. Nothing changed: the item files and indexes are as they were`], skipped: [] };
+  putBack(landing.outcome, landing.prior, repoRoot);
+  return { written: [], created: [], refusals: [`${refusal}. Nothing changed: the item files and indexes are as they were`], skipped: [] };
 }
 
 /** The shared half of every landing: resolve the ids, refuse what must not land, then write the releases,
@@ -111,7 +112,12 @@ function writeLanding(ids: readonly number[], evidence: string | null, repoRoot:
   const lock = heldIndexLock(repoRoot);
   if (lock !== null) {
     return {
-      outcome: { written: [], refusals: [`git's index is locked (${lock} exists) — another git process holds it; nothing was written`], skipped: [] },
+      outcome: {
+        written: [],
+        created: [],
+        refusals: [`git's index is locked (${lock} exists) — another git process holds it; nothing was written`],
+        skipped: [],
+      },
       records: [],
       prior: nothing,
     };
@@ -140,15 +146,15 @@ function writeLanding(ids: readonly number[], evidence: string | null, repoRoot:
   const paths = targets.map((item) => item.path);
   refusals.push(...textCiters(paths, repoRoot));
   if (refusals.length > 0) {
-    return { outcome: { written: [], refusals, skipped: [] }, records: [], prior: nothing };
+    return { outcome: { written: [], created: [], refusals, skipped: [] }, records: [], prior: nothing };
   }
   if (targets.length === 0) {
-    return { outcome: { written: [], refusals: [], skipped }, records: [], prior: nothing };
+    return { outcome: { written: [], created: [], refusals: [], skipped }, records: [], prior: nothing };
   }
   const released = releases(new Set(targets.map((item) => item.id)), items, repoRoot, date);
   const problems = introducedDocProblems(released, repoRoot);
   if (problems.length > 0) {
-    return { outcome: { written: [], refusals: problems, skipped: [] }, records: [], prior: nothing };
+    return { outcome: { written: [], created: [], refusals: problems, skipped: [] }, records: [], prior: nothing };
   }
   const records = targets.map((item) => record(item, evidence, repoRoot));
   const prior = priorFiles([...paths, ...released.map(({ doc }) => doc.path)], repoRoot);
@@ -158,8 +164,9 @@ function writeLanding(ids: readonly number[], evidence: string | null, repoRoot:
   for (const path of paths) {
     rmSync(join(repoRoot, path));
   }
-  const written = [...paths, ...released.map(({ doc }) => doc.path), ...regenerateIndexes(repoRoot)];
-  return { outcome: { written, refusals: [], skipped }, records, prior };
+  const generated = regenerateIndexes(repoRoot);
+  const written = [...paths, ...released.map(({ doc }) => doc.path), ...generated.written];
+  return { outcome: { written, created: generated.created, refusals: [], skipped }, records, prior };
 }
 
 /** Land items: prove the evidence is on `main`, delete the item files, release their dependents,
@@ -167,7 +174,12 @@ function writeLanding(ids: readonly number[], evidence: string | null, repoRoot:
  *  file git shows deleted is skipped with its landing commit, so a repeated trailer lands nothing twice. */
 export function landItems(ids: readonly number[], evidence: string, repoRoot = root, date = today()): LandOutcome {
   if (!commitOnMain(evidence, repoRoot)) {
-    return { written: [], refusals: [`${evidence}: not a commit reachable from main — land names the merge or the landed commit itself`], skipped: [] };
+    return {
+      written: [],
+      created: [],
+      refusals: [`${evidence}: not a commit reachable from main — land names the merge or the landed commit itself`],
+      skipped: [],
+    };
   }
   const landing = writeLanding(ids, evidence, repoRoot, date);
   if (landing.records.length === 0) {
@@ -248,13 +260,13 @@ function staleTrailers(
  *  trailer whose tree holds none, or another slug, refuses the set the same way (the id was reused). */
 export function landMerged(repoRoot = root, date = today(), headMerge = false): LandOutcome {
   if (!isMainBranch(repoRoot)) {
-    return { written: [], refusals: [], skipped: [] };
+    return { written: [], created: [], refusals: [], skipped: [] };
   }
   const commits = mergedCommits(repoRoot, headMerge);
   const ids = [...new Set(commits.flatMap((commit) => closesTrailer(commit.message)))];
   const head = headCommit(repoRoot);
   if (ids.length === 0 || head === null) {
-    return { written: [], refusals: [], skipped: [] };
+    return { written: [], created: [], refusals: [], skipped: [] };
   }
   const byId = new Map(loadItems(repoRoot).map((item) => [item.id, item] as const));
   const onTree = new Set(byId.keys());
@@ -264,6 +276,7 @@ export function landMerged(repoRoot = root, date = today(), headMerge = false): 
     const fix = byHand.length === 0 ? "" : `, then pnpm doc land ${byHand.map(String).join(" ")} --evidence ${head}`;
     return {
       written: [],
+      created: [],
       refusals: unknown.map(
         (id) => `${String(id)}: a merged commit closes it but no such item exists under ${DOC_TOOL_TREES.work} — fix the trailer's id${fix}`,
       ),
@@ -272,7 +285,7 @@ export function landMerged(repoRoot = root, date = today(), headMerge = false): 
   }
   const refusals = staleTrailers(commits, byId, head, repoRoot);
   if (refusals.length > 0) {
-    return { written: [], refusals, skipped: [] };
+    return { written: [], created: [], refusals, skipped: [] };
   }
   return landItems(ids, head, repoRoot, date);
 }

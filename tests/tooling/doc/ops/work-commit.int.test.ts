@@ -1,7 +1,7 @@
 // `set --commit` and `item --commit`: the verb's written paths plus every other uncommitted change under
 // docs/work/ go into one commit, and nothing outside docs/work/ rides along.
 
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import {
@@ -158,6 +158,33 @@ test("a retitling set --commit whose commit git refuses puts back the renamed fi
   expect(committedNames(root)).toEqual(expect.arrayContaining(["docs/work/0001-renamed.md", "notes.ts", "docs/work/0002-b.md"]));
   expect(git(root, "ls-tree", "--name-only", "HEAD", "docs/work/0001-a.md")).toBe("");
   expect(git(root, "show", "HEAD:notes.ts")).toContain("0001-renamed.md");
+});
+
+test("an item --commit whose commit git refuses removes what the mint created and keeps a file another process wrote", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  newPlan({ slug: "foo", title: "Foo", rank: 1 }, root, TODAY);
+  commitAll(root, "docs: plan foo");
+  const tasks = join(root, "docs/plans/foo/tasks.md");
+  const minted = join(root, "docs/work/0004-d.md");
+  const refLock = join(root, ".git", "refs", "heads", "main.lock");
+  // Control: with nothing else writing, the plan's task list is the mint's own, so the failed commit removes it too.
+  const before = checkoutState(root);
+  writeFileSync(refLock, "");
+  const alone = runWrite(true, root, () => newItem(written({ ...MINT, plan: "foo", title: "D" }), root, TODAY));
+  expect(alone.refusals).toHaveLength(1);
+  rmSync(refLock);
+  expect(checkoutState(root)).toBe(before);
+  // Another process writes the task list after the snapshot and before the mint; the mint regenerates it, but did not create it.
+  writeFileSync(refLock, "");
+  const raced = runWrite(true, root, () => {
+    writeFileSync(tasks, "# Foo tasks, written by another process\n");
+    return newItem(written({ ...MINT, plan: "foo", title: "D" }), root, TODAY);
+  });
+  rmSync(refLock);
+  expect(raced.refusals).toHaveLength(1);
+  expect(raced.refusals[0]).toContain("cannot lock ref");
+  expect(existsSync(minted)).toBe(false);
+  expect(existsSync(tasks)).toBe(true);
 });
 
 test(
