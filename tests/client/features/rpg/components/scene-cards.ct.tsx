@@ -9,7 +9,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { openCardName, RPG_JOURNAL_SCOPE_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
+import { RPG_JOURNAL_SCOPE_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
@@ -376,7 +376,6 @@ test.describe("at phone width with a coarse pointer", () => {
     await expect(chip).toHaveText(stamp);
     await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
     // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
-    await expect(row).toHaveAccessibleName(openCardName(CARD_TITLE, stamp, null));
     // A card with no note ends its name at the stamp: the literal pins the builder's no-note arm.
     await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
 
@@ -426,7 +425,7 @@ test.describe("at phone width with a coarse pointer", () => {
     const row = page.locator(ARCHIVE).locator('[data-slot="rpg-card-row"]');
     const stamp = createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDateTime(origin.createdAt);
     await expect(row.locator('time[data-slot="rpg-turn-ref"]')).toHaveText(stamp);
-    await expect(row).toHaveAccessibleName(openCardName(CARD_TITLE, stamp, null));
+    await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
     expect(stamp).toContain(String(new Date(origin.createdAt).getUTCFullYear()));
   });
 });

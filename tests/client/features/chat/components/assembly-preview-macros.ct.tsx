@@ -4,7 +4,6 @@
 // comes from a real previewAssembly read on a corpus root with a live plugin guest.
 
 import { spawn } from "node:child_process";
-import { macroSourceLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { userMacroSchema } from "@orb/contracts/preset";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -63,9 +62,9 @@ test("the diagnostics list the turn's registered macros by source and the preset
   await expect(rejected.getByText(`{{${SHARED_NAME}}}`, { exact: true })).toBeVisible();
   await expect(rejected.getByText("Preset", { exact: true })).toBeVisible();
   const registered = page.locator('[data-slot="macro-registered"]');
-  await expect(
-    registered.filter({ hasText: `{{${SHARED_NAME}}}` }).getByText(macroSourceLabel({ source: { kind: "game", id: chatId }, defs: [] }), { exact: true }),
-  ).toBeVisible();
+  // The source word is this case's subject, so it is pinned as the reader sees it, not rebuilt by macroSourceLabel.
+  // eslint-disable-next-line orb/no-hand-copied-label -- the macro badge's word; RPG_CONTEXT_TAB_LABELS.game names the Game tab, another control.
+  await expect(registered.filter({ hasText: `{{${SHARED_NAME}}}` }).getByText("Game", { exact: true })).toBeVisible();
   await expect(registered.filter({ hasText: `{{${pluginMacro}}}` }).getByText(`Plugin: ${PLUGIN_NAME}`, { exact: true })).toBeVisible();
   // A preview never runs the plugin's guest, so its macros are named without a value: the live name and the hyphen alias.
   await expect(page.locator('[data-slot="macro-registered"][data-deferred]')).toHaveCount(2);

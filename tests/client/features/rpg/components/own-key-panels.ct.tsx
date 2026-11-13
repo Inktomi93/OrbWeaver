@@ -14,7 +14,6 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
 import {
-  npcMoodName,
   RPG_ABILITY_CHECK_NAME,
   RPG_HIDE_KNOWN_CHARACTERS_NAME,
   RPG_SCORE_UNSET_HINT,
@@ -174,7 +173,7 @@ test("the Scene character card reads an unset inherited-name tracker as unset, t
   await expect(page.getByRole("button", { name: RPG_HIDE_KNOWN_CHARACTERS_NAME, exact: true })).toBeVisible();
   await expect(npcValue).toHaveText(NO_VALUE);
   // The mood slot beside it has no value either, and its accessible name says so in words.
-  await expect(page.getByRole("button", { name: npcMoodName(NPC_NAME, NO_VALUE_NAME), exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: `${NPC_NAME} mood: ${NO_VALUE_NAME}`, exact: true })).toBeVisible();
   await unset.unmount();
 
   await room.setInheritedValues();
