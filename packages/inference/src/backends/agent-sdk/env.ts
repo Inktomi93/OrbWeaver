@@ -22,6 +22,7 @@ import {
   isAllowedClaudeRuntimeEnvKey,
   RESERVED_CLAUDE_ENV_KEYS,
 } from "@orb/contracts/preset";
+import { envNameKey } from "@orb/kit/env-file";
 import { ProviderError } from "#contract";
 import type { ClaudeRuntimeOverrides, ClaudeSdkEnvArgs } from "#src/contract/agent-sdk-backend.ts";
 
@@ -76,10 +77,10 @@ const WINDOWS_PLATFORM = "win32";
 // host's spelling, so there the lookup ignores case. Elsewhere `http_proxy` and `HTTP_PROXY` are two variables and the
 // lookup is exact.
 function hostEnvForClaudeChild(source: Readonly<Record<string, string>>): Record<string, string | undefined> {
-  const folded = process.platform === WINDOWS_PLATFORM ? new Map(Object.entries(source).map(([key, value]) => [key.toUpperCase(), value] as const)) : undefined;
+  const folded = process.platform === WINDOWS_PLATFORM ? new Map(Object.entries(source).map(([key, value]) => [envNameKey(key), value] as const)) : undefined;
   const out: Record<string, string | undefined> = {};
   for (const key of SUPPORTED_HOST_ENV_KEYS) {
-    out[key] = source[key] ?? folded?.get(key.toUpperCase());
+    out[key] = source[key] ?? folded?.get(envNameKey(key));
   }
   return out;
 }

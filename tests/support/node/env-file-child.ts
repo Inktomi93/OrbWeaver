@@ -4,7 +4,7 @@
 import process from "node:process";
 
 const outcome = await import("@orb/server/foundation/env").then(
-  ({ env }) => ({ env }),
+  ({ env, authModeSource }) => ({ env, authModeSource: authModeSource() }),
   (err: unknown) => ({ error: err instanceof Error ? err.message : String(err) }),
 );
 process.stdout.write(JSON.stringify(outcome));

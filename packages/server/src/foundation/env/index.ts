@@ -9,7 +9,7 @@ import process from "node:process";
 import { parseEnv as parseDotenv } from "node:util";
 import type { AuthModeSource } from "@orb/contracts/identity";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
-import { ENV_FROM_FILE_KEY, ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY, envFromFileKeys } from "@orb/kit/env-file";
+import { ENV_FROM_FILE_KEY, ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY, envFromFileKeys, envNameKey } from "@orb/kit/env-file";
 import { isSupervised } from "@orb/kit/supervisor";
 import { errnoCode } from "#primitives/errno";
 import { CONTAINER_MARKER_FILES } from "./container.ts";
@@ -72,7 +72,8 @@ const UTF8_BOM = "﻿";
  *  reconcile — it is boot-constant deployment provenance, not runtime accumulator state. */
 const envFileKeys = new Set<string>();
 // The keys whose value the file actually put in `process.env`: a declared key the process already held stays the
-// process's under no-override, so declaring is not supplying. Written once at load, like `envFileKeys`.
+// process's under no-override, so declaring is not supplying. Written once at load, like `envFileKeys`. This set and
+// the map below hold each name's `envNameKey`, because the parse reads a name in any letter case.
 const envFileSuppliedKeys = new Set<string>();
 // The value the file declared per key, so a launcher's restated key counts as the file's only while it still holds it.
 const envFileValues = new Map<string, string>();
@@ -99,10 +100,10 @@ function loadEnvFileWithOverride(override: boolean): void {
   for (const [key, value] of Object.entries(parseDotenv(raw.startsWith(UTF8_BOM) ? raw.slice(UTF8_BOM.length) : raw))) {
     if (value !== undefined) {
       envFileKeys.add(key);
-      envFileValues.set(key, value);
+      envFileValues.set(envNameKey(key), value);
       if (override || process.env[key] === undefined) {
         process.env[key] = value;
-        envFileSuppliedKeys.add(key);
+        envFileSuppliedKeys.add(envNameKey(key));
       }
     }
   }
@@ -118,10 +119,13 @@ loadEnvFileWithOverride(!skipOverride);
 // it restated that key from the file (`pnpm start --share` / `--port` re-send `.env` with the override off). The value
 // must still equal the file's, so a hand-set list cannot claim a value `.env` does not hold.
 function sourceAfterLoad(key: string): AuthModeSource {
-  if (envFileSuppliedKeys.has(key) || (envFromFileKeys(process.env[ENV_FROM_FILE_KEY]).has(key) && envFileValues.get(key) === process.env[key])) {
+  const name = envNameKey(key);
+  const value = Object.entries(process.env).find(([spelling]) => envNameKey(spelling) === name)?.[1];
+  const restated = [...envFromFileKeys(process.env[ENV_FROM_FILE_KEY])].some((listed) => envNameKey(listed) === name);
+  if (envFileSuppliedKeys.has(name) || (restated && envFileValues.get(name) === value)) {
     return "env-file";
   }
-  return process.env[key] === undefined ? "default" : "process-env";
+  return value === undefined ? "default" : "process-env";
 }
 
 // Read once, before anything can scrub or rewrite `process.env`.

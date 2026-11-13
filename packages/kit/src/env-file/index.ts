@@ -1,6 +1,17 @@
 // @orb/kit/env-file — the one `.env` key writer: set, leave or delete named keys in `.env` text, in place. Every other
 // byte of the file (comments, unknown keys, blank lines, line endings, a byte-order mark) survives. Pure: the caller
 // reads and writes the file (`pnpm start`'s setup op, the server's restart verb), because packages never import tooling.
+// It also owns what makes two environment names one variable, so the writer, the server's parse, its scrub and the
+// agent SDK child's baseline agree.
+
+/**
+ * The spelling two environment names share when they name one variable.
+ * @remarks Windows reads a name in any letter case, so `database_url` and `DATABASE_URL` are one variable there. Every
+ * comparison of env names that must hold on Windows compares this key; a case-sensitive platform keeps both names.
+ */
+export function envNameKey(name: string): string {
+  return name.toUpperCase();
+}
 
 /** An edit that removes every assignment line of its key, line ending included. Distinct from `null`, which leaves
  *  the key's lines exactly as they are. */
@@ -15,34 +26,28 @@ export interface EnvEdit {
 const CRLF = "\r\n";
 const LF = "\n";
 
-/** `KEY=value` with an optional `export ` prefix, a quoted or bare value, and whatever follows it (an inline comment).
- *  The key is matched literally, so an env name never reads as a pattern. */
-function assignmentPattern(key: string): RegExp {
-  const literal = key.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  return new RegExp(`^(\\s*(?:export\\s+)?${literal}\\s*=\\s*)("[^"]*"|'[^']*'|\`[^\`]*\`|[^\\s#]*)(.*)$`, "u");
-}
+/** The head of `KEY=value`: an optional `export ` prefix, the key and the separator. */
+const ASSIGNMENT_HEAD = /^\s*(?:export\s+)?([^\s=#]+)\s*=\s*/u;
+/** The value after the head: quoted, or bare up to whitespace or an inline comment. The rest of the line follows it. */
+const ASSIGNMENT_VALUE = /^(?:"[^"]*"|'[^']*'|`[^`]*`|[^\s#]*)/u;
 
-interface KeyPattern {
-  readonly edit: EnvEdit;
-  readonly pattern: RegExp;
-}
-
-/** One line after the edits: the first edited key it assigns decides it; a line that assigns none stays. */
-function editLine(line: string, patterns: readonly KeyPattern[], seen: Set<string>): readonly string[] {
+/** One line after the edits: the edit whose key it assigns, in any letter case, decides it, and the line keeps its own
+ *  spelling of the key, so an edit never adds a second spelling of one variable. A line that assigns none stays. */
+function editLine(line: string, edits: ReadonlyMap<string, EnvEdit>, seen: Set<string>): readonly string[] {
   const ending = line.endsWith("\r") ? "\r" : "";
   const body = ending === "" ? line : line.slice(0, -1);
-  for (const { edit, pattern } of patterns) {
-    const match = pattern.exec(body);
-    if (match === null) {
-      continue;
-    }
-    seen.add(edit.key);
-    if (edit.value === DELETE_ENV_LINE) {
-      return [];
-    }
-    return edit.value === null ? [line] : [`${match[1]}${edit.value}${match[3]}${ending}`];
+  const head = ASSIGNMENT_HEAD.exec(body);
+  const edit = head === null ? undefined : edits.get(envNameKey(head[1] ?? ""));
+  if (head === null || edit === undefined) {
+    return [line];
   }
-  return [line];
+  seen.add(edit.key);
+  if (edit.value === DELETE_ENV_LINE) {
+    return [];
+  }
+  const tail = body.slice(head[0].length);
+  const rest = tail.slice(ASSIGNMENT_VALUE.exec(tail)?.[0].length ?? 0);
+  return edit.value === null ? [line] : [`${head[0]}${edit.value}${rest}${ending}`];
 }
 
 /** Apply `edits` to `.env` text. Every assignment of an edited key gets the new value in place (or is removed with its
@@ -55,11 +60,16 @@ export function applyEnvEdits(text: string | null, edits: readonly EnvEdit[], ne
     return `${[newFileHeader, ...assignments].join(LF)}${LF}`;
   }
   const eol = text.includes(CRLF) ? CRLF : LF;
-  const patterns = edits.map((edit) => ({ edit, pattern: assignmentPattern(edit.key) }));
+  const byName = new Map<string, EnvEdit>();
+  for (const edit of edits) {
+    if (!byName.has(envNameKey(edit.key))) {
+      byName.set(envNameKey(edit.key), edit);
+    }
+  }
   const seen = new Set<string>();
   let out = text
     .split(LF)
-    .flatMap((line) => editLine(line, patterns, seen))
+    .flatMap((line) => editLine(line, byName, seen))
     .join(LF);
   for (const { key, value } of edits) {
     if (typeof value === "string" && !seen.has(key)) {
