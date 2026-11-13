@@ -1,13 +1,17 @@
 // The assets-portability IMPORT half: restores ONE blob under its ORIGINAL id, or answers success with a note
 // when the owner already holds these bytes under another id, because every portable referrer re-links by
 // content hash and the import keeps no cross-file channel (D136). Never throws; a refusal is `{ok:false}`.
+// The filename's kinds and type get the store's signature checks before any write: a picture restores under the type
+// its bytes are, and a bundle cannot add a use the bytes' medium is not or put other bytes under an image or video type.
 
 import type { PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
+import { AssetContentRejectedError } from "../contract/errors.ts";
 import type { AssetsPortabilityContext, PortableAssetIdentity } from "../contract/portability.ts";
 import { addAssetKinds, assetIdForHash, loadAssetCasRefById, storeBlob } from "../persistence/queries.ts";
+import { restoredMime } from "../substrate/mime.ts";
 import { hashAssetBytes, parsePortableAssetFilename } from "../substrate/portable-asset-file.ts";
 
 // File-local: one restore in flight — the DI slice plus the file and the identity its name decoded.
@@ -21,15 +25,21 @@ interface ImportTarget {
 export function createImportAsset(input: DbAssemblyInput<AssetsPortabilityContext>): PortableEntity["importFile"] {
   const ctx: AssetsPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId, file: PortableFile): Promise<PortableImportOutcome> => {
-    const identity = parsePortableAssetFilename(file.filename);
-    if (identity === undefined) {
+    const claimed = parsePortableAssetFilename(file.filename);
+    if (claimed === undefined) {
       return { ok: false, error: `unrecognized assets filename: ${file.filename}` };
     }
 
     // Check 1 — poison defense: the bytes MUST hash to the address the name claims.
-    if (hashAssetBytes(file.bytes) !== identity.hash) {
+    if (hashAssetBytes(file.bytes) !== claimed.hash) {
       return { ok: false, error: "content hash does not match the claimed asset address" };
     }
+    // The name's kinds and type are claims too. Every branch below writes a use or bytes, so they are checked first.
+    const admitted = admitClaims(file.bytes, claimed);
+    if ("refused" in admitted) {
+      return admitted.refused;
+    }
+    const { identity } = admitted;
     const target: ImportTarget = { ctx, ownerId, file, identity };
 
     // Checks 2 + 3 — id-collision checks (un-owner-scoped: the id is a global PK).
@@ -56,6 +66,22 @@ export function createImportAsset(input: DbAssemblyInput<AssetsPortabilityContex
     // THAT id — the same outcome, decided on what the write actually did.
     return stored.assetId === identity.id ? { ok: true, created: stored.created } : alreadyHeld(identity.id, stored.assetId);
   };
+}
+
+// The file's identity under the type its bytes are, or the store's refusal of bytes its kinds or type do not describe,
+// as the file's outcome with its code.
+function admitClaims(
+  bytes: Uint8Array,
+  claimed: PortableAssetIdentity,
+): { readonly identity: PortableAssetIdentity } | { readonly refused: PortableImportOutcome } {
+  try {
+    return { identity: { ...claimed, mime: restoredMime(bytes, claimed.kinds, claimed.mime) } };
+  } catch (err) {
+    if (err instanceof AssetContentRejectedError) {
+      return { refused: { ok: false, error: `${err.reason} (${err.refusal})` } };
+    }
+    throw err;
+  }
 }
 
 /** Checks 2 + 3 plus the idempotent replay. The row is right; the BYTES may not be (an interrupted restore,

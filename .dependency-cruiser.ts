@@ -395,6 +395,8 @@ const TEST_CONSTANT_HOMES = {
     "nearestCharacters: the D20 owner predicate, reached with no generation because every door passes one and a generation already hashes its owner",
   "packages/server/src/domain/import/substrate/appearance.ts":
     "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
+  "packages/server/src/domain/assets/substrate/portable-asset-file.ts":
+    "buildPortableAssetFilename and hashAssetBytes: the bundle filename codec the restore suite names a forged asset file with",
   "packages/server/src/entry/boot/disclaimer.ts": "BOOT_DISCLAIMER_TOPICS: the topic order the disclaimer block follows",
   "packages/server/src/infra/network/contract/egress.ts": "SSRF_BLOCKED: the mark every connect-time firewall refusal opens with",
   "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
