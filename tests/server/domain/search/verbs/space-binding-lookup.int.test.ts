@@ -2,7 +2,7 @@
 // resolve is the no-space refusal the retrieval degrade absorbs; any other failure of the lookup surfaces as itself and is
 // logged, never answered as that refusal.
 // @subject packages/server/src/domain/search/substrate/space.ts
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { connectionBindings } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, withheldTable } from "@orb/testkit/node/composed";
@@ -46,7 +46,9 @@ test("an unbound encoder is the no-space refusal, and a failed binding lookup su
   });
   expect(missed).not.toHaveBeenCalled();
 
-  const response = await root.http.request(`/api/trpc/search.search?input=${encodeURIComponent(JSON.stringify(SEARCH_INPUT))}`);
+  const response = await root.http.request(`/api/trpc/search.search?input=${encodeURIComponent(JSON.stringify(SEARCH_INPUT))}`, {
+    headers: { [CSRF_HEADER]: "1" },
+  });
   const { error } = responseSchema.parse(await response.json());
   expect(response.status).toBe(500);
   expect(error.data.code).toBe("INTERNAL_SERVER_ERROR");

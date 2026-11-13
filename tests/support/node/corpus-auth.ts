@@ -38,7 +38,7 @@ export async function captureCorpusCookieIdentity(root: ServerTestHarness, expec
   const origin = `http://${address.address}:${String(address.port)}`;
   const read = async (path: string): Promise<Response> => {
     // The native relay tell denies loopback-owner fallback without changing valid cookie admission.
-    const response = await fetch(new URL(path, origin), { headers: { cookie, forwarded: "" } });
+    const response = await fetch(new URL(path, origin), { headers: { cookie, forwarded: "", [CSRF_HEADER]: "1" } });
     if (!response.ok) {
       await response.arrayBuffer();
       throw new Error(`Corpus cookie identity request refused (${response.status})`);

@@ -103,8 +103,8 @@ Code comments cite the numbered invariants below as "invariant N":
    word, the law or ledger sentence that rules it. The first sentence of this paragraph rules the
    back-channel route.
 
-   tRPC (`packages/server/src/transport/trpc/trpc.ts`) needs only the content-type guard at its mount
-   (`packages/server/src/entry/app.ts`), on every credential path. The guard refuses any POST to
+   tRPC (`packages/server/src/transport/trpc/trpc.ts`) needs two guards at its mount
+   (`packages/server/src/entry/app.ts`), on every credential path. The content-type guard refuses any POST to
    `/api/trpc/*` whose content type does not select tRPC's JSON handler (415). `application/json` is not
    CORS-simple and the app mounts no CORS middleware, so a cross-origin page cannot send it without a
    preflight the app never answers. A proxy in front of the app must not answer one either
@@ -115,10 +115,11 @@ Code comments cite the numbered invariants below as "invariant N":
    path. tRPC's own gate also refuses a cookie mutation without `x-orb-csrf` (403); the fallback and proxy
    paths with `application/json` and no `x-orb-csrf` still run (200). The un-cookied loopback dev tooling
    relies on the fallback path. tRPC's method map also admits GET for queries and subscriptions, and a GET
-   carries no content type. A query must not write. A subscription can write: `stream.connect` marks its
-   user online and runs the deferred-turn drain. So the mount refuses a subscription outside POST that lacks
-   `x-orb-csrf`, on every credential path (`refuseHeaderlessGetSubscription` in
-   `packages/server/src/entry/app.ts`). The client opens every subscription as a JSON POST with the header.
+   carries no content type, so a cross-site page can send one (an `<img>`, a navigation carrying the Lax
+   cookie). The second guard refuses every tRPC request outside POST that lacks `x-orb-csrf`, query and
+   subscription alike, on every credential path, with the FORBIDDEN a header-less cookie mutation gets
+   (`refuseHeaderlessOutsidePost`). A query still must not write. The client sends every request as a JSON
+   POST with the header.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The
     production census is two: the `oidc` callback (`packages/server/src/entry/http/auth-routes.ts`: verified claims through

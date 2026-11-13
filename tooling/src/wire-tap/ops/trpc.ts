@@ -5,6 +5,7 @@
 //
 //   wire-tap trpc character.list
 //   wire-tap trpc chat.startChat --input '{"characterIds":["…"]}' --mutate
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
@@ -70,14 +71,11 @@ export async function trpcOp(argv: readonly string[]): Promise<number> {
   const base = `${baseUrl()}/api/trpc/${args.procedure}`;
   const url = args.mutate || args.input === null ? base : `${base}?input=${encodeURIComponent(args.input)}`;
 
+  // The mount refuses a GET without the CSRF header on every credential path, the owner fallback included.
   const res = await fetch(url, {
     method: args.mutate ? "POST" : "GET",
-    ...(args.mutate
-      ? {
-          headers: { "content-type": "application/json" },
-          body: args.input ?? "{}",
-        }
-      : {}),
+    headers: { [CSRF_HEADER]: "1", ...(args.mutate ? { "content-type": "application/json" } : {}) },
+    ...(args.mutate ? { body: args.input ?? "{}" } : {}),
   });
   const text = await res.text();
   let pretty = text;

@@ -8,8 +8,8 @@
 //   · the tRPC ladder (`transport/trpc/trpc.ts`) gates `via === "cookie"` only, because `entry/app.ts`'s
 //     content-type belt already refuses every non-`application/json` POST to the mount — which is what
 //     keeps the un-cookied loopback dev tooling working without the header;
-//   · the tRPC mount (`entry/app.ts`) refuses a subscription outside POST without the header on every `via`,
-//     because a GET carries no content type for the belt to judge and `stream.connect` writes.
+//   · the tRPC mount (`entry/app.ts`) refuses every request outside POST without the header on every `via`,
+//     because a GET carries no content type for the belt to judge.
 // A new route that accepts a CORS-simple body belongs in the first class; one that is JSON-only belongs in
 // the second ONLY if a belt refuses the other content-types. This flag is inert without one of them.
 

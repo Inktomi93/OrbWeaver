@@ -52,7 +52,7 @@ test("leaks no other Principal field (externalId / via stay off the wire)", asyn
   const subject = marker("sso-subject");
   const handle = castId<Handle>(marker("viewer-projection"));
   const sso = await actorViaHeader(baseURL ?? "", { handle, sub: subject, groups: [E2E_SSO_GROUPS.member] });
-  const response = await fetch(`${baseURL ?? ""}/api/trpc/sessions.me`, { headers: sso.headers });
+  const response = await fetch(`${baseURL ?? ""}/api/trpc/sessions.me`, { headers: { ...sso.headers, [CSRF_HEADER]: "1" } });
   const text = await response.text();
   expect(response.status).toBe(200);
   expect(text).not.toContain(subject);

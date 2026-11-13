@@ -2,7 +2,7 @@
 // credentials error to the caller and the credential seam logs it once for the request.
 // @subject packages/server/src/domain/search/substrate/space.ts
 // @subject packages/server/src/domain/credentials/substrate/decrypt.ts
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshDb, SECRET_BOX_TEST_KEY } from "@orb/testkit/node/composed";
 import { z } from "zod";
@@ -46,7 +46,9 @@ test("a stored key that no longer decrypts surfaces on the search and is logged 
       env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     }),
   );
-  const response = await root.http.request(`/api/trpc/search.search?input=${encodeURIComponent(JSON.stringify(SEARCH_INPUT))}`);
+  const response = await root.http.request(`/api/trpc/search.search?input=${encodeURIComponent(JSON.stringify(SEARCH_INPUT))}`, {
+    headers: { [CSRF_HEADER]: "1" },
+  });
   const { message } = responseSchema.parse(await response.json()).error;
   // The classified error's own text is on the wire and in the log; booting on the changed key probes it and logs that
   // too, outside any request, so only lines tagged with a request count.

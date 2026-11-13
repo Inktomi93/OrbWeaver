@@ -38,7 +38,7 @@ export async function signedInBox(options: SignedInBoxOptions = {}): Promise<Ser
       ...(options.providerFetch === undefined ? {} : { providerFetch: options.providerFetch }),
     }),
   );
-  const response = await root.http.request(SIGNED_IN_ROUTE);
+  const response = await root.http.request(SIGNED_IN_ROUTE, { headers: { [CSRF_HEADER]: "1" } });
   if (response.status !== HTTP_OK) {
     throw new Error(`the first signed-in request answered ${response.status}`);
   }

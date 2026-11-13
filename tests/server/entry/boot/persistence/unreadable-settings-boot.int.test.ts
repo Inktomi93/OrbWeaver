@@ -95,7 +95,7 @@ test("a settings row holding text that is not JSON passes every boot step untouc
   }
   {
     await using second = await bootEntry(importStagingDir, databaseUrl);
-    const response = await fetch(`http://127.0.0.1:${String(second.port)}${SETTINGS_READ}`, { headers: { host: "localhost" } });
+    const response = await fetch(`http://127.0.0.1:${String(second.port)}${SETTINGS_READ}`, { headers: { host: "localhost", [CSRF_HEADER]: "1" } });
     expect(response.status, second.output()).toBe(200);
     expect(settingsReply.parse(await response.json()).result.data.configUnreadable).toBe(VERSIONED_PARSE_FAILURES.notJson);
   }
