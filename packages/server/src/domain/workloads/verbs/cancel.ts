@@ -1,5 +1,5 @@
 // verb: cancel — request a stop on one row via the race-safe, idempotent markCancelling: queued → cancelled,
-// running → cancelling (the engine's cancel-poll aborts async), terminal → no-op (null). The row is loaded
+// running → cancelling (the run is aborted at once in this process; the engine's cancel-poll covers any other), terminal → no-op (null). The row is loaded
 // and visibility-gated before any state change — a caller cancelling a workload it doesn't own gets a
 // leak-free DomainNotFoundError and nothing is mutated. A delegated admin cancelling the box owner's run gets the
 // same answer (`mayActOnRow`, D17).
@@ -29,6 +29,10 @@ export function createCancel(ctx: WorkloadServiceContext): Pick<WorkloadService,
       if (!row.poison) {
         await releaseUnrun(ctx.getContributions(), row.kind, row.params, row.ownerId);
       }
+    }
+    if (result.status === "cancelling") {
+      // The run is in flight: abort it here, so the kind's single slot frees when the run unwinds and not a poll later.
+      ctx.abortRun(row.id);
     }
     return result;
   }

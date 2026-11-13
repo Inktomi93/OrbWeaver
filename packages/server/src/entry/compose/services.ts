@@ -846,6 +846,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     traces: deps.rings.traces,
     fieldIndex,
     emitWorkloadEvent: workloadEvents.emitWorkloadEvent,
+    abortWorkloadRun: workloadEvents.abortWorkloadRun,
     emitUserEvent: liveBuses.user.publishUserEvent,
     supervise: background.supervise,
     scheduleTimeout: timers.timeout,

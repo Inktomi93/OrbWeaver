@@ -56,7 +56,25 @@ function createProgressBus(emitter: EventEmitter): WorkloadProgressBus {
       }
     }
   }
+  // The runs in flight in this process, so a cancel reaches its run at once; the runner's status poll stays as the
+  // path for a cancel another process wrote.
+  const inFlight = new Map<WorkloadId, () => void>();
+  function trackRun(workloadId: WorkloadId, abort: () => void): () => void {
+    inFlight.set(workloadId, abort);
+    return () => {
+      if (inFlight.get(workloadId) === abort) {
+        inFlight.delete(workloadId);
+      }
+    };
+  }
+  function abortRun(workloadId: WorkloadId): boolean {
+    const abort = inFlight.get(workloadId);
+    abort?.();
+    return abort !== undefined;
+  }
   return {
+    trackWorkloadRun: trackRun,
+    abortWorkloadRun: abortRun,
     emitWorkloadEvent: emit,
     getRecentWorkloadEvents: recent,
     subscribeWorkloadWake: wake,

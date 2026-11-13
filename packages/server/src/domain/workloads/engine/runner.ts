@@ -282,6 +282,8 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
     signal.addEventListener("abort", onIncomingAbort, { once: true });
   }
 
+  const untrackRun = deps.trackRun(row.id, () => controller.abort());
+
   const lease = createLeaseWriter(deps, row, controller);
   const report: ReportProgress = (progress): void => {
     const at = deps.now();
@@ -328,6 +330,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
       cancel();
     }
     signal.removeEventListener("abort", onIncomingAbort);
+    untrackRun();
   }
   if (leaseFailed) {
     // A lease failure aborts the contribution, but abort is cooperative. Do not stamp a terminal row while

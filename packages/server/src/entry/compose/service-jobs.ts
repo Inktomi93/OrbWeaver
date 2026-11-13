@@ -59,6 +59,7 @@ export function buildServiceJobs(deps: ServiceJobDeps): ServiceJobs {
         isAccountEnabled: deps.isAccountEnabled,
         audit: deps.audit,
         emitEvent: deps.progress.emitWorkloadEvent,
+        trackRun: deps.progress.trackWorkloadRun,
         scheduleInterval: deps.timers.interval,
       },
       nextRunnable: (_db, _contributions, now, lane) => nextRunnable(now, lane),
