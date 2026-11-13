@@ -238,7 +238,7 @@ export function classifyDomainError(err: unknown): TRPCError | null {
  * The honest, leak-free reason for a mapped error — the discriminator the error formatter rides on
  * `data.reason` so the client keys on a structured field, never message text. Two producers, both closed
  * vocabularies: a `DomainOperationError`'s `.code` (e.g. `owner_not_present`/`agent_disabled`; a
- * `DomainForbiddenError`'s optional `.code` rides the same way, for the one refusal that names itself) and a
+ * `DomainForbiddenError`'s optional `.code` rides the same way, when its thrower names the refusal) and a
  * `ProviderError`'s `kind` under the `provider_` prefix. Every other mapped error — including the leak-free
  * NOT_FOUND collapse — is intentionally codeless, so nothing beyond the reason string ever reaches the wire
  * (no cause chain, no internals). `undefined` ⇒ the formatter emits no `reason` field (JSON drops the key).
