@@ -7,15 +7,13 @@
 // v11.18 source at the move.
 import type { Server } from "node:http";
 import { createServer } from "node:http";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CliResult, ToolFixtures } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import { scaledBudget } from "../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(30_000);
-// Bare node 26.5 has NO EventSource global (measured at the move — the reason `pnpm sse-tap` carries
-// the flag); the child gets it via NODE_OPTIONS, exactly like the front-door script.
-// biome-ignore lint/style/useNamingConvention: NODE_OPTIONS is node's own env-var spelling, not an identifier.
-const NODE_FLAG_ENV = { NODE_OPTIONS: "--experimental-eventsource" };
+const TAP_COOKIE = "orb_session_insecure=tap-cookie";
 
 /** The same wire, with the frames removed: a stream that opens and closes having delivered NOTHING —
  *  which the op's own header says can mean "not a member", not only "no events" (#409). */
@@ -38,14 +36,21 @@ const SSE_BODY = [
 ].join("\n");
 
 /** The loopback stand-in for the dev stack: answers the attach POST with a batched tRPC result and the
- *  connect GET with the scripted SSE stream. */
-function fixtureServer(body: string = SSE_BODY): Promise<{ server: Server; port: number }> {
+ *  connect with the scripted SSE stream. Like the server, it refuses a connect without the CSRF header, and
+ *  `cookie`, when set, is the one the connect must carry. */
+function fixtureServer(body: string = SSE_BODY, cookie?: string): Promise<{ server: Server; port: number }> {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
       const url = req.url ?? "";
       if (req.method === "POST" && url.includes("stream.attach")) {
         res.writeHead(200, { "content-type": "application/json" });
         res.end('[{"result":{"data":{"ok":true}}}]');
+        return;
+      }
+      const refused = req.headers[CSRF_HEADER] === undefined || (cookie !== undefined && req.headers.cookie !== cookie);
+      if (url.includes("stream.connect") && refused) {
+        res.writeHead(403);
+        res.end();
         return;
       }
       if (url.includes("stream.connect")) {
@@ -69,7 +74,7 @@ test("the tap reports the planted frames frame-for-frame and exits clean on `ret
     const res = await runCli("wire-tap", ["sse", "chat-proof-1"], {
       timeoutMs: CLI_TIMEOUT_MS,
       // biome-ignore lint/style/useNamingConvention: SSE_TAP_BASE is the tap's own env-var spelling.
-      env: { ...NODE_FLAG_ENV, SSE_TAP_BASE: `http://127.0.0.1:${port}` },
+      env: { SSE_TAP_BASE: `http://127.0.0.1:${port}` },
     });
     expect(res.stdout).toContain("connection open");
     expect(res.stdout).toContain("seq=7  planted-frame-one");
@@ -94,7 +99,7 @@ test("a stream that delivered NO frames reports an empty population, never a bar
     const res = await runCli("wire-tap", ["sse", "chat-proof-silent"], {
       timeoutMs: CLI_TIMEOUT_MS,
       // biome-ignore lint/style/useNamingConvention: SSE_TAP_BASE is the tap's own env-var spelling.
-      env: { ...NODE_FLAG_ENV, SSE_TAP_BASE: `http://127.0.0.1:${port}` },
+      env: { SSE_TAP_BASE: `http://127.0.0.1:${port}` },
     });
     expect(res.stdout).toContain("frames=0");
     expect(res.stdout).toContain("NO frames");
@@ -104,14 +109,23 @@ test("a stream that delivered NO frames reports an empty population, never a bar
   }
 });
 
-test("without the EventSource flag the guard fail-louds as misuse, never a bare crash", async ({ runCli }) => {
-  const res = await runCli("wire-tap", ["sse", "chat-proof-2"]);
-  expect(res.stderr).toContain("EventSource");
-  await expect(res).toExitWith(3);
+test("the operator's cookie rides the connect, so a cookie-mode stack admits the tap", async ({ runCli }) => {
+  const { server, port } = await fixtureServer(SSE_BODY, TAP_COOKIE);
+  try {
+    const res = await runCli("wire-tap", ["sse", "chat-proof-cookie"], {
+      timeoutMs: CLI_TIMEOUT_MS,
+      // biome-ignore lint/style/useNamingConvention: SSE_TAP_BASE and SSE_TAP_COOKIE are the tap's own env-var spellings.
+      env: { SSE_TAP_BASE: `http://127.0.0.1:${port}`, SSE_TAP_COOKIE: TAP_COOKIE },
+    });
+    expect(res.stdout).toContain("frames=2");
+    await expect(res).toExitWith(0);
+  } finally {
+    server.close();
+  }
 });
 
 test("a missing chatId is CLI misuse", async ({ runCli }) => {
-  const res = await runCli("wire-tap", ["sse"], { env: NODE_FLAG_ENV });
+  const res = await runCli("wire-tap", ["sse"]);
   await expect(res).toExitWith(3);
 });
 
@@ -180,6 +194,6 @@ test("a server that publishes NO enabled field cannot be interpreted — exit 2,
 test("trailing tokens after the chatId are misuse, never a silently single-room tap", async ({ runCli }) => {
   // They used to be dropped, so `sse-tap a b` tapped only room `a` while the operator read the
   // transcript as covering both (#971).
-  const res = await runCli("wire-tap", ["sse", "chat-proof-1", "chat-proof-2"], { env: NODE_FLAG_ENV });
+  const res = await runCli("wire-tap", ["sse", "chat-proof-1", "chat-proof-2"]);
   await expect(res).toExitWith(3);
 });

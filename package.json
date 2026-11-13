@@ -33,7 +33,7 @@
     "codemod": "codemod --disable-analytics",
     "plugin:pack": "node scripts/pack-plugin.ts",
     "plugin:author-release": "node scripts/release-plugin-authoring.ts",
-    "sse-tap": "node --experimental-eventsource tooling/src/wire-tap/cli.ts sse",
+    "sse-tap": "node tooling/src/wire-tap/cli.ts sse",
     "cache:check": "node tooling/src/cache-check/cli.ts",
     "unwired": "node tooling/src/unwired/cli.ts",
     "brand-flow": "node tooling/src/brand-flow/cli.ts",

@@ -12,17 +12,17 @@
 // PORT (default 8788), NOT the vite proxy on 5173 — deliberate, so "vite proxy ate my SSE" shows as
 // "sse-tap works, browser doesn't".
 //
-// NODE EVENTSOURCE (P3 truth-repair, measured on node v26.5.0): `httpSubscriptionLink` constructs
-// `new (opts.EventSource ?? globalThis.EventSource)(url)` at subscribe time, and the global is STILL
-// flag-gated (`--experimental-eventsource`; bare node 26.5 has none). The pre-move self-re-exec died
-// at the move — the `pnpm sse-tap` script now carries the flag at the front door, and this guard
-// fail-louds when the op is reached without it.
+// THE CONNECT IS A JSON POST, as the app's `PostEventSource` sends it. Node's EventSource opens a GET and
+// takes no request headers, and the mount refuses a GET without the CSRF header, so the tap reads the
+// event stream off a plain `fetch` instead.
 import process from "node:process";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { isSubscriptionErrorFrame } from "@orb/contracts/rpc";
 import type { ChatId, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server/transport/trpc";
-import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
+import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import { z } from "zod";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
@@ -36,10 +36,28 @@ refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap
 
 const TS_START = 11;
 const TS_END = 23;
+const EVENT_SEPARATOR = "\n\n";
+// tRPC's SSE producer names these events; every unnamed one is a frame.
+const CONNECTED_EVENT = "connected";
+const RETURN_EVENT = "return";
+const ERROR_EVENT = "serialized-error";
+const PING_EVENT = "ping";
+const frameSchema = z.looseObject({
+  channel: z.string(),
+  type: z.string().optional(),
+  seq: z.number().nullable().optional(),
+  event: z.looseObject({ type: z.string() }).optional(),
+});
 
 interface SseEnv {
   readonly trpcUrl: string;
   readonly cookie: string;
+}
+
+interface SseEvent {
+  readonly event: string | null;
+  readonly id: string | null;
+  readonly data: string;
 }
 
 function readEnv(): SseEnv {
@@ -49,38 +67,51 @@ function readEnv(): SseEnv {
   return { trpcUrl: `${base}/api/trpc`, cookie };
 }
 
+/** The headers both the attach and the connect carry: the CSRF header always, the operator's cookie when set. */
+function requestHeaders(env: SseEnv): Record<string, string> {
+  // biome-ignore lint/style/useNamingConvention: `Cookie` is the HTTP header's own spelling, not an identifier.
+  return { [CSRF_HEADER]: "1", ...(env.cookie === "" ? {} : { Cookie: env.cookie }) };
+}
+
 function buildClient(env: SseEnv): ReturnType<typeof createTRPCClient<AppRouter>> {
-  // The Cookie rides in via eventSourceOptions.fetch (the header-injection seam for undici's
-  // EventSource) and via the batch link's own `headers` for the ATTACH mutation. The split mirrors the
-  // app's client: the socket on the subscription link, `stream.attach` on the ordinary batched link.
-  return createTRPCClient<AppRouter>({
-    links: [
-      splitLink({
-        condition: (op) => op.type === "subscription",
-        true: httpSubscriptionLink({
-          url: env.trpcUrl,
-          ...(env.cookie === ""
-            ? {}
-            : {
-                eventSourceOptions: {
-                  fetch: (u: string | URL | Request, init?: RequestInit): Promise<Response> => {
-                    const headers = new Headers(init?.headers);
-                    headers.set("Cookie", env.cookie);
-                    return fetch(u, { ...init, headers });
-                  },
-                },
-              }),
-        }),
-        false: httpBatchLink({
-          url: env.trpcUrl,
-          // A cookie principal's mutation needs the CSRF header (transport/trpc/trpc.ts); the fallback
-          // owner needs neither and ignores both.
-          // biome-ignore lint/style/useNamingConvention: `Cookie` is the HTTP header's own spelling, not an identifier.
-          headers: () => (env.cookie === "" ? {} : { Cookie: env.cookie, "x-orb-csrf": "1" }),
-        }),
-      }),
-    ],
-  });
+  return createTRPCClient<AppRouter>({ links: [httpBatchLink({ url: env.trpcUrl, headers: () => requestHeaders(env) })] });
+}
+
+function parseEvent(block: string): SseEvent {
+  let event: string | null = null;
+  let id: string | null = null;
+  const data: string[] = [];
+  for (const line of block.split("\n")) {
+    const colon = line.indexOf(":");
+    const field = colon === -1 ? line : line.slice(0, colon);
+    const value = colon === -1 ? "" : line.slice(colon + 1).replace(/^ /u, "");
+    if (field === "event") {
+      event = value;
+    } else if (field === "id") {
+      id = value;
+    } else if (field === "data") {
+      data.push(value);
+    }
+  }
+  return { event, id, data: data.join("\n") };
+}
+
+function printFrame(event: SseEvent): void {
+  const ts = new Date().toISOString().slice(TS_START, TS_END);
+  const raw: unknown = JSON.parse(event.data);
+  // Narrow on the `__subscriptionError` sentinel before touching the frame, which only
+  // real frames carry (see withSubscriptionErrors, transport/trpc/subscriptions.ts).
+  if (isSubscriptionErrorFrame(raw)) {
+    process.stdout.write(`${ts}  ord=${event.id ?? "-"}  ! socket-error  code=${raw.code}  ${raw.message}\n`);
+    return;
+  }
+  const frame = frameSchema.parse(raw);
+  if (frame.channel === "control") {
+    process.stdout.write(`${ts}  ord=${event.id ?? "-"}  · ${frame.type ?? "-"}  ${event.data}\n`);
+    return;
+  }
+  // The durable cursor rides the FRAME (§3.3 — the event id is a per-socket ordinal).
+  process.stdout.write(`${ts}  seq=${frame.seq ?? "-"}  ${frame.event?.type ?? "-"}  ${JSON.stringify(frame.event)}\n`);
 }
 
 /** The tap's closing census (#409). An empty population is reported, never implied: a bare
@@ -100,12 +131,45 @@ function reportFrames(frames: number, verdict: number): number {
   });
 }
 
-export async function sseOp(argv: readonly string[]): Promise<number> {
-  if (typeof globalThis.EventSource === "undefined") {
-    throw new UsageError(
-      "no EventSource global — run via `pnpm sse-tap` (the script carries --experimental-eventsource; bare node 26 does not expose the global)",
-    );
+/** How a stream ended: its own `return` event, or a socket error carrying the server's detail. */
+type StreamEnd = { readonly ended: "complete" } | { readonly ended: "error"; readonly detail: string };
+
+// One event's effect: `null` keeps reading.
+function dispatchEvent(event: SseEvent, onFrame: (event: SseEvent) => void): StreamEnd | null {
+  if (event.event === RETURN_EVENT) {
+    return { ended: "complete" };
   }
+  if (event.event === ERROR_EVENT) {
+    return { ended: "error", detail: event.data };
+  }
+  if (event.event === CONNECTED_EVENT) {
+    process.stdout.write("· connection open\n");
+  } else if (event.event !== PING_EVENT && event.data !== "") {
+    onFrame(event);
+  }
+  return null;
+}
+
+/** Read the stream to its end. */
+async function readStream(body: ReadableStream<Uint8Array>, onFrame: (event: SseEvent) => void): Promise<StreamEnd> {
+  const decoder = new TextDecoder();
+  let buffered = "";
+  for await (const chunk of body) {
+    buffered += decoder.decode(chunk, { stream: true }).replaceAll("\r\n", "\n");
+    let end = buffered.indexOf(EVENT_SEPARATOR);
+    while (end !== -1) {
+      const outcome = dispatchEvent(parseEvent(buffered.slice(0, end)), onFrame);
+      if (outcome !== null) {
+        return outcome;
+      }
+      buffered = buffered.slice(end + EVENT_SEPARATOR.length);
+      end = buffered.indexOf(EVENT_SEPARATOR);
+    }
+  }
+  return { ended: "complete" };
+}
+
+export async function sseOp(argv: readonly string[]): Promise<number> {
   const chatIdArg = argv[0];
   if (chatIdArg === undefined || chatIdArg === "" || argv.length > 1) {
     // The trailing tokens used to be dropped, so a second id tapped only the FIRST room while the
@@ -131,43 +195,37 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
   // attach-then-connect tap re-hydrates the room the instant the socket goes live (spec §5.1).
   await client.stream.attach.mutate({ socketId, ref: { channel: "chat", chatId } });
 
-  return new Promise<number>((resolve) => {
-    const sub = client.stream.connect.subscribe(
-      { socketId },
-      {
-        onStarted: () => process.stdout.write("· connection open\n"),
-        onData: (envelope) => {
-          frames += 1;
-          const ts = new Date().toISOString().slice(TS_START, TS_END);
-          const { data } = envelope;
-          // Narrow on the `__subscriptionError` sentinel before touching the frame, which only
-          // real frames carry (see withSubscriptionErrors, transport/trpc/subscriptions.ts).
-          if (isSubscriptionErrorFrame(data)) {
-            process.stdout.write(`${ts}  ord=${envelope.id}  ! socket-error  code=${data.code}  ${data.message}\n`);
-            return;
-          }
-          if (data.channel === "control") {
-            process.stdout.write(`${ts}  ord=${envelope.id}  · ${data.type}  ${JSON.stringify(data)}\n`);
-            return;
-          }
-          // The durable cursor rides the FRAME (§3.3 — the envelope id is a per-socket ordinal).
-          const seq = "seq" in data ? data.seq : "-";
-          process.stdout.write(`${ts}  seq=${seq}  ${data.event.type}  ${JSON.stringify(data.event)}\n`);
-        },
-        onError: (err) => {
-          process.stderr.write(`! error: ${err.message}\n`);
-          resolve(reportFrames(frames, EXIT.violations));
-        },
-        onComplete: () => {
-          process.stdout.write("· connection closed\n");
-          resolve(reportFrames(frames, EXIT.clean));
-        },
-      },
-    );
-    process.on("SIGINT", () => {
-      sub.unsubscribe();
-      process.stdout.write("\n· interrupted\n");
-      resolve(reportFrames(frames, EXIT.clean));
-    });
+  // Ctrl-C is the only abort source, so an aborted signal in the catch below means the operator stopped the tap.
+  const connection = new AbortController();
+  process.on("SIGINT", () => {
+    connection.abort();
   });
+  try {
+    const response = await fetch(`${env.trpcUrl}/stream.connect`, {
+      method: "POST",
+      headers: { ...requestHeaders(env), "content-type": "application/json", accept: "text/event-stream" },
+      body: JSON.stringify({ socketId }),
+      signal: connection.signal,
+    });
+    if (!response.ok || response.body === null) {
+      process.stderr.write(`! error: connect answered HTTP ${response.status}\n`);
+      return reportFrames(frames, EXIT.violations);
+    }
+    const end = await readStream(response.body, (event) => {
+      frames += 1;
+      printFrame(event);
+    });
+    if (end.ended === "error") {
+      process.stderr.write(`! error: ${end.detail}\n`);
+      return reportFrames(frames, EXIT.violations);
+    }
+    process.stdout.write("· connection closed\n");
+    return reportFrames(frames, EXIT.clean);
+  } catch (error) {
+    if (!connection.signal.aborted) {
+      throw error;
+    }
+    process.stdout.write("\n· interrupted\n");
+    return reportFrames(frames, EXIT.clean);
+  }
 }
