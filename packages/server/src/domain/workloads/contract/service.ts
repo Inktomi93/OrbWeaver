@@ -58,6 +58,8 @@ export interface WorkloadServiceContext {
   readonly isAccountEnabled: ResolveUserEnabled;
   /** The graph-owned lifecycle publisher, shared by verbs and the workload engine. */
   readonly emitEvent: WorkloadProgressBus["emitWorkloadEvent"];
+  /** Abort a run in flight in this process the moment its cancel is stored. */
+  readonly abortRun: WorkloadProgressBus["abortWorkloadRun"];
   /** The per-user freshness plane: a system-started owned row announces `workloadsChanged` to its owner. */
   readonly emitUserEvent: EmitUserEvent;
 }
@@ -71,6 +73,8 @@ export interface WorkloadRunnerDeps {
   /** The root's trace ring each run's `workload.run` root seals into. */
   readonly traces: TraceRing;
   readonly emitEvent: WorkloadServiceContext["emitEvent"];
+  /** Registers each run's abort where {@link WorkloadServiceContext.abortRun} finds it. */
+  readonly trackRun: WorkloadProgressBus["trackWorkloadRun"];
   readonly db: Db;
   /** The per-kind contribution registry the engine dispatches through (built at compose from the owning
    *  domains' factories). Replaces the retired cross-feature `env` hub — the engine knows no domain. */

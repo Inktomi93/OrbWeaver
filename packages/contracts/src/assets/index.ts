@@ -50,6 +50,15 @@ export const ASSET_KIND_MEDIA = {
   plugin: ["zip", "image"],
 } as const satisfies Readonly<Record<AssetKind, readonly AssetMedia[]>>;
 
+export const MP4_MIME = "video/mp4";
+export const WEBM_MIME = "video/webm";
+
+/** The stored types the blob route serves inline: the images the store accepts by signature, animated PNG, and the two
+ *  video containers. A stored type is served inline only when it equals one of these exactly; every other type
+ *  downloads as an attachment. */
+export const INLINE_SERVED_MIMES = [...SNIFFED_IMAGE_MIMES, APNG_MIME, MP4_MIME, WEBM_MIME] as const;
+export type InlineServedMime = (typeof INLINE_SERVED_MIMES)[number];
+
 // Whether every blob of the kind is a picture.
 function isPictureAssetKind(kind: AssetKind): boolean {
   const media: readonly AssetMedia[] = ASSET_KIND_MEDIA[kind];

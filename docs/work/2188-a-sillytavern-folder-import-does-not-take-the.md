@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-12
+status: blocked
+updated: 2026-11-13
 priority: P2
 area: server
+blocked: on 1751
 plan: import-robustness
 ---
 
@@ -11,7 +12,7 @@ plan: import-robustness
 
 ## What
 
-During acceptance, snap marked the review stage unhealthy while a SillyTavern folder import ran on a clone of the owner's data, and rebuilt it. The old server log was overwritten, so it is unknown whether the import crashed the server or the health check timed out under load.
+During acceptance, snap marked the review stage unhealthy while a SillyTavern folder import ran on a clone of the owner's data, and rebuilt it. The old server log was overwritten, so the run itself was never read. Measured since through the production chat import: one chat of five megabytes holds the event loop from 0.65 s to 4.6 s while its rows commit as one synchronous database batch (1751), which is long enough to starve a health check across a folder of large chats.
 
 ## Why
 

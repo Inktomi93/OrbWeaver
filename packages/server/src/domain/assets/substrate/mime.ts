@@ -10,11 +10,12 @@
 //     the ZIP local-file header `PK\x03\x04`) — kit's sniff is image-only, so these dispatch here.
 //   • `text/*` → NO magic exists; the strongest cheap check a text format admits is a strict-UTF-8 decode
 //     (binary garbage fails it). The upload size cap is the route/`maxBytes` belt, not re-checked here.
+// A claim is one type: a comma-joined list is refused, and a picture or video claim must be the bare type.
 // Throws `AssetContentRejectedError` (a person-facing reason + the operator detail) on any mismatch — the ONE
 // verification point `storeBlob` calls when `enforceMagic` is set, and the one a bundle restore runs on its claims.
 
 import type { AssetKind, AssetMedia, AssetUploadRefusalCode } from "@orb/contracts/assets";
-import { ASSET_KIND_MEDIA, ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
+import { ASSET_KIND_MEDIA, ASSET_UPLOAD_REFUSAL_CODES, MP4_MIME, WEBM_MIME } from "@orb/contracts/assets";
 import { APNG_MIME, sniffMime } from "@orb/kit/image-sniff";
 import { AssetContentRejectedError } from "../contract/errors.ts";
 
@@ -26,9 +27,11 @@ const IMAGE_PREFIX = "image/";
 const PNG_MIME = "image/png";
 const TEXT_PREFIX = "text/";
 const VIDEO_PREFIX = "video/";
-const MP4_MIME = "video/mp4";
-const WEBM_MIME = "video/webm";
 const PDF_MIME = "application/pdf";
+// A plugin bundle is stored under this type, which no signature arm below verifies.
+const ZIP_ARCHIVE_MIME = "application/zip";
+// What separates the entries of a type list. A browser can read a comma-joined `Content-Type` by its last entry.
+const TYPE_LIST_SEPARATOR = ",";
 // The OOXML/OPF zip containers we recognize (docx/epub are DB8 fast-follows; the belt ships with the design).
 const ZIP_CONTAINER_MIMES = new Set(["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/epub+zip"]);
 // Stored-XSS: active document/script mimes are NEVER a servable asset type — a stored blob is served
@@ -112,22 +115,21 @@ export function assertKindAdmits(bytes: Uint8Array, kind: AssetKind): void {
 
 /** The type a bundle restore stores its bytes under. The filename's kinds and type are claims nothing proved: every kind
  *  must admit the bytes, image bytes take the sniffed type unless the claim is one the signature bears out (an animated
- *  PNG keeps `image/apng`), and an image or video claim
- *  over other bytes must pass {@link assertMagicMatches}. Other claims over PDF, ZIP or text bytes are left to the kind
- *  check: a plugin bundle is stored as `application/zip`, a type {@link assertMagicMatches} refuses. */
+ *  PNG keeps `image/apng`), and every other claim must pass {@link assertMagicMatches}, as at the upload door. The one
+ *  exception is a ZIP stored as `application/zip`, as a plugin bundle is: that type has no signature arm. */
 export function restoredMime(bytes: Uint8Array, kinds: readonly AssetKind[], claimedMime: string): string {
   for (const kind of kinds) {
     assertKindAdmits(bytes, kind);
   }
   const media = mediaOf(bytes);
-  const base = baseMime(claimedMime);
   if (media === "image") {
     const sniffed = sniffMime(bytes);
+    const base = baseMime(claimedMime);
     // An upload refuses a picture under the wrong image type; a restore keeps it, because its bytes come from this
     // app's own earlier store, where older import writers recorded a forced type.
     return imageClaimHolds(base, sniffed) ? base : sniffed;
   }
-  if (media === "video" || base.startsWith(IMAGE_PREFIX) || base.startsWith(VIDEO_PREFIX)) {
+  if (!(media === "zip" && claimedMime === ZIP_ARCHIVE_MIME)) {
     assertMagicMatches(bytes, claimedMime);
   }
   return claimedMime;
@@ -213,11 +215,22 @@ function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string):
   }
 }
 
+// A picture or video is stored under the type the blob route serves it inline under, which it matches exactly, so the
+// claim must be that bare type: no parameter, no other spelling. A text claim keeps its `charset`; text never serves inline.
+function assertExactMediaType(base: string, claimedMime: string): void {
+  if (claimedMime !== base) {
+    refuse("that file type can't be stored", `refusing ${claimedMime} — a picture or video type is one bare type, ${base}`);
+  }
+}
+
 /**
  * Verify the CLAIMED mime against the byte signature; throws on any mismatch. Dispatches on the claim's family so
  * documents (pdf/zip/text) are covered alongside images — kit's `sniffMime` recognizes images only.
  */
 export function assertMagicMatches(bytes: Uint8Array, claimedMime: string): void {
+  if (claimedMime.includes(TYPE_LIST_SEPARATOR)) {
+    refuse("that file type can't be stored", `refusing a list of types ${claimedMime} — a stored asset has one type`);
+  }
   const base = baseMime(claimedMime);
 
   // An active document/script type is never a servable asset — reject before any family check.
@@ -226,11 +239,13 @@ export function assertMagicMatches(bytes: Uint8Array, claimedMime: string): void
   }
 
   if (base.startsWith(IMAGE_PREFIX)) {
+    assertExactMediaType(base, claimedMime);
     assertImageMagic(bytes, base, claimedMime);
     return;
   }
 
   if (base.startsWith(VIDEO_PREFIX)) {
+    assertExactMediaType(base, claimedMime);
     assertVideoMagic(bytes, base, claimedMime);
     return;
   }

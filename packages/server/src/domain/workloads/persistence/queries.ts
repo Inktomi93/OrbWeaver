@@ -45,6 +45,7 @@ import type {
   WorkloadTerminalWrite,
   WorkloadTextRow,
 } from "../contract/workload-row.ts";
+import { releaseUnrun } from "../substrate/params.ts";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
 const TERMINAL_STATUSES = ["succeeded", "failed", "cancelled", "worker_died"] as const satisfies readonly WorkloadStatus[];
@@ -450,14 +451,45 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
   });
 }
 
+// A queued row's params as stored, for the owning domain's release: text that is not JSON reads as nothing held.
+function storedParamsOf(text: string | null): unknown {
+  try {
+    return text === null ? null : JSON.parse(text);
+  } catch (parseError) {
+    if (!(parseError instanceof SyntaxError)) {
+      throw parseError;
+    }
+    return null;
+  }
+}
+
+/** The params one row stores, undecoded by its kind: what a row whose params no longer parse still names. */
+export async function loadStoredParams(db: Db, id: WorkloadId): Promise<unknown> {
+  const [row] = await db
+    .select({ params: sql<string | null>`${workloads.params}` })
+    .from(workloads)
+    .where(eq(workloads.id, id));
+  return storedParamsOf(row?.params ?? null);
+}
+
+// A row failed in the queue never reaches a run body, so what it holds outside the database is released here.
+async function failAndRelease(
+  input: QueueScanInput,
+  row: Pick<WorkloadTextRow, "id" | "kind" | "ownerId">,
+  params: unknown,
+  error: WorkloadError,
+): Promise<void> {
+  if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
+    input.onFailure({ workloadId: row.id, kind: row.kind, error });
+    await releaseUnrun(input.contributions, row.kind, params, row.ownerId);
+  }
+}
+
 async function failOrphanedQueuedRow(input: QueueScanInput, row: WorkloadTextRow): Promise<boolean> {
   if (row.ownerId !== null || row.admissionSystem) {
     return false;
   }
-  const error: WorkloadError = { message: "the workload's owner no longer exists" };
-  if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
-    input.onFailure({ workloadId: row.id, kind: row.kind, error });
-  }
+  await failAndRelease(input, row, storedParamsOf(row.params), { message: "the workload's owner no longer exists" });
   return true;
 }
 
@@ -485,10 +517,7 @@ async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): P
     view = null;
   }
   if (view === null || view.poison) {
-    const error: WorkloadError = { message: `unrecognized or malformed workload data: ${row.kind}` };
-    if (await failQueuedRow(input.db, row.id, error.message, input.now)) {
-      input.onFailure({ workloadId: row.id, kind: row.kind, error });
-    }
+    await failAndRelease(input, row, storedParamsOf(row.params), { message: `unrecognized or malformed workload data: ${row.kind}` });
     getLog(input.logger).warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");
     return null;
   }
@@ -506,10 +535,7 @@ async function evaluateQueuedRow(input: QueueScanInput, row: WorkloadTextRow): P
   if (gate === "ready") {
     return view;
   }
-  const error: WorkloadError = { message: DEPENDENCY_FAILED_MESSAGE };
-  if (await failQueuedRow(input.db, view.id, error.message, input.now)) {
-    input.onFailure({ workloadId: view.id, kind: view.kind, error });
-  }
+  await failAndRelease(input, view, view.params, { message: DEPENDENCY_FAILED_MESSAGE });
   getLog(input.logger).warn(
     { workloadId: view.id, dependsOn: view.dependsOn },
     "workloads: failed dependent — a dependency did not succeed (dependency_failed)",

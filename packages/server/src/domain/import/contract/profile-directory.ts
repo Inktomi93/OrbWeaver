@@ -182,6 +182,7 @@ export type ProfileWaveOutcomes = Pick<
   | "worldNotes"
   | "backgroundsImported"
   | "skippedBackgrounds"
+  | "skippedPersonaAvatars"
   | "skippedCardTags"
   | "appearanceKeysApplied"
   | "groupsImported"

@@ -1,7 +1,7 @@
 // A bundle's asset file names its kinds and type in a filename nothing proved, so the restore checks them against the
 // bytes. A picture under another type restores under the type its bytes are. A file whose bytes are not what its kinds
-// admit, or not an image or video its claim says they are, is refused with its code; nothing of it is stored or linked,
-// and the rest of the bundle imports.
+// admit, or whose claim is not one type the store's signature check bears out, is refused with its code; nothing of it is
+// stored or linked, and the rest of the bundle imports.
 // @subject packages/server/src/domain/assets/verbs/import-asset.ts
 // @subject packages/server/src/domain/assets/substrate/mime.ts
 
@@ -31,7 +31,9 @@ const HTML = "text/html";
 const ZIP = "application/zip";
 /** The type the blob route serves a stored file under when it is not a medium it serves inline. */
 const DOWNLOAD = "application/octet-stream";
-const PAGE = new TextEncoder().encode("<!doctype html><html><body><script>parent.postMessage(1)</script></body></html>");
+const PAGE = new TextEncoder().encode("<!doctype html><p>a harmless note</p>");
+const NOTE = new TextEncoder().encode("a harmless note");
+const TEXT = "text/plain";
 
 /** One bundle asset file: its bytes and the kinds and type its filename claims for them. */
 interface Claim {
@@ -58,6 +60,10 @@ const BYTES = {
   bundleAsVideo: magicBytes("zip", 80),
   pageAsPicture: PAGE,
   svgAsPicture: magicBytes("svg"),
+  note: NOTE,
+  noteAsAudioList: new TextEncoder().encode("a harmless note, listed"),
+  noteAsAudio: new TextEncoder().encode("a harmless note, as sound"),
+  bundleAsAudio: magicBytes("zip", 84),
 } as const;
 
 /** Claims that restore, with the type the restored file is stored and served under. */
@@ -73,6 +79,7 @@ const RESTORED = {
   jpegAsAnimated: { claim: { bytes: BYTES.jpegAsAnimated, kinds: ["background"], mime: APNG_MIME }, stored: JPEG, served: JPEG },
   pictureAsPage: { claim: { bytes: BYTES.pictureAsPage, kinds: ["avatar"], mime: HTML }, stored: PNG, served: PNG },
   pictureAsVideo: { claim: { bytes: BYTES.pictureAsVideo, kinds: ["background"], mime: MP4 }, stored: PNG, served: PNG },
+  note: { claim: { bytes: BYTES.note, kinds: ["document"], mime: TEXT }, stored: TEXT, served: DOWNLOAD },
 } as const satisfies Record<string, { readonly claim: Claim; readonly stored: string; readonly served: string }>;
 
 /** Claims the bytes do not bear out, each with the code the store refuses it under. */
@@ -87,6 +94,14 @@ const REFUSED = {
   bundleAsVideo: { claim: { bytes: BYTES.bundleAsVideo, kinds: ["plugin"], mime: MP4 }, code: ASSET_UPLOAD_REFUSAL_CODES.contentRejected },
   pageAsPicture: { claim: { bytes: BYTES.pageAsPicture, kinds: ["avatar"], mime: PNG }, code: ASSET_UPLOAD_REFUSAL_CODES.notAnImage },
   svgAsPicture: { claim: { bytes: BYTES.svgAsPicture, kinds: ["avatar"], mime: PNG }, code: ASSET_UPLOAD_REFUSAL_CODES.notAnImage },
+  // A type list is not one type, and a browser can read such a header by its last entry.
+  noteAsAudioList: {
+    claim: { bytes: BYTES.noteAsAudioList, kinds: ["document"], mime: `audio/mpeg, ${TEXT}` },
+    code: ASSET_UPLOAD_REFUSAL_CODES.contentRejected,
+  },
+  // The store keeps no sound, so no signature check can bear out a sound type.
+  noteAsAudio: { claim: { bytes: BYTES.noteAsAudio, kinds: ["document"], mime: "audio/mpeg" }, code: ASSET_UPLOAD_REFUSAL_CODES.contentRejected },
+  bundleAsAudio: { claim: { bytes: BYTES.bundleAsAudio, kinds: ["plugin"], mime: "audio/ogg" }, code: ASSET_UPLOAD_REFUSAL_CODES.contentRejected },
 } as const satisfies Record<string, { readonly claim: Claim; readonly code: string }>;
 
 type Case = keyof typeof BYTES;
@@ -116,6 +131,10 @@ function bundleFiles(): Readonly<Record<Case, PortableFile>> {
     bundleAsVideo: file(CASES.bundleAsVideo),
     pageAsPicture: file(CASES.pageAsPicture),
     svgAsPicture: file(CASES.svgAsPicture),
+    note: file(CASES.note),
+    noteAsAudioList: file(CASES.noteAsAudioList),
+    noteAsAudio: file(CASES.noteAsAudio),
+    bundleAsAudio: file(CASES.bundleAsAudio),
   };
 }
 
