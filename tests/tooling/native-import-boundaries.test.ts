@@ -3,6 +3,7 @@ import { join, posix, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import eslintConfig from "../../eslint.config.ts";
 import { SERVER_IMPORT_HOMES, SERVER_SOURCE_ROOT } from "../../tooling/src/eslint/security-policy.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
 
@@ -15,25 +16,30 @@ async function linted(repoRoot: string, cases: readonly ImportCase[]): Promise<r
   const linter = new Linter({ cwd: repoRoot });
   const results: ImportCase[] = [];
   const entries = new Map<string, Linter.RuleEntry>();
+  // The rule reads the import and its options, never the file name, so one verdict serves every path with the same entry.
+  const verdicts = new Map<string, number>();
   for (const [path, source] of cases) {
     const entry = entries.get(path) ?? (await resolvedConfig(eslint, path)).rules["no-restricted-imports"] ?? "off";
     entries.set(path, entry);
-    const messages = linter.verify(
-      source,
-      {
-        files: ["**/*.{ts,tsx}"],
-        languageOptions: { parser: tseslint.parser },
-        rules: { "no-restricted-imports": entry },
-      },
-      { filename: path },
-    );
-    const fatal = messages.find((message) => message.fatal === true);
-    if (fatal !== undefined) {
-      throw new Error(`${path}: ${fatal.message}`);
-    }
-    results.push([path, source, messages.filter(({ ruleId }) => ruleId === "no-restricted-imports").length]);
+    const key = JSON.stringify([entry, source]);
+    const refusals = verdicts.get(key) ?? refusalsOf(linter, path, source, entry);
+    verdicts.set(key, refusals);
+    results.push([path, source, refusals]);
   }
   return results;
+}
+
+function refusalsOf(linter: Linter, path: string, source: string, entry: Linter.RuleEntry): number {
+  const messages = linter.verify(
+    source,
+    { files: ["**/*.{ts,tsx}"], languageOptions: { parser: tseslint.parser }, rules: { "no-restricted-imports": entry } },
+    { filename: path },
+  );
+  const fatal = messages.find((message) => message.fatal === true);
+  if (fatal !== undefined) {
+    throw new Error(`${path}: ${fatal.message}`);
+  }
+  return messages.filter(({ ruleId }) => ruleId === "no-restricted-imports").length;
 }
 
 test("the configured PNG import restriction preserves aliases, nested doors and sanctioned homes", async ({ repoRoot }) => {
@@ -61,14 +67,27 @@ const ROW_PROBES: Readonly<Record<(typeof SERVER_IMPORT_HOMES)[number]["id"], st
 
 const isHome = (homes: readonly string[], path: string): boolean => homes.some((home) => (home.endsWith("/") ? path.startsWith(home) : path === home));
 
-// The swept paths: every server source file on disk, so a block that names one real file is judged at that file, and a
-// probe file in every server source directory, so a block over a directory is judged where no file sits yet.
+// Every pattern by which a block that sets the rule, or an ignore-only block, can tell server paths apart. It is read
+// from the composed config, so a new block is swept with no list to update.
+const BLOCKS: readonly Pick<Linter.Config, "files" | "ignores" | "rules">[] = eslintConfig;
+const PATTERNS = BLOCKS.filter(
+  (block) => block.rules?.["no-restricted-imports"] !== undefined || (block.files === undefined && block.rules === undefined),
+).flatMap((block) => [...(block.files ?? []).flat(), ...(block.ignores ?? [])]);
+
+// The swept paths: a probe in every server source directory, and every server file some pattern matches otherwise than
+// it matches its directory's probe. Only those patterns decide the rule's entry, so a file no pattern tells from its
+// directory's probe resolves the probe's entry, and the probe judges it. Node's glob matcher is minimatch, as ESLint's
+// is, and no server path carries a dot segment, where their options would differ.
 function sweptPaths(repoRoot: string): readonly string[] {
   const entries = readdirSync(join(repoRoot, SERVER_SOURCE_ROOT), { recursive: true, withFileTypes: true });
   const pathOf = (entry: (typeof entries)[number], name: string): string => posix.join(relative(repoRoot, entry.parentPath).replaceAll("\\", "/"), name);
   const files = entries.filter((entry) => entry.isFile() && /\.tsx?$/u.test(entry.name)).map((entry) => pathOf(entry, entry.name));
   const probes = entries.filter((entry) => entry.isDirectory()).map((entry) => posix.join(pathOf(entry, entry.name), "probe.ts"));
-  return [`${SERVER_SOURCE_ROOT}probe.ts`, ...probes, ...files];
+  const singledOut = files.filter((file) => {
+    const probe = posix.join(posix.dirname(file), "probe.ts");
+    return PATTERNS.some((pattern) => posix.matchesGlob(file, pattern) !== posix.matchesGlob(probe, pattern));
+  });
+  return [`${SERVER_SOURCE_ROOT}probe.ts`, ...probes, ...singledOut];
 }
 
 // Every server path refuses every restricted import except where the table names that path as the row's home, so a
