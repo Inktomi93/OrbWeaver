@@ -17,7 +17,8 @@ import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
-import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_ANOTHER_NAME, IMPORT_FILE_PICKER_NAME, IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { DUPLICATE_THRESHOLD_NAME, EXPORT_DOWNLOAD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
@@ -53,7 +54,7 @@ async function chooseBackup(page: Page, path: string, folder: boolean): Promise<
     const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click()]);
     await chooser.setFiles(path);
   } else {
-    await page.getByLabel("Import a backup or card file", { exact: true }).setInputFiles(path);
+    await page.getByLabel(IMPORT_FILE_PICKER_NAME, { exact: true }).setInputFiles(path);
   }
 }
 
@@ -82,7 +83,7 @@ async function assertNativeRestore(
   try {
     const [response] = await Promise.all([page.waitForResponse(matches), preflight.getByRole("button", { name: IMPORT_CONFIRM_NAME }).click()]);
     expect(response.status()).toBe(202);
-    await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: restore.settleMs });
+    await expect(page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true })).toBeVisible({ timeout: restore.settleMs });
     expect(nonEmpty(statuses).every((status) => status === 202)).toBe(true);
     // The UI owns response parsing; native rows supply identities without rereading an evicted response body.
     const after = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
@@ -153,7 +154,7 @@ async function restoreBackup(
   await chooseBackup(page, input.path, input.folder);
   await assertNativeRestore(page, host, input);
   if (!input.folder) {
-    await page.getByRole("button", { name: "Import another", exact: true }).click();
+    await page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true }).click();
   }
   return await assertRestoredWitness(page, host, witness, input);
 }
@@ -178,7 +179,7 @@ test.describe("committed corpus settings", () => {
     const before = (await host.trpc.settings.getUserSettings.query(undefined)).config.workloads.dupThreshold;
     const next = before === 0.9 ? 0.8 : 0.9;
     await openGroup(page, "workloads");
-    const input = page.getByRole("textbox", { name: "Duplicate threshold", exact: true });
+    const input = page.getByRole("textbox", { name: DUPLICATE_THRESHOLD_NAME, exact: true });
     await input.fill(String(next));
     await input.press("Tab");
     await expect.poll(async () => (await host.trpc.settings.getUserSettings.query(undefined)).config.workloads.dupThreshold).toBe(next);
@@ -247,7 +248,7 @@ test.describe("committed corpus settings", () => {
     const exported = await host.trpc.regex.exportScript.query({ scriptId: witness.id });
     await openGroup(page, "backup");
     const downloaded = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download my library", exact: true }).click();
+    await page.getByRole("button", { name: EXPORT_DOWNLOAD_NAME, exact: true }).click();
     const download = await downloaded;
     expect(await download.failure()).toBeNull();
     const filename = download.suggestedFilename();

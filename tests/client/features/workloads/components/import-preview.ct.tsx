@@ -25,7 +25,15 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, Request } from "@playwright/test";
-import { IMPORT_FOLDER_NAME, IMPORT_PROGRESS_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import {
+  IMPORT_FOLDER_NAME,
+  IMPORT_LEFT_ON_DISK_PHRASE,
+  IMPORT_PREVIEW_FAILURE,
+  IMPORT_PREVIEW_HIDE_NAMES,
+  IMPORT_PREVIEW_REPORT_NAME,
+  IMPORT_PREVIEW_SHOW_NAMES,
+  IMPORT_PROGRESS_NAME,
+} from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
   IMPORT_CONFIRM_NAMES,
@@ -176,7 +184,7 @@ for (const { name, width, appearance } of WIDTHS) {
     const preflight = page.getByRole("group", { name: /^Import \d+ files? from the folder you picked\?$/u });
     const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
     await expect(confirm).toBeDisabled();
-    const report = preflight.getByRole("group", { name: "What this import would bring", exact: true });
+    const report = preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
     await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
     await expect(report.getByText("Preview card", { exact: false })).toBeHidden();
     await expect(confirm).toBeEnabled();
@@ -195,8 +203,8 @@ for (const { name, width, appearance } of WIDTHS) {
       await expect(report).toContainText(reason);
     }
 
-    await report.getByRole("button", { name: "Show names" }).click();
-    await expect(report.getByRole("button", { name: "Hide names" })).toBeVisible();
+    await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
+    await expect(report.getByRole("button", { name: IMPORT_PREVIEW_HIDE_NAMES })).toBeVisible();
     await expect(report.getByText("Preview card", { exact: false })).toBeVisible();
     expect((await actionGroupGeometry(page.getByRole("group", { name: "Import preview host", exact: true }), [confirm])).inlineOverflow).toBeLessThanOrEqual(1);
 
@@ -285,7 +293,7 @@ test("a re-pick while the last dry run still holds the account's import slot wai
   await expect(page.getByText("409")).toHaveCount(0);
 
   await caller.workloads.cancel({ id: workloadId });
-  const report = preflight.getByRole("group", { name: "What this import would bring", exact: true });
+  const report = preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
   await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
   await expect(page.getByText("409")).toHaveCount(0);
 });
@@ -308,7 +316,7 @@ test("a failed dry run says so in plain words and tone, and Try again reads the 
   await expect(preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true })).toBeEnabled();
 
   await preflight.getByRole("button", { name: RETRY_NAME, exact: true }).click();
-  await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  await expect(preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
 });
 
 test("a pick brings the preflight, with its progress bar, into view and focuses it", async ({ mount, page, baseURL }, testInfo) => {
@@ -352,7 +360,7 @@ test("a refused persona review says so in plain words, not the raw request error
   await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
 
   await pickFolder(page, folder);
-  await expect(page.getByText("The server could not read this folder.", { exact: true })).toBeVisible();
+  await expect(page.getByText(IMPORT_PREVIEW_FAILURE.serverFailed, { exact: true })).toBeVisible();
   await expect(page.getByText(/reviewTreePersonas|planted failure/u)).toHaveCount(0);
 });
 
@@ -368,7 +376,7 @@ test("Import and Cancel stay in reach at the foot of a review taller than the vi
 
   await pickFolder(page, folder);
   const preflight = page.getByRole("group", { name: PREFLIGHT });
-  await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  await expect(preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
   await expect(preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true })).toBeInViewport();
   await expect(preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true })).toBeInViewport();
 });
@@ -384,7 +392,7 @@ test("Import hands focus to the progress region", async ({ mount, page, baseURL 
 
   await pickFolder(page, folder);
   const preflight = page.getByRole("group", { name: PREFLIGHT });
-  await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  await expect(preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
 
   // Confirmed from the keyboard, so the browser treats the script focus that follows as keyboard focus and would paint its own ring.
   const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
@@ -469,7 +477,7 @@ test("a folder's persona the library already holds is counted as already there, 
   await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
 
   await pickFolder(page, folder);
-  const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: "What this import would bring", exact: true });
+  const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
   await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
 
   // The control: the wire carries the ownership the line reads, for a kind that is not a character.
@@ -493,7 +501,7 @@ test("the folder's skip reasons and left-out files read at least as large as the
 
   await pickFolder(page, folder);
   const preflight = page.getByRole("group", { name: PREFLIGHT });
-  const report = preflight.getByRole("group", { name: "What this import would bring", exact: true });
+  const report = preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
   await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
   const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
   const [skip] = nonEmpty(preview.skipped.items);
@@ -501,7 +509,7 @@ test("the folder's skip reasons and left-out files read at least as large as the
   const fontSize = (text: Locator): Promise<number> => text.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
   const policy = await fontSize(preflight.getByText(IMPORT_CONSEQUENCE[0], { exact: true }));
   const reason = await fontSize(report.getByText(skip.reason, { exact: false }));
-  const leftOnDisk = await fontSize(preflight.getByText(/will stay on your disk/u));
+  const leftOnDisk = await fontSize(preflight.getByText(IMPORT_LEFT_ON_DISK_PHRASE));
   const question = await fontSize(preflight.getByText(PREFLIGHT));
   expect(reason).toBeGreaterThanOrEqual(policy);
   expect(leftOnDisk).toBeGreaterThanOrEqual(policy);
@@ -509,12 +517,9 @@ test("the folder's skip reasons and left-out files read at least as large as the
 
   // The folder's own facts come before the policy that holds for every import, and the disclosed names read at the label step, not the micro gloss.
   const policyBox = await preflight.getByText(IMPORT_CONSEQUENCE[0], { exact: true }).boundingBox();
-  const leftOnDiskBox = await preflight
-    .getByText(/will stay on your disk/u)
-    .first()
-    .boundingBox();
+  const leftOnDiskBox = await preflight.getByText(IMPORT_LEFT_ON_DISK_PHRASE).first().boundingBox();
   expect(leftOnDiskBox?.y).toBeLessThan(policyBox?.y ?? Number.NEGATIVE_INFINITY);
-  await report.getByRole("button", { name: "Show names" }).click();
+  await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
   const name = await fontSize(report.getByText("Preview card", { exact: false }));
   expect(name).toBe(await resolvedLength(page, `var(${TOKENS["text.label"].cssVar})`, report));
 });

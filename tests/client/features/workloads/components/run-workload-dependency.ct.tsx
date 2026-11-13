@@ -4,6 +4,7 @@ import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { WORKLOAD_RUN_AFTER_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import type { RunDependencyStory } from "./_run-dependency-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_run-dependency-stories/RunDependencyStory";
@@ -41,7 +42,7 @@ test("a dependency that ends while the dialog is open still gates the run", asyn
 
   await page.getByTestId(testId("workloadsRunButton")).click();
   const dialog = page.getByTestId(testId("runWorkloadDialog"));
-  const gate = dialog.getByRole("group", { name: "Run after these complete", exact: true });
+  const gate = dialog.getByRole("group", { name: WORKLOAD_RUN_AFTER_NAME, exact: true });
   await gate.getByRole("button").first().click();
 
   await caller.workloads.cancel({ id: dependency.id });

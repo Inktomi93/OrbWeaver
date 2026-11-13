@@ -9,6 +9,8 @@ import { routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/c
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
+import { cancelWorkloadName, retryWorkloadName } from "#client/features/workloads/lib/workloads-names.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { scheduleDeleteName, scheduleEditName, scheduleEnabledSwitchName, scheduleName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
@@ -69,8 +71,8 @@ test("a delegated admin is offered Cancel and Retry on a member's runs and on no
   const rowsOf = (handle: string): ReturnType<typeof page.locator> => page.locator('[data-slot="workload-row"]').filter({ hasText: handle });
   const memberRows = rowsOf(memberHandle);
   await expect(memberRows).toHaveCount(2);
-  await expect(memberRows.getByRole("button", { name: /^Cancel: /u })).toHaveCount(1);
-  await expect(memberRows.getByRole("button", { name: /^Retry: /u })).toHaveCount(1);
+  await expect(memberRows.getByRole("button", { name: cancelWorkloadName(WORKLOAD_KIND_LABELS[STATS.kind]), exact: true })).toHaveCount(1);
+  await expect(memberRows.getByRole("button", { name: retryWorkloadName(WORKLOAD_KIND_LABELS[STATS.kind]), exact: true })).toHaveCount(1);
   const ownerRows = rowsOf(ownerHandle);
   await expect(ownerRows).toHaveCount(2);
   await expect(ownerRows.getByRole("button")).toHaveCount(0);

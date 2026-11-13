@@ -38,7 +38,14 @@ import { useUploadCaps } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
-import { IMPORT_FOLDER_NAME, IMPORT_PROGRESS_NAME, IMPORT_RESULT_NAME } from "../lib/import-library-names.ts";
+import {
+  IMPORT_ANOTHER_NAME,
+  IMPORT_FILE_PICKER_NAME,
+  IMPORT_FOLDER_NAME,
+  IMPORT_INTRO_LEAD,
+  IMPORT_PROGRESS_NAME,
+  IMPORT_RESULT_NAME,
+} from "../lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES, IMPORT_CONSEQUENCE, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportPreviewSummary } from "./import-preview-summary.tsx";
@@ -239,12 +246,12 @@ export function ImportLibrarySection(): ReactElement {
   return (
     <Stack gap="block">
       <Text ink="muted" cap="prose">
-        Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, world books, everything) or a single
-        character card, or pick an unzipped backup / SillyTavern profile folder.
+        {IMPORT_INTRO_LEAD} Drop a full .zip export (characters, chats, personas, world books, everything) or a single character card, or pick an unzipped
+        backup / SillyTavern profile folder.
       </Text>
       <FileDropzone
         accept=".zip,.png,.json"
-        aria-label="Import a backup or card file"
+        aria-label={IMPORT_FILE_PICKER_NAME}
         data-testid={testId("backupImportDropzone")}
         subject="a .zip backup or a character card"
         hint="A .zip carries your whole library; a .png / .json is a single card"
@@ -319,7 +326,7 @@ export function ImportLibrarySection(): ReactElement {
               <ImportedChatsMemoryOffer scope={outcome.summary.memoryScope} />
               <Row justify="start">
                 <Button variant="outline" onClick={reset}>
-                  Import another
+                  {IMPORT_ANOTHER_NAME}
                 </Button>
               </Row>
             </>

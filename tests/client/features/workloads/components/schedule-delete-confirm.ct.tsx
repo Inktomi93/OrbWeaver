@@ -2,6 +2,7 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { SCHEDULE_DELETE_CONFIRM_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { scheduleDeleteName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -32,6 +33,6 @@ test("Delete schedule asks first: Cancel keeps the schedule, Delete removes it o
   expect(await caller.workloads.listSchedules({})).toHaveLength(before);
 
   await remove.click();
-  await confirm.getByRole("button", { name: "Delete schedule", exact: true }).click();
+  await confirm.getByRole("button", { name: SCHEDULE_DELETE_CONFIRM_NAME, exact: true }).click();
   await expect.poll(async () => (await caller.workloads.listSchedules({})).length).toBe(before - 1);
 });
