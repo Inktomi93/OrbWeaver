@@ -57,6 +57,7 @@ export interface DiagnosticsDeps {
   readonly scheduleTimeout: ScheduleOp;
   readonly fetch: typeof fetch;
   readonly now: Clock;
+  readonly warn: InferenceLog["warn"];
 }
 
 /** What the inspector's call needs beyond the diagnostics deps: the app identity the model factory sends. */
