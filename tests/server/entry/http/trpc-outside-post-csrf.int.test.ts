@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { AUTH_FALLBACK_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import type { PluginId } from "@orb/kit/ids";
+import type { LogLevel } from "@orb/contracts/settings";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { createAuthModeRoot, mintMember, signIn } from "@orb/testkit/node/auth";
@@ -20,6 +20,10 @@ const OK = 200;
 const FORBIDDEN = 403;
 const WITH_HEADER = { [CSRF_HEADER]: "1" } as const;
 const refusalSchema = z.object({ error: z.object({ data: z.object({ code: z.string(), httpStatus: z.number() }) }) });
+// A failed guest call logs one warn line, which is how this suite sees that the transform ran.
+const FAILURE_LEVEL = "warn" satisfies LogLevel;
+const FAILURE_LINE = "plugin: failure";
+const LOG_SCAN_LIMIT = 500;
 const CRASHING_TRANSFORM = 'const h = orb.host(1); h.transforms.registerDisplay({ name: "boom", apply: () => { throw new Error("boom"); } });';
 
 function crashingManifest(): PluginManifest {
@@ -51,14 +55,13 @@ async function get(
   return { status: response.status, code: refusal.success ? refusal.data.error.data.code : null };
 }
 
-/** One plugin's last recorded crash, as the owner's plugin page reads it. */
-async function lastError(root: ServerTestHarness, pluginId: PluginId): Promise<string | null | undefined> {
-  const caller = await root.internalCallerFor(root.ownerId);
-  return (await caller.plugin.list()).find((plugin) => plugin.id === pluginId)?.lastError;
+/** How many plugin failures the root has logged: one per guest call that threw. */
+function failuresLogged(root: ServerTestHarness): number {
+  return root.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(FAILURE_LINE)).length;
 }
 
-test("a header-less GET to plugin.transformForDisplay under the owner fallback is refused, and its plugin records no crash", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn, physicalPeer: () => LOOPBACK });
+test("a header-less GET to plugin.transformForDisplay under the owner fallback is refused before its guest runs", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn, physicalPeer: () => LOOPBACK, logLevel: FAILURE_LEVEL });
   const owner = await root.principalFor(root.ownerId);
   const manifest = crashingManifest();
   const installed = await seedInstalledPlugin(root, { caller: owner, bundle: makePluginBundle(manifest, CRASHING_TRANSFORM, root.clock.now()), grant: [] });
@@ -67,12 +70,12 @@ test("a header-less GET to plugin.transformForDisplay under the owner fallback i
 
   expect(await get(root, "plugin.transformForDisplay", input, {})).toEqual({ status: FORBIDDEN, code: "FORBIDDEN" });
   await root.settleBackground();
-  expect(await lastError(root, installed.outcome.id)).toBeNull();
+  expect(failuresLogged(root)).toBe(0);
 
-  // Control: the same GET with the header runs the transform, and its crash is recorded.
+  // Control: the same GET with the header runs the transform, and its throw is logged.
   expect(await get(root, "plugin.transformForDisplay", input, WITH_HEADER)).toEqual({ status: OK, code: null });
   await root.settleBackground();
-  expect(await lastError(root, installed.outcome.id)).toEqual(expect.any(String));
+  expect(failuresLogged(root)).toBe(1);
 });
 
 test.for([
