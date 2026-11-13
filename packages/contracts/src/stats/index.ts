@@ -96,8 +96,8 @@ const statsDeltaSchema = z.strictObject({
   modelCacheReadTokens: z.number().optional(),
   modelCacheWriteTokens: z.number().optional(),
 
-  // Bump `owner_stats.characters` by 1 — set ONLY when this write is the FIRST chat for a character
-  // (live-undercounts a character with no chats until a drift-repair reconcile; documented, acceptable).
+  // Bump `owner_stats.characters` by 1 — set ONLY when this write is the FIRST started room for a character. The
+  // rebuild counts the same set: the owner's characters with a seat in a started room, past seats included.
   newCharacter: z.boolean().optional(),
   firstAt: z.number().nullable().optional(), // candidate for firstChatAt (MIN)
   lastAt: z.number().nullable().optional(), // candidate for lastActivityAt (MAX)
