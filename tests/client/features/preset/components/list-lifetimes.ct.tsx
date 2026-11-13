@@ -18,12 +18,15 @@ import {
   userMacroOptionGroupName,
 } from "#client/components/shared-control-names.ts";
 import {
+  PRESET_ADD_VARIABLE_NAME,
+  PRESET_EDIT_VARIABLE_TITLE,
   PRESET_EDITOR_VIEW_LABELS,
   PRESET_RESET_ARRANGEMENT_CONFIRM,
   PRESET_RESET_ARRANGEMENT_NAME,
   PRESET_RESET_ARRANGEMENT_TITLE,
   PRESET_VARIABLE_ADD_OPTION_NAME,
   PRESET_VARIABLE_QUESTION_NAME,
+  presetVariableOptionGroupName,
 } from "#client/features/preset/lib/preset-names.ts";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
@@ -223,14 +226,20 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("button", { name: "{{remote_macro}}", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
-  const variable = page.getByRole("dialog", { name: "Edit variable", exact: true });
-  await confirmRemove(page, variable.getByRole("group", { name: "Option 1", exact: true }).getByRole("button", { name: "Remove", exact: true }));
+  const variable = page.getByRole("dialog", { name: PRESET_EDIT_VARIABLE_TITLE, exact: true });
+  await confirmRemove(
+    page,
+    variable.getByRole("group", { name: presetVariableOptionGroupName(1), exact: true }).getByRole("button", { name: DIALOG_VERBS.remove, exact: true }),
+  );
   const remaining = variable.locator('input[name="variables[0].options[0].label"]');
   await expect(remaining).toHaveValue("Loud");
   await expect(variable.getByRole("button", { name: PRESET_VARIABLE_ADD_OPTION_NAME, exact: true })).toBeFocused();
   await variable.getByRole("button", { name: PRESET_VARIABLE_ADD_OPTION_NAME, exact: true }).click();
   await variable.locator('input[name="variables[0].options[1].label"]').fill("Inserted variable option");
-  await confirmRemove(page, variable.getByRole("group", { name: "Option 2", exact: true }).getByRole("button", { name: "Remove", exact: true }));
+  await confirmRemove(
+    page,
+    variable.getByRole("group", { name: presetVariableOptionGroupName(2), exact: true }).getByRole("button", { name: DIALOG_VERBS.remove, exact: true }),
+  );
   await remaining.press("End");
   await remaining.pressSequentially("er");
   await expect(remaining).toBeFocused();
@@ -313,7 +322,7 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   });
   await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.data, exact: true }).click();
   await page.getByRole("button", { name: "queued_variable", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Edit variable", exact: true });
+  const dialog = page.getByRole("dialog", { name: PRESET_EDIT_VARIABLE_TITLE, exact: true });
   const label = dialog.locator('input[name="variables[0].options[0].label"]');
   await label.fill("Submitted");
   await first.requested;
@@ -343,7 +352,7 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
     .getByRole("button", { name: PRESET_RESET_ARRANGEMENT_CONFIRM, exact: true })
     .click();
   await expect(page.getByRole("button", { name: "queued_variable", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Add variable", exact: true }).click();
+  await page.getByRole("button", { name: PRESET_ADD_VARIABLE_NAME, exact: true }).click();
   await dialog.getByRole("textbox", { name: PRESET_VARIABLE_QUESTION_NAME, exact: true }).fill("New owner after reset");
   await expect(dialog.getByRole("textbox", { name: PRESET_VARIABLE_QUESTION_NAME, exact: true })).toBeFocused();
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();

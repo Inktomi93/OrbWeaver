@@ -30,7 +30,7 @@ import { useFocusOnSwap } from "#lib";
 import { isTemplatedMarker, sectionEnabledSwitchName, sectionGlyphIcon, sectionKind, triggersPillLabel } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
 import type { PresetEditorValues } from "#src/features/preset/lib/preset-editor-values.ts";
-import { presetEditDrillName } from "#src/features/preset/lib/preset-names.ts";
+import { PRESET_LITERAL_TEXT_LABEL, presetEditDrillName } from "#src/features/preset/lib/preset-names.ts";
 import { estimateSectionTokens } from "./estimate-tokens.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 
@@ -68,7 +68,7 @@ function sectionLabels(section: PromptSection): { name: string; subtitle: string
       subtitle: isTemplatedMarker(section.marker) ? copy.subtitle : `carrier: ${copy.subtitle}`,
     };
   }
-  return { name: section.name.trim() === "" ? "Literal text" : section.name, subtitle: "your own text" };
+  return { name: section.name.trim() === "" ? PRESET_LITERAL_TEXT_LABEL : section.name, subtitle: "your own text" };
 }
 
 /** Has this templated marker a custom framing template set? Drives the `custom` cue. */

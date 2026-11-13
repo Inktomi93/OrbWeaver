@@ -13,7 +13,13 @@ import { DestructiveAction, FlowDialog } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { DIALOG_VERBS, notify } from "#lib";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
-import { PRESET_VARIABLE_ADD_OPTION_NAME, PRESET_VARIABLE_QUESTION_NAME } from "../lib/preset-names.ts";
+import {
+  PRESET_EDIT_VARIABLE_TITLE,
+  PRESET_VARIABLE_ADD_OPTION_NAME,
+  PRESET_VARIABLE_QUESTION_NAME,
+  presetVariableOptionGroupName,
+  presetVariableOptionRemoveTitle,
+} from "../lib/preset-names.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
 
@@ -32,7 +38,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
   return (
     <FlowDialog
       dismiss={{ at: "footer", label: DIALOG_VERBS.done, primary: true }}
-      title="Edit variable"
+      title={PRESET_EDIT_VARIABLE_TITLE}
       open={true}
       onOpenChange={(next): void => {
         if (!next) {
@@ -83,12 +89,12 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
               <Text voice="gloss">No options yet.</Text>
             ) : (
               values.variableRowIds[index]?.options.map((id, j) => (
-                <Row key={id} gap="field" align="end" role="group" aria-label={`Option ${j + 1}`}>
+                <Row key={id} gap="field" align="end" role="group" aria-label={presetVariableOptionGroupName(j + 1)}>
                   <form.AppField name={`variables[${index}].options[${j}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
                   <form.AppField name={`variables[${index}].options[${j}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
                   <DestructiveAction
                     confirm={{
-                      title: `Remove option ${j + 1}?`,
+                      title: presetVariableOptionRemoveTitle(j + 1),
                       description: "The variable saves without it. This can't be undone.",
                       confirmLabel: DIALOG_VERBS.remove,
                     }}
@@ -101,7 +107,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
                     }}
                     trigger={
                       <Button variant="ghost" size="sm">
-                        Remove
+                        {DIALOG_VERBS.remove}
                       </Button>
                     }
                   />

@@ -5,7 +5,14 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { PRESET_BACK_TO_ACTIONS_NAME, PRESET_BACK_TO_RACK_NAME, PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
+import {
+  PRESET_BACK_TO_ACTIONS_NAME,
+  PRESET_BACK_TO_RACK_NAME,
+  PRESET_CHAT_HISTORY_LABEL,
+  PRESET_EDITOR_VIEW_LABELS,
+  PRESET_TEMPLATE_FILTER_NAME,
+  presetEditDrillName,
+} from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -40,7 +47,7 @@ for (const { width, height, density } of [
       await mount<typeof PresetActionGroupsStory>(STORY, { width: viewport.width, appearance, subject: "editor", presetId: preset.id });
       const prompt = page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.prompt, exact: true });
       await prompt.click();
-      const pivot = page.getByRole("button", { name: "Edit Chat history", exact: true });
+      const pivot = page.getByRole("button", { name: presetEditDrillName(PRESET_CHAT_HISTORY_LABEL), exact: true });
       await expect(pivot).toBeVisible();
       await expect(prompt).toBeFocused();
       const ordinary = page.getByRole("button", { name: /^Edit (?!Chat history$)/u }).first();
@@ -79,7 +86,7 @@ for (const { width, height, density } of [
         await expect(trigger).toBeFocused();
         await expect(trigger).toBeInViewport({ ratio: 1 });
         await page.screenshot({ path: test.info().outputPath(`${name.toLowerCase().replaceAll(" ", "-")}-focus.png`) });
-        const filter = page.getByRole("textbox", { name: "Filter templates", exact: true });
+        const filter = page.getByRole("textbox", { name: PRESET_TEMPLATE_FILTER_NAME, exact: true });
         await filter.fill("no-template-matches-this-filter");
         await expect(page.getByText('No template matches "no-template-matches-this-filter"', { exact: false })).toBeVisible();
         await filter.clear();

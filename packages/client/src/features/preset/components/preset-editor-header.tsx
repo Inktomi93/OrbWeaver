@@ -30,6 +30,7 @@ import { AutosaveStatus } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import {
   PRESET_ACTIVATE_NAME,
+  PRESET_ACTIVE_STATUS,
   PRESET_RESET_ARRANGEMENT_CONFIRM,
   PRESET_RESET_ARRANGEMENT_NAME,
   PRESET_RESET_ARRANGEMENT_TITLE,
@@ -149,7 +150,7 @@ export function PresetEditorHeader({
                   {active ? (
                     // `role="status"` names the result to AT when focus lands on it; `tabIndex={-1}` makes it a focus target, not a tab stop.
                     <Badge ref={statusRef} role="status" size="sm" tabIndex={-1} tone="primary">
-                      Active
+                      {PRESET_ACTIVE_STATUS}
                     </Badge>
                   ) : (
                     // ITS NAME IS DISTINCT FROM THE LIST RADIO'S. One name in two ROLES (a one-of-N `radio` in

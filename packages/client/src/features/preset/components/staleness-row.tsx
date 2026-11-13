@@ -13,6 +13,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_NOT_HONORED_LEAD } from "../lib/preset-names.ts";
 import { SAMPLING_KNOBS } from "../lib/sampling-knob-catalog.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
@@ -87,7 +88,7 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
         <Row align="center" gap="field">
           <Icon icon={TriangleAlert} size="sm" tone="warning" />
           <Text className="min-inline-0" wrap="anywhere" voice="label">
-            Set but not honored by this model: {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
+            {PRESET_NOT_HONORED_LEAD} {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
           </Text>
         </Row>
         <Row wrap={true} gap="field">

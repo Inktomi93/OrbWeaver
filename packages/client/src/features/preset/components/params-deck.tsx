@@ -60,6 +60,7 @@ import { chatCapabilityOf } from "../lib/chat-capability.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { MIROSTAT_SKIPPED_GLOSS, mirostatSkipped, qualityDeckGloss } from "../lib/effective-knobs.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_QUALITY_LABEL } from "../lib/preset-names.ts";
 import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { CapabilityGate, CapabilityGatePending } from "./capability-gate.tsx";
@@ -165,7 +166,7 @@ function ModelFedClusters({
  *  see `qualitySelectValue`'s header; it is a named arm, not a fourth enum member. */
 function QualityCluster({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow | undefined }): ReactElement {
   return (
-    <Section kicker="Quality">
+    <Section kicker={PRESET_QUALITY_LABEL}>
       <form.AppField name="params.quality">
         {(field): ReactElement => {
           const current = field.state.value;
@@ -179,11 +180,11 @@ function QualityCluster({ form, effective }: { readonly form: AppForm; readonly 
                 <SettingTrackRow>
                   <Field
                     hint="The primary dial. It fills any knob you leave inherited below; anything you set explicitly wins over it."
-                    label="Quality"
+                    label={PRESET_QUALITY_LABEL}
                     name={field.name}
                   >
                     <Select
-                      aria-label="Quality"
+                      aria-label={PRESET_QUALITY_LABEL}
                       items={QUALITY_SELECT_ITEMS}
                       onValueChange={(next): void => field.handleChange(qualityFromSelect(next))}
                       value={qualitySelectValue(current)}

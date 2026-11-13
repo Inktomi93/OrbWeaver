@@ -11,6 +11,7 @@ import type { AppFormInstance } from "#forms/editor";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { RESPONSE_REPLAY_CHOICES, RESPONSE_REPLAY_LABELS, responseReplayChoice } from "../lib/effective-knobs.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_REPLAY_LIFETIME_NAME } from "../lib/preset-names.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
 
@@ -79,7 +80,7 @@ function ReplayRetention({ form, disabled }: { readonly form: AppForm; readonly 
         <Field
           disabled={disabled}
           name={field.name}
-          label="Response replay lifetime (seconds)"
+          label={PRESET_REPLAY_LIFETIME_NAME}
           description="Choose an explicit replay request before editing. Empty inherits the connection header or OpenRouter's default; it does not write a guessed lifetime."
           error={invalid ? `Enter whole seconds from ${RESPONSE_CACHE_TTL_BOUNDS.min} to ${RESPONSE_CACHE_TTL_BOUNDS.max}.` : null}
         >

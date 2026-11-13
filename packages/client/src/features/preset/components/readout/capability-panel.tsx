@@ -23,6 +23,7 @@ import { CONNECTION_ROLE_LABELS } from "#lib";
 import { CHAT_ROLE_TARGET, effectiveTarget, SWITCHER_ROLES, targetFromValue, targetValue } from "#src/features/preset/lib/capability-target.ts";
 import { chatCapabilityOf } from "#src/features/preset/lib/chat-capability.ts";
 import { mirostatSkipped } from "#src/features/preset/lib/effective-knobs.ts";
+import { PRESET_CAPABILITY_CONNECTION_NAME } from "#src/features/preset/lib/preset-names.ts";
 import { setPresetReadoutTarget, usePresetReadoutTarget } from "#state";
 import { CapabilityCard, EffectiveProfile, EffectiveProfileFailure, EffectiveProfilePending } from "./readout-parts.tsx";
 
@@ -51,7 +52,7 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
     <>
       <Section kicker="Connection in view">
         <Select
-          aria-label="Connection to describe"
+          aria-label={PRESET_CAPABILITY_CONNECTION_NAME}
           items={[
             {
               label: "Roles",

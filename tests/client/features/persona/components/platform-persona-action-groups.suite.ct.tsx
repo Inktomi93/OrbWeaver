@@ -19,7 +19,7 @@ import {
   personaDetailsToggleName,
   personaEditName,
 } from "#client/features/persona/lib/persona-copy.ts";
-import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT, AUTOSAVE_SAVING_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
@@ -202,7 +202,7 @@ for (const regime of REGIMES) {
       await firstSave.requested;
       const status = editor.locator('[data-slot="autosave-status"]');
       try {
-        await expect(status).toHaveText("Saving…");
+        await expect(status).toHaveText(AUTOSAVE_SAVING_TEXT);
         expect((await caller.persona.get({ personaId: persona.id })).title).toBe(persona.title);
       } finally {
         firstSave.fail();

@@ -17,6 +17,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { useFocusOnSwap } from "#lib";
+import { PRESET_CHAT_HISTORY_LABEL, presetEditDrillName } from "#src/features/preset/lib/preset-names.ts";
 
 export interface PivotBandProps {
   /** This is a DUPLICATE pivot (2nd+ `chat_history`) — render an inert warning band, no zone boundary. */
@@ -59,13 +60,21 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
             because nothing in the row could shrink (F-18). The NAME keeps its width, the gloss truncates. */}
           <Button stretch="row" variant="ghost" onClick={onSelect} size="sm" type="button">
             <Text ink="inherit" as="span" className="shrink-0" voice="label">
-              Chat history
+              {PRESET_CHAT_HISTORY_LABEL}
             </Text>
             <Text as="span" truncate={true} voice="gloss">
               your conversation splices in here: always on, always placed
             </Text>
           </Button>
-          <Button aria-label="Edit Chat history" className="shrink-0" variant="ghost" onClick={onDrill} ref={chevronRef} square={true} type="button">
+          <Button
+            aria-label={presetEditDrillName(PRESET_CHAT_HISTORY_LABEL)}
+            className="shrink-0"
+            variant="ghost"
+            onClick={onDrill}
+            ref={chevronRef}
+            square={true}
+            type="button"
+          >
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>

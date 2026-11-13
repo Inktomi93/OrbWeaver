@@ -6,7 +6,7 @@ import { presetDetailSchema } from "@orb/contracts/preset";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
+import { PRESET_EDITOR_VIEW_LABELS, PRESET_QUALITY_LABEL } from "#client/features/preset/lib/preset-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
@@ -53,7 +53,7 @@ test("a held capability read shows the gate's skeleton, a routing refusal its ba
   await page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true }).click();
   await hold.requested;
   await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
-  await expect(page.getByText("Quality", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(PRESET_QUALITY_LABEL, { exact: true }).first()).toBeVisible();
   hold.fail();
   await expect(page.getByText(REFUSAL, { exact: true })).toBeVisible();
   phase = "serve";

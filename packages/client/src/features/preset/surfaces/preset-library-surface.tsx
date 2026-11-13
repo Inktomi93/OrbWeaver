@@ -40,7 +40,7 @@ import {
 } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
-import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
+import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_LIST_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 export interface PresetLibrarySurfaceProps {
@@ -64,7 +64,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
     // nothing at all, so entering the section told the user where they were only if they then Tab'd. It is a
     // region-shaped landmark for exactly this reason; the name is the pane's own noun.
     <ListPage
-      label="Presets list"
+      label={PRESET_LIST_NAME}
       ref={surfaceRef}
       search={<Input aria-label={PRESET_SEARCH_NAME} onValueChange={setPresetSearchQuery} placeholder={searchPlaceholder} value={query} />}
       skipTo="Skip to presets"

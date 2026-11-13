@@ -17,6 +17,18 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import {
+  PRESET_CAPABILITY_CONNECTION_NAME,
+  PRESET_HIDE_PREVIEW_NAME,
+  PRESET_READOUT_ACTIVE_LABEL,
+  PRESET_READOUT_BUDGET_LABEL,
+  PRESET_READOUT_NOT_HOST_INSPECTED,
+  PRESET_READOUT_NOT_HOST_PRICED,
+  PRESET_READOUT_PRICING_STATUS,
+  PRESET_READOUT_STAGE_UNREAD,
+  PRESET_SHOW_PREVIEW_NAME,
+  presetActionReadoutName,
+} from "#client/features/preset/lib/preset-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PresetReadoutStory } from "./_preset-readout-stories.tsx";
 
@@ -92,7 +104,7 @@ test("the active-preset readout holds, fails and retries through the same bounda
   await expect(page.getByText("Couldn't load the readout.", { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Active preset", { exact: true })).toBeVisible();
+  await expect(page.getByText(PRESET_READOUT_ACTIVE_LABEL, { exact: true })).toBeVisible();
 });
 
 test("Transforms keeps its pipeline while the attached scripts are held, says it could not read them on failure, and Retry counts them", async ({
@@ -110,11 +122,11 @@ test("Transforms keeps its pipeline while the attached scripts are held, says it
   await expect(stages.filter({ hasText: "…" }).first()).toBeVisible();
   read.hold.fail();
   await expect(page.getByText("Couldn't load the attached scripts.", { exact: true })).toBeVisible();
-  await expect(stages.filter({ hasText: "couldn’t read" }).first()).toBeVisible();
+  await expect(stages.filter({ hasText: PRESET_READOUT_STAGE_UNREAD }).first()).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load the attached scripts.", { exact: true })).toHaveCount(0);
-  await expect(stages.filter({ hasText: "couldn’t read" })).toHaveCount(0);
+  await expect(stages.filter({ hasText: PRESET_READOUT_STAGE_UNREAD })).toHaveCount(0);
   await expect(stages.filter({ hasText: "…" })).toHaveCount(0);
 });
 
@@ -125,15 +137,15 @@ test("Prompt keeps its estimates while pricing is held, a host-only refusal is s
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["chat.previewAssembly"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "prompt", chatId });
   await read.hold.requested;
-  await expect(page.getByText("Pricing these rows against the bound chat…", { exact: true })).toBeVisible();
-  await expect(page.getByText("Budget", { exact: true })).toBeVisible();
+  await expect(page.getByText(PRESET_READOUT_PRICING_STATUS, { exact: true })).toBeVisible();
+  await expect(page.getByText(PRESET_READOUT_BUDGET_LABEL, { exact: true })).toBeVisible();
   read.hold.fail();
   await expect(page.getByText("Couldn't load the bound chat's costs.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Budget", { exact: true })).toBeVisible();
+  await expect(page.getByText(PRESET_READOUT_BUDGET_LABEL, { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load the bound chat's costs.", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Pricing these rows against the bound chat…", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(PRESET_READOUT_PRICING_STATUS, { exact: true })).toHaveCount(0);
 });
 
 test("Prompt keeps the assembled preview open and focused while the pricing lands", async ({ mount, page }) => {
@@ -144,11 +156,11 @@ test("Prompt keeps the assembled preview open and focused while the pricing land
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["chat.previewAssembly"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "prompt", chatId });
   await read.hold.requested;
-  await page.getByRole("button", { name: "Show assembled preview", exact: true }).click();
-  const hide = page.getByRole("button", { name: "Hide assembled preview", exact: true });
+  await page.getByRole("button", { name: PRESET_SHOW_PREVIEW_NAME, exact: true }).click();
+  const hide = page.getByRole("button", { name: PRESET_HIDE_PREVIEW_NAME, exact: true });
   await expect(hide).toBeFocused();
   read.hold.release();
-  await expect(page.getByText("Pricing these rows against the bound chat…", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(PRESET_READOUT_PRICING_STATUS, { exact: true })).toHaveCount(0);
   await expect(hide).toBeFocused();
 });
 
@@ -160,7 +172,7 @@ test("Prompt says a member cannot price a room they do not host, with no Retry",
     ...serveCorpusProcedures(host, ["chat.previewAssembly"], () => trpcError({ code: "FORBIDDEN" })),
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "prompt", chatId });
-  await expect(page.getByText("This chat cannot be priced. Its host resolves the prompt, and you are not it.", { exact: true })).toBeVisible();
+  await expect(page.getByText(PRESET_READOUT_NOT_HOST_PRICED, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });
 
@@ -171,7 +183,7 @@ test("Actions holds, fails and retries the resolved preview, and says the host-o
   await routeTrpc(page, { ...serveCorpusProcedures(host, READOUT_READS), ...serveCorpusProcedures(host, ["chat.previewActionTemplates"], read.intercept) });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "actions", chatId });
   await read.hold.requested;
-  const resolved = page.getByRole("region", { name: /^Action readout/u }).locator('[aria-busy="true"]');
+  const resolved = page.getByRole("region", { name: new RegExp(`^${RegExp.escape(presetActionReadoutName(""))}`, "u") }).locator('[aria-busy="true"]');
   await expect(resolved).toBeVisible();
   read.hold.fail();
   await expect(page.getByText("Couldn't load the resolved preview.", { exact: true })).toBeVisible();
@@ -200,7 +212,7 @@ test("Params says a no-chat-model refusal through the profile's failure band bes
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "params", chatId: null });
   await hold.requested;
-  const select = page.getByRole("combobox", { name: "Connection to describe", exact: true });
+  const select = page.getByRole("combobox", { name: PRESET_CAPABILITY_CONNECTION_NAME, exact: true });
   await expect(select).toBeVisible();
   await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
   hold.fail();
@@ -225,7 +237,7 @@ test("Params keeps the settled profile on screen while a switched connection's p
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "params", chatId: null });
   const signature = page.getByText(/· chat role/u);
   await expect(signature).toBeVisible();
-  await page.getByRole("combobox", { name: "Connection to describe", exact: true }).click();
+  await page.getByRole("combobox", { name: PRESET_CAPABILITY_CONNECTION_NAME, exact: true }).click();
   await page.getByRole("option", { name: "Utility model role", exact: true }).click();
   await hold.requested;
   await expect(signature).toBeVisible();
@@ -245,7 +257,7 @@ test("Params reads the Utility role after the Chat role's refusal instead of kee
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "params", chatId: null });
   await expect(page.getByText(REFUSAL, { exact: true })).toBeVisible();
-  await page.getByRole("combobox", { name: "Connection to describe", exact: true }).click();
+  await page.getByRole("combobox", { name: PRESET_CAPABILITY_CONNECTION_NAME, exact: true }).click();
   await page.getByRole("option", { name: "Utility model role", exact: true }).click();
   await expect(page.getByText(REFUSAL, { exact: true })).toHaveCount(0);
   await expect(page.getByText(/· utility model role/u)).toBeVisible();
@@ -274,6 +286,6 @@ test("Actions says a member cannot inspect a room they do not host, with no Retr
     ...serveCorpusProcedures(host, ["chat.previewActionTemplates"], () => trpcError({ code: "FORBIDDEN" })),
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "actions", chatId });
-  await expect(page.getByText("This chat cannot be inspected. Its host resolves the prompt, and you are not it.", { exact: true })).toBeVisible();
+  await expect(page.getByText(PRESET_READOUT_NOT_HOST_INSPECTED, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });
