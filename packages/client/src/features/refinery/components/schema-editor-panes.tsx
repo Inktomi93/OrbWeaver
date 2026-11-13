@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useRefinerySchemaPlan, useTestRefinerySchema } from "../hooks/use-refinery-schemas.ts";
+import { REFINERY_PICK_TEST_CARD_NAME, refineryTestOnCardLabel } from "../lib/refinery-names.ts";
 import type { buildRenderPlan } from "../lib/render-plan.ts";
 import { CharacterDoor } from "./character-door.tsx";
 import { PayloadView } from "./payload-view.tsx";
@@ -116,7 +117,7 @@ export function PreviewCard({
             disabled={outerBusy || testSchema.isPending}
             label="Test the schema on a card"
             onSelect={(id, name): void => setTestCharacter({ id, name })}
-            placeholder="Pick a card to test on"
+            placeholder={REFINERY_PICK_TEST_CARD_NAME}
           />
           <Button
             aria-busy={testSchema.isPending}
@@ -132,7 +133,7 @@ export function PreviewCard({
             }}
             size="sm"
           >
-            {testSchema.isPending ? "Running…" : "Test on this card"}
+            {refineryTestOnCardLabel(testSchema.isPending)}
           </Button>
         </Row>
       </Stack>

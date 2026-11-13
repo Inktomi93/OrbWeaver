@@ -51,3 +51,90 @@ export const REFINERY_COPY_UNTOUCHED_TEXT = "The live card is untouched. No snap
 
 /** The apply outcome's note after an apply that snapshotted the live card first. */
 export const REFINERY_SNAPSHOT_TAKEN_TEXT = "Saved a snapshot first. Undo it from the character's History tab.";
+
+/** The verbs on a review row's decision buttons. The row's own label follows each in the button's name. */
+export const REFINERY_KEEP_VERB = "Keep";
+export const REFINERY_KEEP_CLEARING_VERB = "Keep (empties field)";
+export const REFINERY_REOPEN_VERB = "Reopen";
+
+/** The Keep verb of a row, by whether keeping it empties its field. */
+export function refineryKeepVerb(emptiesField: boolean): string {
+  return emptiesField ? REFINERY_KEEP_CLEARING_VERB : REFINERY_KEEP_VERB;
+}
+
+/** The screen-reader tail of an undecided row's open button, after the row's label. */
+export const REFINERY_SHOW_CHANGE_TAIL = "show this change";
+
+/** The line beside the diverged chip: what each decision does once the live card moved under the session. */
+export const REFINERY_RECONFIRM_NOTE = "re-confirm which version wins: Keep uses the rewrite, Discard keeps the live text";
+
+/** The state note of a rewrite that appends a greeting. */
+export const REFINERY_GREETING_ADDED_NOTE = "A new greeting is added at the end. No existing greeting is touched.";
+
+/** The verb of a run row's View door. */
+export const REFINERY_VIEW_RUN_VERB = "View";
+
+/** A run row's View door, by the run's label. */
+export function refineryViewRunName(runLabel: string): string {
+  return `${REFINERY_VIEW_RUN_VERB} ${runLabel}`;
+}
+
+/** The verbs of a rewrite run's apply door, by whether the run is already the one armed. */
+export const REFINERY_USE_FOR_APPLY_VERB = "Use for apply";
+export const REFINERY_USE_LATEST_VERB = "Use latest instead";
+
+export function refineryUseRunVerb(armed: boolean): string {
+  return armed ? REFINERY_USE_LATEST_VERB : REFINERY_USE_FOR_APPLY_VERB;
+}
+
+/** A rewrite run's apply door, by the run's label. */
+export function refineryUseRunName(armed: boolean, runLabel: string): string {
+  return `${refineryUseRunVerb(armed)}: ${runLabel}`;
+}
+
+/** The masthead's door back to the card, by the card's name. */
+export function refineryOpenCardName(cardName: string): string {
+  return `Open card ${cardName} in the Characters section`;
+}
+
+/** The scope chips' group and the scope dialog's title. */
+export const REFINERY_SCOPE_NAME = "Scope";
+
+/** The Hand-edit dialog's toggle that empties one slot. */
+export function refineryEmptySlotLabel(slotLabel: string): string {
+  return `Empty ${slotLabel}`;
+}
+
+/** The schema designer's two fields, its test card picker and its test press. */
+export const REFINERY_SCHEMA_DESCRIBE_NAME = "Describe the structure";
+export const REFINERY_SCHEMA_JSON_NAME = "Schema (JSON: the full vocabulary)";
+export const REFINERY_PICK_TEST_CARD_NAME = "Pick a card to test on";
+export const REFINERY_TEST_ON_CARD_NAME = "Test on this card";
+
+/** The test press's name, by whether a test is running. */
+export function refineryTestOnCardLabel(running: boolean): string {
+  return running ? "Running…" : REFINERY_TEST_ON_CARD_NAME;
+}
+
+/** The picker's name on the empty sessions state's start door and on the list band's popover. */
+export const REFINERY_START_SESSION_PICKER_NAME = "Start a refinery session";
+
+/** The runs tab's empty state and its door back to the run controls. */
+export const REFINERY_NO_RUNS_TITLE = "No runs yet";
+export const REFINERY_GO_TO_SCORE_NAME = "Go to Score";
+
+/** The sessions list's note when a search matches no session. */
+export const REFINERY_NO_SESSION_MATCH_TEXT = "No sessions match that search.";
+
+/** The Original card dialog's title and its note under the card's name. */
+export const REFINERY_ORIGINAL_CARD_TITLE = "Original card: pinned at session start";
+export const REFINERY_ORIGINAL_CARD_NOTE = "Read-only authored fields pinned when this session started. Macros are shown as written.";
+
+/** The versions tab's empty state. */
+export const REFINERY_NO_VERSIONS_TITLE = "No versions yet";
+
+/** What each versions read is called in its failure line, `queryFailedLabel(REFINERY_READ_LABELS.x)`. */
+export const REFINERY_READ_LABELS = {
+  versions: "this card's versions",
+  version: "that version",
+} as const;

@@ -50,6 +50,7 @@ import { CharacterPicker } from "#components";
 import { skeletonRowCountFor } from "#data";
 import { testId } from "#lib";
 import { useLandingPickerFocusOnRequest } from "../hooks/use-landing-picker-focus.ts";
+import { REFINERY_START_SESSION_PICKER_NAME } from "../lib/refinery-names.ts";
 
 export interface TeachingStateProps {
   readonly onStart: (characterId: CharacterId) => void;
@@ -129,7 +130,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
               row height instead of a guess. */}
           <CharacterPicker
             emptyText="No characters match."
-            label="Start a refinery session"
+            label={REFINERY_START_SESSION_PICKER_NAME}
             listSize="grow"
             onSelect={(id): void => {
               if (!starting) {

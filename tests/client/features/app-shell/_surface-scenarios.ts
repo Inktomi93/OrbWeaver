@@ -7,8 +7,15 @@ import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts"
 import { COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
-import { CORPUS_MODEL_ROUTES_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import {
+  CORPUS_MODEL_ROUTES_NAME,
+  CORPUS_NONE_FOUND_TEXT,
+  CORPUS_READINESS_RAIL_NAME,
+  CORPUS_STAGE_LABELS,
+  CORPUS_UNDERSTANDING_HEADING,
+} from "#client/features/discovery/lib/corpus-control-names.ts";
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { REFINERY_START_SESSION_PICKER_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
@@ -34,12 +41,12 @@ const SECTION_WITNESSES = {
     page.locator(".shell-content").getByRole("heading", { name: "Pick up where you left off", exact: true }),
   ],
   corpus: (page): Witnesses => [
-    page.getByText("Library understanding", { exact: true }),
+    page.getByText(CORPUS_UNDERSTANDING_HEADING, { exact: true }),
     page
-      .getByRole("list", { name: "Analysis passes", exact: true })
+      .getByRole("list", { name: CORPUS_READINESS_RAIL_NAME, exact: true })
       .getByRole("listitem")
-      .filter({ has: page.getByText("Keywords", { exact: true }) })
-      .getByText("none found", { exact: true }),
+      .filter({ has: page.getByText(CORPUS_STAGE_LABELS.keywords, { exact: true }) })
+      .getByText(CORPUS_NONE_FOUND_TEXT, { exact: true }),
     page.getByRole("list", { name: CORPUS_MODEL_ROUTES_NAME, exact: true }).getByRole("listitem").first(),
   ],
   config: (page): Witnesses => [
@@ -53,7 +60,7 @@ const SECTION_WITNESSES = {
   databank: (page): Witnesses => [page.getByRole("list", { name: DATABANK_LIST_NAME, exact: true }).getByRole("listitem").first()],
   presets: (page): Witnesses => [page.getByRole("radiogroup", { name: PRESET_ACTIVE_RADIOGROUP_NAME, exact: true }).getByRole("radio").first()],
   refinery: (page): Witnesses => [
-    page.getByRole("combobox", { name: "Start a refinery session", exact: true }),
+    page.getByRole("combobox", { name: REFINERY_START_SESSION_PICKER_NAME, exact: true }),
     page.locator(".shell-content").getByRole("option").first(),
   ],
 } satisfies Record<SectionId, (page: Page) => Witnesses>;

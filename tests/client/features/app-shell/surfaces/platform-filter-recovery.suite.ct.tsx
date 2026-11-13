@@ -4,7 +4,12 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { REFINERY_NO_SESSIONS_TITLE, REFINERY_SEARCH_SESSIONS_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import {
+  REFINERY_NO_SESSION_MATCH_TEXT,
+  REFINERY_NO_SESSIONS_TITLE,
+  REFINERY_SEARCH_SESSIONS_NAME,
+  REFINERY_START_SESSION_PICKER_NAME,
+} from "#client/features/refinery/lib/refinery-names.ts";
 import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { FilterRecoveryShellStory } from "./_filter-recovery-stories.tsx";
@@ -104,7 +109,7 @@ for (const regime of [
       const search = list.getByRole("textbox", { name: REFINERY_SEARCH_SESSIONS_NAME, exact: true });
       await expect(list.getByRole("button", { name: character.name, exact: true })).toBeVisible();
       await search.fill(MISSING);
-      await expect(list.getByText("No sessions match that search.", { exact: true })).toBeVisible();
+      await expect(list.getByText(REFINERY_NO_SESSION_MATCH_TEXT, { exact: true })).toBeVisible();
       const clear = list.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
       await expect(clear).toBeVisible();
       await press(clear);
@@ -129,7 +134,7 @@ for (const regime of [
       const list = page.locator('aside[data-panel-side="list"]');
       await expect(list.getByText(REFINERY_NO_SESSIONS_TITLE, { exact: true })).toBeVisible();
       await press(list.getByRole("button", { name: "Pick a character", exact: true }));
-      const picker = page.getByRole("combobox", { name: "Start a refinery session", exact: true });
+      const picker = page.getByRole("combobox", { name: REFINERY_START_SESSION_PICKER_NAME, exact: true });
       await expect(picker).toHaveCount(1);
       await expect(picker).toBeFocused();
       await expect(list.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true })).toHaveCount(0);
