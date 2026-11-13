@@ -110,19 +110,27 @@ export function assertKindAdmits(bytes: Uint8Array, kind: AssetKind): void {
   refuse(reason, detail, ASSET_UPLOAD_REFUSAL_CODES.wrongMedia);
 }
 
-/** A bundle restore's kinds and type come from a filename nothing proved, so they are checked as an upload's are: every
- *  kind must admit the bytes, and when the claim or the bytes are an image or a video the claim must be the type the
- *  signature names. Other claims over PDF, ZIP or text bytes are left to the kind check: a plugin bundle is stored as
- *  `application/zip`, a type {@link assertMagicMatches} refuses. */
-export function assertRestoreMatches(bytes: Uint8Array, kinds: readonly AssetKind[], claimedMime: string): void {
+/** The type a bundle restore stores its bytes under. The filename's kinds and type are claims nothing proved: every kind
+ *  must admit the bytes, image bytes take the sniffed type unless the claim is one the signature bears out (an animated
+ *  PNG keeps `image/apng`), and an image or video claim
+ *  over other bytes must pass {@link assertMagicMatches}. Other claims over PDF, ZIP or text bytes are left to the kind
+ *  check: a plugin bundle is stored as `application/zip`, a type {@link assertMagicMatches} refuses. */
+export function restoredMime(bytes: Uint8Array, kinds: readonly AssetKind[], claimedMime: string): string {
   for (const kind of kinds) {
     assertKindAdmits(bytes, kind);
   }
   const media = mediaOf(bytes);
   const base = baseMime(claimedMime);
-  if (media === "image" || media === "video" || base.startsWith(IMAGE_PREFIX) || base.startsWith(VIDEO_PREFIX)) {
+  if (media === "image") {
+    const sniffed = sniffMime(bytes);
+    // An upload refuses a picture under the wrong image type; a restore keeps it, because its bytes come from this
+    // app's own earlier store, where older import writers recorded a forced type.
+    return imageClaimHolds(base, sniffed) ? base : sniffed;
+  }
+  if (media === "video" || base.startsWith(IMAGE_PREFIX) || base.startsWith(VIDEO_PREFIX)) {
     assertMagicMatches(bytes, claimedMime);
   }
+  return claimedMime;
 }
 
 /** True iff `bytes[offset..]` equals the given ASCII/byte signature (a short buffer simply fails to match). */
@@ -174,6 +182,12 @@ function isValidUtf8(bytes: Uint8Array): boolean {
   }
 }
 
+// Whether the sniffed image type bears out a claimed base type. The animated-PNG edge: `image/apng` bytes carry the
+// PNG signature, so the png sniff matches it.
+function imageClaimHolds(base: string, sniffed: string): boolean {
+  return sniffed === base || (base === APNG_MIME && sniffed === PNG_MIME);
+}
+
 /** The `image/*` arm — sniff the bytes and require they equal the claim, with the one animated-PNG edge.
  *
  *  AVIF IS REFUSED HERE ON PURPOSE, and the asymmetry with `infra/network/image-guard` is the policy, not an
@@ -191,11 +205,7 @@ function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string):
   if (sniffed === OCTET_STREAM) {
     refuse("its contents are not a PNG, JPEG, GIF or WebP image", `unrecognized magic bytes — claimed ${claimedMime}, no known image signature`);
   }
-  // The animated-PNG edge: `image/apng` bytes carry the PNG signature, so accept the png sniff as a match.
-  if (base === APNG_MIME && sniffed === PNG_MIME) {
-    return;
-  }
-  if (sniffed !== base) {
+  if (!imageClaimHolds(base, sniffed)) {
     refuse(
       `its contents are a ${imageName(sniffed)} image, not the ${imageName(base)} it claims`,
       `magic-byte mismatch — claimed ${claimedMime}, sniffed ${sniffed}`,
