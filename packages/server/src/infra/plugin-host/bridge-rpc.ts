@@ -267,8 +267,11 @@ export function createRemoteNetEgress(call: AsyncCall): PluginNetEgress {
   };
 }
 
+/** The bridge's refusal of arguments the membrane would never build. A guest reads it under the name `TypeError`. */
+export class MalformedBridgeArgumentsError extends TypeError {}
+
 function invalid(operation: string): never {
-  throw new TypeError(`plugin broker: malformed arguments for ${operation}`);
+  throw new MalformedBridgeArgumentsError(`plugin broker: malformed arguments for ${operation}`);
 }
 
 function exact(args: readonly unknown[], count: number, operation: string): void {
