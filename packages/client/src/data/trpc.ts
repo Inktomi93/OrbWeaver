@@ -9,10 +9,10 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { ChatId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
-import type { QueryClient } from "@tanstack/react-query";
+import type { DataTag, QueryClient, UnusedSkipTokenOptions } from "@tanstack/react-query";
 import type { HTTPLinkOptions, TRPCClient, TRPCClientErrorLike } from "@trpc/client";
 import { createTRPCClient, httpBatchLink, httpLink, httpSubscriptionLink, loggerLink, splitLink } from "@trpc/client";
-import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import type { inferOutput, TRPCOptionsProxy, TRPCQueryKey, TRPCQueryOptionsResult } from "@trpc/tanstack-react-query";
 import { createTRPCContext, createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { formatTrpcOp, IS_DEV } from "#lib";
 import { PostEventSource } from "./bus/post-event-source.ts";
@@ -140,6 +140,8 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
   });
 }
 
+type RoomRoster = inferOutput<Trpc["chat"]["getChat"]>;
+
 /**
  * The room's roster read (`chat.getChat`), the one spelling every reader and warmer of that key uses.
  *
@@ -147,8 +149,11 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
  * It rides alone, never batched, whichever reader starts the fetch: the room draws its composer from this read,
  * and a batch would hold it until the room's transcript read answers.
  */
-// biome-ignore lint/nursery/useExplicitReturnType: the matching `queryOptions` overload's output type is not exported by `@trpc/tanstack-react-query`, and `ReturnType` picks the skip-token overload, which types the read's data as `{}`.
-export function roomRosterOptions(trpc: Trpc, input: { readonly chatId: ChatId }) {
+export function roomRosterOptions(
+  trpc: Trpc,
+  input: { readonly chatId: ChatId },
+): UnusedSkipTokenOptions<RoomRoster, TrpcReadError, RoomRoster, TRPCQueryKey> &
+  TRPCQueryOptionsResult & { readonly queryKey: DataTag<TRPCQueryKey, RoomRoster, TrpcReadError> } {
   return trpc.chat.getChat.queryOptions(input, { trpc: { context: { skipBatch: true } } });
 }
 
