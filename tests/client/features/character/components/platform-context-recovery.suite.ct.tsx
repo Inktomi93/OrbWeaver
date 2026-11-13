@@ -20,7 +20,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { FONT_FIELD_NAME } from "#client/components/shared-control-names.ts";
+import { CHARACTER_SEARCH_NAME, FONT_FIELD_NAME } from "#client/components/shared-control-names.ts";
 import {
   CHARACTER_ACTIONS_MENU_NAME,
   CHARACTER_EDITOR_NAME,
@@ -39,7 +39,6 @@ import {
   CHARACTER_RESET_LOOK_CONFIRM_NAME,
   CHARACTER_RESET_LOOK_NAME,
   CHARACTER_SAVE_FAILURE,
-  CHARACTER_SEARCH_NAME,
 } from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";

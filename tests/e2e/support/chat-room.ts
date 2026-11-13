@@ -29,7 +29,7 @@ import { HOST_BAND, openContextSections, SECTION_LABELS } from "@orb/testkit/ct"
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_OPTIONS_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { CHAT_GROUP_BEHAVIOR_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
