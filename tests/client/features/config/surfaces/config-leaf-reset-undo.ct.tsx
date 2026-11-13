@@ -3,6 +3,7 @@ import type { SettingsCompositionStory } from "@orb/testkit/browser";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { SETTING_RESET_FAILED_TOAST } from "#client/components/shared-control-names.ts";
 import { CHAT_PANEL_UNDO_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { UnmountableSectionStory } from "./_leaf-reset-unmount-stories.tsx";
 
@@ -80,11 +81,11 @@ test("a rejected reset write says so once, leaves the value, and offers no Undo"
   );
   await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "chat-message-handling", width: 900 });
   await page.getByRole("button", { name: "Reset Custom stopping strings to its default", exact: true }).click();
-  const notices = page.getByText("Couldn't reset the setting.");
+  const notices = page.getByText(SETTING_RESET_FAILED_TOAST);
   await expect(notices.first()).toBeVisible();
   await expect(page.getByRole("button", { name: CHAT_PANEL_UNDO_LABEL, exact: true })).toHaveCount(0);
   expect((await caller.settings.getUserSettings()).config.chat.customStoppingStrings).toEqual(STOPS);
   // One toast. The second text match is the page's alert live region, which mirrors the toast for screen readers.
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(1);
-  await expect(page.locator('[data-slot="toast-title"]').filter({ hasText: "Couldn't reset the setting." })).toHaveCount(1);
+  await expect(page.locator('[data-slot="toast-title"]').filter({ hasText: SETTING_RESET_FAILED_TOAST })).toHaveCount(1);
 });

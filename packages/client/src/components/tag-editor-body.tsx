@@ -24,7 +24,14 @@ import { FOLDER_TYPE_ITEMS, tagColorValueLabel, tagUsageLabel } from "../lib/tag
 import { DetailHeader } from "./detail-header.tsx";
 import { EditorPage } from "./editor-page.tsx";
 import { SettingSwitchRow } from "./setting-switch-row.tsx";
-import { TAG_EDITOR_NAME_FIELD_NAME } from "./shared-control-names.ts";
+import {
+  mergeTagLegend,
+  TAG_EDITOR_NAME_FIELD_NAME,
+  TAG_HIDE_ON_CARDS_NAME,
+  TAG_MERGE_CONFIRM_NAME,
+  TAG_MERGE_DOOR_NAME,
+  TAG_MERGE_TARGET_NAME,
+} from "./shared-control-names.ts";
 import { useMergeTags, useUpdateTag } from "./tag-mutations.ts";
 
 type TagEditorValues = Pick<TagView, keyof UpdateTagInput>;
@@ -300,7 +307,7 @@ function TagBehaviorControls({ form }: { readonly form: AutosaveSession<TagEdito
           already states it. */}
       <form.AppField name="isHiddenOnCard">
         {(field): ReactElement => (
-          <SettingSwitchRow checked={field.state.value} description="It still filters." label="Hide chip on cards" onChange={field.handleChange} />
+          <SettingSwitchRow checked={field.state.value} description="It still filters." label={TAG_HIDE_ON_CARDS_NAME} onChange={field.handleChange} />
         )}
       </form.AppField>
     </Stack>
@@ -370,7 +377,7 @@ function TagMergeControl({
         size="sm"
         type="button"
       >
-        Merge into…
+        {TAG_MERGE_DOOR_NAME}
       </Button>
       {open ? (
         <Fieldset
@@ -382,11 +389,11 @@ function TagMergeControl({
             }
           }}
         >
-          <FieldsetLegend>{`Merge "${tag.name}" into another tag`}</FieldsetLegend>
+          <FieldsetLegend>{mergeTagLegend(tag.name)}</FieldsetLegend>
           <Text voice="gloss">Every attachment moves to the tag you pick, then this tag is deleted. This can't be undone.</Text>
           <Select
             triggerRef={targetRef}
-            aria-label="Merge target tag"
+            aria-label={TAG_MERGE_TARGET_NAME}
             items={others.map((other) => ({ label: other.name, value: other.id }))}
             onValueChange={(value: TagId | null): void => setTarget(value)}
             placeholder="Choose a tag…"
@@ -397,7 +404,7 @@ function TagMergeControl({
               {DIALOG_VERBS.cancel}
             </Button>
             <Button tone="destructive" disabled={target === null || merging} loading={merging} onClick={confirmMerge} type="button">
-              Merge
+              {TAG_MERGE_CONFIRM_NAME}
             </Button>
           </Row>
         </Fieldset>
