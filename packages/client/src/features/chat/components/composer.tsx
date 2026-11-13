@@ -9,12 +9,12 @@ import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashArgOffer, SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
 import type { ComposerDraftWrite } from "#state";
-import { openImagine, setComposerDraft, useComposerDraft } from "#state";
+import { notePendingAttachments, openImagine, setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
 import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
@@ -115,6 +115,11 @@ export function Composer({
   const nextTurnId = useId();
   const refusalStatedBy = nextTurnStatesRefusal(sendAvailability.cause) ? nextTurnId : undefined;
   const { attachments, addFiles, removeAttachment, clearAttachments } = useComposerAttachments();
+  // A room deleted under this composer says whether staged files went with it, and only this count can tell it.
+  const attachmentCount = attachments.length;
+  useEffect(() => {
+    notePendingAttachments(chatId, attachmentCount);
+  }, [chatId, attachmentCount]);
 
   // P5 CYOA compose-mode focus (§5.4): a choice click in `compose` mode seeds the draft (through `value`)
   // and bumps this room's focus nonce; the hook focuses the textarea on every bump so the reader lands in

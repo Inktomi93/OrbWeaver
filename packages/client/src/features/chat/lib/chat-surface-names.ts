@@ -166,10 +166,24 @@ export const CHAT_TRANSCRIPT_NAME = "Conversation messages";
 /** The Preview tab's diagnostics drawer: the build and shape traces under the budget instrument. */
 export const CHAT_PREVIEW_DIAGNOSTICS_LABEL = "Diagnostics";
 
-/** The notice a reader gets when the open room is deleted under an unsent draft: what happened, what became of the text, and the copy that keeps it. */
+/** The notice a reader gets when the open room is deleted under unsent work: what happened, what became of it, and the copy that keeps the text.
+ *  Only the text can be kept: the draft entry is text, and a staged file lives in the composer that goes with the room. */
 export const CHAT_GONE_DRAFT_NOTICE = {
   title: "This chat was deleted.",
-  description: "Your unsent message went with it. Copy the text to keep it.",
   copyName: "Copy message",
-  copyFallback: "The text is no longer saved.",
+  /** The notice that carries the text itself when the browser cannot copy it, so the reader can select it by hand. */
+  manualTitle: "Select your message here to keep it.",
 } as const;
+
+/** What the notice says became of the reader's unsent work. A file is never offered back, so the words never promise one. */
+export function goneDraftDescription(args: { readonly hasText: boolean; readonly files: number }): string {
+  const { hasText, files } = args;
+  const attached = `${files} attached ${files === 1 ? "file" : "files"}`;
+  if (files === 0) {
+    return "Your unsent message went with it. Copy the text to keep it.";
+  }
+  if (hasText) {
+    return `Your unsent message and ${attached} went with it. Copy the text to keep it; the ${files === 1 ? "file" : "files"} can't be kept.`;
+  }
+  return `Your ${attached} went with it and can't be kept.`;
+}

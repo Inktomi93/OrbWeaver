@@ -141,7 +141,7 @@ export {
   SLASH_COMMAND_GROUP_LABELS,
   SLASH_COMMAND_GROUPS,
 } from "./contribution-contracts.ts";
-export { copyWithNotice } from "./copy-with-notice.ts";
+export { copyHeldText, copyWithNotice } from "./copy-with-notice.ts";
 export type { CorpusDestination } from "./corpus-destination.ts";
 export { corpusDestinationIdentity } from "./corpus-destination.ts";
 export type { CorpusMode, CorpusModeContribution } from "./corpus-modes.ts";

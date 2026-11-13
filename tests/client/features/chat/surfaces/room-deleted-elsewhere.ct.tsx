@@ -10,7 +10,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import type { ShellAmbientStory, ShellBusStory } from "@orb/testkit/browser";
-import { seedActiveChat, seedShellState } from "@orb/testkit/browser/spec";
+import { dropOn, seedActiveChat, seedShellState } from "@orb/testkit/browser/spec";
 import type { ServedHold, TrpcRecorder } from "@orb/testkit/ct";
 import {
   absenceWindow,
@@ -39,6 +39,7 @@ import {
   CHAT_MESSAGE_INPUT_NAME,
   CHAT_ROOM_READ_LABEL,
   CHAT_SEND_NAME,
+  goneDraftDescription,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { SEND_FAILED_TITLE } from "#client/features/chat/lib/send-failure-copy.ts";
 import { NO_CHAT_SELECTED_TITLE } from "#client/lib/chat-launch-names.ts";
@@ -53,6 +54,18 @@ const ROOM_SURFACE = '[data-slot="chat-room-surface"]';
 const NEXT_TURN_LINE = '[data-slot="composer-next-turn"]';
 const TRANSCRIPT_LOADING = '[data-slot="transcript-loading"]';
 const DRAFT = "Is anyone still hosting?";
+const COMPOSER = '[data-slot="composer"]';
+const ATTACHMENT = '[data-slot="composer-attachment"]';
+const LONG_AFTER_ANY_NOTICE_MS = 3_600_000;
+
+/** Run an hour on, so every notice with a timer is gone. The toast manager holds its timers while the window is blurred, which a
+ *  parallel run can cause, so the window is told it has focus first. */
+async function letNoticesExpire(page: Page): Promise<void> {
+  await page.evaluate(() => globalThis.dispatchEvent(new FocusEvent("focus")));
+  await page.clock.fastForward(LONG_AFTER_ANY_NOTICE_MS);
+  // A notice that expired is still on screen for its exit animation, which runs in real time, so a count taken now would pass.
+  await absenceWindow(page, NOTICE_BEAT_MS);
+}
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
@@ -246,6 +259,31 @@ async function recordRoomChrome(page: Page): Promise<() => Promise<RoomChromeSee
   return async () => await page.evaluate(() => globalThis.roomChromeSeen);
 }
 
+declare global {
+  // Every toast title the page has shown since it loaded, in the order first seen.
+  var toastTitlesRecorded: string[] | undefined;
+}
+
+/** Record, from the first node the page attaches, every toast title it ever shows. A toast expires, so a check at the end would miss
+ *  a notice that came and went. */
+async function recordToastTitles(page: Page): Promise<() => Promise<readonly string[]>> {
+  await page.addInitScript(() => {
+    if (globalThis.top !== globalThis.self) {
+      return;
+    }
+    const seen: string[] = [];
+    globalThis.toastTitlesRecorded = seen;
+    new MutationObserver(() => {
+      for (const title of document.querySelectorAll('[data-slot="toast-title"]')) {
+        if (!seen.includes(title.textContent)) {
+          seen.push(title.textContent);
+        }
+      }
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  return async () => (await page.evaluate(() => globalThis.toastTitlesRecorded)) ?? [];
+}
+
 const DELIVERIES = [
   { name: "both events", deliver: ["chatDeleted", "chatsChanged"] },
   { name: "the room's own event alone", deliver: ["chatDeleted"] },
@@ -325,7 +363,7 @@ test("a draft typed into a room another session deletes is offered back in a not
   await expect.poll(async () => (await storedDrafts(page))[room.id]).toBe(DRAFT);
   await caller.chat.delete({ chatId: room.id });
   await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
-  const notice = noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title, description: CHAT_GONE_DRAFT_NOTICE.description });
+  const notice = noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title, description: goneDraftDescription({ hasText: true, files: 0 }) });
   await expect(notice).toHaveCount(1);
   await expect.poll(async () => Object.keys(await storedDrafts(page))).not.toContain(room.id);
   await notice.getByRole("button", { name: CHAT_GONE_DRAFT_NOTICE.copyName, exact: true }).click();
@@ -343,6 +381,73 @@ test("a room another session deletes while its composer is empty leaves no draft
   await absenceWindow(page, NOTICE_BEAT_MS);
   await expect(noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title })).toHaveCount(0);
   expect(Object.keys(await storedDrafts(page))).not.toContain(room.id);
+});
+
+test("the notice that offers a deleted room's draft back does not expire unread", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  await page.clock.install();
+  const { caller, room } = await openRoomToBeDeleted({ page, mountRoom: () => mount<typeof ShellBusStory>(BUS_STORY, {}), root, corpus, cleanup });
+  await page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(DRAFT);
+  await expect.poll(async () => (await storedDrafts(page))[room.id]).toBe(DRAFT);
+  await caller.chat.delete({ chatId: room.id });
+  const notice = noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title, description: goneDraftDescription({ hasText: true, files: 0 }) });
+  await expect(notice).toHaveCount(1);
+  // The notice holds the only copy of the text, so no timer takes it away unread.
+  await letNoticesExpire(page);
+  await expect(notice).toHaveCount(1);
+});
+
+test("a draft offered back on a page that cannot copy shows its text to select by hand, and the text stays until dismissed", async ({
+  corpus,
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  // A page reached by its LAN address over plain http has no clipboard.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { value: undefined });
+    Object.defineProperty(globalThis, "isSecureContext", { value: false });
+  });
+  await page.clock.install();
+  const { caller, room } = await openRoomToBeDeleted({ page, mountRoom: () => mount<typeof ShellBusStory>(BUS_STORY, {}), root, corpus, cleanup });
+  await page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(DRAFT);
+  await expect.poll(async () => (await storedDrafts(page))[room.id]).toBe(DRAFT);
+  await caller.chat.delete({ chatId: room.id });
+  const notice = noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title, description: goneDraftDescription({ hasText: true, files: 0 }) });
+  await notice.getByRole("button", { name: CHAT_GONE_DRAFT_NOTICE.copyName, exact: true }).click();
+  const manual = noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.manualTitle, description: DRAFT });
+  await expect(manual).toHaveCount(1);
+  await letNoticesExpire(page);
+  await expect(manual).toHaveCount(1);
+});
+
+test("files staged in a room another session deletes are named as lost, and the text is still offered back", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  const { caller, room } = await openRoomToBeDeleted({ page, mountRoom: () => mount<typeof ShellBusStory>(BUS_STORY, {}), root, corpus, cleanup });
+  await page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(DRAFT);
+  expect(await dropOn(page.locator(COMPOSER), { file: "lantern.png", type: "image/png" })).toBe(true);
+  await expect(page.locator(ATTACHMENT)).toHaveCount(1);
+  await caller.chat.delete({ chatId: room.id });
+  const notice = noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title, description: goneDraftDescription({ hasText: true, files: 1 }) });
+  await expect(notice).toHaveCount(1);
+  await expect(notice.getByRole("button", { name: CHAT_GONE_DRAFT_NOTICE.copyName, exact: true })).toHaveCount(1);
+});
+
+test("files alone staged in a room another session deletes raise a notice that offers nothing back", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  const { caller, room } = await openRoomToBeDeleted({ page, mountRoom: () => mount<typeof ShellBusStory>(BUS_STORY, {}), root, corpus, cleanup });
+  expect(await dropOn(page.locator(COMPOSER), { file: "lantern.png", type: "image/png" })).toBe(true);
+  expect(await dropOn(page.locator(COMPOSER), { file: "ember.png", type: "image/png" })).toBe(true);
+  await expect(page.locator(ATTACHMENT)).toHaveCount(2);
+  await caller.chat.delete({ chatId: room.id });
+  const notice = noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title, description: goneDraftDescription({ hasText: false, files: 2 }) });
+  await expect(notice).toHaveCount(1);
+  // The text-and-files case above is this one's positive control: its notice carries the copy action this one must not.
+  await expect(notice.getByRole("button", { name: CHAT_GONE_DRAFT_NOTICE.copyName, exact: true })).toHaveCount(0);
 });
 
 test("a restored room that still exists opens its room with its composer, not the chat list", async ({ corpus, mount, page }) => {
@@ -414,12 +519,13 @@ test("a room reached again from Home after another session deleted it lands on t
   await expect(page.locator(ROOM_SURFACE)).toHaveCount(0);
 });
 
-test("a send that finds the room already deleted shows its refusal and the draft notice once each, and lands on the chat list", async ({
+test("a send that finds the room already deleted raises the one notice that offers the draft back, not a send refusal as well", async ({
   corpus,
   mount,
   page,
 }) => {
   await using root = await createCorpusHarness();
+  const toastTitlesSeen = await recordToastTitles(page);
   const { caller } = await serveShell(root, corpus, page, { section: "chats" });
   const [room] = await ownerRooms(caller);
   await seedActiveChat(page, room.id);
@@ -430,11 +536,28 @@ test("a send that finds the room already deleted shows its refusal and the draft
   const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   await input.fill(DRAFT);
   await page.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
-  await expect(noticeToast(page, { title: SEND_FAILED_TITLE })).toHaveCount(1);
-  // The refused draft is still in the composer when the room is left, so the reader is told what became of it: no other notice appears.
+  // The refused draft is still in the composer when the room is left, so the reader is told what became of it, once.
   await expect(noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title })).toHaveCount(1);
-  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(2);
+  // A refusal raised before this notice would have expired by the time a retrying count came back, so the page records every title.
+  const titles = await toastTitlesSeen();
+  expect(titles).toContain(CHAT_GONE_DRAFT_NOTICE.title);
+  expect(titles).not.toContain(SEND_FAILED_TITLE);
   await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
+});
+
+test("a send refused as not found by a room that still reads says the send failed, and the room stays open", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { caller } = await serveShell(root, corpus, page, { section: "chats", send: () => trpcError({ code: "NOT_FOUND" }) });
+  const [room] = await ownerRooms(caller);
+  await seedActiveChat(page, room.id);
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await expect(openRoom(page, room)).toBeVisible();
+  await page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(DRAFT);
+  await page.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
+  await expect(noticeToast(page, { title: SEND_FAILED_TITLE })).toHaveCount(1);
+  await expect(noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title })).toHaveCount(0);
+  await expect(openRoom(page, room)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toHaveValue(DRAFT);
 });
 
 test("a room deleted from another session while this one is on Home lands on the chat list when Chats opens", async ({ corpus, mount, page }) => {

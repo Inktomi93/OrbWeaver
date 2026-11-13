@@ -13,7 +13,19 @@ const FAILURE_REASON: Record<Exclude<ClipboardOutcome, "copied">, string> = {
   refused: "The browser blocked the copy.",
 };
 
-/** Copy `text` and report the outcome as a toast. `fallback` is the failure toast's next step: where the
+/** Copy `text`, the only copy the reader has left. Where the browser cannot copy (a page on plain http, or a refusal), a notice that
+ *  stays until dismissed carries the text, titled `manualTitle`, so the reader can select it by hand and nothing is lost. */
+export function copyHeldText(text: string, manualTitle: string): void {
+  writeClipboardText(text, (outcome) => {
+    if (outcome === "copied") {
+      notify.success(COPIED_TO_CLIPBOARD_NOTICE);
+      return;
+    }
+    notify.warn({ title: manualTitle, description: text, persistent: true });
+  });
+}
+
+/** Copy `text` and report the outcome as a toast.`fallback` is the failure toast's next step: where the
  *  user can still copy the text by hand. */
 export function copyWithNotice(text: string, fallback: string): void {
   writeClipboardText(text, (outcome) => {

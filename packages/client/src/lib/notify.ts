@@ -34,6 +34,8 @@ export interface NotifyNotice {
   readonly description?: string;
   /** The single next step this notice offers. */
   readonly action?: NotifyAction;
+  /** Stays until the reader dismisses it. For a notice that holds the only copy of something the reader typed: it must not expire unread. */
+  readonly persistent?: boolean;
 }
 
 /** A bare string is a title-only notice — the shape most call sites want. */
