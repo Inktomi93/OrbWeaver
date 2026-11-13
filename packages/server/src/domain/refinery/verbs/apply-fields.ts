@@ -1,8 +1,9 @@
 // verb: applyFields — the SHARP END (13, in order): the user-accepted entries of the
-// chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card. OWNER RULING:
+// chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card.
 // Apply is an ATOMIC COMMIT and Keep/Discard is staging — one refused entry refuses the whole apply, every
 // refused entry is itemized with its typed reason, and recovery is the user's explicit discard of those
-// entries, never a partial write.
+// entries, never a partial write. A partial write would leave the card as a mix the user never reviewed:
+// they kept a set, and a write of only part of it is a card nobody chose.
 //
 // THE BELTS LIVE IN ONE PLACE — `substrate/accept-belts.ts` (intersection 9-11 + the §21 divergence
 // check + the patch construction), SHARED verbatim with `applyAsCopy` so the branch-off arm can never
