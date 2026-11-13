@@ -32,6 +32,7 @@ import type {
   NextTurnConnectionView,
   ParticipantData,
   RoomOverrides,
+  RoomSendAvailability,
   SetGroupConfigOp,
   SetSeatKnobsOp,
   ShapeTrace,
@@ -40,7 +41,6 @@ import type {
   VariantWireView,
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
-import type { SendAvailability } from "@orb/contracts/inference";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AbortParams,
@@ -155,9 +155,11 @@ export interface ChatService {
   /** The deterministic pre-send serveability verdict for THIS chat's own resolved connection (the
    *  honest-refusal gate) — "would the turn's own `resolveChat → deriveRunner → requireBackend` succeed,
    *  WITHOUT firing a turn or an API call?" Engine-agnostic; a configured hosted connection reads available
-   *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. */
-  readonly checkSendAvailability: (params: GetChatParams) => Promise<SendAvailability>;
-  /** Current host's persisted chat binding; member-safe and independent of runtime availability. */
+   *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. A host
+   *  outside the room's consent set reads `host_unavailable`, and its connection is never read. */
+  readonly checkSendAvailability: (params: GetChatParams) => Promise<RoomSendAvailability>;
+  /** Current host's persisted chat binding; member-safe and independent of runtime availability. A host outside the
+   *  room's consent set reads `unset`, and its binding is never read. */
   readonly getNextTurnConnection: (params: GetChatParams) => Promise<NextTurnConnectionView>;
   /** Read ONE roster character's card, field-clamped to the room's `memberCardVisibility` (D22 — the host
    *  always sees `full`). Member-gated + roster-scoped: a non-participant OR a `characterId` not seated in
