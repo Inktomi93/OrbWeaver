@@ -38,6 +38,7 @@ import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mu
 import { DATABANK_EMPTY_BANK_NOTE } from "../lib/databank-copy.ts";
 import { characterCount, documentTypeLabel, ingestBadge, ingestEmptyHint, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
 import {
+  DATABANK_DETAIL_FACTS_KICKER,
   DATABANK_DETAIL_MAINTENANCE_KICKER,
   DATABANK_DETAIL_SOURCE_KICKER,
   DATABANK_LANDING_NAME,
@@ -214,7 +215,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
       {/* `kicker`, not `heading` — CD1 (section.tsx's own doc): a read-only GROUPING gets the micro-caps
             name plus a hairline to the edge, which is what 20+ sibling features spell and what the mock
             draws. `heading` is the settings-pane form contract, and this pane is a readout. */}
-      <Section kicker="Details">
+      <Section kicker={DATABANK_DETAIL_FACTS_KICKER}>
         {/* ONE grid, not a stack of rows: the label track is `max-content` (as wide as the widest label,
               no wider) and every value still starts at ONE x, which a per-row measurement cannot promise.
               See `cols="readout"`'s own note for why the knob-row token stopped being right here. */}

@@ -42,6 +42,7 @@ import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import {
   CONFIG_ADVANCED_THEME_TOOLS_NAME,
   CONFIG_CUSTOM_CSS_NAME,
+  CONFIG_THEME_ACCENT_FIELD_NAME,
   CONFIG_THEME_BACKGROUND_FIELD_NAME,
   CONFIG_THEME_NAME_FIELD_NAME,
   CONFIG_THEME_PREVIEW_NAME,
@@ -127,7 +128,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
               />
             )}
           </boundForm.AppField>
-          <boundForm.AppField name="accent">{(field): ReactElement => <field.ColorField label="Accent" />}</boundForm.AppField>
+          <boundForm.AppField name="accent">{(field): ReactElement => <field.ColorField label={CONFIG_THEME_ACCENT_FIELD_NAME} />}</boundForm.AppField>
           <boundForm.AppField name="borderColor">
             {(field): ReactElement => <field.ColorField label="Border" description="Leave as-is to derive a subtle border from the surface." />}
           </boundForm.AppField>
@@ -257,7 +258,7 @@ function ContrastReport({ values }: { readonly values: ThemeFormValues }): React
     ["Narration", values.narrationColor, values.aiBubbleBg],
     ["Body", values.bodyColor, values.aiBubbleBg],
     ["Speaker", values.speaker, values.background],
-    ["Accent", values.accent, values.background],
+    [CONFIG_THEME_ACCENT_FIELD_NAME, values.accent, values.background],
   ];
   return (
     <Stack gap="field">

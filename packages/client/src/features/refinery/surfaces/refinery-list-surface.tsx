@@ -53,7 +53,12 @@ import {
 import { RefineryChip } from "../components/refinery-chip.tsx";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
 import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
-import { REFINERY_NO_SESSION_MATCH_TEXT, REFINERY_NO_SESSIONS_TITLE, REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
+import {
+  REFINERY_NO_SESSION_MATCH_TEXT,
+  REFINERY_NO_SESSIONS_TITLE,
+  REFINERY_PICK_CHARACTER_NAME,
+  REFINERY_SEARCH_SESSIONS_NAME,
+} from "../lib/refinery-names.ts";
 import { matchesRefinerySearch, refinerySearchNeedle } from "../lib/refinery-search.ts";
 import { REFINERY_LIST_TITLE } from "../lib/refinery-section-label.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
@@ -185,13 +190,13 @@ function RefineryList({
   // A desktop landing focuses the existing CONTENT picker; the other regimes open the existing start door.
   const startDoor = contentShowsPicker ? (
     <Button variant="outline" onClick={requestRefineryLandingFocus} size="sm">
-      Pick a character
+      {REFINERY_PICK_CHARACTER_NAME}
     </Button>
   ) : (
     <StartSessionDoor
       trigger={(busy): ReactElement => (
         <Button aria-busy={busy} variant="outline" size="sm">
-          Pick a character
+          {REFINERY_PICK_CHARACTER_NAME}
         </Button>
       )}
     />

@@ -25,6 +25,7 @@ import { CORPUS_MODE_LABELS, sectionBackName, testId, timeLib, useFocusOnMount }
 import { useMobileViewport } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
 import { ANALYTICS_CHARACTER_IDENTITY_TEXT } from "../lib/analytics-copy.ts";
+import { ANALYTICS_ACTIVITY_HEADING } from "../lib/analytics-names.ts";
 import {
   formatAccountingLabel,
   formatCompact,
@@ -132,7 +133,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
       </Text>
       <AccountingCoverageNotice characterOnly={true} />
 
-      <Section heading="Activity">
+      <Section heading={ANALYTICS_ACTIVITY_HEADING}>
         <Stack gap="block">
           {/* A real grid, not flex-wrap — even 1fr tracks at a
               fixed column-min, so the column-gap is uniform at every width instead of the flex voids. */}

@@ -34,6 +34,7 @@ import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "#client/feat
 import { CHAT_OPTIONS_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { CHAT_GROUP_BEHAVIOR_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import {
+  CHAT_CHARACTER_BAR_NAME,
   CHAT_COMPOSER_NAME,
   CHAT_LIST_EMPTY_TITLE,
   CHAT_LIST_NAME,
@@ -418,7 +419,7 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
 // only above 1 character, and the Members/Group CONTEXT tabs only when the room is a group (>1 character)
 // — so their PRESENCE is a behavioral assertion about the roster, never a layout claim. ──
 
-const CHARACTER_BAR = '[aria-label="Characters"]';
+const CHARACTER_BAR = `[aria-label="${CHAT_CHARACTER_BAR_NAME}"]`;
 const CHARACTER_CHIP = '[data-slot="character-chip"]';
 
 /** Navigate to `/` and open the chat whose LIST row carries `title` (the row's accessible name leads with

@@ -3,13 +3,14 @@
 // (the roster-chip precedent, WCAG 2.5.3). The topbar chip and its overflow menu item share it.
 
 import type { RecallState } from "#state";
+import { CHAT_MEMORY_ENTRY_PREFIX } from "./chat-surface-names.ts";
 
 export function recallLabel(recall: RecallState | null): string {
   if (recall === null) {
-    return "Memory: idle";
+    return `${CHAT_MEMORY_ENTRY_PREFIX}idle`;
   }
   if (recall.phase === "recalling") {
-    return "Memory: recalling";
+    return `${CHAT_MEMORY_ENTRY_PREFIX}recalling`;
   }
-  return `Memory: ${recall.count} recalled`;
+  return `${CHAT_MEMORY_ENTRY_PREFIX}${recall.count} recalled`;
 }

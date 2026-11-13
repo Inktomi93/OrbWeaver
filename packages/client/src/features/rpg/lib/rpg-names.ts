@@ -24,6 +24,9 @@ export const RPG_SET_SCORES_NAME = "Set character scores";
 export const RPG_ROLL_SCORES_NAME = "Roll 4d6 drop lowest";
 export const RPG_STANDARD_ARRAY_NAME = "Use standard array";
 
+/** The Game tab's disclosure over the host's less common settings. */
+export const RPG_HOST_ADVANCED_LABEL = "Advanced";
+
 /** The game macros' browser disclosure. */
 export const RPG_MACRO_BROWSER_LABEL = "Macro browser";
 

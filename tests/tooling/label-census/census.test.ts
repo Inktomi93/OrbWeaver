@@ -4,8 +4,10 @@ import {
   authoredStrings,
   classifySite,
   formatJudgements,
+  formatSiteJudgements,
   inFeature,
   judgeOracles,
+  judgeSites,
   nameSites,
   oracleCalls,
   productionIndex,
@@ -511,6 +513,40 @@ test("a judgement covers its function's calls in its own case, a candidate no ro
     `${JUDGED_SPEC.path}:8 starName in "(module)"`,
     "judgements matching no candidate: 1",
     `${JUDGED_SPEC.path} pinName in "a starred row"`,
+  ]);
+});
+
+const JUDGED_SITE_SPEC: CensusSource = {
+  path: "tests/client/features/chat/judged-sites.ct.tsx",
+  text: [
+    'test("a slot id the story prints", async () => {',
+    '  await expect(page.getByRole("status")).toHaveText("Cancel");',
+    '  await expect(page.getByRole("log")).toHaveText("Cancel");',
+    "});",
+    'test("a rendered verb", async () => { await page.getByRole("button", { name: "Cancel" }).click(); });',
+    'test("a story note", async () => { await page.getByText("Story note").click(); });',
+  ].join("\n"),
+};
+
+test("a judgement moves its value's home-class sites in its own case to judged, a home-class site no row covers prints, and a row covering none is stale", () => {
+  const index = productionIndex(PRODUCTION);
+  const rows = nameSites(JUDGED_SITE_SPEC).map((site) => classifySite(site, index, { authored: authoredStrings([STORY]) }));
+  const judged = judgeSites(rows, [
+    { file: JUDGED_SITE_SPEC.path, scope: "a slot id the story prints", value: "Cancel", reason: "production-id", note: "the story prints the slot id" },
+    { file: JUDGED_SITE_SPEC.path, scope: "a story note", value: "Story note", reason: "test-authored", note: "the story wrote it" },
+  ]);
+  expect(judged.rows.map((row) => `${String(row.line)} ${row.class} ${row.judged === undefined ? "-" : `${row.judged.from}/${row.judged.reason}`}`)).toEqual([
+    "2 judged exported/production-id",
+    "3 judged exported/production-id",
+    "5 exported -",
+    "6 authored -",
+  ]);
+  expect(formatSiteJudgements(judged.rows, judged.stale).split("\n")).toEqual([
+    "sites with a production home: 1",
+    `${JUDGED_SITE_SPEC.path}:5 "Cancel" exported in "a rendered verb"`,
+    "judged sites: 2 (production-id 2, test-authored 0, guest-authored 0, data 0, fragment 0)",
+    "site judgements matching no site: 1",
+    `${JUDGED_SITE_SPEC.path} "Story note" in "a story note"`,
   ]);
 });
 

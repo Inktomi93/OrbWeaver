@@ -46,7 +46,12 @@ import type { ReadinessPassesView } from "../hooks/use-readiness-passes.ts";
 import { useReadinessPasses } from "../hooks/use-readiness-passes.ts";
 import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
 import type { CorpusReadinessStage, CorpusReadinessStageId } from "../lib/corpus-analysis-state.ts";
-import { CORPUS_BOX_OWNER_RUNS_PASS_TEXT, CORPUS_READINESS_RAIL_NAME, CORPUS_TURN_ON_MEMORY_NAME } from "../lib/corpus-control-names.ts";
+import {
+  CORPUS_BOX_OWNER_RUNS_PASS_TEXT,
+  CORPUS_PASS_RUNNING_TEXT,
+  CORPUS_READINESS_RAIL_NAME,
+  CORPUS_TURN_ON_MEMORY_NAME,
+} from "../lib/corpus-control-names.ts";
 import type { ReadinessAction } from "../lib/corpus-readiness-passes.ts";
 import { READINESS_PASSES } from "../lib/corpus-readiness-passes.ts";
 import { UnderstandingPassUtilityNote } from "./understanding-pass-utility-note.tsx";
@@ -220,7 +225,7 @@ interface ReadinessDoorProps {
 const READINESS_DOORS: Record<ReadinessAction, (props: ReadinessDoorProps) => ReactElement | null> = {
   running: () => (
     <Text as="span" ink="muted" voice="datum">
-      Running
+      {CORPUS_PASS_RUNNING_TEXT}
     </Text>
   ),
   "box-owner-only": () => (

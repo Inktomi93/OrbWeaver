@@ -11,6 +11,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#lib";
 import { useCreateUser } from "../hooks/use-admin-mutations.ts";
 import { useCreateUserForm } from "../hooks/use-create-user-form.ts";
 import type { CreateUserFormValues } from "../lib/admin-model.ts";
@@ -66,11 +67,13 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
       testKey="adminCreateUserDialog"
       title={ADMIN_CREATE_USER_NAME}
     >
-      <form.AppField name="handle">{(field): ReactElement => <field.TextField label="Handle" placeholder="e.g. mira" autoComplete="off" />}</form.AppField>
+      <form.AppField name="handle">
+        {(field): ReactElement => <field.TextField label={ACCOUNT_HANDLE_FIELD_NAME} placeholder="e.g. mira" autoComplete="off" />}
+      </form.AppField>
       <form.AppField name="password">
         {(field): ReactElement => (
           <field.TextField
-            label="Password"
+            label={ACCOUNT_PASSWORD_FIELD_NAME}
             description={`At least ${MIN_PASSWORD_LENGTH} characters. They can't change it themselves yet: you can reset it here any time.`}
             type="password"
             autoComplete="new-password"

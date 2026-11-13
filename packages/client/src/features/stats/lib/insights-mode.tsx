@@ -11,7 +11,7 @@ import { AnalyticsPersonasTab } from "../components/analytics-personas-tab.tsx";
 import { AnalyticsTimeTab } from "../components/analytics-time-tab.tsx";
 import { useAnalyticsListHeader } from "../hooks/use-analytics-list-header.tsx";
 import { AnalyticsListSurface } from "../surfaces/analytics-list-surface.tsx";
-import { ANALYTICS_MODELS_NAME } from "./analytics-names.ts";
+import { ANALYTICS_MODELS_NAME, ANALYTICS_TIME_NAME } from "./analytics-names.ts";
 import { useAnalyticsSelectionTitle } from "./analytics-selection-title.ts";
 
 export const insightsCorpusMode: CorpusModeContribution = {
@@ -31,6 +31,6 @@ const isInsights = (state: CorpusContextState): boolean => state.mode === "insig
 /** The owner-scoped dimension tabs; they ignore the drill and show only while Insights is active. */
 export const insightsContextTabs: readonly ContextTabDef<CorpusContextState>[] = [
   { id: "models", label: ANALYTICS_MODELS_NAME, when: isInsights, body: () => <AnalyticsModelsTab /> },
-  { id: "time", label: "Time", when: isInsights, body: () => <AnalyticsTimeTab /> },
+  { id: "time", label: ANALYTICS_TIME_NAME, when: isInsights, body: () => <AnalyticsTimeTab /> },
   { id: "personas", label: "Personas", when: isInsights, body: () => <AnalyticsPersonasTab /> },
 ];

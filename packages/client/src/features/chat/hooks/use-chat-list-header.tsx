@@ -34,6 +34,7 @@ import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useState } from "react";
 import type { ListPaneHeaderView } from "#lib";
+import { BAND_NEW_LABEL } from "#lib";
 import { openNewChatPicker } from "#state";
 import { ChatImportDialog } from "../components/chat-import-dialog.tsx";
 import { useChatCensus } from "../hooks/use-chat-census.ts";
@@ -70,7 +71,7 @@ export function useChatListHeader(): ListPaneHeaderView {
         inline: (
           <Button onClick={(): void => openNewChatPicker()} size="sm">
             <Icon icon={Plus} size="sm" />
-            New
+            {BAND_NEW_LABEL}
           </Button>
         ),
         menu: [newChat],

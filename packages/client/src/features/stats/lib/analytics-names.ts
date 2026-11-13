@@ -3,11 +3,15 @@
 /** The Insights context pane's per-model tab, and the list of models inside it. */
 export const ANALYTICS_MODELS_NAME = "Models";
 
+/** The Insights context pane's calendar tab. */
+export const ANALYTICS_TIME_NAME = "Time";
+
 /** The character leaderboard's list. */
 export const ANALYTICS_LEADERBOARD_NAME = "Character leaderboard";
 
 /** The Insights headings and chart names a spec locates a figure by. */
 export const ANALYTICS_ALL_TIME_HEADING = "All-time totals";
+export const ANALYTICS_ACTIVITY_HEADING = "Activity";
 export const ANALYTICS_RHYTHM_HEADING = "Rhythm";
 export const ANALYTICS_GENERATIONS_HEADING = "Generations";
 export const ANALYTICS_GENERATIONS_BY_MODEL_NAME = "Generations by model";

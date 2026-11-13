@@ -37,7 +37,7 @@ import type { Locator, Page } from "@playwright/test";
 import { BUG_REPORT_NAME, COMMAND_CHIP_NAME_LEAD } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_MEMBERS_ENTRY_PREFIX, CHAT_MEMORY_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
 import { EXTENSIONS_NO_SELECTION_BODY, EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
@@ -363,7 +363,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
 const WIDE_IDENTITY = '.shell-topbar-identity[data-identity="wide"]';
 const WIDE_TITLE = '.shell-topbar-identity[data-identity="wide"] .shell-topbar-title';
 const MEMBERS_PREFIX = CHAT_MEMBERS_ENTRY_PREFIX;
-const MEMORY_PREFIX = "Memory: ";
+const MEMORY_PREFIX = CHAT_MEMORY_ENTRY_PREFIX;
 const MEMBERS_CHIP = `[aria-label^="${MEMBERS_PREFIX}"]`;
 const MEMORY_CHIP = `[aria-label^="${MEMORY_PREFIX}"]`;
 const TRAIL_ENTRIES = [

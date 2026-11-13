@@ -9,6 +9,7 @@ import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { devices } from "@playwright/test";
 import { JOIN_CREATE_ACCOUNT_NAME, SIGN_IN_NAME } from "#client/features/auth/lib/pending-join-names.ts";
 import { JOIN_CHAT_NAME } from "#client/features/chat/lib/members-names.ts";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#client/lib/account-field-names.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
 import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
@@ -136,8 +137,8 @@ test.describe("local corpus auth guard", () => {
       await page.goto("/analytics");
       await expect(page).toHaveURL(/\/login$/u, { timeout: WAIT_SETTLE_MS });
       await expect(page.getByRole("heading", { name: SIGN_IN_NAME, exact: true })).toBeVisible();
-      await page.getByRole("textbox", { name: "Handle", exact: true }).fill(owner.handle);
-      await page.getByLabel("Password", { exact: true }).fill(owner.password);
+      await page.getByRole("textbox", { name: ACCOUNT_HANDLE_FIELD_NAME, exact: true }).fill(owner.handle);
+      await page.getByLabel(ACCOUNT_PASSWORD_FIELD_NAME, { exact: true }).fill(owner.password);
       await page.getByRole("button", { name: SIGN_IN_NAME, exact: true }).click();
       await waitForAppReady(page);
       // The alias named a Corpus mode before the redirect; the signed-in app opens on it rather than on Home.

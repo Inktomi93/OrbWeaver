@@ -38,9 +38,6 @@ export const CHARACTER_INHERIT_LABEL = "Inherit";
 /** The create dialog's title and the compact band button's name. */
 export const CHARACTER_NEW_NAME = "New character";
 
-/** The band's worded create door; the band's kicker supplies "characters". */
-export const CHARACTER_NEW_SHORT_LABEL = "New";
-
 /** The Context pane's header tablist, named for the artifact. */
 export const CHARACTER_CONTEXT_TABLIST_NAME = "Character";
 

@@ -14,6 +14,7 @@ import {
   INVITE_SEND_NAME,
   INVITE_TARGET_UNKNOWN_TEXT,
 } from "#client/features/chat/lib/members-names.ts";
+import { ACCOUNT_HANDLE_FIELD_NAME } from "#client/lib/account-field-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -75,7 +76,7 @@ test("an invite to a handle nobody holds says so inline, from the server's own r
   await page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: INVITE_BY_HANDLE_NAME, exact: true }).click();
-  await dialog.getByRole("textbox", { name: "Handle" }).fill("nobody-holds-this-handle");
+  await dialog.getByRole("textbox", { name: ACCOUNT_HANDLE_FIELD_NAME }).fill("nobody-holds-this-handle");
   await dialog.getByRole("button", { name: INVITE_SEND_NAME, exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText(INVITE_TARGET_UNKNOWN_TEXT);
 });

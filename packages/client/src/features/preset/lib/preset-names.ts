@@ -49,9 +49,6 @@ export const NEW_PRESET_KIND = "generation";
 /** The section drill-in's name field. */
 export const PRESET_SECTION_NAME_FIELD_NAME = "Name";
 
-/** The list band's inline create door; its icon-only and menu forms wear {@link NEW_PRESET_NAME}. */
-export const PRESET_NEW_LABEL = "New";
-
 /** The rack toolbar's add-section menu trigger, which also names the menu it opens. */
 export const PRESET_ADD_SECTION_LABEL = "Add";
 
@@ -110,6 +107,10 @@ export const PRESET_EDIT_VARIABLE_TITLE = "Edit variable";
 
 /** The lead of a row's line naming knobs the bound model does not honor. */
 export const PRESET_NOT_HONORED_LEAD = "Set but not honored by this model:";
+
+/** The staleness row's two answers: hide the row and keep the stored knobs, or clear them. */
+export const PRESET_STALE_KEEP_NAME = "Keep";
+export const PRESET_STALE_CLEAR_NAME = "Clear";
 
 /** The readout pane's heading when no preset is picked, and its active-preset block kicker. */
 export const PRESET_READOUT_ACTIVE_LABEL = "Active preset";

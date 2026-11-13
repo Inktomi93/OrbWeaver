@@ -492,6 +492,9 @@ const TEST_CONSTANT_HOMES = {
     "TRAIL_OVERFLOW_LABEL and BAND_OVERFLOW_LABEL: the More triggers an action folds into when its row runs out of room, which the walk presses it through",
   "packages/client/src/lib/row-menu-names.ts": "ROW_RENAME_NAME and its siblings: the library row menu items and the delete confirm title",
   "packages/client/src/lib/search-empty-names.ts": "NO_MATCHES_TITLE and CLEAR_SEARCH_NAME: the words a searched-empty list prints",
+  "packages/client/src/lib/list-band-names.ts": "BAND_NEW_LABEL: the list band's New door, which a section case opens its create form by",
+  "packages/client/src/lib/account-field-names.ts":
+    "ACCOUNT_HANDLE_FIELD_NAME and ACCOUNT_PASSWORD_FIELD_NAME: the account fields sign-in, invite and create-user forms print",
   "packages/client/src/features/imagery/lib/imagine-names.ts":
     "IMAGINE_MODE_NAME and its siblings: the imagine options' field names and the imagery dialogs' titles and edit door",
   "packages/client/src/features/chat/lib/appearance-avatars-model.ts":
@@ -520,6 +523,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/ui/src/primitives/toast/toast-names.ts": "TOAST_CLOSE_NAME and its siblings: the names a toast prints",
   "packages/ui/src/primitives/macro-textarea/macro-textarea-names.ts": "MACRO_SUGGESTIONS_NAME: the macro completion list's name",
   "packages/ui/src/primitives/log-viewer/log-viewer-names.ts": "UNNAMED_LOG_NAME: the name a log viewer prints for a log with no name",
+  "packages/ui/src/primitives/file-dropzone/file-dropzone-names.ts": "REFUSAL_GLYPH_NAME: the glyph that leads a file control's refusal line",
   "packages/ui/src/content/message-media/message-media-names.ts": "MEDIA_UNAVAILABLE_TEXT: the tile a message image that cannot load prints",
   "packages/client/src/lib/image-size-copy.ts":
     "IMAGE_NEGATIVE_PROMPT_NOUN and IMAGE_NEGATIVE_PROMPT_FIELD_NAME: the image field's name, which the rule editor's optional field controls are named by",
@@ -598,9 +602,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/refinery/lib/refinery-names.ts":
     "REFINERY_VERSIONS_NAME, refineryCompareToggleName and REFINERY_VERSION_LOADING_TEXT: the context pane's version history names",
   "packages/client/src/features/refinery/lib/verdict.ts": "verdictWordOf: the display word the analyze verdict banner paints",
+  "packages/client/src/features/refinery/lib/render-plan.ts": "scopeChipLabelOf: the field name the scope dialog's checkbox prints",
+  "packages/client/src/features/plugin/lib/plugin-surface-names.ts": "PLUGIN_SEARCH_SUBMIT_NAME: the plugin browse search's submit button",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
-    "approveLabel, enablePluginLabel, showInChatSwitchName, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action and switch names required by the no-copied-label contract",
+    "approveLabel, enablePluginLabel, showInChatSwitchName, PLUGIN_ON_STATUS_LABEL, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action, status and switch names required by the no-copied-label contract",
   "packages/client/src/features/automation/lib/rule-copy.ts": "ruleEnabledSwitchName: the per-rule enable switch name",
   "packages/client/src/features/automation/lib/automation-names.ts":
     "RULE_EDITOR_NAME, ruleTestName and their siblings: the rule list, row, editor and library-wide section names",

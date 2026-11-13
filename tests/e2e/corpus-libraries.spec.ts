@@ -3,6 +3,7 @@
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
+import { CONNECTION_NAME_FIELD_NAME } from "#client/features/credentials/lib/credentials-names.ts";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { ROSTER_DESCRIPTION_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
 import { WORLD_BOOKS_LIST_NAME } from "#client/features/world-info/lib/world-books-list-name.ts";
@@ -144,7 +145,7 @@ test.describe("committed corpus collection settings", () => {
     await openConfigGroup(page, "connections");
     await page.getByRole("button", { name: connectionSummary(before), exact: true }).click();
     await expect.poll(async () => (await host.trpc.connection.list.query(undefined)).find((connection) => connection.id === id)?.modelCheck).toBe("listed");
-    const field = page.getByRole("textbox", { name: "Name", exact: true });
+    const field = page.getByRole("textbox", { name: CONNECTION_NAME_FIELD_NAME, exact: true });
     const next = `${before.label} smoke`;
     await field.fill(next);
     await field.press("Tab");

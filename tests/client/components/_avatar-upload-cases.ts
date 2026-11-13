@@ -29,6 +29,7 @@ import {
   AVATAR_UPLOADING_NAME,
   AVATAR_WRITE_REFUSED,
 } from "#client/lib/avatar-upload-copy.ts";
+import { REFUSAL_GLYPH_NAME } from "#ui/primitives/file-dropzone/file-dropzone-names.ts";
 
 const ROOT_OPTIONS = {
   env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
@@ -695,7 +696,6 @@ const LAYOUT_HEIGHT_PX = 900;
 const PHONE_WIDTH_PX = 390;
 const DESKTOP_WIDTH_PX = 1440;
 const NOT_AN_IMAGE = { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("notes") } as const;
-const ERROR_GLYPH_NAME = "Error";
 
 function boxesOf(locator: Locator): Promise<readonly Box[]> {
   return locator.evaluateAll((nodes) =>
@@ -741,7 +741,7 @@ function layoutCase(width: number): AvatarCase {
 
       const line = page.locator('[data-slot="file-dropzone-error"]');
       await expect(line).toHaveText(AVATAR_NOT_A_PICTURE);
-      await expect(line.getByRole("img", { name: ERROR_GLYPH_NAME })).toBeVisible();
+      await expect(line.getByRole("img", { name: REFUSAL_GLYPH_NAME })).toBeVisible();
       const shown = await client.readRefusalLine(line);
       expect(shown.ink).toBe(shown.destructiveInk);
       expect(shown.lines).toBeLessThanOrEqual(MOST_LINES);

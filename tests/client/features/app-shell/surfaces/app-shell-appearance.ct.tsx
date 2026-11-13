@@ -16,6 +16,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
@@ -725,7 +726,7 @@ test.describe("in an open room", () => {
       await expect.poll(() => fillAlpha(bubble(page, role))).toBeLessThan(1);
       await expect.poll(() => computed(bubble(page, role), "backdrop-filter")).toContain("blur(");
     }
-    await page.locator(`${LIST} .shell-panel-header`).getByRole("button", { name: "New", exact: true }).click();
+    await page.locator(`${LIST} .shell-panel-header`).getByRole("button", { name: BAND_NEW_LABEL, exact: true }).click();
     const dialog = page.locator(DIALOG);
     await expect(dialog).toBeVisible();
     await expect.poll(() => fillAlpha(dialog)).toBeLessThan(1);

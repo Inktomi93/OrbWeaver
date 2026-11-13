@@ -23,7 +23,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { useId, useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, useOpenRequests } from "#lib";
+import { BAND_NEW_LABEL, DIALOG_VERBS, useOpenRequests } from "#lib";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
 import { characterDoors } from "../lib/character-door-requests.ts";
@@ -33,7 +33,6 @@ import {
   CHARACTER_IMPORT_NAME,
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
-  CHARACTER_NEW_SHORT_LABEL,
 } from "../lib/character-names.ts";
 import { CHARACTER_CREATE_FAILED, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { newCharacterDoorRef } from "../lib/new-character-door.ts";
@@ -244,7 +243,7 @@ export function CharacterNewDoor({ iconOnly = false }: { readonly iconOnly?: boo
       ) : (
         <Button onClick={(): void => setOpen(true)} ref={newCharacterDoorRef} size="sm">
           <Icon icon={Plus} size="sm" />
-          {CHARACTER_NEW_SHORT_LABEL}
+          {BAND_NEW_LABEL}
         </Button>
       )}
       <NewCharacterDialog onOpenChange={setOpen} open={open} />

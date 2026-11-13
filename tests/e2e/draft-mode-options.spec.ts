@@ -9,6 +9,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { COMPOSER_REGENERATE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { chatWithActionName } from "#client/lib/row-qualifiers.ts";
 import {
@@ -58,7 +59,7 @@ test("committed room: the ⋯ options menu is present with its actions enabled",
   // on the tail row's role (a reused chat can end on a user row), so the pin is PRESENCE: the omit-doctrine
   // says it renders either way, disabled-with-a-reason at worst.
   await openUtilityMenu(page);
-  await expect(page.getByRole("menuitem", { name: "Regenerate" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: COMPOSER_REGENERATE_NAME })).toBeVisible();
   await page.keyboard.press("Escape");
 });
 

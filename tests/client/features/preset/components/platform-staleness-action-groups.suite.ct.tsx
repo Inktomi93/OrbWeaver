@@ -7,12 +7,17 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { PRESET_EDITOR_VIEW_LABELS, PRESET_NOT_HONORED_LEAD } from "#client/features/preset/lib/preset-names.ts";
+import {
+  PRESET_EDITOR_VIEW_LABELS,
+  PRESET_NOT_HONORED_LEAD,
+  PRESET_STALE_CLEAR_NAME,
+  PRESET_STALE_KEEP_NAME,
+} from "#client/features/preset/lib/preset-names.ts";
 import { AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { StalenessActionGroupsStory } from "./_staleness-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_staleness-action-groups-stories/StalenessActionGroupsStory";
-const DECISION_LABELS = { keep: "Keep", clear: "Clear" } as const;
+const DECISION_LABELS = { keep: PRESET_STALE_KEEP_NAME, clear: PRESET_STALE_CLEAR_NAME } as const;
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: appearanceSettingsSchema.parse({}) },
   { name: "narrow desktop enlarged", width: 300, viewport: { width: 1280, height: 900 }, coarse: false, appearance: ENLARGED_APPEARANCE_SETTINGS },

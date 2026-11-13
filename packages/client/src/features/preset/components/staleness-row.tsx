@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
-import { PRESET_NOT_HONORED_LEAD } from "../lib/preset-names.ts";
+import { PRESET_NOT_HONORED_LEAD, PRESET_STALE_CLEAR_NAME, PRESET_STALE_KEEP_NAME } from "../lib/preset-names.ts";
 import { SAMPLING_KNOBS } from "../lib/sampling-knob-catalog.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
@@ -93,10 +93,10 @@ export function StalenessRow({ form, stale, spelling }: StalenessRowProps): Reac
         </Row>
         <Row wrap={true} gap="field">
           <Button variant="ghost" onClick={(): void => setKept(true)} size="sm" type="button">
-            Keep
+            {PRESET_STALE_KEEP_NAME}
           </Button>
           <Button variant="outline" onClick={clear} size="sm" type="button">
-            Clear
+            {PRESET_STALE_CLEAR_NAME}
           </Button>
         </Row>
       </Stack>

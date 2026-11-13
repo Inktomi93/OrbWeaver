@@ -55,7 +55,6 @@ import {
   CHARACTER_LOOK_TAB_LABEL,
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
-  CHARACTER_NEW_SHORT_LABEL,
   CHARACTER_NO_SNAPSHOTS_TEXT,
   CHARACTER_OVERVIEW_TAB_LABEL,
   CHARACTER_RESTORE_SNAPSHOT_TITLE,
@@ -89,6 +88,7 @@ import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/ed
 import { censusSuffix } from "#client/lib/census-title.ts";
 import { LIST_PANEL_NOUN, listPaneLabel, panelCloseName, panelEdgeName, screenListDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import { TRAIL_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
@@ -321,7 +321,7 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
     await openList(flow);
     // A phone trail folds New into its More menu once grown text leaves no room for it.
     await pressOverflowed(page, {
-      inline: page.getByRole("button", { name: namePattern(CHARACTER_NEW_SHORT_LABEL, CHARACTER_NEW_NAME) }),
+      inline: page.getByRole("button", { name: namePattern(BAND_NEW_LABEL, CHARACTER_NEW_NAME) }),
       overflow: page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
       name: CHARACTER_NEW_NAME,
     });
@@ -376,7 +376,7 @@ async function libraryWalk(flow: CharacterFlow): Promise<void> {
   const cancel = flow.page.getByRole("dialog").getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   await walkDoor(flow, {
     id: "new-dialog",
-    trigger: flow.page.getByRole("button", { name: namePattern(CHARACTER_NEW_SHORT_LABEL, CHARACTER_NEW_NAME) }),
+    trigger: flow.page.getByRole("button", { name: namePattern(BAND_NEW_LABEL, CHARACTER_NEW_NAME) }),
     body: flow.page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true }),
     exit: cancel,
   });
@@ -892,7 +892,7 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
   await openList(flow);
   // A phone trail folds New into its More menu once grown text leaves no room for it.
   await pressOverflowed(flow.page, {
-    inline: flow.page.getByRole("button", { name: namePattern(CHARACTER_NEW_SHORT_LABEL, CHARACTER_NEW_NAME) }),
+    inline: flow.page.getByRole("button", { name: namePattern(BAND_NEW_LABEL, CHARACTER_NEW_NAME) }),
     overflow: flow.page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
     name: CHARACTER_NEW_NAME,
   });

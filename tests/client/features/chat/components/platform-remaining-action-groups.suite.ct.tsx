@@ -19,7 +19,7 @@ import {
   characterGalleryName,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE, toolCallVisibilityName } from "#client/features/chat/lib/message-action-names.ts";
-import { trackerDefaultMaxName, trackerLabelFieldName, trackerRemoveName } from "#client/features/rpg/lib/rpg-names.ts";
+import { RPG_HOST_ADVANCED_LABEL, trackerDefaultMaxName, trackerLabelFieldName, trackerRemoveName } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { GalleryActionsStory, GameTrackerActionsStory, ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -292,8 +292,7 @@ for (const regime of REGIMES) {
         ]),
       );
       await mount<typeof GameTrackerActionsStory>(`${STORIES}/GameTrackerActionsStory`, { chatId, width: regime.width, appearance: regime.appearance });
-      // eslint-disable-next-line orb/no-hand-copied-label -- RPG owns this literal trigger; the exported chat group label names a different feature's disclosure.
-      await page.getByRole("button", { name: "Advanced", exact: true }).click();
+      await page.getByRole("button", { name: RPG_HOST_ADVANCED_LABEL, exact: true }).click();
       const rows = page.locator('[data-slot="rpg-tracker-row"]');
       await expect(rows).toHaveCount(2);
       for (const [index, def] of defs.entries()) {
