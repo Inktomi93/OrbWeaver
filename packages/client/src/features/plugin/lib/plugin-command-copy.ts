@@ -30,6 +30,12 @@ export function placedItemLabel(item: { readonly shownName: string; readonly lab
   return `${item.shownName} · ${item.command.group ?? "Commands"} · ${item.label}`;
 }
 
+/** The argument dialog's body before a command is chosen. */
+export const PLUGIN_NO_COMMAND_SELECTED_TEXT = "No command selected.";
+
+/** The heading the plugin command rows render under in the palette. */
+export const PLUGIN_COMMANDS_HEADING = "Plugin commands";
+
 /** The argument dialog's title. */
 export const PLUGIN_COMMAND_ARGS_TITLE = "Run command";
 

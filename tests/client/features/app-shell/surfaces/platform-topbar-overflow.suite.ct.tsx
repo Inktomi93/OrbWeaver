@@ -8,6 +8,7 @@ import { enlargeUntilVisible, seedShellState, setRootFontScale } from "@orb/test
 import { channelName, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import {
   DATABANK_ADD_DOCUMENT_TITLE,
   DATABANK_MAINTENANCE_NAME,
@@ -15,6 +16,7 @@ import {
   DATABANK_REREAD_ALL_NAME,
   databankSweepConfirmTitle,
 } from "#client/features/databank/lib/databank-names.ts";
+import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
 import { NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "#client/features/preset/lib/preset-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -22,7 +24,7 @@ import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const FONT_SCALE_PROPERTY = channelName("fontScale");
 const ENLARGED = 3;
-const REPORT_BUG = "Report a bug";
+const REPORT_BUG = BUG_REPORT_NAME;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -66,7 +68,7 @@ test("an action leaves the topbar row for the menu as it narrows and returns as 
   // The menu carries the same handler: the entry opens the surface the inline control would have.
   await trigger.click();
   await page.getByRole("menuitem", { name: REPORT_BUG, exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "What happened?", exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: BUG_REPORT_NOTE_NAME, exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
 
   await setRootFontScale(page, FONT_SCALE_PROPERTY, null);
@@ -75,8 +77,8 @@ test("an action leaves the topbar row for the menu as it narrows and returns as 
 });
 
 for (const form of [
-  { label: "Notifications", surface: { role: "dialog", name: "Notifications" } },
-  { label: "Report a bug", surface: { role: "textbox", name: "What happened?" } },
+  { label: NOTIFICATIONS_BELL_NAME, surface: { role: "dialog", name: NOTIFICATIONS_BELL_NAME } },
+  { label: BUG_REPORT_NAME, surface: { role: "textbox", name: BUG_REPORT_NOTE_NAME } },
 ] as const) {
   test(`the trail's ${form.label} menu entry opens the surface its inline control opens`, async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "chats" });

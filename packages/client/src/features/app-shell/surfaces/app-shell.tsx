@@ -53,6 +53,7 @@ import { useShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellNoticeInset } from "../hooks/use-shell-notice-inset.ts";
 import { useShellTrackFlip } from "../hooks/use-shell-track-flip.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
+import { SKIP_TO_CONTENT_NAME } from "../lib/app-shell-names.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
 import { roomScreenShell } from "../lib/room-section.ts";
 
@@ -372,7 +373,7 @@ export function AppShell(): ReactElement {
                 size="sm"
                 type="button"
               >
-                Skip to content
+                {SKIP_TO_CONTENT_NAME}
               </Button>
               <RailSlot activeSection={layout.activeSection} show={!layout.mobileViewport} />
 

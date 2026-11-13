@@ -35,25 +35,31 @@ import type {
   SnippetResult,
 } from "@orb/contracts/plugin";
 import {
+  PLUGIN_LOG_CHARS_MAX,
   PLUGIN_LOG_LEVELS,
+  PLUGIN_LOG_LINES_MAX,
   PLUGIN_SURFACE_TIERS,
+  PLUGIN_UI_HOST_CALL_FAILED,
   PluginInstallerDisabledError,
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
   snippetResultSchema,
 } from "@orb/contracts/plugin";
-import { DomainConflictError } from "@orb/kit/errors";
+import { ProviderError } from "@orb/inference";
+import { DomainConflictError, DomainError, DomainInternalFaultError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { TimerScheduler } from "@orb/kit/time";
 import { MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
+import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
+import { EgressBlockedError, ImageRejectedError } from "#infra/network";
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
 import { createScopedTimers } from "#infra/timers";
 import { createAdmission } from "./admission.ts";
 import type { BridgeAuthority } from "./bridge-rpc.ts";
-import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyncCall } from "./bridge-rpc.ts";
+import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyncCall, MalformedBridgeArgumentsError } from "./bridge-rpc.ts";
 import {
   PLUGIN_AUTHORITY_TAIL_CALLS_MAX,
   PLUGIN_AUTHORITY_TAIL_MS,
@@ -63,18 +69,28 @@ import {
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
+  PLUGIN_SERVER_LOG_WINDOW_MS,
   PLUGIN_SNIPPET_RUNTIME_MAX,
   PLUGIN_WATCHDOG_STOP_GRACE_MS,
   pluginBrokerRestartHoldMs,
   pluginIpcShareBytes,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, CreateLogicalInstanceInputIn, PluginHostSeamDeps, ProcessPluginHost } from "./contract/port.ts";
+import type {
+  CreateInstanceInputIn,
+  CreateInstanceOutcomeOut,
+  CreateLogicalInstanceInputIn,
+  PluginFailureLine,
+  PluginHostSeamDeps,
+  PluginInvokePhase,
+  ProcessPluginHost,
+} from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, PluginIpcShares, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
 import {
+  CodedHostUnavailableError,
   channelFullBridgeResult,
   channelFullResponse,
   fromRpcError,
@@ -83,6 +99,7 @@ import {
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
   PLUGIN_STALE_RUNTIME,
+  PluginLlmFailureError,
   parseBrokerParentMessage,
   parseMessageLine,
   rpcError,
@@ -139,6 +156,8 @@ type Binding = BindingLifetime & {
   readonly invokeArgs: Map<string, (chatHandle: string | null) => string>;
   readonly log: PluginLogView[];
   chars: number;
+  /** This binding's share of the server log in the current window; see {@link writeServerLog}. */
+  serverLog: ServerLogWindow;
   suppressLogs: boolean;
   crashed: Error | null;
   /** An ended invocation's refusal that no command carried, because the broker ended this binding's runtime with
@@ -206,6 +225,7 @@ interface LeasedInvokeInput {
   readonly handler: PluginHandlerRef;
   readonly argsJson: PluginInvokeArgs;
   readonly chat: InvocationChat | null | undefined;
+  readonly phase: PluginInvokePhase;
 }
 
 function releaseBinding(binding: Binding): void {
@@ -275,6 +295,64 @@ function retainLog(binding: Binding, level: PluginLogLevel, message: string): vo
     const evicted = binding.log.shift();
     binding.chars -= evicted?.message.length ?? 0;
   }
+}
+
+/** One binding's server-log share in the current window: when it opened, what it wrote, what it dropped, and the timer
+ *  that closes it once it drops a line. */
+interface ServerLogWindow {
+  readonly openedAtMs: number;
+  lines: number;
+  chars: number;
+  dropped: number;
+  cancelClose: (() => void) | undefined;
+}
+
+function openServerLogWindow(nowMs: number): ServerLogWindow {
+  return { openedAtMs: nowMs, lines: 0, chars: 0, dropped: 0, cancelClose: undefined };
+}
+
+// The server log is one stream every plugin shares, and a guest decides how often it logs, fails a host call or
+// fails a call, so every line a binding's guest causes draws on one window of one drain's volume; the plugin log ring
+// still keeps every guest line. Once a window drops a line it drops the rest, so the server log never shows a later
+// line without the earlier one, and a timer closes it with one line counting the drops: an operator sees the
+// truncation even when the plugin then goes quiet. `chars` is the guest-sized text the line carries.
+function writeServerLog(binding: Binding, chars: number, write: (log: Logger) => void): void {
+  const now = binding.seams.nowEpochMs();
+  if (binding.serverLog.dropped === 0 && now - binding.serverLog.openedAtMs >= PLUGIN_SERVER_LOG_WINDOW_MS) {
+    binding.serverLog = openServerLogWindow(now);
+  }
+  const window = binding.serverLog;
+  if (window.dropped > 0 || window.lines >= PLUGIN_LOG_LINES_MAX || window.chars + chars > PLUGIN_LOG_CHARS_MAX) {
+    if (window.dropped === 0) {
+      window.cancelClose = binding.timers.timeoutUnref(() => closeServerLogWindow(binding, window), window.openedAtMs + PLUGIN_SERVER_LOG_WINDOW_MS - now);
+    }
+    window.dropped += 1;
+    return;
+  }
+  window.lines += 1;
+  window.chars += chars;
+  write(getLog(binding.seams.log));
+}
+
+function closeServerLogWindow(binding: Binding, window: ServerLogWindow): void {
+  getLog(binding.seams.log).warn(
+    { plugin: binding.label ?? SNIPPET_RUNNER, dropped: window.dropped },
+    "plugin host: plugin log lines dropped from the server log this window",
+  );
+  binding.serverLog = openServerLogWindow(binding.seams.nowEpochMs());
+}
+
+// A binding that ends with a window still dropping writes its count now and leaves no timer behind.
+function flushServerLogWindow(binding: Binding): void {
+  const window = binding.serverLog;
+  if (window.dropped > 0) {
+    window.cancelClose?.();
+    closeServerLogWindow(binding, window);
+  }
+}
+
+function failureLineChars(line: PluginFailureLine): number {
+  return Object.values(line.fields).reduce((total, value) => total + value.length, line.message.length);
 }
 
 function createLiveness(): MutableLiveness {
@@ -958,7 +1036,8 @@ class BrokerClient {
     }
     retainLog(binding, message.level, message.message);
     if (binding.label !== undefined) {
-      getLog(this.seams.log)[message.level]({ plugin: binding.label }, message.message);
+      const { label } = binding;
+      writeServerLog(binding, message.message.length, (log) => log[message.level]({ plugin: label }, message.message));
     }
   }
 
@@ -1002,7 +1081,7 @@ class BrokerClient {
           if (error instanceof PluginInstallerDisabledError && binding.standingRefused.has(message.authorityId)) {
             binding.standingRefused.set(message.authorityId, true);
           }
-          this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(error) });
+          this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(this.guestFacingFailure(binding, message.operation, error)) });
           completion.resolve();
         },
       );
@@ -1018,6 +1097,20 @@ class BrokerClient {
     } catch (error) {
       this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(error) });
     }
+  }
+
+  // What the guest reads of a failed bridge operation. A named refusal keeps its name and text. Any other error, a
+  // database fault among them, crosses as one fixed sentence: its own message can carry server internals, such as a
+  // failed query's SQL and bound values. The operator still reads that error in the server log.
+  private guestFacingFailure(binding: Binding, operation: string, error: unknown): unknown {
+    if (isNamedBridgeRefusal(error)) {
+      return error;
+    }
+    writeServerLog(binding, error instanceof Error ? error.message.length : 0, (log) =>
+      log.warn({ plugin: binding.label ?? SNIPPET_RUNNER, operation, err: error }, "plugin host: a bridge operation failed"),
+    );
+    // A model failure also says why, by its closed kind alone: the guest can tell a rate limit from a bad key.
+    return error instanceof ProviderError ? new PluginLlmFailureError(error.kind, error.retryable) : new Error(PLUGIN_UI_HOST_CALL_FAILED);
   }
 
   // A host result goes on its plugin's runtime share. One that does not fit is refused, never held: the plugin may
@@ -1101,6 +1194,19 @@ class PluginHostUnavailableError extends DomainConflictError {
     super(message);
     this.name = PLUGIN_HOST_UNAVAILABLE;
   }
+}
+
+/** A failed bridge operation whose name and text a guest may read: a domain refusal (any {@link DomainError} but the
+ *  internal fault, which carries a tripwire's text), the host's coded unavailable refusal, an egress block, an image
+ *  rejection, or malformed arguments. Each names a fact about the guest's own call, never a server internal. */
+function isNamedBridgeRefusal(error: unknown): boolean {
+  return (
+    (error instanceof DomainError && !(error instanceof DomainInternalFaultError)) ||
+    error instanceof CodedHostUnavailableError ||
+    error instanceof EgressBlockedError ||
+    error instanceof ImageRejectedError ||
+    error instanceof MalformedBridgeArgumentsError
+  );
 }
 
 function unavailableError(): Error {
@@ -1513,7 +1619,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     lease.release();
   };
 
-  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat }: LeasedInvokeInput, generation: number): Promise<string> => {
+  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat, phase }: LeasedInvokeInput, generation: number): Promise<string> => {
     let builderId: string | undefined;
     try {
       requireLifecycle(binding, generation);
@@ -1531,7 +1637,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       const result = await commandWithAuthority({
         binding,
         operation: "invoke",
-        phase: "invocation",
+        phase,
         chat: chat ?? null,
         value: { handler, argsJson: boundArgs.wireArgs, chat },
       });
@@ -1565,6 +1671,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       invokeArgs: new Map(),
       log: [],
       chars: 0,
+      serverLog: openServerLogWindow(seams.nowEpochMs()),
       suppressLogs: false,
       crashed: null,
       owedRefusal: null,
@@ -1621,7 +1728,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
     },
     invoke: async (...invokeParameters: Parameters<ProcessPluginHost["invoke"]>): Promise<string> => {
-      const [instance, handler, argsJson, chat, signal] = invokeParameters;
+      const [instance, handler, argsJson, chat, signal, phase = "invocation"] = invokeParameters;
       const binding = instances.get(instance);
       if (binding === undefined || binding.disposed) {
         throw new Error("plugin host: invoke on an unknown/disposed instance");
@@ -1629,14 +1736,16 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       if (binding.crashed !== null) {
         throw binding.crashed;
       }
+      // An owed strike is paid by the next write-path call, which counts it; a display call counts nothing, so it
+      // leaves the strike owed.
       const owed = binding.owedRefusal;
-      if (owed !== null) {
+      if (owed !== null && phase === "invocation") {
         binding.owedRefusal = null;
         throw owed;
       }
       const generation = binding.lifecycleGeneration;
       const lease = await pool.acquire(binding, { signal });
-      return await invokeWithLease({ binding, lease, handler, argsJson, chat }, generation);
+      return await invokeWithLease({ binding, lease, handler, argsJson, chat, phase }, generation);
     },
     runSnippet: async (input): Promise<SnippetResult> => {
       const releaseAdmission = acquireSnippetAdmission();
@@ -1685,6 +1794,16 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       const binding = instances.get(instance);
       return binding === undefined ? [] : [...binding.log];
     },
+    logFailure: (instance, line): void => {
+      const write = (log: Logger): void => log[line.level](line.fields, line.message);
+      const binding = instances.get(instance);
+      // A disposed instance runs no guest, so nothing it can still cause needs a budget.
+      if (binding === undefined) {
+        write(getLog(seams.log));
+        return;
+      }
+      writeServerLog(binding, failureLineChars(line), write);
+    },
     dispose: (instance): void => {
       const binding = instances.get(instance);
       if (binding === undefined) {
@@ -1692,6 +1811,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
       instances.delete(instance);
       logicalBindings.delete(binding);
+      flushServerLogWindow(binding);
       binding.disposed = true;
       binding.lifecycleGeneration += 1;
       const error = new Error("plugin host: invocation refused because the logical instance was disposed");
@@ -1745,6 +1865,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         const failure = new PluginHostUnavailableError("plugin host: logical host is closing");
         for (const binding of ownedBindings) {
           logicalBindings.delete(binding);
+          flushServerLogWindow(binding);
           binding.disposed = true;
           binding.lifecycleGeneration += 1;
           pool.remove(binding, failure);

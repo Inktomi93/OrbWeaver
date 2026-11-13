@@ -31,6 +31,7 @@
 // accepted cost is the boundary burst — up to 2×limit across an hour boundary — which is the right direction
 // to be imprecise in for a ceiling nobody legitimate approaches.
 
+import { DomainRateLimitError } from "@orb/kit/errors";
 import type { PluginId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import type { PluginRateFloor } from "../contract/ops.ts";
@@ -105,7 +106,7 @@ export function createPluginRateFloor(now: () => number, spec: { readonly capabi
         return;
       }
       if (current.count >= spec.limit) {
-        throw new Error(`plugin host: ${spec.capability} is limited to ${spec.limit} calls per hour for this plugin`);
+        throw new DomainRateLimitError(`plugin host: ${spec.capability} is limited to ${spec.limit} calls per hour for this plugin`);
       }
       // Claimed. The increment is the RECORD half of check-and-claim and happens before any caller await.
       current.count += 1;

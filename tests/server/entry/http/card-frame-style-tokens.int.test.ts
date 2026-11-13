@@ -15,6 +15,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 type Root = Awaited<ReturnType<typeof createServerHarness>>;
 
 const HEADERS = { [CSRF_HEADER]: "1", "content-type": "application/json" } as const;
+const POLICY = "content-security-policy";
 
 interface Served {
   readonly status: number;
@@ -48,12 +49,10 @@ async function mintAndServe(root: Root, chatId: ChatId, extra: Record<string, un
 
 /** The production headers the null selector's document goes out with, read in the response's own casing. */
 function floorHeaders(): Readonly<Record<string, string>> {
-  return Object.fromEntries(
-    Object.entries(cardFrameResponseHeaders(buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"))).map(([name, value]) => [
-      name.toLowerCase(),
-      value,
-    ]),
-  );
+  return {
+    ...Object.fromEntries(Object.entries(cardFrameResponseHeaders()).map(([name, value]) => [name.toLowerCase(), value])),
+    [POLICY]: buildCardFrameCsp(CARD_FRAME_SAFE_FLOOR, "document", "static"),
+  };
 }
 
 test("an in-range style slice reaches the served document's root unchanged", async () => {

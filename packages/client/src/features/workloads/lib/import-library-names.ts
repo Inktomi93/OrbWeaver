@@ -26,6 +26,11 @@ export const IMPORT_PREVIEW_REPORT_NAME = "What this import would bring";
 export const IMPORT_PREVIEW_SHOW_NAMES = "Show names";
 export const IMPORT_PREVIEW_HIDE_NAMES = "Hide names";
 
+/** The label over one profile's names, shown when an upload holds several profiles. */
+export function importPreviewProfileLabel(profile: string): string {
+  return `Profile ${profile}`;
+}
+
 /** Why a folder's dry run failed, by what the request met. */
 export const IMPORT_PREVIEW_FAILURE = {
   unreachable: "Could not reach the server.",

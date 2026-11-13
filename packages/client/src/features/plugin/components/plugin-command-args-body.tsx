@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import { DIALOG_VERBS } from "#lib";
 import { clearPluginCommandArgs, closeModal, usePluginCommandArgsSubject } from "#state";
 import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-commands.ts";
-import { humanizeId, pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
+import { humanizeId, PLUGIN_NO_COMMAND_SELECTED_TEXT, pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 
 /** The initial string bag: a declared `default` opens preselected; otherwise booleans start `"false"` (an
  *  unchecked toggle IS a value, not an omission) and everything else starts empty (a required one blocks submit
@@ -137,7 +137,7 @@ export function PluginCommandArgsBody(): ReactElement {
   if (subject === undefined) {
     // The subject was cleared out from under an open modal — nothing to collect. The def's `onClose` normally
     // clears on dismissal, so this arm is only reached transiently.
-    return <Text voice="gloss">No command selected.</Text>;
+    return <Text voice="gloss">{PLUGIN_NO_COMMAND_SELECTED_TEXT}</Text>;
   }
 
   const setValue = (name: string, next: string): void => setValues((prev) => ({ ...prev, [name]: next }));

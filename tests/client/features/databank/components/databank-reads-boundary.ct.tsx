@@ -10,7 +10,13 @@ import { createShellAmbientReads, holdServed, routeTrpc, SECTION_PROCEDURES, ser
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { DATABANK_USE_IN_EVERY_CHAT_NAME, DATABANK_VIEW_SOURCE_NAME } from "#client/features/databank/lib/databank-names.ts";
+import {
+  DATABANK_DOCUMENT_NOT_FOUND_TITLE,
+  DATABANK_NOWHERE_YET_LEAD,
+  DATABANK_NOWHERE_YET_TEXT,
+  DATABANK_USE_IN_EVERY_CHAT_NAME,
+  DATABANK_VIEW_SOURCE_NAME,
+} from "#client/features/databank/lib/databank-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -65,11 +71,11 @@ test("a held attachments read shows the loading skeleton, a failed one the error
   await expect(context.getByText(DATABANK_USE_IN_EVERY_CHAT_NAME, { exact: true })).toBeVisible();
   hold.fail();
   await expect(context.getByText("Couldn't load where this document is active.", { exact: true })).toBeVisible();
-  await expect(context.getByText(/Nowhere yet/u)).toHaveCount(0);
+  await expect(context.getByText(DATABANK_NOWHERE_YET_LEAD)).toHaveCount(0);
   failing = false;
   await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(context.getByText("Couldn't load where this document is active.", { exact: true })).toHaveCount(0);
-  await expect(context.getByText(/Nowhere yet/u)).toBeVisible();
+  await expect(context.getByText(DATABANK_NOWHERE_YET_TEXT, { exact: true })).toBeVisible();
 });
 
 test("a deleted document is the gone state in the context rail, not the error block", async ({ mount, page, corpus }) => {
@@ -81,7 +87,7 @@ test("a deleted document is the gone state in the context rail, not the error bl
     .first()
     .click();
   const context = await openContext(page);
-  await expect(context.getByText("Document not found", { exact: true })).toBeVisible();
+  await expect(context.getByText(DATABANK_DOCUMENT_NOT_FOUND_TITLE, { exact: true })).toBeVisible();
   await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });
 
@@ -98,12 +104,12 @@ test("a gone document's state gives way to a live document picked next", async (
     .first()
     .click();
   const context = await openContext(page);
-  await expect(context.getByText("Document not found", { exact: true })).toBeVisible();
+  await expect(context.getByText(DATABANK_DOCUMENT_NOT_FOUND_TITLE, { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: /Boundary notes/u })
     .first()
     .click();
-  await expect(context.getByText("Document not found", { exact: true })).toHaveCount(0);
+  await expect(context.getByText(DATABANK_DOCUMENT_NOT_FOUND_TITLE, { exact: true })).toHaveCount(0);
   await expect(context.getByText(DATABANK_USE_IN_EVERY_CHAT_NAME, { exact: true })).toBeVisible();
 });
 

@@ -18,7 +18,13 @@ import { captureCookieAuth, createCorpusHarness, makePluginBundle, requireShowca
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8 } from "fflate";
-import { enablePluginLabel, pluginDetailsLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import {
+  enablePluginLabel,
+  pluginCardLabel,
+  pluginCheckForUpdatesLabel,
+  pluginDetailsLabel,
+  pluginPermissionsLabel,
+} from "#client/features/plugin/lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "#client/features/plugin/lib/plugin-model-copy.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
@@ -170,6 +176,7 @@ for (const viewport of VIEWPORTS) {
       await mount<typeof PluginPresentationPageStory>(PAGE_STORY, { pluginId: atlas.id, surfaceId: "atlas_page", width: viewport.host });
       const body = page.getByRole("group", { name: "Card Atlas", exact: true });
       const hub = body.getByRole("combobox", { name: "Hub", exact: true });
+      // eslint-disable-next-line orb/no-hand-copied-label -- the Card Atlas guest names this select itself; the exported Corpus browse label is a different feature's control.
       const sort = body.getByRole("combobox", { name: "Sort", exact: true });
       const sfw = body.getByRole("switch", { name: "SFW only", exact: true });
       await expect(hub).toBeVisible();
@@ -276,21 +283,21 @@ for (const { width, touch, mobile } of [
       await routePluginReads(page, caller);
       await mount<typeof PluginConsentLayoutStory>(SETTINGS_STORY, { width });
       for (const plugin of [research, affinity]) {
-        const row = page.getByRole("group", { name: `${plugin.name} plugin`, exact: true });
+        const row = page.getByRole("group", { name: pluginCardLabel(plugin.name), exact: true });
         await expect(row.getByRole("switch", { name: enablePluginLabel(plugin.name), exact: true })).toHaveAttribute("aria-checked", "true");
         const details = row.getByRole("button", { name: pluginDetailsLabel(plugin.name), exact: true });
         await expect(details).toHaveAttribute("aria-expanded", "false");
         await details.click();
-        await row.getByRole("button", { name: `What it's allowed to do: ${plugin.name}`, exact: true }).click();
-        await expect(row.getByRole("group", { name: `What it's allowed to do: ${plugin.name}`, exact: true })).toBeVisible();
+        await row.getByRole("button", { name: pluginPermissionsLabel(plugin.name), exact: true }).click();
+        await expect(row.getByRole("group", { name: pluginPermissionsLabel(plugin.name), exact: true })).toBeVisible();
         const activity = row.getByRole("button", { name: `Recent activity for ${plugin.name}`, exact: true });
         await activity.click();
         await expect(activity.locator("..").getByRole("log", { name: "Log entries", exact: true })).toBeVisible();
         await expect(row.getByRole("button", { name: `More actions for ${plugin.name}`, exact: true })).toBeVisible();
-        const update = row.getByRole("button", { name: `Check ${plugin.name} for updates`, exact: true });
+        const update = row.getByRole("button", { name: pluginCheckForUpdatesLabel(plugin.name), exact: true });
         await expect(update).toHaveCount(plugin.updateSource === null ? 0 : 1);
       }
-      const affinityRow = page.getByRole("group", { name: `${affinity.name} plugin`, exact: true });
+      const affinityRow = page.getByRole("group", { name: pluginCardLabel(affinity.name), exact: true });
       await affinityRow.getByRole("button", { name: `${PLUGIN_MODEL_HEADING}: ${affinity.name}`, exact: true }).click();
       await expect(affinityRow.getByRole("combobox", { name: `Text requests model for ${affinity.name}`, exact: true })).toBeVisible();
       for (const name of ["Research Familiar: Research destination", "Affinity Tracker: Affinity readings"]) {
@@ -353,7 +360,7 @@ test("settings use the same attributed block for native scripted and frame regis
     for (const title of ["Scripted preferences", "Frame preferences"]) {
       const surface = page.getByRole("group", { name: `${plugin.name}: ${title}`, exact: true });
       await expect(surface).toBeVisible();
-      expect(await surface.evaluate((element) => element.closest('[data-slot="card-root"]')?.getAttribute("aria-label"))).toBe(`${plugin.name} plugin`);
+      expect(await surface.evaluate((element) => element.closest('[data-slot="card-root"]')?.getAttribute("aria-label"))).toBe(pluginCardLabel(plugin.name));
     }
   } finally {
     if (frameUrl === null) {

@@ -5,6 +5,7 @@
 
 import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
+import { BACKGROUND_IMAGE_NAME } from "./app-shell-names.ts";
 import { BACKGROUND_FIT_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
@@ -18,7 +19,7 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "background-image",
-      label: "Background image",
+      label: BACKGROUND_IMAGE_NAME,
       keywords: ["photo", "wallpaper"],
       teach: {
         summary: "A decorative photo behind the app, with a scrim so text stays readable. Pick a bundled scene or one from your own library.",

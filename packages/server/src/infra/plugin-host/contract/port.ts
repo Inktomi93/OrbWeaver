@@ -20,6 +20,9 @@ import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import type { TraceRing } from "#src/foundation/observability/contract/tracing.ts";
 import type { PluginNetEgress } from "./net-egress.ts";
 
+/** The authority a resident call runs under: a write path's `invocation`, or a query's read-only `display`. */
+export type PluginInvokePhase = "invocation" | "display";
+
 /** The determinism seams every instance's realm binds. */
 export interface PluginHostSeamDeps {
   /** The broker's launch configuration from the root's env record, passed to the watchdog and broker by argv. */
@@ -80,12 +83,15 @@ export interface CreateLogicalInstanceInputIn extends CreateInstanceInputIn {
 /** The process host owns physical runtimes while consumers retain only the invocation operations. */
 export interface ProcessPluginHost extends AsyncDisposable {
   readonly createInstance: (input: CreateLogicalInstanceInputIn) => Promise<CreateInstanceOutcomeOut>;
+  /** `phase` `display` runs a query's call: its bridge admits reads only, and it leaves an owed strike for the next
+   *  write-path call to pay. */
   readonly invoke: (
     instance: PluginInstance,
     handler: PluginHandlerRef,
     argsJson: PluginInvokeArgs,
     chat?: InvocationChat | null,
     signal?: AbortSignal,
+    phase?: PluginInvokePhase,
   ) => Promise<string>;
   readonly runSnippet: (input: {
     readonly code: string;
@@ -96,7 +102,16 @@ export interface ProcessPluginHost extends AsyncDisposable {
     readonly owner: UserId;
   }) => Promise<SnippetResult>;
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
+  /** Write a line the instance's own failure caused to the server log, on the window its guest log lines draw on. */
+  readonly logFailure: (instance: PluginInstance, line: PluginFailureLine) => void;
   readonly dispose: (instance: PluginInstance) => void;
+}
+
+/** One server-log line for a plugin's failure. Every string field counts against the instance's server-log window. */
+export interface PluginFailureLine {
+  readonly level: PluginLogLevel;
+  readonly fields: Readonly<Record<string, string>>;
+  readonly message: string;
 }
 
 export type CreateInstanceOutcomeOut =

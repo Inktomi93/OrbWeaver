@@ -40,7 +40,7 @@ import { trpcErrorCode } from "#lib";
 import { openConfigTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
-import { DATABANK_USE_IN_EVERY_CHAT_NAME } from "../lib/databank-names.ts";
+import { DATABANK_DOCUMENT_NOT_FOUND_TITLE, DATABANK_USE_IN_EVERY_CHAT_NAME } from "../lib/databank-names.ts";
 import { ActiveInSection } from "./databank-active-in.tsx";
 
 export function DatabankContextBody(): ReactElement {
@@ -107,7 +107,7 @@ function DocumentGone(): ReactElement {
       action={null}
       description="This document was deleted. Pick another from the list."
       icon={<Icon icon={FileText} size="lg" />}
-      title="Document not found"
+      title={DATABANK_DOCUMENT_NOT_FOUND_TITLE}
     />
   );
 }

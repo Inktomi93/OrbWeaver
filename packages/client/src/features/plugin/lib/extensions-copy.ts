@@ -112,6 +112,9 @@ export function extensionsWaitingGroupLabel(count: number): string {
   return `${count === 1 ? "1 plugin" : `${count} plugins`} waiting for approval`;
 }
 
+/** The line shown while a plugin page loads. */
+export const EXTENSIONS_PAGE_LOADING_NAME = "Loading plugin page…";
+
 /** The CONTENT pane's no-selection state — a switcher with rows but nothing picked. Distinct copy from the
  *  empty above: "pick one" and "there are none" are different facts and collapsing them is the generic-filler
  *  defect the house sweeps for. */

@@ -43,6 +43,7 @@ import {
 import { GROUP_ADVANCED_LABEL, GROUP_VISIBILITY_LABELS } from "#client/features/chat/lib/group-config-model.ts";
 import { MEMBER_TALKATIVENESS_NAME, memberRemoveName } from "#client/features/chat/lib/members-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
+import { talkativenessControlName } from "#client/lib/talkativeness.ts";
 import {
   characterChipNames,
   characterChips,
@@ -287,7 +288,7 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     // range input in this build, verified live, so the arrow is the honest gesture.
     await openMemberRowMenu(page, CHARACTERS[0].name);
     await page.getByRole("menuitem", { name: MEMBER_TALKATIVENESS_NAME }).click();
-    const slider = page.getByRole("slider", { name: `Talkativeness: ${CHARACTERS[0].name}` });
+    const slider = page.getByRole("slider", { name: talkativenessControlName(CHARACTERS[0].name) });
     await expect(slider).toBeVisible({ timeout: WAIT_UI_MS });
     await slider.press("ArrowLeft");
     await slider.press("ArrowLeft");

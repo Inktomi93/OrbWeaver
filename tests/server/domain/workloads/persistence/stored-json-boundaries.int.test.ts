@@ -102,8 +102,28 @@ test("a params-poison view never publishes an unvalidated terminal result", asyn
     .update(workloads)
     .set({ params: sql`${JSON.stringify({ dryRun: "bad" })}`, result: sql`${JSON.stringify({ scanned: "private result", changed: 0, dryRun: true })}` })
     .where(eq(workloads.id, row.id));
-  await expect(harness.services.workloads.get({ caller, id: row.id })).rejects.toBeInstanceOf(z.ZodError);
+  const view = await harness.services.workloads.get({ caller, id: row.id });
+  expect(view).toMatchObject({ id: row.id, poison: true, params: null, result: null });
+  expect(JSON.stringify(view)).not.toContain("private result");
   expect(await status(harness.db, row.id)).toEqual({ status: "queued", error: null });
+});
+
+test("one row whose stored result no longer parses reads as unreadable and the rest of the list still answers", async ({ harness }) => {
+  const stale = await actor(harness);
+  const healthy = await actor(harness);
+  const unreadable = await enqueue(harness, stale);
+  const readable = await enqueue(harness, healthy);
+  await harness.db
+    .update(workloads)
+    .set({ result: sql`${JSON.stringify({ scanned: "stored by an older build", changed: 0, dryRun: true })}` })
+    .where(eq(workloads.id, unreadable.id));
+
+  const listed = await harness.services.workloads.list({ caller: null, status: "queued" });
+
+  expect(listed.find((row) => row.id === unreadable.id)).toMatchObject({ poison: true, params: null, result: null });
+  expect(listed.find((row) => row.id === readable.id)).toMatchObject({ poison: false });
+  await expect(harness.services.workloads.get({ caller: stale, id: unreadable.id })).resolves.toMatchObject({ poison: true, result: null });
+  expect(JSON.stringify(listed)).not.toContain("stored by an older build");
 });
 
 test("valid results remain visible on the declared params-poison arm", async ({ harness }) => {

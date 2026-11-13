@@ -45,18 +45,6 @@ paths:
 - A model-facing tool argument schema holds only JSON-Schema-representable fields: no
   branded-id or `.transform()` field, and no id a model cannot author.
 
-## import, character, filesystem
-
-- Never dedupe an imported character by name. Its identity is `cardImportHash`
-  (`packages/server/src/primitives/serde/card/index.ts`), a hash over the parsed card, embedded
-  book and art, never the file bytes; a content-new card, or the same text under
-  other art, is always a new character, and only its per-owner handle gets a numeric suffix
-  on collision. Look a card up through `findImportedCharacter`, never a bare hash read. A
-  pack migration writes a field only where it can prove the live value is still the prior
-  pack's.
-- Realpath both ends before comparing staged-path containment, open reads with
-  `O_NOFOLLOW`, and `lstat`-refuse symlinks before `rm`.
-
 ## refinery (`domain/refinery/**`)
 
 - An output-budget window reserve scales with input size; a fixed constant

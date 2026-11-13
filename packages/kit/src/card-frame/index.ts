@@ -440,13 +440,13 @@ export function buildCardFrameCsp(policy: CardFrameMediaPolicy, delivery: CardFr
   return [...grant, ...directives, `frame-ancestors 'self'`].join("; ");
 }
 
-/** The response headers a routed frame document goes out with. `no-store` because the document holds one
- *  viewer's bytes; `nosniff` because the body is attacker-influenced markup and must never be re-typed by a
- *  sniffing browser; `no-referrer` so a permitted external fetch cannot carry our URL anywhere. */
-export function cardFrameResponseHeaders(csp: string): Record<string, string> {
+/** The response headers a routed frame document goes out with beside its policy, which the server's own-policy
+ *  registrar writes. `no-store` because the document holds one viewer's bytes; `nosniff` because the body is
+ *  attacker-influenced markup and must never be re-typed by a sniffing browser; `no-referrer` so a permitted
+ *  external fetch cannot carry our URL anywhere. */
+export function cardFrameResponseHeaders(): Record<string, string> {
   return {
     "Content-Type": "text/html; charset=utf-8",
-    "Content-Security-Policy": csp,
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",

@@ -18,6 +18,7 @@ import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
+import { ADMIN_PROMPT_CACHE_DEPTH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { IMPORT_ANOTHER_NAME, IMPORT_FILE_PICKER_NAME, IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { DUPLICATE_THRESHOLD_NAME, EXPORT_DOWNLOAD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
@@ -210,7 +211,7 @@ test.describe("committed corpus settings", () => {
     const before = await host.trpc.settings.getAppSettingsWithOverrides.query(undefined);
     const next = before.resolved.promptCacheMinDepth === 1 ? 2 : 1;
     await openGroup(page, "admin");
-    const input = page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)", exact: true });
+    const input = page.getByRole("textbox", { name: ADMIN_PROMPT_CACHE_DEPTH_NAME, exact: true });
     await input.fill(String(next));
     await page.getByRole("button", { name: adminSaveName(ADMIN_SAVE_LABEL, SYSTEM_TUNING_SUBCATEGORY.label), exact: true }).click();
     await expect.poll(async () => (await host.trpc.settings.getAppSettingsWithOverrides.query(undefined)).resolved.promptCacheMinDepth).toBe(next);

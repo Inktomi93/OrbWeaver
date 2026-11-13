@@ -35,6 +35,7 @@ import { closeModal, openConfigTo, openInstalledPlugin, selectChat, setActiveSec
 import { useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
 import { useInboxStream } from "../hooks/use-inbox-stream.ts";
 import { usePageFocus } from "../hooks/use-page-focus.ts";
+import { INBOX_CAUGHT_UP_TITLE, NOTIFICATIONS_BELL_NAME, notificationsBellLabel } from "../lib/notifications-copy.ts";
 import { inboxRequests } from "../lib/notifications-requests.ts";
 import { HandoffAcceptConfirm } from "./handoff-accept-confirm.tsx";
 import { DismissedRows, DismissedToggle, InboxLoadMore } from "./notification-inbox-older.tsx";
@@ -92,7 +93,7 @@ function NoInboxRows({
   // Popover it is inside; the sheet lens has no popover — it rides the You MODAL (`you-modal.tsx`).
   return (
     <EmptyState
-      title="You're all caught up"
+      title={INBOX_CAUGHT_UP_TITLE}
       titleAs="p"
       description="Invitations, host handoffs and notices from your plugins land here."
       icon={<Icon icon={Bell} size="md" />}
@@ -227,7 +228,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
     );
 
   // Counts cover the loaded pages, so with more below this is a floor, and the name must not state it as exact.
-  const bellLabel = unreadCount === 0 ? "Notifications" : `Notifications (${unreadCount}${hasNextPage ? "+" : ""} unread)`;
+  const bellLabel = notificationsBellLabel(unreadCount, hasNextPage);
   // THE INBOX BODY, in ONE place for both lenses (#1799 restyle). `gap="block"` rather than `row`: the rows
   // are now two-line blocks with their own action cluster, and at `row` the copy of one row sat closer to
   // the buttons of the next than to its own. The width floor grew with them — a decision row's copy plus
@@ -333,10 +334,10 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
             />
           }
         />
-        <TooltipPopup side="bottom">Notifications</TooltipPopup>
+        <TooltipPopup side="bottom">{NOTIFICATIONS_BELL_NAME}</TooltipPopup>
       </Tooltip>
       {/* The popup takes the opening focus: left alone it lands on the first Accept, one Enter from a decision. */}
-      <PopoverPopup aria-label="Notifications" data-testid={testId("notificationsInbox")} initialFocus={popupRef} ref={popupRef}>
+      <PopoverPopup aria-label={NOTIFICATIONS_BELL_NAME} data-testid={testId("notificationsInbox")} initialFocus={popupRef} ref={popupRef}>
         {inbox}
       </PopoverPopup>
       {/* OUTSIDE the popup, inside the root: the popover closes the moment the modal confirm takes focus,

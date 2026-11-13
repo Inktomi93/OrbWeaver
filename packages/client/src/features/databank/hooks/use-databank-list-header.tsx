@@ -45,6 +45,7 @@ import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "../
 import {
   DATABANK_ADD_DOCUMENT_TITLE,
   DATABANK_ADD_NAME,
+  DATABANK_CHECK_AGAIN_NAME,
   DATABANK_MAINTENANCE_NAME,
   DATABANK_REBUILD_ALL_NAME,
   DATABANK_REREAD_ALL_NAME,
@@ -111,7 +112,7 @@ export function useDatabankListHeader(): ListPaneHeaderView {
               {health.isError ? (
                 <MenuItem onClick={(): void => void health.refetch().catch(globalThis.reportError)}>
                   <Icon icon={RefreshCw} size="sm" />
-                  Check the bank again
+                  {DATABANK_CHECK_AGAIN_NAME}
                 </MenuItem>
               ) : null}
               <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("chunk-embed")}>
@@ -138,7 +139,7 @@ export function useDatabankListHeader(): ListPaneHeaderView {
                 ? [
                     {
                       id: "databank-recheck",
-                      label: "Check the bank again",
+                      label: DATABANK_CHECK_AGAIN_NAME,
                       icon: RefreshCw,
                       onSelect: (): void => void health.refetch().catch(globalThis.reportError),
                     },

@@ -1,7 +1,7 @@
 import type { StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { ImportFsPort, ImportReuse, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonas, FindOwnedPersonas } from "@orb/contracts/persona";
 import type { FindOwnedPresets, ImportPreset } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
@@ -53,18 +53,21 @@ export interface ProfileOwnership {
   readonly findChatHashes: FindImportedChatHashes;
 }
 
-/** The collected items of each kind the owner already holds. An item is the collected entry itself, never its
- *  source string, so two profiles that share a path keep their own verdicts. */
+/** The collected entries of one kind a run writes nothing for, each with why: the owner holds it, or an earlier
+ *  entry of the upload lands it. An entry is the collected object itself, never its source string, so two profiles
+ *  that share a path keep their own verdicts. An entry the run writes is absent. */
+type Reuse<Entry> = ReadonlyMap<Entry, ImportReuse>;
+
 export interface ImportOwnership {
-  readonly characters: ReadonlySet<CollectedCard>;
-  readonly chats: ReadonlySet<CollectedChat>;
-  readonly personas: ReadonlySet<CollectedPersona>;
-  readonly worlds: ReadonlySet<CollectedWorld>;
-  readonly presets: ReadonlySet<CollectedPreset>;
-  readonly themes: ReadonlySet<CollectedTheme>;
-  readonly backgrounds: ReadonlySet<CollectedBackground>;
-  readonly groups: ReadonlySet<CollectedGroup>;
-  readonly orphans: ReadonlySet<CollectResult["orphanBundles"][number]>;
+  readonly characters: Reuse<CollectedCard>;
+  readonly chats: Reuse<CollectedChat>;
+  readonly personas: Reuse<CollectedPersona>;
+  readonly worlds: Reuse<CollectedWorld>;
+  readonly presets: Reuse<CollectedPreset>;
+  readonly themes: Reuse<CollectedTheme>;
+  readonly backgrounds: Reuse<CollectedBackground>;
+  readonly groups: Reuse<CollectedGroup>;
+  readonly orphans: Reuse<CollectResult["orphanBundles"][number]>;
 }
 
 export interface ProfileDirImportDeps {
@@ -146,6 +149,13 @@ export interface ProfileCollectRecords
   readonly missingGroupChats: ImportReport["missingGroupChats"][number][];
 }
 
+/** One profile directory of the upload with its own collect result. The merged lists on {@link ProfileCollected}
+ *  hold the very same entries; the preview reads this side to name each entry by the profile it sits in. */
+export interface CollectedProfile {
+  readonly name: string;
+  readonly result: CollectResult;
+}
+
 export interface ProfileCollected
   extends ProfileCollectRecords,
     Pick<
@@ -167,6 +177,9 @@ export interface ProfileCollected
       | "galleryImageCount"
     > {
   readonly skipped: number;
+  readonly profiles: readonly CollectedProfile[];
+  /** Entries at the upload's root that the importer cannot open as a profile (`unhandled` holds them too). */
+  readonly rootUnhandled: readonly string[];
 }
 
 export type ProfileWaveOutcomes = Pick<

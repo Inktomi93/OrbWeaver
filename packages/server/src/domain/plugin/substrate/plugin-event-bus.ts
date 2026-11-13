@@ -23,6 +23,7 @@
 // handler cannot block the emitter or a sibling.
 
 import { PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES } from "@orb/contracts/plugin";
+import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { Logger, TraceRing } from "#foundation/observability";
 import { createDetachedSupervision } from "#foundation/observability";
@@ -91,7 +92,7 @@ export function createPluginEventBus(logger: Logger, traces: TraceRing): PluginE
       // arg cap already bounds the call, but a private-event plane's own bound is the fan-out DoS belt.
       const payloadJson = JSON.stringify({ name, data });
       if (Buffer.byteLength(payloadJson, "utf8") > PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES) {
-        throw new Error(`plugin host: pubsub.emit payload exceeds the ${PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES}-byte cap`);
+        throw new DomainConflictError(`plugin host: pubsub.emit payload exceeds the ${PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES}-byte cap`);
       }
       // The lookup is the WHOLE isolation story: an emit for `installer` resolves ONLY the channel keyed by that
       // installer, so a subscriber of another user's identically-named channel is a DIFFERENT key and is never

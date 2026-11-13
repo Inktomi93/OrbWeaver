@@ -36,6 +36,7 @@
 
 import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
 import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginInstallerDisabledError } from "@orb/contracts/plugin";
+import { DomainConflictError, DomainForbiddenError } from "@orb/kit/errors";
 import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
@@ -71,14 +72,14 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
   const pluginId = plugin?.id ?? null;
   const requirePluginId = (fn: string): PluginId => {
     if (plugin === null) {
-      throw new Error(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
+      throw new DomainForbiddenError(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
     }
     return plugin.id;
   };
   /** The identity form — for the one op that needs the plugin's NAME too (`ui.toast`'s attribution prefix). */
   const requirePlugin = (fn: string): PluginIdentity => {
     if (plugin === null) {
-      throw new Error(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
+      throw new DomainForbiddenError(`plugin host: ${fn} requires an installed plugin (unavailable to a transient snippet)`);
     }
     return plugin;
   };
@@ -170,7 +171,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
           // OWNERSHIP, so without this a plugin invoked in chat X writes any book its installer owns — including
           // one attached solely to chat Y, a room this invocation was never admitted to.
           if (!(await ops.worldInfo.isBookAttachedToChat(installerUserId, chatId, bookId))) {
-            throw new Error("plugin host: worldInfo.upsertEntry requires the book to be attached to this chat");
+            throw new DomainForbiddenError("plugin host: worldInfo.upsertEntry requires the book to be attached to this chat");
           }
           // (2) The per-plugin TITLE NAMESPACE + entry CEILING, keyed the way the automation arm keys its own
           // (`auto/<ruleId>:<entryKey>`). The namespace does two jobs: a re-upsert of the same entryKey updates
@@ -179,7 +180,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
           const title = pluginEntryTitle(pluginId, entry.entryKey);
           const owned = (await ops.worldInfo.listEntryTitles(installerUserId, bookId)).filter((t) => t.startsWith(pluginEntryPrefix(pluginId)));
           if (!owned.includes(title) && owned.length >= PLUGIN_LORE_ENTRIES_PER_BOOK_MAX) {
-            throw new Error(`plugin host: this plugin already owns ${PLUGIN_LORE_ENTRIES_PER_BOOK_MAX} entries in book ${bookId}`);
+            throw new DomainConflictError(`plugin host: this plugin already owns ${PLUGIN_LORE_ENTRIES_PER_BOOK_MAX} entries in book ${bookId}`);
           }
           await ops.worldInfo.upsertEntries({
             authorUserId: installerUserId,
@@ -266,7 +267,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         // a burst through the gap.
         belts.notify.admit(id, chatId);
         if ((await ops.chat.resolveViewerVisibility(chatId, installerUserId)) === null) {
-          throw new Error("plugin host: notifications.post requires present membership on the chat");
+          throw new DomainForbiddenError("plugin host: notifications.post requires present membership on the chat");
         }
         await ops.notifications.post({ pluginId: id, installerUserId, chatId, recipient, message });
       },

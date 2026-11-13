@@ -748,6 +748,19 @@ const SERVER_SYNTAX = [
   ...ROLE_COMPARISON_SYNTAX,
 ];
 
+// A route with its own content security policy hands that policy to the registrar in its one home, which writes the
+// header and exempts the route from the app policy in the same call. A handler that writes the header itself on an
+// unregistered route is overwritten by the app policy with nothing red. Literal spellings only: a computed name is a
+// review question.
+const OWN_POLICY_HEADER_HOME = homes("packages/server/src/entry/http/security-headers.ts");
+const OWN_POLICY_HEADER_NAME = "/^content-security-policy$/i";
+const OWN_POLICY_HEADER_SYNTAX = {
+  selector: `:matches(Literal[value=${OWN_POLICY_HEADER_NAME}], TemplateLiteral[expressions.length=0] > TemplateElement[value.cooked=${OWN_POLICY_HEADER_NAME}])`,
+  message:
+    "Return the route's policy to registerOwnPolicyRoute in packages/server/src/entry/http/security-headers.ts; that file alone writes the Content-Security-Policy header.",
+};
+// Every server source but the header's home refuses the name; inference serves no response.
+const SERVER_SOURCE_SYNTAX = [...SERVER_SYNTAX, OWN_POLICY_HEADER_SYNTAX];
 const SERVER_CLOCK_HOME = homes("packages/server/src/entry/lifecycle.ts");
 const KIT_CLOCK_HOME = homes("packages/kit/src/time/index.ts");
 // Every server stream is a room on the one `stream.connect` socket (D118). The stream router is the socket's own home,
@@ -2381,16 +2394,17 @@ export default [
   { files: rootSources("@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   {
     files: rootSources("@server"),
-    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME, ...IMPERSONATE_STREAM_HOME, ...DOMAIN_CONTRACT_SOURCES],
-    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
+    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME, ...IMPERSONATE_STREAM_HOME, ...DOMAIN_CONTRACT_SOURCES, ...OWN_POLICY_HEADER_HOME],
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
   },
+  { files: OWN_POLICY_HEADER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) } },
   {
     files: DOMAIN_CONTRACT_SOURCES,
-    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, DOMAIN_CONTRACT_ERROR_SYNTAX) },
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, DOMAIN_CONTRACT_ERROR_SYNTAX) },
   },
-  { files: IMPERSONATE_STREAM_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, IMPERSONATE_STREAM_SYNTAX) } },
-  { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, SERVER_STREAM_SYNTAX) } },
-  { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
+  { files: IMPERSONATE_STREAM_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, IMPERSONATE_STREAM_SYNTAX) } },
+  { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, SERVER_STREAM_SYNTAX) } },
+  { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },
   { files: DB_SCHEMA_SOURCES, rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, ...PLAIN_TEXT_COLUMN_SYNTAX) } },
   {
@@ -2424,7 +2438,7 @@ export default [
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, {
+      "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, {
         selector:
           "Program > :matches(ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration[exportKind!='type'][declaration.type!='FunctionDeclaration'])",
         message:

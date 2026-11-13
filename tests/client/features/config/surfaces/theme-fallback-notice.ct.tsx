@@ -3,7 +3,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { TONE_FALLBACK_SCOPE } from "@orb/testkit/iso";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CONFIG_THEME_BACKGROUND_FIELD_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { CONFIG_NEW_THEME_LEAD, CONFIG_THEME_BACKGROUND_FIELD_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { COLOR_HEX_FIELD_NAME } from "#ui/primitives/color-field/color-field-names.ts";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
 
@@ -32,7 +32,7 @@ test.beforeEach(async ({ mount, page }) => {
     phone: false,
     width: 900,
   });
-  await page.getByRole("button", { name: /^New theme/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONFIG_NEW_THEME_LEAD)}`, "u") }).click();
 });
 
 test.afterEach(async () => {

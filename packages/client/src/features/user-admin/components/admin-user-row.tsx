@@ -20,6 +20,7 @@ import { ConfirmDialog, RowActionsMenu, StatusChip, USER_ROLE_STATUS } from "#co
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
 import { ROLE_ITEMS, userActionsName, userEnabledFieldName, userRoleFieldName } from "../lib/admin-model.ts";
+import { ADMIN_SESSIONS_NAME } from "../lib/user-admin-names.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
@@ -91,7 +92,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
               {isOwnerRow && !props.viewerIsOwner ? null : (
                 <MenuItem onClick={props.onOpenSessions}>
                   <Icon icon={MonitorSmartphone} size="sm" />
-                  Sessions…
+                  {ADMIN_SESSIONS_NAME}
                 </MenuItem>
               )}
               <MenuItem onClick={props.onResetPassword}>

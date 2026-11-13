@@ -3,7 +3,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { REFINERY_HAND_EDIT_EMPTY_SCOPE, REFINERY_HAND_EDIT_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { REFINERY_HAND_EDIT_EMPTY_SCOPE, REFINERY_HAND_EDIT_NAME, refineryEmptySlotLabel } from "#client/features/refinery/lib/refinery-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -45,11 +45,11 @@ test("each scoped slot's empty-this-field checkbox is named for its slot and tog
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("checkbox")).toHaveCount(3);
   for (const slot of ["Description", "Greeting 1", "Greeting 2"]) {
-    await expect(dialog.getByRole("checkbox", { name: `Empty ${slot}`, exact: true })).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: refineryEmptySlotLabel(slot), exact: true })).toBeVisible();
   }
-  const first = dialog.getByRole("checkbox", { name: "Empty Description", exact: true });
+  const first = dialog.getByRole("checkbox", { name: refineryEmptySlotLabel("Description"), exact: true });
   await expect(first).not.toBeChecked();
-  await dialog.getByText("Empty Description", { exact: true }).click();
+  await dialog.getByText(refineryEmptySlotLabel("Description"), { exact: true }).click();
   await expect(first).toBeChecked();
 });
 

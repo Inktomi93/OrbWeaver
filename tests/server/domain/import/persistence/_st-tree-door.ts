@@ -154,12 +154,12 @@ export async function storedBlobs(root: ServerTestHarness): Promise<readonly str
 
 const KIND_GROUP = (name: string, member: string, leaf: string): string => JSON.stringify({ name, members: [member], chats: [leaf] });
 // A saved ST chat-completion preset; the text makes two presets differ in content.
-const presetOf = (text: string): string =>
+export const presetOf = (text: string): string =>
   JSON.stringify({
     prompts: [{ identifier: "main", name: "Main", content: text, role: "system" }],
     ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
   });
-const themeOf = (name: string, surface: string): string => JSON.stringify({ name, ["blur_tint_color"]: surface });
+export const themeOf = (name: string, surface: string): string => JSON.stringify({ name, ["blur_tint_color"]: surface });
 
 /** What a folder holds of each kind, named as the preview names it. */
 export type KindNames = Readonly<Record<ImportPreviewKind, readonly string[]>>;

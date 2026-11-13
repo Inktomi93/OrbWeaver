@@ -538,6 +538,15 @@ export const SERVER_IMPORT_HOMES = [
       message: "Only chat's resolveViewerVisibility mints a ViewerVisibility; take the answer from that op.",
     },
   },
+  {
+    // A second policy writer would overwrite a frame route's own policy, or put one on a route the app policy owns.
+    id: "secure-headers",
+    homes: [`${SERVER_SOURCE_ROOT}entry/http/security-headers.ts`],
+    restriction: {
+      regex: "^hono/secure-headers$",
+      message: "The security headers module owns every policy header; register an own-policy route through its registerOwnPolicyRoute.",
+    },
+  },
 ] as const;
 
 export const TURN_IDENTITY_RESTRICTIONS = [
