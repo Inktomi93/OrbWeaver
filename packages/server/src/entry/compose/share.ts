@@ -30,12 +30,16 @@ export async function createShareGraph(options: ShareGraphOptions): Promise<Shar
       target: options.relay?.target ?? `${process.platform}-${process.arch}`,
       dir: options.relayDir,
       schedule: options.timers.timeoutUnref,
+      childEnv: options.childEnv,
       fetch: options.relaySeams?.fetch ?? ((url, limits) => network.fetchPinnedDownload(url, { ...limits, allowedHosts: pin.downloadHosts })),
       ...(options.relaySeams === undefined ? {} : { spawn: options.relaySeams.spawn }),
     }),
   );
   const issuer = owners.use(
-    createOwnedAcmeIssuer(options.acme === null ? undefined : (options.acme ?? { directoryUrl: LETS_ENCRYPT_DIRECTORY, polling: ACME_POLLING })),
+    createOwnedAcmeIssuer(
+      options.acme === null ? undefined : (options.acme ?? { directoryUrl: LETS_ENCRYPT_DIRECTORY, polling: ACME_POLLING }),
+      options.childEnv,
+    ),
   );
   const origin = (): string => loopbackOrigin(options.bind.host, options.appPort());
   const certificate = owners.use(

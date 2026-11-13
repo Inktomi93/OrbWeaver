@@ -29,11 +29,12 @@ import { announceOwnerClaim, handOffBootOwnerSweeps, prepareBootOwner, removeOwn
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
 import { OWNER_CLAIM_URL_FILE_NAME } from "@orb/server/foundation/data-layout";
 import type { Env } from "@orb/server/foundation/env/record";
-import { bindPostureInput, resolveBindPosture } from "@orb/server/foundation/env/record";
+import { bindPostureInput, childEnvFrom, resolveBindPosture } from "@orb/server/foundation/env/record";
 import { createAuditWiring, createLogger, createObservabilityRings, getLog } from "@orb/server/foundation/observability";
 import { systemConnector, systemFetch } from "@orb/server/infra/network";
 import { createScopedTimers } from "@orb/server/infra/timers";
 import { appRouter, createCaller } from "@orb/server/transport/trpc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { Clock } from "../iso/clock.ts";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { SeededIds } from "../iso/ids.ts";
@@ -354,6 +355,9 @@ const IN_PROCESS_CLIENT_IP = "127.0.0.1";
 // A root's agent child env is fixed, not the developer's shell: the only host fact a native child needs is the
 // directory of the node binary this run executes, so `node` resolves to the same runtime.
 const noHostEnv: ServicesDeps["hostEnvAllowlist"] = () => ({ ["PATH"]: dirname(execPath) });
+// A root's inheriting children (tar, ffmpeg, git, the Workers) start from the run's own environment through the
+// production builder, as they inherited it before the builder existed.
+const harnessChildEnv: ServicesDeps["childProcessEnv"] = () => childEnvFrom(inheritedProcessEnv());
 
 // The root's record is its whole environment, so a record that sets AUTH_MODE is the environment that supplied it.
 function authModeSourceOf(options: Pick<ServerHarnessOptions, "env">): ServicesDeps["authModeSource"] {
@@ -646,6 +650,7 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
     // Sharing's egress keeps the platform fetch behind the refusing resolver, so an unscripted name never resolves.
     networkExecution: networkExecutionOf(options, systemFetch),
     env: inputs.env,
+    childEnv: harnessChildEnv,
   };
 }
 
@@ -751,6 +756,7 @@ export async function createServerHarness(
     rings,
     audit,
     hostEnvAllowlist: () => ({ ...noHostEnv(), ...options.hostEnv }),
+    childProcessEnv: harnessChildEnv,
     authModeSource: authModeSourceOf(options),
     authConfig,
     rolePolicy,

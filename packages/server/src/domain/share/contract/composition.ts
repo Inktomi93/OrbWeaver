@@ -1,3 +1,4 @@
+import type { InferenceDeps } from "@orb/inference";
 import type { Clock, TimerScheduler } from "@orb/kit/time";
 import type { BindPosture } from "#foundation/env/record";
 import type { Logger } from "#foundation/observability";
@@ -21,6 +22,8 @@ export interface ShareGraphOptions {
   readonly networkExecution: Pick<ScopedEgressOptions, "fetch" | "resolver">;
   /** The root's env record, for the relay and certificate egress firewall. */
   readonly env: ScopedEgressOptions["env"];
+  /** The environment the relay's archive extractor and the certificate's order Workers start with. */
+  readonly childEnv: InferenceDeps["env"]["childProcessEnv"];
   readonly relay?: { readonly pin?: CloudflaredPin; readonly target?: string } | null;
   readonly acme?: Pick<AcmeIssuerDeps, "directoryUrl" | "polling"> | null;
   /** Compatibility with retained lifecycle callers; the maintained harness scripts raw executable bytes instead. */
