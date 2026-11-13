@@ -19,6 +19,9 @@ export const CHAT_LEAVE_MEMBER_NOTE = "You'll lose access until someone invites 
 /** The room menu's door into bulk message selection. */
 export const CHAT_SELECT_MESSAGES_NAME = "Select messages…";
 
+/** The room menu's way back to the chat list, offered whatever role the viewer holds. */
+export const CHAT_CLOSE_NAME = "Close chat";
+
 /** The room menu's trigger. */
 export const CHAT_OPTIONS_NAME = "Chat options";
 
