@@ -61,19 +61,23 @@ const ROW_PROBES: Readonly<Record<(typeof SERVER_IMPORT_HOMES)[number]["id"], st
 
 const isHome = (homes: readonly string[], path: string): boolean => homes.some((home) => (home.endsWith("/") ? path.startsWith(home) : path === home));
 
-// The swept paths: a probe file in every server source directory on disk, and every file a row names as a home.
+// The swept paths: every server source file on disk, so a block that names one real file is judged at that file, and a
+// probe file in every server source directory, so a block over a directory is judged where no file sits yet.
 function sweptPaths(repoRoot: string): readonly string[] {
-  const directories = readdirSync(join(repoRoot, SERVER_SOURCE_ROOT), { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => posix.join(relative(repoRoot, entry.parentPath).replaceAll("\\", "/"), entry.name, "probe.ts"));
-  const files = SERVER_IMPORT_HOMES.flatMap(({ homes }) => homes.filter((home) => !home.endsWith("/")));
-  return [`${SERVER_SOURCE_ROOT}probe.ts`, ...directories, ...files];
+  const entries = readdirSync(join(repoRoot, SERVER_SOURCE_ROOT), { recursive: true, withFileTypes: true });
+  const pathOf = (entry: (typeof entries)[number], name: string): string => posix.join(relative(repoRoot, entry.parentPath).replaceAll("\\", "/"), name);
+  const files = entries.filter((entry) => entry.isFile() && /\.tsx?$/u.test(entry.name)).map((entry) => pathOf(entry, entry.name));
+  const probes = entries.filter((entry) => entry.isDirectory()).map((entry) => posix.join(pathOf(entry, entry.name), "probe.ts"));
+  return [`${SERVER_SOURCE_ROOT}probe.ts`, ...probes, ...files];
 }
 
 // Every server path refuses every restricted import except where the table names that path as the row's home, so a
-// block that drops a restriction, or lifts one outside its home, fails here whatever directory it covers.
-test("every server directory refuses each restricted import unless the table names it as that import's home", async ({ repoRoot }) => {
+// block that drops a restriction, or lifts one outside its home, fails here whatever file or directory it covers.
+test("every server file and directory refuses each restricted import unless the table names it as that import's home", async ({ repoRoot }) => {
   const paths = sweptPaths(repoRoot);
+  for (const home of SERVER_IMPORT_HOMES.flatMap(({ homes }) => homes.filter((path) => !path.endsWith("/")))) {
+    expect(paths, home).toContain(home);
+  }
   const cases = paths.flatMap((path) => SERVER_IMPORT_HOMES.map((row): ImportCase => [path, ROW_PROBES[row.id], isHome(row.homes, path) ? 0 : 1]));
   for (const row of SERVER_IMPORT_HOMES) {
     expect(cases.filter(([path, , refusals]) => refusals === 0 && isHome(row.homes, path)).length, row.id).toBeGreaterThan(0);
