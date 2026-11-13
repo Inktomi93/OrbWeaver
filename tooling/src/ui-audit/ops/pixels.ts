@@ -31,6 +31,7 @@ import type { ContrastInput, RawSamples } from "../contract/samples.ts";
 import type { HoverForcedReadRow } from "../contract/samples-hover.ts";
 import type { BorderContrastInput } from "../contract/samples-interactive.ts";
 import type { BackdropRefusal, PixelPass } from "../contract/types.ts";
+import { UI_AUDIT_CEILINGS_MS } from "../lib/budgets.ts";
 import type { PixelRaw, RingRead } from "../lib/pixel-regions.ts";
 import { OFF_SCREEN_REFUSAL, surroundBackdropRing, textBackdropRing } from "../lib/pixel-regions.ts";
 
@@ -105,7 +106,7 @@ async function revealArtUnderSubject(
   try {
     for (let first = pending[0]; first !== undefined; first = pending[0]) {
       const offset = (await scrollDocumentTo(page, origin + first.box.y + first.box.height / 2 - viewportHeight / 2)) - origin;
-      const raw = await viewportPixels(page);
+      const raw = await paintedViewportPixels(page);
       const still: DeferredText[] = [];
       for (const entry of pending) {
         // No occluder was read at this scroll position and fixed bars sit at the viewport's edges, so a shot settles
@@ -129,6 +130,26 @@ async function revealArtUnderSubject(
   return settled;
 }
 
+const PICTURES_PENDING = "a picture in view had not finished loading";
+
+// A picture that has not decoded paints nothing, so a shot taken then shows what lies behind it: a caption over
+// light art on a dark page reads as passing. Each picture in view answers its own `decode()`, which also starts a
+// lazy picture's load, and two animation frames follow so the decoded pictures are in the frame the shot takes. A
+// picture whose load failed paints nothing in any frame, so its rejection counts as settled.
+const PICTURES_PAINTED = `(async () => {
+  const inView = Array.from(document.images).filter((img) => {
+    const box = img.getBoundingClientRect();
+    return box.width > 0 && box.height > 0 && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth;
+  });
+  const decoded = Promise.all(inView.map((img) => img.decode().then(() => true, () => true)));
+  const expired = new Promise((resolve) => setTimeout(() => resolve(false), ${String(UI_AUDIT_CEILINGS_MS.picturesPainted)}));
+  if ((await Promise.race([decoded, expired])) === false) {
+    return false;
+  }
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  return true;
+})()`;
+
 /** ONE viewport screenshot decoded to raw pixels, or the reason there are none. */
 export async function viewportPixels(page: Pick<Page, "screenshot">): Promise<(PixelRaw & { data: Buffer }) | { error: string }> {
   try {
@@ -138,6 +159,19 @@ export async function viewportPixels(page: Pick<Page, "screenshot">): Promise<(P
   } catch (e) {
     return { error: errorMessage(e) };
   }
+}
+
+/** The pixels a backdrop is judged from: {@link viewportPixels} once the pictures in view have decoded and painted.
+ *  When they do not within the ceiling there are no pixels to judge by. */
+async function paintedViewportPixels(page: Page): Promise<(PixelRaw & { data: Buffer }) | { error: string }> {
+  try {
+    if ((await page.evaluate(PICTURES_PAINTED)) !== true) {
+      return { error: PICTURES_PENDING };
+    }
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+  return await viewportPixels(page);
 }
 
 function coverRefusal(text: ContrastInput): string | null {
@@ -224,7 +258,7 @@ export async function settleHeldBackdrops(page: Page, reads: readonly HoverForce
   if (!reads.some((read) => read.backdrop.kind === "unresolved" && read.box !== undefined)) {
     return reads;
   }
-  const raw = await viewportPixels(page);
+  const raw = await paintedViewportPixels(page);
   if ("error" in raw) {
     return reads;
   }
@@ -246,7 +280,7 @@ export async function resolvePixelBackdrops(page: Page, given: RawSamples): Prom
   if (pendingTexts.length === 0 && pendingBorders.length === 0) {
     return { samples, sampled: 0, refusals };
   }
-  const raw = await viewportPixels(page);
+  const raw = await paintedViewportPixels(page);
   if ("error" in raw) {
     // No pixels at all: every pending sample is a refusal, and the report says why once.
     return {

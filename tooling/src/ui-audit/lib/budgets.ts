@@ -28,4 +28,9 @@ export const CENSUS_OBSERVE_MIN_MS = 2000;
 /** The ceiling for a page that keeps CHANGING past the floor — a run still moving here is refused. Scaled,
  *  because it IS a ceiling: on a contended box a page legitimately keeps moving longer, and refusing it at
  *  the quiet-box number is a finding about the box. */
-export const UI_AUDIT_CEILINGS_MS = budgets({ censusObserve: 5000 });
+export const UI_AUDIT_CEILINGS_MS = budgets({
+  censusObserve: 5000,
+  // How long a pixel read waits for the pictures in view to finish loading. Past it the read is refused: pixels
+  // taken before a picture paints show whatever lies behind it.
+  picturesPainted: 10_000,
+});

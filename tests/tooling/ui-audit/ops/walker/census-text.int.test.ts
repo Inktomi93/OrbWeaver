@@ -14,6 +14,7 @@
 // filed `contrast` P1. That separation is what makes this a two-sided proof instead of a swap of one
 // finding for another.
 import { writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { join } from "node:path";
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
@@ -21,6 +22,7 @@ import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";
+import { listeningAddress } from "../../../_server-address.ts";
 
 configureRelationalCliBudget();
 
@@ -431,6 +433,47 @@ auditRuleTest(
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 2, affected: 2 });
     expect(report.populationAccounting?.["text-over-art"]?.excluded).toEqual({ flatBackdrop: 2 });
     return report;
+  },
+);
+
+// How long the picture's bytes are held back: longer than a scroll and a shot take, far under the read's ceiling.
+const SLOW_PICTURE_MS = 1500;
+const WHITE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="white"/></svg>';
+
+/** Serve one white picture late. A lazy picture is requested when the reveal scrolls to it, so it is still loading
+ *  when the scroll lands. */
+async function slowPicture(): Promise<{ readonly url: string } & AsyncDisposable> {
+  const server = createServer((_request, response) => {
+    setTimeout(() => {
+      response.writeHead(200, { "content-type": "image/svg+xml" });
+      response.end(WHITE_SVG);
+    }, SLOW_PICTURE_MS);
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  return {
+    url: `http://127.0.0.1:${String(listeningAddress(server).port)}/white.svg`,
+    [Symbol.asyncDispose]: async (): Promise<void> => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => {
+        server.close(() => {
+          resolve();
+        });
+      });
+    },
+  };
+}
+
+auditRuleTest(
+  [{ rule: "contrast", kind: "fires", reason: "the caption is measured over the picture once it has painted, where it fails" }],
+  "a caption over a picture still loading when the reveal reaches it is measured after the picture paints",
+  async ({ runCli, scratch }) => {
+    await using picture = await slowPicture();
+    // The page is black and the plate translucent: read before the white picture paints, the white caption passes.
+    const card = `<div style="${CARD_BOX}"><img alt="" loading="lazy" src="${picture.url}" style="${WHITE_ART_BOX}">${CAPTION_PLATE}</div>`;
+    const report = await auditFixture(scratch, runCli, "caption-over-loading-art", `<div style="height:8000px"></div>${card}`);
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1, withheld: {} });
   },
 );
 
