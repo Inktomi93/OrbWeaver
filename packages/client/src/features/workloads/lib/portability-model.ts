@@ -255,3 +255,23 @@ export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList
   const notes = [...(owned === 0 ? [] : [`${String(owned)} already in your library`]), ...(bare === 0 ? [] : [`${String(bare)} will import without art`])];
   return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
 }
+
+/** The profile directories a preview names, in listed order, then `null` when a skip sits at the upload's root. More than one
+ *  means the upload holds several profiles, so the reader needs each entry's profile beside it. */
+export function previewProfiles(preview: ImportPreview): readonly (string | null)[] {
+  const named = new Set<string>();
+  for (const kind of IMPORT_PREVIEW_KINDS) {
+    for (const { source } of preview.kinds[kind].items) {
+      named.add(source.profile);
+    }
+  }
+  let atRoot = false;
+  for (const { source } of preview.skipped.items) {
+    if (source.profile === null) {
+      atRoot = true;
+    } else {
+      named.add(source.profile);
+    }
+  }
+  return atRoot ? [...named, null] : [...named];
+}

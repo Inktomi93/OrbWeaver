@@ -33,6 +33,7 @@ import {
   IMPORT_PREVIEW_REPORT_NAME,
   IMPORT_PREVIEW_SHOW_NAMES,
   IMPORT_PROGRESS_NAME,
+  importPreviewProfileLabel,
 } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
@@ -545,4 +546,60 @@ test("the folder's skip reasons and left-out files read at least as large as the
   await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
   const name = await fontSize(report.getByText("Preview card", { exact: false }));
   expect(name).toBe(await resolvedLength(page, `var(${TOKENS["text.label"].cssVar})`, report));
+});
+
+const ALICE = "alice";
+const BOB = "bob";
+
+/** Two profile directories of one picked folder, each with a real exported card at the same path and a name of its own, and
+ *  one unreadable card in alice's. */
+async function stageProfiles(root: ServerTestHarness, folder: string): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const [profile, handle] of [
+    [ALICE, "alice-card"],
+    [BOB, "bob-card"],
+  ] as const) {
+    const card = await caller.character.create({
+      input: createCharacterSchema.parse({ handle, name: `${profile} card`, description: "A real card in the picked folder." }),
+    });
+    const exported = await root.http.request(exportCharacterPath(card.id));
+    expect(exported.status).toBe(200);
+    await caller.character.remove({ characterId: card.id });
+    await mkdir(join(folder, profile, "characters"), { recursive: true });
+    await writeFile(join(folder, profile, "characters", "card.png"), Buffer.from(await exported.arrayBuffer()));
+    await writeFile(join(folder, profile, ST_SETTINGS_FILE), JSON.stringify({ ["power_user"]: {} }));
+  }
+  await writeFile(join(folder, ALICE, "characters", "broken.png"), "not a card");
+}
+
+test("a folder of two profiles lists both cards under their own profile, and a refusal stays with the profile it came from", async ({
+  mount,
+  page,
+  baseURL,
+}, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profiles");
+  await stageProfiles(root, folder);
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  const caller = await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
+
+  // The control: the server's own preview holds both cards, each under a profile, and the unreadable one under alice only.
+  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  expect(preview.kinds.characters.items.map(({ source }) => source.profile).toSorted((a, b) => a.localeCompare(b))).toEqual([ALICE, BOB]);
+  expect(preview.skipped.items.filter(({ source }) => source.path === "broken.png").map(({ source }) => source.profile)).toEqual([ALICE]);
+
+  const alice = report.getByText(importPreviewProfileLabel(ALICE), { exact: true }).locator("..");
+  const bob = report.getByText(importPreviewProfileLabel(BOB), { exact: true }).locator("..");
+  await expect(alice).toContainText(`${ALICE} card`);
+  await expect(alice).toContainText("broken.png");
+  await expect(bob).toContainText(`${BOB} card`);
+  await expect(bob).not.toContainText("broken.png");
+  await expect(bob).not.toContainText(`${ALICE} card`);
 });

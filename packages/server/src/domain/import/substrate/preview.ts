@@ -1,11 +1,13 @@
-// The dry run's preview, built off the collect result. Every name is hostile file content: it is clipped here,
-// and a skip names a path relative to the profile, never the staging directory. A skip's reason is written here,
-// one per kind of skip; the importer's own detail stays in the report and the logs.
+// The dry run's preview, built off the collect result. Every name is hostile file content: it is clipped here.
+// An entry or a skip is named by its source: the profile directory it sits in and its path inside that profile,
+// never the staging directory, so two profiles of one upload that share a relative path stay two entries and two
+// skips. A skip's reason is written here, one per kind of skip; the importer's own detail stays in the report and
+// the logs.
 
 import type { ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX } from "@orb/contracts/import";
-import type { CollectedChat } from "../contract/collection.ts";
-import type { ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
+import type { CollectedChat, CollectedGroup } from "../contract/collection.ts";
+import type { CollectedProfile, ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
 import type { GroupRefusal } from "./group.ts";
 import { partitionGroups } from "./group.ts";
 
@@ -15,8 +17,8 @@ function clip(text: string): string {
   return text.slice(0, IMPORT_PREVIEW_TEXT_MAX).toWellFormed();
 }
 
-function item(source: string, name: string): ImportPreviewItem {
-  return { source: clip(source), name: clip(name) };
+function item(profile: string, path: string, name: string): ImportPreviewItem {
+  return { source: { profile: clip(profile), path: clip(path) }, name: clip(name) };
 }
 
 function listOf(items: readonly ImportPreviewItem[]): ImportPreviewList {
@@ -24,12 +26,13 @@ function listOf(items: readonly ImportPreviewItem[]): ImportPreviewList {
 }
 
 /** Chat files repeat their names across characters and a card's name need not be unique, so a chat's source is its path. */
-function chatItems(owner: string, chats: readonly CollectedChat[], held: ReadonlySet<CollectedChat>): ImportPreviewItem[] {
-  return chats.map((chat) => listed(chat, held, item(chat.sourceFile, `${owner}: ${chat.importedFrom.replace(JSONL_EXT, "")}`)));
+function chatItems(profile: string, owner: string, chats: readonly CollectedChat[], held: ReadonlySet<CollectedChat>): ImportPreviewItem[] {
+  return chats.map((chat) => listed(chat, held, item(profile, chat.sourceFile, `${owner}: ${chat.importedFrom.replace(JSONL_EXT, "")}`)));
 }
 
-function skip(source: string, reason: string): ImportPreviewSkip {
-  return { source: clip(source), reason: clip(reason) };
+/** A skip at the upload's root, beside the profiles, has no profile. */
+function skip(profile: string | null, path: string, reason: string): ImportPreviewSkip {
+  return { source: { profile: profile === null ? null : clip(profile), path: clip(path) }, reason: clip(reason) };
 }
 
 const GROUP_SKIP_REASONS: Readonly<Record<GroupRefusal, string>> = {
@@ -37,7 +40,8 @@ const GROUP_SKIP_REASONS: Readonly<Record<GroupRefusal, string>> = {
   "no-transcript": "this group has no readable chat file",
 };
 
-/** The groups a run refuses, which the preview lists as skips. */
+/** The groups a run refuses, which the preview lists as skips. A member resolves against every profile's cards:
+ *  the run seats a group by card filename across the whole upload. */
 export function refusedGroups(collected: ProfileCollected): ReturnType<typeof partitionGroups>["refused"] {
   return partitionGroups(
     collected.groups,
@@ -45,30 +49,42 @@ export function refusedGroups(collected: ProfileCollected): ReturnType<typeof pa
   ).refused;
 }
 
-function skippedItems(collected: ProfileCollected): ImportPreviewSkip[] {
+function profileSkips({ name, result }: CollectedProfile, refused: ReadonlyMap<CollectedGroup, GroupRefusal>): ImportPreviewSkip[] {
+  const at = (path: string, reason: string): ImportPreviewSkip => skip(name, path, reason);
   const planeFiles = [
-    { count: collected.databankFileCount, plane: "user/files/", one: "Data Bank file", many: "Data Bank files" },
-    { count: collected.galleryImageCount, plane: "user/images/", one: "gallery image", many: "gallery images" },
+    { count: result.databankFileCount, plane: "user/files/", one: "Data Bank file", many: "Data Bank files" },
+    { count: result.galleryImageCount, plane: "user/images/", one: "gallery image", many: "gallery images" },
   ];
   return [
-    ...collected.unreadableCards.map((file) => skip(file, "not a readable character card")),
-    ...collected.invalidCards.map(({ file, reason }) => skip(file, reason)),
-    ...collected.skippedChats.map((file) => skip(file, "the chat file is over the size limit")),
-    ...collected.missingGroupChats.map((leaf) => skip(leaf, "a group lists this chat, but its file is missing or unreadable")),
-    ...collected.unreadableGroups.map((file) => skip(file, "not a readable group")),
-    ...refusedGroups(collected).map(({ group, refusal }) => skip(group.sourceFile, GROUP_SKIP_REASONS[refusal])),
-    ...collected.unreadableWorlds.map((file) => skip(file, "not a readable world book")),
-    ...collected.unreadablePresets.map((file) => skip(file, "not a readable preset")),
-    ...collected.refusedThemes.map(({ file }) => skip(file, "this theme could not be converted")),
-    ...collected.skippedBackgrounds.map(({ file }) => skip(file, "not an image or video file")),
-    ...collected.truncatedDirs.map(({ dir, kept, total }) =>
-      skip(dir.split(/[\\/]/u).at(-1) ?? dir, `only the first ${String(kept)} of ${String(total)} entries are read`),
+    ...result.unreadableCards.map((file) => at(file, "not a readable character card")),
+    ...result.invalidCards.map(({ file, reason }) => at(file, reason)),
+    ...result.skippedChats.map((file) => at(file, "the chat file is over the size limit")),
+    ...result.groups.flatMap((group) => group.missingChatLeaves).map((leaf) => at(leaf, "a group lists this chat, but its file is missing or unreadable")),
+    ...result.unreadableGroups.map((file) => at(file, "not a readable group")),
+    ...result.groups.flatMap((group) => {
+      const refusal = refused.get(group);
+      return refusal === undefined ? [] : [at(group.sourceFile, GROUP_SKIP_REASONS[refusal])];
+    }),
+    ...result.unreadableWorlds.map((file) => at(file, "not a readable world book")),
+    ...result.unreadablePresets.map((file) => at(file, "not a readable preset")),
+    ...result.refusedThemes.map(({ file }) => at(file, "this theme could not be converted")),
+    ...result.skippedBackgrounds.map(({ file }) => at(file, "not an image or video file")),
+    ...result.truncatedDirs.map(({ dir, kept, total }) =>
+      at(dir.split(/[\\/]/u).at(-1) ?? dir, `only the first ${String(kept)} of ${String(total)} entries are read`),
     ),
     ...planeFiles
       .filter(({ count }) => count > 0)
-      .map(({ count, plane, one, many }) => skip(plane, `${String(count)} ${count === 1 ? one : many} not imported yet`)),
-    ...[...new Set(collected.unhandled)].map((name) => skip(name, "SillyTavern data that does not import")),
-    ...[...new Set(collected.unhandledSettings)].map((name) => skip(name, "a SillyTavern setting that does not import")),
+      .map(({ count, plane, one, many }) => at(plane, `${String(count)} ${count === 1 ? one : many} not imported yet`)),
+    ...[...new Set(result.unhandled)].map((entry) => at(entry, "SillyTavern data that does not import")),
+    ...[...new Set(result.unhandledSettings)].map((entry) => at(entry, "a SillyTavern setting that does not import")),
+  ];
+}
+
+function skippedItems(collected: ProfileCollected): ImportPreviewSkip[] {
+  const refused = new Map(refusedGroups(collected).map(({ group, refusal }) => [group, refusal]));
+  return [
+    ...collected.profiles.flatMap((profile) => profileSkips(profile, refused)),
+    ...collected.rootUnhandled.map((entry) => skip(null, entry, "SillyTavern data that does not import")),
   ];
 }
 
@@ -77,30 +93,55 @@ function listed<Entry>(entry: Entry, held: ReadonlySet<Entry>, base: ImportPrevi
   return held.has(entry) ? { ...base, inLibrary: true as const } : base;
 }
 
-/** Every item the folder holds, by kind. The one enumeration both the preview's lists and the run's counts take;
- *  a group the run refuses is a skip, and so are its transcripts. */
-function kindItems(collected: ProfileCollected, owned: ImportOwnership): Readonly<Record<ImportPreviewKind, readonly ImportPreviewItem[]>> {
-  const { importable } = partitionGroups(
-    collected.groups,
-    collected.bundles.map((bundle) => bundle.filename),
-  );
+/** The items one profile directory holds. `importable` is judged over the whole upload, so a group's verdict does not
+ *  depend on which profile the walk is in. */
+function profileKindItems(
+  { name, result }: CollectedProfile,
+  importable: ReadonlySet<CollectedGroup>,
+  owned: ImportOwnership,
+): Readonly<Record<ImportPreviewKind, readonly ImportPreviewItem[]>> {
+  const groups = result.groups.filter((group) => importable.has(group));
   return {
-    characters: collected.bundles.map((bundle) => listed(bundle, owned.characters, item(bundle.filename, bundle.cardName))),
+    characters: result.bundles.map((bundle) => listed(bundle, owned.characters, item(name, bundle.filename, bundle.cardName))),
     chats: [
-      ...collected.bundles.flatMap((bundle) => chatItems(bundle.cardName, bundle.chats, owned.chats)),
-      ...importable.flatMap((group) => chatItems(group.parsed.name, group.chats, owned.chats)),
-      ...collected.orphanBundles.flatMap((orphan) => chatItems(orphan.dirName, orphan.chats, owned.chats)),
+      ...result.bundles.flatMap((bundle) => chatItems(name, bundle.cardName, bundle.chats, owned.chats)),
+      ...groups.flatMap((group) => chatItems(name, group.parsed.name, group.chats, owned.chats)),
+      ...result.orphanBundles.flatMap((orphan) => chatItems(name, orphan.dirName, orphan.chats, owned.chats)),
     ],
-    personas: collected.personas.map((persona) => {
-      const base = item(persona.parsed.avatarFile, persona.parsed.name);
+    personas: result.personas.map((persona) => {
+      const base = item(name, persona.parsed.avatarFile, persona.parsed.name);
       return listed(persona, owned.personas, persona.avatarBytes === undefined ? { ...base, withoutArt: true as const } : base);
     }),
-    worlds: collected.worlds.map((world) => listed(world, owned.worlds, item(world.sourceFile, world.book.name))),
-    presets: collected.presets.map((preset) => listed(preset, owned.presets, item(preset.sourceFile, preset.parsed.name))),
-    themes: collected.themes.map((theme) => listed(theme, owned.themes, item(theme.sourceFile, theme.parsed.name))),
-    backgrounds: collected.backgrounds.map((background) => listed(background, owned.backgrounds, item(background.filename, background.name))),
-    groups: importable.map((group) => listed(group, owned.groups, item(group.sourceFile, group.parsed.name))),
-    orphans: collected.orphanBundles.map((orphan) => listed(orphan, owned.orphans, item(orphan.dirName, orphan.dirName))),
+    worlds: result.worlds.map((world) => listed(world, owned.worlds, item(name, world.sourceFile, world.book.name))),
+    presets: result.presets.map((preset) => listed(preset, owned.presets, item(name, preset.sourceFile, preset.parsed.name))),
+    themes: result.themes.map((theme) => listed(theme, owned.themes, item(name, theme.sourceFile, theme.parsed.name))),
+    backgrounds: result.backgrounds.map((background) => listed(background, owned.backgrounds, item(name, background.filename, background.name))),
+    groups: groups.map((group) => listed(group, owned.groups, item(name, group.sourceFile, group.parsed.name))),
+    orphans: result.orphanBundles.map((orphan) => listed(orphan, owned.orphans, item(name, orphan.dirName, orphan.dirName))),
+  };
+}
+
+/** Every item the folder holds, by kind, profile by profile. The one enumeration both the preview's lists and the
+ *  run's counts take; a group the run refuses is a skip, and so are its transcripts. */
+function kindItems(collected: ProfileCollected, owned: ImportOwnership): Readonly<Record<ImportPreviewKind, readonly ImportPreviewItem[]>> {
+  const importable = new Set(
+    partitionGroups(
+      collected.groups,
+      collected.bundles.map((bundle) => bundle.filename),
+    ).importable,
+  );
+  const perProfile = collected.profiles.map((profile) => profileKindItems(profile, importable, owned));
+  const gather = (kind: ImportPreviewKind): readonly ImportPreviewItem[] => perProfile.flatMap((items) => items[kind]);
+  return {
+    characters: gather("characters"),
+    chats: gather("chats"),
+    personas: gather("personas"),
+    worlds: gather("worlds"),
+    presets: gather("presets"),
+    themes: gather("themes"),
+    backgrounds: gather("backgrounds"),
+    groups: gather("groups"),
+    orphans: gather("orphans"),
   };
 }
 

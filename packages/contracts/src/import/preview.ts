@@ -1,5 +1,8 @@
 // What a dry-run profile import reports it would do. Every string comes from a hostile file, so the server clips
 // it and caps each list; `total` stays exact when `items` is capped. The client renders names as plain text.
+// An entry's identity is its source: the profile directory it sits in plus its path inside that profile, so two
+// profiles of one upload that share a relative path are two entries. `mergeImportPreviews` is the one place that
+// keys on it.
 
 import { z } from "zod";
 
@@ -13,10 +16,18 @@ export const IMPORT_PREVIEW_TEXT_MAX = 200;
 
 const previewText = z.string().max(IMPORT_PREVIEW_TEXT_MAX);
 
+/** Where an entry sits in the upload: the profile directory's name and the entry's path inside that profile (its
+ *  file, or its name where it has no file). A single picked profile is staged under one fixed directory name. */
+const importSourceSchema = z.strictObject({ profile: previewText, path: previewText });
+
+/** A skip's source: a profile entry, or `profile: null` for an entry beside the profiles at the upload's root. */
+const importSkipSourceSchema = z.strictObject({ profile: previewText.nullable(), path: previewText });
+type ImportSkipSource = z.infer<typeof importSkipSourceSchema>;
+
 const importPreviewItemSchema = z.strictObject({
-  /** The item's identity in the folder: its file, or its name where it has no file. The same file in two
-   *  uploads of a split folder is one item. */
-  source: previewText,
+  /** The item's identity in the upload. The same file of the same profile in two uploads of a split folder is
+   *  one item. */
+  source: importSourceSchema,
   name: previewText,
   /** Something the owner already has (a character, book, preset, chat and so on); a run adds nothing for it.
    *  Absent otherwise. */
@@ -32,7 +43,7 @@ const importPreviewListSchema = z.strictObject({
 });
 export type ImportPreviewList = z.infer<typeof importPreviewListSchema>;
 
-const importPreviewSkipSchema = z.strictObject({ source: previewText, reason: previewText });
+const importPreviewSkipSchema = z.strictObject({ source: importSkipSourceSchema, reason: previewText });
 export type ImportPreviewSkip = z.infer<typeof importPreviewSkipSchema>;
 
 const importPreviewSkippedSchema = z.strictObject({
@@ -85,22 +96,28 @@ function union<T>(lists: readonly { readonly total: number; readonly items: read
   return { total: seen.size + unlisted, items: [...seen.values()].slice(0, IMPORT_PREVIEW_LIST_MAX) };
 }
 
+// A JSON tuple keeps a hostile profile or path from reading as the other half of the key.
+function sourceKey(source: ImportSkipSource): string {
+  return JSON.stringify([source.profile, source.path]);
+}
+
 /** One preview over the uploads of a split folder. Shared files and repeated cards repeat across uploads, so
- *  listed items union by source; a capped list's unlisted tail cannot be compared and is added. A skip unions by
- *  source and reason together: one source can be skipped two ways, and each way is its own row. */
+ *  listed items union by source (profile and path); a capped list's unlisted tail cannot be compared and is
+ *  added. A skip unions by source and reason together: one source can be skipped two ways, and each way is its
+ *  own row. */
 export function mergeImportPreviews(previews: readonly ImportPreview[]): ImportPreview {
   const kinds = Object.fromEntries(
     IMPORT_PREVIEW_KINDS.map((kind) => [
       kind,
       union(
         previews.map((preview) => preview.kinds[kind]),
-        (item) => item.source,
+        (item) => sourceKey(item.source),
       ),
     ]),
   );
   const skipped = union(
     previews.map((preview) => preview.skipped),
-    (item) => `${item.source}\n${item.reason}`,
+    (item) => `${sourceKey(item.source)}\n${item.reason}`,
   );
   return importPreviewSchema.parse({ kinds, skipped });
 }

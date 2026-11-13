@@ -146,6 +146,13 @@ export interface ProfileCollectRecords
   readonly missingGroupChats: ImportReport["missingGroupChats"][number][];
 }
 
+/** One profile directory of the upload with its own collect result. The merged lists on {@link ProfileCollected}
+ *  hold the very same entries; the preview reads this side to name each entry by the profile it sits in. */
+export interface CollectedProfile {
+  readonly name: string;
+  readonly result: CollectResult;
+}
+
 export interface ProfileCollected
   extends ProfileCollectRecords,
     Pick<
@@ -167,6 +174,9 @@ export interface ProfileCollected
       | "galleryImageCount"
     > {
   readonly skipped: number;
+  readonly profiles: readonly CollectedProfile[];
+  /** Entries at the upload's root that the importer cannot open as a profile (`unhandled` holds them too). */
+  readonly rootUnhandled: readonly string[];
 }
 
 export type ProfileWaveOutcomes = Pick<
