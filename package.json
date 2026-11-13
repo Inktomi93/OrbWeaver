@@ -28,6 +28,7 @@
     "snap": "node tooling/src/snap/cli.ts",
     "snap:devtools-assets": "node tooling/src/snap/cli.ts --materialize-devtools-assets",
     "bug:reports": "node tooling/src/bug-reports/cli.ts",
+    "label-census": "node tooling/src/label-census/cli.ts",
     "knip": "knip",
     "knip:prod": "knip --production --strict",
     "codemod": "codemod --disable-analytics",

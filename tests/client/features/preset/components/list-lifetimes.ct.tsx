@@ -201,11 +201,11 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(remaining).toHaveValue("Louder draft");
   await expect(page.getByText("Restored draft, not saved", { exact: true })).toBeVisible();
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toHaveCount(0);
-  await variable.getByRole("button", { name: "Done", exact: true }).click();
+  await variable.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
   await page.getByRole("button", { name: AUTOSAVE_RESUME_NAME, exact: true }).press("Enter");
   await expect(page.getByText("Save failed.", { exact: true })).toBeVisible();
   failSaves = false;
-  await page.getByRole("button", { name: "Retry", exact: true }).press("Enter");
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).press("Enter");
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.options[0]?.label).toBe("Louder draft");
   expect(present(trpc.lastInput("preset.update")).config).not.toHaveProperty("variableRowIds");
@@ -288,7 +288,7 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("2");
   await expect(label).toHaveValue("Newer");
   await expect(label).toBeFocused();
-  await dialog.getByRole("button", { name: "Done", exact: true }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
   await page.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true }).click();
   await page.getByRole("alertdialog", { name: PRESET_RESET_ARRANGEMENT_TITLE, exact: true }).getByRole("button", { name: "Reset", exact: true }).click();
   await expect(page.getByRole("button", { name: "queued_variable", exact: true })).toHaveCount(0);

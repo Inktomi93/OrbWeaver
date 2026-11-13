@@ -3,6 +3,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AdminResetNamesStory } from "./_admin-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-action-groups-stories/AdminResetNamesStory";
@@ -69,7 +70,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       const confirm = page.getByRole("alertdialog");
       await expect(confirm).toBeVisible();
-      await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+      await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(confirm).toHaveCount(0);
       expect(calls.inputs("settings.updateAppSettings")).toEqual([]);
       await reset.focus();

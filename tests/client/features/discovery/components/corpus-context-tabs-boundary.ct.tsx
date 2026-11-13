@@ -9,6 +9,7 @@ import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serv
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
@@ -48,7 +49,7 @@ test("a held catalog read shows the loading skeleton, a failed one the shared er
   hold.fail();
   await expect(context.getByText("Couldn't load archetypes.", { exact: true })).toBeVisible();
   failing = false;
-  await context.getByRole("button", { name: "Retry", exact: true }).click();
+  await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(context.getByText("Couldn't load archetypes.", { exact: true })).toHaveCount(0);
   await expect(context.getByRole("combobox", { name: "Clusters" })).toBeVisible();
 });
@@ -79,7 +80,7 @@ test("a failed art-archetypes read says so in its own section and leaves the wri
   await expect(context.getByText("Couldn't load the art archetypes.", { exact: true })).toBeVisible();
   await expect(context.getByText("Couldn't load the writing archetypes.", { exact: true })).toHaveCount(0);
   failing = false;
-  await context.getByRole("button", { name: "Retry", exact: true }).click();
+  await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(context.getByText("Couldn't load the art archetypes.", { exact: true })).toHaveCount(0);
 });
 
@@ -111,7 +112,7 @@ test("a held nearest-pairs read shows the loading skeleton, a failed one the sha
   hold.fail();
   await expect(context.getByText("Couldn't load the similarity graph.", { exact: true })).toBeVisible();
   failing = false;
-  await context.getByRole("button", { name: "Retry", exact: true }).click();
+  await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(context.getByText("Couldn't load the similarity graph.", { exact: true })).toHaveCount(0);
   await expect(context.getByRole("combobox", { name: "Min similarity" })).toBeVisible();
 });

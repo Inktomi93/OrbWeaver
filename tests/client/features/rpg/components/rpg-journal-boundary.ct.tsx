@@ -5,6 +5,7 @@
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -50,7 +51,7 @@ test("a failed transcript read leaves the All chronicle standing, and the Cards 
   await journal.getByRole("button", { name: "Cards", exact: true }).click();
   await expect(journal.getByText(ARCHIVE_ERROR, { exact: true })).toBeVisible();
   phase = "hold";
-  await journal.getByRole("button", { name: "Retry", exact: true }).click();
+  await journal.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await hold.requested;
   await expect(journal.locator('[aria-busy="true"]')).toBeVisible();
   await expect(journal.getByRole("button", { name: "Marks", exact: true })).toBeVisible();

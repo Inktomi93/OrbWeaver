@@ -7,6 +7,7 @@ import { createTagSchema } from "@orb/contracts/tag";
 import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { EditableTagChipStory } from "./_editable-tag-chip-stories.tsx";
 
 const CHIP_STORY = "tests/client/components/_editable-tag-chip-stories/EditableTagChipStory";
@@ -29,7 +30,7 @@ test("a held tag library read shows the loading skeleton in the chip popover, a 
   read.hold.fail();
   await expect(dialog.getByText("Couldn't load this tag.", { exact: true })).toBeVisible();
   read.recover();
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(dialog.getByText("Couldn't load this tag.", { exact: true })).toHaveCount(0);
   await expect(dialog.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Held");
 });

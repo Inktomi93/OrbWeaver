@@ -2,6 +2,7 @@ import { ALERTS_REGION_NAME, routeTrpc, serveCorpusProcedures, trpcError } from 
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { TagMemberStory } from "./_tag-member-stories.tsx";
 
 for (const viewport of [
@@ -30,7 +31,7 @@ for (const viewport of [
       await press(group.getByRole("button", { name: "Merge", exact: true }));
       await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText("Couldn't merge the tags.", { exact: true })).toBeVisible();
       await expect(group).toBeVisible();
-      await press(group.getByRole("button", { name: "Cancel", exact: true }));
+      await press(group.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }));
       await expect(trigger).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(group.getByRole("combobox", { name: "Merge target tag", exact: true })).toBeFocused();

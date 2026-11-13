@@ -3,6 +3,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { DATABANK_ADD_TEXT_FIELD_NAME, DATABANK_PASTE_TEXT_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AddDocumentStory } from "./_add-document-stories.tsx";
 
 const STORY = "tests/client/features/databank/components/_add-document-stories/AddDocumentStory";
@@ -69,7 +70,7 @@ test("each arm spends the same reserved height, so the footer holds one line whi
   await using root = await createCorpusHarness();
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["databank.scrapeWeb"]));
   await mount<typeof AddDocumentStory>(STORY, {});
-  const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = page.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   const tops: number[] = [];
   for (const mode of ["Upload a file", DATABANK_PASTE_TEXT_NAME, "From a link"]) {
     await page.getByRole("button", { name: mode, exact: true }).click();
