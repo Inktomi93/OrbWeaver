@@ -27,13 +27,13 @@
 // failed one is a skip, never a strike.
 
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
-import type { PluginDisplayTransformRegistration } from "@orb/contracts/plugin";
+import type { PluginDisplayTransformRegistration, PluginInstance } from "@orb/contracts/plugin";
 import type { ScheduleOp } from "@orb/kit/time";
 
 import type { TransformForDisplayParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
-import { logPluginFailure } from "../substrate/failure-log.ts";
+import { pluginFailureLine } from "../substrate/failure-log.ts";
 
 /** The per-TRANSFORM wall-clock bound (the "per-message budget" seam 14 names). Tighter than the 250 ms
  *  `PROMPT_TRANSFORM_DEADLINE_MS` would be generous here for the opposite reason it is generous there: this
@@ -84,7 +84,12 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
     const rows = await listOwned(ctx.db, caller.userId);
     // FLATTEN FIRST, fold second. Registration order within a plugin; plugin order is the caller's own install
     // order (`listOwned`). Both are the only orderings that exist here and both are the installer's own doing.
-    const steps: { readonly slug: string; readonly transform: PluginDisplayTransformRegistration; readonly invoke: ResidentInvoke }[] = [];
+    const steps: {
+      readonly slug: string;
+      readonly instance: PluginInstance;
+      readonly transform: PluginDisplayTransformRegistration;
+      readonly invoke: ResidentInvoke;
+    }[] = [];
     for (const row of rows) {
       const resident = registry.get(row.id);
       if (resident === undefined) {
@@ -95,7 +100,12 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
         // the resident's invocation lifetime and failure log and writes no crash state. `null` chat scope: a display
         // transform reads the text it was handed and nothing else — admitting a room would hand it a `chat.read`
         // window this seam has no reason to open.
-        steps.push({ slug: row.slug, transform, invoke: (handler, json, signal) => resident.invokeForRead(handler, json, null, signal) });
+        steps.push({
+          slug: row.slug,
+          instance: resident.instance,
+          transform,
+          invoke: (handler, json, signal) => resident.invokeForRead(handler, json, null, signal),
+        });
       }
     }
     if (steps.length === 0) {
@@ -111,11 +121,9 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
       const argsJson = JSON.stringify({ text: current, env: { chatId, messageId } });
       const next = await applyBounded(step.invoke, step.transform, argsJson, ctx.scheduleTimeout);
       if ("skip" in next && next.skip === "deadline") {
-        logPluginFailure(
-          step.slug,
-          "display-deadline",
-          `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`,
-          ctx.logger,
+        ctx.host.logFailure(
+          step.instance,
+          pluginFailureLine(step.slug, "display-deadline", `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`),
         );
         return foldFrom(index + 1, current);
       }

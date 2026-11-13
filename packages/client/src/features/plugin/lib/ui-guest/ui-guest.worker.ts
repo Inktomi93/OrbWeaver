@@ -84,7 +84,9 @@ function loadModule(): Promise<QuickJSWASMModule> {
  *  interpreter thread cannot preempt itself once it stops running bytecode; another thread killing it can). */
 async function runToSettlement(state: GuestState, cpuMs: number, produce: () => ReturnType<QuickJSContext["evalCode"]>): Promise<string | null> {
   const { ctx } = state;
-  // The window stays open across the await, so the error read after it runs under this deadline too.
+  // The window stays open across the await, so the error read after it runs under this budget too. It is paused for the
+  // await: the guest is parked on a host call or a job, a host result and the job pump each run in a window of their
+  // own, and a slow host call is not this event's CPU.
   const window = openCpuWindow(ctx, cpuMs);
   // the message is the return value; boot posts it as `ready: false` and deliver as
   // `settled: false`, and the host kills the guest and reports the crash. Ends if a caller stops posting the return value.
@@ -99,7 +101,9 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
     const native = ctx.resolvePromise(handle);
     // On the interrupt path the result holds the guest's `InternalError`; dispose it either way.
     ctx.runtime.executePendingJobs().dispose();
+    window.pause();
     const settled = await native;
+    window.resume();
     handle.dispose();
     if (settled.error) {
       const message = readError(ctx, settled.error);

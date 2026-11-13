@@ -155,6 +155,9 @@ export interface PluginHostPort {
    *  view for the owner, NOT an audit log of record: derive nothing security-load-bearing from what it contains
    *  or from what it is missing. */
   readonly readLog: ProcessPluginHost["readLog"];
+  /** Log a failure the instance's guest caused, per call, on that instance's server-log window: a guest picks how often
+   *  it fails, so a line it can repeat goes here and never straight to the logger. */
+  readonly logFailure: ProcessPluginHost["logFailure"];
   /** Tear down the instance (disposes the guest context + all realm handles). Idempotent-safe. */
   readonly dispose: ProcessPluginHost["dispose"];
 }

@@ -360,9 +360,11 @@ function pump(ctx: QuickJSContext): () => void {
   };
 }
 
-/** One open CPU window: its deadline on the worker's monotonic clock, and whether it stopped guest code. */
+/** One open CPU window: the budget it has left, when its clock last started on the worker's monotonic clock (null while
+ *  paused), and whether it stopped guest code. */
 interface CpuWindow {
-  readonly deadlineMs: number;
+  remainingMs: number;
+  runningSince: number | null;
   passed: boolean;
 }
 
@@ -377,21 +379,40 @@ function interruptNewestWindow(): boolean {
   if (newest === undefined) {
     return false;
   }
-  newest.passed ||= performance.now() > newest.deadlineMs;
+  // A paused window's owner is awaiting, not running guest code, so guest code that reaches it ran outside every span.
+  newest.passed ||= newest.runningSince === null || performance.now() - newest.runningSince > newest.remainingMs;
   return newest.passed;
 }
 
 /** Open a CPU window of `budgetMs` against real monotonic time (the worker's `performance.now()`, never the guest's
  *  stub), and return its `close`, which the caller runs in a `finally`. The newest open window governs the interrupt;
- *  closing it restores the one beneath. `passed` says whether this window stopped guest code. */
-export function openCpuWindow(ctx: QuickJSContext, budgetMs: number): { readonly passed: () => boolean; readonly close: () => void } {
-  const window: CpuWindow = { deadlineMs: performance.now() + budgetMs, passed: false };
+ *  closing it restores the one beneath. `passed` says whether this window stopped guest code. `pause` stops the
+ *  window's clock while its owner awaits, and `resume` restarts it with what is left. */
+export function openCpuWindow(
+  ctx: QuickJSContext,
+  budgetMs: number,
+): { readonly passed: () => boolean; readonly close: () => void; readonly pause: () => void; readonly resume: () => void } {
+  const window: CpuWindow = { remainingMs: budgetMs, runningSince: performance.now(), passed: false };
   openWindows.push(window);
   ctx.runtime.setInterruptHandler(interruptNewestWindow);
   return {
     passed: (): boolean => window.passed,
+    pause: (): void => {
+      if (window.runningSince !== null) {
+        window.remainingMs -= performance.now() - window.runningSince;
+        window.runningSince = null;
+      }
+    },
+    resume: (): void => {
+      window.runningSince ??= performance.now();
+    },
     close: (): void => {
-      openWindows.splice(openWindows.indexOf(window), 1);
+      // A second close finds nothing; splicing at -1 would close the newest window, another caller's.
+      const at = openWindows.indexOf(window);
+      if (at === -1) {
+        return;
+      }
+      openWindows.splice(at, 1);
       if (openWindows.length === 0) {
         ctx.runtime.removeInterruptHandler();
       }

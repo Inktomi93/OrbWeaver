@@ -258,6 +258,10 @@ export const PLUGIN_DUMP_NODE_GUARD = 65_536;
  *  string's own unit, and ≥ 1 UTF-8 byte each) — the bound is on host memory, not on wire bytes. The numbers
  *  live in `@orb/contracts/plugin` (`PLUGIN_LOG_LINES_MAX` / `PLUGIN_LOG_CHARS_MAX`), shared with the client guest. */
 
+/** The window over which one plugin instance's server-log share resets: per window it writes at most one drain's
+ *  volume ({@link PLUGIN_LOG_LINES_MAX} lines, {@link PLUGIN_LOG_CHARS_MAX} UTF-16 units) and counts the rest as dropped. */
+export const PLUGIN_SERVER_LOG_WINDOW_MS = MS_PER_MINUTE;
+
 /** The RUNTIME log ring retained per RESIDENT instance — what `getPluginLog` reads. `LogRing` above is the
  *  per-drain staging ring (emptied by every drain — an invocation's, or the port's residue pickup of what a
  *  floated continuation logged since); this is the rolling record across all of them, so a host can

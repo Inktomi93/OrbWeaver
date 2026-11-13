@@ -29,7 +29,7 @@ import type {
 } from "../contract/service.ts";
 import { getById, setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
-import { invokeFailureKind, logPluginFailure } from "../substrate/failure-log.ts";
+import { invokeFailureKind, logPluginFailure, pluginFailureLine } from "../substrate/failure-log.ts";
 import { consentedNetHosts } from "../substrate/grants.ts";
 import { parseInstalledBundle } from "../substrate/manifest.ts";
 
@@ -238,7 +238,7 @@ export function createActivate(
         return await ctx.host.invoke(instance, handler, argsJson, chat, signal, phase);
       } catch (err) {
         if (!isHostAdmissionRefusal(err) && signal?.reason !== DEADLINE_ABORT_REASON) {
-          logPluginFailure(slug, invokeFailureKind(err), errorMessage(err), ctx.logger);
+          ctx.host.logFailure(instance, pluginFailureLine(slug, invokeFailureKind(err), errorMessage(err)));
         }
         throw err;
       }
