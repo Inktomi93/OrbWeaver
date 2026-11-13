@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, plantFile, test } from "@orb/testkit/tooling";
 import { renderBiomeConfig, syncBiomeConfig } from "@orb/tooling/biome-config";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { z } from "zod";
 
 test("the checked-in native configuration matches deterministic generation", ({ repoRoot }) => {
   const rendered = renderBiomeConfig();
@@ -51,32 +52,41 @@ const SCOPED_CASES = [
   ["tooling/src/eslint/control.ts", "export interface Payload { PascalName: number; }"],
 ] as const;
 
+const ORDINARY_PATH = "packages/kit/src/naming-control.ts";
+const BASE_REFUSED_CASES = [
+  [ORDINARY_PATH, "export const payload = { snake_name: 1 };"],
+  ["packages/inference/src/backends/openai-compat/body.ts", "export interface Payload { snake_name: number; }"],
+  ["packages/inference/src/contract/wire.ts", "export const payload = { snake_name: 1 };"],
+  ["scripts/ordinary.config.ts", "export const payload = { latestRecordSuccessOn2026_09_03: 1 };"],
+  ["tooling/src/eslint/control.ts", "export const caf\u00e9 = 1;"],
+] as const;
+const NAMING_RULE = "style/useNamingConvention";
+const NAMING_CATEGORY = `lint/${NAMING_RULE}`;
+const namingReportSchema = z.object({ diagnostics: z.array(z.object({ category: z.string(), location: z.object({ path: z.string() }) })) });
+
 test("native Biome retains scoped naming permissions, overlap precedence, base conventions and ASCII enforcement", async ({ plantedTree, repoRoot }) => {
   const root = await plantedTree({ "biome.json": renderBiomeConfig() });
-  const lint = (path: string, body: string): ReturnType<typeof runNicedSync> => {
-    plantFile(root, path, body);
-    return runNicedSync(join(repoRoot, "node_modules", ".bin", "biome"), ["lint", "--only=style/useNamingConvention", path, "--vcs-enabled=false"], {
-      cwd: root,
-    });
+  // One Biome process per planted generation, not per file: each spawn costs a fixed start-up, and a file's verdict
+  // does not depend on the other files in the same run. The report names the refused files, so the per-file reading
+  // is the same as one run per file.
+  const lint = (cases: readonly (readonly [string, string])[]): { readonly status: number | null; readonly refused: readonly string[] } => {
+    for (const [path, body] of cases) {
+      plantFile(root, path, body);
+    }
+    const result = runNicedSync(
+      join(repoRoot, "node_modules", ".bin", "biome"),
+      ["lint", `--only=${NAMING_RULE}`, "--reporter=json", "--max-diagnostics=none", "--vcs-enabled=false", ...cases.map(([path]) => path)],
+      { cwd: root },
+    );
+    const report = namingReportSchema.parse(JSON.parse(result.stdout));
+    const refused = report.diagnostics.filter((diagnostic) => diagnostic.category === NAMING_CATEGORY).map((diagnostic) => diagnostic.location.path);
+    return { status: result.status, refused: refused.toSorted() };
   };
-  for (const [path, body] of SCOPED_CASES) {
-    const admitted = lint(path, body);
-    expect(admitted.status, `${path}\n${admitted.stderr}`).toBe(0);
-    const refused = lint(path, "export interface invalid_name { validName: number; }");
-    expect(refused.status, `${path}\n${refused.stderr}`).toBe(1);
-    expect(refused.stderr).toContain("lint/style/useNamingConvention");
-  }
-  const ordinary = "packages/kit/src/naming-control.ts";
-  expect(lint(ordinary, "export interface HTTPResponse { camelName: number; }").status).toBe(0);
-  for (const [path, body] of [
-    [ordinary, "export const payload = { snake_name: 1 };"],
-    ["packages/inference/src/backends/openai-compat/body.ts", "export interface Payload { snake_name: number; }"],
-    ["packages/inference/src/contract/wire.ts", "export const payload = { snake_name: 1 };"],
-    ["scripts/ordinary.config.ts", "export const payload = { latestRecordSuccessOn2026_09_03: 1 };"],
-    ["tooling/src/eslint/control.ts", "export const caf\u00e9 = 1;"],
-  ] as const) {
-    const refused = lint(path, body);
-    expect(refused.status, `${path}\n${refused.stderr}`).toBe(1);
-    expect(refused.stderr).toContain("lint/style/useNamingConvention");
-  }
+  const scopedPaths = SCOPED_CASES.map(([path]) => path);
+  expect(lint([...SCOPED_CASES, [ORDINARY_PATH, "export interface HTTPResponse { camelName: number; }"]])).toEqual({ status: 0, refused: [] });
+  expect(lint(scopedPaths.map((path) => [path, "export interface invalid_name { validName: number; }"]))).toEqual({
+    status: 1,
+    refused: scopedPaths.toSorted(),
+  });
+  expect(lint(BASE_REFUSED_CASES)).toEqual({ status: 1, refused: BASE_REFUSED_CASES.map(([path]) => path).toSorted() });
 });

@@ -2,6 +2,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { ESLint } from "eslint";
 import { scaledBudget } from "./_load-budget.ts";
+import "./_eslint-config.ts";
 
 test("generated sandboxes and caches are excluded while authored JavaScript remains linted", async ({ repoRoot }) => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });

@@ -7,6 +7,8 @@ import { expect, test } from "@orb/testkit/tooling";
 import { listProcesses } from "@orb/tooling/floor/host/platform";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
 
+const PORT_GONE_CODE_RE = /^ECONN(?:REFUSED|RESET)$/u;
+
 function fixtureChildren(scratch: string): readonly number[] {
   const script = join(scratch, "filmstrip-auth-fixture.mjs");
   return listProcesses()
@@ -49,7 +51,9 @@ test("the cookie-isolation fixture serves distinct sessions and close observes c
   }
   expect(fixtureChildren(scratch)).toEqual([]);
   await fixture.close();
-  await expect(fetch(`${fixture.base}/healthz`)).rejects.toMatchObject({ cause: { code: "ECONNREFUSED" } });
+  // The fixture's port is an ephemeral one the OS hands out again once the child is gone. In a whole tooling run another
+  // file's server can take it before this read, and a connect it accepts and drops reads as a reset, not a refusal.
+  await expect(fetch(`${fixture.base}/healthz`)).rejects.toMatchObject({ cause: { code: expect.stringMatching(PORT_GONE_CODE_RE) } });
 });
 
 test.runIf(process.platform !== "win32")("close reaps a suspended owned child instead of crediting a signal and delay", async ({ scratch }) => {
