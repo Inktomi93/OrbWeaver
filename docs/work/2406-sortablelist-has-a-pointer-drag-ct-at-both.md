@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-13
 priority: P3
 area: testing
+lane: wt/agent-a1818ad5924fb1c71
 plan: cross-surface-consistency
 ---
 
