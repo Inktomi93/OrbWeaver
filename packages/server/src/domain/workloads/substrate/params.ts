@@ -8,6 +8,7 @@ import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadL
 import {
   DEFAULT_ADMISSION_KEY,
   startWorkloadEnvelope,
+  WORKLOAD_KINDS,
   WORKLOAD_NOT_ADMISSIBLE,
   WORKLOAD_OWNER_ONLY_REFUSAL,
   WORKLOAD_RUN_ACCOUNT_DISABLED,
@@ -162,13 +163,12 @@ export async function countModelCalls<K extends WorkloadKind>(
 }
 
 /** Hand a row that ended before it ran back to its owning domain (`WorkloadContribution.releaseUnrun`). */
-export async function releaseUnrun<K extends WorkloadKind>(
-  contributions: WorkloadContributions,
-  kind: K,
-  params: WorkloadParamsByKind[K],
-  ownerId: UserId | null,
-): Promise<void> {
-  await contributions[kind].releaseUnrun?.({ ownerId, params });
+export async function releaseUnrun(contributions: WorkloadContributions, kind: string, params: unknown, ownerId: UserId | null): Promise<void> {
+  // A stored row can name a kind this build no longer ships; nothing here owns what it held.
+  const known = WORKLOAD_KINDS.find((candidate) => candidate === kind);
+  if (known !== undefined) {
+    await contributions[known].releaseUnrun?.({ ownerId, params });
+  }
 }
 
 /**

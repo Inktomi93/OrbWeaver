@@ -5,7 +5,8 @@ import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex"
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
-import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
+import { DomainOperationError } from "@orb/kit/errors";
+import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
@@ -234,10 +235,18 @@ function tallyScanned(found: ImportKindCounts, collected: ProfileCollected): num
   return Object.values(found).reduce((sum, count) => sum + count, collected.skipped + refusedGroups(collected).length);
 }
 
-/** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. */
-async function toPersonaInput(store: StoreAvatarAsset, principal: Principal, p: CollectedPersona): Promise<ImportPersonaInput> {
-  let avatarAssetId: AssetId | null = null;
-  if (p.avatarBytes !== undefined) {
+/** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. An avatar the
+ *  store refuses (not a picture, over the cap) costs only the picture: the persona imports without art and the file is
+ *  named with the refusal. Any other failure still fails the run. */
+async function toPersonaInput(
+  store: StoreAvatarAsset,
+  principal: Principal,
+  p: CollectedPersona,
+): Promise<{ readonly input: ImportPersonaInput; readonly skipped?: ImportSkippedCard }> {
+  if (p.avatarBytes === undefined) {
+    return { input: { parsed: p.parsed, avatarAssetId: null } };
+  }
+  try {
     const stored = await store({
       principal,
       bytes: p.avatarBytes,
@@ -248,9 +257,13 @@ async function toPersonaInput(store: StoreAvatarAsset, principal: Principal, p: 
       // One single-asset ceiling repo-wide — the profile importer deliberately shares the upload cap.
       maxBytes: ASSET_UPLOAD_MAX_BYTES,
     });
-    avatarAssetId = stored.assetId;
+    return { input: { parsed: p.parsed, avatarAssetId: stored.assetId } };
+  } catch (err) {
+    if (err instanceof DomainOperationError) {
+      return { input: { parsed: p.parsed, avatarAssetId: null }, skipped: { file: p.parsed.avatarFile, reason: importFailureReason(err) } };
+    }
+    throw err;
   }
-  return { parsed: p.parsed, avatarAssetId };
 }
 
 /** The ST BACKGROUND wave: CAS-store each collected image/video under the owner (kind `background`,
@@ -393,6 +406,7 @@ const NO_WAVES: ProfileWaveOutcomes = {
   worldNotes: [],
   backgroundsImported: 0,
   skippedBackgrounds: [],
+  skippedPersonaAvatars: [],
   skippedCardTags: [],
   appearanceKeysApplied: [],
   groupsImported: 0,
@@ -808,11 +822,16 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
 
   // Personas FIRST — populates personaByUserName so the chat importers can attribute their user_names.
   const personaInputs: ImportPersonaInput[] = [];
+  const skippedPersonaAvatars: ImportSkippedCard[] = [];
   for (const p of collected.personas) {
     if (deps.signal.aborted) {
       break;
     }
-    personaInputs.push(await toPersonaInput(store, deps.principal, p));
+    const { input, skipped } = await toPersonaInput(store, deps.principal, p);
+    personaInputs.push(input);
+    if (skipped !== undefined) {
+      skippedPersonaAvatars.push(skipped);
+    }
   }
   if (personaInputs.length > 0) {
     const personaResult = await service.importPersonas({ personas: personaInputs, collisions: deps.personaCollisions });
@@ -917,6 +936,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
       worldNotes: worldResult.notes,
       backgroundsImported,
       skippedBackgrounds: appearanceWave.skippedBackgrounds,
+      skippedPersonaAvatars,
       appearanceKeysApplied,
       groupsImported: groupResult.groupsImported,
       groupChatsImported: groupResult.groupChatsImported,

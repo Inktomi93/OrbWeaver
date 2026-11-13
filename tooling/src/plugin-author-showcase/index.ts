@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promise
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { compareSemver } from "@orb/kit/semver";
 import type { PluginAuthorArtifact, PluginAuthorCompilerObserver, PluginAuthorDiagnostic, PluginAuthorResult } from "@orb/plugin-toolchain";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { SHOWCASE_PLUGIN_SLUGS, showcaseBundleEntries } from "@orb/showcase-plugins";
@@ -151,4 +152,67 @@ export async function staleShowcaseArtifacts(
     stale.push(receiptPath);
   }
   return stale;
+}
+
+/** What one tree ships: the receipt of its bundles' bytes and each bundle's manifest version. */
+export interface ShowcaseRelease {
+  readonly receipt: ShowcaseReleaseReceipt;
+  readonly versions: Readonly<Record<string, string>>;
+}
+
+const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+function manifestVersion(slug: string, text: string): string {
+  const manifest: unknown = JSON.parse(text);
+  const version = isRecord(manifest) ? manifest["version"] : undefined;
+  if (typeof version !== "string") {
+    throw new Error(`the ${slug} showcase manifest carries no version`);
+  }
+  return version;
+}
+
+function parsedReceipt(text: string): ShowcaseReleaseReceipt {
+  const receipt: unknown = JSON.parse(text);
+  const bundles = isRecord(receipt) ? receipt["bundles"] : undefined;
+  if (!isRecord(bundles)) {
+    throw new Error(`${SHOWCASE_RELEASE_RECEIPT} carries no bundles`);
+  }
+  const entries = Object.entries(bundles).map(([slug, files]) => {
+    if (!isRecord(files)) {
+      throw new Error(`${SHOWCASE_RELEASE_RECEIPT} lists no files for ${slug}`);
+    }
+    return [slug, Object.fromEntries(Object.entries(files).map(([path, hash]) => [path, String(hash)]))] as const;
+  });
+  return { format: 1, bundles: Object.fromEntries(entries) };
+}
+
+/** Read one tree's release through `read`, which answers a repo-relative path: the working tree or a git ref. */
+export async function loadShowcaseRelease(read: (path: string) => Promise<string>): Promise<ShowcaseRelease> {
+  const receipt = parsedReceipt(await read(SHOWCASE_RELEASE_RECEIPT));
+  const versions: Record<string, string> = {};
+  for (const slug of Object.keys(receipt.bundles)) {
+    versions[slug] = manifestVersion(slug, await read(`packages/showcase-plugins/bundles/${slug}/manifest.json`));
+  }
+  return { receipt, versions };
+}
+
+/**
+ * The bundles whose bytes differ from the base release while their version is not newer. A seeded install upgrades
+ * only to a newer version, so such a bundle never reaches an install that holds the base. A bundle the base does
+ * not ship has no install to reach.
+ */
+export function unbumpedShowcaseBundles(base: ShowcaseRelease, current: ShowcaseRelease): readonly string[] {
+  return Object.entries(current.receipt.bundles)
+    .filter(([slug, files]) => {
+      const shipped = base.receipt.bundles[slug];
+      const [was, now] = [base.versions[slug], current.versions[slug]];
+      if (shipped === undefined || was === undefined || now === undefined) {
+        return false;
+      }
+      const paths = new Set([...Object.keys(shipped), ...Object.keys(files)]);
+      const changed = [...paths].some((path) => shipped[path] !== files[path]);
+      return changed && compareSemver(now, was) <= 0;
+    })
+    .map(([slug]) => slug)
+    .toSorted((left, right) => left.localeCompare(right));
 }

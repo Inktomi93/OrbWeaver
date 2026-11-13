@@ -80,6 +80,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly traces: TraceRing;
   readonly fieldIndex: Pick<FieldIndexCache, "fields" | "suggest">;
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
+  readonly abortWorkloadRun: WorkloadProgressBus["abortWorkloadRun"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly supervise?: DetachedSupervision["superviseDetached"];
@@ -338,6 +339,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   });
   const workloads = createWorkloadService({
     emitEvent: deps.emitWorkloadEvent,
+    abortRun: deps.abortWorkloadRun,
     db,
     getContributions: deps.getContributions,
     now,

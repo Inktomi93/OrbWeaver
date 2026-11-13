@@ -298,6 +298,8 @@ export interface ImportReport {
   readonly missingGroupChats: readonly string[];
   /** A persona's avatar name that matched no file in the profile's avatar folder; the persona imported without art. */
   readonly missingPersonaAvatars: readonly string[];
+  /** A persona's avatar file the store refused (not a picture, over the cap), with why; the persona imported without art. */
+  readonly skippedPersonaAvatars: readonly ImportSkippedCard[];
   readonly skippedChats: readonly string[];
   readonly orphanChatDirs: readonly string[];
   readonly skippedCharacters: readonly string[];

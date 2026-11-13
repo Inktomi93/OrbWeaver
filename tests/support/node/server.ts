@@ -791,6 +791,7 @@ export async function createServerHarness(
     isAccountEnabled: createResolveUserEnabled(app.sessions),
     audit: audit.log,
     emitEvent: app.workloadEvents.emitWorkloadEvent,
+    trackRun: app.workloadEvents.trackWorkloadRun,
     scheduleInterval: timers.interval,
   } satisfies WorkloadRunnerAssemblyDeps;
   const principalFor = createHostPrincipalResolver(app.sessions);
