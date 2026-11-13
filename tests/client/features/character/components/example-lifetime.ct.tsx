@@ -3,6 +3,7 @@ import { characterDetailSchema } from "@orb/contracts/character";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { CHARACTER_FACET_LABELS } from "#client/features/character/lib/character-names.ts";
 import type { CharacterExampleLifetimeStory } from "./_example-lifetime-stories.tsx";
 
 test.use({ trace: "on" });
@@ -43,7 +44,7 @@ test("example preview retains native link consent for identical reads and drops 
     "tests/client/features/character/components/_example-lifetime-stories/CharacterExampleLifetimeStory",
     { characterId },
   );
-  await page.getByRole("button", { name: /Example messages/ }).click();
+  await page.getByRole("button", { name: CHARACTER_FACET_LABELS.exampleMessages }).click();
   const image = page.getByRole("img", { name: "Example witness", exact: true });
   await expect(image).toBeVisible();
   expect(

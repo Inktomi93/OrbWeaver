@@ -29,6 +29,7 @@ import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-muta
 import {
   deleteMovesDefaultNote,
   PERSONA_DELETE_NAME,
+  PERSONA_DELETE_TITLE,
   PERSONA_DESCRIPTION_FIELD_NAME,
   PERSONA_DUPLICATE_NAME,
   PERSONA_EXPORT_NAME,
@@ -253,7 +254,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
                 {nextDefaultName === null ? "" : ` ${deleteMovesDefaultNote(nextDefaultName)}`} This can't be undone.
               </>
             ),
-            title: "Delete this persona?",
+            title: PERSONA_DELETE_TITLE,
           }}
           onConfirm={onDelete}
           trigger={

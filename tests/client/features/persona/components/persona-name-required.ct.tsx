@@ -3,7 +3,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { absenceWindow, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { PERSONA_NAME_REQUIRED } from "#client/features/persona/lib/persona-copy.ts";
+import { PERSONA_NAME_REQUIRED, personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
 import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
@@ -32,7 +32,7 @@ test("clearing the name shows the required error and the saved name stands", asy
     ]),
   );
   await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance });
-  await page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true }).focus();
+  await page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true }).focus();
   await page.keyboard.press("Enter");
   const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
   const name = editor.getByRole("textbox", { name: "Name", exact: true });

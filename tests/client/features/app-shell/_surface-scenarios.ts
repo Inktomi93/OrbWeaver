@@ -5,7 +5,7 @@ import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { YOU_SHEET_ACCOUNT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_INTRO } from "#client/features/automation/lib/automation-names.ts";
-import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_LANDING_RESUME_TITLE, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "#client/features/chat/lib/appearance-message-style-model.ts";
 import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
 import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME, NEW_CHAT_CHARACTERS_FIELD_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
@@ -26,6 +26,7 @@ import {
   CORPUS_UNDERSTANDING_HEADING,
 } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { IMAGE_DETAIL_EMPTY_TEXT, IMAGE_EDIT_EMPTY_TEXT, IMAGINE_EMPTY_TEXT } from "#client/features/imagery/lib/imagine-names.ts";
+import { PERSONA_NEW_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import { EXTENSIONS_OPEN_PLUGINS_ACTION } from "#client/features/plugin/lib/extensions-copy.ts";
 import { PLUGIN_NO_COMMAND_SELECTED_TEXT } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import { PLUGIN_DIALOG_GONE_BODY, PLUGIN_DIALOG_GONE_TITLE } from "#client/features/plugin/lib/plugin-panel-copy.ts";
@@ -57,7 +58,7 @@ const SECTION_WITNESSES = {
   ],
   characters: (page): Witnesses => [
     page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("listitem").first(),
-    page.locator(".shell-content").getByRole("heading", { name: "Pick up where you left off", exact: true }),
+    page.locator(".shell-content").getByRole("heading", { name: CHARACTER_LANDING_RESUME_TITLE, exact: true }),
   ],
   corpus: (page): Witnesses => [
     page.getByText(CORPUS_UNDERSTANDING_HEADING, { exact: true }),
@@ -87,7 +88,7 @@ const SECTION_WITNESSES = {
 } satisfies Record<SectionId, (page: Page) => Witnesses>;
 
 const GROUP_WITNESSES = {
-  personas: (page): Witnesses => [page.getByRole("button", { name: "New persona", exact: true })],
+  personas: (page): Witnesses => [page.getByRole("button", { name: PERSONA_NEW_NAME, exact: true })],
   appearance: (page): Witnesses => [page.getByRole("radiogroup", { name: CONFIG_THEME_GROUP_NAME, exact: true }).getByRole("radio").first()],
   "chat-behavior": (page): Witnesses => [page.getByRole("switch", { name: configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "enterSends"), exact: true })],
   workloads: (page): Witnesses => [

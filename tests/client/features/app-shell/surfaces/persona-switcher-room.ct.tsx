@@ -8,14 +8,21 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import {
+  PERSONA_MANAGE_NAME,
+  PERSONA_PANEL_NAME,
+  PERSONA_PLAYING_AS_LABEL,
+  PERSONA_RESTAMP_NAME,
+  personaPlayingAsName,
+} from "#client/features/persona/lib/persona-copy.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const DESKTOP = { width: 1440, height: 900 } as const;
-const RESTAMP_DOOR = "Restamp my messages to this persona";
-const MANAGE_DOOR = "Manage personas in Settings";
+const RESTAMP_DOOR = PERSONA_RESTAMP_NAME;
+const MANAGE_DOOR = PERSONA_MANAGE_NAME;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -58,11 +65,11 @@ test.describe("on a desktop", () => {
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
     await page
       .locator(".shell-rail-actions")
-      .getByRole("button", { name: `Playing as ${seatName}`, exact: true })
+      .getByRole("button", { name: personaPlayingAsName(seatName), exact: true })
       .click();
-    const popup = page.getByRole("dialog", { name: "Account & personas", exact: true });
+    const popup = page.getByRole("dialog", { name: PERSONA_PANEL_NAME, exact: true });
     const head = popup.locator('[data-slot="persona-who-head"]');
-    const label = (await head.getByText("Playing as", { exact: true }).boundingBox())?.y ?? Number.NaN;
+    const label = (await head.getByText(PERSONA_PLAYING_AS_LABEL, { exact: true }).boundingBox())?.y ?? Number.NaN;
     const heading = (await head.getByText(seatName, { exact: true }).boundingBox())?.y ?? Number.NaN;
     expect(label).toBeLessThan(heading);
 
