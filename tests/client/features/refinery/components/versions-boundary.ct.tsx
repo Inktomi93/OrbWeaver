@@ -50,6 +50,8 @@ test("a held snapshot walk shows the loading skeleton, a failed one the error bl
   await expect(page.getByText("No versions yet", { exact: true })).toBeVisible();
 });
 
+const SNAPSHOT_LABEL = "manual: before refining";
+
 test("a held snapshot compare shows its loading line, a failed one the error block, and Retry shows the diff", async ({ mount, page }) => {
   await using root = await createCorpusHarness(undefined, { startJobs: false });
   const caller = await root.internalCallerFor(root.ownerId);
@@ -57,7 +59,7 @@ test("a held snapshot compare shows its loading line, a failed one the error blo
   if (character === undefined) {
     throw new Error("The corpus must contain a character");
   }
-  const { id: snapshotId } = await caller.character.snapshot({ characterId: character.id, label: "manual: before refining" });
+  const { id: snapshotId } = await caller.character.snapshot({ characterId: character.id, label: SNAPSHOT_LABEL });
   const description = (await caller.character.getSnapshot({ characterId: character.id, snapshotId })).content.description ?? "";
   if (description === "") {
     throw new Error("The compared snapshot needs a description to diff");
@@ -68,13 +70,13 @@ test("a held snapshot compare shows its loading line, a failed one the error blo
     ...serveCorpusProcedures(caller, ["character.getSnapshot"], read.intercept),
   });
   await mount<typeof VersionsTabStory>(STORY, { characterId: character.id, sessionId: mintTypeId(ID_PREFIX.refinerySession, createSeededIds().next) });
-  await page.getByRole("button", { name: refineryCompareToggleName(false), exact: true }).click();
+  await page.getByRole("button", { name: refineryCompareToggleName(false, SNAPSHOT_LABEL), exact: true }).click();
   await read.hold.requested;
   await expect(page.getByText(REFINERY_VERSION_LOADING_TEXT, { exact: true })).toBeVisible();
   read.hold.fail();
   await expect(page.getByText(queryFailedLabel("that version"), { exact: true })).toBeVisible();
   // The failure stays inside the compared row: the walk and its toggle stand.
-  await expect(page.getByRole("button", { name: refineryCompareToggleName(true), exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: refineryCompareToggleName(true, SNAPSHOT_LABEL), exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText(queryFailedLabel("that version"), { exact: true })).toHaveCount(0);

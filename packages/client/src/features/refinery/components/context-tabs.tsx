@@ -34,7 +34,9 @@ import {
   REFINERY_VERSION_DIFF_HEADING,
   REFINERY_VERSION_LOADING_TEXT,
   refineryCompareToggleName,
+  refineryCompareVerb,
   refineryRestoreVersionName,
+  refineryVersionRowLabel,
 } from "../lib/refinery-names.ts";
 import { SETUP_ORIGINAL_CARD_ROW, SETUP_SCHEMA_ROWS, SETUP_VIEW_ACTION, schemaDoorActionOf, setupDoorName } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
@@ -372,18 +374,25 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
       <Text voice="gloss">Restoring changes the live card only. The session still compares against its own pinned original.</Text>
       {rows.map((snapshot, index) => {
         const klass = classOf(snapshot);
+        const label = versionLabelOf(snapshot);
+        const qualifier = qualifiers[index];
         return (
           <Card key={snapshot.id}>
             <Stack gap="tight" padding="row">
               <Row align="center" gap="field">
                 <RefineryChip tone={klass.tone}>{klass.word}</RefineryChip>
                 <Text truncate="fill" voice="gloss">
-                  {versionLabelOf(snapshot)}
+                  {refineryVersionRowLabel(label, qualifier)}
                 </Text>
               </Row>
               <Row wrap={true} gap="field">
-                <Button variant="ghost" onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)} size="sm">
-                  {refineryCompareToggleName(compareId === snapshot.id)}
+                <Button
+                  aria-label={refineryCompareToggleName(compareId === snapshot.id, label, qualifier)}
+                  variant="ghost"
+                  onClick={(): void => setCompareId(compareId === snapshot.id ? null : snapshot.id)}
+                  size="sm"
+                >
+                  {refineryCompareVerb(compareId === snapshot.id)}
                 </Button>
                 <DestructiveAction
                   confirm={{
@@ -394,7 +403,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
                   }}
                   onConfirm={(): void => restore.mutate({ characterId: state.characterId, snapshotId: snapshot.id })}
                   trigger={
-                    <Button aria-label={refineryRestoreVersionName(versionLabelOf(snapshot), qualifiers[index])} variant="ghost" size="sm">
+                    <Button aria-label={refineryRestoreVersionName(label, qualifier)} variant="ghost" size="sm">
                       {DIALOG_VERBS.restore}
                     </Button>
                   }
