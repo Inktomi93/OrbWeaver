@@ -130,7 +130,11 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
     }
     if (provider.dialect === "openrouter") {
       const warmed = await deps.warmOpenRouter();
-      return warmed.ok ? listingOf(warmed.value) : { listed: false, reason: warmed.reason };
+      if (warmed.ok) {
+        return listingOf(warmed.value);
+      }
+      // A catalog that lost only its embeddings or rerank list still lists the chat models it holds.
+      return warmed.partial === null ? { listed: false, reason: warmed.reason } : listingOf(warmed.partial);
     }
     switch (provider.wire) {
       case "agent-sdk":

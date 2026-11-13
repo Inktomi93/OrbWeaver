@@ -132,11 +132,16 @@ export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.Zod
 
 export type BindRoleClients = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;
 
+/** What one live fetch for a mirror answered. A `partial` answer lost part of what the mirror holds (one of a
+ *  catalog's lists), so it carries no `complete` field and the mirror can neither cache nor store it. */
+export type MirrorFetch<T> = { readonly complete: T } | { readonly partial: T; readonly reason: string };
+
 /** One catalog mirror warm: the value it now holds, or why the live fetch failed, already scrubbed of the
  *  secrets that warm dialed with. Every caller coalesced onto one warm shares this one answer, so the reason is
  *  scrubbed where the secret is known, never by a later reader. The resolve path degrades on `ok: false`; the
- *  model-list read reports the reason as its `listed: false` reason. */
-export type MirrorWarm<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly reason: string };
+ *  model-list read lists `partial` when a fetch answered part of its lists, and otherwise reports the reason as
+ *  its `listed: false` reason. `partial` is null when the fetch answered nothing. */
+export type MirrorWarm<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly reason: string; readonly partial: T | null };
 
 /** The secret a model-list read dials with: the CALLER's saved credential by id (re-read through the credentials
  *  domain, never hand-minted), or a raw key typed into a draft that has not been saved yet. */

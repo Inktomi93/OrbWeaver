@@ -4,7 +4,7 @@ import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { ProviderDiagnostics } from "./diagnostics.ts";
 import type { ProviderScrubSet } from "./errors.ts";
 import type { ProviderRegistry } from "./registry.ts";
-import type { InferenceDeps, InferenceLog, MirrorWarm, SnapshotStore, SpawnIdentity } from "./runtime.ts";
+import type { InferenceDeps, InferenceLog, MirrorFetch, MirrorWarm, SnapshotStore, SpawnIdentity } from "./runtime.ts";
 
 export interface DetectArgs {
   readonly scheduleTimeout: ScheduleOp;
@@ -54,11 +54,12 @@ export interface MirrorDeps {
 
 export interface Mirror<T> {
   readonly get: () => T | null;
-  /** Warm when cold: the snapshot first, then `fetch`; persists a fresh fetch. Returns the mirror's value
-   *  after the attempt, or why the live fetch failed, scrubbed of `secrets` (the ones `fetch` dials with).
-   *  Never a throw: the resolve path degrades on `ok: false`, and the model-list read reports the reason. A
-   *  warm that coalesces onto one in flight shares that warm's answer, reason included. */
-  readonly warm: (fetch: () => Promise<T>, secrets: ProviderScrubSet) => Promise<MirrorWarm<T>>;
+  /** Warm when cold: the snapshot first, then `fetch`; persists a fresh `complete` fetch. A `partial` fetch is
+   *  handed back as `ok: false` with its value, and the held value and the stored snapshot stay as they were.
+   *  Returns the mirror's value after the attempt, or why the live fetch failed, scrubbed of `secrets` (the ones
+   *  `fetch` dials with). Never a throw: the resolve path degrades on `ok: false`, and the model-list read reports
+   *  the reason. A warm that coalesces onto one in flight shares that warm's answer, reason included. */
+  readonly warm: (fetch: () => Promise<MirrorFetch<T>>, secrets: ProviderScrubSet) => Promise<MirrorWarm<T>>;
   /** The first half of a warm and nothing more: a cold mirror loads the persisted snapshot, and nothing is dialed. A read
    *  that must not wait on a host still sees what the next warm would read first. `null` when nothing is held. */
   readonly hydrate: () => Promise<T | null>;

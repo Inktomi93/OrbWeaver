@@ -52,7 +52,10 @@ test("a --cpu-throttle session still holds its rate after a motion window", asyn
   await expect(withCpuRate(thrown.cdp, windowRates(["--cpu-throttle", "2"]), () => Promise.reject(new Error("window failed")))).rejects.toThrow(
     "window failed",
   );
-  expect(thrown.sent.at(-1)).toEqual({ method: CPU_THROTTLE_METHOD, params: { rate: 2 } });
+  expect(thrown.sent).toEqual([
+    { method: CPU_THROTTLE_METHOD, params: { rate: MOTION_CPU_THROTTLE } },
+    { method: CPU_THROTTLE_METHOD, params: { rate: 2 } },
+  ]);
 });
 
 test("an unthrottled session gets the motion throttle for the window and the identity rate after it", async () => {

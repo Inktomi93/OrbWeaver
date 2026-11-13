@@ -25,6 +25,7 @@ import { captureAppearanceInvariantRows } from "./appearance-invariant-runtime.t
 import { evaluateAppearanceInvariantCell } from "./appearance-invariants.ts";
 import { motionReceiptFor } from "./arms/motion.ts";
 import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures, writePageArmEvidence } from "./arms/registry.ts";
+import { markCallPhase } from "./call-phases.ts";
 import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { watchIntervalMs } from "./flags-support.ts";
@@ -126,6 +127,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     // BEFORE anything navigates — a request log wired after `page.goto` silently starts mid-stream (#1199).
     // Bound HERE rather than in `runSnapDetailed` (where the pre-split code had it) so a session call gets
     // the arms on exactly the same terms as a one-shot: one implementation, two hosts.
+    markCallPhase("arms-prepare");
     const arms = beginRunArms(session, opts);
     const plan: ShotPlan = { url, out, produceShot };
     const ratePosture = await arms.ratePosture();
@@ -143,7 +145,9 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       provisions: { debuggingPort: await debuggingPortFor(session), cascadeRuntime: cascadeRuntimeFor(session) },
       ratePosture,
     };
+    markCallPhase("run-arms");
     await arms.measure(armCtx);
+    markCallPhase("report");
     const appearance = await captureAppearanceResults(session, opts, detailedPlan);
     const evidenceSession = sessionForEvidence(session, outcomes);
     await writeSnapDiagnosticEvidence(key, evidenceSession.diagnostics);
