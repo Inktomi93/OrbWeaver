@@ -41,6 +41,30 @@ test("with no persona the first-run ask is forced open: no close control, Escape
   await expect(create).toBeDisabled();
 });
 
+test("a persona no pointer names reopens the ask on its recovery arm, which offers to finish rather than create", async ({ corpus, mount, page }) => {
+  const { firstBoot } = corpus;
+  if (firstBoot === undefined) {
+    throw new Error("The corpus has no first-boot cohort");
+  }
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  if ((await caller.persona.list()).length === 0) {
+    throw new Error("The corpus viewer has no persona");
+  }
+  await routeTrpc(page, {
+    // The create landed and the seed write did not: a persona exists and the settings still name none.
+    ...serveCorpusProcedures(caller, ["persona.list"]),
+    "settings.getUserSettings": () => firstBoot.reads.settings.output,
+  });
+  await mount<typeof FirstRunPersonaDialogStory>("tests/client/features/persona/anchors/_first-run-persona-stories/FirstRunPersonaDialogStory", {});
+
+  const gate = page.getByRole("dialog", { name: PERSONA_FIRST_RUN_TITLE, exact: true });
+  await expect(gate.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).not.toHaveValue("");
+  // Pinned by its words: the two arms' verbs come from one copy module, so a test reading them back would pass a swap.
+  // eslint-disable-next-line orb/no-hand-copied-label -- the literal is the pin; importing the constant would follow a swap.
+  await expect(page.getByTestId(testId("firstRunPersonaCreate"))).toHaveAccessibleName("Finish setting up");
+});
+
 test("a create in flight says so, and a refused one is said by the ask's own sentence", async ({ corpus, mount, page }) => {
   const { firstBoot } = corpus;
   if (firstBoot === undefined) {
