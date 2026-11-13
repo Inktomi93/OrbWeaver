@@ -42,6 +42,12 @@ const OUTSIDE = [
   "  const sink = { log: (entry: Entry): void => record(entry, base) };",
   '  sink.log({ zqEvent: "e", zqTrace: { zqBuilt: 1 } });',
   "};",
+  // A plain typed value given straight to the library logger: the slot is the inferred type itself, with no open member.
+  "interface Direct { readonly zqDirect: number }",
+  "interface Bare { readonly zqBare: number }",
+  "declare const direct: Direct;",
+  "declare const bare: Bare;",
+  "export const logged = (base: Logger): void => { base.debug({ ...direct }); base.debug(bare); };",
   "interface View { readonly zqShown: string }",
   'export const shown = (): string => render({ zqShown: "s" } satisfies View);',
   "interface Checked { readonly zqChecked: string }",
@@ -117,6 +123,8 @@ test("an open slot sends to the logger, library or file it leads to, and a backe
   const found = new Set(report.unwired.map(row));
   for (const expected of [
     "Trace.zqBuilt ask log pino",
+    "Direct.zqDirect ask log pino",
+    "Bare.zqBare ask log pino",
     "View.zqShown ask dependency render",
     "Checked.zqChecked dead",
     "Memo.zqMemo dead",
