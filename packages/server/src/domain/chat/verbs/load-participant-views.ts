@@ -6,7 +6,7 @@ import type { ChatContext, LoadParticipantViewsBatchOp, LoadParticipantViewsOp }
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipantsBatch } from "../persistence/participants-read.ts";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "../substrate/participant-name.ts";
-import { hostUserIdOf } from "../substrate/participants-host.ts";
+import { hostConsentOf } from "../substrate/participants-humans.ts";
 
 function resolveSeatDisplayName(
   r: Awaited<ReturnType<typeof loadParticipantsBatch>>[number],
@@ -28,7 +28,15 @@ export function createLoadParticipantViews(ctx: ChatContext): {
   const loadParticipantViewsBatch: LoadParticipantViewsBatchOp = async (chatIds) => {
     const rows = await loadParticipantsBatch(ctx.db, chatIds);
     const rowsByChat = Map.groupBy(rows, (row) => row.chatId);
-    const hosts = new Map([...rowsByChat].map(([chatId, seats]) => [chatId, hostUserIdOf(seats)]));
+    // The host's characters are dressed only while the host consents: a disabled host's room reads as a hostless one.
+    const hosts = new Map(
+      await Promise.all(
+        [...rowsByChat].map(async ([chatId, seats]) => {
+          const consent = await hostConsentOf(ctx, seats);
+          return [chatId, consent.kind === "consents" ? consent.hostUserId : null] as const;
+        }),
+      ),
+    );
     const charactersByHost = new Map<UserId, Set<CharacterId>>();
     for (const row of rows) {
       const hostUserId = hosts.get(row.chatId);
