@@ -116,10 +116,18 @@ Code comments cite the numbered invariants below as "invariant N":
    paths with `application/json` and no `x-orb-csrf` still run (200). The un-cookied loopback dev tooling
    relies on the fallback path. tRPC's method map also admits GET for queries and subscriptions, and a GET
    carries no content type, so a cross-site page can send one (an `<img>`, a navigation carrying the Lax
-   cookie). The second guard refuses every tRPC request outside POST that lacks `x-orb-csrf`, query and
-   subscription alike, on every credential path, with the FORBIDDEN a header-less cookie mutation gets
-   (`refuseHeaderlessOutsidePost`). A query still must not write. The client sends every request as a JSON
-   POST with the header.
+   cookie). The second guard, `refuseHeaderlessOutsidePost`, refuses every tRPC request outside POST that
+   lacks `x-orb-csrf`, on every credential path. No procedure runs on any of them, and the app grants no CORS,
+   so a cross-site page cannot read the answer. tRPC answers some requests before the guard's refusal applies,
+   so the answer depends on what the request names:
+
+   - A query gets the FORBIDDEN a header-less cookie mutation gets (403).
+   - A subscription gets a 200 event stream that carries a serialized error frame after its `connected` frame.
+   - An unknown procedure gets 404, and a mutation sent as GET gets 405.
+   - HEAD gets 204, which tRPC answers before it reads the request.
+   - OPTIONS, PUT and DELETE get 415, because they carry no content type tRPC reads.
+
+   A query still must not write. The client sends every request as a JSON POST with the header.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The
     production census is two: the `oidc` callback (`packages/server/src/entry/http/auth-routes.ts`: verified claims through
