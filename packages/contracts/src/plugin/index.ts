@@ -17,11 +17,12 @@ export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
 export type { PluginCommandView } from "./command-view.ts";
 export { pluginCommandViewSchema } from "./command-view.ts";
-export type { PluginHostRefusalCode } from "./errors.ts";
+export type { PluginHostRefusalCode, PluginLlmFailureKind } from "./errors.ts";
 export {
   HostVersionError,
   PLUGIN_CHANNEL_FULL_CODE,
   PLUGIN_HOST_REFUSAL_CODES,
+  PLUGIN_LLM_FAILURE_KINDS,
   PluginCapabilityError,
   PluginHostDeadlineError,
   PluginInstallerDisabledError,

@@ -441,6 +441,43 @@ test("a host result whose then getter loops stops the guest past its CPU budget 
   expect(trpc.count("plugin.reportUiCrash")).toBe(1);
 });
 
+// An event that awaits a host call and then rejects with an object whose `message` getter loops. The worker reads the
+// rejection after the host call's settle and pump ran, so the read runs guest code under whatever deadline they left.
+const LOOPING_REJECTION_SOURCE = `const ui = orb.ui(1);
+ui.render("protocol", { kind: "stack", children: [{ kind: "text", value: "Rejection guest ready" }, { kind: "button", label: "Read then reject", actionId: "reject" }] });
+ui.onEvent(async () => {
+  await ui.host.storage.get("ledger");
+  throw { get message() { for (;;) {} } };
+});`;
+
+test("an event that rejects after a host call is read under the event's own deadline, so the worker settles it as a failure", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) => (input.fn === "storage.get" ? { resultJson: '"Native ledger"' } : trpcError({ code: "NOT_FOUND" })),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: LOOPING_REJECTION_SOURCE }));
+  await observeProtocol(page);
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  await page.getByRole("button", { name: "Read then reject", exact: true }).click();
+
+  // A worker that lost the event's deadline wedges in that read, posts nothing, and only the host wall ends it.
+  const failed = { kind: "settled", ok: false } satisfies Partial<UiGuestSettledMessage>;
+  await expect.poll(async () => (await readProtocolResults(page)).outbound).toContainEqual(expect.objectContaining(failed));
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+});
+
 test("a crash report that fails writes its log and raises no toast, because the person did not start it", async ({ corpus, corpusViewer, mount, page }) => {
   const plugin = makePluginRow();
   const trpc = await routeTrpc(page, {
