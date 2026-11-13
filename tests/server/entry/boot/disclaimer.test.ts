@@ -36,7 +36,7 @@ function options(env: EnvInput, over: Partial<Options> = {}): Options {
     diagnosticsWarnings: NO_WARNINGS,
     forwardHeaderUnsignedClosed: false,
     forwardHeaderSignedClosed: false,
-    egressAllowlistWarnings: NO_WARNINGS,
+    egressAllowlistWarnings: [],
     secrets: {
       sessionSecret: { explicit: false, keyfile: "/data/secrets/session_secret" },
       credentialsKey: { explicit: true, keyfile: null },

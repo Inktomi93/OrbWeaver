@@ -81,6 +81,17 @@ export interface PinnedDownloadLimits {
 
 export type EgressResolver = (host: string) => Promise<readonly string[]>;
 
+/** One boot warning for an `EGRESS_ALLOWLIST` entry: `admits-nothing` for one no request host can equal, `trailing-dot`
+ *  for a name that matches only a URL spelling the host with that dot. */
+export interface EgressAllowlistWarning {
+  /** The entry as written, with URL userinfo cut; a fixed placeholder when a credential cannot be ruled out. */
+  readonly entry: string;
+  /** 1-based, among the list's non-empty entries, so a placeholder still says which entry it is. */
+  readonly position: number;
+  readonly reason: "admits-nothing" | "trailing-dot";
+  readonly text: string;
+}
+
 export interface ScopedEgressOptions {
   /** The physical request; a composition root passes `systemFetch`, a test passes a scripted one. */
   readonly fetch: typeof fetch;

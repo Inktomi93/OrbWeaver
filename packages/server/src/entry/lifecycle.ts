@@ -620,7 +620,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       egressAllowlistWarnings: egressAllowlistWarnings(env.EGRESS_ALLOWLIST),
       secrets: bootSecretProvenance({ ...secretLocation, sessionSecret: env.SESSION_SECRET, credentialsKey: env.CREDENTIALS_KEY }),
     })) {
-      const fields = { bootDisclaimer: true, topic: line.topic, ...(line.security ? { security: true } : {}) };
+      const fields = { ...line.fields, bootDisclaimer: true, topic: line.topic, ...(line.security ? { security: true } : {}) };
       if (line.level === "warn") {
         log.warn(fields, `boot: ${line.text}`);
       } else {

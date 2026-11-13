@@ -171,19 +171,27 @@ test("concurrent shutdown signals join the held native HTTP drain", { tags: "slo
   }
 });
 
-// An allowlist entry whose port no parser can read admits nothing; boot names it beside the entry that still applies.
+// An allowlist entry whose port no parser can read admits nothing; boot names it beside the entry that still applies. A
+// pasted URL's credentials never reach the log, in the warning or anywhere else.
 const UNREADABLE_ALLOWLIST_ENTRY = "proxy.lan:not-a-port";
+const ALLOWLIST_SECRET = "hunter2-secret";
+const CREDENTIALED_ALLOWLIST_ENTRY = `http://orb:${ALLOWLIST_SECRET}@proxy.lan:not-a-port`;
 const EXPOSURE_TOPIC = "exposure" satisfies (typeof BOOT_DISCLAIMER_TOPICS)[number];
-const bootLineSchema = z.object({ msg: z.string(), bootDisclaimer: z.literal(true), topic: z.literal(EXPOSURE_TOPIC) });
+const allowlistWarningSchema = z.object({
+  bootDisclaimer: z.literal(true),
+  topic: z.literal(EXPOSURE_TOPIC),
+  entry: z.string(),
+  position: z.number(),
+});
 
-/** The boot disclaimer's exposure lines, read off the server's JSON log lines. */
-function bootExposures(output: string): readonly string[] {
+/** The boot disclaimer's allowlist warnings, as their structured fields on the server's JSON log lines. */
+function allowlistWarnings(output: string): readonly { readonly entry: string; readonly position: number }[] {
   return output
     .split("\n")
     .filter((line) => line.startsWith("{"))
     .flatMap((line) => {
-      const parsed = bootLineSchema.safeParse(JSON.parse(line));
-      return parsed.success ? [parsed.data.msg] : [];
+      const parsed = allowlistWarningSchema.safeParse(JSON.parse(line));
+      return parsed.success ? [{ entry: parsed.data.entry, position: parsed.data.position }] : [];
     });
 }
 
@@ -201,15 +209,17 @@ test("the booted server's egress firewall refuses a bare fetch to an unlisted lo
   });
   const server = spawnServer(FETCH_OBSERVER, importStagingDir, await freeLoopbackPort(), {
     ["EGRESS_FIREWALL"]: "true",
-    ["EGRESS_ALLOWLIST"]: `${new URL(admitted.origin).host}, ${UNREADABLE_ALLOWLIST_ENTRY}`,
+    ["EGRESS_ALLOWLIST"]: `${new URL(admitted.origin).host}, ${UNREADABLE_ALLOWLIST_ENTRY}, ${CREDENTIALED_ALLOWLIST_ENTRY}`,
   });
   await using resources = new AsyncDisposableStack();
   resources.defer(server.stop);
   expect(await Promise.race([server.listening.then(() => "listening"), server.exited.then(() => "exited")]), server.output()).toBe("listening");
-  // Boot names the dead entry once, and only that one: the admitted host stays out of the warning.
-  const exposures = bootExposures(server.output());
-  expect(exposures.filter((message) => message.includes(UNREADABLE_ALLOWLIST_ENTRY))).toHaveLength(1);
-  expect(exposures.filter((message) => message.includes(new URL(admitted.origin).host))).toEqual([]);
+  // Boot names each dead entry once, by its structured fields, and never the admitted host.
+  expect(allowlistWarnings(server.output())).toEqual([
+    { entry: UNREADABLE_ALLOWLIST_ENTRY, position: 2 },
+    { entry: "http://proxy.lan:not-a-port", position: 3 },
+  ]);
+  expect(server.output()).not.toContain(ALLOWLIST_SECRET);
 
   const fetchInside = async (url: string): Promise<z.infer<typeof fetchReplySchema>> => {
     const reply = Promise.withResolvers<z.infer<typeof fetchReplySchema>>();

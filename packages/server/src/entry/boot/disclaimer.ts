@@ -5,6 +5,7 @@
 import type { AuthMode } from "@orb/contracts/identity";
 import { isCookieAuthMode, SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import type { BindPosture, OwnerFallbackPeerPosture } from "#foundation/env/record";
+import type { EgressAllowlistWarning } from "#infra/network";
 
 /** The disclaimer's closed topic set; `exposure` is the only one that can carry a security line. */
 export const BOOT_DISCLAIMER_TOPICS = ["mode", "listen", "owner", "cookie", "secrets", "caveat", "exposure"] as const;
@@ -29,8 +30,8 @@ export interface BootDisclaimerOptions {
   readonly forwardHeaderUnsignedClosed: boolean;
   /** `forward-header` verifying JWTs with no `FORWARD_AUTH_JWKS`: the signed path refuses everyone. */
   readonly forwardHeaderSignedClosed: boolean;
-  /** One line per `EGRESS_ALLOWLIST` entry that admits nothing (`egressAllowlistWarnings`). */
-  readonly egressAllowlistWarnings: readonly string[];
+  /** One line per `EGRESS_ALLOWLIST` entry `egressAllowlistWarnings` names; its entry, position and reason ride as fields. */
+  readonly egressAllowlistWarnings: readonly EgressAllowlistWarning[];
   readonly secrets: { readonly sessionSecret: BootSecretProvenance; readonly credentialsKey: BootSecretProvenance };
 }
 
@@ -40,6 +41,8 @@ export interface BootDisclaimerLine {
   /** A standing exposure an attacker could use; always a `warn`. */
   readonly security: boolean;
   readonly text: string;
+  /** Structured fields the log line carries beside the text. */
+  readonly fields?: Readonly<Record<string, string | number>>;
 }
 
 const MODE_LINE: Record<AuthMode, string> = {
@@ -125,6 +128,6 @@ export function composeBootDisclaimer(input: BootDisclaimerOptions): readonly Bo
     ...(breakGlassLive ? [exposure(BREAK_GLASS_WARNING)] : []),
     ...(input.forwardHeaderUnsignedClosed ? [closedDoor(FORWARD_HEADER_CLOSED_WARNING)] : []),
     ...(input.forwardHeaderSignedClosed ? [closedDoor(FORWARD_HEADER_SIGNED_CLOSED_WARNING)] : []),
-    ...input.egressAllowlistWarnings.map(closedDoor),
+    ...input.egressAllowlistWarnings.map(({ text, ...fields }) => ({ ...closedDoor(text), fields })),
   ];
 }
