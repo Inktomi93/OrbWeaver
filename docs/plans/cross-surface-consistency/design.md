@@ -57,7 +57,7 @@ Each group below carries one decision, convert or keep. Each convert links the w
 
 #### Dialogs
 
-The owner is the composite family in `docs/law/client-architecture-lockdown.md`: `FormDialog` and `FlowDialog` for a dialog that commits, `DismissDialog`, `ContentDialog`, `ViewerDialog` and `PickerDialog` for the rest, and `ModalHost` for registry modals. [2579](../../work/2579-the-dialog-census-counts-modal-popovers.md) adds a census cohort for the kept modal popovers so they are counted.
+The owner is the composite family in `docs/law/client-architecture-lockdown.md`: `FormDialog` and `FlowDialog` for a dialog that commits, `DismissDialog`, `ContentDialog`, `ViewerDialog` and `PickerDialog` for the rest, and `ModalHost` for registry modals. A census cohort counts the kept modal popovers.
 
 | Group | Decision | Reason | Item |
 | - | - | - | - |
