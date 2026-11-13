@@ -14,6 +14,7 @@ import {
   LOAD_MORE_DISMISSED_LABEL,
   LOAD_MORE_LABEL,
   NOTIFICATIONS_BELL_NAME,
+  NOTIFICATIONS_UNREAD_FLOOR_MARK,
   notificationsBellLabel,
   SHOW_DISMISSED_LABEL,
 } from "#client/features/notifications/lib/notifications-copy.ts";
@@ -22,7 +23,9 @@ import type { NotificationInboxStory } from "./_ct-stories.tsx";
 
 const STORY = "tests/client/features/notifications/_ct-stories/NotificationInboxStory";
 const INBOX_PROCEDURES = ["notifications.list", "notifications.markAllRead", "notifications.dismiss", "plugin.list"] as const;
-const BELL = NOTIFICATIONS_BELL_NAME;
+// The bell's name leads with its base name and may carry a count after it; the dismiss press leads with its verb and names the row after it.
+const BELL = new RegExp(`^${RegExp.escape(NOTIFICATIONS_BELL_NAME)}`, "u");
+const DISMISS_NAME_PATTERN = new RegExp(`^${RegExp.escape(DISMISS_NAME_LEAD)}`, "u");
 // The server's default page, which the client's list asks for by omission.
 const PAGE_SIZE = 50;
 const POPUP = '[data-slot="popover-popup"]';
@@ -272,7 +275,7 @@ test("a background refetch neither raises nor clears a Load more failure", async
   await loadMore.click();
   await expect(failure).toHaveCount(1);
   const beforeDismiss = trpc.count("notifications.list");
-  await popup.locator(ROW).first().getByRole("button", { name: DISMISS_NAME_LEAD }).click();
+  await popup.locator(ROW).first().getByRole("button", { name: DISMISS_NAME_PATTERN }).click();
   await expect.poll(() => trpc.count("notifications.list")).toBeGreaterThan(beforeDismiss);
   await expect(failure).toHaveCount(1);
 });
@@ -348,7 +351,9 @@ test("past the first page the bell says its unread count is a floor, and dismiss
   const { firstPage: unread } = await seededInbox(root, reader.userId);
   await routeTrpc(page, serveCorpusProcedures(rpc, INBOX_PROCEDURES));
   await mount<typeof NotificationInboxStory>(STORY, {});
-  await expect(page.getByRole("button", { name: notificationsBellLabel(unread, true), exact: true })).toBeVisible();
+  // The floor mark is the behavior under test, so the bell is found by the mark itself and the uncapped name is asserted absent.
+  await expect(page.getByRole("button", { name: `${String(unread)}${NOTIFICATIONS_UNREAD_FLOOR_MARK}` })).toBeVisible();
+  await expect(page.getByRole("button", { name: notificationsBellLabel(unread, false), exact: true })).toHaveCount(0);
   await openBell(page);
   await page.getByRole("button", { name: SHOW_DISMISSED_LABEL, exact: true }).click();
   await expect(page.getByRole("button", { name: LOAD_MORE_DISMISSED_LABEL, exact: true })).toBeVisible();
@@ -424,7 +429,7 @@ test("a press that brings no row leaves nothing armed, so a later refetch cannot
   await root.services.notifications.record({ event: newest.payload });
   await root.services.notifications.record({ event: newest.payload });
   const reads = trpc.count("notifications.list");
-  await rows.first().getByRole("button", { name: DISMISS_NAME_LEAD }).click();
+  await rows.first().getByRole("button", { name: DISMISS_NAME_PATTERN }).click();
   await expect.poll(() => trpc.count("notifications.list")).toBeGreaterThan(reads);
   await expect(rows).toHaveCount(PAGE_SIZE + 1);
   await expect(rows.nth(PAGE_SIZE)).not.toBeFocused();
@@ -453,7 +458,7 @@ test("a list invalidate during a pressed page still ends in that page", async ({
   await expect(rows).toHaveCount(firstPage);
   await page.getByRole("button", { name: LOAD_MORE_LABEL, exact: true }).click();
   await hold.requested;
-  await rows.first().getByRole("button", { name: DISMISS_NAME_LEAD }).click();
+  await rows.first().getByRole("button", { name: DISMISS_NAME_PATTERN }).click();
   await expect.poll(() => rows.count()).toBeGreaterThan(firstPage);
   hold.release();
 });
@@ -486,7 +491,7 @@ test("the dismissed list takes the same press: an invalidate cannot drop its pag
   await expect(older).toHaveCount(PAGE_SIZE);
   await page.getByRole("button", { name: LOAD_MORE_DISMISSED_LABEL, exact: true }).click();
   await hold.requested;
-  await page.locator(ROW).first().getByRole("button", { name: DISMISS_NAME_LEAD }).click();
+  await page.locator(ROW).first().getByRole("button", { name: DISMISS_NAME_PATTERN }).click();
   await expect.poll(() => older.count()).toBeGreaterThan(PAGE_SIZE);
   hold.release();
 });

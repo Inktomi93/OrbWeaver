@@ -12,6 +12,7 @@ import { pickKeys } from "@orb/kit/objects";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
+import { SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
@@ -48,7 +49,6 @@ const AUTHED_APP_CHUNK = /\/authed-app-[\w-]+\.js(?:\?.*)?$/u;
 const EXPORT_CLAUSE = "export{";
 const REWRITTEN_BODY_HEADERS = new Set(["content-encoding", "content-length", "etag"]);
 const ROUTE_CRASH = "corpus shell route render crashed";
-const SKIP_LINK = "Skip to content";
 // The topbar's list toggle in both regimes: a desktop names the panel, a phone names the screen a tap lands on.
 const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 // The phone's curated bar: three tab sections and the You sheet's door.
@@ -335,7 +335,7 @@ test.describe("committed corpus shell", () => {
     await expect(page.getByRole("main", { name: "Home content" })).toBeVisible();
     expect(await page.evaluate((): unknown => Reflect.get(globalThis, "__shellFocusTrail"))).toEqual([]);
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: SKIP_LINK, exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: SKIP_TO_CONTENT_NAME, exact: true })).toBeFocused();
   });
 
   test("a remembered appearance is on <html> before React mounts and before the app is ready", { tag: "@smoke" }, async ({ page, baseURL }) => {

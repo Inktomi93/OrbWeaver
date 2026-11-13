@@ -36,9 +36,13 @@ export function imagineGenerateCountLabel(count: number): string {
   return `Generate ${count} images`;
 }
 
+/** The two payers the spend line can name. */
+export const IMAGINE_HOST_PAYS_TEXT = "The room's host pays";
+export const IMAGINE_YOU_PAY_TEXT = "You pay";
+
 /** The line that names who pays for a count above one. */
 export function imagineCountSpendText(count: number, hostPays: boolean): string {
-  return `Asks for ${count} images. ${hostPays ? "The room's host pays" : "You pay"} for each one that comes back, and some connections make only one.`;
+  return `Asks for ${count} images. ${hostPays ? IMAGINE_HOST_PAYS_TEXT : IMAGINE_YOU_PAY_TEXT} for each one that comes back, and some connections make only one.`;
 }
 
 /** The image detail dialog's provenance strip: its read in a failure line, and the state of an image with none recorded. */

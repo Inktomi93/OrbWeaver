@@ -18,7 +18,7 @@ import {
   REFINERY_SCHEMA_DESCRIBE_NAME,
   REFINERY_SCHEMA_JSON_NAME,
   REFINERY_TEST_ON_CARD_NAME,
-  refineryTestOnCardLabel,
+  REFINERY_TEST_RUNNING_NAME,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import type { SchemaPreviewStory } from "./_payload-stories.tsx";
 
@@ -171,7 +171,8 @@ test("schema preview retains settled expansion through rerenders and failures, t
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: REFINERY_TEST_ON_CARD_NAME, exact: true }).click();
   await failed.requested;
-  await expect(page.getByRole("button", { name: refineryTestOnCardLabel(true), exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: REFINERY_TEST_RUNNING_NAME, exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: REFINERY_TEST_ON_CARD_NAME, exact: true })).toHaveCount(0);
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
   await assay.scrollIntoViewIfNeeded();

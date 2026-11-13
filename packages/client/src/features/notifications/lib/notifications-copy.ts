@@ -14,9 +14,14 @@ export const KICKED_ROW_COPY = "You were removed from a chat";
 /** The bell's name with nothing unread, and the lead of every name it takes with a count. */
 export const NOTIFICATIONS_BELL_NAME = "Notifications";
 
+/** The mark after a count that is a floor: more pages sit below the loaded ones. */
+export const NOTIFICATIONS_UNREAD_FLOOR_MARK = "+";
+
 /** The bell's name. Counts cover the loaded pages, so with more below the count is a floor and the name says so. */
 export function notificationsBellLabel(unreadCount: number, hasNextPage: boolean): string {
-  return unreadCount === 0 ? NOTIFICATIONS_BELL_NAME : `${NOTIFICATIONS_BELL_NAME} (${String(unreadCount)}${hasNextPage ? "+" : ""} unread)`;
+  return unreadCount === 0
+    ? NOTIFICATIONS_BELL_NAME
+    : `${NOTIFICATIONS_BELL_NAME} (${String(unreadCount)}${hasNextPage ? NOTIFICATIONS_UNREAD_FLOOR_MARK : ""} unread)`;
 }
 
 /** The empty inbox's title. */

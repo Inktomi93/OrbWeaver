@@ -111,9 +111,12 @@ export const REFINERY_SCHEMA_JSON_NAME = "Schema (JSON: the full vocabulary)";
 export const REFINERY_PICK_TEST_CARD_NAME = "Pick a card to test on";
 export const REFINERY_TEST_ON_CARD_NAME = "Test on this card";
 
+/** The test press's name while a test is running. */
+export const REFINERY_TEST_RUNNING_NAME = "Running…";
+
 /** The test press's name, by whether a test is running. */
 export function refineryTestOnCardLabel(running: boolean): string {
-  return running ? "Running…" : REFINERY_TEST_ON_CARD_NAME;
+  return running ? REFINERY_TEST_RUNNING_NAME : REFINERY_TEST_ON_CARD_NAME;
 }
 
 /** The picker's name on the empty sessions state's start door and on the list band's popover. */

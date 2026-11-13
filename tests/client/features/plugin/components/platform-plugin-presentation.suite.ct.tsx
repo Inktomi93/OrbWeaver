@@ -170,6 +170,7 @@ for (const viewport of VIEWPORTS) {
       await mount<typeof PluginPresentationPageStory>(PAGE_STORY, { pluginId: atlas.id, surfaceId: "atlas_page", width: viewport.host });
       const body = page.getByRole("group", { name: "Card Atlas", exact: true });
       const hub = body.getByRole("combobox", { name: "Hub", exact: true });
+      // eslint-disable-next-line orb/no-hand-copied-label -- the Card Atlas guest names this select itself; the exported Corpus browse label is a different feature's control.
       const sort = body.getByRole("combobox", { name: "Sort", exact: true });
       const sfw = body.getByRole("switch", { name: "SFW only", exact: true });
       await expect(hub).toBeVisible();

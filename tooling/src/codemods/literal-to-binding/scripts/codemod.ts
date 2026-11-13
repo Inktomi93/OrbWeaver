@@ -101,11 +101,16 @@ function parseAlso(also: unknown, planFile: string, index: number): readonly Ext
   });
 }
 
-// The rewrite's own binding, then each extra name its expression reads.
+// The rewrite's own binding, then each extra name its expression reads. One name is one import: the same binding
+// asked for from two modules is a plan error, not a choice the codemod makes.
 function need(needed: Map<string, LiteralRewrite>, rewrite: LiteralRewrite): void {
-  needed.set(rewrite.binding, rewrite);
-  for (const extra of rewrite.also ?? []) {
-    needed.set(extra.binding, { ...rewrite, binding: extra.binding, from: extra.from });
+  const wanted = [rewrite, ...(rewrite.also ?? []).map((extra) => ({ ...rewrite, binding: extra.binding, from: extra.from }))];
+  for (const entry of wanted) {
+    const earlier = needed.get(entry.binding);
+    if (earlier !== undefined && earlier.from !== entry.from) {
+      throw new Error(`${entry.expression}: ${entry.binding} is imported from both ${earlier.from} and ${entry.from}`);
+    }
+    needed.set(entry.binding, entry);
   }
 }
 

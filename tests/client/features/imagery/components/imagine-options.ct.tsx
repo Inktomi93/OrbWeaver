@@ -13,11 +13,12 @@ import type { Page } from "@playwright/test";
 import {
   IMAGINE_COUNT_NAME,
   IMAGINE_GENERATE_NAME,
+  IMAGINE_HOST_PAYS_TEXT,
   IMAGINE_MORE_OPTIONS_NAME,
   IMAGINE_NEGATIVE_NAME,
   IMAGINE_PROMPT_NAME,
   IMAGINE_SIZE_NAME,
-  imagineCountSpendText,
+  IMAGINE_YOU_PAY_TEXT,
   imagineGenerateCountLabel,
 } from "#client/features/imagery/lib/imagine-names.ts";
 import type { ImagineOptionsStory } from "./_imagine-options-stories.tsx";
@@ -101,7 +102,10 @@ test("a room member is told the host pays, a host is told they do, and both read
     const mounted = await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
     await expect(page.locator('[data-slot="imagine-room-pictures-note"]')).toHaveText(ROOM_PICTURES_NOTE);
     await pickCount(page, "3");
-    await expect(page.locator('[data-slot="imagine-count-spend"]')).toHaveText(imagineCountSpendText(3, hostPays));
+    // Who pays is the behavior under test: the viewer's own payer is named and the other one is not.
+    const spend = page.locator('[data-slot="imagine-count-spend"]');
+    await expect(spend).toContainText(hostPays ? IMAGINE_HOST_PAYS_TEXT : IMAGINE_YOU_PAY_TEXT);
+    await expect(spend).not.toContainText(hostPays ? IMAGINE_YOU_PAY_TEXT : IMAGINE_HOST_PAYS_TEXT);
     await mounted.unmount();
   }
 });

@@ -194,7 +194,7 @@ for (const regime of REGIMES) {
       if (!regime.coarse) {
         await page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true }).click();
       }
-      const decline = page.getByRole("button", { name: DECLINE_INVITATION_NAME_LEAD });
+      const decline = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(DECLINE_INVITATION_NAME_LEAD)}`, "u") });
       await decline.click();
       await expect(decline).toHaveCount(0);
       expect((await owner.invites.listInvites({ chatId: invitedRoom.id })).find((row) => row.id === invited.invite.id)?.remainingUses).toBe(1);
@@ -212,7 +212,7 @@ for (const regime of REGIMES) {
         await page.getByRole("button", { name: NOTIFICATIONS_BELL_NAME, exact: true }).click();
       }
       const rows = page.locator('[data-slot="inbox-row"]');
-      const dismissals = page.getByRole("button", { name: DISMISS_NAME_LEAD });
+      const dismissals = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(DISMISS_NAME_LEAD)}`, "u") });
       while (await dismissals.count()) {
         const before = await rows.count();
         await dismissals.first().click();

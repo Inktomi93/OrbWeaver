@@ -35,9 +35,12 @@ export function signupSubmitLabel(creating: boolean): string {
   return creating ? "Creating your account…" : JOIN_CREATE_ACCOUNT_NAME;
 }
 
+/** The pending-join confirm's name while the confirm is in flight. */
+export const JOIN_CONFIRMING_NAME = "Joining…";
+
 /** The pending-join confirm, by whether the confirm is in flight. */
 export function pendingJoinConfirmLabel(confirming: boolean): string {
-  return confirming ? "Joining…" : JOIN_CREATE_ACCOUNT_NAME;
+  return confirming ? JOIN_CONFIRMING_NAME : JOIN_CREATE_ACCOUNT_NAME;
 }
 
 /** The persona name both signup doors ask for, and the line a confirm without one shows. */

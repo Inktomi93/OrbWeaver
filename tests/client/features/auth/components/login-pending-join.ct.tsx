@@ -11,12 +11,12 @@ import {
   INVITE_LOADING_NAME,
   INVITE_UNAVAILABLE_TITLE,
   INVITED_HEADING,
+  JOIN_CONFIRMING_NAME,
   JOIN_CREATE_ACCOUNT_NAME,
   JOINER_PERSONA_NAME_FIELD,
   JOINER_PERSONA_NAME_REQUIRED,
   PENDING_JOIN_APPROVAL_NOTE,
   PENDING_JOIN_APPROVAL_TITLE,
-  pendingJoinConfirmLabel,
   SIGN_IN_NAME,
 } from "#client/features/auth/lib/pending-join-names.ts";
 import type { PendingJoinStory } from "./_pending-join-stories.tsx";
@@ -173,8 +173,9 @@ test("a held confirm cannot submit twice and a non-signed-in result waits for ap
     await page.getByRole("textbox", { name: JOINER_PERSONA_NAME_FIELD, exact: true }).fill(JOIN_PERSONA.name);
     await page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true }).click();
     await requested.promise;
-    const joining = page.getByRole("button", { name: pendingJoinConfirmLabel(true), exact: true });
+    const joining = page.getByRole("button", { name: JOIN_CONFIRMING_NAME, exact: true });
     await expect(joining).toBeDisabled();
+    await expect(page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true })).toHaveCount(0);
     await joining.evaluate((button) => {
       const form = button.closest("form");
       if (form === null) {

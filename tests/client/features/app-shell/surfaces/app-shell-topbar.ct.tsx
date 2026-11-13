@@ -611,7 +611,7 @@ test.describe("an open named group room", () => {
     await expect(title).toHaveText(room.cast);
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     const trail = page.locator(".shell-topbar-trail");
-    await expect(trail.getByRole("button", { name: NOTIFICATIONS_BELL_NAME })).toBeVisible();
+    await expect(trail.getByRole("button", { name: new RegExp(`^${RegExp.escape(NOTIFICATIONS_BELL_NAME)}`, "u") })).toBeVisible();
     await expect(trail.getByRole("button", { name: BUG_REPORT_NAME, exact: true })).toBeVisible();
     await expect(page.locator(MEMBERS_CHIP)).toBeVisible();
     await expect(page.locator(MEMORY_CHIP)).toBeVisible();
