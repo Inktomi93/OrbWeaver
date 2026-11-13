@@ -7,8 +7,7 @@ import { Button } from "@orb/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-
-const INVALIDATE_ROOM_NAME = "Invalidate the room";
+import { INVALIDATE_ROOM_NAME } from "./_chat-room-shell-names.ts";
 
 function RoomSocket(): null {
   useOrbSocket();

@@ -27,6 +27,8 @@
 //     both kinds are retryable. With `code` `"channel_full"` (`PluginHostRefusalCode`), a channel inside the host
 //     was full and only this call was refused: retry it soon. With no `code`, the host itself was lost or
 //     restarting: retry later.
+//   - A host call that reaches your installer's account rejects with `name` `"PluginInstallerDisabledError"` while
+//     that account is disabled, never a strike, even uncaught.
 //   - Handlers must never throw: wrap, log, return.
 
 // ── capabilities (the manifest's closed axis — declaring is ASKING; `host.grants` is what was ANSWERED) ─────

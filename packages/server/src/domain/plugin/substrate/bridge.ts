@@ -35,7 +35,7 @@
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
 import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
-import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX } from "@orb/contracts/plugin";
+import { PLUGIN_LORE_ENTRIES_PER_BOOK_MAX, PluginInstallerDisabledError } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
@@ -322,7 +322,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // account is refused here, read fresh per call: a disabled installer stands as a departed one (owner-ruled).
     admitInstaller: async (): Promise<void> => {
       if (!(await ops.isInstallerEnabled(installerUserId))) {
-        throw new Error("plugin host: this plugin's installer is disabled");
+        throw new PluginInstallerDisabledError();
       }
     },
     // Quick replies are room effects; a continuation must still hold the installer host seat when it emits.

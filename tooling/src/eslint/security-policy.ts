@@ -500,6 +500,46 @@ export const ROLE_DATA_RESTRICTIONS = ROLE_DATA_EXPORTS.map(({ path, names }, in
   ],
 }));
 
+/** The root of every server source a server import restriction judges. */
+export const SERVER_SOURCE_ROOT = "packages/server/src/";
+
+/**
+ * Every server import restriction, with the server sources that may make the import. A home ending in `/` is a
+ * directory; any other home is one file.
+ * @remarks Flat config replaces a rule's options per block, so `eslint.config.ts` builds every server
+ * `no-restricted-imports` block from this table: a home's block lifts its own row and keeps every other.
+ */
+export const SERVER_IMPORT_HOMES = [
+  {
+    id: "settings-table",
+    homes: [`${SERVER_SOURCE_ROOT}domain/settings/`],
+    restriction: {
+      regex: "^@orb/db(?:/(?:schema|index))?$",
+      importNames: ["settings"],
+      message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
+    },
+  },
+  {
+    id: "png-card-chunk",
+    homes: [`${SERVER_SOURCE_ROOT}domain/import/`, `${SERVER_SOURCE_ROOT}domain/export/`],
+    restriction: {
+      regex: "^@orb/kit/png-card-chunk(?:/|$)",
+      importNames: ["readCardChunk", "writeCardChunk", "isPng"],
+      message: "Use the import or export domain for PNG card-chunk operations.",
+    },
+  },
+  {
+    // A canon read accepts only the answer chat's resolver minted, so the mint has that one caller.
+    id: "visibility-mint",
+    homes: [`${SERVER_SOURCE_ROOT}domain/chat/verbs/resolve-viewer-visibility.ts`],
+    restriction: {
+      regex: "viewer-visibility-registry(?:\\.ts)?$",
+      importNames: ["mintViewerVisibility"],
+      message: "Only chat's resolveViewerVisibility mints a ViewerVisibility; take the answer from that op.",
+    },
+  },
+] as const;
+
 export const TURN_IDENTITY_RESTRICTIONS = [
   {
     id: "turn-identity-name",
