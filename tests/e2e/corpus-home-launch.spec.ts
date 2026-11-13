@@ -5,7 +5,7 @@ import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page, Response } from "@playwright/test";
 import { z } from "zod";
-import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { PERSONA_PLAYING_AS_LABEL } from "#client/features/persona/lib/persona-copy.ts";

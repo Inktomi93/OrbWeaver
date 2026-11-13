@@ -91,9 +91,6 @@ export const CHARACTER_DESCRIPTION_FIELD_NAME = "Character description";
 /** The library list's default name. */
 export const CHARACTER_LIBRARY_NAME = "Character library";
 
-/** The library's search box. */
-export const CHARACTER_SEARCH_NAME = "Search characters";
-
 /** The library's sort select. */
 export const CHARACTER_SORT_NAME = "Sort characters";
 
