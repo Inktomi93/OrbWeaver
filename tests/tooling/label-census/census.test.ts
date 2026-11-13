@@ -223,6 +223,7 @@ const POSITIONS: [string, string[]][] = [
   ['expect(row).toContainText("Contains text");', ['"Contains text"']],
   ['expect(row).toHaveAccessibleName("Accessible name");', ['"Accessible name"']],
   ['expect(row).toHaveAccessibleDescription("Accessible description");', ['"Accessible description"']],
+  ['expect(page).toHaveTitle("Page title");', ['"Page title"']],
   ['page.getByRole("button", { name: "Role name" });', ['"Role name"']],
   ['row.filter({ hasText: "Filter text" });', ['"Filter text"']],
   ['row.locator("li", { hasNotText: "Not this text" });', ['"Not this text"']],
@@ -298,14 +299,21 @@ const SELECTOR_CONSTANT_SPEC: CensusSource = {
     `export const bug = (page) => page.locator(\`[aria-label="${hole("BUG_REPORT_NAME")}"]\`);`,
     'const SIDE = open ? "Left" : "Right";',
     `export const side = (page) => page.locator(\`[title="${hole("SIDE")}"]\`);`,
+    "const ROSTER = '[aria-label=\"Roster\"]';",
+    "const CHIP = '[data-slot=\"chip\"]';",
+    `export const chips = (page) => page.locator(\`${hole("ROSTER")}:not([aria-hidden="true"]) ${hole("CHIP")}\`);`,
+    "const SOLO = '[title=\"Solo\"]';",
+    `export const solo = (page) => page.locator(\`${hole("SOLO")} .chip\`);`,
   ].join("\n"),
 };
 
-test("a selector's names count where their text is written: a selector constant, a whole literal placeholder, a part-literal string", () => {
+test("a selector's names count where their text is written: a selector constant, bare or composed, a whole literal placeholder, a part-literal string", () => {
   expect(nameSites(SELECTOR_CONSTANT_SPEC).map((site) => `${String(site.line)} ${site.value ?? site.text}`)).toEqual([
     "1 Characters",
     '2 "Frame title"',
     "6 Open Frame title",
+    "10 Roster",
+    "13 Solo",
   ]);
 });
 
@@ -334,6 +342,8 @@ const LABEL_FUNCTIONS: CensusSource = {
     "function hiddenName(on: boolean): string { return on ? 'On' : 'Off'; }",
     `export const openName = (title: string): string => \`Open ${hole("title")}\`;`,
     "export const isOpen = (state: string): boolean => state === 'open' ? true : false;",
+    `export const nowName = (): string => \`Now ${hole("STAMP")}\`;`,
+    "export const fixedName = (title: string): string => 'Fixed';",
   ].join("\n"),
 };
 
@@ -355,16 +365,57 @@ const ORACLE_SPEC: CensusSource = {
   ].join("\n"),
 };
 
-test("a multi-output label function called where an assertion expects a name is an oracle call, a single-output one is not", () => {
+test("a label function whose name varies, called where an assertion reads a name, is an oracle candidate of its kind", () => {
   const index = productionIndex([LABEL_FUNCTIONS]);
-  expect([...index.labelFunctions.keys()].sort()).toEqual(["modeName", "pinName", "safeName", "starName", "twiceName"]);
+  expect([...index.labelFunctions].map(([name, { kind }]) => `${name} ${kind}`).sort()).toEqual([
+    "modeName branching",
+    "openName template",
+    "pinName branching",
+    "safeName branching",
+    "starName branching",
+    "twiceName branching",
+  ]);
   const rows = oracleCalls(ORACLE_SPEC, index, { authored: new Set() });
-  expect(rows.map((row) => `${String(row.line)} ${row.function} ${row.feature}`)).toEqual([
-    "3 pinName client/src/features/chat",
-    "4 starName client/src/features/chat",
-    "6 modeName client/src/features/chat",
-    "7 twiceName client/src/features/chat",
-    "12 safeName client/src/features/chat",
+  expect(rows.map((row) => `${String(row.line)} ${row.function} ${row.kind} ${row.feature}`)).toEqual([
+    "3 pinName branching client/src/features/chat",
+    "4 starName branching client/src/features/chat",
+    "6 modeName branching client/src/features/chat",
+    "7 twiceName branching client/src/features/chat",
+    "8 openName template client/src/features/chat",
+    "12 safeName branching client/src/features/chat",
+  ]);
+});
+
+// Minimal excerpts of two oracle defects as they stood before their fix: each label function's body, and the assertion
+// that built its expected name with it inside a locator under `expect`.
+const BELL_NAMES: CensusSource = {
+  path: "packages/client/src/features/notifications/lib/notifications-copy.ts",
+  text: `export function notificationsBellLabel(unreadCount: number, hasNextPage: boolean): string { return unreadCount === 0 ? NOTIFICATIONS_BELL_NAME : \`${hole("NOTIFICATIONS_BELL_NAME")} (${hole("String(unreadCount)")} unread)\`; }`,
+};
+const REFINERY_NAMES: CensusSource = {
+  path: "packages/client/src/features/refinery/lib/refinery-names.ts",
+  text: 'export function refineryTestOnCardLabel(running: boolean): string { return running ? "Running…" : REFINERY_TEST_ON_CARD_NAME; }',
+};
+const SUBJECT_SPEC: CensusSource = {
+  path: "tests/client/features/notifications/notification-inbox.ct.tsx",
+  text: [
+    'import { notificationsBellLabel } from "#client/features/notifications/lib/notifications-copy.ts";',
+    'import { refineryTestOnCardLabel } from "#client/features/refinery/lib/refinery-names.ts";',
+    'await expect(page.getByRole("button", { name: notificationsBellLabel(unread, true), exact: true })).toBeVisible();',
+    'await expect(page.getByRole("button", { name: refineryTestOnCardLabel(true), exact: true })).toBeDisabled();',
+    'const busy = page.getByRole("button", { name: refineryTestOnCardLabel(false) });',
+    "await expect(busy).toHaveCount(1);",
+    'const idle = page.getByRole("button", { name: notificationsBellLabel(0, false) });',
+    "await idle.click();",
+  ].join("\n"),
+};
+
+test("a label function in a locator's name inside the expect subject, or in a locator constant the subject reads, is a candidate", () => {
+  const rows = oracleCalls(SUBJECT_SPEC, productionIndex([BELL_NAMES, REFINERY_NAMES]), { authored: new Set() });
+  expect(rows.map((row) => `${String(row.line)} ${row.function}`)).toEqual([
+    "3 notificationsBellLabel",
+    "4 refineryTestOnCardLabel",
+    "5 refineryTestOnCardLabel",
   ]);
 });
 

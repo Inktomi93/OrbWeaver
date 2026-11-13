@@ -2,9 +2,9 @@
 //
 //   pnpm label-census [--feature=<prefix>] [--json=<path>]
 //
-// Prints the per-feature, per-class site table, then the per-feature count of assertions that build their expected
-// name with a label function that can return more than one name. `--feature` keeps rows whose feature starts with the
-// prefix, such as `client/src/features/chat` or `client/components`. `--json` also writes `{ sites, oracleCalls }`,
+// Prints the per-feature, per-class site table, then the per-feature count of oracle candidates by kind: label
+// functions whose name varies, called where an assertion reads a name. `--feature` keeps rows whose feature starts
+// with the prefix, such as `client/src/features/chat` or `client/components`. `--json` also writes `{ sites, oracleCalls }`,
 // each sorted, to that path.
 // Exit: 0 answered · 2 the tool broke · 3 misuse.
 import { writeFileSync } from "node:fs";

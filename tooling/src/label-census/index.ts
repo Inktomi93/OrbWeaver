@@ -17,18 +17,24 @@
 // whose plain parameter reaches a name position, makes each literal passed for it a site at the call; a destructured
 // parameter, a method on an object and a callback a helper receives are not followed.
 //
-// A selector or snapshot placeholder that resolves to one spec literal is read as that literal: a name that is the
-// literal whole counts where it is written, and a name the literal is part of counts at the string, filled in.
+// A selector or snapshot placeholder that resolves to one spec literal is read as that literal: a name the literal
+// spells inside itself, or that is the literal whole, counts where the literal is written, and a name the literal is
+// part of counts at the string, filled in. So a selector constant composed into a template still counts.
 //
 // Not read, each because no sound reading exists: a placeholder that resolves to no one spec literal, such as a
 // production name or a call, leaves its name a binding; a helper parameter that reaches only a selector or snapshot
 // reaches it inside a template, which the census does not evaluate; a `text=/…/` selector engine is a regex in a
-// string, with no fixed boundary between pattern and text; a field's value (`fill`, `toHaveValue`, `inputValue`) is
-// data, not a name; and a literal passed to a production label function is that function's subject, not a name.
+// string, with no fixed boundary between pattern and text; an XPath selector is a second grammar the census does not
+// parse; `includes`, `startsWith` or `endsWith` on a text read tests a fragment, and the classes judge whole names; a
+// field's value (`fill`, `toHaveValue`, `inputValue`) is data, not a name; and a literal passed to a production label
+// function is that function's subject, not a name.
 //
-// Beside the sites, the census counts oracle calls: a call to a production function that can return more than one
-// name (one that returns text and branches, or returns text more than once), written inside the name an assertion
-// expects or in a spec constant that name reads. The function is matched by its exported name.
+// Beside the sites, the census lists oracle candidates: a call to a production label function whose name varies,
+// written where an assertion reads a name (a matcher's name argument, a compared text read, or a locator's name or
+// text filter inside the `expect` subject, directly or through a spec constant), or in a spec constant one of those
+// reads. `branching` functions return text and branch or return text more than once; `template` functions return one
+// template that splices in an argument. Each row is a candidate for a reader to judge, not a verdict: a locator that
+// finds a control by such a name is listed too. The function is matched by its exported name.
 //
 // A text, or a template whose every fixed word a story the spec mounts writes, is that story's. A text several
 // production files hold is filed under the one in the spec's own feature, then one in a feature the spec imports
@@ -55,6 +61,7 @@ const TEXT_CALLS = new Set([
   "toContainText",
   "toHaveAccessibleName",
   "toHaveAccessibleDescription",
+  "toHaveTitle",
 ]);
 const LOCATOR_OPTION_KEYS: ReadonlySet<string> = new Set(["name", "hasText", "hasNotText"]);
 /** The calls whose options object carries a name or text filter, and the keys that hold it. */
@@ -142,6 +149,10 @@ export const CENSUS_CLASSES = [
   "non-word",
 ] as const;
 export type CensusClass = (typeof CENSUS_CLASSES)[number];
+
+/** How an oracle candidate's label function varies: by a branch, or by the value one template splices in. */
+export const ORACLE_KINDS = ["branching", "template"] as const;
+export type OracleKind = (typeof ORACLE_KINDS)[number];
 
 export interface CensusSource {
   readonly path: string;
@@ -652,17 +663,24 @@ function spelledValues(located: readonly Located[], read: (text: string) => stri
       return [];
     }
     const literalAt = (position: string | undefined): Located | undefined => marked.literals[Number(position)];
-    return read(marked.text).map((value) => {
-      const whole = literalAt(WHOLE_MARK.exec(value)?.[1]);
-      if (whole !== undefined) {
-        return whole;
-      }
-      const filled = value.replaceAll(MARKS, (_, position: string) => {
-        const literal = literalAt(position)?.node;
-        return literal !== undefined && ts.isStringLiteralLike(literal) ? literal.text : HOLE;
-      });
-      return { ...site, value: filled };
-    });
+    // A placeholder literal that is a selector fragment of its own spells its names inside itself.
+    const inside = marked.literals.flatMap((literal) =>
+      ts.isStringLiteralLike(literal.node) ? read(literal.node.text).map((value) => ({ ...literal, value })) : [],
+    );
+    return [
+      ...inside,
+      ...read(marked.text).map((value) => {
+        const whole = literalAt(WHOLE_MARK.exec(value)?.[1]);
+        if (whole !== undefined) {
+          return whole;
+        }
+        const filled = value.replaceAll(MARKS, (_, position: string) => {
+          const literal = literalAt(position)?.node;
+          return literal !== undefined && ts.isStringLiteralLike(literal) ? literal.text : HOLE;
+        });
+        return { ...site, value: filled };
+      }),
+    ];
   });
 }
 
@@ -704,8 +722,8 @@ export interface ProductionIndex {
   readonly spelled: ReadonlyMap<string, ReadonlySet<string>>;
   /** A template fragment without its edge spaces → the files whose templates hold it, for a computed name's fixed words. */
   readonly fragments: ReadonlyMap<string, ReadonlySet<string>>;
-  /** An exported function that can return more than one name → the files that export a function by that name. */
-  readonly labelFunctions: ReadonlyMap<string, ReadonlySet<string>>;
+  /** An exported label function whose name varies → how it varies, and the files that export a function by that name. */
+  readonly labelFunctions: ReadonlyMap<string, { readonly kind: OracleKind; readonly homes: ReadonlySet<string> }>;
   readonly texts: readonly CensusSource[];
 }
 
@@ -772,11 +790,12 @@ const isFunctionLike = (node: ts.Node): node is HelperFunction => ts.isFunctionD
 
 const isText = (node: ts.Expression): boolean => arms(node).some((arm) => ts.isStringLiteralLike(arm) || ts.isTemplateExpression(arm));
 
-// A function that can return more than one name: it returns text and either branches (a conditional, an `if` or a
-// `switch`) or returns text more than once. A function nested in its body is its own function and is not read.
-function returnsSeveralNames(fn: HelperFunction): boolean {
+// How a label function's name varies: `branching` when it returns text and branches (a conditional, an `if` or a
+// `switch`) or returns text more than once; `template` when it returns one template that splices in a value and takes
+// an argument. A function nested in its body is its own function and is not read.
+function labelFunctionKind(fn: HelperFunction): OracleKind | undefined {
   if (fn.body === undefined) {
-    return false;
+    return undefined;
   }
   const returned: ts.Expression[] = ts.isBlock(fn.body) ? [] : [fn.body];
   const branches: ts.Node[] = [];
@@ -793,24 +812,43 @@ function returnsSeveralNames(fn: HelperFunction): boolean {
     ts.forEachChild(node, visit);
   };
   visit(fn.body);
-  const texts = returned.filter(isText).length;
-  return texts > 0 && (branches.length > 0 || texts > 1);
+  const texts = returned.filter(isText);
+  if (texts.length === 0) {
+    return undefined;
+  }
+  if (branches.length > 0 || texts.length > 1) {
+    return "branching";
+  }
+  return fn.parameters.length > 0 && texts.some((text) => arms(text).some((arm) => ts.isTemplateExpression(arm))) ? "template" : undefined;
 }
 
-// The names of a module's exported functions that can return more than one name.
-function labelFunctionNames(file: ts.SourceFile): string[] {
+// A module's exported label functions and how each one's name varies.
+function labelFunctions(file: ts.SourceFile): [string, OracleKind][] {
+  const kindOf = (name: string, fn: HelperFunction): [string, OracleKind][] => {
+    const kind = labelFunctionKind(fn);
+    return kind === undefined ? [] : [[name, kind]];
+  };
   return file.statements.filter(hasExport).flatMap((statement) => {
     if (ts.isFunctionDeclaration(statement)) {
-      return statement.name !== undefined && returnsSeveralNames(statement) ? [statement.name.text] : [];
+      return statement.name === undefined ? [] : kindOf(statement.name.text, statement);
     }
     if (!ts.isVariableStatement(statement)) {
       return [];
     }
     return statement.declarationList.declarations.flatMap((declaration) => {
       const named = declaredFunction(declaration);
-      return named !== undefined && returnsSeveralNames(named[1]) ? [named[0]] : [];
+      return named === undefined ? [] : kindOf(...named);
     });
   });
+}
+
+function addLabelFunctions(functions: Map<string, { kind: OracleKind; homes: Set<string> }>, path: string, file: ts.SourceFile): void {
+  for (const [name, kind] of labelFunctions(file)) {
+    const known = functions.getOrInsertComputed(name, () => ({ kind, homes: new Set() }));
+    known.homes.add(path);
+    // Two exports sharing a name are matched as one; a branching one makes the name branching.
+    known.kind = known.kind === "branching" ? known.kind : kind;
+  }
 }
 
 /** Index production sources: what each `.ts` module exports, and where every string is spelled. */
@@ -818,11 +856,11 @@ export function productionIndex(sources: readonly CensusSource[]): ProductionInd
   const exported = new Map<string, Set<string>>();
   const spelled = new Map<string, Set<string>>();
   const fragments = new Map<string, Set<string>>();
-  const labelFunctions = new Map<string, Set<string>>();
+  const functions = new Map<string, { kind: OracleKind; homes: Set<string> }>();
   for (const source of sources) {
     const file = parse(source);
-    for (const name of source.path.startsWith(GUEST_ROOT) ? [] : labelFunctionNames(file)) {
-      addTo(labelFunctions, name, source.path);
+    if (!source.path.startsWith(GUEST_ROOT)) {
+      addLabelFunctions(functions, source.path, file);
     }
     for (const value of spellings(source, file)) {
       addTo(spelled, value, source.path);
@@ -836,7 +874,7 @@ export function productionIndex(sources: readonly CensusSource[]): ProductionInd
       }
     }
   }
-  return { exported, spelled, fragments, labelFunctions, texts: sources };
+  return { exported, spelled, fragments, labelFunctions: functions, texts: sources };
 }
 
 /** The fixed words of a computed name: template text, regex text outside its operators, and concatenated strings. */
@@ -999,10 +1037,12 @@ export function classifySite(site: NameSite, index: ProductionIndex, evidence: T
 const byPosition = <T extends NameSite>(rows: readonly T[]): T[] =>
   rows.toSorted((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column);
 
-/** A call to a production label function that can return more than one name, written where an assertion expects a name. */
+/** A call to a production label function whose name varies, written where an assertion reads a name: a candidate for a
+ *  reader to judge, not a verdict. */
 export interface OracleRow extends NameSite {
   /** The function's exported name. */
   readonly function: string;
+  readonly kind: OracleKind;
   /** The production feature that exports it. */
   readonly feature: string;
   /** The production files that export a function by that name, sorted. */
@@ -1045,34 +1085,59 @@ function importedCallee(call: ts.CallExpression, imports: ReadonlyMap<string, st
     : undefined;
 }
 
+// An identifier that names a value, not the member a property access reads.
+const isValueName = (node: ts.Node): node is ts.Identifier =>
+  ts.isIdentifier(node) && !(ts.isPropertyAccessExpression(node.parent) && node.parent.name === node);
+
 /**
- * Every call to a production label function that can return more than one name, written inside the name an assertion
- * expects: the text of `toHaveText`, `toHaveAccessibleName` and their siblings, an asserted name attribute, or the
- * value a text read is compared with. A spec constant that holds such a call is followed to its declaration.
+ * Every call to a production label function whose name varies, written where an assertion reads a name: the text of
+ * `toHaveText`, `toHaveAccessibleName` and their siblings, an asserted name attribute, the value a text read is compared
+ * with, or a name or text filter of a locator inside the `expect` subject, directly or through a spec constant the
+ * subject reads. A spec constant that holds such a call is followed to its declaration.
  */
 export function oracleCalls(source: CensusSource, index: ProductionIndex, evidence: TestEvidence, aliases: TestAliases = new Map()): OracleRow[] {
   const at = parsedTest(source, aliases);
   const imports = productionImports(at.file, source.path, aliases);
-  const found = new Map<ts.CallExpression, string>();
+  const found = new Map<ts.CallExpression, { readonly name: string; readonly kind: OracleKind; readonly homes: ReadonlySet<string> }>();
   const seen = new Set<ts.Node>();
+  const declaredValue = (node: ts.Node): ts.Expression | undefined => (isValueName(node) ? at.declared.get(node.text)?.initializer : undefined);
   const collect = (node: ts.Node): void => {
     if (seen.has(node)) {
       return;
     }
     seen.add(node);
-    const declaration = ts.isIdentifier(node) ? at.declared.get(node.text) : undefined;
-    if (declaration?.initializer !== undefined) {
-      collect(declaration.initializer);
+    const value = declaredValue(node);
+    if (value !== undefined) {
+      collect(value);
     }
     const name = ts.isCallExpression(node) ? importedCallee(node, imports) : undefined;
-    if (name !== undefined && ts.isCallExpression(node) && index.labelFunctions.has(name)) {
-      found.set(node, name);
+    const known = name === undefined ? undefined : index.labelFunctions.get(name);
+    if (name !== undefined && known !== undefined && ts.isCallExpression(node)) {
+      found.set(node, { name, ...known });
     }
     ts.forEachChild(node, collect);
   };
-  const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && expectSubject(node) !== undefined) {
+  const subjects = new Set<ts.Node>();
+  // The locators an `expect` subject builds, through the spec constants it reads: each one's name positions.
+  const collectSubject = (node: ts.Node): void => {
+    if (subjects.has(node)) {
+      return;
+    }
+    subjects.add(node);
+    const value = declaredValue(node);
+    if (value !== undefined) {
+      collectSubject(value);
+    }
+    if (ts.isCallExpression(node)) {
       nameArguments(node).forEach(collect);
+    }
+    ts.forEachChild(node, collectSubject);
+  };
+  const visit = (node: ts.Node): void => {
+    const subject = ts.isCallExpression(node) ? expectSubject(node) : undefined;
+    if (subject !== undefined && ts.isCallExpression(node)) {
+      nameArguments(node).forEach(collect);
+      collectSubject(subject);
     }
     if (ts.isBinaryExpression(node)) {
       equatedValue(node).forEach(collect);
@@ -1081,9 +1146,9 @@ export function oracleCalls(source: CensusSource, index: ProductionIndex, eviden
   };
   visit(at.file);
   return byPosition(
-    [...found].map(([call, name]) => {
-      const homes = sorted(index.labelFunctions.get(name) ?? []);
-      return { ...siteOf({ at, node: call }), function: name, feature: preferredFeature(homes, source.path, evidence), homes };
+    [...found].map(([call, { name, kind, homes: files }]) => {
+      const homes = sorted(files);
+      return { ...siteOf({ at, node: call }), function: name, kind, feature: preferredFeature(homes, source.path, evidence), homes };
     }),
   );
 }
@@ -1175,11 +1240,12 @@ export function formatCensus(rows: readonly CensusRow[]): string {
 
 /** A per-feature count of {@link OracleRow} calls: features by call count, then by name. */
 export function formatOracles(oracles: readonly OracleRow[]): string {
-  const files = (group: readonly OracleRow[]): string => String(new Set(group.map((row) => row.file)).size);
+  const counts = (group: readonly OracleRow[]): string =>
+    [...ORACLE_KINDS.map((kind) => group.filter((row) => row.kind === kind).length), group.length, new Set(group.map((row) => row.file)).size].join(" | ");
   const ordered = [...Map.groupBy(oracles, (row) => row.feature)].sort(([a, x], [b, y]) => y.length - x.length || a.localeCompare(b));
   return [
-    "feature | oracle calls | files",
-    ...ordered.map(([feature, group]) => `${feature} | ${String(group.length)} | ${files(group)}`),
-    `total | ${String(oracles.length)} | ${files(oracles)}`,
+    `feature | ${ORACLE_KINDS.join(" | ")} | oracle candidates | files`,
+    ...ordered.map(([feature, group]) => `${feature} | ${counts(group)}`),
+    `total | ${counts(oracles)}`,
   ].join("\n");
 }
