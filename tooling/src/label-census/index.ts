@@ -2,7 +2,7 @@
 // where production keeps that text (Spine-Testing §9, labels come from their production home).
 //
 // A site is a string, template, regex, concatenation or `new RegExp` passed as the text argument of a text locator
-// or assertion, as the `name`, `hasText` or `hasNotText` of a locator's options, as a `selectOption` label, or as the
+// or assertion, a page's `toHaveTitle` among them, as the `name`, `hasText` or `hasNotText` of a locator's options, as a `selectOption` label, or as the
 // value a name attribute is asserted to hold, or as the value a text read (`textContent`, `innerText`, their `all…`
 // forms, or a name attribute's `getAttribute`, through any trim or case change) is compared with by `toBe`, `toEqual`,
 // `toStrictEqual`, `toContain`, `toMatch`, `===`, `!==`, `==` or `!=`. A selector string a `locator`, `waitForSelector`
@@ -26,8 +26,9 @@
 // reaches it inside a template, which the census does not evaluate; a `text=/…/` selector engine is a regex in a
 // string, with no fixed boundary between pattern and text; an XPath selector is a second grammar the census does not
 // parse; `includes`, `startsWith` or `endsWith` on a text read tests a fragment, and the classes judge whole names; a
-// field's value (`fill`, `toHaveValue`, `inputValue`) is data, not a name; and a literal passed to a production label
-// function is that function's subject, not a name.
+// field's value (`fill`, `toHaveValue`, `inputValue`) is data, not a name; a literal passed to a production label
+// function is that function's subject, not a name; and `aria-roledescription`, `aria-valuetext` and the fields of an
+// `accessibility.snapshot()` result describe a role or a value, not the name the classes judge.
 //
 // Beside the sites, the census lists oracle candidates: a call to a production label function whose name varies,
 // written where an assertion reads a name (a matcher's name argument, a compared text read, or a locator's name or
@@ -129,7 +130,10 @@ const GIT_LIST_MAX_BUFFER = 67_108_864;
  * `inline-also-authored`: production spells it and a story or fixture authors it too.
  * `authored`: only a story, fixture or corpus file spells it.
  * `guest`: only guest plugin markup spells it.
- * `unresolved`: no production or test file spells it.
+ * `composed`: no file spells it whole, and a production template's fixed text fits it in order around filled holes,
+ *   as `Back to ${label}` composes "Back to Chats". A fit names candidates, not the renderer: `${title} entry` fits
+ *   any text ending in " entry".
+ * `unresolved`: no production or test file spells it, and no production template composes it.
  * `unresolved-template`: no production file spells every fixed word, or its only words are short ones several files spell.
  * `no-words`: a computed name with no fixed word in it.
  * `non-word`: a literal with fewer than two letters in a row, such as a count.
@@ -143,6 +147,7 @@ export const CENSUS_CLASSES = [
   "inline-also-authored",
   "authored",
   "guest",
+  "composed",
   "unresolved",
   "unresolved-template",
   "no-words",
@@ -722,6 +727,8 @@ export interface ProductionIndex {
   readonly spelled: ReadonlyMap<string, ReadonlySet<string>>;
   /** A template fragment without its edge spaces → the files whose templates hold it, for a computed name's fixed words. */
   readonly fragments: ReadonlyMap<string, ReadonlySet<string>>;
+  /** A production template's whole text as an anchored pattern, each hole any text, and the files that write it. */
+  readonly templates: readonly { readonly pattern: RegExp; readonly homes: ReadonlySet<string> }[];
   /** An exported label function whose name varies → how it varies, and the files that export a function by that name. */
   readonly labelFunctions: ReadonlyMap<string, { readonly kind: OracleKind; readonly homes: ReadonlySet<string> }>;
   readonly texts: readonly CensusSource[];
@@ -784,6 +791,23 @@ function templateFragments(file: ts.SourceFile): string[] {
   };
   visit(file);
   return found.filter((value) => value !== "");
+}
+
+// Each template a file writes, as an anchored pattern source. A template with no three-letter word composes from its
+// holes alone, so it would fit nearly any text and is left out.
+function templatePatterns(file: ts.SourceFile): string[] {
+  const found: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isTemplateExpression(node)) {
+      const pieces = [node.head.text, ...node.templateSpans.map((span) => span.literal.text)];
+      if (pieces.some((piece) => /[A-Za-z]{3}/u.test(piece))) {
+        found.push(`^${pieces.map((piece) => RegExp.escape(piece)).join(".+")}$`);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return found;
 }
 
 const isFunctionLike = (node: ts.Node): node is HelperFunction => ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node);
@@ -856,11 +880,15 @@ export function productionIndex(sources: readonly CensusSource[]): ProductionInd
   const exported = new Map<string, Set<string>>();
   const spelled = new Map<string, Set<string>>();
   const fragments = new Map<string, Set<string>>();
+  const templates = new Map<string, Set<string>>();
   const functions = new Map<string, { kind: OracleKind; homes: Set<string> }>();
   for (const source of sources) {
     const file = parse(source);
     if (!source.path.startsWith(GUEST_ROOT)) {
       addLabelFunctions(functions, source.path, file);
+      for (const pattern of templatePatterns(file)) {
+        addTo(templates, pattern, source.path);
+      }
     }
     for (const value of spellings(source, file)) {
       addTo(spelled, value, source.path);
@@ -874,7 +902,14 @@ export function productionIndex(sources: readonly CensusSource[]): ProductionInd
       }
     }
   }
-  return { exported, spelled, fragments, labelFunctions: functions, texts: sources };
+  return {
+    exported,
+    spelled,
+    fragments,
+    templates: [...templates].map(([pattern, homes]) => ({ pattern: new RegExp(pattern, "su"), homes })),
+    labelFunctions: functions,
+    texts: sources,
+  };
 }
 
 /** The fixed words of a computed name: template text, regex text outside its operators, and concatenated strings. */
@@ -987,7 +1022,15 @@ function classifyLiteral(site: NameSite, value: string, index: ProductionIndex, 
   if (spelledIn.length > 0) {
     return { ...site, class: "guest", feature: testFeature(site.file), homes: spelledIn };
   }
-  return { ...site, class: evidence.authored.has(value) ? "authored" : "unresolved", feature: testFeature(site.file), homes: [] };
+  if (evidence.authored.has(value)) {
+    return { ...site, class: "authored", feature: testFeature(site.file), homes: [] };
+  }
+  const composers = sorted(index.templates.filter(({ pattern }) => pattern.test(value)).flatMap(({ homes }) => [...homes]));
+  if (composers.length > 0) {
+    const homes = [...new Set(composers)];
+    return { ...site, class: "composed", feature: preferredFeature(homes, site.file, evidence), homes };
+  }
+  return { ...site, class: "unresolved", feature: testFeature(site.file), homes: [] };
 }
 
 // The production files that spell a fixed word: as a whole string or trimmed template fragment, or, for a long word,

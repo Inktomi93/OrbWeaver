@@ -23,7 +23,7 @@ import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { AUTOSAVE_SAVED_TEXT } from "#forms/editor";
+import { AUTOSAVE_NOT_SAVED_TEXT, AUTOSAVE_SAVED_TEXT } from "#forms/editor";
 import {
   selectConfigSub,
   useAggregateSaveStatus,
@@ -32,7 +32,7 @@ import {
   useErroredSaveSections,
   useUnsavedSaveSections,
 } from "#state";
-import { CONFIG_NOT_SAVED_LABEL, configSectionsNeedFixText, configSectionsWaitingText } from "../lib/config-control-names.ts";
+import { configSectionsNeedFixText, configSectionsWaitingText } from "../lib/config-control-names.ts";
 
 /** Can a failing section's jump actually LAND? Every reporter used to be a registered section contribution,
  *  so the locator always resolved; a `surface`-mode group can report too (Connections → Model roles), and
@@ -107,14 +107,14 @@ function ErroredArm({ sections, ...locate }: LocateArmProps): ReactElement {
  *  the field carrying the REASON already announces itself. Locate, never retry (D41) — a retry on an
  *  invalid form is a no-op wearing a button.
  *
- *  "Not saved" is the SAME two words the section-level status uses, so a reader meeting this at the pane
+ *  "Not saved" is {@link AUTOSAVE_NOT_SAVED_TEXT}, the SAME words the section-level status renders, so a reader meeting this at the pane
  *  footer and then at the section's own header is told one thing once. The count is what the aggregate adds. */
 function BlockedArm({ sections, ...locate }: LocateArmProps): ReactElement {
   const count = configSectionsNeedFixText(sections);
   return (
     <LocateRow role="status" {...locate}>
       <Text tone="destructive" voice="label">
-        {CONFIG_NOT_SAVED_LABEL}
+        {AUTOSAVE_NOT_SAVED_TEXT}
       </Text>
       <Text voice="label">{`${count}${locate.canJumpToSection(locate.sectionId) ? "" : "."}`}</Text>
     </LocateRow>
@@ -127,7 +127,7 @@ function UnsavedArm({ sections, ...locate }: LocateArmProps): ReactElement {
   const count = configSectionsWaitingText(sections);
   return (
     <LocateRow role="status" {...locate}>
-      <Text voice="label">{CONFIG_NOT_SAVED_LABEL}</Text>
+      <Text voice="label">{AUTOSAVE_NOT_SAVED_TEXT}</Text>
       <Text voice="label">{`${count}${locate.canJumpToSection(locate.sectionId) ? "" : "."}`}</Text>
     </LocateRow>
   );
@@ -158,7 +158,7 @@ export function ConfigSaveFooter(): ReactElement | null {
     return (
       <Row aria-live="polite" align="center" data-slot="config-save-footer" gap="field" role="status">
         <Text tone="destructive" voice="label">
-          {CONFIG_NOT_SAVED_LABEL}
+          {AUTOSAVE_NOT_SAVED_TEXT}
         </Text>
         <Text voice="label">Your settings couldn't be read.</Text>
       </Row>

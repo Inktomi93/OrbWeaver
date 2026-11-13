@@ -39,8 +39,7 @@ export const CONFIG_THEME_CSS_FIELD_NAME = "Custom theme CSS";
 /** The Settings map's list page. */
 export const CONFIG_SETTINGS_GROUPS_NAME = "Settings groups";
 
-/** The pane footer's lead when something is unsaved, and the one sentence under it for each arm. A plural count composes from the same words. */
-export const CONFIG_NOT_SAVED_LABEL = "Not saved";
+/** The pane footer's one sentence under its unsaved lead for each arm. A plural count composes from the same words. */
 export const CONFIG_SECTION_NEEDS_FIX_TEXT = "A section needs a fix";
 export const CONFIG_SECTION_WAITING_TEXT = "A section has changes waiting for Save";
 export function configSectionsNeedFixText(sections: number): string {

@@ -50,8 +50,6 @@ test("the live region names the row and its position, never its id", async ({ mo
   const announcements = page.locator("[aria-live]").filter({ hasText: "Alpha" });
   const picked = `Alpha, position 1 of ${String(rows)}`;
   const moved = `Alpha, position 2 of ${String(rows)}`;
-  // The control: the two lines differ only by the rank, so the cases below prove the rank is spoken and moves.
-  expect(moved).not.toBe(picked);
   await expect(announcements.first()).toContainText(picked);
   await page.keyboard.press("ArrowDown");
   await expect(announcements.first()).toContainText(moved);

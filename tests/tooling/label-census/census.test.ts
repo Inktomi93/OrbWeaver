@@ -68,6 +68,30 @@ test("a ui spec cannot reach a client export, and reaches its own package's", ()
   ]);
 });
 
+test("a literal a production template composes is filed under that template, and only a whole fit counts", () => {
+  const index = productionIndex([
+    { path: "packages/client/src/components/back-link.tsx", text: `const back = \`Back to ${hole("label")}\`; const pair = \`${hole("a")}: ${hole("b")}\`;` },
+  ]);
+  const spec: CensusSource = {
+    path: "tests/client/app-shell/back.ct.tsx",
+    text: [
+      'await page.getByRole("link", { name: "Back to Chats" }).click();',
+      'await page.getByText("Back to").click();',
+      'await page.getByText("Go Back to Chats").click();',
+      'await page.getByText("Back to Notes").click();',
+      'await page.getByText("Model: Local").click();',
+    ].join("\n"),
+  };
+  const rows = nameSites(spec).map((site) => classifySite(site, index, { authored: new Set(["Back to Notes"]) }));
+  expect(rows.map((row) => [row.text, row.class, row.homes])).toEqual([
+    ['"Back to Chats"', "composed", ["packages/client/src/components/back-link.tsx"]],
+    ['"Back to"', "unresolved", []],
+    ['"Go Back to Chats"', "unresolved", []],
+    ['"Back to Notes"', "authored", []],
+    ['"Model: Local"', "unresolved", []],
+  ]);
+});
+
 const NAMES_HELPER: CensusSource = {
   path: "tests/client/features/chat/_row-names.ts",
   text: 'export const SHARED_ROW_NAME = "Pinned row"; export const UNUSED_NAME = "Never located";',

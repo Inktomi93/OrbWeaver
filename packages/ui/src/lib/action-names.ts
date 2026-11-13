@@ -1,10 +1,9 @@
-// The ITEM-ACTION accessible-name grammars: one function per `<verb> <subject>` sentence, for every feature that
-// spells it. `Remove`, `Select` and `Copy` are spelled in both packages; they live here, not beside `rowActionsName` in
-// `@orb/client/lib`, because the cake runs `kit ← ui ← client` (constitution §2): `combobox`'s chip
-// remove, `table`'s row checkbox and `copy-button` are `@orb/ui` primitives, and a primitive
-// importing a client module is an upward import — illegal, and unresolvable at the package boundary.
-// So the grammar homes at the LOWEST package that spells it, and `@orb/client/lib` re-exports them
-// the way it already re-exports `cn`. ONE function, one spelling.
+// ITEM-ACTION grammars: one function per `<verb> <subject>` sentence, the control's accessible name or its visible
+// text, whichever package renders it. They live in `@orb/ui` because the cake runs `kit ← ui ← client` (constitution
+// §2): a primitive (`combobox`'s chip remove, `table`'s row checkbox, `copy-button`) cannot import a client module,
+// and a client feature imports this one through `@orb/ui/lib`. A new grammar homes here even when only the client
+// spells it, so the next primitive that needs it finds it; `rowActionsName` predates that and stays in
+// `@orb/client/lib`. ONE function, one spelling.
 //
 // The defect they close is the one #2261 closed for `Actions for <subject>`: a copy change had to be
 // chased through ~25 test locators that never imported the thing they assert, so a spec could keep

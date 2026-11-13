@@ -63,6 +63,9 @@ export function presetMoveToZoneLabel(inSetup: boolean): string {
   return inSetup ? "Move below the conversation" : "Move above the conversation";
 }
 
+/** The rack's chat history pivot; its drill door is `editActionName` over it. */
+export const PRESET_CHAT_HISTORY_LABEL = "Chat history";
+
 /** The section drill-in region, named for the section it edits. */
 export function presetSectionEditorName(section: string): string {
   return `${section}: section editor`;
