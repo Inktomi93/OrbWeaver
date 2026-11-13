@@ -12,6 +12,7 @@ import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
+import { useCoarsePointer } from "@orb/ui/lib";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
@@ -33,10 +34,11 @@ import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.t
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { MESSAGE_SELECT_NAME, messageArticleName } from "../lib/message-action-names.ts";
+import { actionsRevealFor } from "../lib/message-actions-reveal.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
-import { actionsRevealFor, gutterRailFor, headerShape, identitySlots, rowMirrored } from "../lib/row-placement.ts";
+import { gutterRailFor, headerShape, identitySlots, rowMirrored } from "../lib/row-placement.ts";
 import { toolBoundaryDisplayMessage } from "../lib/tool-prose.ts";
 import { MessageActionsRow } from "./message-actions-row.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
@@ -329,7 +331,9 @@ export function MessageRow({
   const swipeFoot = renderRowSwipe({ editing, showSwipes, role, greeting, message, foot: skin.swipeFoot });
   const swipeInside = skin.swipeFoot.placement === "inside" ? swipeFoot : null;
   const swipeBelow = skin.swipeFoot.placement === "below" ? swipeFoot : null;
-  const actionsReveal = actionsRevealFor(skin, lastRow, messageActions);
+  const coarse = useCoarsePointer();
+  const actionsReveal = actionsRevealFor(skin, lastRow, messageActions, coarse);
+  const shape = headerShape(skin, lastRow, coarse);
   // #288 — THE HEADER IS BUILT ONCE AND PLACED ONCE. `inside` (seven of the eight skins) hands it to the
   // bubble, which renders it as the container's own header row; `outside` (tide, whose train of pills has
   // no single container to be inside) keeps the pre-#288 sibling above the box. Splitting the node from
@@ -348,7 +352,7 @@ export function MessageRow({
       chip: slots.header,
       stackStamp: skin.phoneStamp === "stacked",
       rule: skin.headerRule,
-      shape: headerShape(skin, lastRow),
+      shape,
       // B7 — the picker's segment-target parse keys the SAME character-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
       actions:
@@ -419,6 +423,7 @@ export function MessageRow({
                   header: header.inside,
                   footer: swipeInside,
                   lastRow,
+                  headerOverlaid: !shape.ownLine,
                   content,
                   reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon, viewerIsHost, viewerUserId }),
                   trainParagraphs: trainParagraphsFor(displayedMessage, editing, skin.bubbleLayout === "trains"),

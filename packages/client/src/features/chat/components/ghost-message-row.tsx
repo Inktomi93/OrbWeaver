@@ -359,7 +359,8 @@ export function GhostMessageRow({
       />
     ),
     footer: null,
-    facts: messageBoxFacts(skin, decoration, { role: "assistant", lastRowFloor: false, editing: false, receded: false }),
+    // The live turn's bar takes its shape from the ghost frame, not from `headerShape`, and its page stays the overlay grid.
+    facts: messageBoxFacts(skin, decoration, { role: "assistant", lastRowFloor: false, headerOverlaid: true, editing: false, receded: false }),
     decoration,
     weldedAvatar,
     mirrored: false,

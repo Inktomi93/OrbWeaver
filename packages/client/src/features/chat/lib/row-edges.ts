@@ -4,7 +4,7 @@
 // `@orb/ui` props.
 
 /** What the header bar carries. `identity: false` is a bar with no speaker (stock document): only the actions, as a
- *  quiet chip at the trailing edge at rest, with a line of its own on the last row only. While pinned, its frame
+ *  quiet chip at the trailing edge at rest, with a line of its own on the last row and at a touch pointer. While pinned, its frame
  *  covers the reading width without adding identity. `chip` backs the actions cluster itself at rest. */
 export interface ActionsRow {
   readonly identity: boolean;
