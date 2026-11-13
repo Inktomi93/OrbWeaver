@@ -1492,8 +1492,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         },
       });
     } catch (error) {
-      // A command that fails after the app refused one of its calls fails as that refusal, whatever the guest threw: only
-      // the app sets this record, at the point it refuses, so a guest cannot claim it.
+      // A command that fails after the app refused one of its calls fails as that refusal, whatever the guest threw, a real
+      // failure of its own included. Only the app sets this record, at the point it refuses, so a guest cannot forge one.
       throw binding.hostRefusals.get(authorityId) ?? error;
     } finally {
       const refusal = binding.hostRefusals.get(authorityId);

@@ -132,6 +132,8 @@ async function installChatty(harness: ServerTestHarness, slug: string): Promise<
   };
 }
 
+// The hook boots a root and starts a real broker with every case's activation, which outruns the default hook budget.
+const BROKER_START_HOOK_TIMEOUT_MS = 30_000;
 const SLUGS = { lines: "chattylines", failures: "chattyfailures", cap: "chattycap", faults: "chattyfaults" } as const;
 let root: ServerTestHarness;
 let chatty: Readonly<Record<keyof typeof SLUGS, Chatty>>;
@@ -145,7 +147,7 @@ beforeAll(async () => {
     cap: await installChatty(root, SLUGS.cap),
     faults: await installChatty(root, SLUGS.faults),
   };
-});
+}, BROKER_START_HOOK_TIMEOUT_MS);
 
 afterAll(async () => {
   await root[Symbol.asyncDispose]();

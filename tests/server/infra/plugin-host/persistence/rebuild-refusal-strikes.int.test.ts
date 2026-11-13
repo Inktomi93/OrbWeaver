@@ -1,7 +1,8 @@
 // A sleeping plugin whose rebuild is refused by the host is not the plugin's crash: when its installer is disabled while
 // its main.js reads, a flood of refusals ends the rebuild uncaught, the call that woke it fails as a refusal, and its
-// crash count stays still. A guest's own throw still counts, even one dressed as a host refusal: only the app records a refusal, where it
-// raises one. The crash count is read from the plugin's row, which no door shows.
+// crash count stays still. A guest's own throw in an invocation the host refused nothing in still counts, even one
+// dressed as a host refusal: only the app records a refusal, where it raises one. The crash count is read from the
+// plugin's row, which no door shows.
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 // @subject packages/server/src/domain/plugin/activation/activate.ts
 
@@ -55,6 +56,8 @@ function manifest(id: string, capabilities: readonly PluginCapability[]): Plugin
   });
 }
 
+// The hook boots a root and starts a real broker for two activations, which outruns the default hook budget.
+const BROKER_START_HOOK_TIMEOUT_MS = 15_000;
 let held: Awaited<ReturnType<typeof freshHeldDb>>;
 let root: ServerTestHarness;
 let lifetime: AsyncDisposableStack;
@@ -76,7 +79,7 @@ beforeAll(async () => {
   sleeper = await install(manifest("rebuild-sleeper", CAPABILITIES), SLEEPER_SOURCE);
   await install(manifest("rebuild-neighbour", ["ui.surface"]), NEIGHBOUR_SOURCE);
   lifetime = construction.move();
-});
+}, BROKER_START_HOOK_TIMEOUT_MS);
 
 afterAll(async () => {
   await lifetime.disposeAsync();
