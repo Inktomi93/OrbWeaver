@@ -1,5 +1,6 @@
 // Small structural type-guards shared across layers. Narrowing helpers that let callers drop
-// `as Record<string, unknown>` casts in favor of a real runtime check.
+// `as Record<string, unknown>` casts in favor of a real runtime check, and the compile-time guards that make a
+// table over a closed union name every member.
 
 /** What a read checks to stop early. An `AbortSignal` satisfies it; the isomorphic contracts have no DOM lib to name one. */
 export interface Cancellation {
@@ -36,4 +37,20 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 /** The value when it is a finite number, else `null`: the read for a number off a parsed blob that may be missing, a string or `NaN`. */
 export function finiteNumberOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/** Nothing extra once `Named` covers `Union`; otherwise a `missing` field holding the members left out, so the call
+ *  that takes it fails `tsc` and the error names them. */
+type NamesEvery<Union, Named> = [Exclude<Union, Named>] extends [never] ? unknown : { readonly missing: Exclude<Union, Named> };
+
+/** A tuple of every member of `Union`, returned as given. A member the tuple leaves out fails `tsc`.
+ *  `everyMember<Tone>()(["info", "warn"])`. */
+export function everyMember<Union>(): <const Tuple extends readonly Union[]>(tuple: Tuple & NamesEvery<Union, Tuple[number]>) => Tuple {
+  return (tuple) => tuple;
+}
+
+/** Rows whose `Key` field names every member of the union that field holds, returned as given. A member no row names
+ *  fails `tsc`. `everyRow<RefusalCase, "reason">()([...])`. */
+export function everyRow<Row, Key extends keyof Row>(): <const Rows extends readonly Row[]>(rows: Rows & NamesEvery<Row[Key], Rows[number][Key]>) => Rows {
+  return (rows) => rows;
 }

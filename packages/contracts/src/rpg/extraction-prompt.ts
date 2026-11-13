@@ -10,7 +10,7 @@
 // prompt-silent — and a NEW plane is a ROW (the D110 "~7 coupled sites" shrinks its prompt sites to one).
 //
 // THE RULE (the D50 producer-coverage ratchet discipline): every top-level
-// `rpgExtractionSchema` key has a registry row, or a new writable plane is prompt-silent; `everyPlane` makes a missing
+// `rpgExtractionSchema` key has a registry row, or a new writable plane is prompt-silent; `everyRow` makes a missing
 // row a `tsc` error. The registry is the standing anti-drift mechanism the audit's "prompt-drift, not model failure"
 // diagnosis demanded.
 //
@@ -35,6 +35,7 @@
 // claimed. Its bytes are VERBATIM the retired constant's: the ruling was "wire and MEASURE", and a measurement
 // against reworded text measures the rewording.
 
+import { everyRow } from "@orb/kit/guards";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { ProseOverrides } from "#prose-slot";
 import { resolveProseFrom, spliceProseTokens } from "#prose-slot";
@@ -124,19 +125,9 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
   return blocks.join("\n");
 }
 
-/** Returns the rows as given, and fails `tsc` while a schema key has no row; the error shows the key as `planeWithNoRow`. */
-function everyPlane<const Rows extends readonly ExtractionPlanePrompt[]>(
-  rows: Rows &
-    ([Exclude<ExtractionPlane, Rows[number]["plane"]>] extends [never]
-      ? unknown
-      : { readonly planeWithNoRow: Exclude<ExtractionPlane, Rows[number]["plane"]> }),
-): Rows {
-  return rows;
-}
-
-// The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key, which `everyPlane` enforces. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
+// The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key, which `everyRow` enforces. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
 //  prompted on the structured arm (the audit's "never mentioned" gap).
-const EXTRACTION_PLANE_PROMPTS = everyPlane([
+const EXTRACTION_PLANE_PROMPTS = everyRow<ExtractionPlanePrompt, "plane">()([
   {
     plane: "scene",
     fragment: (ctx) => {
