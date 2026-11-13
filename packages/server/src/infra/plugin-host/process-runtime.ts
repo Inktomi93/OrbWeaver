@@ -37,6 +37,7 @@ import type {
 import {
   PLUGIN_LOG_LEVELS,
   PLUGIN_SURFACE_TIERS,
+  PluginInstallerDisabledError,
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSurfaceRegistrationMetaSchema,
@@ -128,6 +129,10 @@ type Binding = BindingLifetime & {
   readonly netEgress: PluginNetEgress;
   readonly grants: ReadonlySet<PluginCapability>;
   readonly authorities: Map<string, BridgeAuthority>;
+  /** For each command still running, whether the app refused one of its host calls because the installer is
+   *  disabled. The guest's own rethrow of that refusal reaches the app as a plain error, which the crash policy
+   *  would count; this record, kept only in the app, lets the command fail as the refusal instead. */
+  readonly standingRefused: Map<string, boolean>;
   /** Per-authority tails armed when a command completes; the parent's own time and call bound on a lying Worker. */
   readonly authorityTails: Map<string, AuthorityTail>;
   readonly seams: PluginHostSeamDeps;
@@ -994,6 +999,9 @@ class BrokerClient {
         },
         (error) => {
           this.bridgeCalls.delete(message.id);
+          if (error instanceof PluginInstallerDisabledError && binding.standingRefused.has(message.authorityId)) {
+            binding.standingRefused.set(message.authorityId, true);
+          }
           this.sendBridgeResult(message.runtimeId, message.id, { ok: false, error: rpcError(error) });
           completion.resolve();
         },
@@ -1316,6 +1324,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     // once the command has completed and every call posted under the id has settled; the tail armed below
     // ends it regardless; retire, crash and disconnect clear the whole map.
     binding.authorities.set(authorityId, { grants: binding.grants, chat, phase });
+    binding.standingRefused.set(authorityId, false);
     try {
       return await broker.command({
         operation,
@@ -1326,7 +1335,12 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
           binding.dispatched = true;
         },
       });
+    } catch (error) {
+      // A command that fails after the app refused one of its calls for the installer's standing fails as that refusal,
+      // whatever the guest threw: only the app sets this record, so a guest cannot claim it.
+      throw binding.standingRefused.get(authorityId) === true ? new PluginInstallerDisabledError() : error;
     } finally {
+      binding.standingRefused.delete(authorityId);
       armAuthorityTail(binding, authorityId);
     }
   };
@@ -1545,6 +1559,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       netEgress: createPluginNetEgress(lifetime.runtimeConfig?.netHosts ?? [], bridge, seams.safeFetch),
       grants: new Set(grants),
       authorities: new Map(),
+      standingRefused: new Map(),
       authorityTails: new Map(),
       seams,
       invokeArgs: new Map(),

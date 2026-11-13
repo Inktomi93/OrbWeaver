@@ -355,7 +355,12 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   });
 
   // The memory receipt for an owner a sweep covers but builds no space for.
-  const vacuousMemoryReceipt = createVacuousMemoryReceipt({ isMemoryEnabled: deps.isMemoryEnabled, emptyMemoryScope: deps.emptyMemoryScope, embeddings });
+  const vacuousMemoryReceipt = createVacuousMemoryReceipt({
+    isAccountEnabled: deps.isAccountEnabled,
+    isMemoryEnabled: deps.isMemoryEnabled,
+    emptyMemoryScope: deps.emptyMemoryScope,
+    embeddings,
+  });
 
   const reindex = createEmbeddingReindexTriggers({
     logger: deps.logger,

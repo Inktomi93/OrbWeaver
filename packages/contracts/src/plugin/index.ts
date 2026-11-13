@@ -24,6 +24,7 @@ export {
   PLUGIN_HOST_REFUSAL_CODES,
   PluginCapabilityError,
   PluginHostDeadlineError,
+  PluginInstallerDisabledError,
   PluginSuggestedError,
 } from "./errors.ts";
 export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse } from "./frame.ts";

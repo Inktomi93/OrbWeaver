@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-13
 priority: P3
 area: tooling
+lane: wt/agent-a1b41287df1811879
 ---
 
 # Keep a failed doc commit from deleting a file the snapshot never saw

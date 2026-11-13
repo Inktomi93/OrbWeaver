@@ -18,7 +18,8 @@ interface EmbedSweep {
 export function createEmbeddingReindexTriggers(deps: EmbeddingReindexDeps): EmbeddingReindexTriggers {
   const { superviseDetached, superviseSettled } = createDetachedSupervision(deps.logger, deps.traces);
   const supervise = deps.supervise ?? superviseDetached;
-  // Memory-off owners record a vacuous receipt instead of queueing a run admission would refuse.
+  // Memory-off owners record a vacuous receipt instead of queueing a run admission would refuse. A disabled owner gets
+  // no receipt, so their run is refused at admission like this owner's other sweeps, and nothing reaches their encoder.
   const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {
     const vacuous = await deps.vacuousMemoryReceipt(ownerId);
     if (vacuous === null) {
