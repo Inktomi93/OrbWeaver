@@ -11,7 +11,7 @@ import type { ProviderExecutor } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
-import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
+import type { EmbedRequest, RerankCallOptions, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
 import type { BindRoleClients } from "../contract/runtime.ts";
 import type { ResolverContext } from "../contract/task-resolution.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
@@ -76,9 +76,15 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
         const knobs = resolveEmbed({ inputType: opts?.inputType, instruction: opts?.instruction }, conn.capability.embedding);
         return executor.embed(embedRequestOf(conn, input, knobs));
       },
-      rerank: async (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> => {
+      rerank: async (query: RerankQuery, documents: RerankDocument[], opts?: RerankCallOptions): Promise<RerankResult> => {
         const conn = await live("rerank");
-        return executor.rerank({ connection: conn, query, documents, ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}) });
+        return executor.rerank({
+          connection: conn,
+          query,
+          documents,
+          ...(opts?.instruction !== undefined ? { instruction: opts.instruction } : {}),
+          ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
+        });
       },
       summarize: async (inputs: readonly SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> => {
         const conn = await live("summarize");
