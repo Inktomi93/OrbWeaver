@@ -4,7 +4,7 @@
 // event. Silence-on-connect cannot read as proof of events, so the assertions name the planted frames.
 // The wire grammar below is @trpc/server's own sseStreamConsumer contract (connected/ping/return named
 // events + default `message` events whose SSE id is the envelope ordinal), read from the installed
-// v11.18 source at the move.
+// v11.23 source.
 import type { IncomingMessage, Server } from "node:http";
 import { createServer } from "node:http";
 import { CSRF_HEADER } from "@orb/contracts/identity";

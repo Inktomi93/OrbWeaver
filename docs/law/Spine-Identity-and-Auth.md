@@ -122,10 +122,13 @@ Code comments cite the numbered invariants below as "invariant N":
    so the answer depends on what the request names:
 
    - A query gets the FORBIDDEN a header-less cookie mutation gets (403).
-   - A subscription gets a 200 event stream that carries a serialized error frame after its `connected` frame.
-   - An unknown procedure gets 404, and a mutation sent as GET gets 405.
+   - A subscription gets a 200 event stream that carries that FORBIDDEN as a serialized error frame.
+   - On GET, an unknown procedure gets 404, and a mutation gets 405.
    - HEAD gets 204, which tRPC answers before it reads the request.
-   - OPTIONS, PUT and DELETE get 415, because they carry no content type tRPC reads.
+   - Any other method, such as OPTIONS, PUT, DELETE or PATCH, gets an answer by its content type:
+     - 415 with no content type, or with one tRPC does not parse.
+     - 405 with `multipart/form-data` or `application/octet-stream`, on any path.
+     - 405 with `application/json` on a procedure, and 404 on an unknown one.
 
    A query still must not write. The client sends every request as a JSON POST with the header.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
