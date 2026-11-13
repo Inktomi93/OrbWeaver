@@ -130,6 +130,18 @@ const blankIsUnset = z
   .transform((value) => (value === "" ? undefined : value))
   .optional();
 
+/** A comma list read as its trimmed, non-empty entries; unset is the empty list. */
+const commaList = z
+  .string()
+  .optional()
+  .transform(
+    (raw): readonly string[] =>
+      raw
+        ?.split(",")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0) ?? [],
+  );
+
 /** The env keys the forward-header signed path cannot boot without. */
 const FORWARD_SIGNED_REQUIRED_ENV = ["FORWARD_AUTH_JWT_ISSUER", "FORWARD_AUTH_JWT_AUDIENCE"] as const;
 
@@ -387,8 +399,10 @@ const envObjectSchema = z.object({
   LOCAL_INITIAL_PASSWORD: z.string().min(MIN_PASSWORD_LENGTH).optional(),
 
   // Required to enable the unsigned trusted-header path. Unset ⇒ that path is fail-closed (raw identity
-  // headers are rejected). The signed-JWT path reads FORWARD_AUTH_JWKS instead.
-  FORWARD_AUTH_TRUSTED_PROXIES: z.string().optional(),
+  // headers are rejected). The signed-JWT path reads FORWARD_AUTH_JWKS instead. Parsed here, once: the
+  // unsigned path and every forwarded-header read (`X-Forwarded-For`, `-Host`, `-Proto`) take this one list,
+  // so they cannot disagree about whose headers the server believes.
+  FORWARD_AUTH_TRUSTED_PROXIES: commaList,
   FORWARD_AUTH_USER_HEADER: z.string().min(1).optional(),
   FORWARD_AUTH_GROUPS_HEADER: z.string().min(1).optional(),
   FORWARD_AUTH_UID_HEADER: z.string().min(1).optional(),

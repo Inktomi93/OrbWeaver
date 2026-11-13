@@ -11,6 +11,7 @@ import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
 import { createDetachedSupervision } from "#src/foundation/observability/tracing.ts";
 
 import type {
+  EgressAllowlistWarning,
   EgressBlockReason,
   EgressResolver,
   PinnedDownloadLimits,
@@ -602,7 +603,9 @@ export function installEgressFirewall(options: ScopedEgressOptions): void {
     return;
   }
   const allowlist = replaceFirewallAgentFor(createEgressContext(options, true));
-  const entries = [...allowlist].flatMap(([host, ports]) => (ports === null ? [host] : [...ports].map((port) => `${host}:${String(port)}`)));
+  const entries = [...allowlist].flatMap(([host, ports]) =>
+    (ports === null ? [host] : [...ports].map((port) => `${host}:${String(port)}`)).map(loggableAllowlistEntry),
+  );
   getLog(options.log).info({ allowlist: entries }, "security: egress firewall installed (private egress blocked)");
 }
 
@@ -622,7 +625,7 @@ function replaceFirewallAgentFor(context: EgressContext): EnvAllowlist {
 /** The env belt: `EGRESS_ALLOWLIST` plus the OIDC issuer and `FORWARD_AUTH_JWKS` URLs. One read per egress for the
  *  connect gate and the write-time admission, so the two cannot disagree about a declared host. */
 function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "FORWARD_AUTH_JWKS" | "OIDC_ISSUER">): EnvAllowlist {
-  const allowlist = operatorEgressAllowlist(record.EGRESS_ALLOWLIST);
+  const { allowlist } = operatorEgressAllowlist(record.EGRESS_ALLOWLIST);
   // SECURITY: an identity URL admits its own host at its own port only. A member's endpoint write is judged against
   // this belt, so admitting the host at every port would hand any member every port on the identity provider's box.
   for (const url of identityUrls(record)) {
@@ -637,20 +640,48 @@ function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "FORWARD_AUTH
   return allowlist;
 }
 
-/** `EGRESS_ALLOWLIST`: a bare host admits every port, `host:port` only that port. */
-function operatorEgressAllowlist(raw: string | undefined): Map<string, ReadonlySet<number> | null> {
+// One written `EGRESS_ALLOWLIST` entry, or null when its port does not parse: as in the private-endpoint allowlist, that
+// refuses the entry. A subject that is neither a hostname nor an IP address stays a key, so the boot warning changes no
+// admission; no request host can equal it. A trailing-dot name stays a key too, and a URL that keeps the dot matches it.
+function readOperatorEntry(
+  written: string,
+): { readonly subject: string; readonly port: number | null; readonly warning: EgressAllowlistWarning["reason"] | null } | null {
+  const split = splitEntryPort(written.toLowerCase());
+  if (split === null || split.subject === "") {
+    return null;
+  }
+  if (isHostnameEntry(split.subject) || parseIp(split.subject) !== null) {
+    return { ...split, warning: null };
+  }
+  const dotted = split.subject.endsWith(".") && isHostnameEntry(split.subject.slice(0, -1));
+  return { ...split, warning: dotted ? "trailing-dot" : "admits-nothing" };
+}
+
+/** `EGRESS_ALLOWLIST`: a bare host admits every port, `host:port` only that port. `refused` names each entry a warning is
+ *  owed for, with its 1-based position among the written entries. */
+function operatorEgressAllowlist(raw: string | undefined): {
+  readonly allowlist: Map<string, ReadonlySet<number> | null>;
+  readonly refused: readonly { readonly written: string; readonly position: number; readonly reason: EgressAllowlistWarning["reason"] }[];
+} {
+  const entries = (raw ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "")
+    .map((written, index) => ({ written, position: index + 1, read: readOperatorEntry(written) }));
+  const refused = entries.flatMap(({ written, position, read }) => {
+    const reason = read === null ? "admits-nothing" : read.warning;
+    return reason === null ? [] : [{ written, position, reason }];
+  });
   const scoped = new Map<string, Set<number>>();
   const bare = new Set<string>();
-  for (const entry of (raw ?? "").split(",")) {
-    // An unreadable port refuses the entry, as in the private-endpoint allowlist: it admits nothing.
-    const split = splitEntryPort(entry.trim().toLowerCase());
-    if (split === null || split.subject === "") {
+  for (const { read } of entries) {
+    if (read === null) {
       continue;
     }
-    if (split.port === null) {
-      bare.add(split.subject);
+    if (read.port === null) {
+      bare.add(read.subject);
     } else {
-      scoped.set(split.subject, (scoped.get(split.subject) ?? new Set()).add(split.port));
+      scoped.set(read.subject, (scoped.get(read.subject) ?? new Set()).add(read.port));
     }
   }
   // The narrower spelling is the host's last word, the precedence the private-endpoint allowlist rules.
@@ -660,7 +691,44 @@ function operatorEgressAllowlist(raw: string | undefined): Map<string, ReadonlyS
       allowlist.set(host, null);
     }
   }
-  return allowlist;
+  return { allowlist, refused };
+}
+
+const AUTHORITY_END_RE = /[/?#]/;
+const SCHEME_MARK = "://";
+const USERINFO_MARK = "@";
+/** What an allowlist line shows for an entry whose `@` may sit inside a credential. */
+const UNSHOWN_ENTRY = "(not shown: it may hold a credential)";
+
+/** SECURITY: an operator may paste a credentialed URL into an allowlist, and every log line that names an entry goes
+ *  through here. The authority's userinfo is cut and the rest kept byte for byte; an `@` anywhere else cannot be told
+ *  apart from a credential, so the entry is not shown at all. */
+function loggableAllowlistEntry(written: string): string {
+  const schemeEnd = written.indexOf(SCHEME_MARK);
+  const start = schemeEnd === -1 ? 0 : schemeEnd + SCHEME_MARK.length;
+  const rest = written.slice(start);
+  const authorityEnd = rest.search(AUTHORITY_END_RE);
+  const authority = authorityEnd === -1 ? rest : rest.slice(0, authorityEnd);
+  const at = authority.lastIndexOf(USERINFO_MARK);
+  const shown = at === -1 ? written : written.slice(0, start) + rest.slice(at + 1);
+  return shown.includes(USERINFO_MARK) ? UNSHOWN_ENTRY : shown;
+}
+
+function allowlistWarningText(entry: string, position: number, reason: EgressAllowlistWarning["reason"]): string {
+  const named = `EGRESS_ALLOWLIST entry ${String(position)} ("${entry}")`;
+  if (reason === "trailing-dot") {
+    return `${named} ends in a dot, so it admits only a URL that spells the host with that dot. Drop the dot to admit the usual spelling.`;
+  }
+  return `${named} is not a host name or an IP address, with or without a :port, so it admits nothing. Write a host such as ollama.lan, or a host and port such as ollama.lan:11434.`;
+}
+
+/** The boot warning for each `EGRESS_ALLOWLIST` entry that admits nothing or not what it seems to, from the same parse
+ *  the egress belt reads. The boot disclaimer logs them; the egress belt allows exactly what it would without them. */
+export function egressAllowlistWarnings(raw: string | undefined): readonly EgressAllowlistWarning[] {
+  return operatorEgressAllowlist(raw).refused.map(({ written, position, reason }) => {
+    const entry = loggableAllowlistEntry(written);
+    return { entry, position, reason, text: allowlistWarningText(entry, position, reason) };
+  });
 }
 
 // The identity provider URLs the server itself dials: OIDC discovery and the forward-header key set. A malformed

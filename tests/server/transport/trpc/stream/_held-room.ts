@@ -2,7 +2,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -149,7 +149,10 @@ async function openSocket(root: ServerTestHarness, account: Account): Promise<Ro
   const address = new URL("http://localhost/api/trpc/stream.connect");
   address.searchParams.set("input", JSON.stringify({ socketId }));
   const stop = new AbortController();
-  const response = await root.http.request(address, { headers: { cookie: account.cookie, accept: "text/event-stream" }, signal: stop.signal });
+  const response = await root.http.request(address, {
+    headers: { cookie: account.cookie, accept: "text/event-stream", [CSRF_HEADER]: "1" },
+    signal: stop.signal,
+  });
   const reader = response.body?.getReader();
   if (reader === undefined) {
     throw new Error("the socket omitted its stream");

@@ -55,7 +55,7 @@ export interface AuthMetaDeps {
   readonly allowInteractiveCards: () => boolean;
   /** The share relay's live state (`domain/share`'s controller). */
   readonly share: RelayController["status"];
-  /** The deployment's trusted hops (`trustedProxiesOf`), the only peers whose forwarded headers decide the request facts below. */
+  /** The deployment's trusted hops (`FORWARD_AUTH_TRUSTED_PROXIES`), the only peers whose forwarded headers decide the request facts below. */
   readonly trustedProxies: readonly string[];
 }
 

@@ -2,7 +2,7 @@
 // @subject packages/server/src/transport/trpc/routers/stream.ts
 // @subject packages/server/src/transport/trpc/presence-registry.ts
 
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { SocketId, UserId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -30,7 +30,7 @@ async function open(root: ServerTestHarness, socketId: SocketId): Promise<Connec
   const address = new URL(`http://${host}:${port}/api/trpc/stream.connect`);
   address.searchParams.set("input", JSON.stringify({ socketId }));
   const stop = new AbortController();
-  const response = await fetch(address, { headers: { accept: "text/event-stream" }, signal: stop.signal });
+  const response = await fetch(address, { headers: { accept: "text/event-stream", [CSRF_HEADER]: "1" }, signal: stop.signal });
   const reader = response.body?.getReader();
   if (reader === undefined) {
     throw new Error("the socket omitted its stream");

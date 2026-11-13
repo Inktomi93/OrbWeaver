@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-30
+updated: 2026-11-12
 ---
 
 # Container deployment security: the deployed surface and its review
@@ -21,6 +21,10 @@ This doc governs the shipped container: `Dockerfile`, `docker-compose.yaml` and 
 | `local` | nobody | a handle and password; the first boot generates the password | yes |
 | `oidc` | nobody | the identity provider | yes |
 | `forward-header` | nobody | a JWT signed by a key in `FORWARD_AUTH_JWKS`, or the auth proxy at the address in `FORWARD_AUTH_TRUSTED_PROXIES` | yes |
+
+## A proxy in front of the app
+
+A reverse proxy, tunnel or CDN in front of the app must not add `Access-Control-Allow-*` response headers for the app, and must not answer a CORS preflight (`OPTIONS`) on its behalf. The tRPC mount's cross-site defence is that a JSON body or the `x-orb-csrf` header makes the browser send a preflight first, and the app grants none, so a proxy that grants it lets a cross-site page drive the app with the visitor's credential.
 
 ## The deployed surface
 
