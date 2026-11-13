@@ -39,8 +39,8 @@ import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import type { RowDeleteFocus } from "#components";
-import { RowActionsMenu, RowToggleAction, starToggleName } from "#components";
-import { chatWithActionName, deleteConfirmTitle, rowActionSubject, rowActionsName } from "#lib";
+import { RowActionsMenu, RowToggleAction } from "#components";
+import { chatWithActionName, deleteConfirmTitle, rowActionSubject, rowActionsName, rowStarToggleName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel } from "../lib/character-actions.ts";
 
@@ -314,7 +314,7 @@ function NormalRowActions({
             menu's own name already carries the subject (#463) — the persona row's twin, same shape. */}
         <MenuItem hiddenAt="fine" onClick={(): void => onToggleStar(character.id, !character.starred)}>
           <Icon icon={Star} size="sm" />
-          {starToggleName(character.starred)}
+          {rowStarToggleName(character.starred)}
         </MenuItem>
         {characterActionItemsForScope("row").map((action) => {
           const label = characterActionLabel(action, { archived: character.archived });
