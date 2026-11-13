@@ -26,6 +26,7 @@ import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@o
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, Request } from "@playwright/test";
 import {
+  COLLISION_KEEP_BOTH_TITLE,
   IMPORT_FOLDER_NAME,
   IMPORT_LEFT_ON_DISK_PHRASE,
   IMPORT_PREVIEW_FAILURE,
@@ -33,6 +34,7 @@ import {
   IMPORT_PREVIEW_REPORT_NAME,
   IMPORT_PREVIEW_SHOW_NAMES,
   IMPORT_PROGRESS_NAME,
+  IMPORT_RESULT_NAME,
   importPreviewProfileLabel,
 } from "#client/features/workloads/lib/import-library-names.ts";
 import {
@@ -513,6 +515,65 @@ test("a folder's persona the library already holds is counted as already there, 
   const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text));
   const populated = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
   expect(lines).toEqual(populated.map((kind) => previewKindLine(kind, preview.kinds[kind])));
+});
+
+test("keeping both of a colliding persona holds the preview back until it counts the copy, and the run writes what the line says", async ({
+  mount,
+  page,
+  baseURL,
+}, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const folder = testInfo.outputPath("profile");
+  await stageFolder(root, folder);
+  await root.settleBackground();
+  const personasBefore = (await caller.persona.list()).length;
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  // The folder's own upload goes through at once; the second upload, the one that judges the personas again, is held
+  // until the page has been seen waiting for it.
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let uploads = 0;
+  await page.route(`**${PORTABILITY_ROUTES.importTree}`, async (route) => {
+    if (route.request().method() === "POST") {
+      uploads += 1;
+      if (uploads === 2) {
+        await held;
+      }
+    }
+    await route.fallback();
+  });
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const preflight = page.getByRole("group", { name: PREFLIGHT });
+  const report = preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
+  const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  const personaLine = report.getByText(counted(2, KIND_NOUNS.personas), { exact: false });
+  const read = async (): Promise<readonly number[]> => numbersIn((await personaLine.textContent()) ?? "");
+  // Both personas are already there as the dry run was first sent: Mara's namesake merges into the owned Mara.
+  expect(await read()).toEqual([2, 2]);
+
+  await preflight.getByRole("radio", { name: COLLISION_KEEP_BOTH_TITLE, exact: false }).click();
+
+  // While the answer is being judged the old numbers are gone and Import is off, so a stale line is never read as current.
+  await expect(preflight.getByRole("progressbar")).toBeVisible();
+  await expect(report).toBeHidden();
+  await expect(confirm).toBeDisabled();
+  release();
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  await expect(confirm).toBeEnabled();
+  const judged = await read();
+  expect(judged).toEqual([2, 1]);
+
+  await confirm.click();
+  await expect(page.getByRole("group", { name: IMPORT_RESULT_NAME, exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  // The line's own numbers, total less the ones the library holds, are what the run wrote.
+  expect((await caller.persona.list()).length - personasBefore).toBe(2 - 1);
 });
 
 test("the folder's skip reasons and left-out files read at least as large as the standing policy text", async ({ mount, page, baseURL }, testInfo) => {

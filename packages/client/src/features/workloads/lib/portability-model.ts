@@ -263,6 +263,14 @@ export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList
   return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
 }
 
+/** The preview with its persona counts taken from `judged`, a dry run of the persona files alone under the owner's newer
+ *  answers. The listed names stay as the folder's own dry run sent them: only the counts say what a run writes, and the
+ *  count line reads those. */
+export function withPersonaCounts(preview: ImportPreview, judged: ImportPreview): ImportPreview {
+  const { total, counts } = judged.kinds.personas;
+  return { ...preview, kinds: { ...preview.kinds, personas: { ...preview.kinds.personas, total, counts } } };
+}
+
 /** The profile directories a preview names, in listed order, then `null` when a skip sits at the upload's root. More than one
  *  means the upload holds several profiles, so the reader needs each entry's profile beside it. */
 export function previewProfiles(preview: ImportPreview): readonly (string | null)[] {
