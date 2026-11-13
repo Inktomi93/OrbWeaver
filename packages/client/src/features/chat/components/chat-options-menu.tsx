@@ -45,11 +45,16 @@ import { useSelfLeave } from "../hooks/use-membership-mutations.ts";
 import {
   BACK_TO_PARENT_CHAT_LABEL,
   CHAT_DELETE_NAME,
+  CHAT_LEAVE_CONFIRM_NAME,
   CHAT_LEAVE_CONFIRM_TITLE,
   CHAT_LEAVE_MEMBER_NOTE,
   CHAT_LEAVE_NAME,
+  CHAT_NEW_WITH_SAME_CHARACTERS_NAME,
+  CHAT_OPTIONS_NAME,
   CHAT_SELECT_MESSAGES_NAME,
+  CHAT_SETTINGS_DOOR_NAME,
 } from "../lib/chat-options-names.ts";
+import { characterGalleryName } from "../lib/chat-surface-names.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 interface GameModeActions {
@@ -252,7 +257,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
       icon: LogOut,
       title: CHAT_LEAVE_CONFIRM_TITLE,
       description: CHAT_LEAVE_MEMBER_NOTE,
-      confirmLabel: "Leave",
+      confirmLabel: CHAT_LEAVE_CONFIRM_NAME,
       onConfirm: confirmLeave,
     };
   }
@@ -260,7 +265,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
     <>
       <RowActionsMenu
         icon={MenuIcon}
-        label="Chat options"
+        label={CHAT_OPTIONS_NAME}
         triggerSize="glyph"
         shape="pill"
         ink="inherit"
@@ -280,13 +285,13 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
             }}
           >
             <Icon icon={MessagesSquare} size="sm" />
-            New chat with the same characters
+            {CHAT_NEW_WITH_SAME_CHARACTERS_NAME}
           </MenuItem>
         ) : null}
         {soloGallery !== undefined ? (
           <MenuItem onClick={(): void => openGallery(soloGallery)}>
             <Icon icon={LayoutGrid} size="sm" />
-            {soloGallery.name}'s gallery
+            {characterGalleryName(soloGallery.name)}
           </MenuItem>
         ) : null}
         {galleryCharacters.length > 1 ? (
@@ -310,7 +315,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
         {onGroupSettings === undefined ? null : (
           <MenuItem onClick={onGroupSettings}>
             <Icon icon={Settings} size="sm" />
-            Chat settings
+            {CHAT_SETTINGS_DOOR_NAME}
           </MenuItem>
         )}
 

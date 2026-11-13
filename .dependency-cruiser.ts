@@ -495,6 +495,8 @@ const TEST_CONSTANT_HOMES = {
     "APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: the Message details section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
     "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the Message style section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/chat-behavior-message-handling-model.ts":
+    "CHAT_MESSAGE_HANDLING_SUBCATEGORY: the Message handling section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/app-shell/lib/appearance-effects-model.ts":
     "APPEARANCE_EFFECTS_SUBCATEGORY: the Effects section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/auth/lib/reauth-names.ts": "REAUTH_MODAL_TITLE: the re-auth prompt's title, which its landing test names the dialog by",
