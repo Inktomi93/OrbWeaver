@@ -72,7 +72,8 @@ export interface UnionsReport {
 
 /** What the unions scan cannot see, printed with every run. */
 const UNION_LIMITS: readonly string[] = [
-  "A tuple with any element that is not a string literal (a constant, a spread, a template) is skipped whole, so none of its members is judged.",
+  "A tuple with any element whose type is not one string literal (a spread, a `string`, a union) is skipped whole, so none of its members is judged. An element read from a constant (`CODE.x`) is the member its type names.",
+  "A member is built by a literal only: a constant read into a slot (`take(CODE.x)`) builds nothing, so a member production builds only that way reports unbuilt.",
   'A literal builds a member only in a slot spelled from the tuple. A slot that re-spells the member as its own literal type (a discriminated union arm `kind: "x"`, a hand-written union, or the union a tuple `satisfies` when no tuple spells it) builds nothing, so a member production builds only there reports unbuilt.',
   "Two tuples with the same members in different files are separate vocabularies; a member built into one's slots does not build the other's.",
   "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into sorts as parsed instead.",
@@ -140,8 +141,13 @@ function unwrap(node: Expression): Expression {
 const isConstAssertion = (node: Expression): node is Expression & { readonly expression: Expression } =>
   isAsExpression(node) && isTypeReferenceNode(node.type) && isIdentifier(node.type.typeName) && node.type.typeName.text === "const";
 
-// `const NAME = ["a", "b"] as const`: every element a string literal.
-function tupleOf(node: Node): { readonly name: Identifier; readonly elements: readonly StringLiteral[] } | null {
+interface ConstArray {
+  readonly name: Identifier;
+  readonly elements: readonly Expression[];
+}
+
+// `const NAME = [...] as const` with at least one element.
+function constArrayOf(node: Node): ConstArray | null {
   if (!(isVariableDeclaration(node) && isIdentifier(node.name) && node.initializer !== undefined)) {
     return null;
   }
@@ -150,8 +156,33 @@ function tupleOf(node: Node): { readonly name: Identifier; readonly elements: re
   if (array === null || !isArrayLiteralExpression(array) || array.elements.length === 0) {
     return null;
   }
-  const elements = array.elements.filter(isStringLiteral);
-  return elements.length === array.elements.length ? { name: node.name, elements } : null;
+  return { name: node.name, elements: [...array.elements] };
+}
+
+interface NamedElement {
+  readonly element: Expression;
+  readonly text: string;
+}
+
+// The arrays whose every element names a member, with each element's text. A string literal is its own text; any other
+// element (`CODE.x`, a named constant) is the string literal its type is, asked of the checker in one batch for the world.
+function stringTuples(world: NativeWorld, arrays: readonly ConstArray[]): readonly { readonly name: Identifier; readonly named: readonly NamedElement[] }[] {
+  const asked = arrays.flatMap(({ elements }) => elements.filter((element) => !isStringLiteral(element)));
+  const types = world.typesAt(asked);
+  const typed = new Map<Expression, string>();
+  for (const [at, element] of asked.entries()) {
+    const type = types[at];
+    if (type?.isStringLiteralType() === true) {
+      typed.set(element, type.value);
+    }
+  }
+  return arrays.flatMap(({ name, elements }) => {
+    const named = elements.flatMap((element): NamedElement[] => {
+      const text = isStringLiteral(element) ? element.text : typed.get(element);
+      return text === undefined ? [] : [{ element, text }];
+    });
+    return named.length === elements.length ? [{ name, named }] : [];
+  });
 }
 
 function eachProductionNode(world: NativeWorld, visit: (node: Node) => void): void {
@@ -165,15 +196,16 @@ function eachProductionNode(world: NativeWorld, visit: (node: Node) => void): vo
 }
 
 function tuples(world: NativeWorld): readonly Tuple[] {
-  const found: { readonly name: Identifier; readonly elements: readonly StringLiteral[] }[] = [];
+  const arrays: ConstArray[] = [];
   eachProductionNode(world, (node) => {
-    const tuple = tupleOf(node);
-    if (tuple !== null) {
-      found.push(tuple);
+    const array = constArrayOf(node);
+    if (array !== null) {
+      arrays.push(array);
     }
   });
+  const found = stringTuples(world, arrays);
   const symbols = world.symbolsAt(found.map(({ name }) => name));
-  return found.map(({ name, elements }, index) => {
+  return found.map(({ name, named }, index) => {
     const site = world.siteOf(name);
     const symbol = symbols[index];
     return {
@@ -181,7 +213,7 @@ function tuples(world: NativeWorld): readonly Tuple[] {
       site,
       name: name.text,
       keys: symbol === undefined ? [] : declarationKeys(symbol),
-      members: elements.map((element) => ({ text: element.text, site: world.siteOf(element), line: lineOf(element) })),
+      members: named.map(({ element, text }) => ({ text, site: world.siteOf(element), line: lineOf(element) })),
     };
   });
 }

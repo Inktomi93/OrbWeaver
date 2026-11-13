@@ -1,7 +1,8 @@
 // CharacterFacetEditor — the CONTENT drill-in for one selected card-content facet. When a facet row is
 // selected, the facet list is replaced by this full-width editor: a back button, header, and the field
-// body. Binds the form directly (in-region, no bridge). Big multi-line text authors here; small
-// inputs/selects live in the CONTEXT Field tab.
+// body. Binds the form directly (in-region, no bridge). Big multi-line text authors here; the depth
+// prompt's small inputs/selects live in the CONTEXT Field tab. The Provenance facet's creator/version pair
+// is edited here and nowhere else: the Field tab only reads it back.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -25,6 +26,8 @@ import { facetById } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { isDepthPromptPrefill } from "../lib/character-card-form-model.ts";
 import {
+  CHARACTER_CARD_VERSION_FIELD_NAME,
+  CHARACTER_CREATOR_FIELD_NAME,
   CHARACTER_CREATOR_NOTES_FACET_NAME,
   CHARACTER_DESCRIPTION_FACET_NAME,
   CHARACTER_EXPAND_TO_EDIT_NAME,
@@ -256,10 +259,14 @@ function ProvenanceFacet({ form, readOnly }: { readonly form: CardForm; readonly
       <Section heading="Provenance">
         <SettingRowGroup>
           <SettingTrackRow>
-            <form.AppField name="creator">{(field): ReactElement => <field.TextField label="Creator" placeholder="Optional" />}</form.AppField>
+            <form.AppField name="creator">
+              {(field): ReactElement => <field.TextField label={CHARACTER_CREATOR_FIELD_NAME} placeholder="Optional" />}
+            </form.AppField>
           </SettingTrackRow>
           <SettingTrackRow>
-            <form.AppField name="cardVersion">{(field): ReactElement => <field.TextField label="Card version" placeholder="e.g. 1.2" />}</form.AppField>
+            <form.AppField name="cardVersion">
+              {(field): ReactElement => <field.TextField label={CHARACTER_CARD_VERSION_FIELD_NAME} placeholder="e.g. 1.2" />}
+            </form.AppField>
           </SettingTrackRow>
         </SettingRowGroup>
       </Section>

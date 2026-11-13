@@ -65,6 +65,9 @@ type AddMode = (typeof ADD_MODES)[number];
 
 const MODE_LABELS: Record<AddMode, string> = { upload: "Upload a file", paste: DATABANK_PASTE_TEXT_NAME, link: "From a link" };
 
+// The Link field's form name, which is also the name its input carries in the arm's form.
+const LINK_FIELD = "url" satisfies keyof ScrapeFormValues;
+
 /** The add-document modal BODY: a three-mode toggle over upload · paste · scrape. */
 export function AddDocumentBody(): ReactElement {
   const [mode, setMode] = useState<AddMode>("upload");
@@ -433,6 +436,14 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
       focusFirstInvalidFieldIn(formRef.current);
     }
   }, [failedFetches]);
+  // This arm mounts only when the person chooses it, and in a short viewport its fields start below the mode strip they pressed.
+  // `nearest` moves the scroll region only when the Link field is out of view, and the region's scroll padding keeps it above the footer.
+  useEffect(() => {
+    const link = formRef.current?.elements.namedItem(LINK_FIELD);
+    if (link instanceof HTMLElement) {
+      link.scrollIntoView({ block: "nearest" });
+    }
+  }, []);
 
   const onSubmit = (): void => {
     if (destination === null || pending || form.state.values.url.trim() === "") {
@@ -447,7 +458,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
       <form.AppField name="source">{(field): ReactElement => <field.SelectField items={SCRAPER_OPTIONS} label="Source" />}</form.AppField>
       <form.Subscribe selector={(state): ScraperKind => state.values.source}>
         {(source): ReactElement => (
-          <form.AppField name="url">
+          <form.AppField name={LINK_FIELD}>
             {(field): ReactElement => (
               <field.TextField {...(runnerFailed[source] ? { describedBy: failureId, invalid: true } : {})} label="Link" placeholder="https://…" />
             )}

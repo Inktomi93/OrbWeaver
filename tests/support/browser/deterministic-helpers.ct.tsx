@@ -89,6 +89,50 @@ test("socket frames wait for the named room even after another room attached fir
   expect(await stream).toContain('"type":"serverReady"');
 });
 
+test("a room whose attach entry the server refused does not release frames until an attach for it is admitted", async ({ page }) => {
+  await page.route("http://orb.test/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
+  await page.goto("http://orb.test/");
+  let userRefusals = 1;
+  await routeTrpc(page, {
+    "stream.attach": ({ ref }) => (ref.channel === "user" && userRefusals-- > 0 ? trpcError({ code: "NOT_FOUND" }) : null),
+  });
+  const recorder = await routeOrbSocket(page, { awaitRooms: [{ channel: "user" }] });
+  const connected = page.waitForRequest((request) => request.url().includes("stream.connect"));
+  let served = false;
+  const stream = page
+    .evaluate(async () => {
+      const response = await fetch("/api/trpc/stream.connect", { headers: { accept: "text/event-stream" } });
+      return await response.text();
+    })
+    .then((body) => {
+      served = true;
+      return body;
+    });
+  await connected;
+  // One batch, answered with HTTP 200: its first entry is admitted and its second, the awaited room, is refused.
+  const batchStatus = await page.evaluate(async () => {
+    const response = await fetch("/api/trpc/stream.attach,stream.attach?batch=1", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ 0: { ref: { channel: "notifications" } }, 1: { ref: { channel: "user" } } }),
+    });
+    return response.status;
+  });
+  expect(batchStatus).toBe(200);
+  await absenceWindow(page, SOCKET_SERVE_WINDOW_MS);
+  expect(recorder.attachedChannels()).toEqual(["notifications", "user"]);
+  expect(served).toBe(false);
+  await page.evaluate(async () => {
+    await fetch("/api/trpc/stream.attach", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ref: { channel: "user" } }),
+    });
+  });
+  await recorder.served();
+  expect(await stream).toContain('"type":"serverReady"');
+});
+
 // White ink on a #000000 fill, both in one 0.5 group over a white page: the ink paints #ffffff and the fill #808080,
 // which is 3.95:1; the bounds allow the engine's rounding of the 0.5 blend. Compositing the ink again over the already
 // dimmed fill reads #c0c0c0 on #808080, 2.17:1.

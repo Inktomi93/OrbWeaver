@@ -1,4 +1,5 @@
-// Literal hits of a name across the tracked tree: one `git grep` for many names, each hit classified by where it sits.
+// Literal hits of a name across the tracked tree: one `git grep` for as many names as a pattern holds, each hit
+// classified by where it sits.
 // TS and JS files are classified by the parser; other files by type. A literal search sees reads the compiler cannot:
 // a JSON scenario, a template, a plugin bundle, a script.
 import { existsSync } from "node:fs";
@@ -79,6 +80,30 @@ const WORD_CHAR = "[A-Za-z0-9_$]";
 // alternation on a large tree.
 const wordPattern = (names: readonly string[]): string => `(?<!${WORD_CHAR})(?:${names.map(escaped).join("|")})(?!${WORD_CHAR})`;
 const wordsOf = (names: readonly string[]): RegExp => new RegExp(wordPattern(names), "gu");
+
+// PCRE2 refuses a pattern whose compiled form passes 64 KiB, and git grep then exits with an error. A name compiles to
+// two bytes for each byte of its text and three for its branch. The bound leaves half the limit spare.
+const PATTERN_BUDGET = 32_768;
+const BYTE_COST = 2;
+const BRANCH_COST = 3;
+
+// The names in runs that each fit one pattern, in their given order.
+function patternParts(names: readonly string[]): readonly (readonly string[])[] {
+  const parts: string[][] = [];
+  let room = 0;
+  for (const name of names) {
+    const cost = BYTE_COST * Buffer.byteLength(name) + BRANCH_COST;
+    const part = parts.at(-1);
+    if (part === undefined || cost > room) {
+      parts.push([name]);
+      room = PATTERN_BUDGET - cost;
+    } else {
+      part.push(name);
+      room -= cost;
+    }
+  }
+  return parts;
+}
 
 const isTypePosition = (node: ts.Node): boolean =>
   ts.findAncestor(node, (up) => ts.isTypeNode(up) || ts.isInterfaceDeclaration(up) || ts.isTypeAliasDeclaration(up) || ts.isHeritageClause(up)) !== undefined;
@@ -189,17 +214,17 @@ function literalHits(root: string, sources: Sources, names: readonly string[]): 
   const files = execGit(root, ["ls-files", "-z"]).split("\0").filter(Boolean).length;
   const ignored = execGit(root, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"]).split("\0").filter(Boolean).length;
   const hits = new Map<string, LiteralHit[]>(wanted.map((name) => [name, []]));
-  if (wanted.length === 0) {
-    return { files, ignored, hits };
-  }
-  const words = wordsOf(wanted);
   const seen = new Set<string>();
-  for (const grepped of gitGrep(root, null, ["-I", "-P", "-e", wordPattern(wanted)])) {
-    for (const [name, hit] of lineHits(sources, grepped, words)) {
-      const key = `${name} ${hit.offset ?? hit.at} ${hit.kind}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        hits.get(name)?.push(hit);
+  // Each part's lines are read for that part's names alone, so a line two parts find gives each name's hit once.
+  for (const part of patternParts(wanted)) {
+    const words = wordsOf(part);
+    for (const grepped of gitGrep(root, null, ["-I", "-P", "-e", wordPattern(part)])) {
+      for (const [name, hit] of lineHits(sources, grepped, words)) {
+        const key = `${name} ${hit.offset ?? hit.at} ${hit.kind}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          hits.get(name)?.push(hit);
+        }
       }
     }
   }

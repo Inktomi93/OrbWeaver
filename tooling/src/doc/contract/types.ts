@@ -31,6 +31,21 @@ export type CommitOutcome = { readonly ok: true; readonly sha: string } | GitFai
 /** How staging paths in the checkout's real index ended. */
 export type StageOutcome = { readonly ok: true } | GitFailure;
 
+/** One line of a text file that cites the doc at `target`, by its path or, for an ADR, by `D<n>`. */
+export interface CitingLine {
+  readonly path: string;
+  /** 1-based. */
+  readonly line: number;
+  readonly target: string;
+  readonly text: string;
+}
+
+/** An item file a retitle moved: the name that went and the name that arrived. */
+export interface RenamedItem {
+  readonly from: string;
+  readonly to: string;
+}
+
 /** One tracked markdown file under a tree the tool governs, with its bytes. */
 export interface GovernedDoc {
   readonly path: string;

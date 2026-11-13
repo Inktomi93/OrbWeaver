@@ -6,6 +6,7 @@
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { CitingLine } from "../contract/types.ts";
 import { ADR_KIND, DOC_TOOL_TREES, PARKED, PLAN_KIND } from "../contract/vocab.ts";
 import { splitDocument } from "../lib/frontmatter-write.ts";
 import { DESIGN_FILE, isGeneratedPath, planSlugOf } from "../lib/indexes.ts";
@@ -60,6 +61,30 @@ export function textCiters(targets: readonly string[], repoRoot = root): readonl
     }
   }
   return lines;
+}
+
+/** Every line that refers to one of `targets` by path or cites an ADR among them by `D<n>`: the same two spellings
+ *  {@link textCiters} reads, per line. The targets, the `exempt` docs and the generated indexes do not count. */
+export function citingLines(targets: readonly string[], exempt: readonly string[], repoRoot = root): readonly CitingLine[] {
+  const skipped = new Set([...targets, ...exempt]);
+  const citations = targets.map((target) => ({ target, cite: citationOf(target, repoRoot) }));
+  const cites = (path: string, text: string, { target, cite }: (typeof citations)[number]): boolean =>
+    refersTo(path, text, target) || cite?.pattern.test(text) === true;
+  const found: CitingLine[] = [];
+  for (const path of textFiles(repoRoot)) {
+    if (skipped.has(path) || isGeneratedPath(path)) {
+      continue;
+    }
+    const source = readFileSync(join(repoRoot, path), "utf8");
+    for (const citation of citations.filter((candidate) => cites(path, source, candidate))) {
+      source.split("\n").forEach((text, index) => {
+        if (cites(path, text, citation)) {
+          found.push({ path, line: index + 1, target: citation.target, text: text.trim() });
+        }
+      });
+    }
+  }
+  return found;
 }
 
 /** Items and parked plans that name a removed item as their blocker, and items filed under a removed plan. */

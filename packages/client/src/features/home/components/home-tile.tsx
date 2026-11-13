@@ -216,7 +216,9 @@ export function HomeTile({
   readonly gridRef: RefObject<HTMLDivElement | null>;
 }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
-  const holdsStart = tile.useHoldsStart?.() ?? false;
+  // `null` is the hook's own "cannot say yet", so only an absent hook falls back to not holding.
+  const startClaim = tile.useHoldsStart?.();
+  const holdsStart = startClaim === undefined ? false : startClaim;
   const { onHold } = use(HomeStart);
   const title = tile.useTitle?.() ?? tile.title;
   // A live region of `null` holds the tile out of every column; only an absent hook falls back to the static one.
@@ -227,9 +229,10 @@ export function HomeTile({
   }
   const headingId = useId();
   const placed = visible && region === column;
-  // Home draws its start control in the masthead unless a placed tile in its empty state holds it. The layout effect lands before paint, so the control never shows in both places.
+  // Home draws its start control in the masthead unless a placed tile holds it or cannot say yet. The layout effect lands before paint, so
+  // the control never shows in both places, and never in the masthead ahead of a tile that then takes it.
   useLayoutEffect(() => {
-    onHold(tile.id, holdsStart && placed);
+    onHold(tile.id, placed ? holdsStart : false);
   }, [holdsStart, placed, onHold, tile.id]);
   useLayoutEffect(() => (): void => onHold(tile.id, false), [onHold, tile.id]);
   // The held tile marks the shelf, which stays invisible until the tile is placed: it lands at the top of the shelf

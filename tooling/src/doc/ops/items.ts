@@ -10,7 +10,18 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
-import type { DocEdit, GovernedDoc, ItemEditFlag, ItemPatch, ItemState, NewItemInput, SectionContent, WorkItem } from "../contract/types.ts";
+import type {
+  CitingLine,
+  DocEdit,
+  GovernedDoc,
+  ItemEditFlag,
+  ItemPatch,
+  ItemState,
+  NewItemInput,
+  RenamedItem,
+  SectionContent,
+  WorkItem,
+} from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { sectionsOf, splitDocument, structuralHeadings, withFields, withSectionText } from "../lib/frontmatter-write.ts";
 import { allItems } from "../lib/generated.ts";
@@ -33,6 +44,7 @@ import {
   rewriteTextFiles,
   root,
   stagedWorkDeletions,
+  stagePaths,
   TOOL_TRAILER,
   textFiles,
   today,
@@ -45,12 +57,16 @@ refuseDirectInvocation(import.meta.url, "pnpm doc <item|set|land>");
 
 /** The outcome every write verb reports: what it wrote, or why it wrote nothing. A landing verb also
  *  names what it SKIPPED (an item already done), which is neither a write nor a refusal. A `--commit`
- *  verb names the commit it made. */
+ *  verb names the commit it made. A retitling `set` names the files it moved, and the moves whose two halves
+ *  it staged. A `status superseded` names the lines that still cite the superseded doc. */
 export interface WriteOutcome {
   readonly written: readonly string[];
   readonly refusals: readonly string[];
   readonly skipped?: readonly string[];
   readonly committed?: string;
+  readonly renamed?: readonly RenamedItem[];
+  readonly stagedRenames?: readonly RenamedItem[];
+  readonly citers?: readonly CitingLine[];
 }
 
 export function loadItems(repoRoot = root): readonly WorkItem[] {
@@ -66,15 +82,25 @@ function itemIdsOf(paths: readonly string[]): readonly number[] {
   return [...new Set(ids)].toSorted((left, right) => left - right);
 }
 
+/** The staged deletions that are a landing: the id has no item file left. A staged retitle deletes the old name
+ *  while the item lives on under its new one, and a board commit carries both halves. */
+function stagedLandings(repoRoot: string): readonly string[] {
+  const live = new Set(loadItems(repoRoot).map((item) => item.id));
+  return stagedWorkDeletions(repoRoot).filter((path) => {
+    const name = parseNumberedName(basenameOf(path));
+    return name === null || !live.has(name.id);
+  });
+}
+
 /** What makes a board commit unsafe, checked BEFORE the verb writes anything: a merge waiting for its commit
- *  (a plumbing commit would drop its second parent), a staged deletion (it would commit with no record and
+ *  (a plumbing commit would drop its second parent), a staged landing (it would commit with no record and
  *  no `Closes:` line), and an uncommitted hand-owned doc (the swept indexes describe it, so a commit without
  *  it fails the docs check at HEAD). */
 function commitBlockers(repoRoot: string): readonly string[] {
   if (mergeInProgress(repoRoot)) {
     return ["--commit cannot run while a merge waits for its commit (MERGE_HEAD exists) — commit the merge first"];
   }
-  const staged = stagedWorkDeletions(repoRoot);
+  const staged = stagedLandings(repoRoot);
   if (staged.length > 0) {
     return [`--commit would commit the staged deletion of ${staged.join(", ")} with no landing record and no Closes: line — commit it first`];
   }
@@ -297,15 +323,33 @@ export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = ro
     return { written: [], refusals: problems };
   }
   const written: string[] = [];
+  const renamed: RenamedItem[] = [];
   for (const { from, doc } of edits) {
     writeDoc(doc.path, doc.source, repoRoot);
     written.push(doc.path);
     if (from !== doc.path) {
       rmSync(join(repoRoot, from));
       written.push(from, ...rewriteReferences(from, doc.path, repoRoot));
+      renamed.push({ from, to: doc.path });
     }
   }
-  return { written: [...new Set([...written, ...regenerateIndexes(repoRoot)])], refusals: [] };
+  return { written: [...new Set([...written, ...regenerateIndexes(repoRoot)])], refusals: [], renamed };
+}
+
+/** Stage both halves of every rename a retitling `set` made, in the checkout's real index, so the caller's own commit
+ *  carries the old name's deletion and the new name's arrival together: committed apart, git history reads two items
+ *  holding one id. Only the two item paths are staged. The references the retitle rewrote stay unstaged, because a
+ *  file outside the board can hold a sibling's edits. A staging git refuses leaves the write in place and says so. */
+export function stageRetitles(outcome: WriteOutcome, repoRoot = root): WriteOutcome {
+  const renamed = outcome.renamed ?? [];
+  if (renamed.length === 0) {
+    return outcome;
+  }
+  const halves = renamed.flatMap(({ from, to }) => [from, to]);
+  const staged = stagePaths(halves, repoRoot);
+  return staged.ok
+    ? { ...outcome, stagedRenames: renamed }
+    : { ...outcome, skipped: [...(outcome.skipped ?? []), `staging the rename (${staged.reason}) — stage ${halves.join(" and ")} yourself, in one commit`] };
 }
 
 /** The section list of an item file, in order. */

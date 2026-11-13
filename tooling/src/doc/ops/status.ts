@@ -3,7 +3,9 @@
 // `superseded --by` write both halves of the link (`superseded-by` on the old, `supersedes` on the new) in
 // the same call, so the pair can never be half-written. A plan is `parked` with its wake condition in
 // `--blocked`; any other plan status clears it. The pre-write check judges every edited doc; a kind its
-// path does not admit, or a parked plan without a reason, refuses there.
+// path does not admit, or a parked plan without a reason, refuses there. A `superseded` write also reports
+// every line that still cites the superseded doc. It never refuses on one: a successor may keep the clause
+// an old cite names, so each line is the author's to re-point or keep.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
@@ -14,6 +16,7 @@ import { KIND_RULES } from "../lib/rules.ts";
 import { introducedDocProblems } from "./check.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
+import { citingLines } from "./remove.ts";
 import { formattedDoc, readDoc, root, today, writeDoc } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc status <status> <path…>");
@@ -89,5 +92,7 @@ export function setStatus({ status, paths, by, docKind = null, blocked = null }:
   for (const { doc } of edits) {
     writeDoc(doc.path, doc.source, repoRoot);
   }
-  return { written: [...edits.map(({ doc }) => doc.path), ...regenerateIndexes(repoRoot)], refusals: [] };
+  const written = [...edits.map(({ doc }) => doc.path), ...regenerateIndexes(repoRoot)];
+  // The successor's `supersedes` field names the old doc by this write's own hand.
+  return status === SUPERSEDED ? { written, refusals: [], citers: citingLines(paths, by === null ? [] : [by], repoRoot) } : { written, refusals: [] };
 }

@@ -8,6 +8,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
+import { CONNECTIONS_LIST_NAME } from "#client/features/credentials/lib/connections-copy.ts";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 import type { ConnectionReadoutStory } from "./_connection-readout-stories.tsx";
 
@@ -152,7 +153,7 @@ for (const regime of REGIMES) {
       await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...READS]));
       await mount<typeof ConnectionReadoutStory>(GROUP_STORY, { width: regime.width, height: regime.viewport.height, appearance: regime.appearance });
       const group = page.getByRole("heading", { name: "Connections", level: 2, exact: true });
-      const heading = page.getByRole("heading", { name: "Connections", level: 3, exact: true });
+      const heading = page.getByRole("heading", { name: CONNECTIONS_LIST_NAME, level: 3, exact: true });
       await expect(group).toBeVisible();
       expect((await settledBox(heading)).height).toBeLessThanOrEqual(1);
       const anchorId = await heading.locator("..").getAttribute("id");

@@ -1,7 +1,10 @@
 // CharacterFacetInspector — the CONTEXT Field-tab body. Reads the live editor form through the character
 // form bridge and the drilled facet id off the character-selection store. Big multi-line text never
-// authors here — this tab holds only the small detail of the selected facet (Depth/Role knobs,
-// creator/version pair, or a char/token count); the body authors in CONTENT.
+// authors here — this tab holds only the small detail of the selected facet (Depth/Role knobs, a readout
+// of the creator/version pair, or a char/token count); the body authors in CONTENT.
+//
+// A field has ONE editor on the screen. The Provenance facet's creator and card version are edited in
+// CONTENT, so this tab reads the same draft back and never draws a second input for them.
 //
 // With NO facet drilled the tab is not empty: it shows `CharacterOverviewCard`, the instrument-tier
 // resting readout of the card being edited (stickler 2026-08-01 F4).
@@ -24,9 +27,10 @@ import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";
 import { facetById } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { resolveCharacterForm, useCharacterForm } from "../lib/character-editor-bridge.ts";
+import { CHARACTER_CARD_VERSION_FIELD_NAME, CHARACTER_CREATOR_FIELD_NAME } from "../lib/character-names.ts";
 import { CharacterOverviewCard } from "./character-overview-card.tsx";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section.tsx";
-import { CharacterProvenanceSection } from "./character-provenance-section.tsx";
+import { CharacterProvenanceSection, ProvenanceRow } from "./character-provenance-section.tsx";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
@@ -218,13 +222,21 @@ function DepthDetail({ form }: { readonly form: CardForm }): ReactElement {
   );
 }
 
-/** provenance's SMALL detail — the editable creator/version pair + the read-only import/refinery tail. */
+/** What an authoring row reads while its field is blank. */
+const AUTHORING_UNSET = "Not set";
+
+/** provenance's SMALL detail — a live readout of the creator/version draft + the read-only import/refinery tail. The pair's inputs are
+ *  CONTENT's; a second pair here would be two editors for one field on one screen. */
 function ProvenanceDetail({ form, readOnly }: { readonly form: CardForm; readonly readOnly: CharacterProvenanceSectionProps }): ReactElement {
   return (
     <Stack gap="section">
       <Section heading="Authoring">
-        <form.AppField name="creator">{(field): ReactElement => <field.TextField label="Creator" placeholder="Optional" />}</form.AppField>
-        <form.AppField name="cardVersion">{(field): ReactElement => <field.TextField label="Card version" placeholder="e.g. 1.2" />}</form.AppField>
+        <form.Subscribe selector={(s): string => s.values.creator}>
+          {(value): ReactElement => <ProvenanceRow label={CHARACTER_CREATOR_FIELD_NAME} value={value.trim() === "" ? AUTHORING_UNSET : value} />}
+        </form.Subscribe>
+        <form.Subscribe selector={(s): string => s.values.cardVersion}>
+          {(value): ReactElement => <ProvenanceRow label={CHARACTER_CARD_VERSION_FIELD_NAME} value={value.trim() === "" ? AUTHORING_UNSET : value} />}
+        </form.Subscribe>
       </Section>
       <CharacterProvenanceSection {...readOnly} />
     </Stack>
