@@ -37,6 +37,7 @@ import {
   EXTRACTION_CONTEXT_LABEL,
   EXTRACTION_MODE_LABEL,
 } from "../lib/host-console-labels.ts";
+import { RPG_HOST_ADVANCED_LABEL } from "../lib/rpg-names.ts";
 import { Kicker } from "./rpg-kicker.tsx";
 import { StateCaptureKnob } from "./rpg-state-capture-knob.tsx";
 
@@ -168,7 +169,7 @@ export function HostConsoleScalars({
           </Stack>
 
           <Collapsible>
-            <CollapsibleTrigger>Advanced</CollapsibleTrigger>
+            <CollapsibleTrigger>{RPG_HOST_ADVANCED_LABEL}</CollapsibleTrigger>
             <CollapsiblePanel keepMounted={true}>
               <Stack gap="section">
                 {advancedContent}

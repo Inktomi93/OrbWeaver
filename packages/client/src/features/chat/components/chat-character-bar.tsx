@@ -68,6 +68,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { roomRosterOptions, useTRPC } from "#data";
 import { testId } from "#lib";
+import { CHAT_CHARACTER_BAR_NAME } from "../lib/chat-surface-names.ts";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
 
 export interface ChatCharacterBarProps {
@@ -117,7 +118,7 @@ function CharacterBarStrip({
       plate="band"
       data-slot="character-bar"
       data-testid={testId("chatCharacterBar")}
-      aria-label="Characters"
+      aria-label={CHAT_CHARACTER_BAR_NAME}
       aria-hidden={inTranscript ? true : undefined}
       role="group"
     >

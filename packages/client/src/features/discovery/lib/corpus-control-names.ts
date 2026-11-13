@@ -89,6 +89,9 @@ export const CORPUS_TURN_ON_MEMORY_NAME = "Turn on chat memory";
 /** The line of a pass only the box owner may run. */
 export const CORPUS_BOX_OWNER_RUNS_PASS_TEXT = "The box owner runs this pass";
 
+/** The line of a pass that is running now, in place of its door. */
+export const CORPUS_PASS_RUNNING_TEXT = "Running";
+
 /**
  * What each corpus read is called in its failure line, `queryFailedLabel(CORPUS_READ_LABELS.x)`. One entry per read a
  * spec makes fail; a surface passes its entry to `QueryErrorState`.

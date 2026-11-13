@@ -86,6 +86,12 @@ export const JUDGED_ORACLES: readonly OracleJudgement[] = [
     reason: "its outputs are pinned by literal in tests/client/lib/invite-copy.dom.test.ts",
   },
   {
+    file: "tests/client/features/chat/components/assembly-preview-macros.ct.tsx",
+    scope: "the diagnostics list the turn's registered macros by source and the preset macro a game macro shadowed",
+    function: "macroSourceLabel",
+    reason: "its outputs are pinned by literal in tests/client/lib/prompt-macros.dom.test.ts; each row shows its own home's word and not the other's",
+  },
+  {
     file: "tests/client/features/chat/components/composer-two-rows.ct.tsx",
     scope: "expectRefusalFits",
     function: "guidedControlName",
@@ -192,6 +198,18 @@ export const JUDGED_ORACLES: readonly OracleJudgement[] = [
     scope: "keyboard placement hands focus to the return control and back to the restored panel",
     function: "movePluginPanelLabel",
     reason: "locates the move control the case presses; the restored name is asserted by literal",
+  },
+  {
+    file: "tests/client/features/refinery/components/platform-remaining-action-groups.suite.ct.tsx",
+    scope: "masthead card and scope actions remain contained beside a maximum-length card name",
+    function: "scopeChipLabelOf",
+    reason: "locates the scope checkbox the case reads the state of",
+  },
+  {
+    file: "tests/client/features/rpg/components/game-macro-browser.ct.tsx",
+    scope: "the browser names each macro's source, links the preset's and the plugin's, and a completion row prints the same source",
+    function: "macroSourceLabel",
+    reason: "its outputs are pinned by literal in tests/client/lib/prompt-macros.dom.test.ts",
   },
   {
     file: "tests/client/features/workloads/components/import-preview.ct.tsx",

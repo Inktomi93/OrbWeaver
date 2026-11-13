@@ -2,6 +2,7 @@
 
 // `cn` is @orb/ui's, re-exported here for client callers (docs/law/UI-Architecture-and-Layout.md, lib/ entry).
 export { cn } from "@orb/ui/lib";
+export { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "./account-field-names.ts";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
 export { APP_READY_ATTR } from "./app-ready-attribute.ts";
 export {
@@ -225,6 +226,7 @@ export {
   PROMPT_CACHE_REQUEST_SETTING,
   PROMPT_CACHE_SYSTEM_SETTING,
 } from "./item-switch-names.ts";
+export { BAND_NEW_LABEL } from "./list-band-names.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";

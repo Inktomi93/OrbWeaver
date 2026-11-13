@@ -10,6 +10,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
   CORPUS_BOX_OWNER_RUNS_PASS_TEXT,
+  CORPUS_PASS_RUNNING_TEXT,
   CORPUS_READINESS_RAIL_NAME,
   CORPUS_STAGE_LABELS,
   CORPUS_TURN_ON_MEMORY_NAME,
@@ -164,7 +165,7 @@ test("a queued run of a row's pass holds that row at running instead of offering
   const rail = await visibleRail(page);
   const line = passLine(rail, CORPUS_STAGE_LABELS.duplicates);
   await expect(line).toHaveAttribute("data-pass-action", "running");
-  await expect(line).toContainText("Running");
+  await expect(line).toContainText(CORPUS_PASS_RUNNING_TEXT);
   await expect(line.getByRole("button")).toHaveCount(0);
   await expect(passLine(rail, CORPUS_STAGE_LABELS.distilled)).toHaveAttribute("data-pass-action", "run");
 });

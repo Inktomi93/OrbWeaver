@@ -34,7 +34,7 @@ import {
   useSuspenseQuery,
   useTRPC,
 } from "#data";
-import { DIALOG_VERBS, notify, testId, timeLib, trpcErrorReason } from "#lib";
+import { ACCOUNT_HANDLE_FIELD_NAME, DIALOG_VERBS, notify, testId, timeLib, trpcErrorReason } from "#lib";
 import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
@@ -198,7 +198,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                   <form.AppField name="handle">
                     {(field): ReactElement => (
                       <field.TextField
-                        label="Handle"
+                        label={ACCOUNT_HANDLE_FIELD_NAME}
                         description="Their exact handle: the invite lands in their notifications."
                         autoComplete="off"
                         data-testid={testId("inviteHandleInput")}

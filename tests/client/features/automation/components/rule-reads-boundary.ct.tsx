@@ -192,8 +192,13 @@ test("a held room world book read shows the loading skeleton in the preset knob,
     ...serveCorpusProcedures(caller, ["worldInfo.listForChat"], read.intercept),
   });
   await mount<typeof ChatRulesStory>(CHAT_STORY, { chatId, appearance: appearanceSettingsSchema.parse({}) });
+  // The catalogue names its presets over the wire, so the lore preset's row is found by the title the server serves.
+  const lore = (await caller.automation.listRulePresets()).find((preset) => preset.id === "autoAddLore");
+  if (lore === undefined) {
+    throw new Error("The rule preset catalogue serves the lore preset");
+  }
   await page.getByRole("button", { name: RULE_ADD_NAME, exact: true }).click();
-  await page.getByRole("button", { name: "Auto-add lore entries" }).click();
+  await page.getByRole("button", { name: lore.title }).click();
   const popover = page.getByRole("dialog");
   await read.hold.requested;
   await expect(popover.locator('[aria-busy="true"]')).toBeVisible();

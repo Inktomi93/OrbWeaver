@@ -93,7 +93,6 @@ import {
   PRESET_IMPORT_NAME,
   PRESET_IMPORT_TITLE,
   PRESET_NAME_FIELD_NAME,
-  PRESET_NEW_LABEL,
   PRESET_RENAME_NAME,
   PRESET_SECTION_ACTIONS_NAME,
   PRESET_SECTION_NAME_FIELD_NAME,
@@ -151,6 +150,7 @@ import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import { BAND_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
@@ -1314,7 +1314,7 @@ async function createDisposablePreset(journey: Journey, onCreated: (created: Lis
   const band = pane(journey, "list");
   // A band with no room for the word keeps its primary as an icon named by the primary's menu label.
   const newPreset = band
-    .getByRole("button", { name: PRESET_NEW_LABEL, exact: true })
+    .getByRole("button", { name: BAND_NEW_LABEL, exact: true })
     .or(band.getByRole("button", { name: NEW_PRESET_NAME, exact: true }))
     .filter({ visible: true });
   await journey.action("presets/disposable/create", {

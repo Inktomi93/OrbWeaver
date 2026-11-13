@@ -7,6 +7,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, requireShowcaseBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { PLUGIN_SEARCH_SUBMIT_NAME } from "#client/features/plugin/lib/plugin-surface-names.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 
 type AtlasRoot = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -200,7 +201,7 @@ for (const regime of REGIMES) {
       await expect(body.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
       await body.getByRole("textbox", { name: "Search the community hubs", exact: true }).fill("lantern");
       try {
-        await body.getByRole("button", { name: "Search", exact: true }).click();
+        await body.getByRole("button", { name: PLUGIN_SEARCH_SUBMIT_NAME, exact: true }).click();
         await wire.requested;
         await expectGuidance(body, 'Searching Character Tavern for "lantern"…');
         await expect(body.getByText(PRISTINE, { exact: true })).toHaveCount(0);
@@ -214,13 +215,13 @@ for (const regime of REGIMES) {
       await expectGuidance(body, FAILURE);
       await expect(body.getByText(PRISTINE, { exact: true })).toHaveCount(0);
       await expectGuidance(body, "No cards to show.");
-      await expect(body.getByRole("button", { name: "Search", exact: true })).toBeEnabled();
+      await expect(body.getByRole("button", { name: PLUGIN_SEARCH_SUBMIT_NAME, exact: true })).toBeEnabled();
       await page.screenshot({ path: test.info().outputPath("atlas-failed.png") });
 
       await body.getByRole("textbox", { name: "Search the community hubs", exact: true }).fill("lantern");
       await body.getByRole("button", { name: "Tag filters", exact: true }).click();
       await body.getByRole("textbox", { name: "Include tags", exact: true }).fill("fantasy");
-      await body.getByRole("button", { name: "Search", exact: true }).click();
+      await body.getByRole("button", { name: PLUGIN_SEARCH_SUBMIT_NAME, exact: true }).click();
       await expect.poll(() => caller.plugin.getSurfaceState(address)).toMatchObject({ loading: false, noSearch: false, tiles: [] });
       await component.unmount();
       await mount<typeof PluginPresentationPageStory>(STORY, { ...address, width: regime.width });

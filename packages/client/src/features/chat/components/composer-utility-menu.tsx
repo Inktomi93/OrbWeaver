@@ -55,7 +55,7 @@ import { MESSAGE_TOOLS_LABEL, OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, S
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { UseGuidedActionsResult, useGuidedActions } from "../hooks/use-guided-actions.ts";
-import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME } from "../lib/composer-menu-names.ts";
+import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_REGENERATE_NAME } from "../lib/composer-menu-names.ts";
 import { ImpersonatePersonItems } from "./composer-guided-buttons.tsx";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerMediaGroup } from "./composer-media-group.tsx";
@@ -329,7 +329,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
           )}
           <UtilityActionItem
             icon={RefreshCw}
-            label="Regenerate"
+            label={COMPOSER_REGENERATE_NAME}
             helper={REGENERATE_PLAIN_HELPER}
             onAction={onRegenerate}
             enabled={onRegenerate !== undefined}

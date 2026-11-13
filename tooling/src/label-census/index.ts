@@ -44,7 +44,9 @@
 //
 // The class is a judgement on text alone, so `exported` means "a production .ts module exports this exact string and
 // no other production file spells it", not "the component under test renders that export". A rewrite still reads
-// the component before it trusts the class.
+// the component before it trusts the class. A site in a home class that is not a name production renders for the
+// targeted control moves to `judged` through a row of `tooling/src/label-census/judged-sites.ts`; that file states the
+// key, the closed reasons and the rule.
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -53,6 +55,8 @@ import { z } from "zod";
 import { execNicedSync } from "../floor/process/proc.ts";
 import type { OracleJudgement } from "./judged-oracles.ts";
 import { JUDGED_ORACLES } from "./judged-oracles.ts";
+import type { SiteJudgement, SiteReason } from "./judged-sites.ts";
+import { JUDGED_SITES, SITE_REASONS } from "./judged-sites.ts";
 
 /** The text-target calls whose first argument is a name or visible text. */
 const TEXT_CALLS = new Set([
@@ -133,6 +137,8 @@ const GIT_LIST_MAX_BUFFER = 67_108_864;
  * `export-out-of-reach`: a `tests/ui` site whose only export is outside `@orb/ui`, which that tree cannot import.
  * `inline`, `inline-template`: production spells it, or the template's words, with no export.
  * `inline-also-authored`: production spells it and a story or fixture authors it too.
+ * `judged`: it held one of the {@link HOME_CLASSES}, and a row of `judged-sites.ts` records why it is no name the
+ *   targeted control renders; the row carries that class and the row's reason in `judged`.
  * `authored`: only a story, fixture or corpus file spells it.
  * `guest`: only guest plugin markup spells it.
  * `composed`: no file spells it whole, and an untagged `packages/client` or `packages/ui` template with at least six
@@ -151,6 +157,7 @@ export const CENSUS_CLASSES = [
   "inline",
   "inline-template",
   "inline-also-authored",
+  "judged",
   "authored",
   "guest",
   "composed",
@@ -160,6 +167,17 @@ export const CENSUS_CLASSES = [
   "non-word",
 ] as const;
 export type CensusClass = (typeof CENSUS_CLASSES)[number];
+
+/** The classes that say production keeps the text and the test types it anyway: the sites 1426's done line counts. */
+export const HOME_CLASSES = [
+  "exported",
+  "exported-also-inline",
+  "export-out-of-reach",
+  "inline",
+  "inline-also-authored",
+] as const satisfies readonly CensusClass[];
+export type HomeClass = (typeof HOME_CLASSES)[number];
+const isHomeClass = (cls: CensusClass): cls is HomeClass => HOME_CLASSES.some((home) => home === cls);
 
 /** How an oracle candidate's label function varies: by a branch, or by the value one template splices in. */
 export const ORACLE_KINDS = ["branching", "template"] as const;
@@ -178,6 +196,8 @@ export interface NameSite {
   readonly text: string;
   /** The name a selector or an aria snapshot spells inside the site's text, when the site is one of those. */
   readonly value?: string;
+  /** The case the site's text is written in, as {@link enclosingScope} names it. */
+  readonly scope: string;
 }
 
 export interface CensusRow extends NameSite {
@@ -186,6 +206,8 @@ export interface CensusRow extends NameSite {
   readonly feature: string;
   /** The production files that export or spell it, sorted. */
   readonly homes: readonly string[];
+  /** Set on a `judged` row: the home class it held and the reason its judgement records. */
+  readonly judged?: { readonly from: HomeClass; readonly reason: SiteReason };
 }
 
 const parse = ({ path, text }: CensusSource): ts.SourceFile =>
@@ -640,7 +662,13 @@ function memberKey(member: ts.PropertyAccessExpression | ts.ElementAccessExpress
 
 function siteOf({ at, node, value }: Located): NameSite {
   const position = at.file.getLineAndCharacterOfPosition(node.getStart(at.file));
-  const site = { file: at.source.path, line: position.line + 1, column: position.character + 1, text: node.getText(at.file) };
+  const site = {
+    file: at.source.path,
+    line: position.line + 1,
+    column: position.character + 1,
+    text: node.getText(at.file),
+    scope: enclosingScope(node, at.file),
+  };
   return value === undefined ? site : { ...site, value };
 }
 
@@ -1162,6 +1190,34 @@ export function judgeOracles(
   };
 }
 
+// A site's literal value: the name a selector or snapshot spells, else the literal itself. A home-class row always has
+// one, because only a literal is classed against a production home.
+const siteValue = (row: CensusRow): string => row.value ?? literalValue(row.text) ?? row.text;
+
+const siteJudgementKey = ({ file, scope, value }: { readonly file: string; readonly scope: string; readonly value: string }): string =>
+  `${file}\n${scope}\n${value}`;
+
+/** Each home-class row a judgement covers, moved to `judged` with the class it held and the row's reason, and every
+ *  judgement that covers no home-class row, so a stale row is reported rather than kept. One judgement covers every
+ *  site of its value in its case. */
+export function judgeSites(
+  rows: readonly CensusRow[],
+  judgements: readonly SiteJudgement[],
+): { readonly rows: readonly CensusRow[]; readonly stale: readonly SiteJudgement[] } {
+  const reasons = new Map(judgements.map((judgement) => [siteJudgementKey(judgement), judgement.reason]));
+  const matched = new Set<string>();
+  const judged = rows.map((row): CensusRow => {
+    const key = siteJudgementKey({ file: row.file, scope: row.scope, value: siteValue(row) });
+    const reason = reasons.get(key);
+    if (reason === undefined || !isHomeClass(row.class)) {
+      return row;
+    }
+    matched.add(key);
+    return { ...row, class: "judged", judged: { from: row.class, reason } };
+  });
+  return { rows: judged, stale: judgements.filter((judgement) => !matched.has(siteJudgementKey(judgement))) };
+}
+
 // local name → the name a production module exports, for each named import; a namespace import maps to "*".
 function productionImports(file: ts.SourceFile, path: string, aliases: TestAliases): Map<string, string> {
   const found = new Map<string, string>();
@@ -1311,6 +1367,8 @@ export interface Census {
   readonly oracles: readonly OracleRow[];
   /** The judgements in {@link JUDGED_ORACLES} that match no current candidate. */
   readonly staleJudgements: readonly OracleJudgement[];
+  /** The judgements in {@link JUDGED_SITES} that cover no home-class site. */
+  readonly staleSiteJudgements: readonly SiteJudgement[];
 }
 
 /** Run the census over the checkout's tracked files, each list sorted by file, line and column. */
@@ -1335,10 +1393,15 @@ export function runCensus(repoRoot: string): Census {
       .map((site) => [`${site.file}:${String(site.line)}:${String(site.column)}\n${site.value ?? ""}`, site]),
   );
   const judged = judgeOracles(byPosition(tests.flatMap((source) => oracleCalls(source, index, evidence, aliases))), JUDGED_ORACLES);
+  const sitesJudged = judgeSites(
+    [...sites.values()].map((site) => classifySite(site, index, evidence)),
+    JUDGED_SITES,
+  );
   return {
-    rows: byPosition([...sites.values()].map((site) => classifySite(site, index, evidence))),
+    rows: byPosition(sitesJudged.rows),
     oracles: judged.oracles,
     staleJudgements: judged.stale,
+    staleSiteJudgements: sitesJudged.stale,
   };
 }
 
@@ -1379,6 +1442,24 @@ export function formatOracles(oracles: readonly OracleRow[]): string {
     `feature | ${ORACLE_KINDS.join(" | ")} | unjudged branching | oracle candidates | files`,
     ...ordered.map(([feature, group]) => `${feature} | ${counts(group)}`),
     `total | ${counts(oracles)}`,
+  ].join("\n");
+}
+
+/** Every home-class site no judgement covers, the judged sites counted by reason, and every site judgement that covers
+ *  no home-class site, one line each. */
+export function formatSiteJudgements(rows: readonly CensusRow[], stale: readonly SiteJudgement[]): string {
+  const homed = rows
+    .filter((row) => isHomeClass(row.class))
+    .map((row) => `${row.file}:${String(row.line)} ${JSON.stringify(siteValue(row))} ${row.class} in "${row.scope}"`);
+  const judged = rows.filter((row) => row.judged !== undefined);
+  const byReason = SITE_REASONS.map((reason) => `${reason} ${String(judged.filter((row) => row.judged?.reason === reason).length)}`).join(", ");
+  const unmatched = stale.map((judgement) => `${judgement.file} ${JSON.stringify(judgement.value)} in "${judgement.scope}"`);
+  return [
+    `sites with a production home: ${String(homed.length)}`,
+    ...homed,
+    `judged sites: ${String(judged.length)} (${byReason})`,
+    `site judgements matching no site: ${String(unmatched.length)}`,
+    ...unmatched,
   ].join("\n");
 }
 

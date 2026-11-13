@@ -138,6 +138,12 @@ export const CHAT_INJECTION_CONTENT_NAME = "Content";
 /** The members panel's roster toolbar. */
 export const CHAT_MEMBERS_ROSTER_NAME = "Members and characters";
 
+/** The group room's character bar above the composer, which names the characters seated in the room. */
+export const CHAT_CHARACTER_BAR_NAME = "Characters";
+
+/** The open room's Memory entry: a fixed prefix, then the recall state, so a lookup by the prefix survives the state. */
+export const CHAT_MEMORY_ENTRY_PREFIX = "Memory: ";
+
 /** The open room's Members entry: a fixed prefix, then the member count. */
 export const CHAT_MEMBERS_ENTRY_PREFIX = "Members: ";
 export function chatMembersEntryName(count: number): string {

@@ -320,7 +320,7 @@ export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginSt
   readonly tone: "success" | "neutral" | "warning" | "destructive";
 } {
   if (plugin.status === "enabled") {
-    return plugin.grantedCapabilities.length === 0 ? { label: "On: nothing granted yet", tone: "warning" } : { label: "On", tone: "success" };
+    return plugin.grantedCapabilities.length === 0 ? { label: "On: nothing granted yet", tone: "warning" } : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };
   }
   if (plugin.status === "errored") {
     return { label: "Stopped after an error", tone: "destructive" };
@@ -332,6 +332,9 @@ export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginSt
     ? { label: NEEDS_APPROVAL_LABEL, tone: "neutral" }
     : { label: "Off: asked for more than you allowed", tone: "warning" };
 }
+
+/** The settled state of an enabled plugin with a grant. A row leaves it unpainted, because the Enabled switch already says it. */
+export const PLUGIN_ON_STATUS_LABEL = "On";
 
 /** The quiet state a plugin waiting on its owner's first approval wears, on the Plugins screen and in the
  *  Plugin pages list alike. */

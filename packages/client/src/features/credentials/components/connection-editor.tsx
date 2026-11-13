@@ -33,7 +33,7 @@ import {
 
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
-import { API_KEY_FIELD_NAME, CONNECTION_EDITOR_TIER_TITLES } from "../lib/credentials-names.ts";
+import { API_KEY_FIELD_NAME, CONNECTION_EDITOR_TIER_TITLES, CONNECTION_NAME_FIELD_NAME } from "../lib/credentials-names.ts";
 import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
 import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { ConnectionAccount } from "./connection-account.tsx";
@@ -247,7 +247,7 @@ function AvailableConnectionEditorBody({
             <SavedTextField
               busy={busy}
               description="Auto-named from the provider and the model. Rename it if you keep several on one server."
-              label="Name"
+              label={CONNECTION_NAME_FIELD_NAME}
               onCommit={(next): void => patch({ label: next })}
               value={connection.label}
             />

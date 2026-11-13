@@ -7,9 +7,10 @@ import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { CHARACTER_NAME_FIELD_NAME, CHARACTER_NEW_NAME, CHARACTER_NEW_SHORT_LABEL } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_NAME_FIELD_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -17,7 +18,7 @@ const STORY = `${SHELL_STORIES}/AppShellStory`;
 const TRAIL = ".shell-topbar-trail";
 const LEAD_CONTROL = ".shell-topbar-lead button";
 // The band shows New as the word while it fits and as its icon otherwise; either names the same door.
-const BAND_NEW = new RegExp(`^(?:${CHARACTER_NEW_SHORT_LABEL}|${CHARACTER_NEW_NAME})$`, "u");
+const BAND_NEW = new RegExp(`^(?:${BAND_NEW_LABEL}|${CHARACTER_NEW_NAME})$`, "u");
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 

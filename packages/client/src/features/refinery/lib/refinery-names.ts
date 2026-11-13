@@ -34,6 +34,9 @@ export function refineryCompareToggleName(comparing: boolean, label: string, qua
 /** The sessions list's empty state before any session exists. */
 export const REFINERY_NO_SESSIONS_TITLE = "No refinery sessions yet";
 
+/** The empty list's start door, whichever control it reaches: the desktop's picker or the start dialog. */
+export const REFINERY_PICK_CHARACTER_NAME = "Pick a character";
+
 /** The context pane's run history tab, its resting tab. */
 export const REFINERY_RUNS_TAB_LABEL = "Runs";
 

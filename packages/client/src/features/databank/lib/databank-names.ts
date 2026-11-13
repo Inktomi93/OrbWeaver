@@ -54,6 +54,7 @@ export function databankFetchAddLabel(fetching: boolean): string {
 }
 
 /** The document detail's section kickers, and the one press and hint under the Maintenance kicker. */
+export const DATABANK_DETAIL_FACTS_KICKER = "Details";
 export const DATABANK_DETAIL_MAINTENANCE_KICKER = "Maintenance";
 export const DATABANK_DETAIL_SOURCE_KICKER = "Source text";
 export const DATABANK_REBUILD_HINT = "Use this after a settings change, or if search misses this document.";

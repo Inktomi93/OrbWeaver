@@ -4,6 +4,9 @@
 /** The Input group's rewrite and out-of-character dialog door. */
 export const COMPOSER_CORRECTIONS_NAME = "Corrections…";
 
+/** The utility menu's new swipe of the last reply. */
+export const COMPOSER_REGENERATE_NAME = "Regenerate";
+
 /** The Input group's draft eraser. */
 export const COMPOSER_CLEAR_INPUT_NAME = "Clear input";
 

@@ -15,6 +15,7 @@ import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-nam
 import { DATABANK_LANDING_NAME } from "#client/features/databank/lib/databank-names.ts";
 import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -124,7 +125,7 @@ test.describe("on a phone", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await setRootFontScale(page, FONT_SCALE_PROPERTY, 2);
     const action = page.locator(BAND_ACTION);
-    await expect(action.getByRole("button", { name: "New", exact: true })).toBeVisible();
+    await expect(action.getByRole("button", { name: BAND_NEW_LABEL, exact: true })).toBeVisible();
     await expect(action.locator(TRIGGER)).toHaveCount(0);
   });
 });

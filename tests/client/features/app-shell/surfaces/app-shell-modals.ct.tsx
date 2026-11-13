@@ -16,6 +16,7 @@ import { YOU_SHEET_MORE_HEADING } from "#client/features/app-shell/lib/app-shell
 import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_NEW_LABEL } from "#client/lib/list-band-names.ts";
 import type { AppShellModalStory, AppShellNestedScopeStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -141,7 +142,7 @@ const DOOR_TIMEOUT_MS = 2000;
  *  the button moved there, or the landing's own New chat when the shell keeps the list off screen. */
 async function openNewChatFromList(page: Page): Promise<void> {
   const list = page.locator('.shell-panel[data-panel-side="list"]');
-  const inline = list.getByRole("button", { name: "New", exact: true });
+  const inline = list.getByRole("button", { name: BAND_NEW_LABEL, exact: true });
   const bandMenu = list.locator(LIST_BAND_MENU);
   const landing = page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true });
   await expect(async () => {
@@ -244,7 +245,7 @@ test.describe("on the corpus owner's own settings", () => {
   test("closing New chat returns focus to the Chats list's New button that opened it", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
     await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }).click();
-    const opener = page.locator('.shell-panel[data-panel-side="list"]').getByRole("button", { name: "New", exact: true });
+    const opener = page.locator('.shell-panel[data-panel-side="list"]').getByRole("button", { name: BAND_NEW_LABEL, exact: true });
     await opener.focus();
     await opener.press("Enter");
     await expect(page.getByRole("dialog")).toBeVisible();

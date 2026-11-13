@@ -19,6 +19,7 @@ import {
   refineryOpenCardName,
   refineryRestoreVersionName,
 } from "#client/features/refinery/lib/refinery-names.ts";
+import { scopeChipLabelOf } from "#client/features/refinery/lib/render-plan.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_remaining-action-groups-stories/RefineryRemainingActionsStory";
@@ -142,7 +143,7 @@ for (const regime of REGIMES) {
       await expect(scope).toBeFocused();
       await page.keyboard.press("Enter");
       const dialog = page.getByRole("dialog", { name: REFINERY_SCOPE_NAME, exact: true });
-      await expect(dialog.getByRole("checkbox", { name: "Description", exact: true })).toBeChecked();
+      await expect(dialog.getByRole("checkbox", { name: scopeChipLabelOf("description", undefined), exact: true })).toBeChecked();
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
       await expect(scope).toBeFocused();

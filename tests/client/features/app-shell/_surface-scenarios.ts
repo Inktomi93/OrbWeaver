@@ -37,6 +37,7 @@ import { ROSTER_START_CHAT_LEAD } from "#client/features/roster-preset/lib/roste
 import { ADMIN_APPROVALS_NOTE, ADMIN_CREATE_USER_NAME, ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { EXPORT_INCLUDE_LEGEND, SCHEDULE_NEW_NAME, WORKLOAD_FILTER_TABS_NAME } from "#client/features/workloads/lib/workloads-names.ts";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#client/lib/account-field-names.ts";
 import { START_NEW_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
@@ -154,8 +155,8 @@ const MODAL_SCENARIOS = {
   reauth: (page): ModalScenario => ({
     state: "loaded",
     witnesses: [
-      page.getByRole("dialog").getByRole("textbox", { name: "Handle", exact: true }),
-      page.getByRole("dialog").getByLabel("Password", { exact: true }),
+      page.getByRole("dialog").getByRole("textbox", { name: ACCOUNT_HANDLE_FIELD_NAME, exact: true }),
+      page.getByRole("dialog").getByLabel(ACCOUNT_PASSWORD_FIELD_NAME, { exact: true }),
     ],
   }),
   imagine: (page): ModalScenario => ({ state: "empty", witnesses: [page.getByRole("dialog").getByText(IMAGINE_EMPTY_TEXT, { exact: true })] }),

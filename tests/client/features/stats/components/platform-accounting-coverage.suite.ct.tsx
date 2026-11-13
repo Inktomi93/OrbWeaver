@@ -18,7 +18,12 @@ import {
   ACCOUNTING_RETENTION_TEXT,
   ACCOUNTING_SUMMARY_TEXT,
 } from "#client/features/stats/lib/analytics-copy.ts";
-import { ANALYTICS_ALL_TIME_HEADING, ANALYTICS_GENERATIONS_HEADING, ANALYTICS_REPLY_SPEED_HEADING } from "#client/features/stats/lib/analytics-names.ts";
+import {
+  ANALYTICS_ACTIVITY_HEADING,
+  ANALYTICS_ALL_TIME_HEADING,
+  ANALYTICS_GENERATIONS_HEADING,
+  ANALYTICS_REPLY_SPEED_HEADING,
+} from "#client/features/stats/lib/analytics-names.ts";
 import type { AccountingCoverageStory } from "./_accounting-coverage-stories.tsx";
 
 const STORY = "tests/client/features/stats/components/_accounting-coverage-stories/AccountingCoverageStory";
@@ -50,7 +55,7 @@ function readingSubjects(page: Page, view: "paired" | "content" | "models", char
     const pane = page.locator('[data-slot="accounting-content-subject"]');
     subjects.push({
       pane,
-      following: pane.getByRole("heading", { name: characterOnly ? "Activity" : ANALYTICS_ALL_TIME_HEADING, exact: true }),
+      following: pane.getByRole("heading", { name: characterOnly ? ANALYTICS_ACTIVITY_HEADING : ANALYTICS_ALL_TIME_HEADING, exact: true }),
       scroller: pane.locator('[data-slot="analytics-content"]'),
       characterOnly,
     });

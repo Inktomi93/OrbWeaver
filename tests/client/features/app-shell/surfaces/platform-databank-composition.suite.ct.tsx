@@ -10,6 +10,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import {
+  DATABANK_DETAIL_FACTS_KICKER,
   DATABANK_DETAIL_MAINTENANCE_KICKER,
   DATABANK_DETAIL_SOURCE_KICKER,
   DATABANK_DOCUMENT_NAME_FIELD_NAME,
@@ -187,7 +188,7 @@ for (const regime of REGIMES) {
       await page.screenshot({ path: test.info().outputPath("document-source.png") });
       await detail.getByRole("button", { name: DATABANK_HIDE_SOURCE_NAME, exact: true }).click();
       await expect(source).toHaveCount(0);
-      for (const section of ["Details", DATABANK_DETAIL_MAINTENANCE_KICKER, DATABANK_DETAIL_SOURCE_KICKER]) {
+      for (const section of [DATABANK_DETAIL_FACTS_KICKER, DATABANK_DETAIL_MAINTENANCE_KICKER, DATABANK_DETAIL_SOURCE_KICKER]) {
         await expect(detail.getByRole("heading", { name: section, exact: true })).toBeVisible();
       }
       expect(calls.count("databank.reindex")).toBe(0);

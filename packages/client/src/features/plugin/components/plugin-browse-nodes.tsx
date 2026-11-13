@@ -26,6 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { gridLoading, gridTiles, heroCoverKey, resolveString, tileCoverKey } from "../lib/plugin-surface-bindings.ts";
+import { PLUGIN_SEARCH_SUBMIT_NAME } from "../lib/plugin-surface-names.ts";
 
 const UNANSWERED_COPY = {
   title: "The plugin didn't answer",
@@ -254,7 +255,7 @@ export function SurfaceSearchBar({
         </Field>
         {node.actionId === undefined ? null : (
           <Button variant="outline" loading={submitting} onClick={fire} size="sm">
-            Search
+            {PLUGIN_SEARCH_SUBMIT_NAME}
           </Button>
         )}
       </Row>

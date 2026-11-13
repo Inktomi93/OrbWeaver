@@ -8,6 +8,7 @@ import { collectionFilterName } from "#client/features/config/lib/config-control
 import {
   REFINERY_NO_SESSION_MATCH_TEXT,
   REFINERY_NO_SESSIONS_TITLE,
+  REFINERY_PICK_CHARACTER_NAME,
   REFINERY_SEARCH_SESSIONS_NAME,
   REFINERY_START_SESSION_PICKER_NAME,
 } from "#client/features/refinery/lib/refinery-names.ts";
@@ -142,7 +143,7 @@ for (const regime of [
       await mount<typeof FilterRecoveryShellStory>(STORY, {});
       const list = page.locator('aside[data-panel-side="list"]');
       await expect(list.getByText(REFINERY_NO_SESSIONS_TITLE, { exact: true })).toBeVisible();
-      await press(list.getByRole("button", { name: "Pick a character", exact: true }));
+      await press(list.getByRole("button", { name: REFINERY_PICK_CHARACTER_NAME, exact: true }));
       const picker = page.getByRole("combobox", { name: REFINERY_START_SESSION_PICKER_NAME, exact: true });
       await expect(picker).toHaveCount(1);
       await expect(picker).toBeFocused();
