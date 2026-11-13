@@ -40,7 +40,7 @@ import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import type { PluginGitSource, ScopedEgress } from "#infra/network";
-import type { ProcessPluginHost } from "#infra/plugin-host";
+import type { PluginInvokePhase, ProcessPluginHost } from "#infra/plugin-host";
 import type {
   PluginBelts,
   PluginHostOps,
@@ -128,13 +128,15 @@ export interface PluginHostPort {
   readonly createInstance: (input: CreateInstanceInput) => Promise<CreateInstanceOutcome>;
   /** Invoke a collected guest handler (a tool/transform/event callback) with JSON-encoded args under the
    *  per-invocation budget. `chat` sets the handler's invocation-chat scope (a resident tool runs in the
-   *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope). */
+   *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope).
+   *  `phase` `display` is a query's call, whose host calls may only read. */
   readonly invoke: (
     instance: PluginInstance,
     handler: PluginHandlerRef,
     argsJson: PluginInvokeArgs,
     chat: InvocationChat | null,
     signal?: AbortSignal,
+    phase?: PluginInvokePhase,
   ) => Promise<string>;
   /** Run an inline snippet: a FRESH transient instance, run once as the caller under the 5 s wall, then
    *  disposed — no residency. The fixed capability profile + the admitted chat scope are the domain's; the port
@@ -153,6 +155,9 @@ export interface PluginHostPort {
    *  view for the owner, NOT an audit log of record: derive nothing security-load-bearing from what it contains
    *  or from what it is missing. */
   readonly readLog: ProcessPluginHost["readLog"];
+  /** Log a failure the instance's guest caused, per call, on that instance's server-log window: a guest picks how often
+   *  it fails, so a line it can repeat goes here and never straight to the logger. */
+  readonly logFailure: ProcessPluginHost["logFailure"];
   /** Tear down the instance (disposes the guest context + all realm handles). Idempotent-safe. */
   readonly dispose: ProcessPluginHost["dispose"];
 }

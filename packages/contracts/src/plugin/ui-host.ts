@@ -30,9 +30,10 @@ export function isPluginUiHostCallCode(reason: string): reason is PluginUiHostCa
   return PLUGIN_UI_HOST_CALL_CODE_SET.has(reason);
 }
 
-/** The message of every scripted guest host call that fails with no allowlisted code. It is one fixed sentence, so
- *  a fault's server text, a not-found's id or any reason outside {@link PLUGIN_UI_HOST_CALL_CODES} never reaches
- *  plugin code. */
+/** The message of every scripted guest host call that fails with no allowlisted code, and of every server guest bridge
+ *  operation that fails with no named refusal, under the name `Error`. It is one fixed sentence, so a fault's server
+ *  text (a failed query's SQL and bound values), a not-found's id or any reason outside
+ *  {@link PLUGIN_UI_HOST_CALL_CODES} never reaches plugin code. */
 export const PLUGIN_UI_HOST_CALL_FAILED = "plugin host: the call could not be completed";
 
 /** The bounded transcript page accepted by the scripted UI relay. */

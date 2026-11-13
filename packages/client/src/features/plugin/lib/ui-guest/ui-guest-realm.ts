@@ -136,7 +136,7 @@ export function readError(ctx: QuickJSContext, handle: QuickJSHandle): string {
 // A host-authored error for the guest: an object on the realm's own `Error.prototype` whose fields are DEFINED, the
 // client twin of the server marshal's `newHostError`. Never `ctx.newError`: it captures a stack, which runs the
 // guest's `Error.prepareStackTrace`, and it SETS `message`, which runs any setter the guest put on
-// `Error.prototype`. A host result settles outside every CPU window, so guest code run there would be unbounded.
+// `Error.prototype`. Building a host value through guest code would let the guest run inside the host's own work.
 function newHostError(state: GuestState, fields: Readonly<Record<string, string>>): QuickJSHandle {
   const { ctx } = state;
   const error = ctx.newObject(state.errorPrototype);
@@ -343,26 +343,99 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
  *
  *  IT ARMS ITS OWN CPU BOUND (#784 F2, the client twin of #781). This pump runs a guest continuation OUTSIDE any
  *  invocation — a host call fired at boot (or in an event) can settle AFTER `ready`/`settled` cleared the host's
- *  wall and after `runToSettlement` removed the interrupt handler in its `finally`. Without a fresh handler here,
+ *  wall and after `runToSettlement` closed its window in its `finally`. Without a fresh window here,
  *  a looping `.then` (`h.storage.get(k).then(() => { while(true){} })`) runs `executePendingJobs()` unbounded and
  *  PEGS the worker thread: the surface freezes on its last tree, and because no wall is armed for a settling host
- *  call, `reportUiCrash` never fires — the 3-strike auto-disable goes blind. So the pump installs a fresh
- *  `eventCpuMs` deadline against REAL monotonic time (mirroring `runToSettlement`), pumps, and removes it — a
- *  bounded continuation is a preempted job, not a crash, so the surface simply stops advancing rather than
- *  wedging. The host's `terminate()` remains the outer bound for a continuation that STOPS executing bytecode. */
+ *  call, `reportUiCrash` never fires — the 3-strike auto-disable goes blind. So the pump opens a fresh
+ *  `eventCpuMs` window ({@link openCpuWindow}), pumps, and closes it — a bounded continuation is a preempted job,
+ *  not a crash, so the surface simply stops advancing rather than wedging. The host's `terminate()` remains the outer bound for a continuation that STOPS executing bytecode. */
 function pump(ctx: QuickJSContext): () => void {
   return (): void => {
     if (!ctx.alive) {
       return;
     }
-    const startMs = performance.now();
-    ctx.runtime.setInterruptHandler(() => performance.now() - startMs > UI_GUEST_BUDGETS.eventCpuMs);
-    try {
-      ctx.runtime.executePendingJobs();
-    } finally {
-      ctx.runtime.removeInterruptHandler();
-    }
+    // Dispose the result: on the interrupt path it holds the guest's `InternalError`, and an undisposed handle at
+    // `ctx.dispose()` aborts the WASM module.
+    withinEventBudget(ctx, () => ctx.runtime.executePendingJobs().dispose());
   };
+}
+
+/** One open CPU window: the budget it has left, when its clock last started on the worker's monotonic clock (null while
+ *  paused), and whether it stopped guest code. */
+interface CpuWindow {
+  remainingMs: number;
+  runningSince: number | null;
+  passed: boolean;
+}
+
+// The open CPU windows, newest last. The engine holds one interrupt handler per runtime, and a host-result settle or a
+// pump opens its window while an event's window is still open, because the event awaits. Closing the inner window
+// hands the interrupt back to the outer one; removing the handler instead would leave the event's later reads of
+// guest values (`readError` runs guest getters) with no bound. A worker holds one context.
+const openWindows: CpuWindow[] = [];
+
+function interruptNewestWindow(): boolean {
+  const newest = openWindows.at(-1);
+  if (newest === undefined) {
+    return false;
+  }
+  // A paused window's owner is awaiting, not running guest code, so guest code that reaches it ran outside every span.
+  newest.passed ||= newest.runningSince === null || performance.now() - newest.runningSince > newest.remainingMs;
+  return newest.passed;
+}
+
+/** Open a CPU window of `budgetMs` against real monotonic time (the worker's `performance.now()`, never the guest's
+ *  stub), and return its `close`, which the caller runs in a `finally`. The newest open window governs the interrupt;
+ *  closing it restores the one beneath. `passed` says whether this window stopped guest code. `pause` stops the
+ *  window's clock while its owner awaits, and `resume` restarts it with what is left. */
+export function openCpuWindow(
+  ctx: QuickJSContext,
+  budgetMs: number,
+): { readonly passed: () => boolean; readonly close: () => void; readonly pause: () => void; readonly resume: () => void } {
+  const window: CpuWindow = { remainingMs: budgetMs, runningSince: performance.now(), passed: false };
+  openWindows.push(window);
+  ctx.runtime.setInterruptHandler(interruptNewestWindow);
+  return {
+    passed: (): boolean => window.passed,
+    pause: (): void => {
+      if (window.runningSince !== null) {
+        window.remainingMs -= performance.now() - window.runningSince;
+        window.runningSince = null;
+      }
+    },
+    resume: (): void => {
+      window.runningSince ??= performance.now();
+    },
+    close: (): void => {
+      // A second close finds nothing; splicing at -1 would close the newest window, another caller's.
+      const at = openWindows.indexOf(window);
+      if (at === -1) {
+        return;
+      }
+      openWindows.splice(at, 1);
+      if (openWindows.length === 0) {
+        ctx.runtime.removeInterruptHandler();
+      }
+    },
+  };
+}
+
+/** Run `work`, host code that calls into the realm, in a fresh `eventCpuMs` window, and say whether the window stopped
+ *  guest code. The pump runs a continuation here, and the worker settles a host result here: a resolve reads the
+ *  result's `then`, and a guest can define a `then` getter on `Object.prototype`, so a settle with no deadline runs
+ *  that getter unbounded. A throw the interrupt caused counts as stopped. */
+export function withinEventBudget(ctx: QuickJSContext, work: () => void): boolean {
+  const window = openCpuWindow(ctx, UI_GUEST_BUDGETS.eventCpuMs);
+  try {
+    work();
+  } catch (error) {
+    if (!window.passed()) {
+      throw error;
+    }
+  } finally {
+    window.close();
+  }
+  return window.passed();
 }
 
 /** Parse a host result INSIDE the guest, through the realm's PRISTINE `JSON.parse`. The payload crosses as a

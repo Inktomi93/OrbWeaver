@@ -18,6 +18,7 @@
 // at all) is the domain-resolved participants-only recipient set, which no cooldown state can weaken.
 
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
+import { DomainRateLimitError } from "@orb/kit/errors";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import type { NotifyFloor } from "../contract/ops.ts";
 
@@ -67,7 +68,7 @@ export function createNotifyFloor(now: () => number): NotifyFloor {
       const key = `${pluginId}:${chatId}`;
       const previous = lastPostAt.get(key);
       if (previous !== undefined && at - previous < COOLDOWN_MS) {
-        throw new Error(`plugin host: notifications.post is limited to one notice per ${AUTOMATION_NOTICE_COOLDOWN_SECONDS}s per chat`);
+        throw new DomainRateLimitError(`plugin host: notifications.post is limited to one notice per ${AUTOMATION_NOTICE_COOLDOWN_SECONDS}s per chat`);
       }
       // DELETE-then-SET, not a bare set: the map's insertion order is the recency order the eviction above
       // reads, and a plain overwrite would leave a still-active pair sitting at the front to be evicted first.

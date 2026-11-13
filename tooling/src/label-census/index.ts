@@ -60,7 +60,7 @@ const AUTHORED_FILE = /^tests\/support\/|\/_[^/]*stories|stories\.|fixture|corpu
 const TESTKIT_ROOT = "tests/support";
 // An import specifier that names a client feature's module, `#client/features/chat/lib/x.ts` or a relative path into it.
 const IMPORTED_FEATURE = /from\s+"[^"]*features\/([^/"]+)\/[^"]*"/gu;
-// A relative import of a stories module, `./_row-stories.tsx`.
+// A relative import of a stories module that sits beside the spec.
 const STORIES_IMPORT = /from\s+"(\.{1,2}\/[^"]*stories[^"]*\.tsx)"/gu;
 // A story named by its mount path, `tests/client/.../_row-stories/RowStory`: the module is the path before the story.
 const STORY_PATH = /["'`](tests\/[^"'`]*stories)\/[A-Za-z]+["'`]/gu;

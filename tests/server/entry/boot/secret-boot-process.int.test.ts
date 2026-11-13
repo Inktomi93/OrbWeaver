@@ -1,4 +1,5 @@
-// The boot's secret controls over the real server process: the scrub a spawned child observes, the cookie-mode
+// The boot's secret controls over the real server process: the scrub a spawned child observes, which also keeps every
+// key the agent SDK child's environment owns (D8) out of every other child, the cookie-mode
 // refusal that keeps a pepperless password hasher from ever serving a login, and the failure line a database credential
 // must stay out of.
 // @subject packages/server/src/entry/index.ts
@@ -10,7 +11,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
-import { ANTHROPIC_API_KEY_ENV, ANTHROPIC_AUTH_TOKEN_ENV, CLAUDE_OAUTH_TOKEN_ENV } from "@orb/contracts/preset";
+import { ANTHROPIC_API_KEY_ENV, ANTHROPIC_AUTH_TOKEN_ENV, CLAUDE_OAUTH_TOKEN_ENV, RESERVED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { DATA_LAYOUT_DIRS, DATABASE_URL_KEY, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { APP_SECRET_ENV_KEYS } from "@orb/server/foundation/env/record";
@@ -104,10 +105,12 @@ async function localBootOverKeyfile(dataDir: string, keyfileBytes: string): Prom
   return { ...outcome, keyfileAfter: await readFile(keyfile, "utf8") };
 }
 
-test("a booted server starts its children without one app secret or provider credential in their inherited env", { tags: "slow" }, async ({
-  importStagingDir,
-}) => {
-  const planted = [...APP_SECRET_ENV_KEYS, ...UNREAD_PROVIDER_CREDENTIALS];
+// The probe's child is started with no explicit env, as tar, cloudflared, ffmpeg, git and the in-process Workers are, so
+// what it inherits is what each of them inherits from the booted server.
+test("a booted server starts its children without one app secret, provider credential or reserved agent SDK key in their inherited env", {
+  tags: "slow",
+}, async ({ importStagingDir }) => {
+  const planted = [...new Set<string>([...APP_SECRET_ENV_KEYS, ...UNREAD_PROVIDER_CREDENTIALS, ...RESERVED_CLAUDE_ENV_KEYS])];
   const child = spawn(process.execPath, [`--import=data:text/javascript,${encodeURIComponent(CHILD_ENV_PROBE)}`, ENTRY], {
     env: {
       ...entryEnv(importStagingDir),

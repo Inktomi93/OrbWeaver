@@ -63,6 +63,7 @@ const ROW_PROBES: Readonly<Record<(typeof SERVER_IMPORT_HOMES)[number]["id"], st
   "settings-table": 'import { settings } from "@orb/db";',
   "png-card-chunk": 'import { readCardChunk } from "@orb/kit/png-card-chunk";',
   "visibility-mint": 'import { mintViewerVisibility } from "../substrate/viewer-visibility-registry.ts";',
+  "secure-headers": 'import { secureHeaders } from "hono/secure-headers";',
 };
 
 const isHome = (homes: readonly string[], path: string): boolean => homes.some((home) => (home.endsWith("/") ? path.startsWith(home) : path === home));
