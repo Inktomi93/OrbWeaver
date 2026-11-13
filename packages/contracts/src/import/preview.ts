@@ -1,12 +1,14 @@
 // What a dry-run profile import reports it would do. Every string comes from a hostile file, so the server clips
-// it and caps each list; `total` stays exact when `items` is capped. The client renders names as plain text.
+// it and caps each list; `total` and `counts` stay exact over every entry when `items` is capped, and the count line
+// reads them, never the list. The client renders names as plain text.
 // An entry's identity is its source: the profile directory it sits in plus its path inside that profile, so two
 // profiles of one upload that share a relative path are two entries. `mergeImportPreviews` is the one place that
 // keys on it. A skip at the upload's root, beside the profiles, has `profile: null`. Equal content is each owning
 // domain's rule, so an entry carries digests of the keys that rule compares by (its identities), and the merge marks
 // an entry a repeat when an earlier entry holds them all; it keeps no equality rule of its own. Across uploads a card
 // is compared by its import hash alone, and a group by the set of transcripts it brings, so a JSON card and the PNG of
-// the same text, or a group bringing only some of an earlier group's transcripts, stay two writes in the merge.
+// the same text, or a group bringing only some of an earlier group's transcripts, stay two writes in the merge. An
+// upload's unlisted tail carries no identities, so across uploads it is added and counted as `uncompared`.
 
 import { z } from "zod";
 
@@ -62,11 +64,47 @@ const importPreviewItemSchema = z.strictObject({
 });
 export type ImportPreviewItem = z.infer<typeof importPreviewItemSchema>;
 
+const importCount = z.number().int().nonnegative();
+
+/** Exact counts over every entry of a kind, the unlisted tail included, so the count line never reads the capped
+ *  list. `inLibrary` and `repeat` are the entries a run writes nothing for, `writes` the rest, and `withoutArt` the
+ *  personas that import without art. `uncompared` is the part of `writes` that no other upload could be compared with:
+ *  an upload's unlisted tail, and a listed entry that carries no identities. Only the merge of a split folder sets it. */
+const importPreviewCountsSchema = z.strictObject({
+  inLibrary: importCount,
+  repeat: importCount,
+  writes: importCount,
+  withoutArt: importCount,
+  uncompared: importCount,
+});
+type ImportPreviewCounts = z.infer<typeof importPreviewCountsSchema>;
+
 const importPreviewListSchema = z.strictObject({
-  total: z.number().int().nonnegative(),
+  /** Every entry of the kind the upload holds, listed or not. */
+  total: importCount,
+  counts: importPreviewCountsSchema,
   items: z.array(importPreviewItemSchema).max(IMPORT_PREVIEW_LIST_MAX).readonly(),
 });
 export type ImportPreviewList = z.infer<typeof importPreviewListSchema>;
+
+function countedOf(items: readonly ImportPreviewItem[]): Omit<ImportPreviewCounts, "uncompared"> & { readonly total: number } {
+  const inLibrary = items.filter((item) => item.inLibrary === true).length;
+  const repeat = items.filter((item) => item.repeat === true).length;
+  return {
+    total: items.length,
+    inLibrary,
+    repeat,
+    writes: items.length - inLibrary - repeat,
+    withoutArt: items.filter((item) => item.withoutArt === true).length,
+  };
+}
+
+/** The list for every entry of one kind in one upload: exact counts over all of them, the first
+ *  {@link IMPORT_PREVIEW_LIST_MAX} listed. */
+export function importPreviewListOf(items: readonly ImportPreviewItem[]): ImportPreviewList {
+  const { total, ...counts } = countedOf(items);
+  return { total, counts: { ...counts, uncompared: 0 }, items: items.slice(0, IMPORT_PREVIEW_LIST_MAX) };
+}
 
 const importPreviewSkipSchema = z.strictObject({ source: importSkipSourceSchema, reason: previewText });
 export type ImportPreviewSkip = z.infer<typeof importPreviewSkipSchema>;
@@ -107,18 +145,23 @@ export const importKindCountsSchema = z.strictObject({
 }) satisfies z.ZodType<Readonly<Record<ImportPreviewKind, number>>>;
 export type ImportKindCounts = z.infer<typeof importKindCountsSchema>;
 
-function union<T>(lists: readonly { readonly total: number; readonly items: readonly T[] }[], identity: (item: T) => string): { total: number; items: T[] } {
+/** The distinct listed items of every list, first sight winning. */
+function distinct<T>(lists: readonly { readonly items: readonly T[] }[], identity: (item: T) => string): T[] {
   const seen = new Map<string, T>();
-  let unlisted = 0;
   for (const list of lists) {
-    unlisted += list.total - list.items.length;
     for (const item of list.items) {
       if (!seen.has(identity(item))) {
         seen.set(identity(item), item);
       }
     }
   }
-  return { total: seen.size + unlisted, items: [...seen.values()].slice(0, IMPORT_PREVIEW_LIST_MAX) };
+  return [...seen.values()];
+}
+
+function skippedOf(lists: readonly ImportPreview["skipped"][]): ImportPreview["skipped"] {
+  const items = distinct(lists, (item) => `${sourceKey(item.source)}\n${item.reason}`);
+  const unlisted = lists.reduce((sum, list) => sum + list.total - list.items.length, 0);
+  return { total: items.length + unlisted, items: items.slice(0, IMPORT_PREVIEW_LIST_MAX) };
 }
 
 // A JSON tuple keeps a hostile profile or path from reading as the other half of the key.
@@ -143,24 +186,50 @@ function flagRepeats(items: readonly ImportPreviewItem[]): ImportPreviewItem[] {
   });
 }
 
-/** One preview over the uploads of a split folder. Shared files and repeated cards repeat across uploads, so
- *  listed items union by source (profile and path); a capped list's unlisted tail cannot be compared and is
- *  added. Each upload judged its entries alone, so an entry whose content an earlier upload already lands is then
- *  marked a repeat, by the keys its owner's equality rule gave it. A skip unions by source and reason together: one
- *  source can be skipped two ways, and each way is its own row. */
-export function mergeImportPreviews(previews: readonly ImportPreview[]): ImportPreview {
-  const kinds = Object.fromEntries(
-    IMPORT_PREVIEW_KINDS.map((kind) => {
-      const { total, items } = union(
-        previews.map((preview) => preview.kinds[kind]),
-        (item) => sourceKey(item.source),
-      );
-      return [kind, { total, items: flagRepeats(items) }];
+/** What an upload holds of a kind beyond its listed items, from the exact counts it sent: those entries carry no
+ *  flags and no identities, so nothing but their numbers is known. */
+function tailOf(list: ImportPreviewList): ReturnType<typeof countedOf> {
+  const listed = countedOf(list.items);
+  return {
+    total: list.total - listed.total,
+    inLibrary: list.counts.inLibrary - listed.inLibrary,
+    repeat: list.counts.repeat - listed.repeat,
+    writes: list.counts.writes - listed.writes,
+    withoutArt: list.counts.withoutArt - listed.withoutArt,
+  };
+}
+
+function sumOf(parts: readonly ReturnType<typeof countedOf>[]): ReturnType<typeof countedOf> {
+  return parts.reduce(
+    (sum, part) => ({
+      total: sum.total + part.total,
+      inLibrary: sum.inLibrary + part.inLibrary,
+      repeat: sum.repeat + part.repeat,
+      writes: sum.writes + part.writes,
+      withoutArt: sum.withoutArt + part.withoutArt,
     }),
+    countedOf([]),
   );
-  const skipped = union(
-    previews.map((preview) => preview.skipped),
-    (item) => `${sourceKey(item.source)}\n${item.reason}`,
-  );
-  return importPreviewSchema.parse({ kinds, skipped });
+}
+
+/** One kind over the uploads of a split folder. Listed items union by source and are marked a repeat when an earlier
+ *  entry holds their identities; the counts are the union's own plus each upload's exact tail. A tail cannot be
+ *  compared with another upload, and neither can an entry with no identities, so a run that is split reports those
+ *  writes as `uncompared`: the run may write fewer. */
+function mergeKind(lists: readonly ImportPreviewList[]): ImportPreviewList {
+  const items = flagRepeats(distinct(lists, (item) => sourceKey(item.source)));
+  const { total, ...counts } = sumOf([countedOf(items), ...lists.map(tailOf)]);
+  const tails = sumOf(lists.map(tailOf));
+  const unidentified = items.filter((item) => !isReused(item) && item.identities.length === 0).length;
+  const uncompared = lists.length > 1 ? tails.writes + unidentified : 0;
+  return { total, counts: { ...counts, uncompared }, items: items.slice(0, IMPORT_PREVIEW_LIST_MAX) };
+}
+
+/** One preview over the uploads of a split folder. Shared files and repeated cards repeat across uploads, so
+ *  listed items union by source (profile and path). Each upload judged its entries alone, so an entry whose content
+ *  an earlier upload already lands is then marked a repeat, by the keys its owner's equality rule gave it. A skip
+ *  unions by source and reason together: one source can be skipped two ways, and each way is its own row. */
+export function mergeImportPreviews(previews: readonly ImportPreview[]): ImportPreview {
+  const kinds = Object.fromEntries(IMPORT_PREVIEW_KINDS.map((kind) => [kind, mergeKind(previews.map((preview) => preview.kinds[kind]))]));
+  return importPreviewSchema.parse({ kinds, skipped: skippedOf(previews.map((preview) => preview.skipped)) });
 }

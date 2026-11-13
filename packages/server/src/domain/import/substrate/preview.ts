@@ -3,7 +3,8 @@
 // never the staging directory, so two profiles of one upload that share a relative path stay two entries and two
 // skips. Two directory names that clip alike are shown under distinct labels. A skip at the upload's root, beside the
 // profiles, has no profile. An entry a run writes nothing for says why (the owner holds it, or an earlier entry of the
-// upload lands it), so the entries without a flag are the ones a run writes. Each entry also carries digests of the
+// upload lands it), so the entries without a flag are the ones a run writes. A kind's lists are capped but its counts
+// are taken over every entry, so a flag lost past the cap never reads as a write. Each entry also carries digests of the
 // keys its owner compares it by, which the client's merge reads to find equal content across uploads. A skip's reason is written here, one per
 // kind of skip; the importer's own detail stays in the report and the logs.
 
@@ -13,11 +14,10 @@ import type {
   ImportPreview,
   ImportPreviewItem,
   ImportPreviewKind,
-  ImportPreviewList,
   ImportPreviewSkip,
   ImportReuse,
 } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewListOf } from "@orb/contracts/import";
 import { sha256Hex } from "#primitives/content-hash";
 import type { CollectedChat, CollectedGroup, CollectResult } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
@@ -56,10 +56,6 @@ type ItemBase = Omit<ImportPreviewItem, "identities">;
 
 function item(profile: string, path: string, name: string): ItemBase {
   return { source: { profile: clip(profile), path: clip(path) }, name: clip(name) };
-}
-
-function listOf(items: readonly ImportPreviewItem[]): ImportPreviewList {
-  return { total: items.length, items: items.slice(0, IMPORT_PREVIEW_LIST_MAX) };
 }
 
 /** What an item's keys are on the wire: digests, so the preview never carries the file content a key is built from.
@@ -232,15 +228,15 @@ export function buildImportPreview(collected: ProfileCollected, owned: ImportOwn
   const items = kindItems(collected, owned);
   return {
     kinds: {
-      characters: listOf(items.characters),
-      chats: listOf(items.chats),
-      personas: listOf(items.personas),
-      worlds: listOf(items.worlds),
-      presets: listOf(items.presets),
-      themes: listOf(items.themes),
-      backgrounds: listOf(items.backgrounds),
-      groups: listOf(items.groups),
-      orphans: listOf(items.orphans),
+      characters: importPreviewListOf(items.characters),
+      chats: importPreviewListOf(items.chats),
+      personas: importPreviewListOf(items.personas),
+      worlds: importPreviewListOf(items.worlds),
+      presets: importPreviewListOf(items.presets),
+      themes: importPreviewListOf(items.themes),
+      backgrounds: importPreviewListOf(items.backgrounds),
+      groups: importPreviewListOf(items.groups),
+      orphans: importPreviewListOf(items.orphans),
     },
     skipped: { total: skipped.length, items: skipped.slice(0, IMPORT_PREVIEW_LIST_MAX) },
   };

@@ -59,10 +59,9 @@ function sharedBytes(root: ServerTestHarness): { readonly background: Uint8Array
   return { background: png(), card: new Uint8Array(writeCardChunk(png(), CARD)) };
 }
 
-/** What a run adds for a kind: the entries the preview lists, less the ones it reuses. */
+/** What a run adds for a kind, by the preview's own exact count. */
 function willWrite(preview: ImportPreview, kind: ImportPreviewKind): number {
-  const { total, items } = preview.kinds[kind];
-  return total - items.filter((item) => item.inLibrary === true || item.repeat === true).length;
+  return preview.kinds[kind].counts.writes;
 }
 
 async function previewOf(root: ServerTestHarness, id: WorkloadId): Promise<ImportPreview> {

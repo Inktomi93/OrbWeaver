@@ -11,7 +11,7 @@ import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 import { cardImportFailedDetail, cardImportRefusalLine } from "#lib";
-import { IMPORT_LEFT_ON_DISK_PHRASE } from "./import-library-names.ts";
+import { IMPORT_LEFT_ON_DISK_PHRASE, importPreviewUncomparedNote } from "./import-library-names.ts";
 
 /** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card
  *  `skippedOverlays` (#1598/#1709) — the planes THIS file's import deliberately did not assert (e.g. "book
@@ -248,16 +248,17 @@ export function counted(count: number, [one, many]: readonly [string, string]): 
   return `${String(count)} ${count === 1 ? one : many}`;
 }
 
-/** One kind's summary line: its total, then the items already in the library, the items the same as another in the
- *  upload (a run adds nothing for either) and the personas that import without art. */
+/** One kind's summary line: its total, then the entries already in the library, the entries the same as another in the
+ *  upload (a run adds nothing for either), the personas that import without art and, for a folder sent in several
+ *  uploads, the entries no other upload could be compared with. Every number is the server's exact count, never a count
+ *  of the listed names. */
 export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList): string {
-  const owned = list.items.filter((item) => item.inLibrary === true).length;
-  const repeated = list.items.filter((item) => item.repeat === true).length;
-  const bare = list.items.filter((item) => item.withoutArt === true).length;
+  const { inLibrary, repeat, withoutArt, uncompared } = list.counts;
   const notes = [
-    ...(owned === 0 ? [] : [`${String(owned)} already in your library`]),
-    ...(repeated === 0 ? [] : [`${String(repeated)} the same as another in this upload`]),
-    ...(bare === 0 ? [] : [`${String(bare)} will import without art`]),
+    ...(inLibrary === 0 ? [] : [`${String(inLibrary)} already in your library`]),
+    ...(repeat === 0 ? [] : [`${String(repeat)} the same as another in this upload`]),
+    ...(withoutArt === 0 ? [] : [`${String(withoutArt)} will import without art`]),
+    ...(uncompared === 0 ? [] : [importPreviewUncomparedNote(uncompared)]),
   ];
   return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
 }
