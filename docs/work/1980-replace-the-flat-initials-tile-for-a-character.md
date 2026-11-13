@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-09
+updated: 2026-11-13
 priority: P3
 area: ui
 plan: cross-surface-consistency
@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-Design a placeholder for a character with no avatar that holds up at card size beside painted portraits: Home Start with tiles, the Characters recently chatted card, and the chat avatar. Today it is a flat accent fill with small centred initials.
+A character with no art shows a flat initials tile from the `@orb/ui` Avatar. Chat paints a second card-size placeholder of its own: `FallbackLetter` in `packages/client/src/features/chat/components/art-slot.tsx`, through the Text `artScale` axis in `packages/ui/src/primitives/text/variants.ts`. Make the Avatar fallback a size container whose initials scale with it, fold `FallbackLetter` into it, and delete the `artScale` axis in the same change. The fill gains a depth pigment that moves away from the ink.
 
 ## Why
 
@@ -19,7 +19,7 @@ At card size the flat tile reads as a broken image next to real art.
 
 ## Done when
 
-The placeholder renders at every avatar size from one `@orb/ui` home, passes contrast in light and dark themes, and a CT pins it at card and avatar size.
+The placeholder renders at every avatar size from one `@orb/ui` home, `FallbackLetter` and the `artScale` axis are gone, it passes contrast in every seed theme, a CT covers the small avatar and the card portrait, and a rendered review has read it.
 
 ## Evidence
 

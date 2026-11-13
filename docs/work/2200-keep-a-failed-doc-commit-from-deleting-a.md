@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-13
 priority: P3
 area: tooling
 ---
@@ -10,7 +10,7 @@ area: tooling
 
 ## What
 
-putBack in tooling/src/doc/ops/tree.ts deletes a written path that the pre-run snapshot did not hold, because a missing entry reads as absent.
+After a failed doc commit, `putBack` in `tooling/src/doc/ops/tree.ts` deletes every path missing from its snapshot, on the reading that the write created it. A path a sibling process wrote in between is deleted with them. Both callers rely on the deletion: `tooling/src/doc/ops/items.ts` snapshots before a mint writes its file, and `tooling/src/doc/ops/land.ts` regenerates generated files. So the write verbs declare the paths they create, and `putBack` deletes only those.
 
 ## Why
 
@@ -18,7 +18,7 @@ A future verb that writes outside the tracked text files would lose that file wh
 
 ## Done when
 
-putBack refuses or keeps a written path the snapshot never saw, with a test that writes one and fails the commit.
+Each write verb declares the paths it creates, `putBack` deletes only declared paths and keeps any other path the snapshot never saw, and a test writes an undeclared file, fails the commit and finds the file kept and the minted file gone.
 
 ## Evidence
 
