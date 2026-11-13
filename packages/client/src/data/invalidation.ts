@@ -281,7 +281,8 @@ function owedAtFlush(wave: BusWave, query: Query): boolean {
 }
 
 function replaceStaleRead(wave: BusWave, query: Query): void {
-  // Marked first, so a held refetch an unmount reverts still owes its refetch on the next mount.
+  // Marked first: a cancelQueries revert restores the state the held refetch started from, and the flush skips a held
+  // query, so the mark is what still owes the next mount its read.
   query.invalidate();
   const held = holdRefetch(query, wave.gate.promise);
   if (held !== undefined) {

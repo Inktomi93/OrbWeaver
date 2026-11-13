@@ -104,6 +104,31 @@ test("a refetch another path starts during a wave reads through the room's own q
   }
 });
 
+test("a held refetch a cancelQueries revert rolls back after the flush still owes the next mount its read", async () => {
+  using room = new HeldRoom();
+  const observer = room.observer();
+  const unsubscribe = observer.subscribe(() => undefined);
+  const { stale } = await holdRefetch(room, observer);
+  // The held refetch reads at the flush, and the server does not answer it.
+  room.holding = true;
+  vi.runOnlyPendingTimers();
+  await vi.waitFor(() => expect(room.reads).toBe(3));
+  // An optimistic write cancels the reads under its key before it patches; the cancel reverts the held refetch.
+  await room.runtime.queryClient.cancelQueries({ queryKey: room.queryKey });
+  await stale;
+  expect(room.runtime.queryClient.getQueryState(room.queryKey)?.fetchStatus).toBe("idle");
+  room.holding = false;
+  unsubscribe();
+  const remount = room.observer();
+  const unsubscribeRemount = remount.subscribe(() => undefined);
+  try {
+    await vi.waitFor(() => expect(room.reads).toBe(4));
+    await vi.waitFor(() => expect(room.runtime.queryClient.getQueryState(room.queryKey)?.fetchStatus).toBe("idle"));
+  } finally {
+    unsubscribeRemount();
+  }
+});
+
 test("a held refetch whose query is removed before the flush never reads", async () => {
   using room = new HeldRoom();
   const observer = room.observer();
