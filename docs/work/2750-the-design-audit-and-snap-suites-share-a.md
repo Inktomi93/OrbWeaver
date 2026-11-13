@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-12
+updated: 2026-11-13
 priority: P2
 area: tooling
 plan: checked-law
@@ -11,7 +11,7 @@ plan: checked-law
 
 ## What
 
-Every case in the browser-driven tooling suites starts its own snap CLI process, at four to five seconds a case. Measured on a quiet box: the CLI takes 1.5 s to print its help, before any browser exists, and 3.0 s without the large-heap option the package script passes; a whole design-audit run of a one-paragraph file page takes 4.6 s. So about a third of each case is the CLI loading its modules, and the rest is the browser launch plus the walk and its settle wait, not yet split. `tests/tooling/ui-audit/index.int.test.ts` has 96 such cases, and the census, session-daemon and other snap suites follow the same shape through `runCli` and `auditRuleTest` in `tests/support/node/tool-fixtures.ts`. Together they are most of the whole run's time and hold the box at full load, which times out unrelated cases.
+Every case in the browser-driven tooling suites starts its own snap CLI process, at four to five seconds a case. Measured on a quiet box with the package script's heap option: the CLI takes about 1.3 s to print its help, before any browser exists, and a whole design-audit run of a one-paragraph file page takes 4.6 s. The start cost is module loading. Two static imports remain: `tooling/src/snap/ops/stage-source.ts` imports `@orb/db` (0.7 s alone) for `localPath`, `createDb` and `preCloseHousekeeping`, and `tooling/src/floor/browser/browser.ts` imports the server env record (0.35 s) for one constant. Lighthouse is already loaded on use. The other three seconds are the browser launch plus the walk and its settle wait, not yet split. `tests/tooling/ui-audit/index.int.test.ts` has 96 such cases, and the census, session-daemon and other snap suites follow the same shape through `runCli` and `auditRuleTest` in `tests/support/node/tool-fixtures.ts`.
 
 ## Why
 
