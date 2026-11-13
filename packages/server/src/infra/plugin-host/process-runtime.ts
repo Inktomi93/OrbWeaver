@@ -35,7 +35,9 @@ import type {
   SnippetResult,
 } from "@orb/contracts/plugin";
 import {
+  PLUGIN_LOG_CHARS_MAX,
   PLUGIN_LOG_LEVELS,
+  PLUGIN_LOG_LINES_MAX,
   PLUGIN_SURFACE_TIERS,
   PLUGIN_UI_HOST_CALL_FAILED,
   PluginInstallerDisabledError,
@@ -66,6 +68,7 @@ import {
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
+  PLUGIN_SERVER_LOG_WINDOW_MS,
   PLUGIN_SNIPPET_RUNTIME_MAX,
   PLUGIN_WATCHDOG_STOP_GRACE_MS,
   pluginBrokerRestartHoldMs,
@@ -151,6 +154,8 @@ type Binding = BindingLifetime & {
   readonly invokeArgs: Map<string, (chatHandle: string | null) => string>;
   readonly log: PluginLogView[];
   chars: number;
+  /** This binding's share of the server log in the current window; see {@link mirrorToServerLog}. */
+  serverLog: ServerLogWindow;
   suppressLogs: boolean;
   crashed: Error | null;
   /** An ended invocation's refusal that no command carried, because the broker ended this binding's runtime with
@@ -288,6 +293,45 @@ function retainLog(binding: Binding, level: PluginLogLevel, message: string): vo
     const evicted = binding.log.shift();
     binding.chars -= evicted?.message.length ?? 0;
   }
+}
+
+/** One binding's server-log share in the current window: when it opened, what it wrote, and what it dropped. */
+interface ServerLogWindow {
+  readonly openedAtMs: number;
+  lines: number;
+  chars: number;
+  dropped: number;
+}
+
+function openServerLogWindow(nowMs: number): ServerLogWindow {
+  return { openedAtMs: nowMs, lines: 0, chars: 0, dropped: 0 };
+}
+
+// The server log is one stream every plugin shares, and a display transform logs on every render, so each binding
+// writes at most one drain's volume per window; the plugin log ring still keeps every line. Once a window drops a
+// line it drops the rest, so the mirror never shows a later line without the earlier one, and a timer closes it with
+// one line counting the drops: an operator sees the truncation even when the plugin then goes quiet.
+function mirrorToServerLog(binding: Binding, label: string, level: PluginLogLevel, message: string): void {
+  const now = binding.seams.nowEpochMs();
+  if (binding.serverLog.dropped === 0 && now - binding.serverLog.openedAtMs >= PLUGIN_SERVER_LOG_WINDOW_MS) {
+    binding.serverLog = openServerLogWindow(now);
+  }
+  const window = binding.serverLog;
+  if (window.dropped > 0 || window.lines >= PLUGIN_LOG_LINES_MAX || window.chars + message.length > PLUGIN_LOG_CHARS_MAX) {
+    if (window.dropped === 0) {
+      binding.timers.timeoutUnref(() => closeServerLogWindow(binding, label, window), window.openedAtMs + PLUGIN_SERVER_LOG_WINDOW_MS - now);
+    }
+    window.dropped += 1;
+    return;
+  }
+  window.lines += 1;
+  window.chars += message.length;
+  getLog(binding.seams.log)[level]({ plugin: label }, message);
+}
+
+function closeServerLogWindow(binding: Binding, label: string, window: ServerLogWindow): void {
+  getLog(binding.seams.log).warn({ plugin: label, dropped: window.dropped }, "plugin host: plugin log lines dropped from the server log this window");
+  binding.serverLog = openServerLogWindow(binding.seams.nowEpochMs());
 }
 
 function createLiveness(): MutableLiveness {
@@ -971,7 +1015,7 @@ class BrokerClient {
     }
     retainLog(binding, message.level, message.message);
     if (binding.label !== undefined) {
-      getLog(this.seams.log)[message.level]({ plugin: binding.label }, message.message);
+      mirrorToServerLog(binding, binding.label, message.level, message.message);
     }
   }
 
@@ -1603,6 +1647,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       invokeArgs: new Map(),
       log: [],
       chars: 0,
+      serverLog: openServerLogWindow(seams.nowEpochMs()),
       suppressLogs: false,
       crashed: null,
       owedRefusal: null,
