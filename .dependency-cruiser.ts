@@ -138,6 +138,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
+  "^tests/client/components/_entry-list-labels\\.ts$": "the add label the entry-list rebase story authors and its spec finds the button by",
   "^tests/client/components/_form-dialog-labels\\.ts$": "the title the form dialog create story authors and its spec finds the dialog by",
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
@@ -392,6 +393,8 @@ const TEST_CONSTANT_HOMES = {
     "APP_SETTINGS_KEY: the settings row the app override lives in, which the whole-blob guard suite plants a newer build's blob into",
   "packages/client/src/features/credentials/lib/connections-copy.ts": "ADD_CONNECTION_NAME: the add-connection button's name",
   "packages/client/src/features/credentials/lib/credentials-names.ts": "SAVED_KEYS_EMPTY_TITLE and SAVED_KEYS_EMPTY_DESCRIPTION: the Saved keys empty state",
+  "packages/client/src/features/rpg/lib/rpg-names.ts":
+    "RPG_CONTEXT_TAB_LABELS and the Game tab tracker row names: the game tabs e2e opens and the tracker controls the chat suite measures",
   "packages/client/src/features/rpg/lib/context-layout.ts":
     "SATELLITES_TO_BODY_FONT_SCALE: the font scale at which the satellite row and date line leave the Waystone band",
   "packages/client/src/features/character/lib/greeting-copy.ts":

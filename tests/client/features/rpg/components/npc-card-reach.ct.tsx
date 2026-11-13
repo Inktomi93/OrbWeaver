@@ -4,6 +4,7 @@
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
+import { npcMoodName } from "#client/features/rpg/lib/rpg-names.ts";
 import type { NpcCardStory } from "./_npc-card-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_npc-card-stories/NpcCardStory";
@@ -23,7 +24,7 @@ for (const width of PHONE_WIDTHS) {
       await mount<typeof NpcCardStory>(STORY, { name: NAME, mood: MOOD });
       await setRootFontScale(page, channelName("fontScale"), factor);
       await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(16 * factor);
-      const mood = page.getByRole("button", { name: `${NAME} mood: ${MOOD}`, exact: true });
+      const mood = page.getByRole("button", { name: npcMoodName(NAME, MOOD), exact: true });
       await expect(mood).toBeVisible();
       const clipped = await mood.evaluate((button, slack) => {
         const card = button.closest('[data-slot="npc-card"]');

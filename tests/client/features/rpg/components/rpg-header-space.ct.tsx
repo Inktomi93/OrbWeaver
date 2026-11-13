@@ -7,6 +7,7 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { RPG_READ_ONLY_LABEL } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgRoomStory } from "./_own-key-panels-stories.tsx";
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -75,7 +76,7 @@ for (const populated of [false, true]) {
     // The room has no model connection, so the tracker view reports read-only and the header must show the badge.
     const tracker = await caller.rpg.getTrackerView({ chatId });
     expect(tracker.trackersReadOnly).toBe(true);
-    const readOnly = header.getByText("Read-only", { exact: true });
+    const readOnly = header.getByText(RPG_READ_ONLY_LABEL, { exact: true });
     await expect(readOnly).toHaveCount(1);
     // A read-only room delivers no state, so the Read-only pill is its one cue and the freshness pill stays out.
     await expect(freshness).toHaveCount(0);
@@ -132,7 +133,7 @@ test("a room whose model writes state shows the freshness cue, not Read-only, wh
   const header = page.locator('[data-slot="rpg-takeover-header"]');
   await expect(header).toBeVisible();
   const freshness = header.locator('[data-slot="rpg-freshness"]');
-  const readOnly = header.getByText("Read-only", { exact: true });
+  const readOnly = header.getByText(RPG_READ_ONLY_LABEL, { exact: true });
   await expect(freshness).toHaveCount(1);
   await expect(readOnly).toHaveCount(0);
   const recordedCue = await freshness.allTextContents();

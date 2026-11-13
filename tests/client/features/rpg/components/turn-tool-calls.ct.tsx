@@ -6,6 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
+import { RPG_TOOL_CALL_VERDICT_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgTurnFooterStory } from "./_own-key-panels-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgTurnFooterStory";
@@ -36,7 +37,7 @@ async function recordedTurn(root: Root, partial: boolean): Promise<RecordedTurn>
       }
     }
   }
-  throw new Error(`The committed corpus has no ${partial ? "partly recorded" : "recorded and unrecorded"} native game turn`);
+  throw new Error(`The committed corpus has no ${partial ? RPG_TOOL_CALL_VERDICT_LABELS.salvaged : "recorded and unrecorded"} native game turn`);
 }
 
 for (const touch of [false, true]) {
@@ -107,7 +108,7 @@ for (const touch of [false, true]) {
       await expect(warningGlyph).toBeVisible();
       expect(await warningGlyph.innerHTML()).not.toEqual(recordedGlyph);
       await warning.press("Enter");
-      await expect(disclosure.getByText("partly recorded", { exact: true }).first()).toBeVisible();
+      await expect(disclosure.getByText(RPG_TOOL_CALL_VERDICT_LABELS.salvaged, { exact: true }).first()).toBeVisible();
       const issue = partial.record.calls.flatMap((call) => call.issues)[0];
       if (issue === undefined) {
         throw new Error("The native partial outcome has no explanation");

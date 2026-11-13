@@ -19,6 +19,7 @@ import {
   characterGalleryName,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE, toolCallVisibilityName } from "#client/features/chat/lib/message-action-names.ts";
+import { trackerLabelFieldName, trackerLockName, trackerShowOnBandName } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { GalleryActionsStory, GameTrackerActionsStory, ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -279,8 +280,8 @@ for (const regime of REGIMES) {
         const row = rows.nth(index);
         // A value's rest button is named by its field, then by the text it shows.
         const label = row.getByRole("button", { name: `Tracker ${index + 1} label: ` });
-        const band = row.getByRole("button", { name: `Show ${def.label} as a band orb`, exact: true });
-        const lock = row.getByRole("button", { name: `Lock ${def.label}: the story can no longer write it`, exact: true });
+        const band = row.getByRole("button", { name: trackerShowOnBandName(def.label), exact: true });
+        const lock = row.getByRole("button", { name: trackerLockName(def.label), exact: true });
         const remove = row.getByRole("button", { name: `Remove ${def.label}`, exact: true });
         const maximum = row.getByRole("button", { name: `${def.label} default max: ` });
         await expect(label).toBeVisible();
@@ -301,7 +302,7 @@ for (const regime of REGIMES) {
         }
         await label.focus();
         await page.keyboard.press("Enter");
-        const input = row.getByRole("textbox", { name: `Tracker ${index + 1} label`, exact: true });
+        const input = row.getByRole("textbox", { name: trackerLabelFieldName(index), exact: true });
         await expect(input).toBeFocused();
         await input.fill("Uncommitted tracker draft");
         await input.press("Escape");

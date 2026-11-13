@@ -6,6 +6,16 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import {
+  npcCancelPromoteName,
+  npcConfirmDismissName,
+  npcConfirmPromoteName,
+  npcDismissName,
+  npcDismissQuestion,
+  npcPromoteName,
+  npcPromoteQuestion,
+  RPG_SHOW_KNOWN_CHARACTERS_NAME,
+} from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_action-groups-stories/RpgActionGroupsStory";
@@ -51,10 +61,10 @@ for (const regime of REGIMES) {
         ]),
       );
       await mount<typeof RpgActionGroupsStory>(STORY, { chatId, width: regime.width, appearance: regime.appearance });
-      await page.getByRole("button", { name: "Show known characters", exact: true }).click();
+      await page.getByRole("button", { name: RPG_SHOW_KNOWN_CHARACTERS_NAME, exact: true }).click();
       for (const name of ACTORS) {
-        const promote = page.getByRole("button", { name: `Promote ${name} to the room's characters`, exact: true });
-        const dismiss = page.getByRole("button", { name: `Dismiss ${name}`, exact: true });
+        const promote = page.getByRole("button", { name: npcPromoteName(name), exact: true });
+        const dismiss = page.getByRole("button", { name: npcDismissName(name), exact: true });
         const resting = await actionGroupGeometry(promote.locator(".."), [promote, dismiss]);
         await testInfo.attach(`resting-${rpgNpcSlug(name)}`, { body: JSON.stringify(resting), contentType: "application/json" });
         expect(resting.inlineOverflow).toBeLessThanOrEqual(1);
@@ -62,15 +72,12 @@ for (const regime of REGIMES) {
         expect((await actionGroupGeometry(host, [promote, dismiss])).inlineOverflow).toBeLessThanOrEqual(1);
         await promote.focus();
         await page.keyboard.press("Enter");
-        const cancel = page.getByRole("button", { name: `Cancel promoting ${name}`, exact: true });
-        const confirmPromote = page.getByRole("button", { name: `Confirm promoting ${name}`, exact: true });
+        const cancel = page.getByRole("button", { name: npcCancelPromoteName(name), exact: true });
+        const confirmPromote = page.getByRole("button", { name: npcConfirmPromoteName(name), exact: true });
         const promoting = await actionGroupGeometry(cancel.locator(".."), [cancel, confirmPromote]);
         expect(promoting.inlineOverflow).toBeLessThanOrEqual(1);
         expect((await actionGroupGeometry(host, [cancel, confirmPromote])).inlineOverflow).toBeLessThanOrEqual(1);
-        const promotingCopy = page.getByText(
-          `Give ${name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.`,
-          { exact: true },
-        );
+        const promotingCopy = page.getByText(npcPromoteQuestion(name), { exact: true });
         expect((await actionGroupGeometry(host, [promotingCopy])).inlineOverflow).toBeLessThanOrEqual(1);
         const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, cancel);
         for (const box of [...resting.controls, ...promoting.controls]) {
@@ -86,13 +93,11 @@ for (const regime of REGIMES) {
         await dismiss.focus();
         await page.keyboard.press("Enter");
         const keep = page.getByRole("button", { name: `Keep ${name}`, exact: true });
-        const confirmDismiss = page.getByRole("button", { name: `Confirm dismissing ${name}`, exact: true });
+        const confirmDismiss = page.getByRole("button", { name: npcConfirmDismissName(name), exact: true });
         const dismissing = await actionGroupGeometry(keep.locator(".."), [keep, confirmDismiss]);
         expect(dismissing.inlineOverflow).toBeLessThanOrEqual(1);
         expect((await actionGroupGeometry(host, [keep, confirmDismiss])).inlineOverflow).toBeLessThanOrEqual(1);
-        expect(
-          (await actionGroupGeometry(host, [page.getByText(`Forget ${name} and everything tracked on them?`, { exact: true })])).inlineOverflow,
-        ).toBeLessThanOrEqual(1);
+        expect((await actionGroupGeometry(host, [page.getByText(npcDismissQuestion(name), { exact: true })])).inlineOverflow).toBeLessThanOrEqual(1);
         for (const box of dismissing.controls) {
           expect(box.height).toBeGreaterThanOrEqual(floor);
         }

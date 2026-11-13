@@ -9,6 +9,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { openCardName, RPG_JOURNAL_SCOPE_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
@@ -252,7 +253,7 @@ test("a pending archive read shows the labelled skeleton, then the settled card 
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   await messages.requested;
   const archive = page.locator(ARCHIVE);
-  await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
+  await expect(archive.getByText(RPG_JOURNAL_SCOPE_LABELS.cards, { exact: true })).toBeVisible();
   await expect(archive.locator('[aria-busy="true"]')).toBeVisible();
 
   messages.release();
@@ -338,7 +339,7 @@ test("an archive with no cards yet renders the empty doorway under its label", a
   await routeTrpc(page, { ...room.reads, ...serveCorpusProcedures(room.caller, ["chat.listMessages"]) });
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
-  await expect(archive.getByText("Cards", { exact: true })).toBeVisible();
+  await expect(archive.getByText(RPG_JOURNAL_SCOPE_LABELS.cards, { exact: true })).toBeVisible();
   await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toHaveCount(0);
 });
@@ -375,7 +376,7 @@ test.describe("at phone width with a coarse pointer", () => {
     await expect(chip).toHaveText(stamp);
     await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
     // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
-    await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
+    await expect(row).toHaveAccessibleName(openCardName(CARD_TITLE, stamp, null));
 
     expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     const touchTarget = await page.evaluate((sizeTouchTarget) => {
@@ -423,7 +424,7 @@ test.describe("at phone width with a coarse pointer", () => {
     const row = page.locator(ARCHIVE).locator('[data-slot="rpg-card-row"]');
     const stamp = createTimeLib({ timeZone: UTC_TIME_ZONE }).formatDateTime(origin.createdAt);
     await expect(row.locator('time[data-slot="rpg-turn-ref"]')).toHaveText(stamp);
-    await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
+    await expect(row).toHaveAccessibleName(openCardName(CARD_TITLE, stamp, null));
     expect(stamp).toContain(String(new Date(origin.createdAt).getUTCFullYear()));
   });
 });

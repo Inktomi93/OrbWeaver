@@ -3,6 +3,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import { RPG_CONDITION_PLACEHOLDER, RPG_STATUS_PLACEHOLDER } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -44,8 +45,8 @@ test("a meter's name starts on the edge the status line and the condition door s
   const card = page.locator('[data-slot="rpg-status-tab"]');
   const meterName = card.locator('[data-slot="meter-row"]').first().locator('[data-slot="text"]').first();
   await expect(meterName).toBeVisible();
-  const status = card.getByText("Add status", { exact: true }).first();
-  const condition = card.getByText("+ condition", { exact: true }).first();
+  const status = card.getByText(RPG_STATUS_PLACEHOLDER, { exact: true }).first();
+  const condition = card.getByText(RPG_CONDITION_PLACEHOLDER, { exact: true }).first();
   const name = await glyphStart(meterName);
   expect(Math.abs(name - (await glyphStart(status)))).toBeLessThanOrEqual(EDGE_TOLERANCE_PX);
   expect(Math.abs(name - (await glyphStart(condition)))).toBeLessThanOrEqual(EDGE_TOLERANCE_PX);

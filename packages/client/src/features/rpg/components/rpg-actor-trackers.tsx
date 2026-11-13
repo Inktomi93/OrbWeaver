@@ -40,6 +40,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { Tip } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
+import { RPG_CONDITION_PLACEHOLDER, RPG_STATUS_LINE_LABEL, RPG_STATUS_PLACEHOLDER } from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { MeterRow, TrackerValue, trackerActionName, trackerFieldName } from "./tracker-blocks/index.ts";
@@ -265,9 +266,9 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
     // control one row down. Floored, each row's pseudo fits inside its own band.
     <Row gap="field" align="center" touchFloor="block" className="min-inline-0">
       <TrackerValue
-        ariaLabel={trackerFieldName("Status line", subject)}
+        ariaLabel={trackerFieldName(RPG_STATUS_LINE_LABEL, subject)}
         display={status}
-        placeholder="Add status"
+        placeholder={RPG_STATUS_PLACEHOLDER}
         ink="muted"
         onEdit={edit.onEditStatus}
         width="auto"
@@ -343,7 +344,7 @@ export function ConditionChips({
         <TrackerValue
           ariaLabel={trackerActionName("Add condition", "to", subject)}
           display=""
-          placeholder="+ condition"
+          placeholder={RPG_CONDITION_PLACEHOLDER}
           onEdit={(next): void => {
             const trimmed = next.trim();
             if (trimmed !== "") {

@@ -36,6 +36,14 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { TRACKER_SHAPE_LABEL } from "../lib/host-console-labels.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
+import {
+  RPG_SET_SCORES_NAME,
+  trackerLabelFieldName,
+  trackerLockName,
+  trackerRemoveFromBandName,
+  trackerShowOnBandName,
+  trackerUnlockName,
+} from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgGameMacros } from "./rpg-game-macros.tsx";
@@ -94,8 +102,8 @@ function TrackerRow({
   // tooltip. Spelled once here so the two can never drift apart.
   // BAND vocabulary + Eye glyph, never "pin" (an owner ruling): "pin" is the HAND-LOCK's word
   // (RpgFieldLock's "Pinned by hand"). Band = visibility, so it speaks visibility.
-  const bandLabel = def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`;
-  const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label}: the story can no longer write it`;
+  const bandLabel = def.pinned ? trackerRemoveFromBandName(def.label) : trackerShowOnBandName(def.label);
+  const lockLabel = def.locked ? trackerUnlockName(def.label) : trackerLockName(def.label);
   const removeLabel = `Remove ${def.label}`;
   const swatch = trackColorProps(resolveTrackerColor(def.color, index));
   return (
@@ -112,7 +120,7 @@ function TrackerRow({
             />
           ) : null}
           <TrackerValue
-            ariaLabel={`Tracker ${index + 1} label`}
+            ariaLabel={trackerLabelFieldName(index)}
             display={def.label}
             onEdit={(next): void => {
               const trimmed = next.trim();
@@ -427,7 +435,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
                 setContextTab("rpg.status");
               }}
             >
-              Set character scores
+              {RPG_SET_SCORES_NAME}
             </Button>
           </>
         )}

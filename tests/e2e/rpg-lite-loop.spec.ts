@@ -46,7 +46,9 @@ import { pageArray } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { RPG_CONTEXT_TAB_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { GAME_STRIP_LABEL } from "#client/lib/registry-contracts.ts";
 import { messageRow, openContextTab, openNewestChat, sendAndAwaitReply } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgRoundSettled, rpgTurnSettled } from "./support/rpg-settle.ts";
 import type { TapeProvider } from "./support/tape-provider.ts";
@@ -123,7 +125,7 @@ async function openGamePanel(page: Page): Promise<void> {
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  await expect(page.getByRole("toolbar", { name: "Game" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await expect(page.getByRole("toolbar", { name: GAME_STRIP_LABEL })).toBeVisible({ timeout: WAIT_SURFACE_MS });
 }
 
 /** The roster actor ref of the seeded character (the write target for the hand-plane backbone). */
@@ -340,7 +342,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     await expect(scene).toContainText("1/2");
     await expect(scene).toContainText("Stepped into the freezing night market");
     // Status tab: the hero's className + pool + condition render on the actor row.
-    await openContextTab(page, "Status");
+    await openContextTab(page, RPG_CONTEXT_TAB_LABELS.status);
     const status = page.locator('[data-slot="rpg-status-tab"]');
     await expect(status).toContainText("Thornwick", { timeout: WAIT_SURFACE_MS });
     await expect(status).toContainText("Ranger");

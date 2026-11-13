@@ -23,6 +23,18 @@ import { Tip } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import { actorKey } from "../lib/actor-key.ts";
 import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
+import {
+  npcCancelPromoteName,
+  npcConfirmDismissName,
+  npcConfirmPromoteName,
+  npcDismissName,
+  npcDismissQuestion,
+  npcPromoteName,
+  npcPromoteQuestion,
+  npcPromoteTip,
+  RPG_HIDE_KNOWN_CHARACTERS_NAME,
+  RPG_SHOW_KNOWN_CHARACTERS_NAME,
+} from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -177,7 +189,7 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
             variant="ghost"
             size="sm"
             aria-expanded={open}
-            aria-label={open ? "Hide known characters" : "Show known characters"}
+            aria-label={open ? RPG_HIDE_KNOWN_CHARACTERS_NAME : RPG_SHOW_KNOWN_CHARACTERS_NAME}
             onClick={(): void => setOpen(!open)}
           >
             <Icon icon={open ? ChevronDown : ChevronRight} size="xs" />
@@ -233,12 +245,12 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
     return (
       <Row gap="field" align="center" justify="end" wrap={true}>
         <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
-          Forget {actor.name} and everything tracked on them?
+          {npcDismissQuestion(actor.name)}
         </Text>
         <Button variant="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => cancel("dismiss")}>
           Keep
         </Button>
-        <Button tone="destructive" size="sm" aria-label={`Confirm dismissing ${actor.name}`} onClick={(): void => edit.onDismiss(ref)}>
+        <Button tone="destructive" size="sm" aria-label={npcConfirmDismissName(actor.name)} onClick={(): void => edit.onDismiss(ref)}>
           Dismiss
         </Button>
       </Row>
@@ -252,12 +264,12 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
             home on a participant (a stance is an npc's datum), so they end here. A host who discovers
             that afterwards discovers it as a bug. */}
         <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
-          Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
+          {npcPromoteQuestion(actor.name)}
         </Text>
-        <Button variant="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => cancel("promote")}>
+        <Button variant="ghost" size="sm" aria-label={npcCancelPromoteName(actor.name)} onClick={(): void => cancel("promote")}>
           {DIALOG_VERBS.cancel}
         </Button>
-        <Button size="sm" aria-label={`Confirm promoting ${actor.name}`} onClick={(): void => edit.onPromote(ref)}>
+        <Button size="sm" aria-label={npcConfirmPromoteName(actor.name)} onClick={(): void => edit.onPromote(ref)}>
           Promote
         </Button>
       </Row>
@@ -268,21 +280,15 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
       {/* PERMISSION-shaped ABSENCE, not a disabled control: a participant actor has nothing to promote (she already
           has a card), so the doorway simply is not there for one. */}
       {ref.kind === "npc" ? (
-        <Tip text={`Give ${actor.name} a character card and a seat in this room`}>
-          <Button
-            ref={promoteRef}
-            variant="ghost"
-            size="sm"
-            aria-label={`Promote ${actor.name} to the room's characters`}
-            onClick={(): void => setPending("promote")}
-          >
+        <Tip text={npcPromoteTip(actor.name)}>
+          <Button ref={promoteRef} variant="ghost" size="sm" aria-label={npcPromoteName(actor.name)} onClick={(): void => setPending("promote")}>
             <Icon icon={UserPlus} size="xs" />
             Promote
           </Button>
         </Tip>
       ) : null}
       <Tip text={`Forget ${actor.name}: removes their state from this game`}>
-        <Button ref={dismissRef} variant="ghost" size="sm" aria-label={`Dismiss ${actor.name}`} onClick={(): void => setPending("dismiss")}>
+        <Button ref={dismissRef} variant="ghost" size="sm" aria-label={npcDismissName(actor.name)} onClick={(): void => setPending("dismiss")}>
           <Icon icon={X} size="xs" />
           Dismiss
         </Button>

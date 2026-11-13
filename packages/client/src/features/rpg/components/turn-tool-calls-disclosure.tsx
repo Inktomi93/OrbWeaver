@@ -11,6 +11,7 @@ import type { ReactElement } from "react";
 import type { StatusVocabulary } from "#components";
 import { StatusChip } from "#components";
 import { useTurnToolCallsForVariant } from "../hooks/use-turn-tool-calls.ts";
+import { RPG_TOOL_CALL_VERDICT_LABELS } from "../lib/rpg-names.ts";
 
 /** WHY the args are not this reader's to see, said as a sentence rather than as the enum (#1690). A mapped
  *  Record over the tuple, so a second withhold reason fails `tsc` here instead of rendering as nothing. */
@@ -18,24 +19,13 @@ const WITHHELD_LABEL: Record<RpgToolCallWithholdReason, string> = {
   unparseable: "Arguments not shown: the model did not send readable ones.",
 };
 
-/** The verdict said as an OUTCOME, in the reader's terms — not the enum. "dropped" alone reads like a UI
- *  state; "not recorded" is what actually happened to their game. */
-const VERDICT_LABEL: Record<RpgToolCallVerdict, string> = {
-  applied: "recorded",
-  salvaged: "partly recorded",
-  dropped: "not recorded",
-  // Says whose decision it was, not what the merge did: the host pinned this field, so the honest sentence
-  // is that their edit held — the `issues` line under the badge names the path it held.
-  overridden: "your edit kept",
-};
-
 const VERDICT_STATUS: StatusVocabulary<RpgToolCallVerdict> = {
-  applied: { label: VERDICT_LABEL.applied, tone: "success" },
-  salvaged: { label: VERDICT_LABEL.salvaged, tone: "warning" },
-  dropped: { label: VERDICT_LABEL.dropped, tone: "destructive" },
+  applied: { label: RPG_TOOL_CALL_VERDICT_LABELS.applied, tone: "success" },
+  salvaged: { label: RPG_TOOL_CALL_VERDICT_LABELS.salvaged, tone: "warning" },
+  dropped: { label: RPG_TOOL_CALL_VERDICT_LABELS.dropped, tone: "destructive" },
   // A lock drop is the reader's OWN doing, so it is a warning rather than a failure — but it is never
   // `success`: part of what the model wrote is not in the state, and the line below names which path.
-  overridden: { label: VERDICT_LABEL.overridden, tone: "warning" },
+  overridden: { label: RPG_TOOL_CALL_VERDICT_LABELS.overridden, tone: "warning" },
 };
 
 export interface TurnToolCallsDisclosureProps {
@@ -56,13 +46,13 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
   }
   const incomplete = calls.some((call) => call.verdict === "dropped" || call.verdict === "salvaged");
   const warning = failure !== null || incomplete;
-  const summary = failure === null ? `${calls.length}${incomplete ? ", needs attention" : ""}` : VERDICT_LABEL.dropped;
+  const summary = failure === null ? `${calls.length}${incomplete ? ", needs attention" : ""}` : RPG_TOOL_CALL_VERDICT_LABELS.dropped;
   return (
     <Collapsible data-slot="turn-tool-calls">
       {/* Fine pointers retain the dense footer's text-height box; the native touch floor owns coarse height. */}
       <CollapsibleTrigger aria-label={`Game actions on this turn: ${summary}`} self="start" touchFloor="block" size="text" data-target-floor="sub-floor-ok">
         <Icon icon={warning ? CircleAlert : Dices} size="sm" {...(warning ? ({ tone: "warning" } as const) : ({ ink: "muted" } as const))} />
-        <Text voice="code">{failure === null ? calls.length : VERDICT_LABEL.dropped}</Text>
+        <Text voice="code">{failure === null ? calls.length : RPG_TOOL_CALL_VERDICT_LABELS.dropped}</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="field">

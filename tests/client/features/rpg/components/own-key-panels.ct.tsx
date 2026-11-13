@@ -13,6 +13,13 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import {
+  npcMoodName,
+  RPG_ABILITY_CHECK_NAME,
+  RPG_SCORE_UNSET_HINT,
+  RPG_SHOW_KNOWN_CHARACTERS_NAME,
+  RPG_STATUS_LINE_LABEL,
+} from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgContextTabStory, RpgDiceComposerStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -111,9 +118,9 @@ test("the dice ability check for an unset inherited-name attribute is disabled a
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgDiceComposerStory>(DICE_STORY, { chatId: room.chatId });
   await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
-  await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
+  await page.getByRole("menuitem", { name: RPG_ABILITY_CHECK_NAME, exact: true }).click();
   const unset = page.getByRole("menuitem", { name: LABEL, exact: false });
-  await expect(unset).toHaveText(`${LABEL}Set your score in Status first.`);
+  await expect(unset).toHaveText(`${LABEL}${RPG_SCORE_UNSET_HINT}`);
   await expect(unset).toBeDisabled();
 });
 
@@ -124,7 +131,7 @@ test("a set inherited-name attribute offers its ability check with the profile's
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgDiceComposerStory>(DICE_STORY, { chatId: room.chatId });
   await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
-  await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
+  await page.getByRole("menuitem", { name: RPG_ABILITY_CHECK_NAME, exact: true }).click();
   const modifier = rpgAttributeModifier(room.profile, SCORE);
   await expect(page.getByRole("menuitem", { name: `${LABEL} (${modifier >= 0 ? "+" : ""}${modifier})`, exact: true })).toBeEnabled();
 });
@@ -161,16 +168,16 @@ test("the Scene character card reads an unset inherited-name tracker as unset, t
   const npcValue = page.getByRole("button", { name: new RegExp(`^${NPC_NAME} ${LABEL} value: `, "u") });
   await routeTrpc(page, (await room.reads()).routes);
   const unset = await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.scene" });
-  await page.getByRole("button", { name: "Show known characters", exact: true }).click();
+  await page.getByRole("button", { name: RPG_SHOW_KNOWN_CHARACTERS_NAME, exact: true }).click();
   await expect(npcValue).toHaveText(NO_VALUE);
   // The mood slot beside it has no value either, and its accessible name says so in words.
-  await expect(page.getByRole("button", { name: `${NPC_NAME} mood: ${NO_VALUE_NAME}`, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: npcMoodName(NPC_NAME, NO_VALUE_NAME), exact: true })).toBeVisible();
   await unset.unmount();
 
   await room.setInheritedValues();
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.scene" });
-  await page.getByRole("button", { name: "Show known characters", exact: true }).click();
+  await page.getByRole("button", { name: RPG_SHOW_KNOWN_CHARACTERS_NAME, exact: true }).click();
   await expect(npcValue).toHaveText(String(TRACKER_VALUE));
 });
 
@@ -258,7 +265,7 @@ test("Status seats a text tracker's value at the end of the room its row leaves,
   expect(placed.end).toBe(placed.rowEnd);
   expect(placed.align).toBe("end");
   expect((await value.boundingBox())?.width).toBeGreaterThan((await label.boundingBox())?.width ?? Number.POSITIVE_INFINITY);
-  const status = page.getByRole("button", { name: /Status line/u }).first();
+  const status = page.getByRole("button", { name: RPG_STATUS_LINE_LABEL }).first();
   const fit = await status.evaluate((element) => ({
     own: element.getBoundingClientRect().width,
     line: element.parentElement?.getBoundingClientRect().width ?? 0,
