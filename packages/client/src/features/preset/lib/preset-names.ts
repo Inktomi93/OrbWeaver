@@ -72,10 +72,8 @@ export function presetMoveToZoneLabel(inSetup: boolean): string {
   return inSetup ? "Move below the conversation" : "Move above the conversation";
 }
 
-/** A rack row's or an Actions row's door into its editor. */
-export function presetEditDrillName(subject: string): string {
-  return `Edit ${subject}`;
-}
+/** The rack's chat history pivot; its drill door is `editActionName` over it. */
+export const PRESET_CHAT_HISTORY_LABEL = "Chat history";
 
 /** A library row's activate radio, named for the preset it picks. */
 export function presetActivateRowName(preset: string): string {
@@ -93,9 +91,6 @@ export const PRESET_BUILT_IN_SUBTITLE = "Built-in default";
 
 /** A text section with no name of its own, and the add menu's option that mints one. */
 export const PRESET_LITERAL_TEXT_LABEL = "Literal text";
-
-/** The rack's chat history pivot; its drill door is {@link presetEditDrillName} over it. */
-export const PRESET_CHAT_HISTORY_LABEL = "Chat history";
 
 /** The Params view's quality block: its kicker and its select. */
 export const PRESET_QUALITY_LABEL = "Quality";

@@ -6,7 +6,14 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { DIALOG_VERBS } from "#lib";
 import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts";
-import { AUTOSAVE_RESTORED_LEAD, AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT, AUTOSAVE_SAVING_TEXT } from "./autosave-status-names.ts";
+import {
+  AUTOSAVE_NOT_SAVED_TEXT,
+  AUTOSAVE_RESTORED_LEAD,
+  AUTOSAVE_RESUME_NAME,
+  AUTOSAVE_SAVE_FAILED_TEXT,
+  AUTOSAVE_SAVED_TEXT,
+  AUTOSAVE_SAVING_TEXT,
+} from "./autosave-status-names.ts";
 
 export interface AutosaveStatusProps {
   /** `draft` is the caller-known pre-persistence arm: no row exists yet, so `saved` would be a lie. */
@@ -70,7 +77,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     return (
       <Row align="center" data-slot="autosave-status" gap="field" role="status" aria-live="polite">
         <Text tone="destructive" voice="reading">
-          Not saved
+          {AUTOSAVE_NOT_SAVED_TEXT}
         </Text>
         <Text voice="reading">Review this form before saving.</Text>
       </Row>

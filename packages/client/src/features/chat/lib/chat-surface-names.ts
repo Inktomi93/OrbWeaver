@@ -55,6 +55,8 @@ export const CHAT_HISTORY_FAILURE_COPY = {
   offline: "You're offline. History will load when you're back.",
 } as const;
 export const CHAT_WINDOW_PRESS_FAILURE = "Couldn't load more messages.";
+/** What the room's read failure calls the room, `queryFailedLabel(CHAT_ROOM_READ_LABEL)`. */
+export const CHAT_ROOM_READ_LABEL = "this conversation";
 export const CHAT_SAVED_ROSTER_DOOR_NAME = "Start from a saved roster";
 
 /** New chat's pinned cue where the dialog has no room to pin Blank chat with Start, so it sits after them. */

@@ -54,6 +54,7 @@ import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Coins, Play } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { editActionName, moreActionsName, recentActivityName } from "@orb/ui/lib";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -305,7 +306,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             <Row align="center" wrap={true} gap="field">
               {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
               {onEdit === undefined ? null : (
-                <Button variant="ghost" size="sm" aria-label={`Edit ${rule.name}`} onClick={(event): void => onEdit(event.currentTarget)}>
+                <Button variant="ghost" size="sm" aria-label={editActionName(rule.name)} onClick={(event): void => onEdit(event.currentTarget)}>
                   Edit
                 </Button>
               )}
@@ -313,7 +314,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                 Test
               </Button>
               <RowActionsMenu
-                label={`More actions for ${rule.name}`}
+                label={moreActionsName(rule.name)}
                 destructive={{
                   title: deleteConfirmTitle(rule.name),
                   description: "This removes the rule and its activity. It can't be undone, but you can add the rule again.",
@@ -389,7 +390,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                   trigger, so a finger landing 8px off hits nothing. The `control` arm pins the pointer-conditional
                   `--spacing-control-sm` floor (44px coarse / 32px fine) that every other tap-floor control in this
                   pane rides. */}
-              <CollapsibleTrigger aria-label={`Recent activity for ${rule.name}`} size="control">
+              <CollapsibleTrigger aria-label={recentActivityName(rule.name)} size="control">
                 <Text voice="label">Recent activity</Text>
               </CollapsibleTrigger>
               <CollapsiblePanel>

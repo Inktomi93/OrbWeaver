@@ -11,6 +11,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Copy, Download, Icon, Trash } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -36,7 +37,6 @@ import {
   PERSONA_FROM_CARD_NAME,
   PERSONA_NAME_FIELD_NAME,
   PERSONA_TITLE_FIELD_NAME,
-  personaEditName,
 } from "../lib/persona-copy.ts";
 import type { PersonaFormValues, PersonaWireMetadata } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
@@ -100,7 +100,7 @@ export function PersonaEditorRegion({ persona, subject, onDelete, nextDefaultNam
     }
   }, [request, persona.id]);
   return (
-    <Card aria-label={personaEditName(subject)} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
+    <Card aria-label={editActionName(subject)} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
       <PersonaEditor persona={persona} onDelete={onDelete} nextDefaultName={nextDefaultName} />
     </Card>
   );

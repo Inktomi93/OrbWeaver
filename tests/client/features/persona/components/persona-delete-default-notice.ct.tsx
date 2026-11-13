@@ -5,6 +5,7 @@ import { absenceWindow, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { editActionName } from "@orb/ui/lib";
 import { z } from "zod";
 import { nowDefaultNotice, PERSONA_DELETE_NAME, PERSONA_DELETE_TITLE, personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
@@ -52,7 +53,7 @@ for (const shown of [true, false]) {
     await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance });
     await page.getByRole("button", { name: personaDetailsToggleName(doomed.name, false), exact: true }).focus();
     await page.keyboard.press("Enter");
-    const editor = page.getByRole("group", { name: `Edit ${doomed.name}`, exact: true });
+    const editor = page.getByRole("group", { name: editActionName(doomed.name), exact: true });
     await editor.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
     const confirm = page.getByRole("alertdialog", { name: PERSONA_DELETE_TITLE, exact: true });
     await confirm.getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();

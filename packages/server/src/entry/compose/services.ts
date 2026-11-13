@@ -226,6 +226,8 @@ export interface ServicesDeps {
   readonly env: Env;
   /** The agent-sdk child-env baseline, the process environment's present variables (`createProcessSeams`). */
   readonly hostEnvAllowlist: InferenceDeps["env"]["hostEnvAllowlist"];
+  /** The environment every inheriting child takes: tar, ffmpeg, git and the in-process Workers (`createProcessSeams`). */
+  readonly childProcessEnv: InferenceDeps["env"]["childProcessEnv"];
   /** Where this process's `AUTH_MODE` came from (`createProcessSeams`); the share panel names it. */
   readonly authModeSource: AuthModeSource;
   readonly pluginExecution?: AutomationPluginComposeDeps["pluginExecution"];
@@ -368,6 +370,8 @@ export interface ServicesResult extends AsyncDisposable {
   readonly runtime: InferenceRuntime;
   /** The root's suppressed audit failures, for its `/api/_debug/db/stats` read. */
   readonly auditFailures: AuditWiring["failures"];
+  /** The root's inheriting-child environment, for the bug report's `git` child on the HTTP edge. */
+  readonly childProcessEnv: ServicesDeps["childProcessEnv"];
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   /** The user seed (D263): walks the manifest for an account and seeds what its seed ledger lacks. Drives
@@ -685,6 +689,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         return availableClaudeExecutable();
       },
       hostEnvAllowlist: deps.hostEnvAllowlist,
+      childProcessEnv: deps.childProcessEnv,
     },
     app: { name: APP_NAME, url: APP_URL },
     snapshotStore: ports.snapshotStore,
@@ -1047,7 +1052,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     idSource,
     logger: deps.logger,
     resolveUtilityPresetParams,
-    mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo: createVideoPreparer(timers.timeoutUnref) },
+    mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo: createVideoPreparer(timers.timeoutUnref, deps.childProcessEnv) },
     toolUse,
     db,
     now,
@@ -1595,6 +1600,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     databankIngest,
     runtime,
     auditFailures: deps.audit.failures,
+    childProcessEnv: deps.childProcessEnv,
     effectiveConfig,
     secretBox,
     contentSeeder,

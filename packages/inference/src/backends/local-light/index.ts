@@ -27,6 +27,7 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
       ...config,
       scheduleTimeout: deps.scheduleTimeout,
       log: deps.log,
+      childEnv: deps.childEnv,
     });
     cache = workerCache;
     close = workerCache.close;

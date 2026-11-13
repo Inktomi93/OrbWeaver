@@ -1,7 +1,7 @@
 // @subject packages/client/src/features/character/components/new-character-host.tsx
 // The command palette's New character opens the create form from another section at the desktop and the phone layouts. The form
-// opens on its first field, and closing it returns focus to the section's New door, or to the screen heading where the layout
-// mounts no door.
+// opens on its first field, and closing it returns focus to the section's New door, or to the topbar's lead control where the layout
+// mounts no door, which draws a focus ring a keyboard reader can see.
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -15,6 +15,7 @@ import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const TRAIL = ".shell-topbar-trail";
+const LEAD_CONTROL = ".shell-topbar-lead button";
 // The band shows New as the word while it fits and as its icon otherwise; either names the same door.
 const BAND_NEW = new RegExp(`^(?:${CHARACTER_NEW_SHORT_LABEL}|${CHARACTER_NEW_NAME})$`, "u");
 
@@ -89,7 +90,40 @@ test.describe("phone", () => {
     await expect(page.locator(TRAIL).getByRole("button", { name: CHARACTER_NEW_NAME, exact: true })).toBeFocused();
   });
 
-  test("from an open character's screen, which mounts no New door, Cancel returns focus to the screen heading", async ({ mount, page }) => {
+  test("from an open character's screen, which mounts no New door, closing the form returns focus to the topbar's lead control, with a focus ring drawn", async ({
+    mount,
+    page,
+  }) => {
+    const [first] = (await (await root.internalCallerFor(root.ownerId)).character.list({})).items;
+    if (first === undefined) {
+      throw new Error("The committed corpus holds no character");
+    }
+    await seedShellState(page, { activeSection: "characters" });
+    await mount<typeof AppShellStory>(STORY, {});
+    await page.getByText(first.name, { exact: true }).first().click();
+    await expect(page.locator(TRAIL).getByRole("button", { name: CHARACTER_NEW_NAME, exact: true })).toHaveCount(0);
+    await runFromPalette(page);
+    const dialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
+    await expect(dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true })).toBeFocused();
+    // Closed from the keyboard: the browser draws the ring only for focus a keyboard reader moved.
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    const lead = page.locator(LEAD_CONTROL).first();
+    await expect(lead).toBeFocused();
+    // The visually hidden heading takes focus without drawing anything; the control must paint the ring.
+    const ring = await lead.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        focusVisible: element.matches(":focus-visible"),
+        outline: style.outlineStyle !== "none" && Number.parseFloat(style.outlineWidth) > 0,
+        shadow: style.boxShadow !== "none",
+      };
+    });
+    expect(ring.focusVisible).toBe(true);
+    expect([ring.outline, ring.shadow]).toContain(true);
+  });
+
+  test("from an open character's screen, a pointer press on Cancel closes the form and returns focus to the topbar's lead control", async ({ mount, page }) => {
     const [first] = (await (await root.internalCallerFor(root.ownerId)).character.list({})).items;
     if (first === undefined) {
       throw new Error("The committed corpus holds no character");
@@ -103,7 +137,7 @@ test.describe("phone", () => {
     await expect(dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true })).toBeFocused();
     await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+    await expect(page.locator(LEAD_CONTROL).first()).toBeFocused();
   });
 
   test("a second palette run from the list it landed on opens the form again, and nothing opens it later unasked", async ({ mount, page }) => {

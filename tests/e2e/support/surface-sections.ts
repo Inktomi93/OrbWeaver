@@ -22,6 +22,7 @@ import {
   readTrpcOutput,
   SURFACE_CHECKS,
 } from "@orb/testkit/node/helpers";
+import { editActionName } from "@orb/ui/lib";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHARACTER_SEARCH_NAME, TAG_EDITOR_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
@@ -97,7 +98,6 @@ import {
   PRESET_SECTION_ACTIONS_NAME,
   PRESET_SECTION_NAME_FIELD_NAME,
   PRESET_SECTIONS_NAME,
-  presetEditDrillName,
   presetMoveToZoneLabel,
   presetSectionEditorName,
   presetTemplateEditorName,
@@ -1248,7 +1248,7 @@ async function presetViews(journey: Journey, editor: Locator, prefix: string): P
 }
 
 async function presetDrills(journey: Journey, body: Locator, prefix: string): Promise<void> {
-  const controls = body.getByRole("button", { name: namePattern(presetEditDrillName(NAME_HOLE)) });
+  const controls = body.getByRole("button", { name: namePattern(editActionName(NAME_HOLE)) });
   const count = await controls.count();
   for (let index = 0; index < count; index += 1) {
     const trigger = controls.nth(index);
@@ -1610,7 +1610,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     if (section === undefined) {
       throw new Error("Disposable section left its canonical preset");
     }
-    const trigger = body.getByRole("button", { name: presetEditDrillName(section.name), exact: true });
+    const trigger = body.getByRole("button", { name: editActionName(section.name), exact: true });
     await expect(trigger).toHaveCount(1);
     await trigger.click();
     const drill = body.getByRole("region", { name: namePattern(presetSectionEditorName(NAME_HOLE)) });
@@ -2464,24 +2464,29 @@ async function refineryApply(journey: Journey, sessionId: RefinerySessionId, cha
   );
 }
 
+/** A version row's action, whose name carries the version it acts on after the verb. */
+function versionActionName(verb: string): RegExp {
+  return new RegExp(`^${RegExp.escape(verb)} `, "u");
+}
+
 async function refineryVersionRestore(journey: Journey, sessionId: RefinerySessionId, characterId: CharacterId, description: string | null): Promise<void> {
   await reveal(journey, "context");
   const tab = pane(journey, "context").getByRole("tab", { name: REFINERY_VERSIONS_NAME, exact: true });
   await tab.click();
   await expect(tab).toHaveAttribute("aria-selected", "true");
   const versions = await controlledPanel(tab);
-  await versions.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true }).click();
+  await versions.getByRole("button", { name: versionActionName(REFINERY_COMPARE_NAME) }).click();
   await expect(versions.getByText(REFINERY_VERSION_DIFF_HEADING, { exact: true })).toBeVisible();
   await expect(versions.getByText(REFINERY_VERSION_LOADING_TEXT, { exact: true })).toHaveCount(0);
   await checkpoint(journey, "refinery/execution/version-compare", versions);
   await journey.action("refinery/execution/version-restore", {
     action: async () => {
-      await versions.getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
+      await versions.getByRole("button", { name: versionActionName(DIALOG_VERBS.restore) }).click();
       await journey.page.getByRole("alertdialog").getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
     },
     ready: async () => {
       await expect.poll(async () => (await journey.client.character.get.query({ characterId })).description).toBe(description);
-      await expect(versions.getByRole("button", { name: DIALOG_VERBS.restore, exact: true })).toHaveCount(2);
+      await expect(versions.getByRole("button", { name: versionActionName(DIALOG_VERBS.restore) })).toHaveCount(2);
     },
   });
   expect(await journey.client.character.listSnapshots.query({ characterId })).toHaveLength(2);
@@ -2575,7 +2580,7 @@ async function refineryVersions(journey: Journey, prefix: string): Promise<void>
   await expect(versions).toHaveAttribute("aria-selected", "true");
   const body = await controlledPanel(versions);
   await ready(body);
-  const comparisons = body.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true });
+  const comparisons = body.getByRole("button", { name: versionActionName(REFINERY_COMPARE_NAME) });
   const count = await comparisons.count();
   for (let index = 0; index < count; index += 1) {
     await journey.action(`${prefix}/versions/compare-${String(index)}`, {
@@ -2583,14 +2588,14 @@ async function refineryVersions(journey: Journey, prefix: string): Promise<void>
         await comparisons.nth(index).click();
       },
       ready: async () => {
-        await expect(body.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true })).toBeVisible();
+        await expect(body.getByRole("button", { name: versionActionName(REFINERY_HIDE_COMPARE_NAME) })).toBeVisible();
         await expect(body.getByText(REFINERY_VERSION_LOADING_TEXT, { exact: true })).toHaveCount(0);
         await expect(body.getByText(REFINERY_VERSION_DIFF_HEADING, { exact: true })).toBeVisible();
       },
     });
     await walkScope(journey, body, `${prefix}/versions/compare-${String(index)}`);
-    await body.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true }).click();
-    await expect(body.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true })).toHaveCount(0);
+    await body.getByRole("button", { name: versionActionName(REFINERY_HIDE_COMPARE_NAME) }).click();
+    await expect(body.getByRole("button", { name: versionActionName(REFINERY_HIDE_COMPARE_NAME) })).toHaveCount(0);
   }
   observe(
     journey,

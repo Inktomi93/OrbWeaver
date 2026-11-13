@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { moreActionsName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import { CONNECTIONS_LIST_NAME } from "#client/features/credentials/lib/connections-copy.ts";
@@ -273,7 +274,7 @@ for (const regime of REGIMES) {
       expect(cap.height).toBeLessThanOrEqual(cap.lineHeight * 2 + 1);
       await page.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
       const row = page.locator('[data-slot="list-row-root"]').filter({ hasText: LABEL });
-      const menu = row.getByRole("button", { name: /^More actions for /u });
+      const menu = row.getByRole("button", { name: new RegExp(`^${RegExp.escape(moreActionsName(""))}`, "u") });
       await menu.click();
       await page.getByRole("menuitem", { name: new RegExp(`^${RegExp.escape(ADD_MODEL_ACTION_LABELS.key)}`, "u") }).click();
       const dialog = page.getByRole("dialog", { name: ADD_MODEL_ACTION_LABELS.key, exact: true });

@@ -1,11 +1,16 @@
 // Native orders are joined through worker exit, including termination during an uncancellable library request.
 import { Worker } from "node:worker_threads";
+import type { InferenceDeps } from "@orb/inference";
 import { crypto as acmeCrypto } from "acme-client";
 import type { AcmeIssuerDeps, AcmeWorkerRequest, IssueOutcome, OwnedAcmeIssuer } from "./contract.ts";
 import { issueOutcomeSchema } from "./contract.ts";
 
-/** Own native ACME execution without changing the library's process-global HTTP configuration. */
-export function createOwnedAcmeIssuer(options: Pick<AcmeIssuerDeps, "directoryUrl" | "polling"> | undefined): OwnedAcmeIssuer {
+/** Own native ACME execution without changing the library's process-global HTTP configuration. Each order Worker
+ *  starts with `childEnv`. */
+export function createOwnedAcmeIssuer(
+  options: Pick<AcmeIssuerDeps, "directoryUrl" | "polling"> | undefined,
+  childEnv: InferenceDeps["env"]["childProcessEnv"],
+): OwnedAcmeIssuer {
   const active = new Set<Worker>();
   const pending = new Set<Promise<IssueOutcome>>();
   const terminations = new Set<Promise<number>>();
@@ -40,6 +45,7 @@ export function createOwnedAcmeIssuer(options: Pick<AcmeIssuerDeps, "directoryUr
       const operation = new Promise<IssueOutcome>((resolve) => {
         const worker = new Worker(new URL("./order-worker.ts", import.meta.url), {
           workerData: { ...options, request } satisfies AcmeWorkerRequest,
+          env: childEnv(),
           stdout: true,
           stderr: true,
         });

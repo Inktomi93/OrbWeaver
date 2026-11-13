@@ -23,7 +23,7 @@
 import type { CarriedAppearance } from "@orb/contracts/chat";
 import { carriedAppearanceFromParticipants } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { useTRPC } from "./trpc.ts";
+import { roomRosterOptions, useTRPC } from "./trpc.ts";
 import { useGatedQuery } from "./use-gated-query.ts";
 
 /**
@@ -36,6 +36,6 @@ import { useGatedQuery } from "./use-gated-query.ts";
  */
 export function useCarriedAppearance(chatId: ChatId | null): CarriedAppearance | undefined {
   const trpc = useTRPC();
-  const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data: chat } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   return chat === undefined ? undefined : carriedAppearanceFromParticipants(chat.participants);
 }

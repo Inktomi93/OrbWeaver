@@ -5,9 +5,10 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { editActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { PERSONA_DESCRIPTION_FIELD_NAME, personaDetailsToggleName, personaEditName } from "#client/features/persona/lib/persona-copy.ts";
+import { PERSONA_DESCRIPTION_FIELD_NAME, personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -56,7 +57,7 @@ for (const regime of REGIMES) {
       await mount<typeof PersonaActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
       await page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true }).focus();
       await page.keyboard.press("Enter");
-      const editor = page.getByRole("group", { name: personaEditName(persona.name), exact: true });
+      const editor = page.getByRole("group", { name: editActionName(persona.name), exact: true });
       const textarea = page.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true });
       await expect(textarea).toHaveValue(persona.description);
       await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -137,7 +138,7 @@ test.describe("macro popup composition", () => {
     await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance });
     await page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true }).focus();
     await page.keyboard.press("Enter");
-    const editor = page.getByRole("group", { name: personaEditName(persona.name), exact: true });
+    const editor = page.getByRole("group", { name: editActionName(persona.name), exact: true });
     const textarea = editor.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true });
     const field = editor.locator('[data-slot="field-root"]').filter({ has: page.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true }) });
     const label = field.locator('[data-slot="field-label"]');

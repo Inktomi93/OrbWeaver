@@ -6,7 +6,7 @@
 // lands a second persona under the next free name (`nextFreeName`). No per-CRUD audit/user-bus — a bulk
 // migration writes silently; the driver reconciles + emits once at the run level.
 
-import type { PersonaCollisionChoice } from "@orb/contracts/import";
+import type { ImportReuse, PersonaCollisionChoice } from "@orb/contracts/import";
 import { personaCollisionChoiceFor } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonas, BulkImportPersonasResult, FindOwnedPersonas } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
@@ -30,12 +30,25 @@ function identityOf(pi: BulkImportPersonaInput, artHashes: readonly { readonly i
   return identityFrom(pi, artHash ?? null);
 }
 
-/** The read-only twin of {@link createBulkImportPersonas}'s equal-content reuse, for a preview that must not write. */
+/** The read-only twin of {@link createBulkImportPersonas}'s equal-content reuse, for a preview that must not write.
+ *  It judges the inputs in the order the write lands them, so a persona equal to an earlier input answers `"upload"`. */
 export function createFindOwnedPersonas(assembly: Pick<DbAssemblyInput<PersonaImportContext>, "db">): FindOwnedPersonas {
   const db = databaseForOwner(assembly.db);
-  return async ({ ownerId, personas: input }): Promise<readonly boolean[]> => {
+  return async ({ ownerId, personas: input }): Promise<readonly (ImportReuse | null)[]> => {
     const candidates = await loadOwnedPersonaCandidates(db, ownerId);
-    return input.map((pi) => findDuplicatePersona(identityFrom(pi, pi.artHash), candidates) !== null);
+    // call-local: the identities of the inputs judged so far. Ends if it outlives the call.
+    const landed: PersonaIdentity[] = [];
+    return input.map((pi): ImportReuse | null => {
+      const identity = identityFrom(pi, pi.artHash);
+      if (findDuplicatePersona(identity, candidates) !== null) {
+        return "library";
+      }
+      if (findDuplicatePersona(identity, landed) !== null) {
+        return "upload";
+      }
+      landed.push(identity);
+      return null;
+    });
   };
 }
 

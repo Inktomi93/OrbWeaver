@@ -59,7 +59,7 @@ import type { EvidenceSlice, EvidenceWindow } from "@orb/kit/evidence-window";
 import { sliceByWindow } from "@orb/kit/evidence-window";
 import { redactKnownSecrets, secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
-import type { BugReportInspectors } from "../contract/debug.ts";
+import type { BugReportInspectors, DebugRoutesOptions } from "../contract/debug.ts";
 import type { ObservabilityRings } from "../contract/logging.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./log-ring-read.ts";
 import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
@@ -80,16 +80,16 @@ const MIN_SECRET_LENGTH = 8;
  *  reports without making the reader retype a whole uuid (the lister resolves any unambiguous prefix). */
 const ID_PREFIX_HINT = 8;
 
-function gitOutput(repoRoot: string, args: readonly string[]): string | null {
+function gitOutput(repoRoot: string, args: readonly string[], childEnv: DebugRoutesOptions["childProcessEnv"]): string | null {
   // Git being absent, or the root not being a checkout, is an answer: the report says `sha: null`.
-  const result = spawnSync("git", ["-C", repoRoot, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  const result = spawnSync("git", ["-C", repoRoot, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], env: childEnv() });
   return result.status === 0 ? result.stdout.trim() : null;
 }
 
 /** Stamp the build the report was taken against — `git rev-parse HEAD` + the dirty flag, AT CAPTURE TIME. */
-export function readBuildIdentity(repoRoot: string): BugReportBuildIdentity {
-  const sha = gitOutput(repoRoot, ["rev-parse", "HEAD"]);
-  const status = gitOutput(repoRoot, ["status", "--short"]);
+export function readBuildIdentity(repoRoot: string, childEnv: DebugRoutesOptions["childProcessEnv"]): BugReportBuildIdentity {
+  const sha = gitOutput(repoRoot, ["rev-parse", "HEAD"], childEnv);
+  const status = gitOutput(repoRoot, ["status", "--short"], childEnv);
   const lines = status === null || status === "" ? [] : status.split("\n").slice(0, STATUS_HEAD_LINES);
   return { sha, dirty: lines.length > 0, statusHead: lines };
 }

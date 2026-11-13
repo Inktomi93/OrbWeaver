@@ -49,7 +49,7 @@ test("a dry run names what each kind would bring and what it would skip, writes 
   expect(preview.kinds.chats.total).toBe(1);
   expect(names(preview, "personas")).toEqual(["Bob"]);
   expect(names(preview, "worlds")).toEqual(["Eldoria"]);
-  expect(preview.skipped.items.map((item) => item.source)).toEqual(expect.arrayContaining(["broken.png", "movingUI/"]));
+  expect(preview.skipped.items.map((item) => item.source.path)).toEqual(expect.arrayContaining(["broken.png", "movingUI/"]));
   expect(nonEmpty(preview.skipped.items).every((item) => item.reason.length > 0)).toBe(true);
   expect(await tableContents(root)).toEqual(before);
   expect(await storedBlobs(root)).toEqual(blobsBefore);
@@ -79,7 +79,7 @@ test("one unreadable preset file is skipped while the profile's cards, chats and
   const before = await tableContents(root);
 
   const preview = await dryRun(root, files);
-  expect(preview.skipped.items.map((item) => item.source)).toContain("OpenAI Settings/Unkeyed.json");
+  expect(preview.skipped.items.map((item) => item.source.path)).toContain("OpenAI Settings/Unkeyed.json");
   expect(names(preview, "characters")).toEqual(["Aria"]);
   expect(preview.kinds.chats.total).toBe(1);
   expect(names(preview, "worlds")).toEqual(["Eldoria"]);
@@ -97,7 +97,7 @@ test("a persona with no avatar file is listed by its name as importing without a
   const preview = await dryRun(root, profile(root));
 
   expect(preview.kinds.personas.items).toEqual([expect.objectContaining({ name: "Bob", withoutArt: true })]);
-  expect(preview.skipped.items.map((item) => item.source)).not.toContain("bob.png");
+  expect(preview.skipped.items.map((item) => item.source.path)).not.toContain("bob.png");
   const merged = mergeImportPreviews([preview, preview]);
   expect(merged.kinds.personas.items[0]).toMatchObject({ name: "Bob", withoutArt: true });
 });
@@ -177,8 +177,8 @@ test("one source skipped two ways keeps both rows across a split folder, and a r
 
   const merged = mergeImportPreviews([first, second]);
 
-  expect(merged.skipped.items.filter((item) => item.source === "user/files/")).toHaveLength(2);
-  expect(merged.skipped.items.filter((item) => item.source === "movingUI/")).toHaveLength(1);
+  expect(merged.skipped.items.filter((item) => item.source.path === "user/files/")).toHaveLength(2);
+  expect(merged.skipped.items.filter((item) => item.source.path === "movingUI/")).toHaveLength(1);
 });
 
 test("a skip's reason is one short line per kind of skip, carrying no field name a file or the importer wrote", async () => {
@@ -193,7 +193,7 @@ test("a skip's reason is one short line per kind of skip, carrying no field name
     "reasoning/format.json": "{}",
   });
 
-  const reasonOf = (source: string): string => present(preview.skipped.items.find((item) => item.source === source)).reason;
+  const reasonOf = (source: string): string => present(preview.skipped.items.find((item) => item.source.path === source)).reason;
   expect(reasonOf("themes/one.json")).toBe(reasonOf("themes/two.json"));
   expect(reasonOf("world_info_settings")).toBe(reasonOf("extension_settings"));
   expect(reasonOf("user/")).toBe(reasonOf("reasoning/"));

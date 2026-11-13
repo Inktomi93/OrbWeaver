@@ -13,11 +13,12 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { ChevronRight, Icon, MessagesSquare, TriangleAlert } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { useFocusOnSwap } from "#lib";
-import { PRESET_CHAT_HISTORY_LABEL, presetEditDrillName } from "#src/features/preset/lib/preset-names.ts";
+import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 
 export interface PivotBandProps {
   /** This is a DUPLICATE pivot (2nd+ `chat_history`) — render an inert warning band, no zone boundary. */
@@ -67,7 +68,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
             </Text>
           </Button>
           <Button
-            aria-label={presetEditDrillName(PRESET_CHAT_HISTORY_LABEL)}
+            aria-label={editActionName(PRESET_CHAT_HISTORY_LABEL)}
             className="shrink-0"
             variant="ghost"
             onClick={onDrill}

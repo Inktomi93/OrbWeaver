@@ -15,6 +15,7 @@ import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { captureCookieAuth, createCorpusHarness, makePluginBundle, requireShowcaseBundle } from "@orb/testkit/node/composed";
+import { moreActionsName, recentActivityName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8 } from "fflate";
@@ -290,10 +291,10 @@ for (const { width, touch, mobile } of [
         await details.click();
         await row.getByRole("button", { name: pluginPermissionsLabel(plugin.name), exact: true }).click();
         await expect(row.getByRole("group", { name: pluginPermissionsLabel(plugin.name), exact: true })).toBeVisible();
-        const activity = row.getByRole("button", { name: `Recent activity for ${plugin.name}`, exact: true });
+        const activity = row.getByRole("button", { name: recentActivityName(plugin.name), exact: true });
         await activity.click();
         await expect(activity.locator("..").getByRole("log", { name: "Log entries", exact: true })).toBeVisible();
-        await expect(row.getByRole("button", { name: `More actions for ${plugin.name}`, exact: true })).toBeVisible();
+        await expect(row.getByRole("button", { name: moreActionsName(plugin.name), exact: true })).toBeVisible();
         const update = row.getByRole("button", { name: pluginCheckForUpdatesLabel(plugin.name), exact: true });
         await expect(update).toHaveCount(plugin.updateSource === null ? 0 : 1);
       }

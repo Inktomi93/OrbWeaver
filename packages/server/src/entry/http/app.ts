@@ -59,6 +59,7 @@ type HttpAppDeps = Pick<
     | "examplePluginSeeder"
     | "distributedPluginApplier"
     | "auditFailures"
+    | "childProcessEnv"
   >;
   readonly authConfig: AuthConfig;
   readonly casDir: Parameters<typeof createCas>[0];
@@ -108,6 +109,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
     logger: deps.logger,
     rings: deps.rings,
     auditFailures: built.auditFailures,
+    childProcessEnv: built.childProcessEnv,
     liveBuses: built.liveBuses,
     authConfig,
     now,

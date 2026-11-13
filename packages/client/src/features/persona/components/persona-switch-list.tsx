@@ -14,6 +14,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Icon, Pencil } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import { MenuItem } from "@orb/ui/menu";
 import { PopoverClose } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
@@ -26,7 +27,7 @@ import type { Trpc } from "#data";
 import { rowActionSubject, rowActionsName, rowQualifiers, timeLib } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openPersonaEditor } from "#state";
-import { PERSONA_PIN_CARD_HERE_NAME, PERSONA_UNPIN_CARD_NAME, personaEditName, personaSwitchName } from "../lib/persona-copy.ts";
+import { PERSONA_PIN_CARD_HERE_NAME, PERSONA_UNPIN_CARD_NAME, personaSwitchName } from "../lib/persona-copy.ts";
 import { PersonaCardPin } from "./persona-card-pin.tsx";
 import { PersonaClearDefaultItem } from "./persona-clear-default-item.tsx";
 import { PersonaCrown } from "./persona-crown.tsx";
@@ -276,7 +277,7 @@ function EditDoor({
   readonly presentation: ChromePresentation;
   readonly tabIndex: -1 | undefined;
 }): ReactElement {
-  const label = personaEditName(subject);
+  const label = editActionName(subject);
   const door = (
     <Button
       aria-label={label}

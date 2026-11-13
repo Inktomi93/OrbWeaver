@@ -9,13 +9,12 @@ import process from "node:process";
 import { parseEnv as parseDotenv } from "node:util";
 import type { AuthModeSource } from "@orb/contracts/identity";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
-import { RESERVED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
 import { ENV_FROM_FILE_KEY, ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised } from "@orb/kit/supervisor";
 import { errnoCode } from "#primitives/errno";
 import { CONTAINER_MARKER_FILES } from "./container.ts";
 import type { Env } from "./record/index.ts";
-import { isSecretEnvKey, parseEnv } from "./record/index.ts";
+import { childEnvFrom, childRefusedEnvNames, parseEnv } from "./record/index.ts";
 
 export { resolveAllowedHosts } from "./allowed-hosts.ts";
 export { diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "./diagnostics.ts";
@@ -137,23 +136,25 @@ export const env: Env = parseEnv({
   readFile: (path) => readFileSync(path, "utf8"),
 });
 
-// The agent SDK child's own keys (D8): its builder pins or refuses each, and no other child may inherit one.
-const RESERVED_CLAUDE_KEYS: readonly string[] = RESERVED_CLAUDE_ENV_KEYS;
-
-/** Deletes every key {@link isSecretEnvKey} names, and every reserved Claude key, from `process.env`, so no child
- *  process started afterwards inherits an app secret, a provider credential the parse never read, or the agent SDK
- *  child's auth, routing or config keys. The server entry calls it once, right after the parse. It cannot run at module
- *  load: the dev launcher imports this module to preflight the env and then hands its own `process.env` to the server
- *  it spawns. */
+/** Deletes every name {@link childRefusedEnvNames} lists from `process.env`, so no child process started afterwards
+ *  inherits an app secret, a provider credential the parse never read, or the agent SDK child's auth, routing or config
+ *  keys. The server entry calls it once, right after the parse. It cannot run at module load: the dev launcher imports
+ *  this module to preflight the env and then hands its own `process.env` to the server it spawns. */
 export function scrubAppSecretsFromProcessEnv(): void {
-  for (const key of Object.keys(process.env).filter((name) => isSecretEnvKey(name) || RESERVED_CLAUDE_KEYS.includes(name))) {
+  for (const key of childRefusedEnvNames(process.env)) {
     Reflect.deleteProperty(process.env, key);
   }
 }
 
-/** The raw `process.env` snapshot — the baseline the agent-sdk child env builders spread. */
+/** The raw `process.env` snapshot every child env builder starts from. */
 function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };
+}
+
+/** The environment every inheriting child process takes: this process's current environment through
+ *  {@link childEnvFrom}, read at each spawn. */
+export function childProcessEnv(): Readonly<Record<string, string>> {
+  return childEnvFrom(processEnvSnapshot());
 }
 
 /** The agent child-env baseline excludes absent variables; each call reads the current process snapshot. */

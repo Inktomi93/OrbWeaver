@@ -23,7 +23,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { roomRosterOptions, useTRPC } from "#data";
 import { authoredChatName, deriveChatTitle } from "#lib";
 import { useRoomRoster } from "../hooks/use-room-roster.ts";
 import { chatMembersEntryName } from "../lib/chat-surface-names.ts";
@@ -56,7 +56,7 @@ interface CommittedIdentity {
  *  `deriveChatTitle`'s fallback with no authored name, so an empty roster still prints the untitled word. */
 function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
   const trpc = useTRPC();
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useQuery(roomRosterOptions(trpc, { chatId }));
   const participants = chat?.participants ?? [];
   const characters = filterCharacters(participants);
   const authored = authoredChatName(chat?.title ?? null);

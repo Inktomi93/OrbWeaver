@@ -30,6 +30,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { moreActionsName } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import { Heading, Text } from "@orb/ui/text";
@@ -295,7 +296,7 @@ function ConnectionRow({
         // The background switch lives in the editor this row opens; the row shows its state in the rail below.
         actions={
           <RowActionsMenu
-            label={`More actions for ${name}`}
+            label={moreActionsName(name)}
             destructive={{
               confirmLabel: "Remove",
               description: removalDescription(boundRoles, key),

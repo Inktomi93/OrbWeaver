@@ -22,7 +22,7 @@ import type {
 } from "../contract/collection.ts";
 import { importFailureReason, ProfileImportLimitError } from "../contract/errors.ts";
 import type { ImportPersonaInput } from "../contract/params.ts";
-import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
+import type { CollectedProfile, ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
 import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnresolvedPinnedPersona, ImportWorldNote } from "../contract/results.ts";
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
@@ -128,6 +128,8 @@ function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<type
  *  whose target is gone, may have been a profile, so the report names it. */
 async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCollected> {
   const { fs, signal } = deps;
+  const profiles: CollectedProfile[] = [];
+  const rootUnhandled: string[] = [];
   const bundles: CollectedCard[] = [];
   const personas: CollectedPersona[] = [];
   const worlds: CollectedWorld[] = [];
@@ -172,12 +174,14 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     }
     if (ent.kind === "other") {
       r.unhandled.push(ent.name);
+      rootUnhandled.push(ent.name);
     }
     await using profile = ent.kind === "directory" ? ((await root?.openDirectory(ent.name)) ?? null) : null;
     if (profile === null) {
       continue;
     }
     const result = await collectBundlesFromDir(fs, profile, [], stWallClockZone(deps));
+    profiles.push({ name: ent.name, result });
     bundles.push(...result.bundles);
     personas.push(...result.personas);
     worlds.push(...result.worlds);
@@ -224,6 +228,8 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     databankFileCount,
     galleryImageCount,
     skipped,
+    profiles,
+    rootUnhandled,
     ...r,
   };
 }

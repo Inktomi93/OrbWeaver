@@ -66,7 +66,6 @@ import {
   MESSAGE_UNDO_CONTINUATION_NAME,
   MESSAGE_UNHIDE_FROM_AI_NAME,
   MESSAGE_VIEW_WIRE_TRACE_NAME,
-  messageArticleName,
 } from "#client/features/chat/lib/message-action-names.ts";
 import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
 import { IMAGINE_MODE_NAME, IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
@@ -1940,7 +1939,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await expect(confirm).toBeHidden();
       await expect.poll(async () => (await readCanon(flow, room.id)).find(({ id }) => id === user.id)?.personaId).toBe(persona.id);
       const restamped = present((await readCanon(flow, room.id)).find(({ id }) => id === user.id));
-      await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(present(messageArticleName(persona.name, restamped.position)));
+      await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(`${persona.name} · #${String(restamped.position)}`);
       await messageOperationDone(
         flow,
         user,

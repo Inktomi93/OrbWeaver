@@ -373,7 +373,8 @@ const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "
 const ROOM_MOUNTING = '[data-slot="chat-room-mounting"]';
 const LIST_PANE = '[data-panel-side="list"]';
 const LIST_SEARCH = `${LIST_PANE} input`;
-const ROOM_BODY = '[data-slot="chat-room-surface"] textarea';
+const ROOM_SURFACE = '[data-slot="chat-room-surface"]';
+const ROOM_BODY = `${ROOM_SURFACE} textarea`;
 const ACTED_DURING_MOUNT = "data-acted-during-mount";
 const LONG_NAME = "The Extraordinarily Long Saga of the Ninth Epoch Beneath the Violet Braziers";
 
@@ -509,24 +510,27 @@ test.describe("an open named group room", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
     const room = await openNamedRoom(page, corpus, await ownerCaller());
-    // A pointer cannot land inside one commit gap on demand, so the click runs at the mutation that paints the title.
+    // A pointer cannot land inside one commit gap on demand, so the click runs at the mutation that paints the title. The room's
+    // composer can mount in that same commit (both wait on the room's roster), so the witness is the room's arrival focus: the
+    // click must land before the room takes focus, the window where a late arrival could take the field away.
     await page.addInitScript(
-      ({ button, mounting, witness }) => {
+      ({ button, surface, witness }) => {
         const observer = new MutationObserver(() => {
           const control = document.querySelector<HTMLElement>(button);
           if (control !== null) {
             observer.disconnect();
-            document.documentElement.setAttribute(witness, String(document.querySelector(mounting) !== null));
+            document.documentElement.setAttribute(witness, String((document.activeElement?.closest(surface) ?? null) === null));
             control.click();
           }
         });
         observer.observe(document, { subtree: true, childList: true });
       },
-      { button: `button[aria-label^="${RENAME_CHAT_NAME}"]`, mounting: ROOM_MOUNTING, witness: ACTED_DURING_MOUNT },
+      { button: `button[aria-label^="${RENAME_CHAT_NAME}"]`, surface: ROOM_SURFACE, witness: ACTED_DURING_MOUNT },
     );
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
     await expect(page.locator("html")).toHaveAttribute(ACTED_DURING_MOUNT, "true");
     await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
+    await expect(page.locator(ROOM_BODY)).toHaveCount(1);
     const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
     await expect(field).toBeFocused();
     await page.keyboard.type("The harbour job");

@@ -41,6 +41,7 @@ import {
   CHARACTER_SAVE_FAILURE,
 } from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT, AUTOSAVE_SAVING_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 
@@ -102,7 +103,7 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
   if ((await context.getAttribute("data-panel-mode")) === "overlay") {
     await page.getByRole("button", { name: CLOSE_DETAILS }).click();
   }
-  const back = page.getByRole("button", { name: `Back to ${CHARACTERS}`, exact: true });
+  const back = page.getByRole("button", { name: sectionBackName(CHARACTERS), exact: true });
   if (await back.isVisible()) {
     await back.click();
   }

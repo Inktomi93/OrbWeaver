@@ -1,6 +1,6 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { CensusClass, CensusSource, TestEvidence } from "../../../tooling/src/label-census/index.ts";
-import { authoredStrings, classifySite, inFeature, nameSites, productionIndex } from "../../../tooling/src/label-census/index.ts";
+import { authoredStrings, classifySite, inFeature, nameSites, oracleCalls, productionIndex } from "../../../tooling/src/label-census/index.ts";
 
 // The production row renders a template; its placeholder is split so this file holds no template syntax in a string.
 const REACHED_TEMPLATE = ["{`Reached $", "{count} of the limit`}"].join("");
@@ -65,6 +65,55 @@ test("a ui spec cannot reach a client export, and reaches its own package's", ()
   expect(classes(UI_SPEC)).toEqual([
     ['"Cancel"', "export-out-of-reach"],
     ['"Field hint"', "exported"],
+  ]);
+});
+
+test("a literal a production template composes is filed under that template, and only a whole fit counts", () => {
+  const index = productionIndex([
+    { path: "packages/client/src/components/back-link.tsx", text: `const back = \`Back to ${hole("label")}\`; const pair = \`${hole("a")}: ${hole("b")}\`;` },
+  ]);
+  const spec: CensusSource = {
+    path: "tests/client/app-shell/back.ct.tsx",
+    text: [
+      'await page.getByRole("link", { name: "Back to Chats" }).click();',
+      'await page.getByText("Back to").click();',
+      'await page.getByText("Go Back to Chats").click();',
+      'await page.getByText("Back to Notes").click();',
+      'await page.getByText("Model: Local").click();',
+    ].join("\n"),
+  };
+  const rows = nameSites(spec).map((site) => classifySite(site, index, { authored: new Set(["Back to Notes"]) }));
+  expect(rows.map((row) => [row.text, row.class, row.homes])).toEqual([
+    ['"Back to Chats"', "composed", ["packages/client/src/components/back-link.tsx"]],
+    ['"Back to"', "unresolved", []],
+    ['"Go Back to Chats"', "unresolved", []],
+    ['"Back to Notes"', "authored", []],
+    ['"Model: Local"', "unresolved", []],
+  ]);
+});
+
+test("only an untagged renderer template with enough fixed text composes a name", () => {
+  const index = productionIndex([
+    { path: "packages/server/src/debug/report.ts", text: `const line = \`${hole("source")} from the ${hole("caller")}\`;` },
+    { path: "packages/client/src/data/query.ts", text: `const q = sql\`Remove ${hole("id")} rows\`;` },
+    { path: "packages/client/src/features/preset/readout.tsx", text: `const refs = \`${hole("count")} ref${hole("plural")}\`;` },
+    { path: "packages/ui/src/primitives/chip/chip.tsx", text: `const name = \`Remove ${hole("label")}\`;` },
+  ]);
+  const spec: CensusSource = {
+    path: "tests/client/features/preset/readout.ct.tsx",
+    text: [
+      'await page.getByText("Context from the caller").click();',
+      'await page.getByText("Remove all rows").click();',
+      'await page.getByText("the complete reference archive").click();',
+      'await page.getByRole("button", { name: "Remove Beta" }).click();',
+    ].join("\n"),
+  };
+  const rows = nameSites(spec).map((site) => classifySite(site, index, { authored: new Set() }));
+  expect(rows.map((row) => [row.text, row.class, row.homes])).toEqual([
+    ['"Context from the caller"', "unresolved", []],
+    ['"Remove all rows"', "composed", ["packages/ui/src/primitives/chip/chip.tsx"]],
+    ['"the complete reference archive"', "unresolved", []],
+    ['"Remove Beta"', "composed", ["packages/ui/src/primitives/chip/chip.tsx"]],
   ]);
 });
 
@@ -209,6 +258,214 @@ test("a string the spec's own mounted story authors is the story's, ahead of a p
   const mounted = new Map([[spec.path, new Set(["Create a schedule"])]]);
   expect(rowOf(spec, { authored: new Set(), mounted })).toEqual([['"Create a schedule"', "authored", "client/components"]]);
   expect(rowOf(spec, { authored: new Set() })).toEqual([['"Create a schedule"', "exported", "client/src/components"]]);
+});
+
+// One line per position the census header claims, each with the names the census must read there. A line whose list is
+// empty is a control: its text is no name, or its name is a binding.
+const POSITIONS: [string, string[]][] = [
+  ['page.getByText("By text");', ['"By text"']],
+  ['page.getByLabel("By label");', ['"By label"']],
+  ['page.getByPlaceholder("By placeholder");', ['"By placeholder"']],
+  ['page.getByTitle("By title");', ['"By title"']],
+  ['page.getByAltText("By alt");', ['"By alt"']],
+  ['expect(row).toHaveText("Has text");', ['"Has text"']],
+  ['expect(row).toContainText("Contains text");', ['"Contains text"']],
+  ['expect(row).toHaveAccessibleName("Accessible name");', ['"Accessible name"']],
+  ['expect(row).toHaveAccessibleDescription("Accessible description");', ['"Accessible description"']],
+  ['expect(page).toHaveTitle("Page title");', ['"Page title"']],
+  ['page.getByRole("button", { name: "Role name" });', ['"Role name"']],
+  ['row.filter({ hasText: "Filter text" });', ['"Filter text"']],
+  ['row.locator("li", { hasNotText: "Not this text" });', ['"Not this text"']],
+  ['page.getByTestId("row-id");', []],
+  ['select.selectOption({ label: "Option label" });', ['"Option label"']],
+  ['expect(row).toHaveAttribute("aria-label", "Aria label");', ['"Aria label"']],
+  ['expect(row).toHaveAttribute("aria-description", "Aria description");', ['"Aria description"']],
+  ['expect(row).toHaveAttribute("title", "Title attribute");', ['"Title attribute"']],
+  ['expect(row).toHaveAttribute("placeholder", "Placeholder attribute");', ['"Placeholder attribute"']],
+  ['expect(row).toHaveAttribute("alt", "Alt attribute");', ['"Alt attribute"']],
+  ['expect(row).toHaveAttribute("data-slot", "row-body");', []],
+  [`page.getByText(\`Template ${hole("n")} text\`);`, [`\`Template ${hole("n")} text\``]],
+  ["page.getByText(/Regex text/u);", ["/Regex text/u"]],
+  ['page.getByText("Joined " + count);', ['"Joined " + count']],
+  ['page.getByText(new RegExp("Built regex"));', ['new RegExp("Built regex")']],
+  ['page.getByText(open ? "Open arm" : "Closed arm");', ['"Open arm"', '"Closed arm"']],
+  ['page.getByText(given ?? "Fallback arm");', ['"Fallback arm"']],
+  ['expect(await row.textContent()).toBe("Read by toBe");', ['"Read by toBe"']],
+  ['expect(await row.innerText()).toEqual("Read by toEqual");', ['"Read by toEqual"']],
+  ['expect(await row.allTextContents()).toStrictEqual(["All contents"]);', ['"All contents"']],
+  ['expect(await row.allInnerTexts()).toContain("All inner");', ['"All inner"']],
+  ["expect(node.textContent).toMatch(/Dom property/u);", ["/Dom property/u"]],
+  ['expect(await row.getAttribute("title")).toBe("Read title");', ['"Read title"']],
+  ['expect((await row.textContent())?.trim()).toBe("Trimmed read");', ['"Trimmed read"']],
+  ['expect.soft(await row.textContent()).toBe("Soft read");', ['"Soft read"']],
+  ['await expect.poll(() => row.textContent()).toBe("Polled read");', ['"Polled read"']],
+  ['expect((await row.textContent())?.trimStart()).toBe("Start trimmed");', ['"Start trimmed"']],
+  ['expect((await row.textContent())?.trimEnd()).toBe("End trimmed");', ['"End trimmed"']],
+  ['expect((await row.textContent())?.toLowerCase()).toBe("lower read");', ['"lower read"']],
+  ['expect((await row.textContent())?.toUpperCase()).toBe("UPPER READ");', ['"UPPER READ"']],
+  ['expect(await row.textContent()).not.toBe("Negated read");', ['"Negated read"']],
+  ['await expect(row.textContent()).resolves.toBe("Resolved read");', ['"Resolved read"']],
+  ['expect(await row.getAttribute("data-slot")).toBe("row-body");', []],
+  ['expect(total).toBe("Not a text read");', []],
+  ['if ((await row.textContent()) === "Strict equal") {}', ['"Strict equal"']],
+  ['if ("Strict unequal" !== node.innerText) {}', ['"Strict unequal"']],
+  ['if ((await row.textContent()) == "Loose equal") {}', ['"Loose equal"']],
+  ['if ((await row.textContent()) != "Loose unequal") {}', ['"Loose unequal"']],
+  ['page.locator("text=Engine text");', ["Engine text"]],
+  ['page.locator("li >> text=\\"Quoted engine\\"");', ["Quoted engine"]],
+  ['page.locator("text=/engine regex/");', []],
+  ["page.locator('li:has-text(\"Has text pseudo\")');", ["Has text pseudo"]],
+  ["page.waitForSelector('li:text(\"Text pseudo\")');", ["Text pseudo"]],
+  ["page.$('li:text-is(\"Text is pseudo\")');", ["Text is pseudo"]],
+  ["page.$$('[aria-label=\"Selector aria\"]');", ["Selector aria"]],
+  ["page.$eval('[aria-description=\"Selector description\"]', read);", ["Selector description"]],
+  ["page.$$eval('[title=\"Selector title\"]', read);", ["Selector title"]],
+  ["document.querySelector('[placeholder=\"Selector placeholder\"]');", ["Selector placeholder"]],
+  ["document.querySelectorAll('[alt=\"Selector alt\"]');", ["Selector alt"]],
+  ["node.closest('[aria-label*=\"Selector part\" i]');", ["Selector part"]],
+  ["node.matches('[aria-label^=\"Selector start\"]');", ["Selector start"]],
+  [`page.locator(\`[aria-label="${hole("NAME")}"]\`);`, []],
+  ['page.locator("[data-slot=\\"row\\"]");', []],
+  ['expect(row).toMatchAriaSnapshot("- button \\"Snapshot name\\"\\n- paragraph: Snapshot text");', ["Snapshot name", "Snapshot text"]],
+];
+
+test("every position the header claims is read, and its controls are not", () => {
+  const spec = { path: "tests/client/features/chat/positions.ct.tsx", text: POSITIONS.map(([code]) => code).join("\n") };
+  const read = nameSites(spec).map((site) => [site.line, site.value ?? site.text] as const);
+  const expected = POSITIONS.flatMap(([, names], line) => names.map((name) => [line + 1, name] as const));
+  expect(read).toEqual(expected);
+});
+
+const SELECTOR_CONSTANT_SPEC: CensusSource = {
+  path: "tests/e2e/support/room.ts",
+  text: [
+    "const CHARACTER_BAR = '[aria-label=\"Characters\"]';",
+    'const FRAME = "Frame title";',
+    'import { BUG_REPORT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";',
+    "export const bar = (page) => page.locator(CHARACTER_BAR);",
+    `export const frame = (page) => page.locator(\`iframe[title="${hole("FRAME")}"]\`);`,
+    `export const opened = (page) => page.locator(\`[aria-label="Open ${hole("FRAME")}"]\`);`,
+    `export const bug = (page) => page.locator(\`[aria-label="${hole("BUG_REPORT_NAME")}"]\`);`,
+    'const SIDE = open ? "Left" : "Right";',
+    `export const side = (page) => page.locator(\`[title="${hole("SIDE")}"]\`);`,
+    "const ROSTER = '[aria-label=\"Roster\"]';",
+    "const CHIP = '[data-slot=\"chip\"]';",
+    `export const chips = (page) => page.locator(\`${hole("ROSTER")}:not([aria-hidden="true"]) ${hole("CHIP")}\`);`,
+    "const SOLO = '[title=\"Solo\"]';",
+    `export const solo = (page) => page.locator(\`${hole("SOLO")} .chip\`);`,
+  ].join("\n"),
+};
+
+test("a selector's names count where their text is written: a selector constant, bare or composed, a whole literal placeholder, a part-literal string", () => {
+  expect(nameSites(SELECTOR_CONSTANT_SPEC).map((site) => `${String(site.line)} ${site.value ?? site.text}`)).toEqual([
+    "1 Characters",
+    '2 "Frame title"',
+    "6 Open Frame title",
+    "10 Roster",
+    "13 Solo",
+  ]);
+});
+
+test("a template whose every fixed word the mounted story writes is the story's", () => {
+  const spec = {
+    path: "tests/ui/primitives/switch/thumb-ceiling.ct.tsx",
+    text: `await expect(page.getByRole("switch", { name: \`off on ${hole("host")}\` })).toBeVisible();`,
+  };
+  const index = productionIndex([{ path: "packages/client/src/features/credentials/row.tsx", text: `const name = \`Turn off on ${hole("host")}\`;` }]);
+  const [site] = nameSites(spec);
+  const classify = (mounted: ReadonlySet<string>): CensusClass | undefined =>
+    site === undefined ? undefined : classifySite(site, index, { authored: new Set(), mounted: new Map([[spec.path, mounted]]) }).class;
+  expect(classify(new Set(["off on"]))).toBe("authored");
+  expect(classify(new Set())).toBe("inline-template");
+});
+
+const LABEL_FUNCTIONS: CensusSource = {
+  path: "packages/client/src/features/chat/lib/chat-names.ts",
+  text: [
+    "export function starName(starred: boolean): string { return starred ? 'Unstar' : 'Star'; }",
+    `export const pinName = (pinned: boolean): string => { let verb = 'Pin'; if (pinned) { verb = 'Unpin'; } return \`${hole("verb")} row\`; };`,
+    `export function modeName(mode: string): string { let word = 'Other'; switch (mode) { case 'a': word = 'Alpha'; } return \`Mode ${hole("word")}\`; }`,
+    `export const twiceName = (short: boolean): string => (short ? 'Short' : \`Long ${hole("x")}\`);`,
+    "export function safeName(): string { try { return 'Ready'; } catch { return 'Failed'; } }",
+    "export function wrapName(): string { const pick = (a: boolean) => { if (a) { return 'A'; } return 'B'; }; return 'Wrapped'; }",
+    "function hiddenName(on: boolean): string { return on ? 'On' : 'Off'; }",
+    `export const openName = (title: string): string => \`Open ${hole("title")}\`;`,
+    "export const isOpen = (state: string): boolean => state === 'open' ? true : false;",
+    `export const nowName = (): string => \`Now ${hole("STAMP")}\`;`,
+    "export const fixedName = (title: string): string => 'Fixed';",
+  ].join("\n"),
+};
+
+const ORACLE_SPEC: CensusSource = {
+  path: "tests/client/features/chat/star.ct.tsx",
+  text: [
+    'import { starName, pinName, modeName, openName, isOpen } from "#client/features/chat/lib/chat-names.ts";',
+    'import * as names from "#client/features/chat/lib/chat-names.ts";',
+    "const expected = pinName(true);",
+    "await expect(row).toHaveAccessibleName(starName(true));",
+    "await expect(row).toHaveText(expected);",
+    "await expect(row).toHaveAttribute('aria-label', names.modeName('a'));",
+    "expect(await row.textContent()).toBe(names.twiceName(true));",
+    "await expect(row).toHaveText(openName('Room'));",
+    "await page.getByRole('button', { name: starName(false) }).click();",
+    "expect(isOpen('open')).toBe(true);",
+    'import { safeName } from "../../../../packages/client/src/features/chat/lib/chat-names.ts";',
+    "if ((await row.textContent()) === safeName()) {}",
+  ].join("\n"),
+};
+
+test("a label function whose name varies, called where an assertion reads a name, is an oracle candidate of its kind", () => {
+  const index = productionIndex([LABEL_FUNCTIONS]);
+  expect([...index.labelFunctions].map(([name, { kind }]) => `${name} ${kind}`).sort()).toEqual([
+    "modeName branching",
+    "openName template",
+    "pinName branching",
+    "safeName branching",
+    "starName branching",
+    "twiceName branching",
+  ]);
+  const rows = oracleCalls(ORACLE_SPEC, index, { authored: new Set() });
+  expect(rows.map((row) => `${String(row.line)} ${row.function} ${row.kind} ${row.feature}`)).toEqual([
+    "3 pinName branching client/src/features/chat",
+    "4 starName branching client/src/features/chat",
+    "6 modeName branching client/src/features/chat",
+    "7 twiceName branching client/src/features/chat",
+    "8 openName template client/src/features/chat",
+    "12 safeName branching client/src/features/chat",
+  ]);
+});
+
+// Minimal excerpts of two oracle defects as they stood before their fix: each label function's body, and the assertion
+// that built its expected name with it inside a locator under `expect`.
+const BELL_NAMES: CensusSource = {
+  path: "packages/client/src/features/notifications/lib/notifications-copy.ts",
+  text: `export function notificationsBellLabel(unreadCount: number, hasNextPage: boolean): string { return unreadCount === 0 ? NOTIFICATIONS_BELL_NAME : \`${hole("NOTIFICATIONS_BELL_NAME")} (${hole("String(unreadCount)")} unread)\`; }`,
+};
+const REFINERY_NAMES: CensusSource = {
+  path: "packages/client/src/features/refinery/lib/refinery-names.ts",
+  text: 'export function refineryTestOnCardLabel(running: boolean): string { return running ? "Running…" : REFINERY_TEST_ON_CARD_NAME; }',
+};
+const SUBJECT_SPEC: CensusSource = {
+  path: "tests/client/features/notifications/notification-inbox.ct.tsx",
+  text: [
+    'import { notificationsBellLabel } from "#client/features/notifications/lib/notifications-copy.ts";',
+    'import { refineryTestOnCardLabel } from "#client/features/refinery/lib/refinery-names.ts";',
+    'await expect(page.getByRole("button", { name: notificationsBellLabel(unread, true), exact: true })).toBeVisible();',
+    'await expect(page.getByRole("button", { name: refineryTestOnCardLabel(true), exact: true })).toBeDisabled();',
+    'const busy = page.getByRole("button", { name: refineryTestOnCardLabel(false) });',
+    "await expect(busy).toHaveCount(1);",
+    'const idle = page.getByRole("button", { name: notificationsBellLabel(0, false) });',
+    "await idle.click();",
+  ].join("\n"),
+};
+
+test("a label function in a locator's name inside the expect subject, or in a locator constant the subject reads, is a candidate", () => {
+  const rows = oracleCalls(SUBJECT_SPEC, productionIndex([BELL_NAMES, REFINERY_NAMES]), { authored: new Set() });
+  expect(rows.map((row) => `${String(row.line)} ${row.function}`)).toEqual([
+    "3 notificationsBellLabel",
+    "4 refineryTestOnCardLabel",
+    "5 refineryTestOnCardLabel",
+  ]);
 });
 
 test("the feature filter keeps the production owner's rows and names the test directory for the rest", () => {

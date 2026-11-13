@@ -23,6 +23,7 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Corner, Grid, Row, Stack } from "@orb/ui/layout";
+import { editActionName } from "@orb/ui/lib";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -173,7 +174,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
       <PopoverTrigger
         render={
           <Card
-            aria-label={`Edit ${item.name}`}
+            aria-label={editActionName(item.name)}
             as="button"
             className={TILE_BOX}
             width="full"
@@ -188,7 +189,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
           </Card>
         }
       />
-      <PopoverPopup aria-label={`Edit ${item.name}`}>
+      <PopoverPopup aria-label={editActionName(item.name)}>
         <PackTileEditor item={item} edit={edit} />
       </PopoverPopup>
     </Popover>

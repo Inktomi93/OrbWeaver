@@ -173,7 +173,13 @@ export { filteredCensus } from "./filtered-census.ts";
 export { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "./flank-names.ts";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export { holdFlipInPhase } from "./flip-phase.ts";
-export { IMAGE_MODE_LABELS, IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "./image-size-copy.ts";
+export {
+  IMAGE_MODE_LABELS,
+  IMAGE_NEGATIVE_PROMPT_FIELD_NAME,
+  IMAGE_SIZE_FIELD_NAME,
+  IMAGE_SIZE_LABELS,
+  IMAGE_SIZE_MODE_DEFAULT,
+} from "./image-size-copy.ts";
 export type { SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,

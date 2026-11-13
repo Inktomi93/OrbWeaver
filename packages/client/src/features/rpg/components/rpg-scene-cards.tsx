@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, ViewerDialog } from "#components";
-import { QueryErrorState, SkeletonRows, useCardFrameSrc, useSuspenseQueries, useTRPC } from "#data";
+import { QueryErrorState, roomRosterOptions, SkeletonRows, useCardFrameSrc, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
 import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
@@ -107,7 +107,7 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
 function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactElement {
   const trpc = useTRPC();
   const [{ data: messages }, { data: chat }] = useSuspenseQueries({
-    queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
+    queries: [trpc.chat.listMessages.queryOptions({ chatId }), roomRosterOptions(trpc, { chatId })],
   });
   const [openKey, setOpenKey] = useState<string | null>(null);
   const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();

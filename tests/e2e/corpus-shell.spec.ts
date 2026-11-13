@@ -611,7 +611,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(grid).toHaveAttribute("data-room-screen", "true");
 
-    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
     await expect(rail(page)).toBeVisible();
     await expect(listPanel(page)).toHaveAttribute("data-panel-mode", "docked");
@@ -629,14 +629,14 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(grid).toHaveAttribute("data-section", "chats");
     await expect(grid).toHaveAttribute("data-room-screen", "true");
 
-    await page.getByRole("button", { name: "Back to Home", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.home), exact: true }).click();
     await expect(grid).toHaveAttribute("data-section", "home");
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
 
     await reachOnPhone(page, SECTION_LABELS.chats);
     await page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click();
     await expect(grid).toHaveAttribute("data-room-screen", "true");
-    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
     await expect(grid).toHaveAttribute("data-section", "chats");
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
   });
@@ -650,7 +650,7 @@ test.describe("committed corpus shell on a phone", () => {
     await openHome(page);
     await reachOnPhone(page, SECTION_LABELS.characters);
     await libraryRow(page, character.name).click();
-    await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true })).toBeVisible();
     await expect(rail(page)).toBeVisible();
   });
 
@@ -717,7 +717,7 @@ test.describe("committed corpus shell on a phone", () => {
       await expect.poll(() => scroller.evaluate((node) => node.scrollTop)).toBe(offset);
       await update.release();
 
-      await page.getByRole("button", { name: "Back to Characters", exact: true }).click();
+      await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true }).click();
       await libraryRow(page, PROBE_NAMES[1]).click();
       await expect(name).toHaveValue(PROBE_NAMES[1]);
       await expect.poll(() => focusOnContentAnchor(main)).toBe(true);

@@ -13,7 +13,7 @@ import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { useGatedQuery, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { useActiveChatId } from "#state";
 
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -39,7 +39,7 @@ export function useActiveRosterChat(): ActiveRosterChat | null {
   const chatId = useActiveChatId();
   const trpc = useTRPC();
   const chatQueries = useSuspenseQueries({
-    queries: (chatId === null ? [] : [chatId]).map((id) => trpc.chat.getChat.queryOptions({ chatId: id })),
+    queries: (chatId === null ? [] : [chatId]).map((id) => roomRosterOptions(trpc, { chatId: id })),
   });
   const chatQuery = chatQueries[0];
   if (chatId === null || chatQuery === undefined) {
