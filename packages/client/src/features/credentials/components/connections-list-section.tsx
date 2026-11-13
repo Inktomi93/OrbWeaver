@@ -43,7 +43,7 @@ import { connectionSummary } from "#lib";
 import { clearConnectionEditorRequest, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
-import { ADD_CONNECTION_NAME, backgroundStateLabel } from "../lib/connections-copy.ts";
+import { ADD_CONNECTION_NAME, backgroundStateLabel, CAN_SERVE_LABEL, connectionRailGroupName, USED_FOR_LABEL } from "../lib/connections-copy.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRebindsEmbedder, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
@@ -337,7 +337,7 @@ function ConnectionRow({
           </RowActionsMenu>
         }
       />
-      <ConnectionBadges connection={connection} providerUnavailable={providerUnavailable} />
+      <ConnectionBadges connection={connection} heldRoles={boundRoles} name={name} providerUnavailable={providerUnavailable} />
       {reindex.dialog}
       {provider === null || addModel === null ? null : (
         <AddModelOnKeyDialog
@@ -354,37 +354,60 @@ function ConnectionRow({
   );
 }
 
-/** The row's status rail: provider availability, the Model roles this connection CAN serve (a statement
- *  about the model, never what the user bound), the model-check badge and the background state. `task` is
- *  sealed — badge text is always the Model-roles label, never the schema word. */
+/** The row's rail, three elements apart so a capability never reads as an assignment: the Model roles the model
+ *  CAN serve (muted outline chips, a statement about the model), the roles bound to it NOW (a sentence from the
+ *  persisted bindings), and its status (the warning badges and the background state). `task` is sealed — chip
+ *  text is always the Model-roles label, never the schema word. */
 function ConnectionBadges({
   connection,
+  name,
+  heldRoles,
   providerUnavailable,
 }: {
   readonly connection: ConnectionListItem;
+  /** The row's one-line identity, which names each rail group apart from the other rows'. */
+  readonly name: string;
+  readonly heldRoles: readonly string[];
   readonly providerUnavailable: boolean;
 }): ReactElement {
+  const canServe = connectionRoleLabels(connection.tasks);
   return (
-    <Row gap="field" align="center" wrap={true}>
-      {providerUnavailable ? (
-        <Badge tone="warning" size="sm" whitespace="normal">
-          Provider unavailable
-        </Badge>
-      ) : null}
-      {connection.tasks.length === 0 ? null : <Text voice="gloss">Can do:</Text>}
-      {connectionRoleLabels(connection.tasks).map((label) => (
-        <Badge key={label} tone="primary" size="sm" whitespace="normal">
-          {label}
-        </Badge>
-      ))}
-      {connection.modelCheck === "unlisted" ? (
-        <Badge tone="warning" size="sm" whitespace="normal">
-          Model not in list
-        </Badge>
-      ) : null}
-      <Text voice="gloss" tone={connection.allowBackground ? undefined : "warning"}>
-        {backgroundStateLabel(connection.allowBackground)}
-      </Text>
-    </Row>
+    <Stack gap="tight">
+      {canServe.length === 0 ? null : (
+        <Row role="group" aria-label={connectionRailGroupName(CAN_SERVE_LABEL, name)} gap="field" align="center" wrap={true}>
+          <Text voice="gloss" as="span">
+            {CAN_SERVE_LABEL}
+          </Text>
+          {canServe.map((label) => (
+            <Badge key={label} tone="neutral" variant="outline" size="sm" whitespace="normal">
+              {label}
+            </Badge>
+          ))}
+        </Row>
+      )}
+      <Row role="group" aria-label={connectionRailGroupName(USED_FOR_LABEL, name)} gap="field" align="center" wrap={true}>
+        <Text voice="gloss" as="span">
+          {USED_FOR_LABEL}
+        </Text>
+        <Text as="span" voice="datum" italic={heldRoles.length === 0}>
+          {heldRoles.length === 0 ? "No model role yet" : joinRoleLabels(heldRoles)}
+        </Text>
+      </Row>
+      <Row gap="field" align="center" wrap={true}>
+        {providerUnavailable ? (
+          <Badge tone="warning" size="sm" whitespace="normal">
+            Provider unavailable
+          </Badge>
+        ) : null}
+        {connection.modelCheck === "unlisted" ? (
+          <Badge tone="warning" size="sm" whitespace="normal">
+            Model not in list
+          </Badge>
+        ) : null}
+        <Text voice="gloss" as="span" tone={connection.allowBackground ? undefined : "warning"}>
+          {backgroundStateLabel(connection.allowBackground)}
+        </Text>
+      </Row>
+    </Stack>
   );
 }
