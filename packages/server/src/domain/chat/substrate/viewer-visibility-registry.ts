@@ -9,7 +9,9 @@ import { ChatNotFoundError } from "../contract/errors.ts";
 const resolved = new WeakSet<object>();
 
 /** Mint the answer for a viewer whose present participant row in `answer.chatId` was just loaded. Only
- *  `resolveViewerVisibility` calls this (an ESLint import restriction in `eslint.config.ts` names it). */
+ *  `resolveViewerVisibility` calls this: `no-restricted-imports` refuses the import elsewhere through the
+ *  `SERVER_IMPORT_HOMES` table in `tooling/src/eslint/security-policy.ts`, and policy `viewer-visibility-registry-importers`
+ *  names every importer of this module. */
 export function mintViewerVisibility(answer: Pick<ViewerVisibility, "chatId" | "role" | "historyFloorSeq" | "readsHidden">): ViewerVisibility {
   const minted = Object.freeze({ ...answer }) as ViewerVisibility;
   resolved.add(minted);

@@ -1,6 +1,9 @@
+import { readdirSync } from "node:fs";
+import { join, posix, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { SERVER_IMPORT_HOMES, SERVER_SOURCE_ROOT } from "../../tooling/src/eslint/security-policy.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
 
 type ImportCase = readonly [path: string, source: string, refusals: number];
@@ -11,14 +14,16 @@ async function linted(repoRoot: string, cases: readonly ImportCase[]): Promise<r
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot });
   const linter = new Linter({ cwd: repoRoot });
   const results: ImportCase[] = [];
+  const entries = new Map<string, Linter.RuleEntry>();
   for (const [path, source] of cases) {
-    const config = await resolvedConfig(eslint, path);
+    const entry = entries.get(path) ?? (await resolvedConfig(eslint, path)).rules["no-restricted-imports"] ?? "off";
+    entries.set(path, entry);
     const messages = linter.verify(
       source,
       {
         files: ["**/*.{ts,tsx}"],
         languageOptions: { parser: tseslint.parser },
-        rules: { "no-restricted-imports": config.rules["no-restricted-imports"] ?? "off" },
+        rules: { "no-restricted-imports": entry },
       },
       { filename: path },
     );
@@ -47,25 +52,31 @@ test("the configured PNG import restriction preserves aliases, nested doors and 
   expect(await linted(repoRoot, cases)).toEqual(cases);
 });
 
-const MINT_IMPORT = 'import { mintViewerVisibility } from "../../chat/substrate/viewer-visibility-registry.ts";';
-const SETTINGS_IMPORT = 'import { settings } from "@orb/db";';
-const PNG_IMPORT = 'import { readCardChunk } from "@orb/kit/png-card-chunk";';
-const MINT_HOME = "packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
+// One import each row refuses. Keyed by the table's ids, so a new row without a probe fails the typecheck.
+const ROW_PROBES: Readonly<Record<(typeof SERVER_IMPORT_HOMES)[number]["id"], string>> = {
+  "settings-table": 'import { settings } from "@orb/db";',
+  "png-card-chunk": 'import { readCardChunk } from "@orb/kit/png-card-chunk";',
+  "visibility-mint": 'import { mintViewerVisibility } from "../substrate/viewer-visibility-registry.ts";',
+};
 
-// A home block lifts only the restriction on the door its home owns; every other server restriction still applies there.
-test("every server block refuses the visibility minter, and each home lifts only its own door", async ({ repoRoot }) => {
-  const cases: readonly ImportCase[] = [
-    ["packages/server/src/domain/rpg/verbs/probe.ts", MINT_IMPORT, 1],
-    ["packages/server/src/domain/import/substrate/probe.ts", MINT_IMPORT, 1],
-    ["packages/server/src/domain/export/verbs/probe.ts", MINT_IMPORT, 1],
-    ["packages/server/src/domain/settings/verbs/probe.ts", MINT_IMPORT, 1],
-    [MINT_HOME, 'import { mintViewerVisibility } from "../substrate/viewer-visibility-registry.ts";', 0],
-    ["packages/server/src/domain/import/substrate/probe.ts", SETTINGS_IMPORT, 1],
-    ["packages/server/src/domain/export/verbs/probe.ts", SETTINGS_IMPORT, 1],
-    ["packages/server/src/domain/settings/verbs/probe.ts", SETTINGS_IMPORT, 0],
-    ["packages/server/src/domain/settings/verbs/probe.ts", PNG_IMPORT, 1],
-    [MINT_HOME, SETTINGS_IMPORT, 1],
-    [MINT_HOME, PNG_IMPORT, 1],
-  ];
+const isHome = (homes: readonly string[], path: string): boolean => homes.some((home) => (home.endsWith("/") ? path.startsWith(home) : path === home));
+
+// The swept paths: a probe file in every server source directory on disk, and every file a row names as a home.
+function sweptPaths(repoRoot: string): readonly string[] {
+  const directories = readdirSync(join(repoRoot, SERVER_SOURCE_ROOT), { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => posix.join(relative(repoRoot, entry.parentPath).replaceAll("\\", "/"), entry.name, "probe.ts"));
+  const files = SERVER_IMPORT_HOMES.flatMap(({ homes }) => homes.filter((home) => !home.endsWith("/")));
+  return [`${SERVER_SOURCE_ROOT}probe.ts`, ...directories, ...files];
+}
+
+// Every server path refuses every restricted import except where the table names that path as the row's home, so a
+// block that drops a restriction, or lifts one outside its home, fails here whatever directory it covers.
+test("every server directory refuses each restricted import unless the table names it as that import's home", async ({ repoRoot }) => {
+  const paths = sweptPaths(repoRoot);
+  const cases = paths.flatMap((path) => SERVER_IMPORT_HOMES.map((row): ImportCase => [path, ROW_PROBES[row.id], isHome(row.homes, path) ? 0 : 1]));
+  for (const row of SERVER_IMPORT_HOMES) {
+    expect(cases.filter(([path, , refusals]) => refusals === 0 && isHome(row.homes, path)).length, row.id).toBeGreaterThan(0);
+  }
   expect(await linted(repoRoot, cases)).toEqual(cases);
 });

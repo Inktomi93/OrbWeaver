@@ -52,7 +52,7 @@ import { appearanceChannelVocabulary } from "./packages/client/appearance-channe
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED, POLYFILLED_BUILTINS } from "./packages/client/browser-targets.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
 import { PRINCIPAL_RULES } from "./tooling/src/eslint/principal.ts";
-import { ROLE_DATA_RESTRICTIONS } from "./tooling/src/eslint/security-policy.ts";
+import { ROLE_DATA_RESTRICTIONS, SERVER_IMPORT_HOMES, SERVER_SOURCE_ROOT } from "./tooling/src/eslint/security-policy.ts";
 import { classOwners } from "./tooling/src/eslint/ui-classes/class-owners.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -652,32 +652,21 @@ const ASYNC_SAFETY_RULES: Linter.RulesRecord = {
   "@typescript-eslint/no-deprecated": "error",
 };
 
-const SETTINGS_TABLE_IMPORT = {
-  regex: "^@orb/db(?:/(?:schema|index))?$",
-  importNames: ["settings"],
-  message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
-};
-
-const PNG_CHUNK_IMPORT = {
-  regex: "^@orb/kit/png-card-chunk(?:/|$)",
-  importNames: ["readCardChunk", "writeCardChunk", "isPng"],
-  message: "Use the import or export domain for PNG card-chunk operations.",
-};
-
-// A canon read accepts only the visibility answer chat's resolver minted, so the minter has that one caller.
-const VISIBILITY_MINT_HOME = "packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
-const VISIBILITY_MINT_IMPORT = {
-  regex: "viewer-visibility-registry(?:\\.ts)?$",
-  importNames: ["mintViewerVisibility"],
-  message: "Only chat's resolveViewerVisibility mints a ViewerVisibility; take the answer from that op.",
-};
-
-// Every server import restriction. Flat config replaces a rule's options per block, so a home block takes this list
-// less the one door its home owns; a restriction added here reaches every server block.
-const SERVER_IMPORT_RESTRICTIONS = [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT, VISIBILITY_MINT_IMPORT] as const;
-const serverImportsExcept = (...owned: readonly (typeof SERVER_IMPORT_RESTRICTIONS)[number][]): Linter.RulesRecord => ({
-  "no-restricted-imports": ["error", { patterns: SERVER_IMPORT_RESTRICTIONS.filter((restriction) => !owned.includes(restriction)) }],
+// The server import restriction blocks, generated from SERVER_IMPORT_HOMES: one block refuses every row outside every
+// home, and each row's block lifts that row alone for its homes.
+type ServerImportRow = (typeof SERVER_IMPORT_HOMES)[number];
+const serverImportGlob = (home: string): string => (home.endsWith("/") ? `${home}**/*.{ts,tsx}` : home);
+const serverImportRules = (lifted: ServerImportRow | null): Linter.RulesRecord => ({
+  "no-restricted-imports": ["error", { patterns: SERVER_IMPORT_HOMES.filter((row) => row !== lifted).map(({ restriction }) => restriction) }],
 });
+const SERVER_IMPORT_BLOCKS: FlatConfig.Config[] = [
+  {
+    files: [serverImportGlob(SERVER_SOURCE_ROOT)],
+    ignores: SERVER_IMPORT_HOMES.flatMap(({ homes: owned }) => owned.map(serverImportGlob)),
+    rules: serverImportRules(null),
+  },
+  ...SERVER_IMPORT_HOMES.map((row): FlatConfig.Config => ({ files: row.homes.map(serverImportGlob), rules: serverImportRules(row) })),
+];
 
 // A NUL is not text in this app: a free-string TEXT column is `nulFreeText` (`packages/db/src/custom-types/index.ts`),
 // which removes NUL on its way to the driver, because the libSQL client reads a TEXT value back cut at its first NUL.
@@ -2388,20 +2377,7 @@ export default [
   ...LOCAL_RULE_BLOCKS,
   ...CLIENT_DOM_LOCK_BLOCKS,
   ...UI_LAW_BLOCKS,
-  {
-    files: ["packages/server/src/**/*.{ts,tsx}"],
-    ignores: ["packages/server/src/domain/import/**", "packages/server/src/domain/export/**", "packages/server/src/domain/settings/**", VISIBILITY_MINT_HOME],
-    rules: serverImportsExcept(),
-  },
-  { files: [VISIBILITY_MINT_HOME], rules: serverImportsExcept(VISIBILITY_MINT_IMPORT) },
-  {
-    files: ["packages/server/src/domain/import/**/*.{ts,tsx}", "packages/server/src/domain/export/**/*.{ts,tsx}"],
-    rules: serverImportsExcept(PNG_CHUNK_IMPORT),
-  },
-  {
-    files: ["packages/server/src/domain/settings/**/*.{ts,tsx}"],
-    rules: serverImportsExcept(SETTINGS_TABLE_IMPORT),
-  },
+  ...SERVER_IMPORT_BLOCKS,
   { files: rootSources("@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   {
     files: rootSources("@server"),
