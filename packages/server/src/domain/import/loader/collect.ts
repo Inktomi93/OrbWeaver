@@ -337,7 +337,7 @@ async function collectChatsForDir(args: {
       continue;
     }
     const bytes = await readStagedFile(fs, chatDir, fileEnt.name);
-    const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
+    const parsed = await parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName: fileEnt.name,
       charDirName: dirName,
       // ST wrote these wall clocks against ITS box's local zone (`humanizedDateTime`); the driver injects it.
@@ -542,7 +542,7 @@ async function collectGroupChats(args: {
     // The zone rides in for the SAME reason the solo path threads it: a group transcript's `create_date` and
     // every `send_date` are ST's zone-less LOCAL wall clocks, so reading them as UTC lands the whole room at
     // the writing box's offset (measured: -6h on a Denver snapshot).
-    const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
+    const parsed = await parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName,
       charDirName: groupName,
       ...(wallClockZone !== undefined ? { wallClockZone } : {}),

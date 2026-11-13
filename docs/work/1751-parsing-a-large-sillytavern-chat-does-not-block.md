@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-12
+updated: 2026-11-13
 priority: P2
 area: server
 plan: import-robustness
@@ -11,15 +11,15 @@ plan: import-robustness
 
 ## What
 
-Parse a large SillyTavern chat in slices that yield to the event loop.
+Importing a large SillyTavern chat holds the event loop. The parse was the smaller part and now yields between slices of lines. The larger part is the write: `packages/server/src/domain/chat/persistence/import-write.ts` commits a whole chat as one synchronous database batch. Measured through the production chat import on a 5 MB file: about 4,300 messages of ordinary length hold the loop about 0.65 s (1.05 s before the writer moved to multi-row inserts), and about 37,000 short messages hold it about 4.6 s (6 s before). Commit a chat in bounded batches with a yield between them, keeping a killed import invisible and removable.
 
 ## Why
 
-The parse of a chat file is one synchronous call: `parseChatJsonl` in `packages/server/src/primitives/serde/chat/index.ts` splits and parses every line with no yield. Its callers are `domain/import/loader/collect.ts` (two sites) and `domain/import/verbs/import-chat-file.ts`. The profile loop in `domain/import/loader/profile-directory.ts` already yields between files, so a single large file is the case left. No test measures event-loop gaps on an import.
+A large import freezes every open session for as long as the write runs, and a folder of large chats can starve the health check (2188). The single batch exists so a killed import leaves no rows, so the bounded write must keep a half-written chat hidden and reaped.
 
 ## Done when
 
-A test parses a chat of about five megabytes and records no event-loop gap above 200 ms.
+A test imports a chat of about five megabytes through the production chat import and records no event-loop gap above 200 ms. A test kills an import between batches and finds no listed chat and no dedup claim, so the same file imports again.
 
 ## Evidence
 

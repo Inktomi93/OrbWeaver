@@ -39,7 +39,7 @@ import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import { assetIdsInContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, eq, gte, inArray, isNull, lt } from "drizzle-orm";
+import { and, eq, getTableColumns, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ChatImportAssemblyContext, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
@@ -282,7 +282,7 @@ function rosterRows(args: {
   ];
 }
 
-interface MessageStatementsArgs {
+interface MessageRowsArgs {
   readonly ctx: ChatImportContext;
   readonly messageId: MessageId;
   readonly chatId: ChatId;
@@ -380,86 +380,110 @@ function importedUsageColumns(
   };
 }
 
-function messageStatements(args: MessageStatementsArgs): {
-  readonly stmts: BatchStmt[];
+/** One imported message as rows, not statements: {@link buildChatStatements} writes a chat's rows in multi-row
+ *  inserts, because a statement per row made a long chat tens of thousands of statements and the build of that
+ *  batch held the event loop for seconds. */
+interface MessageRows {
+  readonly message: typeof messages.$inferInsert;
+  readonly variants: (typeof messageVariants.$inferInsert)[];
+  readonly selectedVariantId: MessageVariantId | null;
+  readonly assets: (typeof messageAssets.$inferInsert)[];
   readonly variantIds: readonly MessageVariantId[];
-} {
+}
+
+function messageRows(args: MessageRowsArgs): MessageRows {
   const { ctx, messageId, chatId, seq, message } = args;
-  const { db } = ctx;
   const isUser = message.role === "user";
-  const stmts: BatchStmt[] = [
-    batchStmt(
-      db.insert(messages).values({
-        id: messageId,
-        chatId,
-        seq,
-        role: message.role,
-        kind: slotKind(message),
-        authorUserId: isUser ? args.ownerId : null,
-        characterId: slotCharacterId(message, args.characterId, args.narratorCharacterId),
-        personaId: isUser ? message.personaId : null,
-        selectedVariantId: null,
-        // Imported history was not typed in this app: the viewer's last-turn reads skip it.
-        initiator: IMPORT_INITIATOR,
-        createdAt: message.createdAt,
-      }),
-    ),
-  ];
-  let selectedVariantId: (typeof messageVariants.$inferInsert)["id"] | null = null;
+  let selectedVariantId: MessageVariantId | null = null;
   const variantIds: MessageVariantId[] = [];
-  for (const [i, v] of message.variants.entries()) {
+  const variants = message.variants.map((v, i): typeof messageVariants.$inferInsert => {
     const variantId = ctx.newMessageVariantId();
     variantIds.push(variantId);
     if (i === message.selectedIdx) {
       selectedVariantId = variantId;
     }
-    stmts.push(
-      batchStmt(
-        db.insert(messageVariants).values({
-          id: variantId,
-          messageId,
-          idx: v.idx,
-          content: v.content,
-          model: importedModelId(v.model),
-          provider: importedProviderId(v.provider),
-          // Foreign history has no durable local connection row to attribute. Preserve that as missing,
-          // never as a fabricated deletion of a connection this app did not record.
-          connectionAttributionProvenance: "unrecorded",
-          // `tokensIn` is supplied by the orb-native bundle AND by the ST arm's user/system slots (the
-          // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
-          ...importedUsageColumns(v),
-          tokenProvenance: v.tokenProvenance,
-          reasoning: v.reasoning,
-          ttftMs: v.ttftMs,
-          genStartedAt: v.genStartedAt,
-          genFinishedAt: v.genFinishedAt,
-          variableDelta: v.variableDelta ?? null,
-          metadata: v.metadata,
-          createdAt: message.createdAt,
-        }),
-      ),
-    );
-  }
-  stmts.push(batchStmt(db.update(messages).set({ selectedVariantId }).where(eq(messages.id, messageId))));
-  // Re-create the message_assets retaining row for each inline attachment that exists on the target box.
-  for (const assetId of assetRefsInMessage(message)) {
-    if (args.existingAssetIds.includes(assetId)) {
-      stmts.push(
-        batchStmt(
-          db.insert(messageAssets).values({
-            id: ctx.newMessageAssetId(),
-            messageId,
-            assetId,
-            // An imported attachment is a user upload by construction (ST carries no model-emitted pictures).
-            origin: "attached",
-            createdAt: message.createdAt,
-          }),
-        ),
-      );
-    }
-  }
-  return { stmts, variantIds };
+    return {
+      id: variantId,
+      messageId,
+      idx: v.idx,
+      content: v.content,
+      model: importedModelId(v.model),
+      provider: importedProviderId(v.provider),
+      // Foreign history has no durable local connection row to attribute. Preserve that as missing,
+      // never as a fabricated deletion of a connection this app did not record.
+      connectionAttributionProvenance: "unrecorded",
+      // `tokensIn` is supplied by the orb-native bundle AND by the ST arm's user/system slots (the
+      // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
+      ...importedUsageColumns(v),
+      tokenProvenance: v.tokenProvenance,
+      reasoning: v.reasoning,
+      ttftMs: v.ttftMs,
+      genStartedAt: v.genStartedAt,
+      genFinishedAt: v.genFinishedAt,
+      variableDelta: v.variableDelta ?? null,
+      metadata: v.metadata,
+      createdAt: message.createdAt,
+    };
+  });
+  return {
+    message: {
+      id: messageId,
+      chatId,
+      seq,
+      role: message.role,
+      kind: slotKind(message),
+      authorUserId: isUser ? args.ownerId : null,
+      characterId: slotCharacterId(message, args.characterId, args.narratorCharacterId),
+      personaId: isUser ? message.personaId : null,
+      // The variant row needs its message first, so the pointer is set by `selectVariantStmts` after both land.
+      selectedVariantId: null,
+      // Imported history was not typed in this app: the viewer's last-turn reads skip it.
+      initiator: IMPORT_INITIATOR,
+      createdAt: message.createdAt,
+    },
+    variants,
+    selectedVariantId,
+    // Re-create the message_assets retaining row for each inline attachment that exists on the target box.
+    assets: assetRefsInMessage(message)
+      .filter((assetId) => args.existingAssetIds.includes(assetId))
+      .map((assetId) => ({
+        id: ctx.newMessageAssetId(),
+        messageId,
+        assetId,
+        // An imported attachment is a user upload by construction (ST carries no model-emitted pictures).
+        origin: "attached" as const,
+        createdAt: message.createdAt,
+      })),
+    variantIds,
+  };
 }
+
+// One bound variable for the matched id, one for the variant it takes, one for the id in the WHERE list.
+const SELECT_VARIANT_BINDS = 3;
+
+/** Point each message at its selected variant: one statement per chunk of messages, each message an arm of a CASE. */
+function selectVariantStmts(db: Db, selections: readonly { readonly messageId: MessageId; readonly variantId: MessageVariantId }[]): BatchStmt[] {
+  return chunkRows(selections, SELECT_VARIANT_BINDS).map((chunk) =>
+    batchStmt(
+      db
+        .update(messages)
+        .set({
+          selectedVariantId: sql<MessageVariantId>`CASE ${messages.id} ${sql.join(
+            chunk.map(({ messageId, variantId }) => sql`WHEN ${messageId} THEN ${variantId}`),
+            sql` `,
+          )} END`,
+        })
+        .where(
+          inArray(
+            messages.id,
+            chunk.map(({ messageId }) => messageId),
+          ),
+        ),
+    ),
+  );
+}
+
+const columnCount = (table: Parameters<typeof getTableColumns>[0]): number => Object.keys(getTableColumns(table)).length;
 
 /** Append one room's heal statements to the run's pool; `1` when that room contributed any (the per-CHAT
  *  heal count), `0` when it had nothing to heal. */
@@ -620,11 +644,13 @@ function buildChatStatements(args: OneChatArgs): {
 } {
   const { ctx, chatId, ci, ownerId, characterId, existingAssetIds, narratorCharacterId } = args;
   const stmts = chatHeaderStmts(args);
+  const { db } = ctx;
   const messageIds: MessageId[] = [];
   const variantIds: (readonly MessageVariantId[])[] = [];
+  const rows: MessageRows[] = [];
   for (const [index, m] of ci.messages.entries()) {
     const messageId = ctx.newMessageId();
-    const built = messageStatements({
+    const built = messageRows({
       ctx,
       messageId,
       chatId,
@@ -635,9 +661,34 @@ function buildChatStatements(args: OneChatArgs): {
       existingAssetIds,
       narratorCharacterId,
     });
-    stmts.push(...built.stmts);
+    rows.push(built);
     messageIds.push(messageId);
     variantIds.push(built.variantIds);
+  }
+  // Every message, then every variant, then the pointers: a variant names its message and a pointer names its variant.
+  for (const chunk of chunkRows(
+    rows.map((row) => row.message),
+    columnCount(messages),
+  )) {
+    stmts.push(batchStmt(db.insert(messages).values(chunk)));
+  }
+  for (const chunk of chunkRows(
+    rows.flatMap((row) => row.variants),
+    columnCount(messageVariants),
+  )) {
+    stmts.push(batchStmt(db.insert(messageVariants).values(chunk)));
+  }
+  stmts.push(
+    ...selectVariantStmts(
+      db,
+      rows.flatMap(({ message, selectedVariantId }) => (selectedVariantId === null ? [] : [{ messageId: message.id, variantId: selectedVariantId }])),
+    ),
+  );
+  for (const chunk of chunkRows(
+    rows.flatMap((row) => row.assets),
+    columnCount(messageAssets),
+  )) {
+    stmts.push(batchStmt(db.insert(messageAssets).values(chunk)));
   }
   const identity = { chatId, messageIds, variantIds };
   stmts.push(...pendingObservationStmts(ctx, ownerId, ci, identity));

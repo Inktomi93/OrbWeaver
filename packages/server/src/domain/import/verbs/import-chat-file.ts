@@ -86,7 +86,7 @@ export function createImportChatFile(
     const dirName = slash === -1 ? "" : filename.slice(0, slash);
     const leaf = filename.slice(slash + 1);
     // These are SillyTavern's bytes, so its zone-less wall-clock dates resolve in the injected ST zone.
-    const parsed = parseChatJsonl(DEC.decode(bytes), {
+    const parsed = await parseChatJsonl(DEC.decode(bytes), {
       fileName: leaf,
       charDirName: dirName,
       ...(ctx.profile?.stWallClockZone !== undefined ? { wallClockZone: ctx.profile.stWallClockZone } : {}),

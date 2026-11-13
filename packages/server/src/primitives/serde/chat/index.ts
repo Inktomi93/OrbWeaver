@@ -24,6 +24,7 @@
 //
 // Round-trip drift guard: buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p).
 
+import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { MessageKind, TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY } from "@orb/contracts/chat";
 import { boundedJsonObjectSchema, parseJsonText } from "@orb/kit/json";
@@ -827,15 +828,20 @@ function parseMessageLine(line: string, zone: string): ParsedChatMessage | null 
 // UTF-8 BOM prefix (Windows exports) — stripped before line-splitting.
 const BOM = /^\uFEFF/;
 
+// The parse costs time per line, and the file is as large as the upload cap allows. It hands the event loop back
+// after this many characters of lines, a few milliseconds of work, so a large file never holds the server.
+const PARSE_SLICE_CHARS = 262_144;
+
 /**
  * Parse one ST chat `.jsonl` → a `ParsedChat`. `fileName` (the Branch-prefix + filename-date hint) and
  * `charDirName` (the "unused"/empty `character_name` fallback) are caller context. Returns null ONLY when the
- * header line itself is unparseable. Resilient: a corrupt message line is SKIPPED, never fatal.
+ * header line itself is unparseable. Resilient: a corrupt message line is SKIPPED, never fatal. Async because it
+ * yields to the event loop between slices of lines.
  */
-export function parseChatJsonl(
+export async function parseChatJsonl(
   text: string,
   opts: { readonly fileName: string; readonly charDirName: string; readonly wallClockZone?: string },
-): ParsedChat | null {
+): Promise<ParsedChat | null> {
   const zone = opts.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE;
   const lines = text.replace(BOM, "").trim().split("\n");
   const first = lines[0];
@@ -852,7 +858,13 @@ export function parseChatJsonl(
   const characterName = rawCharName.length === 0 || rawCharName === "unused" ? opts.charDirName : rawCharName;
 
   const messages: ParsedChatMessage[] = [];
+  let sliceChars = 0;
   for (const line of lines.slice(1)) {
+    sliceChars += line.length;
+    if (sliceChars >= PARSE_SLICE_CHARS) {
+      sliceChars = 0;
+      await yieldToEventLoop();
+    }
     const t = line.trim();
     if (t.length === 0) {
       continue;
