@@ -89,7 +89,10 @@ export interface ScopedEgressOptions {
   /** The physical dial: every connector this egress builds comes from here, so a script replaces the socket and receives the firewall's lookup and must dial only what it returns. */
   readonly buildConnector: typeof buildConnector;
   readonly timers: TimerScheduler;
-  /** The parsed env record: `EGRESS_FIREWALL`, `EGRESS_ALLOWLIST`, `TRUSTED_PRIVATE_RANGES`, and the OIDC issuer and `FORWARD_AUTH_JWKS` hosts. */
+  /** The parsed env record: `EGRESS_FIREWALL`, `TRUSTED_PRIVATE_RANGES` and the env egress belt. The belt is each
+   *  `EGRESS_ALLOWLIST` entry, a bare host that admits every port or a `host:port` that admits only that port, plus
+   *  the OIDC issuer and `FORWARD_AUTH_JWKS` URLs, each of which adds only its own port to its host. A host the
+   *  allowlist writes both ways admits only its ports. */
   readonly env: Env;
   /** The root's logger every egress line falls back to outside a request. */
   readonly log: Logger;
@@ -99,6 +102,9 @@ export interface ScopedEgressOptions {
 
 export interface ScopedEgress extends AsyncDisposable {
   readonly cancel: () => void;
+  /** Replace the private-endpoint allowlist. An entry is a host, an IP address or a CIDR range; a host or an address
+   *  may add `:port` to admit only that port, and one without a port admits every port. A host written both ways
+   *  admits only its ports. */
   readonly publishPrivateEndpointAllowlist: (entries: readonly string[]) => void;
   readonly resolvedEndpointAdmission: (baseUrl: string) => Promise<(typeof ENDPOINT_ADMISSIONS)[number]>;
   readonly safeFetch: (url: string | URL, options: SafeFetchOptions) => Promise<SafeFetchResult>;
