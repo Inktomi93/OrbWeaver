@@ -57,6 +57,12 @@ const BOOT_GRANT_IMPORTERS = {
   "^tooling/src/seed/": "seed tools run the same boot steps against the database they build",
   "^tests/support/": "the testkit boots whole servers through the boot steps and hands suites the grant through `bootGrantFor`",
 } as const satisfies Readonly<Record<string, string>>;
+// The only importers of chat's viewer visibility registry, each with the reason. The registry holds the mint and the
+// check over one identity set, so its importers are named by module; the ESLint import restriction names the mint.
+const VISIBILITY_REGISTRY_IMPORTERS = {
+  "^packages/server/src/domain/chat/verbs/resolve-viewer-visibility\\.ts$": "the one resolver mints every answer",
+  "^packages/server/src/domain/chat/persistence/plugin-reads\\.ts$": "the plugin canon read takes an answer from its caller and checks it",
+} as const satisfies Readonly<Record<string, string>>;
 // The only server, db and inference importers of `node:module`, each with the reason; both call `.resolve` only.
 const MODULE_LOADER_RESOLVERS = {
   "^packages/server/src/entry/boot/migrate\\.ts$":
@@ -134,6 +140,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
+  "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
   "^tests/ui/primitives/virtual-list/virtual-list-cases\\.ts$": "the long-list row count the virtual-list stories mount and their spec passes",
 } as const satisfies Readonly<Record<string, string>>;
@@ -1873,6 +1880,13 @@ const DOMAIN_AUTHORITY = [
     severity: "error",
     from: { pathNot: "^packages/server/src/entry/(auth/seam|compose/chat)\\.ts$" },
     to: { path: "^packages/server/src/entry/auth/principal-mint\\.ts$" },
+  },
+  {
+    name: "viewer-visibility-registry-importers",
+    comment: "Only the resolver mints a viewer visibility answer and only a read that takes one checks it, by any specifier or barrel.",
+    severity: "error",
+    from: { pathNot: Object.keys(VISIBILITY_REGISTRY_IMPORTERS) },
+    to: { path: `${SRV}domain/chat/substrate/viewer-visibility-registry\\.ts$` },
   },
   {
     name: "chat-engine-authority-context",

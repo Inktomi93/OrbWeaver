@@ -1,4 +1,5 @@
-// SortableList reorders by keyboard through dnd-kit; the seal's own wiring keeps focus on the handle and speaks row names, never ids.
+// SortableList reorders by keyboard and by pointer through dnd-kit; the seal's own wiring keeps focus on the handle and speaks row
+// names, never ids.
 
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
@@ -107,7 +108,39 @@ test("a list narrower than the step puts the grip above its row and gives the ro
   expect(Math.round(content.width)).toBe(Math.round(item.width));
 });
 
-test("a stacked grip and its row read as one pair: the gap inside it is under half the gap above it", async ({ mount, page }) => {
+// A pointer drag starts on the grip alone, and the grip sits in a different place at each list width.
+const GRIP_PLACEMENTS = [
+  { placement: "beside its row", width: `calc(${STEP} + 4rem)` },
+  { placement: "above its row", width: `calc(${STEP} - 4rem)` },
+] as const;
+
+for (const { placement, width } of GRIP_PLACEMENTS) {
+  test(`a pointer drag by a grip ${placement} carries the row to where it is dropped`, async ({ mount, page }) => {
+    await mount<typeof ReorderableTracksStory>(STORY, { disabled: false, width });
+    await expect(order(page)).toHaveText("Alpha Beta Gamma Delta");
+    const rows = page.getByRole("listitem");
+    const lifted = page.locator('[data-slot="sortable-item"][data-dragging]');
+    const [grip, target] = await Promise.all([handleOf(page, "Alpha").boundingBox(), rows.filter({ hasText: "Gamma" }).boundingBox()]);
+    if (grip === null || target === null) {
+      throw new Error("The dragged grip and the target row must paint");
+    }
+    const x = grip.x + grip.width / 2;
+    await page.mouse.move(x, grip.y + grip.height / 2);
+    await page.mouse.down();
+    // The row is the drag source once lifted; moving before that reads as a click on the grip.
+    await expect(lifted.filter({ hasText: "Alpha" }).first()).toBeVisible();
+    // Stepped, so the sensor sees the travel past Beta that a real hand makes; the drop lands in Gamma's lower half.
+    await page.mouse.move(x, target.y + target.height * 0.75, { steps: 16 });
+    // The list reflows around the lifted row before the drop; the controlled order only changes on the drop.
+    await expect(rows).toHaveText(["Beta", "Gamma", "Alpha", "Delta"]);
+    await expect(order(page)).toHaveText("Alpha Beta Gamma Delta");
+    await page.mouse.up();
+    await expect(lifted).toHaveCount(0);
+    await expect(order(page)).toHaveText("Beta Gamma Alpha Delta");
+  });
+}
+
+test("a stacked grip and its row read as one pair:the gap inside it is under half the gap above it", async ({ mount, page }) => {
   await mount<typeof ReorderableTracksStory>(STORY, { disabled: false, width: `calc(${STEP} - 4rem)` });
   const rows = page.getByRole("listitem");
   const [above, grip, content] = await Promise.all([

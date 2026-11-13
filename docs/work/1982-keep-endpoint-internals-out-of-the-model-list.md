@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-13
 priority: P2
 area: connection
+lane: wt/agent-a1b41287df1811879
 ---
 
 # Keep endpoint internals out of the model-list failure message

@@ -58,6 +58,16 @@ export class PluginHostDeadlineError extends DomainUnavailableError {
   }
 }
 
+/** A host call that reaches the installer's account, refused because that account is disabled. The plugin did
+ *  nothing wrong, so it is a conflict, which the crash policy never counts as a strike, even when the guest leaves it
+ *  uncaught. `name` crosses the QuickJS boundary intact, so a guest matches `e.name === "PluginInstallerDisabledError"`. */
+export class PluginInstallerDisabledError extends DomainConflictError {
+  constructor() {
+    super("plugin host: this plugin's installer is disabled");
+    this.name = "PluginInstallerDisabledError";
+  }
+}
+
 /** The code of a `PluginHostUnavailable` refusal made because a channel between the host's processes was full: that
  *  one call was refused and nothing else, and a retry may succeed (D348). */
 export const PLUGIN_CHANNEL_FULL_CODE = "channel_full";
