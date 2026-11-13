@@ -292,7 +292,7 @@ test.describe("on the corpus owner's own settings", () => {
         await dialog
           .locator("button[aria-pressed]")
           .last()
-          .evaluate((button) => {
+          .evaluate((button, cancel) => {
             const strip = button.parentElement;
             // The arm's own region carries the floor; a submit arm wraps it in a form, so it is found by its slot, not by its place.
             const region = button.closest('[role="dialog"]')?.querySelector('[data-slot="add-document-arm"]');
@@ -303,9 +303,9 @@ test.describe("on the corpus owner's own settings", () => {
               strip: strip?.getBoundingClientRect().y ?? Number.NaN,
               footerGap: (regionBox?.bottom ?? Number.NaN) - (footer?.getBoundingClientRect().bottom ?? Number.NaN),
               regionShort: floor - (regionBox?.height ?? Number.NaN),
-              cancels: [...(region?.querySelectorAll("button") ?? [])].filter((candidate) => candidate.textContent === "Cancel").length,
+              cancels: [...(region?.querySelectorAll("button") ?? [])].filter((candidate) => candidate.textContent === cancel).length,
             };
-          }),
+          }, DIALOG_VERBS.cancel),
       );
     }
     const ys = arms.map((arm) => arm.strip);

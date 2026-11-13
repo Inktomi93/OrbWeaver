@@ -6,6 +6,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import {
   PERSONA_FIRST_RUN_CREATE_NAME,
   PERSONA_FIRST_RUN_FAILED,
+  PERSONA_FIRST_RUN_FINISH_NAME,
   PERSONA_FIRST_RUN_TITLE,
   PERSONA_NAME_FIELD_NAME,
 } from "#client/features/persona/lib/persona-copy.ts";
@@ -60,9 +61,10 @@ test("a persona no pointer names reopens the ask on its recovery arm, which offe
 
   const gate = page.getByRole("dialog", { name: PERSONA_FIRST_RUN_TITLE, exact: true });
   await expect(gate.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).not.toHaveValue("");
-  // Pinned by its words: the two arms' verbs come from one copy module, so a test reading them back would pass a swap.
-  // eslint-disable-next-line orb/no-hand-copied-label -- the literal is the pin; importing the constant would follow a swap.
-  await expect(page.getByTestId(testId("firstRunPersonaCreate"))).toHaveAccessibleName("Finish setting up");
+  // The persona exists, so the submit offers to finish the setup, never to create a second one.
+  const submit = page.getByTestId(testId("firstRunPersonaCreate"));
+  await expect(submit).toHaveAccessibleName(PERSONA_FIRST_RUN_FINISH_NAME);
+  await expect(submit).not.toHaveAccessibleName(PERSONA_FIRST_RUN_CREATE_NAME);
 });
 
 test("a create in flight says so, and a refused one is said by the ask's own sentence", async ({ corpus, mount, page }) => {

@@ -75,8 +75,7 @@ const NEAR_BOTTOM_SLACK_PX = 4;
 // being flushed first.
 const VIRTUAL_TAIL_SLACK_PX = 80;
 
-// A log that states no subject keeps the generic pair; one that does is named by it.
-
+// A log that states no subject keeps the generic pair with UNNAMED_LOG_NAME; one that does is named by it.
 const UNNAMED_LOG_SUBJECT = "log";
 
 export interface LogViewerProps extends VariantProps<typeof logViewerBoxVariants> {
