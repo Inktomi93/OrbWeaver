@@ -373,7 +373,7 @@ export type RpgPostNarratorMessage = (
 /** `funderUserId` — WHOSE chat connection the verdict reads: the user who funds the room's turns, which is the
  *  room host whoever sends (`resolveTurnIdentity`). The gather passes its turn's frozen funder; a read passes
  *  {@link RpgContext.resolveRoomFunder}'s answer, never the reader, because a member's own connection runs nothing
- *  in this room. `null` (a hostless room) is the closed verdict: no turn can run. */
+ *  in this room. `null` (a hostless room, or a host outside the consent set) is the closed verdict: no turn can run. */
 export type RpgResolveStateDelivery = (chatId: ChatId, funderUserId: UserId | null) => Promise<RpgStateDeliveryVerdict>;
 
 /** What the resolved connection can do for THIS game's state delivery. Both fields are CAPABILITY-derived (the
@@ -661,7 +661,8 @@ export interface RpgContext {
   /** The chat's active-preset user macros (WAVE MU) — the shadow gloss on the host macro editor. */
   readonly resolvePresetUserMacros: ReadChatUserMacrosOp;
   /** The user whose connection funds this room's turns (the present host, chat's own resolution), or `null` for a
-   *  hostless room. The reads price and judge THAT connection, because it is the one the next turn rides. */
+   *  hostless room or a host outside the consent set. The reads price and judge THAT connection, because it is the
+   *  one the next turn rides; a disabled host stands as a departed one, so no read resolves its connection. */
   readonly resolveRoomFunder: (chatId: ChatId) => Promise<UserId | null>;
   readonly resolveStateDelivery: RpgResolveStateDelivery;
   /** Does the post-commit state round fit the funder's chat connection window, over `baseState`? Wired at compose,

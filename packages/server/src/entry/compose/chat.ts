@@ -67,6 +67,7 @@ import {
   createGenerationObservationSink,
   createGetMembership,
   createGetPendingUserText,
+  createLoadConsentingHostUserId,
   createPostNarratorMessage,
   createPromptTransformRegistry,
   createReactAsCharacter,
@@ -249,10 +250,11 @@ export interface ChatComposeResult extends AsyncDisposable {
     readonly claimChat: ClaimChatOp;
     /** The roster projection — the tracker view's roster ∪ sheets source. */
     readonly resolveRpgParticipants: ResolveRpgParticipants;
-    /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
-     *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
-     *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
-    readonly resolveHostUserId: RpgAssemblyContext["resolveRoomFunder"];
+    /** The chat's PRESENT host userId (role='host', D19) when that host consents (present and enabled) — the
+     *  human whose connection a member's game read judges. Resolved by ROLE, never join order (a handoff swaps
+     *  roles in place — the first-joined human is NOT the host). `null` = a hostless room or a disabled host, so a
+     *  member's read never resolves a disabled account's connection. */
+    readonly resolveConsentingHostUserId: RpgAssemblyContext["resolveRoomFunder"];
     /** The DEEP canon-window read (crunchy-cluster §1.3) — the `resyncFromStory` host verb's story feed, sharing
      *  the engine's transcript projection (chat owns canon reads; rpg reads no chat table). */
     readonly resolveCanonWindow: ResolveCanonWindow;
@@ -612,7 +614,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       setRpgPointer: createSetRpgPointer(chatCtx, { claimChat }),
       claimChat,
       resolveRpgParticipants: createResolveRpgParticipants(chatCtx),
-      resolveHostUserId: resolveChatHostUserId,
+      resolveConsentingHostUserId: createLoadConsentingHostUserId({ db, resolveUserEnabled: input.resolveUserEnabled }),
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
       resolvePromptUserMacros,
