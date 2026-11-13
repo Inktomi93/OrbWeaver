@@ -7,13 +7,15 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Tone } from "@orb/ui/tokens";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_action-groups-stories/RefineryActionGroupsStory";
 const WIDTH = 960;
+const NARROW_WIDTH = 300;
 const DESCRIPTION = "The original observatory keeper.";
 const NOTES = "Creator notes the rewrite clears.";
 const REWRITE = "The rewrite preserves a quieter observatory keeper.";
@@ -39,10 +41,10 @@ async function readChip(chip: Locator): Promise<Chip> {
   );
 }
 
-test("the open field's state chip and its queue row's chip read the same for a kept field and a discarded one", async ({ mount, page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
-  await using root = await createServerHarness({ startJobs: false });
-  const caller = await root.internalCallerFor(root.ownerId);
+type Caller = Awaited<ReturnType<Awaited<ReturnType<typeof createServerHarness>>["internalCallerFor"]>>;
+
+/** A session whose manual rewrite replaces the description, clears the creator notes and appends a greeting, served to the page. */
+async function serveRewriteSession(page: Page, caller: Caller): Promise<Awaited<ReturnType<Caller["refinery"]["startSession"]>>> {
   const card = await caller.character.create({
     input: createCharacterSchema.parse({ handle: "chip-voice", name: "Chip voice keeper", description: DESCRIPTION, creatorNotes: NOTES }),
   });
@@ -69,6 +71,14 @@ test("the open field's state chip and its queue row's chip read the same for a k
       "refinery.applyFields",
     ]),
   );
+  return session;
+}
+
+test("the open field's state chip and its queue row's chip read the same for a kept field and a discarded one", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const session = await serveRewriteSession(page, caller);
   await mount<typeof RefineryActionGroupsStory>(STORY, { sessionId: session.id, width: WIDTH, appearance: DEFAULT_APPEARANCE_SETTINGS });
   const review = page.getByTestId(testId("refineryAcceptReview"));
   const discards = review.getByRole("button", { name: /^Discard /u });
@@ -95,4 +105,28 @@ test("the open field's state chip and its queue row's chip read the same for a k
   expect(openDiscarded.tone).toBe(NEUTRAL);
   expect(queuedDiscarded.tone).toBe(NEUTRAL);
   expect(new Set([queuedKept.tone, queuedDiscarded.tone, undecidedIsland.tone]).size).toBe(3);
+});
+
+test("the open row keeps its field name whole beside its chip in a narrow pane at enlarged text", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: ENLARGED_APPEARANCE_SETTINGS });
+  const session = await serveRewriteSession(page, caller);
+  await mount<typeof RefineryActionGroupsStory>(STORY, { sessionId: session.id, width: NARROW_WIDTH, appearance: ENLARGED_APPEARANCE_SETTINGS });
+  const review = page.getByTestId(testId("refineryAcceptReview"));
+  const openRow = review.locator('[data-queue-state="open"]');
+  await expect(openRow.locator('[data-slot="badge"]')).toBeVisible();
+  const name = openRow.locator('[data-slot="text"]').first();
+  await expect(name).toBeVisible();
+  const [chip, host, clip] = await Promise.all([
+    openRow.locator('[data-slot="badge"]').boundingBox(),
+    review.boundingBox(),
+    name.evaluate((text) => ({ textWidth: text.scrollWidth, boxWidth: text.clientWidth })),
+  ]);
+  if (chip === null || host === null) {
+    throw new Error("The open row's chip and the review must paint");
+  }
+  expect(clip.textWidth, "the name is not clipped").toBeLessThanOrEqual(clip.boxWidth);
+  expect(chip.x + chip.width, "the chip stays inside the review").toBeLessThanOrEqual(host.x + host.width + 1);
 });
