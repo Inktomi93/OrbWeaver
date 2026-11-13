@@ -70,7 +70,7 @@ test("a group the run refuses counts once in scanned, and its transcripts are no
   expect(imported.found).toMatchObject({ characters: 1, chats: 1, groups: 0 });
   // One character, one chat, and the refused group as the one skip: never the group plus its three transcripts.
   expect(imported.scanned).toBe(3);
-  expect(preview.skipped.items.map((item) => item.source)).toContain("groups/ghosts.json");
+  expect(preview.skipped.items.map((item) => item.source.path)).toContain("groups/ghosts.json");
   expect(preview.kinds.chats.total).toBe(imported.found?.chats);
 });
 
@@ -98,9 +98,9 @@ test("two world books in one folder that share a name are two entries in the mer
   const shown = mergeImportPreviews([await dryRun(root, files)]);
   const imported = await finishRun(root, await admit(root, files));
 
-  expect(shown.kinds.worlds.items.toSorted((a, b) => a.source.localeCompare(b.source))).toEqual([
-    { source: "worlds/atlas-earlier.json", name: TWIN_BOOK },
-    { source: "worlds/atlas-later.json", name: TWIN_BOOK, inLibrary: true },
+  expect(shown.kinds.worlds.items.map(({ source, ...rest }) => ({ path: source.path, ...rest })).toSorted((a, b) => a.path.localeCompare(b.path))).toEqual([
+    { path: "worlds/atlas-earlier.json", name: TWIN_BOOK },
+    { path: "worlds/atlas-later.json", name: TWIN_BOOK, inLibrary: true },
   ]);
   expect(shown.kinds.worlds.total).toBe(2);
   expect(present(imported.found).worlds).toBe(2);

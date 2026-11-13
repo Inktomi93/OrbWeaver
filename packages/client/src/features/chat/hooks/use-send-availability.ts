@@ -16,7 +16,7 @@
 
 import type { RoomSendAvailability, RoomUnavailableCause } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { useGatedQuery, useSendAvailabilityRead, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useSendAvailabilityRead, useTRPC } from "#data";
 import { sendUnavailableReason } from "#lib";
 import { sendRefusalKey } from "../lib/next-turn-line.ts";
 import { useCreditConnections } from "./use-credit-connections.ts";
@@ -40,7 +40,7 @@ export function useSendAvailability(chatId: ChatId | null): SendGate {
   // `any` in some type-graph states (a real strict-boolean-expressions fragility), so annotate deterministically.
   const verdict: RoomSendAvailability | null | undefined = data;
   // The reason names the fix the next-turn line's door opens, so it reads the same room and connection list.
-  const chat = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const chat = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const viewerIsHost = chat.data?.viewerIsHost ?? undefined;
   const connections = useCreditConnections();
   // No verdict yet ⇒ never refuse — the gate blocks ONLY on a resolved `available:false`. `!verdict` catches

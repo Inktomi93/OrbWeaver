@@ -47,7 +47,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
 import type { ComposerDraftWrite } from "#state";
 import { useComposerFieldWrap } from "../hooks/use-composer-field-wrap.ts";
@@ -331,7 +331,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
  *  Response icon then fires Auto directly (no submenu). */
 function useRoomCharacters(chatId: ChatId): ReturnType<typeof filterCharacters> {
   const trpc = useTRPC();
-  const rosterQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const rosterQuery = useQuery(roomRosterOptions(trpc, { chatId }));
   return filterCharacters(rosterQuery.data?.participants ?? []);
 }
 
@@ -339,7 +339,7 @@ function useRoomCharacters(chatId: ChatId): ReturnType<typeof filterCharacters> 
  *  same warm `getChat`/`getGame` caches the panel + old wand used (lockdown §12 direct cross-feature read). */
 function useGameSteer(chatId: ChatId): { readonly isGame: boolean; readonly plotAvailable: boolean } {
   const trpc = useTRPC();
-  const chatQuery = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const chatQuery = useQuery(roomRosterOptions(trpc, { chatId }));
   const isGame = isRpgEngaged(chatQuery.data?.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   return { isGame, plotAvailable: isGame && gameQuery.data?.publicConfig.plotProgression === true };

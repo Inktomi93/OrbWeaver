@@ -544,6 +544,7 @@ const TEST_CONSTANT_HOMES = {
     "CHAT_INVITE_PEOPLE_NAME and its siblings: the Members panel, row menu, card viewer and join dialog names",
   "packages/client/src/features/chat/lib/command-palette-names.ts": "COMMAND_MODAL_TITLE and COMMAND_PALETTE_NAME: the command modal's title and input",
   "packages/client/src/lib/chat-launch-names.ts": "NO_CHAT_SELECTED_TITLE: the Chats section's no-selection state a dead room returns the reader to",
+  "packages/client/src/lib/chat-title.ts": "deriveChatTitle: the title a room's heading and its chat list row print, which a room case finds the open room by",
   "packages/client/src/features/chat/lib/message-action-names.ts":
     "MESSAGE_EDIT_NAME and its siblings: the transcript row's action, tool call and wire viewer names",
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",
@@ -733,6 +734,9 @@ const SERVER_TEST_REACHES = {
   "tests/server/foundation/env/record/secret-file.int.test.ts": {
     "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key by its production name",
   },
+  "tests/server/foundation/env/record/child-refused-names.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key in each letter case the child environment refuses",
+  },
   "tests/server/foundation/observability/bug-report-diagnostics.test.ts": {
     "foundation/data-layout": "DATABASE_URL_KEY: the suite sets the database key by its production name",
   },
@@ -872,6 +876,10 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/auth/components/pending-join-fixtures.ts": {
     "packages/contracts/src/chat/roster.ts":
       "JOIN_UNAVAILABLE_CODE and ACCOUNT_EXISTS_CODE: the refusal codes the pending-join story answers with, which no contracts door forwards",
+  },
+  "tests/client/features/plugin/native-guest-protocol.ct.tsx": {
+    "packages/client/src/lib/plugin-ui-guest-protocol.ts":
+      "UI_GUEST_BUDGETS.eventCpuMs: a case holds a host call past one event's CPU budget, and the lib door forwards only the walls that sum it",
   },
   "tests/client/features/character/lib/facet-fill.dom.test.ts": {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",

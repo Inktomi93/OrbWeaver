@@ -2,7 +2,7 @@
 // are present, and whether the viewer hosts it. A non-suspending gated read of the `getChat` the room already reads, so a trail
 // entry never suspends: until the read lands the count is 0 and the entries stay hidden (`resolved` is false).
 
-import { useGatedQuery, useTRPC } from "#data";
+import { roomRosterOptions, useGatedQuery, useTRPC } from "#data";
 import { useActiveChatId } from "#state";
 
 export function useRoomRoster(): {
@@ -13,7 +13,7 @@ export function useRoomRoster(): {
 } {
   const trpc = useTRPC();
   const chatId = useActiveChatId();
-  const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const { data: chat } = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   return {
     chatId,
     resolved: chat !== undefined,

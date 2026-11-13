@@ -1,8 +1,9 @@
 // @subject packages/server/src/foundation/observability/debug/bug-report.ts
-// The bug report's `git` child is started with no explicit env, so it inherits the booted server's environment after
-// the boot scrub: no key the agent SDK child's environment owns (D8) reaches it. The real entry boots with every
-// reserved key in its launch environment and a scripted `git` first on PATH, the external edge, which records the
-// names it was started with. Linux and macOS only: the scripted `git` is an executable script.
+// The bug report's `git` child starts with the server's child environment, the booted process environment without
+// reserved or secret names: no key the agent SDK child's environment owns (D8) reaches it. The real entry boots with
+// every reserved key in its launch environment and a scripted `git` first on PATH, the external edge, which records
+// the names it was started with. Linux and macOS only: the scripted `git` is an executable script.
+// Windows is covered by the child environment builder's own case in `child-refused-names.test.ts`.
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";

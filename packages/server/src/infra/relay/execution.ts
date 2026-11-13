@@ -1,5 +1,5 @@
 // Own verifier/extractor completion and every native child, including launches invalidated before spawn returns.
-import { createCloudflaredBinary, extractTgzWithTar } from "./binary.ts";
+import { createCloudflaredBinary, tarExtractor } from "./binary.ts";
 import type { OwnedRelayLauncher, OwnedRelayProcess, RelayExecutionDeps, RelayProcess } from "./contract.ts";
 import { spawnQuickTunnel } from "./quick-tunnel.ts";
 
@@ -27,7 +27,7 @@ export function createOwnedRelayLauncher(deps: RelayExecutionDeps): OwnedRelayLa
         if (deps.pin === null) {
           throw new Error("server harness: unscripted external relay execution");
         }
-        const binary = createCloudflaredBinary({ ...deps, pin: deps.pin, extractTgz: extractTgzWithTar, signal: abort.signal });
+        const binary = createCloudflaredBinary({ ...deps, pin: deps.pin, extractTgz: tarExtractor(deps.childEnv), signal: abort.signal });
         const executable = await binary.ensure();
         abort.signal.throwIfAborted();
         if (deps.spawn !== undefined) {

@@ -7,6 +7,7 @@ import type {
   PluginCommandArgSpec as ContractCommandArgSpec,
   PluginGridTile as ContractGridTile,
   PluginHostV1 as ContractHost,
+  PluginLlmFailureKind as ContractLlmFailureKind,
   PluginSurfaceNode as ContractNode,
   PluginPageHero as ContractPageHero,
   PluginHostRefusalCode as ContractRefusalCode,
@@ -169,6 +170,8 @@ test("closed vocabularies and node fields match the app contracts", () => {
   expectTypeOf<PluginHostRefusalCode>().toEqualTypeOf<ContractRefusalCode>();
   expectTypeOf<PluginUiHostCallCode>().toEqualTypeOf<ContractUiHostCallCode>();
   expectTypeOf<NonNullable<PluginUiHostCallError["code"]>>().toEqualTypeOf<ContractUiHostCallCode>();
+  expectTypeOf<PluginLlmFailureKind>().toEqualTypeOf<ContractLlmFailureKind>();
+  expectTypeOf<PluginLlmFailure["kind"]>().toEqualTypeOf<ContractLlmFailureKind>();
   expectTypeOf<PluginCommandArgSpec["type"]>().toEqualTypeOf<ContractCommandArgSpec["type"]>();
   expectTypeOf<PluginCommandPlacement>().toEqualTypeOf<ContractCommandPlacement>();
   const declared = { kind: "keyValue", rows: [] } as const;

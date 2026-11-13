@@ -16,9 +16,19 @@ export const REFINERY_HAND_EDIT_EMPTY_SCOPE = "Nothing is in scope, so there is 
 export const REFINERY_COMPARE_NAME = "Compare";
 export const REFINERY_HIDE_COMPARE_NAME = "Hide compare";
 
-/** The compare toggle's name for its current state. */
-export function refineryCompareToggleName(comparing: boolean): string {
+/** A version row's own label: what it prints and what its actions are named for. `qualifier` tells apart versions that share a label. */
+export function refineryVersionRowLabel(label: string, qualifier?: string): string {
+  return qualifier === undefined ? label : `${label} ${qualifier}`;
+}
+
+/** The compare toggle's visible verb for its current state. */
+export function refineryCompareVerb(comparing: boolean): string {
   return comparing ? REFINERY_HIDE_COMPARE_NAME : REFINERY_COMPARE_NAME;
+}
+
+/** A version row's compare toggle for its current state, named for the version it compares. */
+export function refineryCompareToggleName(comparing: boolean, label: string, qualifier?: string): string {
+  return `${refineryCompareVerb(comparing)} ${refineryVersionRowLabel(label, qualifier)}`;
 }
 
 /** The sessions list's empty state before any session exists. */
@@ -39,7 +49,7 @@ export const REFINERY_UNLABELED_VERSION = "unlabeled";
 
 /** A version row's Restore, named for the version it restores; `qualifier` tells apart versions that share a label. */
 export function refineryRestoreVersionName(label: string, qualifier?: string): string {
-  return qualifier === undefined ? `Restore ${label}` : `Restore ${label} ${qualifier}`;
+  return `Restore ${refineryVersionRowLabel(label, qualifier)}`;
 }
 
 /** A stage lane's first run. */

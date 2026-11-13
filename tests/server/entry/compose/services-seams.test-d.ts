@@ -21,6 +21,7 @@ const networkExecution: ServicesDeps["networkExecution"] = {
 const monotonicNow = (): number => 0;
 const env = createTestEnv();
 const hostEnvAllowlist = (): Readonly<Record<string, string>> => ({});
+const childProcessEnv = (): Readonly<Record<string, string>> => ({});
 const authModeSource: ServicesDeps["authModeSource"] = "default";
 declare const logger: ServicesDeps["logger"];
 declare const rings: ServicesDeps["rings"];
@@ -42,6 +43,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -59,6 +61,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -75,6 +78,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -91,6 +95,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -107,6 +112,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -123,6 +129,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -139,6 +146,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -155,6 +163,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -171,6 +180,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     networkExecution,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -187,6 +197,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     networkExecution,
     monotonicNow,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -203,6 +214,24 @@ test("the composition root requires every process seam, so a forgotten one canno
     networkExecution,
     monotonicNow,
     env,
+    childProcessEnv,
+    authModeSource,
+    serverInstanceId,
+    rings,
+  };
+  // @ts-expect-error a root without `childProcessEnv` must not compile
+  const withoutChildProcessEnv: Pick<ServicesDeps, ProcessSeam> = {
+    logger,
+    timers,
+    random,
+    randomInt,
+    idSource,
+    newOpaqueId,
+    buildConnector,
+    networkExecution,
+    monotonicNow,
+    env,
+    hostEnvAllowlist,
     authModeSource,
     serverInstanceId,
     rings,
@@ -220,6 +249,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     serverInstanceId,
     rings,
   };
@@ -235,6 +265,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
     rings,
@@ -252,6 +283,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     rings,
   };
@@ -268,6 +300,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     monotonicNow,
     env,
     hostEnvAllowlist,
+    childProcessEnv,
     authModeSource,
     serverInstanceId,
   };
@@ -282,6 +315,7 @@ test("the composition root requires every process seam, so a forgotten one canno
     withoutMonotonicNow,
     withoutEnv,
     withoutHostEnvAllowlist,
+    withoutChildProcessEnv,
     withoutAuthModeSource,
     withoutLogger,
     withoutServerInstanceId,

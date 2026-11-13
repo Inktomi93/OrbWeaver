@@ -68,6 +68,25 @@ export class PluginInstallerDisabledError extends DomainConflictError {
   }
 }
 
+/** Why a guest's model call failed, beside the fixed sentence: the failure's kind, never its upstream text. It mirrors
+ *  `@orb/inference`'s `PROVIDER_ERROR_KINDS` (contracts sit below inference), and the server holds the two equal by
+ *  type, so a kind added there fails `tsc` until it is added here. */
+export const PLUGIN_LLM_FAILURE_KINDS = [
+  "rate_limit",
+  "auth_failed",
+  "billing",
+  "moderation",
+  "refused",
+  "forbidden",
+  "invalid",
+  "model_unavailable",
+  "server",
+  "max_output",
+  "aborted",
+  "unknown",
+] as const;
+export type PluginLlmFailureKind = (typeof PLUGIN_LLM_FAILURE_KINDS)[number];
+
 /** The code of a `PluginHostUnavailable` refusal made because a channel between the host's processes was full: that
  *  one call was refused and nothing else, and a retry may succeed (D348). */
 export const PLUGIN_CHANNEL_FULL_CODE = "channel_full";

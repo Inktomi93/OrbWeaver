@@ -15,7 +15,7 @@ import { Field } from "@orb/ui/field";
 import { NumberField } from "@orb/ui/number-field";
 import type { ReactElement } from "react";
 
-import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useSetToolRecurseLimit } from "../hooks/use-context-panel-mutations.ts";
 
 // Mirror the server `toolRecurseLimitSchema` bounds (domain-internal, not client-importable) — the verb
@@ -32,7 +32,7 @@ export interface ToolRecurseControlProps {
 export function ToolRecurseControl({ chatId }: ToolRecurseControlProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const setLimit = useSetToolRecurseLimit({ trpc, invalidation });
 
   // Unset ⇒ show the engine default; a NaN/empty input is dropped (never a wipe-triggering write).

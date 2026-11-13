@@ -332,7 +332,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
         id: mintBugReportId(),
         version: versionIdentity(),
         capturedAt: capturedAt.toISOString(),
-        build: readBuildIdentity(repoRoot),
+        build: readBuildIdentity(repoRoot, options.childProcessEnv),
         window: resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes),
         note: parsed.data.note,
         client: parsed.data.client ?? null,

@@ -16,7 +16,7 @@ type GatedOptions<TQueryData, TSelected, TError, TKey extends QueryKey> = Pick<
 const GATED_OFF_KEY: QueryKey = ["__gated__", "off"];
 
 /**
- * `useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }))` — the options
+ * `useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }))` — the options
  * builder runs ONLY when the id is present. ONE `useQuery` call site (the gate lives in the options
  * expression, never in a conditional hook).
  */

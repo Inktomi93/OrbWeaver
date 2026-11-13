@@ -5,11 +5,11 @@
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
-import { WORKLOAD_OWNER_ONLY_REFUSAL, WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
-import { noticeToast, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
+import { noticeToast, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, plantMemberOperatorRun, plantMemberOperatorSchedule } from "@orb/testkit/node/composed";
-import { SCHEDULE_SAVE_ESTIMATE_FAILED } from "#client/components/model-run-confirm-copy.ts";
+import { SCHEDULE_SAVE_ESTIMATE_FAILED, SCHEDULE_SAVE_OWNER_ONLY } from "#client/components/model-run-confirm-copy.ts";
 import { SCHEDULE_PAUSED_LABEL, scheduleEditName, scheduleEnabledSwitchName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
@@ -114,7 +114,31 @@ test("a member's save of their own stored operator-tree schedule toasts the owne
   }
   await page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: null }), exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: /^Save/u }).click();
-  await expect(noticeToast(page, { title: SCHEDULE_SAVE_ESTIMATE_FAILED, description: WORKLOAD_OWNER_ONLY_REFUSAL })).toBeVisible();
+  await expect(noticeToast(page, SCHEDULE_SAVE_OWNER_ONLY)).toBeVisible();
+  await expect(noticeToast(page, { title: SCHEDULE_SAVE_ESTIMATE_FAILED })).toHaveCount(0);
+  expect(calls.count("workloads.updateSchedule")).toBe(0);
+});
+
+test("a schedule save whose count fails for another reason still says the count failed", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const member = await root.actor();
+  const planted = await plantMemberOperatorSchedule(root, { boxOwnerId: root.ownerId, memberId: member.id });
+  const caller = await root.internalCallerFor(member.id);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
+  const calls = await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, [...SCHEDULE_READS, "workloads.updateSchedule"]),
+    ...serveCorpusProcedures(caller, ["workloads.estimateModelCalls"], () => trpcError({ code: "INTERNAL_SERVER_ERROR" })),
+  });
+  await mount<typeof ScheduleDialogDismissalStory>(SCHEDULES_STORY, { width: 900 });
+
+  const schedule = (await caller.workloads.listSchedules({})).find((row) => row.id === planted);
+  if (schedule === undefined) {
+    throw new Error("The member must hold the planted schedule");
+  }
+  await page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: null }), exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Save/u }).click();
+  await expect(noticeToast(page, { title: SCHEDULE_SAVE_ESTIMATE_FAILED })).toBeVisible();
+  await expect(noticeToast(page, SCHEDULE_SAVE_OWNER_ONLY)).toHaveCount(0);
   expect(calls.count("workloads.updateSchedule")).toBe(0);
 });
 

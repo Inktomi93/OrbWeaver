@@ -4,8 +4,10 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
+import type { ServedHold } from "@orb/testkit/ct";
 import { createShellAmbientReads, holdServed, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import type { CorpusPlayback } from "@orb/testkit/iso";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -15,11 +17,21 @@ import {
   makeAssetBytes,
   seedMessage,
 } from "@orb/testkit/node/composed";
+import type { Page } from "@playwright/test";
 import sharp from "sharp";
-import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
+type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
+type Room = Awaited<ReturnType<Awaited<ReturnType<Root["internalCallerFor"]>>["chat"]["listChats"]>>["items"][number];
+
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
+const ROOM_SURFACE = '[data-slot="chat-room-surface"]';
+const MESSAGE_ROW = '[data-slot="message-row"]';
+const ROSTER_PROCEDURE = "chat.getChat";
+// tRPC's batch link marks a batched request with this query parameter; an unbatched request carries none.
+const BATCH_PARAM = "batch";
 const EXTRA_READS = ["rpg.getGame", "rpg.listTurnToolCalls", "assets.resolveChatBlobRefs"] as const;
 const DRAFT = "Keep the observatory lantern burning.";
 const CARET = 12;
@@ -75,6 +87,99 @@ test("the first message read preserves a typed draft, caret, focus and composer 
     await expect(input).toHaveValue(DRAFT);
   } finally {
     read.release();
+    await component.unmount();
+  }
+});
+
+/** Two persisted rooms, each served from the corpus except `first`'s roster and transcript reads, which wait on their holds. */
+async function heldRoomReads(
+  page: Page,
+  corpus: CorpusPlayback,
+  root: Root,
+): Promise<{ readonly first: Room; readonly second: Room; readonly roster: ServedHold; readonly transcript: ServedHold; readonly rosterRequests: string[] }> {
+  const rosterRequests: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith(`/${ROSTER_PROCEDURE}`) || request.url().includes(`${ROSTER_PROCEDURE},`)) {
+      rosterRequests.push(request.url());
+    }
+  });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [first, second] = (await caller.chat.listChats({ limit: 2 })).items;
+  if (first === undefined || second === undefined) {
+    throw new Error("The corpus needs two distinct persisted rooms");
+  }
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearanceSettingsSchema.parse({}) });
+  const roster = holdServed();
+  const transcript = holdServed();
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...EXTRA_READS]),
+    ...serveCorpusProcedures(caller, ["chat.getChat"], ({ chatId }) => (chatId === first.id ? roster : undefined)),
+    ...serveCorpusProcedures(caller, ["chat.listMessages"], ({ chatId }) => (chatId === first.id ? transcript : undefined)),
+  });
+  return { first, second, roster, transcript, rosterRequests };
+}
+
+/**
+ * With both reads held, the room has no composer; the roster's answer alone draws it while the transcript still waits. Every roster
+ * request left alone: a batch is one response, so a roster read batched beside the transcript's would wait for it whenever the two
+ * leave in one tick, which the browser's scheduling decides and a hold cannot force.
+ */
+async function expectComposerOnRosterAlone(
+  page: Page,
+  holds: { readonly roster: ServedHold; readonly transcript: ServedHold; readonly rosterRequests: readonly string[] },
+): Promise<void> {
+  const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+  await expect(input).toHaveCount(0);
+  holds.roster.release();
+  await expect(input).toBeVisible();
+  await expect(page.locator(MESSAGE_ROW)).toHaveCount(0);
+  holds.transcript.release();
+  await expect(page.locator(MESSAGE_ROW).first()).toBeVisible();
+  expect(holds.rosterRequests.length).toBeGreaterThan(0);
+  expect(holds.rosterRequests.filter((url) => new URL(url).searchParams.has(BATCH_PARAM))).toEqual([]);
+}
+
+test("a cold room draws its composer when its roster answers, while its transcript read is still held", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+  const reads = await heldRoomReads(page, corpus, root);
+  const { first, roster, transcript } = reads;
+  await using held = new AsyncDisposableStack();
+  held.defer(() => {
+    roster.release();
+    transcript.release();
+  });
+  const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId: first.id });
+  try {
+    await Promise.all([roster.requested, transcript.requested]);
+    await expect(page.locator(ROOM_SURFACE)).toBeVisible();
+    await expectComposerOnRosterAlone(page, reads);
+  } finally {
+    await component.unmount();
+  }
+});
+
+test("a roster read a Chats row started on approach draws the room's composer while its transcript read is still held", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
+  const reads = await heldRoomReads(page, corpus, root);
+  const { first, second, roster, transcript } = reads;
+  await using held = new AsyncDisposableStack();
+  held.defer(() => {
+    roster.release();
+    transcript.release();
+  });
+  const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId: second.id });
+  try {
+    await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
+    await page.getByLabel(CHAT_LIST_NAME, { exact: true }).getByText(deriveChatTitle(first.title, first.participantNames), { exact: true }).first().hover();
+    await roster.requested;
+    await component.update({ chatId: first.id });
+    await transcript.requested;
+    await expect(page.locator(ROOM_SURFACE)).toBeVisible();
+    await expectComposerOnRosterAlone(page, reads);
+  } finally {
     await component.unmount();
   }
 });

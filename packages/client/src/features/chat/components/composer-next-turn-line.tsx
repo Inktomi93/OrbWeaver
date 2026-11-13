@@ -9,7 +9,7 @@ import { Container } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { roomRosterOptions, useTRPC } from "#data";
 import { openConfigTo } from "#state";
 import { useCreditConnections } from "../hooks/use-credit-connections.ts";
 import type { SendGate } from "../hooks/use-send-availability.ts";
@@ -32,7 +32,7 @@ const STATE_TONE = {
 
 export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextTurnLineProps): ReactElement | null {
   const trpc = useTRPC();
-  const chat = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const chat = useQuery(roomRosterOptions(trpc, { chatId }));
   // `null` is the tRPC no-data wire shape (a CT stub yields it): an unknown viewer, never a host.
   const viewerIsHost = chat.data?.viewerIsHost ?? undefined;
   const readsChatRole = nextTurnReadsChatRole(viewerIsHost, availability.cause, availability.failed);

@@ -3,6 +3,7 @@
 // preset with equal content is reused; a different one under the same name keeps its row and the file lands
 // under the next free name. Never throws for a malformed file — returns { ok:false, error }.
 
+import type { ImportReuse } from "@orb/contracts/import";
 import type { FindOwnedPresets, ImportPreset, PresetImportOutcome } from "@orb/contracts/preset";
 import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -43,15 +44,29 @@ function reusablePreset(owned: readonly OwnedPreset[]): (config: Parameters<type
   return (config) => byKey.get(presetContentKey(config));
 }
 
-/** The read-only twin of {@link createImportPresets}'s reuse test, for a preview that must not write. */
+/** The read-only twin of {@link createImportPresets}'s reuse test, for a preview that must not write. It judges the
+ *  files in the order the import lands them, so a preset equal to an earlier file's answers `"upload"`. */
 export function createFindOwnedPresets(input: DbAssemblyInput<Pick<PresetContext, "db">>): FindOwnedPresets {
   const db = databaseForOwner(input.db);
-  return async ({ ownerId, files, signal }): Promise<readonly boolean[]> => {
+  return async ({ ownerId, files, signal }): Promise<readonly (ImportReuse | null)[]> => {
     const reuse = reusablePreset(await listOwned(db, ownerId));
-    return await mapYielding(files, signal, (bytes) => {
+    // call-local: the content keys of the files judged so far. Ends if it outlives the call.
+    const landed = new Set<string>();
+    return await mapYielding(files, signal, (bytes): ImportReuse | null => {
       const decoded = readJson(bytes);
       const parsed = decoded.ok ? parsePresetFile(decoded.value) : null;
-      return parsed?.ok === true && reuse(parsed.config) !== undefined;
+      if (parsed?.ok !== true) {
+        return null;
+      }
+      if (reuse(parsed.config) !== undefined) {
+        return "library";
+      }
+      const key = presetContentKey(parsed.config);
+      if (landed.has(key)) {
+        return "upload";
+      }
+      landed.add(key);
+      return null;
     });
   };
 }

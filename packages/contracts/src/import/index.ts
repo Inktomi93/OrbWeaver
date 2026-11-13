@@ -22,7 +22,7 @@ export {
   personaCollisionChoicesSchema,
   personaCollisionReviewSchema,
 } from "./persona-collision.ts";
-export type { ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "./preview.ts";
+export type { ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip, ImportReuse } from "./preview.ts";
 export {
   IMPORT_PREVIEW_KINDS,
   IMPORT_PREVIEW_LIST_MAX,

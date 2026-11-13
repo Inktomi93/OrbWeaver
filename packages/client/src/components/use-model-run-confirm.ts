@@ -10,7 +10,7 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { readFresh, useTRPC } from "#data";
-import { notify, trpcErrorReason } from "#lib";
+import { notify, trpcErrorCode, trpcErrorReason } from "#lib";
 import { MODEL_RUN_ESTIMATE_FAILED } from "./model-run-confirm-copy.ts";
 import type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 
@@ -26,6 +26,9 @@ type ConfirmRequest = Omit<PendingRun, "calls"> & {
   readonly estimates: readonly EstimateRequest[];
   /** The notice title when the count fails, for a caller whose act is not a run starting. @defaultValue {@link MODEL_RUN_ESTIMATE_FAILED} */
   readonly estimateFailedTitle?: string;
+  /** The notice when the server refuses the count because only the box owner may run it, for a caller whose act is not a run starting. A run
+   *  starting keeps the server's own sentence. */
+  readonly ownerOnlyNotice?: { readonly title: string; readonly description: string };
 };
 
 export function useModelRunConfirm(): {
@@ -36,7 +39,7 @@ export function useModelRunConfirm(): {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<PendingRun | null>(null);
-  const confirmThen = async ({ estimates, estimateFailedTitle = MODEL_RUN_ESTIMATE_FAILED, ...held }: ConfirmRequest): Promise<void> => {
+  const confirmThen = async ({ estimates, estimateFailedTitle = MODEL_RUN_ESTIMATE_FAILED, ownerOnlyNotice, ...held }: ConfirmRequest): Promise<void> => {
     // Fresh every time: the count is read the moment a person decides, never from an earlier visit's cache. With no
     // count there is no informed yes, so a failed estimate starts nothing and says why.
     const answers = await Promise.all(
@@ -46,12 +49,14 @@ export function useModelRunConfirm(): {
           : readFresh(queryClient, trpc.workloads.estimateModelCalls.queryOptions(request)),
       ),
     ).catch((err: unknown) => {
-      // The estimate judges who the run answers to before it counts, so a refused account is the reason, not the count.
-      notify.error(
-        trpcErrorReason(err) === WORKLOAD_RUN_ACCOUNT_NOT_OWNER
-          ? { title: WORKLOAD_RUN_ACCOUNT_REFUSAL }
-          : { title: estimateFailedTitle, description: errorMessage(err) },
-      );
+      // The estimate judges who the run answers to before it counts, so a refused account or a non-owner asker is the reason, not the count.
+      if (trpcErrorReason(err) === WORKLOAD_RUN_ACCOUNT_NOT_OWNER) {
+        notify.error({ title: WORKLOAD_RUN_ACCOUNT_REFUSAL });
+      } else if (ownerOnlyNotice !== undefined && trpcErrorCode(err) === "FORBIDDEN") {
+        notify.error(ownerOnlyNotice);
+      } else {
+        notify.error({ title: estimateFailedTitle, description: errorMessage(err) });
+      }
       return null;
     });
     if (answers === null) {

@@ -40,7 +40,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { CharacterPicker } from "#components";
-import { DocumentUploadRefusedError, uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import { DocumentUploadRefusedError, roomRosterOptions, uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
 import { focusFirstInvalidFieldIn } from "#forms/editor";
 import { DIALOG_VERBS, testId } from "#lib";
 import { closeModal, selectDocumentFromList, setActiveSection, useActiveChatId } from "#state";
@@ -80,7 +80,7 @@ export function AddDocumentBody(): ReactElement {
   const [character, setCharacter] = useState<Extract<DocumentDestination, { kind: "character" }> | null>(null);
   const trpc = useTRPC();
   const chatId = useActiveChatId();
-  const chat = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const chat = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
   const destinations: Record<DocumentScopeSource, DocumentDestination | null> = {
     global: { kind: "global" },
     character,

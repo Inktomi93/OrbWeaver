@@ -739,7 +739,7 @@ const ROLE_COMPARISON_SYNTAX = [
   },
 ];
 
-const SERVER_SYNTAX = [
+const SERVER_BASE_SYNTAX = [
   {
     selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
     message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
@@ -747,6 +747,23 @@ const SERVER_SYNTAX = [
   ...MODULE_LOADER_SYNTAX,
   ...ROLE_COMPARISON_SYNTAX,
 ];
+// A child process or Worker launched without `env` inherits the whole process environment, so a reserved agent-SDK
+// key or secret the boot scrub missed reaches it (D8's credential firewall). Every launch in server and inference
+// source names its environment inline: an inheriting child takes `childProcessEnv` from the env foundation, and the
+// agent-SDK and plugin children pass their own built record. Seen: a bare named import (`spawn`, `new Worker`) and
+// the `seam ?? spawn` fallback; a member call or a renamed import is a review question. esquery 1.7 never matches a
+// `:has(> …)` child form, so the `env` property is found under any call or `new` inside the launch: an options
+// record built by an inner call that holds an `env` key passes too.
+const CHILD_LAUNCHER_NAME = "/^(spawn|spawnSync|exec|execSync|execFile|execFileSync|fork)$/";
+const CHILD_ENV_SYNTAX = {
+  selector: `:matches(CallExpression:matches([callee.name=${CHILD_LAUNCHER_NAME}], [callee.type='LogicalExpression'][callee.right.name=${CHILD_LAUNCHER_NAME}]), NewExpression[callee.name='Worker']):not(:has(:matches(CallExpression, NewExpression) > ObjectExpression > Property:matches([key.name='env'], [key.value='env'])))`,
+  message:
+    "Pass `env` inline: an inheriting child takes childProcessEnv from packages/server/src/foundation/env/index.ts; a child without it inherits every reserved and secret name.",
+};
+const SERVER_SYNTAX = [...SERVER_BASE_SYNTAX, CHILD_ENV_SYNTAX];
+// The packaged-FFmpeg probe runs only from `entry/check-media.ts` at install and image build, before any app secret is
+// loaded, and the image copies that file without the env foundation it would need to import.
+const CHILD_ENV_EXEMPT_HOME = homes("packages/server/src/infra/media/runtime/index.ts");
 
 // A route with its own content security policy hands that policy to the registrar in its one home, which writes the
 // header and exempts the route from the app policy in the same call. A handler that writes the header itself on an
@@ -2394,8 +2411,19 @@ export default [
   { files: rootSources("@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   {
     files: rootSources("@server"),
-    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME, ...IMPERSONATE_STREAM_HOME, ...DOMAIN_CONTRACT_SOURCES, ...OWN_POLICY_HEADER_HOME],
+    ignores: [
+      ...SERVER_CLOCK_HOME,
+      ...STREAM_ROUTER_HOME,
+      ...IMPERSONATE_STREAM_HOME,
+      ...DOMAIN_CONTRACT_SOURCES,
+      ...OWN_POLICY_HEADER_HOME,
+      ...CHILD_ENV_EXEMPT_HOME,
+    ],
     rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SOURCE_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
+  },
+  {
+    files: CHILD_ENV_EXEMPT_HOME,
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_BASE_SYNTAX, OWN_POLICY_HEADER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
   },
   { files: OWN_POLICY_HEADER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) } },
   {

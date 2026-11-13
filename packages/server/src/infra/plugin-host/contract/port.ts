@@ -102,7 +102,16 @@ export interface ProcessPluginHost extends AsyncDisposable {
     readonly owner: UserId;
   }) => Promise<SnippetResult>;
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
+  /** Write a line the instance's own failure caused to the server log, on the window its guest log lines draw on. */
+  readonly logFailure: (instance: PluginInstance, line: PluginFailureLine) => void;
   readonly dispose: (instance: PluginInstance) => void;
+}
+
+/** One server-log line for a plugin's failure. Every string field counts against the instance's server-log window. */
+export interface PluginFailureLine {
+  readonly level: PluginLogLevel;
+  readonly fields: Readonly<Record<string, string>>;
+  readonly message: string;
 }
 
 export type CreateInstanceOutcomeOut =

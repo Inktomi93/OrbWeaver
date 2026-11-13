@@ -218,6 +218,9 @@ export interface InferenceDeps {
   readonly env: {
     readonly claudeExecutable?: string | undefined;
     readonly hostEnvAllowlist: () => Readonly<Record<string, string>>;
+    /** The environment an inheriting child takes (the local-light Worker): the process environment without the
+     *  server's secrets and the agent SDK child's reserved keys. */
+    readonly childProcessEnv: () => Readonly<Record<string, string>>;
   };
   readonly app: { readonly name: string; readonly url: string };
   readonly snapshotStore: SnapshotStore;

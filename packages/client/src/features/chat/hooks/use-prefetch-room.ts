@@ -32,14 +32,14 @@
 // ONE ROOM, THE ONE YOU ARE ABOUT TO OPEN. The caller passes the hero's id and nothing else: warming the
 // also-open list would spend home's own connection budget on eight rooms to win one of them.
 //
-// The key is the tRPC proxy's own (`trpc.chat.getChat.queryOptions({ chatId })`), byte-identical to the
+// The options are `roomRosterOptions` from `#data`, the one spelling every reader of this key uses: byte-identical to the
 // spelling `ChatCharacterBar` and `ChatThread` read through — a prefetch that warms the wrong key is
 // INVISIBLE, so the shared spelling is the whole safety story.
 
 import type { ChatId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { peekQueryData, useTRPC } from "#data";
+import { peekQueryData, roomRosterOptions, useTRPC } from "#data";
 
 /**
  * Warm the room's roster read for `chatId`. `null` warms nothing — the caller's surface has no room to
@@ -58,7 +58,7 @@ export function usePrefetchRoom(chatId: ChatId | null): void {
     if (chatId === null) {
       return;
     }
-    const options = trpc.chat.getChat.queryOptions({ chatId });
+    const options = roomRosterOptions(trpc, { chatId });
     if (peekQueryData(queryClient, options.queryKey) === undefined) {
       // this only warms chat.getChat; ChatThread reads the same key with useSuspenseQuery inside QueryBoundary (surfaces/message-list-surface.tsx), whose renderError shows QueryErrorState with Retry. Ends if ChatThread stops reading that key under a boundary or this warmer owns a user operation.
       void queryClient.query(options).catch(() => undefined);
@@ -89,7 +89,7 @@ export function useWarmRoomOnIntent(): (chatId: ChatId) => void {
   // memoizes it already (`no-manual-memo`, D54). Nothing here depends on referential stability anyway:
   // the callback is invoked from an event handler, never passed as an effect dependency.
   return (chatId: ChatId): void => {
-    const options = trpc.chat.getChat.queryOptions({ chatId });
+    const options = roomRosterOptions(trpc, { chatId });
     if (peekQueryData(queryClient, options.queryKey) === undefined) {
       // intent warming owns no user result; ChatThread reads chat.getChat with useSuspenseQuery inside QueryBoundary (surfaces/message-list-surface.tsx), whose renderError shows QueryErrorState with Retry. Ends if ChatThread stops reading that key under a boundary or warming becomes a user operation.
       void queryClient.query(options).catch(() => undefined);

@@ -448,6 +448,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       buildConnector: seams.buildConnector,
       networkExecution: seams.networkExecution,
       env: seams.env,
+      childEnv: seams.childProcessEnv,
       ...(options.relaySeams === undefined ? {} : { relaySeams: options.relaySeams }),
     });
     const relay = sharing.share.relay;

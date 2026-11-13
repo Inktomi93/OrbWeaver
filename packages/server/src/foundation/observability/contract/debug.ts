@@ -1,6 +1,7 @@
 import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { GetEffectiveConfigOp, GlobalSettingView } from "@orb/contracts/settings";
 import type { DatabaseHandle } from "@orb/db/wiring";
+import type { InferenceDeps } from "@orb/inference";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { Context } from "hono";
@@ -53,6 +54,8 @@ export interface DebugAuthOptions {
 export interface DebugRoutesOptions {
   /** The parsed env record: the build posture, the diagnostics inputs and the secret literals the bug report scrubs. */
   readonly env: Env;
+  /** The environment the bug report's `git` child starts with. */
+  readonly childProcessEnv: InferenceDeps["env"]["childProcessEnv"];
   /** Required selection prevents a configured app from silently omitting its stored settings view. */
   readonly appSettingRows: (() => Promise<readonly GlobalSettingView[]>) | null;
   db?: DatabaseHandle;

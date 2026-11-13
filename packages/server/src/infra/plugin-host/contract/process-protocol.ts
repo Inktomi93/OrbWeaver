@@ -1,4 +1,4 @@
-import type { PluginHostRefusalCode, PluginLogLevel } from "@orb/contracts/plugin";
+import type { PluginHostRefusalCode, PluginLlmFailureKind, PluginLogLevel } from "@orb/contracts/plugin";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { NodeEnvironment } from "#primitives/node-environment";
 
@@ -80,6 +80,8 @@ export interface RpcError {
   readonly message: string;
   /** Why a host-unavailable refusal was made, when the host can say; the guest reads it beside the name. */
   readonly code?: PluginHostRefusalCode;
+  /** Why a model call failed, carried beside the fixed sentence: its kind and whether a retry may succeed. */
+  readonly llmFailure?: { readonly kind: PluginLlmFailureKind; readonly retryable: boolean };
 }
 
 interface BrokerCommand {
