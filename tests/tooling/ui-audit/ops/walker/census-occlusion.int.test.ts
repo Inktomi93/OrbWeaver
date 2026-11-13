@@ -9,9 +9,9 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -23,17 +23,15 @@ interface AuditRun {
 
 interface AuditFixture {
   readonly scratch: string;
-  readonly runCli: ToolFixtures["runCli"];
+  readonly runSnap: ToolFixtures["runSnap"];
   readonly name: string;
   readonly body: string;
   readonly viewport?: string;
 }
 
-async function auditFixture({ scratch, runCli, name, body, viewport = "1000x600" }: AuditFixture): Promise<AuditRun> {
+async function auditFixture({ scratch, runSnap, name, body, viewport = "1000x600" }: AuditFixture): Promise<AuditRun> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const result = await runCli("snap", ["--file", join(scratch, `${name}.html`), "--viewport", viewport, ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const result = await runSnap(["--file", join(scratch, `${name}.html`), "--viewport", viewport, ...AUDIT_ARGV]);
   return { report: await readAuditReport(result.stdout), code: result.code };
 }
 
@@ -56,10 +54,12 @@ auditRuleTest(
     },
   ],
   "a display headline whose edge clips into an opaque card is a headline-overhang",
-  async ({ runCli, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     // centre 280 is left of the card's 400..800 range, and the 60px intersection is well under half the
     // line's 360px width — the bulk is outside, only the edge is in.
-    const { report } = await auditFixture({ scratch, runCli, name: "overhang-defect", body: `${CARD}${hero(100)}` });
+    // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
+    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const { report } = await auditFixture({ scratch, runSnap: parity, name: "overhang-defect", body: `${CARD}${hero(100)}` });
     const findings = report.findings.filter(({ rule }) => rule === "headline-overhang");
     expect(findings).toHaveLength(1);
     expect(report.populationAccounting?.["headline-overhang"]).toMatchObject({ candidates: 1, judged: 1, emitted: 1, withheld: {} });
@@ -77,11 +77,11 @@ auditRuleTest(
     },
   ],
   "a headline sitting INSIDE the card is excluded, not flagged",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // Same geometry, moved right: the line's centre (680) is inside the card, so this is a headline that
     // lives in the card. Proven inapplicable — which is a different claim from "measured and clean", and
     // the accounting has to say so.
-    const { report } = await auditFixture({ scratch, runCli, name: "overhang-inside", body: `${CARD}${hero(500)}` });
+    const { report } = await auditFixture({ scratch, runSnap, name: "overhang-inside", body: `${CARD}${hero(500)}` });
     expect(report.findings.filter(({ rule }) => rule === "headline-overhang")).toHaveLength(0);
     expect(report.populationAccounting?.["headline-overhang"]).toMatchObject({
       candidates: 1,
@@ -103,14 +103,14 @@ auditRuleTest(
     },
   ],
   "a headline clipped away by its own panel is withheld, never judged clean",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // getBoundingClientRect reports the line at its full 56px height even though the 20px-tall
     // overflow:hidden panel paints none of it. A naive rect intersection would compute a collision with
     // the card that no eye ever saw; the painted-rect walk collapses it instead.
     const clipped = `<div data-slot="scroll-panel" style="position:absolute;left:100px;top:100px;width:360px;height:20px;overflow:hidden">
   <h1 data-slot="buried-hero" style="position:relative;top:100px;margin:0;width:360px;font-size:48px;line-height:56px">Big Hero Line</h1>
 </div>`;
-    const { report, code } = await auditFixture({ scratch, runCli, name: "overhang-clipped", body: `${CARD}${clipped}` });
+    const { report, code } = await auditFixture({ scratch, runSnap, name: "overhang-clipped", body: `${CARD}${clipped}` });
     expect(report.findings.filter(({ rule }) => rule === "headline-overhang")).toHaveLength(0);
     expect(report.populationAccounting?.["headline-overhang"]).toMatchObject({ candidates: 1, judged: 0, withheld: { "clipped-away": 1 } });
     // A withheld candidate is a NO VERDICT run, not a pass — the runner must refuse rather than report clean.
@@ -135,10 +135,10 @@ auditRuleTest(
     },
   ],
   "an inline element whose opaque fill runs off its line is an inline-padding-leak",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // 40px of vertical padding on a 20px line: `display: inline` reserves none of it, so the fill paints
     // roughly 58px tall over a 20px line and lands on the copy above and below.
-    const { report } = await auditFixture({ scratch, runCli, name: "leak-defect", body: inlineFill(20, 20) });
+    const { report } = await auditFixture({ scratch, runSnap, name: "leak-defect", body: inlineFill(20, 20) });
     const findings = report.findings.filter(({ rule }) => rule === "inline-padding-leak");
     expect(findings).toHaveLength(1);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 1, emitted: 1, withheld: {} });
@@ -156,10 +156,10 @@ auditRuleTest(
     },
   ],
   "a legitimately padded inline highlight at ~1x line-height stays silent",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // 24px of padding clears the candidate floor, so this IS judged — and passes. The distinction between
     // a highlight and a leak is the rendered multiple, never the padding value on its own.
-    const { report } = await auditFixture({ scratch, runCli, name: "leak-highlight", body: inlineFill(12, 24) });
+    const { report } = await auditFixture({ scratch, runSnap, name: "leak-highlight", body: inlineFill(12, 24) });
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 1, affected: 0 });
     return report;
@@ -177,12 +177,18 @@ auditRuleTest(
     },
   ],
   "a WRAPPING padded inline is judged per line fragment, not by its bounding rect",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // THE UPSTREAM FALSE POSITIVE THIS ARM REFUSES TO INHERIT. Wrapped across several lines, this span's
     // bounding rect is ~4 line-heights tall and clears any "height >= 2.2x line-height" bar on wrapping
     // alone. Each individual fragment is one padded line, which is what the reader actually sees.
     const long = "wrapping highlight ".repeat(12).trim();
-    const { report } = await auditFixture({ scratch, runCli, name: "leak-wrapping", body: inlineFill(12, 24, long, "wrapped-highlight"), viewport: "420x600" });
+    const { report } = await auditFixture({
+      scratch,
+      runSnap,
+      name: "leak-wrapping",
+      body: inlineFill(12, 24, long, "wrapped-highlight"),
+      viewport: "420x600",
+    });
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 1, affected: 0 });
     return report;
@@ -199,8 +205,8 @@ auditRuleTest(
     },
   ],
   "an inline fill below the padding floor is excluded rather than counted as judged",
-  async ({ runCli, scratch }) => {
-    const { report } = await auditFixture({ scratch, runCli, name: "leak-below-floor", body: inlineFill(2, 24) });
+  async ({ runSnap, scratch }) => {
+    const { report } = await auditFixture({ scratch, runSnap, name: "leak-below-floor", body: inlineFill(2, 24) });
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 0, excluded: { "padding-below-floor": 1 } });
     return report;
@@ -217,13 +223,13 @@ auditRuleTest(
     },
   ],
   "an inline leak clipped away by its container is withheld, never judged clean",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // The paragraph is pushed 100px down inside an 8px-tall clipper, so the span's line fragment lands
     // entirely below the clip line and paints nothing. Note the near miss this fixture had to be built
     // around: a clipper that merely SHORTENS the fragment leaves real painted pixels, and that is judged
     // (and passes) rather than withheld — withholding is for a subject the walk could not measure at all.
     const clipped = `<div style="width:600px;height:8px;overflow:hidden"><div style="position:relative;top:100px">${inlineFill(20, 20, "Marker", "clipped-marker")}</div></div>`;
-    const { report, code } = await auditFixture({ scratch, runCli, name: "leak-clipped", body: clipped });
+    const { report, code } = await auditFixture({ scratch, runSnap, name: "leak-clipped", body: clipped });
     expect(report.findings.filter(({ rule }) => rule === "inline-padding-leak")).toHaveLength(0);
     expect(report.populationAccounting?.["inline-padding-leak"]).toMatchObject({ candidates: 1, judged: 0, withheld: { "clipped-away": 1 } });
     expect(code).toBe(2);

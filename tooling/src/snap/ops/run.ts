@@ -5,7 +5,6 @@ import { artifactKey } from "../../floor/artifacts/artifact-naming.ts";
 import { artifactFile } from "../../floor/artifacts/artifact-out.ts";
 import { aggregateScope, factBatchId } from "../../floor/artifacts/artifact-scope.ts";
 import { print } from "../../floor/artifacts/artifacts.ts";
-import { closeProbeSessionAfterError } from "../../floor/browser/browser.ts";
 import { browserEvidenceRetention } from "../../floor/browser/browser-capture.ts";
 import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
 import { summarizeOrbConsoleCompleteness } from "../../floor/browser/browser-diagnostics.ts";
@@ -25,6 +24,8 @@ import { captureAppearanceInvariantRows } from "./appearance-invariant-runtime.t
 import { evaluateAppearanceInvariantCell } from "./appearance-invariants.ts";
 import { motionReceiptFor } from "./arms/motion.ts";
 import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures, writePageArmEvidence } from "./arms/registry.ts";
+import type { SnapBrowserSource } from "./browser-source.ts";
+import { LAUNCH_PER_RUN } from "./browser-source.ts";
 import { capturePages } from "./capture.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { watchIntervalMs } from "./flags-support.ts";
@@ -47,15 +48,7 @@ import {
 } from "./report.ts";
 import { printArmSummaries } from "./report-summary-blocks.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, writeSnapDiagnosticEvidence } from "./run-bundle.ts";
-import {
-  cascadeRuntimeFor,
-  debuggingPortFor,
-  finishSession,
-  launchSnapSession,
-  loadEmulationFor,
-  readSnapEnvironmentEvidence,
-  snapEnvironmentMismatchCount,
-} from "./session.ts";
+import { cascadeRuntimeFor, debuggingPortFor, loadEmulationFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
 import { buildFailureSummary, hasSnapFailure, outcomeTotals } from "./verdict.ts";
 import { runWatchSeries } from "./watch.ts";
@@ -391,8 +384,9 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
   }
 }
 
-/** The one-shot host: launch, run the one capture pass, finish (close) — every path closes the browser. */
-export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPlan): Promise<SnapDetailedResult> {
+/** The one-run host: open the run's browser from `source`, run the one capture pass, finish — every path gives the
+ *  browser back. */
+export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPlan, source: SnapBrowserSource = LAUNCH_PER_RUN): Promise<SnapDetailedResult> {
   const { url, name } = snapDestination(opts);
   // `name` may be a PATH the caller chose (`--out /tmp/shot.png`): the shot lands exactly there, while the
   // kind-dir siblings (trace/HAR/baseline) key off its sanitized basename and stay under reports/.
@@ -401,18 +395,15 @@ export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPla
   // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
   // need pixels to compare, and --shot-of is itself a shot — so those force it on.
   const produceShot = shouldProduceShot(opts);
-  const session = await launchSnapSession(opts, {
-    pages: opts.pages,
-    requireCascadeRuntime: hasAppearanceInvariantPlan(detailedPlan),
-  });
+  const browser = await source.open(opts, { requireCascadeRuntime: hasAppearanceInvariantPlan(detailedPlan) });
   try {
     const result = await runOnSession(
-      session,
+      browser.session,
       opts,
       { url, name, out, key, produceShot, navigate: true },
       {
         window: null,
-        finish: async (red) => await finishSession(session, red, key, opts.failureEvidence),
+        finish: async (red) => await browser.finish(red, key, opts.failureEvidence),
         ...(detailedPlan === undefined ? {} : { detailedPlan }),
       },
     );
@@ -421,10 +412,10 @@ export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPla
     }
     return result;
   } catch (error) {
-    return await closeProbeSessionAfterError(session, error);
+    return await browser.abandon(error);
   }
 }
 
-export async function snap(opts: Args): Promise<number> {
-  return (await runSnapDetailed(opts)).code;
+export async function snap(opts: Args, source: SnapBrowserSource = LAUNCH_PER_RUN): Promise<number> {
+  return (await runSnapDetailed(opts, undefined, source)).code;
 }

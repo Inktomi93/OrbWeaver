@@ -25,8 +25,8 @@
 // `overflows` test below is exactly that shape, and it asserts the artifact, not stdout.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import { expect, test } from "@orb/testkit/tooling";
+import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, relationalDocument } from "@orb/testkit/node";
+import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -43,10 +43,10 @@ function shadowCarriers(count: number): string {
   return `<style>.carrier { width: 200px; height: 12px; margin: 2px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }</style>${rows.join("")}`;
 }
 
-test("a census past its bound publishes the exact overflow and refuses the run", async ({ runCli, scratch }) => {
+test("a census past its bound publishes the exact overflow and refuses the run", async ({ runCli, runSnap, scratch }) => {
   const over = SHADOW_GLOW_CAP + 3;
   await writeFile(join(scratch, "cap-exceeded.html"), relationalDocument(shadowCarriers(over)));
-  const res = await runCli("snap", ["--file", join(scratch, "cap-exceeded.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "cap-exceeded.html"), ...AUDIT_ARGV]);
 
   // THE DENOMINATOR IS COMPLETE. Pre-#1038 this line read `candidates=200 judged=200` — the truncated
   // count wearing the shape of a whole page. The scan now runs past the bound, so the overflow is EXACT.
@@ -76,10 +76,10 @@ function spillCarriers(count: number): string {
   return `<style>.spill { width: 60px; overflow: hidden; white-space: nowrap; }</style>${rows.join("")}`;
 }
 
-test("a truncated rung-1 census reaches the JSON artifact, which has no population row to fall back on", async ({ runCli, scratch }) => {
+test("a truncated rung-1 census reaches the JSON artifact, which has no population row to fall back on", async ({ runSnap, scratch }) => {
   const over = OVERFLOW_CAP + 1;
   await writeFile(join(scratch, "overflow-cap.html"), relationalDocument(spillCarriers(over)));
-  const res = await runCli("snap", ["--file", join(scratch, "overflow-cap.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "overflow-cap.html"), ...AUDIT_ARGV]);
 
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
     readonly censusCaps: Readonly<Record<string, { readonly cap: number; readonly dropped: number }>> | null;
@@ -100,9 +100,9 @@ test("a truncated rung-1 census reaches the JSON artifact, which has no populati
   await expect(res).toExitWith(2);
 });
 
-test("a census that fits inside its bound keeps judging and publishes no cap arm", async ({ runCli, scratch }) => {
+test("a census that fits inside its bound keeps judging and publishes no cap arm", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "cap-fits.html"), relationalDocument(shadowCarriers(SHADOW_GLOW_CAP)));
-  const res = await runCli("snap", ["--file", join(scratch, "cap-fits.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "cap-fits.html"), ...AUDIT_ARGV]);
 
   // The negative control the doctrine owes: the refusal must be a TRIPWIRE, not a tax every run pays.
   expect(res.stdout).toContain(`POPULATION   glow-shadow candidates=${String(SHADOW_GLOW_CAP)} judged=${String(SHADOW_GLOW_CAP)}`);
@@ -111,9 +111,9 @@ test("a census that fits inside its bound keeps judging and publishes no cap arm
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
 
-test("the artifact carries the cap ledger and a complete verdict when nothing truncated", async ({ runCli, scratch }) => {
+test("the artifact carries the cap ledger and a complete verdict when nothing truncated", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "cap-fits-json.html"), relationalDocument(shadowCarriers(SHADOW_GLOW_CAP)));
-  const res = await runCli("snap", ["--file", join(scratch, "cap-fits-json.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "cap-fits-json.html"), ...AUDIT_ARGV]);
 
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
     readonly censusCaps: Readonly<Record<string, { readonly cap: number; readonly dropped: number }>> | null;

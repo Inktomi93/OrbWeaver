@@ -2,13 +2,13 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-test("truncated text instances collapse by authored decision without erasing a later distinct repair", async ({ runCli, scratch }) => {
+test("truncated text instances collapse by authored decision without erasing a later distinct repair", async ({ runCli, runSnap, scratch }) => {
   const repeated = Array.from(
     { length: 45 },
     (_unused, index) => `<div data-slot="cast-row" style="display:flex;align-items:center;width:220px;padding:12px">
@@ -21,9 +21,13 @@ test("truncated text instances collapse by authored decision without erasing a l
   <div style="flex:0 0 auto;width:220px;height:24px;background:#333;font-size:16px">actions</div>
 </div>`;
   await writeFile(join(scratch, "truncated-populations.html"), relationalDocument(`${repeated}${distinct}`));
-  const auditRun = await runCli("snap", ["--file", join(scratch, "truncated-populations.html"), "--viewport", "1000x3000", ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const auditRun = await expectSnapParity({ runCli, runSnap }, [
+    "--file",
+    join(scratch, "truncated-populations.html"),
+    "--viewport",
+    "1000x3000",
+    ...AUDIT_ARGV,
+  ]);
   const report = await readAuditReport(auditRun.stdout);
   expect(report.findings.filter(({ rule }) => rule === "truncated-to-nothing")).toHaveLength(2);
   expect(report.populationAccounting?.["truncated-to-nothing"]).toMatchObject({
@@ -52,12 +56,12 @@ auditRuleTest(
     },
   ],
   "a visible canvas produces a canvas-ink EXCLUDED row naming the count",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body =
       '<label for="anchor">Anchor</label><input id="anchor" style="width:64px;height:32px" />' +
       '<canvas id="chart-canvas" width="200" height="120" style="display:block"></canvas>';
     await writeFile(join(scratch, "canvas-ink-fires.html"), relationalDocument(body));
-    const res = await runCli("snap", ["--file", join(scratch, "canvas-ink-fires.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", join(scratch, "canvas-ink-fires.html"), ...AUDIT_ARGV]);
     const report = await readAuditReport(res.stdout);
     expect(report.populationAccounting?.["canvas-ink"]).toMatchObject({ candidates: 1, judged: 0, excluded: { canvasPaint: 1 } });
   },
@@ -73,10 +77,10 @@ auditRuleTest(
     },
   ],
   "a pane with no canvases produces no canvas-ink row",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = '<label for="anchor2">Anchor</label><input id="anchor2" style="width:64px;height:32px" />';
     await writeFile(join(scratch, "canvas-ink-silent.html"), relationalDocument(body));
-    const res = await runCli("snap", ["--file", join(scratch, "canvas-ink-silent.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", join(scratch, "canvas-ink-silent.html"), ...AUDIT_ARGV]);
     const report = await readAuditReport(res.stdout);
     expect(report.populationAccounting?.["canvas-ink"]).toMatchObject({ candidates: 0, excluded: {} });
     return report;
@@ -92,11 +96,9 @@ const PANE = "width:600px;overflow:hidden";
 const OVERWIDE_ROW =
   '<div style="display:flex;width:3000px"><span style="flex:none;width:2400px">Archetype name</span><span style="flex:none">3 members</span></div>';
 
-async function collisionFixture(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
+async function collisionFixture(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<RelationalPopulationReport> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), "--viewport", NARROW_VIEWPORT, ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), "--viewport", NARROW_VIEWPORT, ...AUDIT_ARGV]);
   return await readAuditReport(res.stdout);
 }
 
@@ -109,8 +111,8 @@ auditRuleTest(
     },
   ],
   "a count pushed past the window edge by an over-wide row is judged against its clip",
-  async ({ runCli, scratch }) => {
-    const report = await collisionFixture(scratch, runCli, "pushed-past-window", `<div style="${PANE}">${OVERWIDE_ROW}</div>`);
+  async ({ runSnap, scratch }) => {
+    const report = await collisionFixture(scratch, runSnap, "pushed-past-window", `<div style="${PANE}">${OVERWIDE_ROW}</div>`);
     expect(report.findings.filter(({ rule }) => rule === "truncated-to-nothing")).toHaveLength(1);
   },
 );
@@ -125,10 +127,10 @@ auditRuleTest(
     },
   ],
   "a label scrolled below the fold stays out of truncated-to-nothing",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const report = await collisionFixture(
       scratch,
-      runCli,
+      runSnap,
       "below-the-fold",
       // A block label: an inline box reports no scroll width, so the census reads no natural extent from it.
       `<div style="height:3000px"></div><div style="width:300px;overflow:hidden"><div>3 members</div></div>`,
@@ -148,10 +150,10 @@ auditRuleTest(
     },
   ],
   "a count past the window edge inside a scroller that reaches it stays out of truncated-to-nothing",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const report = await collisionFixture(
       scratch,
-      runCli,
+      runSnap,
       "scroller-reaches",
       `<div style="${PANE}"><div style="width:600px;overflow-x:auto">${OVERWIDE_ROW}</div></div>`,
     );
@@ -170,10 +172,10 @@ auditRuleTest(
     },
   ],
   "a count past the window edge inside a scroller that is its own clip stays out of truncated-to-nothing",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const report = await collisionFixture(
       scratch,
-      runCli,
+      runSnap,
       "scroller-is-clip",
       `<div style="width:600px;overflow-x:auto;overflow-y:hidden">${OVERWIDE_ROW}</div>`,
     );

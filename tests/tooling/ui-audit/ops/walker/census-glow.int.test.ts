@@ -11,17 +11,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import {
-  AUDIT_ARGV,
-  auditReport,
-  configureRelationalCliBudget,
-  findingSelectors,
-  RELATIONAL_CLI_TIMEOUT_MS,
-  readAuditReport,
-  relationalDocument,
-} from "@orb/testkit/node";
+import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, findingSelectors, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -46,11 +38,9 @@ const GLOW_FIXTURE = `<style>
 <div class="box" id="on-the-element">glow on the element itself</div>
 <div class="box" id="sanctioned-cell" data-slot="media-grid-cell">owner effect carrier</div>`;
 
-test("the glow census sweeps pseudo layers, exempting the house discipline and judging every deviation from it", async ({ runCli, scratch }) => {
+test("the glow census sweeps pseudo layers, exempting the house discipline and judging every deviation from it", async ({ runCli, runSnap, scratch }) => {
   await writeFile(join(scratch, "pseudo-glow.html"), relationalDocument(GLOW_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "pseudo-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "pseudo-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV]);
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as {
     readonly findings: readonly { readonly rule: string; readonly selector: string }[];
@@ -83,13 +73,13 @@ const CTA_FIXTURE = `<style>
 </style>`;
 
 async function ctaRun(
-  runCli: ToolFixtures["runCli"],
+  runSnap: ToolFixtures["runSnap"],
   scratch: string,
   name: string,
   page: { readonly body: string; readonly hover: readonly string[] },
 ): Promise<{ readonly stdout: string; readonly report: RelationalPopulationReport }> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(`${CTA_FIXTURE}${page.body}`));
-  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...page.hover, ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...page.hover, ...AUDIT_ARGV]);
   return { stdout: res.stdout, report: await readAuditReport(res.stdout) };
 }
 
@@ -103,8 +93,8 @@ auditRuleTest(
     },
   ],
   "a hovered CTA's token glow is sanctioned in the rest glow census",
-  async ({ runCli, scratch }) => {
-    const { report } = await ctaRun(runCli, scratch, "rest-cta-glow", {
+  async ({ runSnap, scratch }) => {
+    const { report } = await ctaRun(runSnap, scratch, "rest-cta-glow", {
       body: '<button class="cta" id="hovered-cta">Start chat</button>',
       hover: ["--hover", "#hovered-cta"],
     });
@@ -116,8 +106,8 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "glow-shadow", kind: "fires", reason: "a halo one layer past the token is a hand-spelled glow, not the ratified CTA treatment" }],
   "a near-miss of the CTA glow token still fires in the rest glow census",
-  async ({ runCli, scratch }) => {
-    const { stdout } = await ctaRun(runCli, scratch, "rest-cta-near", {
+  async ({ runSnap, scratch }) => {
+    const { stdout } = await ctaRun(runSnap, scratch, "rest-cta-near", {
       body: '<button class="cta" id="near-cta">Start chat</button>',
       hover: ["--hover", "#near-cta"],
     });
@@ -128,8 +118,8 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "glow-shadow", kind: "fires", reason: "the token is ratified for hover only, so a card painting it at rest is a stray glow" }],
   "the CTA glow token painted at rest without hover still fires",
-  async ({ runCli, scratch }) => {
-    const { stdout } = await ctaRun(runCli, scratch, "rest-cta-static", { body: '<div id="static-card">A card that glows at rest</div>', hover: [] });
+  async ({ runSnap, scratch }) => {
+    const { stdout } = await ctaRun(runSnap, scratch, "rest-cta-static", { body: '<div id="static-card">A card that glows at rest</div>', hover: [] });
     expect(findingSelectors(stdout, "glow-shadow")).toEqual(["#static-card"]);
   },
 );

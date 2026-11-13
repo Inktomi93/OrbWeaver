@@ -9,7 +9,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient, LibsqlError } from "@libsql/client";
 import { isPlainObject } from "@orb/kit/guards";
@@ -21,6 +21,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 // biome-ignore lint/performance/noNamespaceImport: drizzle needs the whole schema module as `{ schema }` and as `typeof schema` for the Db type — the canonical pattern.
 import * as schema from "#schema";
 import { backupNamePatterns, isBackupFileName, KEEP_DAILY_BACKUPS, KEEP_RECENT_BACKUPS } from "./backup-names.ts";
+import { localPath } from "./local-path.ts";
 
 // The drizzle database `createDb` builds. Only the migrator takes it whole.
 type DrizzleDb = LibSQLDatabase<typeof schema>;
@@ -47,7 +48,6 @@ export type LibSqlWrap = (client: Client) => Client;
 
 // `PRAGMA foreign_keys` reads back 1 when enforcement is ON.
 const FK_ENABLED = 1;
-const FILE_SCHEME = "file:";
 const WAL = "wal";
 
 /**
@@ -90,19 +90,6 @@ function builtHandle(db: Db): { readonly client: Client; readonly drizzle: Drizz
 
 function clientOf(db: Db): Client {
   return builtHandle(db).client;
-}
-
-/** The native file client's path, retaining bare cwd-relative paths; undefined for non-file URLs. */
-export function localPath(url: string): string | undefined {
-  if (!url.startsWith(FILE_SCHEME)) {
-    return;
-  }
-  // Node roots bare file URLs; libSQL retains relative paths and percent-decodes only the URI pathname.
-  if (!url.startsWith(`${FILE_SCHEME}//`)) {
-    const pathname = url.slice(FILE_SCHEME.length).split(/[?#]/u, 1)[0] ?? "";
-    return decodeURIComponent(pathname);
-  }
-  return fileURLToPath(url); // file://host-form
 }
 
 /**

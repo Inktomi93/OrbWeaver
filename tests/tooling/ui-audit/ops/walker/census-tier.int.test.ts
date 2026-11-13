@@ -14,9 +14,9 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -28,16 +28,14 @@ interface AuditRun {
 
 interface AuditFixture {
   readonly scratch: string;
-  readonly runCli: ToolFixtures["runCli"];
+  readonly runSnap: ToolFixtures["runSnap"];
   readonly name: string;
   readonly body: string;
 }
 
-async function auditFixture({ scratch, runCli, name, body }: AuditFixture): Promise<AuditRun> {
+async function auditFixture({ scratch, runSnap, name, body }: AuditFixture): Promise<AuditRun> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const result = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const result = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
   return { report: await readAuditReport(result.stdout), code: result.code };
 }
 
@@ -61,9 +59,11 @@ auditRuleTest(
     },
   ],
   "a painted padding that diverges from the surface's declared tier is a tier-drift",
-  async ({ runCli, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="padding:20px;width:100px;height:60px;background:#222"></div></div>`;
-    const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-defect", body });
+    // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
+    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const { report } = await auditFixture({ scratch, runSnap: parity, name: "tier-drift-defect", body });
     const findings = report.findings.filter(({ rule }) => rule === "tier-drift");
     expect(findings).toHaveLength(4);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 5, judged: 5, emitted: 4 });
@@ -83,9 +83,9 @@ auditRuleTest(
     },
   ],
   "an elevated card-root is judged against its own radius token instead of the tier default",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" data-elevated style="width:100px;height:60px;background:#222"></div></div>`;
-    const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-elevated", body });
+    const { report } = await auditFixture({ scratch, runSnap, name: "tier-drift-elevated", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({
       candidates: 5,
@@ -110,13 +110,13 @@ auditRuleTest(
     },
   ],
   "a card-root outside every Surface keeps its own default, never judged against a tier",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // The label is LOAD-BEARING here, unlike the tiered fixtures above (#25): an untiered card-root is
     // excluded before it is sampled, so this page censuses NOTHING in any family — text included — and a
     // zero census is correctly an instrument failure that writes no report. A censusable node is what
     // lets the run reach the verdict this test reads.
     const body = `${CARD_TIER_CSS}<div data-slot="card-root" style="padding:99px;border-radius:99px;width:100px;height:60px;background:#222">Card</div>`;
-    const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-untiered", body });
+    const { report } = await auditFixture({ scratch, runSnap, name: "tier-drift-untiered", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({
       candidates: 5,
@@ -140,13 +140,13 @@ auditRuleTest(
     },
   ],
   "a surface tier that never resolves its own custom properties is withheld, never judged clean",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // "broken" is a real [data-surface-tier] value, but this fixture's <style> never defines
     // --orb-tier-island-pad/--orb-tier-island-radius for it, so getPropertyValue reads back "".
     // The label is load-bearing for the same reason as the untiered fixture above (#25): an unresolved
     // chain is WITHHELD before it is sampled, so nothing at all is censused without it.
     const body = `${CARD_TIER_CSS}<div data-surface-tier="broken"><div data-slot="card-root" style="width:100px;height:60px;background:#222">Card</div></div>`;
-    const { report, code } = await auditFixture({ scratch, runCli, name: "tier-drift-broken", body });
+    const { report, code } = await auditFixture({ scratch, runSnap, name: "tier-drift-broken", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({
       candidates: 5,
@@ -171,9 +171,9 @@ auditRuleTest(
     },
   ],
   "a card-root that resolves to exactly its tier's sanctioned pixel is judged clean",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="width:100px;height:60px;background:#222"></div></div>`;
-    const { report, code } = await auditFixture({ scratch, runCli, name: "tier-drift-clean", body });
+    const { report, code } = await auditFixture({ scratch, runSnap, name: "tier-drift-clean", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 5, judged: 5, affected: 0 });
     expect(code).toBe(0);
@@ -214,9 +214,9 @@ auditRuleTest(
     },
   ],
   "a math-function leading token is resolved and judged, not withheld as unresolved",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `${LEADING_TIER_CSS}<div data-surface-tier="instrument"><span data-slot="list-row-title" style="display:block;width:160px;height:20px;background:#222"></span></div>`;
-    const { report, code } = await auditFixture({ scratch, runCli, name: "tier-leading-clean", body });
+    const { report, code } = await auditFixture({ scratch, runSnap, name: "tier-leading-clean", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 3, judged: 3, affected: 0, withheld: {} });
     expect(code).toBe(0);
@@ -234,9 +234,9 @@ auditRuleTest(
     },
   ],
   "a leading that diverges from a math-function tier token is a tier-drift",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `${LEADING_TIER_CSS}<div data-surface-tier="instrument"><span data-slot="list-row-title" style="display:block;width:160px;height:40px;background:#222;line-height:30px"></span></div>`;
-    const { report } = await auditFixture({ scratch, runCli, name: "tier-leading-drift", body });
+    const { report } = await auditFixture({ scratch, runSnap, name: "tier-leading-drift", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(1);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 3, judged: 3, emitted: 1, withheld: {} });
   },

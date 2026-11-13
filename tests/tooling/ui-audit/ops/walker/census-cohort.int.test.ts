@@ -1,12 +1,12 @@
 // Adversarial row-binding control for #984 through the shipped CLI and real Chromium geometry.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
-import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
+import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-test("row-void rejects an unbound title/actions topbar even when its rendered gap is enormous", async ({ runCli, scratch }) => {
+test("row-void rejects an unbound title/actions topbar even when its rendered gap is enormous", async ({ runCli, runSnap, scratch }) => {
   await writeFile(
     join(scratch, "unbound-topbar.html"),
     relationalDocument(`<header style="display:flex;justify-content:space-between;align-items:center;width:1000px;height:48px">
@@ -14,9 +14,7 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
   <div><button style="width:80px;height:32px">Reset</button><button style="width:80px;height:32px">Save</button></div>
 </header>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV]);
   const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["row-void"]).toMatchObject({
     candidates: 1,
@@ -33,7 +31,7 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
   await expect(res).toExitWith(0);
 });
 
-test("cohort-anatomy withholds an actively animating cohort instead of counting it judged", async ({ runCli, scratch }) => {
+test("cohort-anatomy withholds an actively animating cohort instead of counting it judged", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "animating-cohort.html"),
     relationalDocument(`<style>@keyframes hold { from { opacity:.99 } to { opacity:1 } }</style><section>
@@ -42,9 +40,7 @@ test("cohort-anatomy withholds an actively animating cohort instead of counting 
   <div data-slot="setting-row" style="height:16px">c</div>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "animating-cohort.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "animating-cohort.html"), ...AUDIT_ARGV]);
   const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 0, withheld: { animating: 1 } });
   expect(report.findings.map(({ rule }) => rule)).not.toContain("cohort-anatomy");
@@ -52,7 +48,7 @@ test("cohort-anatomy withholds an actively animating cohort instead of counting 
   await expect(res).toExitWith(2);
 });
 
-test("cohort-anatomy judges a retained animation after its play state is finished", async ({ runCli, scratch }) => {
+test("cohort-anatomy judges a retained animation after its play state is finished", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "finished-cohort.html"),
     relationalDocument(`<style>@keyframes done { from { opacity:.99 } to { opacity:1 } }</style><section>
@@ -61,9 +57,7 @@ test("cohort-anatomy judges a retained animation after its play state is finishe
   <div data-slot="setting-row" style="height:32px">c</div>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "finished-cohort.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "finished-cohort.html"), ...AUDIT_ARGV]);
   const report = await readAuditReport(res.stdout);
   expect(report.populationAccounting?.["cohort-anatomy"]).toMatchObject({ candidates: 1, judged: 1, withheld: {} });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
@@ -91,7 +85,7 @@ const INLINE_COHORT_CSS = "p.measure { width: 220px; margin: 0; font: 14px/21px 
  *  content-explains-the-box discriminator cannot absolve the short one. */
 const BLOCK_COHORT_CSS = "#rows > div { display: block; width: 200px } #rows i { display: block; height: 8px; background: #444 }";
 
-test("cohort-anatomy excludes a cohort of inline prose runs and still judges a block cohort in the same run", async ({ runCli, scratch }) => {
+test("cohort-anatomy excludes a cohort of inline prose runs and still judges a block cohort in the same run", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "inline-run-cohort.html"),
     relationalDocument(`<style>${INLINE_COHORT_CSS} ${BLOCK_COHORT_CSS}</style>
@@ -102,9 +96,7 @@ test("cohort-anatomy excludes a cohort of inline prose runs and still judges a b
   <div data-slot="config-row" style="height:16px"><i></i></div>
 </div>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "inline-run-cohort.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "inline-run-cohort.html"), ...AUDIT_ARGV]);
   const report = await readAuditReport(res.stdout);
   // BOTH cohorts are candidates: the prose one is excluded with a reason, not dropped, so widening this
   // fence shows up in the denominator rather than as a quieter clean run.
@@ -141,9 +133,9 @@ auditRuleTest(
     },
   ],
   "a row of Text primitives is no cohort, and the same heights on a real component still report",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "text-row.html"), relationalDocument(`${threeInARow("text", "text-row")}${threeInARow("band", "band-row")}`));
-    const res = await runCli("snap", ["--file", join(scratch, "text-row.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", join(scratch, "text-row.html"), ...AUDIT_ARGV]);
     const report = await readAuditReport(res.stdout);
     expect(report.findings.filter(({ rule }) => rule === "cohort-anatomy")).toHaveLength(1);
     return report;

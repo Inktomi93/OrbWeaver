@@ -40,6 +40,7 @@ const CASCADE_RUNTIMES = new WeakMap<ProbeSession, DevToolsCascadeRuntime>();
 // read-it-back mechanism is strictly more general — it needs no free-port race and it survives a browser
 // somebody else launched — so the reserving path is GONE and the refusal with it.
 const DEBUG_PROFILES = new WeakMap<ProbeSession, string>();
+const LAUNCHED_HEADLESS = new WeakMap<ProbeSession, boolean>();
 // Harness-side determinism for --probe: floor every animation/transition and hide the
 // caret from FIRST PAINT (screenshot-time `animations:"disabled"` only rewinds at capture;
 // this kills mid-run flicker during steps too). Raw string — see floor/browser/browser.ts header.
@@ -274,27 +275,45 @@ export async function launchSnapSession(opts: Args, extras: LaunchExtras = {}): 
   if (persistent !== null) {
     DEBUG_PROFILES.set(session, persistent.profileDir);
   }
-  if (opts.probe) {
-    try {
-      await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
-    } catch (error) {
-      return await closeProbeSessionAfterError(session, error);
-    }
-  }
+  LAUNCHED_HEADLESS.set(session, !opts.vnc);
   try {
-    LOAD_EMULATIONS.set(session, await applyLoadEmulation(session, opts));
-    await applyVisionEmulation(session, opts);
+    await prepareRunContexts(session, opts);
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }
   return session;
 }
 
-/** Build one isolated matrix-cell context within the daemon's already-launched Chromium. The context gets
- *  its own emulation, settings shim, capture rings and optional failure artifacts; the returned view keeps
- *  existing capture operations honest about which cell they are reading. */
+/** What every context a run captures in gets before its first navigation, whether its browser was launched for the
+ *  run or already running: the `--probe` floor, then the run's CDP load and vision emulation. */
+async function prepareRunContexts(session: ProbeSession, opts: Args): Promise<void> {
+  if (opts.probe) {
+    await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
+  }
+  // A new context inherits none of another context's CDP emulation, so each gets the run's own.
+  LOAD_EMULATIONS.set(session, await applyLoadEmulation(session, opts));
+  await applyVisionEmulation(session, opts);
+}
+
+/** Whether `session`'s browser was launched headless; a context opened inside it cannot change that. */
+export function launchedHeadless(session: ProbeSession): boolean {
+  const headless = LAUNCHED_HEADLESS.get(session);
+  if (headless === undefined) {
+    throw new Error("INSTRUMENT ERROR: snap browser session was not launched through launchSnapSession");
+  }
+  return headless;
+}
+
+/** Whether `session`'s browser publishes a debugging endpoint (`debuggingPortFor` reads its port). */
+export function publishesDebugging(session: ProbeSession): boolean {
+  return DEBUG_PROFILES.has(session);
+}
+
+/** Build one isolated context within an already-launched Chromium: a matrix cell in a session daemon, or any run
+ *  `contextsIn` hosts. The context gets the run's own pages, emulation, settings shim, capture rings and optional
+ *  failure artifacts; the returned view keeps existing capture operations honest about which context they read. */
 export async function openSnapMatrixContext(owner: ProbeSession, opts: Args): Promise<{ readonly context: ProbeContext; readonly session: ProbeSession }> {
-  const context = await openProbeContext(owner.browser, buildLaunchOptions(opts, { cascade: null, debugging: null }), 0);
+  const context = await openProbeContext(owner.browser, { ...buildLaunchOptions(opts, { cascade: null, debugging: null }), pages: opts.pages }, 0);
   context.diagnosticWindow.value = owner.diagnosticWindow.value;
   const session = probeSessionForContext(owner, context);
   adoptRequestRing(owner, session, context);
@@ -306,10 +325,8 @@ export async function openSnapMatrixContext(owner: ProbeSession, opts: Args): Pr
   if (profile !== undefined) {
     DEBUG_PROFILES.set(session, profile);
   }
-  // A new context inherits none of the owner's CDP emulation, so the cell gets the run's own, before navigation.
   try {
-    LOAD_EMULATIONS.set(session, await applyLoadEmulation(session, opts));
-    await applyVisionEmulation(session, opts);
+    await prepareRunContexts(session, opts);
   } catch (error) {
     await context.context.close();
     throw error;

@@ -4,7 +4,7 @@
 // keepNames `__name` helper breaking serialized functions — died with the tsx shed;
 // the lib-mismatch reason stands alone.)
 
-import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/names";
 import type { Browser, BrowserContext, CDPSession, devices, LaunchOptions, Page, PlaywrightWorkerOptions } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { warn } from "../cli/log.ts";

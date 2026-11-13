@@ -134,6 +134,11 @@ export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile } from "./lib/th
 // it is installed before any run arm exists.
 export { scanDeadCss } from "./ops/arms/dead-css.ts";
 export { auditSettledPage } from "./ops/arms/lighthouse.ts";
+// One invocation from its argv, and where its browser comes from: cli.ts launches one per run; a host holding one
+// Chromium for many invocations (a test file) passes `contextsIn` over a browser it launched with `launchSnapSession`.
+export type { RunBrowser, RunBrowserNeeds, SnapBrowserSource } from "./ops/browser-source.ts";
+export { contextsIn, LAUNCH_PER_RUN } from "./ops/browser-source.ts";
+export { runSnapCommand } from "./ops/command.ts";
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";
 export { splitTrailingEvals } from "./ops/drive-actions.ts";
 export { resolveFixtureTarget } from "./ops/fixture.ts";
@@ -157,6 +162,7 @@ export { completeSnapRun } from "./ops/run-bundle.ts";
 export { listSnapRunIndices, printSnapReport, printSnapReports, readSnapRunIndex, resolveSnapRunIndex } from "./ops/run-report.ts";
 export { parseScenarioSpec, runScenarioDetailed, snapScenario } from "./ops/scenario.ts";
 export { prepareScenario } from "./ops/scenario-prepare.ts";
+export { launchSnapSession } from "./ops/session.ts";
 // The stateful-session substrate: the admin verbs, the
 // client (boot + call + export), and the daemon's own entry — all three dispatched by cli.ts.
 export { runSessionAdmin } from "./ops/session-admin.ts";

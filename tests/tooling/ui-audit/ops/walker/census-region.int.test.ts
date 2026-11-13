@@ -2,13 +2,13 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-test("quiet-state refuses a global comparison between unrelated component families and backdrops", async ({ runCli, scratch }) => {
+test("quiet-state refuses a global comparison between unrelated component families and backdrops", async ({ runCli, runSnap, scratch }) => {
   await writeFile(
     join(scratch, "unrelated-states.html"),
     relationalDocument(`<section role="region" aria-label="Light family" style="background:#000;padding:12px">
@@ -18,9 +18,7 @@ test("quiet-state refuses a global comparison between unrelated component famili
   <span data-slot="switch-root" data-variant="strong" data-checked style="display:block;width:48px;height:24px;background:#7a4a12">on</span>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "unrelated-states.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "unrelated-states.html"), "--fail-on", "P2", ...AUDIT_ARGV]);
   expect(res.stdout, "two global extrema with no compatible authored cohort prove no state ordering").not.toMatch(/^P2\s+quiet-state/mu);
   expect(res.stdout).toContain("POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0");
   expect(res.stdout).toContain("unmatchedOff=1");
@@ -30,7 +28,7 @@ test("quiet-state refuses a global comparison between unrelated component famili
   await expect(res).toExitWith(2);
 });
 
-test("quiet-state counts a compatible resolved ON/OFF cohort as judged", async ({ runCli, scratch }) => {
+test("quiet-state counts a compatible resolved ON/OFF cohort as judged", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "paired-states.html"),
     relationalDocument(`<section role="region" aria-label="Switches" style="background:#000;padding:12px">
@@ -38,7 +36,7 @@ test("quiet-state counts a compatible resolved ON/OFF cohort as judged", async (
   <span data-slot="switch-root" data-variant="quiet" data-checked style="display:block;width:48px;height:24px;background:#f90">on</span>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "paired-states.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "paired-states.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain("POPULATION   quiet-state candidates=1 judged=1 affected=0 populations=0 representatives=0");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
@@ -50,7 +48,7 @@ test("quiet-state counts a compatible resolved ON/OFF cohort as judged", async (
 // restatement of the state axis, so the cohort could only ever come out one-sided. The four controls
 // below pin both directions: a state-painted context folds, a genuinely different one still splits.
 
-test("quiet-state does not split a sub-part cohort by the state its own carrier paints", async ({ runCli, scratch }) => {
+test("quiet-state does not split a sub-part cohort by the state its own carrier paints", async ({ runSnap, scratch }) => {
   // The live Settings -> Appearance shape: `switch-thumb`'s nearest opaque ancestor IS `switch-root`,
   // whose fill is the ON/OFF track. Partitioning on it put the three ON thumbs and the seven OFF thumbs
   // in different partitions of one authored cohort — `withheld(unmatchedOn=1 unmatchedOff=1)`, a
@@ -66,15 +64,13 @@ test("quiet-state does not split a sub-part cohort by the state its own carrier 
   </span>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "state-painted-context.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "state-painted-context.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain("POPULATION   quiet-state candidates=2 judged=2 affected=0 populations=0 representatives=0 withheld() excluded()");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(0);
 });
 
-test("quiet-state does not split a cohort by the selection tint of its own container", async ({ runCli, scratch }) => {
+test("quiet-state does not split a cohort by the selection tint of its own container", async ({ runSnap, scratch }) => {
   // The live Characters bulk-mode shape: the checked row's `[data-slot=list-row-root][data-selected]`
   // carries a 10% ember tint, so one authored cohort of ten row checkboxes resolved two backdrops and
   // withheld both halves.
@@ -89,15 +85,13 @@ test("quiet-state does not split a cohort by the selection tint of its own conta
   </div>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "tinted-container.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "tinted-container.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain("POPULATION   quiet-state candidates=1 judged=1 affected=0 populations=0 representatives=0 withheld() excluded()");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(0);
 });
 
-test("quiet-state still splits one authored cohort across genuinely different paint contexts", async ({ runCli, scratch }) => {
+test("quiet-state still splits one authored cohort across genuinely different paint contexts", async ({ runSnap, scratch }) => {
   // ANTI-COLLAPSE FENCE (green before and after #1068, deliberately): the same authored component in two
   // differently-painted panels is still two paint contexts, because neither panel's fill is a state.
   await writeFile(
@@ -111,9 +105,7 @@ test("quiet-state still splits one authored cohort across genuinely different pa
   </div>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "distinct-contexts.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "distinct-contexts.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain("POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0");
   expect(res.stdout).toContain("unmatchedOn=1");
   expect(res.stdout).toContain("unmatchedOff=1");
@@ -121,7 +113,7 @@ test("quiet-state still splits one authored cohort across genuinely different pa
   await expect(res).toExitWith(2);
 });
 
-test("quiet-state records a cohort that paints no fill of its own as a closed exclusion", async ({ runCli, scratch }) => {
+test("quiet-state records a cohort that paints no fill of its own as a closed exclusion", async ({ runSnap, scratch }) => {
   // A `checkbox-indicator` is a transparent glyph host: it has no fill, so it has no loudness to rank and
   // the ordering rule does not apply to it. That is complete evidence (`excluded`), not the missing
   // measurement `withheld(unresolved)` recorded it as — which alone made the driven Characters run a
@@ -135,9 +127,7 @@ test("quiet-state records a cohort that paints no fill of its own as a closed ex
   <span data-slot="checkbox-root" data-unchecked style="display:block;width:24px;height:24px;background:#333"></span>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "fill-less-cohort.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "fill-less-cohort.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain("POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(noOwnFill=1)");
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(0);
@@ -173,12 +163,12 @@ function pickerGroup(scrim: string, chip = ""): string {
  *  sitting visibly ON TOP of them. */
 const PICKER_CHIP = `<span data-slot="picker-chip" style="position:absolute;top:4px;left:4px;width:16px;height:16px;background:#555"></span>`;
 
-test("quiet-state resolves the paint under a checked cell whose own indicator is a contentless paint layer", async ({ runCli, scratch }) => {
+test("quiet-state resolves the paint under a checked cell whose own indicator is a contentless paint layer", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "carrier-own-indicator.html"),
     relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("")}</section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "carrier-own-indicator.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "carrier-own-indicator.html"), ...AUDIT_ARGV]);
   // The cells are JUDGED — a layer inside a carrier is painted OVER that carrier's own fill and can never
   // be between it and the surface beneath it. The indicator cohort is a checked-only component PART, so
   // its missing OFF twin is a closed component fact (`keepMounted:false`), not missing evidence: the
@@ -190,7 +180,7 @@ test("quiet-state resolves the paint under a checked cell whose own indicator is
   await expect(res).toExitWith(0);
 });
 
-test("quiet-state still withholds when a real layer is painted between the carrier and its base", async ({ runCli, scratch }) => {
+test("quiet-state still withholds when a real layer is painted between the carrier and its base", async ({ runSnap, scratch }) => {
   // ANTI-WIDENING FENCE (withheld before and after #1155's fix, deliberately): a contentless painted scrim
   // that is a SIBLING of the cells does sit between them and the section's fill and does cover their
   // boxes, so the paint under the CELLS is genuinely unmeasured and their cohort is still withheld.
@@ -202,7 +192,7 @@ test("quiet-state still withholds when a real layer is painted between the carri
     join(scratch, "scrim-over-carrier.html"),
     relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup(scrim)}</section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "scrim-over-carrier.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "scrim-over-carrier.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain(
     "POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld(unresolved=1) excluded(nestedStatePart=1)",
   );
@@ -210,12 +200,12 @@ test("quiet-state still withholds when a real layer is painted between the carri
   await expect(res).toExitWith(2);
 });
 
-test("quiet-state judges a carrier whose overlapping layer paints ON TOP of it, not beneath it", async ({ runCli, scratch }) => {
+test("quiet-state judges a carrier whose overlapping layer paints ON TOP of it, not beneath it", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "chip-over-carrier.html"),
     relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("", PICKER_CHIP)}</section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "chip-over-carrier.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "chip-over-carrier.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain(
     "POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
   );
@@ -223,14 +213,14 @@ test("quiet-state judges a carrier whose overlapping layer paints ON TOP of it, 
   await expect(res).toExitWith(0);
 });
 
-test("quiet-state judges a carrier whose chip a positive z-index ranks above it", async ({ runCli, scratch }) => {
+test("quiet-state judges a carrier whose chip a positive z-index ranks above it", async ({ runSnap, scratch }) => {
   // The walker resolves the stacking context: the chip's z-index 2 outranks the cells' level 0 in the root context.
   const zChip = PICKER_CHIP.replace("position:absolute", "position:absolute;z-index:2");
   await writeFile(
     join(scratch, "z-indexed-chip.html"),
     relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("", zChip)}</section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "z-indexed-chip.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "z-indexed-chip.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain(
     "POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
   );
@@ -238,14 +228,14 @@ test("quiet-state judges a carrier whose chip a positive z-index ranks above it"
   await expect(res).toExitWith(0);
 });
 
-test("quiet-state still withholds when a negative z-index ranks the chip below the carrier", async ({ runCli, scratch }) => {
+test("quiet-state still withholds when a negative z-index ranks the chip below the carrier", async ({ runSnap, scratch }) => {
   // Control for the case above: a layer ranked under the cells is not above them, so it keeps its veto.
   const zChip = PICKER_CHIP.replace("position:absolute", "position:absolute;z-index:-1");
   await writeFile(
     join(scratch, "z-under-chip.html"),
     relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("", zChip)}</section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "z-under-chip.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "z-under-chip.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain(
     "POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld(unresolved=1) excluded(nestedStatePart=1)",
   );
@@ -260,9 +250,9 @@ function clippedScrimFixture(scrimTop: number): string {
   return `<section role="region" aria-label="Pickers" style="position:relative;background:#000;width:320px;height:200px">${scroller}<div style="position:absolute;top:${String(scrimTop)}px;left:0">${pickerGroup("")}</div></section>`;
 }
 
-test("quiet-state judges a carrier whose scrim its scroller clips away", async ({ runCli, scratch }) => {
+test("quiet-state judges a carrier whose scrim its scroller clips away", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "clipped-scrim.html"), relationalDocument(clippedScrimFixture(70)));
-  const res = await runCli("snap", ["--file", join(scratch, "clipped-scrim.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "clipped-scrim.html"), ...AUDIT_ARGV]);
   expect(res.stdout).toContain(
     "POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
   );
@@ -270,36 +260,32 @@ test("quiet-state judges a carrier whose scrim its scroller clips away", async (
   await expect(res).toExitWith(0);
 });
 
-test("quiet-state still withholds when the scrim paints inside its scroller under the carrier", async ({ runCli, scratch }) => {
+test("quiet-state still withholds when the scrim paints inside its scroller under the carrier", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "shown-scrim.html"), relationalDocument(clippedScrimFixture(0)));
-  const res = await runCli("snap", ["--file", join(scratch, "shown-scrim.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "shown-scrim.html"), ...AUDIT_ARGV]);
   // The scrim also covers the paint context both cohorts are keyed on, so the indicator cohort is withheld too.
   expect(res.stdout).toContain("POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld(unresolved=2) excluded()");
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(2);
 });
 
-test("independent labelled regions do not become one contradictory double-empty surface", async ({ runCli, scratch }) => {
+test("independent labelled regions do not become one contradictory double-empty surface", async ({ runSnap, scratch }) => {
   const empty = (label: string): string => `<section role="region" aria-label="${label}">
   <div data-slot="empty-state-root"><p>${label} is empty</p><div data-slot="empty-state-action"><button style="height:32px">Create</button></div></div>
 </section>`;
   await writeFile(join(scratch, "independent-empty.html"), relationalDocument(`${empty("Library")}${empty("Queue")}`));
-  const res = await runCli("snap", ["--file", join(scratch, "independent-empty.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "independent-empty.html"), "--fail-on", "P2", ...AUDIT_ARGV]);
   expect(res.stdout, "each declared region owns one actionable empty state").not.toMatch(/^P2\s+double-empty-state/mu);
 });
 
-test("a hidden empty-state action is not an operable door out", async ({ runCli, scratch }) => {
+test("a hidden empty-state action is not an operable door out", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "hidden-empty-action.html"),
     relationalDocument(`<section role="region" aria-label="Library">
   <div data-slot="empty-state-root"><p>No books yet</p><div data-slot="empty-state-action" style="display:none"><button>Create</button></div></div>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, "hidden-empty-action.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "hidden-empty-action.html"), "--fail-on", "P2", ...AUDIT_ARGV]);
   expect(res.stdout).toContain("double-empty-state");
   expect(res.stdout, "the hidden descendant must not clear the dead-end arm").toContain("1 with no action");
 });
@@ -312,9 +298,9 @@ function libraryEmpty(state: string): string {
 const AUTHORED_REASON =
   '<div data-slot="empty-state-root" data-empty-action="none"><p data-slot="empty-state-title">Nothing selected</p><p data-slot="empty-state-description">Pick a book from the list.</p></div>';
 
-async function auditEmpty(name: string, body: string, runCli: ToolFixtures["runCli"], scratch: string): Promise<string> {
+async function auditEmpty(name: string, body: string, runSnap: ToolFixtures["runSnap"], scratch: string): Promise<string> {
   await writeFile(join(scratch, name), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, name), "--fail-on", "P2", ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, name), "--fail-on", "P2", ...AUDIT_ARGV]);
   return res.stdout;
 }
 
@@ -328,54 +314,54 @@ auditRuleTest(
     },
   ],
   "an authored no-action empty state with a visible reason is excluded, not a dead end",
-  async ({ runCli, scratch }) => {
-    const stdout = await auditEmpty("authored-reason.html", libraryEmpty(AUTHORED_REASON), runCli, scratch);
+  async ({ runSnap, scratch }) => {
+    const stdout = await auditEmpty("authored-reason.html", libraryEmpty(AUTHORED_REASON), runSnap, scratch);
     expect(stdout).not.toMatch(/^P2\s+double-empty-state/mu);
     return await readAuditReport(stdout);
   },
 );
 
-test("an authored no-action empty state with a bare title is still a dead end", async ({ runCli, scratch }) => {
+test("an authored no-action empty state with a bare title is still a dead end", async ({ runSnap, scratch }) => {
   const bare = '<div data-slot="empty-state-root" data-empty-action="none"><p data-slot="empty-state-title">Nothing selected</p></div>';
-  const stdout = await auditEmpty("authored-bare.html", libraryEmpty(bare), runCli, scratch);
+  const stdout = await auditEmpty("authored-bare.html", libraryEmpty(bare), runSnap, scratch);
   expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
   expect(stdout).toContain("1 with no action");
 });
 
-test("an authored no-action empty state whose reason is hidden is still a dead end", async ({ runCli, scratch }) => {
+test("an authored no-action empty state whose reason is hidden is still a dead end", async ({ runSnap, scratch }) => {
   const hiddenReason = AUTHORED_REASON.replace('data-slot="empty-state-description"', 'data-slot="empty-state-description" style="display:none"');
-  const stdout = await auditEmpty("authored-hidden-reason.html", libraryEmpty(hiddenReason), runCli, scratch);
+  const stdout = await auditEmpty("authored-hidden-reason.html", libraryEmpty(hiddenReason), runSnap, scratch);
   expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
   expect(stdout).toContain("1 with no action");
 });
 
-test("an authored no-action empty state whose reason is clipped screen-reader-only text is still a dead end", async ({ runCli, scratch }) => {
+test("an authored no-action empty state whose reason is clipped screen-reader-only text is still a dead end", async ({ runSnap, scratch }) => {
   // Tailwind's sr-only recipe: the box is laid out, and the clip paints none of it.
   const srOnly = "position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap";
   const clippedReason = AUTHORED_REASON.replace('data-slot="empty-state-description"', `data-slot="empty-state-description" style="${srOnly}"`);
-  const stdout = await auditEmpty("authored-sr-only-reason.html", libraryEmpty(clippedReason), runCli, scratch);
+  const stdout = await auditEmpty("authored-sr-only-reason.html", libraryEmpty(clippedReason), runSnap, scratch);
   expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
   expect(stdout).toContain("1 with no action");
 });
 
-test("an unstamped empty state with a reason and a disabled action is still a dead end", async ({ runCli, scratch }) => {
+test("an unstamped empty state with a reason and a disabled action is still a dead end", async ({ runSnap, scratch }) => {
   const disabled =
     '<div data-slot="empty-state-root"><p data-slot="empty-state-title">No books yet</p><p data-slot="empty-state-description">Import one first.</p><div data-slot="empty-state-action"><button disabled>Create</button></div></div>';
-  const stdout = await auditEmpty("disabled-action.html", libraryEmpty(disabled), runCli, scratch);
+  const stdout = await auditEmpty("disabled-action.html", libraryEmpty(disabled), runSnap, scratch);
   expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
   expect(stdout).toContain("1 with no action");
 });
 
-test("an authored empty state beside a second one in its surface still crowds it", async ({ runCli, scratch }) => {
+test("an authored empty state beside a second one in its surface still crowds it", async ({ runSnap, scratch }) => {
   const actionable =
     '<div data-slot="empty-state-root"><p data-slot="empty-state-title">No books yet</p><div data-slot="empty-state-action"><button>Create</button></div></div>';
-  const stdout = await auditEmpty("authored-crowded.html", libraryEmpty(`${AUTHORED_REASON}${actionable}`), runCli, scratch);
+  const stdout = await auditEmpty("authored-crowded.html", libraryEmpty(`${AUTHORED_REASON}${actionable}`), runSnap, scratch);
   expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
   expect(stdout, "the authored root answers the dead-end half, not the crowding half").toContain("2 empty state(s) rendered at once, 0 with no action");
 });
 
 /** A pane whose three text leaves end at the top, with `lowerInk` the only thing that can reach the lower pane. */
-async function runLowerInkFixture(name: string, lowerInk: string, runCli: ToolFixtures["runCli"], scratch: string): Promise<RelationalPopulationReport> {
+async function runLowerInkFixture(name: string, lowerInk: string, runSnap: ToolFixtures["runSnap"], scratch: string): Promise<RelationalPopulationReport> {
   await writeFile(
     join(scratch, `${name}.html`),
     relationalDocument(`<section role="region" aria-label="Editor" style="height:900px;overflow:hidden;position:relative">
@@ -383,15 +369,15 @@ async function runLowerInkFixture(name: string, lowerInk: string, runCli: ToolFi
   <div style="position:absolute;top:650px">${lowerInk}</div>
 </section>`),
   );
-  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
   return await readAuditReport(res.stdout);
 }
 
-test("pane-ink counts an inline SVG illustration as designed occupancy", async ({ runCli, scratch }) => {
+test("pane-ink counts an inline SVG illustration as designed occupancy", async ({ runSnap, scratch }) => {
   const report = await runLowerInkFixture(
     "designed-svg-ink",
     '<svg aria-label="workflow illustration" role="img" width="80" height="80"><circle cx="40" cy="40" r="36" fill="orange" /></svg>',
-    runCli,
+    runSnap,
     scratch,
   );
   expect(
@@ -401,14 +387,14 @@ test("pane-ink counts an inline SVG illustration as designed occupancy", async (
   expect(report.populationAccounting?.["pane-ink"]).toMatchObject({ candidates: 1, judged: 1, affected: 0 });
 });
 
-test("pane-ink counts a composed control as designed occupancy", async ({ runCli, scratch }) => {
-  const report = await runLowerInkFixture("designed-control-ink", '<button aria-label="Compose" style="width:48px;height:48px"></button>', runCli, scratch);
+test("pane-ink counts a composed control as designed occupancy", async ({ runSnap, scratch }) => {
+  const report = await runLowerInkFixture("designed-control-ink", '<button aria-label="Compose" style="width:48px;height:48px"></button>', runSnap, scratch);
   expect(report.findings.map((finding) => finding.rule)).not.toContain("pane-ink");
   expect(report.populationAccounting?.["pane-ink"]).toMatchObject({ candidates: 1, judged: 1, affected: 0 });
 });
 
-test("pane-ink still reports the same pane when nothing painted reaches the lower half", async ({ runCli, scratch }) => {
-  const report = await runLowerInkFixture("undesigned-lower-pane", "<span></span>", runCli, scratch);
+test("pane-ink still reports the same pane when nothing painted reaches the lower half", async ({ runSnap, scratch }) => {
+  const report = await runLowerInkFixture("undesigned-lower-pane", "<span></span>", runSnap, scratch);
   expect(report.findings.map((finding) => finding.rule)).toContain("pane-ink");
   expect(report.populationAccounting?.["pane-ink"]).toMatchObject({ candidates: 1, judged: 1, affected: 1 });
 });
@@ -416,22 +402,20 @@ test("pane-ink still reports the same pane when nothing painted reaches the lowe
 async function runPaneExclusionFixture(
   reason: "insufficientText" | "scrolling",
   body: string,
-  runCli: ToolFixtures["runCli"],
+  runSnap: ToolFixtures["runSnap"],
   scratch: string,
 ): Promise<{ readonly report: RelationalPopulationReport; readonly stdout: string; readonly code: number | null }> {
   await writeFile(join(scratch, `pane-${reason}.html`), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, `pane-${reason}.html`), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, `pane-${reason}.html`), ...AUDIT_ARGV]);
   const report = await readAuditReport(res.stdout);
   return { report, stdout: res.stdout, code: res.code };
 }
 
-test("pane-ink records the closed scrolling applicability carve without poisoning the audit", async ({ runCli, scratch }) => {
+test("pane-ink records the closed scrolling applicability carve without poisoning the audit", async ({ runSnap, scratch }) => {
   const result = await runPaneExclusionFixture(
     "scrolling",
     `<section role="region" aria-label="Scrollable log" style="height:400px;overflow:auto"><div style="height:800px"><p>one</p><p>two</p><p>three</p></div></section>`,
-    runCli,
+    runSnap,
     scratch,
   );
   expect(result.report.populationAccounting?.["pane-ink"]).toMatchObject({ candidates: 1, judged: 0, withheld: {}, excluded: { scrolling: 1 } });
@@ -439,11 +423,11 @@ test("pane-ink records the closed scrolling applicability carve without poisonin
   expect(result.code).toBe(0);
 });
 
-test("pane-ink records the closed insufficient-text applicability carve without poisoning the audit", async ({ runCli, scratch }) => {
+test("pane-ink records the closed insufficient-text applicability carve without poisoning the audit", async ({ runSnap, scratch }) => {
   const result = await runPaneExclusionFixture(
     "insufficientText",
     `<section role="region" aria-label="Sparse tool" style="height:500px;overflow:hidden"><p>one line</p><button style="height:44px">Run</button></section>`,
-    runCli,
+    runSnap,
     scratch,
   );
   expect(result.report.populationAccounting?.["pane-ink"]).toMatchObject({

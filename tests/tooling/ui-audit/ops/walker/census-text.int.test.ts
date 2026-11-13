@@ -18,17 +18,17 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
 import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";
 import { listeningAddress } from "../../../_server-address.ts";
 
 configureRelationalCliBudget();
 
-async function auditFixture(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
+async function auditFixture(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<RelationalPopulationReport> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
   return await readAuditReport(res.stdout);
 }
 
@@ -53,9 +53,11 @@ auditRuleTest(
     },
   ],
   "a label inside a disabled control is excluded as inactive, never filed as a contrast P1",
-  async ({ runCli, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     const body = `<button disabled style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Pick one</span></button>`;
-    const report = await auditFixture(scratch, runCli, "inactive-descendant", body);
+    // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
+    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const report = await auditFixture(scratch, parity, "inactive-descendant", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
     // The advisory is the arm that MUST NOT fire in its place: 3.45:1 is above the UI-component floor.
@@ -74,9 +76,9 @@ auditRuleTest(
     },
   ],
   "a label inside an aria-disabled control is excluded as inactive",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div role="button" aria-disabled="true" style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Pick one</span></div>`;
-    const report = await auditFixture(scratch, runCli, "inactive-aria-descendant", body);
+    const report = await auditFixture(scratch, runSnap, "inactive-aria-descendant", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
     return report;
@@ -97,9 +99,9 @@ auditRuleTest(
     },
   ],
   "the same label inside an enabled control is still judged and fails AA",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<button style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Pick one</span></button>`;
-    const report = await auditFixture(scratch, runCli, "active-descendant", body);
+    const report = await auditFixture(scratch, runSnap, "active-descendant", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, emitted: 1 });
   },
@@ -126,9 +128,9 @@ auditRuleTest(
     },
   ],
   "text a DISABLED control names via aria-labelledby is exempt",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div id="nm-1" style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-labelledby="nm-1" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
-    const report = await auditFixture(scratch, runCli, "named-by-disabled", body);
+    const report = await auditFixture(scratch, runSnap, "named-by-disabled", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
     return report;
@@ -145,9 +147,9 @@ auditRuleTest(
     },
   ],
   "the reverse lookup matches a TOKEN of a multi-id aria-labelledby",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div id="nm-a" style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-labelledby="nm-z nm-a" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
-    const report = await auditFixture(scratch, runCli, "named-token-list", body);
+    const report = await auditFixture(scratch, runSnap, "named-token-list", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     // Silent BECAUSE exempt, not silent because unjudged — the distinction the first run of these
     // fixtures got wrong (a black-backdrop label passed the ratio outright).
@@ -165,9 +167,9 @@ auditRuleTest(
     },
   ],
   "text named by an ENABLED control is still judged",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div id="nm-2" style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-labelledby="nm-2" style="${CONTROL_BOX}"></div>`;
-    const report = await auditFixture(scratch, runCli, "named-by-enabled", body);
+    const report = await auditFixture(scratch, runSnap, "named-by-enabled", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   },
 );
@@ -181,9 +183,9 @@ auditRuleTest(
     },
   ],
   "text adjacent to a disabled control, with no association, is still judged",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
-    const report = await auditFixture(scratch, runCli, "adjacent-not-named", body);
+    const report = await auditFixture(scratch, runSnap, "adjacent-not-named", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   },
 );
@@ -197,9 +199,9 @@ auditRuleTest(
     },
   ],
   "a disabled control whose aria-labelledby names a MISSING id exempts nothing",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div id="nm-3" style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-labelledby="nm-absent" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
-    const report = await auditFixture(scratch, runCli, "named-missing-id", body);
+    const report = await auditFixture(scratch, runSnap, "named-missing-id", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   },
 );
@@ -214,9 +216,9 @@ auditRuleTest(
     },
   ],
   "an exempted name dimmed below the UI-component floor still fires the P3 advisory",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div id="nm-4" style="color:#000000;font-size:16px;opacity:0.3;background:#ffffff;width:140px">Volume</div><div role="slider" aria-labelledby="nm-4" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
-    const report = await auditFixture(scratch, runCli, "named-below-floor", body);
+    const report = await auditFixture(scratch, runSnap, "named-below-floor", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     const advisories = report.findings.filter(({ rule }) => rule === "inactive-control-legibility");
     expect(advisories).toHaveLength(1);
@@ -240,9 +242,9 @@ auditRuleTest(
     },
   ],
   "text inside a [data-disabled] composite root is exempt",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div data-disabled style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Volume</span></div>`;
-    const report = await auditFixture(scratch, runCli, "vendor-disabled", body);
+    const report = await auditFixture(scratch, runSnap, "vendor-disabled", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
     return report;
@@ -259,9 +261,9 @@ auditRuleTest(
     },
   ],
   "the neighbouring data-trigger-disabled attribute exempts nothing",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div data-trigger-disabled style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Volume</span></div>`;
-    const report = await auditFixture(scratch, runCli, "vendor-neighbour", body);
+    const report = await auditFixture(scratch, runSnap, "vendor-neighbour", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   },
 );
@@ -286,9 +288,9 @@ auditRuleTest(
     },
   ],
   "text under a masked ancestor is excluded, not resolved flat",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div style="${CONTROL_BOX};${MASK}"><span style="${DIM_LABEL}">Volume</span></div>`;
-    const report = await auditFixture(scratch, runCli, "masked-ancestor", body);
+    const report = await auditFixture(scratch, runSnap, "masked-ancestor", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ maskedForeground: 1 });
     return report;
@@ -304,9 +306,9 @@ auditRuleTest(
     },
   ],
   "an unmasked sibling at the identical ratio still fires",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div style="${CONTROL_BOX};${MASK}"><span style="${DIM_LABEL}">Volume</span></div><div style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Balance</span></div>`;
-    const report = await auditFixture(scratch, runCli, "masked-and-unmasked", body);
+    const report = await auditFixture(scratch, runSnap, "masked-and-unmasked", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ candidates: 2, judged: 1, excluded: { maskedForeground: 1 } });
   },
@@ -340,9 +342,9 @@ auditRuleTest(
     },
   ],
   "a background-image under the default background-size: auto is excluded, never judged",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div style="${BG_BOX};background-size:auto"></div>`;
-    const report = await auditFixture(scratch, runCli, "bg-distortion-auto", body);
+    const report = await auditFixture(scratch, runSnap, "bg-distortion-auto", body);
     expect(report.findings.filter(({ rule }) => rule === "distorted-image")).toHaveLength(0);
     expect(report.populationAccounting?.["distorted-image"]?.excluded).toMatchObject({ objectFitDoesNotScale: 1 });
     return report;
@@ -359,9 +361,9 @@ auditRuleTest(
     },
   ],
   "the same background-image under an explicit stretching background-size still fires",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div style="${BG_BOX};background-size:100% 100%"></div>`;
-    const report = await auditFixture(scratch, runCli, "bg-distortion-scales", body);
+    const report = await auditFixture(scratch, runSnap, "bg-distortion-scales", body);
     expect(report.findings.filter(({ rule }) => rule === "distorted-image")).toHaveLength(1);
     expect(report.populationAccounting?.["distorted-image"]).toMatchObject({ judged: 1, emitted: 1 });
   },
@@ -386,8 +388,8 @@ auditRuleTest(
     },
   ],
   "small ink on a translucent plate over a fixed image is measured from pixels and fails",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "plate-over-img-art", `${FIXED_ART}${GLASS_PLATE}`);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "plate-over-img-art", `${FIXED_ART}${GLASS_PLATE}`);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1 });
   },
@@ -409,8 +411,8 @@ const PLATE_OVER_ART_SHAPES = [
   ],
 ] as const;
 
-test.for(PLATE_OVER_ART_SHAPES)("small ink on a translucent plate over %s is measured from pixels and fails", async ([name, art], { runCli, scratch }) => {
-  const report = await auditFixture(scratch, runCli, `plate-over-${name.replaceAll(" ", "-")}`, `<div style="${CARD_BOX}">${art}${CAPTION_PLATE}</div>`);
+test.for(PLATE_OVER_ART_SHAPES)("small ink on a translucent plate over %s is measured from pixels and fails", async ([name, art], { runSnap, scratch }) => {
+  const report = await auditFixture(scratch, runSnap, `plate-over-${name.replaceAll(" ", "-")}`, `<div style="${CARD_BOX}">${art}${CAPTION_PLATE}</div>`);
   expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   expect(report.populationAccounting?.["contrast"]).toMatchObject({ affected: 1 });
 });
@@ -428,8 +430,8 @@ auditRuleTest(
     },
   ],
   "a caption over in-flow art below the fold is measured, not filed as unseen art",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "caption-below-fold", `${CAPTIONED_CARD}<div style="height:2400px"></div>${CAPTIONED_CARD}`);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "caption-below-fold", `${CAPTIONED_CARD}<div style="height:2400px"></div>${CAPTIONED_CARD}`);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 2, affected: 2 });
     expect(report.populationAccounting?.["text-over-art"]?.excluded).toEqual({ flatBackdrop: 2 });
     return report;
@@ -468,11 +470,11 @@ async function slowPicture(): Promise<{ readonly url: string } & AsyncDisposable
 auditRuleTest(
   [{ rule: "contrast", kind: "fires", reason: "the caption is measured over the picture once it has painted, where it fails" }],
   "a caption over a picture still loading when the reveal reaches it is measured after the picture paints",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     await using picture = await slowPicture();
     // The page is black and the plate translucent: read before the white picture paints, the white caption passes.
     const card = `<div style="${CARD_BOX}"><img alt="" loading="lazy" src="${picture.url}" style="${WHITE_ART_BOX}">${CAPTION_PLATE}</div>`;
-    const report = await auditFixture(scratch, runCli, "caption-over-loading-art", `<div style="height:8000px"></div>${card}`);
+    const report = await auditFixture(scratch, runSnap, "caption-over-loading-art", `<div style="height:8000px"></div>${card}`);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1, withheld: {} });
   },
 );
@@ -500,8 +502,8 @@ auditRuleTest(
     },
   ],
   "captions at four depths are each measured, and the hover pass after them still judges the top of the page",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "caption-depths", `${HOVER_LABEL}${DEEP_CAPTIONS}`);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "caption-depths", `${HOVER_LABEL}${DEEP_CAPTIONS}`);
     // Five texts: the four captions, which fail, and the hover label, which passes at rest.
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 5, affected: 4, withheld: {} });
     expect(report.populationAccounting?.["text-over-art"]?.excluded).toEqual({ flatBackdrop: 5 });
@@ -525,10 +527,10 @@ auditRuleTest(
     },
   ],
   "a caption over in-flow art that no page scroll reaches is unseen",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const report = await auditFixture(
       scratch,
-      runCli,
+      runSnap,
       "caption-past-carousel",
       `<div style="display:flex;width:340px;overflow-x:auto"><div style="flex:none;width:2400px"></div>${CAPTIONED_CARD}</div>`,
     );
@@ -549,8 +551,8 @@ const ART_BESIDE_INK_SHAPES = [
   ],
 ] as const;
 
-test.for(ART_BESIDE_INK_SHAPES)("%s stays a flat backdrop", async ([name, body], { runCli, scratch }) => {
-  const report = await auditFixture(scratch, runCli, `ink-beside-${name.replaceAll(" ", "-")}`, body);
+test.for(ART_BESIDE_INK_SHAPES)("%s stays a flat backdrop", async ([name, body], { runSnap, scratch }) => {
+  const report = await auditFixture(scratch, runSnap, `ink-beside-${name.replaceAll(" ", "-")}`, body);
   expect(report.findings.filter(({ rule }) => rule === "contrast")).toEqual([]);
   expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 0 });
   expect(report.populationAccounting?.["text-over-art"]?.excluded).toMatchObject({ flatBackdrop: 1 });
@@ -567,8 +569,8 @@ auditRuleTest(
     },
   ],
   "the same plate over no art stays a flat backdrop",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "plate-over-flat", GLASS_PLATE);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "plate-over-flat", GLASS_PLATE);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 0 });
     expect(report.populationAccounting?.["text-over-art"]?.excluded).toMatchObject({ flatBackdrop: 1 });
@@ -597,8 +599,8 @@ auditRuleTest(
     { rule: "contrast", kind: "silent", reason: "white ink on the measured black fill passes", disposition: { kind: "judged" } },
   ],
   "a translucent gradient over its own opaque fill is measured from pixels, not filed as art",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "gradient-over-fill", SHADOWED_ROW("#000000", "#ffffff"));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "gradient-over-fill", SHADOWED_ROW("#000000", "#ffffff"));
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     expect(report.populationAccounting?.["gray-on-color"]?.excluded).toMatchObject({ pixelSampled: 1 });
     return report;
@@ -616,8 +618,8 @@ auditRuleTest(
     },
   ],
   "dark ink over a translucent gradient on a dark fill still fails contrast through the pixel pass",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "gradient-over-fill-dark", SHADOWED_ROW("#000000", "#333333"));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "gradient-over-fill-dark", SHADOWED_ROW("#000000", "#333333"));
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1 });
     return report;
@@ -639,15 +641,15 @@ const UNREACHED_GRADIENT_PROOFS = [
   },
 ] as const;
 
-auditRuleTest(UNREACHED_GRADIENT_PROOFS, "a translucent gradient row past a carousel edge is unseen", async ({ runCli, scratch }) => {
-  const report = await auditFixture(scratch, runCli, "gradient-over-fill-unreached", PAST_CAROUSEL_EDGE(SHADOWED_ROW("#000000", "#ffffff")));
+auditRuleTest(UNREACHED_GRADIENT_PROOFS, "a translucent gradient row past a carousel edge is unseen", async ({ runSnap, scratch }) => {
+  const report = await auditFixture(scratch, runSnap, "gradient-over-fill-unreached", PAST_CAROUSEL_EDGE(SHADOWED_ROW("#000000", "#ffffff")));
   expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
   return report;
 });
 
-auditRuleTest(UNREACHED_GRADIENT_PROOFS, "a translucent gradient with no opaque base past a carousel edge is unseen", async ({ runCli, scratch }) => {
+auditRuleTest(UNREACHED_GRADIENT_PROOFS, "a translucent gradient with no opaque base past a carousel edge is unseen", async ({ runSnap, scratch }) => {
   const noBase = "<style>html, body { background: transparent !important; }</style>";
-  const report = await auditFixture(scratch, runCli, "gradient-no-base-unreached", `${noBase}${PAST_CAROUSEL_EDGE(SHADOWED_ROW("transparent", "#ffffff"))}`);
+  const report = await auditFixture(scratch, runSnap, "gradient-no-base-unreached", `${noBase}${PAST_CAROUSEL_EDGE(SHADOWED_ROW("transparent", "#ffffff"))}`);
   expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
   return report;
 });
@@ -671,11 +673,11 @@ auditRuleTest(
     },
   ],
   "a gradient cover painted over a caption withholds it, never files it as art under it",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const fade = '<div style="position:absolute;inset:0;background-image:linear-gradient(to left, #000000, transparent)"></div>';
     const report = await auditFixture(
       scratch,
-      runCli,
+      runSnap,
       "fade-over-caption",
       `<div style="${INK_BOX}"><span style="color:#ffffff;font-size:14px">Look</span>${fade}</div>`,
     );
@@ -696,8 +698,8 @@ const LATER_LAYER_UNDER_INK = [
   ],
 ] as const;
 
-test.for(LATER_LAYER_UNDER_INK)("a later layer under the ink by %s still backs it", async ([name, body], { runCli, scratch }) => {
-  const report = await auditFixture(scratch, runCli, `later-layer-under-${name.replaceAll(" ", "-").replaceAll("'", "")}`, body);
+test.for(LATER_LAYER_UNDER_INK)("a later layer under the ink by %s still backs it", async ([name, body], { runSnap, scratch }) => {
+  const report = await auditFixture(scratch, runSnap, `later-layer-under-${name.replaceAll(" ", "-").replaceAll("'", "")}`, body);
   expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   expect(report.populationAccounting?.["gray-on-color"]?.excluded).toMatchObject({ pixelSampled: 1 });
 });
@@ -720,8 +722,8 @@ auditRuleTest(
     },
   ],
   "an art row clipped by its scroller does not back the ink below the scroller",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "clipped-art-row", `${SCROLLED_GRID("auto")}${BARE_INK_UNDER_GRID}`);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "clipped-art-row", `${SCROLLED_GRID("auto")}${BARE_INK_UNDER_GRID}`);
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     expect(report.populationAccounting?.["gray-on-color"]).toMatchObject({ judged: 1 });
     return report;
@@ -741,8 +743,8 @@ const COVERED_OVER_ART_PROOFS = (where: string) =>
 auditRuleTest(
   COVERED_OVER_ART_PROOFS("the same art row with no clip paints under the ink"),
   "the same art row unclipped still backs the covered ink",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "unclipped-art-row", `${SCROLLED_GRID("visible")}${INK_UNDER_GRID}`);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "unclipped-art-row", `${SCROLLED_GRID("visible")}${INK_UNDER_GRID}`);
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     return report;
   },
@@ -763,8 +765,8 @@ auditRuleTest(
     },
   ],
   "an art row clipped wholly out of its scroller does not back ink across the scroller's edge",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "art-row-clipped-out", INK_ACROSS_SCROLLER_EDGE(70, ""));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "art-row-clipped-out", INK_ACROSS_SCROLLER_EDGE(70, ""));
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     expect(report.populationAccounting?.["gray-on-color"]).toMatchObject({ judged: 1 });
     return report;
@@ -774,8 +776,8 @@ auditRuleTest(
 auditRuleTest(
   COVERED_OVER_ART_PROOFS("the same row inside the scroller's visible box paints under the ink"),
   "an art row inside its scroller's visible box still backs the covered ink",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "art-row-in-view", INK_ACROSS_SCROLLER_EDGE(38, OPAQUE_COVER));
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "art-row-in-view", INK_ACROSS_SCROLLER_EDGE(38, OPAQUE_COVER));
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     return report;
   },
@@ -795,8 +797,8 @@ auditRuleTest(
     },
   ],
   "a caption scrolled out of its strip does not meet an art layer outside the strip",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "clipped-caption-beside-art", CLIPPED_CAPTION);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "clipped-caption-beside-art", CLIPPED_CAPTION);
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     return report;
   },
@@ -827,8 +829,8 @@ auditRuleTest(
     },
   ],
   "a caption in view over the wallpaper is still measured from pixels",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "wallpaper-in-view", `${WALLPAPER}${WHITE_INK}`);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "wallpaper-in-view", `${WALLPAPER}${WHITE_INK}`);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1 });
     expect(report.populationAccounting?.["gray-on-color"]?.excluded).toMatchObject({ pixelSampled: 1 });
     return report;
@@ -838,8 +840,8 @@ auditRuleTest(
 auditRuleTest(
   UNSEEN_OVER_WALLPAPER_PROOFS("the caption is parked past the carousel edge, off the screenshot"),
   "a caption past a carousel edge over the wallpaper is unseen, not a manual art check",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "wallpaper-past-carousel", `${WALLPAPER}${PAST_CAROUSEL_EDGE(WHITE_INK)}`);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "wallpaper-past-carousel", `${WALLPAPER}${PAST_CAROUSEL_EDGE(WHITE_INK)}`);
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     return report;
   },
@@ -848,8 +850,8 @@ auditRuleTest(
 auditRuleTest(
   UNSEEN_OVER_WALLPAPER_PROOFS("the caption is clipped out of its strip inside the viewport, and its box holds the strip's neighbour"),
   "a caption clipped out of its strip in view is unseen, not sampled from the neighbour's pixels",
-  async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "wallpaper-clipped-in-view", `${WALLPAPER}${CAPTION_CLIPPED_IN_VIEW}`);
+  async ({ runSnap, scratch }) => {
+    const report = await auditFixture(scratch, runSnap, "wallpaper-clipped-in-view", `${WALLPAPER}${CAPTION_CLIPPED_IN_VIEW}`);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toEqual([]);
     return report;
   },
@@ -858,9 +860,9 @@ auditRuleTest(
 auditRuleTest(
   UNSEEN_OVER_WALLPAPER_PROOFS("an opaque dialog panel is painted over the whole caption"),
   "a caption under an opaque dialog panel is unseen, not a manual art check",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const panel = '<div role="dialog" aria-label="Panel" style="position:fixed;top:0;left:0;width:400px;height:120px;background:#202020"></div>';
-    const report = await auditFixture(scratch, runCli, "wallpaper-under-panel", `${WALLPAPER}<div style="${INK_BOX}">${WHITE_INK}</div>${panel}`);
+    const report = await auditFixture(scratch, runSnap, "wallpaper-under-panel", `${WALLPAPER}<div style="${INK_BOX}">${WHITE_INK}</div>${panel}`);
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     return report;
   },
@@ -934,10 +936,10 @@ const RATIO_TOLERANCE_DIGITS = 1;
 
 test.for(COVERED_CAPTIONS)(
   "a caption under %s is judged at the ratio the glyph paints",
-  async ([name, wallpaper, card, overPage, expected], { runCli, scratch }) => {
+  async ([name, wallpaper, card, overPage, expected], { runSnap, scratch }) => {
     const file = join(scratch, `covered-${name.replaceAll(/[^a-z0-9]+/gu, "-")}.html`);
     await writeFile(file, relationalDocument(`${wallpaper}${card}${overPage}`));
-    const res = await runCli("snap", ["--file", file, ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", file, ...AUDIT_ARGV]);
     const report = await readAuditReport(res.stdout);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
     // The FINDING line leads its value with the ratio: `contrast: P1 2.02:1 (need 4.5:1)`.
@@ -956,9 +958,9 @@ auditRuleTest(
     },
   ],
   "a caption under a cover whose colour cannot be read is withheld",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const frosted = '<div style="position:fixed;inset:0;background:rgba(255,255,255,0.3);backdrop-filter:blur(4px)"></div>';
-    const report = await auditFixture(scratch, runCli, "caption-under-frost", `${wallpaperOf("#dddddd")}${captionCard("#999999", "")}${frosted}`);
+    const report = await auditFixture(scratch, runSnap, "caption-under-frost", `${wallpaperOf("#dddddd")}${captionCard("#999999", "")}${frosted}`);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toEqual([]);
     return report;
   },
@@ -974,10 +976,10 @@ auditRuleTest(
     },
   ],
   "a caption an opaque box covers in part is withheld, not excluded",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // The cover spans the caption's first few glyphs only: the left probe column falls under it, the rest do not.
     const head = '<div style="position:absolute;top:0;left:0;width:12px;height:100%;background:#000000"></div>';
-    const report = await auditFixture(scratch, runCli, "wallpaper-partly-covered", `${WALLPAPER}<div style="${INK_BOX}">${WHITE_INK}${head}</div>`);
+    const report = await auditFixture(scratch, runSnap, "wallpaper-partly-covered", `${WALLPAPER}<div style="${INK_BOX}">${WHITE_INK}${head}</div>`);
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     return report;
   },
@@ -993,9 +995,9 @@ auditRuleTest(
     },
   ],
   "a css-resolved caption under an opaque cover is excluded",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const dialog = '<div style="position:fixed;inset:0;background:#000000"></div>';
-    const report = await auditFixture(scratch, runCli, "plate-under-dialog", `${plateCard("#dddddd", "#999999", "")}${dialog}`);
+    const report = await auditFixture(scratch, runSnap, "plate-under-dialog", `${plateCard("#dddddd", "#999999", "")}${dialog}`);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toEqual([]);
     return report;
   },
@@ -1011,9 +1013,9 @@ auditRuleTest(
     },
   ],
   "a css-resolved caption under a cover whose colour cannot be read is withheld",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const frosted = '<div style="position:fixed;inset:0;background:rgba(255,255,255,0.3);backdrop-filter:blur(4px)"></div>';
-    const report = await auditFixture(scratch, runCli, "plate-under-frost", `${plateCard("#dddddd", "#999999", "")}${frosted}`);
+    const report = await auditFixture(scratch, runSnap, "plate-under-frost", `${plateCard("#dddddd", "#999999", "")}${frosted}`);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toEqual([]);
     return report;
   },
@@ -1022,10 +1024,10 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "contrast", kind: "fires", reason: "the ring is read from the part of the caption its strip still shows: white ink on the white wallpaper" }],
   "a caption mostly clipped by its strip is read from its shown part, not the neighbour beside the strip",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const neighbour = '<div style="position:absolute;top:0;left:24px;width:280px;height:40px;background:#000000"></div>';
     const strip = `<div style="width:24px;overflow:hidden;white-space:nowrap">${WHITE_INK.replace("Trust", "Trust the long caption")}</div>`;
-    const report = await auditFixture(scratch, runCli, "wallpaper-mostly-clipped", `${WALLPAPER}<div style="${INK_BOX}">${strip}${neighbour}</div>`);
+    const report = await auditFixture(scratch, runSnap, "wallpaper-mostly-clipped", `${WALLPAPER}<div style="${INK_BOX}">${strip}${neighbour}</div>`);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   },
 );
@@ -1047,9 +1049,9 @@ auditRuleTest(
     },
   ],
   "a facet preview truncated to one line is excluded from line-length",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<button type="button" style="display:block;background:#000;border:0;padding:4px"><span aria-hidden="true" data-voice="gloss" style="${FACET_ROW_STYLE};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${FACET_BODY}</span></button>`;
-    const report = await auditFixture(scratch, runCli, "facet-preview-truncated", body);
+    const report = await auditFixture(scratch, runSnap, "facet-preview-truncated", body);
     expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 0, excluded: { singleLineTruncation: 1 } });
     return report;
   },
@@ -1065,9 +1067,9 @@ auditRuleTest(
     },
   ],
   "a run clamped to one line is excluded from line-length",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<p data-voice="gloss" style="${FACET_ROW_STYLE};overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1">${FACET_BODY}</p>`;
-    const report = await auditFixture(scratch, runCli, "facet-preview-clamped", body);
+    const report = await auditFixture(scratch, runSnap, "facet-preview-clamped", body);
     expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 0, excluded: { singleLineTruncation: 1 } });
     return report;
   },
@@ -1081,9 +1083,9 @@ const FITTING_ROW_STYLE = FACET_ROW_STYLE.replace("width:620px", "width:1200px")
 auditRuleTest(
   [{ rule: "line-length", kind: "fires", reason: "a nowrap, clipped, ellipsised line that fits cuts nothing, so its measure is still judged" }],
   "a long nowrap line that fits its box still fails line-length",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<span data-voice="gloss" style="${FITTING_ROW_STYLE};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${FITTING_BODY}</span>`;
-    const report = await auditFixture(scratch, runCli, "facet-preview-fitting", body);
+    const report = await auditFixture(scratch, runSnap, "facet-preview-fitting", body);
     expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
     expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
   },
@@ -1092,9 +1094,9 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "line-length", kind: "fires", reason: "a one-line clamp over a body that already fits on one line hides nothing, so its measure is still judged" }],
   "a long line under a one-line clamp that fits still fails line-length",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<p data-voice="gloss" style="${FITTING_ROW_STYLE};overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1">${FITTING_BODY}</p>`;
-    const report = await auditFixture(scratch, runCli, "facet-preview-clamp-fitting", body);
+    const report = await auditFixture(scratch, runSnap, "facet-preview-clamp-fitting", body);
     expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
     expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
   },
@@ -1103,9 +1105,9 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "line-length", kind: "fires", reason: "a one-line clamp with no overflow clip paints every line, so its measure is still judged" }],
   "an unclipped one-line clamp still fails line-length",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<p data-voice="gloss" style="${FACET_ROW_STYLE};display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1">${FACET_BODY}</p>`;
-    const report = await auditFixture(scratch, runCli, "facet-preview-clamp-unclipped", body);
+    const report = await auditFixture(scratch, runSnap, "facet-preview-clamp-unclipped", body);
     expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
     expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
   },
@@ -1114,9 +1116,9 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "line-length", kind: "fires", reason: "the same body allowed to wrap in the same box is prose past the measure" }],
   "the same preview body wrapping in the same box still fails line-length",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<p data-voice="gloss" style="${FACET_ROW_STYLE};overflow:hidden">${FACET_BODY}</p>`;
-    const report = await auditFixture(scratch, runCli, "facet-preview-wrapping", body);
+    const report = await auditFixture(scratch, runSnap, "facet-preview-wrapping", body);
     expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
     expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
   },
@@ -1139,9 +1141,9 @@ auditRuleTest(
     },
   ],
   "a credit line in the credit voice is excluded from all-caps-body",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<span data-voice="credit" style="${CAPS_RUN}">${CREDIT_LINE}</span>`;
-    const report = await auditFixture(scratch, runCli, "caps-credit-voice", body);
+    const report = await auditFixture(scratch, runSnap, "caps-credit-voice", body);
     expect(report.populationAccounting?.["all-caps-body"]).toMatchObject({ judged: 0, excluded: { capsVoiceRecipe: 1 } });
     return report;
   },
@@ -1150,9 +1152,9 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "all-caps-body", kind: "fires", reason: "the same caps run in the gloss voice is running prose set in caps, which the rule exists to catch" }],
   "the same caps run in a prose voice still fails all-caps-body",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<p data-voice="gloss" style="${CAPS_RUN}">${CREDIT_LINE}</p>`;
-    const report = await auditFixture(scratch, runCli, "caps-gloss-voice", body);
+    const report = await auditFixture(scratch, runSnap, "caps-gloss-voice", body);
     expect(report.findings.filter(({ rule }) => rule === "all-caps-body")).toHaveLength(1);
   },
 );
@@ -1173,18 +1175,18 @@ auditRuleTest(
     },
   ],
   "an open font picker's preview labels are excluded from off-theme-font",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div role="listbox"><div role="option"><span ${FONT_PREVIEW_ATTRIBUTE}="${PREVIEW_FACE}" style="font-family:${PREVIEW_FACE}, serif">${PREVIEW_FACE}</span></div></div>`;
-    const report = await auditFixture(scratch, runCli, "font-preview-open", body);
+    const report = await auditFixture(scratch, runSnap, "font-preview-open", body);
     expect(report.populationAccounting?.["off-theme-font"]).toMatchObject({ judged: 0, excluded: { declaredFacePreview: 1 } });
     return report;
   },
 );
 
-test("a stray face beside the picker still fires off-theme-font at its own element", async ({ runCli, scratch }) => {
+test("a stray face beside the picker still fires off-theme-font at its own element", async ({ runSnap, scratch }) => {
   const body = `<div role="listbox"><div role="option"><span ${FONT_PREVIEW_ATTRIBUTE}="${PREVIEW_FACE}" style="font-family:${PREVIEW_FACE}, serif">${PREVIEW_FACE}</span></div></div><p id="stray" style="font-family:${PREVIEW_FACE}, serif">A heading set in a face no token names.</p>`;
   await writeFile(join(scratch, "font-preview-stray.html"), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, "font-preview-stray.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "font-preview-stray.html"), ...AUDIT_ARGV]);
   const report = await readAuditReport(res.stdout);
   expect(report.findings.filter(({ rule }) => rule === "off-theme-font")).toHaveLength(1);
   expect(findingSelectors(res.stdout, "off-theme-font")).toEqual(["#stray"]);
@@ -1210,9 +1212,9 @@ auditRuleTest(
     },
   ],
   "a notice's explainer under a status role is excluded from caveat-outweighed",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div role="status"><p style="${LOUD}">Mira needs your attention</p><p style="${SMALL}">Orbweaver did not grant the extra permissions, so it stayed off.</p></div>`;
-    const report = await auditFixture(scratch, runCli, "caveat-notice-explainer", body);
+    const report = await auditFixture(scratch, runSnap, "caveat-notice-explainer", body);
     expect(report.populationAccounting?.["caveat-outweighed"]).toMatchObject({ judged: 0, excluded: { alertRegionContent: 2 } });
     return report;
   },
@@ -1234,9 +1236,9 @@ auditRuleTest(
     },
   ],
   "a caveat is not paired with a sibling card's title",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div><div style="${CARD}"><p role="alert" style="${SMALL}">${CAVEAT}</p></div><div style="${CARD}"><p style="${LOUD}">Weather station</p></div></div>`;
-    const report = await auditFixture(scratch, runCli, "caveat-sibling-cards", body);
+    const report = await auditFixture(scratch, runSnap, "caveat-sibling-cards", body);
     expect(report.populationAccounting?.["caveat-outweighed"]).toMatchObject({ judged: 1, affected: 0 });
     return report;
   },
@@ -1245,9 +1247,9 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "caveat-outweighed", kind: "fires", reason: "the grant list's own shape: an alert sentence set smaller than the capability copy in its own card" }],
   "an alert sentence outweighed inside its own card still fails caveat-outweighed",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div><div style="${CARD}"><p style="${LOUD}">Read your chats</p><p role="alert" style="${SMALL}">${CAVEAT}</p></div><div style="${CARD}"><p style="${LOUD}">Weather station</p></div></div>`;
-    const report = await auditFixture(scratch, runCli, "caveat-own-card", body);
+    const report = await auditFixture(scratch, runSnap, "caveat-own-card", body);
     expect(report.findings.filter(({ rule }) => rule === "caveat-outweighed")).toHaveLength(1);
   },
 );
@@ -1261,9 +1263,9 @@ auditRuleTest(
     },
   ],
   "an alert sentence alone in a role wrapper is the caveat, and fails caveat-outweighed beside larger copy",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div><p style="${LOUD}">Read your chats</p><div role="alert"><p style="${SMALL}">${CAVEAT}</p></div></div>`;
-    const report = await auditFixture(scratch, runCli, "caveat-role-wrapper", body);
+    const report = await auditFixture(scratch, runSnap, "caveat-role-wrapper", body);
     expect(report.findings.filter(({ rule }) => rule === "caveat-outweighed")).toHaveLength(1);
   },
 );
@@ -1271,17 +1273,17 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "all-caps-body", kind: "fires", reason: "a sentence set in a caps voice is prose in caps, which the voice's law does not cover" }],
   "a sentence in the credit voice still fails all-caps-body",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<span data-voice="credit" style="${CAPS_RUN}">Mira said the room was still warm when she left.</span>`;
-    const report = await auditFixture(scratch, runCli, "caps-credit-sentence", body);
+    const report = await auditFixture(scratch, runSnap, "caps-credit-sentence", body);
     expect(report.findings.filter(({ rule }) => rule === "all-caps-body")).toHaveLength(1);
   },
 );
 
-test("a face preview attribute outside a picker option declares nothing, so the face still fires off-theme-font", async ({ runCli, scratch }) => {
+test("a face preview attribute outside a picker option declares nothing, so the face still fires off-theme-font", async ({ runSnap, scratch }) => {
   const body = `<p id="loose" ${FONT_PREVIEW_ATTRIBUTE}="${PREVIEW_FACE}" style="font-family:${PREVIEW_FACE}, serif">${PREVIEW_FACE}</p>`;
   await writeFile(join(scratch, "font-preview-loose.html"), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, "font-preview-loose.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "font-preview-loose.html"), ...AUDIT_ARGV]);
   expect(findingSelectors(res.stdout, "off-theme-font")).toEqual(["#loose"]);
 });
 
@@ -1302,9 +1304,9 @@ auditRuleTest(
     },
   ],
   "an empty-state sentence in a focusable container is judged as body text, not interactive text",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div role="tabpanel" tabindex="0"><p style="${MICRO}">${EMPTY_LINE}</p></div><div tabindex="-1"><p style="${MICRO}">${EMPTY_LINE}</p></div>`;
-    const report = await auditFixture(scratch, runCli, "interactive-container", body);
+    const report = await auditFixture(scratch, runSnap, "interactive-container", body);
     expect(report.populationAccounting?.["undersized-ui-text"]).toMatchObject({ judged: 2, affected: 0 });
     return report;
   },
@@ -1323,13 +1325,13 @@ const ROVING_ITEMS = [
 auditRuleTest(
   [{ rule: "undersized-ui-text", kind: "fires", reason: "a roving item's micro label at tabindex -1 is its control's label under the floor" }],
   "a menu, option, tab or tree item label at tabindex -1 still fails undersized-ui-text",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = ROVING_ITEMS.map(
       ([group, item]) =>
         `<div role="${group}" tabindex="-1"><div role="${item}" tabindex="-1"><span id="${item}" style="${MICRO}">Light theme</span></div></div>`,
     ).join("");
     await writeFile(join(scratch, "interactive-roving-items.html"), relationalDocument(body));
-    const res = await runCli("snap", ["--file", join(scratch, "interactive-roving-items.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", join(scratch, "interactive-roving-items.html"), ...AUDIT_ARGV]);
     expect(new Set(findingSelectors(res.stdout, "undersized-ui-text"))).toEqual(new Set(ROVING_ITEMS.map(([, item]) => `#${item}`)));
   },
 );
@@ -1337,9 +1339,9 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "undersized-ui-text", kind: "fires", reason: "a button's whole label at the micro step is interactive text under the floor" }],
   "a button label at the micro step still fails undersized-ui-text",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<button><span style="${MICRO}">Save changes</span></button>`;
-    const report = await auditFixture(scratch, runCli, "interactive-button-label", body);
+    const report = await auditFixture(scratch, runSnap, "interactive-button-label", body);
     expect(report.findings.filter(({ rule }) => rule === "undersized-ui-text")).toHaveLength(1);
   },
 );

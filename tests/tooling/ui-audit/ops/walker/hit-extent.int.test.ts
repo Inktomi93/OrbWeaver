@@ -18,8 +18,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "@orb/testkit/iso";
-import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
-import { expect, test } from "@orb/testkit/tooling";
+import { AUDIT_ARGV, auditReport, configureRelationalCliBudget } from "@orb/testkit/node";
+import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
 import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walker/hit-extent.ts";
 
 configureRelationalCliBudget();
@@ -163,13 +163,13 @@ function tapTargetSelectors(report: TapTargetReport): readonly string[] {
   return report.findings.filter((finding) => finding.rule === "tap-target").map((finding) => finding.selector);
 }
 
-test("#1678 — a pseudo-carried coarse floor is NOT a tap-target finding, and a bare text-height control IS", async ({ runCli, scratch }) => {
+test("#1678 — a pseudo-carried coarse floor is NOT a tap-target finding, and a bare text-height control IS", async ({ runCli, runSnap, scratch }) => {
   const file = join(scratch, "tap-extent.html");
   await writeFile(file, DOCUMENT);
 
   // `--mobile`, because the 44px floor is pointer-CONDITIONAL (D62): at fine the rule owes 24px and the
   // 28px pseudo satisfies it, so a desktop run cannot tell the two shapes apart at all.
-  const run = await runCli("snap", ["--file", file, "--mobile", ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const run = await expectSnapParity({ runCli, runSnap }, ["--file", file, "--mobile", ...AUDIT_ARGV]);
   const report = JSON.parse(await readFile(auditReport(run.stdout), "utf8")) as TapTargetReport;
   const flagged = tapTargetSelectors(report);
 
@@ -187,13 +187,13 @@ test("#1678 — a pseudo-carried coarse floor is NOT a tap-target finding, and a
   expect(run.stdout).toMatch(/tap-target candidates=4 judged=4 affected=2/u);
 });
 
-test("#1678 — the CT kit's walk reaches the SAME VERDICT on the same DOM, in the same run (numbers differ by design)", async ({ runCli, scratch }) => {
+test("#1678 — the CT kit's walk reaches the SAME VERDICT on the same DOM, in the same run (numbers differ by design)", async ({ runSnap, scratch }) => {
   // The agreement is MEASURED, not inferred from two runs on two harnesses: the kit's own three-clause
   // `owns` predicate runs inside the audited page (a read-only `--eval`, so it cannot disturb the walk).
   const file = join(scratch, "tap-extent-agree.html");
   await writeFile(file, DOCUMENT);
 
-  const run = await runCli("snap", ["--file", file, "--mobile", "--eval", CT_WALK_EVAL, ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const run = await runSnap(["--file", file, "--mobile", "--eval", CT_WALK_EVAL, ...AUDIT_ARGV]);
 
   // The kit returns ONE line (`<slot>=<w>x<h> …`) rather than an object: snap echoes the whole expression
   // in the EVAL header, and this expression is multi-line, so a "parse the block after the header" reader
@@ -272,11 +272,11 @@ function describeEnvelope(rect: readonly number[] | null): string {
   return rect === null ? "null" : `[${rect.map((field) => Math.round(field * 100) / 100).join(", ")}]`;
 }
 
-test("#2300 — ancestor credit, on a DOM where credit is the only thing that can answer: the WALKER's verdicts", async ({ runCli, scratch }) => {
+test("#2300 — ancestor credit, on a DOM where credit is the only thing that can answer: the WALKER's verdicts", async ({ runSnap, scratch }) => {
   const file = join(scratch, "credit-discriminating.html");
   await writeFile(file, CREDIT_DOCUMENT);
 
-  const run = await runCli("snap", ["--file", file, "--mobile", ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const run = await runSnap(["--file", file, "--mobile", ...AUDIT_ARGV]);
   const report = JSON.parse(await readFile(auditReport(run.stdout), "utf8")) as TapTargetReport;
   const flagged = tapTargetSelectors(report);
 
@@ -294,13 +294,11 @@ test("#2300 — ancestor credit, on a DOM where credit is the only thing that ca
   expect(run.stdout).toMatch(/tap-target candidates=4 judged=4 affected=2/u);
 });
 
-test("#2300 — the same DOM through the KIT's walk: the numbers, and the envelope the two homes must share", async ({ runCli, scratch }) => {
+test("#2300 — the same DOM through the KIT's walk: the numbers, and the envelope the two homes must share", async ({ runSnap, scratch }) => {
   const file = join(scratch, "credit-agreement.html");
   await writeFile(file, CREDIT_DOCUMENT);
 
-  const run = await runCli("snap", ["--file", file, "--mobile", "--eval", CT_WALK_EVAL, "--eval", ENVELOPE_AGREEMENT_EVAL, ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const run = await runSnap(["--file", file, "--mobile", "--eval", CT_WALK_EVAL, "--eval", ENVELOPE_AGREEMENT_EVAL, ...AUDIT_ARGV]);
   const extents = walkedExtents(run.stdout, CREDIT_SLOTS);
 
   // EXACT NUMBERS, because this fixture is integer geometry with no text in it. The walk counts OWNED

@@ -19,15 +19,15 @@
 // the word — tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 8's class. The two arms below are the two directions.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-async function auditStdout(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<string> {
+async function auditStdout(scratch: string, runSnap: ToolFixtures["runSnap"], name: string, body: string): Promise<string> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV]);
   return res.stdout;
 }
 
@@ -43,9 +43,11 @@ auditRuleTest(
     },
   ],
   "a skipped heading is reported against a locatable selector, never the bare tag",
-  async ({ runCli, scratch }) => {
+  async ({ runCli, runSnap, scratch }) => {
     const body = '<h1 id="library-heading">Library</h1><h3 id="recent-heading">Recent</h3>';
-    const selectors = findingSelectors(await auditStdout(scratch, runCli, "heading-selector", body), "skipped-heading");
+    // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
+    const parity: ToolFixtures["runSnap"] = async (args) => await expectSnapParity({ runCli, runSnap }, args);
+    const selectors = findingSelectors(await auditStdout(scratch, parity, "heading-selector", body), "skipped-heading");
     // The walker anchors a unique id, so the offender is locatable — and the bare tag "h3" is exactly
     // what this may never be again.
     expect(selectors).toEqual(["#recent-heading"]);
@@ -87,9 +89,9 @@ auditRuleTest(
     },
   ],
   "the clip exemption follows the authored data-slot, not a word inside a Tailwind class string",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `${clippedCarrier("clip-class", 'class="preview-pane rounded-md"')}${clippedCarrier("clip-slot", 'data-slot="scroll-area-viewport"')}`;
-    const stdout = await auditStdout(scratch, runCli, "clip-exemption", body);
+    const stdout = await auditStdout(scratch, runSnap, "clip-exemption", body);
     const cuts = findingSelectors(stdout, "clipped-overflow");
     // One and only one: the class-word coincidence is judged (it was silently skipped before), and the
     // authored viewport slot is exempt (it was invisible to the old class-only test, so it was judged).
@@ -117,13 +119,13 @@ auditRuleTest(
     },
   ],
   "a visually-hidden positioned child cuts nothing — the paint fence is the same one the in-flow arm applies",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // The two containers differ ONLY in what they hold: same overflow, same size, same position — so the
     // negative arm is a true control rather than a differently-shaped document (tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 14).
     const body = `<div id="clip-hidden" style="overflow:hidden;width:120px;height:60px;position:relative">
   <input type="range" aria-label="Temperature" style="${VISUALLY_HIDDEN_INPUT_STYLE}">
 </div>${clippedCarrier("clip-real", "")}`;
-    const stdout = await auditStdout(scratch, runCli, "clip-visually-hidden", body);
+    const stdout = await auditStdout(scratch, runSnap, "clip-visually-hidden", body);
     const cuts = findingSelectors(stdout, "clipped-overflow");
 
     expect(cuts).toEqual(["#clip-real"]);
@@ -146,10 +148,10 @@ auditRuleTest(
     },
   ],
   "a parked panel that paints nothing cuts nothing, and the same panel left visible still reports",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const parked = (id: string, visibility: string): string =>
       `<div id="${id}" style="overflow-x:clip;width:120px;height:60px;position:relative"><div style="position:absolute;left:100px;top:0;width:200px;visibility:${visibility}"><button>Panel action</button></div></div>`;
-    const stdout = await auditStdout(scratch, runCli, "clip-parked-panel", `${parked("clip-parked", "hidden")}${parked("clip-shown", "visible")}`);
+    const stdout = await auditStdout(scratch, runSnap, "clip-parked-panel", `${parked("clip-parked", "hidden")}${parked("clip-shown", "visible")}`);
 
     expect(findingSelectors(stdout, "clipped-overflow")).toEqual(["#clip-shown"]);
     return readAuditReport(stdout);
@@ -173,8 +175,8 @@ auditRuleTest(
     },
   ],
   "a full-bleed body wrapper whose control is inside the clip passes clipped-overflow",
-  async ({ runCli, scratch }) => {
-    const stdout = await auditStdout(scratch, runCli, "clip-full-bleed", bleedPopup("bleed-uncut", "58px"));
+  async ({ runSnap, scratch }) => {
+    const stdout = await auditStdout(scratch, runSnap, "clip-full-bleed", bleedPopup("bleed-uncut", "58px"));
     expect(findingSelectors(stdout, "clipped-overflow")).toEqual([]);
     return readAuditReport(stdout);
   },
@@ -183,8 +185,8 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "clipped-overflow", kind: "fires", reason: "the same wrapper with no inner padding puts its control past the clip, and the control itself is cut" }],
   "a wrapper that cuts the control it holds still fails, naming the control",
-  async ({ runCli, scratch }) => {
-    const stdout = await auditStdout(scratch, runCli, "clip-full-bleed-cut", bleedPopup("bleed-cut", "0px"));
+  async ({ runSnap, scratch }) => {
+    const stdout = await auditStdout(scratch, runSnap, "clip-full-bleed-cut", bleedPopup("bleed-cut", "0px"));
     const report = await readAuditReport(stdout);
     expect(report.findings.filter(({ rule }) => rule === "clipped-overflow")).toEqual([
       expect.objectContaining({ selector: "#bleed-cut", value: expect.stringContaining("#bleed-cut-action") }),

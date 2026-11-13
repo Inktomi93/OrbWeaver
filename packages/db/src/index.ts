@@ -24,12 +24,12 @@ export {
   detachWal,
   hasPendingMigrations,
   listBackupFiles,
-  localPath,
   optimizeDb,
   pendingMigrations,
   preCloseHousekeeping,
   pruneDbBackups,
   runMigrations,
 } from "./client/index.ts";
+export { localPath } from "./client/local-path.ts";
 // Every drizzle table + the relations (the db-row producers).
 export * from "./schema/index.ts";

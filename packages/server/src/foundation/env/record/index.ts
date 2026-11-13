@@ -49,6 +49,7 @@ export type {
 } from "../contract.ts";
 export { diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "../diagnostics.ts";
 export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "../fallback-peers.ts";
+export { DEBUG_TOKEN_ENV, LOCAL_INITIAL_PASSWORD_ENV, OPENROUTER_API_KEY_ENV } from "../names/index.ts";
 export type { OperatorJwks } from "../operator-jwks.ts";
 export { parseTrustedPrivateRanges } from "../private-ranges.ts";
 
@@ -777,10 +778,6 @@ export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput)
   }
   return Object.freeze(parsed.data);
 }
-
-export const OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY";
-export const DEBUG_TOKEN_ENV = "DEBUG_TOKEN";
-export const LOCAL_INITIAL_PASSWORD_ENV = "LOCAL_INITIAL_PASSWORD";
 
 // A credential-shaped name: every provider key (`*_API_KEY`), the probe `*_PROBE_KEY` and `*_PROBE_TOKEN` families, and
 // the app's own secrets. The shape is the rule, so a launcher or `.env` key that no code reads is still covered. It

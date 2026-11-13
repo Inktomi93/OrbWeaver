@@ -9,6 +9,11 @@
 //   runCli       — spawn tooling/src/<tool>/cli.ts via floor/process/proc.spawnNiced (the tooling process's
 //                  lowered priority, the owner rule); returns { code, stdout, stderr } for `toExitWith`. Tests name TOOLS, not
 //                  paths — a tool move never sweeps test literals again.
+//   runSnap      — one snap invocation in-process through `runSnapCommand`, the door cli.ts runs, in a fresh context of
+//                  the file's one Chromium (`contextsIn`). The Chromium and the snap graph load on the file's first
+//                  run, so that case's budget carries them once; importing snap here would bill every tooling file.
+//                  A case whose subject is the process (exit wiring, argv misuse, an env knob read at import, a
+//                  launch-time browser option) keeps `runCli`; `expectSnapParity` holds the two doors to one output.
 //   fakeBin      — a Node-backed POSIX + Windows command pair prepended to PATH for the test; auto-restored.
 //   plantedTree  — materialize a throwaway violation tree under scratch (the conformance-harness
 //                  pattern as a fixture); fsBacked tool tests write only below the owned scratch root.
@@ -22,7 +27,8 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join, relative, resolve, sep, win32 } from "node:path";
 import process from "node:process";
 import { isWithinRoot } from "@orb/kit/path-containment";
-import { exportProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
+import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
+import { exportProcessEnv, processEnvValue, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { nonEmpty } from "../iso/non-empty.ts";
 import { expect, test as houseTest } from "./fixtures.ts";
 import type { AuditRuleProof, FiresAuditRuleProof, RelationalPopulationReport } from "./ui-audit-relational.ts";
@@ -46,8 +52,58 @@ export interface ToolFixtures {
   repoRoot: string;
   scratch: string;
   runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
+  /** One snap invocation in this process, through the CLI's own door (`runSnapCommand`), in an isolated context of
+   *  the test file's one shared Chromium; its `print`/`warn` lines are the result's stdout/stderr. */
+  runSnap: (args: readonly string[]) => Promise<CliResult>;
   fakeBin: (name: string, moduleSource: string) => Promise<void>;
   plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>;
+}
+
+/** The file-scoped half of `runSnap`: the shared Chromium launches on the first run and closes at the file's end. */
+interface SnapHost {
+  readonly run: (args: readonly string[]) => Promise<CliResult>;
+  readonly close: () => Promise<void>;
+}
+
+// Loaded on first use, never at import: every tooling test imports this module, and most never drive snap.
+async function openSnapHost(): Promise<SnapHost> {
+  const snap = await import("@orb/tooling/snap");
+  const { installOutputSink } = await import("@orb/tooling/floor/cli/log");
+  const { closeProbeSession } = await import("@orb/tooling/floor/browser/browser");
+  const owner = await snap.launchSnapSession(snap.parseSnapArgs(["--no-failure-evidence"]));
+  const browser = snap.contextsIn(owner);
+  return {
+    run: async (args): Promise<CliResult> => {
+      const stdout: string[] = [];
+      const stderr: string[] = [];
+      const release = installOutputSink({ line: (text) => stdout.push(`${text}\n`), warn: (text) => stderr.push(`${text}\n`) });
+      let code: number;
+      try {
+        code = await snap.runSnapCommand(args, browser);
+      } finally {
+        release();
+      }
+      return { code, stdout: stdout.join(""), stderr: stderr.join(""), timedOut: false };
+    },
+    close: async (): Promise<void> => {
+      await closeProbeSession(owner);
+    },
+  };
+}
+
+function lazySnapHost(): SnapHost {
+  let opened: Promise<SnapHost> | null = null;
+  return {
+    run: async (args): Promise<CliResult> => {
+      opened ??= openSnapHost();
+      return await (await opened).run(args);
+    },
+    close: async (): Promise<void> => {
+      if (opened !== null) {
+        await (await opened).close();
+      }
+    },
+  };
 }
 
 const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..");
@@ -197,7 +253,21 @@ export function removePlanted(root: string, rel: string): void {
   rmSync(ownedTarget(root, rel), { recursive: true });
 }
 
-export const test = houseTest.extend<ToolFixtures>({
+export const test = houseTest.extend<ToolFixtures & { snapHost: SnapHost }>({
+  snapHost: [
+    async ({}, use): Promise<void> => {
+      const host = lazySnapHost();
+      try {
+        await use(host);
+      } finally {
+        await host.close();
+      }
+    },
+    { scope: "file" },
+  ],
+  runSnap: async ({ snapHost }, use): Promise<void> => {
+    await use(snapHost.run);
+  },
   repoRoot: async ({}, use): Promise<void> => {
     await use(REPO_ROOT);
   },
@@ -299,18 +369,41 @@ function normalize(v: string): string {
   return out;
 }
 
+// What differs between two runs of one argv on either door: the run slot's `<checkout>-<pid>-<stamp>` id and
+// wall-clock timings. The box load would too (its readings, the rate posture hashed from them, and the load-suspect
+// label crossing the threshold between two runs), so both runs read one planted box instead.
+const RUN_SLOT_RE = /-\d+-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\b/gu;
+const ANY_MS_RE = /\b\d+(?:\.\d+)?ms\b/gu;
+const MS_FIELD_RE = /\b([a-z-]+-ms)=\d+/gu;
+const PARITY_BOX_LOAD = "0.2/24";
+
+function parityText(text: string): string {
+  return normalize(text).replaceAll(RUN_SLOT_RE, "-<run>").replaceAll(ANY_MS_RE, "<ms>ms").replaceAll(MS_FIELD_RE, "$1=<ms>");
+}
+
+/** Run one argv through the spawned snap CLI and through `runSnap` on one planted box load, require the same exit
+ *  code and the same stdout once run identity and wall-clock timings are masked, and return the in-process result. */
+export async function expectSnapParity(fixtures: Pick<ToolFixtures, "runCli" | "runSnap">, args: readonly string[]): Promise<CliResult> {
+  const spawned = await fixtures.runCli("snap", args, { env: { [BOX_LOAD_ENV]: PARITY_BOX_LOAD } });
+  // The in-process run reads the knob live from this process's env, so it is planted for exactly this call.
+  const inProcess = await withProcessEnv(BOX_LOAD_ENV, PARITY_BOX_LOAD, async () => await fixtures.runSnap(args));
+  expect(inProcess.code, `spawned stderr:\n${spawned.stderr}`).toBe(spawned.code);
+  expect(parityText(inProcess.stdout)).toBe(parityText(spawned.stdout));
+  return inProcess;
+}
+
 /** Register a live design-audit proof. A case with a silent row returns the run's report, and every disposition is
  *  read from it here, so a declared disposition cannot go unchecked. */
 export function auditRuleTest<const Proofs extends readonly AuditRuleProof[]>(
   proofs: Proofs,
   title: string,
   fn: (
-    fixtures: Pick<ToolFixtures, "runCli" | "scratch">,
+    fixtures: Pick<ToolFixtures, "runCli" | "runSnap" | "scratch">,
   ) => Proofs[number] extends FiresAuditRuleProof ? Promise<void> | void : Promise<RelationalPopulationReport>,
 ): void {
-  test(title, async ({ runCli, scratch }) => {
+  test(title, async ({ runCli, runSnap, scratch }) => {
     expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
-    const report = await fn({ runCli, scratch });
+    const report = await fn({ runCli, runSnap, scratch });
     for (const proof of proofs) {
       if (proof.kind === "silent" && report !== undefined) {
         expectPopulation(report, proof.rule, proof.disposition, {
