@@ -5,7 +5,7 @@
 // `defaultValues` — the add-credential-form-model precedent).
 //
 // MODE is a form value ("link" ⇄ "handle"), not component state, so validation can key on it: a
-// targeted invite REQUIRES the exact handle (unknown handle = the coded `invite_target_unknown`
+// targeted invite REQUIRES the exact handle (unknown handle = the coded `INVITE_TARGET_UNKNOWN_CODE`
 // refusal shown inline by the dialog — never silently degraded to a share link, §8.2).
 
 import type { CreateInviteInput } from "@orb/contracts/chat";
