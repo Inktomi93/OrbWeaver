@@ -6,6 +6,7 @@
 import type { LucideIcon } from "@orb/ui/icons";
 import { Anchor, BookOpen, Drama, Hash, Info, Pencil, Send, Sparkles, Zap } from "@orb/ui/icons";
 import type { CharacterCardFormValues } from "./character-card-form-model.ts";
+import { CHARACTER_FACET_LABELS } from "./character-names.ts";
 
 /** The facet tiers, in render order — the CONTENT master list's group headings (the hierarchy fix). */
 export const CHARACTER_FACET_TIERS = ["voice", "extras", "advanced"] as const;
@@ -52,61 +53,61 @@ export interface CharacterCardFacet {
 const CHARACTER_CARD_FACET_ROWS: Readonly<Record<CharacterCardFacetId, Omit<CharacterCardFacet, "id">>> = {
   description: {
     tier: "voice",
-    label: "Description",
+    label: CHARACTER_FACET_LABELS.description,
     subtitle: "Who they are: the core of the card.",
     glyph: BookOpen,
   },
   personality: {
     tier: "voice",
-    label: "Personality",
+    label: CHARACTER_FACET_LABELS.personality,
     subtitle: "A summary of traits and temperament.",
     glyph: Drama,
   },
   scenario: {
     tier: "voice",
-    label: "Scenario",
+    label: CHARACTER_FACET_LABELS.scenario,
     subtitle: "The setting or situation the chat opens in.",
     glyph: Anchor,
   },
   exampleMessages: {
     tier: "extras",
-    label: "Example messages",
+    label: CHARACTER_FACET_LABELS.exampleMessages,
     subtitle: "Sample exchanges teaching the model their voice.",
     glyph: Sparkles,
   },
   creatorNotes: {
     tier: "extras",
-    label: "Creator notes",
+    label: CHARACTER_FACET_LABELS.creatorNotes,
     subtitle: "Notes for humans: never sent to the model.",
     glyph: Pencil,
   },
   systemPrompt: {
     tier: "advanced",
-    label: "System prompt",
+    label: CHARACTER_FACET_LABELS.systemPrompt,
     subtitle: "Overrides the assembled system prompt.",
     glyph: Send,
   },
   postHistoryInstructions: {
     tier: "advanced",
-    label: "Post-history instructions",
+    label: CHARACTER_FACET_LABELS.postHistoryInstructions,
     subtitle: "Injected after history, just before the reply.",
     glyph: Send,
   },
   depthPrompt: {
     tier: "advanced",
-    label: "Note at depth",
+    label: CHARACTER_FACET_LABELS.depthPrompt,
     subtitle: "A recurring note spliced in at a fixed depth.",
     glyph: Hash,
   },
   regexScripts: {
     tier: "advanced",
-    label: "Regex scripts",
+    label: CHARACTER_FACET_LABELS.regexScripts,
     subtitle: "Find/replace passes over the card's text.",
     glyph: Zap,
   },
   provenance: {
     tier: "advanced",
-    label: "Provenance",
+    label: CHARACTER_FACET_LABELS.provenance,
     subtitle: "Creator, version, and import metadata.",
     glyph: Info,
   },

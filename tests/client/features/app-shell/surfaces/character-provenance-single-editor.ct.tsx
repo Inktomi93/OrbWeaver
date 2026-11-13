@@ -5,7 +5,7 @@
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { CHARACTER_CARD_VERSION_FIELD_NAME, CHARACTER_CREATOR_FIELD_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_CARD_VERSION_FIELD_NAME, CHARACTER_CREATOR_FIELD_NAME, CHARACTER_FACET_LABELS } from "#client/features/character/lib/character-names.ts";
 import type { AppShellCharacterStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -26,10 +26,7 @@ test("the drilled Provenance facet has one input per field, and the detail panel
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "docked" } } });
   await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
 
-  await page
-    .locator(CONTENT)
-    .getByRole("button", { name: /Provenance/u })
-    .click();
+  await page.locator(CONTENT).getByRole("button", { name: CHARACTER_FACET_LABELS.provenance }).click();
   const creator = page.getByRole("textbox", { name: CHARACTER_CREATOR_FIELD_NAME, exact: true });
   const version = page.getByRole("textbox", { name: CHARACTER_CARD_VERSION_FIELD_NAME, exact: true });
   const context = page.locator(CONTEXT);

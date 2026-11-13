@@ -1,9 +1,11 @@
 import { expect, test } from "@orb/testkit/tooling";
-import type { CensusClass, CensusSource } from "../../../tooling/src/label-census/index.ts";
+import type { CensusClass, CensusSource, TestEvidence } from "../../../tooling/src/label-census/index.ts";
 import { authoredStrings, classifySite, inFeature, nameSites, productionIndex } from "../../../tooling/src/label-census/index.ts";
 
 // The production row renders a template; its placeholder is split so this file holds no template syntax in a string.
 const REACHED_TEMPLATE = ["{`Reached $", "{count} of the limit`}"].join("");
+// A template placeholder for `name`, spelled in pieces for the same reason.
+const hole = (name: string): string => ["$", "{", name, "}"].join("");
 
 const PRODUCTION: CensusSource[] = [
   { path: "packages/client/src/lib/dialog-verbs.ts", text: 'export const DIALOG_VERBS = { cancel: "Cancel", remove: "Remove" } as const;' },
@@ -130,6 +132,83 @@ test("a constant imported through a testkit alias is followed through the entry'
     'tests/support/node/labels.ts:1 "Alerts"',
     'tests/support/node/rows.ts:1 "Pinned row"',
   ]);
+});
+
+const HELPERS: CensusSource = {
+  path: "tests/client/features/chat/_row-helpers.ts",
+  text: "export function clickNamed(page, text) { return page.getByText(text).click(); }",
+};
+
+const HELPER_SPEC: CensusSource = {
+  path: "tests/client/features/chat/row-helpers.ct.tsx",
+  text: [
+    'import { clickNamed } from "./_row-helpers.ts";',
+    "const press = async (page, label) => { await page.getByRole('button', { name: label }).click(); };",
+    "const twice = (page, label) => press(page, label);",
+    "await press(page, 'Create schedule');",
+    "await twice(page, 'Save schedule');",
+    "await clickNamed(page, 'Imported label');",
+    "await press(page, OPTIONS[0]);",
+  ].join("\n"),
+};
+
+test("a literal handed to a helper whose parameter reaches a name position counts at the call", () => {
+  const sites = nameSites(HELPER_SPEC, (path) => (path === HELPERS.path ? HELPERS : undefined));
+  expect(sites.map((site) => `${String(site.line)} ${site.text}`)).toEqual(["4 'Create schedule'", "5 'Save schedule'", "6 'Imported label'"]);
+});
+
+const HOMES: CensusSource[] = [
+  { path: "packages/client/src/features/character/components/list.tsx", text: "export const L = () => <button>Load more</button>;" },
+  { path: "packages/client/src/features/notifications/components/inbox.tsx", text: "export const I = () => <button>Load more</button>;" },
+  { path: "packages/client/src/features/databank/components/bank.tsx", text: "export const B = () => <button>Load more</button>;" },
+  {
+    path: "packages/client/src/features/roster-preset/components/picker.tsx",
+    text: `export const P = ({ n }) => <b aria-label={\`Add ${hole("n")} to this chat\`} />;`,
+  },
+  { path: "packages/client/src/features/chat/components/docs.tsx", text: `export const D = ({ d }) => <b aria-label={\`Feed ${hole("d")} to this chat\`} />;` },
+  { path: "packages/client/src/components/form-dialog-names.ts", text: 'export const CREATE_TITLE = "Create a schedule";' },
+];
+
+function rowOf(source: CensusSource, evidence: TestEvidence): [string, CensusClass, string][] {
+  const index = productionIndex(HOMES);
+  return nameSites(source).map((site) => {
+    const row = classifySite(site, index, evidence);
+    return [site.text, row.class, row.feature];
+  });
+}
+
+test("a text several features spell is filed under the spec's own feature, then a feature it imports", () => {
+  const evidence: TestEvidence = { authored: new Set(), features: new Map([["tests/client/components/bank.ct.tsx", ["databank"]]]) };
+  const mirrored = { path: "tests/client/features/notifications/inbox.ct.tsx", text: 'await page.getByText("Load more").click();' };
+  const imports = { path: "tests/client/components/bank.ct.tsx", text: 'await page.getByText("Load more").click();' };
+  const neither = { path: "tests/client/components/other.ct.tsx", text: 'await page.getByText("Load more").click();' };
+  expect([...rowOf(mirrored, evidence), ...rowOf(imports, evidence), ...rowOf(neither, evidence)]).toEqual([
+    ['"Load more"', "inline", "client/src/features/notifications"],
+    ['"Load more"', "inline", "client/src/features/databank"],
+    ['"Load more"', "inline", "client/src/features/character"],
+  ]);
+});
+
+test("a template's short fixed word finds the file whose fragment spells it with its spaces", () => {
+  const spec = {
+    path: "tests/client/features/roster-preset/row.ct.tsx",
+    text: `await page.getByRole('button', { name: \`Add ${hole("ROSTER_NAME")} to this chat\` }).click();`,
+  };
+  const index = productionIndex(HOMES);
+  const [site] = nameSites(spec);
+  expect(site === undefined ? undefined : classifySite(site, index, { authored: new Set() }).homes).toEqual([
+    "packages/client/src/features/roster-preset/components/picker.tsx",
+  ]);
+});
+
+test("a string the spec's own mounted story authors is the story's, ahead of a production export", () => {
+  const spec = {
+    path: "tests/client/components/form-dialog.ct.tsx",
+    text: 'await expect(page.getByRole("dialog", { name: "Create a schedule" })).toBeVisible();',
+  };
+  const mounted = new Map([[spec.path, new Set(["Create a schedule"])]]);
+  expect(rowOf(spec, { authored: new Set(), mounted })).toEqual([['"Create a schedule"', "authored", "client/components"]]);
+  expect(rowOf(spec, { authored: new Set() })).toEqual([['"Create a schedule"', "exported", "client/src/components"]]);
 });
 
 test("the feature filter keeps the production owner's rows and names the test directory for the rest", () => {

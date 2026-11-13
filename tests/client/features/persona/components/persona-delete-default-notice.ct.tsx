@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import { nowDefaultNotice, PERSONA_DELETE_NAME } from "#client/features/persona/lib/persona-copy.ts";
+import { nowDefaultNotice, PERSONA_DELETE_NAME, PERSONA_DELETE_TITLE, personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 // Longer than the notice takes to mount on a loaded box; the positive case proves it appears inside this window.
@@ -50,11 +50,11 @@ for (const shown of [true, false]) {
       }).observe(document, { subtree: true, childList: true, characterData: true });
     }, nowDefaultNotice(survivor.name));
     await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance });
-    await page.getByRole("button", { name: `Show details for ${doomed.name}`, exact: true }).focus();
+    await page.getByRole("button", { name: personaDetailsToggleName(doomed.name, false), exact: true }).focus();
     await page.keyboard.press("Enter");
     const editor = page.getByRole("group", { name: `Edit ${doomed.name}`, exact: true });
     await editor.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
-    const confirm = page.getByRole("alertdialog", { name: "Delete this persona?", exact: true });
+    const confirm = page.getByRole("alertdialog", { name: PERSONA_DELETE_TITLE, exact: true });
     await confirm.getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
     // The handler closes the editor, then raises its notice in the same tick, so a hidden editor means the notice is decided.
     await expect(editor).toBeHidden();

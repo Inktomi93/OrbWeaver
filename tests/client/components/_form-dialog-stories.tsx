@@ -4,6 +4,7 @@ import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { STORY_CREATE_TITLE } from "./_form-dialog-labels.ts";
 
 /** The production form dialog open from the start with a title, a description and enough fields to scroll a short screen, the shape of a create form. */
 export function FormDialogCreateStory(): ReactElement {
@@ -15,7 +16,7 @@ export function FormDialogCreateStory(): ReactElement {
         onOpenChange={setOpen}
         open={open}
         submit={{ label: "Create schedule", onSubmit: (): void => setOpen(false) }}
-        title="Create a schedule"
+        title={STORY_CREATE_TITLE}
       >
         {["Kind", "Cadence", "Owner", "Window", "Retries", "Notes"].map((name) => (
           <input aria-label={name} key={name} />

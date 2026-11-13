@@ -13,7 +13,7 @@ import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactNode } from "react";
 import { CHAT_LEAVE_NAME } from "../lib/chat-options-names.ts";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
-import { MEMBER_KICK_NAME, MEMBER_TALKATIVENESS_NAME, MEMBER_VIEW_CHARACTER_NAME } from "../lib/members-names.ts";
+import { MEMBER_KICK_NAME, MEMBER_TALKATIVENESS_NAME, MEMBER_VIEW_CHARACTER_NAME, memberRemoveName } from "../lib/members-names.ts";
 
 /** Which of a person row's dialogs is open — DERIVED from the one homed tuple, never re-spelled (a fourth
  *  arm must break every consumer at compile time). Local per file: an exported client alias would have to
@@ -77,7 +77,7 @@ function characterMenuItems(row: MemberCharacterRow, actions: MemberRowActions, 
     items.push(
       <MenuItem key="remove" onClick={(): void => actions.onRemoveCharacter?.(row.characterId)}>
         <Icon icon={UserX} size="sm" />
-        {`Remove ${row.displayName} from chat`}
+        {memberRemoveName(row.displayName)}
       </MenuItem>,
     );
   }

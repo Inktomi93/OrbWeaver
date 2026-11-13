@@ -6,6 +6,7 @@ import { routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { UNRESOLVED_OWNER_HANDLE } from "#client/features/workloads/lib/workloads-model.ts";
+import { SCHEDULE_CADENCE_FIELD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import {
   SCHEDULE_CADENCE_LABELS,
@@ -81,7 +82,7 @@ test("a daily and a weekly schedule of one kind each have their own title, switc
 
   await page.getByRole("button", { name: scheduleEditName(weekly), exact: true }).click();
   const editDialog = page.getByTestId(testId("editScheduleDialog"));
-  await expect(editDialog.getByRole("combobox", { name: "Runs", exact: true })).toHaveText(SCHEDULE_CADENCE_LABELS.weekly);
+  await expect(editDialog.getByRole("combobox", { name: SCHEDULE_CADENCE_FIELD_NAME, exact: true })).toHaveText(SCHEDULE_CADENCE_LABELS.weekly);
 });
 
 test("another user's schedule of the same kind and cadence is told apart by its owner's handle", async ({ mount, page }) => {

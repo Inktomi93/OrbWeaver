@@ -26,6 +26,7 @@ import {
   CHARACTER_EDITOR_NAME,
   CHARACTER_HERO_NAME_FIELD_NAME,
   CHARACTER_HISTORY_TAB_LABEL,
+  CHARACTER_INHERIT_LABEL,
   CHARACTER_LIBRARY_NAME,
   CHARACTER_LINK_BOOK_NAME,
   CHARACTER_LINKS_TAB_LABEL,
@@ -421,7 +422,7 @@ for (const regime of REGIMES) {
         const context = page.locator('.shell-panel[data-panel-side="context"]');
         const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
         const status = context.locator('[data-slot="autosave-status"]');
-        await expect(font).toHaveText("Inherit");
+        await expect(font).toHaveText(CHARACTER_INHERIT_LABEL);
         await font.click();
         await page.getByRole("option", { name: FONT, exact: true }).click();
         await pending.requested;
@@ -545,7 +546,7 @@ test("Look's Reset all to Inherit asks first: Cancel writes nothing, Reset write
 
   await context.getByRole("button", { name: CHARACTER_RESET_LOOK_NAME, exact: true }).click();
   await confirm.getByRole("button", { name: CHARACTER_RESET_LOOK_CONFIRM_NAME, exact: true }).click();
-  await expect(font).toHaveText("Inherit");
+  await expect(font).toHaveText(CHARACTER_INHERIT_LABEL);
   await expect.poll(() => calls.inputs("character.update").length).toBe(1);
   expect((await caller.character.get({ characterId: card.id })).themeOverride).toBeNull();
 });

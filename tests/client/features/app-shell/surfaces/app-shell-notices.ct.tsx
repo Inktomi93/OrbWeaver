@@ -9,7 +9,7 @@ import { ALERTS_REGION_NAME, SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_LIBRARY_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 import type { AppShellModalStory, AppShellNoticeStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
@@ -203,7 +203,7 @@ test.describe("with an open sheet and keyboard", () => {
       title: "Imported with notes",
       description: LONG_DETAIL,
     });
-    await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(card.name);
+    await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(card.name);
     await page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: card.name, exact: true }).click();
     // The push to the card's screen runs a view transition, which takes hit tests until it ends; a click inside it is
     // retried by scrolling the page, which moves every box this test then measures.

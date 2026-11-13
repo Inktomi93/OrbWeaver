@@ -11,6 +11,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { RETRY_NAME } from "#lib";
 import type { ImportPreviewState } from "../hooks/use-library-import.ts";
+import { IMPORT_PREVIEW_HIDE_NAMES, IMPORT_PREVIEW_REPORT_NAME, IMPORT_PREVIEW_SHOW_NAMES } from "../lib/import-library-names.ts";
 import { counted, KIND_NOUNS, previewKindLine } from "../lib/portability-model.ts";
 
 function namesLine(names: readonly string[], total: number): string {
@@ -38,8 +39,9 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
   const { skipped } = preview;
   const groups = skipGroups(skipped);
   const unlisted = skipped.total - skipped.items.length;
+  const namesToggle = namesOpen ? IMPORT_PREVIEW_HIDE_NAMES : IMPORT_PREVIEW_SHOW_NAMES;
   return (
-    <Stack gap="tight" role="group" aria-label="What this import would bring">
+    <Stack gap="tight" role="group" aria-label={IMPORT_PREVIEW_REPORT_NAME}>
       {kinds.map((kind) => (
         <Text key={kind} voice="reading">
           {previewKindLine(kind, preview.kinds[kind])}
@@ -57,7 +59,7 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
       )}
       {kinds.length === 0 && skipped.total === 0 ? null : (
         <Collapsible open={namesOpen} onOpenChange={setNamesOpen}>
-          <CollapsibleTrigger>{namesOpen ? "Hide names" : "Show names"}</CollapsibleTrigger>
+          <CollapsibleTrigger>{namesToggle}</CollapsibleTrigger>
           <CollapsiblePanel>
             <Stack gap="tight">
               {kinds.map((kind) => (

@@ -16,6 +16,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_OPTIONS_NAME, CHAT_SETTINGS_DOOR_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { GROUP_OUTPUT_FIELD_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import { CHAT_COMPOSER_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import {
@@ -80,7 +81,7 @@ for (const viewport of VIEWPORTS) {
       await expect(upper.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true })).toBeVisible();
       const plugins = upper.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true });
       await expect(plugins).toBeVisible();
-      await expect(lower.getByRole("button", { name: "Chat options", exact: true })).toBeVisible();
+      await expect(lower.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true })).toBeVisible();
       await expect(lower.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeVisible();
       await expect(input).toHaveValue("");
       await expect(input).toHaveAttribute("autocorrect", "off");
@@ -277,8 +278,8 @@ async function expectGroupControls(page: Page, names: readonly string[], guided:
     await expect(speakers.getByRole("menuitem", { name, exact: true })).toBeVisible();
   }
   await page.keyboard.press("Escape");
-  await lower.getByRole("button", { name: "Chat options", exact: true }).press("Enter");
-  await page.getByRole("menuitem", { name: "Chat settings", exact: true }).click();
+  await lower.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).press("Enter");
+  await page.getByRole("menuitem", { name: CHAT_SETTINGS_DOOR_NAME, exact: true }).click();
   await expect(page.getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.settings, exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("group", { name: GROUP_OUTPUT_FIELD_NAME, exact: true })).toBeVisible();
   await page.keyboard.press("Escape");

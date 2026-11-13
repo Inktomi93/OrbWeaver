@@ -39,6 +39,7 @@ import {
   WORKLOAD_LANE_LABELS,
   workloadFilterMatches,
 } from "../lib/workloads-model.ts";
+import { WORKLOAD_FILTER_TABS_NAME } from "../lib/workloads-names.ts";
 import { RunWorkloadDialog } from "./run-workload-dialog.tsx";
 import { WorkloadRow } from "./workload-row.tsx";
 
@@ -135,7 +136,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
         >
           <Stack gap="block">
             <Row align="center" wrap={true} justify="between" gap="row">
-              <TabsList aria-label="Filter jobs">
+              <TabsList aria-label={WORKLOAD_FILTER_TABS_NAME}>
                 {WORKLOAD_FILTERS.map((id) => (
                   <TabsTab key={id} value={id}>
                     {WORKLOAD_FILTER_LABELS[id]}

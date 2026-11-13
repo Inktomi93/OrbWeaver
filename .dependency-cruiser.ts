@@ -138,6 +138,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
+  "^tests/client/components/_form-dialog-labels\\.ts$": "the title the form dialog create story authors and its spec finds the dialog by",
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
@@ -494,12 +495,17 @@ const TEST_CONSTANT_HOMES = {
     "APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: the Message details section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
     "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the Message style section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/chat-behavior-message-handling-model.ts":
+    "CHAT_MESSAGE_HANDLING_SUBCATEGORY: the Message handling section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/app-shell/lib/appearance-effects-model.ts":
     "APPEARANCE_EFFECTS_SUBCATEGORY: the Effects section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/auth/lib/reauth-names.ts": "REAUTH_MODAL_TITLE: the re-auth prompt's title, which its landing test names the dialog by",
   "packages/client/src/features/plugin/lib/plugin-command-copy.ts":
     "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
-  "packages/client/src/features/workloads/lib/import-library-names.ts": "IMPORT_FOLDER_NAME: the import section's folder door",
+  "packages/client/src/features/workloads/lib/import-library-names.ts":
+    "IMPORT_FOLDER_NAME and its siblings: the import section's doors, its preflight report and the persona review's answers",
+  "packages/client/src/features/workloads/lib/workloads-names.ts":
+    "WORKLOAD_JOB_FIELD_NAME and its siblings: the Jobs, Schedules, export and tuning sections' names",
   "packages/ui/src/primitives/selection-bar/selection-bar-names.ts": "SELECTION_CLEAR_NAME and selectionCountLabel: the selection bar's names",
   "packages/ui/src/primitives/color-field/color-field-names.ts":
     "COLOR_HEX_FIELD_NAME and colorPickerName: the colour field's hex box and picker names, which the Look walk records the popup by",
