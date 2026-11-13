@@ -69,6 +69,7 @@
     "typecheck": "node scripts/typecheck.ts",
     "lint:eslint": "eslint --flag unstable_native_nodejs_ts_config --max-warnings 0",
     "lint:eslint:parts": "node scripts/eslint-parts.ts",
+    "lint:eslint:changed": "node scripts/lint-changed.ts",
     "lint:css": "stylelint \"packages/**/*.css\"",
     "test:ct": "playwright test --config=playwright-ct.config.ts --project=chromium",
     "test:ct:webkit": "playwright test --config=playwright-ct.config.ts --project=webkit-iphone",

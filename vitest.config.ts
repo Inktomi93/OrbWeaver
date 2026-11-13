@@ -71,6 +71,12 @@ function workspaceManifestsHash(): string {
   return hash.digest("hex");
 }
 
+const TEST_TIMEOUT_MS = budget(5000);
+// A test that passes at half its budget on this box times out once load doubles its runtime, so the default
+// reporter lists it in yellow with its duration. Vitest takes the threshold only at the root, so it is measured
+// against this default budget; a `slow`-tagged or repository case past it is listed too.
+const SLOW_TEST_BUDGET_FRACTION = 0.5;
+
 const MANIFESTS_CACHE_KEY = {
   name: "orb:workspace-manifests-cache-key",
   configureVitest: ({ defineCacheKeyGenerator }: Pick<VitestPluginContext, "defineCacheKeyGenerator">): void => {
@@ -84,7 +90,8 @@ export function vitestConfig(): ViteUserConfig {
     plugins: [MANIFESTS_CACHE_KEY],
     test: {
       globalSetup: [RUN_TEMP_ROOT, WORKING_TREE_GUARD],
-      testTimeout: budget(5000),
+      testTimeout: TEST_TIMEOUT_MS,
+      slowTestThreshold: Math.round(TEST_TIMEOUT_MS * SLOW_TEST_BUDGET_FRACTION),
       hookTimeout: budget(10_000),
       // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.
       // No AUTH_FALLBACK: the server resolves it per AUTH_MODE, so the suite's default (unset ⇒
