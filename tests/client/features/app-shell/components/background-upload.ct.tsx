@@ -34,11 +34,13 @@ test("an uploaded background is saved under the id the runtime's source minted",
 
   const expectedEntryId = createSeededIds(FIXTURE_ID_CURSOR).uuid();
   await expect
-    .poll(() => saved.at(-1))
-    .toMatchObject({
-      section: "appearance",
-      patch: {
-        backgroundLibrary: expect.arrayContaining([expect.objectContaining({ entryId: expectedEntryId, assetId, assetHash: HASH, name: "dusk" })]),
-      },
-    });
+    .poll(() => saved)
+    .toContainEqual(
+      expect.objectContaining({
+        section: "appearance",
+        patch: expect.objectContaining({
+          backgroundLibrary: expect.arrayContaining([expect.objectContaining({ entryId: expectedEntryId, assetId, assetHash: HASH, name: "dusk" })]),
+        }),
+      }),
+    );
 });

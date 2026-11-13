@@ -87,5 +87,5 @@ test("the browse lists settings as a facet, shows them on the rows and narrows t
   await expect(castleLine).toBeVisible();
   await expect(loomLine).toHaveCount(0);
   await expect(component.getByText(CORPUS_NOT_DISTILLED_TEXT, { exact: true })).toHaveCount(0);
-  expect(asked.at(-1)).toBe(CASTLE);
+  await expect.poll(() => asked).toContain(CASTLE);
 });

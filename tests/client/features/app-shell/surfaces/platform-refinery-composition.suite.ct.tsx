@@ -21,6 +21,7 @@ import {
   REFINERY_SETUP_TAB_LABEL,
   REFINERY_VERSIONS_NAME,
   refineryOpenCardName,
+  refineryRestoreVersionName,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RefineryCompositionShellStory } from "./_refinery-composition-stories.tsx";
@@ -285,14 +286,15 @@ test("Versions asks before Restore overwrites the live card, and Cancel writes n
   await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   const context = page.locator(CONTEXT);
   await context.getByRole("tab", { name: REFINERY_VERSIONS_NAME, exact: true }).click();
-  await context.getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
+  const restore = context.getByRole("button", { name: refineryRestoreVersionName("manual: keep this"), exact: true });
+  await restore.click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toBeVisible();
   expect(calls.count("character.restore")).toBe(0);
   await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toBeHidden();
   expect(calls.count("character.restore")).toBe(0);
-  await context.getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
+  await restore.click();
   await confirm.getByRole("button", { name: DIALOG_VERBS.restore, exact: true }).click();
   await expect.poll(() => calls.count("character.restore")).toBe(1);
 });

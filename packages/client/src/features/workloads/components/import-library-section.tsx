@@ -32,10 +32,10 @@ import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, Ref } from "react";
 import { useEffect, useRef } from "react";
-import { ImportedChatsMemoryOffer } from "#components";
+import { CommitRow, ImportedChatsMemoryOffer } from "#components";
 import type { TreeImportPlan } from "#data";
 import { useUploadCaps } from "#data";
-import { DIALOG_VERBS, testId } from "#lib";
+import { testId } from "#lib";
 import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
 import { IMPORT_FOLDER_NAME, IMPORT_PROGRESS_NAME, IMPORT_RESULT_NAME } from "../lib/import-library-names.ts";
@@ -141,17 +141,16 @@ function ImportPreflight({
           </Text>
         )}
         {/* Pinned to the foot of the pane's scroll, so Import and Cancel stay in reach however tall the review grows. */}
-        <Row justify="start" align="center" wrap={true} gap="field" ground="card" layer="raised" paddingBlock="field" placed="pinnedEnd">
-          <Button
-            onClick={onConfirm}
-            disabled={preview.status === "reading" || nothingNote !== null}
-            aria-describedby={nothingNote === null ? undefined : NOTHING_TO_SEND_ID}
-          >
-            {confirmName(files, plan)}
-          </Button>
-          <Button variant="outline" onClick={onCancel}>
-            {DIALOG_VERBS.cancel}
-          </Button>
+        <Row ground="card" layer="raised" paddingBlock="field" placed="pinnedEnd">
+          <CommitRow surface="island" onCancel={onCancel}>
+            <Button
+              onClick={onConfirm}
+              disabled={preview.status === "reading" || nothingNote !== null}
+              aria-describedby={nothingNote === null ? undefined : NOTHING_TO_SEND_ID}
+            >
+              {confirmName(files, plan)}
+            </Button>
+          </CommitRow>
         </Row>
       </Stack>
     </Card>

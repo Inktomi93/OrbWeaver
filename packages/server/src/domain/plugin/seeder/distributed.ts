@@ -12,6 +12,8 @@
 //
 // THE LATCH IS WRITTEN ONLY AFTER A FULLY SUCCESSFUL PASS. A transient failure — the published asset mid-read,
 // a db blip — leaves it unset so the user is retried on their next touch instead of silently skipped forever.
+// A stored bundle this build refuses is not transient: the pass still counts as complete, each refusal is
+// logged at warn with its slug, and an admin's re-publish of that slug fans out to this user directly.
 //
 // ALL THE PLUGIN LOGIC LIVES IN THE VERB, not here: what a distributed copy is (disabled, zero grant,
 // consent-pending), which slugs are published, and the already-held skip are the domain's. Plugin owns the once-per-user question; the SETTINGS latch arrives through an injected consumer port.
@@ -32,7 +34,10 @@ export function createDistributedPluginApplier(deps: DistributedPluginApplierDep
     if (await deps.isApplied(principal)) {
       return;
     }
-    const { installedSlugs } = await deps.apply(principal);
+    const { installedSlugs, refused } = await deps.apply(principal);
+    for (const { slug, reason } of refused) {
+      log.warn({ userId: principal.userId, slug, reason }, "plugin: skipped a server-wide distributed plugin whose stored bundle this build refuses");
+    }
     await deps.markApplied(principal);
     if (installedSlugs.length > 0) {
       log.info(

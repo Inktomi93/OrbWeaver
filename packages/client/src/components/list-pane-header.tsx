@@ -18,7 +18,7 @@ import { Button } from "@orb/ui/button";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
 import type { ListPaneHeaderProps, OverflowMenuItem } from "#lib";
 import { BAND_OVERFLOW_LABEL, LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
@@ -27,11 +27,11 @@ import { Tip } from "./tip.tsx";
 import { useCutParts } from "./use-is-cut.ts";
 
 /** The primary's icon form: the same command its menu form runs, named by its label. */
-function CompactAction({ command }: { readonly command: OverflowMenuItem }): ReactElement {
+function CompactAction({ command, buttonRef }: { readonly command: OverflowMenuItem; readonly buttonRef: Ref<HTMLButtonElement> | undefined }): ReactElement {
   const disabled = command.disabled === true;
   return (
     <Tip text={disabled ? undefined : command.label}>
-      <Button aria-label={command.label} disabled={disabled} onClick={command.onSelect} size="sm" square={true} type="button">
+      <Button aria-label={command.label} disabled={disabled} onClick={command.onSelect} ref={buttonRef} size="sm" square={true} type="button">
         <Icon icon={command.icon} size="sm" />
       </Button>
     </Tip>
@@ -157,7 +157,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           actions={actions.map((action) => ({
             id: action.id,
             inline: action.inline,
-            compact: action.compact === undefined ? undefined : <CompactAction command={action.compact} />,
+            compact: action.compact === undefined ? undefined : <CompactAction buttonRef={action.compactRef} command={action.compact} />,
             menu: <OverflowMenuForms forms={action.menu} />,
           }))}
           gap="field"

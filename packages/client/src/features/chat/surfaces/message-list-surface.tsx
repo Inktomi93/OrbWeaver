@@ -29,8 +29,8 @@ import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
-import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
+import { RenderProfiler, resolveRowRenderPolicy, trpcErrorCode, useFocusOnMount } from "#lib";
+import { chatDeletedFromList, isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
@@ -99,6 +99,26 @@ export interface MessageListSurfaceProps {
   readonly leading?: ReactNode;
 }
 
+/**
+ * The room's read failure. A room deleted or reaped where this client never heard of it (another tab, a host's delete, the expiry
+ * sweep, a delete while the tab was closed) leaves its id as the active chat: the user channel carries no deleted event and the
+ * active-chat store makes no server call, so the room's own read answering not found is the one signal. It returns the reader to the
+ * chat list, where a retry could never succeed.
+ */
+function RoomReadFailure({ chatId, error, onRetry }: { readonly chatId: ChatId; readonly error: unknown; readonly onRetry: () => void }): ReactElement {
+  const gone = trpcErrorCode(error) === "NOT_FOUND";
+  useEffect(() => {
+    if (gone) {
+      chatDeletedFromList(chatId);
+    }
+  }, [gone, chatId]);
+  return (
+    <Track of={Stack} track="chat">
+      <QueryErrorState label="this conversation" onRetry={onRetry} plate="error" />
+    </Track>
+  );
+}
+
 /** The scrolling chat transcript for one chat. */
 export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers, leading }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -135,11 +155,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
         // control, and `muted-foreground` is floored against `card` (the `error` plate states the ink
         // routing in full). Both classes are inert on a plain background.
         // The track is a box around the state, so the plate rides the component's own `plate`.
-        renderError={(_error, retry): ReactElement => (
-          <Track of={Stack} track="chat">
-            <QueryErrorState label="this conversation" onRetry={retry} plate="error" />
-          </Track>
-        )}
+        renderError={(error, retry): ReactElement => <RoomReadFailure chatId={chatId} error={error} onRetry={retry} />}
       >
         {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>

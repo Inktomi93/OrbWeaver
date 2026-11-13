@@ -37,6 +37,7 @@ import { CharacterFacetInspector } from "../components/character-facet-inspector
 import { CharacterHistoryTab } from "../components/character-history-tab.tsx";
 import { CharacterRelationsTab } from "../components/character-relations-tab.tsx";
 import { CharacterTrustTab } from "../components/character-trust-tab.tsx";
+import { NewCharacterHost } from "../components/new-character-host.tsx";
 import { useCharacterContextResetKeys, useCharacterContextState } from "../hooks/use-character-context-state.ts";
 import { useCharactersListHeader } from "../hooks/use-characters-list-header.tsx";
 import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
@@ -67,9 +68,12 @@ export function makeCharactersSection(
       description: "Your characters live here. Browse the list, then open someone to see their card.",
     },
     // The LIBRARY, whatever is selected (#501) — the picker is the pane's ONE role.
+    // The new-character request host rides the list and the content both: a phone's list screen mounts no content and a
+    // collapsed list mounts no list body, and whichever is mounted takes the request.
     list: () => (
       <CharacterLibraryAnchor>
         <CharacterLibrarySurface />
+        <NewCharacterHost />
       </CharacterLibraryAnchor>
     ),
     // …so the band has ONE mode too: `CHARACTERS` + the create primary.
@@ -79,7 +83,12 @@ export function makeCharactersSection(
     selection: characterSectionSelection,
     // …and what the phone topbar calls this screen: the open character, else `Characters · <census>` (#1670).
     useSelectionTitle: useCharactersSelectionTitle,
-    content: () => <CharacterContent detailContributors={detailContributors} />,
+    content: () => (
+      <>
+        <CharacterContent detailContributors={detailContributors} />
+        <NewCharacterHost />
+      </>
+    ),
     // THE SIX-TAB HEADER STRIP (#860, owner 2026-08-30): Overview · Chats · Links · Look · History · Trust.
     // Overview is the resting card + the drilled facet detail; Chats is #501's home for her threads (the
     // pane the LIST used to become); Links is world books + personas; Look is the theme override +
