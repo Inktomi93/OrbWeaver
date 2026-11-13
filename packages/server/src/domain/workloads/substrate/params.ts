@@ -20,6 +20,7 @@ import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { RunAsker, WorkloadRunnerDeps, WorkloadServiceContext } from "../contract/service.ts";
+import type { WorkloadReads } from "../contract/workload-row.ts";
 
 /** Parse ONE kind's params blob against its contribution schema. Throws the raw Zod error — callers that
  *  face a client wrap it (`parseKindParams`); the row read path catches it for poison tolerance. */
@@ -38,6 +39,11 @@ function parseKindParams(contributions: WorkloadContributions, input: StartWorkl
     invalid.cause = err;
     throw invalid;
   }
+}
+
+/** What a verb's row read narrows against: the registry as of this call, and the domain's log. */
+export function workloadReads(ctx: Pick<WorkloadServiceContext, "getContributions" | "logger">): WorkloadReads {
+  return { contributions: ctx.getContributions(), logger: ctx.logger };
 }
 
 /** The account a stored run answers to. A bulk row's owner is only the account it targets, which the box owner may

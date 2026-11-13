@@ -100,7 +100,7 @@ async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadLane): P
   // the same row and hot-loop on the busy cadence — back off to the full idle period instead.
   if (!deps.signal.aborted) {
     try {
-      const after = await deps.load(db, contributions, id);
+      const after = await deps.load(db, { contributions, logger: deps.logger }, id);
       if (after?.status === "queued") {
         log.warn({ workloadId: id, kind: row.kind }, "workloads-worker: row still 'queued' after dispatch — backing off a full poll period");
         return { ran: true, backOff: true };

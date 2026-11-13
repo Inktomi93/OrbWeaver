@@ -4,7 +4,6 @@ import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "@orb/contracts/wor
 import type { BootDatabaseHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import { bootDatabaseForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorkloadId } from "@orb/kit/ids";
-import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { ScheduleTickDeps } from "../contract/schedule.ts";
 import type {
   BootReclaimArgs,
@@ -14,7 +13,7 @@ import type {
   ReapWorkloadsArgs,
   WorkloadRunnerDeps,
 } from "../contract/service.ts";
-import type { AuthorizeWorkloadRead } from "../contract/workload-row.ts";
+import type { AuthorizeWorkloadRead, WorkloadReads } from "../contract/workload-row.ts";
 import { reclaimInFlightOnBoot as reclaim } from "../engine/boot-reclaim.ts";
 import { createNextRunnableWorkload as bindNextRunnable } from "../engine/next-runnable.ts";
 import { reapOrphanedWorkloads as reap } from "../engine/reaper.ts";
@@ -43,13 +42,8 @@ export async function reclaimInFlightOnBoot(input: Omit<BootReclaimArgs, "db"> &
 }
 
 /** Re-read the claimed row without giving its driver a query client. */
-export function loadWorkload(
-  db: DatabaseHandle,
-  contributions: WorkloadContributions,
-  id: WorkloadId,
-  authorize?: AuthorizeWorkloadRead,
-): Promise<WorkloadRowAnyKind | null> {
-  return load(databaseForOwner(db), contributions, id, authorize);
+export function loadWorkload(db: DatabaseHandle, reads: WorkloadReads, id: WorkloadId, authorize?: AuthorizeWorkloadRead): Promise<WorkloadRowAnyKind | null> {
+  return load(databaseForOwner(db), reads, id, authorize);
 }
 
 /** Keep schedule advancement and enqueue failure handling inside the existing engine. */

@@ -15,6 +15,7 @@ export type {
   WorkloadService,
   WorkloadServiceContext,
 } from "./contract/service.ts";
+export type { WorkloadReads } from "./contract/workload-row.ts";
 export { createWorkloadProgressBus } from "./engine/progress-bus.ts";
 export { createWorkloadService } from "./service.ts";
 export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";

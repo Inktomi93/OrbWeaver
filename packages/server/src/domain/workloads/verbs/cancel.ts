@@ -10,13 +10,13 @@ import type { CancelWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { loadStoredParams, loadWorkload, markCancelling } from "../persistence/queries.ts";
 import { isVisibleToCaller, mayActOnRow } from "../substrate/authorize.ts";
-import { releaseUnrun } from "../substrate/params.ts";
+import { releaseUnrun, workloadReads } from "../substrate/params.ts";
 
 const ENTITY = "workload";
 
 export function createCancel(ctx: WorkloadServiceContext): Pick<WorkloadService, "cancel"> {
   async function cancel(params: CancelWorkloadParams): Promise<CancelWorkloadResult> {
-    const row = await loadWorkload(ctx.db, ctx.getContributions(), params.id, (access) => isVisibleToCaller(ctx.isAdmin, params.caller, access.ownerId));
+    const row = await loadWorkload(ctx.db, workloadReads(ctx), params.id, (access) => isVisibleToCaller(ctx.isAdmin, params.caller, access.ownerId));
     if (row === null || !(await mayActOnRow(ctx, params.caller, row))) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }

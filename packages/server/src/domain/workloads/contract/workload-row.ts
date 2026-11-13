@@ -1,6 +1,6 @@
 // domain/workloads/contract/workload-row — the typed DB-row projection WorkloadRowAnyKind: per-kind
 // narrowing of the JSON columns (params/result, typed as any kind's shape) against the kind discriminator. One place
-// does the narrowing (persistence/toView), so no consumer casts the JSON blobs.
+// does the narrowing (persistence/readRow), so no consumer casts the JSON blobs.
 //
 // The `poison` discriminant is the read path's HONESTY seam: a row whose stored params blob no longer parses
 // against its kind's contribution schema (a renamed field, an invalid branded TypeID) used to VANISH from
@@ -10,6 +10,8 @@
 import type { WorkloadError, WorkloadKind } from "@orb/contracts/workloads";
 import type { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
+import type { Logger } from "#foundation/observability";
+import type { WorkloadContributions } from "./contribution.ts";
 
 /** The engine-plane terminal write, correlated with the payload each terminal persists. */
 export type WorkloadTerminalWrite = { readonly id: WorkloadId; readonly now: number } & (
@@ -35,7 +37,7 @@ export type WorkloadQueueFailureSink = (failure: WorkloadQueueFailure) => void;
  *  so it must also dispose of rows whose params no longer parse (poison) — which the view path surfaces with
  *  `params: null` — and rows of a kind this build no longer ships, which the view path narrows away
  *  ENTIRELY. That last case is why this shape is shared rather than boot-only: the sweep used to project
- *  through `toView`, so an unknown-kind row could never be terminalized and held its kind's single-active
+ *  through `readRow`, so an unknown-kind row could never be terminalized and held its kind's single-active
  *  slot until a process restart. The column's declared type is the tuple, so a deploy-skew kind is a RUNTIME
  *  possibility only (the DDL's `workloads_kind_check` constrains writes, not rows already on disk); each
  *  disposition resolves it against the registry and treats an absent one as non-resumable. */
@@ -75,6 +77,12 @@ export type WorkloadReadAccess = Pick<StoredWorkloadRow, "ownerId" | "mode" | "a
 
 /** The user-facing authority check runs on scalar row metadata before any private JSON is decoded. */
 export type AuthorizeWorkloadRead = (row: WorkloadReadAccess) => boolean;
+
+/** What a read surface needs to narrow a row: the registry that validates its params, and the log an operator reads. */
+export interface WorkloadReads {
+  readonly contributions: WorkloadContributions;
+  readonly logger: Logger;
+}
 
 /** Atomic claim output: null ownership is admitted only when the stored original admission was ownerless. */
 export type WorkloadClaim = ({ readonly ownerId: UserId } | { readonly ownerId: null; readonly admissionSystem: true }) &

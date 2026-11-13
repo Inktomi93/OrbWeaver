@@ -37,6 +37,7 @@ type NewWorkloadScheduleId = () => WorkloadScheduleId;
 
 /** The bundle the service root supplies to the workload verbs. */
 export interface WorkloadServiceContext {
+  readonly logger: Logger;
   readonly db: Db;
   /** The per-kind contribution registry, LATE-BOUND (a thunk, like portability's `getPortabilityRegistry`).
    *  The verbs use it as the params VALIDATOR (enqueue + the row read path) — the run bodies belong to the

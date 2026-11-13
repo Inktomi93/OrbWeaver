@@ -19,6 +19,7 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const QUEUE_DELAY_MS = 10_000;
+const LOG_SCAN_LIMIT = 200;
 
 async function enqueue(harness: ServerTestHarness, caller: Principal | null): Promise<WorkloadRef> {
   return await harness.services.workloads.start({
@@ -108,7 +109,13 @@ test("a params-poison view never publishes an unvalidated terminal result", asyn
   expect(await status(harness.db, row.id)).toEqual({ status: "queued", error: null });
 });
 
-test("one row whose stored result no longer parses reads as unreadable and the rest of the list still answers", async ({ harness }) => {
+const UNREADABLE_RESULT_LINE = "a stored result no longer parses";
+
+function unreadableResultLines(harness: ServerTestHarness, id: WorkloadId): string[] {
+  return harness.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes(UNREADABLE_RESULT_LINE) && line.includes(id));
+}
+
+test("one row whose stored result no longer parses keeps its params, hides the result, and the rest of the list still answers", async ({ harness }) => {
   const stale = await actor(harness);
   const healthy = await actor(harness);
   const unreadable = await enqueue(harness, stale);
@@ -120,10 +127,35 @@ test("one row whose stored result no longer parses reads as unreadable and the r
 
   const listed = await harness.services.workloads.list({ caller: null, status: "queued" });
 
-  expect(listed.find((row) => row.id === unreadable.id)).toMatchObject({ poison: true, params: null, result: null });
-  expect(listed.find((row) => row.id === readable.id)).toMatchObject({ poison: false });
-  await expect(harness.services.workloads.get({ caller: stale, id: unreadable.id })).resolves.toMatchObject({ poison: true, result: null });
+  expect(listed.find((row) => row.id === unreadable.id)).toMatchObject({ poison: false, params: { dryRun: true }, result: null });
+  expect(listed.find((row) => row.id === readable.id)).toMatchObject({ poison: false, params: { dryRun: true } });
+  await expect(harness.services.workloads.get({ caller: stale, id: unreadable.id })).resolves.toMatchObject({
+    poison: false,
+    params: { dryRun: true },
+    result: null,
+  });
   expect(JSON.stringify(listed)).not.toContain("stored by an older build");
+});
+
+test("an unreadable stored result is logged once per read with the row id and never its content", async ({ harness }) => {
+  harness.logger.level = "info";
+  const stale = await actor(harness);
+  const healthy = await actor(harness);
+  const unreadable = await enqueue(harness, stale);
+  const readable = await enqueue(harness, healthy);
+  await harness.db
+    .update(workloads)
+    .set({ result: sql`${JSON.stringify({ scanned: "private result", changed: 0, dryRun: true })}` })
+    .where(eq(workloads.id, unreadable.id));
+
+  await harness.services.workloads.get({ caller: stale, id: unreadable.id });
+  await harness.services.workloads.get({ caller: healthy, id: readable.id });
+
+  const lines = unreadableResultLines(harness, unreadable.id);
+  expect(lines).toHaveLength(1);
+  expect(lines[0]).not.toContain("private result");
+  // The control: a row whose result reads logs nothing.
+  expect(unreadableResultLines(harness, readable.id)).toEqual([]);
 });
 
 test("valid results remain visible on the declared params-poison arm", async ({ harness }) => {
