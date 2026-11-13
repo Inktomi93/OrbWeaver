@@ -200,6 +200,12 @@ export const JUDGED_ORACLES: readonly OracleJudgement[] = [
     reason: "the case's subject is the repeat count it spells; the tally only opens the line",
   },
   {
+    file: "tests/client/features/workloads/components/import-preview.ct.tsx",
+    scope: "keeping both of a colliding persona holds the preview back until it counts the copy, and the run writes what the line says",
+    function: "counted",
+    reason: "locates the persona line; the case asserts its numbers as literals",
+  },
+  {
     file: "tests/client/features/world-info/surfaces/platform-world-info-member.suite.ct.tsx",
     // biome-ignore lint/suspicious/noTemplateCurlyInString: the key is the case's title template as the source spells it.
     scope: 'the persona heading counts ${attached ? "attached" : "zero attached"} personas, not available personas',
