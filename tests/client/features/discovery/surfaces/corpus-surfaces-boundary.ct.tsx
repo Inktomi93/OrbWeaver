@@ -8,6 +8,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { heldThenFailing, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CorpusDestinationStory } from "./_corpus-destination-stories.tsx";
 
 const SHELL_STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -35,7 +36,7 @@ test("a held never-played read shows the loading skeleton on its own, a failed o
   read.hold.fail();
   await expect(page.getByText("Couldn't load your never-played characters.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load your never-played characters.", { exact: true })).toHaveCount(0);
 });
 
@@ -50,7 +51,7 @@ test("a failed model-usage read says so in its own block and Retry clears it", a
   read.hold.fail();
   await expect(page.getByText("Couldn't load your model usage.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load your model usage.", { exact: true })).toHaveCount(0);
 });
 
@@ -65,7 +66,7 @@ test("a failed keywords read says so in the explorer and Retry clears it", async
   read.hold.fail();
   await expect(page.getByText("Couldn't load your top keywords.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load your top keywords.", { exact: true })).toHaveCount(0);
 });
 
@@ -80,7 +81,7 @@ test("a failed story-theme drift read says so in its own block and Retry clears 
   read.hold.fail();
   await expect(page.getByText("Couldn't load story-theme drift.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load story-theme drift.", { exact: true })).toHaveCount(0);
 });
 
@@ -109,7 +110,7 @@ test("the dossier's similar-art strip holds, fails and retries on its own", asyn
   read.hold.fail();
   await expect(page.getByText("Couldn't load the similar art.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load the similar art.", { exact: true })).toHaveCount(0);
 });
 
@@ -137,6 +138,6 @@ test("a held pair comparison shows the loading skeleton, a failed one the error 
   read.hold.fail();
   await expect(page.getByText("Couldn't load that comparison.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load that comparison.", { exact: true })).toHaveCount(0);
 });

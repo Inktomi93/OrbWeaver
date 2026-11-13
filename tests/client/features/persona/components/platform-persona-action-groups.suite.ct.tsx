@@ -8,6 +8,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { PERSONA_DELETE_NAME, PERSONA_DUPLICATE_NAME, PERSONA_EXPORT_NAME, PERSONA_TITLE_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -102,7 +103,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       const confirm = page.getByRole("alertdialog", { name: "Delete this persona?", exact: true });
       await expect(confirm).toContainText(name);
-      await confirm.getByRole("button", { name: "Cancel", exact: true }).focus();
+      await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).focus();
       await page.keyboard.press("Enter");
       await expect(confirm).toBeHidden();
       await expect(remove).toBeFocused();
@@ -193,7 +194,7 @@ for (const regime of REGIMES) {
       await expect(status).toHaveAttribute("role", "alert");
       await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
       await expect(title).toHaveValue(nextTitle);
-      const retry = status.getByRole("button", { name: "Retry", exact: true });
+      const retry = status.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
       const geometry = await actionGroupGeometry(status, [retry]);
       await info.attach("persona-save-retry-geometry", { body: JSON.stringify(geometry), contentType: "application/json" });
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);

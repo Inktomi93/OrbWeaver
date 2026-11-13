@@ -3,6 +3,8 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { holdServed, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { AUTOSAVE_SAVE_FAILED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { TagEditorStory } from "./_tag-editor-stories.tsx";
 
 const STORY = "tests/client/components/_tag-editor-stories/TagEditorStory";
@@ -46,16 +48,16 @@ for (const viewport of [
       const name = page.getByRole("textbox", { name: "Name", exact: true });
       await name.fill("Pending rename");
       await page.getByRole("switch", { name: "Hide chip on cards", exact: true }).click();
-      await expect(page.getByRole("alert").filter({ hasText: "Save failed" })).toBeVisible();
+      await expect(page.getByRole("alert").filter({ hasText: AUTOSAVE_SAVE_FAILED_TEXT })).toBeVisible();
       await expect(name).toHaveValue("Pending rename");
       await expect(page.getByRole("switch", { name: "Hide chip on cards", exact: true })).toBeChecked();
       expect((await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)?.name).toBe(tag.name);
 
       failing = false;
-      await page.getByRole("button", { name: "Retry", exact: true }).click();
+      await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
       await expect(page.getByRole("status", { exact: true }).filter({ hasText: /^Saved$/u })).toBeVisible();
       expect((await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)).toMatchObject({ name: "Pending rename", isHiddenOnCard: true });
-      await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: DIALOG_VERBS.save, exact: true })).toHaveCount(0);
     });
 
     for (const mode of ["clean-external", "dirty-external", "own"] as const) {

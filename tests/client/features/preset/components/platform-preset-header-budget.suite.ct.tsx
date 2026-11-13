@@ -15,6 +15,7 @@ import {
   PRESET_RESET_ARRANGEMENT_TITLE,
   PRESET_SECTIONS_NAME,
 } from "#client/features/preset/lib/preset-names.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
@@ -151,7 +152,7 @@ test.describe("coarse narrow save failure", () => {
       firstSave.fail();
     }
     await expect(status).toHaveAttribute("role", "alert");
-    await expect(status).toContainText("Save failed");
+    await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
     const retry = status.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     const reset = editor.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true });
     const geometry = await actionGroupGeometry(editor, [retry, reset]);

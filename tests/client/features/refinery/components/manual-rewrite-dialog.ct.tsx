@@ -4,6 +4,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { REFINERY_HAND_EDIT_EMPTY_SCOPE, REFINERY_HAND_EDIT_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_remaining-action-groups-stories/RefineryRemainingActionsStory";
@@ -83,5 +84,5 @@ test("a hand-edit with nothing in scope says why it has no fields", async ({ mou
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(REFINERY_HAND_EDIT_EMPTY_SCOPE, { exact: true })).toBeVisible();
   await expect(dialog.getByRole("checkbox")).toHaveCount(0);
-  await expect(dialog.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: DIALOG_VERBS.save, exact: true })).toBeDisabled();
 });

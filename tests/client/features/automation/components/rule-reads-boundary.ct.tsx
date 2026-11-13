@@ -12,6 +12,7 @@ import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/automation/components/_rule-action-groups-stories/RuleActionGroupsStory";
@@ -104,7 +105,7 @@ test("a held tool catalog read shows the loading skeleton, a failed one the erro
   await expect(editor.getByText("Couldn't load your tool catalog.", { exact: true })).toBeVisible();
   await expect(editor.getByText("Argument template (JSON)", { exact: true })).toBeVisible();
   read.recover();
-  await editor.getByRole("button", { name: "Retry", exact: true }).click();
+  await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(editor.getByText("Couldn't load your tool catalog.", { exact: true })).toHaveCount(0);
   await expect(editor.getByText("Tool", { exact: true })).toBeVisible();
 });
@@ -129,7 +130,7 @@ test("a held world book read shows the loading skeleton, a failed one the error 
   read.hold.fail();
   await expect(editor.getByText("Couldn't load world books.", { exact: true })).toBeVisible();
   read.recover();
-  await editor.getByRole("button", { name: "Retry", exact: true }).click();
+  await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(editor.getByText("Couldn't load world books.", { exact: true })).toHaveCount(0);
   await expect(editor.getByText("World book", { exact: true })).toBeVisible();
 });
@@ -160,7 +161,7 @@ test("a held selected-character read shows the loading skeleton, a failed one th
   await expect(editor.getByText("The selected character is unavailable. Its saved identity is retained until you replace it.", { exact: true })).toBeVisible();
   await expect(editor.getByText(`Speaker: ${character.id}`, { exact: true })).toBeVisible();
   read.recover();
-  await editor.getByRole("button", { name: "Retry", exact: true }).click();
+  await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(editor.getByText("The selected character is unavailable. Its saved identity is retained until you replace it.", { exact: true })).toHaveCount(0);
   await expect(editor.getByText(`Speaker: ${character.name}`, { exact: true })).toBeVisible();
 });
@@ -186,6 +187,6 @@ test("a held room world book read shows the loading skeleton in the preset knob,
   read.hold.fail();
   await expect(popover.getByText("Couldn't load this room's world books.", { exact: true })).toBeVisible();
   read.recover();
-  await popover.getByRole("button", { name: "Retry", exact: true }).click();
+  await popover.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(popover.getByText("Couldn't load this room's world books.", { exact: true })).toHaveCount(0);
 });

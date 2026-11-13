@@ -19,6 +19,7 @@ import { NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "#client/lib/chat-lau
 import { CONTEXT_SHEET_BACK_NAME, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { dataThemeOf } from "#client/lib/resolve-theme-scope-tokens.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
@@ -434,7 +435,7 @@ test.describe("committed corpus shell", () => {
     // document's surface is the settled one, so wait for it before reading Retry.
     await expect.poll(() => documents).toBe(2);
     await page.waitForLoadState("load");
-    const retry = page.getByRole("button", { name: "Retry", exact: true });
+    const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     await expect(retry).toBeVisible();
     await expect(page.getByRole("status", { name: ROUTE_PENDING_NAME })).toHaveCount(0);
     // Each document asked for the chunk once, so nothing loops.
@@ -460,7 +461,7 @@ test.describe("committed corpus shell", () => {
     });
     const reported = page.waitForResponse((response) => isTrpcRequestFor(response.url(), "clientError"));
     await page.goto("/");
-    await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
     expect((await reported).ok()).toBe(true);
     expect(reports).toHaveLength(1);
     expect(reports[0]).toContain(ROUTE_CRASH);

@@ -7,6 +7,7 @@ import { createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { DEFERRED_TURN_HOST_UNAVAILABLE_COPY } from "#client/features/notifications/lib/notifications-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { NotificationInboxStory } from "./_ct-stories.tsx";
 
 const STORY = "tests/client/features/notifications/_ct-stories/NotificationInboxStory";
@@ -194,7 +195,7 @@ test("a failed inbox read offers a retry and never claims the inbox is empty", a
   await mount<typeof NotificationInboxStory>(STORY, {});
   await openBell(page);
   const popup = page.locator(POPUP);
-  const retry = popup.getByRole("button", { name: "Retry", exact: true });
+  const retry = popup.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
   await expect(popup.locator('[data-slot="empty-state"]')).toHaveCount(0);
   failing = false;

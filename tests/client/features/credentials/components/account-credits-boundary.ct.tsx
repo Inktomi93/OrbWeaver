@@ -6,6 +6,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connection-action-groups-stories/ConnectionActionGroupsStory";
@@ -54,7 +55,7 @@ test("a held balance read shows the loading line, and a failed one the error blo
   await expect(block.getByText("Reading the balance…", { exact: true })).toBeVisible();
   hold.fail();
   await expect(block.getByText("Couldn't load the balance.", { exact: true })).toBeVisible();
-  await block.getByRole("button", { name: "Retry", exact: true }).click();
+  await block.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(block.getByText(PROVIDER_MESSAGE, { exact: true })).toBeVisible();
-  await expect(block.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(block.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
 });

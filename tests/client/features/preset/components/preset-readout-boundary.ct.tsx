@@ -17,6 +17,7 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PresetReadoutStory } from "./_preset-readout-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-readout-stories/PresetReadoutStory";
@@ -59,7 +60,7 @@ test("a held used-by read shows the loading state, a failed one the error block,
   read.hold.fail();
   await expect(usage.getByText("Couldn't load what uses this preset.", { exact: true })).toBeVisible();
   read.recover();
-  await usage.getByRole("button", { name: "Retry", exact: true }).click();
+  await usage.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(usage.getByText("Couldn't load what uses this preset.", { exact: true })).toHaveCount(0);
   await expect(usage.locator('[aria-busy="true"]')).toHaveCount(0);
 });
@@ -74,7 +75,7 @@ test("the open preset's own read failing shows the readout error block, and Retr
   read.hold.fail();
   await expect(page.getByText("Couldn't load the readout.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load the readout.", { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-slot="preset-usage"]')).toBeVisible();
 });
@@ -90,7 +91,7 @@ test("the active-preset readout holds, fails and retries through the same bounda
   read.hold.fail();
   await expect(page.getByText("Couldn't load the readout.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Active preset", { exact: true })).toBeVisible();
 });
 
@@ -111,7 +112,7 @@ test("Transforms keeps its pipeline while the attached scripts are held, says it
   await expect(page.getByText("Couldn't load the attached scripts.", { exact: true })).toBeVisible();
   await expect(stages.filter({ hasText: "couldn’t read" }).first()).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load the attached scripts.", { exact: true })).toHaveCount(0);
   await expect(stages.filter({ hasText: "couldn’t read" })).toHaveCount(0);
   await expect(stages.filter({ hasText: "…" })).toHaveCount(0);
@@ -130,7 +131,7 @@ test("Prompt keeps its estimates while pricing is held, a host-only refusal is s
   await expect(page.getByText("Couldn't load the bound chat's costs.", { exact: true })).toBeVisible();
   await expect(page.getByText("Budget", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load the bound chat's costs.", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Pricing these rows against the bound chat…", { exact: true })).toHaveCount(0);
 });
@@ -160,7 +161,7 @@ test("Prompt says a member cannot price a room they do not host, with no Retry",
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "prompt", chatId });
   await expect(page.getByText("This chat cannot be priced. Its host resolves the prompt, and you are not it.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });
 
 test("Actions holds, fails and retries the resolved preview, and says the host-only refusal as one", async ({ mount, page }) => {
@@ -175,7 +176,7 @@ test("Actions holds, fails and retries the resolved preview, and says the host-o
   read.hold.fail();
   await expect(page.getByText("Couldn't load the resolved preview.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load the resolved preview.", { exact: true })).toHaveCount(0);
 });
 
@@ -206,7 +207,7 @@ test("Params says a no-chat-model refusal through the profile's failure band bes
   await expect(page.getByText(REFUSAL, { exact: true })).toBeVisible();
   await expect(select).toBeVisible();
   phase = "serve";
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText(REFUSAL, { exact: true })).toHaveCount(0);
   await expect(page.getByText(/· chat role/u)).toBeVisible();
 });
@@ -274,5 +275,5 @@ test("Actions says a member cannot inspect a room they do not host, with no Retr
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "actions", chatId });
   await expect(page.getByText("This chat cannot be inspected. Its host resolves the prompt, and you are not it.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });

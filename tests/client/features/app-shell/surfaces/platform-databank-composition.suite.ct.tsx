@@ -15,6 +15,7 @@ import {
   DATABANK_RENAME_NAME,
   DATABANK_VIEW_SOURCE_NAME,
 } from "#client/features/databank/lib/databank-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { DatabankCompositionShellStory } from "./_databank-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -96,7 +97,7 @@ for (const regime of REGIMES) {
       const nameInput = dialog.getByRole("textbox", { name: DATABANK_DOCUMENT_NAME_FIELD_NAME, exact: true });
       await expect(nameInput).toBeFocused();
       await nameInput.fill("An abandoned document name");
-      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(dialog).toBeHidden();
       await expect(rename).toBeFocused();
       expect((await caller.databank.get({ id: document.id })).name).toBe(DOCUMENT_NAME);

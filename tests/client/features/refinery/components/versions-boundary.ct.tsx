@@ -45,7 +45,7 @@ test("a held snapshot walk shows the loading skeleton, a failed one the error bl
   await expect(page.getByText("Couldn't load this card's versions.", { exact: true })).toBeVisible();
   await expect(page.getByText("No versions yet", { exact: true })).toHaveCount(0);
   failing = false;
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load this card's versions.", { exact: true })).toHaveCount(0);
   await expect(page.getByText("No versions yet", { exact: true })).toBeVisible();
 });

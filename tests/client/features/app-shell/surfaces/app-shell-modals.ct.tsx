@@ -14,6 +14,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AppShellModalStory, AppShellNestedScopeStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -127,7 +128,7 @@ async function expectTitleCloseAndFieldOnScreen(dialog: Locator, title: string):
   await expect(heading).toBeInViewport({ ratio: 1 });
   await expect(heading).toHaveCSS("white-space", "nowrap");
   await expect(heading).toHaveCSS("text-overflow", "ellipsis");
-  await expect.poll(() => dialog.getByRole("button", { name: "Close", exact: true }).evaluate(takesPressAtCentre)).toBe(true);
+  await expect.poll(() => dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).evaluate(takesPressAtCentre)).toBe(true);
   // A centred popup lands on a half pixel, which the viewport test rounds against the field.
   await expect(dialog.getByRole("combobox")).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
 }
@@ -327,7 +328,7 @@ test.describe("on the corpus owner's own settings", () => {
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "addDocument" });
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Close", exact: true })).not.toBeFocused();
+    await expect(dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true })).not.toBeFocused();
     // The host's body anchor: inside the popup, not its frame, and out of the tab order so Tab still starts at the first control.
     await expect
       .poll(() =>

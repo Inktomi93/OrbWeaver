@@ -9,6 +9,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import { CONNECTIONS_LIST_NAME } from "#client/features/credentials/lib/connections-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 import type { ConnectionReadoutStory } from "./_connection-readout-stories.tsx";
 
@@ -163,7 +164,7 @@ for (const regime of REGIMES) {
       const opener = page.locator('[data-slot="list-row-body"]').filter({ hasText: LABEL });
       await opener.click();
       const back = page.getByRole("button", { name: "Back to Connections", exact: true });
-      const done = page.getByRole("button", { name: "Done", exact: true });
+      const done = page.getByRole("button", { name: DIALOG_VERBS.done, exact: true });
       await expect(back).toBeFocused();
       await expect(group).toBeVisible();
       await expect(heading).toHaveCount(1);
@@ -219,7 +220,7 @@ for (const regime of REGIMES) {
         await editor.screenshot({
           path: testInfo.outputPath(`credential-readout-${connection.providerId}-${connection.credentialId === null ? "unset" : "saved"}.png`),
         });
-        await page.getByRole("button", { name: "Done", exact: true }).click();
+        await page.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
       }
       expect(calls.count("connection.update")).toBe(0);
       expect((await caller.connection.get({ connectionId: missing.id })).credentialId).toBeNull();
@@ -261,7 +262,7 @@ for (const regime of REGIMES) {
         lineHeight: Number.parseFloat(getComputedStyle(node).lineHeight),
       }));
       expect(cap.height).toBeLessThanOrEqual(cap.lineHeight * 2 + 1);
-      await page.getByRole("button", { name: "Done", exact: true }).click();
+      await page.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
       const row = page.locator('[data-slot="list-row-root"]').filter({ hasText: LABEL });
       const menu = row.getByRole("button", { name: /^More actions for /u });
       await menu.click();
@@ -300,7 +301,7 @@ for (const regime of REGIMES) {
       await expectPaintedLabel(batch, BATCH.name);
       await expect(dialog.locator('[data-slot="model-picker-picked"]')).toContainText(BATCH.id);
       await dialog.screenshot({ path: testInfo.outputPath("picker-normal-batch-facts.png") });
-      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(menu).toBeFocused();
       expect(calls.count("connection.update")).toBe(0);
       expect((await caller.connection.get({ connectionId: connection.id })).model).toBe(NORMAL.id);

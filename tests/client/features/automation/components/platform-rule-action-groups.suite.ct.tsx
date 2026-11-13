@@ -18,6 +18,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { RULE_UNSET_EFFECTS, ruleEnabledSwitchName } from "#client/features/automation/lib/rule-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/automation/components/_rule-action-groups-stories/RuleActionGroupsStory";
@@ -514,7 +515,7 @@ test.describe("rule editor field rows", () => {
     await field.fill("extra fingers");
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ negative: "extra fingers" });
     await remove.click();
-    await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+    await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
     // The empty removal above opened no confirm, so it must not decide where this Cancel leaves focus.
     await expect(remove).toBeFocused();
     await expect(field).toHaveValue("extra fingers");
