@@ -191,7 +191,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     deps;
   const { service: chat } = chatCompose;
   const chatGuards = createWiredChatGuards({ db, can });
-  // One enabled read for every standing question this plane asks: a rule author's, an ask actor's, and a plugin installer's.
+  // One enabled read for every standing question this plane asks: a rule author's, an ask actor's, a plugin
+  // installer's room standing, and each guest host call on the installer's account.
   const isUserEnabled = createResolveUserEnabled(deps.sessions);
   const automationNotify = deps.publishAutomationEvent;
   const emitNotification = createRecordAndPublishNotification((params) => notifications.record(params), deps.publishNotification);
@@ -392,6 +393,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       findCardData: pluginRuntime.cardState.findCardData,
     },
     pubsub: { emit: createPluginEventEmitter(pluginEventBus) },
+    isInstallerEnabled: isUserEnabled,
     registrar: {
       ...registrarOps,
       registerMacros: (macros, invoke, scope) =>

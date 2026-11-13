@@ -318,6 +318,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     admitAssetEgress: (): void => {
       belts.assetEgress.admit(requirePluginId("net.fetchAsset"));
     },
+    // A guest already running when its installer is disabled keeps its sandbox, but every call on the installer's
+    // account is refused here, read fresh per call: a disabled installer stands as a departed one (owner-ruled).
+    admitInstaller: async (): Promise<void> => {
+      if (!(await ops.isInstallerEnabled(installerUserId))) {
+        throw new Error("plugin host: this plugin's installer is disabled");
+      }
+    },
     // Quick replies are room effects; a continuation must still hold the installer host seat when it emits.
     surfaceQuickReply: async (chatId, choices): Promise<void> => {
       const id = requirePluginId("surfaceQuickReply");

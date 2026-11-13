@@ -1,9 +1,12 @@
 // A room event never reaches a disabled member's plugin, so the guest cannot spend that member's connections on
 // it; the next event reaches the guest once the member is re-enabled. The delivery rechecks the member's standing
-// after the fan-out admitted it, so a member disabled while the delivery is queued has no guest run either.
+// after the fan-out admitted it, so a member disabled while the delivery is queued has no guest run either. A guest
+// already running when its member is disabled has every later host call on that member's account refused.
 // @subject packages/server/src/domain/automation/substrate/plugin-subscribers.ts
 // @subject packages/server/src/domain/chat/verbs/plugin-authority.ts
 // @subject packages/server/src/domain/plugin/verbs/registrar-ops.ts
+// @subject packages/server/src/domain/plugin/substrate/bridge.ts
+// @subject packages/server/src/infra/plugin-host/bridge-rpc.ts
 
 import { spawn } from "node:child_process";
 import type { PluginCapability } from "@orb/contracts/plugin";
@@ -24,7 +27,7 @@ import {
 } from "@orb/testkit/node/composed";
 
 const LOG_LIMIT = 20;
-const CAPABILITIES = ["chat.read", "events.subscribe", "llm.quiet"] as const satisfies readonly PluginCapability[];
+const CAPABILITIES = ["chat.read", "events.subscribe", "llm.quiet", "storage.kv"] as const satisfies readonly PluginCapability[];
 // Each delivered line costs the installer one quiet call on their own Utility connection, then logs what it heard.
 const QUIET_THEN_LOG = `const h = orb.host(1);
 h.events.on("messageCommitted", async (fact) => {
@@ -37,8 +40,21 @@ h.events.on("messageCommitted", async (fact) => {
   h.log.info(fact.message.content);
   await h.llm.quiet("Note the line.");
 });`;
+// Reads the plugin's own storage before it spends, then records whether its quiet call ran or was refused.
+const STORE_THEN_QUIET = `const h = orb.host(1);
+h.events.on("messageCommitted", async (fact) => {
+  await h.storage.get("seen");
+  try {
+    await h.llm.quiet("Note the line.");
+    h.log.info("noted " + fact.message.content);
+  } catch {
+    h.log.info("refused " + fact.message.content);
+  }
+});`;
 // The delivery's own standing read: the fan-out reads the member's visibility row, which selects more columns.
 const DELIVERY_STANDING_READ = /^select "role" from "chat_participants"/u;
+// The guest's own storage read, which a running guest makes after its delivery passed every standing check.
+const GUEST_STORAGE_READ = /from "plugin_kv"/u;
 
 interface ListenerRoom extends AsyncDisposable {
   readonly root: ChatRoot["root"];
@@ -135,4 +151,27 @@ test("a member disabled after the fan-out admits a line and before its delivery 
   await expect.poll(room.heard).toContain("The host lights the last lamp.");
   await expect.poll(room.quietCalls).toBe(before + 2);
   expect(await room.heard()).not.toContain("The host lights a lamp nobody should hear.");
+});
+
+test("a running guest whose member is disabled has its quiet call refused and spends nothing", { tags: ["slow"] }, async () => {
+  using held = await freshHeldDb();
+  await using room = await listenerRoom(STORE_THEN_QUIET, held.db);
+  const before = room.quietCalls();
+
+  await room.say("The host lights the first lamp.");
+  await expect.poll(room.heard).toContain("noted The host lights the first lamp.");
+  await expect.poll(room.quietCalls).toBe(before + 1);
+
+  // The delivery passed every standing check and the guest is running; it parks on its own storage read.
+  const guestRead = held.hold(GUEST_STORAGE_READ);
+  const saying = room.say("The host lights a lamp on a closed account.");
+  await guestRead.reached;
+  guestRead.disarm();
+  await room.setMemberEnabled(false);
+  guestRead.release();
+  await saying;
+
+  await expect.poll(room.heard).toContain("refused The host lights a lamp on a closed account.");
+  expect(await room.heard()).not.toContain("noted The host lights a lamp on a closed account.");
+  expect(room.quietCalls()).toBe(before + 1);
 });
