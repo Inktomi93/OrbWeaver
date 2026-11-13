@@ -10,6 +10,11 @@ export function isAborted(signal: AbortSignal): boolean {
 
 /** `map` over `items` one event-loop turn apart, so a long list never holds the loop. Once `signal` aborts it stops
  *  before the next item and returns the results so far, which the aborted caller discards. */
+/** Let every other task queued on the event loop run before the caller's next synchronous stretch. */
+export async function yieldToLoop(): Promise<void> {
+  await yieldToEventLoop();
+}
+
 export async function mapYielding<Item, Result>(items: readonly Item[], signal: Cancellation, map: (item: Item) => Result): Promise<Result[]> {
   const results: Result[] = [];
   for (const item of items) {

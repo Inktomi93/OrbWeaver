@@ -34,12 +34,13 @@ import {
   messageVariants,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/query";
+import { batchMany, batchStmt, chunkRows, insertRowsAsJson, isConstraintViolation } from "@orb/db/query";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import { assetIdsInContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, eq, getTableColumns, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { yieldToLoop } from "#primitives/abort";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ChatImportAssemblyContext, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
@@ -458,32 +459,24 @@ function messageRows(args: MessageRowsArgs): MessageRows {
   };
 }
 
-// One bound variable for the matched id, one for the variant it takes, one for the id in the WHERE list.
-const SELECT_VARIANT_BINDS = 3;
+// How many messages rows are built between two turns of the loop.
+const BUILD_SLICE_MESSAGES = 1000;
 
-/** Point each message at its selected variant: one statement per chunk of messages, each message an arm of a CASE. */
+/** Point each message at its selected variant. The pairs reach SQLite as one JSON text, so the statement binds one
+ *  value however many messages it names. */
 function selectVariantStmts(db: Db, selections: readonly { readonly messageId: MessageId; readonly variantId: MessageVariantId }[]): BatchStmt[] {
-  return chunkRows(selections, SELECT_VARIANT_BINDS).map((chunk) =>
+  if (selections.length === 0) {
+    return [];
+  }
+  const pairs = JSON.stringify(selections.map(({ messageId, variantId }) => [messageId, variantId]));
+  return [
     batchStmt(
-      db
-        .update(messages)
-        .set({
-          selectedVariantId: sql<MessageVariantId>`CASE ${messages.id} ${sql.join(
-            chunk.map(({ messageId, variantId }) => sql`WHEN ${messageId} THEN ${variantId}`),
-            sql` `,
-          )} END`,
-        })
-        .where(
-          inArray(
-            messages.id,
-            chunk.map(({ messageId }) => messageId),
-          ),
-        ),
+      db.run(
+        sql`update ${messages} set ${sql.identifier(messages.selectedVariantId.name)} = pair.value ->> '$[1]' from json_each(${pairs}) as pair where ${messages.id} = pair.value ->> '$[0]'`,
+      ),
     ),
-  );
+  ];
 }
-
-const columnCount = (table: Parameters<typeof getTableColumns>[0]): number => Object.keys(getTableColumns(table)).length;
 
 /** Append one room's heal statements to the run's pool; `1` when that room contributed any (the per-CHAT
  *  heal count), `0` when it had nothing to heal. */
@@ -492,9 +485,11 @@ function collectInto(pool: BatchStmt[], stmts: readonly BatchStmt[]): number {
   return stmts.length > 0 ? 1 : 0;
 }
 
-/** Commit one chat's statements as ONE atomic `db.batch`. */
-function commitChatBatch(db: Db, stmts: readonly BatchStmt[]): Promise<unknown> {
-  return db.batch(batchMany(stmts));
+/** Commit one chat's statements as ONE atomic `db.batch`. The batch runs synchronously in the driver, so it starts
+ *  on a fresh turn of the loop: the time it holds the server is its own and not added to the work before it. */
+async function commitChatBatch(db: Db, stmts: readonly BatchStmt[]): Promise<unknown> {
+  await yieldToLoop();
+  return await db.batch(batchMany(stmts));
 }
 
 /** Resolve `parentRef` (a parent filename) → the parent chat's id, across all of this character's chats. */
@@ -638,60 +633,73 @@ function importedSeq(index: number): number {
  *  writes. `identity` is INDEX-ALIGNED to `ci.messages` — the R6 remap (`ImportedChatIdentity`); the tallies
  *  the caller reports are derived from it rather than counted separately, so the count and the remap cannot
  *  disagree about what landed. */
-function buildChatStatements(args: OneChatArgs): {
+async function buildChatStatements(args: OneChatArgs): Promise<{
   readonly stmts: BatchStmt[];
   readonly identity: ImportedChatIdentity;
-} {
+}> {
   const { ctx, chatId, ci, ownerId, characterId, existingAssetIds, narratorCharacterId } = args;
-  const stmts = chatHeaderStmts(args);
   const { db } = ctx;
   const messageIds: MessageId[] = [];
   const variantIds: (readonly MessageVariantId[])[] = [];
-  const rows: MessageRows[] = [];
-  for (const [index, m] of ci.messages.entries()) {
-    const messageId = ctx.newMessageId();
-    const built = messageRows({
-      ctx,
-      messageId,
-      chatId,
-      seq: importedSeq(index),
-      message: m,
-      ownerId,
-      characterId,
-      existingAssetIds,
-      narratorCharacterId,
+  const messageStmts: BatchStmt[] = [];
+  const variantStmts: BatchStmt[] = [];
+  const assetStmts: BatchStmt[] = [];
+  const selections: { readonly messageId: MessageId; readonly variantId: MessageVariantId }[] = [];
+  for (let start = 0; start < ci.messages.length; start += BUILD_SLICE_MESSAGES) {
+    const rows = ci.messages.slice(start, start + BUILD_SLICE_MESSAGES).map((m, offset) => {
+      const messageId = ctx.newMessageId();
+      const built = messageRows({
+        ctx,
+        messageId,
+        chatId,
+        seq: importedSeq(start + offset),
+        message: m,
+        ownerId,
+        characterId,
+        existingAssetIds,
+        narratorCharacterId,
+      });
+      messageIds.push(messageId);
+      variantIds.push(built.variantIds);
+      if (built.selectedVariantId !== null) {
+        selections.push({ messageId, variantId: built.selectedVariantId });
+      }
+      return built;
     });
-    rows.push(built);
-    messageIds.push(messageId);
-    variantIds.push(built.variantIds);
-  }
-  // Every message, then every variant, then the pointers: a variant names its message and a pointer names its variant.
-  for (const chunk of chunkRows(
-    rows.map((row) => row.message),
-    columnCount(messages),
-  )) {
-    stmts.push(batchStmt(db.insert(messages).values(chunk)));
-  }
-  for (const chunk of chunkRows(
-    rows.flatMap((row) => row.variants),
-    columnCount(messageVariants),
-  )) {
-    stmts.push(batchStmt(db.insert(messageVariants).values(chunk)));
-  }
-  stmts.push(
-    ...selectVariantStmts(
-      db,
-      rows.flatMap(({ message, selectedVariantId }) => (selectedVariantId === null ? [] : [{ messageId: message.id, variantId: selectedVariantId }])),
-    ),
-  );
-  for (const chunk of chunkRows(
-    rows.flatMap((row) => row.assets),
-    columnCount(messageAssets),
-  )) {
-    stmts.push(batchStmt(db.insert(messageAssets).values(chunk)));
+    messageStmts.push(
+      ...insertRowsAsJson(
+        db,
+        messages,
+        rows.map((row) => row.message),
+      ),
+    );
+    variantStmts.push(
+      ...insertRowsAsJson(
+        db,
+        messageVariants,
+        rows.flatMap((row) => row.variants),
+      ),
+    );
+    assetStmts.push(
+      ...insertRowsAsJson(
+        db,
+        messageAssets,
+        rows.flatMap((row) => row.assets),
+      ),
+    );
+    // Building a long chat's rows is synchronous work; the rest of the server runs between slices.
+    await yieldToLoop();
   }
   const identity = { chatId, messageIds, variantIds };
-  stmts.push(...pendingObservationStmts(ctx, ownerId, ci, identity));
+  // Every message, then every variant, then the pointers: a variant names its message and a pointer names its variant.
+  const stmts = [
+    ...chatHeaderStmts(args),
+    ...messageStmts,
+    ...variantStmts,
+    ...selectVariantStmts(db, selections),
+    ...assetStmts,
+    ...pendingObservationStmts(ctx, ownerId, ci, identity),
+  ];
   return { stmts, identity };
 }
 
@@ -734,13 +742,13 @@ async function filterImportedAssetIds(ctx: ChatImportContext, ownerId: UserId, c
  *  `Promise.all`: the bounded asset-existence read, and — only for a chat carrying a narrator slot — the
  *  find-or-mint of the room's synthetic identity, the same op and the same idempotency a live narrator round
  *  uses. A chat with no narrator slot never touches the synthetic namespace at all. */
-async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narratorCharacterId">): Promise<ReturnType<typeof buildChatStatements>> {
+async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narratorCharacterId">): ReturnType<typeof buildChatStatements> {
   const { ctx, ci, ownerId, chatId } = args;
   const [existingAssetIds, narratorCharacterId] = await Promise.all([
     filterImportedAssetIds(ctx, ownerId, ci),
     hasNarratorSlot(ci) ? ctx.mintSyntheticGroupCharacter({ ownerId, chatId }).then((ref) => ref.characterId) : Promise.resolve(null),
   ]);
-  return buildChatStatements({ ...args, existingAssetIds, narratorCharacterId });
+  return await buildChatStatements({ ...args, existingAssetIds, narratorCharacterId });
 }
 
 /** The run's whole-input gates, BEFORE any write: EVERY id this run could seat, attribute or CONFIGURE — the

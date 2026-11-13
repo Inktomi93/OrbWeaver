@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: blocked
+status: open
 updated: 2026-11-13
 priority: P2
 area: server
-blocked: on 1751
 plan: import-robustness
 ---
 
