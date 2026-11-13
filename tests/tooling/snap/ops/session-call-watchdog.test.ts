@@ -4,7 +4,8 @@ import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { SNAP_BASES_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
-import { markCallPhase } from "../../../../tooling/src/snap/ops/call-phases.ts";
+import type { CallPhaseLedger } from "../../../../tooling/src/snap/ops/call-phases.ts";
+import { markCallPhase, openCallPhaseLedger } from "../../../../tooling/src/snap/ops/call-phases.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { isTerminalSessionCallError, runSessionCallWithinBudget, sessionCallWatchdogBaseMs } from "../../../../tooling/src/snap/ops/session-call-watchdog.ts";
 import { refuseTerminalSessionRequest, sessionCallBudget } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
@@ -47,10 +48,17 @@ test("a timed-out call names the phase it stopped in and the time each earlier p
   const error = await caughtError(runSessionCallWithinBudget(watchdogState(), diskSafeOp([], "hung shot"), hung, QUIET_BUDGET_MS));
   expect(error.message).toContain("ORB-LOAD-KILL");
   expect(error.message).toMatch(/in flight: page-arm shot \d+ms; before it: navigate \d+ms\)/u);
-  // A mark after the call's ledger closed is dropped, so the next call's kill names only its own phases.
+});
+
+test("a mark from a call's work after its ledger closed reaches no ledger, so a one-shot run records nothing", () => {
+  const describeClosed = ((): CallPhaseLedger["describe"] => {
+    using ledger = openCallPhaseLedger(Date.now());
+    markCallPhase("navigate");
+    return ledger.describe;
+  })();
+  // The timed-out work keeps running through recovery and marks on; the closed ledger must not grow.
   markCallPhase("settle");
-  const next = await caughtError(runSessionCallWithinBudget(watchdogState(), diskSafeOp([], "next hung call"), () => new Promise<number>(() => undefined), 1));
-  expect(next.message).toMatch(/\(no phase entered in \d+ms\)/u);
+  expect(describeClosed(Date.now())).toMatch(/^in flight: navigate \d+ms$/u);
 });
 
 test("a rejection after a terminal timeout is owned instead of becoming unhandled", async () => {
