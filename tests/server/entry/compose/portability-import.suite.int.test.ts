@@ -16,9 +16,11 @@
 // @subject packages/server/src/entry/import/run-profile-dir-import.ts
 import { mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
+import type { StProfileHandledEntry } from "@orb/contracts/import";
 import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
 import type { PortableFile } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
@@ -28,7 +30,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
-import { failOnExportNote, principal } from "@orb/testkit/node/helpers";
+import { failOnExportNote, magicBytes, principal } from "@orb/testkit/node/helpers";
 import { strToU8, zipSync } from "fflate";
 import { vi } from "vitest";
 import { signedInMember } from "../_auth-roots.ts";
@@ -257,4 +259,32 @@ test("a profile import never overrides a default persona the owner already chose
   await app.services.settings.updateUserSettingsSection({ principal: box.target, input: { section: "seeds", patch: { defaultPersonaId: chosen.id } } });
   await importProfilePersonas(box);
   expect((await app.services.settings.getUserSettings({ principal: box.target })).config.seeds.defaultPersonaId).toBe(chosen.id);
+});
+
+const ST_AVATARS = "User Avatars" satisfies StProfileHandledEntry;
+
+test("a profile import stores each persona avatar under the type its bytes are, whatever its file is named", async () => {
+  await using box = await uploadBox();
+  const { app } = box.root;
+  const settings = { ["power_user"]: { personas: { "photo.png": "Photo", "drawn.png": "Drawn" } } };
+  const row = await ranRow(
+    box,
+    await uploadProfile(box, {
+      [ST_SETTINGS_FILE]: JSON.stringify(settings),
+      [`${ST_AVATARS}/photo.png`]: magicBytes("jpeg"),
+      [`${ST_AVATARS}/drawn.png`]: magicBytes("png"),
+    }),
+  );
+  const personas = await app.services.persona.list({ principal: box.target });
+  const avatars = await app.services.assets.listOwned({ principal: box.target, kind: "avatar", limit: ASSET_LIST_LIMIT_MAX });
+  const avatarType = (name: string): string | null => {
+    const assetId = personas.find((persona) => persona.name === name)?.avatarAssetId;
+    return avatars.find((asset) => asset.assetId === assetId)?.mime ?? null;
+  };
+
+  expect({ status: row.status, photo: avatarType("Photo"), drawn: avatarType("Drawn") }).toEqual({
+    status: "succeeded",
+    photo: "image/jpeg",
+    drawn: "image/png",
+  });
 });

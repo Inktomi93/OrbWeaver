@@ -6,6 +6,7 @@ import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
+import { sniffMime } from "@orb/kit/image-sniff";
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
 import type {
@@ -27,8 +28,6 @@ import { buildImportContext } from "../substrate/build-context.ts";
 import { buildImportPreview, countImportKinds, refusedGroups } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 import { findOwnership } from "./profile-ownership.ts";
-
-const AVATAR_MIME = "image/png";
 
 /** The ST wall-clock zone for this run: the caller's pin, else the host's. ONE resolver so the collect pass
  *  and the per-file import verbs can never disagree about which clock a snapshot's dates were written on. */
@@ -241,7 +240,9 @@ async function toPersonaInput(store: StoreAvatarAsset, principal: Principal, p: 
       principal,
       bytes: p.avatarBytes,
       kind: "avatar",
-      mime: AVATAR_MIME,
+      // ST names an avatar file by its persona key, not its format, so the type comes from the bytes.
+      mime: sniffMime(p.avatarBytes),
+      enforceMagic: true,
       // One single-asset ceiling repo-wide — the profile importer deliberately shares the upload cap.
       maxBytes: ASSET_UPLOAD_MAX_BYTES,
     });
