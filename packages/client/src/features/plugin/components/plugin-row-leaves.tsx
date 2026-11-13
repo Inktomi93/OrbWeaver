@@ -17,12 +17,13 @@ import { DestructiveAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import {
-  abbreviateSourceCommit,
   approveLabel,
   CHECK_FOR_UPDATES_LABEL,
   consentAskKind,
   firstConsentLine,
   grantSummaryLine,
+  pluginUpdateFromCommitLabel,
+  pluginUpdateToLabel,
   REMOVE_PLUGIN_DESCRIPTION,
   reConsentLine,
   UPDATE_UNREACHABLE_LINE,
@@ -96,7 +97,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       setVerdict({
         kind: "available",
         label: updateAvailableLabel(mine.newVersion),
-        ariaLabel: `Update ${plugin.name} to ${mine.newVersion}`,
+        ariaLabel: pluginUpdateToLabel(plugin.name, mine.newVersion),
         proof: mine,
       });
       return;
@@ -105,7 +106,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       setVerdict({
         kind: "available",
         label: updateCommitAvailableLabel(mine.sourceCommit),
-        ariaLabel: `Update ${plugin.name} from commit ${abbreviateSourceCommit(mine.sourceCommit)}`,
+        ariaLabel: pluginUpdateFromCommitLabel(plugin.name, mine.sourceCommit),
         proof: mine,
       });
       return;

@@ -403,8 +403,8 @@ export function updateAvailableLabel(newVersion: string): string {
 
 const SOURCE_IDENTITY_ABBREVIATION_LENGTH = 12;
 
-/** The stable short commit spelling used by update copy and accessible names. */
-export function abbreviateSourceCommit(sourceCommit: string): string {
+// The stable short commit spelling used by update copy and accessible names.
+function abbreviateSourceCommit(sourceCommit: string): string {
   return sourceCommit.slice(0, SOURCE_IDENTITY_ABBREVIATION_LENGTH);
 }
 
@@ -456,6 +456,31 @@ export const PLUGIN_DETAILS_LABEL = "Plugin details";
 export function pluginDetailsLabel(pluginName: string): string {
   return `${PLUGIN_DETAILS_LABEL}: ${pluginName}`;
 }
+
+/** The plugin card's group name: one card per installed plugin. */
+export function pluginCardLabel(pluginName: string): string {
+  return `${pluginName} plugin`;
+}
+
+/** The card's permissions disclosure, and its name once a plugin disambiguates it. */
+export const PLUGIN_PERMISSIONS_HEADING = "What it's allowed to do";
+export function pluginPermissionsLabel(pluginName: string): string {
+  return `${PLUGIN_PERMISSIONS_HEADING}: ${pluginName}`;
+}
+
+/** The update press's accessible name, by what the update moves to. */
+export function pluginUpdateToLabel(pluginName: string, newVersion: string): string {
+  return `Update ${pluginName} to ${newVersion}`;
+}
+export function pluginUpdateFromCommitLabel(pluginName: string, sourceCommit: string): string {
+  return `Update ${pluginName} from commit ${abbreviateSourceCommit(sourceCommit)}`;
+}
+
+/** The install card's confirm press. */
+export const PLUGIN_INSTALL_NAME = "Install";
+
+/** The distribute section's publish press. */
+export const PLUGIN_DISTRIBUTE_ACTION_NAME = "Distribute to everyone";
 
 /** Every failed URL preview reads this one fixed line, so the reason never becomes an SSRF oracle. */
 export const URL_FETCH_FAILED = "Couldn't fetch a plugin from that URL. It may be unreachable, refused, or not a plugin bundle.";

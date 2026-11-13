@@ -115,6 +115,9 @@ export function extensionsWaitingGroupLabel(count: number): string {
 /** The CONTENT pane's no-selection state — a switcher with rows but nothing picked. Distinct copy from the
  *  empty above: "pick one" and "there are none" are different facts and collapsing them is the generic-filler
  *  defect the house sweeps for. */
+/** The line shown while a plugin page loads. */
+export const EXTENSIONS_PAGE_LOADING_NAME = "Loading plugin page…";
+
 export const EXTENSIONS_NO_SELECTION_TITLE = "Pick a plugin page";
 export const EXTENSIONS_NO_SELECTION_BODY = "Choose a page from the list to open it here.";
 
