@@ -69,6 +69,7 @@ import {
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
+  PLUGIN_SERVER_LOG_FAULT_LINES,
   PLUGIN_SERVER_LOG_WINDOW_MS,
   PLUGIN_SNIPPET_RUNTIME_MAX,
   PLUGIN_WATCHDOG_STOP_GRACE_MS,
@@ -297,40 +298,57 @@ function retainLog(binding: Binding, level: PluginLogLevel, message: string): vo
   }
 }
 
-/** One binding's server-log share in the current window: when it opened, what it wrote, what it dropped, and the timer
- *  that closes it once it drops a line. */
+/** One binding's server-log share in the current window: when it opened, what the guest's share wrote and whether it
+ *  is full, how many host-fault lines it wrote, what it dropped, and the timer that closes it once it drops a line. */
 interface ServerLogWindow {
   readonly openedAtMs: number;
   lines: number;
   chars: number;
+  guestFull: boolean;
+  faultLines: number;
   dropped: number;
   cancelClose: (() => void) | undefined;
 }
 
+/** Which share of a window a server-log line draws on: everything the guest's own code writes or fails, or a host fault
+ *  on one of its bridge calls. */
+const SERVER_LOG_SHARES = ["guest", "fault"] as const;
+type ServerLogShare = (typeof SERVER_LOG_SHARES)[number];
+
 function openServerLogWindow(nowMs: number): ServerLogWindow {
-  return { openedAtMs: nowMs, lines: 0, chars: 0, dropped: 0, cancelClose: undefined };
+  return { openedAtMs: nowMs, lines: 0, chars: 0, guestFull: false, faultLines: 0, dropped: 0, cancelClose: undefined };
 }
 
 // The server log is one stream every plugin shares, and a guest decides how often it logs, fails a host call or
 // fails a call, so every line a binding's guest causes draws on one window of one drain's volume; the plugin log ring
 // still keeps every guest line. Once a window drops a line it drops the rest, so the server log never shows a later
 // line without the earlier one, and a timer closes it with one line counting the drops: an operator sees the
-// truncation even when the plugin then goes quiet. `chars` is the guest-sized text the line carries.
-function writeServerLog(binding: Binding, chars: number, write: (log: Logger) => void): void {
+// truncation even when the plugin then goes quiet. `chars` is the guest-sized text the line carries. A host fault draws
+// on its own small share instead, so a guest that fills its share still leaves the operator the fault.
+function writeServerLog(binding: Binding, chars: number, write: (log: Logger) => void, share: ServerLogShare = "guest"): void {
   const now = binding.seams.nowEpochMs();
   if (binding.serverLog.dropped === 0 && now - binding.serverLog.openedAtMs >= PLUGIN_SERVER_LOG_WINDOW_MS) {
     binding.serverLog = openServerLogWindow(now);
   }
   const window = binding.serverLog;
-  if (window.dropped > 0 || window.lines >= PLUGIN_LOG_LINES_MAX || window.chars + chars > PLUGIN_LOG_CHARS_MAX) {
+  const admitted =
+    share === "fault"
+      ? window.faultLines < PLUGIN_SERVER_LOG_FAULT_LINES
+      : !window.guestFull && window.lines < PLUGIN_LOG_LINES_MAX && window.chars + chars <= PLUGIN_LOG_CHARS_MAX;
+  if (!admitted) {
+    window.guestFull ||= share === "guest";
     if (window.dropped === 0) {
       window.cancelClose = binding.timers.timeoutUnref(() => closeServerLogWindow(binding, window), window.openedAtMs + PLUGIN_SERVER_LOG_WINDOW_MS - now);
     }
     window.dropped += 1;
     return;
   }
-  window.lines += 1;
-  window.chars += chars;
+  if (share === "fault") {
+    window.faultLines += 1;
+  } else {
+    window.lines += 1;
+    window.chars += chars;
+  }
   write(getLog(binding.seams.log));
 }
 
@@ -1106,8 +1124,11 @@ class BrokerClient {
     if (isNamedBridgeRefusal(error)) {
       return error;
     }
-    writeServerLog(binding, error instanceof Error ? error.message.length : 0, (log) =>
-      log.warn({ plugin: binding.label ?? SNIPPET_RUNNER, operation, err: error }, "plugin host: a bridge operation failed"),
+    writeServerLog(
+      binding,
+      error instanceof Error ? error.message.length : 0,
+      (log) => log.warn({ plugin: binding.label ?? SNIPPET_RUNNER, operation, err: error }, "plugin host: a bridge operation failed"),
+      "fault",
     );
     // A model failure also says why, by its closed kind alone: the guest can tell a rate limit from a bad key.
     return error instanceof ProviderError ? new PluginLlmFailureError(error.kind, error.retryable) : new Error(PLUGIN_UI_HOST_CALL_FAILED);

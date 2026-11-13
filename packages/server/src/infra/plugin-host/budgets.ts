@@ -262,6 +262,11 @@ export const PLUGIN_DUMP_NODE_GUARD = 65_536;
  *  volume ({@link PLUGIN_LOG_LINES_MAX} lines, {@link PLUGIN_LOG_CHARS_MAX} UTF-16 units) and counts the rest as dropped. */
 export const PLUGIN_SERVER_LOG_WINDOW_MS = MS_PER_MINUTE;
 
+/** The host-fault share of one plugin instance's server-log window, in lines: a failed bridge operation's warning draws
+ *  on it and never on the guest's own share, so a guest that fills its window cannot hide a real host fault. A guest can
+ *  provoke a fault, so the share is small and has its own cap; a fault past it is dropped and counted like a guest line. */
+export const PLUGIN_SERVER_LOG_FAULT_LINES = 16;
+
 /** The RUNTIME log ring retained per RESIDENT instance — what `getPluginLog` reads. `LogRing` above is the
  *  per-drain staging ring (emptied by every drain — an invocation's, or the port's residue pickup of what a
  *  floated continuation logged since); this is the rolling record across all of them, so a host can
