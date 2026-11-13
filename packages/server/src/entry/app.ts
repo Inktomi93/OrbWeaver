@@ -300,14 +300,12 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   // Security headers cover every response — including the allowlist 403 below. The CSP's
   // external-media allowance is read PER REQUEST off the live resolved config, so flipping the admin
   // "Block external media" setting changes the very next response's header (see security-headers.ts).
-  app.use(
-    "*",
-    securityHeaders({
-      dev: deps.env.NODE_ENV !== "production",
-      allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
-      trustedProxies,
-    }),
-  );
+  const security = securityHeaders({
+    dev: deps.env.NODE_ENV !== "production",
+    allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
+    trustedProxies,
+  });
+  app.use("*", security.middleware);
 
   // ONE RULE, MOUNTED ONCE PER POST-`next()` WRITER. hono's `compose()` hands `app.onError` only an
   // `err instanceof Error`, and it runs it at the frame that CAUGHT the throw — so every middleware OUTSIDE
@@ -427,8 +425,8 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
 
   // The card-frame doorway. Its participant read IS the trust authority (a client selects a character, the
   // server decides that character's policy), and `allowExternalMedia` is the SAME live deployment ceiling
-  // the app document CSP above is built from — one ceiling, now three consumers. Note `securityHeaders`
-  // deliberately SKIPS the served document path so the frame's own, tighter policy survives (see
+  // the app document CSP above is built from — one ceiling, now three consumers. The served document route goes
+  // through the security headers' own-policy registrar, so the frame's own, tighter policy survives (see
   // security-headers.ts).
   registerCardFrame(app, {
     participants: { listParticipants: (params) => deps.services.chat.listParticipants(params) },
@@ -438,19 +436,21 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
     viewerRunsCardScripts: async (viewer) => (await deps.services.settings.loadUserSettings(viewer.userId)).chat.runCardScripts,
     now: deps.now,
+    registerOwnPolicyRoute: security.registerOwnPolicyRoute,
   });
 
   // The PLUGIN-frame doorway. Same substrate, one authority: the owner-scoped `getFrameBody` read,
   // which also re-checks the row's live `ui.frame` grant per mint. It takes NO deployment ceiling because its
   // policy has no variable axis — a plugin frame is always the media floor plus the `data:` door (the reasoning
-  // is in `plugin-frame.ts`). `securityHeaders` skips the served-document path here for the same mechanical
-  // reason it skips the card frame's: `secure-headers` would otherwise overwrite the frame's own policy.
+  // is in `plugin-frame.ts`). Its document and asset routes go through the same registrar as the card frame's,
+  // for the same mechanical reason: `secure-headers` would otherwise overwrite the frame's own policy.
   registerPluginFrame(app, {
     surfaces: {
       getFrameBody: (params) => deps.services.plugin.getFrameBody(params),
       getFrameAsset: (params) => deps.services.plugin.getFrameAsset(params),
     },
     now: deps.now,
+    registerOwnPolicyRoute: security.registerOwnPolicyRoute,
   });
 
   registerUpload(app, {
