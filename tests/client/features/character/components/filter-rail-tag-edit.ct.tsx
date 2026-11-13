@@ -4,6 +4,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import { editTagName } from "#client/components/shared-control-names.ts";
+import { CHARACTER_FILTERS_CLOSED_LABEL_NO_TAGS, characterFiltersClosedName } from "#client/features/character/lib/character-names.ts";
 import type { CharacterLibraryStory } from "./_filter-rail-stories.tsx";
 
 const STORY = "tests/client/features/character/components/_filter-rail-stories/CharacterLibraryStory";
@@ -24,7 +25,7 @@ test("a tag chip opens its editor from a tap on a visible control, with no conte
   );
   await mount<typeof CharacterLibraryStory>(STORY, {});
   expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
-  await page.getByRole("button", { name: /show more filters/ }).tap();
+  await page.getByRole("button", { name: characterFiltersClosedName(CHARACTER_FILTERS_CLOSED_LABEL_NO_TAGS, false), exact: true }).tap();
   await expect(page.getByRole("button", { name: new RegExp(`^Filter by ${tag.name}:`) }).first()).toBeVisible();
 
   await page

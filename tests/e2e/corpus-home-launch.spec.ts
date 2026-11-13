@@ -5,9 +5,10 @@ import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page, Response } from "@playwright/test";
 import { z } from "zod";
-import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
+import { PERSONA_PLAYING_AS_LABEL } from "#client/features/persona/lib/persona-copy.ts";
 import { BLANK_CHAT_NAME, NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#client/lib/chat-launch-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { chatWithActionName } from "#client/lib/row-qualifiers.ts";
@@ -63,7 +64,7 @@ test.describe("committed corpus room launches", () => {
     // those same reads, so it is the barrier that makes the absence below mean something. Which persona it names depends on
     // what earlier specs left (the default outranks the last played), so the barrier is the resolved form, not a name.
     // A phone has only the You tab.
-    await expect(page.getByRole("button", isMobile ? { name: "You", exact: true } : { name: /^Playing as .+$/u })).toBeVisible();
+    await expect(page.getByRole("button", isMobile ? { name: "You", exact: true } : { name: PERSONA_PLAYING_AS_LABEL })).toBeVisible();
     await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
   });
 

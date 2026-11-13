@@ -1,15 +1,19 @@
 // The census's selected production states; witnesses are body content, never just shell or section chrome.
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
+import { configSettingLabel } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_INTRO } from "#client/features/automation/lib/automation-names.ts";
-import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
+import { CHARACTER_LANDING_RESUME_TITLE, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "#client/features/chat/lib/appearance-message-style-model.ts";
+import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
+import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME, NEW_CHAT_CHARACTERS_FIELD_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { COMMAND_PALETTE_NAME, COMMAND_RECENT_THREADS_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { backgroundStateLabel } from "#client/features/credentials/lib/connections-copy.ts";
 import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
 import { CORPUS_MODEL_ROUTES_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { PERSONA_NEW_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { EXPORT_INCLUDE_LEGEND, SCHEDULE_NEW_NAME, WORKLOAD_FILTER_TABS_NAME } from "#client/features/workloads/lib/workloads-names.ts";
@@ -24,7 +28,7 @@ const SECTION_WITNESSES = {
       .locator('[data-home-tile="chat.recents"]')
       .getByRole("button", { name: /^Resume / })
       .first(),
-    page.getByRole("list", { name: "Character quick-picks", exact: true }).getByRole("listitem").first(),
+    page.getByRole("list", { name: HOME_QUICK_PICKS_NAME, exact: true }).getByRole("listitem").first(),
     page.getByRole("list", { name: DATABANK_RECENT_DOCUMENTS_NAME, exact: true }).getByRole("listitem").first(),
     page.locator('[data-home-tile="rosterPreset.rosters"]').getByRole("listitem").first(),
   ],
@@ -34,7 +38,7 @@ const SECTION_WITNESSES = {
   ],
   characters: (page): Witnesses => [
     page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("listitem").first(),
-    page.locator(".shell-content").getByRole("heading", { name: "Pick up where you left off", exact: true }),
+    page.locator(".shell-content").getByRole("heading", { name: CHARACTER_LANDING_RESUME_TITLE, exact: true }),
   ],
   corpus: (page): Witnesses => [
     page.getByText("Library understanding", { exact: true }),
@@ -47,7 +51,9 @@ const SECTION_WITNESSES = {
   ],
   config: (page): Witnesses => [
     page.locator('[data-slot="config-content"]').getByRole("radiogroup", { name: CONFIG_THEME_GROUP_NAME, exact: true }).getByRole("radio").first(),
-    page.locator('[data-slot="config-content"]').getByRole("switch", { name: "Color quoted speech", exact: true }),
+    page
+      .locator('[data-slot="config-content"]')
+      .getByRole("switch", { name: configSettingLabel(APPEARANCE_MESSAGE_STYLE_SUBCATEGORY, "colorQuotedSpeech"), exact: true }),
   ],
   extensions: (page): Witnesses => [
     page.locator(".shell-content").getByRole("heading", { name: /plugins? (?:is|are) waiting for your OK$/ }),
@@ -62,9 +68,9 @@ const SECTION_WITNESSES = {
 } satisfies Record<SectionId, (page: Page) => Witnesses>;
 
 const GROUP_WITNESSES = {
-  personas: (page): Witnesses => [page.getByRole("button", { name: "New persona", exact: true })],
+  personas: (page): Witnesses => [page.getByRole("button", { name: PERSONA_NEW_NAME, exact: true })],
   appearance: (page): Witnesses => [page.getByRole("radiogroup", { name: CONFIG_THEME_GROUP_NAME, exact: true }).getByRole("radio").first()],
-  "chat-behavior": (page): Witnesses => [page.getByRole("switch", { name: "Enter to send", exact: true })],
+  "chat-behavior": (page): Witnesses => [page.getByRole("switch", { name: configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "enterSends"), exact: true })],
   workloads: (page): Witnesses => [
     page.getByRole("tablist", { name: WORKLOAD_FILTER_TABS_NAME, exact: true }),
     page.getByRole("button", { name: SCHEDULE_NEW_NAME }).first(),
@@ -106,13 +112,13 @@ const MODAL_SCENARIOS = {
     state: "loaded",
     witnesses: [
       page.getByRole("dialog").getByRole("combobox", { name: COMMAND_PALETTE_NAME, exact: true }),
-      page.getByRole("dialog").getByRole("group", { name: "Recent threads", exact: true }).getByRole("option").first(),
+      page.getByRole("dialog").getByRole("group", { name: COMMAND_RECENT_THREADS_NAME, exact: true }).getByRole("option").first(),
     ],
   }),
   newChat: (page): ModalScenario => ({
     state: "loaded",
     witnesses: [
-      page.getByRole("dialog").getByRole("combobox", { name: "Choose characters", exact: true }),
+      page.getByRole("dialog").getByRole("combobox", { name: NEW_CHAT_CHARACTERS_FIELD_NAME, exact: true }),
       page.getByRole("dialog").getByRole("option").first(),
     ],
   }),

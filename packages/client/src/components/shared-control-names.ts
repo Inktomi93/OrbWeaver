@@ -109,3 +109,11 @@ export function connectionRolePickerName(role: string): string {
 export function createTagName(tag: string): string {
   return `Create "${tag}"`;
 }
+
+/** The character search box, in the character library and in a world book's character attachments. */
+export const CHARACTER_SEARCH_NAME = "Search characters";
+
+/** A row menu's star toggle for the row's current state; the menu's own name carries the subject. */
+export function starToggleName(starred: boolean): string {
+  return starred ? "Unstar" : "Star";
+}

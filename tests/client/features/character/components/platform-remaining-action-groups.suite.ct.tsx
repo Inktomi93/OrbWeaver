@@ -14,6 +14,7 @@ import {
 } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import {
   CHARACTER_CLEAR_FILTERS_NAME,
   CHARACTER_IMPORT_CARD_NAME,
@@ -21,7 +22,6 @@ import {
   CHARACTER_LIBRARY_NAME,
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
-  CHARACTER_SEARCH_NAME,
 } from "#client/features/character/lib/character-names.ts";
 import { GREETING_MAKE_NEW_NAME, GREETING_REWRITE_NAME, GREETING_STUDIO_NAME } from "#client/features/character/lib/greeting-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";

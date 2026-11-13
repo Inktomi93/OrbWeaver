@@ -1,5 +1,6 @@
 // @subject packages/client/src/features/persona/components/persona-learn.tsx
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { PERSONA_MARKS_LESSON_TITLE } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaMarksLearnStory } from "./_persona-learn-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-learn-stories/PersonaMarksLearnStory";
@@ -9,7 +10,7 @@ const EMOJI_MARKS = /[✓📌👑🔗]/u;
 
 test("the Learn body teaches the four marks as the switcher's own icons, not emoji", async ({ mount, page }) => {
   await mount<typeof PersonaMarksLearnStory>(STORY, {});
-  const body = page.getByText("The four marks", { exact: true }).locator("..");
+  const body = page.getByText(PERSONA_MARKS_LESSON_TITLE, { exact: true }).locator("..");
 
   for (const mark of SWITCHER_MARKS) {
     await expect(body.locator(`svg.${mark}`).first()).toBeVisible();

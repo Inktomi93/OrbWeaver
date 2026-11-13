@@ -25,7 +25,7 @@ import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
 import { DEAD_INVITE_SENTENCE, DIALOG_VERBS, inviteRoomSentence, testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations.ts";
-import { JOIN_CHAT_NAME, JOIN_CHECKING_TEXT, JOIN_NOT_NOW_NAME } from "../lib/members-names.ts";
+import { JOIN_CHAT_NAME, JOIN_CHECKING_TEXT, JOIN_DIALOG_TITLE, JOIN_NOT_NOW_NAME } from "../lib/members-names.ts";
 
 type Preview = inferOutput<Trpc["invites"]["previewInvite"]>;
 
@@ -102,7 +102,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
           </Button>
         ) : undefined
       }
-      title="Join a chat"
+      title={JOIN_DIALOG_TITLE}
       open={true}
       onOpenChange={(next): void => {
         if (!next) {

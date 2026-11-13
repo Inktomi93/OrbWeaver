@@ -8,7 +8,13 @@ import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { CHARACTER_EDITOR_NAME, CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_RECENT_SHELF_NAME } from "#client/features/character/lib/character-names.ts";
+import {
+  CHARACTER_EDITOR_NAME,
+  CHARACTER_HERO_NAME_FIELD_NAME,
+  CHARACTER_RECENT_SHELF_NAME,
+  characterFaceName,
+  characterStarredShelfName,
+} from "#client/features/character/lib/character-names.ts";
 import { CHAT_COMPOSER_NAME, CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -168,8 +174,8 @@ test("native library starred shelf opens the character editor by keyboard even w
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   await mount<typeof ShellAmbientStory>(STORY, {});
   const face = page
-    .getByRole("list", { name: `Starred · ${count}`, exact: true })
-    .getByRole("button", { name: `${subjects.starred.name}, starred`, exact: true });
+    .getByRole("list", { name: characterStarredShelfName(count), exact: true })
+    .getByRole("button", { name: characterFaceName(subjects.starred.name, null, true, false), exact: true });
   await expect(face).toHaveAccessibleDescription("");
   await face.focus();
   await page.keyboard.press("Enter");
