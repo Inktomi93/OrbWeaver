@@ -10,8 +10,12 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import {
+  DATABANK_DETAIL_MAINTENANCE_KICKER,
+  DATABANK_DETAIL_SOURCE_KICKER,
   DATABANK_DOCUMENT_NAME_FIELD_NAME,
   DATABANK_HIDE_SOURCE_NAME,
+  DATABANK_REBUILD_DOCUMENT_NAME,
+  DATABANK_REBUILD_HINT,
   DATABANK_RENAME_NAME,
   DATABANK_VIEW_SOURCE_NAME,
 } from "#client/features/databank/lib/databank-names.ts";
@@ -22,8 +26,8 @@ type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 type Caller = Awaited<ReturnType<Root["internalCallerFor"]>>;
 const STORY = "tests/client/features/app-shell/surfaces/_databank-composition-stories/DatabankCompositionShellStory";
 const DOCUMENT_NAME = "Northern observatory expedition notes";
-const MAINTENANCE_HINT = "Use this after a settings change, or if search misses this document.";
-const REBUILD_NAME = "Rebuild search index for this document";
+const MAINTENANCE_HINT = DATABANK_REBUILD_HINT;
+const REBUILD_NAME = DATABANK_REBUILD_DOCUMENT_NAME;
 const SOURCE_TEXT = Array.from(
   { length: 45 },
   (_, index) => `Entry ${index + 1}. The lantern illuminates the charts while {{user}} records the northern stars. <b>This remains literal source text.</b>`,
@@ -183,7 +187,7 @@ for (const regime of REGIMES) {
       await page.screenshot({ path: test.info().outputPath("document-source.png") });
       await detail.getByRole("button", { name: DATABANK_HIDE_SOURCE_NAME, exact: true }).click();
       await expect(source).toHaveCount(0);
-      for (const section of ["Details", "Maintenance", "Source text"]) {
+      for (const section of ["Details", DATABANK_DETAIL_MAINTENANCE_KICKER, DATABANK_DETAIL_SOURCE_KICKER]) {
         await expect(detail.getByRole("heading", { name: section, exact: true })).toBeVisible();
       }
       expect(calls.count("databank.reindex")).toBe(0);

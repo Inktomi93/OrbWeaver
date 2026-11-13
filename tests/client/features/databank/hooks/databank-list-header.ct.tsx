@@ -6,11 +6,19 @@ import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { DATABANK_MAINTENANCE_NAME, DATABANK_REBUILD_ALL_NAME, DATABANK_REREAD_ALL_NAME } from "#client/features/databank/lib/databank-names.ts";
+import {
+  DATABANK_ADD_NAME,
+  DATABANK_CHECK_AGAIN_NAME,
+  DATABANK_MAINTENANCE_NAME,
+  DATABANK_REBUILD_ALL_NAME,
+  DATABANK_REBUILD_NAME,
+  DATABANK_REREAD_ALL_NAME,
+  DATABANK_REREAD_NAME,
+} from "#client/features/databank/lib/databank-names.ts";
 import type { DatabankListHeaderStory } from "./_list-header-stories.tsx";
 
 const STORY = "tests/client/features/databank/hooks/_list-header-stories/DatabankListHeaderStory";
-const CHECK_AGAIN = "Check the bank again";
+const CHECK_AGAIN = DATABANK_CHECK_AGAIN_NAME;
 
 type BankHealth = TrpcWireOutput<"databank.bankHealth">;
 
@@ -103,7 +111,7 @@ test("each owner-wide sweep waits for its confirm before sending its mode, and A
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toBeVisible();
   expect(trpc.count("databank.reindex")).toBe(0);
-  await confirm.getByRole("button", { name: "Rebuild", exact: true }).click();
+  await confirm.getByRole("button", { name: DATABANK_REBUILD_NAME, exact: true }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex")).toEqual({ scope: { kind: "owner" }, mode: "chunk-embed" });
   await expect(confirm).toHaveCount(0);
 
@@ -111,10 +119,10 @@ test("each owner-wide sweep waits for its confirm before sending its mode, and A
   await page.getByRole("menuitem", { name: DATABANK_REREAD_ALL_NAME, exact: true }).click();
   await expect(confirm).toBeVisible();
   expect(trpc.count("databank.reindex")).toBe(1);
-  await confirm.getByRole("button", { name: "Re-read", exact: true }).click();
+  await confirm.getByRole("button", { name: DATABANK_REREAD_NAME, exact: true }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex")).toEqual({ scope: { kind: "owner" }, mode: "re-extract" });
 
-  await component.getByRole("button", { name: "Add", exact: true }).click();
+  await component.getByRole("button", { name: DATABANK_ADD_NAME, exact: true }).click();
   await expect(component.getByRole("status", { name: "Open modal slot" })).toHaveText("addDocument");
 });
 

@@ -2,6 +2,7 @@
 // source brings the Link field into view, clear of the footer that rides the scroll region's bottom edge.
 // @subject packages/client/src/features/databank/components/add-document-body.tsx
 import { expect, test } from "@playwright/test";
+import { DATABANK_FROM_LINK_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { AddDocumentStory } from "./_add-document-stories.tsx";
 
 const STORY = "tests/client/features/databank/components/_add-document-stories/AddDocumentStory";
@@ -12,7 +13,7 @@ test("in short landscape, choosing the Link source brings the Link field into vi
   await page.setViewportSize(SHORT_LANDSCAPE);
   await mount<typeof AddDocumentStory>(STORY, {});
 
-  await page.getByRole("button", { name: "From a link", exact: true }).click();
+  await page.getByRole("button", { name: DATABANK_FROM_LINK_NAME, exact: true }).click();
   const link = page.getByRole("textbox", { name: "Link", exact: true });
   await expect(link).toBeInViewport({ ratio: 1 });
   // In the viewport is not enough: the sticky footer paints over the scroll body's last rows, so the field's bottom edge has to sit

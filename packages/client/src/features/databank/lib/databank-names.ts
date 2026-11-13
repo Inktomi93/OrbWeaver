@@ -41,6 +41,34 @@ export const DATABANK_ADD_METHOD_NAME = "How to add the document";
 export const DATABANK_ADD_NAME_FIELD_NAME = "Name";
 export const DATABANK_ADD_TEXT_FIELD_NAME = "Text";
 
+/** The add dialog's source modes, its attach group and its link press. */
+export const DATABANK_UPLOAD_FILE_NAME = "Upload a file";
+export const DATABANK_FROM_LINK_NAME = "From a link";
+export const DATABANK_ATTACH_GROUP_NAME = "Use this document in";
+export const DATABANK_FETCH_ADD_NAME = "Fetch and add";
+
+/** The link press's name, by whether the fetch is running. */
+export function databankFetchAddLabel(fetching: boolean): string {
+  return fetching ? "Fetching…" : DATABANK_FETCH_ADD_NAME;
+}
+
+/** The document detail's section kickers, and the one press and hint under the Maintenance kicker. */
+export const DATABANK_DETAIL_MAINTENANCE_KICKER = "Maintenance";
+export const DATABANK_DETAIL_SOURCE_KICKER = "Source text";
+export const DATABANK_REBUILD_HINT = "Use this after a settings change, or if search misses this document.";
+export const DATABANK_REBUILD_DOCUMENT_NAME = "Rebuild search index for this document";
+
+/** The context pane's active-in block when nothing attaches the document, and its title once the document is gone. */
+export const DATABANK_NOWHERE_YET_TEXT = "Nowhere yet: attach it to one of your characters, or from a chat's Databank panel.";
+export const DATABANK_DOCUMENT_NOT_FOUND_TITLE = "Document not found";
+
+/** The list header's recheck of the bank, as a menu item and as a menu row. */
+export const DATABANK_CHECK_AGAIN_NAME = "Check the bank again";
+
+/** The owner sweeps' confirm presses: the sweep itself, and the banner button that asks for the second. */
+export const DATABANK_REBUILD_NAME = "Rebuild";
+export const DATABANK_REREAD_NAME = "Re-read";
+
 /** The library list. */
 export const DATABANK_LIST_NAME = "Documents";
 
