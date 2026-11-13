@@ -5,12 +5,12 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { warn } from "../../floor/cli/log.ts";
-import type { DocCommand } from "../contract/types.ts";
+import type { CitingLine, DocCommand } from "../contract/types.ts";
 import { drift, overview } from "./board.ts";
 import { formatDocs, formatTargets } from "./format.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
-import { editItem, newItem, newItemsFrom, runWrite, setItems, showItems } from "./items.ts";
+import { editItem, newItem, newItemsFrom, runWrite, setItems, showItems, stageRetitles } from "./items.ts";
 import type { LandOutcome } from "./land.ts";
 import { landItems, landMerged, landStaged } from "./land.ts";
 import { newAdr, newLaw, newPlan } from "./new.ts";
@@ -34,13 +34,29 @@ function report(verb: string, outcome: WriteOutcome): ExitCode {
   if (outcome.committed !== undefined) {
     print(`committed ${outcome.committed}`);
   }
+  for (const { from, to } of outcome.stagedRenames ?? []) {
+    print(`staged ${from} -> ${to}: commit both in one commit`);
+  }
   if (outcome.refusals.length > 0) {
     const banner = outcome.written.length === 0 ? "NOTHING WRITTEN" : `wrote ${String(outcome.written.length)} file(s), then refused`;
     warn(`doc ${verb} — ${banner}; ${String(outcome.refusals.length)} refusal(s):\n${outcome.refusals.map((line) => `  ${line}`).join("\n")}`);
     return EXIT.violations;
   }
   print(`doc ${verb} — wrote ${String(outcome.written.length)} file(s)`);
+  reportCiters(outcome.citers ?? []);
   return EXIT.clean;
+}
+
+/** The lines that still cite a doc this write superseded, last, so the author reads them: each is theirs to
+ *  re-point at the successor or keep, because a successor may keep the clause the old cite names. */
+function reportCiters(citers: readonly CitingLine[]): void {
+  if (citers.length === 0) {
+    return;
+  }
+  print(`${String(citers.length)} line(s) still cite a superseded doc — re-point each one or keep it knowingly:`);
+  for (const { path, line, target, text } of citers) {
+    print(`  ${path}:${String(line)}: cites ${target}: ${text}`);
+  }
 }
 
 /** `pnpm doc format --write / --check`. Exit 1 = unformatted files under `--check` (a real violation the
@@ -151,7 +167,11 @@ export function runDocCommand(command: DocCommand, repoRoot = root): ExitCode {
     case "set":
       return report(
         "set",
-        runWrite(command.commit, repoRoot, () => setItems(command.ids, command.patch, repoRoot)),
+        // A retitle never commits (the parser refuses the pair), so its rename is staged for the caller's commit.
+        runWrite(command.commit, repoRoot, () => {
+          const outcome = setItems(command.ids, command.patch, repoRoot);
+          return command.commit ? outcome : stageRetitles(outcome, repoRoot);
+        }),
       );
     case "edit":
       return report(
