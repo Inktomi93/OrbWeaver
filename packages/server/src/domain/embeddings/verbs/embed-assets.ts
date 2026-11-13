@@ -15,13 +15,21 @@ interface Sweep {
   readonly ctx: EmbeddingsContext;
   readonly deps: Pick<EmbeddingsService, "indexAsset">;
   readonly receipts: Map<UserId, StoreResult>;
+  /** The sweep's enabled read, resolved once per owner. */
+  readonly ownerEnabled: (ownerId: UserId) => Promise<boolean>;
 }
 
 // A stored file gone or not an image while its asset row remains fails that asset alone; every other error still stops the sweep.
+// A disabled owner's asset is skipped before its space resolves, so neither the caption nor the vector is spent, as for a
+// departed account; it stays un-indexed, so the next sweep indexes it.
 async function indexOne(sweep: Sweep, assetId: AssetId, options: Pick<EmbedPassParams, "force" | "signal" | "embedderChanged">): Promise<AssetOutcome> {
+  const ownerId = await sweep.ctx.loadAssetOwner(assetId);
+  if (ownerId !== null && !(await sweep.ownerEnabled(ownerId))) {
+    return "skipped";
+  }
   try {
     const result = await sweep.deps.indexAsset(assetId, options);
-    await recordReceipt(sweep.ctx, assetId, result, sweep.receipts);
+    recordReceipt(ownerId, result, sweep.receipts);
     return result?.outcome === "written" ? "written" : "skipped";
   } catch (error) {
     if (!(error instanceof AssetFileMissingError || error instanceof AssetFileCorruptError)) {
@@ -43,11 +51,13 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsS
     const assetIds = await ctx.listImageAssetIds(ownerId);
     // Every owner the sweep resolved, with the image space it embedded into — the purge set.
     const receipts = new Map<UserId, StoreResult>();
+    const enabled = new Map<UserId, Promise<boolean>>();
+    const ownerEnabled = (assetOwnerId: UserId): Promise<boolean> => enabled.getOrInsertComputed(assetOwnerId, () => ctx.isAccountEnabled(assetOwnerId));
     for (const assetId of assetIds) {
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }
-      const outcome = await indexOne({ ctx, deps, receipts }, assetId, { force, signal, embedderChanged });
+      const outcome = await indexOne({ ctx, deps, receipts, ownerEnabled }, assetId, { force, signal, embedderChanged });
       if (outcome === "failed") {
         failedAssets.push(assetId);
       } else if (outcome === "written") {
@@ -66,12 +76,8 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsS
   };
 }
 
-async function recordReceipt(ctx: EmbeddingsContext, assetId: AssetId, result: StoreResult | null, receipts: Map<UserId, StoreResult>): Promise<void> {
-  if (result === null) {
-    return;
-  }
-  const ownerId = await ctx.loadAssetOwner(assetId);
-  if (ownerId === null) {
+function recordReceipt(ownerId: UserId | null, result: StoreResult | null, receipts: Map<UserId, StoreResult>): void {
+  if (result === null || ownerId === null) {
     return;
   }
   const prior = receipts.get(ownerId);
