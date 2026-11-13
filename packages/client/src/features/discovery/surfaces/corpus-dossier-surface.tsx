@@ -33,6 +33,7 @@ import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusRunJobEmptyState } from "../components/corpus-run-job-empty-state.tsx";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
+import { CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 import { matchWord, percent } from "../lib/corpus-vocabulary.ts";
 
 /** The refinery rubric is a weighted average, so one decimal is the honest resolution (the character
@@ -291,7 +292,7 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
     <QueryBoundary
       resetKeys={[characterId]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the similar art" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.similarArt} onRetry={retry} />}
     >
       <SimilarArtRead characterId={characterId} />
     </QueryBoundary>

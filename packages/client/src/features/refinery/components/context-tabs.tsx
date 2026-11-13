@@ -30,11 +30,19 @@ import { DIALOG_VERBS, groupOrdinalQualifiers, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
 import {
+  REFINERY_GO_TO_SCORE_NAME,
+  REFINERY_NO_RUNS_TITLE,
+  REFINERY_NO_VERSIONS_TITLE,
+  REFINERY_READ_LABELS,
+  REFINERY_SCOPE_NAME,
   REFINERY_UNLABELED_VERSION,
   REFINERY_VERSION_DIFF_HEADING,
   REFINERY_VERSION_LOADING_TEXT,
   refineryCompareToggleName,
   refineryRestoreVersionName,
+  refineryUseRunName,
+  refineryUseRunVerb,
+  refineryViewRunName,
 } from "../lib/refinery-names.ts";
 import { SETUP_ORIGINAL_CARD_ROW, SETUP_SCHEMA_ROWS, SETUP_VIEW_ACTION, schemaDoorActionOf, setupDoorName } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
@@ -132,17 +140,12 @@ function RunRow({
           </Text>
         ) : null}
         <Row wrap={true} gap="field">
-          <Button aria-label={`View ${runLabel}`} variant="ghost" onClick={(): void => onView(run)} size="sm">
+          <Button aria-label={refineryViewRunName(runLabel)} variant="ghost" onClick={(): void => onView(run)} size="sm">
             View
           </Button>
           {run.stage === "rewrite" ? (
-            <Button
-              aria-label={`${armed ? "Use latest instead" : "Use for apply"}: ${runLabel}`}
-              variant="ghost"
-              onClick={(): void => onArmRewrite(armed ? null : run.id)}
-              size="sm"
-            >
-              {armed ? "Use latest instead" : "Use for apply"}
+            <Button aria-label={refineryUseRunName(armed, runLabel)} variant="ghost" onClick={(): void => onArmRewrite(armed ? null : run.id)} size="sm">
+              {refineryUseRunVerb(armed)}
             </Button>
           ) : null}
         </Row>
@@ -158,11 +161,11 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
         action={
           // The ledger recovers the owning run control even when the workbench has scrolled past it.
           <Button variant="ghost" ink="muted" onClick={onGoToScore} size="sm">
-            Go to Score
+            {REFINERY_GO_TO_SCORE_NAME}
           </Button>
         }
         description="Every stage you run is recorded here. What it cost, which model ran it, and the verdict it produced."
-        title="No runs yet"
+        title={REFINERY_NO_RUNS_TITLE}
       />
     );
   }
@@ -288,7 +291,7 @@ export function SetupTab({
   return (
     <ContextTabBody data-testid={testId("refinerySetupTab")} kind="rows">
       <SetupRow action={SETUP_VIEW_ACTION} k={SETUP_ORIGINAL_CARD_ROW} onAction={onViewOriginal} v={anchorLine} />
-      <SetupRow action="Edit" k="Scope" onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
+      <SetupRow action="Edit" k={REFINERY_SCOPE_NAME} onAction={(): void => onOpenDoor("scope")} v={scopeLine} />
       {/* ONE ROW PER STAGE, so custom-ANALYZE authoring and editing a saved analyze schema have a door as score
           does. Each stage carries its own "Edit" ("Create" on the built-in schema) → the editor at that stage; the body resolves
           edit-vs-author. */}
@@ -333,7 +336,7 @@ export function VersionsTab({ state, liveDescription }: { state: RefineryContext
     <QueryBoundary
       resetKeys={[state.characterId]}
       fallback={<SkeletonRows count={SNAPSHOT_PENDING_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this card's versions" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={REFINERY_READ_LABELS.versions} onRetry={retry} />}
     >
       <LoadedVersions state={state} liveDescription={liveDescription} />
     </QueryBoundary>
@@ -358,7 +361,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
           </Button>
         }
         description="Every apply snapshots the card first, and you can snapshot by hand. Versions land here as they are made."
-        title="No versions yet"
+        title={REFINERY_NO_VERSIONS_TITLE}
       />
     );
   }
@@ -406,7 +409,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
                   <QueryBoundary
                     resetKeys={[state.characterId, snapshot.id]}
                     fallback={<Text voice="gloss">{REFINERY_VERSION_LOADING_TEXT}</Text>}
-                    renderError={(_error, retry): ReactElement => <QueryErrorState label="that version" onRetry={retry} />}
+                    renderError={(_error, retry): ReactElement => <QueryErrorState label={REFINERY_READ_LABELS.version} onRetry={retry} />}
                   >
                     <SnapshotDiff characterId={state.characterId} snapshotId={snapshot.id} liveDescription={liveDescription} />
                   </QueryBoundary>

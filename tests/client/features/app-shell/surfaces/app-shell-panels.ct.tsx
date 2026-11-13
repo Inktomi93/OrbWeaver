@@ -12,6 +12,7 @@ import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
+import { SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
@@ -286,7 +287,7 @@ test.describe("on a wide desktop", () => {
 
   test("the skip link is the grid's first tab stop, a real target once revealed, and lands focus on the main column", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
-    const skip = page.getByRole("button", { name: "Skip to content", exact: true });
+    const skip = page.getByRole("button", { name: SKIP_TO_CONTENT_NAME, exact: true });
     await expect
       .poll(() =>
         page.locator(".shell-grid").evaluate((grid) => {
@@ -294,7 +295,7 @@ test.describe("on a wide desktop", () => {
           return candidates.find((element) => !element.hasAttribute("disabled") && element.tabIndex >= 0)?.textContent ?? "";
         }),
       )
-      .toBe("Skip to content");
+      .toBe(SKIP_TO_CONTENT_NAME);
     await expect.poll(() => skip.evaluate((element) => getComputedStyle(element).clipPath)).toBe("inset(50%)");
     const rest = await skip.boundingBox();
     // A real Tab first: the reveal is `:focus-visible`, which a programmatic focus on a fresh page does not match.

@@ -18,6 +18,17 @@ export const WORLD_INFO_EDIT_DETAILS_NAME = "Edit details";
 /** The World Info collection's group label on the Settings map. */
 export const WORLD_INFO_GROUP_LABEL = "World Info";
 
+/** The entry editor's keyword, priority and fire-mode fields. */
+export const WORLD_INFO_KEYWORD_TRIGGERS_NAME = "Keyword triggers";
+export const WORLD_INFO_PRIORITY_NAME = "Priority";
+export const WORLD_INFO_FIRE_MODE_NAME = "Fire mode";
+
+/** The book editor's personas attachment section, counting the personas that attach the book. */
+export const WORLD_INFO_ATTACHED_BY_PERSONAS_LEAD = "Attached by personas";
+export function worldInfoAttachedByPersonasKicker(count: number): string {
+  return `${WORLD_INFO_ATTACHED_BY_PERSONAS_LEAD} · ${String(count)}`;
+}
+
 /** The entry editor's fields. */
 export const WORLD_INFO_ENTRY_TITLE_NAME = "Title";
 export const WORLD_INFO_ENTRY_CONTENT_NAME = "Content";

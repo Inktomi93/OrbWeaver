@@ -4,10 +4,8 @@ import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { useOpenRefinery } from "#data";
 import { useOpenRequests } from "#lib";
+import { REFINERY_START_SESSION_PICKER_NAME } from "../lib/refinery-names.ts";
 import { startSessionRequests } from "../lib/start-session-requests.ts";
-
-/** The picker's name, on its popup and on its search field. */
-const START_SESSION_LABEL = "Start a refinery session";
 
 /**
  * The START DOOR, as one anatomy for the two chromes this file draws: the chrome band's `+` glyph and the
@@ -54,12 +52,12 @@ export function StartSessionDoor({
           (the flow resolves resume-vs-mint against the list at CLICK time), and the control the user
           pressed is the honest place to say so — which only the caller's own chrome can spell. */}
       <PopoverTrigger render={trigger(isPending)} />
-      <PopoverPopup aria-label={START_SESSION_LABEL}>
+      <PopoverPopup aria-label={REFINERY_START_SESSION_PICKER_NAME}>
         <CharacterPicker
           autoFocusSearch={true}
           inPopover={true}
           emptyText="No characters match."
-          label={START_SESSION_LABEL}
+          label={REFINERY_START_SESSION_PICKER_NAME}
           onEscape={(): void => setPickerOpen(false)}
           onSelect={(id): void => {
             setPickerOpen(false);

@@ -7,6 +7,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { CHAT_SAVED_ROSTER_DOOR_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { DATABANK_ADD_DOCUMENT_TITLE } from "#client/features/databank/lib/databank-names.ts";
 import type { AppShellModalStory } from "./_app-shell-stories.tsx";
 import { expectLandscapeRegime, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -137,7 +138,7 @@ for (const viewport of [
       await mount<typeof AppShellModalStory>(STORY, { modalId: "addDocument" });
       const dialog = page.getByRole("dialog");
       await expect(dialog.locator("button[aria-pressed]").first()).toBeVisible();
-      await expectLandscapeRegime(dialog, "Add a document", true);
+      await expectLandscapeRegime(dialog, DATABANK_ADD_DOCUMENT_TITLE, true);
       // The mode strip is the row of pressable modes directly above the region the arms swap through.
       const modes = await dialog.locator("button[aria-pressed]").evaluateAll((buttons) => {
         const strip = buttons.at(-1)?.parentElement;

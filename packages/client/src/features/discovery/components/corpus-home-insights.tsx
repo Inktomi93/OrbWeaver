@@ -24,7 +24,7 @@ import { ESTIMATED_ROW_PX } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { formatCount } from "../lib/corpus-analysis-state.ts";
 import { chartLabelWithDenominator, toBarItems, topRanked } from "../lib/corpus-charts.ts";
-import { CORPUS_MODEL_ROUTES_NAME } from "../lib/corpus-control-names.ts";
+import { CORPUS_MODEL_ROUTES_NAME, CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 
 type UnusedCharacter = inferOutput<Trpc["discovery"]["unusedCharacters"]>[number];
@@ -54,7 +54,7 @@ export function CorpusNeverPlayedSection({ libraryCharacters }: { readonly libra
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your never-played characters" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.neverPlayedCharacters} onRetry={retry} />}
     >
       <NeverPlayedRead libraryCharacters={libraryCharacters} />
     </QueryBoundary>
@@ -181,7 +181,7 @@ export function CorpusModelEconomicsSection(): ReactElement {
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your model usage" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.modelUsage} onRetry={retry} />}
     >
       <ModelEconomicsRead />
     </QueryBoundary>

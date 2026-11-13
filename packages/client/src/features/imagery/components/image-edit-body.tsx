@@ -24,7 +24,7 @@ import { useFocusOnSwap } from "#lib";
 import type { ImageSubject } from "#state";
 import { openImageDetail, useEditSubject } from "#state";
 import { useEditImage } from "../hooks/use-imagery-mutations.ts";
-import { IMAGE_EDIT_INSTRUCTION_NAME } from "../lib/imagine-names.ts";
+import { IMAGE_EDIT_EMPTY_TEXT, IMAGE_EDIT_INSTRUCTION_NAME } from "../lib/imagine-names.ts";
 
 const INSTRUCTION_ROWS = 2;
 const INSTRUCTION_MAX_ROWS = 6;
@@ -48,7 +48,7 @@ export function ImageEditBody(): ReactElement {
   if (subject === undefined) {
     return (
       <Stack gap="block" padding="block">
-        <Text voice="gloss">No image to edit.</Text>
+        <Text voice="gloss">{IMAGE_EDIT_EMPTY_TEXT}</Text>
       </Stack>
     );
   }

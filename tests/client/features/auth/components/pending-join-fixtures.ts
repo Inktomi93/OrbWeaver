@@ -8,8 +8,6 @@ import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { ACCOUNT_EXISTS_CODE, JOIN_UNAVAILABLE_CODE } from "#contracts/chat/roster.ts";
 
 export const JOIN_DESTINATION_LABEL = "Signed-in destination";
-export const JOIN_CONFIRM_LABEL = "Create account and join";
-export const JOIN_NAME_LABEL = "Your name in the story";
 export const PENDING_PREVIEW_PATH = "**/api/auth/oidc/pending/preview";
 export const PENDING_CONFIRM_PATH = "**/api/auth/oidc/pending/confirm";
 

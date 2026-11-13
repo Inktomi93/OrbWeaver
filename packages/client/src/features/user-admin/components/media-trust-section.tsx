@@ -23,6 +23,7 @@ import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
+import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "../lib/user-admin-names.ts";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 /** Decimal MB (1 MB = 1e6 B, matching safeFetch's own byte accounting) — the cap is edited in MB and
@@ -137,7 +138,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
             onSet={(next): void => write({ allowInteractiveCards: next })}
           />
           <AdminOverrideField
-            label="Max generated-image download (MB)"
+            label={ADMIN_MAX_IMAGE_DOWNLOAD_NAME}
             hint="Byte cap for a generated-image download fetched from a provider URL. Raise it for high-res models."
             value={maxImageDraft}
             onChange={setMaxImageDraft}

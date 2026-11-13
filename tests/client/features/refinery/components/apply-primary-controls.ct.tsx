@@ -9,7 +9,7 @@ import { auditSurface } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { REFINERY_SAVE_AS_COPY_NAME, refineryApplyKeptLabel } from "#client/features/refinery/lib/refinery-names.ts";
+import { REFINERY_KEEP_VERB, REFINERY_SAVE_AS_COPY_NAME, refineryApplyKeptLabel } from "#client/features/refinery/lib/refinery-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RefineryActionGroupsStory } from "./_action-groups-stories.tsx";
 
@@ -46,7 +46,7 @@ test("a copy result with a kept field still to apply shows one primary control",
   const content = page.getByTestId(testId("refineryContent"));
   await content
     .getByTestId(testId("refineryAcceptReview"))
-    .getByRole("button", { name: /^Keep /u })
+    .getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_KEEP_VERB)} `, "u") })
     .click();
   const apply = content.getByRole("button", { name: refineryApplyKeptLabel(1), exact: true });
   const done = content.getByRole("button", { name: DIALOG_VERBS.done, exact: true });

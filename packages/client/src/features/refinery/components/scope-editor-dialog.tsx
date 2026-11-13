@@ -37,6 +37,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialogPopup, FormDialogRoot, SettingRowGroup, SettingTrackRow } from "#components";
 import { DIALOG_VERBS } from "#lib";
+import { REFINERY_SCOPE_NAME } from "../lib/refinery-names.ts";
 import { scopeChipLabelOf, slotLabelOf } from "../lib/render-plan.ts";
 
 export interface ScopeEditorDialogProps {
@@ -261,7 +262,7 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
           onOpenChange(false);
         },
       }}
-      title="Scope"
+      title={REFINERY_SCOPE_NAME}
     >
       <Stack gap="row">
         <Text voice="gloss">

@@ -7,6 +7,7 @@ import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serv
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { PLUGIN_DIALOG_GONE_TITLE, PLUGIN_DIALOG_LOADING_NAME } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PluginDialogShellStory } from "./_plugin-dialog-stories.tsx";
 
@@ -40,10 +41,10 @@ test("a held plugin dialog read shows the loading skeleton, a failed one the err
   await mount<typeof PluginDialogShellStory>(STORY, { subject: { pluginId: mintTypeId(ID_PREFIX.plugin, createSeededIds().next), surfaceId: "gone" } });
   const dialog = page.getByRole("dialog");
   await hold.requested;
-  await expect(dialog.getByText("Loading plugin dialog…", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(PLUGIN_DIALOG_LOADING_NAME, { exact: true })).toBeVisible();
   hold.fail();
   await expect(dialog.getByText("Couldn't load this plugin dialog.", { exact: true })).toBeVisible();
   failing = false;
   await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(dialog.getByText("That dialog is no longer available", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(PLUGIN_DIALOG_GONE_TITLE, { exact: true })).toBeVisible();
 });

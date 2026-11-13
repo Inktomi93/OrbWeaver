@@ -25,6 +25,7 @@ import { LoginPendingJoin } from "../components/login-pending-join.tsx";
 import { LoginSignupForm } from "../components/login-signup-form.tsx";
 import { LoginTransportNotice } from "../components/login-transport-notice.tsx";
 import { authErrorMessage } from "../lib/auth-error.ts";
+import { continueWithName, INVITE_LOADING_NAME, INVITED_HEADING, SIGN_IN_NAME, SIGN_IN_TO_JOIN_NAME } from "../lib/pending-join-names.ts";
 import { isPendingJoinLanding, oidcLoginUrl, shouldAutoRedirectToSso } from "../lib/sso-redirect.ts";
 
 /** The per-mode login card content (mounted inside `LoginShellAnchor` by the /login route). */
@@ -138,7 +139,7 @@ function LoginBody({
         <LocalInviteArm config={config} joinToken={joinToken} onDismissJoin={onDismissJoin} onDone={onDone} />
       ) : (
         <Stack gap="block">
-          <Heading level={1}>Sign in</Heading>
+          <Heading level={1}>{SIGN_IN_NAME}</Heading>
           <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
           <LoginLocalForm defaultHandle={config.defaultHandle} onLoggedIn={onDone} />
         </Stack>
@@ -160,7 +161,7 @@ function LoginBody({
       }
       return (
         <Stack gap="block">
-          <Heading level={1}>Sign in</Heading>
+          <Heading level={1}>{SIGN_IN_NAME}</Heading>
           <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
           <Text ink="muted" voice="gloss" cap="prose" prose={true}>
             You'll be redirected to {config.oidcProviderName}, then back here.
@@ -180,7 +181,7 @@ function LoginBody({
               globalThis.location.assign(oidcLoginUrl(config.multiHumanCapable ? joinToken : null));
             }}
           >
-            Continue with {config.oidcProviderName}
+            {continueWithName(config.oidcProviderName)}
           </Button>
         </Stack>
       );
@@ -228,7 +229,7 @@ function LocalInviteArm({
   if (signIn) {
     return (
       <Stack gap="block">
-        <Heading level={1}>Sign in to join</Heading>
+        <Heading level={1}>{SIGN_IN_TO_JOIN_NAME}</Heading>
         <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
         <LoginLocalForm defaultHandle={config.defaultHandle} onLoggedIn={onDone} />
       </Stack>
@@ -236,7 +237,7 @@ function LocalInviteArm({
   }
   if (preview.isPending) {
     return (
-      <Stack gap="row" aria-label="Loading your invite">
+      <Stack gap="row" aria-label={INVITE_LOADING_NAME}>
         <Skeleton width="full" height="controlMd" />
         <Skeleton width="full" height="controlMd" />
       </Stack>
@@ -248,7 +249,7 @@ function LocalInviteArm({
   }
   return (
     <Stack gap="block">
-      <Heading level={1}>You're invited</Heading>
+      <Heading level={1}>{INVITED_HEADING}</Heading>
       <Text voice="quiet" data-testid={testId("signupInviteRoom")}>
         {`${inviteRoomSentence(room)} ${room.modeLabel}`}
       </Text>

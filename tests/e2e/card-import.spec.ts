@@ -10,6 +10,7 @@ import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.t
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
+import { chatWithActionName } from "#client/lib/row-qualifiers.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -124,7 +125,7 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(NAME);
     expect((await filtered).ok()).toBe(true);
     await expect(page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).locator('[data-slot="list-row-root"]')).toHaveCount(1);
-    const cta = page.getByRole("button", { name: `Chat with ${NAME}`, exact: true });
+    const cta = page.getByRole("button", { name: chatWithActionName(NAME), exact: true });
     const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
     await expect(row).toBeVisible();
     await row.hover();

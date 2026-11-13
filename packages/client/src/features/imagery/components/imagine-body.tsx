@@ -47,7 +47,7 @@ import type { ImagineSeed } from "#state";
 import { closeModal, holdRoomForSend, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
 import { formatCost } from "../lib/format-cost.ts";
-import { IMAGINE_MODE_NAME, IMAGINE_PROMPT_NAME } from "../lib/imagine-names.ts";
+import { IMAGINE_EMPTY_TEXT, IMAGINE_GENERATE_NAME, IMAGINE_MODE_NAME, IMAGINE_PROMPT_NAME, imagineGenerateCountLabel } from "../lib/imagine-names.ts";
 import { ImagineOptions } from "./imagine-options.tsx";
 
 // free-first: the prompt-verbatim mode, then the four extraction modes (derived from the contract tuple —
@@ -70,7 +70,7 @@ export function ImagineBody(): ReactElement {
   if (seed === undefined) {
     return (
       <Stack gap="block" padding="block">
-        <Text voice="gloss">Nothing to imagine.</Text>
+        <Text voice="gloss">{IMAGINE_EMPTY_TEXT}</Text>
       </Stack>
     );
   }
@@ -265,7 +265,7 @@ function generateLabel(pending: boolean, count: number): string {
   if (pending) {
     return "Generating…";
   }
-  return count > MIN_IMAGE_COUNT ? `Generate ${count} images` : "Generate";
+  return count > MIN_IMAGE_COUNT ? imagineGenerateCountLabel(count) : IMAGINE_GENERATE_NAME;
 }
 
 const SHARED_ROOM_FLOOR = 2;

@@ -20,13 +20,12 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { openConfigTo, usePluginDialogSubject } from "#state";
+import { EXTENSIONS_OPEN_PLUGINS_ACTION } from "../lib/extensions-copy.ts";
+import { PLUGIN_DIALOG_GONE_BODY, PLUGIN_DIALOG_GONE_TITLE, PLUGIN_DIALOG_LOADING_NAME } from "../lib/plugin-panel-copy.ts";
 import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
-
-const GONE_TITLE = "That dialog is no longer available";
-const GONE_BODY = "Its plugin was disabled or removed while it was open.";
 
 function GoneDialog(): ReactElement {
   return (
@@ -36,12 +35,12 @@ function GoneDialog(): ReactElement {
         // says only "gone" strands a person inside a dialog they have to guess their way out of.
         action={
           <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
-            Open Plugins
+            {EXTENSIONS_OPEN_PLUGINS_ACTION}
           </Button>
         }
-        description={GONE_BODY}
+        description={PLUGIN_DIALOG_GONE_BODY}
         icon={<Icon icon={Blocks} size="md" />}
-        title={GONE_TITLE}
+        title={PLUGIN_DIALOG_GONE_TITLE}
       />
     </Stack>
   );
@@ -57,7 +56,7 @@ export function PluginDialogBody(): ReactElement {
       resetKeys={[]}
       fallback={
         <Stack gap="block" role="status">
-          <Text voice="label">Loading plugin dialog…</Text>
+          <Text voice="label">{PLUGIN_DIALOG_LOADING_NAME}</Text>
           <SkeletonRows count={2} shape="line" />
         </Stack>
       }

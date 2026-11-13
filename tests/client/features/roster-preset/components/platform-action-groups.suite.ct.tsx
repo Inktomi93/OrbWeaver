@@ -7,7 +7,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { ROSTER_DELETE_TITLE } from "#client/features/roster-preset/lib/roster-names.ts";
+import { ROSTER_DELETE_TITLE, ROSTER_START_CHAT_LEAD, rosterAddToChatName, rosterDeleteName } from "#client/features/roster-preset/lib/roster-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RosterActionGroupsStory } from "./_action-groups-stories.tsx";
 
@@ -52,9 +52,9 @@ for (const regime of REGIMES) {
         );
         await mount<typeof RosterActionGroupsStory>(STORY, { chatId, width: regime.width, appearance: regime.appearance });
         const row = page.locator('[data-slot="roster-row"]');
-        const start = row.getByRole("button", { name: new RegExp(`^Start a chat with ${ROSTER_NAME}`) });
-        const add = row.getByRole("button", { name: new RegExp(`^Add ${ROSTER_NAME} to this chat`) });
-        const remove = row.getByRole("button", { name: `Delete ${ROSTER_NAME}`, exact: true });
+        const start = row.getByRole("button", { name: new RegExp(`^${RegExp.escape(ROSTER_START_CHAT_LEAD)} ${RegExp.escape(ROSTER_NAME)}`, "u") });
+        const add = row.getByRole("button", { name: new RegExp(`^${RegExp.escape(rosterAddToChatName(ROSTER_NAME, ""))}`, "u") });
+        const remove = row.getByRole("button", { name: rosterDeleteName(ROSTER_NAME), exact: true });
         await expect(start).toBeEnabled();
         await expect(add).toHaveCount(hosted ? 1 : 0);
         const controls = hosted ? [start, add, remove] : [start, remove];

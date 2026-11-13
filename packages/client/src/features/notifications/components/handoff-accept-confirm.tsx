@@ -30,6 +30,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { useAcceptHostHandoff } from "../hooks/use-handoff-actions.ts";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
+import { HANDOFF_ACCEPT_CONFIRM_TITLE, HANDOFF_NOTHING_COPIED_DESCRIPTION } from "../lib/notifications-copy.ts";
 
 /** `n` of a thing, in the reader's words — the plural is spelled here so no line has to carry an `s` in a
  *  template. */
@@ -113,7 +114,7 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
       confirmLabel={DIALOG_VERBS.accept}
       description={
         lines.length === 0
-          ? "You become the host of this chat. Nothing is copied into your library."
+          ? HANDOFF_NOTHING_COPIED_DESCRIPTION
           : "You become the host of this chat, and these copies land in your library. They are yours to edit or delete afterwards. The current host keeps their originals."
       }
       onConfirm={onConfirm}
@@ -123,7 +124,7 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
         }
       }}
       open={true}
-      title="Accept hosting this chat?"
+      title={HANDOFF_ACCEPT_CONFIRM_TITLE}
     />
   );
 }

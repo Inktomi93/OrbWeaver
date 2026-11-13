@@ -48,6 +48,9 @@ import {
   WORLD_INFO_ENTRY_PLACEMENT_NAME,
   WORLD_INFO_ENTRY_ROLE_NAME,
   WORLD_INFO_ENTRY_TITLE_NAME,
+  WORLD_INFO_FIRE_MODE_NAME,
+  WORLD_INFO_KEYWORD_TRIGGERS_NAME,
+  WORLD_INFO_PRIORITY_NAME,
   worldInfoEntryDeleteName,
 } from "../lib/world-info-names.ts";
 
@@ -174,7 +177,10 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
       {/* Keyword triggers — the built free-text chip Combobox (no `items`: pure free-text entry). */}
       <form.Subscribe selector={(state): readonly string[] => state.values.keys}>
         {(keys): ReactElement => (
-          <Field label="Keyword triggers" description="Enter or comma commits a keyword. Matched case-insensitively, whole-word, against recent messages.">
+          <Field
+            label={WORLD_INFO_KEYWORD_TRIGGERS_NAME}
+            description="Enter or comma commits a keyword. Matched case-insensitively, whole-word, against recent messages."
+          >
             {/* No `aria-label` (#1621, the Combobox family): the chip input is the Field's sole
                 `Field.Control`, so the label reaches it through Base UI's `aria-labelledby`, which outranks
                 the attribute — it was the same string, unreachable. A
@@ -202,9 +208,13 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
 
       <Row gap="block" align="start" wrap={true}>
         <form.AppField name="priority">
-          {(field): ReactElement => <field.NumberField label="Priority" hint="Higher sorts first and injects earlier when the budget is tight." />}
+          {(field): ReactElement => (
+            <field.NumberField label={WORLD_INFO_PRIORITY_NAME} hint="Higher sorts first and injects earlier when the budget is tight." />
+          )}
         </form.AppField>
-        <form.AppField name="scopeMode">{(field): ReactElement => <field.SelectField label="Fire mode" items={SCOPE_MODE_ITEMS} />}</form.AppField>
+        <form.AppField name="scopeMode">
+          {(field): ReactElement => <field.SelectField label={WORLD_INFO_FIRE_MODE_NAME} items={SCOPE_MODE_ITEMS} />}
+        </form.AppField>
       </Row>
 
       {/* At-depth injection opt-in — depth/role reveal only when on; `position` shows only when OFF (an

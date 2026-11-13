@@ -26,6 +26,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTR
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { useUpdateBackground } from "../hooks/use-appearance-mutations.ts";
+import { ADD_BACKGROUND_NAME, BACKGROUND_IMAGE_NAME } from "../lib/app-shell-names.ts";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
 import { BACKGROUND_FIT_ITEMS } from "../lib/appearance-select-items.ts";
@@ -168,7 +169,7 @@ function BackgroundBody({
                 axis a feature may speak. */}
             <CollapsibleTrigger size="control">
               <Text as="span" voice="interactiveKicker">
-                Add background
+                {ADD_BACKGROUND_NAME}
               </Text>
             </CollapsibleTrigger>
             <CollapsiblePanel>
@@ -245,7 +246,7 @@ function BackgroundPickGrid({ form, values }: { readonly form: AutosaveSession<B
 
   return (
     <MediaGrid
-      ariaLabel="Background image"
+      ariaLabel={BACKGROUND_IMAGE_NAME}
       width="full"
       maxHeight="scrollMd"
       items={tiles}

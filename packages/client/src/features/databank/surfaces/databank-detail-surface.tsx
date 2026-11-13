@@ -37,7 +37,14 @@ import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_EMPTY_BANK_NOTE } from "../lib/databank-copy.ts";
 import { characterCount, documentTypeLabel, ingestBadge, ingestEmptyHint, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
-import { DATABANK_LANDING_NAME, databankSourceToggleName } from "../lib/databank-names.ts";
+import {
+  DATABANK_DETAIL_MAINTENANCE_KICKER,
+  DATABANK_DETAIL_SOURCE_KICKER,
+  DATABANK_LANDING_NAME,
+  DATABANK_REBUILD_DOCUMENT_NAME,
+  DATABANK_REBUILD_HINT,
+  databankSourceToggleName,
+} from "../lib/databank-names.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -229,7 +236,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
         </Grid>
       </Section>
 
-      <Section kicker="Maintenance">
+      <Section kicker={DATABANK_DETAIL_MAINTENANCE_KICKER}>
         <Stack gap="row">
           {/* THE PARAGRAPH TAKES THE READING MEASURE, THE BLOCK ABOVE KEEPS THE CONTROL ONE: "a block
                 holding controls keeps the wider measure while the paragraph inside it takes this one". The
@@ -241,11 +248,11 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 not tie the pair"). The button rides its own sentence. */}
           <Row align="center" wrap={true} gap="row" justify="start">
             <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
-              Use this after a settings change, or if search misses this document.
+              {DATABANK_REBUILD_HINT}
             </Text>
             <Button className="shrink-0" disabled={reindex.isPending} variant="outline" onClick={onReindex} size="sm" wrap={true}>
               <Icon icon={RefreshCw} size="sm" />
-              Rebuild search index for this document
+              {DATABANK_REBUILD_DOCUMENT_NAME}
             </Button>
           </Row>
           {/* A stuck-ingest signal: a doc parked in Queued/Indexing well past its last update likely
@@ -254,7 +261,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
         </Stack>
       </Section>
 
-      <Section kicker="Source text">
+      <Section kicker={DATABANK_DETAIL_SOURCE_KICKER}>
         <Stack gap="row">
           <Row justify="start">
             <Button variant="ghost" onClick={(): void => setShowSource((prev) => !prev)} size="sm">

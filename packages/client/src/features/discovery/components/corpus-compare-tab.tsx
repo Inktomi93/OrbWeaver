@@ -31,6 +31,7 @@ import {
   useCorpusCompareB,
   useCorpusCompareBName,
 } from "#state";
+import { CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 
 const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
 
@@ -153,7 +154,7 @@ export function CompareResult({
     <QueryBoundary
       resetKeys={[idA, idB]}
       fallback={<SkeletonRows count={RESULT_SKELETON_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="that comparison" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.comparison} onRetry={retry} />}
     >
       <FacetDiff deep={deep} idA={idA} idB={idB} onDeep={onDeep} />
     </QueryBoundary>

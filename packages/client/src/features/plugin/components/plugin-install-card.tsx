@@ -57,7 +57,7 @@ import { DIALOG_VERBS } from "#lib";
 import { openConfigTo } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, readPluginFolder, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { builtAgainstLine, grantSummaryLine } from "../lib/plugin-copy.ts";
+import { builtAgainstLine, grantSummaryLine, PLUGIN_INSTALL_NAME } from "../lib/plugin-copy.ts";
 import { useInstallPluginFromGit } from "../lib/plugin-distribution-mutations.ts";
 import { useInstallPlugin, useInstallPluginFromUrl } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
@@ -410,7 +410,7 @@ export function PluginInstallCard(): ReactElement {
             <GrantSummary capabilities={state.manifest.capabilities} />
             <Row gap="field" justify="start">
               <Button disabled={selecting || alreadyInstalled !== null} loading={installing} onClick={onInstall}>
-                Install
+                {PLUGIN_INSTALL_NAME}
               </Button>
               <Button
                 disabled={doorsDisabled}

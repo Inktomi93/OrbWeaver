@@ -4,6 +4,7 @@
 // own subcategory (§7.1), so every deep link and search leaf still lands.
 
 import type { ConfigSubcategory } from "#state";
+import { ADMIN_CREATE_USER_NAME } from "./user-admin-names.ts";
 
 export const ADMIN_USERS_SUBCATEGORY: ConfigSubcategory = {
   id: "users",
@@ -16,7 +17,7 @@ export const ADMIN_USERS_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "create-user",
-      label: "Create user",
+      label: ADMIN_CREATE_USER_NAME,
       keywords: ["add", "invite", "account", "handle", "password"],
       teach: {
         summary: "Mint a local account with a handle and password. SSO deployments provision through the identity provider instead.",

@@ -53,7 +53,7 @@ import {
 import { RefineryChip } from "../components/refinery-chip.tsx";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
 import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
-import { REFINERY_NO_SESSIONS_TITLE, REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
+import { REFINERY_NO_SESSION_MATCH_TEXT, REFINERY_NO_SESSIONS_TITLE, REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
 import { matchesRefinerySearch, refinerySearchNeedle } from "../lib/refinery-search.ts";
 import { REFINERY_LIST_TITLE } from "../lib/refinery-section-label.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
@@ -226,7 +226,7 @@ function RefineryList({
                 // away from the button directly beneath it. The CTA opens the picker here, so the copy
                 // names the act rather than a place.
                 "A session pins a card as it is right now, then scores, rewrites and re-checks it against that pinned version. Pick a character to start."
-              : "No sessions match that search."
+              : REFINERY_NO_SESSION_MATCH_TEXT
           }
           title={sessions.data.length === 0 ? REFINERY_NO_SESSIONS_TITLE : "Nothing matches"}
         />

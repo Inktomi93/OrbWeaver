@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/_surface-stories/SectionShellStory";
@@ -40,7 +40,7 @@ for (const regime of [
       await mount<typeof SectionShellStory>(STORY, { section: "corpus" });
       await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator('.shell-panel[data-panel-side="context"]');
-      const visuals = context.getByRole("tab", { name: "Visuals", exact: true });
+      const visuals = context.getByRole("tab", { name: CORPUS_CONTEXT_TAB_LABELS.visuals, exact: true });
       await visuals.click();
       await expect(visuals).toHaveAttribute("aria-selected", "true");
       const panel = await controlledPanel(visuals);

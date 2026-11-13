@@ -10,7 +10,13 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { DATABANK_REBUILD_ALL_NAME, DATABANK_REREAD_ALL_NAME, databankSweepConfirmTitle } from "../lib/databank-names.ts";
+import {
+  DATABANK_REBUILD_ALL_NAME,
+  DATABANK_REBUILD_NAME,
+  DATABANK_REREAD_ALL_NAME,
+  DATABANK_REREAD_NAME,
+  databankSweepConfirmTitle,
+} from "../lib/databank-names.ts";
 import { useReindexDocuments } from "./use-databank-mutations.ts";
 
 interface SweepCopy {
@@ -25,14 +31,14 @@ const SWEEP_COPY: Record<ReindexMode, SweepCopy> = {
     title: databankSweepConfirmTitle(DATABANK_REBUILD_ALL_NAME),
     description:
       "Every document you own gets its search index rebuilt. Nothing is deleted. Use this after changing how documents are split or which search model you use. It can take a while on a large bank.",
-    confirmLabel: "Rebuild",
+    confirmLabel: DATABANK_REBUILD_NAME,
     started: "Rebuilding all documents…",
   },
   "re-extract": {
     title: databankSweepConfirmTitle(DATABANK_REREAD_ALL_NAME),
     description:
       "Orbweaver reads every file you uploaded again, then rebuilds each document's search index. Nothing is deleted. Use this after an update that improves how files are read. It is slow on a large bank.",
-    confirmLabel: "Re-read",
+    confirmLabel: DATABANK_REREAD_NAME,
     started: "Re-reading all documents…",
   },
 };
