@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-10
+updated: 2026-11-13
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -19,7 +19,7 @@ A screen reader user cannot tell which entry a switch toggles.
 
 ## Done when
 
-itemSwitchName includes the owning book or list, so two same-titled entries in different books have distinct names, proven by a production-mounted CT, and the duplicate-action-door finding is gone from the Chat evidence case.
+The duplicate-action-door finding is gone from the Chat evidence case of a design-audit run. Already merged: `itemSwitchName` takes the owning list, the regex tier rows and the on-screen roster pass it, and `tests/client/features/chat/components/regex-switches.ct.tsx` covers it. Two same-titled scripts inside one tier still share a switch name; that case is ruled out of this item or given a stable qualifier.
 
 ## Evidence
 

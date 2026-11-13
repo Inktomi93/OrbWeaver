@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-13
 priority: P3
 area: tests
 plan: test-foundation
@@ -19,7 +19,7 @@ A CT that reads the planted failure asserts on wording production never sends.
 
 ## Done when
 
-Planted failures go through the production fault formatter, with a case that reads the wire message.
+Planted failures go through the production fault formatter, with a case that reads the wire message, and every case that plants its own failure text as a server fault still proves the client hides it: `tests/client/data/husk-reaper-failure.ct.tsx` and `tests/client/features/chat/lib/temp-chat-sweep-failure.ct.tsx` read the planted text from the wire before asserting its absence on screen.
 
 ## Evidence
 
