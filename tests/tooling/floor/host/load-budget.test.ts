@@ -18,6 +18,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import {
   annotateRateLoad,
   BOX_LOAD_ENV,
+  beginLoadEpoch,
   boxFactor,
   boxLoadKnobError,
   budget,
@@ -42,7 +43,7 @@ import {
   ratePair,
   readBoxLoad,
 } from "@orb/tooling/floor/host/load-budget";
-import { cgroupQuotaCores, effectiveCpuCount, readCpuThrottle } from "@orb/tooling/floor/host/load-budget-cgroup";
+import { cgroupQuotaCores, effectiveCpuCount, liveThrottle, readCpuThrottle } from "@orb/tooling/floor/host/load-budget-cgroup";
 import { vi } from "vitest";
 import { timingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
 
@@ -151,6 +152,19 @@ test("a module's ceilings record stretches every base from its own value, all ag
   // A box that gets busier between reads still yields one record judged on one reading: the first.
   const readings = [QUIET, LOADED];
   expect(budgets(bases, () => readings.shift() ?? LOADED)).toEqual(bases);
+});
+
+test("a new load epoch reads a module's ceilings again, once, as a fresh process reads them at import", () => {
+  const bases = { short: 2000, long: 30_000 } as const;
+  const readings = [QUIET, LOADED, QUIET];
+  const ceilings = budgets(bases, () => readings.shift() ?? QUIET);
+  expect(ceilings).toEqual(bases);
+  beginLoadEpoch();
+  // The record made at import answers the next invocation from that invocation's own reading…
+  expect(ceilings).toEqual({ short: budget(2000, readLoaded), long: budget(30_000, readLoaded) });
+  // …and from one reading for all its keys: the busier box is not read again inside the epoch.
+  expect(ceilings.short).toBe(budget(2000, readLoaded));
+  expect(readings).toEqual([QUIET]);
 });
 
 test("T15 — the boundary is computeLoadFactor's own, not a second constant", () => {
@@ -389,6 +403,16 @@ test("#2206 — the throttle reading is the TIGHTEST over the cgroup ancestry, o
   expect(readCpuThrottle(tree({ "/sys/fs/cgroup/user.slice/app.scope/cpu.stat": "usage_usec 5\n" }))).toBeUndefined();
   // A v1-only cgroup line is unreadable here for the same reason the quota walk refuses it.
   expect(readCpuThrottle(() => "3:cpu:/user.slice\n")).toBeUndefined();
+});
+
+test("the throttle counters are read once per load epoch, so a later invocation in one process reads where they reached", () => {
+  let stat = "nr_periods 1000\nnr_throttled 50\n";
+  const read = (path: string): string | undefined => (path === "/proc/self/cgroup" ? "0::/user.slice/app.scope\n" : stat);
+  expect(liveThrottle(1, read)).toEqual({ periods: 1000, throttled: 50 });
+  stat = "nr_periods 3000\nnr_throttled 900\n";
+  // Inside one epoch the counters are not walked again: one invocation, one reading.
+  expect(liveThrottle(1, read)).toEqual({ periods: 1000, throttled: 50 });
+  expect(liveThrottle(2, read)).toEqual({ periods: 3000, throttled: 900 });
 });
 
 test("a quiet live rate cannot qualify on unnamed hardware but pure load arithmetic still asserts", () => {

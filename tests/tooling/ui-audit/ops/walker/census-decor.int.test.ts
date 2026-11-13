@@ -44,13 +44,15 @@ auditRuleTest(
     },
   ],
   "the popup exemption follows the ARIA role, not a word inside a Tailwind class string",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div id="outer-card" style="${CARD};padding:16px;width:420px">
   <div id="inner-classword" class="menu-panel px-2" style="${CARD};width:200px;height:80px">nested panel body</div>
   <div id="inner-realmenu" role="menu" style="${CARD};width:200px;height:80px">nested panel body</div>
 </div>`;
     await writeFile(join(scratch, "overlay-exemption.html"), relationalDocument(body));
-    const res = await runCli("snap", ["--file", join(scratch, "overlay-exemption.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", join(scratch, "overlay-exemption.html"), ...AUDIT_ARGV], {
+      timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+    });
 
     // One and only one: the class-word coincidence is judged (it was silently exempt before), and the
     // real popup role stays exempt — the rewrite must not trade one error for the other.
@@ -90,7 +92,7 @@ auditRuleTest(
     },
   ],
   "an accent stripe inside a picker cell's ART PANE is exempt; the identical stripe outside one stays judged",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     // `[data-slot=picker-cell-art]` is `@orb/ui`'s PickerCell aperture (packages/ui/src/primitives/
     // picker-cell/picker-cell.tsx), so the exemption is keyed on the SHARED vocabulary: the chat-style,
     // density and elevation illustrated pickers all ride this one row rather than one selector each.
@@ -100,7 +102,7 @@ auditRuleTest(
 </div>
 <div id="real-stripe" style="${ACCENT_EDGE}">a real surface</div>`;
     await writeFile(join(scratch, "picker-art-exemption.html"), relationalDocument(body));
-    const res = await runCli("snap", ["--file", join(scratch, "picker-art-exemption.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", join(scratch, "picker-art-exemption.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
     for (const rule of ["side-tab", "border-accent-on-rounded"]) {
       const selectors = findingSelectors(res.stdout, rule);
@@ -130,14 +132,14 @@ auditRuleTest(
     },
   ],
   "an img zoomed by a group-hover class on its wrapper is now caught",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div class="group" style="width:200px;height:120px">
   <span class="relative overflow-hidden group-hover:scale-105" id="cover-wrap" style="display:block;width:100%;height:100%">
     <img id="cover-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7" alt="" />
   </span>
 </div>`;
     await writeFile(join(scratch, "media-zoom-wrapper.html"), relationalDocument(body));
-    const res = await runCli("snap", ["--file", join(scratch, "media-zoom-wrapper.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", join(scratch, "media-zoom-wrapper.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     expect(findingSelectors(res.stdout, "animated-img-hover").length, "the wrapper-hover zoom must be caught").toBeGreaterThan(0);
   },
 );
@@ -153,14 +155,14 @@ auditRuleTest(
     },
   ],
   "a static image with no hover transform in its wrapper chain is not flagged",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div class="group" style="width:200px;height:120px">
   <span class="relative overflow-hidden" id="cover-wrap-static" style="display:block;width:100%;height:100%">
     <img id="cover-img-static" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7" alt="" />
   </span>
 </div>`;
     await writeFile(join(scratch, "media-zoom-static.html"), relationalDocument(body));
-    const res = await runCli("snap", ["--file", join(scratch, "media-zoom-static.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const res = await runSnap(["--file", join(scratch, "media-zoom-static.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     expect(findingSelectors(res.stdout, "animated-img-hover")).toHaveLength(0);
     return readAuditReport(res.stdout);
   },
@@ -175,12 +177,12 @@ const INNER_BODY = "nested panel body copy";
 
 async function decorFixture(
   scratch: string,
-  runCli: ToolFixtures["runCli"],
+  runSnap: ToolFixtures["runSnap"],
   name: string,
   body: string,
 ): Promise<{ readonly stdout: string; readonly report: RelationalPopulationReport }> {
   await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
-  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   return { stdout: res.stdout, report: await readAuditReport(res.stdout) };
 }
 
@@ -194,10 +196,10 @@ auditRuleTest(
     },
   ],
   "an iframe inside a card is not a nested card",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const { report } = await decorFixture(
       scratch,
-      runCli,
+      runSnap,
       "nested-iframe",
       // The caption gives the page its own text; a page whose only text lives inside the frame has no node census.
       `<div style="${OUTER}"><p>${INNER_BODY}</p><iframe title="preview" srcdoc="<p>preview</p>" style="${CARD};width:300px;height:150px"></iframe></div>`,
@@ -217,10 +219,10 @@ auditRuleTest(
     },
   ],
   "a divider-only strip inside a card is not a nested card",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const { report } = await decorFixture(
       scratch,
-      runCli,
+      runSnap,
       "nested-divider-strip",
       `<div style="${OUTER}"><div style="border-bottom:1px solid #555;background:#1b1b1b;padding:8px">${INNER_BODY}</div></div>`,
     );
@@ -241,9 +243,9 @@ auditRuleTest(
     },
   ],
   "an embedded picker panel inside a card is not a nested card",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const picker = `<div style="${CARD};width:300px"><input role="combobox" aria-label="Font" aria-expanded="true" aria-controls="face-list">${PICKER_LIST}</div>`;
-    const { report } = await decorFixture(scratch, runCli, "nested-picker", `<div style="${OUTER}">${picker}</div>`);
+    const { report } = await decorFixture(scratch, runSnap, "nested-picker", `<div style="${OUTER}">${picker}</div>`);
     expect(report.populationAccounting?.["nested-card"]).toMatchObject({ affected: 0, excluded: { embeddedPicker: 1 } });
     return report;
   },
@@ -258,10 +260,10 @@ auditRuleTest(
     },
   ],
   "a bordered list panel inside a card is still a nested card",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const { stdout } = await decorFixture(
       scratch,
-      runCli,
+      runSnap,
       "nested-list-panel",
       `<div style="${OUTER}"><div id="list-panel" style="${CARD};width:300px">${PICKER_LIST}</div></div>`,
     );
@@ -272,11 +274,11 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "nested-card", kind: "fires", reason: "a card that holds a picker somewhere inside it is still a card; only the picker's own panel is excused" }],
   "a card holding a picker deeper inside it is still a nested card",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const picker = `<div><input role="combobox" aria-label="Font" aria-expanded="true" aria-controls="face-list">${PICKER_LIST}</div>`;
     const { stdout } = await decorFixture(
       scratch,
-      runCli,
+      runSnap,
       "nested-card-holds-picker",
       `<div style="${OUTER}"><div id="inner-card" style="${CARD};width:300px"><h3>Body font</h3><p>${INNER_BODY}</p>${picker}</div></div>`,
     );
@@ -294,10 +296,10 @@ auditRuleTest(
     },
   ],
   "a transparent-bordered outer is not a card",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const { report } = await decorFixture(
       scratch,
-      runCli,
+      runSnap,
       "transparent-outer",
       `<div style="border:1px solid transparent;border-radius:8px;padding:16px;width:420px"><div style="${CARD}">${INNER_BODY}</div></div>`,
     );
@@ -316,10 +318,10 @@ auditRuleTest(
     },
   ],
   "a transparent-bordered button in a card is excluded by its context, not as an unpainted edge",
-  async ({ runCli, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const { report } = await decorFixture(
       scratch,
-      runCli,
+      runSnap,
       "transparent-button",
       `<div style="${OUTER}"><button type="button" style="border:1px solid transparent;border-radius:6px;background:#333;color:#fff">Save</button></div>`,
     );

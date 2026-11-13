@@ -7,6 +7,7 @@ import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts"
 import type { BrowserPageError, ProbeContext, ProbeLaunchOptions, ProbeSession } from "./browser-contract.ts";
 import { effectiveContextSize, resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
+import { installCdpFaultInjector } from "./cdp-fault.ts";
 
 export interface BuildContextArgs {
   readonly browser: Browser;
@@ -168,6 +169,7 @@ export async function buildProbeContext(args: BuildContextArgs): Promise<ProbeCo
     const page = await context.newPage();
     await wirePage(page);
   }
+  installCdpFaultInjector(context);
   return probeContext({
     context,
     pages,

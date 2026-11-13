@@ -76,7 +76,7 @@ test("a matrix cell context runs under the load emulation its run asked for", { 
   try {
     // The positive control: the owner's own page is offline, so the probe below can see the emulation.
     expect(await owner.page.evaluate<boolean>("navigator.onLine")).toBe(false);
-    const cell = await openSnapMatrixContext(owner, opts);
+    const cell = await openSnapMatrixContext(owner, opts, "owner");
     try {
       expect(await cell.session.page.evaluate<boolean>("navigator.onLine")).toBe(false);
       expect(throttleResultValue(loadEmulationFor(cell.session))).toBe("cpu:8x/net:offline");

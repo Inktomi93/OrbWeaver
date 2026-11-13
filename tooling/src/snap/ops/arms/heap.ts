@@ -321,7 +321,7 @@ export const HEAP_ARM = {
       group: "Measure",
       summary: "force GC and capture the settled page's V8 heap plus parsed sidecar",
       handler: (args, rest, page): void => {
-        // the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts checks opts.errors.length before any browser work. Ends if printCliPreamble stops refusing on opts.errors.
+        // the grammar detail enters Args.errors; printCliPreamble in snap/ops/command.ts checks opts.errors.length before any browser work. Ends if printCliPreamble stops refusing on opts.errors.
         try {
           args.heapCaptures.push(parseHeapCapture(rest.shift() ?? "", page));
         } catch (error) {
@@ -336,7 +336,7 @@ export const HEAP_ARM = {
       group: "Measure",
       summary: "left=right — growth/detached findings between two heap labels or snapshot paths (diagnostic, never a budget gate)",
       handler: (args, rest, page): void => {
-        // the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts prints each as ARG ERROR. Ends if printCliPreamble stops printing opts.errors.
+        // the grammar detail enters Args.errors; printCliPreamble in snap/ops/command.ts prints each as ARG ERROR. Ends if printCliPreamble stops printing opts.errors.
         try {
           args.heapComparisons.push(parseHeapComparison(rest.shift() ?? "", page));
         } catch (error) {
@@ -351,7 +351,7 @@ export const HEAP_ARM = {
       group: "Measure",
       summary: "snapshot=selector — retaining paths, dominators and outgoing edges for a snapshot node",
       handler: (args, rest, page): void => {
-        // the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts exits EXIT.misuse on a non-empty opts.errors. Ends if printCliPreamble stops returning EXIT.misuse.
+        // the grammar detail enters Args.errors; printCliPreamble in snap/ops/command.ts exits EXIT.misuse on a non-empty opts.errors. Ends if printCliPreamble stops returning EXIT.misuse.
         try {
           args.heapRetainers.push(parseHeapRetainer(rest.shift() ?? "", page));
         } catch (error) {

@@ -25,7 +25,8 @@ const TRACE_SCRATCH_PREFIX = "orb-snap-trace-";
 const RAW_TRACE_NAME = "raw.zip";
 const UNREADABLE_LINE = Symbol("unreadable trace line");
 
-// A process runs one operator's calls, and one trace spans them, so what was revealed stays noted for the process.
+// What was revealed stays noted until the host forgets it: a CLI process and a session daemon (one trace spans its
+// calls) never do; a host running several invocations in one process forgets after each (`forgetPrivateValues`).
 const wholeStrings = new Set<string>();
 let substrings: readonly string[] = [];
 
@@ -219,8 +220,9 @@ export async function scrubPrivateFile(path: string): Promise<void> {
   }
 }
 
-/** Test seam: forget what this process revealed, because Node suites share one module registry per worker. */
-export function __resetPrivateValues(): void {
+/** Forget what this process revealed. A host that runs several invocations in one process calls it after each, so
+ *  a value one invocation revealed is never scrubbed from the next one's evidence. */
+export function forgetPrivateValues(): void {
   wholeStrings.clear();
   substrings = [];
 }

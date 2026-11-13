@@ -232,7 +232,7 @@ test("the full orb console ring retains subtypes, windows, reset, and explicit c
   }
 });
 
-// The env key `floor/browser/browser.ts`'s protocol-level CDP fault injector reads (#1093). Spelled here rather
+// The env key `floor/browser/cdp-fault.ts`'s protocol-level CDP fault injector reads (#1093). Spelled here rather
 // than imported so this pin exercises the PROTOCOL the seam publishes, exactly as an operator would —
 // mirrors tests/tooling/ui-audit/ops/hover.int.test.ts's identical convention.
 const CDP_FAULT_ENV = "ORB_PROBE_TEST_CDP_FAULT";
@@ -245,7 +245,7 @@ function withCdpFault<T>(fault: string, body: () => Promise<T>): Promise<T> {
 
 test("controlled CDP failures stay loud: Audits degrades explicitly while Log stays live, and Log setup rejects", async () => {
   // ROUTED THROUGH THE SHARED SEAM (#1812): a local `rejectCommand` Proxy re-spelled the exact fault
-  // `floor/browser/browser.ts` already injects at the protocol level. `launchProbeSession` installs that
+  // `floor/browser/cdp-fault.ts` already injects at the protocol level. `launchProbeSession` installs that
   // injector on its context (`installCdpFaultInjector`); every `context.newCDPSession(...)` taken AFTER
   // launch returns the same seam-faulted session `ops/hover.ts`'s CLI-level fixtures rely on — so this
   // suite now proves the same seam via its in-process door instead of carrying a second one.

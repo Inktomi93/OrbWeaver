@@ -187,7 +187,7 @@ async function sweepSessions(): Promise<string> {
   return done.length === 0 ? `nothing to sweep — no sessions in ${home}` : done.join("\n");
 }
 
-/** cli.ts's admin door: the three print-and-exit modes, or null when the argv asked for none of them. */
+/** The admin door ops/command.ts dispatches: the three print-and-exit modes, or null when the argv asked for none of them. */
 export async function runSessionAdmin(opts: Args): Promise<number | null> {
   if (opts.sessionStatus) {
     print(await sessionStatus(opts.sessionStatusName));

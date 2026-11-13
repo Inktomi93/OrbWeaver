@@ -21,6 +21,8 @@ export const SNAP_BASES_MS = {
   throttledReady: 60_000,
   step: 5000,
   networkIdle: 10_000,
+  /** A snap host's run that passed its deadline has its browser closed; this long, its pending work has rejected and it has ended. */
+  hostRunSettle: 10_000,
 } as const satisfies Readonly<Record<string, number>>;
 
 type SnapCeilingName = keyof typeof SNAP_BASES_MS;
@@ -31,7 +33,7 @@ export function snapCeilings(read?: BoxLoadReader): SnapCeilings {
   return budgets(SNAP_BASES_MS, read);
 }
 
-/** The ceilings in force for this process, read once at module load (each snap run is a fresh process). */
+/** The ceilings in force for this invocation: read at import, and again for each invocation a snap host runs. */
 export const SNAP_CEILINGS_MS: SnapCeilings = snapCeilings();
 // Let transitions/queries settle between steps (drawer slides, panel drops).
 export const STEP_SETTLE_MS = 400;

@@ -19,7 +19,7 @@ import {
   selectConsoleMessagesForReport,
   splitTrailingEvals,
 } from "../../../tooling/src/snap/index.ts";
-import { __resetPrivateValues } from "../../../tooling/src/snap/lib/private-values.ts";
+import { forgetPrivateValues } from "../../../tooling/src/snap/lib/private-values.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
@@ -230,7 +230,7 @@ function firstFill(args: ReturnType<typeof parseSnapArgs>): { readonly selector:
   for (const { type, action } of args.actions) {
     if (type === "step" && action.kind === "fill") {
       const value = action.value.reveal();
-      __resetPrivateValues();
+      forgetPrivateValues();
       return { selector: action.selector, value };
     }
   }

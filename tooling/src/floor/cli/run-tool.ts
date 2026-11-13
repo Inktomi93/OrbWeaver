@@ -31,8 +31,22 @@ function escalate(code: ExitCode): void {
   }
 }
 
+function crashLine(label: string, e: unknown): string {
+  return `TOOL ERROR (${label}): ${describeThrown(e)}`;
+}
+
+/**
+ * What a throw from a tool's main makes of its run: the exit code and the one stderr line {@link runTool} writes.
+ *
+ * @remarks A host that runs several invocations in one process reports a run's throw through this, so the run ends
+ * as its own process would have.
+ */
+export function thrownOutcome(e: unknown): { readonly code: ExitCode; readonly line: string } {
+  return e instanceof UsageError ? { code: EXIT.misuse, line: `ARG ERROR    ${e.message}` } : { code: EXIT.toolError, line: crashLine("thrown", e) };
+}
+
 function crashExit(label: string, e: unknown): never {
-  process.stderr.write(`TOOL ERROR (${label}): ${describeThrown(e)}\n`);
+  process.stderr.write(`${crashLine(label, e)}\n`);
   escalate(EXIT.toolError);
   // Behavior 2's crash arm: a stranded event loop (a live browser, an open server) must not hang the
   // caller forever — exit with the escalated code, stderr already written synchronously.
@@ -71,8 +85,9 @@ export async function runTool(main: () => Promise<number> | number): Promise<voi
     escalate((await main()) as ExitCode);
   } catch (e) {
     if (e instanceof UsageError) {
-      process.stderr.write(`ARG ERROR    ${e.message}\n`);
-      escalate(EXIT.misuse);
+      const thrown = thrownOutcome(e);
+      process.stderr.write(`${thrown.line}\n`);
+      escalate(thrown.code);
       return;
     }
     crashExit("thrown", e);

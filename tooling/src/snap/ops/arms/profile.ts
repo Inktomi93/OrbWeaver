@@ -160,7 +160,14 @@ async function prepareProfile(
   return { trace: started.capture, traceError: started.error, errors };
 }
 
-let nextWindowId = 1;
+// Numbered per session, so a run in a context of a shared browser counts from 1 as a launch does.
+const WINDOWS_OPENED = new WeakMap<ProbeSession, number>();
+
+function nextWindowNumber(session: ProbeSession): number {
+  const next = (WINDOWS_OPENED.get(session) ?? 0) + 1;
+  WINDOWS_OPENED.set(session, next);
+  return next;
+}
 
 export const PROFILE_ARM = {
   flags: [
@@ -197,7 +204,7 @@ export const PROFILE_ARM = {
     at: "run",
     begin: (session, opts: Args): ArmRunInstance<"react-profile"> => {
       const enabled = opts.reactProfile;
-      const windowId = evidenceWindowId(`snap-react-${String(Date.now())}-${String(nextWindowId++)}`);
+      const windowId = evidenceWindowId(`snap-react-${String(Date.now())}-${String(nextWindowNumber(session))}`);
       const prepareErrors: string[] = [];
       let trace: TraceCapture | null = null;
       let traceError: string | null = null;

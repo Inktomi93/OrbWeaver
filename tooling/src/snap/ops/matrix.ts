@@ -26,6 +26,7 @@ import type { AppearanceAggregate } from "../lib/matrix-appearance.ts";
 import { aggregateAppearance, reconcileAppearanceAggregate } from "../lib/matrix-appearance.ts";
 import { shouldProduceShot, variantOut } from "../lib/out-names.ts";
 import { sameAppearanceReceiptPopulation } from "./appearance-invariants.ts";
+import { contextsIn } from "./browser-source.ts";
 import { navigate, settlePage } from "./drive.ts";
 import { snapDestination } from "./guards.ts";
 import { appearancePolicyIdForRequirement, historicalRowsForCell, planSnapAppearanceMatrix, snapMatrixVariant } from "./matrix-contract.ts";
@@ -96,7 +97,7 @@ async function discoverMatrixInputs(opts: Args, baseName: string, host: ProbeSes
   const args = discoveryArgs(opts);
   if (host !== null) {
     const name = `${baseName}-matrix-discovery`;
-    const opened = await openSnapMatrixContext(host, args);
+    const opened = await openSnapMatrixContext(host, args, "owner");
     try {
       return await readMatrixDiscovery(opened.session, args);
     } finally {
@@ -128,17 +129,15 @@ async function runMatrixSessionCell(
   variant: SnapMatrixVariant,
   appearanceRows: SnapAppearanceMatrix["historicalRows"],
 ): Promise<SnapDetailedResult> {
-  const opened = await openSnapMatrixContext(host, runArgs);
+  // The daemon launched its browser with every provision a cell may ask for, so a cell never asks for more here.
+  const cell = await contextsIn(host, "owner").open(runArgs, { requireCascadeRuntime: false });
   const destination = snapDestination(runArgs);
   try {
     if (runArgs.scenario !== null) {
-      return await runScenarioDetailed(runArgs, {
-        session: opened.session,
-        finish: async (red, name, enabled) => await finishSnapContext(opened.context, red, name, enabled),
-      });
+      return await runScenarioDetailed(runArgs, cell);
     }
     return await runOnSession(
-      opened.session,
+      cell.session,
       runArgs,
       {
         url: destination.url,
@@ -151,12 +150,11 @@ async function runMatrixSessionCell(
       {
         window: null,
         detailedPlan: { appearanceRows },
-        finish: async (red) => await finishSnapContext(opened.context, red, variant.id, runArgs.failureEvidence),
+        finish: async (red) => await cell.finish(red, variant.id, runArgs.failureEvidence),
       },
     );
   } catch (error) {
-    await opened.context.context.close();
-    throw error;
+    return await cell.abandon(error);
   }
 }
 

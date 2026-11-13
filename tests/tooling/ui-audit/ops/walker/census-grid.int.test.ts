@@ -42,9 +42,9 @@ const LAW4_FIXTURE = `<style>
 // The CLI drives Chromium only, where no promoted layer resamples its glyphs (docs/law/integer-line-boxes.md §10). So
 // every case below proves the Chromium population; the judged arms outside Chromium are proved over real boxes by
 // tests/tooling/design-audit-walker.ct.tsx and over the shipped string per engine by census-grid.test.ts.
-test("in Chromium Law 4 EXCLUDES promoted text by name and counts all three exclusions into the same denominator", async ({ runCli, scratch }) => {
+test("in Chromium Law 4 EXCLUDES promoted text by name and counts all three exclusions into the same denominator", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "law4.html"), relationalDocument(LAW4_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "law4.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "law4.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // THREE text candidates, NONE judged. `readingSurface` is the mirrored gate exemption, `snapped` is the polarity
   // ruling (no promoting ancestor = the browser re-snaps every paint) and `compositedWithoutResample` is §10's
@@ -75,9 +75,9 @@ const SR_ONLY_FIXTURE = `<style>
   <span class="plumbing">x</span>
 </div>`;
 
-test("Law 4 EXCLUDES screen-reader-only text by its own reason, before the promotion is asked", async ({ runCli, scratch }) => {
+test("Law 4 EXCLUDES screen-reader-only text by its own reason, before the promotion is asked", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "sr-only.html"), relationalDocument(SR_ONLY_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "sr-only.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "sr-only.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // PRINTED, never a silent drop: the excluded candidates stay in the denominator under their own
   // reasons, and the identity candidates = judged + withheld + excluded still closes.
@@ -112,11 +112,9 @@ const PROMOTION_KIND_FIXTURE = `<style>
 <div class="host" id="willchange" data-slot="will-change-host"><p>text under will-change</p></div>
 <div class="host" id="three-d" data-slot="preserve-3d-host"><p>text under preserve-3d</p></div>`;
 
-test("in Chromium Law 4 EXCLUDES text under each of the three promotion shapes by name", async ({ runCli, scratch }) => {
+test("in Chromium Law 4 EXCLUDES text under each of the three promotion shapes by name", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "promotion-kinds.html"), relationalDocument(PROMOTION_KIND_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "promotion-kinds.html"), ...AUDIT_ARGV], {
-    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
-  });
+  const res = await runSnap(["--file", join(scratch, "promotion-kinds.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout).toMatch(new RegExp(`POPULATION\\s+off-grid-text candidates=3 judged=0 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=3\\)`, "u"));
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
@@ -143,9 +141,9 @@ const LAW3_BACKDROP_FIXTURE = `<style>
 <div class="root" id="both" data-slot="both-root"></div>
 <p>five promotion roots on one landing</p>`;
 
-test("in Chromium Law 3 EXCLUDES every promotion root by name, element or pseudo, whatever its shape", async ({ runCli, scratch }) => {
+test("in Chromium Law 3 EXCLUDES every promotion root by name, element or pseudo, whatever its shape", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "law3-backdrop.html"), relationalDocument(LAW3_BACKDROP_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "law3-backdrop.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "law3-backdrop.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout).toMatch(
     new RegExp(`POPULATION\\s+promoted-layer-offset candidates=5 judged=0 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=5\\)`, "u"),
@@ -164,9 +162,9 @@ const INFLOW_BACKDROP_FIXTURE = `<style>
 </style>
 <div id="strip" data-slot="glass-strip-root">text under a glass strip</div>`;
 
-test("Law 3 WITHHOLDS an in-flow backdrop-filter pseudo by name, never excluding it", async ({ runCli, scratch }) => {
+test("Law 3 WITHHOLDS an in-flow backdrop-filter pseudo by name, never excluding it", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "inflow-backdrop.html"), relationalDocument(INFLOW_BACKDROP_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "inflow-backdrop.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "inflow-backdrop.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout).toMatch(/POPULATION\s+promoted-layer-offset candidates=1 judged=0 .*withheld\(pseudoBoxUnmeasurable=1\) excluded\(\)/u);
   await expect(res).toExitWith(2);
@@ -190,9 +188,9 @@ const LAW2_INHERITED_FIXTURE = `<style>
 <div class="frame whole" data-slot="authored-frame"><div class="knob" id="authored" data-slot="authored-knob"></div></div>
 <div class="frame fraction" data-slot="percent-frame"><div class="knob" id="percent" data-slot="percent-knob"></div></div>`;
 
-test("Law 2 EXCLUDES a whole-pixel translation that keeps its frame's landing, and fires on an authored fraction", async ({ runCli, scratch }) => {
+test("Law 2 EXCLUDES a whole-pixel translation that keeps its frame's landing, and fires on an authored fraction", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "law2-inherited.html"), relationalDocument(LAW2_INHERITED_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "law2-inherited.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "law2-inherited.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout).toMatch(new RegExp(`POPULATION\\s+off-grid-transform candidates=4 judged=2 .*excluded\\(${GRID_INHERITED_LANDING}=2\\)`, "u"));
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
@@ -216,9 +214,9 @@ const ANIMATING_FIXTURE = `<style>
 </style>
 <div id="moving">drifting</div>`;
 
-test("Law 2 WITHHOLDS a transform that is mid-animation — a moving element has no rest landing", async ({ runCli, scratch }) => {
+test("Law 2 WITHHOLDS a transform that is mid-animation — a moving element has no rest landing", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "animating.html"), relationalDocument(ANIMATING_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "animating.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "animating.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // WITHHELD, not excluded: the rule APPLIES to this element and the instrument could not read its rest
   // landing, which is a NO VERDICT rather than a clean pass.
@@ -245,10 +243,10 @@ const DPR_FIXTURE = `<style>
  *  Chromium's 1/64 LayoutUnit the only CSS offsets that land crisp at DPR 3 are integers, which are crisp
  *  at DPR 1 too. Proving the multiplication is live is what IS reachable, and it is the property the
  *  epsilon rests on. */
-test("the landing fraction is measured in DEVICE pixels, so the same CSS offset reads differently by DPR", async ({ runCli, scratch }) => {
+test("the landing fraction is measured in DEVICE pixels, so the same CSS offset reads differently by DPR", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "dpr.html"), relationalDocument(DPR_FIXTURE));
-  const desktop = await runCli("snap", ["--file", join(scratch, "dpr.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  const mobile = await runCli("snap", ["--file", join(scratch, "dpr.html"), "--mobile", ...AUDIT_ARGV], {
+  const desktop = await runSnap(["--file", join(scratch, "dpr.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const mobile = await runSnap(["--file", join(scratch, "dpr.html"), "--mobile", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(desktop.stdout).not.toContain("INSTRUMENT ERROR");

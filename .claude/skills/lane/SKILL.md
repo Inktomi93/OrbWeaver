@@ -194,7 +194,7 @@ These restrictions apply to Claude's guarded worktree shell.
 
 ## Build details
 
-- Name a test-only state reset `__reset<Noun>`, as `__resetPrivateValues` does in `tooling/src/snap/lib/private-values.ts`; no `__<verb>ForTest` hook exists in the tree.
+- Name a test-only state reset `__reset<Noun>`; no `__<verb>ForTest` hook exists in the tree. A reset that production also calls takes a plain verb, as `forgetPrivateValues` in `tooling/src/snap/lib/private-values.ts` does.
 - Generate TypeID fixtures with the seeded `ids.typeId(prefix)` or `root.idSource.typeId(prefix)` (Spine-Testing §3), never with literals or a one-argument `mintTypeId`.
 - Declare a union with `satisfies` when Biome misreads a zod `discriminatedUnion` transform.
 

@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./backup-names": "./src/client/backup-names.ts",
+    "./local-path": "./src/client/local-path.ts",
     "./query": "./src/query/index.ts",
     "./wiring": "./src/client/wiring.ts",
     "./wiring-boot": "./src/client/wiring-boot.ts",

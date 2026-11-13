@@ -14,7 +14,7 @@ import {
   redactEvidenceLabel,
   redactEvidenceText,
 } from "../../../../tooling/src/snap/lib/browser-evidence-redaction.ts";
-import { __resetPrivateValues, privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
+import { forgetPrivateValues, privateText } from "../../../../tooling/src/snap/lib/private-values.ts";
 
 function diagnostic(overrides: Partial<BrowserDiagnostic> = {}): BrowserDiagnostic {
   return {
@@ -206,6 +206,6 @@ test("a revealed value leaves page text but never a field the browser names, and
     expect(redactBrowserPageError({ kind: "runtime", name: "Error", message: `threw ${typed}`, stack: null }).message).toBe(`threw ${PRIVATE_MASK}`);
     expect(redactCapturedConsole({ type: "error", text: typed, location: null, line: `[error] ${typed}` }).line).toBe(`[error] ${PRIVATE_MASK}`);
   } finally {
-    __resetPrivateValues();
+    forgetPrivateValues();
   }
 });
