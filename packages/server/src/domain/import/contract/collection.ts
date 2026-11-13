@@ -75,6 +75,9 @@ export interface CollectedPersona {
  *  path (`CollectedCard` → the primary attach). */
 export interface CollectedWorld {
   readonly book: BulkImportLorebookInput;
+  /** The book file's path in the profile, stable across the uploads of a split folder. A book's name is not
+   *  its identity: an orb export names itself, so two files can carry one name. */
+  readonly sourceFile: string;
 }
 
 /** One ST chat-completion preset mapped to the orb-native portable file, with the fields that did not travel.

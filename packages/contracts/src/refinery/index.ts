@@ -755,9 +755,9 @@ export interface RefinerySessionView {
   readonly createdAt: number;
 }
 
-/** Why one accepted entry was REFUSED — itemized per entry so the user learns which field and why. Owner
- *  ruling: the apply is atomic, so any refusal refuses the whole act, and the user recovers by discarding the
- *  refused entries. A closed axis so the client renders typed copy. The
+/** Why one accepted entry was REFUSED — itemized per entry so the user learns which field and why. The
+ *  apply is atomic, so any refusal refuses the whole act (a partial write is a card the user never reviewed as a
+ *  whole), and the user recovers by discarding the refused entries. A closed axis so the client renders typed copy. The
  *  tuple stays UNEXPORTED until a runtime consumer exists (R3's reason-copy map re-exports it then);
  *  the derived union below is the wire surface. */
 const APPLY_DROP_REASONS = [

@@ -14,13 +14,14 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import { processCompletion } from "@orb/tooling/floor/host/platform";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { joinRunMarkerSweep, mintRunMarker, runMarkerEnv } from "@orb/tooling/floor/process/run-marker";
+import { joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
 import { TERM_GRACE_BASE_MS } from "@orb/tooling/floor/process/stop-escalation";
 import {
   PRIVATE_EXECUTION_EXPIRY_ENV,
   privateCorpusExecutionEnv,
   privateCorpusExecutionSignal,
   privateCorpusTranscriptTeardown,
+  spawnBudgetedConsumer,
 } from "../../../scripts/corpus-fixture-lifetime.ts";
 import { createCorpusCapsule, loadCorpusFixture, writePrivateCorpusFixture } from "./corpus.ts";
 import { createCorpusRecipe } from "./corpus-recipe.ts";
@@ -155,6 +156,48 @@ test("private timeout retirement waits for observed completion and refuses unkno
   await expect(privateCorpusTranscriptTeardown(marker, { ...deps, completionOf: () => ({ kind: "unknown" }) }).afterTimeoutKill()).rejects.toThrow(
     "identity unavailable",
   );
+});
+
+test("a consumer its budget stops names the budget, the elapsed time and the unfinished projects", { timeout: budget(60_000) }, async () => {
+  const budgetMs = budget(2000);
+  const startedAt = 1_800_000_000_000;
+  const overrunMs = 7;
+  const unfinished = ["first-cell", "second-cell"];
+  const lines: string[] = [];
+  const write = (written: string): void => void lines.push(written);
+  const consumer = (marker: string, script: string): Parameters<typeof spawnBudgetedConsumer>[0] => ({
+    cmd: "bash",
+    args: ["-c", script],
+    options: { cwd: tmpdir(), env: inheritedProcessEnv(runMarkerEnv(marker)), timeoutMs: budgetMs, teardown: runMarkerTranscriptTeardown(marker) },
+    unfinished: () => unfinished,
+  });
+  const clock = (): (() => number) => {
+    const reads = [startedAt, startedAt + budgetMs + overrunMs];
+    return () => reads.shift() ?? Number.NaN;
+  };
+
+  // The control: a consumer that ends inside the same budget writes nothing.
+  const quick = mintRunMarker();
+  try {
+    expect((await spawnBudgetedConsumer(consumer(quick, "true"), write, clock())).code).toBe(0);
+  } finally {
+    await joinRunMarkerSweep(quick);
+  }
+  expect(lines).toEqual([]);
+
+  const stopped = mintRunMarker();
+  try {
+    expect((await spawnBudgetedConsumer(consumer(stopped, "sleep 600"), write, clock())).code).toBeNull();
+  } finally {
+    await joinRunMarkerSweep(stopped);
+  }
+  expect(lines).toHaveLength(1);
+  const [line = ""] = lines;
+  expect(line).toContain(`${String(budgetMs)}ms`);
+  expect(line).toContain(`${String(budgetMs + overrunMs)}ms`);
+  for (const project of unfinished) {
+    expect(line).toContain(project);
+  }
 });
 
 test("private hard timeout joins its group and escaped marked descendant before reporting completion", { timeout: budget(60_000) }, async () => {

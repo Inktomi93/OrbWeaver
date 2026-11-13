@@ -186,8 +186,9 @@ function QueueRow({
     >
       {state === "open" ? (
         // `px-block` matches the ghost button every OTHER row's name is (CONTROL_SIZE `sm`), so the field
-        // names line up in one column instead of the open row sitting 12px left of its siblings.
-        <Text inset="blockInline" truncate="fill" voice="label">
+        // names line up in one column instead of the open row sitting 12px left of its siblings. The field floor is
+        // the name's starting width, so in a narrow pane the chip wraps to its own line before the name clips.
+        <Text floor="field" grow={true} inset="blockInline" truncate={true} voice="label">
           {label}
         </Text>
       ) : (

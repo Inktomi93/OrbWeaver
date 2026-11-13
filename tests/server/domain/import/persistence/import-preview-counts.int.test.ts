@@ -3,9 +3,11 @@
 // @subject packages/server/src/domain/import/loader/profile-directory.ts
 // @subject packages/server/src/domain/import/substrate/preview.ts
 
-import { IMPORT_PREVIEW_KINDS, ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS, mergeImportPreviews, ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
+import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { admit, bothKindFolders, cardPng, chatOf, dryRun, finishRun, harness, settings } from "./_st-tree-door.ts";
 
 test("a folder's preview totals equal the real import's counts, kind by kind", async () => {
@@ -70,4 +72,36 @@ test("a group the run refuses counts once in scanned, and its transcripts are no
   expect(imported.scanned).toBe(3);
   expect(preview.skipped.items.map((item) => item.source)).toContain("groups/ghosts.json");
   expect(preview.kinds.chats.total).toBe(imported.found?.chats);
+});
+
+const TWIN_BOOK = "Twin Atlas";
+
+/** Two exports of one library book, taken before and after it gained an entry: one name, two contents. The
+ *  library ends holding the later content. */
+async function twinBookExports(root: ServerTestHarness): Promise<{ readonly earlier: Uint8Array; readonly later: Uint8Array }> {
+  const principal = await root.principalFor(root.ownerId);
+  const { worldInfo } = root.services;
+  const book = await worldInfo.createBook({ principal, input: createBookSchema.parse({ name: TWIN_BOOK }) });
+  const exported = async (): Promise<Uint8Array> => present(await worldInfo.exportBook({ principal, bookId: book.id })).bytes;
+  await worldInfo.createEntry({ principal, bookId: book.id, input: createEntrySchema.parse({ title: "North", content: "The north shore.", keys: ["north"] }) });
+  const earlier = await exported();
+  await worldInfo.createEntry({ principal, bookId: book.id, input: createEntrySchema.parse({ title: "South", content: "The south shore.", keys: ["south"] }) });
+  return { earlier, later: await exported() };
+}
+
+test("two world books in one folder that share a name are two entries in the merged preview, each with its own verdict", async () => {
+  await using root = await harness();
+  const { earlier, later } = await twinBookExports(root);
+  const files = { [ST_SETTINGS_FILE]: settings({}), "worlds/atlas-earlier.json": earlier, "worlds/atlas-later.json": later };
+
+  // The merge is what a person reads: the client folds every upload's preview through it, a lone upload included.
+  const shown = mergeImportPreviews([await dryRun(root, files)]);
+  const imported = await finishRun(root, await admit(root, files));
+
+  expect(shown.kinds.worlds.items.toSorted((a, b) => a.source.localeCompare(b.source))).toEqual([
+    { source: "worlds/atlas-earlier.json", name: TWIN_BOOK },
+    { source: "worlds/atlas-later.json", name: TWIN_BOOK, inLibrary: true },
+  ]);
+  expect(shown.kinds.worlds.total).toBe(2);
+  expect(present(imported.found).worlds).toBe(2);
 });

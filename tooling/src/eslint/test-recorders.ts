@@ -2,7 +2,7 @@
 // under test sent nothing, so a tail read of a recorder, under any spelling or alias, proves nothing about that act.
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
-import { AST_NODE_TYPES } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 import { constInitOf, staticName, unwrapped } from "./test-derivation.ts";
 
@@ -27,8 +27,36 @@ const isLastIndex = (node: TSESTree.Node | undefined): boolean =>
   node.right.type === AST_NODE_TYPES.Literal &&
   node.right.value === 1;
 
-// The helpers that return only what one act recorded.
-const ACT_BRACKETS = new Set(["wireOf", "quietOf", "appendedBy"]);
+// The helpers that return only what one act recorded, each with the modules that export it. The name alone proves
+// nothing: a file-local function under it returns whatever it likes, so a bracket is its home's export, imported.
+const CHAT_SCENARIO_HOME = /(?:^|\/)scenario-physical\.ts$/u;
+const APPENDED_HOME = /^@orb\/testkit\/iso$|(?:^|\/)iso\/non-empty\.ts$/u;
+const ACT_BRACKET_HOMES: ReadonlyMap<string, RegExp> = new Map([
+  ["wireOf", CHAT_SCENARIO_HOME],
+  ["quietOf", CHAT_SCENARIO_HOME],
+  ["appendedBy", APPENDED_HOME],
+]);
+
+// Whether the callee is a bracket helper's own export, under any local name the import gives it.
+function isActBracket(sourceCode: Source, callee: TSESTree.Identifier): boolean {
+  for (let scope: TSESLint.Scope.Scope | null = sourceCode.getScope(callee); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(callee.name);
+    if (variable !== undefined) {
+      const [definition] = variable.defs;
+      if (
+        variable.defs.length !== 1 ||
+        definition?.type !== TSESLint.Scope.DefinitionType.ImportBinding ||
+        definition.parent.type !== AST_NODE_TYPES.ImportDeclaration ||
+        definition.node.type !== AST_NODE_TYPES.ImportSpecifier ||
+        definition.node.imported.type !== AST_NODE_TYPES.Identifier
+      ) {
+        return false;
+      }
+      return ACT_BRACKET_HOMES.get(definition.node.imported.name)?.test(definition.parent.source.value) ?? false;
+    }
+  }
+  return false;
+}
 
 // A recorder lives on something that outlasts the act: a binding or a member path. A call's result is that call's own
 // value, so `room.prompts()` reads a history only when `room` is held.
@@ -47,7 +75,7 @@ function initOf(sourceCode: Source, identifier: TSESTree.Identifier): TSESTree.E
   return declarator?.type === AST_NODE_TYPES.VariableDeclarator && declarator.init !== null ? declarator.init : undefined;
 }
 
-// A bracket helper's own result, through `await` and `const` bindings. Its fields are the act's entries.
+// An imported bracket helper's own result, through `await` and `const` bindings. Its fields are the act's entries.
 function isActResult(sourceCode: Source, node: TSESTree.Node, seen: Set<TSESTree.Node>): boolean {
   const value = unwrapped(node);
   if (seen.has(value)) {
@@ -61,7 +89,7 @@ function isActResult(sourceCode: Source, node: TSESTree.Node, seen: Set<TSESTree
     const init = initOf(sourceCode, value);
     return init !== undefined && isActResult(sourceCode, init, seen);
   }
-  return value.type === AST_NODE_TYPES.CallExpression && value.callee.type === AST_NODE_TYPES.Identifier && ACT_BRACKETS.has(value.callee.name);
+  return value.type === AST_NODE_TYPES.CallExpression && value.callee.type === AST_NODE_TYPES.Identifier && isActBracket(sourceCode, value.callee);
 }
 
 /** Whether the expression holds only one act's entries: a field of a bracket helper's result, `slice(mark)` with the

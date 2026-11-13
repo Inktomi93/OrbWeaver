@@ -4,13 +4,13 @@
 // @subject scripts/eslint-parts.ts
 import { join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { TEST_WORLDS, worldSpecs } from "@orb/tooling/floor/testing/test-worlds";
 import type { Linter } from "eslint";
 import { ESLint } from "eslint";
 import ts from "typescript";
 import { parse } from "yaml";
 import { z } from "zod";
 import { ESLINT_LINT_SCRIPT, ESLINT_PARTS, ESLINT_PARTS_SCRIPT } from "../../scripts/eslint-parts.ts";
-import { TEST_WORLDS } from "../../tooling/src/unwired/worlds.ts";
 import { read, workflowJobs } from "./_workflow-support.ts";
 
 const RUNNER = "scripts/eslint-parts.ts";
@@ -117,4 +117,16 @@ test("a test-world file takes its own world's project, so no part builds two tes
   expect([...builds].filter(([, built]) => built.size > 1).map(([name, built]) => `${name}: ${[...built].join(", ")}`)).toEqual([]);
   // Positive control: every test world is linted by some part.
   expect(new Set([...builds.values()].flatMap((built) => [...built]))).toEqual(new Set(TEST_WORLDS));
+});
+
+test("a world reads the include and exclude it inherits through extends, rebased on its own directory", async ({ plantedTree }) => {
+  const shared = { include: ["suites/**/*", "ambient.d.ts"], exclude: ["suites/skipped"] };
+  const root = await plantedTree({
+    "base/tsconfig.shared.json": JSON.stringify(shared),
+    "tsconfig.inherits.json": JSON.stringify({ extends: "./base/tsconfig.shared.json" }),
+    "tsconfig.overrides.json": JSON.stringify({ extends: "./base/tsconfig.shared.json", include: ["own/**/*"] }),
+  });
+  expect(worldSpecs(root, "tsconfig.inherits.json")).toEqual({ include: ["base/suites/**/*", "base/ambient.d.ts"], exclude: ["base/suites/skipped"] });
+  // Positive control: a world's own include outranks the inherited one, and the exclude it does not restate still arrives.
+  expect(worldSpecs(root, "tsconfig.overrides.json")).toEqual({ include: ["own/**/*"], exclude: ["base/suites/skipped"] });
 });

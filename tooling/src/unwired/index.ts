@@ -19,4 +19,4 @@ export { runUnwired } from "./run.ts";
 export { scanUnwired, scanWorld } from "./scan.ts";
 export { scanShapes } from "./shapes.ts";
 export { scanUnions } from "./unions.ts";
-export { isProduction, packageWorlds, TEST_WORLDS } from "./worlds.ts";
+export { isProduction, packageWorlds } from "./worlds.ts";

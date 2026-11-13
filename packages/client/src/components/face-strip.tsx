@@ -341,9 +341,13 @@ export function FaceStrip<Id extends string = string>({
 
   const folding = overflow !== undefined;
   const moreCaption = caption ? (
-    <Text ink="muted" voice="label">
-      More
-    </Text>
+    <>
+      {/* Whitespace between flex items paints nothing but separates the count from the caption for text-content
+          readers, so the tile's visible label reads "+N More", the words its name leads with (WCAG 2.5.3). */}{" "}
+      <Text ink="muted" voice="label">
+        More
+      </Text>
+    </>
   ) : null;
   // `null` is the MEASURING pass: every face renders (clipped, pre-paint) so the DOM can be read once.
   const measuring = fold === null;

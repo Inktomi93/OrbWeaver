@@ -296,6 +296,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 // A completed session's rewrite already landed; running any stage re-opens it.
                 completed={view.status === "completed"}
                 keptAccepts={keptAccepts}
+                outcomeShown={outcome !== null}
               />
             )
           }

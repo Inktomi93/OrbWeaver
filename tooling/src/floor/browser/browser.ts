@@ -27,9 +27,40 @@ export const DEFAULT_DEBUG_TOKEN = processEnvValue(DEBUG_TOKEN_ENV) ?? "";
 
 const TRAILING_SLASH_RE = /\/$/u;
 
-/** `base + route` with exactly one slash at the join. */
+interface UrlParts {
+  readonly path: string;
+  /** Without its `?`. */
+  readonly query: string;
+  /** With its `#`, or empty. */
+  readonly fragment: string;
+}
+
+// Split by text, not `URL`: the operator's spelling of the path and of every pair reaches the browser as written.
+function urlParts(text: string): UrlParts {
+  const fragmentAt = text.indexOf("#");
+  const beforeFragment = fragmentAt === -1 ? text : text.slice(0, fragmentAt);
+  const queryAt = beforeFragment.indexOf("?");
+  return {
+    path: queryAt === -1 ? beforeFragment : beforeFragment.slice(0, queryAt),
+    query: queryAt === -1 ? "" : beforeFragment.slice(queryAt + 1),
+    fragment: fragmentAt === -1 ? "" : text.slice(fragmentAt),
+  };
+}
+
+/**
+ * `route` joined into `base`'s path with exactly one slash at the join.
+ *
+ * @remarks
+ * A base may carry a query or fragment, such as a deployment's access token. The route goes ahead of both, because a
+ * route appended after the query becomes part of the last pair's value. The base's pairs precede the route's, and the
+ * route's fragment replaces the base's.
+ */
 export function buildUrl(base: string, route: string): string {
-  return `${base.replace(TRAILING_SLASH_RE, "")}${route.startsWith("/") ? "" : "/"}${route}`;
+  const from = urlParts(base);
+  const to = urlParts(route);
+  const query = [from.query, to.query].filter((pairs) => pairs !== "").join("&");
+  const fragment = to.fragment === "" ? from.fragment : to.fragment;
+  return `${from.path.replace(TRAILING_SLASH_RE, "")}${to.path.startsWith("/") ? "" : "/"}${to.path}${query === "" ? "" : `?${query}`}${fragment}`;
 }
 
 /** Wall-clock settle — deliberate, bounded (this is an observation harness, not a test). */
