@@ -6,6 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connection-action-groups-stories/ConnectionActionGroupsStory";
@@ -95,7 +96,7 @@ for (const regime of REGIMES) {
         const opener = page.locator('[data-slot="list-row-body"]').filter({ hasText: LABEL });
         await opener.click();
         const back = page.getByRole("button", { name: "Back to Connections", exact: true });
-        const done = page.getByRole("button", { name: "Done", exact: true });
+        const done = page.getByRole("button", { name: DIALOG_VERBS.done, exact: true });
         await expect(back).toBeFocused();
         await expect(
           page.locator(`[data-slot="${unavailable ? "connection-editor-unavailable" : "connection-editor"}"]`).getByText(LABEL, { exact: true }),

@@ -9,6 +9,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ExtensionsPagePickStory, ExtensionsPageStory } from "./_extensions-page-stories.tsx";
 
 const STORY = "tests/client/features/plugin/surfaces/_extensions-page-stories/ExtensionsPageStory";
@@ -36,7 +37,7 @@ test("a held page read shows the loading status, a failed one the error block, a
   hold.fail();
   await expect(page.getByText("Couldn't load this plugin page.", { exact: true })).toBeVisible();
   phase = "serve";
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load this plugin page.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: EXTENSIONS_GONE_TITLE, exact: true })).toBeVisible();
 });

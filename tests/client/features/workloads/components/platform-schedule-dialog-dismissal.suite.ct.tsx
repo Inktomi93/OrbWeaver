@@ -5,6 +5,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { SCHEDULE_CADENCE_LABELS, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
 const CREATED_SCHEDULE = { kind: "reconcile-stats", cadence: "daily", ownerHandle: null } as const satisfies ScheduleIdentity;
@@ -93,7 +94,7 @@ for (const viewport of VIEWPORTS) {
 }
 
 async function expectMisalignmentRejected(dialog: import("@playwright/test").Locator): Promise<void> {
-  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   const transform = await cancel.evaluate((node) => {
     const original = node.style.transform;
     node.style.transform = `translateY(${node.getBoundingClientRect().height}px)`;
@@ -111,7 +112,7 @@ async function expectMisalignmentRejected(dialog: import("@playwright/test").Loc
 
 async function expectPairedScheduleActions(dialog: import("@playwright/test").Locator, submitLabel: string): Promise<void> {
   const submit = dialog.getByRole("button", { name: submitLabel, exact: true });
-  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   await expect(submit).toBeVisible();
   await expect(cancel).toBeVisible();
   const [submitBox, cancelBox] = await Promise.all([submit.boundingBox(), cancel.boundingBox()]);
@@ -126,7 +127,7 @@ async function expectPairedScheduleActions(dialog: import("@playwright/test").Lo
   await expect(submit).toBeInViewport({ ratio: 1 });
   await expect(cancel).toBeInViewport({ ratio: 1 });
   const footer = dialog.locator('[data-slot="dialog-footer"]').filter({ has: dialog.page().getByRole("button", { name: submitLabel, exact: true }) });
-  await expect(footer.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(1);
+  await expect(footer.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true })).toHaveCount(1);
 }
 
 async function expectScheduleActionsAfterScroll(dialog: import("@playwright/test").Locator, submitLabel: string): Promise<void> {
@@ -148,7 +149,7 @@ async function expectScheduleActionsAfterScroll(dialog: import("@playwright/test
 }
 
 async function dismissScheduleDialog(page: import("@playwright/test").Page, dialog: import("@playwright/test").Locator): Promise<void> {
-  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   await expect(cancel).toBeVisible();
   await expect(cancel).toBeEnabled();
   const bounds = await cancel.boundingBox();

@@ -7,7 +7,7 @@ import type { OrbRule, OrbRuleContext, Source } from "./syntax.ts";
 import { constInitOf, staticName, unwrapped } from "./test-derivation.ts";
 
 // The names the tests give their recorders. A name joins this list in the change that adds a recorder under it.
-const RECORDER = /^(requests|calls|errors|tokens|idTokens|children|funders|authorizations|prompts|[A-Za-z]*[bB]odies)$/u;
+const RECORDER = /^(requests|calls|errors|tokens|idTokens|children|funders|authorizations|prompts|asked|sent|saved|[A-Za-z]*[bB]odies)$/u;
 // A view of the whole history, so its tail is still the history's tail. `slice(mark)` is the bracket, so it is not one.
 const WHOLE_VIEWS = new Set(["map", "filter", "flatMap"]);
 const TAIL_SEARCHES = new Set(["findLast", "findLastIndex"]);

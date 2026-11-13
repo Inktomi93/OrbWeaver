@@ -14,6 +14,7 @@ import { fetchEndpointModels, fetchOpenRouterCatalog } from "#catalog";
 import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ProviderScrubSet, Resolved } from "#contract";
 import { ProviderError } from "#contract";
 import type { DiagnosticsDeps, InspectDeps } from "#src/contract/openai-backend.ts";
+import type { MirrorFetch } from "#src/contract/runtime.ts";
 import { authHeaders, bodyByteReader, fetchJson, openAiPath } from "../http/fetch-json.ts";
 import { turnAbortSignal } from "../http/idle-timeout.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
@@ -142,6 +143,11 @@ export async function openRouterGenerationCost(req: GenerationCostRequest, deps:
   return { totalCost: parsed.data.total_cost };
 }
 
+/** The rows an OpenRouter catalog read can list: all of them, or the chat rows a read that lost a kind list kept. */
+function openRouterEntries(read: MirrorFetch<ModelCatalogEntry[]>): ModelCatalogEntry[] {
+  return "complete" in read ? read.complete : read.partial;
+}
+
 /** The model list by the row's dialect: the enriched openrouter catalog, else the `/v1/models` ids. A failed
  *  or empty list is `{ listed: false, reason }` — the pane offers a typed id and says why. */
 export async function listOpenAiCompatModels(req: ListModelsRequest, deps: DiagnosticsDeps): Promise<ModelListing> {
@@ -151,7 +157,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
   try {
     const models: ModelCatalogEntry[] =
       connection.provider.dialect === "openrouter"
-        ? await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, ...(req.signal !== undefined ? { signal: req.signal } : {}) })
+        ? openRouterEntries(await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, ...(req.signal !== undefined ? { signal: req.signal } : {}) }))
         : (
             await fetchEndpointModels({
               scheduleTimeout: deps.scheduleTimeout,

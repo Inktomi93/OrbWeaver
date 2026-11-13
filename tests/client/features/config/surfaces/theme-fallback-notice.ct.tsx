@@ -4,6 +4,7 @@ import { TONE_FALLBACK_SCOPE } from "@orb/testkit/iso";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CONFIG_THEME_BACKGROUND_FIELD_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { COLOR_HEX_FIELD_NAME } from "#ui/primitives/color-field/color-field-names.ts";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
 
 // The theme editor names the contrast bound its theme's own colours made the app relax, reached the way an author edits
@@ -42,7 +43,7 @@ async function pickColor(page: Page, field: string, value: string): Promise<void
   await page.getByRole("button", { name: field, exact: true }).click();
   await page
     .getByRole("dialog", { name: `${field} color picker` })
-    .getByRole("textbox", { name: "Hex" })
+    .getByRole("textbox", { name: COLOR_HEX_FIELD_NAME })
     .fill(value);
   await page.keyboard.press("Escape");
 }

@@ -8,6 +8,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { ROSTER_DELETE_TITLE } from "#client/features/roster-preset/lib/roster-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RosterActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/roster-preset/components/_action-groups-stories/RosterActionGroupsStory";
@@ -75,7 +76,7 @@ for (const regime of REGIMES) {
         }
         await page.keyboard.press("Enter");
         const dialog = page.getByRole("alertdialog", { name: ROSTER_DELETE_TITLE, exact: true });
-        const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+        const cancel = dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
         await expect(cancel).toBeVisible();
         await cancel.focus();
         await page.keyboard.press("Enter");

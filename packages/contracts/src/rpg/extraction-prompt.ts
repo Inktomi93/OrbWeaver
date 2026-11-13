@@ -10,7 +10,7 @@
 // prompt-silent — and a NEW plane is a ROW (the D110 "~7 coupled sites" shrinks its prompt sites to one).
 //
 // THE RULE (the D50 producer-coverage ratchet discipline): every top-level
-// `rpgExtractionSchema` key has a registry row, or a new writable plane is prompt-silent; `everyPlane` makes a missing
+// `rpgExtractionSchema` key has a registry row, or a new writable plane is prompt-silent; `everyRow` makes a missing
 // row a `tsc` error. The registry is the standing anti-drift mechanism the audit's "prompt-drift, not model failure"
 // diagnosis demanded.
 //
@@ -35,6 +35,7 @@
 // claimed. Its bytes are VERBATIM the retired constant's: the ruling was "wire and MEASURE", and a measurement
 // against reworded text measures the rewording.
 
+import { everyRow } from "@orb/kit/guards";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { ProseOverrides } from "#prose-slot";
 import { resolveProseFrom, spliceProseTokens } from "#prose-slot";
@@ -124,22 +125,14 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
   return blocks.join("\n");
 }
 
-/** Returns the rows as given, and fails `tsc` while a schema key has no row; the error shows the key as `planeWithNoRow`. */
-function everyPlane<const Rows extends readonly ExtractionPlanePrompt[]>(
-  rows: Rows &
-    ([Exclude<ExtractionPlane, Rows[number]["plane"]>] extends [never]
-      ? unknown
-      : { readonly planeWithNoRow: Exclude<ExtractionPlane, Rows[number]["plane"]> }),
-): Rows {
-  return rows;
-}
-
-// The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key, which `everyPlane` enforces. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
+// The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key, which `everyRow` enforces. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
 //  prompted on the structured arm (the audit's "never mentioned" gap).
-const EXTRACTION_PLANE_PROMPTS = everyPlane([
+// Each `fragment` names its parameter type: an unannotated arrow makes the table infer as a plain array, which
+// `everyRow` refuses because an array proves no coverage.
+const EXTRACTION_PLANE_PROMPTS = everyRow<ExtractionPlanePrompt, "plane">()([
   {
     plane: "scene",
-    fragment: (ctx) => {
+    fragment: (ctx: ExtractionPromptContext) => {
       const lines: string[] = [];
       lines.push(rpgProse(ctx, "rpg.extract.scene.core", { timeOfDayValues: [...TIME_OF_DAY].join("/") }));
       // RV-9 — WHEN to move the clock/weather. The panel's Waystone reads these two fields as a live clock, so a
@@ -167,7 +160,7 @@ const EXTRACTION_PLANE_PROMPTS = everyPlane([
   },
   {
     plane: "party",
-    fragment: (ctx) => {
+    fragment: (ctx: ExtractionPromptContext) => {
       const base = rpgProse(ctx, "rpg.extract.plane.party");
       // R2/R6 — the game's OWN trackers, by name + host gloss. Static prose here would teach a vocabulary
       // this game may not have and omit the one it does.
@@ -177,13 +170,13 @@ const EXTRACTION_PLANE_PROMPTS = everyPlane([
   },
   {
     plane: "inventory",
-    fragment: (ctx) => rpgProse(ctx, "rpg.extract.plane.inventory"),
+    fragment: (ctx: ExtractionPromptContext) => rpgProse(ctx, "rpg.extract.plane.inventory"),
   },
   {
     plane: "trackers",
     // The GAME-subject trackers (the retired widget plane) — enumerated by name + host gloss, never as bare
     // keys. `null` when the game defines none, in which case the schema drops the plane entirely.
-    fragment: (ctx) => {
+    fragment: (ctx: ExtractionPromptContext) => {
       const defs = gameTrackers(ctx.config.trackers).filter((def) => !def.locked);
       if (defs.length === 0) {
         return null;
@@ -196,13 +189,13 @@ const EXTRACTION_PLANE_PROMPTS = everyPlane([
     // EXT-4c — the slot carries the two objective gestures in prose (never extra schema): the model has to
     // learn that ticking one objective off is `completeObjectives`, not a re-listing, or it restates the list
     // on every beat.
-    fragment: (ctx) => rpgProse(ctx, "rpg.extract.plane.quests"),
+    fragment: (ctx: ExtractionPromptContext) => rpgProse(ctx, "rpg.extract.plane.quests"),
   },
   {
     plane: "journal",
     // R4c — teach the `custom` escape + the host's own type glosses. The seven built-ins are combat-flavoured
     // on a plane that fires on 79% of turns; a host who defines "ritual" or "gossip" gets it taught by name.
-    fragment: (ctx) => {
+    fragment: (ctx: ExtractionPromptContext) => {
       const base = rpgProse(ctx, "rpg.extract.plane.journal");
       const hints = Object.entries(ctx.config.features.journalTypeHints);
       if (hints.length === 0) {

@@ -11,6 +11,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { DATABANK_USE_IN_EVERY_CHAT_NAME, DATABANK_VIEW_SOURCE_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
@@ -66,7 +67,7 @@ test("a held attachments read shows the loading skeleton, a failed one the error
   await expect(context.getByText("Couldn't load where this document is active.", { exact: true })).toBeVisible();
   await expect(context.getByText(/Nowhere yet/u)).toHaveCount(0);
   failing = false;
-  await context.getByRole("button", { name: "Retry", exact: true }).click();
+  await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(context.getByText("Couldn't load where this document is active.", { exact: true })).toHaveCount(0);
   await expect(context.getByText(/Nowhere yet/u)).toBeVisible();
 });
@@ -81,7 +82,7 @@ test("a deleted document is the gone state in the context rail, not the error bl
     .click();
   const context = await openContext(page);
   await expect(context.getByText("Document not found", { exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });
 
 test("a gone document's state gives way to a live document picked next", async ({ mount, page, corpus }) => {
@@ -137,7 +138,7 @@ test("a held source text read shows the loading skeleton, a failed one the error
   hold.fail();
   await expect(detail.getByText("Couldn't load the source text.", { exact: true })).toBeVisible();
   failing = false;
-  await detail.getByRole("button", { name: "Retry", exact: true }).click();
+  await detail.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(detail.getByText("Couldn't load the source text.", { exact: true })).toHaveCount(0);
   await expect(detail.getByText("The lantern illuminates the charts.", { exact: true })).toBeVisible();
 });

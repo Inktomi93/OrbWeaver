@@ -17,7 +17,9 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
+import { connectionRolePickerName } from "#client/components/shared-control-names.ts";
 import { RULE_UNSET_EFFECTS, ruleEnabledSwitchName } from "#client/features/automation/lib/rule-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/automation/components/_rule-action-groups-stories/RuleActionGroupsStory";
@@ -225,7 +227,7 @@ test.describe("rule editor field rows", () => {
       .click();
     await page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true }).click();
     const slot = page.getByRole("group", { name: role.heading, exact: true });
-    await expect(slot.getByRole("combobox", { name: `${role.label} connection`, exact: true })).toContainText(`Same as my ${role.label} role`);
+    await expect(slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true })).toContainText(`Same as my ${role.label} role`);
     await expect(slot.getByRole("img", { name: ROLE_STATUS_LABELS.unset, exact: true })).toBeVisible();
     // The readout says what the fallback resolves to, so the picker and the readout read as one state.
     await expect(slot.getByText(RULE_UNSET_EFFECTS.generateImage ?? "", { exact: true })).toBeVisible();
@@ -328,7 +330,7 @@ test.describe("rule editor field rows", () => {
           .click();
         await page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true }).click();
         const slot = page.getByRole("group", { name: role.heading, exact: true });
-        await expect(slot.getByRole("combobox", { name: `${role.label} connection`, exact: true })).toBeVisible();
+        await expect(slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true })).toBeVisible();
         await expect.poll(() => findings(page.getByRole("group", { name: "Rule action host", exact: true }))).toEqual([]);
         const panel = page
           .locator('[data-slot="collapsible-panel"]')
@@ -346,7 +348,7 @@ test.describe("rule editor field rows", () => {
         expect(badges.filter((right) => right > panelBox.x + panelBox.width + SUBPIXEL)).toEqual([]);
         // The picker takes a line of its own: it spans the slot to the held nested step, and its chrome is the tokens' width, so the value takes every
         // other pixel.
-        const picker = slot.getByRole("combobox", { name: `${role.label} connection`, exact: true });
+        const picker = slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true });
         const value = picker.locator('[data-slot="select-value"]');
         const [hostBox, slotBox, pickerBox, valueBox, iconBox, indent, inset, gap, edge] = await Promise.all([
           paintedBox(page.getByRole("group", { name: "Rule action host", exact: true })),
@@ -514,7 +516,7 @@ test.describe("rule editor field rows", () => {
     await field.fill("extra fingers");
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ negative: "extra fingers" });
     await remove.click();
-    await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+    await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
     // The empty removal above opened no confirm, so it must not decide where this Cancel leaves focus.
     await expect(remove).toBeFocused();
     await expect(field).toHaveValue("extra fingers");

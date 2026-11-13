@@ -12,6 +12,7 @@
 //   • owner-ops.ts — the owner-operation types other domains inject (the preset domain implements them).
 //   • portability.ts — the preset import outcome exposed by transport.
 
+import { everyRow } from "@orb/kit/guards";
 import type { Branded, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
@@ -814,7 +815,8 @@ export interface RewriteToggle {
 export const REWRITE_TOGGLE_IDS = ["concise", "expand", "novella", "internet-rp", "literary", "past-tense", "present-tense"] as const;
 export type RewriteToggleId = (typeof REWRITE_TOGGLE_IDS)[number];
 
-export const REWRITE_TOGGLES = [
+/** One row per `REWRITE_TOGGLE_IDS` member, which `everyRow` holds; a row whose id is not in the tuple fails to assign. */
+export const REWRITE_TOGGLES = everyRow<RewriteToggle, "id">()([
   { id: "concise", label: "More concise", slot: "preset.rewriteToggle.concise" },
   { id: "expand", label: "Expand", slot: "preset.rewriteToggle.expand" },
   { id: "novella", label: "Novella prose", slot: "preset.rewriteToggle.novella" },
@@ -822,12 +824,7 @@ export const REWRITE_TOGGLES = [
   { id: "literary", label: "Literary style", slot: "preset.rewriteToggle.literary" },
   { id: "past-tense", label: "Past tense", slot: "preset.rewriteToggle.pastTense" },
   { id: "present-tense", label: "Present tense", slot: "preset.rewriteToggle.presentTense" },
-] as const satisfies readonly RewriteToggle[];
-
-/** tsc-forced exhaustiveness: a wire id with no catalog row surfaces HERE (the `TEMPLATE_DEFS` precedent).
- *  The other direction is `satisfies` — a catalog row whose id is not in the tuple fails to assign. */
-type UncataloguedRewriteToggleId = Exclude<RewriteToggleId, (typeof REWRITE_TOGGLES)[number]["id"]>;
-const [_rewriteTogglesAreExhaustive]: [[UncataloguedRewriteToggleId] extends [never] ? true : UncataloguedRewriteToggleId] = [true];
+]);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Greeting transform catalog — the greeting studio's one-click steer set. Adapted (not ported)
@@ -884,7 +881,8 @@ export const GREETING_TRANSFORM_IDS = [
 /** Id twin of `GREETING_TRANSFORMS`, the catalog the greeting studio renders. */
 export type GreetingTransformId = (typeof GREETING_TRANSFORM_IDS)[number];
 
-export const GREETING_TRANSFORMS = [
+/** One row per `GREETING_TRANSFORM_IDS` member, which `everyRow` holds; a row whose id is not in the tuple fails to assign. */
+export const GREETING_TRANSFORMS = everyRow<GreetingTransform, "id">()([
   // ── perspective ──
   { id: "first-person-standard", axis: "perspective", label: "First person (I/me)", slot: "preset.greetingTransform.firstPersonStandard" },
   { id: "first-person-by-name", axis: "perspective", label: "First person (by name)", slot: "preset.greetingTransform.firstPersonByName" },
@@ -903,11 +901,7 @@ export const GREETING_TRANSFORMS = [
   { id: "he-him", axis: "gender", label: "He/him", slot: "preset.greetingTransform.heHim" },
   { id: "she-her", axis: "gender", label: "She/her", slot: "preset.greetingTransform.sheHer" },
   { id: "they-them", axis: "gender", label: "They/them", slot: "preset.greetingTransform.theyThem" },
-] as const satisfies readonly GreetingTransform[];
-
-/** tsc-forced exhaustiveness, both directions (the `REWRITE_TOGGLES` pin). */
-type UncataloguedGreetingTransformId = Exclude<GreetingTransformId, (typeof GREETING_TRANSFORMS)[number]["id"]>;
-const [_greetingTransformsAreExhaustive]: [[UncataloguedGreetingTransformId] extends [never] ? true : UncataloguedGreetingTransformId] = [true];
+]);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Custom parameters — Layer-1 boundary guard (schema). Layer-2 runtime defense (`deepMergeRequestBody`,
@@ -1219,7 +1213,12 @@ export interface TemplateDef {
  *  vocabulary for that template. */
 const STEER_CAPS: readonly TemplateCapability[] = [{ kind: "role" }, { kind: "depth" }, { kind: "tokens", tokens: ["{{input}}"] }];
 
-export const TEMPLATE_DEFS = [
+/** The ids the registry MUST cover: every guided kind + every ACTION-shaped format string. `wiFormat` is
+ *  excluded by the scope boundary (it lives in the WI section editor). */
+type RegistryTemplateId = GuidedActionKind | Exclude<FormatStringKey, "wiFormat">;
+/** `everyRow` holds a row for every `RegistryTemplateId`, so a new guided kind or format string with no row fails `tsc`
+ *  naming the missing id, not as a silently absent row in the Actions view. */
+export const TEMPLATE_DEFS = everyRow<TemplateDef, "id", RegistryTemplateId>()([
   {
     id: "response",
     kind: "steer",
@@ -2216,15 +2215,7 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "rpg.populate.targetLine",
     cluster: "round",
   },
-] as const satisfies readonly TemplateDef[];
-
-/** The ids the registry MUST cover: every guided kind + every ACTION-shaped format string. `wiFormat` is
- *  excluded by the scope boundary (it lives in the WI section editor). */
-type RegistryTemplateId = GuidedActionKind | Exclude<FormatStringKey, "wiFormat">;
-/** tsc-forced exhaustiveness: a new guided kind or format string with no `TEMPLATE_DEFS` row surfaces HERE
- *  as the missing id, not as a silently absent row in the Actions view. */
-type UnregisteredTemplateId = Exclude<RegistryTemplateId, (typeof TEMPLATE_DEFS)[number]["id"]>;
-const [_templateDefsAreExhaustive]: [[UnregisteredTemplateId] extends [never] ? true : UnregisteredTemplateId] = [true];
+]);
 
 /** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). DERIVED from the
  *  PROSE-1 slot (census 49, adapted): the override stays `promptConfig.compaction.instructions`; the

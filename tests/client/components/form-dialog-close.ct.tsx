@@ -2,6 +2,7 @@
 import { resolvedLength } from "@orb/testkit/browser/spec";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { FormDialogCloseStory } from "./_form-dialog-stories.tsx";
 
 test.use({ viewport: { width: 1024, height: 768 } });
@@ -12,7 +13,7 @@ test("the close sits one field step in from the popup's corner, the title clears
   await expect(dialog).toBeVisible();
   // The popup scales in, and a box read mid-animation is the wrong size.
   await dialog.evaluate((node) => Promise.all(node.getAnimations().map((animation) => animation.finished)));
-  const close = dialog.getByRole("button", { name: "Close", exact: true });
+  const close = dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true });
   const [popup, button, title] = await Promise.all([dialog.boundingBox(), close.boundingBox(), dialog.getByRole("heading").boundingBox()]);
   const field = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`, dialog);
   const edge = await resolvedLength(page, `var(${TOKENS["border-width.control"].cssVar})`, dialog);

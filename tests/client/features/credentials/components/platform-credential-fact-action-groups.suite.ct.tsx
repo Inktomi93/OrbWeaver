@@ -74,14 +74,14 @@ for (const regime of REGIMES) {
       const replacement = page.getByRole("dialog", { name: /^Replace the /u });
       await expect(replacement).toContainText("the old key is overwritten");
       await replacement.getByLabel(/^New /u).fill("synthetic-unsaved-replacement-key");
-      await replacement.getByRole("button", { name: "Cancel", exact: true }).click();
+      await replacement.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(replacement).toHaveCount(0);
       await expect(replace).toBeFocused();
       expect(routes.count("credentials.replace")).toBe(0);
       await revoke.click();
       const revocation = page.getByRole("alertdialog", { name: /^Revoke the /u });
       await expect(revocation).toContainText("so no turn uses it");
-      await revocation.getByRole("button", { name: "Cancel", exact: true }).click();
+      await revocation.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(revoke).toBeFocused();
       expect(routes.count("credentials.markRevokedByUser")).toBe(0);
       await revoke.click();
@@ -100,7 +100,7 @@ for (const regime of REGIMES) {
       await remove.press("Enter");
       const removal = page.getByRole("alertdialog", { name: /^Remove the /u });
       await expect(removal).toContainText("This can't be undone");
-      await removal.getByRole("button", { name: "Cancel", exact: true }).click();
+      await removal.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(remove).toBeFocused();
       expect(routes.count("credentials.remove")).toBe(0);
       expect((await caller.credentials.list()).find((key) => key.id === credential.id)).toMatchObject({ revokedReason: "user" });
@@ -140,7 +140,7 @@ for (const regime of REGIMES) {
       const field = row.getByRole("textbox", { name: "max output: your value", exact: true });
       const before = await field.inputValue();
       const save = row.getByRole("button", { name: "Save your max output", exact: true });
-      const cancel = row.getByRole("button", { name: "Cancel", exact: true });
+      const cancel = row.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       const geometry = await actionGroupGeometry(row, [cancel, save]);
       await testInfo.attach("actual-fact-editor-action-boxes", { body: JSON.stringify(geometry), contentType: "application/json" });
       expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
@@ -164,7 +164,7 @@ for (const regime of REGIMES) {
       await reset.click();
       const confirm = page.getByRole("alertdialog");
       await expect(confirm).toBeVisible();
-      await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+      await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(confirm).toHaveCount(0);
       expect((await caller.connection.get({ connectionId: connection.id })).declared).not.toBeNull();
       await reset.click();
