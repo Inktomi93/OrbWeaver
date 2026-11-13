@@ -10,6 +10,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { QUERY_WAITING_LINE, queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { DATABANK_LANDING_NAME } from "#client/features/databank/lib/databank-names.ts";
 import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
@@ -225,7 +226,7 @@ test.describe("on a desktop", () => {
 
   for (const entry of [
     { name: NOTIFICATIONS_BELL_NAME, surface: { role: "dialog", name: NOTIFICATIONS_BELL_NAME } },
-    { name: "Report a bug", surface: { role: "textbox", name: "What happened?" } },
+    { name: BUG_REPORT_NAME, surface: { role: "textbox", name: BUG_REPORT_NOTE_NAME } },
     { name: "Jump to…", surface: { role: "dialog", name: undefined } },
   ] as const) {
     test(`Escape from ${entry.name}, opened from the More menu, returns focus to the trigger`, async ({ mount, page }) => {

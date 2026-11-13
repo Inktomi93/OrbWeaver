@@ -12,6 +12,7 @@ import { forEachNonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { YOU_SHEET_MORE_HEADING } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import type { AppShellModalStory, AppShellNestedScopeStory, AppShellStory } from "./_app-shell-stories.tsx";
@@ -521,7 +522,7 @@ test.describe("on the corpus owner's own settings", () => {
   test("the You drawer keeps the More doors above the inbox, however long the inbox runs", async ({ mount, page }) => {
     await page.setViewportSize({ width: 320, height: 640 });
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "you" });
-    const more = page.getByRole("group", { name: "More", exact: true });
+    const more = page.getByRole("group", { name: YOU_SHEET_MORE_HEADING, exact: true });
     const inbox = page.locator('[data-slot="drawer-popup"] [role="group"][aria-labelledby="notifications-inbox-heading"]');
     await expect(more).toBeVisible();
     await expect(inbox).toBeAttached();

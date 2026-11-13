@@ -551,6 +551,13 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and its siblings: the Corpus list, browse, gem shelf and model-route list names",
+  "packages/client/src/features/app-shell/lib/app-shell-names.ts":
+    "BUG_REPORT_NAME and its siblings: the bug report door and form, the command chip, the skip link, the You sheet groups and the Background section's names",
+  "packages/client/src/features/user-admin/lib/user-admin-names.ts":
+    "ADMIN_CREATE_USER_NAME and its siblings: the Admin pane's create-user, approvals, sessions, embed and reset names and its override field names",
+  "packages/client/src/features/auth/lib/pending-join-names.ts":
+    "PENDING_JOIN_NOT_NOW_NAME and its siblings: the sign-in card's headings and presses, and the invite arms' headings, notes and persona field",
+  "packages/client/src/features/auth/lib/pending-join-copy.ts": "pendingJoinRefusalCopy: the line the pending-join card shows for each refused confirm",
   "packages/client/src/features/discovery/lib/character-facet.ts": "characterFacetLine: the genre, tone and setting line a browse row prints",
   "packages/client/src/features/discovery/lib/corpus-vocabulary.ts": "distilledCensus: the distilled-against-library phrasing the Corpus list band prints",
   "packages/client/src/features/refinery/lib/reason-copy.ts":
@@ -582,6 +589,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/user-admin/lib/admin-model.ts":
     "userEnabledFieldName and adminSaveName: the per-account enabled switch and the admin override row Save names",
   "packages/client/src/features/user-admin/lib/system-tuning-nav.ts": "SYSTEM_TUNING_SUBCATEGORY: the System tuning section label its admin Save names",
+  "packages/client/src/features/user-admin/lib/rate-limits-nav.ts": "RATE_LIMITS_SUBCATEGORY: the Rate limits section label its admin Reset names",
+  "packages/client/src/features/user-admin/lib/memory-tuning-nav.ts": "MEMORY_TUNING_SUBCATEGORY: the Memory tuning section label its admin Reset names",
+  "packages/client/src/features/user-admin/lib/system-config-nav.ts":
+    "MEDIA_TRUST_SUBCATEGORY, MULTI_USER_SUBCATEGORY and OPERATIONS_SUBCATEGORY: the section labels their admin Reset names",
   "packages/client/src/lib/background-jobs.ts": "BACKGROUND_JOB_LOGS: the log line a background job writes in place of a toast",
   "packages/client/src/features/persona/lib/persona-copy.ts":
     "PERSONA_NAME_REQUIRED, CLEAR_PIN_NAME, nowDefaultNotice and their siblings: the persona editor's field and footer names, its blank-name error, the clear-pin action and the crown-moved notice",

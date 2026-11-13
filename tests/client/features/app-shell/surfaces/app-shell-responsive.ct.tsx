@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME, bugReportPrepareLabel, SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
@@ -148,18 +149,18 @@ test.describe("the You sheet", () => {
       throw new Error("The corpus viewer has no current persona");
     }
     await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator(".shell-topbar").getByRole("button", { name: "Report a bug" })).toHaveCount(0);
+    await expect(page.locator(".shell-topbar").getByRole("button", { name: BUG_REPORT_NAME })).toHaveCount(0);
     await youTab(page).click();
     const drawer = sheet(page);
     await expect(drawer.locator('[data-slot="persona-who-head"]')).toContainText(current.name);
     await expect(drawer.locator("[data-switch-row-button]")).toHaveCount(0);
     await expect(drawer.getByRole("button", { name: SECTION_LABELS.settings, exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
-    const report = drawer.getByRole("button", { name: "Report a bug", exact: true });
+    const report = drawer.getByRole("button", { name: BUG_REPORT_NAME, exact: true });
     await expect(report).toHaveAttribute("aria-expanded", "false");
     await report.click();
-    await expect(drawer.getByRole("textbox", { name: "What happened?" })).toBeVisible();
-    await expect(drawer.getByRole("button", { name: "Prepare report" })).toBeVisible();
+    await expect(drawer.getByRole("textbox", { name: BUG_REPORT_NOTE_NAME })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: bugReportPrepareLabel(false) })).toBeVisible();
   });
 
   test("its Refinery row meets the coarse row floor and routes the section, closing the sheet", async ({ mount, page }) => {
@@ -258,7 +259,7 @@ test.describe("one shell at the narrowest phone", () => {
     await expect(page.getByRole("main")).toHaveCount(1);
     await expect(page.getByRole("main")).toHaveAttribute("data-panel-side", "list");
     await page.keyboard.press("Tab");
-    const skip = page.getByRole("button", { name: "Skip to content", exact: true });
+    const skip = page.getByRole("button", { name: SKIP_TO_CONTENT_NAME, exact: true });
     await skip.focus();
     await skip.press("Enter");
     await expect(page.getByRole("main")).toBeFocused();

@@ -13,6 +13,7 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { BUG_REPORT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
@@ -103,7 +104,7 @@ test("with no plugin placing, nothing plugin-related renders in the top bar and 
   const show = (chatId: ChatId): Promise<unknown> => mount<typeof PluginRoomShellStory>(STORY, { chatId });
   const rpc = await openRoom({ root, corpus, page, show }, [UNPLACED], DESKTOP);
   const trail = trailOf(page);
-  await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
+  await expect(trail.getByRole("button", { name: BUG_REPORT_NAME, exact: true })).toBeVisible();
   await expect(pluginControls(trail)).toHaveCount(0);
   await expect(trail.getByRole("button", { name: "Plugin commands", exact: true })).toHaveCount(0);
   await expect(trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL })).toHaveCount(0);
@@ -151,8 +152,8 @@ test("placed commands that do not fit overflow before any house control and run 
   const trigger = trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL });
   await expect(trigger).toBeVisible();
   // Only a settled row proves the order: every action is in the row until the first measure.
-  await expect(trail.locator('[data-overflowed] [aria-label="Report a bug"]')).toHaveCount(0);
-  await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
+  await expect(trail.locator(`[data-overflowed] [aria-label="${BUG_REPORT_NAME}"]`)).toHaveCount(0);
+  await expect(trail.getByRole("button", { name: BUG_REPORT_NAME, exact: true })).toBeVisible();
   // The inert inline control stays mounted, so `__orb.pluginUi()` keeps a host for an overflowed command.
   await expect(trail.locator(`[data-overflowed] [aria-label="${attributed("Command 24")}"]`)).toHaveCount(1);
   await trigger.focus();
