@@ -877,6 +877,10 @@ const PACKAGE_TEST_REACHES = {
       "TalkativenessPopover: the chip and popover a Members row renders, which only the row's menu opens and no door forwards",
     "packages/client/src/features/chat/lib/member-rows.ts": "MemberCharacterRow: the seat view the popover takes, which no door forwards",
   },
+  "tests/client/features/chat/components/_member-row-name-stories.tsx": {
+    "packages/client/src/features/chat/components/member-row.tsx": "MemberRow: one Members row, which only the Members panel renders and no door forwards",
+    "packages/client/src/features/chat/lib/member-rows.ts": "MemberCharacterRow and MemberPersonRow: the seat views the row takes, which no door forwards",
+  },
   "tests/client/lib/platform-polyfills.test.ts": {
     "packages/client/src/lib/platform-polyfills.ts": "the polyfill entry main.tsx imports for its side effect; it exports nothing for a door to forward",
     "packages/client/src/lib/platform-shims.ts": "regExpEscape and isError: the shims the entry installs, compared with the builtins",
