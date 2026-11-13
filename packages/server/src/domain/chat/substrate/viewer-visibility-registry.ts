@@ -17,7 +17,8 @@ export function mintViewerVisibility(answer: Pick<ViewerVisibility, "chatId" | "
 }
 
 /** Refuse any visibility the resolver did not hand out for `chatId`, before a read uses its floor or its hidden-content
- *  verdict.
+ *  verdict. A function that takes an answer as a parameter runs this first; `orb/viewer-visibility-parameter-checked`
+ *  refuses one that does not.
  *  @throws {@link ChatNotFoundError} for an answer resolved for another chat: it proves no membership in `chatId`, and a
  *  non-member's answer for a room is not-found (Spine-Identity-and-Auth §2). */
 export function assertResolvedVisibility(visibility: ViewerVisibility, chatId: ChatId): void {
