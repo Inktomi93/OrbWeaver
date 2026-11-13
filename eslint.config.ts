@@ -400,9 +400,13 @@ const PROCESS_ADAPTER_HOMES = ["tooling/src/floor/host/platform.ts", "tooling/sr
 // A cast compiles over any brand, so the load-emulation brand keeps its one construction door here: the RESULT line it
 // feeds must not echo an argv the browser never received.
 const LOAD_EMULATION_MINT_HOME = "tooling/src/snap/ops/session.ts";
+// The brand is named bare, behind a namespace, or through an `import("...")` type. A local alias and an import rename
+// are refused where they are declared, because a cast through the alias names no brand.
+const LOAD_EMULATION_TYPE =
+  ":matches(TSTypeReference[typeName.name='AppliedLoadEmulation'], TSTypeReference[typeName.right.name='AppliedLoadEmulation'], TSImportType[qualifier.name='AppliedLoadEmulation'], TSImportType[qualifier.right.name='AppliedLoadEmulation']).typeAnnotation";
 const LOAD_EMULATION_CAST_RESTRICTION = {
-  selector: ":matches(TSAsExpression, TSTypeAssertion) > TSTypeReference.typeAnnotation[typeName.name='AppliedLoadEmulation']",
-  message: `Only applyLoadEmulation (${LOAD_EMULATION_MINT_HOME}) mints an AppliedLoadEmulation, from what each page was sent. Take the value it returns.`,
+  selector: `:matches(TSAsExpression, TSTypeAssertion) > ${LOAD_EMULATION_TYPE}, TSTypeAliasDeclaration > ${LOAD_EMULATION_TYPE}, ImportSpecifier[imported.name='AppliedLoadEmulation'][local.name!='AppliedLoadEmulation']`,
+  message: `Only applyLoadEmulation (${LOAD_EMULATION_MINT_HOME}) mints an AppliedLoadEmulation, from what each page was sent. Take the value it returns, under its own name.`,
 };
 
 // A walker segment is a template literal, which consumes a single backslash: `/\s+/` there emits `/s+/`, a regex over the
@@ -2717,7 +2721,7 @@ export default [
   {
     files: ["tests/e2e/*.spec.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, {
+      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, FIRST_ALERT_RESTRICTION, {
         selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",
         message: "A hand-written role selector accepts retained rows. Read the ids a send driver returns and assert through messageRow.",
       }),

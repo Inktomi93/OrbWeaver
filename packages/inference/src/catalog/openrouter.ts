@@ -13,6 +13,7 @@ import type { ModelCatalogEntry, ModelKind } from "@orb/contracts/inference";
 import { z } from "zod";
 import { fetchJson } from "../backends/http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../backends/http/sanitize.ts";
+import type { InferenceLog } from "../contract/runtime.ts";
 
 const rowSchema = z
   .object({
@@ -144,29 +145,45 @@ function toEntry(row: RawRow, bases: ReadonlyMap<string, string>): ModelCatalogE
   };
 }
 
-/** The three lists that together are the catalog: chat (bare), embeddings, rerank. */
-const CATALOG_QUERIES = ["", `?output_modalities=${EMBEDDINGS_OUTPUT}`, `?output_modalities=${RERANK_OUTPUT}`] as const;
+/** The chat list (bare), then the per-kind lists that join it: embeddings, rerank. */
+const CHAT_QUERY = "";
+const KIND_QUERIES = [`?output_modalities=${EMBEDDINGS_OUTPUT}`, `?output_modalities=${RERANK_OUTPUT}`] as const;
 
-export async function fetchOpenRouterCatalog(args: {
+/** The failure prefix a caller shows a user: the provider and its model list, never the request path or query. */
+const CATALOG_LABEL = "OpenRouter models";
+
+interface CatalogFetchArgs {
   readonly fetch: typeof fetch;
   readonly baseUrl: string;
   readonly signal?: AbortSignal | undefined;
-}): Promise<ModelCatalogEntry[]> {
-  const root = `${args.baseUrl.replace(/\/$/u, "")}/models`;
-  const lists = await Promise.all(
-    CATALOG_QUERIES.map(async (query) => {
-      const result = await fetchJson({
-        fetch: args.fetch,
-        url: `${root}${query}`,
-        secrets: NO_PROVIDER_SECRETS,
-        label: `openrouter catalog${query}`,
-        ...(args.signal !== undefined ? { signal: args.signal } : {}),
-      });
-      const rows = catalogSchema.parse(result.json).data;
-      const bases = baseIdsBySlug(rows);
-      return rows.map((row) => toEntry(row, bases));
+  readonly warn: InferenceLog["warn"];
+}
+
+async function fetchList(args: CatalogFetchArgs, query: string): Promise<ModelCatalogEntry[]> {
+  const result = await fetchJson({
+    fetch: args.fetch,
+    url: `${args.baseUrl.replace(/\/$/u, "")}/models${query}`,
+    secrets: NO_PROVIDER_SECRETS,
+    label: CATALOG_LABEL,
+    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+  });
+  const rows = catalogSchema.parse(result.json).data;
+  const bases = baseIdsBySlug(rows);
+  return rows.map((row) => toEntry(row, bases));
+}
+
+/** The chat list is the catalog: its failure fails the read. A per-kind list that fails is warned and left out, so
+ *  an unreachable embeddings list never takes the chat models with it. */
+export async function fetchOpenRouterCatalog(args: CatalogFetchArgs): Promise<ModelCatalogEntry[]> {
+  const chatList = fetchList(args, CHAT_QUERY);
+  // Started before the chat list is awaited and caught at once, so a chat failure leaves no unhandled rejection.
+  const kindLists = KIND_QUERIES.map((query) =>
+    fetchList(args, query).catch((err: unknown) => {
+      args.warn({ query, err }, "inference: an OpenRouter per-kind model list failed; the catalog is served without its rows");
+      return [];
     }),
   );
+  const lists = [await chatList, ...(await Promise.all(kindLists))];
   // Dedupe by id in list order — a row present in two lists keeps its first (chat-list) entry.
   const byId = new Map<string, ModelCatalogEntry>();
   for (const entry of lists.flat()) {

@@ -2343,6 +2343,9 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
+    if (guided?.action === "rewrite" && (guided.input ?? "").trim() === "" && (guided.rewriteToggles ?? []).length === 0) {
+      throw new ChatOperationError(CHAT_OP_CODES.emptyRewriteSteer, `message ${messageId}: a rewrite needs a steer or a picked toggle`);
+    }
     // D58: a swipe re-feeds the SAME queued d20 ONLY when it regenerates the slot that directly
     // responds to the die-bearing latest user message (no swipe-fishing for a better roll; a swipe of an older
     // slot, or after a later reply landed, is ineligible).

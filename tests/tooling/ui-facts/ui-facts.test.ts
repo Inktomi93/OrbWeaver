@@ -1,4 +1,5 @@
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
+import { citesIn } from "../../../tooling/src/eslint/cites.ts";
 import { analyse, isClassified } from "../../../tooling/src/ui-facts/analysis.ts";
 import { parseExceptions } from "../../../tooling/src/ui-facts/exceptions.ts";
 import { plantTheme } from "./_theme.ts";
@@ -74,6 +75,23 @@ test("an exception needs a cited ruling and then removes its site", ({ scratch }
   const facts = analyse(root, entries, null);
   expect(facts.sites.filter((site) => site.kind === "raw-button")).toHaveLength(0);
   expect(facts.excepted).toHaveLength(1);
+});
+
+// A ruling that keeps one site's deviation is a waiver unless it names its authority: a law section or a decision.
+const citesAuthority = (reason: string): boolean => citesIn(reason).some((cite) => cite.kind === "section" || cite.kind === "decision");
+
+test("every kept-site ruling across the census cohorts cites a law section or a decision", ({ scratch }) => {
+  expect(citesAuthority("the Settings map renders every group (config-list-surface.tsx header)")).toBe(false);
+  expect(citesAuthority("Labels lands on its LIST on phones (D271)")).toBe(true);
+  const root = plantDir(scratch, "kept-sites");
+  plantClient(root, {});
+  const sites = analyse(root, [], null).cohorts.flatMap((cohort) =>
+    Object.entries(cohort.keptSites ?? {}).flatMap(([column, byPath]) =>
+      Object.entries(byPath).map(([path, site]) => ({ at: `${cohort.name}/${column} ${path}`, reason: site.reason })),
+    ),
+  );
+  expect(sites).not.toEqual([]);
+  expect(sites.filter((site) => !citesAuthority(site.reason)).map((site) => site.at)).toEqual([]);
 });
 
 test("a one-row Textarea is an Input's job unless a maxRows ceiling says it grows", ({ scratch }) => {

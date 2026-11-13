@@ -73,6 +73,7 @@ export {
   connectionSummary,
   MEMORY_COST_SENTENCE,
   MODEL_ROLES_SUBCATEGORY_ID,
+  openConnectionName,
   RERANK_ROLE_DOOR,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,

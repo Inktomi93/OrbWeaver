@@ -144,10 +144,14 @@ export async function listOwnedPersonasWithAvatar(db: Db, ownerId: UserId): Prom
 
 // Every owned persona id keyed by its dedup-folded name (`foldPersonaName`). The fold runs in JS, not as a
 // `WHERE name = ?`: SQLite's `lower()` is ASCII-only, so a SQL-side fold would disagree with the serde's.
-// Newest wins on a collision (`ORDER BY createdAt DESC`, first write into the map).
+// Newest wins on a collision (`NEWEST_PERSONA_FIRST`, first write into the map).
 async function loadOwnedPersonaIdsByDedupName(db: Db, ownerId: UserId): Promise<Map<string, PersonaId>> {
   // NEWEST FIRST, and the ordering is the collision rule: `indexByDedupName` keeps the first row it sees.
-  const rows = await db.select({ id: personas.id, name: personas.name }).from(personas).where(eq(personas.ownerId, ownerId)).orderBy(desc(personas.createdAt));
+  const rows = await db
+    .select({ id: personas.id, name: personas.name })
+    .from(personas)
+    .where(eq(personas.ownerId, ownerId))
+    .orderBy(...NEWEST_PERSONA_FIRST);
   return indexByDedupName(rows);
 }
 
@@ -166,7 +170,7 @@ export async function loadOwnedPersonaCandidates(db: Db, ownerId: UserId): Promi
     .from(personas)
     .leftJoin(assets, eq(personas.avatarAssetId, assets.id))
     .where(eq(personas.ownerId, ownerId))
-    .orderBy(desc(personas.createdAt));
+    .orderBy(...NEWEST_PERSONA_FIRST);
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -206,7 +210,7 @@ export async function listConnectedPersonasWithAvatar(db: Db, ownerId: UserId, c
     .innerJoin(personas, eq(personas.id, characterPersonas.personaId))
     .leftJoin(assets, eq(personas.avatarAssetId, assets.id))
     .where(and(eq(characterPersonas.characterId, characterId), eq(personas.ownerId, ownerId)))
-    .orderBy(desc(personas.createdAt));
+    .orderBy(...NEWEST_PERSONA_FIRST);
   return rows;
 }
 
@@ -221,7 +225,8 @@ export async function listConnectedCharactersOf(db: Db, ownerId: UserId, persona
     .from(characterPersonas)
     .innerJoin(characters, eq(characters.id, characterPersonas.characterId))
     .where(and(eq(characterPersonas.personaId, personaId), eq(characters.ownerId, ownerId)))
-    .orderBy(desc(characters.createdAt));
+    // Orders characters, not personas, so it carries its own id tie-break rather than NEWEST_PERSONA_FIRST.
+    .orderBy(desc(characters.createdAt), desc(characters.id));
 }
 
 /** Gate: the character must belong to the caller. A foreign/absent character collapses to

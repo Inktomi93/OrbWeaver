@@ -1,6 +1,6 @@
 // The edge table: built from the audit's case records and CodeGraph, stored in its own SQLite file, and
 // judged against the working tree at query time, so a stored edge never claims to be current.
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import type { SQLOutputValue } from "node:sqlite";
 import { DatabaseSync } from "node:sqlite";
@@ -29,9 +29,11 @@ const MISSING_CODEGRAPH = "no CodeGraph database here — index the checkout wit
 
 type Row = Record<string, SQLOutputValue>;
 
-/** Open an input read-only. A path that holds nothing is misuse, so it refuses by name instead of dying in SQLite. */
+/** Open an input read-only. A path that holds no database (absent, a directory, an empty file) is misuse, so it
+ *  refuses by name instead of dying in SQLite. */
 function openRead(path: string, missing: string): DatabaseSync {
-  if (!existsSync(path)) {
+  const found = statSync(path, { throwIfNoEntry: false });
+  if (found === undefined || !found.isFile() || found.size === 0) {
     throw new UsageError(`${path}: ${missing}`);
   }
   return new DatabaseSync(path, { readOnly: true });

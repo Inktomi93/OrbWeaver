@@ -15,6 +15,7 @@ import type {
   EmbedSpaceChangePreview,
   GetBoundConnectionOp,
   ModelListing,
+  ProviderId,
   ResolveChatCapabilityOp,
   ResolveChatCapabilityParams,
   ResolvedConnectionView,
@@ -22,6 +23,7 @@ import type {
   RuleOwnedBy,
   TaskAvailabilityOp,
   TokenizeResult,
+  Wire,
 } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { SettingsKvPort } from "@orb/contracts/settings";
@@ -153,6 +155,9 @@ export interface ConnectionPorts {
   readonly bindings: BindingStore;
   readonly providerStore: ProviderStore;
   readonly snapshotStore: SnapshotStore;
+  /** The wire of the definition an owner claimed for a plugin provider id, served or tombstoned; the registry
+   *  serves only enabled installs, so the credentials domain reads a disabled plugin provider's wire here. */
+  readonly claimedProviderWire: (providerId: ProviderId, ownerId: UserId) => Promise<Wire | undefined>;
 }
 
 export interface ConnectionPortsDeps {

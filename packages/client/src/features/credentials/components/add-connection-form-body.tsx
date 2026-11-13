@@ -324,7 +324,7 @@ export function AddConnectionFormBody({
                       Back
                     </Button>
                   )}
-                  <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
+                  <form.SubmitButton disabled={providerId === ""}>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
                 </DialogFooter>
               );
             }}

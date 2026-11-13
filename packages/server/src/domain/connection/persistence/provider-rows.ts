@@ -2,7 +2,7 @@
 // deployment-wide; a plugin row is content a user reaches only through their OWN claim (D147, D265), so one
 // user's plugin can never fix, shadow or block a provider id for another. Claim owners come from `plugins`.
 
-import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
+import type { ProviderDef, ProviderId, Wire } from "@orb/contracts/inference";
 import { storedProviderDefSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { pluginProviderClaims, plugins, providerRows } from "@orb/db";
@@ -221,6 +221,18 @@ export async function rehashPluginProviderDefinitions(handle: BootDatabaseHandle
     moved += 1;
   }
   return moved;
+}
+
+/** The wire of the definition `ownerId` claimed for a plugin provider id, whether an enabled install serves the
+ *  claim or it is a tombstone; `undefined` when the owner never claimed the id. The registry serves only enabled
+ *  installs, so a reader that must know what a disabled plugin's provider was reads it here. */
+export async function claimedProviderWire(db: Db, ownerId: UserId, providerId: ProviderId): Promise<Wire | undefined> {
+  const [row] = await db
+    .select({ wire: providerRows.wire })
+    .from(pluginProviderClaims)
+    .innerJoin(providerRows, and(eq(providerRows.id, pluginProviderClaims.providerId), eq(providerRows.definitionHash, pluginProviderClaims.definitionHash)))
+    .where(and(eq(pluginProviderClaims.ownerId, ownerId), eq(pluginProviderClaims.providerId, providerId)));
+  return row?.wire;
 }
 
 /** Unlink every claim this install serves. The claims stay as their owner's tombstones. */

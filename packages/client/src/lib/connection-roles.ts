@@ -150,9 +150,14 @@ export function connectionSummary(row: { readonly label: string; readonly model:
 /** The connection setting that lets unattended work run on a row. */
 export const ALLOW_BACKGROUND_SETTING = "Allow background work";
 
-/** Every switch that writes a row's `allowBackground` — its list row, its editor, the Model-roles repair — reads this one name. */
+/** The name of a row's one `allowBackground` switch, which lives in its editor; every other surface shows the state and {@link openConnectionName}. */
 export function allowBackgroundSwitchName(row: { readonly label: string; readonly model: string }): string {
   return itemSwitchName(ALLOW_BACKGROUND_SETTING, connectionSummary(row));
+}
+
+/** The door that opens one connection's editor from outside the Connections list. */
+export function openConnectionName(row: { readonly label: string; readonly model: string }): string {
+  return `Open ${connectionSummary(row)}`;
 }
 
 // A retained label must name the complete current model, not its provider or a partial model name.
@@ -355,10 +360,10 @@ export function roleRequirementVerdicts(row: RoleRow, capability: Capability | n
 }
 
 /** The connections a Model-roles row REFUSES only because the row's `allowBackground` is off — §5.3a's
- *  inline repair: the refusal plus the switch that resolves it, right there, because the slot is the FIRST
- *  enforcement point and a refusal with no adjacent remedy sends the user hunting for a switch nobody
- *  named. GATED ON THE ROLE HAVING NOTHING RUNNING: a role a turn already runs on has no problem to
- *  repair, and four background rows each offering the same switch would be noise, not help. */
+ *  inline repair: the refusal plus a door to the connection's editor, where its one switch lives, because the
+ *  slot is the FIRST enforcement point and a refusal with no adjacent remedy sends the user hunting for a
+ *  switch nobody named. GATED ON THE ROLE HAVING NOTHING RUNNING: a role a turn already runs on has no
+ *  problem to repair, and four background rows each offering the same door would be noise, not help. */
 export function backgroundRepairs<T extends { readonly id: string; readonly allowBackground: boolean; readonly tasks: readonly Task[] }>(args: {
   readonly row: RoleRow;
   readonly connections: readonly T[];

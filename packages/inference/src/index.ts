@@ -210,7 +210,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   };
   // The OpenRouter catalog is keyless: nothing secret rides the dial, so nothing is scrubbed from its reason.
   const warmOpenRouterCatalog = (): Promise<MirrorWarm<ModelCatalogEntry[]>> =>
-    openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl() }), NO_PROVIDER_SECRETS);
+    openRouterCatalog.warm(() => fetchOpenRouterCatalog({ fetch: fetchImpl, baseUrl: openRouterBaseUrl(), warn: mirrorDeps.warn }), NO_PROVIDER_SECRETS);
   const warmOpenRouter = async (): Promise<void> => {
     await warmOpenRouterCatalog();
   };

@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { strToU8, unzipSync, zipSync } from "fflate";
 import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
+import { noteUrlSecrets } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import {
   __resetPrivateValues,
   privateText,
@@ -38,6 +39,22 @@ async function scrubbed(scratch: string, entries: Readonly<Record<string, Uint8A
   await stopTraceToFile({ stop: ({ path: target }) => writeFile(target, zipSync({ ...entries })) }, path);
   return unzipSync(await readFile(path));
 }
+
+test("a short value from a key or code pair is scrubbed only where it is the whole text, so page words survive", () => {
+  using _values = revealed();
+  noteUrlSecrets("http://h.test/cb?key=home&code=1234");
+  expect(scrubPrivateText("go home now, code 1234")).toBe("go home now, code 1234");
+  expect(scrubPrivateText("home")).toBe(PRIVATE_MASK);
+  expect(scrubPrivateText("1234")).toBe(PRIVATE_MASK);
+});
+
+test("a long value from a key or code pair, and a short one from a token pair, are scrubbed inside page text", () => {
+  using _values = revealed();
+  const generated = "4/0AdQt8qh-generated-code";
+  noteUrlSecrets(`http://h.test/cb?code=${encodeURIComponent(generated)}&token=t0k3`);
+  expect(scrubPrivateText(`signed in with ${generated} here`)).toBe(`signed in with ${PRIVATE_MASK} here`);
+  expect(scrubPrivateText("bearer t0k3 sent")).toBe(`bearer ${PRIVATE_MASK} sent`);
+});
 
 test("a JSON line loses a value inside a string and keeps its keys and literals", async ({ scratch }) => {
   using _values = revealed(LONG, SHORT, KEYWORD);

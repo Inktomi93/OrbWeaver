@@ -119,6 +119,30 @@ test("a refused save puts focus on the inline failure", async ({ corpus, mount, 
   await expect(dialog.locator('[data-slot="add-connection-failure"]')).toBeFocused();
 });
 
+test("the Add connection button waits for a provider", async ({ corpus, mount, page }) => {
+  const { caller, label, providerId, providers } = await scenario();
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, SERVED),
+    "connection.providersAvailable": () => providers,
+    "connection.draftCatalogModels": (input) => {
+      if (input.providerId !== providerId) {
+        throw new Error(`The model list was asked for ${input.providerId}, not the provider under test`);
+      }
+      return catalog;
+    },
+  });
+  await mount<typeof ConnectionsListStory>(STORY, {});
+  await page.getByRole("button", ADD).click();
+  const dialog = page.getByRole("dialog");
+  const submit = dialog.getByRole("button", ADD);
+  await expect(submit).toBeDisabled();
+
+  await dialog.getByRole("combobox", { name: CONNECTION_PROVIDER_FIELD_NAME, exact: true }).click();
+  await page.getByRole("option", { name: label }).first().click();
+  await expect(submit).toBeEnabled();
+});
+
 test("a saved first connection hands focus to the Add connection button that replaces the empty state's", async ({ corpus, mount, page }) => {
   const { caller, label, providers } = await scenario();
   // The corpus owner already holds connections; the list stays empty until the create the test makes lands.

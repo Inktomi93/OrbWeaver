@@ -1,8 +1,9 @@
-// The composition section of the report: skeleton families, section structure, read, feedback and form shape, and variant use.
+// The composition section of the report: skeleton families, section structure, read, feedback and form shape, modal popovers, and variant use.
 import type { AxisUse } from "../eslint/index.ts";
 import { totalUses } from "../eslint/index.ts";
 import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 import type { UiFacts } from "./analysis.ts";
+import { MODAL_POPOVER_COHORT } from "./cohorts.ts";
 import { table } from "./markdown.ts";
 import type { SkeletonCohort } from "./skeleton.ts";
 
@@ -147,6 +148,22 @@ function formLines(facts: UiFacts, inScope: (section: string) => boolean): strin
   ];
 }
 
+function modalPopoverLines(facts: UiFacts, inScope: (section: string) => boolean): string[] {
+  const cohort = cohortOf(facts, MODAL_POPOVER_COHORT);
+  const members = (cohort?.members ?? []).filter((member) => inScope(member.section));
+  return [
+    "### Modal popovers",
+    "",
+    `${cohort?.what ?? ""}. ${members.length} site(s); a site with no trigger in its file opens from a handle or its open prop.`,
+    "",
+    ...table(["trigger", "sites"], tally(members, "trigger")),
+    ...table(
+      ["at", "modal", "trigger", "trigger at"],
+      members.map((member) => [at(member, "modal"), cellOf(member, "modal"), cellOf(member, "trigger"), at(member, "trigger")]),
+    ),
+  ];
+}
+
 function variantRow(axis: AxisUse): string[] {
   const written = axis.values
     .filter((value) => totalUses(value) > 0)
@@ -211,6 +228,7 @@ export function compositionLines(facts: UiFacts, inScope: (section: string) => b
     ...readLines(facts, inScope),
     ...feedbackLines(facts, inScope),
     ...formLines(facts, inScope),
+    ...modalPopoverLines(facts, inScope),
     ...variantLines(facts),
     "### What the composition columns cannot see",
     "",

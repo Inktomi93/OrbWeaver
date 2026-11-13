@@ -35,6 +35,9 @@ export const SCHEDULE_CADENCE_LABELS: Record<ScheduleCadence, string> = {
   monthly: "Every month",
 };
 
+/** What a disabled schedule's row says where its next run would read. */
+export const SCHEDULE_PAUSED_LABEL = "Paused";
+
 /** What names one schedule row: its kind and cadence, plus the owner's handle on a row that is not the viewer's. */
 export interface ScheduleIdentity {
   readonly kind: WorkloadKind;

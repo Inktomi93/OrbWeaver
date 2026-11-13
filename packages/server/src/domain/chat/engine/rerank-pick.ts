@@ -79,7 +79,10 @@ async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: r
     query,
     named.map((c) => ({ id: speakerKey(c.ref), name: c.name, line: params.characterLines.get(c.ref.characterId) ?? "" })),
   );
-  const result = await reranker.rerank(fitted.query, fitted.documents, reranker.capability.instructionAware ? { instruction: PICK_INSTRUCTION } : undefined);
+  const result = await reranker.rerank(fitted.query, fitted.documents, {
+    ...(reranker.capability.instructionAware ? { instruction: PICK_INSTRUCTION } : {}),
+    ...(params.signal === undefined ? {} : { signal: params.signal }),
+  });
   return result.hits.toSorted((a, b) => b.score - a.score).map((h) => h.id);
 }
 

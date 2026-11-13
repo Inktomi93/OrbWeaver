@@ -5,7 +5,7 @@
 import type { EmbeddingAccounting } from "@orb/contracts/embeddings";
 import type { EndpointFeatures, GenerationUsage, ResolvedWarning, Task } from "@orb/contracts/inference";
 import type { RolePresetParams } from "@orb/contracts/preset";
-import type { SummarizeResult } from "@orb/contracts/providers";
+import type { RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type {
   ImageEmbedInput,
   ImageInput,
@@ -128,6 +128,12 @@ export interface SummarizeCallOptions extends RolePresetParams {
   readonly signal?: AbortSignal | undefined;
 }
 
+/** A rerank call's options: the instruction an instruction-aware reranker reads, and the caller's `AbortSignal`. */
+export interface RerankCallOptions {
+  readonly instruction?: string | undefined;
+  readonly signal?: AbortSignal | undefined;
+}
+
 export interface StructuredCallOptions extends SummarizeCallOptions {
   readonly responseFormat: ResponseFormat;
 }
@@ -135,7 +141,8 @@ export interface StructuredCallOptions extends SummarizeCallOptions {
 /** The bound `RoleClients` bundle `roleClientsFor(funder, actor?)` mints — the isomorphic contract with the
  *  server's two additions: every call takes an `AbortSignal`, and `resolved(task)` hands back the FULL
  *  `Resolved` (a `ResolvedTaskView` structurally), which stays inside the server. */
-export interface RoleClientsWithSignal extends Omit<RoleClients, "summarize" | "structured" | "resolved"> {
+export interface RoleClientsWithSignal extends Omit<RoleClients, "rerank" | "summarize" | "structured" | "resolved"> {
+  readonly rerank: (query: RerankQuery, documents: RerankDocument[], opts?: RerankCallOptions) => Promise<RerankResult>;
   readonly summarize: (inputs: readonly SummarizeInput[], opts?: SummarizeCallOptions) => Promise<SummarizeResult>;
   readonly structured: (inputs: readonly SummarizeInput[], opts: StructuredCallOptions) => Promise<SummarizeResult>;
   readonly resolved: (task: RoleClientTask) => Promise<Resolved | null>;
