@@ -1,0 +1,3 @@
+{
+  "rewrites": [{ "literal": "Row name", "expression": "ROW_NAME", "binding": "ROW_NAME", "from": "#client/names.ts", "files": ["a.ts"] }]
+}

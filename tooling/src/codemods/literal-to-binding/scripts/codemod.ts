@@ -133,9 +133,19 @@ function withCaptures(expression: string, matched: SgNode<TS>): string {
   return expression.replace(/\$([A-Z][A-Z0-9_]*)/gu, (token, name: string) => matched.getMatch(name)?.text() ?? token);
 }
 
+// The expression spells the binding by its exported name, so only a specifier that binds that name locally puts it in
+// scope: `import { X as Y }` binds `Y`, and the file still needs `X`. A local `X` that is some other export's alias
+// would make the rewrite read the wrong value, so it stops the run.
 function importsBinding(statements: readonly SgNode<TS>[], binding: string): boolean {
   return statements.some((statement) =>
-    statement.findAll({ rule: { kind: "import_specifier" } }).some((specifier) => specifier.field("name")?.text() === binding),
+    statement.findAll({ rule: { kind: "import_specifier" } }).some((specifier) => {
+      const imported = specifier.field("name")?.text();
+      const local = specifier.field("alias")?.text() ?? imported;
+      if (local === binding && imported !== binding) {
+        throw new Error(`${binding} is already the local name of ${imported ?? "another import"}`);
+      }
+      return local === binding;
+    }),
   );
 }
 
