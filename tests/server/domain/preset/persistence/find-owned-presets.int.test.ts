@@ -22,12 +22,13 @@ function abortsAfterFirstFile(): Cancellation {
 test("an aborted run stops the read between files, and a live run answers every file", async ({ db }) => {
   const owner = await seedUser(db);
   const findOwnedPresets = createFindOwnedPresets({ db: databaseHandle(db) });
-  // A file that is not a preset answers null, so only the count of answers shows how far the read got.
+  // A file that is not a preset answers no reuse and no key, so only the count of answers shows how far the read got.
   const files = Array.from({ length: 3 }, () => new TextEncoder().encode("not a preset"));
+  const unreadable = { reuse: null, keys: [] };
 
   const live = await findOwnedPresets({ ownerId: owner.id, files, signal: { aborted: false } });
   const aborted = await findOwnedPresets({ ownerId: owner.id, files, signal: abortsAfterFirstFile() });
 
-  expect(live).toEqual([null, null, null]);
-  expect(aborted).toEqual([null]);
+  expect(live).toEqual([unreadable, unreadable, unreadable]);
+  expect(aborted).toEqual([unreadable]);
 });

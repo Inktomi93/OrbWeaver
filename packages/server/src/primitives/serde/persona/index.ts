@@ -108,8 +108,8 @@ export interface PersonaCandidate extends PersonaIdentity {
   readonly id: PersonaId;
 }
 
-// The content-equality key. Two personas with equal keys are one persona for import dedup.
-function personaContentKey(identity: PersonaIdentity): string {
+/** The content-equality key. Two personas with equal keys are one persona for import dedup. */
+export function personaContentKey(identity: PersonaIdentity): string {
   return stableStringify({
     name: foldPersonaName(stripNameSuffix(identity.name)),
     title: identity.title,
@@ -157,7 +157,7 @@ export function differingPersonaFields(incoming: PersonaIdentity, owned: Persona
 
 /** The owned persona holding the incoming one's exact folded name. Asked only after
  *  {@link findDuplicatePersona} found no content match, so a hit is a same-name, different-content collision. */
-export function findNameCollision(incoming: PersonaIdentity, candidates: readonly PersonaCandidate[]): PersonaCandidate | null {
+export function findNameCollision<Candidate extends PersonaIdentity>(incoming: PersonaIdentity, candidates: readonly Candidate[]): Candidate | null {
   const key = foldPersonaName(incoming.name);
   return candidates.find((candidate) => foldPersonaName(candidate.name) === key) ?? null;
 }

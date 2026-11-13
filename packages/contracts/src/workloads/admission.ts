@@ -31,6 +31,13 @@ export const WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES: Readonly<Record<WorkloadRun
   [WORKLOAD_RUN_ACCOUNT_DISABLED]: WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
 };
 
+/** The coded failure of a run whose result its kind's schema refuses: the run ended, but this build cannot store what it
+ *  produced, so the row fails instead of holding a result no read can publish. */
+export const WORKLOAD_RESULT_INVALID = "result_invalid";
+
+/** {@link WORKLOAD_RESULT_INVALID}'s sentence. A stored run shows it as the failed row's reason. */
+export const WORKLOAD_RESULT_INVALID_REASON = "This job finished, but its result is not one this build can store.";
+
 /** Missing admitted liability for a generative workload. */
 export const WORKLOAD_UNFUNDED = "workload_unfunded";
 

@@ -670,7 +670,7 @@ function workloadsFor(
     shutdown.throwIfAborted();
     signal.throwIfAborted();
     const completion = (async (): Promise<void> => {
-      const row = await loadWorkload(execution.db, app.workloadContributions, id);
+      const row = await loadWorkload(execution.db, { contributions: app.workloadContributions, logger: execution.logger }, id);
       if (row === null || row.poison) {
         throw new Error("The admitted workload has no runnable native row");
       }

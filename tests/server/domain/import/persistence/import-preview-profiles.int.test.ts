@@ -182,6 +182,21 @@ test("a split folder's repeated files stay one entry each per profile when the u
   expect(merged.kinds.characters.total).toBe(2);
 });
 
+const DIGEST = /^[0-9a-f]{64}$/u;
+
+forEachNonEmpty(IMPORT_PREVIEW_KINDS, "preview kinds", (kind) => {
+  test(`every ${kind} entry of a preview carries digests of its content keys and equal entries carry the same ones`, async () => {
+    await using root = await harness();
+
+    const { items } = (await shownFor(root, twinProfiles(root, true))).kinds[kind];
+
+    const identitiesIn = (profile: string): (readonly string[])[] =>
+      items.filter(({ source }) => source.profile === profile).map(({ identities }) => identities);
+    expect(nonEmpty(items).every(({ identities }) => identities.length > 0 && identities.every((identity) => DIGEST.test(identity)))).toBe(true);
+    expect(nonEmpty(identitiesIn(BOB))).toEqual(identitiesIn(ALICE));
+  });
+});
+
 test("a single profile's preview still lists one entry per file, all under one profile", async () => {
   await using root = await harness();
   const files = inProfile(ALICE, profileFiles(root, ALICE, true));
@@ -256,7 +271,7 @@ test("a hostile profile directory name is clipped to the preview's text limit", 
   expect(profiles).toContain(BOB);
 });
 
-test("a dry run stored with the older bare-string source reads as unreadable and leaves the jobs list answering", async () => {
+test("a dry run stored with the older bare-string source reads without its result, keeps its params and leaves the jobs list answering", async () => {
   await using root = await harness();
   const files = inProfile(ALICE, profileFiles(root, ALICE, false));
   const stale = await admit(root, files, [TREE_DRY_RUN_VALUE]);
@@ -275,9 +290,12 @@ test("a dry run stored with the older bare-string source reads as unreadable and
 
   const listed = await root.services.workloads.list({ caller, kind: "import-st" });
 
-  expect(listed.find((row) => row.id === stale)).toMatchObject({ poison: true, result: null });
-  expect(listed.find((row) => row.id === fresh)).toMatchObject({ poison: false });
-  await expect(root.services.workloads.get({ caller, id: stale })).resolves.toMatchObject({ poison: true, result: null });
+  const readable = listed.find((row) => row.id === fresh);
+  const unreadable = listed.find((row) => row.id === stale);
+  expect(unreadable).toMatchObject({ poison: false, result: null, params: { dryRun: true } });
+  expect(readable).toMatchObject({ poison: false });
+  expect(present(readable).result).not.toBeNull();
+  await expect(root.services.workloads.get({ caller, id: stale })).resolves.toMatchObject({ poison: false, result: null });
 });
 
 test("two profile directories whose names share their first characters stay two profiles in the preview", async () => {

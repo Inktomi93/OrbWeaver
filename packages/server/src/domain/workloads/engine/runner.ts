@@ -1,6 +1,7 @@
 // domain/workloads/engine/runner — `runWorkload`: drive ONE claimed row end-to-end (claim → build the
 // per-dispatch runner context → dispatch inside a detached trace span → stamp the terminal → emit the bus
-// event). Every terminal stamp is status-guarded — a zombie whose row was already reaped writes nothing.
+// event). Every terminal stamp is status-guarded — a zombie whose row was already reaped writes nothing. A result
+// its kind's schema refuses is never stored: the run fails with `WORKLOAD_RESULT_INVALID`.
 //
 // PROGRESS has two destinations and ONE write path: every `report()` emits on the bus immediately (the live
 // tail is cheap and in-process), while the DURABLE snapshot rides the heartbeat's own UPDATE, throttled to
@@ -17,7 +18,9 @@ import type {
   WorkloadRunContext,
   WorkloadRunnableRow,
 } from "@orb/contracts/workloads";
+import { WORKLOAD_RESULT_INVALID, WORKLOAD_RESULT_INVALID_REASON, workloadResultSchemaOf } from "@orb/contracts/workloads";
 import { toError } from "@orb/kit/error-message";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WorkloadContribution } from "../contract/contribution.ts";
@@ -190,6 +193,18 @@ async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
   if (args.aborted) {
     await finishCancelled(deps, row, deps.now());
     return;
+  }
+  // A result the kind's own schema refuses would be stored and then hidden by every read, so it fails the run instead.
+  const stored = workloadResultSchemaOf(row.kind).safeParse(args.result);
+  if (!stored.success) {
+    // Field paths only: a result can carry the owner's file names.
+    getLog(deps.logger).warn(
+      { workloadId: row.id, kind: row.kind, paths: stored.error.issues.map((issue) => issue.path.join(".")) },
+      "workloads: a run's result does not match its kind's schema and is not stored",
+    );
+    const invalid = new DomainOperationError(WORKLOAD_RESULT_INVALID, WORKLOAD_RESULT_INVALID_REASON);
+    invalid.cause = stored.error;
+    throw invalid;
   }
   const moved = await markTerminal(deps.db, {
     id: row.id,

@@ -13,7 +13,9 @@ import { admit, bothKindFolders, cardPng, chatOf, dryRun, finish, finishRun, har
 
 // Every kind whose ownership comes from an owner domain's read. Characters keep the one lookup every door uses.
 const OWNED_KINDS = IMPORT_PREVIEW_KINDS.filter((kind): kind is Exclude<ImportPreviewKind, "characters"> => kind !== "characters");
-const NAMESAKE_KINDS = ["personas", "worlds", "presets", "themes", "backgrounds"] as const satisfies readonly ImportPreviewKind[];
+// A namesake persona is not here: the run merges it into the held persona by default, so the preview flags it
+// (`import-preview-persona-collisions.int.test.ts`). The other kinds land beside the held item.
+const NAMESAKE_KINDS = ["worlds", "presets", "themes", "backgrounds"] as const satisfies readonly ImportPreviewKind[];
 
 forEachNonEmpty(OWNED_KINDS, "owned preview kinds", (kind) => {
   test(`a dry run flags the ${kind} the library already holds and not the ones it lacks`, async () => {

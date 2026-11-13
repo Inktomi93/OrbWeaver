@@ -22,12 +22,13 @@ function abortsAfterFirstFile(): Cancellation {
 test("an aborted run stops the read between files, and a live run answers every file", async ({ db }) => {
   const owner = await seedUser(db);
   const findOwnedThemes = createFindOwnedThemes({ db: databaseHandle(db) });
-  // A file that is not a theme answers null, so only the count of answers shows how far the read got.
+  // A file that is not a theme answers no reuse and no key, so only the count of answers shows how far the read got.
   const files = Array.from({ length: 3 }, () => new TextEncoder().encode("not a theme"));
+  const unreadable = { reuse: null, keys: [] };
 
   const live = await findOwnedThemes(owner.id, files, { aborted: false });
   const aborted = await findOwnedThemes(owner.id, files, abortsAfterFirstFile());
 
-  expect(live).toEqual([null, null, null]);
-  expect(aborted).toEqual([null]);
+  expect(live).toEqual([unreadable, unreadable, unreadable]);
+  expect(aborted).toEqual([unreadable]);
 });

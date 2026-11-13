@@ -339,6 +339,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     resolveStandingAsks: createResolveStandingAsks(db),
   });
   const workloads = createWorkloadService({
+    logger: deps.logger,
     emitEvent: deps.emitWorkloadEvent,
     abortRun: deps.abortWorkloadRun,
     db,

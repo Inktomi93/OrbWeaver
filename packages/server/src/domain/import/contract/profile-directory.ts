@@ -1,7 +1,7 @@
 import type { StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportFsPort, ImportReuse, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { ImportAnswer, ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonas, FindOwnedPersonas } from "@orb/contracts/persona";
 import type { FindOwnedPresets, ImportPreset } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
@@ -53,21 +53,22 @@ export interface ProfileOwnership {
   readonly findChatHashes: FindImportedChatHashes;
 }
 
-/** The collected entries of one kind a run writes nothing for, each with why: the owner holds it, or an earlier
- *  entry of the upload lands it. An entry is the collected object itself, never its source string, so two profiles
- *  that share a path keep their own verdicts. An entry the run writes is absent. */
-type Reuse<Entry> = ReadonlyMap<Entry, ImportReuse>;
+/** The collected entries of one kind, each with the answer the dry run reached: the content keys it is compared by
+ *  and, when a run writes nothing for it, why (the owner holds it, or an earlier entry of the upload lands it). An
+ *  entry is the collected object itself, never its source string, so two profiles that share a path keep their own
+ *  verdicts. An entry the dry run did not judge (an aborted run) is absent. */
+type Judged<Entry> = ReadonlyMap<Entry, ImportAnswer>;
 
 export interface ImportOwnership {
-  readonly characters: Reuse<CollectedCard>;
-  readonly chats: Reuse<CollectedChat>;
-  readonly personas: Reuse<CollectedPersona>;
-  readonly worlds: Reuse<CollectedWorld>;
-  readonly presets: Reuse<CollectedPreset>;
-  readonly themes: Reuse<CollectedTheme>;
-  readonly backgrounds: Reuse<CollectedBackground>;
-  readonly groups: Reuse<CollectedGroup>;
-  readonly orphans: Reuse<CollectResult["orphanBundles"][number]>;
+  readonly characters: Judged<CollectedCard>;
+  readonly chats: Judged<CollectedChat>;
+  readonly personas: Judged<CollectedPersona>;
+  readonly worlds: Judged<CollectedWorld>;
+  readonly presets: Judged<CollectedPreset>;
+  readonly themes: Judged<CollectedTheme>;
+  readonly backgrounds: Judged<CollectedBackground>;
+  readonly groups: Judged<CollectedGroup>;
+  readonly orphans: Judged<CollectResult["orphanBundles"][number]>;
 }
 
 export interface ProfileDirImportDeps {

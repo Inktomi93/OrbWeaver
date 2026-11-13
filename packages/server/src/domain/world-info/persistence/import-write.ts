@@ -341,7 +341,7 @@ export function createAttachOwnedBooksByName(input: DbAssemblyInput<WorldInfoImp
 // character attach, additively: equal content reuses the owned row (under the name it carries), different
 // content lands under the next free name, and no owned row is ever edited.
 
-/** The owned book an equal incoming one reuses, or null. The one test both the write and the preview's `createFindOwnedBooks` ask. */
+/** The owned book an equal incoming one reuses, or null. The preview's `createFindOwnedBooks` asks `bookReuseJudge`, which shares this test's content key. */
 async function findOwnedEqualBook(db: Db, ownerId: UserId, book: BulkImportLorebookInput): Promise<DedupCandidateBook | null> {
   return findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
 }

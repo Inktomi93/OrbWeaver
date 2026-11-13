@@ -2,7 +2,7 @@
 
 import type { Cancellation } from "@orb/kit/guards";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
-import type { ImportReuse } from "#import";
+import type { ImportAnswer } from "#import";
 import type { PortableExportNotes, PortableFile } from "#portability";
 import type { AttachedBookRef } from "../character/index.ts";
 import type { HandoffCardPair } from "../chat/handoff-context.ts";
@@ -31,14 +31,14 @@ export type HasPrimaryBook = (args: { readonly ownerId: UserId; readonly charact
 export type ImportStandaloneLorebook = (args: { readonly ownerId: UserId; readonly book: BulkImportLorebookInput }) => Promise<BulkImportLorebookResult>;
 
 /** For each book, in order, what {@link ImportStandaloneLorebook} would do with it: reuse the owner's book
- *  (`"library"`), reuse a book an earlier entry of this list lands (`"upload"`), or write a new one (`null`). A
- *  read: it writes nothing, and it loads the owner's library once for the whole list. Once `signal` aborts it stops
- *  and returns the answers so far, which the aborted caller discards. */
+ *  (`"library"`), reuse a book an earlier entry of this list lands (`"upload"`), or write a new one (`null`), with
+ *  the book's content key. A read: it writes nothing, and it loads the owner's library once for the whole list.
+ *  Once `signal` aborts it stops and returns the answers so far, which the aborted caller discards. */
 export type FindOwnedBooks = (args: {
   readonly ownerId: UserId;
   readonly books: readonly BulkImportLorebookInput[];
   readonly signal: Cancellation;
-}) => Promise<readonly (ImportReuse | null)[]>;
+}) => Promise<readonly ImportAnswer[]>;
 
 /** Re-points the source character's attached books at the new character id (fresh character_books rows, role
  *  preserved). Reference-carry: the world_books themselves are never cloned; zero attachments is a no-op.

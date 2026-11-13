@@ -3,7 +3,7 @@
 // "upload". It loads the owner's library once and yields between books, so a folder of thousands never holds the
 // event loop.
 
-import type { ImportReuse } from "@orb/contracts/import";
+import type { ImportAnswer } from "@orb/contracts/import";
 import type { FindOwnedBooks } from "@orb/contracts/world-info";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
@@ -14,7 +14,7 @@ import { loadOwnedBooksForDedup, toDedupBook } from "../persistence/import-write
 
 export function createFindOwnedBooks(input: DbAssemblyInput<Pick<WorldInfoImportContext, "db">>): FindOwnedBooks {
   const db = databaseForOwner(input.db);
-  return async ({ ownerId, books, signal }): Promise<readonly (ImportReuse | null)[]> => {
+  return async ({ ownerId, books, signal }): Promise<readonly ImportAnswer[]> => {
     if (books.length === 0) {
       return [];
     }

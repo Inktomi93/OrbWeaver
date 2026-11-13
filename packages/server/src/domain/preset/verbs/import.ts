@@ -3,7 +3,7 @@
 // preset with equal content is reused; a different one under the same name keeps its row and the file lands
 // under the next free name. Never throws for a malformed file — returns { ok:false, error }.
 
-import type { ImportReuse } from "@orb/contracts/import";
+import type { ImportAnswer } from "@orb/contracts/import";
 import type { FindOwnedPresets, ImportPreset, PresetImportOutcome } from "@orb/contracts/preset";
 import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -45,28 +45,29 @@ function reusablePreset(owned: readonly OwnedPreset[]): (config: Parameters<type
 }
 
 /** The read-only twin of {@link createImportPresets}'s reuse test, for a preview that must not write. It judges the
- *  files in the order the import lands them, so a preset equal to an earlier file's answers `"upload"`. */
+ *  files in the order the import lands them, so a preset equal to an earlier file's answers `"upload"`, and answers
+ *  each with the content key the test compares by. */
 export function createFindOwnedPresets(input: DbAssemblyInput<Pick<PresetContext, "db">>): FindOwnedPresets {
   const db = databaseForOwner(input.db);
-  return async ({ ownerId, files, signal }): Promise<readonly (ImportReuse | null)[]> => {
+  return async ({ ownerId, files, signal }): Promise<readonly ImportAnswer[]> => {
     const reuse = reusablePreset(await listOwned(db, ownerId));
     // call-local: the content keys of the files judged so far. Ends if it outlives the call.
     const landed = new Set<string>();
-    return await mapYielding(files, signal, (bytes): ImportReuse | null => {
+    return await mapYielding(files, signal, (bytes): ImportAnswer => {
       const decoded = readJson(bytes);
       const parsed = decoded.ok ? parsePresetFile(decoded.value) : null;
       if (parsed?.ok !== true) {
-        return null;
-      }
-      if (reuse(parsed.config) !== undefined) {
-        return "library";
+        return { reuse: null, keys: [] };
       }
       const key = presetContentKey(parsed.config);
+      if (reuse(parsed.config) !== undefined) {
+        return { reuse: "library", keys: [key] };
+      }
       if (landed.has(key)) {
-        return "upload";
+        return { reuse: "upload", keys: [key] };
       }
       landed.add(key);
-      return null;
+      return { reuse: null, keys: [key] };
     });
   };
 }

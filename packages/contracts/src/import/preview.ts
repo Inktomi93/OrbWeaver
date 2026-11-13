@@ -2,7 +2,11 @@
 // it and caps each list; `total` stays exact when `items` is capped. The client renders names as plain text.
 // An entry's identity is its source: the profile directory it sits in plus its path inside that profile, so two
 // profiles of one upload that share a relative path are two entries. `mergeImportPreviews` is the one place that
-// keys on it. A skip at the upload's root, beside the profiles, has `profile: null`.
+// keys on it. A skip at the upload's root, beside the profiles, has `profile: null`. Equal content is each owning
+// domain's rule, so an entry carries digests of the keys that rule compares by (its identities), and the merge marks
+// an entry a repeat when an earlier entry holds them all; it keeps no equality rule of its own. Across uploads a card
+// is compared by its import hash alone, and a group by the set of transcripts it brings, so a JSON card and the PNG of
+// the same text, or a group bringing only some of an earlier group's transcripts, stay two writes in the merge.
 
 import { z } from "zod";
 
@@ -20,6 +24,15 @@ const previewText = z.string().max(IMPORT_PREVIEW_TEXT_MAX);
  *  upload does. The owning domain's read-only twin of each write answers it with the write's own equality rule. */
 export type ImportReuse = "library" | "upload";
 
+/** What an owning domain's read-only twin answers for one entry of a dry run: why a run writes nothing for it
+ *  (`reuse`, null when it writes it) and the content keys of the owner's own equality rule (`keys`: one for most
+ *  kinds, one per theme of a theme file, one for a group: the set of its transcripts' keys). The preview sends the
+ *  keys' digests, never the keys, so two uploads of one folder can tell that their entries are equal. */
+export interface ImportAnswer {
+  readonly reuse: ImportReuse | null;
+  readonly keys: readonly string[];
+}
+
 /** Where an entry sits in the upload: the profile directory's name and the entry's path inside that profile (its
  *  file, or its name where it has no file). A single picked profile is staged under one fixed directory name. */
 const importSourceSchema = z.strictObject({ profile: previewText, path: previewText });
@@ -36,9 +49,14 @@ const importPreviewItemSchema = z.strictObject({
   /** Something the owner already has (a character, book, preset, chat and so on); a run adds nothing for it.
    *  Absent otherwise. */
   inLibrary: z.literal(true).optional(),
-  /** Equal content to an earlier entry of this upload, usually another profile's copy: a run reuses that entry's
-   *  row and adds nothing for it. Absent otherwise, and never beside `inLibrary`. */
+  /** Equal content to an earlier entry of this upload, or of an earlier upload once the merge has seen both,
+   *  usually another profile's copy: a run reuses that entry's row and adds nothing for it. Absent otherwise, and
+   *  never beside `inLibrary`. */
   repeat: z.literal(true).optional(),
+  /** Digests of the content keys the entry's owner compares it by (see {@link ImportAnswer}). Two uploads of a split
+   *  folder cannot see each other's entries, so the merge reads equal content off these. Empty when the entry cannot
+   *  be compared, which the merge treats as never equal. */
+  identities: z.array(previewText).max(IMPORT_PREVIEW_LIST_MAX).readonly(),
   /** A persona whose avatar file is missing or unreadable: it imports, without art. Absent otherwise. */
   withoutArt: z.literal(true).optional(),
 });
@@ -108,19 +126,37 @@ function sourceKey(source: ImportSkipSource): string {
   return JSON.stringify([source.profile, source.path]);
 }
 
+function isReused(item: ImportPreviewItem): boolean {
+  return item.inLibrary === true || item.repeat === true;
+}
+
+/** An item the run writes nothing for because an earlier item of the merged list holds every one of its identities:
+ *  each upload judged it alone and called it new. An item without identities cannot be compared and stays as it was. */
+function flagRepeats(items: readonly ImportPreviewItem[]): ImportPreviewItem[] {
+  const held = new Set<string>();
+  return items.map((item) => {
+    const repeat = !isReused(item) && item.identities.length > 0 && item.identities.every((identity) => held.has(identity));
+    for (const identity of item.identities) {
+      held.add(identity);
+    }
+    return repeat ? { ...item, repeat: true } : item;
+  });
+}
+
 /** One preview over the uploads of a split folder. Shared files and repeated cards repeat across uploads, so
  *  listed items union by source (profile and path); a capped list's unlisted tail cannot be compared and is
- *  added. A skip unions by source and reason together: one source can be skipped two ways, and each way is its
- *  own row. */
+ *  added. Each upload judged its entries alone, so an entry whose content an earlier upload already lands is then
+ *  marked a repeat, by the keys its owner's equality rule gave it. A skip unions by source and reason together: one
+ *  source can be skipped two ways, and each way is its own row. */
 export function mergeImportPreviews(previews: readonly ImportPreview[]): ImportPreview {
   const kinds = Object.fromEntries(
-    IMPORT_PREVIEW_KINDS.map((kind) => [
-      kind,
-      union(
+    IMPORT_PREVIEW_KINDS.map((kind) => {
+      const { total, items } = union(
         previews.map((preview) => preview.kinds[kind]),
         (item) => sourceKey(item.source),
-      ),
-    ]),
+      );
+      return [kind, { total, items: flagRepeats(items) }];
+    }),
   );
   const skipped = union(
     previews.map((preview) => preview.skipped),

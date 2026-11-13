@@ -12,7 +12,7 @@
 // the two paths cannot drift into one wording; this sweep declares `heartbeat_stale`.
 //
 // IT DISPOSES, IT DOES NOT READ. The sweep reads RAW lifecycle columns (`findStaleInFlight` →
-// `WorkloadInFlightRow`), never the params-narrowing `toView`, and therefore spells no domain vocabulary at
+// `WorkloadInFlightRow`), never the params-narrowing `readRow`, and therefore spells no domain vocabulary at
 // all — no `WorkloadContributions` reaches this file. That is not a simplification: projecting through the
 // view DROPPED every row whose kind this build does not ship (deploy skew, a kind rename), so such a row
 // could never be terminalized and held its kind's single-active slot forever while the process stayed up.

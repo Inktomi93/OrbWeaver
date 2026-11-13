@@ -810,7 +810,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
     return reportFrom({
       collected,
       scanned,
-      changed: collected.bundles.length - owned.characters.size,
+      changed: [...owned.characters.values()].filter(({ reuse }) => reuse === null).length,
       dryRun: true,
       skippedCards: [],
       // Every WRITE outcome is zero because nothing was written; `found` beside it says what the folder holds,
