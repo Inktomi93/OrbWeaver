@@ -11,7 +11,7 @@
 //   • `text/*` → NO magic exists; the strongest cheap check a text format admits is a strict-UTF-8 decode
 //     (binary garbage fails it). The upload size cap is the route/`maxBytes` belt, not re-checked here.
 // Throws `AssetContentRejectedError` (a person-facing reason + the operator detail) on any mismatch — the ONE
-// verification point `storeBlob` calls when `enforceMagic` is set.
+// verification point `storeBlob` calls when `enforceMagic` is set, and the one a bundle restore runs on its claims.
 
 import type { AssetKind, AssetMedia, AssetUploadRefusalCode } from "@orb/contracts/assets";
 import { ASSET_KIND_MEDIA, ASSET_UPLOAD_REFUSAL_CODES } from "@orb/contracts/assets";
@@ -108,6 +108,21 @@ export function assertKindAdmits(bytes: Uint8Array, kind: AssetKind): void {
   }
   const reason = admitted.length === 0 ? "that kind of file is not stored" : `its contents are not ${MEDIA_LIST.format(admitted.map((m) => MEDIA_NAMES[m]))}`;
   refuse(reason, detail, ASSET_UPLOAD_REFUSAL_CODES.wrongMedia);
+}
+
+/** A bundle restore's kinds and type come from a filename nothing proved, so they are checked as an upload's are: every
+ *  kind must admit the bytes, and when the claim or the bytes are an image or a video the claim must be the type the
+ *  signature names. Other claims over PDF, ZIP or text bytes are left to the kind check: a plugin bundle is stored as
+ *  `application/zip`, a type {@link assertMagicMatches} refuses. */
+export function assertRestoreMatches(bytes: Uint8Array, kinds: readonly AssetKind[], claimedMime: string): void {
+  for (const kind of kinds) {
+    assertKindAdmits(bytes, kind);
+  }
+  const media = mediaOf(bytes);
+  const base = baseMime(claimedMime);
+  if (media === "image" || media === "video" || base.startsWith(IMAGE_PREFIX) || base.startsWith(VIDEO_PREFIX)) {
+    assertMagicMatches(bytes, claimedMime);
+  }
 }
 
 /** True iff `bytes[offset..]` equals the given ASCII/byte signature (a short buffer simply fails to match). */

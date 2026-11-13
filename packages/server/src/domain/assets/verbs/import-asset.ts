@@ -1,13 +1,17 @@
 // The assets-portability IMPORT half: restores ONE blob under its ORIGINAL id, or answers success with a note
 // when the owner already holds these bytes under another id, because every portable referrer re-links by
 // content hash and the import keeps no cross-file channel (D136). Never throws; a refusal is `{ok:false}`.
+// The filename's kinds and type get the upload door's signature checks before any write, so a bundle cannot store bytes
+// under a type they are not or add a use their medium is not.
 
 import type { PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
+import { AssetContentRejectedError } from "../contract/errors.ts";
 import type { AssetsPortabilityContext, PortableAssetIdentity } from "../contract/portability.ts";
 import { addAssetKinds, assetIdForHash, loadAssetCasRefById, storeBlob } from "../persistence/queries.ts";
+import { assertRestoreMatches } from "../substrate/mime.ts";
 import { hashAssetBytes, parsePortableAssetFilename } from "../substrate/portable-asset-file.ts";
 
 // File-local: one restore in flight — the DI slice plus the file and the identity its name decoded.
@@ -29,6 +33,11 @@ export function createImportAsset(input: DbAssemblyInput<AssetsPortabilityContex
     // Check 1 — poison defense: the bytes MUST hash to the address the name claims.
     if (hashAssetBytes(file.bytes) !== identity.hash) {
       return { ok: false, error: "content hash does not match the claimed asset address" };
+    }
+    // The name's kinds and type are claims too. Every branch below writes a use or bytes, so they are checked first.
+    const refused = contentRefusal(file.bytes, identity);
+    if (refused !== null) {
+      return refused;
     }
     const target: ImportTarget = { ctx, ownerId, file, identity };
 
@@ -56,6 +65,19 @@ export function createImportAsset(input: DbAssemblyInput<AssetsPortabilityContex
     // THAT id — the same outcome, decided on what the write actually did.
     return stored.assetId === identity.id ? { ok: true, created: stored.created } : alreadyHeld(identity.id, stored.assetId);
   };
+}
+
+// The store's refusal of bytes the file's kinds or type do not describe, as the file's outcome with its code.
+function contentRefusal(bytes: Uint8Array, identity: PortableAssetIdentity): PortableImportOutcome | null {
+  try {
+    assertRestoreMatches(bytes, identity.kinds, identity.mime);
+    return null;
+  } catch (err) {
+    if (err instanceof AssetContentRejectedError) {
+      return { ok: false, error: `${err.reason} (${err.refusal})` };
+    }
+    throw err;
+  }
 }
 
 /** Checks 2 + 3 plus the idempotent replay. The row is right; the BYTES may not be (an interrupted restore,
