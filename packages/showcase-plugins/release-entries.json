@@ -12,7 +12,7 @@
     },
     "draft-polish": {
       "main.js": "ffc6f850db735c80676b63aaa348f637d423de63e8ede855ad155dc738b205d3",
-      "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
+      "manifest.json": "eb6aa3d4ec3ec9ec62195dfde2fcb1456214c51f81c1518fb2037f586fc17413"
     },
     "keepsake-camera": {
       "main.js": "cf2438c8a620c8644258003098a1a8b7356f38cb162a8ba86d1040213598b15f",
@@ -24,7 +24,7 @@
     },
     "pocket-arcade": {
       "main.js": "a413e647aa73ef47576eb899c45a75213a1e991ba2f0028684be48f4be61fce9",
-      "manifest.json": "d8125de0d922976d01a2ef4832c63cd0d121025db7c2fc1c067fc3dcd83d8158"
+      "manifest.json": "45c30cbad02ed84231ad410ce3789e4e5b834b25c677737a8ccd4979b234881e"
     },
     "research-familiar": {
       "main.js": "f3afce00311d2dcfc85ecd9590009eff068bd62db9fe4f8b6eed345583652a98",
@@ -37,7 +37,7 @@
     },
     "story-clocks": {
       "main.js": "6ad1a2570cd9eadc8cfd1154d66639221b9fb507808613eac0ed98ab37f893d7",
-      "manifest.json": "e7f1965cfdf921e191bef559cb0fee181fbd865c85f814f7862c8b68b20b59af"
+      "manifest.json": "ae064a3e2c00c18139d1447cea47c0458b5c218fed9ce8a16b02ebaeabe98270"
     }
   }
 }

@@ -44,6 +44,8 @@ done
 
 git push "$@" origin main
 if [ "$release" = 1 ]; then
+  # A seeded install upgrades only to a newer version, so a changed bundle under its released version never ships.
+  pnpm --filter @orb/showcase-plugins check:versions || exit 1
   sha=$(git rev-parse HEAD)
   passed_sha=$(gh run list --workflow ci.yml --branch main --commit "$sha" --event push --status success --limit 1 --json headSha --jq '.[0].headSha')
   [ "$passed_sha" = "$sha" ] || { echo "release: CI has not passed on $sha"; exit 1; }
