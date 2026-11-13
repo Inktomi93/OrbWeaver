@@ -22,7 +22,7 @@ import { UNCLASSIFIED_FAULT_MESSAGE } from "./fault-copy.ts";
 // NOT survivable under the multiplex, where a silently-dead socket is a TOTAL freshness blackout. The ping
 // keeps intermediaries (Caddy, the dev proxy) from idling an otherwise-quiet stream; `reconnectAfterInactivityMs`
 // at 3× the interval is what makes the CLIENT notice a socket that stopped without closing. Both keys
-// verified against @trpc/server 11.18 (`SSEPingOptions` / `SSEClientOptions`). Strictly an improvement for
+// verified against @trpc/server 11.23 (`SSEPingOptions` / `SSEClientOptions`). Strictly an improvement for
 // the per-proc streams too, which is why it lands before any of them fold.
 const SSE_PING_MS = 15_000;
 
@@ -186,7 +186,7 @@ export const publicProcedure = t.procedure.use(tracingMiddleware).use(domainErro
 // CORS-simple — see upload.ts's authCsrfGuard.
 //
 // THE BELT IS LOAD-BEARING, NOT DEFENCE IN DEPTH. The `cookie`-only keying does not rest on a tRPC mutation
-// "requiring application/json": it does not. `@trpc/server` 11.18's
+// "requiring application/json": it does not. `@trpc/server` 11.23's
 // `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` and dispatches
 // both as `type:"mutation"`, and multipart is exactly the CORS-simple type a plain cross-site `<form>` can
 // post. Behaviorally proven at the mount: before the belt, a multipart POST with no `x-orb-csrf` on the

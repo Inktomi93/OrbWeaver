@@ -13,6 +13,7 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment, useId, useState } from "react";
+import { COLLISION_KEEP_ALL_NAME, COLLISION_KEEP_BOTH_TITLE, COLLISION_MERGE_ALL_NAME, COLLISION_MERGE_TITLE } from "../lib/import-library-names.ts";
 
 /** Past this many characters a description is clamped to a few lines with a Show all control. */
 const CLAMP_CHARS = 280;
@@ -115,13 +116,13 @@ function PersonaCollisionBlock({
         <RadioGroup aria-describedby={comparison} value={choice} onValueChange={(next): void => onChoose(next === "keep-both" ? "keep-both" : "merge")}>
           <RadioGroupItem value="merge">
             <OptionLabel
-              title="Merge into your existing persona"
+              title={COLLISION_MERGE_TITLE}
               consequence={`Keeps your “${name}” as it is and discards the imported ${nounList(collision.differs)}. Chats from this folder link to your persona.`}
             />
           </RadioGroupItem>
           <RadioGroupItem value="keep-both">
             <OptionLabel
-              title="Keep both"
+              title={COLLISION_KEEP_BOTH_TITLE}
               consequence={`Adds the imported persona as “${collision.keepBothName}” beside your “${name}”. Chats from this folder link to the copy.`}
             />
           </RadioGroupItem>
@@ -158,10 +159,10 @@ export function PersonaCollisionReview({
       {many ? (
         <Row justify="start" gap="field">
           <Button variant="outline" size="sm" onClick={(): void => onChooseAll("merge")}>
-            Merge all
+            {COLLISION_MERGE_ALL_NAME}
           </Button>
           <Button variant="outline" size="sm" onClick={(): void => onChooseAll("keep-both")}>
-            Keep all
+            {COLLISION_KEEP_ALL_NAME}
           </Button>
         </Row>
       ) : null}

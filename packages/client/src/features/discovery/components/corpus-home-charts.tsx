@@ -35,6 +35,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { testId, timeLib } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { chartLabelWithDenominator, chartSpread, toBarItems, topRanked } from "../lib/corpus-charts.ts";
+import { CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 import { localThemeDrift } from "../lib/story-time-folds.ts";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
@@ -69,7 +70,7 @@ export function KeywordExplorer(): ReactElement {
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your top keywords" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.topKeywords} onRetry={retry} />}
     >
       <KeywordExplorerRead />
     </QueryBoundary>
@@ -206,7 +207,7 @@ export function StoryThemeDrift(): ReactElement {
     <QueryBoundary
       resetKeys={[readLevel]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="story-theme drift" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.storyThemeDrift} onRetry={retry} />}
     >
       <StoryThemeDriftBody level={level} onLevelChange={setLevel} readLevel={readLevel} />
     </QueryBoundary>

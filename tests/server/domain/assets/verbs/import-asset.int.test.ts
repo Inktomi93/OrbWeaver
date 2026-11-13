@@ -1,5 +1,6 @@
 // A bundle's asset file names its kinds and type in a filename nothing proved, so the restore checks them against the
-// bytes. A picture under another type restores under the type its bytes are. A file whose bytes are not what its kinds
+// bytes. A picture under another type restores under the type its bytes are, and a parameter on a picture or video type
+// of the bytes is shed. A file whose bytes are not what its kinds
 // admit, or whose claim is not one type the store's signature check bears out, is refused with its code; nothing of it is
 // stored or linked, and the rest of the bundle imports.
 // @subject packages/server/src/domain/assets/verbs/import-asset.ts
@@ -27,6 +28,7 @@ const PNG = "image/png";
 const JPEG = "image/jpeg";
 const WEBP = "image/webp";
 const MP4 = "video/mp4";
+const WEBM = "video/webm";
 const HTML = "text/html";
 const ZIP = "application/zip";
 /** The type the blob route serves a stored file under when it is not a medium it serves inline. */
@@ -64,6 +66,9 @@ const BYTES = {
   noteAsAudioList: new TextEncoder().encode("a harmless note, listed"),
   noteAsAudio: new TextEncoder().encode("a harmless note, as sound"),
   bundleAsAudio: magicBytes("zip", 84),
+  pictureWithParameter: magicBytes("png", 85),
+  mp4WithCodecs: magicBytes("mp4", 86),
+  webmWithCodecs: magicBytes("webm", 87),
 } as const;
 
 /** Claims that restore, with the type the restored file is stored and served under. */
@@ -80,6 +85,10 @@ const RESTORED = {
   pictureAsPage: { claim: { bytes: BYTES.pictureAsPage, kinds: ["avatar"], mime: HTML }, stored: PNG, served: PNG },
   pictureAsVideo: { claim: { bytes: BYTES.pictureAsVideo, kinds: ["background"], mime: MP4 }, stored: PNG, served: PNG },
   note: { claim: { bytes: BYTES.note, kinds: ["document"], mime: TEXT }, stored: TEXT, served: DOWNLOAD },
+  // A parameter on the type the bytes are is shed alike for a picture and a video: the stored type is one bare type.
+  pictureWithParameter: { claim: { bytes: BYTES.pictureWithParameter, kinds: ["avatar"], mime: `${PNG}; x=1` }, stored: PNG, served: PNG },
+  mp4WithCodecs: { claim: { bytes: BYTES.mp4WithCodecs, kinds: ["background"], mime: `${MP4}; codecs="avc1.42E01E"` }, stored: MP4, served: MP4 },
+  webmWithCodecs: { claim: { bytes: BYTES.webmWithCodecs, kinds: ["background"], mime: `${WEBM}; codecs="vp9"` }, stored: WEBM, served: WEBM },
 } as const satisfies Record<string, { readonly claim: Claim; readonly stored: string; readonly served: string }>;
 
 /** Claims the bytes do not bear out, each with the code the store refuses it under. */
@@ -135,6 +144,9 @@ function bundleFiles(): Readonly<Record<Case, PortableFile>> {
     noteAsAudioList: file(CASES.noteAsAudioList),
     noteAsAudio: file(CASES.noteAsAudio),
     bundleAsAudio: file(CASES.bundleAsAudio),
+    pictureWithParameter: file(CASES.pictureWithParameter),
+    mp4WithCodecs: file(CASES.mp4WithCodecs),
+    webmWithCodecs: file(CASES.webmWithCodecs),
   };
 }
 

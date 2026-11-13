@@ -10,8 +10,10 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { QUERY_WAITING_LINE, queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { DATABANK_LANDING_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -199,7 +201,7 @@ test.describe("on a desktop", () => {
     // By keyboard, as a screen-reader user opens it: the item that held focus is gone when the popover closes.
     await trigger.focus();
     await page.keyboard.press("Enter");
-    const item = page.getByRole("menuitem", { name: "Notifications", exact: true });
+    const item = page.getByRole("menuitem", { name: NOTIFICATIONS_BELL_NAME, exact: true });
     await item.focus();
     await page.keyboard.press("Enter");
     const popup = page.locator('[data-slot="popover-popup"]');
@@ -224,8 +226,8 @@ test.describe("on a desktop", () => {
   });
 
   for (const entry of [
-    { name: "Notifications", surface: { role: "dialog", name: "Notifications" } },
-    { name: "Report a bug", surface: { role: "textbox", name: "What happened?" } },
+    { name: NOTIFICATIONS_BELL_NAME, surface: { role: "dialog", name: NOTIFICATIONS_BELL_NAME } },
+    { name: BUG_REPORT_NAME, surface: { role: "textbox", name: BUG_REPORT_NOTE_NAME } },
     { name: "Jump to…", surface: { role: "dialog", name: undefined } },
   ] as const) {
     test(`Escape from ${entry.name}, opened from the More menu, returns focus to the trigger`, async ({ mount, page }) => {

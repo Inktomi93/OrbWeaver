@@ -33,6 +33,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution, seedTranscript } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CHAT_NEW_WITH_SAME_CHARACTERS_NAME, CHAT_OPTIONS_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import {
   CHAT_EARLIER_MESSAGES_NAME,
   CHAT_HISTORY_DISMISS_NAME,
@@ -1343,8 +1344,8 @@ for (const regime of [
       });
       await mount<typeof ChatRoomShellStory>(STORY, { chatId: initial.chat.id });
       await expect(page.locator(`[data-message-id="${before.id}"]`)).toBeVisible();
-      await page.getByRole("button", { name: "Chat options", exact: true }).click();
-      await page.getByRole("menuitem", { name: "New chat with the same characters", exact: true }).click();
+      await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
+      await page.getByRole("menuitem", { name: CHAT_NEW_WITH_SAME_CHARACTERS_NAME, exact: true }).click();
       await confirmation.requested;
       const requested = calls.lastInput("chat.listMessages");
       if (requested === undefined) {

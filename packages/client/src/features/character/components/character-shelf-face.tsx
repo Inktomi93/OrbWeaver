@@ -31,6 +31,7 @@ import { Layer, Row, Stack } from "@orb/ui/layout";
 import { PictureButton } from "@orb/ui/picture-button";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { characterFaceName } from "../lib/character-names.ts";
 
 export interface CharacterShelfFaceProps {
   readonly id: CharacterId;
@@ -68,17 +69,6 @@ export interface ShelfFaceResume {
   readonly onResume: (chatId: ChatId) => void;
 }
 
-/** THE NAME SAYS WHAT THE PRESS DOES (#1662, WCAG 2.5.3 + the `duplicate-action-door` finding this
- *  closes): two buttons both named "Sola" were two doors AT accessed identically; "Resume the chat with
- *  Sola" and "Sola" are two different offers, which is what they actually are. `starred` still rides the
- *  tail rather than the head, so the verb leads in both arms. */
-function faceActionName(name: string, stamp: string | null, starred: boolean, resume: ShelfFaceResume | null): string {
-  const offer = resume === null ? name : `Resume the chat with ${name}`;
-  // The visible stamp ("chatted 3h ago · 4 chats") is part of the button's label, so the name carries every word of it (WCAG 2.5.3).
-  const stamped = stamp === null ? offer : `${offer}, ${stamp}`;
-  return starred ? `${stamped}, starred` : stamped;
-}
-
 export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, caption, captionId, resume, onOpen }: CharacterShelfFaceProps): ReactElement {
   return (
     <Stack>
@@ -86,8 +76,8 @@ export function CharacterShelfFace({ id, name, avatarHash, starred, stamp, capti
         // STARRED IS PART OF THE NAME, not a silent decoration (the `invisible-is-the-finding` rule): the
         // mark is the only thing on the cell that says it, and on Recently chatted — where the shelf's own
         // eyebrow does not — a sighted reader gets a fact a screen-reader user would not. The VERB leads it
-        // now (#1662) — see {@link faceActionName}.
-        aria-label={faceActionName(name, stamp, starred, resume)}
+        // now (#1662) — see {@link characterFaceName}.
+        aria-label={characterFaceName(name, stamp, starred, resume !== null)}
         caption="start"
         variant="ghost"
         onClick={(): void => (resume === null ? onOpen(id) : resume.onResume(resume.chatId))}

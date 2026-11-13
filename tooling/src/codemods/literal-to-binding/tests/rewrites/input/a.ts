@@ -8,3 +8,4 @@ export const property = ROWS.find((row) => row.key === "fontScale")?.name ?? "";
 export const unrelated = ROWS.find((row) => row.key === "density")?.name ?? "";
 export const renamed = (room: { cast: string; title: string }): string => `Rename chat — ${room.cast}, ${room.title}`;
 export const otherTemplate = (room: { cast: string }): string => `Archive chat — ${room.cast}`;
+export const failed = "Couldn't load things.";

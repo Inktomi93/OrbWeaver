@@ -41,6 +41,7 @@ import { ConfirmDialog, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import { useCreateRefinerySchema, useGenerateRefinerySchema, useRefineRefinerySchema, useUpdateRefinerySchema } from "../hooks/use-refinery-schemas.ts";
+import { REFINERY_SCHEMA_DESCRIBE_NAME, REFINERY_SCHEMA_JSON_NAME } from "../lib/refinery-names.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
 import { RefusalNote } from "./refusal-note.tsx";
 import { RenderHintPicker } from "./render-hint-picker.tsx";
@@ -354,7 +355,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
           cannot invent a shape this app can't render. Or write the schema yourself in the JSON pane below, which takes the full vocabulary: unions, mixed
           lists, deeper nesting. If a description needs something the designer can't express, it says so and hands you a starting point instead of guessing.
         </Text>
-        <Field label="Describe the structure">
+        <Field label={REFINERY_SCHEMA_DESCRIBE_NAME}>
           <Textarea
             onChange={(e): void => setDescription(e.target.value)}
             placeholder='e.g. "rating 1-10, a mood enum, list of issues, one-paragraph summary"'
@@ -381,7 +382,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             {forgeNote}
           </Text>
         ) : null}
-        <Field label="Schema (JSON: the full vocabulary)">
+        <Field label={REFINERY_SCHEMA_JSON_NAME}>
           <Textarea onChange={(e): void => setSchemaText(e.target.value)} ref={schemaTextRef} rows={8} value={schemaText} />
         </Field>
         {/* THE RENDER-HINT ROLE PICKER (#73) — split out (`render-hint-picker.tsx`, component size): a typed source for the `x-orb-ui` role string, so an

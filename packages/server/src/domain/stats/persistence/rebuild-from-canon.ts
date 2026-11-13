@@ -302,15 +302,16 @@ async function loadChatMeta(db: Db, ownerId: UserId): Promise<ChatMeta> {
     SELECT ${calendarBucketStartSql(sql`ch.created_at`)} AS bucketStart, COUNT(DISTINCT ch.id) AS n
     FROM chats ch WHERE ch.id IN (${ownerChatIds(ownerId)}) GROUP BY bucketStart
   `);
-  const library = (
-    await db.all<{ characters: number; chats: number; forkedChats: number }>(sql`
-      SELECT (SELECT COUNT(*) FROM characters WHERE owner_id = ${ownerId}) AS characters,
-             (SELECT COUNT(*) FROM (${ownerChatIds(ownerId)})) AS chats,
+  const rooms = (
+    await db.all<{ chats: number; forkedChats: number }>(sql`
+      SELECT (SELECT COUNT(*) FROM (${ownerChatIds(ownerId)})) AS chats,
              (SELECT COUNT(*) FROM chats WHERE parent_chat_id IS NOT NULL
                 AND id IN (${ownerChatIds(ownerId)})) AS forkedChats
     `)
-  )[0] ?? { characters: 0, chats: 0, forkedChats: 0 };
-  return buildChatMeta(chatAgg, chatBuckets, library);
+  )[0] ?? { chats: 0, forkedChats: 0 };
+  // The character count is the characters with a seat in a started room, the set the live write bumps on a
+  // character's first such room (`StatsDelta.newCharacter`), never the whole library.
+  return buildChatMeta(chatAgg, chatBuckets, { characters: chatAgg.length, ...rooms });
 }
 
 /** Atomic per-owner REPLACE: ONE db.batch of [delete ×4, insert owner_stats, ...chunked inserts] so a read

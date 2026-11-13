@@ -107,7 +107,7 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
 
 /**
  * THE CSRF CONTENT-TYPE BELT (Spine-Identity-and-Auth invariant 9). A tRPC mutation is POST-only
- * (`TYPE_ACCEPTED_METHOD_MAP`, and the `allowMethodOverride` map keeps it so), and `@trpc/server` 11.18's
+ * (`TYPE_ACCEPTED_METHOD_MAP`, and the `allowMethodOverride` map keeps it so), and `@trpc/server` 11.23's
  * `getContentTypeHandler` accepts THREE content-types — `application/json`, `multipart/form-data` and
  * `application/octet-stream` — dispatching the latter two as `type:"mutation"`. `multipart/form-data` is
  * CORS-SIMPLE: an ordinary cross-site `<form>` POST reaches this mount with no preflight and no CORS grant

@@ -43,7 +43,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
-import { FaceStrip, ListPage, useRowDeleteFocus } from "#components";
+import { CHARACTER_SEARCH_NAME, FaceStrip, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
 import { SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
@@ -82,7 +82,7 @@ import { useCharacterTagGroups } from "../hooks/use-character-tag-groups.ts";
 import type { LibraryScopeArgs } from "../hooks/use-library-scope.ts";
 import { useLibraryScope } from "../hooks/use-library-scope.ts";
 import { loadedProgressLabel, resultCountLabel } from "../lib/character-library-lens.ts";
-import { CHARACTER_LIBRARY_NAME, CHARACTER_SEARCH_NAME } from "../lib/character-names.ts";
+import { CHARACTER_LIBRARY_NAME } from "../lib/character-names.ts";
 
 const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
 

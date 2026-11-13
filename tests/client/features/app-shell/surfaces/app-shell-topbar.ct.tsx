@@ -32,10 +32,12 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { BUG_REPORT_NAME, COMMAND_CHIP_NAME_LEAD } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
+import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";
 import { EXTENSIONS_NO_SELECTION_BODY, EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { NEW_PRESET_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
@@ -262,7 +264,7 @@ test("the ⌘K chip paints no text, and its name and description carry Jump and 
   await expect(chip).toHaveText("");
   await expect(chip.locator("svg")).toHaveCount(1);
   const shortcut = commandShortcutLabel(await page.evaluate(() => navigator.userAgent));
-  await expect(chip).toHaveAccessibleName(`Jump, the command menu (${shortcut})`);
+  await expect(chip).toHaveAccessibleName(`${COMMAND_CHIP_NAME_LEAD} (${shortcut})`);
   await expect(chip).toHaveAccessibleDescription(`Jump to… ${shortcut}`);
 });
 
@@ -609,8 +611,8 @@ test.describe("an open named group room", () => {
     await expect(title).toHaveText(room.cast);
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     const trail = page.locator(".shell-topbar-trail");
-    await expect(trail.getByRole("button", { name: /^Notifications/u })).toBeVisible();
-    await expect(trail.getByRole("button", { name: "Report a bug", exact: true })).toBeVisible();
+    await expect(trail.getByRole("button", { name: new RegExp(`^${RegExp.escape(NOTIFICATIONS_BELL_NAME)}`, "u") })).toBeVisible();
+    await expect(trail.getByRole("button", { name: BUG_REPORT_NAME, exact: true })).toBeVisible();
     await expect(page.locator(MEMBERS_CHIP)).toBeVisible();
     await expect(page.locator(MEMORY_CHIP)).toBeVisible();
     await expect(page.locator(`${MEMBERS_CHIP} .shell-chat-chip-count`)).toBeHidden();

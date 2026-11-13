@@ -29,8 +29,9 @@ import { HOST_BAND, openContextSections, SECTION_LABELS } from "@orb/testkit/ct"
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_OPTIONS_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { CHAT_GROUP_BEHAVIOR_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import {
   CHAT_COMPOSER_NAME,
@@ -49,7 +50,7 @@ import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { GAME_STRIP_LABEL } from "#client/lib/registry-contracts.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
-import { rowActionsName } from "#client/lib/row-qualifiers.ts";
+import { CHAT_WITH_ACTION_LEAD, chatWithActionName, rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 import type { CanonMessage } from "./trpc.ts";
@@ -62,7 +63,7 @@ import { newReplyRow, newUserRows, soleUserRow } from "./turn-witness.ts";
 // 2026-07-24), so a role/name locator hits it at every width. This is the exemplar path
 // (start-chat-with-character.spec.ts, commit b79cf0a871). The stale kebab→"Chat" menuitem flow is dead — this
 // client's row kebab ("Actions for <name>") carries only Archive/Duplicate/Delete, NO "Chat" item.
-const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
+const CHARACTER_ROW_CHAT_CTA = new RegExp(`^${RegExp.escape(CHAT_WITH_ACTION_LEAD)} `, "u");
 const APP_READY = `html[${APP_READY_ATTR}]`;
 const BOOTSTRAP_MESSAGE = "Hi";
 // Wait for the lazy Chats surface without replaying the navigation action.
@@ -194,7 +195,7 @@ export async function openCharacterRoom(page: Page, name: string): Promise<ChatI
   await waitForAppReady(page);
   await charactersRailButton(page).click();
   await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(name);
-  const cta = page.getByRole("button", { name: `Chat with ${name}`, exact: true });
+  const cta = page.getByRole("button", { name: chatWithActionName(name), exact: true });
   const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
   await expect(row).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await row.hover();
@@ -365,7 +366,7 @@ export async function openNewestChat(page: Page): Promise<void> {
  *  gone. Still opened via KEYBOARD (focus + Enter): keyboard activation bypasses hit-testing, which is the
  *  posture that survived the move as well as it served the old topbar mount. */
 export async function openChatOptions(page: Page): Promise<void> {
-  const options = page.getByRole("button", { name: "Chat options" });
+  const options = page.getByRole("button", { name: CHAT_OPTIONS_NAME });
   await expect(options).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await options.focus();
   await options.press("Enter");

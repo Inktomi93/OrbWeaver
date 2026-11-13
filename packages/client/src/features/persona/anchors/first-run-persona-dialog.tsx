@@ -28,6 +28,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { notify, testId } from "#lib";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { useCreatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
+import { PERSONA_DESCRIPTION_FIELD_NAME, PERSONA_FIRST_RUN_FAILED, PERSONA_FIRST_RUN_TITLE, PERSONA_NAME_FIELD_NAME } from "../lib/persona-copy.ts";
 
 /** The lowest id in the set — a total order BOTH ends agree on and every device computes identically, so
  *  "which persona does the gate offer to recover" never depends on the server's list ordering. That ordering
@@ -143,7 +144,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       setCreatedId(created.id);
       return created.id;
     } catch {
-      notify.error("Couldn't create your persona. Try again.");
+      notify.error(PERSONA_FIRST_RUN_FAILED);
       return null;
     }
   };
@@ -181,13 +182,13 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       description="Chats speak to you through a persona: the name (and optional description) characters see as you. Create yours to get started; you can refine it any time in Settings under Personas."
       submit={{ label: submitLabel, disabled: !canSubmit, testKey: "firstRunPersonaCreate", onSubmit: (): void => void submit().catch(globalThis.reportError) }}
       testKey="firstRunPersonaDialog"
-      title="Who are you in the story?"
+      title={PERSONA_FIRST_RUN_TITLE}
     >
-      <Field label="Name">
+      <Field label={PERSONA_NAME_FIELD_NAME}>
         <Input autoComplete="off" value={name} onValueChange={(value): void => setName(value)} data-testid={testId("firstRunPersonaName")} />
       </Field>
       {/* An always-visible description, not a hint tooltip: 2+ hints would duplicate accessible names. */}
-      <Field label="Description" description="Optional: how characters should picture you.">
+      <Field label={PERSONA_DESCRIPTION_FIELD_NAME} description="Optional: how characters should picture you.">
         <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
       </Field>
     </RequiredFormDialog>

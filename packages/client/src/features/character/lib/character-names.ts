@@ -1,6 +1,40 @@
 // The accessible names the Characters section prints on its library, editor and dialogs. A zero-import leaf, so a spec's
 // node side reads them without loading the component graph.
 
+/** Each card facet's row and drill-in heading, keyed by facet id; `character-card-facets.ts` reads one per row. */
+export const CHARACTER_FACET_LABELS = {
+  description: "Description",
+  personality: "Personality",
+  scenario: "Scenario",
+  exampleMessages: "Example messages",
+  creatorNotes: "Creator notes",
+  systemPrompt: "System prompt",
+  postHistoryInstructions: "Post-history instructions",
+  depthPrompt: "Note at depth",
+  regexScripts: "Regex scripts",
+  provenance: "Provenance",
+} as const;
+
+/** The landing's title once the library has someone to resume. */
+export const CHARACTER_LANDING_RESUME_TITLE = "Pick up where you left off";
+
+/** The landing's starred shelf, named with the server's starred count. */
+export function characterStarredShelfName(count: number): string {
+  return `Starred · ${String(count)}`;
+}
+
+/** A landing face's name says what the press does, so a resume face and the library row it sits beside are two
+ *  offers, not two doors with one name (WCAG 2.5.3). `starred` rides the tail, so the verb leads in both arms. */
+export function characterFaceName(name: string, stamp: string | null, starred: boolean, resumes: boolean): string {
+  const offer = resumes ? `Resume the chat with ${name}` : name;
+  // The visible stamp ("chatted 3h ago · 4 chats") is part of the button's label, so the name carries every word of it (WCAG 2.5.3).
+  const stamped = stamp === null ? offer : `${offer}, ${stamp}`;
+  return starred ? `${stamped}, starred` : stamped;
+}
+
+/** The Look tab's select item that follows the global theme. */
+export const CHARACTER_INHERIT_LABEL = "Inherit";
+
 /** The create dialog's title and the compact band button's name. */
 export const CHARACTER_NEW_NAME = "New character";
 
@@ -56,9 +90,6 @@ export const CHARACTER_DESCRIPTION_FIELD_NAME = "Character description";
 
 /** The library list's default name. */
 export const CHARACTER_LIBRARY_NAME = "Character library";
-
-/** The library's search box. */
-export const CHARACTER_SEARCH_NAME = "Search characters";
 
 /** The library's sort select. */
 export const CHARACTER_SORT_NAME = "Sort characters";

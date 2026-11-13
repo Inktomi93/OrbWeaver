@@ -7,7 +7,7 @@ import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOT
 import type { AttachOwnedBooksByName } from "@orb/contracts/world-info";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
-import { sniffMime } from "@orb/kit/image-sniff";
+import { SNIFFED_IMAGE_MIMES, sniffMime } from "@orb/kit/image-sniff";
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
 import type {
@@ -267,9 +267,10 @@ async function toPersonaInput(
 }
 
 /** The ST BACKGROUND wave: CAS-store each collected image/video under the owner (kind `background`,
- *  maxBytes-capped, magic-verified because the mime is only extension-derived) and turn it into a ready
- *  `BackgroundLibraryEntry`. PER-FILE ISOLATION — a background the store refuses (a `.jpg` that is not a JPEG,
- *  an over-cap blob) is recorded with its reason and never aborts the batch, exactly like the card wave.
+ *  maxBytes-capped, magic-verified) and turn it into a ready `BackgroundLibraryEntry`. A picture is stored under the
+ *  type its bytes are, as a persona avatar is, so a JPEG named `.png` lands as a JPEG; any other file keeps its
+ *  extension's type for the signature check. PER-FILE ISOLATION — a background the store refuses (a `.png` that is
+ *  no picture, an over-cap blob) is recorded with its reason and never aborts the batch, exactly like the card wave.
  *
  *  The entries are APPENDED to `appearance.backgroundLibrary` by the settings op below, which is what makes
  *  them (a) GC-rooted — an unreferenced blob is reclaimed an hour after the import — and (b) pickable in the
@@ -296,19 +297,20 @@ async function storeCollectedBackgrounds(
     // the catch pushes `{ file, reason }` onto `skipped`, which
     // `storeCollectedBackgrounds` returns and `reportFrom` lists as the report's `skippedBackgrounds`.
     // Ends if `skipped` stops reaching the report.
+    const sniffed = sniffMime(background.bytes);
+    const mime = SNIFFED_IMAGE_MIMES.some((image) => image === sniffed) ? sniffed : background.mime;
     try {
       const stored = await store({
         principal: deps.principal,
         bytes: background.bytes,
-        mime: background.mime,
+        mime,
         // One single-asset ceiling repo-wide — the profile importer deliberately shares the upload cap.
         maxBytes: ASSET_UPLOAD_MAX_BYTES,
       });
-      entries.push({ entryId: newEntryId(), assetId: stored.assetId, assetHash: stored.hash, mime: background.mime, name: background.name });
+      entries.push({ entryId: newEntryId(), assetId: stored.assetId, assetHash: stored.hash, mime, name: background.name });
       storedFiles.push(background.filename);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      skipped.push({ file: background.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
+      skipped.push({ file: background.filename, reason: importFailureReason(err) });
     }
   }
   return { entries, storedFiles, skipped };

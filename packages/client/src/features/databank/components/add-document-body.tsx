@@ -53,7 +53,12 @@ import {
   DATABANK_ADD_NAME,
   DATABANK_ADD_NAME_FIELD_NAME,
   DATABANK_ADD_TEXT_FIELD_NAME,
+  DATABANK_ATTACH_GROUP_NAME,
+  DATABANK_FROM_LINK_NAME,
+  DATABANK_LINK_FIELD_NAME,
   DATABANK_PASTE_TEXT_NAME,
+  DATABANK_UPLOAD_FILE_NAME,
+  databankFetchAddLabel,
 } from "../lib/databank-names.ts";
 import { documentUploadFailureLine } from "../lib/databank-upload-copy.ts";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
@@ -63,7 +68,7 @@ import { DEFAULT_CAPTION_LANG, SCRAPE_FAILURE, SCRAPER_OPTIONS } from "../lib/sc
 const ADD_MODES = ["upload", "paste", "link"] as const;
 type AddMode = (typeof ADD_MODES)[number];
 
-const MODE_LABELS: Record<AddMode, string> = { upload: "Upload a file", paste: DATABANK_PASTE_TEXT_NAME, link: "From a link" };
+const MODE_LABELS: Record<AddMode, string> = { upload: DATABANK_UPLOAD_FILE_NAME, paste: DATABANK_PASTE_TEXT_NAME, link: DATABANK_FROM_LINK_NAME };
 
 // The Link field's form name, which is also the name its input carries in the arm's form.
 const LINK_FIELD = "url" satisfies keyof ScrapeFormValues;
@@ -137,9 +142,9 @@ export function AddDocumentBody(): ReactElement {
       </Text>
       <Stack gap="block">
         <Stack gap="field">
-          <Text voice="label">Use this document in</Text>
+          <Text voice="label">{DATABANK_ATTACH_GROUP_NAME}</Text>
           <ToggleGroup
-            aria-label="Use this document in"
+            aria-label={DATABANK_ATTACH_GROUP_NAME}
             onValueChange={(next): void => {
               const picked = DOCUMENT_SCOPE_SOURCES.find((kind) => kind === next[0]);
               if (picked !== undefined) {
@@ -460,7 +465,11 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
         {(source): ReactElement => (
           <form.AppField name={LINK_FIELD}>
             {(field): ReactElement => (
-              <field.TextField {...(runnerFailed[source] ? { describedBy: failureId, invalid: true } : {})} label="Link" placeholder="https://…" />
+              <field.TextField
+                {...(runnerFailed[source] ? { describedBy: failureId, invalid: true } : {})}
+                label={DATABANK_LINK_FIELD_NAME}
+                placeholder="https://…"
+              />
             )}
           </form.AppField>
         )}
@@ -496,7 +505,7 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (
             <Button data-testid={testId("databankScrapeSubmit")} disabled={destination === null || urlEmpty || pending} type="submit">
-              {pending ? "Fetching…" : "Fetch and add"}
+              {databankFetchAddLabel(pending)}
             </Button>
           )}
         </form.Subscribe>

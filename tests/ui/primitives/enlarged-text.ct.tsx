@@ -62,7 +62,7 @@ for (const factor of SCALES) {
       await mount<typeof FullDialogStory>(`${STORIES}/FullDialogStory`, {});
       await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
       const footer = page.locator('[data-slot="dialog-footer"]');
-      const control = footer.getByRole("button", { name: "Fetch and add", exact: true });
+      const control = footer.getByRole("button", { name: "Carry it over", exact: true });
       await expect
         .poll(async () => {
           const [within, box] = await Promise.all([footer.boundingBox(), control.boundingBox()]);

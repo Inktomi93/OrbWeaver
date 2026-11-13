@@ -6,17 +6,17 @@ import { routeAuthConfig } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness, readAccounts } from "@orb/testkit/node/composed";
-import type { AuthActionGroupsStory } from "./_pending-join-stories.tsx";
 import {
-  APPROVAL_RESPONSE,
-  JOIN_CONFIRM_LABEL,
-  JOIN_NAME_LABEL,
-  JOIN_PERSONA,
-  PENDING_AUTH_CONFIG,
-  PENDING_CONFIRM_PATH,
-  PENDING_PREVIEW_PATH,
-  PENDING_ROOM,
-} from "./pending-join-fixtures.ts";
+  JOIN_CREATE_ACCOUNT_NAME,
+  JOIN_HAVE_ACCOUNT_NAME,
+  JOINER_PERSONA_NAME_FIELD,
+  PENDING_JOIN_NOT_NOW_NAME,
+  pendingJoinConfirmLabel,
+  SIGN_IN_NAME,
+  SIGN_IN_TO_JOIN_NAME,
+} from "#client/features/auth/lib/pending-join-names.ts";
+import type { AuthActionGroupsStory } from "./_pending-join-stories.tsx";
+import { APPROVAL_RESPONSE, JOIN_PERSONA, PENDING_AUTH_CONFIG, PENDING_CONFIRM_PATH, PENDING_PREVIEW_PATH, PENDING_ROOM } from "./pending-join-fixtures.ts";
 
 const STORY = "tests/client/features/auth/components/_pending-join-stories/AuthActionGroupsStory";
 const REGIMES = [
@@ -53,19 +53,19 @@ for (const regime of REGIMES) {
         await page.addInitScript(() => globalThis.history.replaceState(null, "", "/login?pendingJoin=1"));
         try {
           await mount<typeof AuthActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
-          const create = page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true });
-          const dismiss = page.getByRole("button", { name: "Not now", exact: true });
+          const create = page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true });
+          const dismiss = page.getByRole("button", { name: PENDING_JOIN_NOT_NOW_NAME, exact: true });
           await expect(create).toBeVisible();
           await create.focus();
           await expect(create).toBeFocused();
           await page.keyboard.press("Tab");
           await expect(dismiss).toBeFocused();
           if (confirming) {
-            await page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true }).fill(JOIN_PERSONA.name);
+            await page.getByRole("textbox", { name: JOINER_PERSONA_NAME_FIELD, exact: true }).fill(JOIN_PERSONA.name);
             await create.click();
             await arrived.promise;
           }
-          const primary = page.getByRole("button", { name: confirming ? "Joining…" : JOIN_CONFIRM_LABEL, exact: true });
+          const primary = page.getByRole("button", { name: pendingJoinConfirmLabel(confirming), exact: true });
           const geometry = await actionGroupGeometry(page.locator('[data-slot="auth-action-host"]'), [primary, dismiss]);
           await testInfo.attach("pending-join-action-boxes", { body: JSON.stringify(geometry), contentType: "application/json" });
           expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
@@ -87,7 +87,7 @@ for (const regime of REGIMES) {
           await dismiss.focus();
           await expect(dismiss).toBeFocused();
           await page.keyboard.press("Enter");
-          await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
+          await expect(page.getByRole("heading", { name: SIGN_IN_NAME, exact: true })).toBeVisible();
           expect(writes).toBe(confirming ? 1 : 0);
         } finally {
           release.resolve();
@@ -124,8 +124,8 @@ for (const regime of REGIMES) {
         });
         await page.addInitScript(() => globalThis.history.replaceState(null, "", "/login"));
         await mount<typeof AuthActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance, signupToken: invite.token });
-        const existing = page.getByRole("button", { name: "I already have an account", exact: true });
-        const dismiss = page.getByRole("button", { name: "Not now", exact: true });
+        const existing = page.getByRole("button", { name: JOIN_HAVE_ACCOUNT_NAME, exact: true });
+        const dismiss = page.getByRole("button", { name: PENDING_JOIN_NOT_NOW_NAME, exact: true });
         await expect(existing).toBeVisible();
         await expect(page.getByText(PENDING_ROOM.roomName, { exact: false })).toBeVisible();
         const geometry = await actionGroupGeometry(page.locator('[data-slot="auth-action-host"]'), [existing, dismiss]);
@@ -138,7 +138,7 @@ for (const regime of REGIMES) {
         await page.keyboard.press("Tab");
         await expect(dismiss).toBeFocused();
         await (destination === "dismiss" ? dismiss : existing).press("Enter");
-        await expect(page.getByRole("heading", { name: destination === "dismiss" ? "Sign in" : "Sign in to join", exact: true })).toBeVisible();
+        await expect(page.getByRole("heading", { name: destination === "dismiss" ? SIGN_IN_NAME : SIGN_IN_TO_JOIN_NAME, exact: true })).toBeVisible();
         expect(writes).toBe(0);
         expect(await readAccounts(root)).toEqual(accounts);
         expect((await caller.invites.listInvites({ chatId: room.id })).find((row) => row.id === invite.invite.id)?.remainingUses).toBe(1);

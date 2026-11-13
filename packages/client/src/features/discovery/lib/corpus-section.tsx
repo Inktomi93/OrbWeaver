@@ -18,6 +18,7 @@ import { CorpusVisualsTab } from "../components/corpus-visuals-tab.tsx";
 import type { CorpusModes } from "../components/corpus-workspace.tsx";
 import { CorpusWorkspaceContent, CorpusWorkspaceList } from "../components/corpus-workspace.tsx";
 import { useCorpusListHeader } from "../hooks/use-corpus-list-header.tsx";
+import { CORPUS_CONTEXT_TAB_LABELS } from "./corpus-control-names.ts";
 import { CORPUS_SECTION_LABEL } from "./corpus-section-label.ts";
 import { useCorpusSelectionTitle } from "./corpus-selection-title.ts";
 
@@ -92,15 +93,15 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
       tabs: [
         {
           id: "evidence",
-          label: "Evidence",
+          label: CORPUS_CONTEXT_TAB_LABELS.evidence,
           when: (state) => state.mode === "explore" && state.subject !== null && state.subject !== undefined,
           body: () => <CorpusArtifactContext />,
         },
-        { id: "archetypes", label: "Archetypes", when: isExplore, body: () => <CorpusArchetypesTab /> },
-        { id: "visuals", label: "Visuals", when: isExplore, body: () => <CorpusVisualsTab /> },
-        { id: "map", label: "Map", when: isExplore, body: () => <CorpusMapTab /> },
-        { id: "similarity", label: "Similarity", when: isExplore, body: () => <CorpusSimilarityTab /> },
-        { id: "compare", label: "Compare", when: isExplore, body: () => <CorpusCompareTab /> },
+        { id: "archetypes", label: CORPUS_CONTEXT_TAB_LABELS.archetypes, when: isExplore, body: () => <CorpusArchetypesTab /> },
+        { id: "visuals", label: CORPUS_CONTEXT_TAB_LABELS.visuals, when: isExplore, body: () => <CorpusVisualsTab /> },
+        { id: "map", label: CORPUS_CONTEXT_TAB_LABELS.map, when: isExplore, body: () => <CorpusMapTab /> },
+        { id: "similarity", label: CORPUS_CONTEXT_TAB_LABELS.similarity, when: isExplore, body: () => <CorpusSimilarityTab /> },
+        { id: "compare", label: CORPUS_CONTEXT_TAB_LABELS.compare, when: isExplore, body: () => <CorpusCompareTab /> },
       ],
       contributors: contributions.contextTabs,
     }),

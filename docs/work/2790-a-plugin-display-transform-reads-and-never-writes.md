@@ -11,7 +11,7 @@ plan: authorization-and-visibility
 
 ## What
 
-A display call reaches every bridge operation not tied to a chat on its grant alone, including storage writes and spend (`packages/server/src/infra/plugin-host/bridge-rpc.ts`). A read call can also consume a strike a stalled write left owed. Only the installer's own client reaches it. Ruling: display is a read path, so every write and spend class is refused from a display call, derived from the reach table.
+A display call reaches every bridge operation not tied to a chat on its grant alone, including storage writes and spend (`packages/server/src/infra/plugin-host/bridge-rpc.ts`). A read call can also consume a strike a stalled write left owed. Only the installer's own client reaches it. Ruling: display is a read path. Each row of the bridge operation reach table gains an effect (read, write or spend), exhaustive over the operation union by type and classified by reading each handler; a display call admits read only; the rehydration read set is derived from the table or held to it by type, never a second hand list. A shipped display transform that relies on a write or spend is listed, not excepted.
 
 ## Why
 

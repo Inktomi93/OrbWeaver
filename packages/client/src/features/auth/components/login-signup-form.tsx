@@ -13,6 +13,7 @@ import { signUpWithInvite } from "#data";
 import { createSavedEntityForm, focusFirstInvalidFieldIn } from "#forms/editor";
 import { DEAD_INVITE_SENTENCE, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
+import { JOIN_HAVE_ACCOUNT_NAME, PENDING_JOIN_NOT_NOW_NAME, signupSubmitLabel } from "../lib/pending-join-names.ts";
 import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 
 const useSignupForm = createSavedEntityForm({
@@ -159,14 +160,14 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
                 </Text>
               )}
               <Button type="submit" disabled={pending} data-testid={testId("signupSubmit")}>
-                {pending ? "Creating your account…" : "Create account and join"}
+                {signupSubmitLabel(pending)}
               </Button>
               <Row wrap={true} gap="row">
                 <Button cap="fit" variant="ghost" wrap={true} onClick={onUseSignIn} data-testid={testId("signupUseSignIn")}>
-                  I already have an account
+                  {JOIN_HAVE_ACCOUNT_NAME}
                 </Button>
                 <Button variant="ghost" onClick={onDismiss} data-testid={testId("signupDismiss")}>
-                  Not now
+                  {PENDING_JOIN_NOT_NOW_NAME}
                 </Button>
               </Row>
             </Stack>

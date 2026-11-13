@@ -22,6 +22,7 @@ import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { anyFieldOverridden, draftNumber, isOverridden } from "../lib/app-override-model.ts";
 import { MEMORY_TUNING_SUBCATEGORY } from "../lib/memory-tuning-nav.ts";
+import { ADMIN_MEMORY_MIN_MATCH_NAME } from "../lib/user-admin-names.ts";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 // The numeric memoryDefaults knobs — each a MemoryDefaults field with a floor in DEFAULT_MEMORY_DEFAULTS.
@@ -70,7 +71,7 @@ const NUMERIC_KNOBS = [
   },
   {
     key: "minScore",
-    label: "Minimum match",
+    label: ADMIN_MEMORY_MIN_MATCH_NAME,
     hint: "How closely a stored scene must match the conversation. A higher minimum reduces noise but can miss useful memories.",
     step: 0.05,
   },

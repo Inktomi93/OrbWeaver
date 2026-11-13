@@ -24,6 +24,7 @@ import { readFresh, useTRPC } from "#data";
 import type { BugReportServerFacts, PublicBugReport } from "#lib";
 import { buildPublicBugReport, copyWithNotice, downloadJson, IS_DEV, publicBugReportIssueUrl, useOpenRequests } from "#lib";
 import type { ChromePresentation } from "#state";
+import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME, bugReportPrepareLabel } from "../lib/app-shell-names.ts";
 import { captureBugReportBundle, submitBugReport } from "../lib/bug-report-capture.ts";
 import type { PreparedBugReport } from "../lib/bug-report-public-capture.ts";
 import { preparePublicBugReport } from "../lib/bug-report-public-capture.ts";
@@ -176,9 +177,9 @@ function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: 
 
   const form = (
     <Stack gap="row">
-      <Text voice="label">What happened?</Text>
+      <Text voice="label">{BUG_REPORT_NOTE_NAME}</Text>
       <Textarea
-        aria-label="What happened?"
+        aria-label={BUG_REPORT_NOTE_NAME}
         rows={4}
         value={note}
         onChange={(event): void => setNote(event.target.value)}
@@ -196,7 +197,7 @@ function BugReportButton({ devCapture, loadServerFacts, presentation = "bar" }: 
       </RadioGroup>
       <Row gap="field" align="center" wrap={true}>
         <Button type="button" size="sm" disabled={!hasNote || busy} onClick={prepare}>
-          {status.kind === "preparing" ? "Preparing…" : "Prepare report"}
+          {bugReportPrepareLabel(status.kind === "preparing")}
         </Button>
         {devCapture ? (
           <Button type="button" variant="outline" size="sm" disabled={!hasNote || busy} onClick={capture}>
@@ -250,7 +251,13 @@ function BugReportFrame({ presentation, open, onOpenChange, children }: BugRepor
   if (presentation === "sheet") {
     return (
       <Stack data-slot="bug-report-sheet" gap="row">
-        <ListRow clickable={true} aria-expanded={open} leading={<Icon icon={Bug} size="sm" />} onClick={(): void => onOpenChange(!open)} title="Report a bug" />
+        <ListRow
+          clickable={true}
+          aria-expanded={open}
+          leading={<Icon icon={Bug} size="sm" />}
+          onClick={(): void => onOpenChange(!open)}
+          title={BUG_REPORT_NAME}
+        />
         {open ? children : null}
       </Stack>
     );
@@ -263,16 +270,16 @@ function BugReportFrame({ presentation, open, onOpenChange, children }: BugRepor
           render={
             <PopoverTrigger
               render={
-                <Button variant="ghost" square={true} className="shell-topbar-icon-btn" aria-label="Report a bug">
+                <Button variant="ghost" square={true} className="shell-topbar-icon-btn" aria-label={BUG_REPORT_NAME}>
                   <Icon icon={Bug} size="sm" />
                 </Button>
               }
             />
           }
         />
-        <TooltipPopup side="bottom">Report a bug</TooltipPopup>
+        <TooltipPopup side="bottom">{BUG_REPORT_NAME}</TooltipPopup>
       </Tooltip>
-      <PopoverPopup aria-label="Report a bug">
+      <PopoverPopup aria-label={BUG_REPORT_NAME}>
         <Stack minWidth="popupFloor">{children}</Stack>
       </PopoverPopup>
     </Popover>

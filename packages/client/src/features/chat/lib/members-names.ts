@@ -39,3 +39,14 @@ export const INVITE_OUTSTANDING_HEADING = "Outstanding invites";
 
 /** What that list reads, as its failed-read sentence names it. */
 export const INVITE_OUTSTANDING_READ = "the outstanding invites";
+
+/** The invite dialog's inline refusal when a handle names no invitable user. */
+export const INVITE_TARGET_UNKNOWN_TEXT = "No invitable user with that exact handle.";
+
+/** The invite landing dialog's title. */
+export const JOIN_DIALOG_TITLE = "Join a chat";
+
+/** A character row's menu item that takes the character out of the room. */
+export function memberRemoveName(characterName: string): string {
+  return `Remove ${characterName} from chat`;
+}

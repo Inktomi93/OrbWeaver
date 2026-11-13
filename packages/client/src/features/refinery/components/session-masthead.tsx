@@ -11,7 +11,7 @@ import type { ReactElement } from "react";
 import { DetailHeader } from "#components";
 import { testId, timeLib } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
-import { REFINERY_SESSION_STATE_NAME } from "../lib/refinery-names.ts";
+import { REFINERY_SCOPE_NAME, REFINERY_SESSION_STATE_NAME, refineryOpenCardName } from "../lib/refinery-names.ts";
 import { scopeChipLabelOf } from "../lib/render-plan.ts";
 import { SESSION_STATUS_CHIP } from "../lib/verdict.ts";
 import { RefineryChip, RefinerySentenceChip } from "./refinery-chip.tsx";
@@ -52,7 +52,7 @@ export function SessionMasthead({
                 saying what the surface is about, and `selectCharacter` with `setActiveSection` is the pair every
                 launcher uses. */}
             <Button
-              aria-label={`Open card ${cardName} in the Characters section`}
+              aria-label={refineryOpenCardName(cardName)}
               variant="ghost"
               onClick={(): void => {
                 selectCharacter(characterId);
@@ -92,8 +92,8 @@ export function SessionMasthead({
       {/* The scope chips are ONE cluster too, and their kicker is its name — `aria-label` rather than an
           `aria-labelledby` at the visible "Scope" text, because the group's name must survive the row
           wrapping the kicker onto its own line at a narrow pane. */}
-      <Row align="center" aria-label="Scope" wrap={true} gap="field" role="group">
-        <Text voice="kicker">Scope</Text>
+      <Row align="center" aria-label={REFINERY_SCOPE_NAME} wrap={true} gap="field" role="group">
+        <Text voice="kicker">{REFINERY_SCOPE_NAME}</Text>
         {selection.fields.map((field) => (
           <RefineryChip key={field} tone="neutral">
             {scopeChipLabelOf(field, selection.greetingIndexes)}

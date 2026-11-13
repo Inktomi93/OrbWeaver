@@ -215,6 +215,9 @@ interface ResidentPlugin {
    *  action re-enters the surface's `onAction` through THIS so a throwing handler bumps `consecutive_crashes`
    *  (3-strike auto-disable) exactly like a tool/transform/event handler does. */
   readonly invoke: PluginInvokeHandler;
+  /** The invoker a query path uses: it logs a failure and never touches the crash counter, so a read writes no
+   *  plugin state. A display transform re-enters through this. */
+  readonly invokeForRead: PluginInvokeHandler;
 }
 
 /** The in-process resident-instance registry the lifecycle owns (`ASSUMES(single-replica)` — the enabled-index

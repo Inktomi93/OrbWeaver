@@ -138,6 +138,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
   "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
+  "^tests/client/components/_form-dialog-labels\\.ts$": "the title the form dialog create story authors and its spec finds the dialog by",
   "^tests/client/lib/use-focus-on-mount-names\\.ts$": "the control and surface names the arrival-focus stories author and their spec reads",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
@@ -494,12 +495,17 @@ const TEST_CONSTANT_HOMES = {
     "APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: the Message details section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
     "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the Message style section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/chat-behavior-message-handling-model.ts":
+    "CHAT_MESSAGE_HANDLING_SUBCATEGORY: the Message handling section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/app-shell/lib/appearance-effects-model.ts":
     "APPEARANCE_EFFECTS_SUBCATEGORY: the Effects section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/auth/lib/reauth-names.ts": "REAUTH_MODAL_TITLE: the re-auth prompt's title, which its landing test names the dialog by",
   "packages/client/src/features/plugin/lib/plugin-command-copy.ts":
     "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
-  "packages/client/src/features/workloads/lib/import-library-names.ts": "IMPORT_FOLDER_NAME: the import section's folder door",
+  "packages/client/src/features/workloads/lib/import-library-names.ts":
+    "IMPORT_FOLDER_NAME and its siblings: the import section's doors, its preflight report and the persona review's answers",
+  "packages/client/src/features/workloads/lib/workloads-names.ts":
+    "WORKLOAD_JOB_FIELD_NAME and its siblings: the Jobs, Schedules, export and tuning sections' names",
   "packages/ui/src/primitives/selection-bar/selection-bar-names.ts": "SELECTION_CLEAR_NAME and selectionCountLabel: the selection bar's names",
   "packages/ui/src/primitives/color-field/color-field-names.ts":
     "COLOR_HEX_FIELD_NAME and colorPickerName: the colour field's hex box and picker names, which the Look walk records the popup by",
@@ -554,6 +560,16 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and its siblings: the Corpus list, browse, gem shelf and model-route list names",
+  "packages/client/src/features/app-shell/lib/app-shell-names.ts":
+    "BUG_REPORT_NAME and its siblings: the bug report door and form, the command chip, the skip link, the You sheet groups and the Background section's names",
+  "packages/client/src/features/user-admin/lib/user-admin-names.ts":
+    "ADMIN_CREATE_USER_NAME and its siblings: the Admin pane's create-user, approvals, sessions, embed and reset names and its override field names",
+  "packages/client/src/features/auth/lib/pending-join-names.ts":
+    "PENDING_JOIN_NOT_NOW_NAME and its siblings: the sign-in card's headings and presses, and the invite arms' headings, notes and persona field",
+  "packages/client/src/features/discovery/lib/character-facet.ts": "characterFacetLine: the genre, tone and setting line a browse row prints",
+  "packages/client/src/features/discovery/lib/corpus-vocabulary.ts": "distilledCensus: the distilled-against-library phrasing the Corpus list band prints",
+  "packages/client/src/features/refinery/lib/reason-copy.ts":
+    "DROP_REASON_COPY: the refusal text each dropped field's chip and note print, which the review and action-group suites read",
   "packages/client/src/features/config/lib/theme-row-names.ts": "themeActionsName: the name of a Looks theme row's actions menu",
   "packages/client/src/features/workloads/lib/import-folder-copy.ts":
     "IMPORT_FOLDER_WRONG_FOLDER: the sentence the SillyTavern folder import prints when the folder is not a user folder",
@@ -564,6 +580,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/send-failure-copy.ts": "SEND_FAILED_TITLE: the toast a failed send raises for a reason the turn copy does not name",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
+  "packages/client/src/lib/config-search-tokens.ts": "CONFIG_PLUGIN_TOKEN: the Settings map's plugin narrowing token a completion row leads with",
   "packages/client/src/lib/use-focus-on-mount.ts":
     "PRESS_RENDER_WINDOW_MS: how long after a press a surface may still arrive from the body on that press's account",
   "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",
@@ -577,12 +594,18 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/automation/lib/automation-names.ts":
     "RULE_EDITOR_NAME, ruleTestName and their siblings: the rule list, row, editor and library-wide section names",
   "packages/client/src/features/workloads/lib/workloads-schedule-model.ts": "scheduleEnabledSwitchName: the per-schedule enable switch name",
+  "packages/client/src/features/workloads/lib/workloads-failure-copy.ts":
+    "OTHERS_CONTROLS_HIDDEN_TEXT: the line a delegated admin reads when the account list fails",
   "packages/client/src/features/preset/lib/assembly-model.ts": "sectionEnabledSwitchName: the per-section enable switch name on a rack row and in its drill-in",
   "packages/client/src/features/chat/lib/regex-section-model.ts":
     "regexScriptEverywhereSwitchName and regexTierAllowedSwitchName: the regex script and tier switch names",
   "packages/client/src/features/user-admin/lib/admin-model.ts":
     "userEnabledFieldName and adminSaveName: the per-account enabled switch and the admin override row Save names",
   "packages/client/src/features/user-admin/lib/system-tuning-nav.ts": "SYSTEM_TUNING_SUBCATEGORY: the System tuning section label its admin Save names",
+  "packages/client/src/features/user-admin/lib/rate-limits-nav.ts": "RATE_LIMITS_SUBCATEGORY: the Rate limits section label its admin Reset names",
+  "packages/client/src/features/user-admin/lib/memory-tuning-nav.ts": "MEMORY_TUNING_SUBCATEGORY: the Memory tuning section label its admin Reset names",
+  "packages/client/src/features/user-admin/lib/system-config-nav.ts":
+    "MEDIA_TRUST_SUBCATEGORY, MULTI_USER_SUBCATEGORY and OPERATIONS_SUBCATEGORY: the section labels their admin Reset names",
   "packages/client/src/lib/background-jobs.ts": "BACKGROUND_JOB_LOGS: the log line a background job writes in place of a toast",
   "packages/client/src/features/persona/lib/persona-copy.ts":
     "PERSONA_NAME_REQUIRED, CLEAR_PIN_NAME, nowDefaultNotice and their siblings: the persona editor's field and footer names, its blank-name error, the clear-pin action and the crown-moved notice",
@@ -1022,9 +1045,6 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/workloads/components/platform-schedule-dialog-dismissal.suite.ct.tsx": {
     "packages/client/src/features/workloads/lib/workloads-schedule-model.ts":
       "SCHEDULE_CADENCE_LABELS: the production cadence names used to edit and reopen schedules",
-  },
-  "tests/client/features/refinery/components/platform-action-groups.suite.ct.tsx": {
-    "packages/client/src/features/refinery/lib/reason-copy.ts": "DROP_REASON_COPY: production queue refusal text used by rendered action-group assertions",
   },
   "tests/client/features/discovery/lib/corpus-duplicate-groups.test.ts": {
     "packages/client/src/features/discovery/lib/corpus-duplicate-groups.ts": "groupIdenticalArt: the feature-private duplicate grouping",

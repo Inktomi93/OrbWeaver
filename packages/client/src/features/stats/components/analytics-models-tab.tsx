@@ -25,6 +25,12 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 import {
+  ANALYTICS_GENERATIONS_BY_MODEL_NAME,
+  ANALYTICS_GENERATIONS_HEADING,
+  ANALYTICS_MODELS_NAME,
+  ANALYTICS_REPLY_SPEED_HEADING,
+} from "../lib/analytics-names.ts";
+import {
   byModelBarItems,
   formatAccountingLabel,
   formatCompact,
@@ -68,8 +74,8 @@ function ModelsBody(): ReactElement {
 
       {drilled === null ? <OwnerLatency /> : null}
 
-      <Section heading="Generations">
-        <BarList items={byModelBarItems(models)} label="Generations by model" truncation="middle" valueFormatter={formatCompact} />
+      <Section heading={ANALYTICS_GENERATIONS_HEADING}>
+        <BarList items={byModelBarItems(models)} label={ANALYTICS_GENERATIONS_BY_MODEL_NAME} truncation="middle" valueFormatter={formatCompact} />
       </Section>
 
       <Section heading="Breakdown">
@@ -79,7 +85,7 @@ function ModelsBody(): ReactElement {
           /* `role="list"` needs `listitem` CHILDREN or every row is generic to AT and the list announces
              empty (side-eye ANALYTICS 2026-08-19, P2c — 50 rows, none of them a list item). The wrapper
              carries the role, never the ListRow, and posinset/setsize is the collection-rows spelling. */
-          <Stack aria-label="Models" gap="row" role="list">
+          <Stack aria-label={ANALYTICS_MODELS_NAME} gap="row" role="list">
             {models.map((model, index) => {
               const modelName = modelDisplayName(model.model);
               return (
@@ -129,7 +135,7 @@ function OwnerLatency(): ReactElement {
   const trpc = useTRPC();
   const { data: latency } = useSuspenseQuery(trpc.stats.latency.queryOptions({ kind: "owner" }));
   return (
-    <Section heading="Reply speed (all models)">
+    <Section heading={ANALYTICS_REPLY_SPEED_HEADING}>
       <Row gap="block" wrap={true}>
         <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(latency.avgTtftMs)} />
         <StatFigure label={LATENCY_LABELS.p90Ttft} value={formatMs(latency.p90TtftMs)} />

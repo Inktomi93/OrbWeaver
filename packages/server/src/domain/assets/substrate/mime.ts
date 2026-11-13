@@ -115,7 +115,8 @@ export function assertKindAdmits(bytes: Uint8Array, kind: AssetKind): void {
 
 /** The type a bundle restore stores its bytes under. The filename's kinds and type are claims nothing proved: every kind
  *  must admit the bytes, image bytes take the sniffed type unless the claim is one the signature bears out (an animated
- *  PNG keeps `image/apng`), and every other claim must pass {@link assertMagicMatches}, as at the upload door. The one
+ *  PNG keeps `image/apng`), a video claim of the container its bytes are is stored bare, and every other claim must pass
+ *  {@link assertMagicMatches}, as at the upload door. The one
  *  exception is a ZIP stored as `application/zip`, as a plugin bundle is: that type has no signature arm. */
 export function restoredMime(bytes: Uint8Array, kinds: readonly AssetKind[], claimedMime: string): string {
   for (const kind of kinds) {
@@ -128,6 +129,11 @@ export function restoredMime(bytes: Uint8Array, kinds: readonly AssetKind[], cla
     // An upload refuses a picture under the wrong image type; a restore keeps it, because its bytes come from this
     // app's own earlier store, where older import writers recorded a forced type.
     return imageClaimHolds(base, sniffed) ? base : sniffed;
+  }
+  // A video claim of the container its bytes are sheds its parameter as a picture's does: the stored type is one bare
+  // type the blob route serves inline. Any other claim over video bytes still meets the signature check below.
+  if (media === "video" && baseMime(claimedMime) === videoContainerOf(bytes)) {
+    return baseMime(claimedMime);
   }
   if (!(media === "zip" && claimedMime === ZIP_ARCHIVE_MIME)) {
     assertMagicMatches(bytes, claimedMime);
@@ -151,6 +157,14 @@ function matchesAt(bytes: Uint8Array, offset: number, signature: string): boolea
 /** True iff `bytes` starts with the given ASCII/byte signature (a short buffer simply fails to match). */
 function startsWith(bytes: Uint8Array, signature: string): boolean {
   return matchesAt(bytes, 0, signature);
+}
+
+// The video container the bytes are, by their leading magic; null for bytes that are neither.
+function videoContainerOf(bytes: Uint8Array): typeof MP4_MIME | typeof WEBM_MIME | null {
+  if (matchesAt(bytes, FTYP_OFFSET, FTYP_SIGNATURE)) {
+    return MP4_MIME;
+  }
+  return startsWith(bytes, EBML_SIGNATURE) ? WEBM_MIME : null;
 }
 
 /** The `video/*` arm — the two container formats we accept (BG-V backgrounds + chat attachments), by

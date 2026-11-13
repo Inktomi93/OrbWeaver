@@ -1,6 +1,7 @@
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { HOME_QUICK_PICKS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { HomeGridRefStory } from "./_grid-ref-stories.tsx";
 
 let root: Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -18,7 +19,7 @@ test("Home passes its grid ref to quick-picks across the coarse-pointer column c
     ...serveCorpusProcedures(await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES),
   });
   const mounted = await mount<typeof HomeGridRefStory>("tests/client/features/home/surfaces/_grid-ref-stories/HomeGridRefStory", { width: 1440 });
-  const faces = page.getByRole("list", { name: "Character quick-picks", exact: true });
+  const faces = page.getByRole("list", { name: HOME_QUICK_PICKS_NAME, exact: true });
   const shelf = faces.locator("..");
   await expect(faces).toBeVisible();
   await expect.poll(() => page.locator("[data-home-grid]").evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(/\s+/u).length)).toBe(2);

@@ -4,6 +4,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
+import { CORPUS_SEARCH_DISCLOSURE_NAME } from "../lib/corpus-control-names.ts";
 
 type Search = inferOutput<Trpc["search"]["search"]>;
 const TARGET_DISCLOSURE: Readonly<Record<Search["over"], string>> = {
@@ -21,7 +22,7 @@ export function CorpusSearchDisclosure({ result }: { readonly result: Search }):
     <Stack gap="tight">
       <Text voice="gloss">{TARGET_DISCLOSURE[result.over]}</Text>
       <Collapsible>
-        <CollapsibleTrigger>How search works</CollapsibleTrigger>
+        <CollapsibleTrigger>{CORPUS_SEARCH_DISCLOSURE_NAME}</CollapsibleTrigger>
         <CollapsiblePanel offset="row">
           <Text voice="gloss">
             Request limit: {result.coverage.requestLimit}. Candidate limit: {result.coverage.candidateLimit}.

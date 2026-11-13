@@ -35,6 +35,7 @@ import {
   workloadKindItems,
   workloadKindNeedsBulkTarget,
 } from "../lib/workloads-model.ts";
+import { WORKLOAD_JOB_FIELD_NAME, WORKLOAD_RUN_AFTER_NAME } from "../lib/workloads-names.ts";
 import { parseRunAt } from "../lib/workloads-run-model.ts";
 import { MaintenanceKindNote } from "./maintenance-kind-note.tsx";
 import { WorkloadParamFields } from "./workload-kind-fields.tsx";
@@ -147,7 +148,7 @@ function RunWorkloadFormBody({
       testKey="runWorkloadDialog"
       title="Run a job"
     >
-      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Job" items={kindItems} />}</form.AppField>
+      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label={WORKLOAD_JOB_FIELD_NAME} items={kindItems} />}</form.AppField>
       <WorkloadParamFields form={form} />
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
@@ -205,7 +206,7 @@ function RunWorkloadFormBody({
                 <form.AppField name="dependsOn">
                   {(field): ReactElement => (
                     <field.MultiToggleField
-                      label="Run after these complete"
+                      label={WORKLOAD_RUN_AFTER_NAME}
                       description="This run waits until every selected job succeeds. If one fails, this run is skipped."
                       items={dependencyItems}
                     />

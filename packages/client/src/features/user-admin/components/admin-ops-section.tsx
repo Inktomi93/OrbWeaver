@@ -14,6 +14,7 @@ import { useId, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useEmbedCharacterCard, useRefreshCatalog } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "../lib/admin-ops-nav.ts";
+import { ADMIN_CHARACTER_ID_NAME, ADMIN_EMBED_CARD_NAME } from "../lib/user-admin-names.ts";
 
 /** The one built-in row with an enriched hosted catalog (reasoning/modality/pricing fields). */
 const OPENROUTER_PROVIDER_ID = "openrouter";
@@ -77,7 +78,7 @@ export function AdminEmbedCardSection({ anchorId }: { readonly anchorId: string 
         </Text>
         <Row gap="field" align="center" wrap={true}>
           <Input
-            aria-label="Character id"
+            aria-label={ADMIN_CHARACTER_ID_NAME}
             placeholder="character id"
             value={characterId}
             onValueChange={(next): void => {
@@ -92,7 +93,7 @@ export function AdminEmbedCardSection({ anchorId }: { readonly anchorId: string 
             aria-describedby={malformed ? hintId : undefined}
             onClick={onEmbed}
           >
-            Embed card
+            {ADMIN_EMBED_CARD_NAME}
           </Button>
         </Row>
         {malformed ? (

@@ -64,7 +64,7 @@ import { useRef, useState } from "react";
 import { CountText, QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
 import type { CollectionContribution, CollectionInsight } from "#lib";
-import { DIALOG_VERBS, useFocusOnSwap } from "#lib";
+import { CLEAR_FILTER_NAME, DIALOG_VERBS, useFocusOnSwap } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { selectCollectionMemberFromList, useCollectionSelection } from "#state";
 import { CONFIG_MORE_LIBRARY_ACTIONS_NAME, collectionEmptyTitle, collectionFilterName } from "../lib/config-control-names.ts";
@@ -180,7 +180,7 @@ function CollectionControlRow({
               filterRef.current?.focus();
             }}
           >
-            Clear filter
+            {CLEAR_FILTER_NAME}
           </Button>
         )}
         <CollectionBulkToggle collection={collection} />

@@ -6,7 +6,14 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { pluginDetailsLabel, updateAvailableLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import {
+  PLUGIN_DISTRIBUTE_ACTION_NAME,
+  PLUGIN_INSTALL_NAME,
+  pluginCheckForUpdatesLabel,
+  pluginDetailsLabel,
+  pluginUpdateToLabel,
+  updateAvailableLabel,
+} from "#client/features/plugin/lib/plugin-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PluginActionGroupsStory, PluginInstallActionsStory } from "./_update-action-groups-stories.tsx";
 
@@ -97,9 +104,9 @@ for (const regime of REGIMES) {
       );
       await mount<typeof PluginActionGroupsStory>(STORY, { width: regime.width, appearance });
       await page.getByRole("button", { name: pluginDetailsLabel(manifest.name), exact: true }).click();
-      const check = page.getByRole("button", { name: `Check ${manifest.name} for updates`, exact: true });
+      const check = page.getByRole("button", { name: pluginCheckForUpdatesLabel(manifest.name), exact: true });
       await check.click();
-      const update = page.getByRole("button", { name: `Update ${manifest.name} to ${NEXT_VERSION}`, exact: true });
+      const update = page.getByRole("button", { name: pluginUpdateToLabel(manifest.name, NEXT_VERSION), exact: true });
       await expect(update).toHaveText(updateAvailableLabel(NEXT_VERSION));
       await check.focus();
       await page.keyboard.press("Tab");
@@ -141,7 +148,7 @@ for (const regime of REGIMES) {
       await expect(cancel).toBeVisible();
       const group = cancel.locator("..");
       const distribute = group.getByRole("button").first();
-      await expect(distribute).toContainText(/Distribute/u);
+      await expect(distribute).toContainText(PLUGIN_DISTRIBUTE_ACTION_NAME);
       await distribute.focus();
       await page.keyboard.press("Tab");
       await expect(cancel).toBeFocused();
@@ -180,7 +187,7 @@ for (const regime of REGIMES) {
         .first()
         .setInputFiles({ name: "install-actions.zip", mimeType: "application/zip", buffer: Buffer.from(bundle) });
       await expect(page.getByRole("heading", { name: `Review ${manifest.name} ${manifest.version}`, exact: true })).toBeVisible();
-      const install = page.getByRole("button", { name: "Install", exact: true });
+      const install = page.getByRole("button", { name: PLUGIN_INSTALL_NAME, exact: true });
       const cancel = page.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(install).toBeEnabled();
       await install.focus();

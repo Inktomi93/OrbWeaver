@@ -12,9 +12,16 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import {
   REFINERY_EDIT_SCOPE_NAME,
+  REFINERY_GO_TO_SCORE_NAME,
+  REFINERY_NO_RUNS_TITLE,
+  REFINERY_ORIGINAL_CARD_NOTE,
+  REFINERY_ORIGINAL_CARD_TITLE,
+  REFINERY_RUNS_TAB_LABEL,
+  REFINERY_SCOPE_NAME,
   REFINERY_SESSION_STATE_NAME,
   REFINERY_SETUP_TAB_LABEL,
   REFINERY_VERSIONS_NAME,
+  refineryOpenCardName,
   refineryRestoreVersionName,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -89,9 +96,9 @@ async function expectIdentity(masthead: Locator, title: string, deferred: boolea
   await test.info().attach("masthead-card-identity-paint", { body: JSON.stringify({ title, deferred, facts }), contentType: "application/json" });
   expect(facts).toHaveLength(deferred ? 0 : 1);
   await expect(masthead.getByRole("group", { name: REFINERY_SESSION_STATE_NAME, exact: true })).toBeVisible();
-  await expect(masthead.getByRole("button", { name: `Open card ${CARD_NAME} in the Characters section`, exact: true })).toBeVisible();
+  await expect(masthead.getByRole("button", { name: refineryOpenCardName(CARD_NAME), exact: true })).toBeVisible();
   await expect(masthead.getByRole("button", { name: REFINERY_EDIT_SCOPE_NAME, exact: true })).toBeVisible();
-  await expect(masthead.getByRole("group", { name: "Scope", exact: true })).toBeVisible();
+  await expect(masthead.getByRole("group", { name: REFINERY_SCOPE_NAME, exact: true })).toBeVisible();
 }
 
 for (const regime of REGIMES) {
@@ -181,9 +188,9 @@ for (const regime of REGIMES) {
       await expect(owner).not.toBeInViewport();
       await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator(CONTEXT);
-      await expect(context.getByRole("tab", { name: "Runs", exact: true })).toHaveAttribute("aria-selected", "true");
-      await expect(context.getByText("No runs yet", { exact: true })).toBeVisible();
-      const go = context.getByRole("button", { name: "Go to Score", exact: true });
+      await expect(context.getByRole("tab", { name: REFINERY_RUNS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
+      await expect(context.getByText(REFINERY_NO_RUNS_TITLE, { exact: true })).toBeVisible();
+      const go = context.getByRole("button", { name: REFINERY_GO_TO_SCORE_NAME, exact: true });
       await expect(go).toBeVisible();
       await go.focus();
       await page.keyboard.press("Enter");
@@ -217,7 +224,7 @@ for (const regime of REGIMES) {
       await expect(view).toBeVisible();
       await view.focus();
       await page.keyboard.press("Enter");
-      const dialog = page.getByRole("dialog", { name: "Original card: pinned at session start", exact: true });
+      const dialog = page.getByRole("dialog", { name: REFINERY_ORIGINAL_CARD_TITLE, exact: true });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("heading", { name: CARD_NAME, exact: true })).toBeVisible();
       for (const text of Object.values({ ...PINNED_TEXT, description: LONG_DESCRIPTION })) {
@@ -231,9 +238,7 @@ for (const regime of REGIMES) {
       const depthNote = dialog.getByText(ORIGINAL_DEPTH_NOTE, { exact: true });
       await expect(depthNote).toBeVisible();
       await expectOriginalMeasure(depthNote);
-      await expectOriginalMeasure(
-        dialog.getByText("Read-only authored fields pinned when this session started. Macros are shown as written.", { exact: true }),
-      );
+      await expectOriginalMeasure(dialog.getByText(REFINERY_ORIGINAL_CARD_NOTE, { exact: true }));
       for (const paragraph of [dialog.getByText(LONG_DESCRIPTION, { exact: true }), greeting]) {
         const lines = await paragraph.evaluate((node) => {
           const range = document.createRange();

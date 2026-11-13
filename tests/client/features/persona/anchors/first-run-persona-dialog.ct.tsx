@@ -3,6 +3,7 @@ import { testId } from "@orb/client/lib";
 import { ALERTS_REGION_NAME, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PERSONA_FIRST_RUN_FAILED, PERSONA_FIRST_RUN_TITLE } from "#client/features/persona/lib/persona-copy.ts";
 import type { FirstRunPersonaDialogStory } from "./_first-run-persona-stories.tsx";
 
 test("with no persona the first-run ask is forced open: no close control, Escape keeps it, Create waits for a name", async ({ corpus, mount, page }) => {
@@ -18,7 +19,7 @@ test("with no persona the first-run ask is forced open: no close control, Escape
   });
   await mount<typeof FirstRunPersonaDialogStory>("tests/client/features/persona/anchors/_first-run-persona-stories/FirstRunPersonaDialogStory", {});
 
-  const gate = page.getByRole("dialog", { name: "Who are you in the story?", exact: true });
+  const gate = page.getByRole("dialog", { name: PERSONA_FIRST_RUN_TITLE, exact: true });
   await expect(gate).toBeVisible();
   await expect(gate.getByRole("button", { name: /close/iu })).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -47,10 +48,10 @@ test("a refused create is said by the ask's own sentence", async ({ corpus, moun
   });
   await mount<typeof FirstRunPersonaDialogStory>("tests/client/features/persona/anchors/_first-run-persona-stories/FirstRunPersonaDialogStory", {});
 
-  const gate = page.getByRole("dialog", { name: "Who are you in the story?", exact: true });
+  const gate = page.getByRole("dialog", { name: PERSONA_FIRST_RUN_TITLE, exact: true });
   await gate.getByRole("textbox", { name: "Name", exact: true }).fill("Sarah");
   await page.getByTestId(testId("firstRunPersonaCreate")).click();
 
   const alerts = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true });
-  await expect(alerts.getByText("Couldn't create your persona. Try again.", { exact: true })).toBeVisible();
+  await expect(alerts.getByText(PERSONA_FIRST_RUN_FAILED, { exact: true })).toBeVisible();
 });

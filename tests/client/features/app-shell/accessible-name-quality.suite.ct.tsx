@@ -9,6 +9,7 @@ import { auditSurface, formatFindings } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { ADMIN_MAX_IMAGE_DOWNLOAD_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { groupScenario, modalScenario, sectionScenario } from "./_surface-scenarios.ts";
 import type { ConfigGroupStory, ModalShellStory, PresetDetailShellStory, SectionShellStory } from "./_surface-stories.tsx";
@@ -59,7 +60,7 @@ test("the loaded preset detail has no name-quality findings", async ({ corpus, m
 
 test("the loaded Admin controls have no name-quality findings", async ({ mount, page }) => {
   await mount<typeof ConfigGroupStory>(`${STORIES}/ConfigGroupStory`, { group: "admin" });
-  await expect(page.getByRole("textbox", { name: "Max generated-image download (MB)", exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: ADMIN_MAX_IMAGE_DOWNLOAD_NAME, exact: true })).toBeVisible();
   const report = await auditSurface({ ...groupScenario(page, "admin"), checks: ["names"] });
   expect(formatFindings(report.names)).toBe("");
 });

@@ -3,6 +3,7 @@
 // The `(anchor, subId)` pair is byte-identical to the pre-split pane's own subcategory (§7.1).
 
 import type { ConfigSubcategory } from "#state";
+import { SCHEDULE_CREATE_TITLE } from "./workloads-names.ts";
 
 export const WORKLOADS_SCHEDULES_SUBCATEGORY: ConfigSubcategory = {
   id: "schedules",
@@ -15,7 +16,7 @@ export const WORKLOADS_SCHEDULES_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "create-schedule",
-      label: "Create a schedule",
+      label: SCHEDULE_CREATE_TITLE,
       keywords: ["recurring", "cadence", "nightly", "hourly", "weekly", "monthly", "automatic", "edit", "bulk", "system-wide", "maintenance"],
       teach: { summary: "Run a job on a cadence (nightly, hourly, weekly) instead of by hand.", affects: ["your recurring background jobs"] },
     },

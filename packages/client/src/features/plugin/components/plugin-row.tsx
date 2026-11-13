@@ -28,7 +28,10 @@ import {
   PLUGIN_DETAILS_LABEL,
   PLUGIN_ERROR_COPY_SUBJECT,
   PLUGIN_ERROR_SENTENCE,
+  PLUGIN_PERMISSIONS_HEADING,
+  pluginCardLabel,
   pluginDetailsLabel,
+  pluginPermissionsLabel,
   REMOVE_PLUGIN_DESCRIPTION,
   showInChatSwitchName,
   statusCopy,
@@ -124,7 +127,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
 
   return (
     // The bordered install boundary separates each plugin's consent story from its neighbors.
-    <Card aria-label={`${plugin.name} plugin`} id={installedPluginControlId(plugin.id)} role="group" tabIndex={-1}>
+    <Card aria-label={pluginCardLabel(plugin.name)} id={installedPluginControlId(plugin.id)} role="group" tabIndex={-1}>
       <Stack gap="block">
         {/* THE HEADER is a distinct block — identity left, lifecycle controls right — closed by a hairline
             (the Section-divider grammar), so the acts (toggle/update/remove) read as chrome OF the plugin
@@ -278,8 +281,8 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             "What ${name} is allowed to do" re-ordered them, so a voice-control user saying the words on
             the screen could not match the control. The plugin name still disambiguates — after the em
             dash, outside the visible phrase. */}
-                  <CollapsibleTrigger aria-label={`What it's allowed to do: ${plugin.name}`} size="control">
-                    <Text voice="label">What it's allowed to do</Text>
+                  <CollapsibleTrigger aria-label={pluginPermissionsLabel(plugin.name)} size="control">
+                    <Text voice="label">{PLUGIN_PERMISSIONS_HEADING}</Text>
                   </CollapsibleTrigger>
                   {/* The inset clears the checkbox's touch-target pseudo on the side it now docks (P2-11's rule, side
             flipped by the grant-list rework): the panel's `overflow-hidden` is load-bearing for the
@@ -307,7 +310,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                         // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
                         <PluginGrantList
                           roleScope={{ kind: "plugin", pluginId: plugin.id }}
-                          capabilitiesLabel={`What it's allowed to do: ${plugin.name}`}
+                          capabilitiesLabel={pluginPermissionsLabel(plugin.name)}
                           declared={plugin.declaredCapabilities}
                           granted={plugin.grantedCapabilities}
                           netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}

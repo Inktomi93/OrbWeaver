@@ -9,6 +9,8 @@ import {
   WORLD_INFO_ENTRY_DEPTH_NAME,
   WORLD_INFO_ENTRY_ROLE_NAME,
   WORLD_INFO_ENTRY_TITLE_NAME,
+  WORLD_INFO_FIRE_MODE_NAME,
+  WORLD_INFO_PRIORITY_NAME,
 } from "#client/features/world-info/lib/world-info-names.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
@@ -50,8 +52,8 @@ for (const width of PHONE_WIDTHS) {
     const title = component.getByRole("textbox", { name: WORLD_INFO_ENTRY_TITLE_NAME, exact: true });
     await expect(title).toHaveValue(world.reads.entry.output.title);
     const editor = await title.boundingBox();
-    const priority = await component.getByRole("textbox", { name: "Priority", exact: true }).boundingBox();
-    const fireMode = await component.getByRole("combobox", { name: "Fire mode", exact: true }).boundingBox();
+    const priority = await component.getByRole("textbox", { name: WORLD_INFO_PRIORITY_NAME, exact: true }).boundingBox();
+    const fireMode = await component.getByRole("combobox", { name: WORLD_INFO_FIRE_MODE_NAME, exact: true }).boundingBox();
     if (editor === null || priority === null || fireMode === null) {
       throw new Error("The editor and its two controls must have visible geometry");
     }

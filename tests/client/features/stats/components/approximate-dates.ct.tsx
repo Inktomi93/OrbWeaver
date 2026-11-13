@@ -9,7 +9,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { APPROX_DATES_MARK, APPROX_DATES_NOTE } from "#client/features/stats/lib/analytics-copy.ts";
+import { ANALYTICS_BUSIEST_DAY_LEAD, APPROX_DATES_MARK, APPROX_DATES_NOTE } from "#client/features/stats/lib/analytics-copy.ts";
+import { ANALYTICS_RHYTHM_HEADING, ANALYTICS_TOKENS_PER_DAY_NAME, ANALYTICS_TURNS_PER_DAY_NAME } from "#client/features/stats/lib/analytics-names.ts";
 import type { ApproximateDatesStory } from "./_approximate-dates-stories.tsx";
 
 const STORY = "tests/client/features/stats/components/_approximate-dates-stories/ApproximateDatesStory";
@@ -59,7 +60,7 @@ for (const approximate of [true, false]) {
     await using root = await createCorpusHarness(undefined, { startJobs: false });
     await routeTimeline(page, root, approximate);
     const component = await mount<typeof ApproximateDatesStory>(STORY, { view: "time" });
-    for (const chart of ["Assistant turns per day", "Output tokens per day"]) {
+    for (const chart of [ANALYTICS_TURNS_PER_DAY_NAME, ANALYTICS_TOKENS_PER_DAY_NAME]) {
       const days = component.getByRole("table", { name: chart, exact: true }).getByRole("rowheader");
       // Both days are on the axis either way; only the later day's dates differ.
       await expect(days).toHaveCount(2);
@@ -72,9 +73,11 @@ for (const approximate of [true, false]) {
     await using root = await createCorpusHarness(undefined, { startJobs: false });
     await routeTimeline(page, root, approximate);
     const component = await mount<typeof ApproximateDatesStory>(STORY, { view: "overview" });
-    await expect(component.getByRole("heading", { name: "Rhythm", exact: true })).toBeVisible();
+    await expect(component.getByRole("heading", { name: ANALYTICS_RHYTHM_HEADING, exact: true })).toBeVisible();
     await expect(component.getByText(APPROX_DATES_NOTE, { exact: true })).toHaveCount(approximate ? 1 : 0);
     // The later day is the busiest, so its mark rides the sentence that names it.
-    await expect(component.getByText(/Your busiest day was/u)).toContainText(approximate ? `was ${APPROX_DATES_MARK}` : /was [A-Z]/u);
+    await expect(component.getByText(new RegExp(`^${RegExp.escape(ANALYTICS_BUSIEST_DAY_LEAD)}`, "u"))).toContainText(
+      approximate ? `was ${APPROX_DATES_MARK}` : /was [A-Z]/u,
+    );
   });
 }

@@ -14,10 +14,10 @@ import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { slugifyHandle } from "@orb/kit/slug";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
+import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { relativePathOf } from "#client/data/import-tree.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
-import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
-import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_ANOTHER_NAME, IMPORT_FOLDER_NAME, IMPORT_PREVIEW_REPORT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -168,9 +168,9 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     await chooser.setFiles(root);
     const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
     await expect(preflight).toBeVisible({ timeout: settleMs });
-    await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: settleMs });
+    await expect(preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true })).toBeVisible({ timeout: settleMs });
     await preflight.getByRole("button", { name: IMPORT_CONFIRM_NAME }).click();
-    await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: settleMs });
+    await expect(page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true })).toBeVisible({ timeout: settleMs });
   } finally {
     page.off("response", recordResponse);
   }

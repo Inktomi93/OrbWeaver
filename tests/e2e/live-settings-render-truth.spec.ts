@@ -18,6 +18,7 @@
 
 import { appearanceGroup } from "@orb/client/features/config";
 import { SECTION_LABELS } from "@orb/testkit/ct";
+import { BACKGROUND_IMAGE_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
 import { THEME_MOCHA_NAME } from "#server/domain/settings/constants.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -110,7 +111,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
 
     // ── 2. Change the BACKGROUND through the real appearance settings — the R-BG thumbnail grid (#866
     //       S4): one gridcell per plate, named by its label; the KIND derives from the tapped tile. ──
-    const backgroundGrid = page.getByRole("grid", { name: "Background image" });
+    const backgroundGrid = page.getByRole("grid", { name: BACKGROUND_IMAGE_NAME });
     await backgroundGrid.scrollIntoViewIfNeeded();
     await expect(backgroundGrid).toBeVisible({ timeout: WAIT_UI_MS });
     await backgroundGrid.getByRole("gridcell", { name: SEEDED_BG_OPTION }).click();

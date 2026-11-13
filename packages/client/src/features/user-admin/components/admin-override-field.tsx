@@ -27,6 +27,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { DestructiveAction, SettingTrackRow } from "#components";
 import { ADMIN_SAVE_LABEL, ADMIN_SAVING_LABEL, adminSaveName } from "../lib/admin-model.ts";
+import { ADMIN_RESET_DEFAULTS_NAME, adminResetSectionName } from "../lib/user-admin-names.ts";
 
 /** The numeric row's floor formatter — the SAME default format the NumberField primitive formats its visible
  *  value with (locale defaulted, grouping off), so the floor sentence reads in the same digits as the control
@@ -181,14 +182,14 @@ export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, savi
         {anyOverridden ? (
           <DestructiveAction
             confirm={{
-              confirmLabel: "Reset to defaults",
+              confirmLabel: ADMIN_RESET_DEFAULTS_NAME,
               description: `Every override in ${sectionLabel} is cleared and the built-in defaults apply again.`,
               title: `Reset ${sectionLabel} to defaults?`,
             }}
             onConfirm={onReset}
             trigger={
-              <Button aria-label={`Reset to defaults: ${sectionLabel}`} variant="outline" size="sm" disabled={saving}>
-                Reset to defaults
+              <Button aria-label={adminResetSectionName(sectionLabel)} variant="outline" size="sm" disabled={saving}>
+                {ADMIN_RESET_DEFAULTS_NAME}
               </Button>
             }
           />

@@ -5,6 +5,7 @@ import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import { CONFIG_SEARCH_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { CONFIG_PLUGIN_TOKEN } from "#client/lib/config-search-tokens.ts";
 import type { ConfigListStory } from "./_list-stories.tsx";
 
 const PLUGIN_SLUG = "zephyr-notes";
@@ -52,7 +53,7 @@ test("@in: offers the visible group names as completions", async ({ page }) => {
 test("@plugin: offers the installed plugin slugs as completions", async ({ page }) => {
   const search = page.getByRole("combobox", { name: CONFIG_SEARCH_NAME });
   await search.fill("@plugin:zeph");
-  await expect(page.getByRole("option", { name: new RegExp(`@plugin:${PLUGIN_SLUG}`, "u") })).toBeVisible();
+  await expect(page.getByRole("option", { name: new RegExp(`${RegExp.escape(CONFIG_PLUGIN_TOKEN)}${PLUGIN_SLUG}`, "u") })).toBeVisible();
 });
 
 test("a search with no match is announced through a status live region beside the suggestions listbox", async ({ page }) => {
