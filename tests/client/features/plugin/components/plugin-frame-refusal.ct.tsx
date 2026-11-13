@@ -2,7 +2,7 @@
 // with an allowlisted code a scripted guest would receive; a granted call through the same relay answers its value.
 import { spawn } from "node:child_process";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { PluginFrameResult } from "@orb/contracts/plugin";
+import type { pluginFrameResultMessage } from "@orb/contracts/plugin";
 import {
   HOST_FUNCTION_CAPABILITY,
   PLUGIN_FRAME_CALL_REFUSED,
@@ -93,7 +93,7 @@ test("a frame's refused host call carries no reason, though the server refused i
   const component = await mount<typeof PluginFrameTextScaleStory>(STORY, { width: STORY_WIDTH, fontScale: 1 });
   try {
     // Keys in the frame's sorted order: "granted" before "refused-grant".
-    const expected: Record<string, PluginFrameResult> = {
+    const expected: Record<string, Parameters<typeof pluginFrameResultMessage>[0]> = {
       [GRANTED_CALL]: { callId: GRANTED_CALL, ok: true, value: null },
       [REFUSED_CALL]: { callId: REFUSED_CALL, ok: false, error: PLUGIN_FRAME_CALL_REFUSED },
     };
