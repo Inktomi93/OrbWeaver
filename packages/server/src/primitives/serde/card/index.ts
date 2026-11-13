@@ -526,7 +526,11 @@ export interface ExportCardFields {
 /** One attached lore entry projected for the OUT mapper. Carries the full round-trip payload — typed
  *  columns PLUS the preserved `metadata` blob — so import → export → reimport doesn't strip
  *  `constant` / `position` / vendor extensions. */
-export type ExportWorldEntry = Readonly<Omit<BulkImportLoreEntryInput, "description" | "keys">> & { readonly keys: string[] };
+export type ExportWorldEntry = Readonly<Omit<BulkImportLoreEntryInput, "description" | "keys" | "metadata">> & {
+  readonly keys: string[];
+  // A stored row's metadata as a read carries it: parsed, not narrowed for the column.
+  readonly metadata: Readonly<Record<string, unknown>> | null;
+};
 
 // ST's at-depth directive lives under `extensions.position = 4` with a sibling `depth`/`role` (the
 // world-info-at-depth encoding). 4 is ST's WORLD_INFO_POSITION.atDepth.
@@ -586,7 +590,7 @@ export function loreEntryIdentity(entry: LoreEntryIdentityInput): Record<string,
 }
 
 function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
-  const meta = isPlainObject(entry.metadata) ? entry.metadata : {};
+  const meta: Readonly<Record<string, unknown>> = entry.metadata ?? {};
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
   const inject = resolveEntryInjection(meta);
   const baseExtensions = isPlainObject(meta["extensions"]) ? meta["extensions"] : {};

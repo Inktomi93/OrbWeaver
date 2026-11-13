@@ -112,6 +112,10 @@ const entryMetadataWriteSchema = jsonObjectSchema.superRefine((val, ctx): void =
   }
 }) satisfies z.ZodType<JsonObject, Record<string, unknown>>;
 
+/** A decoded file's entry metadata, narrowed for the column. A refused known field is a schema issue here, never a
+ *  throw, so a file serde's row policy and a card parse can each answer it as a refusal of that file. */
+export const narrowedEntryMetadataSchema = entryMetadataWriteSchema.nullable().transform((raw): EntryMetadata | null => narrowEntryMetadata(raw));
+
 export const createEntrySchema = z.strictObject({
   title: z.string().min(1).max(WORLD_INFO_NAME_MAX),
   content: z.string().min(1).max(CONTENT_MAX),
@@ -248,8 +252,9 @@ export const reorderResultSchema = z.strictObject({ reordered: z.number() }) sat
 
 // Entry-level variants are emitted by domain/world-info/verbs/entries/{create,update,remove}.
 
-/** One resolved lore entry to bulk-import. `keys` is null-collapsed by the writer (empty =\> NULL);
- *  `metadata` is validated through `entryMetadataSchema` at the write seam, never trusted raw. */
+/** One resolved lore entry to bulk-import. `keys` is null-collapsed by the writer (empty =\> NULL).
+ *  `metadata` is already narrowed: whoever decodes a file passes {@link narrowEntryMetadata} there, so a refused
+ *  entry fails the parse, before the importer has written the record the book belongs to. */
 export interface BulkImportLoreEntryInput {
   readonly title: string;
   readonly description: string | null;
@@ -258,7 +263,7 @@ export interface BulkImportLoreEntryInput {
   readonly enabled: boolean;
   readonly priority: number;
   readonly ignoreBudget: boolean;
-  readonly metadata: Record<string, unknown> | null;
+  readonly metadata: EntryMetadata | null;
 }
 
 /** One resolved embedded lorebook to bulk-import into a character (the `world_books` header + its entries).

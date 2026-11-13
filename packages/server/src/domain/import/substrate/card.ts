@@ -17,7 +17,8 @@ import {
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
-import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
+import type { BulkImportLorebookInput, EntryMetadata } from "@orb/contracts/world-info";
+import { narrowedEntryMetadataSchema } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { parseJsonText } from "@orb/kit/json";
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
@@ -59,6 +60,15 @@ function asRecord(v: unknown): Record<string, unknown> | null {
   return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
+// Narrowed at the parse, so a card whose embedded book the column refuses fails before its character is written.
+function narrowedLoreMetadata(raw: Record<string, unknown>): EntryMetadata | null {
+  const narrowed = narrowedEntryMetadataSchema.safeParse(raw);
+  if (!narrowed.success) {
+    throw new ImportCardError("card_invalid", `the card's embedded world book failed validation:\n${z.prettifyError(narrowed.error)}`);
+  }
+  return narrowed.data;
+}
+
 // selectBestCharacterBook disambiguates a card that embeds a book twice (most-named-entries wins).
 function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null {
   const root = asRecord(raw);
@@ -72,7 +82,7 @@ function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null
   }
   const entries = extractLorebook(book).map((entry) => ({
     ...loreEntryColumns(entry),
-    metadata: loreEntryMetadata(entry),
+    metadata: narrowedLoreMetadata(loreEntryMetadata(entry)),
   }));
   if (entries.length === 0) {
     return null;

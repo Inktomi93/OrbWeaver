@@ -63,15 +63,21 @@ function failureText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** The one-line reason a failed card carries into the import report. A schema refusal prints its message and then
- *  the field it is at on an indented line of its own, so the last line alone would name a field and no fault. */
-export function importFailureReason(error: unknown): string {
+/** The fault a failed import item shows the person, on one line. A schema refusal prints its message and then the
+ *  field it is at on an indented line of its own, so the last line alone would name a field and no fault. */
+export function importFailureText(error: unknown): string {
   const message = failureText(error);
   const lines = message
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
   const last = lines.at(-1) ?? message;
-  const fault = last.startsWith("→") ? [lines.at(-2), last].filter((line) => line !== undefined).join(" ") : last;
+  return last.startsWith("→") ? [lines.at(-2), last].filter((line) => line !== undefined).join(" ") : last;
+}
+
+/** The reason a failed card carries into the import report: {@link importFailureText}, led by the refusal code
+ *  when the failure has one. */
+export function importFailureReason(error: unknown): string {
+  const fault = importFailureText(error);
   return error instanceof ImportCardError ? `${error.code}: ${fault}` : fault;
 }

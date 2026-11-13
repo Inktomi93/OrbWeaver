@@ -1,6 +1,6 @@
 import type { CardImportResult, FailedCard, ImportedCard } from "@orb/contracts/import";
 import type { ImportCardBatchDeps } from "../contract/cards.ts";
-import { ImportCardError } from "../contract/errors.ts";
+import { ImportCardError, importFailureText } from "../contract/errors.ts";
 
 /** A refused card is recorded individually; later cards still reach their owner-gated writes. */
 export async function importCardBatch({ files, service }: ImportCardBatchDeps): Promise<CardImportResult> {
@@ -29,7 +29,7 @@ export async function importCardBatch({ files, service }: ImportCardBatchDeps): 
       failed.push({
         filename,
         reason: err instanceof ImportCardError ? err.code : "failed",
-        error: err instanceof Error ? err.message : String(err),
+        error: importFailureText(err),
       });
     }
   }

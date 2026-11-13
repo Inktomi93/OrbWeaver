@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import {
+  CARD_REFUSAL_CODES,
   cardImportResultSchema,
   encodePersonaCollisionChoices,
   importStartedSchema,
@@ -33,6 +34,7 @@ const DIALOG_FIELD = "file";
 const WRAPPER = "default-user";
 const ENCODER = new TextEncoder();
 const OVERLONG_NAME_LENGTH = 100_000;
+const [, CARD_INVALID] = CARD_REFUSAL_CODES;
 
 function harness(): Promise<ServerTestHarness> {
   return createServerHarness({
@@ -171,10 +173,25 @@ test("a lore entry whose injection depth is past the cap imports with no depth d
     throw new Error("the card's embedded book did not import");
   }
   const entries = await caller.worldInfo.listEntries({ bookId: stored.id });
-  expect(entries.map((entry) => [entry.content, entry.metadata?.inject?.depth]).toSorted()).toEqual([
-    ["Far lore.", undefined],
-    ["Near lore.", 3],
+  expect(
+    entries.map((entry) => ({ content: entry.content, depth: entry.metadata?.inject?.depth })).toSorted((a, b) => a.content.localeCompare(b.content)),
+  ).toEqual([
+    { content: "Far lore.", depth: undefined },
+    { content: "Near lore.", depth: 3 },
   ]);
+});
+
+test("a card whose embedded book the parser refuses fails alone with a one-line fault and leaves no character", async () => {
+  await using root = await harness();
+  const refusedBook = card("Half Made", { book: '{"name":"Bad Lore","entries":[{"keys":["x"],"content":"Lore.","scopeMode":"bogus"}]}' });
+
+  const result = await dialog(root, "half-made.json", refusedBook);
+
+  expect(result.imported).toEqual([]);
+  expect(result.failed).toEqual([{ filename: "half-made.json", reason: CARD_INVALID, error: expect.stringMatching(/^[^\n]*scopeMode[^\n]*$/u) }]);
+  expect(await charactersNamed(root, "Half Made")).toBe(0);
+  const caller = await root.internalCallerFor(root.ownerId);
+  expect(await caller.worldInfo.listBooks()).toEqual([]);
 });
 
 test("a folder with a card the parser throws on and a card the schema refuses imports the good card and names both with their reasons", async () => {
@@ -203,9 +220,9 @@ test("a folder with a card the parser throws on and a card the schema refuses im
   const skipped = (await readFile(reportPath, "utf8"))
     .split("\n")
     .filter((line) => line.includes(".png`"))
-    .toSorted();
+    .toSorted((a, b) => a.localeCompare(b));
   expect(skipped).toEqual([
-    expect.stringMatching(/^- `refused\.png` — card_invalid: .*Too big.*description/u),
+    expect.stringMatching(new RegExp(`^- \`refused\\.png\` — ${CARD_INVALID}: .*Too big.*description`, "u")),
     expect.stringMatching(/^- `thrown\.png` — .*scopeMode/u),
   ]);
 });

@@ -4,6 +4,7 @@
 import type { CharacterCard, CharacterCardV3 } from "@orb/contracts/character";
 import { characterCardV3Schema } from "@orb/contracts/character";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
+import { narrowEntryMetadata } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -425,7 +426,7 @@ describe("cardImportHash is the import identity", () => {
   const bookOf = (metadata: Record<string, unknown> | null): CardImportIdentity["book"] => ({
     name: "Harbor Lore",
     description: null,
-    entries: [{ ...entry, metadata }],
+    entries: [{ ...entry, metadata: narrowEntryMetadata(metadata) }],
   });
   const scripted = (id: string): CharacterCard => harbor(`,"extensions":{"regex_scripts":[${JSON.stringify({ ...SCRIPT, id })}]}`);
 

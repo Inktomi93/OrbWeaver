@@ -5,6 +5,7 @@
 import type { PortableParse } from "@orb/contracts/portability";
 import { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput, EntryMetadata } from "@orb/contracts/world-info";
+import { narrowedEntryMetadataSchema } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { WorldBookId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
@@ -18,7 +19,7 @@ export { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
 const SCHEMA_VERSION = 1;
 
 // keys is always an array (empty, never omitted — the null-collapse to world_entries.keys is the writer's
-// job); metadata is the raw entry blob, passed through untouched.
+// job); metadata is narrowed here, so an entry with a refused known field refuses the file.
 const fileEntrySchema = z.object({
   title: z.string(),
   description: z.string().nullable(),
@@ -27,7 +28,7 @@ const fileEntrySchema = z.object({
   enabled: z.boolean(),
   priority: z.number(),
   ignoreBudget: z.boolean(),
-  metadata: z.record(z.string(), z.unknown()).nullable(),
+  metadata: narrowedEntryMetadataSchema,
 });
 
 // The book's own top-level fields, beside the envelope and the entry array. Not .strict() — an unknown
@@ -134,9 +135,11 @@ function stEntryKeyMode(adapted: Record<string, unknown>, metadata: Record<strin
   return { ...metadata, keyMode: "regex" };
 }
 
-function toLoreEntry(stEntry: Record<string, unknown>): BulkImportLoreEntryInput {
+// `null` for an entry whose metadata the column refuses: the parse answers that as a malformed file.
+function toLoreEntry(stEntry: Record<string, unknown>): BulkImportLoreEntryInput | null {
   const adapted = toCharacterBookEntry(stEntry);
-  return { ...loreEntryColumns(adapted), metadata: stEntryKeyMode(adapted, loreEntryMetadata(adapted)) };
+  const metadata = narrowedEntryMetadataSchema.safeParse(stEntryKeyMode(adapted, loreEntryMetadata(adapted)));
+  return metadata.success ? { ...loreEntryColumns(adapted), metadata: metadata.data } : null;
 }
 
 /** A decoded object is an ST world file when it carries an `entries` object and no envelope. */
@@ -159,7 +162,11 @@ export function parseWorldBookFile(bytes: Uint8Array, fallbackName: string): Por
   if (stEntries.length === 0) {
     return { ok: false, reason: "malformed" };
   }
-  return { ok: true, value: { name: fallbackName, description: null, entries: stEntries.map(toLoreEntry) } };
+  const entries = stEntries.map(toLoreEntry);
+  if (entries.some((entry) => entry === null)) {
+    return { ok: false, reason: "malformed" };
+  }
+  return { ok: true, value: { name: fallbackName, description: null, entries: entries.filter((entry) => entry !== null) } };
 }
 
 // ── The book content identity ────────────────────────────────────────────────────────────────────────
