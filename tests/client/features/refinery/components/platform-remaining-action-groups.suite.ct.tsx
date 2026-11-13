@@ -18,7 +18,6 @@ import {
   refineryCompareToggleName,
   refineryOpenCardName,
   refineryRestoreVersionName,
-  refineryVersionRowLabel,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -184,8 +183,8 @@ test("each version's Compare and Restore name its version and its row shows the 
   await expect(compares).toHaveCount(3);
   await expect(compares.first()).toHaveAccessibleName(refineryCompareToggleName(false, "Before the rename"));
   // Sighted readers get the same ordinal the names carry; a row with a label of its own prints none.
-  await expect(page.getByText(refineryVersionRowLabel("Manual layout reference", "#2"), { exact: true })).toBeVisible();
-  await expect(page.getByText(refineryVersionRowLabel("Manual layout reference", "#1"), { exact: true })).toBeVisible();
+  await expect(page.getByText("Manual layout reference #2", { exact: true })).toBeVisible();
+  await expect(page.getByText("Manual layout reference #1", { exact: true })).toBeVisible();
   await expect(page.getByText("Before the rename", { exact: true })).toBeVisible();
   // Each twin's Compare ends with the ordinal its own row prints, read off the page rather than built by the names module, so the two
   // twins' Compare names differ.
