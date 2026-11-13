@@ -160,15 +160,17 @@ test("each version's Restore names its version, and versions sharing a label are
     width: 960,
     appearance: appearanceSettingsSchema.parse({}),
   });
-  const names = (): Promise<(string | null)[]> =>
-    page.getByRole("button", { name: /^Restore /u }).evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
-  await expect(page.getByRole("button", { name: /^Restore /u })).toHaveCount(3);
+  const restores = page.getByRole("button", { name: /^Restore /u });
+  await expect(restores).toHaveCount(3);
   // The walk lists newest first; the ordinal counts from the oldest, so a later snapshot never renames an earlier one.
-  expect(await names()).toEqual([
+  const expected = [
     refineryRestoreVersionName("Before the rename"),
     refineryRestoreVersionName("Manual layout reference", "#2"),
     refineryRestoreVersionName("Manual layout reference", "#1"),
-  ]);
+  ];
+  for (const [index, name] of expected.entries()) {
+    await expect(restores.nth(index)).toHaveAccessibleName(name);
+  }
 });
 
 test("two runs of one stage in one round carry distinct names, oldest first", async ({ mount, page }) => {
