@@ -55,7 +55,8 @@ const GIT_LIST_MAX_BUFFER = 67_108_864;
  * `inline-also-authored`: production spells it and a story or fixture authors it too.
  * `authored`: only a story, fixture or corpus file spells it.
  * `guest`: only guest plugin markup spells it.
- * `unresolved`, `unresolved-template`: no production or test home was found.
+ * `unresolved`: no production or test file spells it.
+ * `unresolved-template`: no production file spells every fixed word, or its only words are short ones several files spell.
  * `no-words`: a computed name with no fixed word in it.
  * `non-word`: a literal with fewer than two letters in a row, such as a count.
  */
@@ -338,15 +339,25 @@ function classifyLiteral(site: NameSite, value: string, index: ProductionIndex, 
   return { ...site, class: evidence.authored.has(value) ? "authored" : "unresolved", feature: testFeature(site.file), homes: [] };
 }
 
-function homeOfPiece(piece: string, index: ProductionIndex): string | undefined {
-  const exact = [...(index.spelled.get(piece) ?? [])].filter((file) => !file.startsWith(GUEST_ROOT)).sort()[0];
-  if (exact !== undefined) {
-    return exact;
+// The production files that spell a fixed word: as a whole string or fragment, or, for a long word, inside one.
+function homesOfPiece(piece: string, index: ProductionIndex): Set<string> {
+  const homes = new Set(index.spelled.get(piece) ?? []);
+  if (piece.length >= MIN_SUBSTRING_PIECE) {
+    for (const [value, files] of index.spelled) {
+      if (value.includes(piece)) {
+        for (const file of files) {
+          homes.add(file);
+        }
+      }
+    }
   }
-  if (piece.length < MIN_SUBSTRING_PIECE) {
-    return undefined;
-  }
-  return index.texts.find(({ path, text }) => !path.startsWith(GUEST_ROOT) && text.includes(piece))?.path;
+  return new Set([...homes].filter((file) => !file.startsWith(GUEST_ROOT)));
+}
+
+// A computed name's home is a file that spells every one of its fixed words; one word alone names no home.
+function homesOfWords(words: readonly string[], index: ProductionIndex): string[] {
+  const [first, ...rest] = words.map((word) => homesOfPiece(word, index));
+  return sorted([...(first ?? [])].filter((file) => rest.every((homes) => homes.has(file))));
 }
 
 /** Classify one site against the production index. */
@@ -359,8 +370,9 @@ export function classifySite(site: NameSite, index: ProductionIndex, evidence: T
   if (words.length === 0) {
     return { ...site, class: "no-words", feature: testFeature(site.file), homes: [] };
   }
-  const homes = sorted(new Set(words.map((word) => homeOfPiece(word, index)).filter((home) => home !== undefined)));
-  if (homes.length > 0) {
+  const homes = homesOfWords(words, index);
+  const ambiguous = homes.length > 1 && words.every((word) => word.length < MIN_SUBSTRING_PIECE);
+  if (homes.length > 0 && !ambiguous) {
     return { ...site, class: "inline-template", feature: productionFeature(homes[0] ?? ""), homes };
   }
   return { ...site, class: words.some((word) => evidence.authored.has(word)) ? "authored" : "unresolved-template", feature: testFeature(site.file), homes: [] };
