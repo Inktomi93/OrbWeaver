@@ -36,7 +36,10 @@ const READS = [
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
 /** The delegate's reads with the account list failing until `recover`; every answer still comes from the server. */
-function failingAccountList(admin: Caller): { readonly routes: ReturnType<typeof serveCorpusProcedures>; readonly recover: () => void } {
+function failingAccountList(admin: Caller): {
+  readonly routes: ReturnType<typeof serveCorpusProcedures<(typeof READS)[number]>>;
+  readonly recover: () => void;
+} {
   let failing = true;
   const others = READS.filter((path) => path !== "admin.listUsers");
   return {
