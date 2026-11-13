@@ -8,7 +8,7 @@ import type { CancelWorkloadResult } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CancelWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
-import { loadWorkload, markCancelling } from "../persistence/queries.ts";
+import { loadStoredParams, loadWorkload, markCancelling } from "../persistence/queries.ts";
 import { isVisibleToCaller, mayActOnRow } from "../substrate/authorize.ts";
 import { releaseUnrun } from "../substrate/params.ts";
 
@@ -25,10 +25,9 @@ export function createCancel(ctx: WorkloadServiceContext): Pick<WorkloadService,
     if (result.status === "cancelled") {
       ctx.emitEvent({ type: "cancelled", workloadId: row.id, kind: row.kind, at });
       // The status guard let this row end here or in the worker's claim, never both, so it never ran. A poison
-      // row has no params to name what it holds; the owning domain's boot sweep owns that case.
-      if (!row.poison) {
-        await releaseUnrun(ctx.getContributions(), row.kind, row.params, row.ownerId);
-      }
+      // row's view has no params, so its stored value is read for the owning domain to find what it holds.
+      const stored = row.poison ? await loadStoredParams(ctx.db, row.id) : row.params;
+      await releaseUnrun(ctx.getContributions(), row.kind, stored, row.ownerId);
     }
     if (result.status === "cancelling") {
       // The run is in flight: abort it here, so the kind's single slot frees when the run unwinds and not a poll later.

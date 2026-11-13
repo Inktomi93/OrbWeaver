@@ -24,7 +24,7 @@ import type { WorkloadContribution } from "../contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../contract/service.ts";
 import type { StoredWorkloadResult, WorkloadClaim } from "../contract/workload-row.ts";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
-import { assertRunAuthority, runAccount } from "../substrate/params.ts";
+import { assertRunAuthority, releaseUnrun, runAccount } from "../substrate/params.ts";
 
 // Synthetic acting user for a scheduler/system-triggered row (`ownerId === null`); not a real `users` row.
 const SYSTEM_OWNER_ID = userIdSchema.parse("system");
@@ -301,12 +301,18 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   const cancelTimers = startLeaseTimers(deps, row, controller, lease);
   const contribution = withRequestSpan({ traces: deps.traces, requestId: `workload:${row.id}` }, "workload.run", { kind: row.kind }, async () => {
     // The one point every run passes, so a row no door judged, whatever build stored it, still fails here. It judges the claim, the identity the run executes as.
-    await assertRunAuthority(
-      deps,
-      { caller: null, account: runAccount({ mode: row.mode, ownerId: claim.ownerId, funderUserId: claim.funderUserId }) },
-      row.kind,
-      row.params,
-    );
+    try {
+      await assertRunAuthority(
+        deps,
+        { caller: null, account: runAccount({ mode: row.mode, ownerId: claim.ownerId, funderUserId: claim.funderUserId }) },
+        row.kind,
+        row.params,
+      );
+    } catch (refusal) {
+      // The body never starts, so its own cleanup never runs: the owning domain frees what the row held.
+      await releaseUnrun(deps.contributions, row.kind, row.params, claim.ownerId);
+      throw refusal;
+    }
     return await dispatchAndRun(deps, { ctx, row, report, signal: controller.signal });
   });
   let leaseFailed = false;
