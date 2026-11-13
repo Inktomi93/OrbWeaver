@@ -391,7 +391,7 @@ export {
   useUnsavedSaveSections,
 } from "./settings-save-status-store.ts";
 export { clearShellContentFocus, requestShellContentFocus, usePendingShellContentFocus } from "./shell-content-focus-store.ts";
-export { shellHeading, shellHeadingRef } from "./shell-heading-anchor.ts";
+export { shellHeading, shellHeadingRef, shellLeadControl, shellLeadControlRef } from "./shell-heading-anchor.ts";
 export {
   closeModal,
   getAvailableContextTabIds,
