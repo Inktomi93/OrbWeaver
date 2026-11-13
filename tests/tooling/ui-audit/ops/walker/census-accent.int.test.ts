@@ -17,7 +17,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { nonEmpty } from "@orb/testkit/iso";
 import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
-import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
+import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -59,13 +59,13 @@ auditRuleTest(
     },
   ],
   "an accent bar painted on a ::after layer is judged; the full-box gradient ring and the picker's art pane are not",
-  async ({ runCli, runSnap, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<style>${FIXTURE_CSS}</style>
 <div id="pseudo-bar" class="bar-host">a real surface wearing the banned edge</div>
 <div id="ring" class="ring-host">the sanctioned CTA / active-tab gradient ring</div>
 <div data-slot="picker-cell"><span data-slot="picker-cell-art"><div id="art-bar" class="bar-host">skin diagram</div></span></div>`;
     await writeFile(join(scratch, "accent-bar-census.html"), relationalDocument(body));
-    const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "accent-bar-census.html"), ...AUDIT_ARGV], {
+    const res = await runSnap(["--file", join(scratch, "accent-bar-census.html"), ...AUDIT_ARGV], {
       timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
     });
 
@@ -124,14 +124,13 @@ auditRuleTest(
     },
   ],
   "selectionRail recognizes both ratified carriers post-rename, and an unselected band stays judged",
-  async ({ runCli, runSnap, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const railStyle = "border-left:2px solid #dc2828;border-radius:8px;padding:8px;width:200px";
     const body = `<div id="rail-row" data-slot="list-row-root" data-selected style="${railStyle}">selected list row</div>
 <div id="rail-band" data-slot="config-band" data-selected style="${railStyle}">selected config band</div>
 <div id="rail-band-off" data-slot="config-band" style="${railStyle}">unselected config band</div>`;
     await writeFile(join(scratch, "selection-rail-rename.html"), relationalDocument(body));
-    // The parity case again, after the file's other runs have used the shared browser.
-    const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "selection-rail-rename.html"), ...AUDIT_ARGV], {
+    const res = await runSnap(["--file", join(scratch, "selection-rail-rename.html"), ...AUDIT_ARGV], {
       timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
     });
 

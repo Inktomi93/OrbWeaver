@@ -135,8 +135,9 @@ const PICTURES_PENDING = "a picture in view had not finished loading";
 // A picture that has not decoded paints nothing, so a shot taken then shows what lies behind it: a caption over
 // light art on a dark page reads as passing. Each picture in view answers its own `decode()`, which also starts a
 // lazy picture's load, and two animation frames follow so the decoded pictures are in the frame the shot takes. A
-// picture whose load failed paints nothing in any frame, so its rejection counts as settled.
-const PICTURES_PAINTED = `(async () => {
+// picture whose load failed paints nothing in any frame, so its rejection counts as settled. Built per call, so the
+// ceiling is the one in force for the invocation that asks.
+const picturesPainted = (): string => `(async () => {
   const inView = Array.from(document.images).filter((img) => {
     const box = img.getBoundingClientRect();
     return box.width > 0 && box.height > 0 && box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth;
@@ -165,7 +166,7 @@ export async function viewportPixels(page: Pick<Page, "screenshot">): Promise<(P
  *  When they do not within the ceiling there are no pixels to judge by. */
 async function paintedViewportPixels(page: Page): Promise<(PixelRaw & { data: Buffer }) | { error: string }> {
   try {
-    if ((await page.evaluate(PICTURES_PAINTED)) !== true) {
+    if ((await page.evaluate(picturesPainted())) !== true) {
       return { error: PICTURES_PENDING };
     }
   } catch (e) {

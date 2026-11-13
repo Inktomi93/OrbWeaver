@@ -3,6 +3,9 @@
 // (`ops/host.ts`), gives each run a disposable isolated context instead (`contextsIn`): fresh storage, cookies,
 // permissions, routes and init scripts, with the run's own viewport, device and media emulation.
 //
+// Ruling: cli.ts runs a launch-per-run host; the context-per-run host exists so a caller running many invocations in
+// one process (the tooling suites, through `tests/support/node/tool-fixtures.ts`) shares one Chromium per file.
+//
 // A context cannot change what its browser was launched with. A run that needs a launch-time provision the
 // owner lacks (the DevTools SDK cascade profile, a debugging endpoint, a headed display) is refused as an
 // INSTRUMENT ERROR, never run on a browser that silently differs from the one its own launch would build.

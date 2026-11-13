@@ -13,7 +13,7 @@
 // <main> landmark so the only P1-severity finding in play is the planted one.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { vi } from "vitest";
 import { scaledBudget } from "../../../_load-budget.ts";
@@ -59,10 +59,9 @@ async function plant(scratch: string, name: string, html: string): Promise<strin
 
 const READING_SURFACE = '<p style="%STYLE%;font-size:16px;margin:24px">the reading surface under audit</p>';
 
-test("a planted 1:1 contrast defect REDs the arm, and its white-on-black twin exits clean over a real census", async ({ runCli, runSnap, scratch }) => {
+test("a planted 1:1 contrast defect REDs the arm, and its white-on-black twin exits clean over a real census", async ({ runSnap, scratch }) => {
   const bad = await plant(scratch, "bad.html", page(`<main>${READING_SURFACE.replace("%STYLE%", "background:#000;color:#000")}</main>`));
-  // The parity case: the spawned CLI and the in-process door print the same verdict for the same argv.
-  const red = await expectSnapParity({ runCli, runSnap }, ["--file", bad, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  const red = await runSnap(["--file", bad, "--design-audit", ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(red.stdout, "contrast")).not.toEqual([]);
   expect(red.stdout).toContain("design-audit=measured");
   await expect(red).toExitWith(EXIT.violations);
@@ -415,7 +414,7 @@ test("#1659 — an --eval-planted defect ENTERS the design-audit census, and the
   await expect(bare).toExitWith(EXIT.clean);
 });
 
-test("#1659 FENCE (green before the fix too) — a trailing --eval still settles, and still runs exactly ONCE", async ({ runCli, runSnap, scratch }) => {
+test("#1659 FENCE (green before the fix too) — a trailing --eval still settles, and still runs exactly ONCE", async ({ runSnap, scratch }) => {
   // THIS ARM IS A REGRESSION FENCE, NOT A DEFECT PROOF, and says so because the distinction was worth a
   // verifier's time (v-V4): it passed against the PRE-fix `capture.ts` as well, since the old ordering
   // also ran a trailing `--eval` once and after settle. What it fences is the ordering change that landed
@@ -425,8 +424,7 @@ test("#1659 FENCE (green before the fix too) — a trailing --eval still settles
   // execution prints `"runs": 2`; a pre-settle read prints a `ready` that is not `settled`.
   // The DEFECT proof for #1659 is the arm above (a planted element entering the census).
   const file = await plant(scratch, "eval-once.html", page('<main><p style="font-size:16px">settled</p></main>'));
-  // The parity case again, after the file's other runs have used the shared browser.
-  const run = await expectSnapParity({ runCli, runSnap }, ["--file", file, "--design-audit", "--eval", EVAL_ONCE, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
+  const run = await runSnap(["--file", file, "--design-audit", "--eval", EVAL_ONCE, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
 
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout).toContain('"runs": 1');

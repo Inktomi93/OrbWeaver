@@ -4,10 +4,10 @@
 // request ring and its body budget, the revealed private values and the profile window numbers must all be the next
 // run's own. A run that hangs past its deadline is ended by the host, and the host's next run still runs.
 import { createServer } from "node:http";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
-import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { vi } from "vitest";
+import type { OwnLifetimeMode } from "../../../../tooling/src/snap/ops/command.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { listeningAddress } from "../../_server-address.ts";
 
@@ -15,6 +15,8 @@ const CASE_TIMEOUT_MS = scaledBudget(120_000);
 const RUN_TIMEOUT_MS = scaledBudget(60_000);
 // Shorter than a run needs to settle a hung eval, longer than the host's first run needs to launch its Chromium.
 const HUNG_RUN_DEADLINE_MS = scaledBudget(20_000);
+// A case limit below the run's asked deadline, as every converted suite has; long enough to hold the host's settle.
+const SHORT_CASE_TIMEOUT_MS = scaledBudget(30_000);
 vi.setConfig({ testTimeout: CASE_TIMEOUT_MS, hookTimeout: CASE_TIMEOUT_MS });
 
 const QUIET = ["--no-shot", "--no-deadcss", "--no-failure-evidence"] as const;
@@ -209,6 +211,21 @@ test("a run that hangs past its deadline is ended by the host, and the host's ne
   expect(evalState(next.stdout).width).toBe(1280);
 });
 
+// The two cases below run in order: a run that hangs in a case whose own limit is shorter than the run's asked
+// deadline, then an ordinary case. The host must end the hung run inside its case's limit, or the next case queues
+// behind it and fails on a hang that is not its own.
+test("a hung run in a case shorter than its asked deadline is ended inside the case", { timeout: SHORT_CASE_TIMEOUT_MS }, async ({ runSnap }) => {
+  await using origin = await serve();
+  const hung = await runSnap(["/", "--base", origin.base, "--eval", "new Promise(() => {})", ...QUIET], RUN);
+  expect(hung.timedOut).toBe(true);
+});
+
+test("the case after a hung one runs clean", async ({ runSnap }) => {
+  await using origin = await serve();
+  const next = await runSnap(["/", "--base", origin.base, "--eval", READ_STATE, ...QUIET], RUN);
+  await expect(next).toExitWith(EXIT.clean);
+});
+
 test("a run that needs a launch-time browser option is refused, and the shared browser still hosts the next run", async ({ runSnap }) => {
   await using origin = await serve();
   // `--vnc` asks for a headed display; the shared browser was launched headless and a context cannot change that.
@@ -221,26 +238,33 @@ test("a run that needs a launch-time browser option is refused, and the shared b
   expect(evalState(after.stdout).width).toBe(1280);
 });
 
-test("a mode that launches its own browser is refused in the host rather than launched beside it", async ({ runSnap }) => {
+// One argv per mode that launches its own browser or process. Keyed by the production union, so a new mode fails tsc
+// here until it has a case. None may reach the spawned CLI (`parity: false`): there the mode would really boot.
+const SELF_LAUNCHING_ARGV: Readonly<Record<OwnLifetimeMode, readonly string[]>> = {
+  "--matrix": ["/", "--matrix", "--isolated"],
+  "--scenario": ["--scenario", "absent-scenario.json"],
+  "--contexts/--as": ["/", "--contexts", "2"],
+  "--session": ["/", "--session", "p2750-refused"],
+  "an internal entry": ["--stage-keeper", "1"],
+  "--isolated": ["/", "--isolated"],
+  "--materialize-devtools-assets": ["--materialize-devtools-assets"],
+};
+
+test.for(Object.entries(SELF_LAUNCHING_ARGV))("%s is refused in the host, which still runs the next run", async ([mode, argv], { runSnap }) => {
   await using origin = await serve();
-  // `--matrix` needs a stage, so the argv carries `--isolated` too; both own a lifetime the host cannot give a context.
-  const refused = await runSnap(["/", "--matrix", "--isolated", ...QUIET], RUN);
+  const refused = await runSnap(argv, { ...RUN, parity: false });
   await expect(refused).toExitWith(EXIT.toolError);
-  expect(refused.stderr).toMatch(/INSTRUMENT ERROR: --matrix, --isolated cannot run as a context of a shared browser/u);
+  expect(refused.stdout).toBe("");
+  expect(refused.stderr).toMatch(new RegExp(`INSTRUMENT ERROR: [^\n]*${RegExp.escape(mode)}[^\n]* cannot run as a context of a shared browser`, "u"));
   const after = await runSnap(["/", "--base", origin.base, "--eval", READ_STATE, ...QUIET], RUN);
   await expect(after).toExitWith(EXIT.clean);
 });
 
-test("under the CDP fault seam a hosted run fails exactly as the spawned CLI does", async ({ runCli, runSnap }) => {
+test("under the CDP fault seam a hosted run fails exactly as the spawned CLI does", async ({ runSnap }) => {
   await using origin = await serve();
   const args = ["/", "--base", origin.base, "--cpu-throttle", "4", ...QUIET];
-  // The in-process run reads the knob live from this process's env; the spawned twin gets it in its own env.
-  const faulted = await withProcessEnv(
-    CDP_FAULT_ENV,
-    CDP_FAULT,
-    async () => await expectSnapParity({ runCli, runSnap }, args, RUN, { [CDP_FAULT_ENV]: CDP_FAULT }),
-  );
-  // The positive control: both doors failed under the fault, so the parity above compared two failures.
+  const faulted = await runSnap(args, { ...RUN, env: { [CDP_FAULT_ENV]: CDP_FAULT }, parity: true });
+  // The positive control: both doors failed under the fault, so the parity the fixture checked compared two failures.
   expect(faulted.code).not.toBe(EXIT.clean);
   expect(faulted.stderr).toContain("CDP FAULT INJECTION ACTIVE");
 });

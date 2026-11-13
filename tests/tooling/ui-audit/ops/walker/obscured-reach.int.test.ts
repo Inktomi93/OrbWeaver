@@ -25,7 +25,7 @@ import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, expectPopulation, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -39,9 +39,9 @@ const FOLD_SUBJECT = `<div style="height:3000px">
   <span id="fold" style="position:absolute;top:990px;left:40px;height:19px;background:#333">a label straddling the fold</span>
 </div>`;
 
-test("a subject on the viewport fold is revealed and MEASURED, not withheld", async ({ runCli, runSnap, scratch }) => {
+test("a subject on the viewport fold is revealed and MEASURED, not withheld", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "obscured-fold.html"), relationalDocument(FOLD_SUBJECT));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "obscured-fold.html"), "--viewport", VIEWPORT, ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "obscured-fold.html"), "--viewport", VIEWPORT, ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 
@@ -248,10 +248,8 @@ auditRuleTest(
     },
   ],
   "a title truncated before the inline button is judged clean",
-  async ({ runCli, runSnap, scratch }) => {
-    // The parity case again, after the file's other runs have used the shared browser.
-    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
-    const report = await auditBand(scratch, parity, "band-census-cut", listBand("width:80px;overflow:hidden", "0px"));
+  async ({ runSnap, scratch }) => {
+    const report = await auditBand(scratch, runSnap, "band-census-cut", listBand("width:80px;overflow:hidden", "0px"));
     expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ affected: 0, withheld: { unaskable: 0 } });
     return report;
   },

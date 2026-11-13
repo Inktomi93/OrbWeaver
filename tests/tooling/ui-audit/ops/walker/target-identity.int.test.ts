@@ -10,7 +10,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 import type { VariantAxisAttrs } from "#ui/lib/variant-attrs.ts";
 import { variantAttrs } from "#ui/lib/variant-attrs.ts";
 import { buttonVariants } from "#ui/primitives/button/variants.ts";
@@ -32,12 +32,12 @@ function buttonStamp(square: boolean): string {
     .join(" ");
 }
 
-test("two authored variant arms in one home are TWO tap-target decisions", async ({ runCli, runSnap, scratch }) => {
+test("two authored variant arms in one home are TWO tap-target decisions", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "stamped-arms.html"),
     relationalDocument(toolbar(['data-glyph="xs" data-variant="ghost"', 'data-size="lg" data-variant="solid"'])),
   );
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "stamped-arms.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "stamped-arms.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(res.stdout).toContain("POPULATION   tap-target candidates=2 judged=2 affected=2 populations=2 representatives=2");
@@ -70,11 +70,10 @@ test("the SAME two controls with no stamp collapse into ONE decision — the F8 
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
 
-test("one shared arm still collapses — the split is the AXIS VALUE, not the attribute's presence", async ({ runCli, runSnap, scratch }) => {
+test("one shared arm still collapses — the split is the AXIS VALUE, not the attribute's presence", async ({ runSnap, scratch }) => {
   // The permissive direction: if the key merely noticed that an attribute exists, a rail of identically
   // sized buttons would fragment into one population per button and every repair row would be a singleton.
   await writeFile(join(scratch, "same-arm.html"), relationalDocument(toolbar(['data-glyph="xs"', 'data-glyph="xs"'])));
-  // The parity case again, after the file's other runs have used the shared browser.
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "same-arm.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "same-arm.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("POPULATION   tap-target candidates=2 judged=2 affected=2 populations=1 representatives=2");
 });

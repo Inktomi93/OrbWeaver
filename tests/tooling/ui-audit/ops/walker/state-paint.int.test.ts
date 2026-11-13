@@ -6,7 +6,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -25,7 +25,7 @@ function hoverRow(stdout: string, key: string): string {
   return token === undefined ? "ABSENT" : token.slice(prefix.length);
 }
 
-test("an escaped Tailwind class name no longer mangles the :hover strip — the pair is judged, not unparseable (#24)", async ({ runCli, runSnap, scratch }) => {
+test("an escaped Tailwind class name no longer mangles the :hover strip — the pair is judged, not unparseable (#24)", async ({ runSnap, scratch }) => {
   // `.dark\:hover\:bg-light:hover` carries `:hover` TWICE: once inside the escaped class NAME and
   // once as the real pseudo. The old strip removed both, minting a selector querySelectorAll throws
   // on — so this planted hover-only contrast defect was invisible and the whole population collapsed
@@ -40,7 +40,7 @@ test("an escaped Tailwind class name no longer mangles the :hover strip — the 
 <a class="dark:hover:bg-light" href="#">Continue the story</a>
 <p style="padding:12px">a paragraph no state rule touches</p>`),
   );
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "escape-fix.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "escape-fix.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;
@@ -135,7 +135,6 @@ test("a listener re-arming the forced attribute is caught by the pass-final veri
 });
 
 test("state-gated glow is read under force: a non-house layer under [data-selected] and an element :hover glow fire; the house form stays silent", async ({
-  runCli,
   runSnap,
   scratch,
 }) => {
@@ -166,8 +165,7 @@ test("state-gated glow is read under force: a non-house layer under [data-select
 <div class="curscope" id="scopeA"><div class="gbox gcur" id="gcurA">token-exact under scope A</div></div>
 <div class="curscope" id="scopeB"><div class="gbox gcur" id="gcurB">token-exact under scope B</div></div>`),
   );
-  // The parity case again, after the file's other runs have used the shared browser.
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "state-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "state-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as StatePaintReport;

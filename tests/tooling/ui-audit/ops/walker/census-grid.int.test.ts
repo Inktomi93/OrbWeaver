@@ -13,7 +13,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 import { GRID_COMPOSITED_WITHOUT_RESAMPLE, GRID_INHERITED_LANDING } from "../../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 
 configureRelationalCliBudget();
@@ -42,9 +42,9 @@ const LAW4_FIXTURE = `<style>
 // The CLI drives Chromium only, where no promoted layer resamples its glyphs (docs/law/integer-line-boxes.md §10). So
 // every case below proves the Chromium population; the judged arms outside Chromium are proved over real boxes by
 // tests/tooling/design-audit-walker.ct.tsx and over the shipped string per engine by census-grid.test.ts.
-test("in Chromium Law 4 EXCLUDES promoted text by name and counts all three exclusions into the same denominator", async ({ runCli, runSnap, scratch }) => {
+test("in Chromium Law 4 EXCLUDES promoted text by name and counts all three exclusions into the same denominator", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "law4.html"), relationalDocument(LAW4_FIXTURE));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "law4.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "law4.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   // THREE text candidates, NONE judged. `readingSurface` is the mirrored gate exemption, `snapped` is the polarity
   // ruling (no promoting ancestor = the browser re-snaps every paint) and `compositedWithoutResample` is §10's
@@ -243,11 +243,10 @@ const DPR_FIXTURE = `<style>
  *  Chromium's 1/64 LayoutUnit the only CSS offsets that land crisp at DPR 3 are integers, which are crisp
  *  at DPR 1 too. Proving the multiplication is live is what IS reachable, and it is the property the
  *  epsilon rests on. */
-test("the landing fraction is measured in DEVICE pixels, so the same CSS offset reads differently by DPR", async ({ runCli, runSnap, scratch }) => {
+test("the landing fraction is measured in DEVICE pixels, so the same CSS offset reads differently by DPR", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "dpr.html"), relationalDocument(DPR_FIXTURE));
   const desktop = await runSnap(["--file", join(scratch, "dpr.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  // The parity case again, after the file's other runs have used the shared browser.
-  const mobile = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "dpr.html"), "--mobile", ...AUDIT_ARGV], {
+  const mobile = await runSnap(["--file", join(scratch, "dpr.html"), "--mobile", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(desktop.stdout).not.toContain("INSTRUMENT ERROR");

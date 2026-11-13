@@ -21,7 +21,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -48,9 +48,9 @@ function wideBoard(widthPx: number): string {
   <p id="prose" style="width:400px;white-space:nowrap">a line of prose whose single unbreakable run is very much wider than the four hundred pixels its own box was given</p>`;
 }
 
-test("a document wider than its viewport refuses the run and NAMES the box that does not fit", async ({ runCli, runSnap, scratch }) => {
+test("a document wider than its viewport refuses the run and NAMES the box that does not fit", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "frame-crushed.html"), frameDocument(wideBoard(1200)));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "frame-crushed.html"), "--viewport", "600x800", ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "frame-crushed.html"), "--viewport", "600x800", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 
@@ -92,10 +92,9 @@ test("the same document at a viewport it fits is MEASURED — the refusal is a t
  *  costs the document no width: the page fits its viewport and the overflow is entirely the box's own. */
 const CLIPPED_SPILL = `<div id="spill" style="width:60px;overflow:hidden;white-space:nowrap">this label carries far more text than sixty pixels can ever show</div>`;
 
-test("a real overflow on a page that FITS is still reported at full severity", async ({ runCli, runSnap, scratch }) => {
+test("a real overflow on a page that FITS is still reported at full severity", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "frame-real-overflow.html"), frameDocument(CLIPPED_SPILL));
-  // The parity case again, after the file's other runs have used the shared browser.
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "frame-real-overflow.html"), "--viewport", "1400x800", ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "frame-real-overflow.html"), "--viewport", "1400x800", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 

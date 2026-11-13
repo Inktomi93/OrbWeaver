@@ -166,8 +166,17 @@ function plantedBoxLoad(): BoxLoad | undefined {
   return { loadavg1: Number(load), cpuCount: Number(cores), planted: true };
 }
 
+// Module ceilings are read once per load epoch. A process that is one invocation never leaves epoch 0, so its
+// ceilings are read at import; a host that runs several invocations in one process begins an epoch per invocation.
+let loadEpoch = 0;
+
+/** Begin a new invocation in this process: every module's ceilings and the cgroup throttle counters are read again, once, at their next use. */
+export function beginLoadEpoch(): void {
+  loadEpoch += 1;
+}
+
 export function readBoxLoad(): BoxLoad {
-  const throttle = liveThrottle();
+  const throttle = liveThrottle(loadEpoch);
   return plantedBoxLoad() ?? { loadavg1: loadavg()[0] ?? 0, cpuCount: effectiveCpuCount(), ...(throttle === undefined ? {} : { throttle }) };
 }
 
@@ -236,15 +245,6 @@ export function budget(baseMs: number, read: BoxLoadReader = readBoxLoad, cap = 
   const box = read();
   const scaled = Math.ceil(baseMs * boxFactor(box, cap));
   return Math.max(baseMs, Math.min(budgetCeilingMs(), scaled));
-}
-
-// Module ceilings are read once per load epoch. A process that is one invocation never leaves epoch 0, so its
-// ceilings are read at import; a host that runs several invocations in one process begins an epoch per invocation.
-let loadEpoch = 0;
-
-/** Begin a new invocation in this process: every module's ceilings are read again, once, at their next use. */
-export function beginLoadEpoch(): void {
-  loadEpoch += 1;
 }
 
 /**

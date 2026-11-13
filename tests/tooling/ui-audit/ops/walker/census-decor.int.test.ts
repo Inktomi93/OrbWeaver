@@ -19,7 +19,7 @@ import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, expectSnapParity } from "@orb/testkit/tooling";
+import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -44,13 +44,13 @@ auditRuleTest(
     },
   ],
   "the popup exemption follows the ARIA role, not a word inside a Tailwind class string",
-  async ({ runCli, runSnap, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<div id="outer-card" style="${CARD};padding:16px;width:420px">
   <div id="inner-classword" class="menu-panel px-2" style="${CARD};width:200px;height:80px">nested panel body</div>
   <div id="inner-realmenu" role="menu" style="${CARD};width:200px;height:80px">nested panel body</div>
 </div>`;
     await writeFile(join(scratch, "overlay-exemption.html"), relationalDocument(body));
-    const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "overlay-exemption.html"), ...AUDIT_ARGV], {
+    const res = await runSnap(["--file", join(scratch, "overlay-exemption.html"), ...AUDIT_ARGV], {
       timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
     });
 
@@ -243,11 +243,9 @@ auditRuleTest(
     },
   ],
   "an embedded picker panel inside a card is not a nested card",
-  async ({ runCli, runSnap, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const picker = `<div style="${CARD};width:300px"><input role="combobox" aria-label="Font" aria-expanded="true" aria-controls="face-list">${PICKER_LIST}</div>`;
-    // The parity case again, after the file's other runs have used the shared browser.
-    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
-    const { report } = await decorFixture(scratch, parity, "nested-picker", `<div style="${OUTER}">${picker}</div>`);
+    const { report } = await decorFixture(scratch, runSnap, "nested-picker", `<div style="${OUTER}">${picker}</div>`);
     expect(report.populationAccounting?.["nested-card"]).toMatchObject({ affected: 0, excluded: { embeddedPicker: 1 } });
     return report;
   },

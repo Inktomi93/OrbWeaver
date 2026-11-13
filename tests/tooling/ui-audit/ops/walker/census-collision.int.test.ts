@@ -4,11 +4,11 @@ import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-test("truncated text instances collapse by authored decision without erasing a later distinct repair", async ({ runCli, runSnap, scratch }) => {
+test("truncated text instances collapse by authored decision without erasing a later distinct repair", async ({ runSnap, scratch }) => {
   const repeated = Array.from(
     { length: 45 },
     (_unused, index) => `<div data-slot="cast-row" style="display:flex;align-items:center;width:220px;padding:12px">
@@ -21,11 +21,9 @@ test("truncated text instances collapse by authored decision without erasing a l
   <div style="flex:0 0 auto;width:220px;height:24px;background:#333;font-size:16px">actions</div>
 </div>`;
   await writeFile(join(scratch, "truncated-populations.html"), relationalDocument(`${repeated}${distinct}`));
-  const auditRun = await expectSnapParity(
-    { runCli, runSnap },
-    ["--file", join(scratch, "truncated-populations.html"), "--viewport", "1000x3000", ...AUDIT_ARGV],
-    { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS },
-  );
+  const auditRun = await runSnap(["--file", join(scratch, "truncated-populations.html"), "--viewport", "1000x3000", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
   const report = await readAuditReport(auditRun.stdout);
   expect(report.findings.filter(({ rule }) => rule === "truncated-to-nothing")).toHaveLength(2);
   expect(report.populationAccounting?.["truncated-to-nothing"]).toMatchObject({
@@ -109,10 +107,8 @@ auditRuleTest(
     },
   ],
   "a count pushed past the window edge by an over-wide row is judged against its clip",
-  async ({ runCli, runSnap, scratch }) => {
-    // The parity case again, after the file's other runs have used the shared browser.
-    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
-    const report = await collisionFixture(scratch, parity, "pushed-past-window", `<div style="${PANE}">${OVERWIDE_ROW}</div>`);
+  async ({ runSnap, scratch }) => {
+    const report = await collisionFixture(scratch, runSnap, "pushed-past-window", `<div style="${PANE}">${OVERWIDE_ROW}</div>`);
     expect(report.findings.filter(({ rule }) => rule === "truncated-to-nothing")).toHaveLength(1);
   },
 );

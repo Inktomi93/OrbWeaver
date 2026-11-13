@@ -33,7 +33,8 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 const SHARED_OWNER_ARGV = ["--no-failure-evidence"] as const;
 const DEADLINE = Symbol("deadline");
 
-/** A bounded run: where its `print`/`warn` lines go, and how long it may take before the host ends it. */
+/** A bounded run: where its `print`/`warn` lines go, and by when the host returns. The run itself gets the deadline
+ *  less the host's settle after an abort, so a caller with its own limit passes what remains of it. */
 export interface SnapRunBounds {
   readonly deadlineMs: number;
   readonly sink: OutputSink;
@@ -46,7 +47,7 @@ export interface SnapHost extends AsyncDisposable {
   readonly run: {
     /** One snap invocation, its output on this process's stdout and stderr; resolves to its exit code. */
     (argv: readonly string[]): Promise<number>;
-    /** One snap invocation, its output into `bounds.sink`, ended by the host at `bounds.deadlineMs`. */
+    /** One snap invocation, its output into `bounds.sink`; the host returns within `bounds.deadlineMs`. */
     (argv: readonly string[], bounds: SnapRunBounds): Promise<SnapRunOutcome>;
   };
 }
@@ -104,7 +105,6 @@ class Host implements SnapHost {
     if (this.#dead !== null) {
       return instrumentRefusal(`this snap host is dead: ${this.#dead}`);
     }
-    beginLoadEpoch();
     try {
       return await runSnapCommand(argv, await this.#source(watch));
     } catch (error) {
@@ -113,6 +113,7 @@ class Host implements SnapHost {
   }
 
   async #runOnce(argv: readonly string[]): Promise<number> {
+    beginLoadEpoch();
     try {
       return await this.#invoke(argv, () => undefined);
     } finally {
@@ -121,6 +122,13 @@ class Host implements SnapHost {
   }
 
   async #runBounded(argv: readonly string[], bounds: SnapRunBounds): Promise<SnapRunOutcome> {
+    beginLoadEpoch();
+    // The host returns by the deadline: the run gets what the settle after an abort does not need.
+    const settleMs = SNAP_CEILINGS_MS.hostRunSettle;
+    const runMs = bounds.deadlineMs - settleMs;
+    if (runMs <= 0) {
+      return instrumentRefusal(`a bounded run needs a deadline above the host's ${String(settleMs)} ms settle; it was given ${String(bounds.deadlineMs)} ms`);
+    }
     let browser: RunBrowser | null = null;
     const release = installOutputSink(bounds.sink);
     try {
@@ -132,7 +140,7 @@ class Host implements SnapHost {
         warn(thrown.line);
         return thrown.code;
       });
-      const ended = await raceDeadline(running, bounds.deadlineMs);
+      const ended = await raceDeadline(running, runMs);
       if (ended !== DEADLINE) {
         return { kind: "exited", code: ended };
       }
@@ -142,11 +150,11 @@ class Host implements SnapHost {
         await held?.abort();
       } catch (error) {
         // The run may still hold its browser, so no later run may start beside it.
-        this.#dead = `a run passed its ${String(bounds.deadlineMs)} ms deadline and its browser would not close: ${errorMessage(error)}`;
+        this.#dead = `a run passed its ${String(runMs)} ms run window and its browser would not close: ${errorMessage(error)}`;
         return { kind: "deadline", deadlineMs: bounds.deadlineMs };
       }
-      if ((await raceDeadline(running, SNAP_CEILINGS_MS.hostRunSettle)) === DEADLINE) {
-        this.#dead = `a run passed its ${String(bounds.deadlineMs)} ms deadline and had not ended ${String(SNAP_CEILINGS_MS.hostRunSettle)} ms after its browser was closed`;
+      if ((await raceDeadline(running, settleMs)) === DEADLINE) {
+        this.#dead = `a run passed its ${String(runMs)} ms run window and had not ended ${String(settleMs)} ms after its browser was closed`;
       }
       return { kind: "deadline", deadlineMs: bounds.deadlineMs };
     } finally {

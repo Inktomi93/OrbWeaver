@@ -4,11 +4,11 @@ import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-test("quiet-state refuses a global comparison between unrelated component families and backdrops", async ({ runCli, runSnap, scratch }) => {
+test("quiet-state refuses a global comparison between unrelated component families and backdrops", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "unrelated-states.html"),
     relationalDocument(`<section role="region" aria-label="Light family" style="background:#000;padding:12px">
@@ -18,7 +18,7 @@ test("quiet-state refuses a global comparison between unrelated component famili
   <span data-slot="switch-root" data-variant="strong" data-checked style="display:block;width:48px;height:24px;background:#7a4a12">on</span>
 </section>`),
   );
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "unrelated-states.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "unrelated-states.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(res.stdout, "two global extrema with no compatible authored cohort prove no state ordering").not.toMatch(/^P2\s+quiet-state/mu);
@@ -427,13 +427,11 @@ test("pane-ink records the closed scrolling applicability carve without poisonin
   expect(result.code).toBe(0);
 });
 
-test("pane-ink records the closed insufficient-text applicability carve without poisoning the audit", async ({ runCli, runSnap, scratch }) => {
-  // The parity case again, after the file's other runs have used the shared browser.
-  const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
+test("pane-ink records the closed insufficient-text applicability carve without poisoning the audit", async ({ runSnap, scratch }) => {
   const result = await runPaneExclusionFixture(
     "insufficientText",
     `<section role="region" aria-label="Sparse tool" style="height:500px;overflow:hidden"><p>one line</p><button style="height:44px">Run</button></section>`,
-    parity,
+    runSnap,
     scratch,
   );
   expect(result.report.populationAccounting?.["pane-ink"]).toMatchObject({

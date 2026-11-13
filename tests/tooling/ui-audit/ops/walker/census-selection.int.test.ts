@@ -9,18 +9,18 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument, stateTwin } from "@orb/testkit/node";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-test("selection-idiom ignores invariant base paint when selected and unselected twins use the same channel", async ({ runCli, runSnap, scratch }) => {
+test("selection-idiom ignores invariant base paint when selected and unselected twins use the same channel", async ({ runSnap, scratch }) => {
   const invariant = [
     stateTwin("selected", "", "background:#333"),
     stateTwin("selected", "", "border:3px solid #fff"),
     stateTwin("selected", "", "box-shadow:0 0 5px #fff"),
   ].join("");
   await writeFile(join(scratch, "invariant-selection-paint.html"), relationalDocument(invariant));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "invariant-selection-paint.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "invariant-selection-paint.html"), "--fail-on", "P2", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(res.stdout, "absolute card paint is not a selection treatment when the unselected twin shares it").not.toMatch(/^P2\s+selection-idiom/mu);
@@ -351,7 +351,7 @@ test("a box-shadow combining an unchanged outer ring with a new inset ring count
 // withholding is #987's ruling and is UNCHANGED — with no unselected member there is no delta to measure —
 // but the printed remedy said "a one-row list cannot answer this rule", so a reader following it looked for
 // a one-row list and found eleven. The census in the subject is what tells the two apart.
-test("an ALL-CHOSEN cohort names its census, and its remedy is the DEselect drive", async ({ runCli, runSnap, scratch }) => {
+test("an ALL-CHOSEN cohort names its census, and its remedy is the DEselect drive", async ({ runSnap, scratch }) => {
   // Four carriers of one authored cohort, every one chosen — the Backup fieldset's shape, reduced.
   const bulk = `<section data-slot="bulk-group">${["a", "b", "c", "d"]
     .map(
@@ -360,8 +360,7 @@ test("an ALL-CHOSEN cohort names its census, and its remedy is the DEselect driv
     )
     .join("")}</section>`;
   await writeFile(join(scratch, "all-chosen-selection.html"), relationalDocument(bulk));
-  // The parity case again, after the file's other runs have used the shared browser.
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "all-chosen-selection.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "all-chosen-selection.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 

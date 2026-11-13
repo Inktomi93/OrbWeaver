@@ -1,8 +1,8 @@
 // THE CGROUP READER — reads whatever CPU limit the kernel already imposes on this process tree (a
 // container, CI, or a systemd slice can all set one), never sets or changes one itself: this process's own
 // CPU ceiling (`cpu.max`) and how often it was stopped (`cpu.stat`). One INPUT to `load-budget.ts`'s box
-// reading, split out of it: the budget math stays there, the two once-per-process
-// filesystem walks live here, and the direction is one-way — this module imports nothing from
+// reading, split out of it: the budget math stays there, the two filesystem walks (the quota once per process, the
+// throttle once per load epoch) live here, and the direction is one-way — this module imports nothing from
 // `load-budget.ts`. Why the denominator and the wall-clock stretch honour the limit at all:
 // `cgroupQuotaCores` below and `load-budget.ts#throttleFactor`.
 import { readFileSync } from "node:fs";
@@ -147,13 +147,18 @@ export function readCpuThrottle(read: CgroupFileReader): CpuThrottleSample | und
   return worst;
 }
 
-/** Read ONCE, same reasoning as the quota: these are cumulative counters on a scope created at session
- *  start, and a per-budget filesystem walk would sit on the hot path of every budget in the fleet. */
-let throttleSample: CpuThrottleSample | undefined | "unread" = "unread";
+// Read once per load epoch (`load-budget.ts`, `beginLoadEpoch`), keyed by reader: a per-budget walk would sit on the
+// hot path of every budget in the fleet, and an invocation the snap host runs later in the process must read the
+// counters where they reached, as its own process would.
+const THROTTLE_READS = new WeakMap<CgroupFileReader, { readonly epoch: number; readonly sample: CpuThrottleSample | undefined }>();
 
-export function liveThrottle(): CpuThrottleSample | undefined {
-  if (throttleSample === "unread") {
-    throttleSample = readCpuThrottle(readCgroupFile);
+/** The throttling record for load epoch `epoch`: walked on the epoch's first ask, then held for the rest of it. */
+export function liveThrottle(epoch: number, read: CgroupFileReader = readCgroupFile): CpuThrottleSample | undefined {
+  const held = THROTTLE_READS.get(read);
+  if (held !== undefined && held.epoch === epoch) {
+    return held.sample;
   }
-  return throttleSample;
+  const sample = readCpuThrottle(read);
+  THROTTLE_READS.set(read, { epoch, sample });
+  return sample;
 }

@@ -55,17 +55,30 @@ function printCliPreamble(opts: Args): number | null {
 }
 
 /** The modes that launch their own Chromium, boot a stage or run a session process, whatever browser source the
- *  invocation was given; the flags that ask for each. */
-function ownLifetimeModes(opts: Args): readonly string[] {
-  return [
-    ...(opts.matrix ? ["--matrix"] : []),
-    ...(opts.scenario === null ? [] : ["--scenario"]),
-    ...(opts.contexts > 1 || opts.as !== null ? ["--contexts/--as"] : []),
-    ...(opts.session === null && opts.sessionExport === null ? [] : ["--session"]),
-    ...(opts.sessionDaemon === null && opts.stageKeeper === null && opts.stageWaiter === null ? [] : ["an internal entry"]),
-    ...(opts.isolated ? ["--isolated"] : []),
-    ...(opts.materializeDevToolsAssets ? ["--materialize-devtools-assets"] : []),
-  ];
+ *  invocation was given, each named by the flags that ask for it. */
+const OWN_LIFETIME_MODES = [
+  "--matrix",
+  "--scenario",
+  "--contexts/--as",
+  "--session",
+  "an internal entry",
+  "--isolated",
+  "--materialize-devtools-assets",
+] as const;
+export type OwnLifetimeMode = (typeof OWN_LIFETIME_MODES)[number];
+
+const ASKS_FOR: Readonly<Record<OwnLifetimeMode, (opts: Args) => boolean>> = {
+  "--matrix": (opts) => opts.matrix,
+  "--scenario": (opts) => opts.scenario !== null,
+  "--contexts/--as": (opts) => opts.contexts > 1 || opts.as !== null,
+  "--session": (opts) => opts.session !== null || opts.sessionExport !== null,
+  "an internal entry": (opts) => opts.sessionDaemon !== null || opts.stageKeeper !== null || opts.stageWaiter !== null,
+  "--isolated": (opts) => opts.isolated,
+  "--materialize-devtools-assets": (opts) => opts.materializeDevToolsAssets,
+};
+
+function ownLifetimeModes(opts: Args): readonly OwnLifetimeMode[] {
+  return OWN_LIFETIME_MODES.filter((mode) => ASKS_FOR[mode](opts));
 }
 
 async function runResolvedMode(opts: Args, browser: SnapBrowserSource): Promise<number> {

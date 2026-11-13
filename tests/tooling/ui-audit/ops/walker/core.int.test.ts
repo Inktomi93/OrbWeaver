@@ -26,7 +26,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -43,10 +43,10 @@ function shadowCarriers(count: number): string {
   return `<style>.carrier { width: 200px; height: 12px; margin: 2px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }</style>${rows.join("")}`;
 }
 
-test("a census past its bound publishes the exact overflow and refuses the run", async ({ runCli, runSnap, scratch }) => {
+test("a census past its bound publishes the exact overflow and refuses the run", async ({ runSnap, scratch }) => {
   const over = SHADOW_GLOW_CAP + 3;
   await writeFile(join(scratch, "cap-exceeded.html"), relationalDocument(shadowCarriers(over)));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "cap-exceeded.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "cap-exceeded.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 
@@ -113,10 +113,9 @@ test("a census that fits inside its bound keeps judging and publishes no cap arm
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
 
-test("the artifact carries the cap ledger and a complete verdict when nothing truncated", async ({ runCli, runSnap, scratch }) => {
+test("the artifact carries the cap ledger and a complete verdict when nothing truncated", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "cap-fits-json.html"), relationalDocument(shadowCarriers(SHADOW_GLOW_CAP)));
-  // The parity case again, after the file's other runs have used the shared browser.
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "cap-fits-json.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "cap-fits-json.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 

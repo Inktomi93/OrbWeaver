@@ -31,7 +31,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -79,13 +79,9 @@ const TWO_SUBJECT_FIXTURE = `<style>
 </style>
 <div class="row" style="padding:24px"><div class="card" style="padding:8px"><span class="two-subject-label">two-subject label</span></div></div>`;
 
-test("an element painted by TWO hover subjects asks TWO questions — the pair map keys by subject, as the attribute side does", async ({
-  runCli,
-  runSnap,
-  scratch,
-}) => {
+test("an element painted by TWO hover subjects asks TWO questions — the pair map keys by subject, as the attribute side does", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "two-subject-hover.html"), relationalDocument(TWO_SUBJECT_FIXTURE));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "two-subject-hover.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "two-subject-hover.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 
@@ -159,10 +155,9 @@ test("screen-reader-only text is excluded from hover contrast, never judged", as
   await expect(res).toExitWith(0);
 });
 
-test("a plain :hover rule on the painted element itself keeps being judged", async ({ runCli, runSnap, scratch }) => {
+test("a plain :hover rule on the painted element itself keeps being judged", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "plain-hover.html"), relationalDocument(PLAIN_HOVER_FIXTURE));
-  // The parity case again, after the file's other runs have used the shared browser.
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "plain-hover.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "plain-hover.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 

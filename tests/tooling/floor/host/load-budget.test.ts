@@ -43,7 +43,7 @@ import {
   ratePair,
   readBoxLoad,
 } from "@orb/tooling/floor/host/load-budget";
-import { cgroupQuotaCores, effectiveCpuCount, readCpuThrottle } from "@orb/tooling/floor/host/load-budget-cgroup";
+import { cgroupQuotaCores, effectiveCpuCount, liveThrottle, readCpuThrottle } from "@orb/tooling/floor/host/load-budget-cgroup";
 import { vi } from "vitest";
 import { timingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
 
@@ -403,6 +403,16 @@ test("#2206 — the throttle reading is the TIGHTEST over the cgroup ancestry, o
   expect(readCpuThrottle(tree({ "/sys/fs/cgroup/user.slice/app.scope/cpu.stat": "usage_usec 5\n" }))).toBeUndefined();
   // A v1-only cgroup line is unreadable here for the same reason the quota walk refuses it.
   expect(readCpuThrottle(() => "3:cpu:/user.slice\n")).toBeUndefined();
+});
+
+test("the throttle counters are read once per load epoch, so a later invocation in one process reads where they reached", () => {
+  let stat = "nr_periods 1000\nnr_throttled 50\n";
+  const read = (path: string): string | undefined => (path === "/proc/self/cgroup" ? "0::/user.slice/app.scope\n" : stat);
+  expect(liveThrottle(1, read)).toEqual({ periods: 1000, throttled: 50 });
+  stat = "nr_periods 3000\nnr_throttled 900\n";
+  // Inside one epoch the counters are not walked again: one invocation, one reading.
+  expect(liveThrottle(1, read)).toEqual({ periods: 1000, throttled: 50 });
+  expect(liveThrottle(2, read)).toEqual({ periods: 3000, throttled: 900 });
 });
 
 test("a quiet live rate cannot qualify on unnamed hardware but pure load arithmetic still asserts", () => {

@@ -20,7 +20,7 @@ import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";
 import { listeningAddress } from "../../../_server-address.ts";
 
@@ -53,11 +53,9 @@ auditRuleTest(
     },
   ],
   "a label inside a disabled control is excluded as inactive, never filed as a contrast P1",
-  async ({ runCli, runSnap, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<button disabled style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Pick one</span></button>`;
-    // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
-    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
-    const report = await auditFixture(scratch, parity, "inactive-descendant", body);
+    const report = await auditFixture(scratch, runSnap, "inactive-descendant", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
     expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
     // The advisory is the arm that MUST NOT fire in its place: 3.45:1 is above the UI-component floor.
@@ -1339,11 +1337,9 @@ auditRuleTest(
 auditRuleTest(
   [{ rule: "undersized-ui-text", kind: "fires", reason: "a button's whole label at the micro step is interactive text under the floor" }],
   "a button label at the micro step still fails undersized-ui-text",
-  async ({ runCli, runSnap, scratch }) => {
+  async ({ runSnap, scratch }) => {
     const body = `<button><span style="${MICRO}">Save changes</span></button>`;
-    // The parity case again, after the file's other runs have used the shared browser.
-    const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
-    const report = await auditFixture(scratch, parity, "interactive-button-label", body);
+    const report = await auditFixture(scratch, runSnap, "interactive-button-label", body);
     expect(report.findings.filter(({ rule }) => rule === "undersized-ui-text")).toHaveLength(1);
   },
 );

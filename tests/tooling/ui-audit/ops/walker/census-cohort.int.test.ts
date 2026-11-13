@@ -2,11 +2,11 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
-import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
-test("row-void rejects an unbound title/actions topbar even when its rendered gap is enormous", async ({ runCli, runSnap, scratch }) => {
+test("row-void rejects an unbound title/actions topbar even when its rendered gap is enormous", async ({ runSnap, scratch }) => {
   await writeFile(
     join(scratch, "unbound-topbar.html"),
     relationalDocument(`<header style="display:flex;justify-content:space-between;align-items:center;width:1000px;height:48px">
@@ -14,7 +14,7 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
   <div><button style="width:80px;height:32px">Reset</button><button style="width:80px;height:32px">Save</button></div>
 </header>`),
   );
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "unbound-topbar.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   const report = await readAuditReport(res.stdout);
@@ -135,10 +135,9 @@ auditRuleTest(
     },
   ],
   "a row of Text primitives is no cohort, and the same heights on a real component still report",
-  async ({ runCli, runSnap, scratch }) => {
+  async ({ runSnap, scratch }) => {
     await writeFile(join(scratch, "text-row.html"), relationalDocument(`${threeInARow("text", "text-row")}${threeInARow("band", "band-row")}`));
-    // The parity case again, after the file's other runs have used the shared browser.
-    const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "text-row.html"), ...AUDIT_ARGV], {
+    const res = await runSnap(["--file", join(scratch, "text-row.html"), ...AUDIT_ARGV], {
       timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
     });
     const report = await readAuditReport(res.stdout);

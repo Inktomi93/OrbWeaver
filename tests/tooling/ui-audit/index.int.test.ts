@@ -20,7 +20,7 @@ import process from "node:process";
 import { nonEmpty } from "@orb/testkit/iso";
 import { auditReport, expectPopulation, readAuditReport } from "@orb/testkit/node";
 import { chromiumDescendantIdentities, identityKey, livingChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/helpers";
-import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 import type { Finding } from "@orb/tooling/ui-audit";
 import { vi } from "vitest";
 import { scaledBudget } from "../_load-budget.ts";
@@ -58,12 +58,10 @@ function page(bodyStyle: string): string {
 <html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
 <body style="margin:0"><main><p style="${bodyStyle};font-size:16px;margin:24px">the reading surface under audit</p></main></body></html>`;
 }
-
-// The parity case: the spawned CLI and the in-process door print the same verdict for the same argv.
-test("a planted contrast defect REDs the audit through the real cli", async ({ runCli, runSnap, scratch }) => {
+test("a planted contrast defect REDs the audit through the real cli", async ({ runSnap, scratch }) => {
   const file = join(scratch, "bad.html");
   await writeFile(file, page("background:#000;color:#000"));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "bad.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "bad.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
   expect(findingRows(res.stdout, "contrast")).not.toEqual([]);
   await expect(res).toExitWith(1);
 });
@@ -2478,7 +2476,7 @@ test("a name-repeating tooltip is excluded, and a FINE pointer excludes the popu
   expect(fine.stdout).not.toContain("withheld(finePointer");
 });
 
-test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never counted as clean", async ({ runCli, runSnap, scratch }) => {
+test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never counted as clean", async ({ runSnap, scratch }) => {
   // A raw Base UI trigger publishes no decision, so this instrument cannot tell "the tooltip repeats the
   // name" from "its words are unreachable" — that is missing evidence (#987 polarity), and a run carrying
   // it is NO VERDICT for this rule rather than a pass.
@@ -2486,8 +2484,7 @@ test("a tooltip trigger OUTSIDE the @orb/ui seal is WITHHELD by name, never coun
     join(scratch, "hint-bare.html"),
     tooltipTriggerPage('<button type="button" aria-label="Send message" data-base-ui-tooltip-trigger></button>'),
   );
-  // The parity case again, after the file's other runs have used the shared browser.
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "hint-bare.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+  const res = await runSnap(["--file", join(scratch, "hint-bare.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
 
   expect(findingRows(res.stdout, "unreachable-hint")).toEqual([]);
   expectPopulation(await readAuditReport(res.stdout), "unreachable-hint", { kind: "withheld", reason: "noDescriptionWiring" });

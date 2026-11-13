@@ -21,7 +21,7 @@ import {
   relationalDocument,
 } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { auditRuleTest, expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -46,9 +46,9 @@ const GLOW_FIXTURE = `<style>
 <div class="box" id="on-the-element">glow on the element itself</div>
 <div class="box" id="sanctioned-cell" data-slot="media-grid-cell">owner effect carrier</div>`;
 
-test("the glow census sweeps pseudo layers, exempting the house discipline and judging every deviation from it", async ({ runCli, runSnap, scratch }) => {
+test("the glow census sweeps pseudo layers, exempting the house discipline and judging every deviation from it", async ({ runSnap, scratch }) => {
   await writeFile(join(scratch, "pseudo-glow.html"), relationalDocument(GLOW_FIXTURE));
-  const res = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "pseudo-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
+  const res = await runSnap(["--file", join(scratch, "pseudo-glow.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");

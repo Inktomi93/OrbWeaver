@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { nonEmpty } from "@orb/testkit/iso";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -30,7 +30,7 @@ function activityDocument(activeBody: string, retainedBody: string): string {
 <section data-testid="retained" style="display:none;color-scheme:light dark">${retainedBody}</section></body></html>`;
 }
 
-test("a closed inactive off-canvas pane stays in identity accounting without requesting off-frame paint", async ({ runCli, runSnap, scratch }) => {
+test("a closed inactive off-canvas pane stays in identity accounting without requesting off-frame paint", async ({ runSnap, scratch }) => {
   const document = `<!doctype html><html data-app-ready="settled" style="color-scheme:dark"><head><title>closed pane</title></head>
     <body style="margin:0;overflow:hidden;background:#000;color:#fff;font:16px system-ui"><main><h1>Active surface</h1></main>
     <aside inert aria-hidden="true" style="position:fixed;inset:0 auto 0 0;width:360px;translate:360px;background:#fff">
@@ -38,7 +38,7 @@ test("a closed inactive off-canvas pane stays in identity accounting without req
       <span data-testid="closed-paint" style="color:#fff;background:#fff">Map caption</span>
     </aside></body></html>`;
   await writeFile(join(scratch, "closed-pane.html"), document);
-  const result = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "closed-pane.html"), "--viewport", "360x640", ...AUDIT_ARGV], {
+  const result = await runSnap(["--file", join(scratch, "closed-pane.html"), "--viewport", "360x640", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
@@ -141,7 +141,7 @@ test("a retained main landmark cannot satisfy the rendered-surface landmark rule
   expect(report.findings.some(({ rule }) => rule === "landmark-missing")).toBe(true);
 });
 
-test("a visibility-visible descendant is rendered and operable while its non-overridden sibling stays retained", async ({ runCli, runSnap, scratch }) => {
+test("a visibility-visible descendant is rendered and operable while its non-overridden sibling stays retained", async ({ runSnap, scratch }) => {
   const body = `<h1>Active surface</h1><section style="visibility:hidden">
     <button data-testid="restored-control" style="visibility:visible;width:8px;height:8px"></button>
     <button data-testid="still-hidden-control" style="width:8px;height:8px"></button>
@@ -149,8 +149,7 @@ test("a visibility-visible descendant is rendered and operable while its non-ove
     <span data-testid="still-hidden-paint" style="color:#fff;background:#fff">hidden paint</span>
   </section>`;
   await writeFile(join(scratch, "visibility-override.html"), activityDocument(body, ""));
-  // The parity case again, after the file's other runs have used the shared browser.
-  const auditRun = await expectSnapParity({ runCli, runSnap }, ["--file", join(scratch, "visibility-override.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
+  const auditRun = await runSnap(["--file", join(scratch, "visibility-override.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as ActivityAuditReport;

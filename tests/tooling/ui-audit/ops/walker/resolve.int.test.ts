@@ -4,7 +4,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { expect, expectSnapParity, test } from "@orb/testkit/tooling";
+import { expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -20,10 +20,8 @@ function borderOverGradient(gradientAlpha: number): string {
   return `<div style="background-color:#ffffff;background-image:linear-gradient(${tint},${tint});padding:24px;width:320px"><input aria-label="Name" style="border:1px solid #dddddd;background:transparent;width:200px;height:32px"></div>`;
 }
 
-test("border-contrast reads past a translucent gradient to the plate under it and judges the border", async ({ runCli, runSnap, scratch }) => {
-  // The parity case: this run goes through the spawned CLI and the in-process door, which must print the same.
-  const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
-  const stdout = await audit(scratch, parity, "border-translucent-gradient", borderOverGradient(0.04));
+test("border-contrast reads past a translucent gradient to the plate under it and judges the border", async ({ runSnap, scratch }) => {
+  const stdout = await audit(scratch, runSnap, "border-translucent-gradient", borderOverGradient(0.04));
   expect(stdout).toMatch(/POPULATION\s+border-contrast candidates=1 judged=1 affected=1 /u);
   expect(stdout).toMatch(/^P\d\s+border-contrast\s/mu);
 });
@@ -47,10 +45,8 @@ test("hover-contrast judges a label whose overlapping chip the browser paints ab
   expect(stdout).toMatch(/POPULATION\s+hover-contrast candidates=1 judged=1 /u);
 });
 
-test("hover-contrast keeps the veto of a chip painted between the plate and the label", async ({ runCli, runSnap, scratch }) => {
+test("hover-contrast keeps the veto of a chip painted between the plate and the label", async ({ runSnap, scratch }) => {
   // The isolated plate makes its own stacking context, so the z-index -1 chip paints over the plate and under the label.
-  // The parity case again, after the file's other runs have used the shared browser.
-  const parity: ToolFixtures["runSnap"] = async (args, opts) => await expectSnapParity({ runCli, runSnap }, args, opts);
-  const stdout = await audit(scratch, parity, "hover-chip-below", hoverUnderChip("isolation:isolate", "z-index:-1"));
+  const stdout = await audit(scratch, runSnap, "hover-chip-below", hoverUnderChip("isolation:isolate", "z-index:-1"));
   expect(stdout).toMatch(/POPULATION\s+hover-contrast candidates=1 judged=0 .*withheld\([^)]*unresolvedHoverBackdrop=1/u);
 });

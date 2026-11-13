@@ -13,7 +13,8 @@
 //                  fresh context of the file's one Chromium. The Chromium and the snap graph load on the file's first
 //                  run, so that case's budget carries them once; importing snap here would bill every tooling file.
 //                  A case whose subject is the process (exit wiring, argv misuse, an env knob read at import, a
-//                  launch-time browser option) keeps `runCli`; `expectSnapParity` holds the two doors to one output.
+//                  launch-time browser option) keeps `runCli`. A file's first run and every run in its last case are
+//                  also run by the spawned CLI and must print the same, so parity is held per file in this one place.
 //   fakeBin      — a Node-backed POSIX + Windows command pair prepended to PATH for the test; auto-restored.
 //   plantedTree  — materialize a throwaway violation tree under scratch (the conformance-harness
 //                  pattern as a fixture); fsBacked tool tests write only below the owned scratch root.
@@ -30,6 +31,7 @@ import { isWithinRoot } from "@orb/kit/path-containment";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
 import { exportProcessEnv, processEnvValue, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import type { SnapHost } from "@orb/tooling/snap";
+import type { RunnerTestCase, RunnerTestSuite } from "vitest";
 import { nonEmpty } from "../iso/non-empty.ts";
 import { expect, test as houseTest } from "./fixtures.ts";
 import type { AuditRuleProof, FiresAuditRuleProof, RelationalPopulationReport } from "./ui-audit-relational.ts";
@@ -49,9 +51,14 @@ export interface RunCliOpts {
   readonly timeoutMs?: number;
 }
 
-/** A bounded in-process snap run: the deadline its spawned-CLI twin had as `timeoutMs`. */
-export interface SnapRunOpts {
-  readonly timeoutMs: number;
+/** How one in-process snap run is bounded and checked. `timeoutMs` caps the run below its case's own limit; `env`
+ *  plants knobs for this run in this process and in its spawned twin; `parity: true` holds this run to the spawned CLI's
+ *  output wherever it sits in the file, and `parity: false` keeps an argv the spawned CLI must never run (a mode that
+ *  boots a stage or a daemon) out of it even in the file's first run or last case. */
+interface SnapRunOpts {
+  readonly timeoutMs?: number;
+  readonly env?: Readonly<Record<string, string>>;
+  readonly parity?: boolean;
 }
 
 export interface ToolFixtures {
@@ -59,16 +66,19 @@ export interface ToolFixtures {
   scratch: string;
   runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
   /** One snap invocation in this process, through the snap host the CLI also runs through, in an isolated context of
-   *  the test file's one shared Chromium; its `print`/`warn` lines are the result's stdout/stderr. Past `timeoutMs` the
-   *  host ends the run and the result is `timedOut`, as a spawned CLI's would be. */
-  runSnap: (args: readonly string[], opts: SnapRunOpts) => Promise<CliResult>;
+   *  the test file's one shared Chromium; its `print`/`warn` lines are the result's stdout/stderr. The host returns
+   *  within `timeoutMs` or within what remains of the case's own limit, whichever is sooner, with the result
+   *  `timedOut` when it ended the run, as a spawned CLI's would be. */
+  runSnap: (args: readonly string[], opts?: SnapRunOpts) => Promise<CliResult>;
   fakeBin: (name: string, moduleSource: string) => Promise<void>;
   plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>;
 }
 
 /** The file-scoped half of `runSnap`: one snap host whose Chromium launches on the file's first run. */
 interface FileSnapHost {
-  readonly run: (args: readonly string[], opts: SnapRunOpts) => Promise<CliResult>;
+  readonly run: (args: readonly string[], deadlineMs: number) => Promise<CliResult>;
+  /** Whether this file has run snap yet, so the file's first run is the one held to parity. */
+  readonly hasRun: () => boolean;
   readonly close: () => Promise<void>;
 }
 
@@ -76,12 +86,13 @@ interface FileSnapHost {
 function lazySnapHost(): FileSnapHost {
   let host: Promise<SnapHost> | null = null;
   return {
-    run: async (args, opts): Promise<CliResult> => {
+    hasRun: (): boolean => host !== null,
+    run: async (args, deadlineMs): Promise<CliResult> => {
       host ??= import("@orb/tooling/snap").then((snap) => snap.openSnapHost("context-per-run"));
       const stdout: string[] = [];
       const stderr: string[] = [];
       const outcome = await (await host).run(args, {
-        deadlineMs: opts.timeoutMs,
+        deadlineMs,
         sink: { line: (text) => stdout.push(`${text}\n`), warn: (text) => stderr.push(`${text}\n`) },
       });
       const ended = outcome.kind === "exited" ? { code: outcome.code, timedOut: false } : { code: null, timedOut: true };
@@ -96,6 +107,45 @@ function lazySnapHost(): FileSnapHost {
 }
 
 const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..");
+// The tasks Vitest will run in this case's file. A filtered run skips the rest, so its last case is the last selected.
+const RUNNING_MODES: ReadonlySet<string> = new Set(["run", "only"]);
+
+function runningCases(tasks: readonly (RunnerTestCase | RunnerTestSuite)[]): readonly RunnerTestCase[] {
+  return tasks.flatMap((task) => {
+    if (task.type === "suite") {
+      return runningCases(task.tasks);
+    }
+    return RUNNING_MODES.has(task.mode) ? [task] : [];
+  });
+}
+
+function isLastRunningCase(task: Readonly<RunnerTestCase>): boolean {
+  return runningCases(task.file.tasks).at(-1)?.id === task.id;
+}
+
+async function withPlantedEnv<T>(env: Readonly<Record<string, string>>, run: () => Promise<T>): Promise<T> {
+  return await Object.entries(env).reduce<() => Promise<T>>(
+    (inner, [key, value]) =>
+      async () =>
+        await withProcessEnv(key, value, inner),
+    run,
+  )();
+}
+
+async function spawnTool(tool: string, args: readonly string[], opts: RunCliOpts = {}): Promise<CliResult> {
+  const { spawnNiced } = await import("@orb/tooling/floor/process/proc");
+  const cli = join(REPO_ROOT, "tooling", "src", tool, "cli.ts");
+  if (!existsSync(cli)) {
+    throw new Error(`runCli: no such tool "${tool}" — expected ${cli} (tools are tooling/src/<tool>/cli.ts)`);
+  }
+  return await spawnNiced(process.execPath, [cli, ...args], {
+    cwd: opts.cwd ?? REPO_ROOT,
+    ...(opts.env === undefined ? {} : { env: opts.env }),
+    ...(opts.timeoutMs === undefined ? {} : { timeoutMs: opts.timeoutMs }),
+  });
+}
+// What a case still does after its snap run returns: read the result and assert on it.
+const CASE_TAIL_MS = 1000;
 const EXECUTABLE_MODE = 0o755;
 const FAKE_BIN_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
 const WINDOWS_DEVICE_NAME_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu;
@@ -254,8 +304,24 @@ export const test = houseTest.extend<ToolFixtures & { snapHost: FileSnapHost }>(
     },
     { scope: "file" },
   ],
-  runSnap: async ({ snapHost }, use): Promise<void> => {
-    await use(snapHost.run);
+  runSnap: async ({ snapHost, task }, use): Promise<void> => {
+    const started = performance.now();
+    const lastCase = isLastRunningCase(task);
+    await use(async (args, opts = {}) => {
+      // The host must end a hung run before Vitest ends its case, or the next case queues behind the run.
+      const deadlineMs = (): number => Math.min(opts.timeoutMs ?? Number.POSITIVE_INFINITY, task.timeout - (performance.now() - started) - CASE_TAIL_MS);
+      const env = (opts.parity ?? (lastCase || !snapHost.hasRun())) ? { ...opts.env, [BOX_LOAD_ENV]: PARITY_BOX_LOAD } : null;
+      if (env === null) {
+        return await withPlantedEnv(opts.env ?? {}, async () => await snapHost.run(args, deadlineMs()));
+      }
+      const spawned = await spawnTool("snap", args, { env, timeoutMs: deadlineMs() });
+      // The in-process run reads its knobs live from this process's env, so they are planted for exactly this run.
+      const inProcess = await withPlantedEnv(env, async () => await snapHost.run(args, deadlineMs()));
+      expect(inProcess.code, `spawned stderr:\n${spawned.stderr}`).toBe(spawned.code);
+      expect(parityLines(inProcess.stdout)).toEqual(parityLines(spawned.stdout));
+      expect(parityLines(inProcess.stderr)).toEqual(parityLines(spawned.stderr));
+      return inProcess;
+    });
   },
   repoRoot: async ({}, use): Promise<void> => {
     await use(REPO_ROOT);
@@ -269,18 +335,7 @@ export const test = houseTest.extend<ToolFixtures & { snapHost: FileSnapHost }>(
     await rm(dir, { recursive: true, force: true });
   },
   runCli: async ({}, use): Promise<void> => {
-    const { spawnNiced } = await import("@orb/tooling/floor/process/proc");
-    await use(async (tool, args, opts = {}) => {
-      const cli = join(REPO_ROOT, "tooling", "src", tool, "cli.ts");
-      if (!existsSync(cli)) {
-        throw new Error(`runCli: no such tool "${tool}" — expected ${cli} (tools are tooling/src/<tool>/cli.ts)`);
-      }
-      return await spawnNiced(process.execPath, [cli, ...args], {
-        cwd: opts.cwd ?? REPO_ROOT,
-        ...(opts.env === undefined ? {} : { env: opts.env }),
-        ...(opts.timeoutMs === undefined ? {} : { timeoutMs: opts.timeoutMs }),
-      });
-    });
+    await use(spawnTool);
   },
   fakeBin: async ({ scratch }, use): Promise<void> => {
     const binDir = join(scratch, "fake-bin");
@@ -381,24 +436,6 @@ function parityLines(text: string): readonly string[] {
     .split("\n")
     .filter((line) => !STACK_FRAME_RE.test(line))
     .map((line) => normalize(line).replaceAll(RUN_SLOT_RE, "-<run>"));
-}
-
-/** Run one argv through the spawned snap CLI and through `runSnap` on one planted box load, require the same exit
- *  code, stdout and stderr once run identity and timings are masked, and return the in-process result. A knob in
- *  `spawnedEnv` reaches the spawned CLI; the caller plants the same knob in this process for the in-process run. */
-export async function expectSnapParity(
-  fixtures: Pick<ToolFixtures, "runCli" | "runSnap">,
-  args: readonly string[],
-  opts: SnapRunOpts,
-  spawnedEnv: Readonly<Record<string, string>> = {},
-): Promise<CliResult> {
-  const spawned = await fixtures.runCli("snap", args, { env: { ...spawnedEnv, [BOX_LOAD_ENV]: PARITY_BOX_LOAD }, timeoutMs: opts.timeoutMs });
-  // The in-process run reads the knob live from this process's env, so it is planted for exactly this call.
-  const inProcess = await withProcessEnv(BOX_LOAD_ENV, PARITY_BOX_LOAD, async () => await fixtures.runSnap(args, opts));
-  expect(inProcess.code, `spawned stderr:\n${spawned.stderr}`).toBe(spawned.code);
-  expect(parityLines(inProcess.stdout)).toEqual(parityLines(spawned.stdout));
-  expect(parityLines(inProcess.stderr)).toEqual(parityLines(spawned.stderr));
-  return inProcess;
 }
 
 /** Register a live design-audit proof. A case with a silent row returns the run's report, and every disposition is
