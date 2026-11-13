@@ -136,7 +136,7 @@ export function readError(ctx: QuickJSContext, handle: QuickJSHandle): string {
 // A host-authored error for the guest: an object on the realm's own `Error.prototype` whose fields are DEFINED, the
 // client twin of the server marshal's `newHostError`. Never `ctx.newError`: it captures a stack, which runs the
 // guest's `Error.prepareStackTrace`, and it SETS `message`, which runs any setter the guest put on
-// `Error.prototype`. A host result settles outside every CPU window, so guest code run there would be unbounded.
+// `Error.prototype`. Building a host value through guest code would let the guest run inside the host's own work.
 function newHostError(state: GuestState, fields: Readonly<Record<string, string>>): QuickJSHandle {
   const { ctx } = state;
   const error = ctx.newObject(state.errorPrototype);

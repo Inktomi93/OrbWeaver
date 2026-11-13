@@ -35,9 +35,9 @@ import type {
   SnippetResult,
 } from "@orb/contracts/plugin";
 import {
-  PLUGIN_HOST_CALL_FAILED,
   PLUGIN_LOG_LEVELS,
   PLUGIN_SURFACE_TIERS,
+  PLUGIN_UI_HOST_CALL_FAILED,
   PluginInstallerDisabledError,
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
@@ -1031,7 +1031,7 @@ class BrokerClient {
       return error;
     }
     getLog(this.seams.log).warn({ plugin: binding.label ?? SNIPPET_RUNNER, operation, err: error }, "plugin host: a bridge operation failed");
-    return new Error(PLUGIN_HOST_CALL_FAILED);
+    return new Error(PLUGIN_UI_HOST_CALL_FAILED);
   }
 
   // A host result goes on its plugin's runtime share. One that does not fit is refused, never held: the plugin may

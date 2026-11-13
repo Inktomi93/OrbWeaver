@@ -21,7 +21,6 @@ export type { PluginHostRefusalCode } from "./errors.ts";
 export {
   HostVersionError,
   PLUGIN_CHANNEL_FULL_CODE,
-  PLUGIN_HOST_CALL_FAILED,
   PLUGIN_HOST_REFUSAL_CODES,
   PluginCapabilityError,
   PluginHostDeadlineError,

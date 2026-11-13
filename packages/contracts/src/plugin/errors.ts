@@ -68,10 +68,6 @@ export class PluginInstallerDisabledError extends DomainConflictError {
   }
 }
 
-/** The message a server guest's host call rejects with, under the name `Error`, when it failed for a reason that is not
- *  a named refusal. A fault's own text can carry server internals, such as a failed query's SQL and bound values. */
-export const PLUGIN_HOST_CALL_FAILED = "plugin host: the call could not be completed";
-
 /** The code of a `PluginHostUnavailable` refusal made because a channel between the host's processes was full: that
  *  one call was refused and nothing else, and a retry may succeed (D348). */
 export const PLUGIN_CHANNEL_FULL_CODE = "channel_full";

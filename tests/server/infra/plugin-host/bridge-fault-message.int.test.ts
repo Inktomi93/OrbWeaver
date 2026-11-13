@@ -5,7 +5,7 @@
 
 import { spawn } from "node:child_process";
 import type { PluginManifest } from "@orb/contracts/plugin";
-import { PLUGIN_HOST_CALL_FAILED, PLUGIN_HOST_VERSIONS, PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_HOST_CALL_FAILED, pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginKv } from "@orb/db";
 import type { PluginId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -22,7 +22,7 @@ const GUEST = `const h = orb.host(1);
 const report = async (call, ok) => { try { await call(); h.log.info(ok); } catch (e) { h.log.info(e.name + ": " + e.message); } };
 h.ui.registerCommand({ name: ${JSON.stringify(READ)}, describe: "Read the ledger", onRun: () => report(() => h.storage.get(${JSON.stringify(LEDGER_KEY)}), ${JSON.stringify(READ_OK)}) });
 h.ui.registerCommand({ name: ${JSON.stringify(OVERSIZED)}, describe: "Write an oversized key", onRun: () => report(() => h.storage.set(${JSON.stringify("k".repeat(PLUGIN_KV_KEY_MAX_CHARS + 1))}, "v"), "written") });`;
-const FAULT_LINE = `Error: ${PLUGIN_HOST_CALL_FAILED}`;
+const FAULT_LINE = `Error: ${PLUGIN_UI_HOST_CALL_FAILED}`;
 
 function manifest(): PluginManifest {
   return pluginManifestSchema.parse({
