@@ -12,6 +12,7 @@ import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS, CORPUS_WHOLE_LABEL } from "#client/lib/corpus-modes.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
+import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { pruneConfirmLabel } from "#client/lib/tag-model.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -252,7 +253,7 @@ test.describe("committed corpus workbench", () => {
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.labels }).click();
     // The finder windows a large library, so its own filter brings this cell's row into the tree.
     await list.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).fill(name);
-    await list.getByRole("button", { name: `Actions for ${name}`, exact: true }).click();
+    await list.getByRole("button", { name: rowActionsName(name), exact: true }).click();
     await page.getByRole("menuitem", { name: ROW_DELETE_NAME }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);

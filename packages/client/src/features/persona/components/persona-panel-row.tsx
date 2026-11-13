@@ -23,6 +23,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { rowActionSubject, rowActionsName } from "#lib";
 import { useUpdatePersona } from "../hooks/use-persona-mutations.ts";
+import { personaDetailsToggleName } from "../lib/persona-copy.ts";
 import { PersonaCrown } from "./persona-crown.tsx";
 import { PersonaEditorRegion } from "./persona-editor.tsx";
 
@@ -77,18 +78,12 @@ export function PersonaPanelRow({
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Button
-                    aria-label={expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}
-                    className="shrink-0"
-                    variant="ghost"
-                    onClick={onToggleExpand}
-                    square={true}
-                  >
+                  <Button aria-label={personaDetailsToggleName(subject, expanded)} className="shrink-0" variant="ghost" onClick={onToggleExpand} square={true}>
                     <Icon icon={expanded ? ChevronDown : ChevronRight} size="sm" />
                   </Button>
                 }
               />
-              <TooltipPopup side="top">{expanded ? `Hide details for ${subject}` : `Show details for ${subject}`}</TooltipPopup>
+              <TooltipPopup side="top">{personaDetailsToggleName(subject, expanded)}</TooltipPopup>
             </Tooltip>
             {/* COARSE ONLY: the two faint toggles above stand down at a coarse pointer, and their verbs ride here. */}
             <Row align="center" className="shrink-0" hiddenAt="fine">

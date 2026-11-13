@@ -156,7 +156,7 @@ for (const scenario of CAPTION_CASES) {
       .getByRole("list", { name: CHARACTER_RECENT_SHELF_NAME, exact: true })
       .getByRole("button", { name: new RegExp(RegExp.escape(character.name), "u") });
     const stamp = await face.locator('[data-voice="datumMono"]').textContent();
-    await expect(face).toHaveAccessibleName(characterFaceName(character.name, stamp, false, true));
+    await expect(face).toHaveAccessibleName(`Resume the chat with ${character.name}, ${stamp}`);
     await expect(face).toHaveAccessibleDescription(scenario.captioned ? subjects.caption : "");
     await expect(face.getByText(subjects.caption, { exact: true })).toBeVisible({ visible: scenario.captioned });
     await face.focus();

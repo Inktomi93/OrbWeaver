@@ -13,6 +13,7 @@ import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-cont
 import { backgroundStateLabel } from "#client/features/credentials/lib/connections-copy.ts";
 import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
 import { CORPUS_MODEL_ROUTES_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { PERSONA_NEW_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { EXPORT_INCLUDE_LEGEND, SCHEDULE_NEW_NAME, WORKLOAD_FILTER_TABS_NAME } from "#client/features/workloads/lib/workloads-names.ts";
@@ -67,7 +68,7 @@ const SECTION_WITNESSES = {
 } satisfies Record<SectionId, (page: Page) => Witnesses>;
 
 const GROUP_WITNESSES = {
-  personas: (page): Witnesses => [page.getByRole("button", { name: "New persona", exact: true })],
+  personas: (page): Witnesses => [page.getByRole("button", { name: PERSONA_NEW_NAME, exact: true })],
   appearance: (page): Witnesses => [page.getByRole("radiogroup", { name: CONFIG_THEME_GROUP_NAME, exact: true }).getByRole("radio").first()],
   "chat-behavior": (page): Witnesses => [page.getByRole("switch", { name: configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "enterSends"), exact: true })],
   workloads: (page): Witnesses => [
