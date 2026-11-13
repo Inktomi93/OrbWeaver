@@ -108,8 +108,8 @@ export interface PersonaCandidate extends PersonaIdentity {
   readonly id: PersonaId;
 }
 
-// The content-equality key. Two personas with equal keys are one persona for import dedup.
-function personaContentKey(identity: PersonaIdentity): string {
+/** The content-equality key. Two personas with equal keys are one persona for import dedup. */
+export function personaContentKey(identity: PersonaIdentity): string {
   return stableStringify({
     name: foldPersonaName(stripNameSuffix(identity.name)),
     title: identity.title,

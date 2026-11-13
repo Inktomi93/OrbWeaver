@@ -3,7 +3,7 @@
 // a taken name reuses the row; different content lands under the next free name; no owned row is edited.
 // Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null.
 
-import type { ImportReuse } from "@orb/contracts/import";
+import type { ImportAnswer, ImportReuse } from "@orb/contracts/import";
 import type { FindOwnedThemes, ImportedThemeLanding, ImportThemeOp, SettingsImportOutcome } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
@@ -122,14 +122,14 @@ export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp
  *  files in the order the import lands them, so a theme equal to an earlier file's answers `"upload"`. */
 export function createFindOwnedThemes(input: Pick<SettingsAssemblyContext, "db">): FindOwnedThemes {
   const db = databaseForOwner(input.db);
-  return async (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation): Promise<readonly (ImportReuse | null)[]> => {
+  return async (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation): Promise<readonly ImportAnswer[]> => {
     const owned = new Set(readableOwned(await listOwnedThemes(db, ownerId)).map((row) => themeContentKey(row)));
     // call-local: the content keys of the themes the files judged so far land. Ends if it outlives the call.
     const landed = new Set<string>();
-    return await mapYielding(files, signal, (bytes): ImportReuse | null => {
+    return await mapYielding(files, signal, (bytes): ImportAnswer => {
       const parsed = parseThemeFile(bytes, UNNAMED_THEME);
       if (!parsed.ok || parsed.value.themes.length === 0) {
-        return null;
+        return { reuse: null, keys: [] };
       }
       const keys = parsed.value.themes.map((theme) => themeContentKey(withSafeCss(theme)));
       let reuse: ImportReuse | null = null;
@@ -141,7 +141,7 @@ export function createFindOwnedThemes(input: Pick<SettingsAssemblyContext, "db">
       for (const key of keys) {
         landed.add(key);
       }
-      return reuse;
+      return { reuse, keys };
     });
   };
 }

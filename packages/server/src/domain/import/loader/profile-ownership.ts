@@ -1,12 +1,14 @@
 // The dry run's ownership read: which collected items of every kind a run writes nothing for, because the owner
-// already holds them or because an earlier item of the same upload lands them. Every library lookup asks the owning
-// domain's read-only twin of the write that would land the item, and every in-upload lookup repeats the write's own
-// equality rule over the items before it in the run's order, so a preview and a real run agree on what "already
-// yours" means. Nothing here writes. A verdict belongs to the collected entry itself, never to its source string,
-// because two profiles of one folder can share a path.
+// already holds them or because an earlier item of the same upload lands them, and the content keys each item is
+// compared by. Every library lookup asks the owning domain's read-only twin of the write that would land the item,
+// and every in-upload lookup repeats the write's own equality rule over the items before it in the run's order, so a
+// preview and a real run agree on what "already yours" means. Nothing here writes. A verdict belongs to the
+// collected entry itself, never to its source string, because two profiles of one folder can share a path. A key
+// is the owner's own key for the item (a card's import hash, a transcript's hash under the row it lands under), so
+// the uploads of a split folder can tell, after the fact, which of their entries are one.
 
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
-import type { ImportReuse } from "@orb/contracts/import";
+import type { ImportAnswer } from "@orb/contracts/import";
 import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import type { CharacterId } from "@orb/kit/ids";
 import { mapYielding } from "#primitives/abort";
@@ -18,12 +20,16 @@ import { partitionGroups, resolveMembers } from "../substrate/group.ts";
 import { orphanImportHash } from "../substrate/handle.ts";
 import { presetBytes, themeBytes } from "../substrate/landing-bytes.ts";
 
-/** The row a character's chats land under: an owned character, or the one the upload itself creates. */
+/** The row a character's chats land under: an owned character, or the one the upload itself creates. A row an upload
+ *  creates is named by the content hash of the card that lands it, so a later upload names the same row alike. */
 type RowKey = string;
 
 const ownedRow = (characterId: CharacterId): RowKey => `owned:${characterId}`;
-const newCardRow = (bundleIndex: number): RowKey => `card:${String(bundleIndex)}`;
+const newCardRow = (contentHash: string): RowKey => `card:${contentHash}`;
 const newOrphanRow = (handle: string): RowKey => `orphan:${handle}`;
+
+/** A transcript's key: its identity under the row it lands under, the pair the chat write skips a repeat by. */
+const chatKey = (row: RowKey, chat: CollectedChat): string => JSON.stringify([row, chat.importHash]);
 
 /** The chats one character already holds, by the identities the chat write skips a transcript by. */
 async function heldChats(deps: ProfileDirImportDeps, characterId: CharacterId | null, chats: readonly CollectedChat[]): Promise<ReadonlySet<CollectedChat>> {
@@ -41,7 +47,7 @@ async function heldChats(deps: ProfileDirImportDeps, characterId: CharacterId | 
 /** What the chat write would skip, judged in the order a run lands the chats. A chat is skipped when its row holds
  *  its identity already, or when an earlier chat of the upload under the same row claimed it. */
 interface ChatJudge {
-  readonly verdicts: Map<CollectedChat, ImportReuse>;
+  readonly answers: Map<CollectedChat, ImportAnswer>;
   readonly claims: Map<RowKey, Set<string>>;
 }
 
@@ -55,20 +61,22 @@ async function judgeChats(
   const claimed = judge.claims.get(row.key) ?? new Set<string>();
   judge.claims.set(row.key, claimed);
   for (const chat of chats) {
+    const keys = [chatKey(row.key, chat)];
     if (held.has(chat)) {
-      judge.verdicts.set(chat, "library");
+      judge.answers.set(chat, { reuse: "library", keys });
     } else if (claimed.has(chat.importHash) || (chat.fileHash !== undefined && claimed.has(chat.fileHash))) {
-      judge.verdicts.set(chat, "upload");
+      judge.answers.set(chat, { reuse: "upload", keys });
     } else {
       claimed.add(chat.importHash);
+      judge.answers.set(chat, { reuse: null, keys });
     }
   }
 }
 
-/** What the card pass learned: the verdict of each card, the row each card filename resolves to (the group wave's
+/** What the card pass learned: the answer for each card, the row each card filename resolves to (the group wave's
  *  member key, the last card under a filename winning as it does in the run), and the owned character behind a row. */
 interface CardPass {
-  readonly characters: Map<CollectedCard, ImportReuse>;
+  readonly characters: Map<CollectedCard, ImportAnswer>;
   readonly rowByFilename: Map<string, RowKey>;
   readonly ownedByRow: Map<RowKey, CharacterId>;
 }
@@ -81,25 +89,27 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
   const ownerId = deps.principal.userId;
   const { characterOps } = deps.contextFor(deps.principal, deps.storeAvatar);
   const pass: CardPass = { characters: new Map(), rowByFilename: new Map(), ownedByRow: new Map() };
-  // call-local: the bundle each landed card identity belongs to, so a later equal card finds it. Ends if it outlives the pass.
-  const landed = new Map<string, number>();
-  for (const [index, bundle] of collected.bundles.entries()) {
+  // call-local: the row each landed card identity lands under, so a later equal card finds it. Ends if it outlives the pass.
+  const landed = new Map<string, RowKey>();
+  for (const bundle of collected.bundles) {
     if (deps.signal.aborted) {
       break;
     }
     const hashes = { importHash: bundle.contentHash, textHash: bundle.textHash, fileHash: importFileHash(bundle.cardBytes) };
     const found = await findImportedCharacter(async (importHash) => await characterOps.findByImportHash({ ownerId, importHash }), hashes);
-    const earlier = found === null ? await findImportedCharacter<number>((importHash) => Promise.resolve(landed.get(importHash) ?? null), hashes) : null;
-    let row = newCardRow(index);
+    const earlier = found === null ? await findImportedCharacter<RowKey>((importHash) => Promise.resolve(landed.get(importHash) ?? null), hashes) : null;
+    const keys = [bundle.contentHash];
+    let row = newCardRow(bundle.contentHash);
     if (found !== null) {
       row = ownedRow(found.characterId);
       pass.ownedByRow.set(row, found.characterId);
-      pass.characters.set(bundle, "library");
+      pass.characters.set(bundle, { reuse: "library", keys });
     } else if (earlier !== null) {
-      row = newCardRow(earlier.characterId);
-      pass.characters.set(bundle, "upload");
+      row = earlier.characterId;
+      pass.characters.set(bundle, { reuse: "upload", keys });
     } else {
-      landed.set(bundle.contentHash, index);
+      landed.set(bundle.contentHash, row);
+      pass.characters.set(bundle, { reuse: null, keys });
     }
     pass.rowByFilename.set(bundle.filename, row);
     await judgeChats(deps, chats, { key: row, characterId: pass.ownedByRow.get(row) ?? null }, bundle.chats);
@@ -114,18 +124,20 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
 async function passOrphans(deps: ProfileDirImportDeps, collected: ProfileCollected, chats: ChatJudge): Promise<ImportOwnership["orphans"]> {
   const ownerId = deps.principal.userId;
   const { characterOps } = deps.contextFor(deps.principal, deps.storeAvatar);
-  const orphans = new Map<ProfileCollected["orphanBundles"][number], ImportReuse>();
+  const orphans = new Map<ProfileCollected["orphanBundles"][number], ImportAnswer>();
   // call-local: the placeholders the upload's earlier orphan directories name. Ends if it outlives the pass.
   const named = new Set<string>();
   for (const orphan of collected.orphanBundles) {
     if (deps.signal.aborted) {
       break;
     }
-    const characterId = await characterOps.findByImportHash({ ownerId, importHash: orphanImportHash(orphan.handle) });
+    const importHash = orphanImportHash(orphan.handle);
+    const characterId = await characterOps.findByImportHash({ ownerId, importHash });
+    const keys = [importHash];
     if (characterId !== null) {
-      orphans.set(orphan, "library");
-    } else if (named.has(orphan.handle)) {
-      orphans.set(orphan, "upload");
+      orphans.set(orphan, { reuse: "library", keys });
+    } else {
+      orphans.set(orphan, { reuse: named.has(orphan.handle) ? "upload" : null, keys });
     }
     named.add(orphan.handle);
     await judgeChats(deps, chats, { key: characterId === null ? newOrphanRow(orphan.handle) : ownedRow(characterId), characterId }, orphan.chats);
@@ -141,9 +153,11 @@ function groupFounder(group: ProfileCollected["groups"][number], rowByFilename: 
 }
 
 /** A group is reused when every transcript it brings is: the write counts a room only when it adds one. A group the
- *  run refuses is a skip in the preview, so it is never asked about. */
+ *  run refuses is a skip in the preview, so it is never asked about. A group's one key is the set of its transcripts'
+ *  keys, so a later upload that brings the same transcripts can tell. A transcript no founder seats has no key, and a
+ *  group holding one cannot be compared. */
 async function passGroups(deps: ProfileDirImportDeps, collected: ProfileCollected, cards: CardPass, chats: ChatJudge): Promise<ImportOwnership["groups"]> {
-  const groups = new Map<ProfileCollected["groups"][number], ImportReuse>();
+  const groups = new Map<ProfileCollected["groups"][number], ImportAnswer>();
   const { importable } = partitionGroups(
     collected.groups,
     collected.bundles.map((bundle) => bundle.filename),
@@ -156,27 +170,32 @@ async function passGroups(deps: ProfileDirImportDeps, collected: ProfileCollecte
     if (founder !== null) {
       await judgeChats(deps, chats, { key: founder, characterId: cards.ownedByRow.get(founder) ?? null }, group.chats);
     }
-    const judged = group.chats.map((chat) => chats.verdicts.get(chat));
-    if (judged.every((verdict) => verdict === "library")) {
-      groups.set(group, "library");
-    } else if (judged.every((verdict) => verdict !== undefined)) {
-      groups.set(group, "upload");
+    const judged = group.chats.map((chat) => chats.answers.get(chat));
+    const reuses = judged.map((answer) => answer?.reuse ?? null);
+    let reuse: ImportAnswer["reuse"] = null;
+    if (reuses.every((why) => why === "library")) {
+      reuse = "library";
+    } else if (reuses.every((why) => why !== null)) {
+      reuse = "upload";
     }
+    const answered = judged.filter((answer): answer is ImportAnswer => answer !== undefined);
+    groups.set(group, { reuse, keys: answered.length === judged.length ? [JSON.stringify(answered.flatMap((answer) => answer.keys).toSorted())] : [] });
     await yieldToEventLoop();
   }
   return groups;
 }
 
-/** The items whose answer is a reuse. An answer list shorter than the items (an aborted run) leaves the rest out. */
-function reusedOf<Item>(items: readonly Item[], answers: readonly (ImportReuse | null)[]): Map<Item, ImportReuse> {
-  const reused = new Map<Item, ImportReuse>();
+/** The items the twin answered, each with its answer. An answer list shorter than the items (an aborted run) leaves
+ *  the rest out. */
+function answersOf<Item>(items: readonly Item[], answers: readonly ImportAnswer[]): Map<Item, ImportAnswer> {
+  const answered = new Map<Item, ImportAnswer>();
   for (const [i, item] of items.entries()) {
     const answer = answers[i];
-    if (answer !== null && answer !== undefined) {
-      reused.set(item, answer);
+    if (answer !== undefined) {
+      answered.set(item, answer);
     }
   }
-  return reused;
+  return answered;
 }
 
 async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<ImportOwnership["personas"]> {
@@ -186,7 +205,7 @@ async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollec
     metadata: narrowPersonaMetadata(parsed.metadata),
     artHash: avatarBytes === undefined ? null : sha256Hex(avatarBytes),
   }));
-  return reusedOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas, collisions: deps.personaCollisions }));
+  return answersOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas, collisions: deps.personaCollisions }));
 }
 
 /** The planes whose items another domain keeps in the owner's library: books, presets, themes and backgrounds. Each
@@ -203,34 +222,34 @@ async function passLibrary(
   const heldHashes = collected.backgrounds.length === 0 ? new Set<string>() : await ownership.backgroundHashes(ownerId);
   // call-local: the images the earlier backgrounds of the upload store; identical bytes share one stored image. Ends if it outlives the pass.
   const landedHashes = new Set<string>();
-  const backgrounds = await mapYielding(collected.backgrounds, deps.signal, ({ bytes }): ImportReuse | null => {
+  const backgrounds = await mapYielding(collected.backgrounds, deps.signal, ({ bytes }): ImportAnswer => {
     const hash = sha256Hex(bytes);
     if (heldHashes.has(hash)) {
-      return "library";
+      return { reuse: "library", keys: [hash] };
     }
     if (landedHashes.has(hash)) {
-      return "upload";
+      return { reuse: "upload", keys: [hash] };
     }
     landedHashes.add(hash);
-    return null;
+    return { reuse: null, keys: [hash] };
   });
   return {
-    worlds: reusedOf(collected.worlds, books),
-    presets: reusedOf(collected.presets, await ownership.findPresets({ ownerId, files: presetFiles, signal: deps.signal })),
-    themes: reusedOf(collected.themes, await ownership.findThemes(ownerId, themeFiles, deps.signal)),
-    backgrounds: reusedOf(collected.backgrounds, backgrounds),
+    worlds: answersOf(collected.worlds, books),
+    presets: answersOf(collected.presets, await ownership.findPresets({ ownerId, files: presetFiles, signal: deps.signal })),
+    themes: answersOf(collected.themes, await ownership.findThemes(ownerId, themeFiles, deps.signal)),
+    backgrounds: answersOf(collected.backgrounds, backgrounds),
   };
 }
 
 export async function findOwnership(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<ImportOwnership> {
   // The run lands every card with its chats, then the orphan directories, then the groups; the chat claims follow that order.
-  const chats: ChatJudge = { verdicts: new Map(), claims: new Map() };
+  const chats: ChatJudge = { answers: new Map(), claims: new Map() };
   const cards = await passCards(deps, collected, chats);
   const orphans = await passOrphans(deps, collected, chats);
   const groups = await passGroups(deps, collected, cards, chats);
   return {
     characters: cards.characters,
-    chats: chats.verdicts,
+    chats: chats.answers,
     personas: await passPersonas(deps, collected),
     ...(await passLibrary(deps, collected)),
     groups,

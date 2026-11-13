@@ -182,6 +182,21 @@ test("a split folder's repeated files stay one entry each per profile when the u
   expect(merged.kinds.characters.total).toBe(2);
 });
 
+const DIGEST = /^[0-9a-f]{64}$/u;
+
+forEachNonEmpty(IMPORT_PREVIEW_KINDS, "preview kinds", (kind) => {
+  test(`every ${kind} entry of a preview carries digests of its content keys and equal entries carry the same ones`, async () => {
+    await using root = await harness();
+
+    const { items } = (await shownFor(root, twinProfiles(root, true))).kinds[kind];
+
+    const identitiesIn = (profile: string): (readonly string[])[] =>
+      items.filter(({ source }) => source.profile === profile).map(({ identities }) => identities);
+    expect(nonEmpty(items).every(({ identities }) => identities.length > 0 && identities.every((identity) => DIGEST.test(identity)))).toBe(true);
+    expect(nonEmpty(identitiesIn(BOB))).toEqual(identitiesIn(ALICE));
+  });
+});
+
 test("a single profile's preview still lists one entry per file, all under one profile", async () => {
   await using root = await harness();
   const files = inProfile(ALICE, profileFiles(root, ALICE, true));

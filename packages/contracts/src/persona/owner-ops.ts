@@ -2,7 +2,7 @@
 
 import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { Principal } from "#identity";
-import type { ImportReuse, PersonaCollisionChoices } from "#import";
+import type { ImportAnswer, PersonaCollisionChoices } from "#import";
 import type { PortableExportNotes, PortableFile } from "#portability";
 import type { BulkImportPersonaInput, BulkImportPersonasResult, JoinerPersona, PersonaDetail } from "./schemas.ts";
 
@@ -24,15 +24,16 @@ export type BulkImportPersonas = (args: {
 
 /** What {@link BulkImportPersonas} does with each persona, one answer per input in order, by the test it reuses a
  *  persona by: equal content the owner holds, or a same-name persona the collision choice merges into
- *  (`"library"`), equal content an earlier input lands (`"upload"`), or a new persona (`null`). A read: it writes
- *  nothing. `artHash` is the content hash of the avatar image, or null for a persona without one. `collisions` is
- *  the choice map the write takes, so a preview under a choice says what the run does under it. */
+ *  (`"library"`), equal content an earlier input lands (`"upload"`), or a new persona (`null`), with the persona's
+ *  content key. A read: it writes nothing. `artHash` is the content hash of the avatar image, or null for a persona
+ *  without one. `collisions` is the choice map the write takes, so a preview under a choice says what the run does
+ *  under it. */
 export type FindOwnedPersonas = (args: {
   readonly ownerId: UserId;
   readonly personas: readonly (Pick<BulkImportPersonaInput, "name" | "description" | "metadata"> & { readonly artHash: string | null })[];
   /** Absent or unlisted means merge. */
   readonly collisions?: PersonaCollisionChoices | undefined;
-}) => Promise<readonly (ImportReuse | null)[]>;
+}) => Promise<readonly ImportAnswer[]>;
 
 interface ListPersonasParams {
   readonly principal: Principal;

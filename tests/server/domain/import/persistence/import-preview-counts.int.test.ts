@@ -99,8 +99,8 @@ test("two world books in one folder that share a name are two entries in the mer
   const imported = await finishRun(root, await admit(root, files));
 
   expect(shown.kinds.worlds.items.map(({ source, ...rest }) => ({ path: source.path, ...rest })).toSorted((a, b) => a.path.localeCompare(b.path))).toEqual([
-    { path: "worlds/atlas-earlier.json", name: TWIN_BOOK },
-    { path: "worlds/atlas-later.json", name: TWIN_BOOK, inLibrary: true },
+    { path: "worlds/atlas-earlier.json", name: TWIN_BOOK, identities: [expect.any(String)] },
+    { path: "worlds/atlas-later.json", name: TWIN_BOOK, inLibrary: true, identities: [expect.any(String)] },
   ]);
   expect(shown.kinds.worlds.total).toBe(2);
   expect(present(imported.found).worlds).toBe(2);

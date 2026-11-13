@@ -2,7 +2,7 @@
 
 import type { Cancellation } from "@orb/kit/guards";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import type { ImportReuse } from "#import";
+import type { ImportAnswer } from "#import";
 import type { PortableExportNotes, PortableFile } from "#portability";
 import type { PresetImportOutcome } from "./portability.ts";
 
@@ -14,14 +14,15 @@ export type ExportPresets = (args: { readonly ownerId: UserId; readonly note: Po
 export type ImportPreset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<PresetImportOutcome>;
 
 /** For each file, in order, what {@link ImportPreset} would do with it: reuse the owner's preset (`"library"`),
- *  reuse a preset an earlier file of this list lands (`"upload"`), or write a new one (`null`). A read: it writes
- *  nothing, and it loads the owner's presets once for the whole list. An unreadable file answers `null`. Once
- *  `signal` aborts it stops and returns the answers so far, which the aborted caller discards. */
+ *  reuse a preset an earlier file of this list lands (`"upload"`), or write a new one (`null`), with the preset's
+ *  content key. A read: it writes nothing, and it loads the owner's presets once for the whole list. An unreadable
+ *  file answers `null` with no key. Once `signal` aborts it stops and returns the answers so far, which the aborted
+ *  caller discards. */
 export type FindOwnedPresets = (args: {
   readonly ownerId: UserId;
   readonly files: readonly Uint8Array[];
   readonly signal: Cancellation;
-}) => Promise<readonly (ImportReuse | null)[]>;
+}) => Promise<readonly ImportAnswer[]>;
 
 /** Is `presetId` readable by `userId` (owned, or the shared system default)? */
 export type PresetReadable = (presetId: PresetId, userId: UserId) => Promise<boolean>;

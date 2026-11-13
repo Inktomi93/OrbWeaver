@@ -7,7 +7,7 @@
 // decision (`reusedPersona`) under the same choices. No per-CRUD audit/user-bus — a bulk
 // migration writes silently; the driver reconciles + emits once at the run level.
 
-import type { ImportReuse, PersonaCollisionChoice } from "@orb/contracts/import";
+import type { ImportAnswer, PersonaCollisionChoice } from "@orb/contracts/import";
 import { personaCollisionChoiceFor } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonas, BulkImportPersonasResult, FindOwnedPersonas } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
@@ -17,7 +17,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, PersonaId } from "@orb/kit/ids";
 import type { PersonaCandidate, PersonaIdentity } from "#primitives/serde/persona";
-import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaPlacementOf } from "#primitives/serde/persona";
+import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaContentKey, personaPlacementOf } from "#primitives/serde/persona";
 import type { PersonaImportContext } from "../contract/import.ts";
 import { ensureAvatarAssets, loadOwnedAssetHashes, loadOwnedPersonaCandidates } from "./queries.ts";
 
@@ -53,18 +53,19 @@ function reusedPersona<Candidate extends PersonaIdentity>(
  *  into the owned persona that holds its name, answers `"library"`; one equal to an earlier input answers `"upload"`. */
 export function createFindOwnedPersonas(assembly: Pick<DbAssemblyInput<PersonaImportContext>, "db">): FindOwnedPersonas {
   const db = databaseForOwner(assembly.db);
-  return async ({ ownerId, personas: input, collisions }): Promise<readonly (ImportReuse | null)[]> => {
+  return async ({ ownerId, personas: input, collisions }): Promise<readonly ImportAnswer[]> => {
     const owned: readonly PersonaIdentity[] = await loadOwnedPersonaCandidates(db, ownerId);
     // call-local: the owned identities plus the inputs judged so far that the write would mint. Ends if it outlives the call.
     const candidates = [...owned];
-    return input.map((pi): ImportReuse | null => {
+    return input.map((pi): ImportAnswer => {
       const identity = identityFrom(pi, pi.artHash);
+      const keys = [personaContentKey(identity)];
       const reused = reusedPersona(identity, candidates, owned, personaCollisionChoiceFor(collisions, foldPersonaName(pi.name)));
       if (reused === null) {
         candidates.push(identity);
-        return null;
+        return { reuse: null, keys };
       }
-      return owned.includes(reused.persona) ? "library" : "upload";
+      return { reuse: owned.includes(reused.persona) ? "library" : "upload", keys };
     });
   };
 }
