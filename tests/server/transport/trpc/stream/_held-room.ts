@@ -48,7 +48,7 @@ const wireEnvelopeSchema = z.object({
   message: z.string().optional(),
   ref: z.object({ channel: z.string() }).optional(),
   cursor: z.number().nullable().optional(),
-  event: z.object({ type: z.string().optional(), tagId: typeIdSchema(ID_PREFIX.tag).optional() }).optional(),
+  event: z.object({ type: z.string().optional(), tagId: typeIdSchema(ID_PREFIX.tag).optional(), chatId: typeIdSchema(ID_PREFIX.chat).optional() }).optional(),
 });
 
 export interface Frame {
@@ -77,10 +77,14 @@ export interface Device {
   readonly frames: readonly Frame[];
   /** Each `roomLagged` notice in arrival order: the cursor it carried and how many chat frames had arrived before it. */
   readonly lags: readonly { readonly cursor: number | null; readonly chatFramesBefore: number }[];
-  /** Every `user` room event the socket delivered, in arrival order: its type and the tag it names, if any. */
-  readonly userEvents: readonly { readonly type: string; readonly tagId?: TagId }[];
+  /** Every `user` room event the socket delivered, in arrival order: its type and the tag or chat it names, if any. */
+  readonly userEvents: readonly UserEventRecord[];
   readonly attach: () => Promise<void>;
+  /** Attach the account's own `user` room, and return once the socket confirms it. */
+  readonly attachUser: () => Promise<void>;
   readonly waitFor: (done: (frames: readonly Frame[]) => boolean) => Promise<void>;
+  /** Pull the socket until `done` holds over the `user` room events it has delivered. */
+  readonly waitForUser: (done: (events: readonly UserEventRecord[]) => boolean) => Promise<void>;
   readonly close: () => Promise<void>;
 }
 
@@ -100,11 +104,18 @@ export interface OutsiderDevice {
   readonly close: () => Promise<void>;
 }
 
+/** One `user` room event as the socket delivered it. */
+interface UserEventRecord {
+  readonly type: string;
+  readonly tagId?: TagId;
+  readonly chatId?: ChatId;
+}
+
 /** What one socket has delivered so far, by lane. */
 interface SocketLog {
   readonly frames: Frame[];
   readonly lags: { readonly cursor: number | null; readonly chatFramesBefore: number }[];
-  readonly userEvents: { readonly type: string; readonly tagId?: TagId }[];
+  readonly userEvents: UserEventRecord[];
   readonly controls: Set<string | undefined>;
   readonly attachedChannels: Set<string>;
   readonly barrierTagIds: Set<TagId>;
@@ -136,8 +147,8 @@ function logWireLine(log: SocketLog, line: string): void {
   } else if (envelope.channel !== "user") {
     logControl(log, envelope);
   } else {
-    const { type = "", tagId } = envelope.event ?? {};
-    log.userEvents.push(tagId === undefined ? { type } : { type, tagId });
+    const { type = "", tagId, chatId } = envelope.event ?? {};
+    log.userEvents.push({ type, ...(tagId === undefined ? {} : { tagId }), ...(chatId === undefined ? {} : { chatId }) });
     if (tagId !== undefined) {
       log.barrierTagIds.add(tagId);
     }
@@ -199,7 +210,13 @@ function seatedDevice(room: Room, socket: RoomSocket, seat: Seat): Device {
       const caller = await room.root.internalCallerFor(seat.id);
       await caller.stream.attach({ socketId: socket.socketId, ref: { channel: "chat", chatId: room.chatId } });
     },
+    attachUser: async (): Promise<void> => {
+      const caller = await room.root.internalCallerFor(seat.id);
+      await caller.stream.attach({ socketId: socket.socketId, ref: { channel: "user" } });
+      await socket.pullUntil(() => socket.log.attachedChannels.has("user"));
+    },
     waitFor: (done) => socket.pullUntil(() => done(socket.log.frames)),
+    waitForUser: (done) => socket.pullUntil(() => done(socket.log.userEvents)),
     close: socket.close,
   };
 }

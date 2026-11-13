@@ -5,3 +5,9 @@ export const MODEL_RUN_ESTIMATE_FAILED = "Couldn't count this run's model calls,
 
 /** The same notice for a schedule save, which starts no run: the save is what stops. */
 export const SCHEDULE_SAVE_ESTIMATE_FAILED = "Couldn't count this schedule's model calls, so it wasn't saved.";
+
+/** The notice for a schedule save the server refused because only the box owner may run what it schedules. */
+export const SCHEDULE_SAVE_OWNER_ONLY = {
+  title: "This schedule needs the box owner, so it wasn't saved.",
+  description: "Only the box owner can schedule a job that runs this kind of work.",
+} as const;
