@@ -5,7 +5,8 @@
 // profiles, has no profile. An entry a run writes nothing for says why (the owner holds it, or an earlier entry of the
 // upload lands it), so the entries without a flag are the ones a run writes. A kind's lists are capped but its counts
 // are taken over every entry, so a flag lost past the cap never reads as a write. Each entry also carries digests of the
-// keys its owner compares it by, which the client's merge reads to find equal content across uploads. A skip's reason is written here, one per
+// keys its owner compares it by, which the client's merge reads to find equal content across uploads, and a digest of its
+// source, which lets the merge count an entry that two uploads of one folder both hold once. A skip's reason is written here, one per
 // kind of skip; the importer's own detail stays in the report and the logs.
 
 import type {
@@ -55,7 +56,9 @@ function labelProfiles(profiles: ProfileCollected["profiles"]): readonly Labeled
 type ItemBase = Omit<ImportPreviewItem, "identities">;
 
 function item(profile: string, path: string, name: string): ItemBase {
-  return { source: { profile: clip(profile), path: clip(path) }, name: clip(name) };
+  const source = { profile: clip(profile), path: clip(path) };
+  // A JSON tuple keeps a hostile profile or path from reading as the other half of the key.
+  return { source, sourceDigest: sha256Hex(JSON.stringify([source.profile, source.path])), name: clip(name) };
 }
 
 /** What an item's keys are on the wire: digests, so the preview never carries the file content a key is built from.

@@ -9,7 +9,7 @@ import { importPreviewUncomparedNote } from "#client/features/workloads/lib/impo
 import { previewKindLine } from "#client/features/workloads/lib/portability-model.ts";
 
 function entry(path: string, flag: Partial<Pick<ImportPreviewItem, "inLibrary">> = {}): ImportPreviewItem {
-  return { source: { profile: "profile", path }, name: path, identities: [path], ...flag };
+  return { source: { profile: "profile", path }, sourceDigest: path, name: path, identities: [path], ...flag };
 }
 
 const OWNED_PAST_THE_CAP = IMPORT_PREVIEW_LIST_MAX + 1;

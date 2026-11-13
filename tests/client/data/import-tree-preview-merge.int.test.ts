@@ -11,7 +11,7 @@ import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
 import { importTree, relativePathOf } from "@orb/client/data";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { ImportPreview, ImportPreviewKind } from "@orb/contracts/import";
-import { mergeImportPreviews } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_LIST_MAX, mergeImportPreviews } from "@orb/contracts/import";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -80,6 +80,7 @@ async function runUpload(root: ServerTestHarness, id: WorkloadId): Promise<void>
 }
 
 interface Library {
+  readonly worlds: number;
   readonly presets: number;
   readonly backgrounds: number;
   readonly characters: number;
@@ -90,9 +91,10 @@ async function libraryHolds(root: ServerTestHarness): Promise<Library> {
   const caller = await root.internalCallerFor(root.ownerId);
   const settings = await root.services.settings.getUserSettings({ principal: await root.principalFor(root.ownerId) });
   return {
+    worlds: (await caller.worldInfo.listBooks()).length,
     presets: (await caller.preset.list()).length,
     backgrounds: settings.config.appearance.backgroundLibrary.length,
-    characters: (await caller.character.list({})).items.length,
+    characters: await caller.character.count(),
     chats: (await caller.chat.listChats({})).items.length,
   };
 }
@@ -106,27 +108,40 @@ async function freshRoot(): Promise<ServerTestHarness> {
   });
 }
 
+/** Runs every upload of the plan the way the client sends it, with the server standing in for the network. */
+async function sendPlan<T>(root: ServerTestHarness, plan: TreeImportPlan, dryRun: boolean, onUpload: (id: WorkloadId) => Promise<T>): Promise<T[]> {
+  vi.stubGlobal("fetch", (input: string, init?: RequestInit) => root.http.request(input, init));
+  try {
+    const out: T[] = [];
+    for (const batch of plan.batches) {
+      const { workloadId } = await importTree(batch, {}, plan.layout, dryRun ? { dryRun: true } : {});
+      await runUpload(root, workloadId);
+      out.push(await onUpload(workloadId));
+    }
+    return out;
+  } finally {
+    vi.unstubAllGlobals();
+  }
+}
+
+/** Previews every upload of the plan the way the client does and merges them. */
+async function previewPlan(
+  root: ServerTestHarness,
+  plan: TreeImportPlan,
+): Promise<{ readonly previews: readonly ImportPreview[]; readonly merged: ImportPreview }> {
+  const previews = await sendPlan(root, plan, true, (id) => previewOf(root, id));
+  return { previews, merged: mergeImportPreviews(previews) };
+}
+
 /** Previews every upload of the plan the way the client does, merges them, then runs every upload for real. */
 async function previewMergeAndRun(
   root: ServerTestHarness,
   plan: TreeImportPlan,
 ): Promise<{ readonly previews: readonly ImportPreview[]; readonly merged: ImportPreview; readonly before: Library; readonly after: Library }> {
-  vi.stubGlobal("fetch", (input: string, init?: RequestInit) => root.http.request(input, init));
-  try {
-    const previews: ImportPreview[] = [];
-    for (const batch of plan.batches) {
-      const { workloadId } = await importTree(batch, {}, plan.layout, { dryRun: true });
-      await runUpload(root, workloadId);
-      previews.push(await previewOf(root, workloadId));
-    }
-    const before = await libraryHolds(root);
-    for (const batch of plan.batches) {
-      await runUpload(root, (await importTree(batch, {}, plan.layout)).workloadId);
-    }
-    return { previews, merged: mergeImportPreviews(previews), before, after: await libraryHolds(root) };
-  } finally {
-    vi.unstubAllGlobals();
-  }
+  const { previews, merged } = await previewPlan(root, plan);
+  const before = await libraryHolds(root);
+  await sendPlan(root, plan, false, () => Promise.resolve());
+  return { previews, merged, before, after: await libraryHolds(root) };
 }
 
 const profileOf = (file: File): string => relativePathOf(file).split("/")[1] ?? "";
@@ -207,4 +222,94 @@ test("equal cards, transcripts, orphan directories and groups the planner sends 
     expect(alone, kind).toBeGreaterThan(willWrite(merged, kind));
   }
   expect(willWrite(merged, "groups")).toBe(1);
+});
+
+const PAST_THE_CAP = IMPORT_PREVIEW_LIST_MAX + 1;
+
+function worldOf(i: number): string {
+  return JSON.stringify({
+    entries: { "0": { uid: 0, key: [`world-${String(i)}`], comment: `World ${String(i)}`, content: `World number ${String(i)}.`, order: 100 } },
+  });
+}
+
+/** More world books than a preview lists, which ride every upload, and four presets that split the folder in two. */
+function sharedWorldsFolder(): File[] {
+  return [
+    pickedFile(`${ROOT}/${ALICE}/settings.json`, SETTINGS),
+    ...Array.from({ length: PAST_THE_CAP }, (_, i) => pickedFile(`${ROOT}/${ALICE}/worlds/World ${String(i)}.json`, worldOf(i))),
+    ...Array.from({ length: 4 }, (_, i) =>
+      pickedFile(`${ROOT}/${ALICE}/OpenAI Settings/Preset ${String(i)}.json`, PRESET.replace("the same", `number ${String(i)}`)),
+    ),
+  ];
+}
+
+/** The plan for the shared-worlds folder: settings and the world books ride every upload, so two more files make one,
+ *  two presets each. */
+async function sharedWorldsPlan(): Promise<TreeImportPlan> {
+  const plan = await planTreeImport(sharedWorldsFolder(), capsOf(PAST_THE_CAP + 3));
+  expect(plan.batches).toHaveLength(2);
+  return plan;
+}
+
+test("world books past the list cap that ride every upload are counted once, as the run writes them", { tags: ["slow"] }, async () => {
+  await using root = await freshRoot();
+
+  const { previews, merged, before, after } = await previewMergeAndRun(root, await sharedWorldsPlan());
+
+  // The control: each upload counts every world and lists only the first of them, so the sum of the two says double.
+  expect(previews.map((preview) => preview.kinds.worlds.total)).toEqual([PAST_THE_CAP, PAST_THE_CAP]);
+  expect(previews.map((preview) => preview.kinds.worlds.items.length)).toEqual([IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_LIST_MAX]);
+  expect(merged.kinds.worlds.total).toBe(PAST_THE_CAP);
+  expect(merged.kinds.worlds.counts.writes).toBe(PAST_THE_CAP);
+  expect(after.worlds - before.worlds).toBe(merged.kinds.worlds.counts.writes);
+});
+
+test("world books past the list cap that ride every upload are counted once when the library holds them", { tags: ["slow"] }, async () => {
+  await using root = await freshRoot();
+  const plan = await sharedWorldsPlan();
+  // One upload lands every world, since each carries them all; the preview then reads both.
+  await sendPlan(root, { ...plan, batches: plan.batches.slice(0, 1) }, false, () => Promise.resolve());
+
+  const { merged } = await previewPlan(root, plan);
+
+  expect(merged.kinds.worlds.total).toBe(PAST_THE_CAP);
+  expect(merged.kinds.worlds.counts).toMatchObject({ inLibrary: PAST_THE_CAP, writes: 0, uncompared: 0 });
+  expect((await libraryHolds(root)).worlds).toBe(PAST_THE_CAP);
+});
+
+test("a member card a group's upload sends again is counted once when its own upload left it past the list cap", { tags: ["slow"] }, async () => {
+  await using root = await freshRoot();
+  const png = new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  const cardOf = (name: string): Uint8Array<ArrayBuffer> =>
+    new Uint8Array(
+      writeCardChunk(
+        png,
+        JSON.stringify({ spec: "chara_card_v2", ["spec_version"]: "2.0", data: { name, description: `${name} keeps the light.`, ["first_mes"]: "Hello." } }),
+      ),
+    );
+  // The member sorts last, so the upload that holds every card lists the other 500 and leaves it in its tail.
+  const member = "zz-member";
+  const files = [
+    pickedFile(`${ROOT}/${ALICE}/settings.json`, SETTINGS),
+    ...Array.from({ length: IMPORT_PREVIEW_LIST_MAX }, (_, i) =>
+      pickedFile(`${ROOT}/${ALICE}/characters/card-${String(i).padStart(3, "0")}.png`, cardOf(`Card ${String(i)}`)),
+    ),
+    pickedFile(`${ROOT}/${ALICE}/characters/${member}.png`, cardOf("Member")),
+    pickedFile(`${ROOT}/${ALICE}/groups/crew.json`, JSON.stringify({ name: "Crew", members: [`${member}.png`], chats: ["room"] })),
+    pickedFile(`${ROOT}/${ALICE}/group chats/room.jsonl`, chatOf("The room line.")),
+  ];
+  // Settings ride every upload and every card has room in the first, so the group and its member take the second.
+  const plan = await planTreeImport(files, capsOf(PAST_THE_CAP + 2));
+  expect(plan.batches).toHaveLength(2);
+
+  const { previews, merged, before, after } = await previewMergeAndRun(root, plan);
+
+  // The control: the member is in both uploads, past the first one's list and inside the second's.
+  expect(previews.map((preview) => preview.kinds.characters.total)).toEqual([PAST_THE_CAP, 1]);
+  const listed = (upload: number): string[] => previews[upload]?.kinds.characters.items.map((item) => item.source.path) ?? [];
+  expect(listed(0)).toHaveLength(IMPORT_PREVIEW_LIST_MAX);
+  expect(listed(0)).not.toContain(`${member}.png`);
+  expect(listed(1)).toEqual([`${member}.png`]);
+  expect(merged.kinds.characters.total).toBe(PAST_THE_CAP);
+  expect(after.characters - before.characters).toBe(merged.kinds.characters.counts.writes);
 });

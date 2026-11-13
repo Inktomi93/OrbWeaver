@@ -4,7 +4,7 @@
 // @subject packages/contracts/src/import/preview.ts
 
 import type { ImportPreview, ImportPreviewItem, ImportPreviewKind } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_LIST_MAX, importPreviewListOf, mergeImportPreviews } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TAIL_MAX, importPreviewListOf, mergeImportPreviews } from "@orb/contracts/import";
 import { expect, test } from "@orb/testkit/node";
 
 const KIND = "themes" satisfies ImportPreviewKind;
@@ -15,7 +15,7 @@ function itemAt(
   identities: readonly string[],
   flag: Partial<Pick<ImportPreviewItem, "inLibrary" | "repeat">> = {},
 ): ImportPreviewItem {
-  return { source: { profile, path }, name: path, identities, ...flag };
+  return { source: { profile, path }, sourceDigest: `${profile}/${path}`, name: path, identities, ...flag };
 }
 
 /** One upload's preview whose only entries are theme files. */
@@ -119,6 +119,52 @@ test("a split folder whose uploads each have an unlisted tail counts the writes 
   expect(total).toBe(2 * (IMPORT_PREVIEW_LIST_MAX + 1));
   // Alice's tail is an unflagged write nobody compared; bob's tail entry is its own upload's repeat, known exactly.
   expect(counts).toEqual({ inLibrary: 0, repeat: 1, writes: total - 1, withoutArt: 0, uncompared: 1 });
+});
+
+/** A file every upload of a split folder carries, as many of them as `count`: each upload lists the first of them and
+ *  counts the rest, and an entry past the list cap has the same source in every upload. */
+function sharedUpload(count: number, flag: Partial<Pick<ImportPreviewItem, "inLibrary" | "repeat">> = {}): ImportPreview {
+  return uploadOf(...Array.from({ length: count }, (_, i) => itemAt("alice", `shared-${String(i)}.json`, [], flag)));
+}
+
+test("entries every upload of a split folder carries are counted once however many uploads hold them, owned or not", () => {
+  const past = IMPORT_PREVIEW_LIST_MAX + 1;
+
+  const fresh = mergeImportPreviews([sharedUpload(past), sharedUpload(past)]).kinds[KIND];
+  const owned = mergeImportPreviews([sharedUpload(past, { inLibrary: true }), sharedUpload(past, { inLibrary: true })]).kinds[KIND];
+
+  // Each upload sends no identities for these, so a write among them is a bound; the entry past the cap is one write.
+  expect(fresh.total).toBe(past);
+  expect(fresh.counts).toEqual({ inLibrary: 0, repeat: 0, writes: past, withoutArt: 0, uncompared: past });
+  expect(owned.total).toBe(past);
+  expect(owned.counts).toEqual({ inLibrary: past, repeat: 0, writes: 0, withoutArt: 0, uncompared: 0 });
+});
+
+test("an entry one upload lists and another leaves in its tail is counted once, whichever upload lists it", () => {
+  const past = IMPORT_PREVIEW_LIST_MAX + 1;
+  const last = itemAt("alice", "last.json", ["last"], { inLibrary: true });
+  const filler = (profile: string): ImportPreviewItem[] =>
+    Array.from({ length: IMPORT_PREVIEW_LIST_MAX }, (_, i) =>
+      itemAt(profile, `${profile}-${String(i)}.json`, [`${profile}-${String(i)}`], { inLibrary: true }),
+    );
+
+  const tailFirst = mergeImportPreviews([uploadOf(...filler("alice"), last), uploadOf(last)]).kinds[KIND];
+  const tailSecond = mergeImportPreviews([uploadOf(last), uploadOf(...filler("alice"), last)]).kinds[KIND];
+
+  expect(tailFirst.total).toBe(past);
+  expect(tailSecond.total).toBe(past);
+  expect(tailFirst.counts.inLibrary).toBe(past);
+  expect(tailSecond.counts.inLibrary).toBe(past);
+});
+
+test("an unlisted entry past the digests an upload sends cannot be matched, so it is counted as the upload counted it and named uncompared", () => {
+  const entries = IMPORT_PREVIEW_LIST_MAX + IMPORT_PREVIEW_TAIL_MAX + 1;
+
+  const merged = mergeImportPreviews([sharedUpload(entries), sharedUpload(entries)]).kinds[KIND];
+
+  // The one entry past the digests is the same file in both uploads and counts twice: a bound the count says it is.
+  expect(merged.total).toBe(entries + 1);
+  expect(merged.counts.uncompared).toBe(merged.counts.writes);
 });
 
 test("one upload with an unlisted tail has no other upload to be compared with, so none of it is uncompared", () => {
