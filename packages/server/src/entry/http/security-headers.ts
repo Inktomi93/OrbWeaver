@@ -334,7 +334,15 @@ export function securityHeaders(opts: SecurityHeadersOptions): SecurityHeaders {
     const pattern = OWN_POLICY_ROUTES[route];
     registered.add(pattern);
     app.get(`${pattern.prefix}:${ID_PARAM}${pattern.suffix}`, async (c) => {
-      const reply = await handler(c, c.req.param(ID_PARAM));
+      let reply: OwnPolicyReply;
+      try {
+        reply = await handler(c, c.req.param(ID_PARAM));
+      } finally {
+        // SECURITY: only the reply's policy may leave this route. A copy the handler set on the context, under a
+        // name the lint cannot read, would otherwise ride a refusal or a fault answer, where the middleware reads it
+        // as the route's own and skips every app header, or override the reply's policy once `c.res` exists.
+        c.header(OWN_POLICY_HEADER, undefined);
+      }
       switch (reply.kind) {
         case "refusal":
           return c.body(null, reply.status);
