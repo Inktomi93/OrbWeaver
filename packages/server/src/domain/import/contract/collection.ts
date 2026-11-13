@@ -193,6 +193,8 @@ export interface CollectResult {
    *  mint-a-placeholder wave's input. Without it the chats would be counted, named, and thrown away. */
   readonly orphanBundles: { readonly dirName: string; readonly handle: CharacterHandle; readonly chats: CollectedChat[] }[];
   readonly unreadableCards: string[];
+  /** A card file the parser refused or threw on, with why: the import goes on without it and the report names it. */
+  readonly invalidCards: { file: string; reason: string }[];
   /** A `worlds/*.json` that did not parse as an ST world-info file (recorded, never silent). */
   readonly unreadableWorlds: string[];
   /** An `OpenAI Settings/*.json` that did not parse as an ST chat-completion preset (recorded, never silent). */

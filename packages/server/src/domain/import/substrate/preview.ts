@@ -52,6 +52,7 @@ function skippedItems(collected: ProfileCollected): ImportPreviewSkip[] {
   ];
   return [
     ...collected.unreadableCards.map((file) => skip(file, "not a readable character card")),
+    ...collected.invalidCards.map(({ file, reason }) => skip(file, reason)),
     ...collected.skippedChats.map((file) => skip(file, "the chat file is over the size limit")),
     ...collected.missingGroupChats.map((leaf) => skip(leaf, "a group lists this chat, but its file is missing or unreadable")),
     ...collected.unreadableGroups.map((file) => skip(file, "not a readable group")),

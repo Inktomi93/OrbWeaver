@@ -6,6 +6,7 @@
 // @subject packages/server/src/entry/http/import-tree.ts
 // @subject packages/server/src/entry/import/run-profile-import.ts
 
+import { readFile } from "node:fs/promises";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import {
@@ -31,6 +32,7 @@ const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
 const DIALOG_FIELD = "file";
 const WRAPPER = "default-user";
 const ENCODER = new TextEncoder();
+const OVERLONG_NAME_LENGTH = 100_000;
 
 function harness(): Promise<ServerTestHarness> {
   return createServerHarness({
@@ -90,7 +92,12 @@ async function dialog(root: ServerTestHarness, filename: string, bytes: Bytes): 
 }
 
 /** One tree upload of a picked folder, run to the end of its import workload. */
-async function uploadTree(root: ServerTestHarness, files: Readonly<Record<string, Bytes>>, choices: PersonaCollisionChoices = {}): Promise<void> {
+async function uploadTree(
+  root: ServerTestHarness,
+  files: Readonly<Record<string, Bytes>>,
+  choices: PersonaCollisionChoices = {},
+  failed = 0,
+): Promise<string | undefined> {
   const form = new FormData();
   for (const choice of encodePersonaCollisionChoices(choices)) {
     form.append(PERSONA_COLLISION_FIELD, choice);
@@ -109,7 +116,9 @@ async function uploadTree(root: ServerTestHarness, files: Readonly<Record<string
   await run(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
   const row = await root.services.workloads.get({ caller: await root.principalFor(root.ownerId), id: workloadId });
   expect(row).toMatchObject({ kind: "import-st", status: "succeeded" });
-  expect(row.kind === "import-st" && !row.poison ? row.result?.failed : undefined).toBe(0);
+  const result = row.kind === "import-st" && !row.poison ? row.result : undefined;
+  expect(result?.failed).toBe(failed);
+  return result?.reportPath;
 }
 
 async function characterNamed(root: ServerTestHarness, name: string): Promise<CharacterId> {
@@ -165,6 +174,39 @@ test("a lore entry whose injection depth is past the cap imports with no depth d
   expect(entries.map((entry) => [entry.content, entry.metadata?.inject?.depth]).toSorted()).toEqual([
     ["Far lore.", undefined],
     ["Near lore.", 3],
+  ]);
+});
+
+test("a folder with a card the parser throws on and a card the schema refuses imports the good card and names both with their reasons", async () => {
+  await using root = await harness();
+  // An entry key that collides with a typed metadata field makes the card parse itself throw.
+  const thrown = card("Thrown", { book: '{"name":"Bad Lore","entries":[{"keys":["x"],"content":"Lore.","scopeMode":"bogus"}]}' });
+  // A description past the card schema's cap parses and is refused when the character is written.
+  const refused = card("N".repeat(OVERLONG_NAME_LENGTH));
+
+  const reportPath = await uploadTree(
+    root,
+    {
+      [ST_SETTINGS_FILE]: "{}",
+      "characters/Aria.png": writeCardChunk(art(root), card("Aria")),
+      "characters/thrown.png": writeCardChunk(art(root), thrown),
+      "characters/refused.png": writeCardChunk(art(root), refused),
+    },
+    {},
+    2,
+  );
+
+  expect(await charactersNamed(root, "Aria")).toBe(1);
+  if (reportPath === undefined) {
+    throw new Error("the import wrote no report");
+  }
+  const skipped = (await readFile(reportPath, "utf8"))
+    .split("\n")
+    .filter((line) => line.includes(".png`"))
+    .toSorted();
+  expect(skipped).toEqual([
+    expect.stringMatching(/^- `refused\.png` — card_invalid: .*Too big.*description/u),
+    expect.stringMatching(/^- `thrown\.png` — .*scopeMode/u),
   ]);
 });
 
