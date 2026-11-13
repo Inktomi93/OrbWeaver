@@ -8,15 +8,15 @@
 // A row keys on the test file the literal is written in, the case it sits in (as `judged-oracles.ts` keys a case) and
 // the literal's value (a template or pattern as the source spells it), so it survives line drift. The key is
 // deliberately not the line: one row covers every site of that value in its case, because two sites of one value in
-// one case share one verdict. The census
-// prints every home-class site no row covers, and every row that covers no home-class site: a row goes stale when its
-// site is rebound or deleted, or when a story starts to author the value.
+// one case share one verdict. The census prints every home-class site no row covers, and every row that covers no
+// home-class site: a row goes stale when its site is rebound or deleted, or when a story starts to author the value.
 //
 // The reasons, a closed list:
 // - `production-id`: the value is an identifier production keeps in state, such as a modal slot id or a section id,
 //   that a story prints for the case to read. No user reads it as a name.
 // - `test-authored`: the test, its story or its own helper module wrote the value: a story prop, a payload, a tracker
-//   it defines, a document it serves, text it typed. Production spells the same word for another control.
+//   it defines, a document it serves, text it typed. Production spells the same word for another control, or, for a
+//   `composed` site, a production template fits the text by accident: a false fit, which the note names.
 // - `guest-authored`: a guest plugin's markup wrote the value, and the host renders it as the guest's content.
 // - `data`: the value is content or syntax a control shows, not the control's name: a macro token, a card fence, a
 //   wire enum value printed as a badge, an entry the first-boot seed writes into a user's own library.
@@ -93,6 +93,13 @@ export const JUDGED_SITES: readonly SiteJudgement[] = [
     note: "characterFaceName's starred arm; the case comment says the starred tail is pinned by the literal the reader hears",
   },
   {
+    file: "tests/client/compose/library-accessibility.ct.tsx",
+    scope: "native library starred shelf opens the character editor by keyboard even when the character has a room",
+    value: "Starred · 1",
+    reason: "literal-pin",
+    note: "characterStarredShelfName; the case comment says the shelf count is pinned by the literal the reader hears",
+  },
+  {
     file: "tests/client/data/session-freshness.ct.tsx",
     scope: "an unreachable visibility read retries, while a real signed-out verdict opens recovery without discarding the workspace",
     value: "reauth",
@@ -162,6 +169,13 @@ export const JUDGED_SITES: readonly SiteJudgement[] = [
     note: "trackerDefaultMaxName; the builder finds the control and the case comment says these literals pin what the reader hears",
   },
   {
+    file: "tests/client/features/chat/components/regex-row-title-floor.ct.tsx",
+    scope: "(module)",
+    value: "Quotation marks smoothed across every speaker in the long vigil at the lighthouse keeper's cottage",
+    reason: "test-authored",
+    note: "a false fit of a corpus insight template: the regex title the case seeds",
+  },
+  {
     file: "tests/client/features/config/surfaces/config-search-fold.ct.tsx",
     scope: "Enter on a member hit lands in its editor, because the search field started the arrival",
     value: "/luck ledger/u",
@@ -181,6 +195,13 @@ export const JUDGED_SITES: readonly SiteJudgement[] = [
     value: "/Hearth/u",
     reason: "data",
     note: "the Hearth theme's row name, which the server seeds and the Looks radio prints",
+  },
+  {
+    file: "tests/client/features/config/surfaces/looks-import-leftovers.ct.tsx",
+    scope: "a theme you already have is reported as reused, and its note never claims an import",
+    value: "4 SillyTavern settings in this file aren't part of a theme here",
+    reason: "literal-pin",
+    note: "themeImportLeftoverTitle's reuse arm; the case is titled for the reuse wording that never claims an import",
   },
   {
     file: "tests/client/features/config/surfaces/theme-css-editor.ct.tsx",
@@ -261,6 +282,13 @@ export const JUDGED_SITES: readonly SiteJudgement[] = [
     note: "a wire relation value the pair row prints as its badge",
   },
   {
+    file: "tests/client/features/discovery/surfaces/duplicate-chats-names.ct.tsx",
+    scope: "(module)",
+    value: "Remove the unrelated pair",
+    reason: "test-authored",
+    note: "a false fit of a remove grammar: the story's own control label",
+  },
+  {
     file: "tests/client/features/persona/components/platform-persona-action-groups.suite.ct.tsx",
     scope: "the persona editor retains all lifecycle actions and cancelling Delete preserves the named persona",
     // biome-ignore lint/suspicious/noTemplateCurlyInString: the key is the site's template as the source spells it.
@@ -284,12 +312,96 @@ export const JUDGED_SITES: readonly SiteJudgement[] = [
     note: "the macro token the case completes and reads in the macro field",
   },
   {
+    file: "tests/client/features/plugin/components/confirmation-identity.ct.tsx",
+    scope: "a refreshed action cannot inherit another action's open destructive confirmation",
+    value: "Refresh actions",
+    reason: "test-authored",
+    note: "a false fit: the labels the guest UI source this case serves declares",
+  },
+  {
+    file: "tests/client/features/plugin/components/confirmation-identity.ct.tsx",
+    scope: "a refreshed action cannot inherit another action's open destructive confirmation",
+    value: "Remove first",
+    reason: "test-authored",
+    note: "a false fit: the labels the guest UI source this case serves declares",
+  },
+  {
+    file: "tests/client/features/plugin/components/confirmation-identity.ct.tsx",
+    scope: "a refreshed action cannot inherit another action's open destructive confirmation",
+    value: "Remove first?",
+    reason: "test-authored",
+    note: "a false fit: the labels the guest UI source this case serves declares",
+  },
+  {
+    file: "tests/client/features/plugin/components/confirmation-identity.ct.tsx",
+    scope: "a refreshed action cannot inherit another action's open destructive confirmation",
+    value: "Remove second",
+    reason: "test-authored",
+    note: "a false fit: the labels the guest UI source this case serves declares",
+  },
+  {
+    file: "tests/client/features/plugin/components/confirmation-identity.ct.tsx",
+    scope: "a refreshed action cannot inherit another action's open destructive confirmation",
+    value: "Remove second?",
+    reason: "test-authored",
+    note: "a false fit: the labels the guest UI source this case serves declares",
+  },
+  {
+    file: "tests/client/features/plugin/components/context-panels.ct.tsx",
+    scope: "ordinary plugin panels share Context, collapse independently, and move individually to the sidecar",
+    value: "First panel content",
+    reason: "test-authored",
+    note: "a false fit of contentRegionName: text the case's plugin bundle renders in its panel",
+  },
+  {
+    file: "tests/client/features/plugin/components/context-panels.ct.tsx",
+    scope: "ordinary plugin panels share Context, collapse independently, and move individually to the sidecar",
+    value: "Second panel content",
+    reason: "test-authored",
+    note: "a false fit of contentRegionName: text the case's plugin bundle renders in its panel",
+  },
+  {
+    file: "tests/client/features/plugin/components/context-panels.ct.tsx",
+    scope: "keyboard placement hands focus to the return control and back to the restored panel",
+    value: "First panel content",
+    reason: "test-authored",
+    note: "a false fit of contentRegionName: text the case's plugin bundle renders in its panel",
+  },
+  {
+    file: "tests/client/features/plugin/components/context-panels.ct.tsx",
+    scope: "ordinary panels use mobile Context and only an explicitly selected panel opens in the sidecar sheet",
+    value: "First panel content",
+    reason: "test-authored",
+    note: "a false fit of contentRegionName: text the case's plugin bundle renders in its panel",
+  },
+  {
+    file: "tests/client/features/plugin/components/context-panels.ct.tsx",
+    scope: "ordinary panels use mobile Context and only an explicitly selected panel opens in the sidecar sheet",
+    value: "Second panel content",
+    reason: "test-authored",
+    note: "a false fit of contentRegionName: text the case's plugin bundle renders in its panel",
+  },
+  {
     file: "tests/client/features/plugin/components/flank-overlay-exits.ct.tsx",
     scope: "Escape closes the overlay after a press on a part that takes no focus",
     // biome-ignore lint/suspicious/noTemplateCurlyInString: the key is the site's template as the source spells it.
     value: "`${PLUGINS[0].name} content`",
     reason: "test-authored",
     note: "the text the case's plugin bundle registers as its panel's content",
+  },
+  {
+    file: "tests/client/features/plugin/components/hide-focus.ct.tsx",
+    scope: "hiding the final plugin panel returns focus to the shell Chats main region",
+    value: "Focus panel content",
+    reason: "test-authored",
+    note: "a false fit of contentRegionName: text the case's plugin bundle renders in its panel",
+  },
+  {
+    file: "tests/client/features/plugin/components/platform-plugin-action-sizing.suite.ct.tsx",
+    scope: "(module)",
+    value: "Review the current note alongside the complete northern expedition reference archive",
+    reason: "test-authored",
+    note: "a false fit: the long action label the case's plugin declares",
   },
   {
     file: "tests/client/features/plugin/components/platform-plugin-presentation.suite.ct.tsx",
@@ -299,6 +411,41 @@ export const JUDGED_SITES: readonly SiteJudgement[] = [
     value: "Sort",
     reason: "guest-authored",
     note: "the Card Atlas guest bundle names its own select; the host renders the guest's markup",
+  },
+  {
+    file: "tests/client/features/plugin/components/platform-plugin-presentation.suite.ct.tsx",
+    scope: "settings use the same attributed block for native scripted and frame registrations",
+    value: "Native scripted settings",
+    reason: "test-authored",
+    note: "a false fit of a settings template: the text the case's plugin renders",
+  },
+  {
+    file: "tests/client/features/plugin/components/platform-plugin-presentation.suite.ct.tsx",
+    scope: "settings use the same attributed block for native scripted and frame registrations",
+    value: "Native frame settings",
+    reason: "test-authored",
+    note: "a false fit of a settings template: the text the case's plugin frame renders",
+  },
+  {
+    file: "tests/client/features/plugin/components/platform-plugin-presentation.suite.ct.tsx",
+    scope: "Keepsake Album names the live media placement and retains its chat-only slash alternative",
+    value: "/plugin keepsake-camera snapshot",
+    reason: "guest-authored",
+    note: "the Keepsake Camera bundle's album copy, matched by substring",
+  },
+  {
+    file: "tests/client/features/preset/components/list-lifetimes.ct.tsx",
+    scope: "native nested lists preserve typing and successor bindings, retain own echoes, and close replaced draft editors",
+    value: "Option 1",
+    reason: "literal-pin",
+    note: "presetVariableOptionGroupName and its confirm; the case comment says the literals pin the ordinal counted from one",
+  },
+  {
+    file: "tests/client/features/preset/components/list-lifetimes.ct.tsx",
+    scope: "native nested lists preserve typing and successor bindings, retain own echoes, and close replaced draft editors",
+    value: "Remove option 1?",
+    reason: "literal-pin",
+    note: "presetVariableOptionGroupName and its confirm; the case comment says the literals pin the ordinal counted from one",
   },
   {
     file: "tests/client/features/preset/components/preset-readout-boundary.ct.tsx",
@@ -428,6 +575,27 @@ export const JUDGED_SITES: readonly SiteJudgement[] = [
     value: "home",
     reason: "production-id",
     note: "the bound workspace id, which the story prints in a status probe",
+  },
+  {
+    file: "tests/client/state/state-lifecycle.ct.tsx",
+    scope: "(module)",
+    value: "Back to Witness library",
+    reason: "test-authored",
+    note: "a false fit of sectionBackName: the drill rows the story is handed as props",
+  },
+  {
+    file: "tests/client/state/state-lifecycle.ct.tsx",
+    scope: "(module)",
+    value: "Back to Witness entries",
+    reason: "test-authored",
+    note: "a false fit of sectionBackName: the drill rows the story is handed as props",
+  },
+  {
+    file: "tests/e2e/live-composer-instant-type.spec.ts",
+    scope: "(module)",
+    value: "Typing instantly on fast room entry should keep every character.",
+    reason: "test-authored",
+    note: "a false fit: the text the spec types",
   },
   {
     file: "tests/e2e/live-parity-plus-capstone.spec.ts",

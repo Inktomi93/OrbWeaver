@@ -149,3 +149,36 @@ export function presetSectionEditorName(section: string): string {
 export function presetTemplateEditorName(template: string): string {
   return `${template}: template editor`;
 }
+
+/** What failed to load, said by the preset library's read. */
+export const PRESET_LIBRARY_READ_LABEL = "your presets";
+
+/** What failed to load, said by the usage readout's read. */
+export const PRESET_USAGE_READ_LABEL = "what uses this preset";
+
+/** What failed to load, said by the preset readout's read. */
+export const PRESET_READOUT_READ_LABEL = "the readout";
+
+/** What failed to load, said by the transforms readout's read. */
+export const PRESET_TRANSFORMS_READ_LABEL = "the attached scripts";
+
+/** What failed to load, said by the prompt readout's bound-chat cost read. */
+export const PRESET_BOUND_COSTS_READ_LABEL = "the bound chat's costs";
+
+/** What failed to load, said by the actions readout's resolved preview read. */
+export const PRESET_ACTIONS_PREVIEW_READ_LABEL = "the resolved preview";
+
+/** The singular nouns the sequence chip lists name their add box and each chip's Remove by. */
+export const PRESET_STOP_SEQUENCE_NOUN = "stop sequence";
+export const PRESET_DRY_BREAKER_NOUN = "DRY sequence breaker";
+export const PRESET_BANNED_PHRASE_NOUN = "banned phrase";
+
+/** A sequence chip's subject: its list's noun, then the text it shows. */
+export function sequenceChipSubject(noun: string, shown: string): string {
+  return `${noun} ${shown}`;
+}
+
+/** A sequence list's add box, named for the noun it adds. */
+export function sequenceAddName(noun: string): string {
+  return `Add ${noun}`;
+}

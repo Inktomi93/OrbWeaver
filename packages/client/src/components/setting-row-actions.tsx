@@ -46,7 +46,7 @@ import { formatConfigLink } from "#state";
 import { DescribedMenuItem } from "./described-menu-item.tsx";
 
 import { RowActionsMenu } from "./row-actions-menu.tsx";
-
+import { settingResetName } from "./shared-control-names.ts";
 import type { ConfigLeafValue } from "./use-config-leaf.ts";
 
 /** A failed copy's next step: the toast description carries the text itself, where it can be selected. */
@@ -128,7 +128,7 @@ function SettingRowResetAction({ label, binding, focusControl }: Omit<SettingRow
   if (binding === null || !binding.modified) {
     return <ActionCell />;
   }
-  const name = `Reset ${label} to its default`;
+  const name = settingResetName(label);
   const onUndone = (): void => {
     returning.current = true;
     takeFocusBack();

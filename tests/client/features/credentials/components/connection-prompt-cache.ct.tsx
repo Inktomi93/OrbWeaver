@@ -10,14 +10,20 @@ import type { Locator, Page } from "@playwright/test";
 import {
   CONNECTION_EDITOR_TIER_TITLES,
   ENDPOINT_QUIRKS_LABEL,
+  FACT_NAMES,
   FACT_RESET_VERB,
   factMaximumLabel,
+  factOverrideName,
+  factResetName,
+  factSaveName,
+  factYourValueName,
   PROMPT_CACHE_DEPTH_NAME,
   PROMPT_CACHE_IMPLICIT_GLOSS,
   PROMPT_CACHE_PREFIX_REQUEST_LEAD,
   PROMPT_CACHE_RETENTION_24H_LABEL,
   PROMPT_CACHE_RETENTION_IN_MEMORY_LABEL,
   PROMPT_CACHE_RETENTION_INHERIT_LABEL,
+  promptCacheRetentionName,
 } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionPromptCacheStory } from "./_prompt-cache-stories.tsx";
 
@@ -158,21 +164,21 @@ test("native implicit caching explains provider ownership without invented contr
   await expect(page.getByText(ENDPOINT_QUIRKS_LABEL, { exact: true })).toBeVisible();
   const concurrency = page.locator('[data-fact="features.concurrency.summarize"]');
   await expect(concurrency.getByText(String(foldFeatures(builtinProvider("google")?.features).concurrency?.summarize), { exact: true })).toBeVisible();
-  await concurrency.getByRole("button", { name: "Override utility calls at once", exact: true }).click();
-  const limit = concurrency.getByRole("textbox", { name: "utility calls at once: your value", exact: true });
+  await concurrency.getByRole("button", { name: factOverrideName(FACT_NAMES.summarizeConcurrency), exact: true }).click();
+  const limit = concurrency.getByRole("textbox", { name: factYourValueName(FACT_NAMES.summarizeConcurrency), exact: true });
   await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX + 1));
   await expect(concurrency.getByRole("alert")).toHaveText(factMaximumLabel(String(SUMMARIZE_CONCURRENCY_MAX)));
-  await expect(concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true })).toBeDisabled();
+  await expect(concurrency.getByRole("button", { name: factSaveName(FACT_NAMES.summarizeConcurrency), exact: true })).toBeDisabled();
   await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX));
   await expect(concurrency.getByRole("alert")).toHaveCount(0);
-  await expect(concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true })).toBeEnabled();
-  await concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true }).click();
+  await expect(concurrency.getByRole("button", { name: factSaveName(FACT_NAMES.summarizeConcurrency), exact: true })).toBeEnabled();
+  await concurrency.getByRole("button", { name: factSaveName(FACT_NAMES.summarizeConcurrency), exact: true }).click();
   await expect(concurrency).toBeFocused();
-  await expect(concurrency.getByRole("button", { name: "Reset utility calls at once", exact: true })).toBeVisible();
-  await concurrency.getByRole("button", { name: "Reset utility calls at once", exact: true }).click();
+  await expect(concurrency.getByRole("button", { name: factResetName(FACT_NAMES.summarizeConcurrency), exact: true })).toBeVisible();
+  await concurrency.getByRole("button", { name: factResetName(FACT_NAMES.summarizeConcurrency), exact: true }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: FACT_RESET_VERB, exact: true }).click();
   await expect(concurrency).toBeFocused();
-  await expect(concurrency.getByRole("button", { name: "Override utility calls at once", exact: true })).toBeVisible();
+  await expect(concurrency.getByRole("button", { name: factOverrideName(FACT_NAMES.summarizeConcurrency), exact: true })).toBeVisible();
   expect(captured.physicalRequests.length).toBeGreaterThan(0);
 });
 
@@ -223,11 +229,11 @@ test("earlier OpenAI retention offers only its supported provider choices", asyn
     width: 486,
   });
   const tier = await openCacheTier(page);
-  await tier.getByRole("combobox", { name: "Provider prefix retention on Caching route", exact: true }).click();
+  await tier.getByRole("combobox", { name: promptCacheRetentionName(ROUTE_LABEL), exact: true }).click();
   await expect(page.getByRole("option", { name: PROMPT_CACHE_RETENTION_INHERIT_LABEL, exact: true })).toBeVisible();
   await expect(page.getByRole("option", { name: PROMPT_CACHE_RETENTION_IN_MEMORY_LABEL, exact: true })).toHaveCount(0);
   await page.getByRole("option", { name: PROMPT_CACHE_RETENTION_24H_LABEL, exact: true }).click();
-  await expect(tier.getByRole("combobox", { name: "Provider prefix retention on Caching route", exact: true })).toHaveText(PROMPT_CACHE_RETENTION_24H_LABEL);
+  await expect(tier.getByRole("combobox", { name: promptCacheRetentionName(ROUTE_LABEL), exact: true })).toHaveText(PROMPT_CACHE_RETENTION_24H_LABEL);
   await expect.poll(() => calls.lastInput("connection.update")).toEqual(captured.expectedUpdate);
 });
 

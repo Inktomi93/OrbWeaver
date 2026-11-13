@@ -39,6 +39,14 @@ export const RULE_ADD_KEYWORD_NAME = "Add keyword";
 
 /** An optional rule field's Add control and the confirm a filled field's Remove asks, named for the field in lower
  *  case. Its Remove control is `removeActionName` from `@orb/ui/lib`. */
+/** A keyword row's field label, and the lower-case subject its Remove control and confirm name, counted from one. */
+export function ruleKeywordFieldLabel(ordinal: number): string {
+  return `Keyword ${String(ordinal)}`;
+}
+export function ruleKeywordSubject(ordinal: number): string {
+  return `keyword ${String(ordinal)}`;
+}
+
 export function ruleFieldAddName(field: string): string {
   return `Add ${field}`;
 }
@@ -103,3 +111,12 @@ export const RULE_SAVE_FAILED_TOAST = "Couldn't save that rule. Your draft is ke
 /** The library-wide section's fire cap field and its opening line. */
 export const OWNER_RULE_RATE_FIELD_NAME = "Runs per hour";
 export const OWNER_RULES_INTRO = "These rules watch your library and act on their own. No chat has to be open.";
+
+/** What failed to load, said by the rule tool field's catalog read. */
+export const RULE_TOOL_CATALOG_READ_LABEL = "your tool catalog";
+
+/** What failed to load, said by the rule book field's library read. */
+export const RULE_WORLD_BOOKS_READ_LABEL = "world books";
+
+/** What failed to load, said by the preset knob field's room book read. */
+export const RULE_ROOM_WORLD_BOOKS_READ_LABEL = "this room's world books";

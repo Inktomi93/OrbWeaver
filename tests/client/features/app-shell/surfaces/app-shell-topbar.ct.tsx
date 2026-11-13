@@ -6,6 +6,7 @@ import {
   censusSuffix,
   chatRoomTitle,
   chatTitleWhole,
+  contentRegionName,
   contextToggleLabel,
   LIST_PANEL_NOUN,
   panelEdgeName,
@@ -422,7 +423,7 @@ function clientWidth(locator: Locator): Promise<number> {
 }
 
 async function expectPrimaryRoomHeading(page: Page, title: string): Promise<void> {
-  const main = page.getByRole("main", { name: "Chats content", exact: true });
+  const main = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true });
   await expect(main.getByRole("heading", { level: 1 })).toHaveCount(0);
   await expect(main.getByRole("heading", { level: 2, name: title, exact: true })).toBeVisible();
   const surface = main.locator('[data-slot="chat-room-surface"]');
@@ -958,7 +959,7 @@ test.describe("a library section with its list pane hidden or docked at 1280", (
   test("the Presets landing teaches at the shared empty-state step and ends on the New preset door", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "presets", panelOverrides: { presets: { list: "docked", context: "collapsed" } } });
     await mount<typeof AppShellStory>(STORY, {});
-    const content = page.getByRole("main", { name: "Presets content", exact: true });
+    const content = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.presets), exact: true });
     await expect(content.getByRole("button", { name: NEW_PRESET_NAME, exact: true })).toBeVisible();
     const titleSize = await content.locator('[data-slot="empty-state-title"]').evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize));
     expect(titleSize).toBeLessThan(await resolvedLength(page, `var(${TOKENS["text.display"].cssVar})`));

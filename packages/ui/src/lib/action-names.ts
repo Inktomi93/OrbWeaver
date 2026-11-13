@@ -72,3 +72,8 @@ export function defaultChoiceName(subject: string): string {
 export function selectActionName(subject: string): string {
   return `Select ${subject}`;
 }
+
+/** The confirm a list entry's Remove asks, quoting the entry so a long or odd title reads as one name. */
+export function removeQuotedTitle(subject: string): string {
+  return `Remove “${subject}”?`;
+}

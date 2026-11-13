@@ -76,9 +76,13 @@ test("the done line counts exactly the home classes: a site of each prints, and 
   const index = productionIndex([
     ...PRODUCTION,
     { path: "packages/client/src/features/chat/components/badge.tsx", text: "export const Badge = () => <span>Inline only</span>;" },
+    { path: "packages/client/src/components/back-link.tsx", text: `const back = \`Back to ${hole("label")}\`;` },
   ]);
   const evidence = { authored: authoredStrings([STORY]) };
-  const inline: CensusSource = { path: SPEC.path, text: 'await page.getByText("Inline only").click();' };
+  const inline: CensusSource = {
+    path: SPEC.path,
+    text: ['await page.getByText("Inline only").click();', 'await page.getByText("Back to Chats").click();'].join("\n"),
+  };
   const rows = [SPEC, UI_SPEC, inline].flatMap((source) => nameSites(source).map((site) => classifySite(site, index, evidence)));
   const printed = formatSiteJudgements(rows, [])
     .split("\n")
@@ -86,6 +90,7 @@ test("the done line counts exactly the home classes: a site of each prints, and 
   // Every class the fixture holds, counted or not, so a dropped or an added home class changes the printed set.
   expect([...new Set(rows.map((row) => row.class))].sort()).toEqual([
     "authored",
+    "composed",
     "export-out-of-reach",
     "exported",
     "exported-also-inline",
@@ -97,6 +102,7 @@ test("the done line counts exactly the home classes: a site of each prints, and 
     "unresolved",
   ]);
   expect([...new Set(printed)].sort()).toEqual([
+    "composed",
     "export-out-of-reach",
     "exported",
     "exported-also-inline",

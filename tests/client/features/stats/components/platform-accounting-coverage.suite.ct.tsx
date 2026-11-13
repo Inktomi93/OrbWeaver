@@ -22,7 +22,9 @@ import {
   ANALYTICS_ACTIVITY_HEADING,
   ANALYTICS_ALL_TIME_HEADING,
   ANALYTICS_GENERATIONS_HEADING,
+  ANALYTICS_MODELS_SCOPE_REASON,
   ANALYTICS_REPLY_SPEED_HEADING,
+  libraryScopeNotice,
 } from "#client/features/stats/lib/analytics-names.ts";
 import type { AccountingCoverageStory } from "./_accounting-coverage-stories.tsx";
 
@@ -122,10 +124,7 @@ for (const regime of REGIMES) {
       const characterOnly = subject === "character";
       const singleView = subject === "models" ? "models" : "content";
       const view = regime.mobile ? singleView : "paired";
-      const expectedScope =
-        characterOnly && !regime.mobile
-          ? ["Whole library: not just the character you opened. Model usage is rolled up per model, with no per-character breakdown to narrow to."]
-          : [];
+      const expectedScope = characterOnly && !regime.mobile ? [libraryScopeNotice(ANALYTICS_MODELS_SCOPE_REASON)] : [];
       test(`${subject} retains its own full accounting explanation behind the concise notice`, async ({ mount, page }, testInfo) => {
         await using root = await createCorpusHarness(undefined, { startJobs: false });
         const caller = await root.internalCallerFor(root.ownerId);

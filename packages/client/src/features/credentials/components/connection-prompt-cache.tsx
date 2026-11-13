@@ -28,8 +28,10 @@ import {
   PROMPT_CACHE_IMPLICIT_GLOSS,
   PROMPT_CACHE_PREFIX_REQUEST_LEAD,
   PROMPT_CACHE_RETENTION_24H_LABEL,
+  PROMPT_CACHE_RETENTION_FIELD_LABEL,
   PROMPT_CACHE_RETENTION_IN_MEMORY_LABEL,
   PROMPT_CACHE_RETENTION_INHERIT_LABEL,
+  promptCacheRetentionName,
 } from "../lib/credentials-names.ts";
 import {
   PROMPT_CACHE_DEPTH_BOUNDS,
@@ -307,13 +309,13 @@ function ProviderControls({ session: { form }, generation, connectionLabel, busy
       ) : null}
       {retentions !== undefined && retentions.length > 0 ? (
         <SettingLine
-          label="Provider prefix retention"
+          label={PROMPT_CACHE_RETENTION_FIELD_LABEL}
           gloss="Leave inherited to use the model and organization's retention policy. This is not a marker TTL or complete-response replay lifetime."
         >
           <form.Field name="retention">
             {(field): ReactElement => (
               <Select
-                aria-label={`Provider prefix retention on ${connectionLabel}`}
+                aria-label={promptCacheRetentionName(connectionLabel)}
                 disabled={busy}
                 items={[
                   { value: "provider-default", label: PROMPT_CACHE_RETENTION_INHERIT_LABEL },

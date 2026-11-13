@@ -17,11 +17,13 @@
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { corpusReadInput } from "@orb/testkit/iso";
 import { CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#client/lib/account-field-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
+import { contentRegionName } from "#client/lib/context-pane-names.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
@@ -96,7 +98,7 @@ test("a section deep link boots the app and lands on the one app URL", { tag: "@
   await expect(page.locator(NOT_FOUND_DECLARE)).toHaveCount(0);
   const main = isMobile
     ? page.getByRole("main").filter({ has: page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }) })
-    : page.getByRole("main", { name: "Chats content", exact: true });
+    : page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true });
   await expect(main).toBeVisible();
   // The address bar is where in-app rail navigation leaves it — one URL story for both entrances.
   await expect(page).toHaveURL(APP_URL);
@@ -126,7 +128,7 @@ test("the home page renders the home surface (tRPC query works)", {
   // (The chats-LIST surface — `getByRole("list", { name: "Chats list" })` — moved to the Chats SECTION in this
   // rework; it no longer lives on `/`, which is exactly the stale coupling this test used to carry.)
   await expect(page.locator(APP_READY)).toBeAttached({ timeout: WAIT_SETTLE_MS });
-  const home = page.getByRole("main", { name: "Home content" });
+  const home = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.home), exact: true });
   await expect(home).toBeVisible({ timeout: WAIT_UI_MS });
   await expect(home.getByRole("button", { name: START_TEMP_CHAT_NAME, exact: true })).toBeVisible();
   await expect(home.locator(QUERY_ERROR)).toHaveCount(0);

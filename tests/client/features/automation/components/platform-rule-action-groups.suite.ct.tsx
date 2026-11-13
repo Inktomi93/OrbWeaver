@@ -46,6 +46,7 @@ import {
   ruleConnectionsName,
   ruleFieldAddName,
   ruleFieldRemoveConfirmName,
+  ruleKeywordSubject,
   ruleSlotFollowsRoleLabel,
   ruleTestName,
   ruleTestResultName,
@@ -593,8 +594,11 @@ test.describe("rule editor field rows", () => {
       .click();
     await page.getByRole("button", { name: editActionName(captured.name), exact: true }).click();
     const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
-    await editor.getByRole("button", { name: "Remove keyword 1", exact: true }).click();
-    await page.getByRole("alertdialog", { name: "Remove keyword 1?", exact: true }).getByRole("button", { name: DIALOG_VERBS.remove, exact: true }).click();
+    await editor.getByRole("button", { name: removeActionName(ruleKeywordSubject(1)), exact: true }).click();
+    await page
+      .getByRole("alertdialog", { name: ruleFieldRemoveConfirmName(ruleKeywordSubject(1)), exact: true })
+      .getByRole("button", { name: DIALOG_VERBS.remove, exact: true })
+      .click();
     await expect(editor.getByRole("button", { name: RULE_ADD_KEYWORD_NAME, exact: true })).toBeFocused();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ keys: ["harbour"] });
   });

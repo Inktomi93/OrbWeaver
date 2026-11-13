@@ -44,6 +44,7 @@ import {
   DATABANK_LANDING_NAME,
   DATABANK_REBUILD_DOCUMENT_NAME,
   DATABANK_REBUILD_HINT,
+  DATABANK_SOURCE_TEXT_READ_LABEL,
   databankSourceToggleName,
 } from "../lib/databank-names.ts";
 
@@ -291,7 +292,7 @@ function SourceText({ documentId }: { readonly documentId: DocumentId }): ReactE
     <QueryBoundary
       resetKeys={[documentId]}
       fallback={<SkeletonRows count={3} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the source text" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={DATABANK_SOURCE_TEXT_READ_LABEL} onRetry={retry} />}
     >
       <SourceTextBody documentId={documentId} />
     </QueryBoundary>

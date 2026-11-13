@@ -25,6 +25,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useSyncExternalStore } from "react";
 import type { ResolvedContextTab } from "#lib";
+import { contextTabsMenuName } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
 import type { RailOverflow } from "../lib/context-rail-overflow.ts";
 import { NO_OVERFLOW, trackOverflow } from "../lib/context-rail-overflow.ts";
@@ -251,7 +252,7 @@ export function ContextHeaderTabs({
             <MenuTrigger
               render={
                 <Button
-                  aria-label={`All ${ariaLabel} tabs`}
+                  aria-label={contextTabsMenuName(ariaLabel)}
                   data-slot="context-tab-overflow-trigger"
                   focusRing="inset"
                   variant="ghost"

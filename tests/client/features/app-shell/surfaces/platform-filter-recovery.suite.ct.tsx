@@ -4,7 +4,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
+import { collectionEmptyTitle, collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
 import {
   REFINERY_NO_SESSION_MATCH_TEXT,
   REFINERY_NO_SESSIONS_TITLE,
@@ -93,7 +93,7 @@ for (const regime of [
       await seedShellState(page, { activeSection: "config", panelOverrides: { config: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof FilterRecoveryShellStory>(STORY, { group: "regex" });
       const content = page.locator('[data-slot="config-content"]');
-      await expect(content.getByText("No regex scripts yet", { exact: true })).toBeVisible();
+      await expect(content.getByText(collectionEmptyTitle(REGEX_GROUP_LABEL), { exact: true })).toBeVisible();
       await press(content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true }));
       const form = content.getByRole("form", { name: REGEX_NEW_SCRIPT_NAME, exact: true });
       const name = form.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true });

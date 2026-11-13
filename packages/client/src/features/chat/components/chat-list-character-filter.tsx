@@ -22,6 +22,7 @@ import { CharacterPicker, FaceStrip, QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, setChatListCharacterFilter } from "#state";
+import { CHAT_RECENT_CHARACTERS_READ_LABEL } from "../lib/chat-surface-names.ts";
 import { recentFaces } from "../lib/recent-faces.ts";
 
 /** How many recent chats the FACES curation reads. The strip answers "who was I just with", so a bounded
@@ -63,7 +64,7 @@ export function ChatListFacesStrip({ characterFilter }: { readonly characterFilt
       <QueryBoundary
         resetKeys={[]}
         fallback={null}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your recent characters" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={CHAT_RECENT_CHARACTERS_READ_LABEL} onRetry={retry} />}
       >
         <FacesSourceRead />
       </QueryBoundary>

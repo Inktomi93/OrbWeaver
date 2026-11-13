@@ -1,5 +1,6 @@
 import { touchTargetFindings } from "@orb/testkit/browser/spec";
 import { expect, test } from "@playwright/test";
+import { hintTriggerName } from "#ui/primitives/hint-trigger/hint-trigger-names.ts";
 import type { SettingChoicesStory } from "./_setting-choices-stories.tsx";
 
 for (const regime of [
@@ -30,7 +31,7 @@ for (const regime of [
       const field = page.locator('[data-slot="field-root"]').filter({ has: archive });
       const label = field.locator('[data-slot="field-label"]');
       const group = page.locator('[data-slot="setting-row-group"]');
-      const hint = page.getByRole("button", { name: "More info about Archive entries", exact: true });
+      const hint = page.getByRole("button", { name: hintTriggerName("Archive entries"), exact: true });
       const description = field.locator('[data-slot="field-description"]');
       const initial = await Promise.all([label.boundingBox(), archive.boundingBox(), hint.boundingBox(), description.boundingBox(), group.boundingBox()]);
       const [initialLabel, initialControl, hintBox, descriptionBox, initialGroup] = initial;
@@ -47,7 +48,7 @@ for (const regime of [
       } else {
         await hint.click();
       }
-      const explanation = page.getByRole("dialog", { name: "More info about Archive entries", exact: true });
+      const explanation = page.getByRole("dialog", { name: hintTriggerName("Archive entries"), exact: true });
       await expect(explanation).toContainText("Archive entries retain the source text.");
       await page.keyboard.press("Escape");
       await expect(explanation).toBeHidden();

@@ -200,3 +200,6 @@ export function goneDraftDescription(args: { readonly hasText: boolean; readonly
   }
   return `Your ${attached} went with it and can't be kept.`;
 }
+
+/** What failed to load, said by the chat list's character filter read. */
+export const CHAT_RECENT_CHARACTERS_READ_LABEL = "your recent characters";

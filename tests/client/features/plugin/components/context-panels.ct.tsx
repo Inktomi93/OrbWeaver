@@ -237,7 +237,7 @@ test.describe("touch placement", () => {
     await expect(context.getByText("Second panel content", { exact: true })).toBeVisible();
     await page.screenshot({ path: "reports/plugin-context-mobile.png" });
     await context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true }).click();
-    await expect(context.getByRole("button", { name: "Move to Context: Context witness: First", exact: true })).toBeVisible();
+    await expect(context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", false), exact: true })).toBeVisible();
     await page.getByRole("button", { name: panelCloseName(contextPaneLabel(SECTION_LABELS.chats)), exact: true }).click();
     await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
     await page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true }).click();

@@ -47,7 +47,7 @@ import { omitKey } from "@orb/kit/objects";
 import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
 import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
 import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
-import { factMaximumLabel, factMinimumLabel } from "./credentials-names.ts";
+import { FACT_NAMES, factMaximumLabel, factMinimumLabel } from "./credentials-names.ts";
 
 export type { BooleanLabels, FactChoice, FactLeaf, FactRow } from "./connection-fact-types.ts";
 
@@ -250,7 +250,7 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   concurrency: [
     { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number" } },
     { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number" } },
-    { path: "concurrency.summarize", name: "utility calls at once", edit: { kind: "number", max: SUMMARIZE_MAX } },
+    { path: "concurrency.summarize", name: FACT_NAMES.summarizeConcurrency, edit: { kind: "number", max: SUMMARIZE_MAX } },
   ],
   embedBatch: [
     { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: { kind: "number" }, format: tokens },

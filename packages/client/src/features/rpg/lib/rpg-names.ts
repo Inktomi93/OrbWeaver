@@ -160,3 +160,9 @@ export function trackerHintName(label: string): string {
 
 /** The tracker add row's name field. */
 export const RPG_NEW_TRACKER_NAME = "New tracker name";
+
+/** What failed to load, said by the journal's card archive read. */
+export const RPG_CARD_ARCHIVE_READ_LABEL = "the card archive";
+
+/** What failed to load, said by the scene's card read. */
+export const RPG_SCENE_CARDS_READ_LABEL = "this game's cards";

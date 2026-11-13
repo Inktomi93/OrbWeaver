@@ -4,7 +4,7 @@
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { removeActionName } from "@orb/ui/lib";
+import { removeActionName, removeQuotedTitle } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { Key, ReactElement, ReactNode } from "react";
@@ -111,7 +111,7 @@ export function EntryListEditor<TItem>({
                     // Callers can nest this list in a dialog, where Base UI otherwise suppresses its backdrop.
                     forceRender={true}
                     onConfirm={(): void => onRemove(index)}
-                    title={`Remove “${getTitle(item, index)}”?`}
+                    title={removeQuotedTitle(getTitle(item, index))}
                   />
                 </Row>
               }

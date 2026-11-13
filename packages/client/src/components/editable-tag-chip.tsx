@@ -12,7 +12,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { CORPUS_MODE_LABELS } from "#lib";
 import { selectLabel, setActiveSection, setCorpusMode } from "#state";
 import { QueryBoundary } from "./query-boundary.tsx";
-import { editTagName, TAG_DELETED_TEXT, TAG_EDITOR_CLOSE_NAME } from "./shared-control-names.ts";
+import { editTagName, TAG_DELETED_TEXT, TAG_EDITOR_CLOSE_NAME, TAG_READ_LABEL } from "./shared-control-names.ts";
 import { TagEditorBody } from "./tag-editor-body.tsx";
 
 export function EditableTagChip({
@@ -106,7 +106,7 @@ export function EditableTagChip({
             <QueryBoundary
               resetKeys={[tag.id]}
               fallback={<SkeletonRows count={1} />}
-              renderError={(_error, retry): ReactElement => <QueryErrorState label="this tag" onRetry={retry} />}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label={TAG_READ_LABEL} onRetry={retry} />}
             >
               <TagChipBody tagId={tag.id} onMerged={(): void => changeOpen(false)} />
             </QueryBoundary>

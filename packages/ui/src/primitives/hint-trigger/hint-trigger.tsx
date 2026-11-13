@@ -5,6 +5,7 @@ import { Icon, Info } from "#primitives/icons";
 import { InlineAction } from "#primitives/inline-action";
 import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
+import { hintTriggerName } from "./hint-trigger-names.ts";
 import { hintTriggerVariants } from "./variants.ts";
 
 export interface HintTriggerProps {
@@ -55,11 +56,7 @@ export interface HintTriggerProps {
  *  it is not a flex item and costs the label row no gap. */
 export function HintTrigger({ hint, subject, className, size = "inline", onClick }: HintTriggerProps): ReactElement {
   const slots = hintTriggerVariants();
-  let ariaLabel = "More info";
-  if (typeof subject === "string" && subject.trim().length > 0) {
-    const subjectString: string = subject;
-    ariaLabel = `More info about ${subjectString}`;
-  }
+  const ariaLabel = hintTriggerName(typeof subject === "string" ? subject : undefined);
   const glyph = <Icon icon={Info} size="xs" />;
   const button =
     size === "md" ? (

@@ -525,6 +525,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/ui/src/primitives/log-viewer/log-viewer-names.ts": "UNNAMED_LOG_NAME: the name a log viewer prints for a log with no name",
   "packages/ui/src/primitives/file-dropzone/file-dropzone-names.ts": "REFUSAL_GLYPH_NAME: the glyph that leads a file control's refusal line",
   "packages/ui/src/primitives/number-field/number-field-names.ts": "the stepper verbs and the bounds sentence a number field is named and described by",
+  "packages/ui/src/primitives/hint-trigger/hint-trigger-names.ts": "hintTriggerName: the name a hint trigger and its popup carry for the row they annotate",
   "packages/ui/src/code-editor/code-editor-names.ts": "DIAGNOSTIC_SEVERITY_LABEL: the severity words the code editor announces a diagnostic with",
   "packages/ui/src/content/message-media/message-media-names.ts":
     "MEDIA_UNAVAILABLE_TEXT and externalMediaLoadName: the tile a message image that cannot load prints, and the click-to-load placeholder",

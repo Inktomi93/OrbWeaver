@@ -13,6 +13,7 @@ export {
   moreActionsName,
   recentActivityName,
   removeActionName,
+  removeQuotedTitle,
   revealActionName,
   selectActionName,
 } from "./action-names.ts";

@@ -11,7 +11,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { TAG_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
+import { createTagName, TAG_LIBRARY_READ_LABEL, TAG_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
 import { CHARACTER_ADD_TAG_NAME } from "#client/features/character/lib/character-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CharacterTagsRowStory } from "./_tag-row-stories.tsx";
@@ -39,13 +40,13 @@ test("the tag picker field stays typeable in one dialog while the library is hel
   await expect(field).toHaveAccessibleDescription(/Pic/u);
   const shell = await dialog.elementHandle();
   read.hold.fail();
-  await expect(dialog.getByText("Couldn't load your tags.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(queryFailedLabel(TAG_LIBRARY_READ_LABEL), { exact: true })).toBeVisible();
   await expect(field).toHaveValue("Pic");
   read.recover();
   await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(dialog.getByText("Couldn't load your tags.", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText(queryFailedLabel(TAG_LIBRARY_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(field).toHaveValue("Pic");
-  await expect(dialog.getByRole("button", { name: 'Create "Pic"', exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: createTagName("Pic"), exact: true })).toBeVisible();
   // The dialog shell is the same node from the held read to the settled one: it never remounts, so its open animation never replays.
   expect(await shell.evaluate((node) => node.isConnected)).toBe(true);
 });

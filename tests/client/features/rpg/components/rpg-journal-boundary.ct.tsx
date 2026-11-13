@@ -5,7 +5,14 @@
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
-import { RPG_JOURNAL_ADD_ENTRY_NAME, RPG_JOURNAL_EMPTY_LEAD, RPG_JOURNAL_NO_CARDS_LINE, RPG_JOURNAL_SCOPE_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import {
+  RPG_CARD_ARCHIVE_READ_LABEL,
+  RPG_JOURNAL_ADD_ENTRY_NAME,
+  RPG_JOURNAL_EMPTY_LEAD,
+  RPG_JOURNAL_NO_CARDS_LINE,
+  RPG_JOURNAL_SCOPE_LABELS,
+} from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
@@ -20,7 +27,7 @@ const READS = [
   "rpg.listJournal",
   "rpg.listCheckpoints",
 ] as const;
-const ARCHIVE_ERROR = "Couldn't load the card archive.";
+const ARCHIVE_ERROR = queryFailedLabel(RPG_CARD_ARCHIVE_READ_LABEL);
 
 test("a failed transcript read leaves the All chronicle standing, and the Cards scope shows the shared states", async ({ mount, page }) => {
   await using root = await createCorpusHarness();

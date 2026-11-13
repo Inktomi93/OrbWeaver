@@ -14,7 +14,7 @@ import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import { notify } from "#lib";
 import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
-import { RULE_ADD_KEYWORD_NAME } from "../lib/automation-names.ts";
+import { RULE_ADD_KEYWORD_NAME, ruleKeywordFieldLabel, ruleKeywordSubject } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
 import { RuleRemoveField } from "./rule-remove-field.tsx";
@@ -56,10 +56,10 @@ export function RuleLoreFields({
                 <form.AppField name={`actions[${index}].keys[${keyword}]`}>
                   {(field): ReactElement => (
                     <>
-                      <field.TextField label={`Keyword ${keyword + 1}`} />
+                      <field.TextField label={ruleKeywordFieldLabel(keyword + 1)} />
                       <RuleRemoveField
                         focus={keywordFocus}
-                        name={`keyword ${keyword + 1}`}
+                        name={ruleKeywordSubject(keyword + 1)}
                         onRemove={(): void => {
                           Promise.all([form.removeFieldValue(`actions[${index}].keys`, keyword), form.removeFieldValue(`keywordIds[${index}]`, keyword)]).catch(
                             () => notify.error("Couldn't remove the keyword."),

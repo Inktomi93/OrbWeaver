@@ -13,6 +13,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { editActionName } from "@orb/ui/lib";
 import type { Locator, Page } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
 import {
   RULE_ACTION_PICKER_NAME,
   RULE_ADD_ACTION_NAME,
@@ -20,10 +21,13 @@ import {
   RULE_CAPTURE_TOOL_RESULT_NAME,
   RULE_CHARACTER_UNAVAILABLE_TEXT,
   RULE_EDITOR_NAME,
+  RULE_ROOM_WORLD_BOOKS_READ_LABEL,
   RULE_SPEAKER_FIELD_LABEL,
   RULE_TOOL_ARGUMENTS_NAME,
+  RULE_TOOL_CATALOG_READ_LABEL,
   RULE_TOOL_FIELD_NAME,
   RULE_WORLD_BOOK_NAME,
+  RULE_WORLD_BOOKS_READ_LABEL,
   ruleCharacterReadout,
 } from "#client/features/automation/lib/automation-names.ts";
 import { armLabel } from "#client/features/automation/lib/rule-copy.ts";
@@ -117,11 +121,11 @@ test("a held tool catalog read shows the loading skeleton, a failed one the erro
   await expect(editor.getByRole("button", { name: RULE_CAPTURE_TOOL_RESULT_NAME, exact: true })).toBeVisible();
   await expect(editor.getByText(RULE_TOOL_ARGUMENTS_NAME, { exact: true })).toBeVisible();
   read.hold.fail();
-  await expect(editor.getByText("Couldn't load your tool catalog.", { exact: true })).toBeVisible();
+  await expect(editor.getByText(queryFailedLabel(RULE_TOOL_CATALOG_READ_LABEL), { exact: true })).toBeVisible();
   await expect(editor.getByText(RULE_TOOL_ARGUMENTS_NAME, { exact: true })).toBeVisible();
   read.recover();
   await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(editor.getByText("Couldn't load your tool catalog.", { exact: true })).toHaveCount(0);
+  await expect(editor.getByText(queryFailedLabel(RULE_TOOL_CATALOG_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(editor.getByText(RULE_TOOL_FIELD_NAME, { exact: true })).toBeVisible();
 });
 
@@ -143,10 +147,10 @@ test("a held world book read shows the loading skeleton, a failed one the error 
   await read.hold.requested;
   await expect(editor.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(editor.getByText("Couldn't load world books.", { exact: true })).toBeVisible();
+  await expect(editor.getByText(queryFailedLabel(RULE_WORLD_BOOKS_READ_LABEL), { exact: true })).toBeVisible();
   read.recover();
   await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(editor.getByText("Couldn't load world books.", { exact: true })).toHaveCount(0);
+  await expect(editor.getByText(queryFailedLabel(RULE_WORLD_BOOKS_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(editor.getByText(RULE_WORLD_BOOK_NAME, { exact: true })).toBeVisible();
 });
 
@@ -205,8 +209,8 @@ test("a held room world book read shows the loading skeleton in the preset knob,
   await read.hold.requested;
   await expect(popover.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(popover.getByText("Couldn't load this room's world books.", { exact: true })).toBeVisible();
+  await expect(popover.getByText(queryFailedLabel(RULE_ROOM_WORLD_BOOKS_READ_LABEL), { exact: true })).toBeVisible();
   read.recover();
   await popover.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(popover.getByText("Couldn't load this room's world books.", { exact: true })).toHaveCount(0);
+  await expect(popover.getByText(queryFailedLabel(RULE_ROOM_WORLD_BOOKS_READ_LABEL), { exact: true })).toHaveCount(0);
 });

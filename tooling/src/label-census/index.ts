@@ -34,7 +34,7 @@
 // name production renders: `unresolved` holds a name built with no fixed words (`Increase Image count` from a
 // verb-and-subject template), which neither a literal nor a template fit finds; `unresolved-template` holds a template
 // whose words come from constants or are short words several files spell; `no-words` holds a grammar joined by hand from
-// imported constants, whose joining words and order the test types. A sample of 25 sites per class read 4, 7 and 5 such
+// imported constants, whose joining words and order the test types. A sample of 25 sites per class read 8, 16 and 6 such
 // names; the census output prints each class's live count.
 //
 // Beside the sites, the census lists oracle candidates: a call to a production label function whose name varies,
@@ -138,24 +138,33 @@ const MIN_SUBSTRING_PIECE = 6;
 const GIT_LIST_MAX_BUFFER = 67_108_864;
 
 /**
- * What a site's text is, by where production keeps it.
- * `exported`: one or more production `.ts` modules export it and no other production file spells it.
- * `exported-also-inline`: exported, and also spelled inline elsewhere in production; the inline spelling moves onto the export.
- * `export-out-of-reach`: a `tests/ui` site whose only export is outside `@orb/ui`, which that tree cannot import.
- * `inline`, `inline-template`: production spells it, or the template's words, with no export.
- * `inline-also-authored`: production spells it and a story or fixture authors it too.
- * `judged`: it held one of the {@link HOME_CLASSES}, and a row of `judged-sites.ts` records why it is no name the
- *   targeted control renders; the row carries that class and the row's reason in `judged`.
- * `authored`: only a story, fixture or corpus file spells it.
- * `guest`: only guest plugin markup spells it.
- * `composed`: no file spells it whole, and an untagged `packages/client` or `packages/ui` template with at least six
- *   fixed letters fits it in order around filled holes, as `Back to ${label}` composes "Back to Chats". A fit names
- *   candidates, not the renderer: a hole takes any text, so `Remove ${name}` fits every text after "Remove ", and
- *   a template that only builds a key or a class name counts as much as one that renders.
- * `unresolved`: no production or test file spells it, and no production template composes it.
- * `unresolved-template`: no production file spells every fixed word, or its only words are short ones several files spell.
- * `no-words`: a computed name with no fixed word in it.
- * `non-word`: a literal with fewer than two letters in a row, such as a count.
+ * What a site's text is, by where production keeps it, and whether 1426's count holds it ({@link HOME_CLASSES}: the
+ * sites where production keeps the text and the test types it anyway).
+ * `exported` (counted): one or more production `.ts` modules export it and no other production file spells it.
+ * `exported-also-inline` (counted): exported, and also spelled inline elsewhere in production; the inline spelling moves
+ *   onto the export.
+ * `export-out-of-reach` (counted): a `tests/ui` site whose only export is outside `@orb/ui`, which that tree cannot import.
+ * `inline` (counted): production spells it with no export.
+ * `inline-template` (counted): production spells every fixed word of the template or pattern with no export, so it is a
+ *   composed name typed by hand.
+ * `inline-also-authored` (counted): production spells it and a story or fixture authors it too; production's spelling
+ *   still has to be read before the story's can be trusted.
+ * `composed` (counted): no file spells it whole, and an untagged `packages/client` or `packages/ui` template with at
+ *   least six fixed letters fits it in order around filled holes, as `Back to ${label}` composes "Back to Chats". A fit
+ *   names candidates, not the renderer: a hole takes any text, so `Remove ${name}` fits every text after "Remove ", and
+ *   a template that only builds a key or a class name counts as much as one that renders. A false fit is judged.
+ * `judged` (not counted): it held a counted class, and a row of `judged-sites.ts` records why it is no name the test
+ *   should take from production, or why it pins one on purpose; the row carries that class and its reason in `judged`.
+ * `authored` (not counted): only a story, fixture or corpus file spells it, so the test's own content owns it.
+ * `guest` (not counted): only guest plugin markup spells it, so the guest owns it.
+ * `unresolved` (not counted, may hold a production name): no production or test file spells it, and no production
+ *   template with fixed letters composes it; a name built with no fixed words lands here (see "Seen but not judged").
+ * `unresolved-template` (not counted, may hold a production name): no production file spells every fixed word, or its
+ *   only words are short ones several files spell; a template whose words come from constants lands here.
+ * `no-words` (not counted, may hold a production name): a computed name with no fixed word in it; a grammar joined by
+ *   hand from imported constants lands here.
+ * `non-word` (not counted): a literal with fewer than two letters in a row, such as a count or an empty string, which
+ *   names nothing.
  */
 export const CENSUS_CLASSES = [
   "exported",
@@ -176,8 +185,8 @@ export const CENSUS_CLASSES = [
 export type CensusClass = (typeof CENSUS_CLASSES)[number];
 
 /** The classes that say production keeps the text and the test types it anyway: the sites 1426's done line counts.
- *  `inline-template` counts too: a template or pattern whose fixed words production spells is a hand-typed composed
- *  name until a judged row says it is a literal pin, a fragment or no name at all. */
+ *  `inline-template` and `composed` count too: each is a name production composes, typed by hand, until a judged row
+ *  says it is a literal pin, a false fit, a fragment or no name at all. */
 export const HOME_CLASSES = [
   "exported",
   "exported-also-inline",
@@ -185,6 +194,7 @@ export const HOME_CLASSES = [
   "inline",
   "inline-template",
   "inline-also-authored",
+  "composed",
 ] as const satisfies readonly CensusClass[];
 export type HomeClass = (typeof HOME_CLASSES)[number];
 const isHomeClass = (cls: CensusClass): cls is HomeClass => HOME_CLASSES.some((home) => home === cls);

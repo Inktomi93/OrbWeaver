@@ -43,6 +43,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { RULE_ROOM_WORLD_BOOKS_READ_LABEL } from "../lib/automation-names.ts";
 // the value shape is the CONTRACT's wire-input bag (`lib/rule-preset-knob-model.ts` states why).
 import { clampKnobNumber, knobBlockingLine, knobIssue } from "../lib/rule-preset-knob-model.ts";
 
@@ -214,7 +215,7 @@ function ChatWorldInfoBookKnobField(props: KnobFieldProps & { readonly chatId: C
       }
       renderError={(_error, retry): ReactElement => (
         <KnobRow knob={props.knob} issue={props.showIssue ? knobIssue(props.knob, props.value) : null}>
-          <QueryErrorState label="this room's world books" onRetry={retry} />
+          <QueryErrorState label={RULE_ROOM_WORLD_BOOKS_READ_LABEL} onRetry={retry} />
         </KnobRow>
       )}
     >

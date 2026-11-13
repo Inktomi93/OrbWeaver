@@ -4,7 +4,9 @@ import { settledBox } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, createCorpusHarness } from "@orb/testkit/node/composed";
+import { removeActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
+import { PRESET_STOP_SEQUENCE_NOUN, sequenceAddName, sequenceChipSubject } from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -52,11 +54,11 @@ for (const pointer of POINTERS) {
       const preset = await caller.preset.create({ name: "Sequences", kind: "generation" });
       await routeTrpc(page, serveCorpusProcedures(caller, READS));
       await mount<typeof PresetActionGroupsStory>(STORY, { width: pointer.viewport.width, appearance, subject: "editor", presetId: preset.id });
-      const add = page.getByRole("textbox", { name: "Add stop sequence", exact: true });
+      const add = page.getByRole("textbox", { name: sequenceAddName(PRESET_STOP_SEQUENCE_NOUN), exact: true });
       await add.scrollIntoViewIfNeeded();
       await add.fill("END");
       await add.press("Enter");
-      const remove = page.getByRole("button", { name: "Remove stop sequence END", exact: true });
+      const remove = page.getByRole("button", { name: removeActionName(sequenceChipSubject(PRESET_STOP_SEQUENCE_NOUN, "END")), exact: true });
       await expect(remove).toBeVisible();
       const chip = page.locator('[data-slot="badge"]', { has: remove });
       const removeBox = await settledBox(remove);

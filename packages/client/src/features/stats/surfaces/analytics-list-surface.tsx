@@ -26,7 +26,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, testId, useFocusListArrival } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "../lib/analytics-copy.ts";
-import { ANALYTICS_LEADERBOARD_NAME, analyticsSortName } from "../lib/analytics-names.ts";
+import { ANALYTICS_LEADERBOARD_NAME, ANALYTICS_LEADERBOARD_READ_LABEL, analyticsSortName } from "../lib/analytics-names.ts";
 import {
   ANALYTICS_DEFAULT_SORT,
   ANALYTICS_SORT_OPTIONS,
@@ -102,7 +102,7 @@ function LeaderboardRows({ sort, search }: { readonly sort: SortId; readonly sea
       <QueryBoundary
         resetKeys={[deferredSort, trimmed]}
         fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="the leaderboard" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={ANALYTICS_LEADERBOARD_READ_LABEL} onRetry={retry} />}
       >
         <LeaderboardPageRows sort={deferredSort} trimmed={trimmed} />
       </QueryBoundary>

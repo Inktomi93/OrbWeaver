@@ -55,6 +55,7 @@ import {
   EXTENSIONS_OPEN_PLUGINS_ACTION,
   EXTENSIONS_PAGE_LOADING_NAME,
   EXTENSIONS_REVIEW_PLUGINS_ACTION,
+  PLUGIN_PAGE_READ_LABEL,
 } from "../lib/extensions-copy.ts";
 
 /** Open the review of the first waiting plugin — the top row of the LIST's waiting group. */
@@ -237,7 +238,7 @@ export function ExtensionsPageSurface(): ReactElement {
         }
         renderError={(_error, retry): ReactElement => (
           <InsetPane>
-            <QueryErrorState label="this plugin page" onRetry={retry} />
+            <QueryErrorState label={PLUGIN_PAGE_READ_LABEL} onRetry={retry} />
           </InsetPane>
         )}
       >

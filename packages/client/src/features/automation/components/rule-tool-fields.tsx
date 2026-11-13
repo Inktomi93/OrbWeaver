@@ -12,7 +12,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
-import { RULE_CAPTURE_TOOL_RESULT_NAME, RULE_TOOL_ARGUMENTS_NAME, RULE_TOOL_FIELD_NAME } from "../lib/automation-names.ts";
+import { RULE_CAPTURE_TOOL_RESULT_NAME, RULE_TOOL_ARGUMENTS_NAME, RULE_TOOL_CATALOG_READ_LABEL, RULE_TOOL_FIELD_NAME } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { ruleToolArgumentGuidance, ruleToolParameterGuidance } from "../lib/rule-tool-arguments.ts";
 
@@ -48,7 +48,7 @@ export function RuleToolFields({
         renderError={(_error, retry): ReactElement => (
           <Stack gap="tight">
             <SavedToolName name={action.name} />
-            <QueryErrorState label="your tool catalog" onRetry={retry} />
+            <QueryErrorState label={RULE_TOOL_CATALOG_READ_LABEL} onRetry={retry} />
           </Stack>
         )}
       >

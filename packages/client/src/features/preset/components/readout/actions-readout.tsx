@@ -44,7 +44,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { OS_PREFERENCE_LABELS, testId, trpcErrorCode, viewerTimeZone } from "#lib";
-import { PRESET_READOUT_NOT_HOST_INSPECTED, presetActionReadoutName } from "#src/features/preset/lib/preset-names.ts";
+import { PRESET_ACTIONS_PREVIEW_READ_LABEL, PRESET_READOUT_NOT_HOST_INSPECTED, presetActionReadoutName } from "#src/features/preset/lib/preset-names.ts";
 import { openSectionInPrompt } from "#src/features/preset/lib/preset-nav.ts";
 import type { TemplateRow } from "#src/features/preset/lib/template-rows.ts";
 import {
@@ -194,7 +194,7 @@ function BoundPreview({ chatId, presetId, row }: { readonly chatId: ChatId; read
         trpcErrorCode(error) === "FORBIDDEN" ? (
           <Text voice="gloss">{PRESET_READOUT_NOT_HOST_INSPECTED}</Text>
         ) : (
-          <QueryErrorState label="the resolved preview" onRetry={retry} />
+          <QueryErrorState label={PRESET_ACTIONS_PREVIEW_READ_LABEL} onRetry={retry} />
         )
       }
     >

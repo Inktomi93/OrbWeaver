@@ -41,6 +41,7 @@ import {
   CHAT_MESSAGE_INPUT_NAME,
   CHAT_SEARCH_NAME,
   CHAT_SEND_NAME,
+  chatRowActionsName,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { CHAT_TITLE_FIELD_NAME } from "#client/lib/chat-rename-names.ts";
@@ -399,7 +400,7 @@ export async function renameOpenChat(page: Page, title: string): Promise<void> {
  *  is opened via keyboard (the row-body <button> overlaps + intercepts pointer clicks). Waits on the real
  *  `chat.updateTitle` round-trip. Used by the list-only (SHAPE A) multi-tab proof. */
 export async function renameFirstChatViaRowKebab(page: Page, title: string): Promise<void> {
-  const kebab = page.getByRole("button", { name: "Chat actions" }).first();
+  const kebab = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(chatRowActionsName(""))}`, "u") }).first();
   await expect(kebab).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await kebab.focus();
   await kebab.press("Enter");

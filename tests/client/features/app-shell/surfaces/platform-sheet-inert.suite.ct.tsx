@@ -1,8 +1,10 @@
 // A full-screen sheet on a phone leaves the regions it covers inert: the tab bar and the roster behind the Context sheet take
 // no focus, the sheet keeps it, and closing the sheet gives them back. Coarse pointer, portrait and landscape, on Chromium and the
 // opt-in WebKit project.
+
+import { contextPaneLabel, panelCloseName } from "@orb/client/lib";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
@@ -63,7 +65,7 @@ for (const regime of REGIMES) {
         reachedSheet ||= await context.evaluate((element) => element.contains(document.activeElement));
       }
       expect(reachedSheet).toBe(true);
-      await context.getByRole("button", { name: "Close Chats details", exact: true }).click();
+      await context.getByRole("button", { name: panelCloseName(contextPaneLabel(SECTION_LABELS.chats)), exact: true }).click();
       await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
       await expect(bar).not.toHaveAttribute("inert", "");
       await expect(list).not.toHaveAttribute("inert", "");

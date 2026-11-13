@@ -42,7 +42,7 @@ import { Component, isValidElement, Suspense, useEffect, useId, useRef } from "r
 import { holdArrivalWhilePending } from "#lib";
 import { rememberSurfaceBox, useSurfaceBox, useSurfaceRows } from "#state";
 import { QueryErrorState } from "../data/query-error-state.tsx";
-import { QUERY_WAITING_LINE } from "../data/query-state-copy.ts";
+import { QUERY_DEFAULT_READ_LABEL, QUERY_WAITING_LINE } from "../data/query-state-copy.ts";
 import { skeletonLengthFor, skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
 import type { SkeletonRowsProps } from "../data/skeleton-rows.tsx";
 import { SkeletonRows } from "../data/skeleton-rows.tsx";
@@ -91,7 +91,7 @@ interface QueryBoundaryBase {
 
 export type QueryBoundaryProps = QueryBoundaryBase & DeclaredReserve;
 
-const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => <QueryErrorState label="this" onRetry={retry} />;
+const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => <QueryErrorState label={QUERY_DEFAULT_READ_LABEL} onRetry={retry} />;
 
 const RECOVERY_PHASES = ["idle", "reloading", "recovered"] as const;
 type RecoveryPhase = (typeof RECOVERY_PHASES)[number];

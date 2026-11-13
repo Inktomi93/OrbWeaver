@@ -10,7 +10,11 @@ import type { Locator, Page } from "@playwright/test";
 import {
   CLEAR_REVOKED_NAME,
   CONNECTION_EDITOR_TIER_TITLES,
+  FACT_NAMES,
   FACT_RESET_VERB,
+  factOverrideName,
+  factSaveName,
+  factYourValueName,
   KEY_REVOKE_VERB,
   KEY_REVOKED_BY_YOU,
   removeKeyName,
@@ -166,14 +170,16 @@ for (const regime of REGIMES) {
       await mount<typeof ConnectionActionGroupsStory>(CONNECTION_STORY, { width: regime.width, appearance: regime.appearance });
       await page.locator('[data-slot="list-row-body"]').filter({ hasText: CONNECTION_LABEL }).click();
       await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONNECTION_EDITOR_TIER_TITLES.advanced)}`, "u") }).click();
-      const row = page.locator('[data-slot="connection-fact-row"]').filter({ has: page.getByRole("button", { name: "Override max output", exact: true }) });
-      const override = row.getByRole("button", { name: "Override max output", exact: true });
+      const row = page
+        .locator('[data-slot="connection-fact-row"]')
+        .filter({ has: page.getByRole("button", { name: factOverrideName(FACT_NAMES.maxOutput), exact: true }) });
+      const override = row.getByRole("button", { name: factOverrideName(FACT_NAMES.maxOutput), exact: true });
       await expect(override).toBeVisible();
       expect((await actionGroupGeometry(row, [override])).inlineOverflow).toBeLessThanOrEqual(1);
       await override.click();
-      const field = row.getByRole("textbox", { name: "max output: your value", exact: true });
+      const field = row.getByRole("textbox", { name: factYourValueName(FACT_NAMES.maxOutput), exact: true });
       const before = await field.inputValue();
-      const save = row.getByRole("button", { name: "Save your max output", exact: true });
+      const save = row.getByRole("button", { name: factSaveName(FACT_NAMES.maxOutput), exact: true });
       const cancel = row.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       const geometry = await actionGroupGeometry(row, [cancel, save]);
       await testInfo.attach("actual-fact-editor-action-boxes", { body: JSON.stringify(geometry), contentType: "application/json" });
@@ -203,7 +209,7 @@ for (const regime of REGIMES) {
       expect((await caller.connection.get({ connectionId: connection.id })).declared).not.toBeNull();
       await reset.click();
       await confirm.getByRole("button", { name: FACT_RESET_VERB, exact: true }).click();
-      await expect(page.getByRole("button", { name: "Override max output", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: factOverrideName(FACT_NAMES.maxOutput), exact: true })).toBeVisible();
       expect((await caller.connection.get({ connectionId: connection.id })).declared).toBeNull();
     });
   });

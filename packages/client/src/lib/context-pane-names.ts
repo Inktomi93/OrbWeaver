@@ -15,6 +15,11 @@ export function contentRegionName(section: string): string {
   return `${section} content`;
 }
 
+/** The Context rail's menu of every tab, named for the tab strip it lists. */
+export function contextTabsMenuName(tablist: string): string {
+  return `All ${tablist} tabs`;
+}
+
 /** The Context pane's own name for `section`. */
 export function contextPaneLabel(section: string): string {
   return `${section} details`;

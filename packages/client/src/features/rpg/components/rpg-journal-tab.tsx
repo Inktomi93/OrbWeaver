@@ -49,7 +49,13 @@ import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEdit
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { collectArchivedCards } from "../lib/archived-cards.ts";
 import { CHECKPOINT_TRIGGER_LABELS, JOURNAL_TYPE_LABELS } from "../lib/journal-labels.ts";
-import { RPG_JOURNAL_ADD_ENTRY_NAME, RPG_JOURNAL_EMPTY_LEAD, RPG_JOURNAL_NO_CARDS_LINE, RPG_JOURNAL_SCOPE_LABELS } from "../lib/rpg-names.ts";
+import {
+  RPG_CARD_ARCHIVE_READ_LABEL,
+  RPG_JOURNAL_ADD_ENTRY_NAME,
+  RPG_JOURNAL_EMPTY_LEAD,
+  RPG_JOURNAL_NO_CARDS_LINE,
+  RPG_JOURNAL_SCOPE_LABELS,
+} from "../lib/rpg-names.ts";
 import type { BeatEdit } from "./rpg-beat-row.tsx";
 import { BeatRow } from "./rpg-beat-row.tsx";
 import { RpgCardRow } from "./rpg-card-row.tsx";
@@ -232,7 +238,7 @@ function CardArchive({
     <QueryBoundary
       resetKeys={[state.chatId]}
       fallback={<SkeletonRows count={JOURNAL_CARDS_PENDING_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the card archive" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={RPG_CARD_ARCHIVE_READ_LABEL} onRetry={retry} />}
     >
       <ArchivedCards state={state}>{children}</ArchivedCards>
     </QueryBoundary>

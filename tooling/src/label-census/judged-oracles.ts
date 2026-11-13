@@ -334,4 +334,22 @@ export const JUDGED_ORACLES: readonly OracleJudgement[] = [
     function: "memberCharacterRowName",
     reason: "locates the cast row the case checks for focus or visibility",
   },
+  {
+    file: "tests/client/features/plugin/components/context-panels.ct.tsx",
+    scope: "ordinary panels use mobile Context and only an explicitly selected panel opens in the sidecar sheet",
+    function: "movePluginPanelLabel",
+    reason: "the case moves the panel to the sidecar, then reads the Context branch to prove the action flipped; the earlier call names the sidecar branch",
+  },
+  {
+    file: "tests/client/components/platform-setting-choices.suite.ct.tsx",
+    scope: "inline choices contain rich Field states without losing identity, hints or selection targets",
+    function: "hintTriggerName",
+    reason: "locates the row's hint trigger and its popup by the row they annotate; the case's subject is the choice row, not the trigger's words",
+  },
+  {
+    file: "tests/ui/primitives/text/structure.ct.tsx",
+    scope: "a scrolling Text is reachable by keyboard and the hint trigger is at least the 24px target",
+    function: "hintTriggerName",
+    reason: "locates the hint trigger to measure its target size",
+  },
 ];
