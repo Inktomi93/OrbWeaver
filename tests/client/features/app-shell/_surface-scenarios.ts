@@ -4,7 +4,7 @@ import { configSettingLabel } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_INTRO } from "#client/features/automation/lib/automation-names.ts";
-import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_LANDING_RESUME_TITLE, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "#client/features/chat/lib/appearance-message-style-model.ts";
 import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
 import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME, NEW_CHAT_CHARACTERS_FIELD_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
@@ -37,7 +37,7 @@ const SECTION_WITNESSES = {
   ],
   characters: (page): Witnesses => [
     page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("listitem").first(),
-    page.locator(".shell-content").getByRole("heading", { name: "Pick up where you left off", exact: true }),
+    page.locator(".shell-content").getByRole("heading", { name: CHARACTER_LANDING_RESUME_TITLE, exact: true }),
   ],
   corpus: (page): Witnesses => [
     page.getByText("Library understanding", { exact: true }),

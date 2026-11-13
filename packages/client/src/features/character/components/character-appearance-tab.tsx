@@ -42,7 +42,12 @@ import { notify, THEME_RADIUS_LABELS } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form.ts";
 import { usePromoteTheme } from "../hooks/use-promote-theme.ts";
-import { CHARACTER_RESET_LOOK_CONFIRM_NAME, CHARACTER_RESET_LOOK_NAME, CHARACTER_START_FROM_THEME_NAME } from "../lib/character-names.ts";
+import {
+  CHARACTER_INHERIT_LABEL,
+  CHARACTER_RESET_LOOK_CONFIRM_NAME,
+  CHARACTER_RESET_LOOK_NAME,
+  CHARACTER_START_FROM_THEME_NAME,
+} from "../lib/character-names.ts";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model.ts";
 import {
   characterThemeFormFromOverride,
@@ -59,7 +64,7 @@ export interface CharacterAppearanceTabProps {
 // "clear a colour" (the helper) and "Reset to global" (the button) for a single concept, and printed no
 // value at all beside the swatches. The word is INHERIT, everywhere: the select item, every colour's own
 // readout (`BoundColorField`), the helper sentence, and the cluster-wide verb below.
-const INHERIT_ITEM = { value: THEME_INHERIT, label: "Inherit" } as const;
+const INHERIT_ITEM = { value: THEME_INHERIT, label: CHARACTER_INHERIT_LABEL } as const;
 // `labelStyle` — each font option renders in its own typeface, derived from the value (#866 §7.8).
 const FONT_ITEMS: SelectItems = [INHERIT_ITEM, ...THEME_FONT_ALLOWLIST.map((value) => ({ value, label: value, labelStyle: { fontFamily: value } }))];
 const RADIUS_ITEMS: SelectItems = [INHERIT_ITEM, ...THEME_RADII.map((value) => ({ value, label: THEME_RADIUS_LABELS[value] }))];
