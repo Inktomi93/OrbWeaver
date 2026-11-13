@@ -74,9 +74,9 @@ interface CardPass {
 }
 
 /** A character is reused when an equal card landed (the one lookup order every door uses), in the library or earlier
- *  in this upload, or when its handle is taken in the library. A text-only match counts: whether that row may take
- *  the PNG's art is decided by the write, not predicted here. Its chats are held only under the equal card's own
- *  row, since a handle collision lands a new character. */
+ *  in this upload. A taken handle is not a match: different content under it lands beside the owned character with
+ *  a suffixed handle (D290). A text-only match counts: whether that row may take the PNG's art is decided by the
+ *  write, not predicted here. Its chats are held only under the equal card's own row. */
 async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected, chats: ChatJudge): Promise<CardPass> {
   const ownerId = deps.principal.userId;
   const { characterOps } = deps.contextFor(deps.principal, deps.storeAvatar);
@@ -100,9 +100,6 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
       pass.characters.set(bundle, "upload");
     } else {
       landed.set(bundle.contentHash, index);
-      if ((await characterOps.findByHandle({ ownerId, handle: bundle.handle })) !== null) {
-        pass.characters.set(bundle, "library");
-      }
     }
     pass.rowByFilename.set(bundle.filename, row);
     await judgeChats(deps, chats, { key: row, characterId: pass.ownedByRow.get(row) ?? null }, bundle.chats);
