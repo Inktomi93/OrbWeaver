@@ -1379,6 +1379,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     ...createVectorSweepOps({
       embeddings,
       listCorpusOwners: searchDiscovery.listCorpusOwners,
+      isAccountEnabled: createResolveUserEnabled(sessions),
       vacuousMemoryReceipt: searchDiscovery.vacuousMemoryReceipt,
     }),
     // The databank and memory sweeps settle on it the way the `index` sweep does.

@@ -306,6 +306,9 @@ export interface IngestRunResult {
   readonly chunksPruned: number;
   /** `mode:'re-extract'` only — documents whose canon was re-derived from the CAS bytes. */
   readonly reExtracted: number;
+  /** Documents passed over because their owner's account is disabled; nothing was spent on them, and they stay
+   *  un-indexed for the next pass. */
+  readonly skipped: number;
   readonly failed: readonly { readonly documentId: DocumentId; readonly error: string }[];
 }
 
@@ -449,6 +452,8 @@ export const ingestRunResultSchema = z.strictObject({
   chunksNoop: z.number(),
   chunksPruned: z.number(),
   reExtracted: z.number(),
+  // A stored result without the count skipped nothing.
+  skipped: z.number().default(0),
   failed: z.array(z.strictObject({ documentId: documentIdSchema, error: z.string() })).readonly(),
 }) satisfies z.ZodType<IngestRunResult>;
 

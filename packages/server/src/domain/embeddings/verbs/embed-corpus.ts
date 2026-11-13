@@ -16,21 +16,33 @@ import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.t
 import { completeGenerationScope, resolveTargetGeneration } from "../substrate/generation.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 
+interface CardSweep {
+  readonly force: boolean | undefined;
+  readonly signal: AbortSignal;
+  readonly receipts: Map<UserId, StoreResult>;
+  /** The sweep's enabled read, resolved once per owner. */
+  readonly ownerEnabled: (ownerId: UserId) => Promise<boolean>;
+}
+
 /** One card's sweep step: no text or no owner/embed binding ⇒ skipped (a card whose owner has no `embed`
- *  connection is not embedded in anyone else's space — vector tasks are owner-scoped, §7.5). */
+ *  connection is not embedded in anyone else's space — vector tasks are owner-scoped, §7.5). A disabled owner's
+ *  card is skipped too, as a departed account's would be: it stays un-indexed, so the next sweep embeds it. */
 async function embedOneCard(
   ctx: EmbeddingsContext,
   deps: { readonly store: EmbeddingsService["store"] },
   characterId: CharacterId,
-  sweep: { readonly force: boolean | undefined; readonly signal: AbortSignal; readonly receipts: Map<UserId, StoreResult> },
+  sweep: CardSweep,
 ): Promise<"written" | "skipped"> {
   const text = await ctx.loadCardText(characterId);
   if (text === undefined || text.length === 0) {
     return "skipped";
   }
   const cardOwnerId = await ctx.loadCharacterOwner(characterId);
-  const embedModel = cardOwnerId === null ? null : await requireTaskModel(ctx, cardOwnerId);
-  if (cardOwnerId === null || embedModel === null) {
+  if (cardOwnerId === null || !(await sweep.ownerEnabled(cardOwnerId))) {
+    return "skipped";
+  }
+  const embedModel = await requireTaskModel(ctx, cardOwnerId);
+  if (embedModel === null) {
     return "skipped";
   }
   const result = await deps.store({
@@ -56,12 +68,14 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
     let skipped = 0;
     // Every owner the sweep resolved, with the space it embedded into — the purge set.
     const receipts = new Map<UserId, StoreResult>();
+    const enabled = new Map<UserId, Promise<boolean>>();
+    const ownerEnabled = (cardOwnerId: UserId): Promise<boolean> => enabled.getOrInsertComputed(cardOwnerId, () => ctx.isAccountEnabled(cardOwnerId));
     const characterIds = await ctx.listCharacterIds(ownerId);
     for (const characterId of characterIds) {
       if (signal.aborted) {
         break;
       }
-      if ((await embedOneCard(ctx, deps, characterId, { force, signal, receipts })) === "written") {
+      if ((await embedOneCard(ctx, deps, characterId, { force, signal, receipts, ownerEnabled })) === "written") {
         embedded += 1;
       } else {
         skipped += 1;
