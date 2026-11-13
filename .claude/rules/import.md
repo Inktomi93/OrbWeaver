@@ -28,8 +28,8 @@ paths:
 - One bad item never fails a profile run: record it with its reason. Keep the file read outside the per-item catch, so a storage fault still ends the run (`packages/server/src/domain/import/loader/collect.ts`).
 - Narrow every plane a card carries at the parse, so a refused plane leaves no character behind (`packages/server/src/domain/import/substrate/card.ts`).
 - A failed card carries a `reason` code for the client to key on; the client never shows the server's `error` text (`packages/contracts/src/import/card-result.ts`).
-- Every name in a file is hostile: clip it, name a skip by its profile-relative path, render it as plain text (`packages/contracts/src/import/preview.ts`).
-- A dry run asks each owning domain's read-only twin of the write, and a verdict belongs to the collected entry, not its path (`packages/server/src/domain/import/loader/profile-ownership.ts`).
+- Every name in a file is hostile: clip it, render it as plain text, and name a preview entry or skip by its source, the profile directory plus the path inside that profile, so two profiles that share a path stay two; a skip at the upload root has no profile (`packages/contracts/src/import/preview.ts`).
+- A dry run asks each owning domain's read-only twin of the write, and a verdict belongs to the collected entry, not its path. An entry equal to an earlier entry of the upload is a repeat by the write's own equality rule, so the preview never claims more than the run writes (`packages/server/src/domain/import/loader/profile-ownership.ts`).
 - Only an upload route mints staged params (D340). A staged handle is a name, not a capability: resolve it under the row owner's root (`packages/server/src/domain/import/substrate/staging.ts`).
 - Read staged bytes only through the manifest digest (`packages/server/src/infra/storage/staged-manifest.ts`). Compare containment by `realpath` and `lstat`-refuse a symlink before `rm` (`packages/server/src/infra/storage/staged-paths.ts`).
 - Free a staged upload on every path that ends a row before its body runs (`packages/server/src/domain/import/workload-contributions.ts`).

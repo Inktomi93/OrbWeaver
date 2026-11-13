@@ -20,7 +20,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
 import { routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { ENLARGED_APPEARANCE_SETTINGS, nonEmpty } from "@orb/testkit/iso";
+import { ENLARGED_APPEARANCE_SETTINGS, nonEmpty, present } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -33,6 +33,7 @@ import {
   IMPORT_PREVIEW_REPORT_NAME,
   IMPORT_PREVIEW_SHOW_NAMES,
   IMPORT_PROGRESS_NAME,
+  importPreviewProfileLabel,
 } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
@@ -545,4 +546,87 @@ test("the folder's skip reasons and left-out files read at least as large as the
   await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
   const name = await fontSize(report.getByText("Preview card", { exact: false }));
   expect(name).toBe(await resolvedLength(page, `var(${TOKENS["text.label"].cssVar})`, report));
+});
+
+const ALICE = "alice";
+const BOB = "bob";
+
+/** Two profile directories of one picked folder, each with a real exported card at the same path, and one unreadable
+ *  card in bob's, the profile that sorts second. The cards are each profile's own, or the very same file in both. */
+async function stageProfiles(root: ServerTestHarness, folder: string, cards: "own" | "same"): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const exportedCards = new Map<string, Buffer>();
+  for (const [profile, handle] of [
+    [ALICE, "alice-card"],
+    [BOB, "bob-card"],
+  ] as const) {
+    const card = await caller.character.create({
+      input: createCharacterSchema.parse({ handle, name: `${profile} card`, description: "A real card in the picked folder." }),
+    });
+    const exported = await root.http.request(exportCharacterPath(card.id));
+    expect(exported.status).toBe(200);
+    await caller.character.remove({ characterId: card.id });
+    exportedCards.set(profile, Buffer.from(await exported.arrayBuffer()));
+  }
+  for (const profile of [ALICE, BOB]) {
+    await mkdir(join(folder, profile, "characters"), { recursive: true });
+    await writeFile(join(folder, profile, "characters", "card.png"), present(exportedCards.get(cards === "own" ? profile : ALICE)));
+    await writeFile(join(folder, profile, ST_SETTINGS_FILE), JSON.stringify({ ["power_user"]: {} }));
+  }
+  await writeFile(join(folder, BOB, "characters", "broken.png"), "not a card");
+}
+
+test("a folder of two profiles lists both cards under their own profile, and a refusal stays with the profile it came from", async ({
+  mount,
+  page,
+  baseURL,
+}, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profiles");
+  await stageProfiles(root, folder, "own");
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  const caller = await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
+
+  // The control: the server's own preview holds both cards, each under a profile, and the unreadable one under bob only.
+  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  expect(preview.kinds.characters.items.map(({ source }) => source.profile).toSorted((a, b) => a.localeCompare(b))).toEqual([ALICE, BOB]);
+  expect(preview.skipped.items.filter(({ source }) => source.path === "broken.png").map(({ source }) => source.profile)).toEqual([BOB]);
+
+  const alice = report.getByText(importPreviewProfileLabel(ALICE), { exact: true }).locator("..");
+  const bob = report.getByText(importPreviewProfileLabel(BOB), { exact: true }).locator("..");
+  await expect(alice).toContainText(`${ALICE} card`);
+  await expect(alice).not.toContainText("broken.png");
+  await expect(bob).toContainText(`${BOB} card`);
+  await expect(bob).toContainText("broken.png");
+  await expect(bob).not.toContainText(`${ALICE} card`);
+});
+
+test("a folder of two profiles that hold the same card says the second one adds nothing", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profiles");
+  await stageProfiles(root, folder, "same");
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  const caller = await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+
+  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  // The control: the server's preview lists the card under both profiles and marks the second as the first's repeat.
+  const verdicts = preview.kinds.characters.items.map(({ source, repeat }) => [source.profile, repeat === true] as const);
+  expect(verdicts.toSorted(([a], [b]) => a.localeCompare(b))).toEqual([
+    [ALICE, false],
+    [BOB, true],
+  ]);
+  await expect(report).toContainText(previewKindLine("characters", preview.kinds.characters));
 });

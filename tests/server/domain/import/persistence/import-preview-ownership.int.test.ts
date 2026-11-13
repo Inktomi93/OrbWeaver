@@ -97,7 +97,7 @@ test("a group the run refuses is a skip, not a new room, and the preview counts 
 
   // The control: the folder's valid group is the one room, and its transcript is the only group transcript.
   expect(preview.kinds.groups.items.map((item) => item.name)).toEqual(["Fresh Group"]);
-  expect(preview.skipped.items.map((item) => item.source)).toEqual(expect.arrayContaining(["groups/roomless.json", "groups/memberless.json"]));
+  expect(preview.skipped.items.map((item) => item.source.path)).toEqual(expect.arrayContaining(["groups/roomless.json", "groups/memberless.json"]));
   expect(imported.found).toMatchObject({ groups: preview.kinds.groups.total, chats: preview.kinds.chats.total });
   expect(preview.kinds.chats.items.map((item) => item.name)).not.toContain("Memberless: ghost-room");
 });

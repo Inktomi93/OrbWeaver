@@ -119,8 +119,8 @@ function personaContentKey(identity: PersonaIdentity): string {
   });
 }
 
-/** The owned persona the incoming one content-matches (with the name it carries), or null (mint one). */
-export function findDuplicatePersona(incoming: PersonaIdentity, candidates: readonly PersonaCandidate[]): PersonaCandidate | null {
+/** The persona among `candidates` the incoming one content-matches (with the name it carries), or null (mint one). */
+export function findDuplicatePersona<Candidate extends PersonaIdentity>(incoming: PersonaIdentity, candidates: readonly Candidate[]): Candidate | null {
   const key = personaContentKey(incoming);
   return candidates.find((candidate) => personaContentKey(candidate) === key) ?? null;
 }

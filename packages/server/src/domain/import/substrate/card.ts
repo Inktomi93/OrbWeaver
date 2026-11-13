@@ -236,10 +236,10 @@ export async function cardPngIdentity(bytes: Uint8Array): Promise<CardIdentityHa
 }
 
 /** The owner's character an equal card already landed as, in ONE lookup order for every door. */
-export async function findImportedCharacter(
-  find: FindCharacterByHash,
+export async function findImportedCharacter<Row = CharacterId>(
+  find: FindCharacterByHash<Row>,
   hashes: CardIdentityHashes,
-): Promise<{ readonly characterId: CharacterId; readonly match: ImportedCharacterMatch } | null> {
+): Promise<{ readonly characterId: Row; readonly match: ImportedCharacterMatch } | null> {
   const byContent = await find(hashes.importHash);
   if (byContent !== null) {
     return { characterId: byContent, match: "content" };
