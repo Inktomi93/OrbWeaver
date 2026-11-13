@@ -189,8 +189,12 @@ test.for([
 const REWRITE_TARGET = "The lantern gutters as the stranger steps inside.";
 const REWRITE_STEER = "make it terse";
 
+type SwipeGuided = NonNullable<Parameters<ChatRoot["root"]["services"]["chat"]["swipe"]>[0]["guided"]>;
+
 /** Swipe the room's seeded reply, steered or not, and return the one provider request with the outcome's replies. */
-async function swipeSeededReply(guided: boolean): Promise<{ readonly body: JsonValue; readonly wire: string; readonly replies: readonly string[] }> {
+async function swipeSeededReply(
+  guided: SwipeGuided | undefined,
+): Promise<{ readonly body: JsonValue; readonly wire: string; readonly replies: readonly string[] }> {
   await using h = await textRoom(["The lantern flares."], {
     transcript: [
       { role: "user", content: "hello" },
@@ -206,7 +210,7 @@ async function swipeSeededReply(guided: boolean): Promise<{ readonly body: JsonV
       principal: h.owner,
       chatId: h.chatId,
       messageId: prior.id,
-      ...(guided ? { guided: { action: "rewrite", input: REWRITE_STEER } } : {}),
+      ...(guided !== undefined ? { guided } : {}),
     }),
   );
   expect(bodies).toHaveLength(1);
@@ -214,7 +218,7 @@ async function swipeSeededReply(guided: boolean): Promise<{ readonly body: JsonV
 }
 
 test("a guided rewrite sends the reply it rewrites, then its instruction as the closing user turn", async () => {
-  const { body, replies } = await swipeSeededReply(true);
+  const { body, replies } = await swipeSeededReply({ action: "rewrite", input: REWRITE_STEER });
   expect(replies).toEqual(["The lantern flares."]);
   if (body === null || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body["messages"])) {
     throw new Error("the actual native rewrite request has no messages");
@@ -227,9 +231,16 @@ test("a guided rewrite sends the reply it rewrites, then its instruction as the 
 });
 
 test("an unguided swipe of the same reply regenerates from the context before it", async () => {
-  const { wire, replies } = await swipeSeededReply(false);
+  const { wire, replies } = await swipeSeededReply(undefined);
   expect(replies).toEqual(["The lantern flares."]);
   expect(wire).toContain("hello");
+  expect(wire).not.toContain(REWRITE_TARGET);
+});
+
+test("a guided swipe that is not a rewrite carries its steer but leaves the reply it replaces out", async () => {
+  const { wire, replies } = await swipeSeededReply({ action: "response", input: REWRITE_STEER });
+  expect(replies).toEqual(["The lantern flares."]);
+  expect(wire).toContain(REWRITE_STEER);
   expect(wire).not.toContain(REWRITE_TARGET);
 });
 
