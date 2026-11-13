@@ -31,6 +31,14 @@ export const REFINERY_SETUP_TAB_LABEL = "Setup";
 export const REFINERY_VERSION_DIFF_HEADING = "description: this version vs live";
 export const REFINERY_VERSION_LOADING_TEXT = "Loading that version…";
 
+/** What a version row calls a snapshot that carries no label. */
+export const REFINERY_UNLABELED_VERSION = "unlabeled";
+
+/** A version row's Restore, named for the version it restores; `qualifier` tells apart versions that share a label. */
+export function refineryRestoreVersionName(label: string, qualifier?: string): string {
+  return qualifier === undefined ? `Restore ${label}` : `Restore ${label} ${qualifier}`;
+}
+
 /** A stage lane's first run. */
 export function refineryRunStageName(stage: string): string {
   return `Run ${stage}`;

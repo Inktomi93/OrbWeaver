@@ -14,6 +14,7 @@ import { TitleReveal, useCutPart } from "#components";
 import type { ScreenTitle } from "#lib";
 import { censusSuffix, cn, screenListDoorName, screenOverviewDoorName } from "#lib";
 import type { PanelMode } from "#state";
+import { shellHeadingRef } from "#state";
 
 /** The list pane's durable focus-return target after its sheet closes. */
 export const LIST_TOGGLE_MARKER = "shell-list-toggle";
@@ -184,7 +185,7 @@ export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
     <header className="shell-topbar" ref={ref}>
       {/* THE SCREEN'S ONE h1. The painted identity below is two width arms and a section's own header cluster, only one of
           which is exposed and none of which is a heading, so the page-level heading is stated once here at every width. */}
-      <Heading className="sr-only" level={1}>
+      <Heading className="sr-only" level={1} ref={shellHeadingRef} tabIndex={-1}>
         {(props.screenTitle ?? { name: props.title }).name}
       </Heading>
       <div className="shell-topbar-lead">
