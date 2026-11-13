@@ -1,17 +1,17 @@
 // The PURPOSE tier's two readings (inference program §5.3a · the step-3b mock `editor.html` Board A): the
-// inferred-kind verdict and the task-requirement badge rail. Apart from `connection-editor.tsx`;
+// inferred-kind verdict and the servable-role rail. Apart from `connection-editor.tsx`;
 // the tier's third row (the background switch) stays with the editor, because it is a
 // plain field rather than a derived reading.
 
 import type { DeclaredCapability, ModelKind } from "@orb/contracts/inference";
 import { Badge } from "@orb/ui/badge";
-import { Check, Icon, X } from "@orb/ui/icons";
+import { Check, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
-import type { CapabilityBadge } from "../lib/connection-editor-model.ts";
+import type { ServableRole } from "../lib/connection-editor-model.ts";
 import { KIND_VERDICT_ITEMS, KIND_VERDICT_LABELS } from "../lib/connection-editor-model.ts";
 
 /** The INFERRED-KIND VERDICT — a sentence with an inline change control, never a bare select. A "what is
@@ -66,32 +66,24 @@ export function PurposeNotes({ notes }: { readonly notes: readonly string[] }): 
   );
 }
 
-/** The task-requirement rail. GREENS FIRST and greens truncate LAST: below the container's `lg` step the
- *  can't-serve badges give way to one summary line, so the rail keeps saying what the connection CAN do.
- *  A can't-serve badge is MUTED with `✗` and its reason — destructive colour is reserved for a BOUND role
- *  that has actually failed, and a chat model that cannot embed is not broken. */
-export function CapabilityRail({ badges }: { readonly badges: readonly CapabilityBadge[] }): ReactElement {
-  const cannot = badges.filter((badge) => !badge.ok);
+/** The servable-role rail: one badge per Model-roles slot this connection can serve, and nothing for a slot it
+ *  cannot. A chat model that cannot embed is not broken, so the rail does not say so; the verdict above
+ *  already names what the model is for. A connection that serves no slot says that in a line, because an
+ *  empty rail would read as a missing section. */
+export function CapabilityRail({ roles }: { readonly roles: readonly ServableRole[] }): ReactElement {
   return (
     <Stack data-slot="connection-capability-rail" gap="tight">
-      <Row wrap={true} gap="field">
-        {badges.map((badge) => (
-          <Badge
-            hiddenAt={badge.ok ? undefined : "belowCq32"}
-            key={badge.task}
-            size="sm"
-            tone={badge.ok ? "success" : "neutral"}
-            variant={badge.ok ? "soft" : "outline"}
-          >
-            <Icon icon={badge.ok ? Check : X} size="sm" />
-            {badge.reason === null ? badge.label : `${badge.label}: ${badge.reason}`}
-          </Badge>
-        ))}
-      </Row>
-      {cannot.length === 0 ? null : (
-        <Text hiddenAt="cq-32" voice="gloss">
-          …and {String(cannot.length)} more it can't serve.
-        </Text>
+      {roles.length === 0 ? (
+        <Text voice="gloss">No role can use this connection as it is set up.</Text>
+      ) : (
+        <Row wrap={true} gap="field">
+          {roles.map((role) => (
+            <Badge key={role.task} size="sm" tone="success" variant="soft">
+              <Icon icon={Check} size="sm" />
+              {role.label}
+            </Badge>
+          ))}
+        </Row>
       )}
     </Stack>
   );
