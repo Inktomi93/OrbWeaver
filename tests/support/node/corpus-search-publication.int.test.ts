@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import {
   fieldSearchResultSchema,
   searchSpaceStatusSchema,
@@ -361,7 +361,7 @@ test("settled search publication survives native authenticated clone reads and r
       if (read.input !== undefined) {
         url.searchParams.set("input", JSON.stringify(read.input));
       }
-      const response = await fetch(url, { headers: { cookie: authentication.cookie, forwarded: "" } });
+      const response = await fetch(url, { headers: { cookie: authentication.cookie, forwarded: "", [CSRF_HEADER]: "1" } });
       const body = await response.json();
       expect(response.status, JSON.stringify(body)).toBe(200);
       expect(z.object({ result: z.object({ data: schema }) }).parse(body).result.data).toEqual(read.output);
@@ -376,7 +376,7 @@ test("settled search publication survives native authenticated clone reads and r
   const foreignAuthentication = await captureCookieAuth(clone, foreignPrincipal, "fresh-private-search-member-password");
   const scoped = new URL("/api/trpc/search.fields", origin);
   scoped.searchParams.set("input", JSON.stringify(section.reads.fields.input));
-  const response = await fetch(scoped, { headers: { cookie: foreignAuthentication.cookie, forwarded: "" } });
+  const response = await fetch(scoped, { headers: { cookie: foreignAuthentication.cookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(response.status).toBe(200);
   const foreignOutput = z.object({ result: z.object({ data: fieldSearchResultSchema }) }).parse(await response.json()).result.data;
   expect(foreignOutput.hits).toEqual([]);

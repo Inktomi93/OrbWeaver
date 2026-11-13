@@ -51,7 +51,7 @@ async function ingestStatus(origin: string, path: string, headers: Readonly<Reco
   return response.status;
 }
 
-test.describe("CSRF gate (cookie-authed mutations only)", () => {
+test.describe("CSRF gate (cookie-authed mutations, and every request outside POST)", () => {
   test("a cookie mutation WITHOUT the custom header → FORBIDDEN", async ({ baseURL }) => {
     const alice = await member(baseURL ?? "");
     const name = marker("csrf-refused");
@@ -68,10 +68,12 @@ test.describe("CSRF gate (cookie-authed mutations only)", () => {
     expect(await tagNames(alice)).toContain(name);
   });
 
-  test("a query is never CSRF-gated (even cookie-authed without the header)", async ({ baseURL }) => {
+  test("a cookie query over GET WITHOUT the custom header → FORBIDDEN, and WITH it passes", async ({ baseURL }) => {
     const alice = await member(baseURL ?? "");
-    const read = await rawTrpcCall(baseURL ?? "", { procedure: "tag.listTags", input: undefined, kind: "query" }, ambientHeaders(alice));
-    expect(read.status).toBe(200);
+    const call = { procedure: "tag.listTags", input: undefined, kind: "query" } as const;
+    const refused = await rawTrpcCall(baseURL ?? "", call, ambientHeaders(alice));
+    const admitted = await rawTrpcCall(baseURL ?? "", call, alice.headers);
+    expect({ refused: refused.status, admitted: admitted.status }).toEqual({ refused: 403, admitted: 200 });
   });
 });
 
@@ -158,7 +160,7 @@ test.describe("batches over a cookie principal", () => {
       const batch = (count: number): Promise<Response> =>
         fetch(`${origin}/api/trpc/${Array.from({ length: count }, () => path).join(",")}?batch=1`, {
           method,
-          headers: method === "GET" ? ambientHeaders(alice) : { ...alice.headers, "content-type": "application/json" },
+          headers: method === "GET" ? alice.headers : { ...alice.headers, "content-type": "application/json" },
           ...(method === "POST" ? { body: "{}" } : {}),
         });
       const refused = await batch(TRPC_BATCH_MAX_ITEMS + 1);

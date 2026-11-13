@@ -3,6 +3,7 @@
 // account. The returned cleanup owns the exact minted ids and proves their absence after removal.
 
 import { randomUUID } from "node:crypto";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
 import { instrumentRefusal } from "../browser/page-validate.ts";
 import { refuseDirectInvocation } from "../cli/entrypoint.ts";
@@ -32,9 +33,10 @@ function provisioningCleanupError(primary: unknown, cleanup: unknown): Aggregate
 }
 
 async function trpc(baseUrl: string, procedure: string, input?: unknown): Promise<unknown> {
+  // A read goes out as GET, which the mount refuses without the CSRF header even on the owner fallback.
   const init: RequestInit =
     input === undefined
-      ? {}
+      ? { headers: { [CSRF_HEADER]: "1" } }
       : {
           method: "POST",
           headers: { "content-type": "application/json" },

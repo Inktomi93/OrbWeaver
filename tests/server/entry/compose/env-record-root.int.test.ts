@@ -151,7 +151,7 @@ describe("every forwarded-header read believes the record's trusted proxies", ()
     await using root = await behindProxy({ env: { ["RATE_LIMIT_PUBLIC_IP"]: "1" } });
     const statuses: number[] = [];
     for (const client of [UNLISTED_PEER, OTHER_FORWARDED_CLIENT]) {
-      const response = await root.http.request("/api/trpc/health", { headers: { ["x-forwarded-for"]: client } });
+      const response = await root.http.request("/api/trpc/health", { headers: { ["x-forwarded-for"]: client, [CSRF_HEADER]: "1" } });
       await response.arrayBuffer();
       statuses.push(response.status);
     }

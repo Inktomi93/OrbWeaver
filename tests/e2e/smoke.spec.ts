@@ -16,6 +16,7 @@
 
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { corpusReadInput } from "@orb/testkit/iso";
 import { CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
@@ -66,7 +67,7 @@ test("single-user mode: an owner-scoped tRPC query succeeds with no login", {
   // batch — the call resolving at all is the proof (auth + transport + DB all answered). Build the query
   // string from params (not a literal) so the base64-shaped batch input doesn't trip the secret scanner.
   const input = encodeURIComponent(JSON.stringify({ 0: {} }));
-  const res = await request.get(`/api/trpc/chat.listChats?batch=1&input=${input}`);
+  const res = await request.get(`/api/trpc/chat.listChats?batch=1&input=${input}`, { headers: { [CSRF_HEADER]: "1" } });
   expect(res.ok()).toBe(true);
 });
 

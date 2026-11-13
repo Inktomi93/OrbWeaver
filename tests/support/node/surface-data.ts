@@ -6,7 +6,7 @@ import { homedir } from "node:os";
 import { dirname, isAbsolute, join, sep } from "node:path";
 import process from "node:process";
 import type { AuthMode } from "@orb/contracts/identity";
-import { AUTH_MODE_KEY, AUTH_MODES, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY, viewerViewSchema } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY, AUTH_MODES, CSRF_HEADER, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY, viewerViewSchema } from "@orb/contracts/identity";
 import { connectionViewSchema } from "@orb/contracts/inference";
 import type {
   assets as assetTable,
@@ -533,7 +533,7 @@ async function assertSurfaceOwnerAdmission(root: NativeServerTestHarness, origin
   }
   const { signInWithPassword } = await import("./sign-in.ts");
   const cookie = subject.password === null ? undefined : await signInWithPassword(root, subject.viewer.handle, subject.password);
-  const response = await fetch(`${origin}/api/trpc/sessions.me`, { ...(cookie === undefined ? {} : { headers: { cookie } }) });
+  const response = await fetch(`${origin}/api/trpc/sessions.me`, { headers: { [CSRF_HEADER]: "1", ...(cookie === undefined ? {} : { cookie }) } });
   const result = z.object({ result: z.object({ data: viewerViewSchema }) }).safeParse(await response.json());
   if (!(response.ok && result.success) || JSON.stringify(result.data.result.data) !== JSON.stringify(subject.viewer)) {
     throw new Error("Surface native admission did not resolve the expected owner");

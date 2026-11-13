@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { RATE_LIMIT_CAP_MIN } from "@orb/contracts/settings";
 import {
@@ -193,7 +193,7 @@ async function sourceDataset(parent: string, withEmbeddings = false): Promise<So
   await root.services.settings.updateUserSettingsSection({ principal: owner, input: { section: "onboarding", patch: { examplePluginsSeeded: true } } });
   const cookie = await signInWithPassword(root, SOURCE_HANDLE, SOURCE_PASSWORD);
   const address = await root.listen();
-  const admission = await fetch(`http://127.0.0.1:${address.port}/api/trpc/sessions.me`, { headers: { cookie } });
+  const admission = await fetch(`http://127.0.0.1:${address.port}/api/trpc/sessions.me`, { headers: { cookie, [CSRF_HEADER]: "1" } });
   expect(admission.status).toBe(200);
   expect(await admission.json()).toMatchObject({ result: { data: { userId: owner.userId } } });
   await root.settleBackground();
@@ -413,6 +413,7 @@ test("standalone owner startup owns its native listener while restoring enabled 
     import { join } from "node:path";
     import { openPreparedSurfaceRoot, prepareSurfaceData } from "@orb/testkit/node/helpers";
     import { createServerHarness } from "@orb/testkit/node/composed";
+    import { CSRF_HEADER } from "@orb/contracts/identity";
     import { systemTimers } from "@orb/server/infra/timers";
     const time = { now: () => Date.now(), monotonicNow: () => performance.now(), timers: systemTimers };
     const elapsed = (ms) => new Promise((resolve) => systemTimers.timeout(resolve, ms));
@@ -438,7 +439,7 @@ test("standalone owner startup owns its native listener while restoring enabled 
       let ticks = 0;
       try {
         const address = await limited.listen();
-        const viewer = () => fetch("http://127.0.0.1:" + address.port + "/api/trpc/sessions.me");
+        const viewer = () => fetch("http://127.0.0.1:" + address.port + "/api/trpc/sessions.me", { headers: { [CSRF_HEADER]: "1" } });
         // Begin near the actual fixed-window start so two ordinary HTTP requests cannot straddle expiry.
         let windowStart = Math.floor(time.now() / windowMs) * windowMs + windowMs;
         if (windowStart % server.root.env.RATE_LIMIT_WINDOW_MS === 0) windowStart += windowMs;
@@ -534,7 +535,7 @@ test("the walk lifts every windowed cap on its disposable copy while a default r
     expect(lifted[key], key).toBeGreaterThan(floors[key]);
   }
   const viewerStatus = async (origin: string): Promise<number> => {
-    const response = await fetch(`${origin}/api/trpc/sessions.me`);
+    const response = await fetch(`${origin}/api/trpc/sessions.me`, { headers: { [CSRF_HEADER]: "1" } });
     await response.arrayBuffer();
     return response.status;
   };
@@ -906,10 +907,10 @@ test("synthetic preparation generates its canonical graph privately and serves r
   await writeFile(join(clientDistDir, "index.html"), "<!doctype html><title>Static server control</title>", { mode: 0o600 });
   await using server = await openPreparedSurfaceRoot(prepared, { clientDistDir, time, environment: LOCAL_ENVIRONMENT });
   expect(server.pluginPosture).toEqual(prepared.provenance.plugins);
-  const response = await fetch(`${server.origin}/api/trpc/sessions.me`);
+  const response = await fetch(`${server.origin}/api/trpc/sessions.me`, { headers: { [CSRF_HEADER]: "1" } });
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ result: { data: { ...prepared.owner, globalRole: "owner" } } });
-  const relayed = await fetch(`${server.origin}/api/trpc/sessions.me`, { headers: { forwarded: "for=192.0.2.1" } });
+  const relayed = await fetch(`${server.origin}/api/trpc/sessions.me`, { headers: { forwarded: "for=192.0.2.1", [CSRF_HEADER]: "1" } });
   expect(relayed.status).toBe(401);
   const originalCaller = await server.root.internalCallerFor(prepared.owner.userId);
   const originals = await Promise.all(prepared.provenance.subjects.characters.map(({ id }) => originalCaller.character.get({ characterId: id })));
@@ -923,15 +924,15 @@ test("synthetic preparation generates its canonical graph privately and serves r
   for (const subject of local.authentication.subjects) {
     assert(subject.password !== null);
     const cookie = await signInWithPassword(local.root, subject.viewer.handle, subject.password);
-    const who = await fetch(`${local.origin}/api/trpc/sessions.me`, { headers: { cookie, forwarded: "for=192.0.2.1" } });
+    const who = await fetch(`${local.origin}/api/trpc/sessions.me`, { headers: { cookie, forwarded: "for=192.0.2.1", [CSRF_HEADER]: "1" } });
     expect(who.status).toBe(200);
     expect(await who.json()).toEqual({ result: { data: subject.viewer } });
     identities.push(subject.viewer.userId);
-    const privileged = await fetch(`${local.origin}/api/trpc/admin.listUsers`, { headers: { cookie } });
+    const privileged = await fetch(`${local.origin}/api/trpc/admin.listUsers`, { headers: { cookie, [CSRF_HEADER]: "1" } });
     expect(privileged.status).toBe(subject.viewer.userId === prepared.owner.userId ? 200 : 403);
   }
   expect(new Set(identities).size).toBe(2);
-  const anonymous = await fetch(`${local.origin}/api/trpc/sessions.me`);
+  const anonymous = await fetch(`${local.origin}/api/trpc/sessions.me`, { headers: { [CSRF_HEADER]: "1" } });
   expect(anonymous.status).toBe(401);
   const caller = await local.root.internalCallerFor(prepared.owner.userId);
   const character = prepared.provenance.subjects.characters[0];

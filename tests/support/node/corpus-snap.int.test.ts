@@ -3,7 +3,7 @@
 import "@orb/tooling/snap";
 import { readFile } from "node:fs/promises";
 import { contextFitAnswerSchema } from "@orb/contracts/chat";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { localPath } from "@orb/db";
 import { z } from "zod";
 import { nonEmpty } from "../iso/non-empty.ts";
@@ -49,6 +49,7 @@ test("native corpus stage clone reaches preview retrieval without changing its p
   const listening = await root.listen();
   const response = await fetch(
     `http://${listening.address}:${listening.port}/api/trpc/chat.previewContextFit?input=${encodeURIComponent(JSON.stringify({ chatId: chat.id }))}`,
+    { headers: { [CSRF_HEADER]: "1" } },
   );
   expect(response.status).toBe(200);
   const preview = z.object({ result: z.object({ data: contextFitAnswerSchema }) }).parse(await response.json()).result.data;

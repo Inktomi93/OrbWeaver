@@ -16,7 +16,7 @@ import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import type { ResponseMeta, TRPCRequestInfo } from "@trpc/server/http";
+import type { ResponseMeta } from "@trpc/server/http";
 import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -125,7 +125,7 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
  * app never answers (it mounts no CORS middleware).
  *
  * GET passes this belt — it carries no content-type, and tRPC's method map admits GET for queries and
- * subscriptions only; {@link refuseHeaderlessGetSubscription} covers the subscriptions. The mount's `allowMethodOverride` admits a query or subscription over POST too, which
+ * subscriptions only; {@link refuseHeaderlessOutsidePost} covers it. The mount's `allowMethodOverride` admits a query or subscription over POST too, which
  * is why this belt, not the method, is what bounds a POST to `application/json`. A bare 415 with no body mirrors the body-limit belt: no legitimate client reaches it,
  * and the refusal still carries `X-Request-Id` (observability is mounted above this — and it
  * stamps the id on `c.res.headers` AFTER `next()`, so the header rides EVERY response through this mount,
@@ -148,29 +148,25 @@ function trpcJsonOnly(logger: Logger): MiddlewareHandler {
 }
 
 /**
- * THE GET-SUBSCRIPTION CSRF CHECK (Spine-Identity-and-Auth invariant 9). A subscription writes: `stream.connect`
- * marks its user online and runs the deferred-turn drain. Over POST it rides the content-type belt above. A GET
- * carries no content type, a cross-site page can send one with no custom header, and the loopback owner fallback
- * admits it as the owner. So a subscription outside POST must carry the CSRF header, which a cross-site page cannot
- * send without a preflight this app never answers. It reads tRPC's own path resolution (`info.type`), so no path
- * spelling reaches a subscription around it. Queries stay open to GET, so a query must not write; one still does:
- * `plugin.transformForDisplay` runs the caller's display-transform plugins, and a crash advances their crash counter.
+ * THE OUTSIDE-POST CSRF CHECK (Spine-Identity-and-Auth invariant 9). Over POST a tRPC request rides the content-type
+ * belt above. A GET carries no content type: a cross-site page can send one with no custom header (an `<img>`, a
+ * top-level navigation that carries the `SameSite=Lax` cookie), and the loopback owner fallback admits it as the
+ * owner. So every tRPC request outside POST, query or subscription, must carry the CSRF header, which a cross-site
+ * page cannot send without a preflight this app never answers. One rule for every procedure, on every credential
+ * path, so a query that writes is covered too; a query still must not write. The refusal is the tRPC `FORBIDDEN` a
+ * header-less cookie mutation gets, raised before any procedure resolves.
  */
-function refuseHeaderlessGetSubscription(
-  request: { readonly method: string; readonly headers: Headers; readonly path: string },
-  info: TRPCRequestInfo,
-  logger: Logger,
-): void {
-  if (request.method === "POST" || info.type !== "subscription" || hasCsrfHeader(request.headers)) {
+function refuseHeaderlessOutsidePost(request: { readonly method: string; readonly headers: Headers; readonly path: string }, logger: Logger): void {
+  if (request.method === "POST" || hasCsrfHeader(request.headers)) {
     return;
   }
   securityEvent(
-    "trpc_subscription_csrf_rejected",
+    "trpc_outside_post_csrf_rejected",
     { method: request.method, path: request.path },
-    "security: tRPC subscription outside POST rejected — no CSRF header",
+    "security: tRPC request outside POST rejected — no CSRF header",
     logger,
   );
-  throw new TRPCError({ code: "FORBIDDEN", message: "A subscription outside POST needs the CSRF header" });
+  throw new TRPCError({ code: "FORBIDDEN", message: "A tRPC request outside POST needs the CSRF header" });
 }
 
 // The tRPC `responseMeta` hook: on a TOO_MANY_REQUESTS response, surface the throttle hint from the
@@ -397,8 +393,8 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
       req: c.req.raw,
       router: appRouter,
       maxBatchSize: TRPC_BATCH_MAX_ITEMS,
-      createContext: ({ info }) => {
-        refuseHeaderlessGetSubscription({ method: c.req.method, headers: c.req.raw.headers, path: c.req.path }, info, deps.logger);
+      createContext: () => {
+        refuseHeaderlessOutsidePost({ method: c.req.method, headers: c.req.raw.headers, path: c.req.path }, deps.logger);
         return deps.trpcContext({
           auth: c.get("principal"),
           sessionId: c.get("sessionId"),

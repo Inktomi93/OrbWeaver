@@ -97,7 +97,7 @@ async function login(root: ServerTestHarness, handle: Handle, password: string, 
   if (token === null) {
     throw new Error("native image variant login lost its canonical token");
   }
-  const admitted = await fetch(new URL("/api/trpc/sessions.me", origin), { headers: { cookie } });
+  const admitted = await fetch(new URL("/api/trpc/sessions.me", origin), { headers: { cookie, [CSRF_HEADER]: "1" } });
   const viewer = await output(admitted, viewerViewSchema);
   if (viewer.handle !== handle) {
     throw new Error("native image variant cookie admitted a different row principal");

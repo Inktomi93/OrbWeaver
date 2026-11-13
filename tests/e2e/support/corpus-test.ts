@@ -48,7 +48,7 @@ export const test = base.extend<CorpusFixtures>({
       const login = await context.request.post("/api/auth/login", { form: { handle: owner.handle, password }, headers: { [CSRF_HEADER]: "1" } });
       const me = await context.request.get(`${baseURL}/api/auth/me`, { headers: { forwarded: "" } });
       const identity = authMeSchema.parse(await me.json());
-      const sessionResponse = await context.request.get("/api/trpc/sessions.me", { headers: { forwarded: "" } });
+      const sessionResponse = await context.request.get("/api/trpc/sessions.me", { headers: { forwarded: "", [CSRF_HEADER]: "1" } });
       const session = z.object({ result: z.object({ data: viewerViewSchema }) }).parse(await sessionResponse.json()).result.data;
       if (
         !(login.ok() && me.ok() && identity.authenticated) ||

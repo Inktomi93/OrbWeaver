@@ -1,5 +1,5 @@
 import { chatListPageSchema } from "@orb/contracts/chat";
-import { AUTH_MODES } from "@orb/contracts/identity";
+import { AUTH_MODES, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { resolveBindPosture } from "@orb/server/foundation/env/record";
 import { forEachNonEmpty } from "@orb/testkit/iso";
@@ -26,6 +26,7 @@ const OK = 200;
 const LOOPBACK_PEER = "127.0.0.1";
 const VIEWER_ROUTE = "/api/trpc/sessions.me";
 const RELAY_TELL = "x-forwarded-for";
+const CSRF = { [CSRF_HEADER]: "1" } as const;
 const MEMBERLESS_MODES = AUTH_MODES.filter((mode) => !AUTH_MODE_CAPABILITIES[mode].members);
 const listEnvelopeSchema = z.object({ result: z.object({ data: chatListPageSchema }) });
 
@@ -41,7 +42,7 @@ async function claimedRoom(root: AuthModeRoot, userId: UserId): Promise<ChatId> 
 async function wireRooms(root: AuthModeRoot, session: SignedIn): Promise<ChatId[]> {
   const address = new URL("http://localhost/api/trpc/chat.listChats");
   address.searchParams.set("input", JSON.stringify({}));
-  const response = await root.http.request(address, { headers: session.headers });
+  const response = await root.http.request(address, { headers: { ...session.headers, ...CSRF } });
   expect(response.status).toBe(200);
   return listEnvelopeSchema.parse(await response.json()).result.data.items.map((item) => item.id);
 }
@@ -83,7 +84,7 @@ test("a wrong password or another mode's login door gets the product's refusal, 
 // D255: a mode with a login denies an un-credentialed request by omission, even from loopback.
 test.for(AUTH_MODES)("an un-credentialed loopback request is the owner only in a mode without members [%s]", async (mode) => {
   await using root = await createAuthModeRoot(mode, { physicalPeer: () => LOOPBACK_PEER });
-  const response = await root.http.request(VIEWER_ROUTE);
+  const response = await root.http.request(VIEWER_ROUTE, { headers: CSRF });
   await response.arrayBuffer();
   expect(response.status).toBe(AUTH_MODE_CAPABILITIES[mode].members ? UNAUTHORIZED : OK);
 });
@@ -91,7 +92,7 @@ test.for(AUTH_MODES)("an un-credentialed loopback request is the owner only in a
 // D255: a relayed request is never the operator, so a relay tell refuses the fallback and leaves a credential alone.
 forEachAuthMode("a forwarding header refuses the owner fallback and leaves a credentialed owner signed in", async ({ root, capability }) => {
   const owner = await signIn(root, await ownerSubject(root));
-  const relayed = await root.http.request(VIEWER_ROUTE, { headers: { ...owner.headers, [RELAY_TELL]: PUBLIC_PEER_ADDRESS } });
+  const relayed = await root.http.request(VIEWER_ROUTE, { headers: { ...owner.headers, ...CSRF, [RELAY_TELL]: PUBLIC_PEER_ADDRESS } });
   await relayed.arrayBuffer();
   expect(relayed.status).toBe(capability.members ? OK : UNAUTHORIZED);
 });

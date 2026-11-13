@@ -11,6 +11,7 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 import { signedInMember } from "./_auth-roots.ts";
 
 const LOCAL = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } as const;
+const CSRF = { [CSRF_HEADER]: "1" } as const;
 const PEER = "203.0.113.9";
 const OK = 200;
 const UNAUTHORIZED = 401;
@@ -79,8 +80,8 @@ test("the handle axis refuses one account past the per-IP cap when rotating peer
 test("an anonymous caller is refused past the per-IP tRPC cap and told when to retry", async () => {
   await using root = await localRoot();
   const cap = root.services.settings.getEffectiveConfig().rateLimits.publicIp;
-  expect(await spend(cap, () => statusOf(root, "/api/trpc/health"))).toEqual(Array.from({ length: cap }, () => OK));
-  const refused = await root.http.request("/api/trpc/health");
+  expect(await spend(cap, () => statusOf(root, "/api/trpc/health", { headers: CSRF }))).toEqual(Array.from({ length: cap }, () => OK));
+  const refused = await root.http.request("/api/trpc/health", { headers: CSRF });
   await refused.arrayBuffer();
   expect(refused.status).toBe(TOO_MANY_REQUESTS);
   expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
@@ -90,7 +91,7 @@ test("a signed-in member is refused past the per-user request cap", async () => 
   await using root = await localRoot({ env: { ["RATE_LIMIT_AUTHED"]: LOWERED_FLOOR } });
   const { cookie } = await signedInMember(root, castId<Handle>("general-bucket-member"));
   const cap = root.services.settings.getEffectiveConfig().rateLimits.authed;
-  expect(await spend(cap + 1, () => statusOf(root, "/api/trpc/sessions.me", { headers: { cookie } }))).toEqual(admittedThenRefused(cap, OK));
+  expect(await spend(cap + 1, () => statusOf(root, "/api/trpc/sessions.me", { headers: { cookie, ...CSRF } }))).toEqual(admittedThenRefused(cap, OK));
 });
 
 test("an AI turn verb is refused past its stricter cap while the general bucket still has room", async () => {
@@ -103,5 +104,5 @@ test("an AI turn verb is refused past its stricter cap while the general bucket 
   const statuses = await spend(cap + 1, turn);
   expect(statuses.slice(0, cap)).not.toContain(TOO_MANY_REQUESTS);
   expect(statuses.at(cap)).toBe(TOO_MANY_REQUESTS);
-  expect(await statusOf(root, "/api/trpc/sessions.me", { headers: { cookie } })).toBe(OK);
+  expect(await statusOf(root, "/api/trpc/sessions.me", { headers: { cookie, ...CSRF } })).toBe(OK);
 });

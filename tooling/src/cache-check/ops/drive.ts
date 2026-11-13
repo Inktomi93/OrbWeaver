@@ -1,6 +1,7 @@
 // One room on the stage: create its characters and chat, write the shared prefix once, run each case's steps
 // through orb's real chat verbs, and read each provider call's usage off the assistant rows the verbs return.
 // It registers every row it creates for removal.
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server/transport/trpc";
@@ -21,7 +22,8 @@ export const PROBE_PREFIX = "cache-check";
 
 /** The typed client the check drives orb through: plain HTTP, the owner-fallback identity of a loopback call. */
 export function connectOrb(baseUrl: string): OrbApi {
-  return createTRPCClient<AppRouter>({ links: [httpLink({ url: `${baseUrl}${TRPC_PATH}` })] });
+  // A query goes out as GET, which the mount refuses without the CSRF header even on the owner fallback.
+  return createTRPCClient<AppRouter>({ links: [httpLink({ url: `${baseUrl}${TRPC_PATH}`, headers: { [CSRF_HEADER]: "1" } })] });
 }
 
 /** Undo steps for rows a run created, run newest first. A failed undo is collected, never dropped. */

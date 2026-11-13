@@ -3,7 +3,7 @@
 
 import { readFile } from "node:fs/promises";
 import type { AuthMode, Principal, ViewerView } from "@orb/contracts/identity";
-import { AUTH_MODES, viewerViewSchema } from "@orb/contracts/identity";
+import { AUTH_MODES, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { JWTPayload } from "jose";
@@ -165,7 +165,7 @@ export async function trySignIn(root: AuthModeRoot, who: AuthSubject): Promise<S
 /** Sign `who` in through `root`'s login path; `sessions.me` must then answer as `who`, or the product's refusal throws. */
 export async function signIn(root: AuthModeRoot, who: AuthSubject): Promise<SignedIn> {
   const headers = await SIGN_IN[root.mode](root, who);
-  const response = await root.http.request(VIEWER_ROUTE, { headers });
+  const response = await root.http.request(VIEWER_ROUTE, { headers: { ...headers, [CSRF_HEADER]: "1" } });
   if (response.status !== 200) {
     await response.arrayBuffer();
     throw new SignInRefusal(VIEWER_ROUTE, response);
