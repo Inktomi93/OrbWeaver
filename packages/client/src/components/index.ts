@@ -32,7 +32,7 @@ export { ListPage } from "./list-page.tsx";
 export {} from "./list-pane-header.tsx";
 export { ListPaneHeaderHost } from "./list-pane-header-host.tsx";
 export { MacroBrowser } from "./macro-browser.tsx";
-export { SCHEDULE_SAVE_ESTIMATE_FAILED } from "./model-run-confirm-copy.ts";
+export { SCHEDULE_SAVE_ESTIMATE_FAILED, SCHEDULE_SAVE_OWNER_ONLY } from "./model-run-confirm-copy.ts";
 export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
 export type { OverflowAction } from "./overflow-actions.tsx";
