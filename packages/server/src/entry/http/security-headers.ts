@@ -55,13 +55,14 @@
 import { CARD_FRAME_ROUTE } from "@orb/contracts/chat";
 import { PLUGIN_FRAME_DOC_PREFIX } from "@orb/contracts/plugin";
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
-import type { Context, MiddlewareHandler, Next } from "hono";
+import type { Context, Env, Hono, MiddlewareHandler, Next } from "hono";
 import { secureHeaders } from "hono/secure-headers";
+import type { ContentfulStatusCode, StatusCode } from "hono/utils/http-status";
 import { requestTransport } from "#infra/auth";
 
-// THE EXEMPTION LIST, and it is a MECHANICAL necessity, not a policy carve-out: `hono/secure-headers` sets
-// its headers AFTER `next()` with `.set()`, so it OVERWRITES whatever a handler wrote. A ROUTED FRAME
-// DOCUMENT exists precisely to carry its own, TIGHTER policy — a routed document does not inherit ours,
+// THE OWN-POLICY ROUTES, and their exemption is a MECHANICAL necessity, not a policy carve-out:
+// `hono/secure-headers` sets its headers AFTER `next()` with `.set()`, so it OVERWRITES whatever a handler wrote. A
+// ROUTED FRAME DOCUMENT exists precisely to carry its own, TIGHTER policy — a routed document does not inherit ours,
 // which is the only way a per-document grant can differ from the app's at all (see `@orb/kit/card-frame`).
 // Leaving this middleware on such a path would silently replace the frame policy with the APP policy: the
 // frame would become a document with `script-src 'self'` and no `sandbox` directive, i.e. the exact
@@ -75,9 +76,17 @@ import { requestTransport } from "#infra/auth";
 // the frames are same-origin, so the `frame-src 'self'` rule below already admitted them. What a member adds
 // is a path this middleware steps aside for.
 //
+// ONE WRITER. A member is served only through {@link SecurityHeaders.registerOwnPolicyRoute}, which registers the
+// route and steps this middleware aside for its path in the same call, and is the only code that writes the
+// `Content-Security-Policy` header: a handler hands its policy back beside its body and status, and the registrar
+// builds the response. So a route cannot serve its own policy without the exemption, and an exemption cannot exist
+// without its route. ESLint's `no-restricted-syntax` refuses the header name in every other server file
+// (`OWN_POLICY_HEADER_SYNTAX` in `eslint.config.ts`), and its `no-restricted-imports` refuses the secure-headers
+// middleware outside this file (`SERVER_IMPORT_HOMES` in `tooling/src/eslint/security-policy.ts`).
+//
 // The exemption is the GET path only — each route's `POST` MINT is a JSON reply and keeps the full app
-// header set. The SERVED response and its MISS-404 build their headers in their own route file. What the
-// exemption may NOT assume is that one of those arms ran at all — see {@link securityHeaders}.
+// header set. What the exemption may NOT assume is that the registered handler answered with a policy at all —
+// see {@link securityHeaders}.
 //
 // Each prefix is DERIVED from its route's own contract constant, never re-typed here: a drifted copy would
 // not fail loudly, it would silently serve that document under the app policy.
@@ -92,7 +101,46 @@ export const OWN_POLICY_ROUTES = {
   pluginFrameDocument: { prefix: PLUGIN_FRAME_DOC_PREFIX, suffix: NO_SUFFIX },
   pluginFrameAsset: { prefix: PLUGIN_FRAME_DOC_PREFIX, suffix: PLUGIN_FRAME_ASSET_SUFFIX },
 } as const;
-const OWN_POLICY_PATTERNS = Object.values(OWN_POLICY_ROUTES);
+type OwnPolicyRoute = keyof typeof OWN_POLICY_ROUTES;
+type OwnPolicyPattern = (typeof OWN_POLICY_ROUTES)[OwnPolicyRoute];
+const ID_PARAM = "id";
+
+/**
+ * What an own-policy handler answers. The registrar builds the response from it, so the handler never holds a
+ * `Response` it could put a policy on, and a plain route's handler cannot answer with one of these.
+ *
+ * - `document` and `resource` carry the route's own policy beside the body. A `resource` is built bare, as the asset
+ *   route always answered: it carries no header an earlier middleware prepared, such as a slid session cookie.
+ * - `refusal` is a bodiless answer with no policy of its own, so it leaves under the app policy.
+ */
+export type OwnPolicyReply =
+  | {
+      readonly kind: "document";
+      readonly status: ContentfulStatusCode;
+      readonly body: string;
+      readonly headers: Readonly<Record<string, string>>;
+      readonly policy: string;
+    }
+  | {
+      readonly kind: "resource";
+      readonly status: ContentfulStatusCode;
+      readonly body: Uint8Array<ArrayBuffer>;
+      readonly headers: Readonly<Record<string, string>>;
+      readonly policy: string;
+    }
+  | { readonly kind: "refusal"; readonly status: StatusCode };
+
+/** An own-policy route's handler: the request and the route's one path segment in, its reply out. */
+export type OwnPolicyHandler<E extends Env> = (c: Context<E>, id: string) => Promise<OwnPolicyReply>;
+
+/** Registers one {@link OWN_POLICY_ROUTES} member as a `GET` route on `app` and exempts its path from the app policy. */
+export type OwnPolicyRegistrar = <E extends Env>(app: Hono<E>, route: OwnPolicyRoute, handler: OwnPolicyHandler<E>) => void;
+
+/** The app policy middleware and the one registrar of the routes it steps aside for. */
+export interface SecurityHeaders {
+  readonly middleware: MiddlewareHandler;
+  readonly registerOwnPolicyRoute: OwnPolicyRegistrar;
+}
 
 /**
  * THE EXEMPTION IS A ROUTE-PATTERN MATCH, NEVER A PREFIX TEST. Every own-policy route is registered
@@ -119,8 +167,8 @@ const OWN_POLICY_PATTERNS = Object.values(OWN_POLICY_ROUTES);
  * policy lands on the router's 404), which is the safe direction. The unsafe direction needs hono to stop
  * sharing that one string, or an app-level `getPath` OPTION overriding it — we set neither.
  */
-function servesOwnPolicy(path: string): boolean {
-  return OWN_POLICY_PATTERNS.some(({ prefix, suffix }) => {
+function servesOwnPolicy(registered: ReadonlySet<OwnPolicyPattern>, path: string): boolean {
+  return [...registered].some(({ prefix, suffix }) => {
     if (!(path.startsWith(prefix) && path.endsWith(suffix) && path.length > prefix.length + suffix.length)) {
       return false;
     }
@@ -129,9 +177,16 @@ function servesOwnPolicy(path: string): boolean {
   });
 }
 
-/** The header {@link securityHeaders} reads to decide whether an exempt path's response actually came from
- *  its own-policy handler. `Headers.has` is case-insensitive, so a differently-cased writer still counts. */
+/** The header the registrar writes and {@link securityHeaders} reads to decide whether an exempt path's response
+ *  carries its route's own policy. `Headers` is case-insensitive, so the set replaces a differently-cased copy. */
 const OWN_POLICY_HEADER = "Content-Security-Policy";
+
+// The policy is set last, so it replaces a copy the handler's headers carried under any casing.
+function withPolicy(headers: Readonly<Record<string, string>>, own: string): Headers {
+  const out = new Headers(headers);
+  out.set(OWN_POLICY_HEADER, own);
+  return out;
+}
 
 /** The spent downstream handed to `hono/secure-headers` when the response ALREADY exists — it awaits its
  *  `next` before setting headers, so a resolved no-op makes it a pure header write. */
@@ -248,7 +303,7 @@ function trustworthyOrigin(c: Context, trustedProxies: readonly string[]): boole
  * `entry/app.ts` mounts immediately INSIDE this middleware. There is no remaining un-policied error path
  * below that mount.
  */
-export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler {
+export function securityHeaders(opts: SecurityHeadersOptions): SecurityHeaders {
   // Every arm is built ONCE at wiring time; the per-request work is two boolean reads + a dispatch.
   const arms = {
     trusted: { blocked: policy({ dev: opts.dev, external: false, trustworthy: true }), allowed: policy({ dev: opts.dev, external: true, trustworthy: true }) },
@@ -261,8 +316,10 @@ export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler
     const arm = trustworthyOrigin(c, opts.trustedProxies) ? arms.trusted : arms.untrusted;
     return opts.allowExternalMedia() ? arm.allowed : arm.blocked;
   };
-  return async (c, next) => {
-    if (!servesOwnPolicy(c.req.path)) {
+  // Filled only by the registrar below, so a pattern is exempt exactly when its route is registered.
+  const registered = new Set<OwnPolicyPattern>();
+  const middleware: MiddlewareHandler = async (c, next) => {
+    if (!servesOwnPolicy(registered, c.req.path)) {
       await appPolicy(c)(c, next);
       return;
     }
@@ -273,6 +330,22 @@ export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler
       await appPolicy(c)(c, RESPONSE_ALREADY_PRODUCED);
     }
   };
+  const registerOwnPolicyRoute: OwnPolicyRegistrar = (app, route, handler) => {
+    const pattern = OWN_POLICY_ROUTES[route];
+    registered.add(pattern);
+    app.get(`${pattern.prefix}:${ID_PARAM}${pattern.suffix}`, async (c) => {
+      const reply = await handler(c, c.req.param(ID_PARAM));
+      switch (reply.kind) {
+        case "refusal":
+          return c.body(null, reply.status);
+        case "document":
+          return c.body(reply.body, { status: reply.status, headers: withPolicy(reply.headers, reply.policy) });
+        case "resource":
+          return new Response(reply.body, { status: reply.status, headers: withPolicy(reply.headers, reply.policy) });
+      }
+    });
+  };
+  return { middleware, registerOwnPolicyRoute };
 }
 
 /** The normalised message. It names the closed `typeof` vocabulary and NEVER the value — the value itself

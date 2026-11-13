@@ -47,10 +47,9 @@
 //
 // ── THE APP-CSP EXEMPTION THIS ROUTE DEPENDS ON ──────────────────────────────────────────────────────────────
 // `hono/secure-headers` writes its headers AFTER the handler with `.set()`, so it OVERWRITES a handler's own
-// policy. The served-document path and the asset path are therefore both registered in `security-headers.ts`'s
-// own-policy routes, beside the card frame's document. Without that this route would serve its documents under
-// the APP policy (`script-src 'self'`, no `sandbox` directive) with nothing red: an "isolated" frame that is not
-// isolated. Each arm here writes its own `Content-Security-Policy` or none; one with none gets the app policy.
+// policy. The served-document route and the asset route are therefore both registered through
+// `security-headers.ts`'s own-policy registrar, beside the card frame's document, which exempts their paths in the
+// same call. Each arm here hands the registrar its own policy or answers a bare refusal; a refusal gets the app policy.
 
 import type { PluginFrameBody } from "@orb/contracts/plugin";
 import {
@@ -71,6 +70,7 @@ import type { PluginService } from "#domain/plugin";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
+import type { OwnPolicyRegistrar, OwnPolicyReply } from "./security-headers.ts";
 
 const OK = 200;
 const UNAUTHORIZED = 401;
@@ -93,11 +93,15 @@ const FRAME_ASSET_EXTENSION_RE = /\.(?:png|jpe?g|gif|webp)$/iu;
 /** The plugin frame's media policy — see the header for why both halves are decisions, not defaults. */
 const PLUGIN_FRAME_MEDIA: CardFrameMediaPolicy = { allowExternalMedia: false, allowInlineData: true };
 
-/** THE plugin-frame policy. One constant, built once at module load through the ONE CSP engine, and applied to
- *  EVERY response on this route pair — the serve arm, the 401 arm and the miss arm alike, so no reply from this
+/** THE plugin-frame policy. One constant, built once at module load through the ONE CSP engine, and served on the
+ *  document route's serve and miss arms alike; its bare 401 leaves under the app policy, so no reply from this
  *  doorway is ever un-policied. There is no per-request variation to express: unlike a card, a plugin frame's
  *  policy depends on nothing a request can select. */
 export const PLUGIN_FRAME_CSP = buildCardFrameCsp(PLUGIN_FRAME_MEDIA, "document", "interactive");
+
+function frameDocument(status: typeof OK | typeof NOT_FOUND, body: string): OwnPolicyReply {
+  return { kind: "document", status, body, headers: cardFrameResponseHeaders(), policy: PLUGIN_FRAME_CSP };
+}
 
 // A not-found read is the leak-free miss every frame route answers alike; any other failure of the read is a fault.
 function notFoundAsNull(error: unknown): null {
@@ -127,18 +131,21 @@ export interface PluginFrameSurfacePort extends Readonly<Pick<PluginService, "ge
 export interface PluginFrameDeps {
   readonly surfaces: PluginFrameSurfacePort;
   readonly now: Clock;
+  /** The document and asset routes' one registrar, which writes their policies and steps the app policy aside. */
+  readonly registerOwnPolicyRoute: OwnPolicyRegistrar;
 }
 
 /** The served asset's own policy: an image needs no source, and a direct navigation to it lands sandboxed. */
 export const PLUGIN_FRAME_ASSET_CSP = "default-src 'none'; sandbox";
 /** The opaque-origin frame loads the asset cross-origin, so only the successful asset reply carries this. */
 const PLUGIN_FRAME_ASSET_RESOURCE_POLICY = "cross-origin";
+/** Every asset refusal is the same bare 404, under the app policy. */
+const ASSET_MISS: OwnPolicyReply = { kind: "refusal", status: NOT_FOUND };
 
 function assetHeaders(mime: string, byteLength: number): Record<string, string> {
   return {
     "Content-Type": mime,
     "Content-Length": String(byteLength),
-    "Content-Security-Policy": PLUGIN_FRAME_ASSET_CSP,
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
@@ -217,8 +224,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
   // Opaque-origin frame subresources cannot carry the app's SameSite session cookie. The unguessable ACTIVE
   // handle is therefore the credential on this one passive-image route. If a session is present, it must still
   // be the minting owner; a foreign authenticated fetch gets the same miss as an unknown handle.
-  app.get(`${PLUGIN_FRAME_ROUTE}/:id/asset`, async (c) => {
-    const id = c.req.param("id");
+  deps.registerOwnPolicyRoute(app, "pluginFrameAsset", async (c, id) => {
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.peekByHandle(id) : undefined;
     const principal = c.get("principal");
     const bundlePath = c.req.query("path");
@@ -229,7 +235,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       !PLUGIN_UI_ASSET_ENTRY_RE.test(bundlePath) ||
       !FRAME_ASSET_EXTENSION_RE.test(bundlePath)
     ) {
-      return c.body(null, NOT_FOUND);
+      return ASSET_MISS;
     }
     let asset: Awaited<ReturnType<PluginFrameSurfacePort["getFrameAsset"]>>;
     // Every stale, removed or foreign asset is the same leak-free 404 at this passive resource boundary, and so is a
@@ -247,10 +253,16 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       asset = notFoundAsNull(error);
     }
     if (asset === null) {
-      return c.body(null, NOT_FOUND);
+      return ASSET_MISS;
     }
     store.touch(id);
-    return new Response(new Uint8Array(asset.bytes), { status: OK, headers: assetHeaders(asset.mime, asset.bytes.byteLength) });
+    return {
+      kind: "resource",
+      status: OK,
+      body: new Uint8Array(asset.bytes),
+      headers: assetHeaders(asset.mime, asset.bytes.byteLength),
+      policy: PLUGIN_FRAME_ASSET_CSP,
+    };
   });
 
   app.delete(`${PLUGIN_FRAME_ROUTE}/:id`, (c) => {
@@ -268,17 +280,16 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
     return c.body(null, NO_CONTENT);
   });
 
-  app.get(`${PLUGIN_FRAME_ROUTE}/:id`, async (c) => {
+  deps.registerOwnPolicyRoute(app, "pluginFrameDocument", async (c, id) => {
     const principal = c.get("principal");
     if (principal === null) {
-      return c.body(null, UNAUTHORIZED);
+      return { kind: "refusal", status: UNAUTHORIZED };
     }
-    const id = c.req.param("id");
     // Shape FIRST: a handle that is not 32 hex chars never reaches the store, so a traversal attempt is refused
     // by grammar rather than by lookup.
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
-      return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(PLUGIN_FRAME_CSP));
+      return frameDocument(NOT_FOUND, MISS_DOC);
     }
     if (entry.plugin !== undefined) {
       // A handle is not a snapshot of consent. Recheck current residency/grant so disable and uninstall revoke
@@ -292,9 +303,9 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       }
       if (live === null) {
         store.drop(id, principal.userId);
-        return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(PLUGIN_FRAME_CSP));
+        return frameDocument(NOT_FOUND, MISS_DOC);
       }
     }
-    return c.body(entry.doc, OK, cardFrameResponseHeaders(PLUGIN_FRAME_CSP));
+    return frameDocument(OK, entry.doc);
   });
 }
