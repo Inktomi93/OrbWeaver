@@ -9,7 +9,9 @@ import { ChatNotFoundError } from "../contract/errors.ts";
 const resolved = new WeakSet<object>();
 
 /** Mint the answer for a viewer whose present participant row in `answer.chatId` was just loaded. Only
- *  `resolveViewerVisibility` calls this (an ESLint import restriction in `eslint.config.ts` names it). */
+ *  `resolveViewerVisibility` calls this: `no-restricted-imports` refuses the import elsewhere through the
+ *  `SERVER_IMPORT_HOMES` table in `tooling/src/eslint/security-policy.ts`, and policy `viewer-visibility-registry-importers`
+ *  names every importer of this module. */
 export function mintViewerVisibility(answer: Pick<ViewerVisibility, "chatId" | "role" | "historyFloorSeq" | "readsHidden">): ViewerVisibility {
   const minted = Object.freeze({ ...answer }) as ViewerVisibility;
   resolved.add(minted);
@@ -17,7 +19,8 @@ export function mintViewerVisibility(answer: Pick<ViewerVisibility, "chatId" | "
 }
 
 /** Refuse any visibility the resolver did not hand out for `chatId`, before a read uses its floor or its hidden-content
- *  verdict.
+ *  verdict. A function that takes an answer as a parameter runs this first; `orb/viewer-visibility-parameter-checked`
+ *  refuses one that does not.
  *  @throws {@link ChatNotFoundError} for an answer resolved for another chat: it proves no membership in `chatId`, and a
  *  non-member's answer for a room is not-found (Spine-Identity-and-Auth §2). */
 export function assertResolvedVisibility(visibility: ViewerVisibility, chatId: ChatId): void {

@@ -1,7 +1,7 @@
 ---
 kind: work
 status: doing
-updated: 2026-11-12
+updated: 2026-11-13
 priority: P1
 area: testing
 lane: wt/agent-a0b4f6a63f6d4244d
@@ -20,7 +20,7 @@ A hand-typed label is a second copy of production: a copy change breaks tests th
 
 ## Done when
 
-Every accessible name a CT or e2e spec targets is imported from its production copy module or derived from a production registry; orb/no-hand-copied-label reports zero findings over tests/; the codemod ships with fixtures; affected suites pass.
+Every accessible name or visible text a CT or e2e spec targets, where production renders that text, is imported from its production copy module or derived from a production registry or label function. The label census, a structural search kept under `tooling/` with a test, reports no such site and states the lookup shapes it cannot see. The codemod ships with fixtures and affected suites pass. Text a story, fixture or corpus wrote is out of this item. Extending the hand-copied-label lint rule to these sites is a separate item.
 
 ## Evidence
 

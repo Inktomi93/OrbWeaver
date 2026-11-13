@@ -98,6 +98,7 @@ import {
 import { noSealedInternalsRule } from "./ui-sealed-internals.ts";
 import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, themeOverrideRule } from "./ui-styles.ts";
 import { BRAND_MINT_HOMES, noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-cast.ts";
+import { viewerVisibilityParameterRule } from "./viewer-visibility.ts";
 
 export { BrandTable, type NameMatch } from "./brand-names.ts";
 export type { CustomPropertyUses } from "./css/custom-properties.ts";
@@ -343,6 +344,7 @@ export function createOrbPlugin(options: {
       "trpc-output-declared-keys": trpcOutputKeysRule,
       "no-unsafe-cast": noUnsafeCastRule(UNSAFE_CAST_HOMES, BRAND_MINT_HOMES),
       "narrowed-json-brand": narrowedJsonBrandRule,
+      "viewer-visibility-parameter-checked": viewerVisibilityParameterRule,
       "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
       "session-channel-boundary": sessionChannelBoundaryRule,
       "detached-work-traced": detachedWorkRule,

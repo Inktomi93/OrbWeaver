@@ -155,8 +155,9 @@ function durableMainJsLoader(ctx: PluginContext, input: ActivateInput): () => Pr
   };
 }
 
-// A conflict is the host's refusal, never the plugin's fault: busy pools, and teardowns the plugin did not cause (a
-// replaced runtime, a lost broker, shutdown), which the host raises as conflicts so they are never strikes (D347).
+// A conflict is the host's refusal, never the plugin's fault: busy pools, teardowns the plugin did not cause (a
+// replaced runtime, a lost broker, shutdown), which the host raises as conflicts so they are never strikes (D347), and
+// a host call refused because the installer is disabled, which the host raises in place of the guest's rethrow.
 function isHostAdmissionRefusal(error: unknown): boolean {
   return error instanceof DomainConflictError;
 }
