@@ -5,7 +5,8 @@
 
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { onNewCharacterRequest, shellHeading, takeNewCharacterRequest, visibleNewCharacterDoor } from "#state";
+import { onNewCharacterRequest, shellHeading, takeNewCharacterRequest } from "#state";
+import { visibleNewCharacterDoor } from "../lib/new-character-door.ts";
 import { NewCharacterDialog } from "./character-create-actions.tsx";
 
 function returnFocusTarget(): HTMLElement | true {

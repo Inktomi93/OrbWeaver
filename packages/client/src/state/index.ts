@@ -291,13 +291,7 @@ export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
 export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
-export {
-  newCharacterDoorRef,
-  onNewCharacterRequest,
-  requestNewCharacter,
-  takeNewCharacterRequest,
-  visibleNewCharacterDoor,
-} from "./new-character-request-store.ts";
+export { onNewCharacterRequest, requestNewCharacter, takeNewCharacterRequest } from "./new-character-request-store.ts";
 export type { PanelMode, PanelName } from "./panel-resolve.ts";
 export { resolvePanelMode } from "./panel-resolve.ts";
 export { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "./persona-editor-focus-store.ts";

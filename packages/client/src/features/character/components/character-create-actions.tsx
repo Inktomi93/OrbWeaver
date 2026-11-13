@@ -24,7 +24,7 @@ import { useId, useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, useOpenRequests } from "#lib";
-import { newCharacterDoorRef, selectCharacter } from "#state";
+import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
 import { characterDoors } from "../lib/character-door-requests.ts";
 import {
@@ -36,6 +36,7 @@ import {
   CHARACTER_NEW_SHORT_LABEL,
 } from "../lib/character-names.ts";
 import { CHARACTER_CREATE_FAILED, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
+import { newCharacterDoorRef } from "../lib/new-character-door.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
 /** The minimal create: name + one-line description, handle auto-derived from the name. A door's own dialog returns focus to the

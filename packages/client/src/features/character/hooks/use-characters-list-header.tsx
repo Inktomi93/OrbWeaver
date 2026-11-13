@@ -27,11 +27,12 @@
 // The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
 
 import type { ListPaneHeaderView } from "#lib";
-import { newCharacterDoorRef, useMobileViewport } from "#state";
+import { useMobileViewport } from "#state";
 import { CharacterImportDoor, CharacterNewDoor } from "../components/character-create-actions.tsx";
 import { useCharacterCensus } from "../hooks/use-character-census.ts";
 import { CHARACTER_IMPORT_FORM, CHARACTER_NEW_FORM } from "../lib/character-door-forms.ts";
 import { CHARACTERS_SECTION_LABEL } from "../lib/characters-section-label.ts";
+import { newCharacterDoorRef } from "../lib/new-character-door.ts";
 
 export function useCharactersListHeader(): ListPaneHeaderView {
   const count = useCharacterCensus();
