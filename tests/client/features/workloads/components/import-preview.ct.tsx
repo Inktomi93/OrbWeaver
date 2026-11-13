@@ -554,7 +554,8 @@ test("keeping both of a colliding persona holds the preview back until it counts
   const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
   await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
   const personaLine = report.getByText(counted(2, KIND_NOUNS.personas), { exact: false });
-  const read = async (): Promise<readonly number[]> => numbersIn((await personaLine.textContent()) ?? "");
+  // The count and the number the library holds; a note for personas without art follows them.
+  const read = async (): Promise<readonly number[]> => numbersIn((await personaLine.textContent()) ?? "").slice(0, 2);
   // Both personas are already there as the dry run was first sent: Mara's namesake merges into the owned Mara.
   expect(await read()).toEqual([2, 2]);
 
