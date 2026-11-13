@@ -152,6 +152,9 @@ test("typing with rerank on settles to one reranked search, not one per keystrok
   await component.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true }).pressSequentially(text, { delay: 40 });
   await expect.poll(() => sent.map((search) => search.query)).toContain(text);
   await expect(component.getByText("How search works")).toBeVisible();
+  const queries = sent.map((search) => search.query);
+  // The full query is the last search sent: a stale keystroke query that fires after it fails here.
+  expect(queries.slice(queries.indexOf(text))).toEqual([text]);
   const reranked = sent.filter((search) => search.rerank === true);
   expect(nonEmpty(sent).every((search) => search.rerank === true)).toBe(true);
   expect(reranked.length).toBeLessThanOrEqual(2);
