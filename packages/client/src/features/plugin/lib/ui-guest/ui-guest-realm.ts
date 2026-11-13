@@ -369,32 +369,37 @@ interface CpuWindow {
 }
 
 // The open CPU windows, newest last. The engine holds one interrupt handler per runtime, and a host-result settle or a
-// pump opens its window while an event's window is still open, because the event awaits. Closing the inner window
-// hands the interrupt back to the outer one; removing the handler instead would leave the event's later reads of
-// guest values (`readError` runs guest getters) with no bound. A worker holds one context.
+// pump opens its window while an event's window is still open, because the event awaits. The newest running window is
+// the code running now: a paused window's owner is awaiting, and the host sends an event without waiting for the last
+// one, so a later event's paused window can sit above an earlier event that resumed. Closing a window hands the
+// interrupt back to the one beneath; removing the handler instead would leave the event's later reads of guest values
+// (`readError` runs guest getters) with no bound. A worker holds one context.
 const openWindows: CpuWindow[] = [];
 
-function interruptNewestWindow(): boolean {
-  const newest = openWindows.at(-1);
-  if (newest === undefined) {
-    return false;
+function interruptRunningWindow(): boolean {
+  const running = openWindows.findLast((window) => window.runningSince !== null);
+  // Every open window's owner is awaiting, so guest code reaching the engine now runs outside every span.
+  if (running === undefined || running.runningSince === null) {
+    return true;
   }
-  // A paused window's owner is awaiting, not running guest code, so guest code that reaches it ran outside every span.
-  newest.passed ||= newest.runningSince === null || performance.now() - newest.runningSince > newest.remainingMs;
-  return newest.passed;
+  running.passed ||= performance.now() - running.runningSince > running.remainingMs;
+  return running.passed;
+}
+
+/** An open CPU window. `passed` says whether it stopped guest code; `pause` stops its clock while its owner awaits, and
+ *  `resume` restarts it with what is left. Disposing it hands the interrupt back to the window beneath. */
+interface OpenCpuWindow extends Disposable {
+  readonly passed: () => boolean;
+  readonly pause: () => void;
+  readonly resume: () => void;
 }
 
 /** Open a CPU window of `budgetMs` against real monotonic time (the worker's `performance.now()`, never the guest's
- *  stub), and return its `close`, which the caller runs in a `finally`. The newest open window governs the interrupt;
- *  closing it restores the one beneath. `passed` says whether this window stopped guest code. `pause` stops the
- *  window's clock while its owner awaits, and `resume` restarts it with what is left. */
-export function openCpuWindow(
-  ctx: QuickJSContext,
-  budgetMs: number,
-): { readonly passed: () => boolean; readonly close: () => void; readonly pause: () => void; readonly resume: () => void } {
+ *  stub). The caller holds it with `using`, so it closes exactly once when its scope ends. */
+export function openCpuWindow(ctx: QuickJSContext, budgetMs: number): OpenCpuWindow {
   const window: CpuWindow = { remainingMs: budgetMs, runningSince: performance.now(), passed: false };
   openWindows.push(window);
-  ctx.runtime.setInterruptHandler(interruptNewestWindow);
+  ctx.runtime.setInterruptHandler(interruptRunningWindow);
   return {
     passed: (): boolean => window.passed,
     pause: (): void => {
@@ -406,13 +411,8 @@ export function openCpuWindow(
     resume: (): void => {
       window.runningSince ??= performance.now();
     },
-    close: (): void => {
-      // A second close finds nothing; splicing at -1 would close the newest window, another caller's.
-      const at = openWindows.indexOf(window);
-      if (at === -1) {
-        return;
-      }
-      openWindows.splice(at, 1);
+    [Symbol.dispose]: (): void => {
+      openWindows.splice(openWindows.indexOf(window), 1);
       if (openWindows.length === 0) {
         ctx.runtime.removeInterruptHandler();
       }
@@ -425,15 +425,13 @@ export function openCpuWindow(
  *  result's `then`, and a guest can define a `then` getter on `Object.prototype`, so a settle with no deadline runs
  *  that getter unbounded. A throw the interrupt caused counts as stopped. */
 export function withinEventBudget(ctx: QuickJSContext, work: () => void): boolean {
-  const window = openCpuWindow(ctx, UI_GUEST_BUDGETS.eventCpuMs);
+  using window = openCpuWindow(ctx, UI_GUEST_BUDGETS.eventCpuMs);
   try {
     work();
   } catch (error) {
     if (!window.passed()) {
       throw error;
     }
-  } finally {
-    window.close();
   }
   return window.passed();
 }

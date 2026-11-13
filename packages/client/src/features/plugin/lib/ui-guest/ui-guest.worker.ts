@@ -87,7 +87,7 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
   // The window stays open across the await, so the error read after it runs under this budget too. It is paused for the
   // await: the guest is parked on a host call or a job, a host result and the job pump each run in a window of their
   // own, and a slow host call is not this event's CPU.
-  const window = openCpuWindow(ctx, cpuMs);
+  using window = openCpuWindow(ctx, cpuMs);
   // the message is the return value; boot posts it as `ready: false` and deliver as
   // `settled: false`, and the host kills the guest and reports the crash. Ends if a caller stops posting the return value.
   try {
@@ -114,8 +114,6 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
     return null;
   } catch (err) {
     return err instanceof Error ? err.message : String(err);
-  } finally {
-    window.close();
   }
 }
 
