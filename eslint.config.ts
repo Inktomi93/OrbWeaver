@@ -692,7 +692,8 @@ const NUL_FREE_TEXT_MESSAGE =
 const PLAIN_TEXT_COLUMN_SYNTAX = [
   { selector: "CallExpression[callee.name='text'][arguments.length=1]", message: NUL_FREE_TEXT_MESSAGE },
   {
-    selector: "CallExpression[callee.name='text'][arguments.length>1]:not(:has(Property[key.name=/^(mode|enum)$/]))",
+    // A `mode` exempts the column only when it is "json": `mode: "text"` is the plain column spelled out.
+    selector: "CallExpression[callee.name='text'][arguments.length>1]:not(:has(Property:matches([key.name='mode'][value.value='json'], [key.name='enum'])))",
     message: NUL_FREE_TEXT_MESSAGE,
   },
   {
