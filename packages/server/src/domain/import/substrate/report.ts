@@ -259,6 +259,10 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
       report.missingPersonaAvatars.map((f) => `\`${f}\``),
     ),
     section(
+      "Persona avatars NOT imported (the persona imported without art)",
+      report.skippedPersonaAvatars.map((a) => `\`${a.file}\` — ${a.reason}`),
+    ),
+    section(
       "Chat-bound persona picks that did NOT resolve (the chat imported; only the pick was dropped)",
       report.unresolvedPinnedPersonas.map((p) => `\`${p.chat}\` → persona \`${p.persona}\` — no persona of that name in this import or your library`),
     ),
