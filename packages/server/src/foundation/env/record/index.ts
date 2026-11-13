@@ -16,6 +16,7 @@ import {
   shareRelayKindSchema,
 } from "@orb/contracts/identity";
 import { localLightCpuPercentSchema } from "@orb/contracts/inference";
+import { RESERVED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { handleKey } from "@orb/kit/handle-key";
@@ -788,9 +789,20 @@ export const LOCAL_INITIAL_PASSWORD_ENV = "LOCAL_INITIAL_PASSWORD";
 const SECRET_ENV_KEY_SHAPE = /(?:_SECRET|_KEY|_TOKEN|_PASSWORD)$/iu;
 
 /** Whether `key` names a secret no child process may inherit: a credential-shaped name, or the database URL, which
- *  can carry a token. */
+ *  can carry a token. Any letter case matches, because Windows reads `database_url` as the same variable. */
 export function isSecretEnvKey(key: string): boolean {
-  return key === DATABASE_URL_KEY || SECRET_ENV_KEY_SHAPE.test(key);
+  return key.toUpperCase() === DATABASE_URL_KEY || SECRET_ENV_KEY_SHAPE.test(key);
+}
+
+// The agent SDK child's own keys (D8): its builder pins or refuses each, and no other child may inherit one. Every
+// member is upper case, so an upper-cased name is matched against it.
+const RESERVED_CLAUDE_KEYS: readonly string[] = RESERVED_CLAUDE_ENV_KEYS;
+
+/** The names in `source` no child process outside the agent SDK may inherit: every secret {@link isSecretEnvKey}
+ *  names and every reserved agent SDK key, in any letter case. Windows reads `claude_config_dir` as
+ *  `CLAUDE_CONFIG_DIR`; where names are case-sensitive and both spellings exist, both are listed. */
+export function childRefusedEnvNames(source: Readonly<Record<string, string | undefined>>): string[] {
+  return Object.keys(source).filter((name) => isSecretEnvKey(name) || RESERVED_CLAUDE_KEYS.includes(name.toUpperCase()));
 }
 
 /** The schema's own secrets, which the parse also reads from `<KEY>_FILE`. */
