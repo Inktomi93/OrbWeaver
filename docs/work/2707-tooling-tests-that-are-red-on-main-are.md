@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
-updated: 2026-11-12
+status: doing
+updated: 2026-11-13
 priority: P2
+lane: wt/agent-a274f499e5218974a
 plan: checked-law
 ---
 
