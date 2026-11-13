@@ -12,6 +12,7 @@ import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS
 import { CORPUS_MODEL_ROUTES_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { EXPORT_INCLUDE_LEGEND, SCHEDULE_NEW_NAME, WORKLOAD_FILTER_TABS_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
 type Scenario = Omit<Exclude<SurfaceAuditRequest, { readonly state: "error" }>, "checks" | "requireBothFormKeys">;
@@ -65,11 +66,11 @@ const GROUP_WITNESSES = {
   appearance: (page): Witnesses => [page.getByRole("radiogroup", { name: CONFIG_THEME_GROUP_NAME, exact: true }).getByRole("radio").first()],
   "chat-behavior": (page): Witnesses => [page.getByRole("switch", { name: "Enter to send", exact: true })],
   workloads: (page): Witnesses => [
-    page.getByRole("tablist", { name: "Filter jobs", exact: true }),
-    page.getByRole("button", { name: /^New schedule/ }).first(),
+    page.getByRole("tablist", { name: WORKLOAD_FILTER_TABS_NAME, exact: true }),
+    page.getByRole("button", { name: SCHEDULE_NEW_NAME }).first(),
   ],
   backup: (page): Witnesses => [
-    page.getByRole("group", { name: "Include", exact: true }).getByRole("checkbox").first(),
+    page.getByRole("group", { name: EXPORT_INCLUDE_LEGEND, exact: true }).getByRole("checkbox").first(),
     page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }),
   ],
   connections: (page): Witnesses => [

@@ -42,6 +42,7 @@ import {
   useUploadCaps,
 } from "#data";
 import { IMPORT_FOLDER_WRONG_FOLDER } from "../lib/import-folder-copy.ts";
+import { IMPORT_PREVIEW_FAILURE } from "../lib/import-library-names.ts";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport } from "../lib/portability-model.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
@@ -69,15 +70,15 @@ const CONFLICT_RETRY_LIMIT = 30;
 /** What the reader is told when the dry run could not start. The status and the server's text stay out of it. */
 function previewFailureMessage(error: unknown): string {
   if (!(error instanceof HttpError)) {
-    return "Could not reach the server.";
+    return IMPORT_PREVIEW_FAILURE.unreachable;
   }
   if (error.status === HTTP_CONFLICT) {
-    return "Another import is still finishing.";
+    return IMPORT_PREVIEW_FAILURE.busy;
   }
   if (error.status === HTTP_TOO_LARGE) {
-    return "This folder is too large to preview.";
+    return IMPORT_PREVIEW_FAILURE.tooLarge;
   }
-  return error.status >= HTTP_SERVER_ERROR ? "The server could not read this folder." : "The server did not accept this folder for a preview.";
+  return error.status >= HTTP_SERVER_ERROR ? IMPORT_PREVIEW_FAILURE.serverFailed : IMPORT_PREVIEW_FAILURE.refused;
 }
 
 /** The staged folder's dry run. A pick with no preview sits at `off`; a failed preview leaves the import available. */

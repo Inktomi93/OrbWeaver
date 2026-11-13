@@ -12,6 +12,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import {
   REFINERY_EDIT_SCOPE_NAME,
+  REFINERY_RUNS_TAB_LABEL,
   REFINERY_SESSION_STATE_NAME,
   REFINERY_SETUP_TAB_LABEL,
   REFINERY_VERSIONS_NAME,
@@ -181,7 +182,7 @@ for (const regime of REGIMES) {
       await expect(owner).not.toBeInViewport();
       await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator(CONTEXT);
-      await expect(context.getByRole("tab", { name: "Runs", exact: true })).toHaveAttribute("aria-selected", "true");
+      await expect(context.getByRole("tab", { name: REFINERY_RUNS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
       await expect(context.getByText("No runs yet", { exact: true })).toBeVisible();
       const go = context.getByRole("button", { name: "Go to Score", exact: true });
       await expect(go).toBeVisible();

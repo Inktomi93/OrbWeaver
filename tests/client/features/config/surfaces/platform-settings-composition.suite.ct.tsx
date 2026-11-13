@@ -7,6 +7,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { OWNER_RULE_RATE_FIELD_NAME } from "#client/features/automation/lib/automation-names.ts";
+import { EXPORT_DOWNLOAD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 
 const STORY = "tests/support/browser/ct-settings-composition-stories/SettingsCompositionStory";
 const TRACK_CASES = [
@@ -121,7 +122,7 @@ for (const { name, width, viewport, hasTouch, isMobile } of REGIMES) {
       await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]));
       await mount<typeof SettingsCompositionStory>(STORY, { sectionId: "backup-export", width });
-      const download = page.getByRole("button", { name: "Download my library", exact: true });
+      const download = page.getByRole("button", { name: EXPORT_DOWNLOAD_NAME, exact: true });
       await expect(download).toBeEnabled();
       const selections = page.locator('[data-slot="setting-row-group"]');
       const selectionBox = await selections.boundingBox();

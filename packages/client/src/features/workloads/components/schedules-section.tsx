@@ -37,6 +37,7 @@ import { DIALOG_VERBS, testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
 import { OTHERS_CONTROLS_HIDDEN_TEXT } from "../lib/workloads-failure-copy.ts";
 import { UNRESOLVED_OWNER_HANDLE, viewerActsOnRow, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
+import { SCHEDULE_DELETE_CONFIRM_NAME, SCHEDULE_NEW_NAME, WORKLOAD_BULK_BADGE } from "../lib/workloads-names.ts";
 import {
   SCHEDULE_PAUSED_LABEL,
   scheduleDeleteName,
@@ -103,7 +104,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
           </Text>
           {schedules.length === 0 ? null : (
             <Button variant="outline" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
-              New schedule…
+              {`${SCHEDULE_NEW_NAME}…`}
             </Button>
           )}
         </Row>
@@ -128,7 +129,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
             title="No schedules yet. Recurring jobs you set up appear here."
             action={
               <Button variant="outline" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
-                New schedule
+                {SCHEDULE_NEW_NAME}
               </Button>
             }
           />
@@ -205,7 +206,7 @@ function ScheduleRow({
       stackActions={true}
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">
-          {schedule.mode === "bulk" ? <Badge>Bulk</Badge> : null}
+          {schedule.mode === "bulk" ? <Badge>{WORKLOAD_BULK_BADGE}</Badge> : null}
           {viewerActs ? (
             <>
               <Switch aria-label={scheduleEnabledSwitchName(identity)} checked={schedule.enabled} onCheckedChange={onToggle} />
@@ -216,7 +217,7 @@ function ScheduleRow({
                   of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
                   user N identical buttons and no way to tell which row they are about to destroy. */}
               <DestructiveAction
-                confirm={{ confirmLabel: "Delete schedule", description: "The schedule is removed and stops running.", title: `Delete ${name}?` }}
+                confirm={{ confirmLabel: SCHEDULE_DELETE_CONFIRM_NAME, description: "The schedule is removed and stops running.", title: `Delete ${name}?` }}
                 onConfirm={onDelete}
                 trigger={
                   <Button variant="ghost" size="sm" aria-label={scheduleDeleteName(identity)}>
