@@ -93,3 +93,9 @@ export function databankSweepConfirmTitle(command: string): string {
 export function databankOpenSectionName(section: string): string {
   return `Open ${section}`;
 }
+
+/** What failed to load, said by the document's active-in read. */
+export const DATABANK_ACTIVE_IN_READ_LABEL = "where this document is active";
+
+/** What failed to load, said by the document's source text read. */
+export const DATABANK_SOURCE_TEXT_READ_LABEL = "the source text";

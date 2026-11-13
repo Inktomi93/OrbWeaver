@@ -108,14 +108,14 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
 
   await openPersonas(page, isMobile);
   await page.getByRole("button", { name: personaSwitchName(persona.name, false), exact: true }).click();
-  await expect(page.getByRole("button", { name: `${persona.name}, current persona`, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: personaSwitchName(persona.name, true), exact: true })).toBeVisible();
   if (isMobile) {
     await page.getByRole("button", { name: rowActionsName(persona.name), exact: true }).click();
     await page.getByRole("menuitem", { name: PERSONA_PIN_CARD_HERE_NAME, exact: true }).click();
   } else {
     await page.getByRole("button", { name: personaCardPinName(persona.name, false), exact: true }).click();
   }
-  const pin = page.getByRole("button", { name: `Card is pinned to ${persona.name}. Press to unpin`, exact: true });
+  const pin = page.getByRole("button", { name: personaCardPinName(persona.name, true), exact: true });
   await expect(pin).toHaveAttribute("aria-pressed", "true");
   await expect
     .poll(async () => {
@@ -139,7 +139,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
   await expect(assistant).toContainText(EDITED);
   await expect(messageRow(page, switchedTurn.userId)).toContainText(SWITCHED.userMessage);
   await openPersonas(page, isMobile);
-  await expect(page.getByRole("button", { name: `${persona.name}, current persona`, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: personaSwitchName(persona.name, true), exact: true })).toBeVisible();
   await expect(pin).toHaveAttribute("aria-pressed", "true");
   await pin.click();
   await expect.poll(async () => (await host.trpc.chat.getChat.query({ chatId })).anchorPersonaId).toBeNull();

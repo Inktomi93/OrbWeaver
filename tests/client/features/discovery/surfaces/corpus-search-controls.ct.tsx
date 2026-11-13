@@ -15,7 +15,12 @@ import {
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
 import { queryFailedLabel } from "#client/data/query-state-copy.ts";
-import { CORPUS_READ_LABELS, CORPUS_SEARCH_DISCLOSURE_NAME, CORPUS_SEARCH_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import {
+  CORPUS_READ_LABELS,
+  CORPUS_RERANK_UNSET_REASON,
+  CORPUS_SEARCH_DISCLOSURE_NAME,
+  CORPUS_SEARCH_NAME,
+} from "#client/features/discovery/lib/corpus-control-names.ts";
 import type { CorpusSearchControlsStory } from "./_search-controls-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_search-controls-stories/CorpusSearchControlsStory";
@@ -119,7 +124,7 @@ test("without a Rerank model the switch is off and says why", async ({ mount, pa
   const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "orbital ledger", targetId: "characters", rerank: true });
   const rerankSwitch = component.getByRole("switch");
   await expect(rerankSwitch).toBeDisabled();
-  await expect(rerankSwitch).toHaveAccessibleDescription(/Rerank model/u);
+  await expect(rerankSwitch).toHaveAccessibleDescription(new RegExp(RegExp.escape(CORPUS_RERANK_UNSET_REASON), "u"));
   await expect.poll(() => asked.length).toBeGreaterThan(0);
   expect(nonEmpty(asked).every((value) => value !== true)).toBe(true);
 });

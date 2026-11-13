@@ -19,7 +19,14 @@ import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.
 import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
 import { ADMIN_PROMPT_CACHE_DEPTH_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
-import { IMPORT_ANOTHER_NAME, IMPORT_FILE_PICKER_NAME, IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import {
+  IMPORT_ANOTHER_NAME,
+  IMPORT_FILE_PICKER_NAME,
+  IMPORT_FOLDER_NAME,
+  IMPORT_PREFLIGHT_LEAD,
+  importSummaryImported,
+} from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import { DUPLICATE_THRESHOLD_NAME, EXPORT_DOWNLOAD_NAME } from "#client/features/workloads/lib/workloads-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -29,8 +36,8 @@ import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 import { restoreAllowanceMs } from "./support/timeouts.ts";
 
 const BUNDLE_IMPORT_ROUTE = PORTABILITY_ROUTES.importBundle;
-const IMPORT_GROUP_NAME = /^Import /u;
-const IMPORT_CONFIRM_NAME = /^Import (this|these) (file|files|folder)$/u;
+// Every staged question opens with the verb; the arm (folder, file, files) is the picker's, not this case's.
+const IMPORT_GROUP_NAME = new RegExp(`^${RegExp.escape(IMPORT_PREFLIGHT_LEAD)} `, "u");
 // Quiet-box bases for the corpus-sized Backup case; `budget` stretches them under measured contention.
 const BACKUP_CASE_BASE_MS = 120_000;
 const IMPORT_SETTLE_BASE_MS = 60_000;
@@ -83,7 +90,10 @@ async function assertNativeRestore(
   };
   page.on("response", record);
   try {
-    const [response] = await Promise.all([page.waitForResponse(matches), preflight.getByRole("button", { name: IMPORT_CONFIRM_NAME }).click()]);
+    const [response] = await Promise.all([
+      page.waitForResponse(matches),
+      preflight.getByRole("button", { name: folder ? IMPORT_CONFIRM_NAMES.folder : IMPORT_CONFIRM_NAMES.file, exact: true }).click(),
+    ]);
     expect(response.status()).toBe(202);
     await expect(page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true })).toBeVisible({ timeout: restore.settleMs });
     expect(nonEmpty(statuses).every((status) => status === 202)).toBe(true);
@@ -112,7 +122,7 @@ async function assertNativeRestore(
     expect(failed).toBe(0);
     expect(skipped).toBe(0);
     expect(imported + skipped + failed).toBe(entries);
-    await expect(page.getByTestId(testId("importReport"))).toContainText(`${String(imported)} imported`);
+    await expect(page.getByTestId(testId("importReport"))).toContainText(importSummaryImported(imported));
   } finally {
     page.off("response", record);
   }

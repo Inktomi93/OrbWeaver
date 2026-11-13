@@ -10,10 +10,13 @@ import { createShellAmbientReads, holdServed, routeTrpc, SECTION_PROCEDURES, ser
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
 import {
+  DATABANK_ACTIVE_IN_READ_LABEL,
   DATABANK_DOCUMENT_NOT_FOUND_TITLE,
   DATABANK_NOWHERE_YET_LEAD,
   DATABANK_NOWHERE_YET_TEXT,
+  DATABANK_SOURCE_TEXT_READ_LABEL,
   DATABANK_USE_IN_EVERY_CHAT_NAME,
   DATABANK_VIEW_SOURCE_NAME,
 } from "#client/features/databank/lib/databank-names.ts";
@@ -70,11 +73,11 @@ test("a held attachments read shows the loading skeleton, a failed one the error
   // The Everywhere toggle above the block stays standing while the junction read is out.
   await expect(context.getByText(DATABANK_USE_IN_EVERY_CHAT_NAME, { exact: true })).toBeVisible();
   hold.fail();
-  await expect(context.getByText("Couldn't load where this document is active.", { exact: true })).toBeVisible();
+  await expect(context.getByText(queryFailedLabel(DATABANK_ACTIVE_IN_READ_LABEL), { exact: true })).toBeVisible();
   await expect(context.getByText(DATABANK_NOWHERE_YET_LEAD)).toHaveCount(0);
   failing = false;
   await context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(context.getByText("Couldn't load where this document is active.", { exact: true })).toHaveCount(0);
+  await expect(context.getByText(queryFailedLabel(DATABANK_ACTIVE_IN_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(context.getByText(DATABANK_NOWHERE_YET_TEXT, { exact: true })).toBeVisible();
 });
 
@@ -142,9 +145,9 @@ test("a held source text read shows the loading skeleton, a failed one the error
   // The header stays standing: the source read has its own boundary.
   await expect(detail.getByRole("heading", { name: "Boundary notes", exact: true })).toBeVisible();
   hold.fail();
-  await expect(detail.getByText("Couldn't load the source text.", { exact: true })).toBeVisible();
+  await expect(detail.getByText(queryFailedLabel(DATABANK_SOURCE_TEXT_READ_LABEL), { exact: true })).toBeVisible();
   failing = false;
   await detail.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(detail.getByText("Couldn't load the source text.", { exact: true })).toHaveCount(0);
+  await expect(detail.getByText(queryFailedLabel(DATABANK_SOURCE_TEXT_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(detail.getByText("The lantern illuminates the charts.", { exact: true })).toBeVisible();
 });

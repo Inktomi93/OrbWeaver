@@ -17,7 +17,10 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
 import {
+  PRESET_ACTIONS_PREVIEW_READ_LABEL,
+  PRESET_BOUND_COSTS_READ_LABEL,
   PRESET_CAPABILITY_CONNECTION_NAME,
   PRESET_HIDE_PREVIEW_NAME,
   PRESET_READOUT_ACTIVE_LABEL,
@@ -25,8 +28,11 @@ import {
   PRESET_READOUT_NOT_HOST_INSPECTED,
   PRESET_READOUT_NOT_HOST_PRICED,
   PRESET_READOUT_PRICING_STATUS,
+  PRESET_READOUT_READ_LABEL,
   PRESET_READOUT_STAGE_UNREAD,
   PRESET_SHOW_PREVIEW_NAME,
+  PRESET_TRANSFORMS_READ_LABEL,
+  PRESET_USAGE_READ_LABEL,
   presetActionReadoutName,
 } from "#client/features/preset/lib/preset-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -70,10 +76,10 @@ test("a held used-by read shows the loading state, a failed one the error block,
   await read.hold.requested;
   await expect(usage.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(usage.getByText("Couldn't load what uses this preset.", { exact: true })).toBeVisible();
+  await expect(usage.getByText(queryFailedLabel(PRESET_USAGE_READ_LABEL), { exact: true })).toBeVisible();
   read.recover();
   await usage.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(usage.getByText("Couldn't load what uses this preset.", { exact: true })).toHaveCount(0);
+  await expect(usage.getByText(queryFailedLabel(PRESET_USAGE_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(usage.locator('[aria-busy="true"]')).toHaveCount(0);
 });
 
@@ -85,10 +91,10 @@ test("the open preset's own read failing shows the readout error block, and Retr
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "data", chatId: null });
   await read.hold.requested;
   read.hold.fail();
-  await expect(page.getByText("Couldn't load the readout.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(PRESET_READOUT_READ_LABEL), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load the readout.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(PRESET_READOUT_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-slot="preset-usage"]')).toBeVisible();
 });
 
@@ -101,7 +107,7 @@ test("the active-preset readout holds, fails and retries through the same bounda
   await read.hold.requested;
   await expect(page.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(page.getByText("Couldn't load the readout.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(PRESET_READOUT_READ_LABEL), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText(PRESET_READOUT_ACTIVE_LABEL, { exact: true })).toBeVisible();
@@ -121,11 +127,11 @@ test("Transforms keeps its pipeline while the attached scripts are held, says it
   await expect(stages.first()).toBeVisible();
   await expect(stages.filter({ hasText: "…" }).first()).toBeVisible();
   read.hold.fail();
-  await expect(page.getByText("Couldn't load the attached scripts.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(PRESET_TRANSFORMS_READ_LABEL), { exact: true })).toBeVisible();
   await expect(stages.filter({ hasText: PRESET_READOUT_STAGE_UNREAD }).first()).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load the attached scripts.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(PRESET_TRANSFORMS_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(stages.filter({ hasText: PRESET_READOUT_STAGE_UNREAD })).toHaveCount(0);
   await expect(stages.filter({ hasText: "…" })).toHaveCount(0);
 });
@@ -140,11 +146,11 @@ test("Prompt keeps its estimates while pricing is held, a host-only refusal is s
   await expect(page.getByText(PRESET_READOUT_PRICING_STATUS, { exact: true })).toBeVisible();
   await expect(page.getByText(PRESET_READOUT_BUDGET_LABEL, { exact: true })).toBeVisible();
   read.hold.fail();
-  await expect(page.getByText("Couldn't load the bound chat's costs.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(PRESET_BOUND_COSTS_READ_LABEL), { exact: true })).toBeVisible();
   await expect(page.getByText(PRESET_READOUT_BUDGET_LABEL, { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load the bound chat's costs.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(PRESET_BOUND_COSTS_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(page.getByText(PRESET_READOUT_PRICING_STATUS, { exact: true })).toHaveCount(0);
 });
 
@@ -188,10 +194,10 @@ test("Actions holds, fails and retries the resolved preview, and says the host-o
   // The builder's lead finds the region; the literal pins it.
   await expect(page.getByRole("region", { name: /^Action readout: /u }).first()).toBeVisible();
   read.hold.fail();
-  await expect(page.getByText("Couldn't load the resolved preview.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(PRESET_ACTIONS_PREVIEW_READ_LABEL), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load the resolved preview.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(PRESET_ACTIONS_PREVIEW_READ_LABEL), { exact: true })).toHaveCount(0);
 });
 
 test("Params says a no-chat-model refusal through the profile's failure band beside a standing Select, and Retry shows the profile", async ({
@@ -274,9 +280,9 @@ test("the readout reads a newly opened preset after the previous one failed", as
     ...serveCorpusProcedures(host, ["preset.get"], (input) => (input.id === presetId ? trpcError({ code: "BAD_REQUEST" }) : undefined)),
   });
   const component = await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "data", chatId: null });
-  await expect(page.getByText("Couldn't load the readout.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(PRESET_READOUT_READ_LABEL), { exact: true })).toBeVisible();
   await component.update({ presetId: other.id, view: "data", chatId: null });
-  await expect(page.getByText("Couldn't load the readout.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(PRESET_READOUT_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(page.locator('[data-slot="preset-usage"]')).toBeVisible();
 });
 

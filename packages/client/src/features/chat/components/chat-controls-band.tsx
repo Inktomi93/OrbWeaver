@@ -32,6 +32,7 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, Pencil, Play, Send, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { dismissActionName } from "@orb/ui/lib";
 import { RoomIsland } from "@orb/ui/room-island";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -265,12 +266,12 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
         <Stack gap="field">
           <Row align="center" gap="row" justify="between">
             <Text voice="label">{newest.title}</Text>
-            <Tip text={`Dismiss ${newest.title}`}>
+            <Tip text={dismissActionName(newest.title)}>
               {/* The byline is the dismiss control's description: its name carries the plugin's free-text title, and
                   only the byline says who installed it. */}
               <GlyphButton
                 aria-describedby={newest.byline === undefined ? undefined : bylineId}
-                aria-label={`Dismiss ${newest.title}`}
+                aria-label={dismissActionName(newest.title)}
                 variant="ghost"
                 onClick={newest.dismiss}
                 glyph="sm"

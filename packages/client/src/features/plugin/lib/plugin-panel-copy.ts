@@ -29,3 +29,6 @@ export function pluginSurfaceName(pluginName: string, title: string): string {
 export function movePluginPanelLabel(pluginName: string, title: string, sidecar: boolean): string {
   return `Move to ${sidecar ? "sidecar" : "Context"}: ${pluginSurfaceName(pluginName, title)}`;
 }
+
+/** What failed to load, said by a plugin dialog's read. */
+export const PLUGIN_DIALOG_READ_LABEL = "this plugin dialog";

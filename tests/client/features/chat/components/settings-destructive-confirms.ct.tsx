@@ -7,6 +7,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import {
   CHAT_ADD_INJECTION_NAME,
+  CHAT_INJECTIONS_SECTION_LABEL,
   CHAT_OVERRIDE_SCENARIO_LABEL,
   CHAT_REMOVE_INJECTION_NAME,
   CHAT_REMOVE_INJECTION_TITLE,
@@ -54,7 +55,7 @@ test("Remove injection asks first: Cancel keeps the row, and the verb deletes it
   const { chatId, host } = await hostedRoom(root, page);
   const before = (await host.chat.listChatInjections({ chatId })).length;
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
-  await page.getByRole("button", { name: /^Injections/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_INJECTIONS_SECTION_LABEL)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_ADD_INJECTION_NAME, exact: true }).click();
   await expect.poll(async () => (await host.chat.listChatInjections({ chatId })).length).toBe(before + 1);
 

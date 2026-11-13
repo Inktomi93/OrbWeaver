@@ -3,7 +3,7 @@
 import type { WorldBookId } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
-import { WORLD_INFO_GROUP_LABEL, WORLD_INFO_NEW_ENTRY_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import { WORLD_INFO_GROUP_LABEL, WORLD_INFO_NEW_ENTRY_NAME, worldInfoEntryDeleteName } from "#client/features/world-info/lib/world-info-names.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -57,14 +57,14 @@ test.describe("committed corpus settings back stack", () => {
 
     // Rung 3: a book drills again into an entry. The row's drag handle also carries the name, so go by text.
     await page.getByText(entry.title, { exact: true }).click();
-    await expect(page.getByRole("button", { name: `Delete ${entry.title}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: worldInfoEntryDeleteName(entry.title), exact: true })).toBeVisible();
     await expect(page.getByRole("main").getByRole("heading", { name: entry.title })).toHaveCount(1);
 
     // Back pops the entry only, and says so: it is named for the book, which is still open behind it.
     const bookBack = sectionBackName(book.name);
     await expect(page.getByRole("button", { name: SHELL_BACK, exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: bookBack, exact: true }).click();
-    await expect(page.getByRole("button", { name: `Delete ${entry.title}` })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: worldInfoEntryDeleteName(entry.title), exact: true })).toHaveCount(0);
     await expect(page.locator(BOOK_EDITOR)).toBeVisible();
 
     // Back pops the member, named for the library; the library is the pane again and the phone has not returned to the list.

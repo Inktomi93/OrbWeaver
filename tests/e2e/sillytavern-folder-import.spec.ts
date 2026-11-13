@@ -18,7 +18,13 @@ import type { Page, Response } from "@playwright/test";
 import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
 import { relativePathOf } from "#client/data/import-tree.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
-import { IMPORT_ANOTHER_NAME, IMPORT_FOLDER_NAME, IMPORT_PREVIEW_REPORT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import {
+  IMPORT_ANOTHER_NAME,
+  IMPORT_FOLDER_NAME,
+  IMPORT_PREFLIGHT_LEAD,
+  IMPORT_PREVIEW_REPORT_NAME,
+} from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { testId } from "#client/lib/test-ids.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -29,8 +35,8 @@ import { SELECTED_ST_FOLDER } from "./support/modes.ts";
 import { restoreAllowanceMs } from "./support/timeouts.ts";
 
 const TREE_ROUTE = PORTABILITY_ROUTES.importTree;
-const IMPORT_GROUP_NAME = /^Import /u;
-const IMPORT_CONFIRM_NAME = /^Import (this|these) (file|files|folder)$/u;
+// Every staged question opens with the verb; the arm (folder, file, files) is the picker's, not this case's.
+const IMPORT_GROUP_NAME = new RegExp(`^${RegExp.escape(IMPORT_PREFLIGHT_LEAD)} `, "u");
 // Quiet-box bases; `budget` stretches them under measured contention and the allowance grows with the folder.
 const ST_CASE_BASE_MS = 120_000;
 const IMPORT_SETTLE_BASE_MS = 60_000;
@@ -171,7 +177,7 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
     await expect(preflight).toBeVisible({ timeout: settleMs });
     await expect(preflight.getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true })).toBeVisible({ timeout: settleMs });
-    await preflight.getByRole("button", { name: IMPORT_CONFIRM_NAME }).click();
+    await preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true }).click();
     await expect(page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true })).toBeVisible({ timeout: settleMs });
   } finally {
     page.off("response", recordResponse);

@@ -37,7 +37,7 @@ import { DIALOG_VERBS, testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
 import { OTHERS_CONTROLS_HIDDEN_TEXT } from "../lib/workloads-failure-copy.ts";
 import { UNRESOLVED_OWNER_HANDLE, viewerActsOnRow, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
-import { SCHEDULE_DELETE_CONFIRM_NAME, SCHEDULE_NEW_NAME, WORKLOAD_BULK_BADGE } from "../lib/workloads-names.ts";
+import { SCHEDULE_DELETE_CONFIRM_NAME, SCHEDULE_NEW_NAME, scheduleNextRunLine, WORKLOAD_BULK_BADGE } from "../lib/workloads-names.ts";
 import {
   SCHEDULE_PAUSED_LABEL,
   scheduleDeleteName,
@@ -191,7 +191,7 @@ function ScheduleRow({
   // languages, and the reader has to work out that they are the same kind of fact. The absolute stamp is the
   // arm that is TOTAL: a schedule's next run is a wall-clock appointment at any distance, where "in 8 months"
   // is not a thing anyone can act on.
-  const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : SCHEDULE_PAUSED_LABEL;
+  const nextRun = schedule.enabled ? scheduleNextRunLine(timeLib.formatDateTime(schedule.nextRunAt)) : SCHEDULE_PAUSED_LABEL;
   const refusalSentence = schedule.refusal === undefined ? null : WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES[schedule.refusal];
   const refusal = refusalSentence === null || schedule.enabled ? refusalSentence : `${SCHEDULE_PAUSED_LABEL} · ${refusalSentence}`;
   // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read, and a

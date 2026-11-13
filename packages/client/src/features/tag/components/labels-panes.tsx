@@ -11,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { DetailHeader, QueryBoundary, returnFocusToRow } from "#components";
+import { DetailHeader, QueryBoundary, returnFocusToRow, TAG_READ_LABEL } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import type { DrillBack } from "#lib";
 import { CORPUS_MODE_LABELS, DIALOG_VERBS, sectionBackName, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
@@ -69,7 +69,7 @@ export function LabelsContent(): ReactElement {
             fallback={exit}
             renderError={(_error, retry): ReactElement => (
               <QueryErrorState
-                label="this tag"
+                label={TAG_READ_LABEL}
                 onRetry={retry}
                 renderRetry={(refetch): ReactElement => (
                   <Stack gap="block">

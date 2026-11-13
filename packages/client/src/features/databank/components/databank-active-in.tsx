@@ -39,7 +39,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 import { selectChat, setActiveSection } from "#state";
-import { DATABANK_NOWHERE_YET_TEXT } from "../lib/databank-names.ts";
+import { DATABANK_ACTIVE_IN_READ_LABEL, DATABANK_NOWHERE_YET_TEXT } from "../lib/databank-names.ts";
 import { CharacterAttachments } from "./databank-character-attachments.tsx";
 
 /**
@@ -55,7 +55,7 @@ export function ActiveInSection({ documentId, documentName }: { readonly documen
       <QueryBoundary
         resetKeys={[documentId]}
         fallback={<SkeletonRows count={2} shape="line" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="where this document is active" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={DATABANK_ACTIVE_IN_READ_LABEL} onRetry={retry} />}
       >
         <ActiveInBody documentId={documentId} documentName={documentName} />
       </QueryBoundary>

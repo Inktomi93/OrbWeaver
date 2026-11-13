@@ -166,6 +166,13 @@ export const HOME_QUICK_PICKS_NAME = "Character quick-picks";
 /** The new-chat picker's character field. */
 export const NEW_CHAT_CHARACTERS_FIELD_NAME = "Choose characters";
 
+/** The context divider's line: everything below it is in the prompt, or everything above it was compacted into the summary. */
+export const CONTEXT_DIVIDER_IN_CONTEXT_TEXT = "In context from here";
+export const CONTEXT_DIVIDER_COMPACTED_TEXT = "Older messages compacted into a summary";
+export function contextDividerText(compacted: boolean): string {
+  return compacted ? CONTEXT_DIVIDER_COMPACTED_TEXT : CONTEXT_DIVIDER_IN_CONTEXT_TEXT;
+}
+
 /** The transcript's message log. */
 export const CHAT_TRANSCRIPT_NAME = "Conversation messages";
 
@@ -193,3 +200,6 @@ export function goneDraftDescription(args: { readonly hasText: boolean; readonly
   }
   return `Your ${attached} went with it and can't be kept.`;
 }
+
+/** What failed to load, said by the chat list's character filter read. */
+export const CHAT_RECENT_CHARACTERS_READ_LABEL = "your recent characters";

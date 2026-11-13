@@ -7,11 +7,13 @@ export { ACCENT_HOVER } from "./accent-hover.ts";
 export {
   copyActionName,
   defaultChoiceName,
+  dismissActionName,
   editActionName,
   hideActionName,
   moreActionsName,
   recentActivityName,
   removeActionName,
+  removeQuotedTitle,
   revealActionName,
   selectActionName,
 } from "./action-names.ts";

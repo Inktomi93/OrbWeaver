@@ -28,7 +28,10 @@ export function jumpToLatestCountLabel(held: number): string {
   return held === 1 ? "1 new message" : `${String(held)} new messages`;
 }
 
+/** The words the jump pill's name opens with, before its count. */
+export const JUMP_TO_LATEST_LEAD = "Jump to latest";
+
 /** The jump pill's accessible name. */
 export function jumpToLatestName(held: number): string {
-  return `Jump to latest, ${jumpToLatestCountLabel(held)}`;
+  return `${JUMP_TO_LATEST_LEAD}, ${jumpToLatestCountLabel(held)}`;
 }

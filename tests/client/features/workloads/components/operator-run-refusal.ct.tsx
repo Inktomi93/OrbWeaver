@@ -8,8 +8,10 @@ import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { noticeToast, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness, plantMemberOperatorRun, plantMemberOperatorSchedule } from "@orb/testkit/node/composed";
 import { SCHEDULE_SAVE_ESTIMATE_FAILED, SCHEDULE_SAVE_OWNER_ONLY } from "#client/components/model-run-confirm-copy.ts";
+import { scheduleNextRunLine } from "#client/features/workloads/lib/workloads-names.ts";
 import { SCHEDULE_PAUSED_LABEL, scheduleEditName, scheduleEnabledSwitchName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
@@ -77,7 +79,7 @@ test("a disabled member's schedule names the disabled account on its row in plac
   const row = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("switch", { name: switchName, exact: true }) });
   await expect(row).toHaveCount(1);
   await expect(row.getByText(WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL, { exact: false })).toBeVisible();
-  await expect(row.getByText(/^Next /u)).toHaveCount(0);
+  await expect(row.getByText(nameShape(scheduleNextRunLine))).toHaveCount(0);
 });
 
 test("the box owner's save on a member's operator-tree schedule toasts the refusal it meets", async ({ mount, page }) => {

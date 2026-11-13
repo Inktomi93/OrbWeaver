@@ -57,7 +57,7 @@ import { DIALOG_VERBS } from "#lib";
 import { openConfigTo } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, readPluginFolder, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { builtAgainstLine, grantSummaryLine, PLUGIN_INSTALL_NAME } from "../lib/plugin-copy.ts";
+import { builtAgainstLine, grantSummaryLine, PLUGIN_INSTALL_NAME, pluginInstallReviewTitle } from "../lib/plugin-copy.ts";
 import { useInstallPluginFromGit } from "../lib/plugin-distribution-mutations.ts";
 import { useInstallPlugin, useInstallPluginFromUrl } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
@@ -361,9 +361,7 @@ export function PluginInstallCard(): ReactElement {
         <Stack gap="section" ref={confirmRef}>
           <Separator />
           <Stack gap="tight">
-            <Heading level={3}>
-              Review {state.manifest.name} {state.manifest.version}
-            </Heading>
+            <Heading level={3}>{pluginInstallReviewTitle(state.manifest.name, state.manifest.version)}</Heading>
             <Text cap="prose" prose={true} voice="gloss">
               {state.manifest.description}
             </Text>

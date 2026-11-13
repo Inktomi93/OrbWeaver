@@ -29,7 +29,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
-import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME, CONTEXT_DIVIDER_COMPACTED_TEXT } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList } from "./support/chat-room.ts";
 import { CASE_LIVE_LOOP_MS, CASE_TWO_LIVE_TURNS_MS, WAIT_STREAM_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import {
@@ -57,7 +57,7 @@ const TINY_CEILING = 220; // small enough that the fit drops older turns → a b
 const STABLE_CEILING = 1500; // the STABLE preset cap for the resume leg — small enough the DOMAIN fit trims (→ marker
 // exclusion → reseed), large enough the (env-cap-DROPPED, managed) SDK session runs without an overflow error.
 const MANAGED = { mode: "managed" as const, thresholdPct: 0.6, instructions: "Summarize tersely; keep names and the current scene." };
-const COMPACTED_INTO_SUMMARY = /compacted into a summary/i;
+const COMPACTED_INTO_SUMMARY = CONTEXT_DIVIDER_COMPACTED_TEXT;
 
 test("managed compaction fires on the bound model, the divider carries the compaction fact + peek, and the marker carries forward", { tag: "@live" }, async ({
   page,

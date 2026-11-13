@@ -11,6 +11,7 @@ import {
   PLUGIN_INSTALL_NAME,
   pluginCheckForUpdatesLabel,
   pluginDetailsLabel,
+  pluginInstallReviewTitle,
   pluginUpdateToLabel,
   updateAvailableLabel,
 } from "#client/features/plugin/lib/plugin-copy.ts";
@@ -186,7 +187,7 @@ for (const regime of REGIMES) {
         .locator('input[type="file"]')
         .first()
         .setInputFiles({ name: "install-actions.zip", mimeType: "application/zip", buffer: Buffer.from(bundle) });
-      await expect(page.getByRole("heading", { name: `Review ${manifest.name} ${manifest.version}`, exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: pluginInstallReviewTitle(manifest.name, manifest.version), exact: true })).toBeVisible();
       const install = page.getByRole("button", { name: PLUGIN_INSTALL_NAME, exact: true });
       const cancel = page.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
       await expect(install).toBeEnabled();

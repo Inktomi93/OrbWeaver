@@ -47,6 +47,9 @@ export const REFINERY_SETUP_TAB_LABEL = "Setup";
 export const REFINERY_VERSION_DIFF_HEADING = "description: this version vs live";
 export const REFINERY_VERSION_LOADING_TEXT = "Loading that version…";
 
+/** The session list's pending status while its read is held. */
+export const REFINERY_LIST_LOADING_NAME = "Loading your sessions…";
+
 /** What a version row calls a snapshot that carries no label. */
 export const REFINERY_UNLABELED_VERSION = "unlabeled";
 

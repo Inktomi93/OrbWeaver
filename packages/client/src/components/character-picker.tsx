@@ -34,6 +34,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
 import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { QueryBoundary } from "./query-boundary.tsx";
+import { pickerShowingLine } from "./shared-control-names.ts";
 
 /** Rows per page. With a server predicate behind the box this is a page of the MATCHES, not a slice of the
  *  library taken before the question was asked — and since #157 it is a PAGE of a keyset walk, not the
@@ -227,7 +228,7 @@ function CharacterPickerBody({
         {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
           <Row wrap={true} divider="top" align="center" gap="row" padding="row" minHeight="holdsPickerFooter">
             <Text as="span" voice="gloss">
-              {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
+              {excludedLoadedCount === 0 ? pickerShowingLine(String(candidates.length), String(totalCount)) : characterCountLabel(candidates.length)}
             </Text>
             <Row grow="content" gap="field" justify="end">
               {query.isFetchNextPageError ? (

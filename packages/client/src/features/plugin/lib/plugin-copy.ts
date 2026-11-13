@@ -483,6 +483,11 @@ export function pluginUpdateFromCommitLabel(pluginName: string, sourceCommit: st
   return `Update ${pluginName} from commit ${abbreviateSourceCommit(sourceCommit)}`;
 }
 
+/** The install card's heading over a previewed bundle: the plugin and the version being reviewed. */
+export function pluginInstallReviewTitle(name: string, version: string): string {
+  return `Review ${name} ${version}`;
+}
+
 /** The install card's confirm press. */
 export const PLUGIN_INSTALL_NAME = "Install";
 

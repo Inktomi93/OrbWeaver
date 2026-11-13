@@ -41,7 +41,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { useReadoutBinding } from "#src/features/preset/hooks/use-readout-binding.ts";
 import { qualityMappingGloss } from "#src/features/preset/lib/effective-knobs.ts";
-import { PRESET_ACTIVE_STATUS, PRESET_READOUT_ACTIVE_LABEL } from "#src/features/preset/lib/preset-names.ts";
+import { PRESET_ACTIVE_STATUS, PRESET_READOUT_ACTIVE_LABEL, PRESET_READOUT_READ_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import type { PresetEditorView } from "#src/features/preset/lib/preset-nav.ts";
 import { PRESET_EDITOR_VIEWS } from "#src/features/preset/lib/preset-nav.ts";
 import { templateStoredText } from "#src/features/preset/lib/template-rows.ts";
@@ -68,7 +68,7 @@ export function PresetReadout(): ReactElement {
       }
       renderError={(_error, retry): ReactElement => (
         <Stack padding="block">
-          <QueryErrorState label="the readout" onRetry={retry} />
+          <QueryErrorState label={PRESET_READOUT_READ_LABEL} onRetry={retry} />
         </Stack>
       )}
     >

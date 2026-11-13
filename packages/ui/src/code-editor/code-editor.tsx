@@ -9,6 +9,8 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useRef } from "react";
 import { cn, FOCUS_RING_HAS } from "#lib";
 import { cssVar } from "#tokens";
+import type { CodeEditorSeverity } from "./code-editor-names.ts";
+import { diagnosticAnnouncement } from "./code-editor-names.ts";
 
 // The one CodeMirror↔design-token mapping site. Every color/typography value is a var(--…)
 // reference, so ThemeScope swaps restyle the editor for free. The lint module's default theme
@@ -104,18 +106,13 @@ const TOKEN_THEME = EditorView.theme(
 
 /** A single lint diagnostic. */
 export interface CodeEditorDiagnostic {
-  readonly severity: "error" | "warning";
+  readonly severity: CodeEditorSeverity;
   readonly message: string;
   /** Document offset the flagged span starts at. */
   readonly from: number;
   /** Document offset the flagged span ends at (may equal `from`). */
   readonly to: number;
 }
-
-const DIAGNOSTIC_SEVERITY_LABEL: Record<CodeEditorDiagnostic["severity"], string> = {
-  error: "Error",
-  warning: "Warning",
-};
 
 // Positions come from a caller-owned parse that can lag one keystroke behind the live document —
 // clamp rather than let RangeSetBuilder choke on an out-of-bounds span.
@@ -322,7 +319,7 @@ export function CodeEditor({
       {hasDiagnostics ? (
         <div id={describedById} aria-live="polite" className="sr-only">
           {diagnostics.map((diagnostic, index) => {
-            const text = `${DIAGNOSTIC_SEVERITY_LABEL[diagnostic.severity]}: ${diagnostic.message}`;
+            const text = diagnosticAnnouncement(diagnostic.severity, diagnostic.message);
             // biome-ignore lint/suspicious/noArrayIndexKey: diagnostics render plain announcement paragraphs; rows hold no local state or focusable controls.
             return <p key={index}>{text}</p>;
           })}

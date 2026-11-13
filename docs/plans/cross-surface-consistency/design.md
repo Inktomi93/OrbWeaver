@@ -25,7 +25,7 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 | 3 | Enlarged text | with the push barrier, 1299 |
 | 4 | Chat styles match the Moonlit reference | 0913 |
 | 5 | Page templates | the page-template tier |
-| 6 | Visible labels and accessible names | [1426](../../work/1426-import-ct-and-e2e-accessible-name-labels-from.md) |
+| 6 | Visible labels and accessible names | Landed: tests read each name from its production home, and `pnpm label-census` reports the sites that do not |
 | Beside 2 to 6 | The automated walkthrough | [1401](../../work/1401-build-and-qualify-the-native-automated-surface-walkthrough.md) phase B |
 | 6a | The type-law composites that change judged surfaces, because acceptance scores them | 1769, 1775, 1776, 1777 |
 | 7 | Comparative acceptance | The composition acceptance across families passed; [1397](../../work/1397-complete-characters-and-chat-comparative-acceptance.md); the persona and plugin reviews 0908 and 0909 run inside them |

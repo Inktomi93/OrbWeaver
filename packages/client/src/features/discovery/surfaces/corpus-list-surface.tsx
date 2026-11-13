@@ -36,7 +36,7 @@ import {
 } from "#state";
 import { CorpusBrowseView } from "../components/corpus-browse-view.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
-import { CORPUS_SEARCH_NAME, CORPUS_SEARCH_TARGET_NAME } from "../lib/corpus-control-names.ts";
+import { CORPUS_RERANK_UNSET_REASON, CORPUS_SEARCH_NAME, CORPUS_SEARCH_TARGET_NAME } from "../lib/corpus-control-names.ts";
 import {
   CORPUS_SEARCH_TARGETS,
   CORPUS_SUGGEST_LIMIT,
@@ -154,7 +154,7 @@ function rerankOffReason(model: ReturnType<typeof useRerankModel>): string | und
     case "unknown":
       return "Checking your Rerank model.";
     case "unset":
-      return "No Rerank model is set.";
+      return CORPUS_RERANK_UNSET_REASON;
     case "blocked":
       return `Your Rerank model is set but not running: ${model.cause}.`;
   }

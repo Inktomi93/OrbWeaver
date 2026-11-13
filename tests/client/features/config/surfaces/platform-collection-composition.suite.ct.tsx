@@ -1,4 +1,4 @@
-import { COLLECTION_LARGE_GROUP } from "@orb/client/lib";
+import { COLLECTION_LARGE_GROUP, sectionBackName } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
@@ -8,7 +8,7 @@ import { actionGroupGeometry, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformT
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
+import { ENLARGED_APPEARANCE_SETTINGS, nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
@@ -179,7 +179,7 @@ async function expectMemberHeader(content: Locator): Promise<void> {
     contentType: "application/json",
   });
   await expect(title).toBeVisible();
-  await expect(header.getByRole("button", { name: /^Back to /u })).toBeVisible();
+  await expect(header.getByRole("button", { name: nameShape(sectionBackName) })).toBeVisible();
   for (const button of buttons) {
     expect(await button.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   }

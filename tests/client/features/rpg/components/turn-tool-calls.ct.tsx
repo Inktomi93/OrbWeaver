@@ -6,7 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
-import { RPG_TOOL_CALL_VERDICT_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
+import { RPG_TOOL_CALL_VERDICT_LABELS, turnToolCallsCount, turnToolCallsName } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgTurnFooterStory } from "./_own-key-panels-stories.tsx";
 
 const STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgTurnFooterStory";
@@ -53,7 +53,7 @@ for (const touch of [false, true]) {
       const rpc = await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "chat.getChat", "rpg.listTurnToolCalls"]));
       const component = await mount<typeof RpgTurnFooterStory>(STORY, { message: recorded.message });
       const disclosure = page.locator('[data-slot="turn-tool-calls"]');
-      const trigger = disclosure.getByRole("button", { name: `Game actions on this turn: ${recorded.record.calls.length}`, exact: true });
+      const trigger = disclosure.getByRole("button", { name: turnToolCallsName(turnToolCallsCount(recorded.record.calls.length, false)), exact: true });
       await expect(trigger).toBeVisible();
       await expect(trigger).toHaveText(String(recorded.record.calls.length));
       await expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -106,7 +106,7 @@ for (const touch of [false, true]) {
       await expect(trigger).toBeVisible();
       expect(rpc.count("rpg.listTurnToolCalls")).toBe(reads);
       await component.update({ message: partial.message });
-      const warning = disclosure.getByRole("button", { name: `Game actions on this turn: ${partial.record.calls.length}, needs attention`, exact: true });
+      const warning = disclosure.getByRole("button", { name: turnToolCallsName(turnToolCallsCount(partial.record.calls.length, true)), exact: true });
       await expect(warning).toBeVisible();
       await expect(warning).toHaveText(String(partial.record.calls.length));
       const warningGlyph = warning.locator("svg").first();

@@ -10,6 +10,7 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { groupOrdinalQualifiers } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
+import { corpusRoomPairName } from "../lib/corpus-control-names.ts";
 import type { ArtCliqueMember } from "../lib/corpus-duplicate-groups.ts";
 import { groupIdenticalArt } from "../lib/corpus-duplicate-groups.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
@@ -205,7 +206,7 @@ function ChatPairRow({
       // screen reader that announces the button's content instead. An explicit `aria-label` replaces the
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state. The badge ("forked") is visible text, so it is in the name too.
-      aria-label={`${left} ↔ ${right}, ${badge === undefined ? "" : `${badge}, `}${percent(score)} similar: compare rooms${position === undefined ? "" : ` · ${position}`}`}
+      aria-label={corpusRoomPairName({ left, right, badge, similarity: percent(score), position })}
       justify="between"
       variant="ghost"
       width="full"

@@ -1,6 +1,27 @@
 // The accessible names the Corpus list and browse view print. A zero-import leaf, so a spec's node side reads them without
 // loading the component graph.
 
+/** A room pair's name: both rooms, the relation badge it shows, how similar they read, what a press does, and its
+ *  place in the list where another pair reads the same. */
+export function corpusRoomPairName({
+  left,
+  right,
+  badge,
+  similarity,
+  position,
+}: {
+  readonly left: string;
+  readonly right: string;
+  readonly badge: string | undefined;
+  readonly similarity: string;
+  readonly position: string | undefined;
+}): string {
+  return `${left} ↔ ${right}, ${badge === undefined ? "" : `${badge}, `}${similarity} similar: compare rooms${position === undefined ? "" : ` · ${position}`}`;
+}
+
+/** Why the rerank switch is off while the owner has no Rerank model bound. */
+export const CORPUS_RERANK_UNSET_REASON = "No Rerank model is set.";
+
 /** The Corpus search target select. */
 export const CORPUS_SEARCH_TARGET_NAME = "Search target";
 

@@ -30,6 +30,11 @@ export const WORKLOAD_CANCEL_TITLE = "Cancel this job?";
 export const WORKLOAD_CANCEL_CONFIRM_NAME = "Cancel job";
 export const WORKLOAD_KEEP_RUNNING_NAME = "Keep running";
 
+/** An enabled schedule's next-run line, over the run time as the row prints it. */
+export function scheduleNextRunLine(when: string): string {
+  return `Next ${when}`;
+}
+
 /** A run row's cancel button, named for the job it stops. */
 export function cancelWorkloadName(kindLabel: string): string {
   return `Cancel: ${kindLabel}`;

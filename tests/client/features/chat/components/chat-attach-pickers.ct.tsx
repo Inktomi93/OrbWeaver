@@ -22,6 +22,7 @@ import {
   CHAT_DOCUMENT_SEARCH_NAME,
   chatAttachItemName,
 } from "#client/features/chat/lib/chat-attach-names.ts";
+import { CHAT_DOCUMENTS_SECTION_LABEL, CHAT_WORLD_BOOKS_SECTION_LABEL } from "#client/features/chat/lib/chat-settings-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
@@ -77,7 +78,7 @@ test("a failed world-book read in the attach picker offers a Retry and does not 
   await corpusMedia();
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
-  await page.getByRole("button", { name: /^World books/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_WORLD_BOOKS_SECTION_LABEL)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_ATTACH_BOOK_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(queryFailedLabel(CHAT_BOOK_PICKER_READ), { exact: true })).toBeVisible();
@@ -100,7 +101,7 @@ test("a failed bank read in the add-document picker offers a Retry and does not 
   await corpusMedia();
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
-  await page.getByRole("button", { name: /^Documents/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_DOCUMENTS_SECTION_LABEL)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_ADD_FROM_BANK_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText(queryFailedLabel(CHAT_DOCUMENT_PICKER_READ), { exact: true })).toBeVisible();
@@ -122,7 +123,7 @@ test("a refused attach is said in the picker", async ({ mount, page, corpusMedia
   await corpusMedia();
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
-  await page.getByRole("button", { name: /^World books/u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_WORLD_BOOKS_SECTION_LABEL)}`, "u") }).click();
   await page.getByRole("button", { name: CHAT_ATTACH_BOOK_NAME, exact: true }).click();
   await page.getByRole("button", { name: chatAttachItemName(book.name), exact: true }).click();
   const dialog = page.getByRole("dialog");

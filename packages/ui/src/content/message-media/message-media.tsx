@@ -2,7 +2,7 @@ import type { CSSProperties, ReactElement } from "react";
 import { useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { MEDIA_UNAVAILABLE_TEXT } from "./message-media-names.ts";
+import { externalMediaLoadName, MEDIA_UNAVAILABLE_TEXT } from "./message-media-names.ts";
 import { messageMediaVariants } from "./variants.ts";
 
 // asset = our own origin (render freely); external = untrusted URL.
@@ -111,7 +111,7 @@ export function MessageMedia({
   if (gated) {
     return (
       <button type="button" onClick={requestLoad} className={fallbackClass} style={aspectStyle} data-slot="message-media-placeholder">
-        External media: load from {hostOf(src.url)}?
+        {externalMediaLoadName(hostOf(src.url))}
       </button>
     );
   }

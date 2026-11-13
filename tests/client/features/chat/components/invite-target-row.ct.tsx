@@ -5,6 +5,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import {
@@ -13,6 +14,7 @@ import {
   INVITE_OUTSTANDING_HEADING,
   INVITE_SEND_NAME,
   INVITE_TARGET_UNKNOWN_TEXT,
+  inviteRevokeName,
 } from "#client/features/chat/lib/members-names.ts";
 import { ACCOUNT_HANDLE_FIELD_NAME } from "#client/lib/account-field-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
@@ -61,7 +63,7 @@ test("the outstanding invite for a person names their handle and its Revoke cont
   await expect(dialog.getByRole("button", { name: handle })).toHaveCount(1);
   await expect(dialog.getByText(handle)).toHaveCount(1);
   // The control: both invites are listed, so the share link's Revoke is on screen and carries no handle.
-  await expect(dialog.getByRole("button", { name: /^Revoke this/u })).toHaveCount(2);
+  await expect(dialog.getByRole("button", { name: nameShape((kind) => inviteRevokeName(kind, "")) })).toHaveCount(2);
 });
 
 test("an invite to a handle nobody holds says so inline, from the server's own refusal code", async ({ mount, page }) => {

@@ -16,6 +16,7 @@ export type { SeededIds } from "./ids.ts";
 export { createSeededIds, FIXTURE_ID_CURSOR } from "./ids.ts";
 export { makeCapability, makeGenerationCapability } from "./inference-capability.ts";
 export { DEFAULT_EMBED_MODEL, testModelId, testProviderId } from "./inference-identities.ts";
+export { nameShape } from "./name-shape.ts";
 export { PUBLIC_PEER_ADDRESS } from "./network.ts";
 export { appendedBy, forEachNonEmpty, nonEmpty, present } from "./non-empty.ts";
 export { makePromptConfig } from "./preset-config.ts";

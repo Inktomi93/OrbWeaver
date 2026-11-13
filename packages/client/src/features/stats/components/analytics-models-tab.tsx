@@ -28,6 +28,7 @@ import {
   ANALYTICS_GENERATIONS_BY_MODEL_NAME,
   ANALYTICS_GENERATIONS_HEADING,
   ANALYTICS_MODELS_NAME,
+  ANALYTICS_MODELS_SCOPE_REASON,
   ANALYTICS_REPLY_SPEED_HEADING,
 } from "../lib/analytics-names.ts";
 import {
@@ -69,7 +70,7 @@ function ModelsBody(): ReactElement {
 
   return (
     <Stack gap="section">
-      <LibraryScopeNotice reason="Model usage is rolled up per model, with no per-character breakdown to narrow to." />
+      <LibraryScopeNotice reason={ANALYTICS_MODELS_SCOPE_REASON} />
       <AccountingCoverageNotice />
 
       {drilled === null ? <OwnerLatency /> : null}

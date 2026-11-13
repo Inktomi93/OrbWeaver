@@ -109,11 +109,27 @@ const GM_GREETING = "The lantern gutters as you step into the Rusted Gate tavern
 // SPEC 1's actor-subject tracker defs. Hoisted because `rpg.updateConfig`'s `trackers` is a WHOLE-LIST
 // replace (the ONE def door since the tracked-field unification — there is no additive "add a widget" call),
 // so a later def write that names only its own tracker DELETES these.
-const ACTOR_TRACKER_DEFS: readonly TrackerDefInput[] = [
-  { key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 10, pinned: true },
-  { key: "trust", label: "Trust", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 },
-  { key: "secret", label: "Secret", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" },
-];
+const MANA_TRACKER = {
+  key: "mana",
+  label: "Mana",
+  shape: "meter",
+  write: "delta",
+  subject: "actor",
+  appliesTo: "party",
+  max: 10,
+  pinned: true,
+} as const satisfies TrackerDefInput;
+const TRUST_TRACKER = {
+  key: "trust",
+  label: "Trust",
+  shape: "meter",
+  write: "set",
+  subject: "actor",
+  appliesTo: "npcs",
+  max: 10,
+} as const satisfies TrackerDefInput;
+const SECRET_TRACKER = { key: "secret", label: "Secret", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" } as const satisfies TrackerDefInput;
+const ACTOR_TRACKER_DEFS: readonly TrackerDefInput[] = [MANA_TRACKER, TRUST_TRACKER, SECRET_TRACKER];
 
 /** Open the CONTEXT panel on a GAME chat and land on its takeover. A game chat's panel is NOT the shared
  *  "Detail" tablist — the CP-4 bracket renders a "Game state" rail (Status/Sheet/Inventory/Scene), and
@@ -283,7 +299,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(hero?.volatile?.conditions.map((c) => c.name)).toEqual(["Chilled"]);
     expect(hero?.volatile?.status).toBe("shivering");
     // The band renders exactly what the host PINNED (never a def-order coincidence).
-    expect(after.trackerOrbs).toEqual([{ key: "mana", label: "Mana", value: 3, max: 10, color: null }]);
+    expect(after.trackerOrbs).toEqual([{ key: MANA_TRACKER.key, label: MANA_TRACKER.label, value: 3, max: 10, color: null }]);
 
     // The presence plane is a KEY list; the person is an actor row beside the roster (ONE shape, R2).
     expect(after.cast).toEqual(["npc:mira"]);
@@ -332,8 +348,8 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     // 6-kind picker popover — never a resting dropdown). A custom kind badges its LABEL ("vassal").
     await expect(scene).toContainText("Mira");
     await expect(scene.getByRole("button", { name: "Mira relationship" })).toContainText("vassal");
-    await expect(scene).toContainText("Trust"); // the meter cast-field label
-    await expect(scene).toContainText("Secret"); // the text cast-field label
+    await expect(scene).toContainText(TRUST_TRACKER.label); // the meter cast-field label
+    await expect(scene).toContainText(SECRET_TRACKER.label); // the text cast-field label
     await expect(scene).toContainText("Reputation"); // the game-tracker label
     // The Scene GOALS section is a read-only ECHO of the quest plane (#39 dual-homing — the Quests tab is
     // its ONE edit home), so the row is a NAVIGATING button named by the goal's visible text — never a
@@ -346,7 +362,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     const status = page.locator('[data-slot="rpg-status-tab"]');
     await expect(status).toContainText("Thornwick", { timeout: WAIT_SURFACE_MS });
     await expect(status).toContainText("Ranger");
-    await expect(status).toContainText("Mana");
+    await expect(status).toContainText(MANA_TRACKER.label);
     await expect(status).toContainText("Chilled");
 
     // ── chat-DB witness: the hand-edit clone-forward posted narrator rows; the debug DB read confirms the chat

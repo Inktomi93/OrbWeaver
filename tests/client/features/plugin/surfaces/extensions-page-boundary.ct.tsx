@@ -8,7 +8,8 @@ import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/te
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { EXTENSIONS_GONE_TITLE, EXTENSIONS_PAGE_LOADING_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { EXTENSIONS_GONE_TITLE, EXTENSIONS_PAGE_LOADING_NAME, PLUGIN_PAGE_READ_LABEL } from "#client/features/plugin/lib/extensions-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ExtensionsPagePickStory, ExtensionsPageStory } from "./_extensions-page-stories.tsx";
 
@@ -35,10 +36,10 @@ test("a held page read shows the loading status, a failed one the error block, a
   await hold.requested;
   await expect(page.getByText(EXTENSIONS_PAGE_LOADING_NAME, { exact: true })).toBeVisible();
   hold.fail();
-  await expect(page.getByText("Couldn't load this plugin page.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(PLUGIN_PAGE_READ_LABEL), { exact: true })).toBeVisible();
   phase = "serve";
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load this plugin page.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(PLUGIN_PAGE_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: EXTENSIONS_GONE_TITLE, exact: true })).toBeVisible();
 });
 

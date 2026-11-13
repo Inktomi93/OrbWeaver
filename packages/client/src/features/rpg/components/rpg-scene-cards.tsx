@@ -16,7 +16,7 @@ import { QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, roomRosterOptions, SkeletonRows, useCardFrameSrc, useSuspenseQueries, useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
-import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
+import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_CARDS_READ_LABEL, RPG_SCENE_NO_CARDS_LINE } from "../lib/rpg-names.ts";
 import { RpgCardRow } from "./rpg-card-row.tsx";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -95,7 +95,7 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
       <QueryBoundary
         resetKeys={[chatId]}
         fallback={<SkeletonRows count={ARCHIVE_PENDING_ROWS} />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="this game's cards" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={RPG_SCENE_CARDS_READ_LABEL} onRetry={retry} />}
         reserveKey={`rpg.cardArchive.${chatId}`}
       >
         <ArchiveBody chatId={chatId} />

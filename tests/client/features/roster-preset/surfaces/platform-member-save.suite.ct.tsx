@@ -1,3 +1,4 @@
+import { sectionBackName } from "@orb/client/lib";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -7,7 +8,7 @@ import { holdServed, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, serveCorpusP
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { ROSTER_DESCRIPTION_FIELD_NAME, ROSTER_NAME_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
+import { ROSTER_DESCRIPTION_FIELD_NAME, ROSTER_GROUP_LABEL, ROSTER_NAME_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RosterMemberSaveStory } from "./_member-save-stories.tsx";
 
@@ -196,7 +197,7 @@ test("a real external writer remains a conflict and abandoning the draft reopens
   await expect(conflict).toContainText(externalName);
   await expect(editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true })).toHaveValue("Local unsaved roster");
   await expect(editor.getByRole("button", { name: DIALOG_VERBS.save, exact: true })).toBeEnabled();
-  await editor.getByRole("button", { name: "Back to Rosters", exact: true }).click();
+  await editor.getByRole("button", { name: sectionBackName(ROSTER_GROUP_LABEL), exact: true }).click();
   await expect(editor).toHaveCount(0);
   await page.getByRole("button", { name: externalName, exact: true }).click();
   await expect(editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true })).toHaveValue(externalName);

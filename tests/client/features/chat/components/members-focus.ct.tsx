@@ -15,7 +15,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { connectDevice, createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { CHAT_MEMBERS_ENTRY_PREFIX, CHAT_MEMBERS_ROSTER_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { MEMBER_KICK_NAME } from "#client/features/chat/lib/members-names.ts";
+import { MEMBER_KICK_NAME, memberCharacterRowName } from "#client/features/chat/lib/members-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -117,7 +117,9 @@ test("removing a member closes the real confirm onto a surviving roster control"
   if (nextCharacter === undefined) {
     throw new Error("The shared room has no next character row");
   }
-  await expect(members.getByRole("button", { name: new RegExp(`^${nextCharacter.displayName}: character`, "u") })).toBeFocused();
+  await expect(
+    members.getByRole("button", { name: new RegExp(`^${RegExp.escape(memberCharacterRowName(nextCharacter.displayName, false))}`, "u") }),
+  ).toBeFocused();
   await component.unmount();
   await joined.promise;
 });
@@ -141,7 +143,7 @@ test("a row's open menu keeps its own Home and End keys from the roster's roving
   await mount<typeof ChatRoomShellStory>(STORY, { chatId: chat.id });
   await page.getByRole("button", { name: MEMBERS_ENTRY }).click();
   const members = page.getByRole("toolbar", { name: CHAT_MEMBERS_ROSTER_NAME, exact: true });
-  const row = members.getByRole("button", { name: new RegExp(`^${RegExp.escape(character.displayName)}: character`, "u") });
+  const row = members.getByRole("button", { name: new RegExp(`^${RegExp.escape(memberCharacterRowName(character.displayName, false))}`, "u") });
   await row.focus();
   await row.press("Enter");
   const items = page.getByRole("menu").getByRole("menuitem");

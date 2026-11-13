@@ -43,6 +43,11 @@ export function editActionName(subject: string): string {
   return `Edit ${subject}`;
 }
 
+/** The accessible name of a control that sets an offered item aside without acting on it — `Dismiss <subject>`. */
+export function dismissActionName(subject: string): string {
+  return `Dismiss ${subject}`;
+}
+
 /** The accessible name of a row's overflow menu trigger — `More actions for <subject>`. */
 export function moreActionsName(subject: string): string {
   return `More actions for ${subject}`;
@@ -66,4 +71,9 @@ export function defaultChoiceName(subject: string): string {
  */
 export function selectActionName(subject: string): string {
   return `Select ${subject}`;
+}
+
+/** The confirm a list entry's Remove asks, quoting the entry so a long or odd title reads as one name. */
+export function removeQuotedTitle(subject: string): string {
+  return `Remove “${subject}”?`;
 }

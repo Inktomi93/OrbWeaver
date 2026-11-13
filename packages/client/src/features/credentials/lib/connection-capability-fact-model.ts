@@ -6,7 +6,7 @@ import type { Capability, DeclaredCapability } from "@orb/contracts/inference";
 import { REASONING_MODES, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { FactChoice, FactLeaf, FactRow } from "./connection-fact-model.ts";
 import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow } from "./connection-fact-model.ts";
-import { VECTOR_WIDTH_FACT_NAME } from "./credentials-names.ts";
+import { FACT_NAMES, VECTOR_WIDTH_FACT_NAME } from "./credentials-names.ts";
 
 /** The source line for a capability row this client cannot attribute per field. Deliberately NOT one of the
  *  mock's invented strings — see `connection-fact-model.ts`'s header. */
@@ -46,7 +46,7 @@ const GENERATION_LEAVES: readonly FactLeaf[] = [
   },
   {
     path: "generation.output.maxTokens.max",
-    name: "max output",
+    name: FACT_NAMES.maxOutput,
     edit: { kind: "number" },
     format: tokens,
     estimatedBy: "generation.output.maxTokensEstimated",

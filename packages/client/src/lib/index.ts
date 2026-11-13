@@ -96,7 +96,9 @@ export {
 export { CONSOLE_STYLES } from "./console-styles.ts";
 export {
   CONTEXT_SHEET_BACK_NAME,
+  contentRegionName,
   contextPaneLabel,
+  contextTabsMenuName,
   DETAILS_PANEL_NOUN,
   LIST_PANEL_NOUN,
   listPaneLabel,

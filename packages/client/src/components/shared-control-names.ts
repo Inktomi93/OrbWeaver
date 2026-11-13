@@ -110,5 +110,21 @@ export function createTagName(tag: string): string {
   return `Create "${tag}"`;
 }
 
+/** The character picker's footer while it holds only part of the library: how many rows it shows of how many exist. */
+export function pickerShowingLine(shown: string, total: string): string {
+  return `Showing ${shown} of ${total}`;
+}
+
 /** The character search box: the character library, a world book's character attachments and the Insights leaderboard. */
 export const CHARACTER_SEARCH_NAME = "Search characters";
+
+/** What failed to load, said by a tag editor's read. */
+export const TAG_READ_LABEL = "this tag";
+
+/** What failed to load, said by the tag picker's library read. */
+export const TAG_LIBRARY_READ_LABEL = "your tags";
+
+/** A modified setting row's reset, named for the setting. */
+export function settingResetName(label: string): string {
+  return `Reset ${label} to its default`;
+}

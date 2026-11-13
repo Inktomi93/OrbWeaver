@@ -29,6 +29,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
+import { PRESET_USAGE_READ_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import { selectChat, setActiveSection } from "#state";
 
 /** The block's one sentence, per the TWO facts it actually has (side-eye 2026-08-19 P2).
@@ -56,7 +57,7 @@ export function UsageReadout({ presetId }: { readonly presetId: PresetId }): Rea
       <QueryBoundary
         resetKeys={[presetId]}
         fallback={<SkeletonRows count={USAGE_SKELETON_ROWS} shape="datum" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="what uses this preset" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={PRESET_USAGE_READ_LABEL} onRetry={retry} />}
       >
         <UsageBody presetId={presetId} />
       </QueryBoundary>

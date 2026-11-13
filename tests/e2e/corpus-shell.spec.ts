@@ -17,9 +17,11 @@ import { SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-n
 import { CHARACTER_HERO_NAME_FIELD_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CONFIG_SETTINGS_GROUPS_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { REFINERY_LIST_LOADING_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
-import { CONTEXT_SHEET_BACK_NAME, screenOverviewDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
+import { CONTEXT_SHEET_BACK_NAME, screenListDoorName, screenOverviewDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { CORPUS_MODE_LABELS } from "#client/lib/corpus-modes.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -489,14 +491,14 @@ test.describe("committed corpus shell", () => {
     await expect(page.locator(".shell-topbar")).toBeVisible();
     await expect(page.getByRole("status", { name: ROUTE_PENDING_NAME, exact: true })).toHaveCount(0);
     // The list region is the one that waits: it holds its pending status while the read is held.
-    await expect(listPanel(page).getByRole("status", { name: /^Loading/u })).toBeVisible();
+    await expect(listPanel(page).getByRole("status", { name: REFINERY_LIST_LOADING_NAME, exact: true })).toBeVisible();
     await held.release();
     const first = sessions[0];
     if (first === undefined) {
       throw new Error("Corpus has no refinery session");
     }
     await expect(listPanel(page).getByText(first.characterName, { exact: true }).first()).toBeVisible();
-    await expect(listPanel(page).getByRole("status", { name: /^Loading/u })).toHaveCount(0);
+    await expect(listPanel(page).getByRole("status", { name: REFINERY_LIST_LOADING_NAME, exact: true })).toHaveCount(0);
   });
 
   test("a desktop Settings roster stays docked beside CONTENT with no Back row", { tag: "@smoke" }, async ({ page, isMobile }) => {
@@ -510,7 +512,7 @@ test.describe("committed corpus shell", () => {
     expect(box?.width ?? 0).toBeGreaterThan(0);
     expect(box?.width ?? 0).toBeLessThan(viewport?.width ?? 0);
     await expect(page.locator(MAIN)).not.toHaveAttribute("inert", "");
-    await list.getByRole("button", { name: /World Info/u }).click();
+    await list.getByRole("button", { name: new RegExp(RegExp.escape(WORLD_INFO_GROUP_LABEL), "u") }).click();
     await expect(page.locator('[data-slot="collection-control-row"]')).toBeVisible();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(page.getByRole("button", { name: sectionBackName(SECTION_LABELS.settings) })).toHaveCount(0);
@@ -663,7 +665,7 @@ test.describe("committed corpus shell on a phone", () => {
     await page.getByRole("button", { name: screenOverviewDoorName(CORPUS_MODE_LABELS.explore), exact: true }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.locator(MAIN)).not.toHaveAttribute("inert", "");
-    await page.getByRole("button", { name: `Show ${CORPUS_MODE_LABELS.explore} list`, exact: true }).click();
+    await page.getByRole("button", { name: screenListDoorName(CORPUS_MODE_LABELS.explore), exact: true }).click();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
   });
 

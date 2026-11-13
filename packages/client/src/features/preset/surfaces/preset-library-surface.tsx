@@ -40,7 +40,14 @@ import {
 } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
-import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_LIST_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
+import {
+  NEW_PRESET_KIND,
+  NEW_PRESET_NAME,
+  PRESET_ACTIVE_RADIOGROUP_NAME,
+  PRESET_LIBRARY_READ_LABEL,
+  PRESET_LIST_NAME,
+  PRESET_SEARCH_NAME,
+} from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 export interface PresetLibrarySurfaceProps {
@@ -72,7 +79,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
       {/* The reservation's measuring Stack is auto-height, so the `scroll` body above the boundary is the pane's
           scroll box. The key is minted here, not in the shared shell: one literal there would be one box for
           every library. */}
-      <LibrarySurfaceShell errorLabel="your presets" loadingLabel="Loading your presets…" reserveKey="preset.library" resetKeys={[]}>
+      <LibrarySurfaceShell errorLabel={PRESET_LIBRARY_READ_LABEL} loadingLabel="Loading your presets…" reserveKey="preset.library" resetKeys={[]}>
         <PresetList listRootRef={surfaceRef} onSelectPreset={onSelectPreset ?? selectPreset} />
       </LibrarySurfaceShell>
     </ListPage>

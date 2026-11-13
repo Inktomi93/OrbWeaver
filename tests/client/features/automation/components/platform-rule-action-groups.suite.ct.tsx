@@ -46,6 +46,8 @@ import {
   ruleConnectionsName,
   ruleFieldAddName,
   ruleFieldRemoveConfirmName,
+  ruleKeywordSubject,
+  ruleSlotFollowsRoleLabel,
   ruleTestName,
   ruleTestResultName,
 } from "#client/features/automation/lib/automation-names.ts";
@@ -259,7 +261,7 @@ test.describe("rule editor field rows", () => {
       .click();
     await page.getByRole("button", { name: ruleConnectionsName(captured.name), exact: true }).click();
     const slot = page.getByRole("group", { name: role.heading, exact: true });
-    await expect(slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true })).toContainText(`Same as my ${role.label} role`);
+    await expect(slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true })).toContainText(ruleSlotFollowsRoleLabel(role.label));
     await expect(slot.getByRole("img", { name: ROLE_STATUS_LABELS.unset, exact: true })).toBeVisible();
     // The readout says what the fallback resolves to, so the picker and the readout read as one state.
     await expect(slot.getByText(RULE_UNSET_EFFECTS.generateImage ?? "", { exact: true })).toBeVisible();
@@ -592,8 +594,11 @@ test.describe("rule editor field rows", () => {
       .click();
     await page.getByRole("button", { name: editActionName(captured.name), exact: true }).click();
     const editor = page.getByRole("region", { name: RULE_EDITOR_NAME, exact: true });
-    await editor.getByRole("button", { name: "Remove keyword 1", exact: true }).click();
-    await page.getByRole("alertdialog", { name: "Remove keyword 1?", exact: true }).getByRole("button", { name: DIALOG_VERBS.remove, exact: true }).click();
+    await editor.getByRole("button", { name: removeActionName(ruleKeywordSubject(1)), exact: true }).click();
+    await page
+      .getByRole("alertdialog", { name: ruleFieldRemoveConfirmName(ruleKeywordSubject(1)), exact: true })
+      .getByRole("button", { name: DIALOG_VERBS.remove, exact: true })
+      .click();
     await expect(editor.getByRole("button", { name: RULE_ADD_KEYWORD_NAME, exact: true })).toBeFocused();
     await expect.poll(() => calls.lastInput("automation.updateRule")?.actions[0]).toMatchObject({ keys: ["harbour"] });
   });

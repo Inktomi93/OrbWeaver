@@ -16,6 +16,7 @@ import { buildIdentityAvatarMaps, buildIdentityNameContext } from "@orb/contract
 import { isHostRole } from "@orb/contracts/identity";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { timeLib } from "#lib";
+import { memberCharacterRowName } from "./members-names.ts";
 
 /** A PEOPLE (human) row view — projected by {@link toPersonRows} from `ParticipantView`. */
 export interface MemberPersonRow {
@@ -130,7 +131,7 @@ export function rowAccessibleName(row: MemberPersonRow | MemberCharacterRow): st
     // is the whole announcement — a colour-blind or screen-reader user reads the state a sighted one sees.
     return `${row.displayName}: ${role}${you}${nominated}${history}${presenceClause(row.online, row.lastSeenAt)}`;
   }
-  return `${row.displayName}: character${row.disabled ? ", muted" : ""}`;
+  return memberCharacterRowName(row.displayName, row.disabled);
 }
 
 /** What the committed roster hands the two projections below. `identities` is the chat's own member-gated

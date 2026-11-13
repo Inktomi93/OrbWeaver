@@ -11,6 +11,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { trackerValueName } from "#src/features/rpg/lib/tracker-names.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 export interface AmbientStripProps {
@@ -75,7 +76,7 @@ function AmbientVocabPicker({
         variant="ghost"
         step="label"
         data-slot="tracker-value-rest"
-        aria-label={`${fieldLabel} value`}
+        aria-label={trackerValueName(fieldLabel)}
         onClick={(): void => setOpen(true)}
         reserveEdge={true}
         inset="control"
@@ -208,7 +209,7 @@ function AmbientFieldControl({
   }
   return (
     <TrackerValue
-      ariaLabel={`${label} value`}
+      ariaLabel={trackerValueName(label)}
       display={value ?? ""}
       placeholder={NO_VALUE}
       onEdit={(next): void => onEditField(fieldKey, next)}

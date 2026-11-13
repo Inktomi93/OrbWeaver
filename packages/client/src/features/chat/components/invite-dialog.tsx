@@ -46,6 +46,7 @@ import {
   INVITE_OUTSTANDING_READ,
   INVITE_SEND_NAME,
   INVITE_TARGET_UNKNOWN_TEXT,
+  inviteRevokeName,
 } from "../lib/members-names.ts";
 
 type InviteView = inferOutput<Trpc["invites"]["listInvites"]>[number];
@@ -420,7 +421,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
       stackActionsAt="cq-24"
       actions={
         invite.status === "pending" ? (
-          <Button type="button" variant="ghost" size="sm" onClick={(): void => onRevoke(invite.id)} aria-label={`Revoke this ${kind.toLowerCase()}${target}`}>
+          <Button type="button" variant="ghost" size="sm" onClick={(): void => onRevoke(invite.id)} aria-label={inviteRevokeName(kind, target)}>
             Revoke
           </Button>
         ) : null

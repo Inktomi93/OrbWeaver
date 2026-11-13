@@ -9,7 +9,8 @@ import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serv
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 import { CHARACTER_SEARCH_NAME } from "#client/components/shared-control-names.ts";
-import { ANALYTICS_LEADERBOARD_NAME } from "#client/features/stats/lib/analytics-names.ts";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { ANALYTICS_LEADERBOARD_NAME, ANALYTICS_LEADERBOARD_READ_LABEL } from "#client/features/stats/lib/analytics-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -38,10 +39,10 @@ test("a held leaderboard read shows the loading skeleton, a failed one the share
   await hold.requested;
   await expect(page.getByTestId(testId("analyticsListSurface")).locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
-  await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(ANALYTICS_LEADERBOARD_READ_LABEL), { exact: true })).toBeVisible();
   failing = false;
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(ANALYTICS_LEADERBOARD_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(page.getByRole("list", { name: ANALYTICS_LEADERBOARD_NAME })).toBeVisible();
 });
 
@@ -54,9 +55,9 @@ test("a search typed after a failed read shows its rows instead of the standing 
   });
   await seedShellState(page, { activeSection: "analytics" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(ANALYTICS_LEADERBOARD_READ_LABEL), { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill("a");
-  await expect(page.getByText("Couldn't load the leaderboard.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(ANALYTICS_LEADERBOARD_READ_LABEL), { exact: true })).toHaveCount(0);
   await expect(page.getByRole("list", { name: ANALYTICS_LEADERBOARD_NAME })).toBeVisible();
 });
 

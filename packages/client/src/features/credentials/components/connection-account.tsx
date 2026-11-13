@@ -16,7 +16,7 @@ import { QueryErrorState, useSuspenseQuery } from "#data";
 import { useVerifySignIn } from "../hooks/use-connections-mutations.ts";
 import type { SignInVerdict } from "../lib/connection-account-model.ts";
 import { creditsLine, servesAccountCredits, servesSignInCheck, signInVerdict } from "../lib/connection-account-model.ts";
-import { ACCOUNT_CREDITS_LABEL, ACCOUNT_CREDITS_READING } from "../lib/credentials-names.ts";
+import { ACCOUNT_BALANCE_READ_LABEL, ACCOUNT_CREDITS_LABEL, ACCOUNT_CREDITS_READING } from "../lib/credentials-names.ts";
 
 export interface ConnectionAccountProps {
   readonly connectionId: UserConnectionId;
@@ -46,7 +46,7 @@ function AccountCreditsBlock({ connectionId, trpc }: { readonly connectionId: Us
         fallback={<Text voice="gloss">{ACCOUNT_CREDITS_READING}</Text>}
         renderError={(error, retry): ReactElement => (
           <>
-            <QueryErrorState label="the balance" onRetry={retry} />
+            <QueryErrorState label={ACCOUNT_BALANCE_READ_LABEL} onRetry={retry} />
             <Text tone="warning" voice="gloss">
               {errorMessage(error)}
             </Text>

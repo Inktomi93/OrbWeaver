@@ -4,7 +4,14 @@ import { holdServed } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_LIST_NAME, PRESET_SEARCH_NAME, presetActivateRowName } from "#client/features/preset/lib/preset-names.ts";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import {
+  PRESET_ACTIVE_RADIOGROUP_NAME,
+  PRESET_LIBRARY_READ_LABEL,
+  PRESET_LIST_NAME,
+  PRESET_SEARCH_NAME,
+  presetActivateRowName,
+} from "#client/features/preset/lib/preset-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { modalScenario, sectionScenario } from "./_surface-scenarios.ts";
@@ -71,7 +78,10 @@ test("an intentional read failure requires the actual error and recovery control
     name: "failed preset list",
     scope: failure,
     state: "error",
-    witnesses: [failure.getByText("Couldn't load your presets.", { exact: true }), failure.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })],
+    witnesses: [
+      failure.getByText(queryFailedLabel(PRESET_LIBRARY_READ_LABEL), { exact: true }),
+      failure.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }),
+    ],
     checks: ["names", "forms", "density"],
   });
   expect(report).toEqual({ names: [], forms: [], density: [] });

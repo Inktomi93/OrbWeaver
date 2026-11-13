@@ -127,3 +127,6 @@ export const EXTENSIONS_GONE_BODY = "Its plugin was disabled or removed. Pick an
 
 /** The Extensions list's search box. */
 export const EXTENSIONS_SEARCH_NAME = "Search plugin pages";
+
+/** What failed to load, said by a plugin page's read. */
+export const PLUGIN_PAGE_READ_LABEL = "this plugin page";

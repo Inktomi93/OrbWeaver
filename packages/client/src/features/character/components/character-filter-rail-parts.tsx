@@ -20,7 +20,7 @@ import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
 import { vocabularyPanelTags } from "../lib/character-library-lens.ts";
-import { CHARACTER_FEWER_TAGS_NAME, CHARACTER_FILTER_TAGS_NAME, CHARACTER_TAG_VOCABULARY_NAME } from "../lib/character-names.ts";
+import { CHARACTER_FEWER_TAGS_NAME, CHARACTER_FILTER_TAGS_NAME, CHARACTER_TAG_VOCABULARY_NAME, characterTagFilterName } from "../lib/character-names.ts";
 
 /** THE tag chip's own spelling — the state attribute each chip carries, which is also what the CTs address
  *  them by. One const, so the roving group and the markup can never name two different things. */
@@ -237,7 +237,7 @@ function TagFilterChipButton({
             event.preventDefault();
             edit();
           }}
-          aria-label={`Filter by ${tag.name}: ${presentation.announced}: ${presentation.next}`}
+          aria-label={characterTagFilterName(tag.name, presentation.announced, presentation.next)}
           cap="fit"
           className="min-inline-0"
           data-tag-filter-state={state}

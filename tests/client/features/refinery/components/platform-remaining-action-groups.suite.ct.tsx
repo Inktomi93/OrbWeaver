@@ -3,7 +3,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
+import { ENLARGED_APPEARANCE_SETTINGS, nameShape } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
@@ -169,7 +169,7 @@ test("each version's Compare and Restore name its version and its row shows the 
     width: 960,
     appearance: appearanceSettingsSchema.parse({}),
   });
-  const restores = page.getByRole("button", { name: /^Restore /u });
+  const restores = page.getByRole("button", { name: nameShape((label) => refineryRestoreVersionName(label)) });
   await expect(restores).toHaveCount(3);
   // The walk lists newest first; the ordinal counts from the oldest, so a later snapshot never renames an earlier one.
   const expected = [

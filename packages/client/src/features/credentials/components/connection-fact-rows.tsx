@@ -29,7 +29,7 @@ import { DestructiveAction } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
 import { boundRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
-import { ENDPOINT_QUIRKS_LABEL, FACT_RESET_VERB } from "../lib/credentials-names.ts";
+import { ENDPOINT_QUIRKS_LABEL, FACT_RESET_VERB, factOverrideName, factResetName, factSaveName, factYourValueName } from "../lib/credentials-names.ts";
 
 export interface FactRowListProps {
   readonly rows: readonly FactRow[];
@@ -103,14 +103,14 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
               confirm={{ confirmLabel: FACT_RESET_VERB, description: "Your override is removed.", title: `Reset ${row.name}?` }}
               onConfirm={(): void => onReset(row)}
               trigger={
-                <Button aria-label={`Reset ${row.name}`} disabled={busy} variant="ghost" size="sm">
+                <Button aria-label={factResetName(row.name)} disabled={busy} variant="ghost" size="sm">
                   {FACT_RESET_VERB}
                 </Button>
               }
             />
           ) : null}
           {row.overridden || row.setElsewhere === true ? null : (
-            <Button aria-label={`Override ${row.name}`} disabled={busy} variant="ghost" onClick={(): void => setEditing(true)} size="sm">
+            <Button aria-label={factOverrideName(row.name)} disabled={busy} variant="ghost" onClick={(): void => setEditing(true)} size="sm">
               Override
             </Button>
           )}
@@ -150,7 +150,7 @@ function FactOverrideEditor({
   return (
     <Row align="end" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
       <Stack className="min-inline-0" grow="fill" gap="tight">
-        <FactEditControl edit={row.edit} label={`${row.name}: your value`} value={draft} onChange={setDraft} />
+        <FactEditControl edit={row.edit} label={factYourValueName(row.name)} value={draft} onChange={setDraft} />
         {refusal === null ? (
           <Text voice="gloss">{editHint(row.edit)}</Text>
         ) : (
@@ -164,7 +164,7 @@ function FactOverrideEditor({
           {DIALOG_VERBS.cancel}
         </Button>
         <Button
-          aria-label={`Save your ${row.name}`}
+          aria-label={factSaveName(row.name)}
           disabled={busy || draft.trim() === "" || refusal !== null}
           onClick={(): void => onCommit(parseFactValue(row.edit, draft))}
           size="sm"

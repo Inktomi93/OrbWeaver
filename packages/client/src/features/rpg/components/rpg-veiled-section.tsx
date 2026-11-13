@@ -26,7 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
-import { veiledReasonLabel, veiledTruthLabel } from "../lib/rpg-names.ts";
+import { veiledFieldLine, veiledReasonLabel, veiledTruthLabel } from "../lib/rpg-names.ts";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 
@@ -67,7 +67,7 @@ function HiddenLogRow({
             <Stack gap="field">
               {fields.map((field) => (
                 <Text key={field.key} voice="gloss" ink="accolade" className="min-inline-0" wrap="anywhere">
-                  {field.key}: {field.value}
+                  {veiledFieldLine(field.key, field.value)}
                 </Text>
               ))}
             </Stack>

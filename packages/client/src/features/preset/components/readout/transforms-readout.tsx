@@ -35,7 +35,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { regexPlacementStep } from "#lib";
-import { PRESET_READOUT_STAGE_UNREAD } from "#src/features/preset/lib/preset-names.ts";
+import { PRESET_READOUT_STAGE_UNREAD, PRESET_TRANSFORMS_READ_LABEL } from "#src/features/preset/lib/preset-names.ts";
 
 // ONE VOCABULARY WITH THE CENTER (side-eye F-23): every step's name below is the string the control that
 // EDITS it carries — the regex placements come from the shared `regexPlacementStep` map the editor dialog's
@@ -94,7 +94,7 @@ export function TransformsReadout({
       fallback={<Pipeline attached={{ kind: "pending" }} config={config} />}
       renderError={(_error, retry): ReactElement => (
         <Stack gap="section">
-          <QueryErrorState label="the attached scripts" onRetry={retry} />
+          <QueryErrorState label={PRESET_TRANSFORMS_READ_LABEL} onRetry={retry} />
           <Pipeline attached={{ kind: "failed" }} config={config} />
         </Stack>
       )}

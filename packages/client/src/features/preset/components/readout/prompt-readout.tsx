@@ -42,6 +42,7 @@ import { trpcErrorCode, viewerTimeZone } from "#lib";
 import { isPlainMarkerSection, sectionKind } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
 import {
+  PRESET_BOUND_COSTS_READ_LABEL,
   PRESET_CHAT_HISTORY_LABEL,
   PRESET_HIDE_PREVIEW_NAME,
   PRESET_LITERAL_TEXT_LABEL,
@@ -135,7 +136,7 @@ function BoundPricing({
           <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={PRESET_READOUT_NOT_HOST_PRICED} />
         ) : (
           <>
-            <QueryErrorState label="the bound chat's costs" onRetry={retry} />
+            <QueryErrorState label={PRESET_BOUND_COSTS_READ_LABEL} onRetry={retry} />
             <PricedSections costs={null} sections={sections} selectedSectionId={selectedSectionId} status={null} />
           </>
         )

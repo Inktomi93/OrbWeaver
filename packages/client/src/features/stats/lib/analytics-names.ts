@@ -23,3 +23,14 @@ export const ANALYTICS_TOKENS_PER_DAY_NAME = "Output tokens per day";
 export function analyticsSortName(sort: string): string {
   return `Sort by ${sort}`;
 }
+
+/** What failed to load, said by the leaderboard's read. */
+export const ANALYTICS_LEADERBOARD_READ_LABEL = "the leaderboard";
+
+/** The note on a tab that cannot narrow to the opened character: the scope, then the tab's own reason. */
+export function libraryScopeNotice(reason: string): string {
+  return `Whole library: not just the character you opened. ${reason}`;
+}
+
+/** Why the Models tab reads the whole library. */
+export const ANALYTICS_MODELS_SCOPE_REASON = "Model usage is rolled up per model, with no per-character breakdown to narrow to.";

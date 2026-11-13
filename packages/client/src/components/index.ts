@@ -54,7 +54,7 @@ export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row.tsx";
 export { ConfigTeachScope, SettingRow } from "./setting-teach-row.tsx";
 export { SettingTrackRow } from "./setting-track-row.tsx";
 export { SettingsPane } from "./settings-pane.tsx";
-export { CHARACTER_SEARCH_NAME, CORNER_RADIUS_NAME, FONT_FIELD_NAME } from "./shared-control-names.ts";
+export { CHARACTER_SEARCH_NAME, CORNER_RADIUS_NAME, FONT_FIELD_NAME, TAG_READ_LABEL } from "./shared-control-names.ts";
 export { SkipToFirstRow } from "./skip-to-first-row.tsx";
 export type { StatusVocabulary } from "./status-chip.tsx";
 export { StatusChip } from "./status-chip.tsx";

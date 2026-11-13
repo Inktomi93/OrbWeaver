@@ -7,7 +7,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { RULE_WORLD_BOOK_NAME } from "../lib/automation-names.ts";
+import { RULE_WORLD_BOOK_NAME, RULE_WORLD_BOOKS_READ_LABEL } from "../lib/automation-names.ts";
 
 interface RuleBookFieldProps {
   readonly chatId: ChatId | null;
@@ -28,7 +28,7 @@ export function RuleBookField(props: RuleBookFieldProps): ReactElement {
     <QueryBoundary
       resetKeys={[props.chatId]}
       fallback={<SkeletonRows count={2} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="world books" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={RULE_WORLD_BOOKS_READ_LABEL} onRetry={retry} />}
     >
       {props.chatId === null ? <OwnedBookField {...props} /> : <AttachedBookField {...props} chatId={props.chatId} />}
     </QueryBoundary>

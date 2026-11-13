@@ -139,3 +139,29 @@ export function removeKeyName(subject: string): string {
 export function removeKeyTitle(subject: string): string {
   return `${removeKeyName(subject)}?`;
 }
+
+/** What failed to load, said by the account card's balance read. */
+export const ACCOUNT_BALANCE_READ_LABEL = "the balance";
+
+/** The connection facts a test reaches by name; each is the fact row's own name. */
+export const FACT_NAMES = { summarizeConcurrency: "utility calls at once", maxOutput: "max output" } as const;
+
+/** A fact row's controls, named for the fact: the override door, the typed value, its save and its reset. */
+export function factOverrideName(fact: string): string {
+  return `Override ${fact}`;
+}
+export function factYourValueName(fact: string): string {
+  return `${fact}: your value`;
+}
+export function factSaveName(fact: string): string {
+  return `Save your ${fact}`;
+}
+export function factResetName(fact: string): string {
+  return `${FACT_RESET_VERB} ${fact}`;
+}
+
+/** The prompt-cache retention field's label, and its select, named for the connection it sets. */
+export const PROMPT_CACHE_RETENTION_FIELD_LABEL = "Provider prefix retention";
+export function promptCacheRetentionName(connection: string): string {
+  return `${PROMPT_CACHE_RETENTION_FIELD_LABEL} on ${connection}`;
+}

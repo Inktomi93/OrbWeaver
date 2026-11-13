@@ -17,10 +17,13 @@
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import { corpusReadInput } from "@orb/testkit/iso";
 import { CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#client/lib/account-field-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
+import { contentRegionName } from "#client/lib/context-pane-names.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
@@ -30,7 +33,8 @@ import { trpc } from "./support/trpc.ts";
 // project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and
 // a hardcoded probe there would have reported the operator's dev stack's health instead of the harness's).
 const HEALTHZ_URL = `${SINGLE_USER.backendUrl}/healthz`;
-const LOGIN_FIELD = /password|handle|username/u;
+// The sign-in form's two fields; either one on the page means the boot fell back to login.
+const LOGIN_FIELD = new RegExp(`^(?:${RegExp.escape(ACCOUNT_HANDLE_FIELD_NAME)}|${RegExp.escape(ACCOUNT_PASSWORD_FIELD_NAME)})$`, "u");
 // The app's one URL — what a section deep link must LAND on (#181).
 const APP_URL = /\/$/u;
 const APP_READY = `html[${APP_READY_ATTR}]`;
@@ -94,7 +98,7 @@ test("a section deep link boots the app and lands on the one app URL", { tag: "@
   await expect(page.locator(NOT_FOUND_DECLARE)).toHaveCount(0);
   const main = isMobile
     ? page.getByRole("main").filter({ has: page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }) })
-    : page.getByRole("main", { name: "Chats content", exact: true });
+    : page.getByRole("main", { name: contentRegionName(SECTION_LABELS.chats), exact: true });
   await expect(main).toBeVisible();
   // The address bar is where in-app rail navigation leaves it — one URL story for both entrances.
   await expect(page).toHaveURL(APP_URL);
@@ -124,7 +128,7 @@ test("the home page renders the home surface (tRPC query works)", {
   // (The chats-LIST surface — `getByRole("list", { name: "Chats list" })` — moved to the Chats SECTION in this
   // rework; it no longer lives on `/`, which is exactly the stale coupling this test used to carry.)
   await expect(page.locator(APP_READY)).toBeAttached({ timeout: WAIT_SETTLE_MS });
-  const home = page.getByRole("main", { name: "Home content" });
+  const home = page.getByRole("main", { name: contentRegionName(SECTION_LABELS.home), exact: true });
   await expect(home).toBeVisible({ timeout: WAIT_UI_MS });
   await expect(home.getByRole("button", { name: START_TEMP_CHAT_NAME, exact: true })).toBeVisible();
   await expect(home.locator(QUERY_ERROR)).toHaveCount(0);

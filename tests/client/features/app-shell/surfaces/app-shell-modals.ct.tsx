@@ -8,10 +8,11 @@ import type { ThemeId } from "@orb/kit/ids";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { forEachNonEmpty } from "@orb/testkit/iso";
+import { forEachNonEmpty, nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { pickerShowingLine } from "#client/components/shared-control-names.ts";
 import { YOU_SHEET_MORE_HEADING } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
@@ -595,7 +596,7 @@ test.describe("New chat over a library longer than one page, at 844x390", () => 
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
     const dialog = page.getByRole("dialog");
     // The positive control: the census line is on screen, so the rows below are counted beside it.
-    await expect(dialog.getByText(/^Showing \d+ of \d+$/u)).toBeVisible();
+    await expect(dialog.getByText(nameShape((count) => pickerShowingLine(count, count)))).toBeVisible();
     await expect.poll(() => dialog.locator('[data-slot="command-list"]').evaluate(wholeRowCount)).toBeGreaterThanOrEqual(3);
   });
 });

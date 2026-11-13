@@ -9,6 +9,7 @@ import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { trackerFieldName, trackerValueName } from "#src/features/rpg/lib/tracker-names.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export function StatCell({ label, value, hint, onEditValue, range }: StatCellPro
           </Text>
         ) : (
           <TrackerValue
-            ariaLabel={`${label} value`}
+            ariaLabel={trackerValueName(label)}
             display={value === null ? "" : String(value)}
             // The rest state's em-dash for an unset-but-editable cell — TrackerValue renders `placeholder` muted
             // when the display is empty, which is the same "intentionally blank, not unfinished" arm every other
@@ -120,7 +121,12 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
           {value}
         </Text>
       ) : (
-        <TrackerValue ariaLabel={subject === undefined ? `${label} value` : `${subject} ${label}`} display={value} onEdit={onEditValue} width="auto" />
+        <TrackerValue
+          ariaLabel={subject === undefined ? trackerValueName(label) : trackerFieldName(label, subject)}
+          display={value}
+          onEdit={onEditValue}
+          width="auto"
+        />
       )}
     </Badge>
   );

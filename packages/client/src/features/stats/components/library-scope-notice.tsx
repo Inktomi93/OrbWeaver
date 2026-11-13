@@ -15,6 +15,7 @@
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useSelectedAnalyticsCharacterId } from "#state";
+import { libraryScopeNotice } from "../lib/analytics-names.ts";
 
 /** `reason` names WHY this tab can't scope, in the reader's terms — one clause, no table names. */
 export function LibraryScopeNotice({ reason }: { readonly reason: string }): ReactElement | null {
@@ -24,7 +25,7 @@ export function LibraryScopeNotice({ reason }: { readonly reason: string }): Rea
   }
   return (
     <Text voice="gloss" role="note" data-slot="analytics-library-scope" prose={true} cap="prose">
-      Whole library: not just the character you opened. {reason}
+      {libraryScopeNotice(reason)}
     </Text>
   );
 }

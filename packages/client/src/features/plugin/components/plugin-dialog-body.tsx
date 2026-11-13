@@ -21,7 +21,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { openConfigTo, usePluginDialogSubject } from "#state";
 import { EXTENSIONS_OPEN_PLUGINS_ACTION } from "../lib/extensions-copy.ts";
-import { PLUGIN_DIALOG_GONE_BODY, PLUGIN_DIALOG_GONE_TITLE, PLUGIN_DIALOG_LOADING_NAME } from "../lib/plugin-panel-copy.ts";
+import { PLUGIN_DIALOG_GONE_BODY, PLUGIN_DIALOG_GONE_TITLE, PLUGIN_DIALOG_LOADING_NAME, PLUGIN_DIALOG_READ_LABEL } from "../lib/plugin-panel-copy.ts";
 import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
@@ -60,7 +60,7 @@ export function PluginDialogBody(): ReactElement {
           <SkeletonRows count={2} shape="line" />
         </Stack>
       }
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this plugin dialog" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={PLUGIN_DIALOG_READ_LABEL} onRetry={retry} />}
     >
       <ResolvedPluginDialog subject={subject} />
     </QueryBoundary>

@@ -9,7 +9,8 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_NO_CARDS_LINE } from "#client/features/rpg/lib/rpg-names.ts";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_CARDS_READ_LABEL, RPG_SCENE_NO_CARDS_LINE } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
@@ -69,7 +70,7 @@ test("a failed archive read renders the shared error state directly under the se
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
   const error = archive.locator(':scope > [data-slot="query-error"]');
-  await expect(error.getByRole("status")).toHaveText("Couldn't load this game's cards.");
+  await expect(error.getByRole("status")).toHaveText(queryFailedLabel(RPG_SCENE_CARDS_READ_LABEL));
   await expect(archive.getByRole("heading", { level: 3 })).toHaveCount(1);
   await expect(archive).not.toHaveRole("region");
 

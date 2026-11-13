@@ -4,6 +4,7 @@ import { Row } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactNode } from "react";
+import { contextDividerText } from "../lib/chat-surface-names.ts";
 import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
 export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string | undefined, compactSummary?: string | null | undefined): ReactNode {
   if (!show) {
@@ -21,7 +22,7 @@ export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string
           at AA whatever part of the photo sits behind them. The hairlines meet the plate, not the text. */}
       <Row gap="field" align="center" plate="island" paddingInline="tight">
         <Text voice="kicker" ink="inherit">
-          {compacted ? "Older messages compacted into a summary" : "In context from here"}
+          {contextDividerText(compacted)}
           {budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}
         </Text>
         {compacted ? <CompactSummaryPeek summary={compactSummary} /> : null}

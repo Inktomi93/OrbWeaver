@@ -24,6 +24,8 @@ import {
   IMPORT_FILE_PICKER_NAME,
   IMPORT_FOLDER_NAME,
   IMPORT_INTRO_LEAD,
+  importFilePreflightTitle,
+  importFolderPreflightTitle,
 } from "#client/features/workloads/lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
@@ -143,7 +145,7 @@ for (const regime of REGIMES) {
       const chooserPromise = page.waitForEvent("filechooser");
       await page.keyboard.press("Enter");
       await (await chooserPromise).setFiles({ name: "import-action-card.png", mimeType: "image/png", buffer: bytes });
-      const preflight = page.getByRole("group", { name: "Import “import-action-card.png”?", exact: true });
+      const preflight = page.getByRole("group", { name: importFilePreflightTitle("import-action-card.png"), exact: true });
       await expect(preflight).toBeFocused();
       const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true });
       const cancel = preflight.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
@@ -207,7 +209,7 @@ for (const regime of REGIMES) {
       const reviewResponsePromise = page.waitForResponse((response) => new URL(response.url()).pathname === PORTABILITY_ROUTES.importTreeReview);
       await (await chooserPromise).setFiles(folder);
       // The pick moves focus onto the preflight once the async plan stages it, so the picker only holds focus until then.
-      const preflight = page.getByRole("group", { name: "Import 2 files from the folder you picked?", exact: true });
+      const preflight = page.getByRole("group", { name: importFolderPreflightTitle(2), exact: true });
       await expect(preflight).toBeFocused();
       const reviewResponse = await reviewResponsePromise;
       expect(reviewResponse.status()).toBe(200);

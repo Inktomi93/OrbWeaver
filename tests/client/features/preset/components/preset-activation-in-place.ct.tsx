@@ -13,7 +13,13 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { PRESET_ACTIVATE_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_ACTIVE_STATUS, PRESET_EDITOR_NAME } from "#client/features/preset/lib/preset-names.ts";
+import {
+  PRESET_ACTIVATE_NAME,
+  PRESET_ACTIVE_RADIOGROUP_NAME,
+  PRESET_ACTIVE_STATUS,
+  PRESET_EDITOR_NAME,
+  presetActivateRowName,
+} from "#client/features/preset/lib/preset-names.ts";
 import type { PresetActivationStory } from "./_preset-activation-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-activation-stories/PresetActivationStory";
@@ -92,7 +98,7 @@ test("pressing a row's radio activates its preset: the radio is checked and stil
     .filter({ has: page.getByRole("button", { name: preset.name, exact: true }) })
     .getByRole("radio");
   await events.listening;
-  await expect(radio).toHaveAccessibleName(`Activate ${preset.name} for generation`);
+  await expect(radio).toHaveAccessibleName(presetActivateRowName(preset.name));
   await expect(radio).not.toBeChecked();
 
   await radio.click();

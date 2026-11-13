@@ -1,6 +1,6 @@
 // A Labels prune or delete removes the control that opened its confirm, so the close must land on the finder root.
 
-import { ROW_DELETE_NAME, rowActionsName } from "@orb/client/lib";
+import { pruneConfirmLabel, ROW_DELETE_NAME, rowActionsName } from "@orb/client/lib";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -43,7 +43,9 @@ for (const pointer of POINTERS) {
     await press(overflow, pointer);
     await press(page.getByRole("menuitem", { name: TAG_PRUNE_NAME }), pointer);
     const confirm = page.getByRole("alertdialog");
-    await press(confirm.getByRole("button", { name: /^Delete/u }), pointer);
+    // The corpus may hold other unused tags, so the commit reads for one or for several.
+    const commit = new RegExp(`^(?:${RegExp.escape(pruneConfirmLabel(1))}|${RegExp.escape(pruneConfirmLabel(2))})$`, "u");
+    await press(confirm.getByRole("button", { name: commit }), pointer);
     // The rows refresh from the user bus, which no component mount carries; the focus handoff is the subject.
     await expect(confirm).toHaveCount(0);
     await expect(page.locator('[data-slot="labels-finder"]')).toBeFocused();
