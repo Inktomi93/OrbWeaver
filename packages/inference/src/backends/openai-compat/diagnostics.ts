@@ -151,7 +151,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
   try {
     const models: ModelCatalogEntry[] =
       connection.provider.dialect === "openrouter"
-        ? await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, warn: deps.warn, ...(req.signal !== undefined ? { signal: req.signal } : {}) })
+        ? await fetchOpenRouterCatalog({ fetch: deps.fetch, baseUrl, ...(req.signal !== undefined ? { signal: req.signal } : {}) })
         : (
             await fetchEndpointModels({
               scheduleTimeout: deps.scheduleTimeout,

@@ -8,7 +8,7 @@ import type { ChatRequest, ChatResult, OpenAiCompatChatRequest, StructuredReques
 import { ProviderError } from "#contract";
 import { runSideGen } from "#roles";
 import type { DiagnosticRequestCommon } from "#src/contract/diagnostics.ts";
-import type { DiagnosticsDeps, OpenAiCompatBackend, OpenAiCompatBackendDeps, ReachabilityProber, TransportDeps } from "#src/contract/openai-backend.ts";
+import type { OpenAiCompatBackend, OpenAiCompatBackendDeps, ReachabilityProber, TransportDeps } from "#src/contract/openai-backend.ts";
 import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../wire/image-normalize.ts";
 import { runOpenAiCompatChatTurn } from "./chat.ts";
@@ -82,15 +82,7 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
     transport,
     tokens,
   };
-  const diagnostics: DiagnosticsDeps = {
-    fetch: deps.fetch,
-    now: deps.now,
-    scheduleTimeout: deps.scheduleTimeout,
-    // Wrapped: pino's level methods read `this`, so a detached `deps.log.warn` throws when called.
-    warn: (fields, message) => {
-      deps.log.warn(fields, message);
-    },
-  };
+  const diagnostics = { fetch: deps.fetch, now: deps.now, scheduleTimeout: deps.scheduleTimeout };
   const reachability = createReachabilityProber({ fetch: deps.fetch, now: deps.now, scheduleTimeout: deps.scheduleTimeout });
   const awake = wakeBeforeSend(reachability);
   const chatTurn = async (req: ChatRequest): Promise<ChatResult> => {
