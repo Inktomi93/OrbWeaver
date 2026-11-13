@@ -733,6 +733,9 @@ const SERVER_TEST_REACHES = {
   "tests/server/foundation/env/record/secret-file.int.test.ts": {
     "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key by its production name",
   },
+  "tests/server/foundation/env/record/child-refused-names.test.ts": {
+    "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key in each letter case the child environment refuses",
+  },
   "tests/server/foundation/observability/bug-report-diagnostics.test.ts": {
     "foundation/data-layout": "DATABASE_URL_KEY: the suite sets the database key by its production name",
   },

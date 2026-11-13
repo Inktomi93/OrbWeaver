@@ -30,7 +30,7 @@ import { readGlobalSettings } from "#domain/settings";
 import type { RelayController } from "#domain/share";
 import type { Env } from "#foundation/env/record";
 import { allowedHostsInput, resolveAllowedHosts } from "#foundation/env/record";
-import type { AuditWiring, Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";
+import type { AuditWiring, DebugRoutesOptions, Logger, MemoryRecallInspector, ObservabilityRings, RpgTraceInspector } from "#foundation/observability";
 import { createRequestObservability, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
@@ -209,6 +209,8 @@ export interface AppDeps {
   /** The parsed env record (`createProcessSeams`, or a test root's own parse): the IP and Host allowlists, the trusted
    *  hops, the debug token, the client bundle and the build posture this app reads. */
   readonly env: Env;
+  /** The environment the debug surface's bug-report `git` child starts with. */
+  readonly childProcessEnv: DebugRoutesOptions["childProcessEnv"];
   readonly physicalPeer?: PhysicalPeerRead;
   readonly liveBuses: LiveBuses;
   readonly importStagingDir: string;
@@ -525,6 +527,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     now: deps.now,
     auditFailures: deps.auditFailures,
     env: deps.env,
+    childProcessEnv: deps.childProcessEnv,
     db: deps.db,
     appSettingRows: () => readGlobalSettings(deps.db),
     // The multiplexed-socket counter (SSE-1 §12) — the starvation regression pin. Injected as data because

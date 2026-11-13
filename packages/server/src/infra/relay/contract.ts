@@ -1,6 +1,7 @@
 // The relay adapter's contract: the cloudflared pin's shape, the injected download and spawn seams, and the launcher
 // port the share domain's relay controller drives. db-free and domain-free, like every infra contract.
 
+import type { InferenceDeps } from "@orb/inference";
 import type { ScheduleOp } from "@orb/kit/time";
 
 /** The node `${process.platform}-${process.arch}` pairs cloudflared publishes a build for. */
@@ -84,6 +85,8 @@ export interface RelayExecutionDeps {
   readonly fetch: RelayAssetFetch;
   /** Arms the SIGKILL grace for a native child that ignores its stop; the root passes its unref'd timer. */
   readonly schedule: ScheduleOp;
+  /** The environment the archive extractor (`tar`) starts with. */
+  readonly childEnv: InferenceDeps["env"]["childProcessEnv"];
   readonly spawn?: SpawnRelay;
 }
 

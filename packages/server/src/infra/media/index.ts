@@ -8,6 +8,7 @@ import { join } from "node:path";
 import type { Readable } from "node:stream";
 import type { VideoMaxResolution } from "@orb/contracts/inference";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
+import type { InferenceDeps } from "@orb/inference";
 import type { ScheduleOp } from "@orb/kit/time";
 import { ffmpegPath } from "node-av/ffmpeg";
 import type { PrepareVideo } from "./contract.ts";
@@ -157,7 +158,7 @@ async function collectVideoOutput(
 
 /** Bind the decoder's owned deadline to the root's timer without replacing the caller's cancellation signal. The root
  *  passes an unref'd timeout, so a pending transcode deadline never holds the process open. */
-export function createVideoPreparer(scheduleTimeout: ScheduleOp): PrepareVideo {
+export function createVideoPreparer(scheduleTimeout: ScheduleOp, childEnv: InferenceDeps["env"]["childProcessEnv"]): PrepareVideo {
   return async function prepare(bytes, mime, resolution, options = {}) {
     const { signal, maxBytes = ASSET_UPLOAD_MAX_BYTES } = options;
     signal?.throwIfAborted();
@@ -179,7 +180,7 @@ export function createVideoPreparer(scheduleTimeout: ScheduleOp): PrepareVideo {
       await writeFile(input, bytes, { mode: 0o600, ...(signal === undefined ? {} : { signal }) });
       signal?.throwIfAborted();
       const argv = videoArguments(input, demuxer, resolution, maxBytes);
-      const child = spawn(ffmpegPath(), argv, { cwd: directory, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawn(ffmpegPath(), argv, { cwd: directory, shell: false, stdio: ["ignore", "pipe", "pipe"], env: childEnv() });
       return await collectVideoOutput(child, maxBytes, signal, scheduleTimeout);
     } finally {
       await rm(directory, { recursive: true, force: true });

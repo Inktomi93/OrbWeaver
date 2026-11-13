@@ -805,6 +805,18 @@ export function childRefusedEnvNames(source: Readonly<Record<string, string | un
   return Object.keys(source).filter((name) => isSecretEnvKey(name) || RESERVED_CLAUDE_KEYS.includes(name.toUpperCase()));
 }
 
+/**
+ * The environment a child process outside the agent SDK starts with: `source` without the names
+ * {@link childRefusedEnvNames} lists, and without unset values.
+ * @remarks Not an allowlist (the agent SDK and the plugin processes keep theirs): every other variable keeps the host's
+ * own name and value, so `Path`, `SystemRoot`, `TEMP` and the locale reach the child as they reach a shell, and a
+ * Windows child still starts.
+ */
+export function childEnvFrom(source: Readonly<Record<string, string | undefined>>): Record<string, string> {
+  const refused = new Set(childRefusedEnvNames(source));
+  return Object.fromEntries(Object.entries(source).flatMap(([name, value]) => (value === undefined || refused.has(name) ? [] : [[name, value] as const])));
+}
+
 /** The schema's own secrets, which the parse also reads from `<KEY>_FILE`. */
 export const APP_SECRET_ENV_KEYS: readonly EnvKey[] = ENV_KEYS.filter(isSecretEnvKey);
 

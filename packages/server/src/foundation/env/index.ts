@@ -14,7 +14,7 @@ import { isSupervised } from "@orb/kit/supervisor";
 import { errnoCode } from "#primitives/errno";
 import { CONTAINER_MARKER_FILES } from "./container.ts";
 import type { Env } from "./record/index.ts";
-import { childRefusedEnvNames, parseEnv } from "./record/index.ts";
+import { childEnvFrom, childRefusedEnvNames, parseEnv } from "./record/index.ts";
 
 export { resolveAllowedHosts } from "./allowed-hosts.ts";
 export { diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "./diagnostics.ts";
@@ -146,9 +146,15 @@ export function scrubAppSecretsFromProcessEnv(): void {
   }
 }
 
-/** The raw `process.env` snapshot — the baseline the agent-sdk child env builders spread. */
+/** The raw `process.env` snapshot every child env builder starts from. */
 function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };
+}
+
+/** The environment every inheriting child process takes: this process's current environment through
+ *  {@link childEnvFrom}, read at each spawn. */
+export function childProcessEnv(): Readonly<Record<string, string>> {
+  return childEnvFrom(processEnvSnapshot());
 }
 
 /** The agent child-env baseline excludes absent variables; each call reads the current process snapshot. */
