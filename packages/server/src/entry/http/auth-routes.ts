@@ -573,7 +573,7 @@ export interface AuthRoutesDeps {
   readonly publicHttpMintNotice?: PublicHttpMintNotice;
   /** D259 — present in local mode; registers the signup-through-invite route. */
   readonly signup?: SignupRouteDeps;
-  /** The deployment's trusted hops (`trustedProxiesOf`): every client-address and transport read here believes only these. */
+  /** The deployment's trusted hops (`FORWARD_AUTH_TRUSTED_PROXIES`): every client-address and transport read here believes only these. */
   readonly trustedProxies: readonly string[];
 }
 

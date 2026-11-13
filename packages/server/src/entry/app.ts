@@ -36,7 +36,7 @@ import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader, AuthConfig } from "#infra/auth";
 import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, ownerFallbackAllowed, requestTransport } from "#infra/auth";
 import type { PhysicalPeerRead } from "#infra/network";
-import { clientIp, createPhysicalPeerMiddleware, ipAllowlistMiddleware, parseAllowlist, peerIp, trustedProxiesOf } from "#infra/network";
+import { clientIp, createPhysicalPeerMiddleware, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
 import type { ContextForRequest, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter } from "../transport/trpc/index.ts";
@@ -283,7 +283,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   const { observability, observabilityErrorHandler } = createRequestObservability(deps.logger, deps.rings, deps.now);
   // SECURITY: one list for every forwarded-header read below, so the client address, the Host check and the cookie
   // transport can never disagree about which peer is a trusted hop.
-  const trustedProxies = trustedProxiesOf(deps.env);
+  const trustedProxies = deps.env.FORWARD_AUTH_TRUSTED_PROXIES;
 
   const multiHumanCapable = deps.multiHumanCapable ?? createMultiHumanCapability(authMode, () => deps.services.settings.getEffectiveConfig());
   // One live read for the sign-in page and the signed-out invite previews, which both keep login handles off the page.

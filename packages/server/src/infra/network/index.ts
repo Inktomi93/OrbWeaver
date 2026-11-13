@@ -32,7 +32,6 @@ export {
   isTrustedHop,
   parseAllowlist,
   peerIp,
-  trustedProxiesOf,
 } from "./ingress.ts";
 export { isInRanges, isPrivateOrLoopback, isPublicUnicast } from "./ip-ranges.ts";
 export { createNetworkPluginGitSource } from "./plugin-git.ts";

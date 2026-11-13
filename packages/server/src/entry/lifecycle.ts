@@ -38,15 +38,7 @@ import { createAuditWiring, createDetachedSupervision, initTracing, wrapLibSqlCl
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
 import { bootSecretProvenance, keyfileReport, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import {
-  drainHttpServer,
-  egressAllowlistWarnings,
-  installEgressFirewall,
-  SHUTDOWN_DRAIN_MS,
-  SHUTDOWN_MESSAGES,
-  serveHttpServer,
-  trustedProxiesOf,
-} from "#infra/network";
+import { drainHttpServer, egressAllowlistWarnings, installEgressFirewall, SHUTDOWN_DRAIN_MS, SHUTDOWN_MESSAGES, serveHttpServer } from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 
 import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
@@ -623,7 +615,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ownerPeers,
       ownerPeerWarnings: ownerFallbackPeerWarnings(ownerPeers),
       diagnosticsWarnings: diagnosticsPostureWarnings(diagnostics),
-      forwardHeaderUnsignedClosed: env.AUTH_MODE === "forward-header" && trustedProxiesOf(env).length === 0,
+      forwardHeaderUnsignedClosed: env.AUTH_MODE === "forward-header" && env.FORWARD_AUTH_TRUSTED_PROXIES.length === 0,
       forwardHeaderSignedClosed: env.AUTH_MODE === "forward-header" && env.FORWARD_AUTH_VERIFY_JWT && env.FORWARD_AUTH_JWKS === undefined,
       egressAllowlistWarnings: egressAllowlistWarnings(env.EGRESS_ALLOWLIST),
       secrets: bootSecretProvenance({ ...secretLocation, sessionSecret: env.SESSION_SECRET, credentialsKey: env.CREDENTIALS_KEY }),
