@@ -203,7 +203,7 @@ test("equal cards, transcripts, orphan directories and groups the planner sends 
   expect(after.chats - before.chats).toBe(willWrite(merged, "chats"));
   expect(after.presets - before.presets).toBe(willWrite(merged, "presets"));
   expect([after.characters - before.characters, after.chats - before.chats, after.presets - before.presets]).toEqual([2, 3, 1]);
-  for (const kind of ["characters", "chats", "orphans", "groups"] as const) {
+  for (const kind of ["characters", "chats", "orphans", "groups"] as const satisfies readonly ImportPreviewKind[]) {
     const alone = previews.reduce((sum, preview) => sum + willWrite(preview, kind), 0);
     expect(alone, kind).toBeGreaterThan(willWrite(merged, kind));
   }

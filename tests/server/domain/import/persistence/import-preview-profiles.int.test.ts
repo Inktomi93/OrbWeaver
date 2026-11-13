@@ -294,7 +294,7 @@ test("a dry run stored with the older bare-string source reads without its resul
   const unreadable = listed.find((row) => row.id === stale);
   expect(unreadable).toMatchObject({ poison: false, result: null, params: { dryRun: true } });
   expect(readable).toMatchObject({ poison: false });
-  expect(readable?.result).not.toBeNull();
+  expect(present(readable).result).not.toBeNull();
   await expect(root.services.workloads.get({ caller, id: stale })).resolves.toMatchObject({ poison: false, result: null });
 });
 
