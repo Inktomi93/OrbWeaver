@@ -19,6 +19,7 @@ import { localLightCpuPercentSchema } from "@orb/contracts/inference";
 import { RESERVED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
+import { envNameKey } from "@orb/kit/env-file";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle } from "@orb/kit/ids";
 import { trimEndWhile } from "@orb/kit/strings";
@@ -97,7 +98,7 @@ const LAUNCH_ONLY_ENV_KEYS = [
  *  no branch in the parse. Every declared key gets its own issue — an operator who pinned two sees two. */
 function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx, inContainer: boolean, envFileKeys: ReadonlySet<string>): void {
   for (const entry of LAUNCH_ONLY_ENV_KEYS) {
-    if (envFileKeys.has(entry.key)) {
+    if ([...envFileKeys].some((name) => envNameKey(name) === envNameKey(entry.key))) {
       ctx.addIssue({ code: "custom", path: [entry.key], message: `${entry.key} must not be set in .env — ${entry.why(inContainer)}` });
     }
   }
@@ -746,10 +747,47 @@ export type EnvKey = keyof z.input<typeof envObjectSchema>;
 /** Every key the env schema reads, derived from the schema so a new key joins it. */
 export const ENV_KEYS: readonly EnvKey[] = envObjectSchema.keyof().options;
 
-/** Parse a raw env input the way boot parses the process: `<KEY>_FILE` secrets read in, then the schema.
+// Each set name grouped under its {@link envNameKey}.
+function spellingsOf(names: Iterable<string>): Map<string, string[]> {
+  const byKey = new Map<string, string[]>();
+  for (const name of names) {
+    byKey.set(envNameKey(name), [...(byKey.get(envNameKey(name)) ?? []), name]);
+  }
+  return byKey;
+}
+
+// The parse reads a name in any letter case on every platform, because Windows does and the scrub drops it in any
+// case: a Windows `database_url` is the database URL. Two spellings of one name, which only a case-sensitive platform
+// or a `.env` file can hold, are refused rather than one chosen; the message names the spellings, never a value.
+function underSchemaNames(source: EnvParseInput["source"], envFileKeys: ReadonlySet<string>): Record<string, string | undefined> {
+  const present = spellingsOf(Object.keys(source).filter((name) => source[name] !== undefined));
+  const declared = spellingsOf(envFileKeys);
+  const issues = PARSED_ENV_NAMES.flatMap((name) => {
+    const inEnv = present.get(envNameKey(name)) ?? [];
+    const inFile = declared.get(envNameKey(name)) ?? [];
+    return [
+      ...(inEnv.length > 1 ? [`${inEnv.join(" and ")} both set ${name}; keep one spelling.`] : []),
+      ...(inFile.length > 1 ? [`.env declares ${name} as ${inFile.join(" and ")}; keep one line.`] : []),
+    ].map((message) => ({ code: "custom" as const, path: [name], message }));
+  });
+  if (issues.length > 0) {
+    throw new EnvRefusedError(new z.ZodError(issues));
+  }
+  const input = { ...source };
+  for (const name of PARSED_ENV_NAMES) {
+    const [spelling] = present.get(envNameKey(name)) ?? [];
+    if (spelling !== undefined && spelling !== name) {
+      input[name] = source[spelling];
+    }
+  }
+  return input;
+}
+
+/** Parse a raw env input the way boot parses the process: each name in any letter case, `<KEY>_FILE` secrets read in,
+ *  then the schema.
  *  @throws EnvRefusedError naming each refused key, or an unreadable secret file. */
 export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput): Env {
-  const input = { ...source };
+  const input = underSchemaNames(source, envFileKeys);
   for (const key of APP_SECRET_ENV_KEYS) {
     const fileKey = `${key}_FILE`;
     const file = input[fileKey];
@@ -788,18 +826,17 @@ const SECRET_ENV_KEY_SHAPE = /(?:_SECRET|_KEY|_TOKEN|_PASSWORD)$/iu;
 /** Whether `key` names a secret no child process may inherit: a credential-shaped name, or the database URL, which
  *  can carry a token. Any letter case matches, because Windows reads `database_url` as the same variable. */
 export function isSecretEnvKey(key: string): boolean {
-  return key.toUpperCase() === DATABASE_URL_KEY || SECRET_ENV_KEY_SHAPE.test(key);
+  return envNameKey(key) === envNameKey(DATABASE_URL_KEY) || SECRET_ENV_KEY_SHAPE.test(key);
 }
 
-// The agent SDK child's own keys (D8): its builder pins or refuses each, and no other child may inherit one. Every
-// member is upper case, so an upper-cased name is matched against it.
-const RESERVED_CLAUDE_KEYS: readonly string[] = RESERVED_CLAUDE_ENV_KEYS;
+// The agent SDK child's own keys (D8): its builder pins or refuses each, and no other child may inherit one.
+const RESERVED_CLAUDE_KEYS: readonly string[] = RESERVED_CLAUDE_ENV_KEYS.map(envNameKey);
 
 /** The names in `source` no child process outside the agent SDK may inherit: every secret {@link isSecretEnvKey}
  *  names and every reserved agent SDK key, in any letter case. Windows reads `claude_config_dir` as
  *  `CLAUDE_CONFIG_DIR`; where names are case-sensitive and both spellings exist, both are listed. */
 export function childRefusedEnvNames(source: Readonly<Record<string, string | undefined>>): string[] {
-  return Object.keys(source).filter((name) => isSecretEnvKey(name) || RESERVED_CLAUDE_KEYS.includes(name.toUpperCase()));
+  return Object.keys(source).filter((name) => isSecretEnvKey(name) || RESERVED_CLAUDE_KEYS.includes(envNameKey(name)));
 }
 
 /**
@@ -816,6 +853,9 @@ export function childEnvFrom(source: Readonly<Record<string, string | undefined>
 
 /** The schema's own secrets, which the parse also reads from `<KEY>_FILE`. */
 export const APP_SECRET_ENV_KEYS: readonly EnvKey[] = ENV_KEYS.filter(isSecretEnvKey);
+
+// Every name one parse reads: the schema's keys and each secret's `<KEY>_FILE`.
+const PARSED_ENV_NAMES: readonly string[] = [...ENV_KEYS, ...APP_SECRET_ENV_KEYS.map((key) => `${key}_FILE`)];
 
 /** The three stamps the persona auto-create policy reads. */
 type PersonaSeedStamps = Pick<Env, "E2E_HARNESS" | "DEV_SEED" | "E2E_FIRST_RUN_ASK_HANDLES">;
