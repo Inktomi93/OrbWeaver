@@ -2,6 +2,14 @@ import { ALERTS_REGION_NAME, routeTrpc, serveCorpusProcedures, trpcError } from 
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import {
+  mergeTagLegend,
+  TAG_EDITOR_NAME_FIELD_NAME,
+  TAG_MERGE_CONFIRM_NAME,
+  TAG_MERGE_DOOR_NAME,
+  TAG_MERGE_FAILED_TOAST,
+  TAG_MERGE_TARGET_NAME,
+} from "#client/components/shared-control-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { TagMemberStory } from "./_tag-member-stories.tsx";
 
@@ -22,23 +30,23 @@ for (const viewport of [
         ...serveCorpusProcedures(caller, ["tag.mergeTags"], () => trpcError()),
       });
       await mount<typeof TagMemberStory>("tests/client/features/tag/surfaces/_tag-member-stories/TagMemberStory", { tagId: tag.id });
-      const trigger = page.getByRole("button", { name: "Merge into…", exact: true });
+      const trigger = page.getByRole("button", { name: TAG_MERGE_DOOR_NAME, exact: true });
       await press(trigger);
-      const group = page.getByRole("group", { name: `Merge "${tag.name}" into another tag`, exact: true });
-      await expect(group.getByRole("button", { name: "Merge", exact: true })).toBeDisabled();
-      await press(group.getByRole("combobox", { name: "Merge target tag", exact: true }));
+      const group = page.getByRole("group", { name: mergeTagLegend(tag.name), exact: true });
+      await expect(group.getByRole("button", { name: TAG_MERGE_CONFIRM_NAME, exact: true })).toBeDisabled();
+      await press(group.getByRole("combobox", { name: TAG_MERGE_TARGET_NAME, exact: true }));
       await press(page.getByRole("option", { name: target.name, exact: true }));
-      await press(group.getByRole("button", { name: "Merge", exact: true }));
-      await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText("Couldn't merge the tags.", { exact: true })).toBeVisible();
+      await press(group.getByRole("button", { name: TAG_MERGE_CONFIRM_NAME, exact: true }));
+      await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText(TAG_MERGE_FAILED_TOAST, { exact: true })).toBeVisible();
       await expect(group).toBeVisible();
       await press(group.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }));
       await expect(trigger).toBeFocused();
       await page.keyboard.press("Enter");
-      await expect(group.getByRole("combobox", { name: "Merge target tag", exact: true })).toBeFocused();
+      await expect(group.getByRole("combobox", { name: TAG_MERGE_TARGET_NAME, exact: true })).toBeFocused();
       await page.keyboard.press("Escape");
       await expect(group).toHaveCount(0);
       await expect(trigger).toBeFocused();
-      await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(tag.name);
+      await expect(page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveValue(tag.name);
       expect((await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)?.name).toBe(tag.name);
     });
   });

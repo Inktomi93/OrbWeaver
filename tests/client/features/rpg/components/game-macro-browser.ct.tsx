@@ -8,6 +8,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { createCorpusHarness, installMacroGuest, seedRpgGame } from "@orb/testkit/node/composed";
+import { USER_MACRO_TEMPLATE_NAME } from "#client/components/shared-control-names.ts";
 import { PRESET_EDITOR_NAME } from "#client/features/preset/lib/preset-names.ts";
 import type { RpgContextTabBesidePresetsStory, RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
@@ -69,7 +70,7 @@ test("the browser names each macro's source, links the preset's and the plugin's
 
   // Completion rows carry the same source label, on the editor that opens from this game's own macro.
   await page.getByRole("button", { name: `{{${GAME_MACRO}}}`, exact: true }).click();
-  await page.getByRole("textbox", { name: "Template" }).fill(`{{${pluginMacroName.slice(0, -2)}`);
+  await page.getByRole("textbox", { name: USER_MACRO_TEMPLATE_NAME }).fill(`{{${pluginMacroName.slice(0, -2)}`);
   const option = page.locator('[data-slot="macro-textarea-option"]', { hasText: `{{${pluginMacroName}}}` });
   await expect(option.locator('[data-slot="macro-textarea-option-source"]')).toHaveText(`Plugin: ${PLUGIN_NAME}`);
 });

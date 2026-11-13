@@ -6,6 +6,7 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { trpcErrorCode } from "#lib";
+import { TAG_MERGE_FAILED_TOAST } from "./shared-control-names.ts";
 
 /** The toast for a create the name index refused. */
 export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the tag. That name may already be in use.";
@@ -43,7 +44,7 @@ export const useRemoveTag = createEntityMutation<inferInput<Trpc["tag"]["removeT
 export const useMergeTags = createEntityMutation<inferInput<Trpc["tag"]["mergeTags"]>, unknown>({
   options: (trpc) => trpc.tag.mergeTags.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't merge the tags.",
+  errorToast: TAG_MERGE_FAILED_TOAST,
 });
 
 /** Persist the manual tag order (position → sortOrder). */

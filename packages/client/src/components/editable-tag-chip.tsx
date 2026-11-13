@@ -12,7 +12,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { CORPUS_MODE_LABELS } from "#lib";
 import { selectLabel, setActiveSection, setCorpusMode } from "#state";
 import { QueryBoundary } from "./query-boundary.tsx";
-import { editTagName, TAG_EDITOR_CLOSE_NAME } from "./shared-control-names.ts";
+import { editTagName, TAG_DELETED_TEXT, TAG_EDITOR_CLOSE_NAME } from "./shared-control-names.ts";
 import { TagEditorBody } from "./tag-editor-body.tsx";
 
 export function EditableTagChip({
@@ -138,7 +138,7 @@ function TagChipBody({ tagId, onMerged }: { readonly tagId: TagView["id"]; reado
   const { data: library } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
   const row = library.find((item) => item.id === tagId);
   if (row === undefined) {
-    return <Text voice="gloss">This tag was deleted.</Text>;
+    return <Text voice="gloss">{TAG_DELETED_TEXT}</Text>;
   }
   return <TagEditorBody onMerged={onMerged} key={row.id} tag={row} others={library.filter((item) => item.id !== row.id)} />;
 }

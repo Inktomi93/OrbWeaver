@@ -13,6 +13,7 @@ import { DestructiveAction, FlowDialog } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { DIALOG_VERBS, notify } from "#lib";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
+import { PRESET_VARIABLE_ADD_OPTION_NAME, PRESET_VARIABLE_QUESTION_NAME } from "../lib/preset-names.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
 
@@ -43,7 +44,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
         {(field): ReactElement => <field.TextField label="Name" description="The macro key: used as {{name}} in your prompt." />}
       </form.AppField>
       <form.AppField name={`variables[${index}].question`}>
-        {(field): ReactElement => <field.TextField label="Question" description="What the chat asks you at generation." />}
+        {(field): ReactElement => <field.TextField label={PRESET_VARIABLE_QUESTION_NAME} description="What the chat asks you at generation." />}
       </form.AppField>
 
       <OptionList form={form} index={index} />
@@ -118,7 +119,7 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
                 }}
               >
                 <Icon icon={Plus} size="sm" />
-                Add option
+                {PRESET_VARIABLE_ADD_OPTION_NAME}
               </Button>
             </Row>
           </Stack>

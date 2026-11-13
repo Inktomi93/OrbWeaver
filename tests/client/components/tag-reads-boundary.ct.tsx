@@ -7,6 +7,7 @@ import { createTagSchema } from "@orb/contracts/tag";
 import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TAG_EDITOR_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { EditableTagChipStory } from "./_editable-tag-chip-stories.tsx";
 
@@ -32,5 +33,5 @@ test("a held tag library read shows the loading skeleton in the chip popover, a 
   read.recover();
   await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(dialog.getByText("Couldn't load this tag.", { exact: true })).toHaveCount(0);
-  await expect(dialog.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Held");
+  await expect(dialog.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true })).toHaveValue("Held");
 });

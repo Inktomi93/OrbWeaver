@@ -10,6 +10,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { connectionRolePickerName } from "#client/components/shared-control-names.ts";
 import type { ModelRolesStory } from "./_model-roles-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_model-roles-stories/ModelRolesStory";
@@ -51,7 +52,7 @@ async function placementOf(page: Page): Promise<readonly Placement[]> {
       heading: await boxOf(group.getByText(row.heading, { exact: true })),
       hint: await boxOf(group.locator(HINT).first()),
       dot: await boxOf(group.getByRole("img").first()),
-      picker: await boxOf(group.getByRole("combobox", { name: `${row.label} connection`, exact: true })),
+      picker: await boxOf(group.getByRole("combobox", { name: connectionRolePickerName(row.label), exact: true })),
     });
   }
   return placed;
@@ -230,7 +231,7 @@ test.describe("phone at 300% layout", () => {
     // The line count is not asserted: a value at 300% text wraps by the room a phone leaves it, so the bound is the room, not a count of lines.
     for (const row of ROLE_ROWS_ORDERED) {
       const group = page.getByRole("group", { name: row.heading, exact: true });
-      const picker = group.getByRole("combobox", { name: `${row.label} connection`, exact: true });
+      const picker = group.getByRole("combobox", { name: connectionRolePickerName(row.label), exact: true });
       const [groupBox, pickerBox, valueBox, iconBox] = await Promise.all([
         boxOf(group),
         boxOf(picker),

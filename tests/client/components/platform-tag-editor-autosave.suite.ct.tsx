@@ -3,6 +3,7 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { holdServed, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { TAG_EDITOR_NAME_FIELD_NAME, TAG_HIDE_ON_CARDS_NAME } from "#client/components/shared-control-names.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { TagEditorStory } from "./_tag-editor-stories.tsx";
@@ -45,12 +46,12 @@ for (const viewport of [
       });
       await routeOrbSocket(page);
       await mount<typeof TagEditorStory>(STORY, { tagId: tag.id });
-      const name = page.getByRole("textbox", { name: "Name", exact: true });
+      const name = page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true });
       await name.fill("Pending rename");
-      await page.getByRole("switch", { name: "Hide chip on cards", exact: true }).click();
+      await page.getByRole("switch", { name: TAG_HIDE_ON_CARDS_NAME, exact: true }).click();
       await expect(page.getByRole("alert").filter({ hasText: AUTOSAVE_SAVE_FAILED_TEXT })).toBeVisible();
       await expect(name).toHaveValue("Pending rename");
-      await expect(page.getByRole("switch", { name: "Hide chip on cards", exact: true })).toBeChecked();
+      await expect(page.getByRole("switch", { name: TAG_HIDE_ON_CARDS_NAME, exact: true })).toBeChecked();
       expect((await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)?.name).toBe(tag.name);
 
       failing = false;
@@ -99,7 +100,7 @@ for (const viewport of [
           },
         });
         const component = await mount<typeof TagEditorStory>(STORY, { tagId: tag.id });
-        const name = page.getByRole("textbox", { name: "Name", exact: true });
+        const name = page.getByRole("textbox", { name: TAG_EDITOR_NAME_FIELD_NAME, exact: true });
         await expect(name).toHaveValue(tag.name);
         await listening.promise;
         if (dirty) {

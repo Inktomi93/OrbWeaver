@@ -41,6 +41,7 @@ import { openConfigTo, requestConnectionEditor } from "#state";
 import { useSetBinding } from "./connection-role-mutations.ts";
 import { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";
 import { useReindexConfirm } from "./reindex-confirm.tsx";
+import { connectionRolePickerName } from "./shared-control-names.ts";
 import { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 
 const UNSET_VALUE = "";
@@ -152,7 +153,7 @@ export function ConnectionRoleSlot({
   const headingId = useId();
   const deps = { trpc, invalidation };
   const setBinding = useSetBinding(deps);
-  const pickerLabel = `${row.label} connection`;
+  const pickerLabel = connectionRolePickerName(row.label);
   // The confirm opens from the picker's own popup, which is gone by the time it closes; focus returns to the picker.
   const pickerRef = useRef<HTMLButtonElement>(null);
   const reindex = useReindexConfirm((): boolean => {
