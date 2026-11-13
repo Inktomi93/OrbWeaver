@@ -17,6 +17,7 @@ import { createServerHarness, makePluginBundle } from "@orb/testkit/node/compose
 
 const HEADERS = { [CSRF_HEADER]: "1", "content-type": "application/json" } as const;
 const SURFACE_ID = "ledger";
+const POLICY = "content-security-policy";
 const FRAME_TEXT = "plugin frame ledger";
 const GUEST = `orb.host(1).ui.registerFrame({ id: ${JSON.stringify(SURFACE_ID)}, anchor: "page", title: "Ledger", html: ${JSON.stringify(`<p>${FRAME_TEXT}</p>`)} });`;
 
@@ -74,7 +75,7 @@ async function mintAndServe(root: ServerTestHarness, pluginId: PluginId, extra: 
 
 /** The production document headers for a policy, read in the response's own casing. */
 function documentHeaders(csp: string): Readonly<Record<string, string>> {
-  return Object.fromEntries(Object.entries(cardFrameResponseHeaders(csp)).map(([name, value]) => [name.toLowerCase(), value]));
+  return { ...Object.fromEntries(Object.entries(cardFrameResponseHeaders()).map(([name, value]) => [name.toLowerCase(), value])), [POLICY]: csp };
 }
 
 const rootBlock = (tokens: CardFrameStyleTokens): string =>
@@ -119,7 +120,7 @@ test("the slice changes only the root block: policy, sandbox and every script by
   const pluginId = await installFramePlugin(root);
   const bare = await mintAndServe(root, pluginId, {});
   const styled = await mintAndServe(root, pluginId, { styleTokens: IN_RANGE_CARD_FRAME_STYLE });
-  const csp = bare.headers["content-security-policy"] ?? "";
+  const csp = bare.headers[POLICY] ?? "";
   expect(csp.split("; ")).toContain(`sandbox ${CARD_FRAME_SANDBOX.document}`);
   expect(bare.headers).toMatchObject(documentHeaders(csp));
   expect(styled.headers).toMatchObject(documentHeaders(csp));

@@ -71,6 +71,7 @@ import type { ChatService } from "#domain/chat";
 import { hasCsrfHeader } from "#infra/auth";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 import { createFrameHandleStore, FRAME_HANDLE_SHAPE, FRAME_HANDLE_TTL_MS } from "./frame-handle-store.ts";
+import type { OwnPolicyRegistrar, OwnPolicyReply } from "./security-headers.ts";
 
 const OK = 200;
 const UNAUTHORIZED = 401;
@@ -104,6 +105,8 @@ export interface CardFrameDeps {
    *  minted before the switch, exactly as the deployment ceiling does. */
   readonly viewerRunsCardScripts: (viewer: Principal) => Promise<boolean>;
   readonly now: Clock;
+  /** Registers the served document's route, writes its policy and steps the app policy aside for its path. */
+  readonly registerOwnPolicyRoute: OwnPolicyRegistrar;
 }
 
 /** The floor policy, used for every non-serving response so no card-frame reply is ever un-policied. Static
@@ -233,15 +236,21 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     });
   });
 
-  app.get(`${CARD_FRAME_ROUTE}/:id`, async (c) => {
+  const served = (status: typeof OK | typeof NOT_FOUND, body: string, policy: string): OwnPolicyReply => ({
+    kind: "document",
+    status,
+    body,
+    headers: cardFrameResponseHeaders(),
+    policy,
+  });
+  deps.registerOwnPolicyRoute(app, "cardFrameDocument", async (c, id) => {
     const principal = c.get("principal");
     if (principal === null) {
-      return c.body(null, UNAUTHORIZED);
+      return { kind: "refusal", status: UNAUTHORIZED };
     }
-    const id = c.req.param("id");
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
-      return c.body(MISS_DOC, NOT_FOUND, cardFrameResponseHeaders(CARD_FRAME_FLOOR_CSP));
+      return served(NOT_FOUND, MISS_DOC, CARD_FRAME_FLOOR_CSP);
     }
     // THE REVOCATION. The client memoizes a handle per card body for the tab's life, so a grant decided
     // only at mint would outlive an admin switching interactive cards or external media off, a host moving
@@ -256,8 +265,8 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
         allowInlineData: entry.grant.media.allowInlineData && current.media.allowInlineData,
       };
       const posture: CardFramePosture = entry.grant.posture === "interactive" && current.posture === "interactive" ? "interactive" : "static";
-      return c.body(entry.doc, OK, cardFrameResponseHeaders(buildCardFrameCsp(media, "document", posture)));
+      return served(OK, entry.doc, buildCardFrameCsp(media, "document", posture));
     }
-    return c.body(entry.doc, OK, cardFrameResponseHeaders(entry.csp));
+    return served(OK, entry.doc, entry.csp);
   });
 }
