@@ -19,6 +19,7 @@ import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import { MacroText } from "../macro-text.tsx";
 import type { AssembledPreview, PreviewBlock, RoleGroup } from "./preview-model.ts";
 
@@ -88,7 +89,7 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
         <Row gap="row" align="center">
           <Icon icon={MessagesSquare} size="sm" />
           <Text grow={true} voice="kicker">
-            Chat history
+            {PRESET_CHAT_HISTORY_LABEL}
           </Text>
           {preview.historyEnabled ? null : <Text voice="gloss">(disabled)</Text>}
         </Row>

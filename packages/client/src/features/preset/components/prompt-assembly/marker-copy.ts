@@ -13,6 +13,7 @@ import type { DEFAULT_MARKER_TEMPLATES, MarkerType } from "@orb/contracts/preset
 import { NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { LucideIcon } from "@orb/ui/icons";
 import { BookOpen, CircleUser, Drama, FileText, History, Library, MapPin, MessagesSquare, Scroll, ScrollText, Sparkles, Zap } from "@orb/ui/icons";
+import { PRESET_CHAT_HISTORY_LABEL } from "#src/features/preset/lib/preset-names.ts";
 import type { ConfigGroupId } from "#state";
 
 export interface MarkerCopy {
@@ -138,7 +139,7 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
     firesCue: "steered turns",
   },
   ["chat_history"]: {
-    label: "Chat history",
+    label: PRESET_CHAT_HISTORY_LABEL,
     oneLiner: "The conversation itself: the pivot everything sits before or after.",
     subtitle: "the conversation",
     glyph: MessagesSquare,

@@ -103,6 +103,8 @@ export const CENSUS_TEST_ROOTS = ["tests/client", "tests/e2e", "tests/ui"] as co
 // Plain git pathspecs: `*` crosses directories, so one pattern also takes a file directly under the root.
 const PRODUCTION_GLOBS = ["packages/*/src/*.ts", "packages/*/src/*.tsx"] as const;
 const GUEST_ROOT = "packages/showcase-plugins/";
+// The packages that render a name; a server, contracts or content template writes logs, paths and queries.
+const RENDERER_ROOTS = ["packages/client/", "packages/ui/"] as const;
 // Guest bundles build their markup as one string, so the text between tags is read from the source text.
 const GUEST_GLOBS = ["packages/showcase-plugins/bundles/*.ts"] as const;
 const MARKUP_TEXT = />([^<>{}$]+)</gu;
@@ -130,9 +132,10 @@ const GIT_LIST_MAX_BUFFER = 67_108_864;
  * `inline-also-authored`: production spells it and a story or fixture authors it too.
  * `authored`: only a story, fixture or corpus file spells it.
  * `guest`: only guest plugin markup spells it.
- * `composed`: no file spells it whole, and a production template's fixed text fits it in order around filled holes,
- *   as `Back to ${label}` composes "Back to Chats". A fit names candidates, not the renderer: `${title} entry` fits
- *   any text ending in " entry".
+ * `composed`: no file spells it whole, and an untagged `packages/client` or `packages/ui` template with at least six
+ *   fixed letters fits it in order around filled holes, as `Back to ${label}` composes "Back to Chats". A fit names
+ *   candidates, not the renderer: a hole takes any text, so `Remove ${name}` fits every text after "Remove ", and
+ *   a template that only builds a key or a class name counts as much as one that renders.
  * `unresolved`: no production or test file spells it, and no production template composes it.
  * `unresolved-template`: no production file spells every fixed word, or its only words are short ones several files spell.
  * `no-words`: a computed name with no fixed word in it.
@@ -793,14 +796,18 @@ function templateFragments(file: ts.SourceFile): string[] {
   return found.filter((value) => value !== "");
 }
 
-// Each template a file writes, as an anchored pattern source. A template with no three-letter word composes from its
-// holes alone, so it would fit nearly any text and is left out.
-function templatePatterns(file: ts.SourceFile): string[] {
+// Each untagged template a renderer file writes, as an anchored pattern source. A tagged template is a query or style,
+// not text. A template with fewer fixed letters than a short piece composes mostly from its holes, so `${n} ref${s}` or
+// `${slug}.png` would fit unrelated prose, and is left out.
+function templatePatterns(path: string, file: ts.SourceFile): string[] {
   const found: string[] = [];
+  if (!RENDERER_ROOTS.some((root) => path.startsWith(root))) {
+    return found;
+  }
   const visit = (node: ts.Node): void => {
-    if (ts.isTemplateExpression(node)) {
+    if (ts.isTemplateExpression(node) && !ts.isTaggedTemplateExpression(node.parent)) {
       const pieces = [node.head.text, ...node.templateSpans.map((span) => span.literal.text)];
-      if (pieces.some((piece) => /[A-Za-z]{3}/u.test(piece))) {
+      if (pieces.join("").replaceAll(/[^A-Za-z]/gu, "").length >= MIN_SUBSTRING_PIECE) {
         found.push(`^${pieces.map((piece) => RegExp.escape(piece)).join(".+")}$`);
       }
     }
@@ -886,9 +893,9 @@ export function productionIndex(sources: readonly CensusSource[]): ProductionInd
     const file = parse(source);
     if (!source.path.startsWith(GUEST_ROOT)) {
       addLabelFunctions(functions, source.path, file);
-      for (const pattern of templatePatterns(file)) {
-        addTo(templates, pattern, source.path);
-      }
+    }
+    for (const pattern of templatePatterns(source.path, file)) {
+      addTo(templates, pattern, source.path);
     }
     for (const value of spellings(source, file)) {
       addTo(spelled, value, source.path);

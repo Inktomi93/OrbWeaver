@@ -5,10 +5,8 @@
 // spells it, so the next primitive that needs it finds it; `rowActionsName` predates that and stays in
 // `@orb/client/lib`. ONE function, one spelling.
 //
-// The defect they close is the one #2261 closed for `Actions for <subject>`: a copy change had to be
-// chased through ~25 test locators that never imported the thing they assert, so a spec could keep
-// asserting a name the product no longer builds (#2245 asserted a guessed one). With the builder, the
-// component and its tests call the same function and a drifted spelling is a COMPILE error.
+// A component and its tests build the name with the same function, so a reworded grammar moves every
+// locator with the component, and a spec cannot keep asserting a name the product no longer builds.
 //
 // `subject` is whatever the affordance names — a chip's own text, a file name, a tag, a row's
 // disambiguated subject (`rowActionSubject`). This module holds the GRAMMAR, never the subject policy.

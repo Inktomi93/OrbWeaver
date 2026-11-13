@@ -92,6 +92,31 @@ test("a literal a production template composes is filed under that template, and
   ]);
 });
 
+test("only an untagged renderer template with enough fixed text composes a name", () => {
+  const index = productionIndex([
+    { path: "packages/server/src/debug/report.ts", text: `const line = \`${hole("source")} from the ${hole("caller")}\`;` },
+    { path: "packages/client/src/data/query.ts", text: `const q = sql\`Remove ${hole("id")} rows\`;` },
+    { path: "packages/client/src/features/preset/readout.tsx", text: `const refs = \`${hole("count")} ref${hole("plural")}\`;` },
+    { path: "packages/ui/src/primitives/chip/chip.tsx", text: `const name = \`Remove ${hole("label")}\`;` },
+  ]);
+  const spec: CensusSource = {
+    path: "tests/client/features/preset/readout.ct.tsx",
+    text: [
+      'await page.getByText("Context from the caller").click();',
+      'await page.getByText("Remove all rows").click();',
+      'await page.getByText("the complete reference archive").click();',
+      'await page.getByRole("button", { name: "Remove Beta" }).click();',
+    ].join("\n"),
+  };
+  const rows = nameSites(spec).map((site) => classifySite(site, index, { authored: new Set() }));
+  expect(rows.map((row) => [row.text, row.class, row.homes])).toEqual([
+    ['"Context from the caller"', "unresolved", []],
+    ['"Remove all rows"', "composed", ["packages/ui/src/primitives/chip/chip.tsx"]],
+    ['"the complete reference archive"', "unresolved", []],
+    ['"Remove Beta"', "composed", ["packages/ui/src/primitives/chip/chip.tsx"]],
+  ]);
+});
+
 const NAMES_HELPER: CensusSource = {
   path: "tests/client/features/chat/_row-names.ts",
   text: 'export const SHARED_ROW_NAME = "Pinned row"; export const UNUSED_NAME = "Never located";',
