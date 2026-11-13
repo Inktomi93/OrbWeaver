@@ -46,7 +46,7 @@ for (const scale of ENLARGED_TEXT) {
       (pane, labels) => {
         const right = pane.getBoundingClientRect().right;
         return [...pane.querySelectorAll('[data-slot="text"]')]
-          .filter((node) => labels.includes(node.textContent ?? ""))
+          .filter((node) => labels.includes(node.textContent))
           .map((node) => node.getBoundingClientRect().right - right);
       },
       [backgroundStateLabel(true), backgroundStateLabel(false)],
