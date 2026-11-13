@@ -92,6 +92,7 @@ test("pressing a row's radio activates its preset: the radio is checked and stil
     .filter({ has: page.getByRole("button", { name: preset.name, exact: true }) })
     .getByRole("radio");
   await events.listening;
+  await expect(radio).toHaveAccessibleName(`Activate ${preset.name} for generation`);
   await expect(radio).not.toBeChecked();
 
   await radio.click();
@@ -117,7 +118,7 @@ test("pressing the editor header's Activate leaves focus on the status that now 
   const editor = page.getByRole("region", { name: PRESET_EDITOR_NAME, exact: true });
   await expect(editor).toBeVisible();
   const activate = editor.getByRole("button", { name: PRESET_ACTIVATE_NAME, exact: true });
-  const status = editor.getByRole("status").filter({ hasText: PRESET_ACTIVE_STATUS });
+  const status = editor.getByRole("status").filter({ hasText: new RegExp(`^${RegExp.escape(PRESET_ACTIVE_STATUS)}$`, "u") });
   await expect(status).toHaveCount(0);
 
   await activate.focus();

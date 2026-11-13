@@ -41,7 +41,7 @@ export function retryWorkloadName(kindLabel: string): string {
 }
 
 /** The part of a run row's subtitle that names another user's run. */
-export function workloadOwnerPart(ownerHandle: string): string {
+export function workloadOwnerLabel(ownerHandle: string): string {
   return `for ${ownerHandle}`;
 }
 

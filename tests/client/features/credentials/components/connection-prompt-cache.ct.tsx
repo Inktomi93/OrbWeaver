@@ -131,7 +131,7 @@ async function installCacheRoute(page: Page, captured: CacheCapture): Promise<Tr
 
 async function openCacheTier(page: Page): Promise<Locator> {
   await page.getByRole("button", { name: /^Caching route · /u }).click();
-  await page.getByRole("button", { name: CONNECTION_EDITOR_TIER_TITLES.promptCache }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONNECTION_EDITOR_TIER_TITLES.promptCache)}`, "u") }).click();
   const tier = page.locator('[data-slot="connection-prompt-cache"]');
   await expect(tier).toBeVisible();
   return tier;
@@ -153,7 +153,7 @@ test("native implicit caching explains provider ownership without invented contr
   await expect(tier.getByRole("combobox")).toHaveCount(0);
   await expect(tier.getByRole("radio")).toHaveCount(0);
   await expect(tier.getByText(/a tenth/u)).toHaveCount(0);
-  await page.getByRole("button", { name: CONNECTION_EDITOR_TIER_TITLES.advanced }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONNECTION_EDITOR_TIER_TITLES.advanced)}`, "u") }).click();
   await expect(page.getByText(ENDPOINT_QUIRKS_LABEL, { exact: true })).toBeVisible();
   const concurrency = page.locator('[data-fact="features.concurrency.summarize"]');
   await expect(concurrency.getByText(String(foldFeatures(builtinProvider("google")?.features).concurrency?.summarize), { exact: true })).toBeVisible();
@@ -198,6 +198,8 @@ test("automatic placement disables manual markers but leaves applicable retentio
     width: 870,
   });
   const tier = await openCacheTier(page);
+  // Anthropic caches only what a request marks, so the implicit line says the provider does none of its own.
+  await expect(tier.getByText(PROMPT_CACHE_IMPLICIT_GLOSS.unsupported, { exact: true })).toBeVisible();
   const system = tier.getByRole("switch", { name: itemSwitchName(PROMPT_CACHE_SYSTEM_SETTING, ROUTE_LABEL), exact: true });
   const depth = tier.getByRole("textbox", { name: PROMPT_CACHE_DEPTH_NAME, exact: true });
   await expect(system).toBeEnabled();
@@ -253,7 +255,7 @@ for (const width of [870, 486]) {
           .map((animation) => animation.finished),
       );
     });
-    const paragraphs = tier.locator('p[data-voice="gloss"]').filter({ hasNotText: PROMPT_CACHE_PREFIX_REQUEST_LEAD });
+    const paragraphs = tier.locator('p[data-voice="gloss"]').filter({ hasNotText: new RegExp(`^${RegExp.escape(PROMPT_CACHE_PREFIX_REQUEST_LEAD)}`, "u") });
     expect(await paragraphs.count()).toBeGreaterThan(3);
     for (const paragraph of await paragraphs.all()) {
       await expectCacheProse(paragraph);

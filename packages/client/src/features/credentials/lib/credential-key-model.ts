@@ -1,5 +1,5 @@
 // The Saved-keys row's pure model (inference program §5.3a): the reuse count line and the per-cause
-// revocation sentence; how a key NAMES itself is `keySubject` in `credentials-names.ts`. Split out of the row component so the copy is testable without a
+// revocation sentence; how a key NAMES itself is `keySubjectName` in `credentials-names.ts`. Split out of the row component so the copy is testable without a
 // browser and so the row's two ConfirmDialogs and its Replace prompt quote ONE count phrase between them.
 
 import type { CredRevokedReason } from "@orb/contracts/credentials";

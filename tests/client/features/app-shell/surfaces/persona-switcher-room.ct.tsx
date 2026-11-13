@@ -3,20 +3,22 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
+import { SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
 import {
   PERSONA_MANAGE_NAME,
+  PERSONA_NEW_CHAT_GLOSS,
   PERSONA_PANEL_NAME,
   PERSONA_PLAYING_AS_LABEL,
   PERSONA_RESTAMP_NAME,
   personaPlayingAsName,
 } from "#client/features/persona/lib/persona-copy.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { namedGroupRoom, PHONE, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
+import { namedGroupRoom, PHONE, routeRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const STORY = `${SHELL_STORIES}/AppShellStory`;
@@ -25,6 +27,7 @@ const RESTAMP_DOOR = PERSONA_RESTAMP_NAME;
 const MANAGE_DOOR = PERSONA_MANAGE_NAME;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
+type MountFn = PlaywrightTestArgs["mount"];
 
 let root: Root;
 
@@ -77,7 +80,52 @@ test.describe("on a desktop", () => {
     const manage = popup.getByRole("button", { name: MANAGE_DOOR, exact: true });
     expect(await iconLeft(restamp)).toBeCloseTo(await iconLeft(manage), 0);
   });
+
+  // With no room open the head says where a new chat's persona comes from; the seeds pick the arm, so each case names
+  // the line its own seeds must produce.
+  for (const { source, gloss } of [
+    { source: "default", gloss: PERSONA_NEW_CHAT_GLOSS.default },
+    { source: "lastPlayed", gloss: PERSONA_NEW_CHAT_GLOSS.lastPlayed },
+  ] as const) {
+    test(`with no room open, the head says a new chat starts as the ${source} persona`, async ({ corpus, mount, page }) => {
+      await withNewChatHead({ corpus, mount, page }, source, async (head) => {
+        await expect(head.getByText(gloss, { exact: true })).toBeVisible();
+      });
+    });
+  }
 });
+
+/** Seeds the viewer's default (or only a last-played) persona, opens the panel with no room, checks its head, and restores the seeds. */
+async function withNewChatHead(
+  { corpus, mount, page }: { readonly corpus: CorpusPlayback; readonly mount: MountFn; readonly page: Page },
+  source: "default" | "lastPlayed",
+  check: (head: Locator) => Promise<void>,
+): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [persona] = await caller.persona.list();
+  if (persona === undefined) {
+    throw new Error("The corpus viewer has no persona");
+  }
+  const prior = (await caller.settings.getUserSettings()).config.seeds;
+  await caller.settings.updateUserSettingsSection({
+    section: "seeds",
+    patch: { currentPersonaId: persona.id, defaultPersonaId: source === "default" ? persona.id : null },
+  });
+  try {
+    await routeShell(page, corpus, caller, [...SECTION_PROCEDURES, "settings.getUserSettings", "persona.list"]);
+    await mount<typeof AppShellStory>(STORY, {});
+    await page
+      .locator(".shell-rail-actions")
+      .getByRole("button", { name: personaPlayingAsName(persona.name), exact: true })
+      .click();
+    await check(page.getByRole("dialog", { name: PERSONA_PANEL_NAME, exact: true }).locator('[data-slot="persona-who-head"]'));
+  } finally {
+    await caller.settings.updateUserSettingsSection({
+      section: "seeds",
+      patch: { currentPersonaId: prior.currentPersonaId, defaultPersonaId: prior.defaultPersonaId },
+    });
+  }
+}
 
 test.describe("on a phone", () => {
   test.use({ viewport: PHONE, hasTouch: true, isMobile: true });

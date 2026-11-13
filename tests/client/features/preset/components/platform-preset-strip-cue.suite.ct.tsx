@@ -34,7 +34,7 @@ test.describe("wide desktop", () => {
     await routeTrpc(page, serveCorpusProcedures(caller, READS));
     await mount<typeof PresetActionGroupsStory>(STORY, { width: 960, appearance, subject: "list" });
     // The control: the built-in row is on screen, locked, beside at least one other row.
-    const builtIn = page.locator('[data-slot="list-row-root"]').filter({ hasText: PRESET_BUILT_IN_SUBTITLE });
+    const builtIn = page.locator('[data-slot="list-row-root"]').filter({ hasText: new RegExp(RegExp.escape(PRESET_BUILT_IN_SUBTITLE), "u") });
     await expect(builtIn).toHaveCount(1);
     await expect(builtIn.locator('[data-slot="list-row-subtitle"] svg')).toHaveCount(1);
     const titles = page.locator('[data-slot="list-row-title"]');

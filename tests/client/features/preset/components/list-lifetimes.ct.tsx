@@ -227,10 +227,13 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(page.getByRole("button", { name: "{{remote_macro}}", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
   const variable = page.getByRole("dialog", { name: PRESET_EDIT_VARIABLE_TITLE, exact: true });
-  await confirmRemove(
-    page,
-    variable.getByRole("group", { name: presetVariableOptionGroupName(1), exact: true }).getByRole("button", { name: DIALOG_VERBS.remove, exact: true }),
-  );
+  // The builder finds the group; the literals pin the ordinal the reader hears, counted from one.
+  const firstOption = variable.getByRole("group", { name: presetVariableOptionGroupName(1), exact: true });
+  await expect(firstOption).toHaveAccessibleName("Option 1");
+  await firstOption.getByRole("button", { name: DIALOG_VERBS.remove, exact: true }).click();
+  const removeAsk = page.getByRole("alertdialog");
+  await expect(removeAsk).toHaveAccessibleName("Remove option 1?");
+  await removeAsk.getByRole("button", { name: DIALOG_VERBS.remove, exact: true }).click();
   const remaining = variable.locator('input[name="variables[0].options[0].label"]');
   await expect(remaining).toHaveValue("Loud");
   await expect(variable.getByRole("button", { name: PRESET_VARIABLE_ADD_OPTION_NAME, exact: true })).toBeFocused();

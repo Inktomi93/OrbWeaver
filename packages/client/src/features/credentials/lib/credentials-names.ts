@@ -17,6 +17,11 @@ export const BACK_TO_CONNECTIONS_NAME = "Back to Connections";
 /** The key field, in the add dialog and in the connection editor's Essential tier. */
 export const API_KEY_FIELD_NAME = "API key";
 
+/** The key field where a bearer is optional, as on an endpoint row. */
+export const API_KEY_OPTIONAL_FIELD_NAME = `${API_KEY_FIELD_NAME} (optional)`;
+/** The key field of a provider signed in by setup token. */
+export const SETUP_TOKEN_FIELD_NAME = "Setup token";
+
 /** The add dialog's button that reads a draft's model list. */
 export const LIST_MODELS_NAME = "List models";
 
@@ -55,12 +60,12 @@ export const FACT_RESET_VERB = "Reset";
 export const VECTOR_WIDTH_FACT_NAME = "vector width";
 
 /** A typed fact value under its leaf's minimum; `reads` is the minimum as the row prints it. */
-export function factMinimumMessage(reads: string): string {
+export function factMinimumLabel(reads: string): string {
   return `The minimum is ${reads}.`;
 }
 
 /** A typed fact value over its leaf's maximum; `reads` is the maximum as the row prints it. */
-export function factMaximumMessage(reads: string): string {
+export function factMaximumLabel(reads: string): string {
   return `The maximum is ${reads}.`;
 }
 
@@ -99,7 +104,7 @@ export const KEY_REVOKED_BY_YOU = "Revoked by you";
  *  `Replace the <provider> "<label>" key` / `Revoke the <provider> "<label>" key` verbatim. ONE spelling —
  *  a title in a second form would put the visible label and the accessible name out of agreement, which is
  *  WCAG 2.5.3's whole subject, and in a list of keys a bare verb or a bare label names nothing. */
-export function keySubject(providerLabel: string, label: string): string {
+export function keySubjectName(providerLabel: string, label: string): string {
   return `${providerLabel} "${label}"`;
 }
 

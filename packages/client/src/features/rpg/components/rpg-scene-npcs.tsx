@@ -28,10 +28,10 @@ import {
   npcConfirmDismissName,
   npcConfirmPromoteName,
   npcDismissName,
-  npcDismissQuestion,
+  npcDismissQuestionLabel,
   npcPromoteName,
-  npcPromoteQuestion,
-  npcPromoteTip,
+  npcPromoteQuestionLabel,
+  npcPromoteTipLabel,
   RPG_HIDE_KNOWN_CHARACTERS_NAME,
   RPG_SHOW_KNOWN_CHARACTERS_NAME,
 } from "../lib/rpg-names.ts";
@@ -245,7 +245,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
     return (
       <Row gap="field" align="center" justify="end" wrap={true}>
         <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
-          {npcDismissQuestion(actor.name)}
+          {npcDismissQuestionLabel(actor.name)}
         </Text>
         <Button variant="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => cancel("dismiss")}>
           Keep
@@ -264,7 +264,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
             home on a participant (a stance is an npc's datum), so they end here. A host who discovers
             that afterwards discovers it as a bug. */}
         <Text as="span" voice="gloss" className="min-inline-0" cap="fit" wrap="anywhere">
-          {npcPromoteQuestion(actor.name)}
+          {npcPromoteQuestionLabel(actor.name)}
         </Text>
         <Button variant="ghost" size="sm" aria-label={npcCancelPromoteName(actor.name)} onClick={(): void => cancel("promote")}>
           {DIALOG_VERBS.cancel}
@@ -280,7 +280,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
       {/* PERMISSION-shaped ABSENCE, not a disabled control: a participant actor has nothing to promote (she already
           has a card), so the doorway simply is not there for one. */}
       {ref.kind === "npc" ? (
-        <Tip text={npcPromoteTip(actor.name)}>
+        <Tip text={npcPromoteTipLabel(actor.name)}>
           <Button ref={promoteRef} variant="ghost" size="sm" aria-label={npcPromoteName(actor.name)} onClick={(): void => setPending("promote")}>
             <Icon icon={UserPlus} size="xs" />
             Promote

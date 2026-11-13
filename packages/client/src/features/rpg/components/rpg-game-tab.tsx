@@ -37,10 +37,14 @@ import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.
 import { TRACKER_SHAPE_LABEL } from "../lib/host-console-labels.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
 import {
+  RPG_NEW_TRACKER_NAME,
   RPG_SET_SCORES_NAME,
+  trackerDefaultMaxName,
+  trackerHintName,
   trackerLabelFieldName,
   trackerLockName,
   trackerRemoveFromBandName,
+  trackerRemoveName,
   trackerShowOnBandName,
   trackerUnlockName,
 } from "../lib/rpg-names.ts";
@@ -104,7 +108,7 @@ function TrackerRow({
   // (RpgFieldLock's "Pinned by hand"). Band = visibility, so it speaks visibility.
   const bandLabel = def.pinned ? trackerRemoveFromBandName(def.label) : trackerShowOnBandName(def.label);
   const lockLabel = def.locked ? trackerUnlockName(def.label) : trackerLockName(def.label);
-  const removeLabel = `Remove ${def.label}`;
+  const removeLabel = trackerRemoveName(def.label);
   const swatch = trackColorProps(resolveTrackerColor(def.color, index));
   return (
     <DefRow slot="rpg-tracker-row">
@@ -137,7 +141,7 @@ function TrackerRow({
               default max
             </Text>
             <TrackerValue
-              ariaLabel={`${def.label} default max`}
+              ariaLabel={trackerDefaultMaxName(def.label)}
               display={def.max === null ? NO_VALUE : String(def.max)}
               editValue={def.max === null ? "" : String(def.max)}
               kind="numeric"
@@ -197,7 +201,7 @@ function TrackerRow({
           </Tip>
         )}
       </Row>
-      <HintEditor ariaLabel={`${def.label} hint`} hint={def.hint} max={RPG_HINT_MAX} onEdit={(next): void => patch({ hint: next })} />
+      <HintEditor ariaLabel={trackerHintName(def.label)} hint={def.hint} max={RPG_HINT_MAX} onEdit={(next): void => patch({ hint: next })} />
     </DefRow>
   );
 }
@@ -262,7 +266,7 @@ function AddTracker({ onAdd }: { readonly onAdd: (label: string, shape: RpgTrack
   const [subject, setSubject] = useState<RpgTrackerDef["subject"]>("actor");
   return (
     <AddRow
-      ariaLabel="New tracker name"
+      ariaLabel={RPG_NEW_TRACKER_NAME}
       placeholder="name it first (e.g. Grit)"
       trailing={
         <Tip text="Who this tracker belongs to">

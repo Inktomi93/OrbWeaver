@@ -3,7 +3,13 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { SCHEDULE_CADENCE_FIELD_NAME, SCHEDULE_CREATE_NAME, SCHEDULE_SAVE_NAME } from "#client/features/workloads/lib/workloads-names.ts";
+import {
+  SCHEDULE_CADENCE_FIELD_NAME,
+  SCHEDULE_CREATE_NAME,
+  SCHEDULE_CREATE_TITLE,
+  SCHEDULE_EDIT_TITLE,
+  SCHEDULE_SAVE_NAME,
+} from "#client/features/workloads/lib/workloads-names.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { SCHEDULE_CADENCE_LABELS, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -50,6 +56,7 @@ for (const viewport of VIEWPORTS) {
       await createTrigger.click();
       const createDialog = page.getByTestId(testId("createScheduleDialog"));
       await expect(createDialog).toBeVisible();
+      await expect(createDialog.getByRole("heading", { name: SCHEDULE_CREATE_TITLE, exact: true })).toBeVisible();
       await expectPairedScheduleActions(createDialog, SCHEDULE_CREATE_NAME);
       if (viewport.label === "desktop") {
         await test.step("the geometry assertion rejects misaligned production actions", () => expectMisalignmentRejected(createDialog));
@@ -73,6 +80,8 @@ for (const viewport of VIEWPORTS) {
       const editTrigger = createdRow.getByRole("button", { name: scheduleEditName(CREATED_SCHEDULE), exact: true });
       await editTrigger.click();
       const editDialog = page.getByTestId(testId("editScheduleDialog"));
+      // The edit dialog shares the create dialog's body; its title is what says which one is open.
+      await expect(editDialog.getByRole("heading", { name: SCHEDULE_EDIT_TITLE, exact: true })).toBeVisible();
       await expectPairedScheduleActions(editDialog, SCHEDULE_SAVE_NAME);
       await expectScheduleActionsAfterScroll(editDialog, SCHEDULE_SAVE_NAME);
       const cadence = editDialog.getByRole("combobox", { name: SCHEDULE_CADENCE_FIELD_NAME, exact: true });

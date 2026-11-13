@@ -275,7 +275,7 @@ for (const regime of REGIMES) {
       const row = page.locator('[data-slot="list-row-root"]').filter({ hasText: LABEL });
       const menu = row.getByRole("button", { name: /^More actions for /u });
       await menu.click();
-      await page.getByRole("menuitem", { name: ADD_MODEL_ACTION_LABELS.key }).click();
+      await page.getByRole("menuitem", { name: new RegExp(`^${RegExp.escape(ADD_MODEL_ACTION_LABELS.key)}`, "u") }).click();
       const dialog = page.getByRole("dialog", { name: ADD_MODEL_ACTION_LABELS.key, exact: true });
       const bounds = await settledBox(dialog);
       const dialogCap = await resolvedLength(page, `var(${TOKENS["width.dialog-lg"].cssVar})`, dialog);

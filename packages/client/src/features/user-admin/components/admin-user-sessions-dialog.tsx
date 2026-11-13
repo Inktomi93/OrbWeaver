@@ -16,7 +16,8 @@ import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
 import type { AdminUserDialogProps } from "../lib/admin-model.ts";
-import { revokeSessionName, SESSION_REVOKE_VERB } from "../lib/admin-model.ts";
+import { revokeSessionName } from "../lib/admin-model.ts";
+import { SESSION_REVOKE_VERB } from "../lib/user-admin-names.ts";
 
 /** The sessions list + revoke affordances for one account. */
 export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactElement {

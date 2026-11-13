@@ -26,7 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
-import { veiledReasonLine, veiledTruthLine } from "../lib/rpg-names.ts";
+import { veiledReasonLabel, veiledTruthLabel } from "../lib/rpg-names.ts";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 
@@ -132,11 +132,11 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
               <Stack gap="field">
                 {lie.reason === "" ? null : (
                   <Text voice="gloss" ink="accolade" className="min-inline-0" wrap="anywhere">
-                    {veiledReasonLine(lie.reason)}
+                    {veiledReasonLabel(lie.reason)}
                   </Text>
                 )}
                 <Text voice="gloss" ink="accolade" className="min-inline-0" wrap="anywhere">
-                  {veiledTruthLine(lie.truth)}
+                  {veiledTruthLabel(lie.truth)}
                 </Text>
               </Stack>
             </RevealGate>

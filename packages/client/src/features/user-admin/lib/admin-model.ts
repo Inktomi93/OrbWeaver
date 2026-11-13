@@ -63,9 +63,6 @@ export function userEnabledFieldName(handle: Handle): string {
   return itemSwitchName(ITEM_ENABLED_SETTING, handle);
 }
 
-/** The verb on a session row's revoke button and its confirm. */
-export const SESSION_REVOKE_VERB = "Revoke";
-
 /** One row in the sessions dialog. The subject is the session's user agent, falling back to its id. */
 export function revokeSessionName(subject: string): string {
   return `Revoke session: ${subject}`;

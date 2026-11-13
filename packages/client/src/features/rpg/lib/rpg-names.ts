@@ -78,13 +78,13 @@ export function npcConfirmDismissName(name: string): string {
 }
 
 /** The promote doorway's tip, which also opens its confirm question. */
-export function npcPromoteTip(name: string): string {
+export function npcPromoteTipLabel(name: string): string {
   return `Give ${name} a character card and a seat in this room`;
 }
-export function npcPromoteQuestion(name: string): string {
-  return `${npcPromoteTip(name)}? Everything tracked on them comes along; their mood and their stance toward you do not.`;
+export function npcPromoteQuestionLabel(name: string): string {
+  return `${npcPromoteTipLabel(name)}? Everything tracked on them comes along; their mood and their stance toward you do not.`;
 }
-export function npcDismissQuestion(name: string): string {
+export function npcDismissQuestionLabel(name: string): string {
   return `Forget ${name} and everything tracked on them?`;
 }
 
@@ -94,10 +94,10 @@ export function npcMoodName(name: string, mood: string): string {
 }
 
 /** A veiled lie's revealed motive and truth lines. */
-export function veiledReasonLine(reason: string): string {
+export function veiledReasonLabel(reason: string): string {
   return `reason: ${reason}`;
 }
-export function veiledTruthLine(truth: string): string {
+export function veiledTruthLabel(truth: string): string {
   return `truth: ${truth}`;
 }
 
@@ -128,3 +128,17 @@ export function trackerLockName(label: string): string {
 export function trackerUnlockName(label: string): string {
   return `Let the story write ${label} again`;
 }
+
+/** A tracker row's remove button, its meter ceiling field and its hint field, named for the tracker. */
+export function trackerRemoveName(label: string): string {
+  return `Remove ${label}`;
+}
+export function trackerDefaultMaxName(label: string): string {
+  return `${label} default max`;
+}
+export function trackerHintName(label: string): string {
+  return `${label} hint`;
+}
+
+/** The tracker add row's name field. */
+export const RPG_NEW_TRACKER_NAME = "New tracker name";

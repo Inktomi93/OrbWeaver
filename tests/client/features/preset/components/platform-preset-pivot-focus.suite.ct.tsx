@@ -50,7 +50,9 @@ for (const { width, height, density } of [
       const pivot = page.getByRole("button", { name: presetEditDrillName(PRESET_CHAT_HISTORY_LABEL), exact: true });
       await expect(pivot).toBeVisible();
       await expect(prompt).toBeFocused();
-      const ordinary = page.getByRole("button", { name: /^Edit (?!Chat history$)/u }).first();
+      const ordinary = page
+        .getByRole("button", { name: new RegExp(`^${RegExp.escape(presetEditDrillName(""))}(?!${RegExp.escape(PRESET_CHAT_HISTORY_LABEL)}$)`, "u") })
+        .first();
       for (const trigger of [ordinary, pivot]) {
         await trigger.focus();
         await page.keyboard.press("Enter");

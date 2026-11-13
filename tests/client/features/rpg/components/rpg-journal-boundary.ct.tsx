@@ -46,7 +46,7 @@ test("a failed transcript read leaves the All chronicle standing, and the Cards 
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId, tab: "rpg.journal" });
   const journal = page.locator('[data-slot="rpg-journal-tab"]');
   // All: the chronicle and the host's composer render while the transcript fails, and no archive error stands in for them.
-  await expect(journal.getByText(RPG_JOURNAL_EMPTY_LEAD)).toBeVisible();
+  await expect(journal.getByText(new RegExp(RegExp.escape(RPG_JOURNAL_EMPTY_LEAD), "u"))).toBeVisible();
   await expect(journal.getByRole("button", { name: RPG_JOURNAL_ADD_ENTRY_NAME, exact: true })).toBeVisible();
   await expect(journal.getByText(ARCHIVE_ERROR, { exact: true })).toHaveCount(0);
   await journal.getByRole("button", { name: RPG_JOURNAL_SCOPE_LABELS.cards, exact: true }).click();

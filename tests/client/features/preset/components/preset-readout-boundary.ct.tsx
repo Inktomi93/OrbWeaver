@@ -185,6 +185,8 @@ test("Actions holds, fails and retries the resolved preview, and says the host-o
   await read.hold.requested;
   const resolved = page.getByRole("region", { name: new RegExp(`^${RegExp.escape(presetActionReadoutName(""))}`, "u") }).locator('[aria-busy="true"]');
   await expect(resolved).toBeVisible();
+  // The builder's lead finds the region; the literal pins it.
+  await expect(page.getByRole("region", { name: /^Action readout: /u }).first()).toBeVisible();
   read.hold.fail();
   await expect(page.getByText("Couldn't load the resolved preview.", { exact: true })).toBeVisible();
   read.recover();

@@ -31,6 +31,7 @@ import { useFocusOnSwap } from "#lib";
 import {
   PRESET_ACTIVATE_NAME,
   PRESET_ACTIVE_STATUS,
+  PRESET_RENAME_NAME,
   PRESET_RESET_ARRANGEMENT_CONFIRM,
   PRESET_RESET_ARRANGEMENT_NAME,
   PRESET_RESET_ARRANGEMENT_TITLE,
@@ -38,9 +39,6 @@ import {
 } from "../lib/preset-names.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
-
-/** …and one for the rename door beside the name (same anatomy — see the door's own note). */
-const RENAME_LABEL = "Rename preset";
 
 export interface PresetEditorHeaderProps {
   readonly presetName: string;
@@ -136,8 +134,8 @@ export function PresetEditorHeader({
                       anatomy (`aria-label` and the tooltip from ONE string, so the two cannot drift) is what the
                       Reset door beside it already speaks. */}
                   {isSystemDefault ? null : (
-                    <Tip text={RENAME_LABEL}>
-                      <Button aria-label={RENAME_LABEL} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true} type="button">
+                    <Tip text={PRESET_RENAME_NAME}>
+                      <Button aria-label={PRESET_RENAME_NAME} variant="ghost" onClick={(): void => setRenameOpen(true)} square={true} type="button">
                         <Icon icon={Pencil} size="sm" />
                       </Button>
                     </Tip>

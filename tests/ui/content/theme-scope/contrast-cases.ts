@@ -122,4 +122,4 @@ export function keepsHue(painted: Oklch, hue: number): boolean {
 export const TONE_MARK_ACCENTS = ["info", "warning"] as const;
 
 /** The selected-row story's title: test-authored row text, read by the story and the case that judges its contrast. */
-export const SELECTED_ROW_TITLE = "Connections";
+export const SELECTED_ROW_TITLE = "Witness row";

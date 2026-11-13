@@ -13,7 +13,6 @@ import {
   FACT_RESET_VERB,
   KEY_REVOKE_VERB,
   KEY_REVOKED_BY_YOU,
-  keySubject,
   removeKeyName,
   removeKeyTitle,
   replaceKeyName,
@@ -46,7 +45,10 @@ const REGIMES = [
   { name: "phone landscape enlarged", width: 844, viewport: { width: 844, height: 390 }, coarse: true, appearance: ENLARGED_APPEARANCE_SETTINGS },
 ] as const;
 
-/** The saved key's subject as its row names it, with the provider label from the registry the Saved keys section reads. */
+/**
+ * The saved key's subject as its row names it, spelled here rather than through `keySubjectName` so the quoting is pinned;
+ * the provider label comes from the registry the Saved keys section reads.
+ */
 async function savedKeySubject(
   caller: {
     readonly connection: { readonly providersAvailable: () => Promise<readonly { readonly provider: { readonly id: string; readonly label: string } }[]> };
@@ -57,7 +59,7 @@ async function savedKeySubject(
   if (row === undefined) {
     throw new Error("The provider registry has no openai row");
   }
-  return keySubject(providerDisplayLabel(row.provider), label);
+  return `${providerDisplayLabel(row.provider)} "${label}"`;
 }
 
 /** Clear revoked asks first: Cancel keeps the flag, and only the confirm clears it. */
@@ -90,7 +92,8 @@ for (const regime of REGIMES) {
       const row = page.locator('[data-slot="list-row-root"]').filter({ hasText: KEY_LABEL });
       const replace = row.getByRole("button", { name: replaceKeyName(subject), exact: true });
       const revoke = row.getByRole("button", { name: revokeKeyName(subject), exact: true });
-      await expect(replace).toBeVisible();
+      await expect(replace).toHaveAccessibleName(`Replace the ${subject} key`);
+      await expect(revoke).toHaveAccessibleName(`Revoke the ${subject} key`);
       await expect(row.getByRole("button")).toHaveCount(2);
       await expect(page.getByText(SECRET, { exact: false })).toHaveCount(0);
       let geometry = await actionGroupGeometry(page.locator('[data-slot="credential-action-host"]'), [replace, revoke]);
@@ -108,6 +111,7 @@ for (const regime of REGIMES) {
       expect(routes.count("credentials.replace")).toBe(0);
       await revoke.click();
       const revocation = page.getByRole("alertdialog", { name: revokeKeyTitle(subject), exact: true });
+      await expect(revocation).toHaveAccessibleName(`Revoke the ${subject} key?`);
       await expect(revocation).toContainText("so no turn uses it");
       await revocation.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(revoke).toBeFocused();
@@ -117,6 +121,7 @@ for (const regime of REGIMES) {
       const clear = row.getByRole("button", { name: CLEAR_REVOKED_NAME, exact: true });
       const remove = row.getByRole("button", { name: removeKeyName(subject), exact: true });
       await expect(clear).toBeVisible();
+      await expect(remove).toHaveAccessibleName(`Remove the ${subject} key`);
       await expect(row.getByText(KEY_REVOKED_BY_YOU, { exact: false })).toBeVisible();
       await expect(row.getByRole("button")).toHaveCount(2);
       geometry = await actionGroupGeometry(page.locator('[data-slot="credential-action-host"]'), [clear, remove]);
@@ -127,6 +132,7 @@ for (const regime of REGIMES) {
       await expect(remove).toBeFocused();
       await remove.press("Enter");
       const removal = page.getByRole("alertdialog", { name: removeKeyTitle(subject), exact: true });
+      await expect(removal).toHaveAccessibleName(`Remove the ${subject} key?`);
       await expect(removal).toContainText("This can't be undone");
       await removal.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(remove).toBeFocused();
@@ -159,7 +165,7 @@ for (const regime of REGIMES) {
       });
       await mount<typeof ConnectionActionGroupsStory>(CONNECTION_STORY, { width: regime.width, appearance: regime.appearance });
       await page.locator('[data-slot="list-row-body"]').filter({ hasText: CONNECTION_LABEL }).click();
-      await page.getByRole("button", { name: CONNECTION_EDITOR_TIER_TITLES.advanced }).click();
+      await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CONNECTION_EDITOR_TIER_TITLES.advanced)}`, "u") }).click();
       const row = page.locator('[data-slot="connection-fact-row"]').filter({ has: page.getByRole("button", { name: "Override max output", exact: true }) });
       const override = row.getByRole("button", { name: "Override max output", exact: true });
       await expect(override).toBeVisible();

@@ -11,9 +11,9 @@ import {
   npcConfirmDismissName,
   npcConfirmPromoteName,
   npcDismissName,
-  npcDismissQuestion,
+  npcDismissQuestionLabel,
   npcPromoteName,
-  npcPromoteQuestion,
+  npcPromoteQuestionLabel,
   RPG_SHOW_KNOWN_CHARACTERS_NAME,
 } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgActionGroupsStory } from "./_action-groups-stories.tsx";
@@ -65,6 +65,10 @@ for (const regime of REGIMES) {
       for (const name of ACTORS) {
         const promote = page.getByRole("button", { name: npcPromoteName(name), exact: true });
         const dismiss = page.getByRole("button", { name: npcDismissName(name), exact: true });
+        // The builders find the controls; these literals pin what the reader hears, so a broken builder fails here.
+        await expect(promote).toHaveAccessibleName(`Promote ${name} to the room's characters`);
+        await expect(promote).toHaveAccessibleDescription(`Give ${name} a character card and a seat in this room`);
+        await expect(dismiss).toHaveAccessibleName(`Dismiss ${name}`);
         const resting = await actionGroupGeometry(promote.locator(".."), [promote, dismiss]);
         await testInfo.attach(`resting-${rpgNpcSlug(name)}`, { body: JSON.stringify(resting), contentType: "application/json" });
         expect(resting.inlineOverflow).toBeLessThanOrEqual(1);
@@ -74,10 +78,18 @@ for (const regime of REGIMES) {
         await page.keyboard.press("Enter");
         const cancel = page.getByRole("button", { name: npcCancelPromoteName(name), exact: true });
         const confirmPromote = page.getByRole("button", { name: npcConfirmPromoteName(name), exact: true });
+        await expect(cancel).toHaveAccessibleName(`Cancel promoting ${name}`);
+        await expect(confirmPromote).toHaveAccessibleName(`Confirm promoting ${name}`);
+        await expect(
+          page.getByText(
+            `Give ${name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.`,
+            { exact: true },
+          ),
+        ).toBeVisible();
         const promoting = await actionGroupGeometry(cancel.locator(".."), [cancel, confirmPromote]);
         expect(promoting.inlineOverflow).toBeLessThanOrEqual(1);
         expect((await actionGroupGeometry(host, [cancel, confirmPromote])).inlineOverflow).toBeLessThanOrEqual(1);
-        const promotingCopy = page.getByText(npcPromoteQuestion(name), { exact: true });
+        const promotingCopy = page.getByText(npcPromoteQuestionLabel(name), { exact: true });
         expect((await actionGroupGeometry(host, [promotingCopy])).inlineOverflow).toBeLessThanOrEqual(1);
         const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, cancel);
         for (const box of [...resting.controls, ...promoting.controls]) {
@@ -94,10 +106,12 @@ for (const regime of REGIMES) {
         await page.keyboard.press("Enter");
         const keep = page.getByRole("button", { name: `Keep ${name}`, exact: true });
         const confirmDismiss = page.getByRole("button", { name: npcConfirmDismissName(name), exact: true });
+        await expect(confirmDismiss).toHaveAccessibleName(`Confirm dismissing ${name}`);
+        await expect(page.getByText(`Forget ${name} and everything tracked on them?`, { exact: true })).toBeVisible();
         const dismissing = await actionGroupGeometry(keep.locator(".."), [keep, confirmDismiss]);
         expect(dismissing.inlineOverflow).toBeLessThanOrEqual(1);
         expect((await actionGroupGeometry(host, [keep, confirmDismiss])).inlineOverflow).toBeLessThanOrEqual(1);
-        expect((await actionGroupGeometry(host, [page.getByText(npcDismissQuestion(name), { exact: true })])).inlineOverflow).toBeLessThanOrEqual(1);
+        expect((await actionGroupGeometry(host, [page.getByText(npcDismissQuestionLabel(name), { exact: true })])).inlineOverflow).toBeLessThanOrEqual(1);
         for (const box of dismissing.controls) {
           expect(box.height).toBeGreaterThanOrEqual(floor);
         }

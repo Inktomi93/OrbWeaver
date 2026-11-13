@@ -88,7 +88,12 @@ for (const touch of [false, true]) {
       const recordedGlyph = await trigger.locator("svg").first().innerHTML();
       await trigger.press("Enter");
       await expect(trigger).toHaveAttribute("aria-expanded", "true");
-      await expect(disclosure.locator('[data-slot="turn-tool-call"]')).toHaveCount(recorded.record.calls.length);
+      const callRows = disclosure.locator('[data-slot="turn-tool-call"]');
+      await expect(callRows).toHaveCount(recorded.record.calls.length);
+      // Each row says its own call's outcome, read from the stored record, not from the row it sits in.
+      for (const [index, call] of recorded.record.calls.entries()) {
+        await expect(callRows.nth(index).getByText(RPG_TOOL_CALL_VERDICT_LABELS[call.verdict], { exact: true })).toBeVisible();
+      }
       await trigger.click();
       await expect(trigger).toHaveAttribute("aria-expanded", "false");
       const reads = rpc.count("rpg.listTurnToolCalls");

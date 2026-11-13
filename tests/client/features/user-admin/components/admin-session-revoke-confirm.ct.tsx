@@ -5,8 +5,8 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { revokeSessionName, SESSION_REVOKE_VERB, userActionsName } from "#client/features/user-admin/lib/admin-model.ts";
-import { ADMIN_SESSIONS_NAME } from "#client/features/user-admin/lib/user-admin-names.ts";
+import { revokeSessionName, userActionsName } from "#client/features/user-admin/lib/admin-model.ts";
+import { ADMIN_SESSIONS_NAME, SESSION_REVOKE_VERB } from "#client/features/user-admin/lib/user-admin-names.ts";
 import type { AdminUsersStory } from "./_admin-users-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-users-stories/AdminUsersStory";

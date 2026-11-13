@@ -9,7 +9,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { RPG_JOURNAL_SCOPE_LABELS } from "#client/features/rpg/lib/rpg-names.ts";
+import { RPG_JOURNAL_SCOPE_LABELS, RPG_SCENE_NO_CARDS_LINE } from "#client/features/rpg/lib/rpg-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RpgSceneCardsStory } from "./_scene-cards-stories.tsx";
 
@@ -145,7 +145,7 @@ test("Retry that settles on an empty archive lands focus on the announced recove
   failing = false;
   await retry.focus();
   await page.keyboard.press("Enter");
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   const focused = archive.locator(":focus");
   await expect(focused).toHaveRole("status");
   await expect(focused).toHaveAccessibleName(/\S/);
@@ -177,7 +177,7 @@ for (const hold of FOCUS_HOLDS) {
     failing = false;
     await retry.focus();
     await page.keyboard.press("Enter");
-    await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+    await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
     await expect(archive.locator(":focus")).toHaveRole("status");
     await hold.leave?.(archive);
     const holder = (): Promise<string | null> =>
@@ -318,7 +318,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   expect(await height()).not.toBeCloseTo(cardHeight, 0);
   pending = null;
   firstVisit.release();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   const emptyHeight = await height();
   expect(emptyHeight).not.toBeCloseTo(cardHeight, 0);
   await emptyMount.unmount();
@@ -330,7 +330,7 @@ test("each chat reserves its own settled box and never another chat's", async ({
   await expect(reserved).toHaveCount(1);
   expect(await height()).toBeCloseTo(emptyHeight, 0);
   revisit.release();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
 });
 
 test("an archive with no cards yet renders the empty doorway under its label", async ({ corpus, mount, page }) => {
@@ -340,7 +340,7 @@ test("an archive with no cards yet renders the empty doorway under its label", a
   await mount<typeof RpgSceneCardsStory>(STORY, { chatId: room.chatId });
   const archive = page.locator(ARCHIVE);
   await expect(archive.getByText(RPG_JOURNAL_SCOPE_LABELS.cards, { exact: true })).toBeVisible();
-  await expect(archive.getByText("No cards yet", { exact: false })).toBeVisible();
+  await expect(archive.getByText(RPG_SCENE_NO_CARDS_LINE, { exact: true })).toBeVisible();
   await expect(archive.getByRole("button", { name: CARD_TITLE, exact: false })).toHaveCount(0);
 });
 

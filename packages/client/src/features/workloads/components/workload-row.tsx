@@ -42,7 +42,7 @@ import {
   WORKLOAD_SCHEDULED_BADGE,
   WORKLOAD_UNREADABLE_BADGE,
   WORKLOAD_WAITING_BADGE,
-  workloadOwnerPart,
+  workloadOwnerLabel,
 } from "../lib/workloads-names.ts";
 import { workloadResultSummary } from "../lib/workloads-result-copy.ts";
 import { dependencyWaitLabel, isDeferredWorkload, isDependencyFailure, isWaitingOnDependencies } from "../lib/workloads-run-model.ts";
@@ -101,7 +101,7 @@ function WorkloadRowBody({
 
   const subtitleParts = [timeLib.formatRelative(workload.createdAt)];
   if (ownerHandle !== null) {
-    subtitleParts.push(workloadOwnerPart(ownerHandle));
+    subtitleParts.push(workloadOwnerLabel(ownerHandle));
   }
   // The result rides the row's own subtitle so it sits under the title at the title's inset.
   if (resultSummary !== null) {

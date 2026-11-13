@@ -267,7 +267,7 @@ test("Status seats a text tracker's value at the end of the room its row leaves,
   expect(placed.end).toBe(placed.rowEnd);
   expect(placed.align).toBe("end");
   expect((await value.boundingBox())?.width).toBeGreaterThan((await label.boundingBox())?.width ?? Number.POSITIVE_INFINITY);
-  const status = page.getByRole("button", { name: RPG_STATUS_LINE_LABEL }).first();
+  const status = page.getByRole("button", { name: new RegExp(RegExp.escape(RPG_STATUS_LINE_LABEL), "u") }).first();
   const fit = await status.evaluate((element) => ({
     own: element.getBoundingClientRect().width,
     line: element.parentElement?.getBoundingClientRect().width ?? 0,

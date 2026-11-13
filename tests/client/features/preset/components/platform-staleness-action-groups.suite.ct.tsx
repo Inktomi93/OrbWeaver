@@ -69,7 +69,7 @@ for (const regime of REGIMES) {
         const keep = page.getByRole("button", { name: DECISION_LABELS.keep, exact: true });
         const clear = page.getByRole("button", { name: DECISION_LABELS.clear, exact: true });
         const group = keep.locator("..");
-        await expect(page.getByText(PRESET_NOT_HONORED_LEAD)).toBeVisible();
+        await expect(page.getByText(new RegExp(`^${RegExp.escape(PRESET_NOT_HONORED_LEAD)}`, "u"))).toBeVisible();
         await keep.focus();
         await page.keyboard.press("Tab");
         await expect(clear).toBeFocused();

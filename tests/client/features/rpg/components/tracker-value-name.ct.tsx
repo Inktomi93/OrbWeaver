@@ -4,7 +4,7 @@ import { accessibilityScan } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
-import { RPG_STATUS_PLACEHOLDER } from "#client/features/rpg/lib/rpg-names.ts";
+import { RPG_STATUS_LINE_LABEL, RPG_STATUS_PLACEHOLDER } from "#client/features/rpg/lib/rpg-names.ts";
 import type { RpgContextTabStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -34,7 +34,7 @@ test("the empty status line's button name contains its visible placeholder", asy
   const status = card.locator(`[${REST_SLOT}]`).filter({ hasText: RPG_STATUS_PLACEHOLDER }).first();
   await expect(status).toBeVisible();
   const name = await status.evaluate((button) => button.getAttribute("aria-label"));
-  expect(name).toContain("Status line");
+  expect(name).toContain(RPG_STATUS_LINE_LABEL);
   expect(name).toContain(RPG_STATUS_PLACEHOLDER);
   const result = await accessibilityScan(page);
   const mismatched = result.violations.find(({ id }) => id === LABEL_MISMATCH)?.nodes ?? [];

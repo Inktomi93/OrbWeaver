@@ -39,7 +39,7 @@ import { keyRowSubtitle, reuseSentence } from "../lib/credential-key-model.ts";
 import {
   CLEAR_REVOKED_NAME,
   KEY_REVOKE_VERB,
-  keySubject,
+  keySubjectName,
   removeKeyName,
   removeKeyTitle,
   replaceKeyName,
@@ -75,7 +75,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
 
   const revoked = credential.revokedAt !== null;
   const label = credential.label ?? "default";
-  const subject = keySubject(providerLabel, label);
+  const subject = keySubjectName(providerLabel, label);
   const subtitle = keyRowSubtitle(credential, usedBy);
 
   const submitReplacement = (): void => {
