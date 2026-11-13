@@ -28,7 +28,13 @@ import { useRef, useState } from "react";
 import { ConfirmDialog, DetailHeader, EditorPage, Tip } from "#components";
 import { AutosaveStatus } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
-import { PRESET_ACTIVATE_NAME, PRESET_RESET_ARRANGEMENT_NAME, PRESET_RESET_ARRANGEMENT_TITLE, PRESET_SECTIONS_NAME } from "../lib/preset-names.ts";
+import {
+  PRESET_ACTIVATE_NAME,
+  PRESET_RESET_ARRANGEMENT_CONFIRM,
+  PRESET_RESET_ARRANGEMENT_NAME,
+  PRESET_RESET_ARRANGEMENT_TITLE,
+  PRESET_SECTIONS_NAME,
+} from "../lib/preset-names.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
 
@@ -234,7 +240,7 @@ export function PresetEditorHeader({
         onOpenChange={setResetOpen}
         title={PRESET_RESET_ARRANGEMENT_TITLE}
         description="This replaces the preset's sampling, reasoning, prompt structure, and every other setting with the starter defaults. This can't be undone."
-        confirmLabel="Reset"
+        confirmLabel={PRESET_RESET_ARRANGEMENT_CONFIRM}
         onConfirm={onConfirmReset}
       />
     </>

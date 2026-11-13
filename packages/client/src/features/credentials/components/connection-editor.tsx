@@ -33,6 +33,7 @@ import {
 
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
+import { API_KEY_FIELD_NAME, CONNECTION_EDITOR_TIER_TITLES } from "../lib/credentials-names.ts";
 import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
 import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { ConnectionAccount } from "./connection-account.tsx";
@@ -202,7 +203,7 @@ function AvailableConnectionEditorBody({
         {reindex.dialog}
         <TopEmbedderNote checking={checking} refused={embedRefusal} />
 
-        <EditorTier defaultOpen={true} title="Essential">
+        <EditorTier defaultOpen={true} title={CONNECTION_EDITOR_TIER_TITLES.essential}>
           <Stack gap="row">
             <Field
               description="Change it by adding another connection. A provider change would invalidate this row's key, URL and model at once."
@@ -218,7 +219,7 @@ function AvailableConnectionEditorBody({
               )}
             </Field>
             {connection.baseUrl === null ? (
-              <Field description="Stored once and never shown again. Replace or revoke it under Saved keys." label="API key">
+              <Field description="Stored once and never shown again. Replace or revoke it under Saved keys." label={API_KEY_FIELD_NAME}>
                 <Text voice="datum">{credentialReadout(provider.auth, connection.credentialId)}</Text>
               </Field>
             ) : (
@@ -253,7 +254,7 @@ function AvailableConnectionEditorBody({
           </Stack>
         </EditorTier>
 
-        <EditorTier defaultOpen={true} title="Purpose">
+        <EditorTier defaultOpen={true} title={CONNECTION_EDITOR_TIER_TITLES.purpose}>
           <Stack gap="row">
             <KindVerdict
               busy={busy}
@@ -291,7 +292,7 @@ function AvailableConnectionEditorBody({
             badge={overrideBadge(promptCacheChangedCount(connection.promptCache, capabilityView.capability))}
             defaultOpen={false}
             kicker="On or off · system prompt · depth · how long it lasts"
-            title="Prompt caching"
+            title={CONNECTION_EDITOR_TIER_TITLES.promptCache}
           >
             <ConnectionPromptCache
               generation={capabilityView.capability.kind === "generation" ? capabilityView.capability.generation : null}
@@ -315,7 +316,7 @@ function AvailableConnectionEditorBody({
           badge={overrideBadge(declaredOverrideCount(declared))}
           defaultOpen={advancedOpen === true}
           kicker="What this server accepts · Endpoint quirks"
-          title="Advanced"
+          title={CONNECTION_EDITOR_TIER_TITLES.advanced}
         >
           <Stack gap="block">
             <Stack gap="tight">
@@ -351,7 +352,7 @@ function AvailableConnectionEditorBody({
           badge={setBadge(diagnosticsSetCount(connection.extras, connection.transport))}
           defaultOpen={false}
           kicker="Extra request fields · Request & response shaping · reachability"
-          title="Diagnostics"
+          title={CONNECTION_EDITOR_TIER_TITLES.diagnostics}
         >
           <Stack gap="block">
             <ConnectionExtrasBlock busy={busy} extras={connection.extras} onCommit={(next): void => patch({ extras: next })} />

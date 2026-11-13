@@ -33,6 +33,7 @@ import {
   savedKeyName,
 } from "../lib/add-connection-form-model.ts";
 import { CHAT_API_LABELS, showsApiControl } from "../lib/connections-model.ts";
+import { API_KEY_FIELD_NAME } from "../lib/credentials-names.ts";
 import { typedModelAllowed } from "../lib/model-picker-model.ts";
 import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { AdmitPrivateHost } from "./connection-reachability.tsx";
@@ -321,7 +322,7 @@ function keyLabel(provider: ProviderDef): string {
   if (provider.auth === "oauthToken") {
     return "Setup token";
   }
-  return needsKey(provider) ? "API key" : "API key (optional)";
+  return needsKey(provider) ? API_KEY_FIELD_NAME : `${API_KEY_FIELD_NAME} (optional)`;
 }
 
 /** Whose list the picker reads, in the user's words: an endpoint's host once a URL is typed, else the

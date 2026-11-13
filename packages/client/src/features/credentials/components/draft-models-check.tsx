@@ -21,6 +21,7 @@ import type { Invalidation, Trpc } from "#data";
 import { trpcErrorReason } from "#lib";
 import { useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
 import { draftKeyOf, URL_REFUSAL_CODES } from "../lib/add-connection-form-model.ts";
+import { LIST_MODELS_NAME } from "../lib/credentials-names.ts";
 import { failedCatalogSource, modelListSource } from "../lib/model-picker-model.ts";
 import type { ModelPickerProps } from "./model-picker.tsx";
 
@@ -95,7 +96,7 @@ export function DraftModelsCheck({
   return (
     <Row align="center" gap="field">
       <Button disabled={!ready} variant="outline" loading={list.isPending} onClick={runCheck} size="sm">
-        List models
+        {LIST_MODELS_NAME}
       </Button>
     </Row>
   );

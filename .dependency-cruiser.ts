@@ -143,6 +143,7 @@ const MOUNT_HELPER_FILES = {
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/client/features/chat/components/_chat-room-shell-names\\.ts$": "the room name the chat room shell story authors and the pagination suite reads",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
+  "^tests/ui/primitives/list-row/state-attribute-cases\\.ts$": "the selected row title the state-attribute story authors and its spec reads",
   "^tests/ui/primitives/virtual-list/virtual-list-cases\\.ts$": "the long-list row count the virtual-list stories mount and their spec passes",
 } as const satisfies Readonly<Record<string, string>>;
 // The only files of a browser package outside `src/` that its `src/` imports; each is judged by a reachable rule.
@@ -390,6 +391,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/settings/contract/keys.ts":
     "APP_SETTINGS_KEY: the settings row the app override lives in, which the whole-blob guard suite plants a newer build's blob into",
   "packages/client/src/features/credentials/lib/connections-copy.ts": "ADD_CONNECTION_NAME: the add-connection button's name",
+  "packages/client/src/features/credentials/lib/credentials-names.ts": "SAVED_KEYS_EMPTY_TITLE and SAVED_KEYS_EMPTY_DESCRIPTION: the Saved keys empty state",
   "packages/client/src/features/rpg/lib/context-layout.ts":
     "SATELLITES_TO_BODY_FONT_SCALE: the font scale at which the satellite row and date line leave the Waystone band",
   "packages/client/src/features/character/lib/greeting-copy.ts":

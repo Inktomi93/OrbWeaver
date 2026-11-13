@@ -11,6 +11,7 @@ import {
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
+import { VECTOR_WIDTH_FACT_NAME } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ModelRolesStory } from "./_model-roles-stories.tsx";
 
 test("a width the new embedder cannot make is refused before a destructive confirmation", async ({ mount, page }) => {
@@ -68,7 +69,7 @@ test("a width the new embedder cannot make is refused before a destructive confi
   const refusal = page.getByRole("alert").filter({ hasText: "nothing changed" });
   await expect(confirm.or(refusal)).toBeVisible();
   await expect(confirm).toHaveCount(0);
-  await expect(refusal).toContainText("vector width");
+  await expect(refusal).toContainText(VECTOR_WIDTH_FACT_NAME);
   expect(routes.count("connection.setBinding")).toBe(0);
   expect(await caller.connection.listBindings()).toEqual(previous);
 

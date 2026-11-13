@@ -47,6 +47,7 @@ import { omitKey } from "@orb/kit/objects";
 import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
 import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
 import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
+import { factMaximumMessage, factMinimumMessage } from "./credentials-names.ts";
 
 export type { BooleanLabels, FactChoice, FactLeaf, FactRow } from "./connection-fact-types.ts";
 
@@ -62,8 +63,8 @@ export function boundRefusal(edit: FactRow["edit"], raw: string): string | null 
   if (edit.kind !== "number" || raw.trim() === "") {
     return null;
   }
-  const below = edit.min !== undefined && Number(raw) < edit.min.value ? `The minimum is ${edit.min.reads}.` : null;
-  return below ?? (edit.max !== undefined && Number(raw) > edit.max.value ? `The maximum is ${edit.max.reads}.` : null);
+  const below = edit.min !== undefined && Number(raw) < edit.min.value ? factMinimumMessage(edit.min.reads) : null;
+  return below ?? (edit.max !== undefined && Number(raw) > edit.max.value ? factMaximumMessage(edit.max.reads) : null);
 }
 
 /** The plain reading of a boolean fact, for a leaf that states no labels of its own. */

@@ -16,7 +16,7 @@ import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
 import type { AdminUserDialogProps } from "../lib/admin-model.ts";
-import { revokeSessionName } from "../lib/admin-model.ts";
+import { revokeSessionName, SESSION_REVOKE_VERB } from "../lib/admin-model.ts";
 
 /** The sessions list + revoke affordances for one account. */
 export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactElement {
@@ -86,7 +86,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
                 revoked ? null : (
                   <DestructiveAction
                     confirm={{
-                      confirmLabel: "Revoke",
+                      confirmLabel: SESSION_REVOKE_VERB,
                       description: `This device is signed out of ${props.handle} on its next request.`,
                       title: "Revoke this session?",
                     }}
@@ -95,7 +95,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
                     onConfirm={(): void => revokeOne.mutate({ sessionId: session.id })}
                     trigger={
                       <Button tone="destructive" size="sm" disabled={mutating} aria-label={revokeSessionName(session.userAgent ?? session.id)}>
-                        Revoke
+                        {SESSION_REVOKE_VERB}
                       </Button>
                     }
                   />

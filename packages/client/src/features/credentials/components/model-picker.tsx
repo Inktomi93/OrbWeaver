@@ -23,6 +23,7 @@ import type { KeyboardEvent, PointerEvent, ReactElement, RefObject } from "react
 import { useDeferredValue, useId, useRef, useState } from "react";
 import { useFocusOnSwap } from "#lib";
 import { useRecentModels } from "#state";
+import { MODEL_SEARCH_PLACEHOLDER, MODEL_TOOLS_LABEL, MODEL_VISION_LABEL } from "../lib/credentials-names.ts";
 import type { ModelPickerView, modelCheckOf, PickerEntry } from "../lib/model-picker-model.ts";
 import {
   filterByChips,
@@ -204,7 +205,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
           aria-label={searchName}
           disabled={models === null}
           onValueChange={onSearch}
-          placeholder="Search models…"
+          placeholder={MODEL_SEARCH_PLACEHOLDER}
           ref={searchRef}
           value={term}
         />
@@ -212,10 +213,10 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
           <Row align="center" gap="field" padding="row">
             <ToggleGroup aria-label="Filter models" multiple={true} onValueChange={setChips} value={[...chips]}>
               <Toggle size="sm" value={VISION_CHIP}>
-                Vision
+                {MODEL_VISION_LABEL}
               </Toggle>
               <Toggle size="sm" value={TOOLS_CHIP}>
-                Tools
+                {MODEL_TOOLS_LABEL}
               </Toggle>
             </ToggleGroup>
           </Row>

@@ -42,6 +42,7 @@ import {
   PICKED_BUBBLE_PALETTES,
   PICKED_ROOM_CASES,
   PICKED_ROOM_PALETTES,
+  SELECTED_ROW_TITLE,
   SPEAKER_DIALOGUE,
   TONE_MARK_ACCENTS,
   TYPED_CROSSOVER,
@@ -364,7 +365,7 @@ test("a custom mid-grey page keeps every colored tone's hue in its painted text,
 
 test("a selected row's label clears AA on its primary tint over a custom mid-grey page", async ({ mount, page }) => {
   const component = await mount<typeof SelectedRowStory>("tests/ui/content/theme-scope/_contrast-stories/SelectedRowStory", { background: MID_GREY });
-  const label = component.getByText("Connections", { exact: true });
+  const label = component.getByText(SELECTED_ROW_TITLE, { exact: true });
   await expect(label).toBeVisible();
   const receipt = await pixelContrast(page, label);
   expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);

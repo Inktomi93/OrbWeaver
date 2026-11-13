@@ -24,8 +24,9 @@ export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
 /** The editor header's reset door, its name and tooltip alike. */
 export const PRESET_RESET_ARRANGEMENT_NAME = "Reset to starter arrangement";
 
-/** The reset door's confirm. */
+/** The reset door's confirm: its title and its confirm button. */
 export const PRESET_RESET_ARRANGEMENT_TITLE = "Reset to the starter arrangement?";
+export const PRESET_RESET_ARRANGEMENT_CONFIRM = "Reset";
 
 /** The library pane's search field. */
 export const PRESET_SEARCH_NAME = "Search presets";

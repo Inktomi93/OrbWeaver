@@ -5,7 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { revokeSessionName, userActionsName } from "#client/features/user-admin/lib/admin-model.ts";
+import { revokeSessionName, SESSION_REVOKE_VERB, userActionsName } from "#client/features/user-admin/lib/admin-model.ts";
 import type { AdminUsersStory } from "./_admin-users-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-users-stories/AdminUsersStory";
@@ -35,7 +35,7 @@ test("a session's Revoke waits for its confirm: Cancel keeps the session, the co
   expect(nonEmpty(await caller.admin.listSessions({ userId: member.id }))[0].revokedAt).toBeNull();
 
   await revoke.click();
-  await confirm.getByRole("button", { name: "Revoke", exact: true }).click();
+  await confirm.getByRole("button", { name: SESSION_REVOKE_VERB, exact: true }).click();
   await expect(revoke).toHaveCount(0);
   expect(nonEmpty(await caller.admin.listSessions({ userId: member.id }))[0].revokedAt).not.toBeNull();
 });

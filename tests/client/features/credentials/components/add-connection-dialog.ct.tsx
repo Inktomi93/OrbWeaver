@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
+import { CONNECTIONS_EMPTY_TITLE, MODEL_SEARCH_PLACEHOLDER } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionsListStory } from "./_connections-list-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connections-list-stories/ConnectionsListStory";
@@ -82,7 +83,7 @@ test("the model list takes the caret when it lands, and a keyboard pick is centr
   await mount<typeof ConnectionsListStory>(STORY, {});
   const dialog = await pickDeviceProvider(page, label);
 
-  await expect(dialog.getByPlaceholder("Search models…")).toBeFocused();
+  await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).toBeFocused();
   for (let step = 0; step <= PICKED_INDEX; step += 1) {
     await page.keyboard.press("ArrowDown");
   }
@@ -112,7 +113,7 @@ test("a refused save puts focus on the inline failure", async ({ corpus, mount, 
   });
   await mount<typeof ConnectionsListStory>(STORY, {});
   const dialog = await pickDeviceProvider(page, label);
-  await expect(dialog.getByPlaceholder("Search models…")).toBeFocused();
+  await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
   await dialog.getByRole("button", ADD).click();
@@ -173,13 +174,13 @@ test("a saved first connection hands focus to the Add connection button that rep
     "connection.providersAvailable": () => providers,
   });
   await mount<typeof ConnectionsListStory>(STORY, {});
-  await expect(page.getByText("No connections yet", { exact: true })).toBeVisible();
+  await expect(page.getByText(CONNECTIONS_EMPTY_TITLE, { exact: true })).toBeVisible();
   const dialog = await pickDeviceProvider(page, label);
-  await expect(dialog.getByPlaceholder("Search models…")).toBeFocused();
+  await expect(dialog.getByPlaceholder(MODEL_SEARCH_PLACEHOLDER)).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
   await dialog.getByRole("button", ADD).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText("No connections yet", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(CONNECTIONS_EMPTY_TITLE, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", ADD)).toBeFocused();
 });

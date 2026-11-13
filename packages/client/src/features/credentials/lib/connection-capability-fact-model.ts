@@ -6,6 +6,7 @@ import type { Capability, DeclaredCapability } from "@orb/contracts/inference";
 import { REASONING_MODES, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { FactChoice, FactLeaf, FactRow } from "./connection-fact-model.ts";
 import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow } from "./connection-fact-model.ts";
+import { VECTOR_WIDTH_FACT_NAME } from "./credentials-names.ts";
 
 /** The source line for a capability row this client cannot attribute per field. Deliberately NOT one of the
  *  mock's invented strings — see `connection-fact-model.ts`'s header. */
@@ -66,7 +67,7 @@ export const VECTOR_WIDTH_FACT_PATH = "embedding.dims";
 const EMBEDDING_LEAVES: readonly FactLeaf[] = [
   {
     path: VECTOR_WIDTH_FACT_PATH,
-    name: "vector width",
+    name: VECTOR_WIDTH_FACT_NAME,
     edit: { kind: "number" },
     format: (value): string => `${String(value)} numbers`,
     estimatedBy: "embedding.dimsEstimated",

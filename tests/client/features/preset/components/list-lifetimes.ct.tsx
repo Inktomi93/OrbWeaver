@@ -19,6 +19,7 @@ import {
 } from "#client/components/shared-control-names.ts";
 import {
   PRESET_EDITOR_VIEW_LABELS,
+  PRESET_RESET_ARRANGEMENT_CONFIRM,
   PRESET_RESET_ARRANGEMENT_NAME,
   PRESET_RESET_ARRANGEMENT_TITLE,
   PRESET_VARIABLE_ADD_OPTION_NAME,
@@ -337,7 +338,10 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await expect(label).toBeFocused();
   await dialog.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
   await page.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true }).click();
-  await page.getByRole("alertdialog", { name: PRESET_RESET_ARRANGEMENT_TITLE, exact: true }).getByRole("button", { name: "Reset", exact: true }).click();
+  await page
+    .getByRole("alertdialog", { name: PRESET_RESET_ARRANGEMENT_TITLE, exact: true })
+    .getByRole("button", { name: PRESET_RESET_ARRANGEMENT_CONFIRM, exact: true })
+    .click();
   await expect(page.getByRole("button", { name: "queued_variable", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Add variable", exact: true }).click();
   await dialog.getByRole("textbox", { name: PRESET_VARIABLE_QUESTION_NAME, exact: true }).fill("New owner after reset");

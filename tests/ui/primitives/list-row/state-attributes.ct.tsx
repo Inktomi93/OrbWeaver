@@ -2,6 +2,7 @@
 // `aria-current` (derived from `data-selected`), `aria-expanded` and `aria-disabled`.
 import { expect, test } from "@playwright/test";
 import type { StateAttributeStory } from "./_state-attribute-stories.tsx";
+import { SELECTED_ROW_TITLE } from "./state-attribute-cases.ts";
 
 test("selected, expanded and disabled rows read their state from the attributes", async ({ mount }) => {
   const component = await mount<typeof StateAttributeStory>("tests/ui/primitives/list-row/_state-attribute-stories/StateAttributeStory", {});
@@ -13,11 +14,11 @@ test("selected, expanded and disabled rows read their state from the attributes"
     });
 
   const plain = await paint("Plain");
-  const selected = await paint("Selected");
+  const selected = await paint(SELECTED_ROW_TITLE);
   // The selected row paints the rail and the fill the plain row leaves transparent.
   expect(selected.rail).not.toBe(plain.rail);
   expect(selected.fill).not.toBe(plain.fill);
-  await expect(row("Selected")).toHaveAttribute("aria-current", "true");
+  await expect(row(SELECTED_ROW_TITLE)).toHaveAttribute("aria-current", "true");
   await expect(row("Plain")).not.toHaveAttribute("aria-current");
 
   await expect(row("Expanded")).toHaveAttribute("aria-expanded", "true");

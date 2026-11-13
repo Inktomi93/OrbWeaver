@@ -1,16 +1,9 @@
-// The Saved-keys row's pure model (inference program §5.3a): how a key NAMES itself, the reuse count line,
-// and the per-cause revocation sentence. Split out of the row component so the copy is testable without a
+// The Saved-keys row's pure model (inference program §5.3a): the reuse count line and the per-cause
+// revocation sentence; how a key NAMES itself is `keySubject` in `credentials-names.ts`. Split out of the row component so the copy is testable without a
 // browser and so the row's two ConfirmDialogs and its Replace prompt quote ONE count phrase between them.
 
 import type { CredRevokedReason } from "@orb/contracts/credentials";
-
-/** The row's identity as every one of its actions names it: `OpenRouter "work"`, feeding
- *  `Replace the <provider> "<label>" key` / `Revoke the <provider> "<label>" key` verbatim. ONE spelling —
- *  a title in a second form would put the visible label and the accessible name out of agreement, which is
- *  WCAG 2.5.3's whole subject, and in a list of keys a bare verb or a bare label names nothing. */
-export function keySubject(providerLabel: string, label: string): string {
-  return `${providerLabel} "${label}"`;
-}
+import { KEY_REVOKED_BY_YOU } from "./credentials-names.ts";
 
 /** The reuse fact as a SENTENCE — a key is shared across connections, so every consequential act on it
  *  quotes this rather than leaving the reader to count rows. */
@@ -56,7 +49,7 @@ function revokedReasonCopy(reason: CredRevokedReason): string | null {
       // a user to rotate a perfectly good key because their own box was off.
       return "Revoked: the endpoint stopped responding";
     case "user":
-      return "Revoked by you";
+      return KEY_REVOKED_BY_YOU;
     default:
       return unreadableReasonCopy(reason);
   }

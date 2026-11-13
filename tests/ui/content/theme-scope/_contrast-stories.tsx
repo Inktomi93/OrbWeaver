@@ -14,7 +14,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
 import { BASE_PALETTE_STAMP, SEED_THEME_NAMES, SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLE_RECIPES, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import type { CSSProperties, ReactElement } from "react";
-import { TONE_MARK_ACCENTS } from "./contrast-cases.ts";
+import { SELECTED_ROW_TITLE, TONE_MARK_ACCENTS } from "./contrast-cases.ts";
 
 const SEMANTIC_PAIRS = [
   ["background", "foreground"],
@@ -292,7 +292,7 @@ export function SelectedRowStory({ background }: { readonly background: string }
     <CtIsolation subject="Selected ListRow" isolates="The selection rail's tint under a custom ThemeScope">
       <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value} ambientAccent={TOKENS["color.primary"].value}>
         <div style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem", inlineSize: "20rem" }}>
-          <ListRow title="Connections" clickable={true} data-selected="" />
+          <ListRow title={SELECTED_ROW_TITLE} clickable={true} data-selected="" />
         </div>
       </ThemeScope>
     </CtIsolation>

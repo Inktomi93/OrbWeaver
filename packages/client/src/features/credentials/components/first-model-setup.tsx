@@ -20,6 +20,7 @@ import { useSuspenseQuery } from "#data";
 import { ALLOW_BACKGROUND_SETTING, CHAT_ROLE_DOOR, connectionSummary, MEMORY_COST_SENTENCE, notify } from "#lib";
 import { openConfigTo } from "#state";
 import { CLAUDE_SUBSCRIPTION_NOTICE, isClaudeSubscription } from "../lib/add-connection-form-model.ts";
+import { FIRST_MODEL_FINISH_NAME } from "../lib/credentials-names.ts";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 
@@ -32,13 +33,11 @@ function isUtilityChoice(value: unknown): value is UtilityChoice {
   return (UTILITY_CHOICES as readonly unknown[]).includes(value);
 }
 
-const FINISH = "Finish";
-
 /** What each choice tells the person will happen. Each names the control that does it, because closing the step
- *  applies nothing: only {@link FINISH} or the Utility add writes the role and the switch. */
+ *  applies nothing: only {@link FIRST_MODEL_FINISH_NAME} or the Utility add writes the role and the switch. */
 const CHOICE_NOTES: Record<UtilityChoice, string> = {
-  same: `${FINISH} turns on ${ALLOW_BACKGROUND_SETTING} for it, so these can run while you chat.`,
-  existing: `${FINISH} turns on ${ALLOW_BACKGROUND_SETTING} for the one you pick, so these can run while you chat.`,
+  same: `${FIRST_MODEL_FINISH_NAME} turns on ${ALLOW_BACKGROUND_SETTING} for it, so these can run while you chat.`,
+  existing: `${FIRST_MODEL_FINISH_NAME} turns on ${ALLOW_BACKGROUND_SETTING} for the one you pick, so these can run while you chat.`,
   add: `You add it next, with ${ALLOW_BACKGROUND_SETTING} on, so these can run while you chat.`,
   later: "Until you pick one under Model roles, memory summaries, captions and extraction wait.",
 };
@@ -243,7 +242,7 @@ export function FirstModelSetup({
             loading={saving}
             onClick={finish}
           >
-            {FINISH}
+            {FIRST_MODEL_FINISH_NAME}
           </Button>
         )}
       </DialogFooter>

@@ -167,3 +167,6 @@ export const NEW_CHAT_CHARACTERS_FIELD_NAME = "Choose characters";
 
 /** The transcript's message log. */
 export const CHAT_TRANSCRIPT_NAME = "Conversation messages";
+
+/** The Preview tab's diagnostics drawer: the build and shape traces under the budget instrument. */
+export const CHAT_PREVIEW_DIAGNOSTICS_LABEL = "Diagnostics";

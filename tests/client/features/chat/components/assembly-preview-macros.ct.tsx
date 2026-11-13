@@ -4,6 +4,7 @@
 // comes from a real previewAssembly read on a corpus root with a live plugin guest.
 
 import { spawn } from "node:child_process";
+import { macroSourceLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { userMacroSchema } from "@orb/contracts/preset";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -11,6 +12,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { makePromptConfig } from "@orb/testkit/iso";
 import { createCorpusHarness, installMacroGuest, seedRpgGame } from "@orb/testkit/node/composed";
+import { CHAT_PREVIEW_DIAGNOSTICS_LABEL } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { AssemblyPreviewTabStory } from "./_assembly-preview-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_assembly-preview-stories/AssemblyPreviewTabStory";
@@ -55,13 +57,15 @@ test("the diagnostics list the turn's registered macros by source and the preset
   );
   await mount<typeof AssemblyPreviewTabStory>(STORY, { chatId });
 
-  await page.getByRole("button", { name: "Diagnostics", exact: true }).click();
+  await page.getByRole("button", { name: CHAT_PREVIEW_DIAGNOSTICS_LABEL, exact: true }).click();
   const rejected = page.locator('[data-slot="macro-rejected"]');
   await expect(rejected).toHaveCount(1);
   await expect(rejected.getByText(`{{${SHARED_NAME}}}`, { exact: true })).toBeVisible();
   await expect(rejected.getByText("Preset", { exact: true })).toBeVisible();
   const registered = page.locator('[data-slot="macro-registered"]');
-  await expect(registered.filter({ hasText: `{{${SHARED_NAME}}}` }).getByText("Game", { exact: true })).toBeVisible();
+  await expect(
+    registered.filter({ hasText: `{{${SHARED_NAME}}}` }).getByText(macroSourceLabel({ source: { kind: "game", id: chatId }, defs: [] }), { exact: true }),
+  ).toBeVisible();
   await expect(registered.filter({ hasText: `{{${pluginMacro}}}` }).getByText(`Plugin: ${PLUGIN_NAME}`, { exact: true })).toBeVisible();
   // A preview never runs the plugin's guest, so its macros are named without a value: the live name and the hyphen alias.
   await expect(page.locator('[data-slot="macro-registered"][data-deferred]')).toHaveCount(2);
