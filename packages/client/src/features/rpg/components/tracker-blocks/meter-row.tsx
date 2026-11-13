@@ -8,7 +8,7 @@ import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { trackerFieldName } from "#src/features/rpg/lib/tracker-names.ts";
+import { trackerFieldName, trackerValueName } from "#src/features/rpg/lib/tracker-names.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 interface MeterRowProps {
@@ -127,7 +127,7 @@ function ValueCell({
     // The inline buttons' token-sized hit pseudos extend beyond their text boxes; reserve that edge inside the row.
     <Row gap="field" align="center" className="shrink-0" paddingInlineEnd="block">
       <TrackerValue
-        ariaLabel={`${name} value`}
+        ariaLabel={trackerValueName(name)}
         // Unset ⇒ an EMPTY field wearing the em-dash placeholder, never a `0` the host has to notice is fake.
         display={value === null ? "" : String(value)}
         placeholder={NO_VALUE}

@@ -4,6 +4,7 @@ import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { CHAT_FORKS_SECTION_LABEL } from "#client/features/chat/lib/chat-settings-names.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_DUPLICATE_GENERATING, MESSAGE_DUPLICATE_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 import type { RoomTranscriptStory } from "./_message-reasoning-and-move-stories.tsx";
@@ -148,7 +149,7 @@ test("the This-chat tab lists the forks of the room under Forks", async ({ mount
   await corpusMedia();
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
-  await page.getByRole("button", { name: /^Forks/ }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_FORKS_SECTION_LABEL)}`, "u") }).click();
   await expect(page.getByText(FORK_TITLE, { exact: true })).toBeVisible();
 });
 
@@ -162,7 +163,7 @@ test("opening a fork from the details sheet enters the fork and closes the sheet
   const probe = page.locator('[data-probe="shell"]');
   await expect(probe).toHaveText(`active=${chatId} sheet=context`);
 
-  await page.getByRole("button", { name: /^Forks/ }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_FORKS_SECTION_LABEL)}`, "u") }).click();
   await page.getByText(FORK_TITLE, { exact: true }).click();
 
   await expect(probe).toHaveText(`active=${fork.chat.id} sheet=none`);

@@ -2,12 +2,13 @@
 // A message avatar's touch reach survives the transcript scroller's clip and stays clear of the bubble in every chat style and
 // density, and the composer keeps the start edge the transcript rows take, at the narrowest phone, a phone and a desktop.
 
+import { viewImageActionName } from "@orb/client/lib";
 import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { forEachNonEmpty } from "@orb/testkit/iso";
+import { forEachNonEmpty, nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
@@ -18,7 +19,7 @@ import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const ROLES = ["user", "assistant"] as const;
-const IMAGE_ACTION = /^View .+'s image$/;
+const IMAGE_ACTION = nameShape(viewImageActionName);
 const ROW = '[data-slot="message-row"]';
 const PHONES = [
   { name: "320", viewport: { width: 320, height: 700 }, coarse: true },

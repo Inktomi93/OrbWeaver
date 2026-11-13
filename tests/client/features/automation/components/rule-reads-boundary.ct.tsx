@@ -20,9 +20,11 @@ import {
   RULE_CAPTURE_TOOL_RESULT_NAME,
   RULE_CHARACTER_UNAVAILABLE_TEXT,
   RULE_EDITOR_NAME,
+  RULE_SPEAKER_FIELD_LABEL,
   RULE_TOOL_ARGUMENTS_NAME,
   RULE_TOOL_FIELD_NAME,
   RULE_WORLD_BOOK_NAME,
+  ruleCharacterReadout,
 } from "#client/features/automation/lib/automation-names.ts";
 import { armLabel } from "#client/features/automation/lib/rule-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -172,11 +174,11 @@ test("a held selected-character read shows the loading skeleton, a failed one th
   await expect(editor.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
   await expect(editor.getByText(RULE_CHARACTER_UNAVAILABLE_TEXT, { exact: true })).toBeVisible();
-  await expect(editor.getByText(`Speaker: ${character.id}`, { exact: true })).toBeVisible();
+  await expect(editor.getByText(ruleCharacterReadout(RULE_SPEAKER_FIELD_LABEL, character.id), { exact: true })).toBeVisible();
   read.recover();
   await editor.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(editor.getByText(RULE_CHARACTER_UNAVAILABLE_TEXT, { exact: true })).toHaveCount(0);
-  await expect(editor.getByText(`Speaker: ${character.name}`, { exact: true })).toBeVisible();
+  await expect(editor.getByText(ruleCharacterReadout(RULE_SPEAKER_FIELD_LABEL, character.name), { exact: true })).toBeVisible();
 });
 
 test("a held room world book read shows the loading skeleton in the preset knob, a failed one the error block, and Retry shows the chooser", async ({

@@ -10,6 +10,11 @@ export const CONTEXT_SHEET_BACK_NAME = "Close details";
 /** The landmark every floating menu, select and popover mounts inside, so none of them sits outside every landmark. */
 export const POPUP_LAYER_NAME = "Popups";
 
+/** The shell's main region, named for the section it shows. */
+export function contentRegionName(section: string): string {
+  return `${section} content`;
+}
+
 /** The Context pane's own name for `section`. */
 export function contextPaneLabel(section: string): string {
   return `${section} details`;

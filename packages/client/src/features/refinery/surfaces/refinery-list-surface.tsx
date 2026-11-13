@@ -54,6 +54,7 @@ import { RefineryChip } from "../components/refinery-chip.tsx";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
 import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import {
+  REFINERY_LIST_LOADING_NAME,
   REFINERY_NO_SESSION_MATCH_TEXT,
   REFINERY_NO_SESSIONS_TITLE,
   REFINERY_PICK_CHARACTER_NAME,
@@ -127,7 +128,7 @@ export function RefineryListSurface(): ReactElement {
       search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setRefinerySearchQuery} placeholder={searchPlaceholder} value={search} />}
       skipTo="Skip to sessions"
     >
-      <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…" resetKeys={[]}>
+      <LibrarySurfaceShell errorLabel="your sessions" loadingLabel={REFINERY_LIST_LOADING_NAME} resetKeys={[]}>
         <RefineryList
           listRootRef={surfaceRef}
           onClearSearch={(): void => {

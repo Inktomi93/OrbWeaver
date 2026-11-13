@@ -3,6 +3,7 @@ import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness, createFirstBootHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
@@ -12,6 +13,8 @@ import {
   CHARACTER_JUST_ADDED_SHELF_NAME,
   CHARACTER_LIBRARY_NAME,
   CHARACTER_RECENT_SHELF_NAME,
+  characterAddedStamp,
+  characterFaceName,
 } from "#client/features/character/lib/character-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -43,7 +46,12 @@ async function expectLibraryOutline(page: Page, title: string, hasRecent: boolea
 
 async function expectAuthoredCharacterDoor(page: Page, coarse: boolean): Promise<void> {
   const library = page.getByRole("list", { name: coarse ? CHARACTER_JUST_ADDED_SHELF_NAME : CHARACTER_LIBRARY_NAME, exact: true });
-  await library.getByRole("button", { name: coarse ? new RegExp(`^${AUTHORED_NAME}, added `, "u") : AUTHORED_NAME, exact: !coarse }).click();
+  await library
+    .getByRole("button", {
+      name: coarse ? nameShape((ago) => characterFaceName(AUTHORED_NAME, characterAddedStamp(ago), false, false)) : AUTHORED_NAME,
+      exact: !coarse,
+    })
+    .click();
   await expect(
     page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true }),
   ).toHaveValue(AUTHORED_NAME);

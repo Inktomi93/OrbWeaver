@@ -30,6 +30,13 @@
 // function is that function's subject, not a name; and `aria-roledescription`, `aria-valuetext` and the fields of an
 // `accessibility.snapshot()` result describe a role or a value, not the name the classes judge.
 //
+// Seen but not judged, because text alone cannot tell a production name from test text in them, and each may hold a
+// name production renders: `unresolved` holds a name built with no fixed words (`Increase Image count` from a
+// verb-and-subject template), which neither a literal nor a template fit finds; `unresolved-template` holds a template
+// whose words come from constants or are short words several files spell; `no-words` holds a grammar joined by hand from
+// imported constants, whose joining words and order the test types. A sample of 25 sites per class read 4, 7 and 5 such
+// names; the census output prints each class's live count.
+//
 // Beside the sites, the census lists oracle candidates: a call to a production label function whose name varies,
 // written where an assertion reads a name (a matcher's name argument, a compared text read, or a locator's name or
 // text filter inside the `expect` subject, directly or through a spec constant), or in a spec constant one of those
@@ -45,8 +52,8 @@
 // The class is a judgement on text alone, so `exported` means "a production .ts module exports this exact string and
 // no other production file spells it", not "the component under test renders that export". A rewrite still reads
 // the component before it trusts the class. A site in a home class that is not a name production renders for the
-// targeted control moves to `judged` through a row of `tooling/src/label-census/judged-sites.ts`; that file states the
-// key, the closed reasons and the rule.
+// targeted control, or that pins a composed name on purpose, moves to `judged` through a row of
+// `tooling/src/label-census/judged-sites.ts`; that file states the key, the closed reasons and the rule.
 
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -168,12 +175,15 @@ export const CENSUS_CLASSES = [
 ] as const;
 export type CensusClass = (typeof CENSUS_CLASSES)[number];
 
-/** The classes that say production keeps the text and the test types it anyway: the sites 1426's done line counts. */
+/** The classes that say production keeps the text and the test types it anyway: the sites 1426's done line counts.
+ *  `inline-template` counts too: a template or pattern whose fixed words production spells is a hand-typed composed
+ *  name until a judged row says it is a literal pin, a fragment or no name at all. */
 export const HOME_CLASSES = [
   "exported",
   "exported-also-inline",
   "export-out-of-reach",
   "inline",
+  "inline-template",
   "inline-also-authored",
 ] as const satisfies readonly CensusClass[];
 export type HomeClass = (typeof HOME_CLASSES)[number];

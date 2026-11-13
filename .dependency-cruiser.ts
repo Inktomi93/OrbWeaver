@@ -524,10 +524,16 @@ const TEST_CONSTANT_HOMES = {
   "packages/ui/src/primitives/macro-textarea/macro-textarea-names.ts": "MACRO_SUGGESTIONS_NAME: the macro completion list's name",
   "packages/ui/src/primitives/log-viewer/log-viewer-names.ts": "UNNAMED_LOG_NAME: the name a log viewer prints for a log with no name",
   "packages/ui/src/primitives/file-dropzone/file-dropzone-names.ts": "REFUSAL_GLYPH_NAME: the glyph that leads a file control's refusal line",
-  "packages/ui/src/content/message-media/message-media-names.ts": "MEDIA_UNAVAILABLE_TEXT: the tile a message image that cannot load prints",
+  "packages/ui/src/primitives/number-field/number-field-names.ts": "the stepper verbs and the bounds sentence a number field is named and described by",
+  "packages/ui/src/code-editor/code-editor-names.ts": "DIAGNOSTIC_SEVERITY_LABEL: the severity words the code editor announces a diagnostic with",
+  "packages/ui/src/content/message-media/message-media-names.ts":
+    "MEDIA_UNAVAILABLE_TEXT and externalMediaLoadName: the tile a message image that cannot load prints, and the click-to-load placeholder",
   "packages/client/src/lib/image-size-copy.ts":
     "IMAGE_NEGATIVE_PROMPT_NOUN and IMAGE_NEGATIVE_PROMPT_FIELD_NAME: the image field's name, which the rule editor's optional field controls are named by",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
+  "packages/client/src/forms/editor/bound-fields/macro-field-names.ts": "macroTokenCountLine: the estimated token count a macro field prints under its value",
+  "packages/client/src/features/rpg/lib/tracker-names.ts":
+    "trackerFieldName and the tracker value names: the per-carrier field and rest-button names the rpg panels print",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
   "packages/client/src/forms/entity-form-base.ts": "DEFAULT_DEBOUNCE_MS: the autosave debounce a held-window case waits past to see a second write",
   "packages/client/src/features/character/lib/character-names.ts":
@@ -602,7 +608,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/refinery/lib/refinery-names.ts":
     "REFINERY_VERSIONS_NAME, refineryCompareToggleName and REFINERY_VERSION_LOADING_TEXT: the context pane's version history names",
   "packages/client/src/features/refinery/lib/verdict.ts": "verdictWordOf: the display word the analyze verdict banner paints",
-  "packages/client/src/features/refinery/lib/render-plan.ts": "scopeChipLabelOf: the field name the scope dialog's checkbox prints",
+  "packages/client/src/features/refinery/lib/render-plan.ts":
+    "scopeChipLabelOf: the pure rule, over contracts' renderHintOf, that names the field the scope dialog's checkbox prints",
   "packages/client/src/features/plugin/lib/plugin-surface-names.ts": "PLUGIN_SEARCH_SUBMIT_NAME: the plugin browse search's submit button",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":

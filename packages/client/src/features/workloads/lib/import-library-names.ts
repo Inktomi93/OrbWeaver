@@ -4,6 +4,28 @@
 /** The folder picker's visible trigger. */
 export const IMPORT_FOLDER_NAME = "Import a folder…";
 
+/** The verb every staged-import question opens with; the question names the preflight group. */
+export const IMPORT_PREFLIGHT_LEAD = "Import";
+
+/** The staged-import question: a picked folder by the files the plan sends, one file by its name, or several files. */
+export function importFolderPreflightTitle(files: number): string {
+  return `${IMPORT_PREFLIGHT_LEAD} ${String(files)} file${files === 1 ? "" : "s"} from the folder you picked?`;
+}
+export function importFilePreflightTitle(name: string): string {
+  return `${IMPORT_PREFLIGHT_LEAD} “${name}”?`;
+}
+export function importFilesPreflightTitle(count: number): string {
+  return `${IMPORT_PREFLIGHT_LEAD} ${String(count)} files?`;
+}
+
+/** The staged question when nothing in a picked folder can be imported. */
+export const IMPORT_FOLDER_NOTHING_TITLE = "Nothing in the folder you picked can be imported";
+
+/** The finished import summary's first tally, always shown. */
+export function importSummaryImported(count: number): string {
+  return `${String(count)} imported`;
+}
+
 /** The group that holds the import's progress, which takes focus when the import starts. */
 export const IMPORT_PROGRESS_NAME = "Import progress";
 

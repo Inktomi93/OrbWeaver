@@ -4,7 +4,7 @@
 // same way, but a `rem` inside a media query stays at the platform default, so a browser whose own default is 200% would
 // also flip the shell regime. Every surface runs every cell of EVERY_CELL; an exception is named beside it in QUALIFIED.
 
-import { BLANK_CHAT_NAME, CHAT_NAME_FIELD_NAME, contextToggleLabel, DIALOG_VERBS, testId } from "@orb/client/lib";
+import { BLANK_CHAT_NAME, CHAT_NAME_FIELD_NAME, contextToggleLabel, DIALOG_VERBS, screenOverviewDoorName, testId } from "@orb/client/lib";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -12,10 +12,12 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { enlargedTextFindings as findings, resolvedLength, LAYOUT_SUBPIXEL_PX as SUBPIXEL, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { absenceWindow, channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
-import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_EDITOR_NAME, CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CHAT_ADD_CHARACTER_NAME } from "#client/features/chat/lib/members-names.ts";
 import { CHAT_PRINT_COVERAGE } from "#client/features/chat/lib/transcript-copy.ts";
@@ -33,7 +35,7 @@ const TEXT_200 = { name: "200% text", factor: 2 } as const;
 const LAYOUT_300 = { name: "300% layout", factor: 3 } as const;
 // The widest root at which the desktop topbar still shows the wide identity that renames a room.
 const TEXT_125 = { name: "125% text", factor: 1.25 } as const;
-const IMPORT_DOOR = /^Import/u;
+const IMPORT_DOOR = CHARACTER_IMPORT_NAME;
 const BAND_MENU_TRIGGER = '[data-slot="list-pane-action"] [data-slot="overflow-actions-trigger"]';
 const TRAIL_MENU_TRIGGER = '.shell-topbar-trail [data-slot="overflow-actions-trigger"]';
 const FONT_SCALE_PROPERTY = channelName("fontScale");
@@ -377,7 +379,7 @@ for (const [viewport, scale] of QUALIFIED.gameRoomMembers) {
       await scaleRoot(page, scale.factor);
       await openContextPanel(page);
       const panel = page.locator(".shell-panel[data-panel-side='context']");
-      await panel.getByRole("tab", { name: /^Members/u }).click();
+      await panel.getByRole("tab", { name: new RegExp(`^${RegExp.escape(CHAT_CONTEXT_TAB_LABELS.members)}`, "u") }).click();
       const door = panel.getByRole("button", { name: CHAT_ADD_CHARACTER_NAME, exact: true });
       await door.scrollIntoViewIfNeeded();
       await expect(door).toBeInViewport({ ratio: 0.5 });
@@ -391,7 +393,7 @@ for (const [viewport, scale] of QUALIFIED.gameRoomMembers) {
       await scaleRoot(page, scale.factor);
       await openContextPanel(page);
       const panel = page.locator(".shell-panel[data-panel-side='context']");
-      await panel.getByRole("tab", { name: /^Members/u }).click();
+      await panel.getByRole("tab", { name: new RegExp(`^${RegExp.escape(CHAT_CONTEXT_TAB_LABELS.members)}`, "u") }).click();
       const names = panel.locator('[data-slot="member-name"]');
       await expect(names.first()).toBeVisible();
       const floor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, panel);
@@ -1137,7 +1139,7 @@ for (const [viewport, scale] of QUALIFIED.presetsWelcome) {
       await mount<typeof AppShellStory>(STORY, {});
       if (viewport.touch) {
         // A phone lands on the roster; the topbar door swaps it for the section's no-selection content.
-        await page.getByRole("button", { name: /^Show .+ overview$/u }).click();
+        await page.getByRole("button", { name: nameShape(screenOverviewDoorName) }).click();
       }
       const pane = page.locator(".shell-content");
       const welcome = pane.locator('[data-slot="empty-state-root"]');
@@ -1172,7 +1174,7 @@ for (const [viewport, scale] of QUALIFIED.emptyStateActions) {
         await seedShellState(page, { activeSection: section });
         await mount<typeof AppShellStory>(STORY, {});
         // A phone lands on the roster; the topbar door swaps it for the section's no-selection content.
-        await page.getByRole("button", { name: /^Show .+ overview$/u }).click();
+        await page.getByRole("button", { name: nameShape(screenOverviewDoorName) }).click();
         const pane = page.locator(".shell-content");
         const action = pane.locator('[data-slot="empty-state-action"] [data-slot="button"]');
         await expect(action).toBeVisible();

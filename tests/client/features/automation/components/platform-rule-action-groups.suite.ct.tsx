@@ -46,6 +46,7 @@ import {
   ruleConnectionsName,
   ruleFieldAddName,
   ruleFieldRemoveConfirmName,
+  ruleSlotFollowsRoleLabel,
   ruleTestName,
   ruleTestResultName,
 } from "#client/features/automation/lib/automation-names.ts";
@@ -259,7 +260,7 @@ test.describe("rule editor field rows", () => {
       .click();
     await page.getByRole("button", { name: ruleConnectionsName(captured.name), exact: true }).click();
     const slot = page.getByRole("group", { name: role.heading, exact: true });
-    await expect(slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true })).toContainText(`Same as my ${role.label} role`);
+    await expect(slot.getByRole("combobox", { name: connectionRolePickerName(role.label), exact: true })).toContainText(ruleSlotFollowsRoleLabel(role.label));
     await expect(slot.getByRole("img", { name: ROLE_STATUS_LABELS.unset, exact: true })).toBeVisible();
     // The readout says what the fallback resolves to, so the picker and the readout read as one state.
     await expect(slot.getByText(RULE_UNSET_EFFECTS.generateImage ?? "", { exact: true })).toBeVisible();

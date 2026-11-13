@@ -83,6 +83,19 @@ export function ruleConnectionsName(ruleName: string): string {
   return `Connections for ${ruleName}`;
 }
 
+/** The speaker action's character field. */
+export const RULE_SPEAKER_FIELD_LABEL = "Speaker";
+
+/** A rule character field's readout: the field's label, then the character it holds or what stands in for one. */
+export function ruleCharacterReadout(label: string, who: string): string {
+  return `${label}: ${who}`;
+}
+
+/** A rule's unset connection slot, which follows the author's own binding for `role`. */
+export function ruleSlotFollowsRoleLabel(role: string): string {
+  return `Same as my ${role} role`;
+}
+
 /** The toasts a failed rule create and a failed rule save raise. */
 export const RULE_CREATE_FAILED_TOAST = "Couldn't create that rule. Your draft is kept.";
 export const RULE_SAVE_FAILED_TOAST = "Couldn't save that rule. Your draft is kept.";

@@ -2,13 +2,14 @@
 import type { ConfigGroupId, ModalSlotId, SectionId } from "@orb/client/state";
 import { configSettingLabel } from "@orb/client/state";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
+import { nameShape } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { YOU_SHEET_ACCOUNT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { OWNER_RULE_RATE_FIELD_NAME, OWNER_RULES_INTRO } from "#client/features/automation/lib/automation-names.ts";
 import { CHARACTER_LANDING_RESUME_TITLE, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "#client/features/chat/lib/appearance-message-style-model.ts";
 import { CHAT_MESSAGE_HANDLING_SUBCATEGORY } from "#client/features/chat/lib/chat-behavior-message-handling-model.ts";
-import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME, NEW_CHAT_CHARACTERS_FIELD_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_LIST_NAME, HOME_QUICK_PICKS_NAME, homeResumeChatName, NEW_CHAT_CHARACTERS_FIELD_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_PALETTE_NAME, COMMAND_RECENT_THREADS_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { backgroundStateLabel } from "#client/features/credentials/lib/connections-copy.ts";
@@ -30,6 +31,7 @@ import { IMAGE_DETAIL_EMPTY_TEXT, IMAGE_EDIT_EMPTY_TEXT, IMAGINE_EMPTY_TEXT } fr
 import { PERSONA_NEW_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import { EXTENSIONS_OPEN_PLUGINS_ACTION } from "#client/features/plugin/lib/extensions-copy.ts";
 import { PLUGIN_NO_COMMAND_SELECTED_TEXT } from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { pluginCardLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import { PLUGIN_DIALOG_GONE_BODY, PLUGIN_DIALOG_GONE_TITLE } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { REFINERY_START_SESSION_PICKER_NAME } from "#client/features/refinery/lib/refinery-names.ts";
@@ -48,7 +50,7 @@ const SECTION_WITNESSES = {
   home: (page): Witnesses => [
     page
       .locator('[data-home-tile="chat.recents"]')
-      .getByRole("button", { name: /^Resume / })
+      .getByRole("button", { name: nameShape(homeResumeChatName) })
       .first(),
     page.getByRole("list", { name: HOME_QUICK_PICKS_NAME, exact: true }).getByRole("listitem").first(),
     page.getByRole("list", { name: DATABANK_RECENT_DOCUMENTS_NAME, exact: true }).getByRole("listitem").first(),
@@ -123,7 +125,7 @@ const GROUP_WITNESSES = {
   rosterPreset: (page): Witnesses => [
     page.locator('[data-collection="rosterPreset"][data-slot="config-collection-landing"] [data-slot="list-row-body"]').first(),
   ],
-  plugins: (page): Witnesses => [page.getByRole("group", { name: / plugin$/ }).first()],
+  plugins: (page): Witnesses => [page.getByRole("group", { name: nameShape(pluginCardLabel) }).first()],
 } satisfies Record<ConfigGroupId, (page: Page) => Witnesses>;
 
 const MODAL_SCENARIOS = {

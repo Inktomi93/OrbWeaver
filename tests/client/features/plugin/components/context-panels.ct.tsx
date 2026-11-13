@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
 import {
   CHAT_PLUGINS_TAB_LABEL,
+  contextPaneLabel,
   contextToggleLabel,
   DETAILS_PANEL_NOUN,
   MESSAGE_TOOLS_LABEL,
+  panelCloseName,
   SIDECAR_PANELS_LABEL,
   SIDECAR_PANELS_NOUN,
 } from "@orb/client/lib";
@@ -236,7 +238,7 @@ test.describe("touch placement", () => {
     await page.screenshot({ path: "reports/plugin-context-mobile.png" });
     await context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true }).click();
     await expect(context.getByRole("button", { name: "Move to Context: Context witness: First", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: `Close ${SECTION_LABELS.chats} details`, exact: true }).click();
+    await page.getByRole("button", { name: panelCloseName(contextPaneLabel(SECTION_LABELS.chats)), exact: true }).click();
     await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
     await page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true }).click();
     const sheet = page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
@@ -260,7 +262,7 @@ test.describe("touch placement", () => {
       .getByRole("region", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })
       .getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true })
       .click();
-    await page.getByRole("button", { name: `Close ${SECTION_LABELS.chats} details`, exact: true }).click();
+    await page.getByRole("button", { name: panelCloseName(contextPaneLabel(SECTION_LABELS.chats)), exact: true }).click();
     const glyphs = (locator: Locator): Promise<string[]> =>
       locator.locator("svg").evaluateAll((svgs) => svgs.map((svg) => Array.from(svg.classList).find((token) => token.startsWith("lucide-")) ?? ""));
     const actions = await glyphs(page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true }));

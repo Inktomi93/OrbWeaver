@@ -110,5 +110,10 @@ export function createTagName(tag: string): string {
   return `Create "${tag}"`;
 }
 
+/** The character picker's footer while it holds only part of the library: how many rows it shows of how many exist. */
+export function pickerShowingLine(shown: string, total: string): string {
+  return `Showing ${shown} of ${total}`;
+}
+
 /** The character search box: the character library, a world book's character attachments and the Insights leaderboard. */
 export const CHARACTER_SEARCH_NAME = "Search characters";

@@ -13,6 +13,7 @@ import { useId, useRef, useState } from "react";
 import { Tip } from "#components";
 import type { EditSession } from "#lib";
 import { resolveCommit } from "#lib";
+import { trackerValueRestName } from "#src/features/rpg/lib/tracker-names.ts";
 
 type TrackerVoice = Extract<ComponentProps<typeof Text>["voice"], "label" | "promoted">;
 interface TrackerValueOwnProps {
@@ -72,7 +73,7 @@ function restTextOf(display: string, placeholder: string | undefined): string {
  *  empty value), so the visible words are in the name (WCAG 2.5.3). A caller that words the name itself passes
  *  `restAriaLabel`; the edit field keeps the bare label. */
 function restNameOf(ariaLabel: string, restAriaLabel: string | undefined, display: string, placeholder: string | undefined): string {
-  return restAriaLabel ?? `${ariaLabel}: ${restTextOf(display, placeholder)}`;
+  return restAriaLabel ?? trackerValueRestName(ariaLabel, restTextOf(display, placeholder));
 }
 
 /** The REST state of an editable value — a real button CARRYING the datum text (see the header). Split out

@@ -8,6 +8,7 @@ import type { ShellBusStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { DATABANK_LIST_NAME } from "#client/features/databank/lib/databank-names.ts";
@@ -18,7 +19,7 @@ const READS = [...SECTION_PROCEDURES, "databank.bankHealth", "databank.listGloba
 const DOCUMENTS = ["Lantern notes", "Harbour notes", "Orchard notes"] as const;
 const SEVEN_DOCUMENTS = ["Atlas notes", "Beacon notes", "Cinder notes", "Delta notes", "Ember notes", "Fjord notes", "Grove notes"] as const;
 const ROW = '[data-slot="list-row-root"]';
-const ACTIONS_BUTTON = /^Actions for /u;
+const ACTIONS_BUTTON = nameShape(rowActionsName);
 
 test.use({ hasTouch: false, isMobile: false, viewport: { width: 1440, height: 900 } });
 
@@ -30,7 +31,7 @@ function listOf(page: Page): Locator {
 function listedNames(list: Locator): Promise<readonly string[]> {
   return list
     .getByRole("button", { name: ACTIONS_BUTTON })
-    .evaluateAll((buttons) => buttons.map((button) => (button.getAttribute("aria-label") ?? "").replace(/^Actions for /u, "")));
+    .evaluateAll((buttons, lead) => buttons.map((button) => (button.getAttribute("aria-label") ?? "").slice(lead.length)), rowActionsName(""));
 }
 
 function rowBody(list: Locator, name: string): Locator {

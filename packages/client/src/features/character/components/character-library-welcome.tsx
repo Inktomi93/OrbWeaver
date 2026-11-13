@@ -52,6 +52,7 @@ import {
   CHARACTER_JUST_ADDED_SHELF_NAME,
   CHARACTER_LANDING_RESUME_TITLE,
   CHARACTER_RECENT_SHELF_NAME,
+  characterAddedStamp,
   characterStarredShelfName,
 } from "../lib/character-names.ts";
 import { chattedStamp } from "../lib/character-shelf-stamp.ts";
@@ -113,7 +114,9 @@ function faceOf(character: CharacterRow, stamp: string | null, caption: string |
 }
 
 function justAddedFacesOf(characters: readonly CharacterRow[]): ShelfFace[] {
-  return characters.slice(0, JUST_ADDED_SHELF_LIMIT).map((character) => faceOf(character, `added ${timeLib.formatRelativeAgo(character.createdAt)}`, null));
+  return characters
+    .slice(0, JUST_ADDED_SHELF_LIMIT)
+    .map((character) => faceOf(character, characterAddedStamp(timeLib.formatRelativeAgo(character.createdAt)), null));
 }
 
 /** The Characters CONTENT pane at rest. Its own `QueryBoundary`: the shell does NOT wrap a section's CONTENT

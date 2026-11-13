@@ -53,7 +53,13 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
-import { CHAT_GROUP_BEHAVIOR_NAME } from "../lib/chat-settings-names.ts";
+import {
+  CHAT_DOCUMENTS_SECTION_LABEL,
+  CHAT_FORKS_SECTION_LABEL,
+  CHAT_GROUP_BEHAVIOR_NAME,
+  CHAT_INJECTIONS_SECTION_LABEL,
+  CHAT_WORLD_BOOKS_SECTION_LABEL,
+} from "../lib/chat-settings-names.ts";
 import { ChatBooksSection } from "./chat-books-section.tsx";
 import { DisclosureSection } from "./chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
@@ -171,7 +177,11 @@ function InjectionsSection({ chatId, isHost }: { readonly chatId: ChatId; readon
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.listChatInjections.queryOptions({ chatId }));
   return (
-    <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<HeadingWithCount count={data?.length ?? 0} label="Injections" />} sectionId="injections">
+    <DisclosureSection
+      defaultOpen={CLOSED_BY_DEFAULT}
+      kicker={<HeadingWithCount count={data?.length ?? 0} label={CHAT_INJECTIONS_SECTION_LABEL} />}
+      sectionId="injections"
+    >
       <QueryBoundary
         resetKeys={[chatId]}
         fallback={<InjectionsSkeleton count={data?.length ?? 1} isHost={isHost} />}
@@ -189,21 +199,21 @@ function InjectionsSection({ chatId, isHost }: { readonly chatId: ChatId; readon
 function DocumentsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.databank.listActiveForChat.queryOptions({ chatId }));
-  return <HeadingWithCount count={data?.length ?? 0} label="Documents" />;
+  return <HeadingWithCount count={data?.length ?? 0} label={CHAT_DOCUMENTS_SECTION_LABEL} />;
 }
 
 // Count the viewer's projected rack, never another viewer's inherited personal-library headers.
 function LorebooksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId, includeInherited: true }));
-  return <HeadingWithCount count={data?.length ?? 0} label="World books" />;
+  return <HeadingWithCount count={data?.length ?? 0} label={CHAT_WORLD_BOOKS_SECTION_LABEL} />;
 }
 
 // The Forks count, on the same non-suspending shared-cache idiom as Documents above.
 function ForksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.listForks.queryOptions({ chatId }));
-  return <HeadingWithCount count={data?.length ?? 0} label="Forks" />;
+  return <HeadingWithCount count={data?.length ?? 0} label={CHAT_FORKS_SECTION_LABEL} />;
 }
 
 export interface CommittedSettingsTabProps {

@@ -11,6 +11,7 @@ import { NO_VALUE, NO_VALUE_NAME } from "@orb/kit/strings";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
 import {
@@ -20,6 +21,8 @@ import {
   RPG_SHOW_KNOWN_CHARACTERS_NAME,
   RPG_STATUS_LINE_LABEL,
 } from "#client/features/rpg/lib/rpg-names.ts";
+import { trackerFieldName, trackerValueName, trackerValueRestName } from "#client/features/rpg/lib/tracker-names.ts";
+import { numberBoundsBetween } from "#ui/primitives/number-field/number-field-names.ts";
 import type { RpgContextTabStory, RpgDiceComposerStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -141,8 +144,8 @@ test("Status meters and the character takeover read an unset inherited-name key 
   const room = await gameRoom(root);
   // Every participant's meter on Status carries its name; the one-carrier takeover names its attribute cell and
   // meter bare, in that order.
-  const statusMeters = page.getByRole("button", { name: new RegExp(` ${LABEL} value: `, "u") });
-  const takeoverValues = page.getByRole("button", { name: new RegExp(`^${LABEL} value: `, "u") });
+  const statusMeters = page.getByRole("button", { name: nameShape((part) => trackerValueRestName(trackerFieldName(trackerValueName(LABEL), part), part)) });
+  const takeoverValues = page.getByRole("button", { name: nameShape((shown) => trackerValueRestName(trackerValueName(LABEL), shown)) });
   let reads = await room.reads();
   let seats = participants(reads, root.ownerId);
   await routeTrpc(page, reads.routes);
@@ -165,7 +168,7 @@ test("Status meters and the character takeover read an unset inherited-name key 
 test("the Scene character card reads an unset inherited-name tracker as unset, then its own value", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const room = await gameRoom(root);
-  const npcValue = page.getByRole("button", { name: new RegExp(`^${NPC_NAME} ${LABEL} value: `, "u") });
+  const npcValue = page.getByRole("button", { name: nameShape((shown) => trackerValueRestName(trackerFieldName(trackerValueName(LABEL), NPC_NAME), shown)) });
   await routeTrpc(page, (await room.reads()).routes);
   const unset = await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.scene" });
   await page.getByRole("button", { name: RPG_SHOW_KNOWN_CHARACTERS_NAME, exact: true }).click();
@@ -244,7 +247,7 @@ test("an attribute tile takes numbers only, steps by one on the arrow keys and s
   await field.pressSequentially("ab");
   await expect(field).toHaveValue("");
   const { min, max } = room.profile.range;
-  await expect(field).toHaveAccessibleDescription(`Between ${min} and ${max}`);
+  await expect(field).toHaveAccessibleDescription(numberBoundsBetween(String(min), String(max)));
   await expect(field).toHaveAttribute("placeholder", `${min}–${max}`);
 });
 
@@ -257,7 +260,9 @@ test("Status seats a text tracker's value at the end of the room its row leaves,
   await caller.rpg.updateConfig({ chatId: room.chatId, patch: { trackers: [...config.trackers, mood] } });
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.status" });
-  const value = page.getByRole("button", { name: new RegExp(` ${TEXT_TRACKER} value: `, "u") }).first();
+  const value = page
+    .getByRole("button", { name: nameShape((part) => trackerValueRestName(trackerFieldName(trackerValueName(TEXT_TRACKER), part), part)) })
+    .first();
   const label = page.getByText(TEXT_TRACKER, { exact: true }).first();
   await expect(value).toBeVisible();
   const placed = await value.evaluate((element) => {

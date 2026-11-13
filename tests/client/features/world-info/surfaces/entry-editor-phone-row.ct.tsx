@@ -12,6 +12,7 @@ import {
   WORLD_INFO_FIRE_MODE_NAME,
   WORLD_INFO_PRIORITY_NAME,
 } from "#client/features/world-info/lib/world-info-names.ts";
+import { NUMBER_FIELD_DECREMENT_VERB, NUMBER_FIELD_INCREMENT_VERB, numberStepperName } from "#ui/primitives/number-field/number-field-names.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
 const STORY = "tests/client/features/world-info/surfaces/_member-stories/WorldInfoMemberStory";
@@ -124,9 +125,9 @@ for (const width of PHONE_WIDTHS) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
       // Both steppers stay on the field, whole and pressable: a tap on each moves the value a step.
       const start = Number(await depth.inputValue());
-      await component.getByRole("button", { name: `Increase ${WORLD_INFO_ENTRY_DEPTH_NAME}`, exact: true }).click();
+      await component.getByRole("button", { name: numberStepperName(NUMBER_FIELD_INCREMENT_VERB, WORLD_INFO_ENTRY_DEPTH_NAME), exact: true }).click();
       await expect(depth).toHaveValue(String(start + 1));
-      await component.getByRole("button", { name: `Decrease ${WORLD_INFO_ENTRY_DEPTH_NAME}`, exact: true }).click();
+      await component.getByRole("button", { name: numberStepperName(NUMBER_FIELD_DECREMENT_VERB, WORLD_INFO_ENTRY_DEPTH_NAME), exact: true }).click();
       await expect(depth).toHaveValue(String(start));
     });
   }

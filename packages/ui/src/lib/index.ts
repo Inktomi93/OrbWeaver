@@ -7,6 +7,7 @@ export { ACCENT_HOVER } from "./accent-hover.ts";
 export {
   copyActionName,
   defaultChoiceName,
+  dismissActionName,
   editActionName,
   hideActionName,
   moreActionsName,

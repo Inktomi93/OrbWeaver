@@ -14,7 +14,7 @@ import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter, setActiveSection } from "#state";
 import type { SuggestionGroup } from "../lib/label-suggestion-groups.ts";
 import { groupSuggestions } from "../lib/label-suggestion-groups.ts";
-import { TAG_REJECT_NAME, TAG_SUGGESTIONS_EMPTY_TEXT } from "../lib/tag-list-name.ts";
+import { TAG_REJECT_NAME, TAG_SUGGESTIONS_EMPTY_TEXT, tagSuggestionGroupName, tagSuggestionRowName } from "../lib/tag-list-name.ts";
 
 export function LabelsSuggestions(): ReactElement {
   return (
@@ -131,7 +131,7 @@ function SuggestionGroupBlock({
     return null;
   }
   return (
-    <Stack gap="field" role="group" aria-label={`Suggested ${group.name}`}>
+    <Stack gap="field" role="group" aria-label={tagSuggestionGroupName(group.name)}>
       <Row align="center" wrap={true} gap="field">
         <EditableTagChip tag={first} />
         <Text voice="gloss">{group.rows.length === 1 ? "1 character" : `${String(group.rows.length)} characters`}</Text>
@@ -230,7 +230,7 @@ function SuggestionRow({
   }, [pending]);
   return (
     // No wrap: Apply and Reject are one pair, and the table gives this cell its own width.
-    <Row align="center" gap="field" justify="end" role="group" aria-label={`Suggested ${suggestion.name} for ${suggestion.characterName}`}>
+    <Row align="center" gap="field" justify="end" role="group" aria-label={tagSuggestionRowName(suggestion.name, suggestion.characterName)}>
       <Button
         data-slot="label-review-apply"
         ref={applyRef}

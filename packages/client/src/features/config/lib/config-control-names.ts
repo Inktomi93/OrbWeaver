@@ -39,6 +39,9 @@ export function newThemeName(current: string | undefined): string {
 /** The theme editor's custom stylesheet editor. */
 export const CONFIG_THEME_CSS_FIELD_NAME = "Custom theme CSS";
 
+/** The Settings list's skip link past its rail. */
+export const CONFIG_SKIP_NAME = "Skip to settings";
+
 /** The Settings map's list page. */
 export const CONFIG_SETTINGS_GROUPS_NAME = "Settings groups";
 

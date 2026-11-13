@@ -42,9 +42,13 @@ import {
   IMPORT_ANOTHER_NAME,
   IMPORT_FILE_PICKER_NAME,
   IMPORT_FOLDER_NAME,
+  IMPORT_FOLDER_NOTHING_TITLE,
   IMPORT_INTRO_LEAD,
   IMPORT_PROGRESS_NAME,
   IMPORT_RESULT_NAME,
+  importFilePreflightTitle,
+  importFilesPreflightTitle,
+  importFolderPreflightTitle,
 } from "../lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES, IMPORT_CONSEQUENCE, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
@@ -81,11 +85,11 @@ function stagedTitle(files: readonly File[], plan: TreeImportPlan | null): strin
   const first = files[0];
   if (plan !== null) {
     if (plan.files === 0) {
-      return "Nothing in the folder you picked can be imported";
+      return IMPORT_FOLDER_NOTHING_TITLE;
     }
-    return `Import ${String(plan.files)} file${plan.files === 1 ? "" : "s"} from the folder you picked?`;
+    return importFolderPreflightTitle(plan.files);
   }
-  return files.length === 1 && first !== undefined ? `Import “${first.name}”?` : `Import ${String(files.length)} files?`;
+  return files.length === 1 && first !== undefined ? importFilePreflightTitle(first.name) : importFilesPreflightTitle(files.length);
 }
 
 /** The staged selection, its consequence, and the two answers. Its own component so the title is computed

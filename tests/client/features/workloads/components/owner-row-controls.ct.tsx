@@ -11,6 +11,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nameShape } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { OTHERS_CONTROLS_HIDDEN_TEXT } from "#client/features/workloads/lib/workloads-failure-copy.ts";
@@ -136,11 +137,11 @@ test("with the account list failing a delegated admin reads why no run offers co
   const rows = page.locator('[data-slot="workload-row"]');
   await expect(page.getByText(OTHERS_CONTROLS_HIDDEN_TEXT, { exact: true })).toBeVisible();
   await expect(rows).toHaveCount(2);
-  await expect(rows.getByRole("button", { name: /^Cancel: /u })).toHaveCount(0);
+  await expect(rows.getByRole("button", { name: nameShape(cancelWorkloadName) })).toHaveCount(0);
 
   served.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(rows.filter({ hasText: memberHandle }).getByRole("button", { name: /^Cancel: /u })).toHaveCount(1);
+  await expect(rows.filter({ hasText: memberHandle }).getByRole("button", { name: nameShape(cancelWorkloadName) })).toHaveCount(1);
   await expect(rows.filter({ hasText: ownerHandle }).getByRole("button")).toHaveCount(0);
   await expect(page.getByText(OTHERS_CONTROLS_HIDDEN_TEXT, { exact: true })).toHaveCount(0);
 });

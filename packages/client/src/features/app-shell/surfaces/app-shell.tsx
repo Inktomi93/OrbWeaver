@@ -12,7 +12,16 @@ import { useEffect, useRef, useState } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
 import { useWarmSavedRosters } from "#data";
-import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, listPaneLabel, POPUP_LAYER_NAME, panelCloseName, resolveThemeScopeTokens, sectionBackName } from "#lib";
+import {
+  CONTEXT_SHEET_BACK_NAME,
+  contentRegionName,
+  contextPaneLabel,
+  listPaneLabel,
+  POPUP_LAYER_NAME,
+  panelCloseName,
+  resolveThemeScopeTokens,
+  sectionBackName,
+} from "#lib";
 import type { PanelMode, PanelName, SectionId } from "#state";
 import {
   clearShellContentFocus,
@@ -430,7 +439,7 @@ export function AppShell(): ReactElement {
                   className="shell-content"
                   ref={mainRef}
                   tabIndex={-1}
-                  aria-label={`${layout.activeSectionLabel} content`}
+                  aria-label={contentRegionName(layout.activeSectionLabel)}
                   // …and the SAME rule for the mobile LIST-as-screen, which carries no scrim but is still a
                   // full-viewport pane over this column (`contentInert` folds both — one flag, one truth).
                   inert={layout.contentInert}

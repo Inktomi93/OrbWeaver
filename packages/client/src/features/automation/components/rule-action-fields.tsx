@@ -6,6 +6,7 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AutosaveSession } from "#forms/editor";
+import { RULE_SPEAKER_FIELD_LABEL } from "../lib/automation-names.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleAnalysisFields } from "./rule-analysis-fields.tsx";
 import { RuleCharacterField } from "./rule-character-field.tsx";
@@ -126,7 +127,7 @@ export function RuleActionFields({
       return (
         <Stack gap="block">
           <form.AppField name={`actions[${index}].speakerCharacterId`}>
-            {(field): ReactElement => <RuleCharacterField label="Speaker" value={field.state.value} onChange={field.handleChange} />}
+            {(field): ReactElement => <RuleCharacterField label={RULE_SPEAKER_FIELD_LABEL} value={field.state.value} onChange={field.handleChange} />}
           </form.AppField>
           <form.AppField name={`actions[${index}].guidedTemplate`}>
             {(field): ReactElement => (

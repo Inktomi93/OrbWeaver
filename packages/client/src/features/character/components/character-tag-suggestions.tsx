@@ -19,6 +19,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import { dismissActionName } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { EditableTagChip, useAcceptSuggestion, useRejectSuggestion } from "#components";
@@ -146,7 +147,7 @@ function SuggestionChip({
         </Text>
       </Button>
       <EditableTagChip tag={tag} iconOnly={true} />
-      <Button type="button" square={true} variant="ghost" aria-label={`Dismiss ${name}`} onClick={onReject}>
+      <Button type="button" square={true} variant="ghost" aria-label={dismissActionName(name)} onClick={onReject}>
         <Icon icon={X} size="xs" />
       </Button>
     </Badge>

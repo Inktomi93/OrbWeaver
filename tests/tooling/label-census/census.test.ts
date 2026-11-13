@@ -72,6 +72,40 @@ test("each name site gets the class its production home implies", () => {
   ]);
 });
 
+test("the done line counts exactly the home classes: a site of each prints, and a site of every other class does not", () => {
+  const index = productionIndex([
+    ...PRODUCTION,
+    { path: "packages/client/src/features/chat/components/badge.tsx", text: "export const Badge = () => <span>Inline only</span>;" },
+  ]);
+  const evidence = { authored: authoredStrings([STORY]) };
+  const inline: CensusSource = { path: SPEC.path, text: 'await page.getByText("Inline only").click();' };
+  const rows = [SPEC, UI_SPEC, inline].flatMap((source) => nameSites(source).map((site) => classifySite(site, index, evidence)));
+  const printed = formatSiteJudgements(rows, [])
+    .split("\n")
+    .flatMap((line) => / (\S+) in "/u.exec(line)?.[1] ?? []);
+  // Every class the fixture holds, counted or not, so a dropped or an added home class changes the printed set.
+  expect([...new Set(rows.map((row) => row.class))].sort()).toEqual([
+    "authored",
+    "export-out-of-reach",
+    "exported",
+    "exported-also-inline",
+    "guest",
+    "inline",
+    "inline-also-authored",
+    "inline-template",
+    "non-word",
+    "unresolved",
+  ]);
+  expect([...new Set(printed)].sort()).toEqual([
+    "export-out-of-reach",
+    "exported",
+    "exported-also-inline",
+    "inline",
+    "inline-also-authored",
+    "inline-template",
+  ]);
+});
+
 test("a ui spec cannot reach a client export, and reaches its own package's", () => {
   expect(classes(UI_SPEC)).toEqual([
     ['"Cancel"', "export-out-of-reach"],
@@ -544,7 +578,7 @@ test("a judgement moves its value's home-class sites in its own case to judged, 
   expect(formatSiteJudgements(judged.rows, judged.stale).split("\n")).toEqual([
     "sites with a production home: 1",
     `${JUDGED_SITE_SPEC.path}:5 "Cancel" exported in "a rendered verb"`,
-    "judged sites: 2 (production-id 2, test-authored 0, guest-authored 0, data 0, fragment 0)",
+    "judged sites: 2 (production-id 2, test-authored 0, guest-authored 0, data 0, fragment 0, literal-pin 0)",
     "site judgements matching no site: 1",
     `${JUDGED_SITE_SPEC.path} "Story note" in "a story note"`,
   ]);

@@ -11,7 +11,7 @@ import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 import { cardImportFailedDetail, cardImportRefusalLine } from "#lib";
-import { IMPORT_LEFT_ON_DISK_PHRASE, importPreviewUncomparedNote } from "./import-library-names.ts";
+import { IMPORT_LEFT_ON_DISK_PHRASE, importPreviewUncomparedNote, importSummaryImported } from "./import-library-names.ts";
 
 /** One normalized per-file outcome for the report summary. `notes` mirrors the server's per-card
  *  `skippedOverlays` (#1598/#1709) — the planes THIS file's import deliberately did not assert (e.g. "book
@@ -199,7 +199,7 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
 
 /** A one-line "3 imported · 1 skipped · 1 failed" toast/summary caption (only non-zero tallies shown). */
 export function summaryCaption(summary: ImportSummary): string {
-  const parts = [`${summary.imported} imported`];
+  const parts = [importSummaryImported(summary.imported)];
   if (summary.merged > 0) {
     parts.push(`${summary.merged} merged into existing`);
   }

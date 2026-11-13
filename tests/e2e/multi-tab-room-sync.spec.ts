@@ -23,6 +23,7 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_STOP_NAME, CHAT_STOPPING_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CHAT_ADD_CHARACTER_NAME, CHAT_ADD_CHARACTER_PLACEHOLDER, memberRemoveName } from "#client/features/chat/lib/members-names.ts";
 import {
   assistantRows,
@@ -51,7 +52,7 @@ const LIVE_TIMEOUT_MS = 180_000;
 
 /** The composer's in-flight Stop affordance (composer.tsx) — present for the whole turn, and only gone once
  *  the bus's turnCompleted/turnAborted closes the slot. Both label states, since it spins while stopping. */
-const STOP_AFFORDANCE = /^(Stop generating|Stopping…)$/u;
+const STOP_AFFORDANCE = new RegExp(`^(?:${RegExp.escape(CHAT_STOP_NAME)}|${RegExp.escape(CHAT_STOPPING_NAME)})$`, "u");
 
 interface Room {
   readonly chatId: ChatId;

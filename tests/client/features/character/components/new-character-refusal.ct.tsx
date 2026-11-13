@@ -64,7 +64,7 @@ async function submitTakenName(page: Page, held: HeldRefusal): Promise<void> {
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(TAKEN);
   await dialog.getByRole("textbox", { name: CHARACTER_DESCRIPTION_FIELD_NAME, exact: true }).fill("A second card.");
-  await dialog.getByRole("button", { name: /^Create$/u }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.create, exact: true }).click();
   await held.requested;
 }
 

@@ -3,14 +3,16 @@
 // a failed one the shared error block with a Retry that refetches, and one section's failure leaves the other standing.
 
 import { contextToggleLabel } from "@orb/client/lib";
+import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { holdServed, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { queryFailedLabel } from "#client/data/query-state-copy.ts";
-import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_PARAM_NAMES, CORPUS_READ_LABELS } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { CORPUS_CONTEXT_TAB_LABELS, CORPUS_PARAM_NAMES, CORPUS_READ_LABELS, corpusRoomPairName } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -86,6 +88,7 @@ test("a failed art-archetypes read says so in its own section and leaves the wri
   await expect(context.getByText(queryFailedLabel(CORPUS_READ_LABELS.artArchetypes), { exact: true })).toHaveCount(0);
 });
 
+const FORKED: DuplicateRelation = "forked";
 const SIMILARITY_READS = ["discovery.duplicateCharacters", "discovery.duplicateChats", "discovery.imageDuplicates"] as const;
 
 test("a held nearest-pairs read shows the loading skeleton, a failed one the shared error block, and Retry refetches", async ({ mount, page }) => {
@@ -164,9 +167,10 @@ test("a room pair's button name contains the relation badge it shows", async ({ 
   await mount<typeof ShellAmbientStory>(STORY, {});
   const context = await openContextTab(page, CORPUS_CONTEXT_TAB_LABELS.similarity);
   await expect(context.getByRole("combobox", { name: CORPUS_PARAM_NAMES.minSimilarity })).toBeVisible();
-  const forked = context.getByRole("button", { name: /compare rooms/u }).filter({ has: page.getByText("forked", { exact: true }) });
+  const forked = context
+    .getByRole("button", { name: nameShape((part) => corpusRoomPairName({ left: part, right: part, badge: FORKED, similarity: part, position: undefined })) })
+    .filter({ has: page.getByText(FORKED, { exact: true }) });
   await expect(forked.first()).toBeVisible();
-  await expect(forked.first()).toHaveAccessibleName(/, forked, /u);
 });
 
 test("each archetype card is a group named for its archetype, so a character in several archetypes has one door under each name", async ({ mount, page }) => {

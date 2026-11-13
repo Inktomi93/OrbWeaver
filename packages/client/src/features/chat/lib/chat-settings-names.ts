@@ -1,6 +1,18 @@
 // The accessible names the This-chat tab's injections, overrides, prose and group sections print. A zero-import leaf, so a
 // spec's node side reads them without loading the component graph.
 
+/** The This-chat tab's counted sections, each a disclosure whose name is the label and then its count. */
+export const CHAT_INJECTIONS_SECTION_LABEL = "Injections";
+export const CHAT_DOCUMENTS_SECTION_LABEL = "Documents";
+export const CHAT_WORLD_BOOKS_SECTION_LABEL = "World books";
+export const CHAT_FORKS_SECTION_LABEL = "Forks";
+
+/** An injection row's label, which leads its disclosure's name: the word, then the row's place in the list. */
+export const CHAT_INJECTION_ROW_LEAD = "Injection";
+export function injectionRowLabel(ordinal: number): string {
+  return `${CHAT_INJECTION_ROW_LEAD} ${String(ordinal)}`;
+}
+
 /** The injections list's add control. */
 export const CHAT_ADD_INJECTION_NAME = "Add injection";
 

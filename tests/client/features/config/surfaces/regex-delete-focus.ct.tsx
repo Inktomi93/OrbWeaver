@@ -4,12 +4,12 @@
 // list and its content are the production ones over a corpus root, whose own scripts sit beside the ones made here through the
 // production create verb, and the real server's own `regexChanged` event is what removes the row.
 // @subject packages/client/src/features/regex/components/regex-collection-rows.tsx
-import { COLLECTION_LARGE_GROUP, ROW_DELETE_NAME } from "@orb/client/lib";
+import { COLLECTION_LARGE_GROUP, ROW_DELETE_NAME, rowActionsName } from "@orb/client/lib";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { routeTrpc, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
-import { createCorpusReadResponder } from "@orb/testkit/iso";
+import { createCorpusReadResponder, nameShape } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
@@ -77,7 +77,7 @@ async function prepare(
 
 /** Every row's actions button, in the order the list shows them. */
 function actionButtons(page: Page): Locator {
-  return page.getByRole("button", { name: /^Actions for / });
+  return page.getByRole("button", { name: nameShape(rowActionsName) });
 }
 
 /** The accessible names of the rows' actions buttons, in the order the list shows them. */

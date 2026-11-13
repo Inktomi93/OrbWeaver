@@ -19,6 +19,7 @@ import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { corpusReadInput } from "@orb/testkit/iso";
 import { CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "#client/lib/account-field-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -30,7 +31,8 @@ import { trpc } from "./support/trpc.ts";
 // project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and
 // a hardcoded probe there would have reported the operator's dev stack's health instead of the harness's).
 const HEALTHZ_URL = `${SINGLE_USER.backendUrl}/healthz`;
-const LOGIN_FIELD = /password|handle|username/u;
+// The sign-in form's two fields; either one on the page means the boot fell back to login.
+const LOGIN_FIELD = new RegExp(`^(?:${RegExp.escape(ACCOUNT_HANDLE_FIELD_NAME)}|${RegExp.escape(ACCOUNT_PASSWORD_FIELD_NAME)})$`, "u");
 // The app's one URL — what a section deep link must LAND on (#181).
 const APP_URL = /\/$/u;
 const APP_READY = `html[${APP_READY_ATTR}]`;

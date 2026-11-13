@@ -58,7 +58,7 @@ export const PERSONA_NEW_CHAT_GLOSS = {
 
 /** The rail trigger while a persona is playing. */
 export function personaPlayingAsName(persona: string): string {
-  return `Playing as ${persona}`;
+  return `${PERSONA_PLAYING_AS_LABEL} ${persona}`;
 }
 
 /** The panel's door to the Personas settings. */

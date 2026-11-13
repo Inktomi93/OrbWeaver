@@ -46,7 +46,7 @@ import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { DIALOG_VERBS, MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations.ts";
-import { CHAT_ADD_INJECTION_NAME, CHAT_REMOVE_INJECTION_NAME, CHAT_REMOVE_INJECTION_TITLE } from "../lib/chat-settings-names.ts";
+import { CHAT_ADD_INJECTION_NAME, CHAT_REMOVE_INJECTION_NAME, CHAT_REMOVE_INJECTION_TITLE, injectionRowLabel } from "../lib/chat-settings-names.ts";
 import { CHAT_INJECTION_CONTENT_NAME } from "../lib/chat-surface-names.ts";
 import type { InjectionFormValues } from "../lib/injection-row-model.ts";
 import { DEFAULT_INJECTION_FORM, fromInjectionForm, toInjectionForm } from "../lib/injection-row-model.ts";
@@ -187,7 +187,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete, rowFocus }: Inje
                       so it can never disagree with the visible label (WCAG 2.5.3). */}
                   <CollapsibleTrigger ref={rowFocus.bodyRef(row.key)} inset="block" width="full" size="control">
                     <Row gap="field" align="center" justify="between" className="min-inline-0" grow={true}>
-                      <Text voice="label">{`Injection ${ordinal}`}</Text>
+                      <Text voice="label">{injectionRowLabel(ordinal)}</Text>
                       {/* An empty-content row is INERT: assembly skips it at every position, so it reaches
                           no prompt. With no enabled/disabled toggle ("off" = delete the row), a blank row is
                           also the normal just-added state — so it is neither refused nor deleted, it just

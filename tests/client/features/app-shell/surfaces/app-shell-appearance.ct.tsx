@@ -2,7 +2,7 @@
 // panes, the dials it stamps on the root, the remembered boot hint, and what survives a handover to the pending mark.
 
 import { crc32, deflateSync } from "node:zlib";
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextToggleLabel, screenOverviewDoorName } from "@orb/client/lib";
 import { BLOB_ROUTE, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
@@ -13,6 +13,7 @@ import { emulateMedia, landedMutedContrast, paintedArt, pixel, releaseEmulatedMe
 import { channelName, createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { nameShape } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
@@ -1381,7 +1382,7 @@ for (const mode of [
     if (mode.width === PHONE.width) {
       await page
         .locator(".shell-topbar")
-        .getByRole("button", { name: /overview$/u })
+        .getByRole("button", { name: nameShape(screenOverviewDoorName) })
         .click();
     }
     const plate = page.locator('.shell-content [data-slot="empty-state-root"]').first();

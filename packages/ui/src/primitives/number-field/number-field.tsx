@@ -7,6 +7,14 @@ import { cn, variantAttrs } from "#lib";
 import { useFieldIdentity } from "#primitives/field";
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
 import { stripComposedGroups, stripPastedGroups, stripTypedGroups } from "./group-text.ts";
+import {
+  NUMBER_FIELD_DECREMENT_VERB,
+  NUMBER_FIELD_INCREMENT_VERB,
+  numberBoundsBetween,
+  numberBoundsMaximum,
+  numberBoundsMinimum,
+  numberStepperName,
+} from "./number-field-names.ts";
 import { numberFieldVariants } from "./variants.ts";
 
 // THE STEPPERS NAME THEIR SUBJECT (side-eye F-20, 2026-08-03). A bare "Decrease"/"Increase" is fine for
@@ -15,13 +23,6 @@ import { numberFieldVariants } from "./variants.ts";
 // name when the call site supplies one (`aria-label`) — never invented, so a field inside a `<Field label>`
 // (where the visible label is already adjacent and Base UI wires it to the input) keeps the bare verb
 // rather than guessing at a name it cannot read.
-const DECREMENT_LABEL = "Decrease";
-const INCREMENT_LABEL = "Increase";
-
-/** The stepper's accessible name — the verb, plus the field's own name when the call site named it. */
-function stepperLabel(verb: string, subject: string | undefined): string {
-  return subject === undefined || subject.trim() === "" ? verb : `${verb} ${subject}`;
-}
 
 const SCRUB_CURSOR_ICON: ReactElement = <Icon icon={MoveHorizontal} size="xs" />;
 
@@ -49,13 +50,13 @@ function boundsDescription(
 ): string | null {
   const formatter = new Intl.NumberFormat(locale, format);
   if (min !== undefined && max !== undefined) {
-    return `Between ${formatter.format(min)} and ${formatter.format(max)}`;
+    return numberBoundsBetween(formatter.format(min), formatter.format(max));
   }
   if (min !== undefined) {
-    return `Minimum ${formatter.format(min)}`;
+    return numberBoundsMinimum(formatter.format(min));
   }
   if (max !== undefined) {
-    return `Maximum ${formatter.format(max)}`;
+    return numberBoundsMaximum(formatter.format(max));
   }
   return null;
 }
@@ -80,7 +81,7 @@ export interface NumberFieldProps extends NumberFieldRootProps, VariantProps<typ
    *  Root-spread footgun as `placeholder`: on the wrapper `<div>` (no role) it names nothing at all. Inside a
    *  `<Field>` the Label's `aria-labelledby` takes precedence, as it should — which is exactly why a
    *  Field-wrapped call site may ALSO pass it: it costs the input nothing and it is what names the
-   *  Increment/Decrement buttons, which no `<Field>` label reaches (see `stepperLabel`). */
+   *  Increment/Decrement buttons, which no `<Field>` label reaches (see {@link numberStepperName}). */
   "aria-label"?: string | undefined;
   /** Focus the input on mount, for a field that appears as the answer to an explicit click (click-to-edit). Routed
    *  to `NumberField.Input`; the Root would park it on the wrapper `<div>`. */
@@ -142,11 +143,15 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           Field-composed — see `forms/editor/bound-fields/number-field.tsx`'s header). A `role="group"` wrapper
           with no name is a pure layout node: AT does not separately announce it, and every automated
           `getByLabel`/manual voice-control match resolves to exactly the input. The steppers still name
-          their subject (`stepperLabel`, below) — that reads the `ariaLabel` JS variable directly, never
+          their subject (`numberStepperName`, below) — that reads the `ariaLabel` JS variable directly, never
           the group's DOM attribute, so dropping it here costs the steppers nothing. */}
       <BaseNumberField.Group className={slots.group()} data-slot="number-field-group" data-tone="neutral">
         {hasSteppers ? (
-          <BaseNumberField.Decrement aria-label={stepperLabel(DECREMENT_LABEL, ariaLabel)} className={slots.decrement()} data-slot="number-field-decrement">
+          <BaseNumberField.Decrement
+            aria-label={numberStepperName(NUMBER_FIELD_DECREMENT_VERB, ariaLabel)}
+            className={slots.decrement()}
+            data-slot="number-field-decrement"
+          >
             <Icon className={slots.stepIcon()} icon={Minus} size="xs" />
             <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
           </BaseNumberField.Decrement>
@@ -168,7 +173,11 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           {...variantAttrs(numberFieldVariants, { size, layout })}
         />
         {hasSteppers ? (
-          <BaseNumberField.Increment aria-label={stepperLabel(INCREMENT_LABEL, ariaLabel)} className={slots.increment()} data-slot="number-field-increment">
+          <BaseNumberField.Increment
+            aria-label={numberStepperName(NUMBER_FIELD_INCREMENT_VERB, ariaLabel)}
+            className={slots.increment()}
+            data-slot="number-field-increment"
+          >
             <Icon className={slots.stepIcon()} icon={Plus} size="xs" />
             <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
           </BaseNumberField.Increment>

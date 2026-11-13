@@ -96,12 +96,27 @@ export function npcMoodName(name: string, mood: string): string {
   return `${name} mood: ${mood}`;
 }
 
+/** One revealed field of a hidden span in the veiled log: the span attribute's key, then its value. */
+export function veiledFieldLine(key: string, value: string): string {
+  return `${key}: ${value}`;
+}
+
 /** A veiled lie's revealed motive and truth lines. */
 export function veiledReasonLabel(reason: string): string {
   return `reason: ${reason}`;
 }
 export function veiledTruthLabel(truth: string): string {
   return `truth: ${truth}`;
+}
+
+/** A turn's game-actions disclosure: what it opens, then its summary. */
+export function turnToolCallsName(summary: string): string {
+  return `Game actions on this turn: ${summary}`;
+}
+
+/** The disclosure summary of a turn whose state round ran: how many actions, and whether any came back short. */
+export function turnToolCallsCount(count: number, incomplete: boolean): string {
+  return `${String(count)}${incomplete ? ", needs attention" : ""}`;
 }
 
 /** A recorded game action's verdict, said as an OUTCOME in the reader's terms, not the enum: "dropped" alone

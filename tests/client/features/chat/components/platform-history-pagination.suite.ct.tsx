@@ -41,7 +41,7 @@ import {
   CHAT_MESSAGE_INPUT_NAME,
   CHAT_WINDOW_PRESS_FAILURE,
 } from "#client/features/chat/lib/chat-surface-names.ts";
-import { CORPUS_SOURCE_OUTCOME_COPY, jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
+import { CORPUS_SOURCE_OUTCOME_COPY, JUMP_TO_LATEST_LEAD, jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
 import { INVALIDATE_ROOM_NAME } from "./_chat-room-shell-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -432,7 +432,7 @@ for (const regime of [
       await earlier.click();
       await expect.poll(() => calls.count("chat.listMessages")).toBeGreaterThan(beforeRequests);
       await expect(earlier).toBeEnabled();
-      await expect(page.getByRole("button", { name: /^Jump to latest/u })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: new RegExp(`^${RegExp.escape(JUMP_TO_LATEST_LEAD)}`, "u") })).toHaveCount(0);
       await expect
         .poll(async () => {
           const after = await reading.boundingBox();

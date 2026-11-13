@@ -12,7 +12,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { REGEX_GROUP_LABEL } from "#client/features/regex/lib/regex-names.ts";
+import { CHARACTER_SELECT_MULTIPLE_NAME } from "#client/features/character/lib/character-names.ts";
+import { REGEX_GROUP_LABEL, REGEX_SELECT_SCRIPTS_NAME } from "#client/features/regex/lib/regex-names.ts";
 import { SELECTION_CLEAR_NAME, selectionCountLabel } from "#ui/primitives/selection-bar/selection-bar-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -60,7 +61,7 @@ async function selectRows(page: Page, list: BulkList): Promise<{ readonly bar: L
       .first()
       .click();
   }
-  await page.getByRole("button", { name: /^Select( multiple| scripts)?$/u }).click();
+  await page.getByRole("button", { name: list === "regex" ? REGEX_SELECT_SCRIPTS_NAME : CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
   const checkboxes = page.getByRole("checkbox");
   await expect(checkboxes.first()).toBeVisible();
   let lastSelected = checkboxes.first();

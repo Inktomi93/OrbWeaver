@@ -17,7 +17,7 @@ import {
   TAG_MERGE_FAILED_TOAST,
   TAG_MERGE_TARGET_NAME,
 } from "#client/components/shared-control-names.ts";
-import { AUTOSAVE_SAVE_FAILED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVING_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { TagEditorChipStory } from "./_tag-editor-stories.tsx";
 
@@ -123,7 +123,7 @@ for (const viewport of [
       await expect(name).toHaveValue("Two  Words");
       const canonical = normalizeTagName("Two  Words");
       await expect(page.getByRole("heading", { name: canonical, exact: true })).toBeVisible();
-      await expect(page.getByRole("status").filter({ hasText: /^Saving/u })).toBeVisible();
+      await expect(page.getByRole("status").filter({ hasText: AUTOSAVE_SAVING_TEXT })).toBeVisible();
       release.resolve();
       await expect(page.getByRole("status").filter({ hasText: /^Saved$/u })).toBeVisible();
       await expect(name).toHaveValue(canonical);

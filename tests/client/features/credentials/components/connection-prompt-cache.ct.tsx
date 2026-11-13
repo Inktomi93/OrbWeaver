@@ -11,6 +11,7 @@ import {
   CONNECTION_EDITOR_TIER_TITLES,
   ENDPOINT_QUIRKS_LABEL,
   FACT_RESET_VERB,
+  factMaximumLabel,
   PROMPT_CACHE_DEPTH_NAME,
   PROMPT_CACHE_IMPLICIT_GLOSS,
   PROMPT_CACHE_PREFIX_REQUEST_LEAD,
@@ -160,7 +161,7 @@ test("native implicit caching explains provider ownership without invented contr
   await concurrency.getByRole("button", { name: "Override utility calls at once", exact: true }).click();
   const limit = concurrency.getByRole("textbox", { name: "utility calls at once: your value", exact: true });
   await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX + 1));
-  await expect(concurrency.getByRole("alert")).toHaveText(`The maximum is ${String(SUMMARIZE_CONCURRENCY_MAX)}.`);
+  await expect(concurrency.getByRole("alert")).toHaveText(factMaximumLabel(String(SUMMARIZE_CONCURRENCY_MAX)));
   await expect(concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true })).toBeDisabled();
   await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX));
   await expect(concurrency.getByRole("alert")).toHaveCount(0);

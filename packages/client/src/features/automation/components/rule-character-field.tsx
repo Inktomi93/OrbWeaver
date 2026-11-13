@@ -8,7 +8,7 @@ import { useState } from "react";
 import { CharacterPicker, QueryBoundary } from "#components";
 import { SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS } from "#lib";
-import { RULE_CHARACTER_UNAVAILABLE_TEXT } from "../lib/automation-names.ts";
+import { RULE_CHARACTER_UNAVAILABLE_TEXT, ruleCharacterReadout } from "../lib/automation-names.ts";
 
 /** A selected character is read by identity, never searched for in the first library page. */
 export function RuleCharacterField({
@@ -24,16 +24,14 @@ export function RuleCharacterField({
   return (
     <Stack gap="tight">
       {value === undefined ? (
-        <Text>{label}: Automatic</Text>
+        <Text>{ruleCharacterReadout(label, "Automatic")}</Text>
       ) : (
         <QueryBoundary
           resetKeys={[value]}
           fallback={<SkeletonRows count={1} shape="line" />}
           renderError={(_error, retry): ReactElement => (
             <Stack gap="tight">
-              <Text>
-                {label}: {value}
-              </Text>
+              <Text>{ruleCharacterReadout(label, value)}</Text>
               <Text voice="gloss">{RULE_CHARACTER_UNAVAILABLE_TEXT}</Text>
               <Button variant="ghost" justify="start" onClick={retry}>
                 {DIALOG_VERBS.retry}
@@ -72,9 +70,5 @@ export function RuleCharacterField({
 function SelectedCharacterName({ characterId, label }: { readonly characterId: CharacterId; readonly label: string }): ReactElement {
   const trpc = useTRPC();
   const { data: character } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
-  return (
-    <Text>
-      {label}: {character.name}
-    </Text>
-  );
+  return <Text>{ruleCharacterReadout(label, character.name)}</Text>;
 }

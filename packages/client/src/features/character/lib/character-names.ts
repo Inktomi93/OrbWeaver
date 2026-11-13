@@ -23,6 +23,14 @@ export function characterStarredShelfName(count: number): string {
   return `Starred · ${String(count)}`;
 }
 
+/** The word a Recently chatted face's stamp line opens with, before how long ago and how many chats. */
+export const CHARACTER_CHATTED_STAMP_LEAD = "chatted";
+
+/** The stamp line under a Just added face: how long ago the character joined the library. */
+export function characterAddedStamp(ago: string): string {
+  return `added ${ago}`;
+}
+
 /** A landing face's name says what the press does, so a resume face and the library row it sits beside are two
  *  offers, not two doors with one name (WCAG 2.5.3). `starred` rides the tail, so the verb leads in both arms. */
 export function characterFaceName(name: string, stamp: string | null, starred: boolean, resumes: boolean): string {
@@ -105,6 +113,11 @@ export const CHARACTER_SHOW_FAVORITES_NAME = "Show only favorites";
 
 /** The tag filter box in the library's filter rail. */
 export const CHARACTER_FILTER_TAGS_NAME = "Filter tags";
+
+/** A tri-state tag chip's name: the tag, the state it is in, then what a press does. */
+export function characterTagFilterName(tag: string, state: string, next: string): string {
+  return `Filter by ${tag}: ${state}: ${next}`;
+}
 
 /** The exit of the expanded tag vocabulary. */
 export const CHARACTER_FEWER_TAGS_NAME = "Show fewer tags";
