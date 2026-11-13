@@ -4,15 +4,14 @@
 // ref holds (the newest release tag when none is named) and fails a bundle whose bytes changed under the same version.
 //
 // Exit: 0 built/current · 1 author diagnostics, stale bundles or an unbumped bundle · 2 the tool broke · 3 misuse.
-import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import process from "node:process";
-import { promisify } from "node:util";
 import { formatPluginAuthorDiagnostics } from "@orb/plugin-toolchain";
 import { print, REPO_ROOT } from "../floor/artifacts/artifacts.ts";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { runTool, UsageError } from "../floor/cli/run-tool.ts";
+import { execGit } from "../floor/git/git.ts";
 import {
   compileShowcasePlugins,
   loadShowcaseRelease,
@@ -24,15 +23,11 @@ import {
 
 const USAGE = "usage: node tooling/src/plugin-author-showcase/cli.ts <build|check|versions [base ref]>";
 
-const run = promisify(execFile);
-
-async function git(...args: readonly string[]): Promise<string> {
-  return (await run("git", [...args], { cwd: REPO_ROOT, maxBuffer: Number.MAX_SAFE_INTEGER })).stdout;
-}
+const git = (...args: readonly string[]): string => execGit(REPO_ROOT, args);
 
 async function checkVersions(named: string | undefined): Promise<number> {
-  const base = named ?? (await git("describe", "--tags", "--abbrev=0", "--match", "v*")).trim();
-  const shipped = await loadShowcaseRelease((path) => git("show", `${base}:${path}`));
+  const base = named ?? git("describe", "--tags", "--abbrev=0", "--match", "v*").trim();
+  const shipped = await loadShowcaseRelease(async (path) => await Promise.resolve(git("show", `${base}:${path}`)));
   const current = await loadShowcaseRelease((path) => readFile(join(REPO_ROOT, path), "utf8"));
   const unbumped = unbumpedShowcaseBundles(shipped, current);
   if (unbumped.length > 0) {
