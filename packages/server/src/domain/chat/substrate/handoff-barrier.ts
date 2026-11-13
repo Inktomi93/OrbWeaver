@@ -1,6 +1,6 @@
 // D332 joins actual room work before authority moves; normal admissions remain concurrent.
-// A husk reap closes only an idle room, never waits, and holds it closed just for its delete (D166), so it
-// cannot delete a room under admitted work such as a first send that has not claimed yet.
+// A reap, the husk reap or the temporary-chat sweep, closes only an idle room, never waits, and holds it closed just
+// for its delete (D166), so it cannot delete a room under admitted work such as a first send that has not claimed yet.
 // The room records why it is closed, so a refused admission says the room is going away only for a removal.
 import type { ChatId } from "@orb/kit/ids";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";

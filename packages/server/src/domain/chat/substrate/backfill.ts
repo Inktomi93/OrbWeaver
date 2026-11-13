@@ -47,7 +47,7 @@ import { loadParticipants } from "../persistence/participants-read.ts";
 import { digestsDerivable } from "./digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
 import { hostUserIdOf } from "./participants-host.ts";
-import { presentAndEnabledHumanUserIdsOf } from "./participants-humans.ts";
+import { hostConsentOf } from "./participants-humans.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
  *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. `importWindow`
@@ -72,9 +72,8 @@ async function loadCharacterIdsAndHost(
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
-  const presentHost = hostUserIdOf(participants);
-  const hostUserId = presentHost !== null && (await presentAndEnabledHumanUserIdsOf(ctx, participants)).includes(presentHost) ? presentHost : null;
-  return { characterIds, hostUserId };
+  const consent = await hostConsentOf(ctx, participants);
+  return { characterIds, hostUserId: consent.kind === "consents" ? consent.hostUserId : null };
 }
 
 /** The digest scope buckets for one chat — mirrors the engine's post-turn enumeration: the shared group

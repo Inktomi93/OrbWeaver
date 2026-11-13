@@ -19,8 +19,7 @@ import { requireParticipant } from "../guard.ts";
 import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write.ts";
 import { firstCharacterIdOf } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
-import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { hostConsentOf } from "../substrate/participants-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { resolveTurnIdentityVia } from "../substrate/turn-access.ts";
 
@@ -62,15 +61,16 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
       const { chatId, prompt } = pictureParams;
       await requireParticipant(ctx, principal, chatId);
       const participants = await loadParticipants(ctx.db, chatId);
-      const hostUserId = hostUserIdOf(participants);
       // The picture runs on the host's connections, so a room with no host, or a host outside the consent set
       // (disabled), refuses as a turn does (`loadRoom`): no member spends a gone or disabled host's inference.
-      if (hostUserId === null) {
+      const consent = await hostConsentOf(ctx, participants);
+      if (consent.kind === "hostless") {
         throw new ChatNotFoundError(chatId);
       }
-      if (!(await presentAndEnabledHumanUserIdsOf(ctx, participants)).includes(hostUserId)) {
+      if (consent.kind === "withheld") {
         throw new ChatHostWithoutConsentError(chatId);
       }
+      const { hostUserId } = consent;
       const identity = resolveTurnIdentityVia({ principalUserId: principal.userId, hostUserId });
       // The picture joins the gallery of the character it was generated for — the room's subject, one
       // character, never every member. Imagery adds it only when the run-as host owns that character.

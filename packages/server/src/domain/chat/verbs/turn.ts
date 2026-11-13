@@ -121,8 +121,7 @@ import { refuseClosedAdmission } from "../substrate/handoff-barrier.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
-import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { humanSeatPersonasOf, lorePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { hostConsentOf, humanSeatPersonasOf, lorePersonaIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
@@ -293,18 +292,16 @@ async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership
  *  and funding retain one identity across replay; that host must still consent at drain time. */
 async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: PersonaId | null, frozenHostUserId?: UserId): Promise<Room> {
   const participants = await loadParticipants(ctx.db, chatId);
-  const currentHostUserId = hostUserIdOf(participants);
-  if (currentHostUserId === null) {
+  const consent = await hostConsentOf(ctx, participants, frozenHostUserId);
+  if (consent.kind === "hostless") {
     throw new ChatNotFoundError(chatId);
   }
-  const hostUserId = frozenHostUserId ?? currentHostUserId;
-  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
-  // disabled-account containment gate (owner-ruled) — see `presentAndEnabledHumanUserIdsOf`'s own
-  // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.
-  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
-  if (!presentHumanUserIds.includes(hostUserId)) {
+  if (consent.kind === "withheld") {
     throw new ChatHostWithoutConsentError(chatId);
   }
+  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), narrowed by the
+  // disabled-account containment gate (owner-ruled) the host check above read.
+  const { hostUserId, consentSet: presentHumanUserIds } = consent;
   const aiRows = participants.filter((r) => isAiDriven(r.kind));
   const charRows = aiRows.flatMap((r) => {
     const actor = classifyParticipant(r);
