@@ -1,5 +1,9 @@
 // The words the Connections list prints and a spec locates controls by. A zero-import leaf, so a spec reads them without the component graph.
 
+/** The Connections group's list section: its settings row and its heading. It differs from the group's own name, so the group band and
+ *  the row under it are two destinations with two names. */
+export const CONNECTIONS_LIST_NAME = "Your connections";
+
 /** The button that opens the add-connection dialog. */
 export const ADD_CONNECTION_NAME = "Add connection";
 

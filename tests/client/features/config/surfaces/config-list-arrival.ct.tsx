@@ -94,3 +94,22 @@ test("a late settings list preserves the actual control selected by a content de
   await expect(page.locator(BANDS).first()).toBeVisible();
   expect(await holdsFocus()).toBe(true);
 });
+
+test("no section row repeats the name of the group band it sits under", async ({ page }) => {
+  const groups = page.locator('[data-slot="config-group"]').filter({ has: page.locator("button[aria-expanded]") });
+  await expect(groups.first()).toBeVisible();
+  const total = await groups.count();
+  expect(total).toBeGreaterThan(1);
+  for (let index = 0; index < total; index += 1) {
+    const group = groups.nth(index);
+    const band = group.locator("button[aria-expanded]");
+    await band.click();
+    await expect(band).toHaveAttribute("aria-expanded", "true");
+    const rows = group.getByRole("group").first();
+    // Positive control: the opened group lists at least one section row.
+    await expect(rows.getByRole("button").first()).toBeVisible();
+    const name = ((await band.textContent()) ?? "").trim();
+    expect(name).not.toBe("");
+    await expect(rows.getByRole("button", { name, exact: true }), `a row under the ${name} band carries the band's name`).toHaveCount(0);
+  }
+});
