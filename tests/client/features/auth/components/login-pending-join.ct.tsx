@@ -4,12 +4,26 @@ import { unnamedLandmarkElementFindings } from "@orb/testkit/browser/spec";
 import { routeAuthConfig } from "@orb/testkit/ct";
 import type { Page, Request, Route } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { pendingJoinRefusalCopy } from "#client/features/auth/lib/pending-join-copy.ts";
+import {
+  BACK_TO_SIGN_IN_NAME,
+  continueWithName,
+  INVITE_LOADING_NAME,
+  INVITE_UNAVAILABLE_TITLE,
+  INVITED_HEADING,
+  JOIN_CREATE_ACCOUNT_NAME,
+  JOINER_PERSONA_NAME_FIELD,
+  JOINER_PERSONA_NAME_REQUIRED,
+  PENDING_JOIN_APPROVAL_NOTE,
+  PENDING_JOIN_APPROVAL_TITLE,
+  pendingJoinConfirmLabel,
+  SIGN_IN_NAME,
+} from "#client/features/auth/lib/pending-join-names.ts";
 import type { PendingJoinStory } from "./_pending-join-stories.tsx";
 import {
+  ACCOUNT_EXISTS_CODE,
   APPROVAL_RESPONSE,
-  JOIN_CONFIRM_LABEL,
   JOIN_DESTINATION_LABEL,
-  JOIN_NAME_LABEL,
   JOIN_PERSONA,
   JOINED_RESPONSE,
   PENDING_AUTH_CONFIG,
@@ -45,7 +59,7 @@ test.beforeEach(async ({ page }) => {
 test("the invite confirmation form is a named landmark", async ({ mount, page }) => {
   await previewRoom(page);
   await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
-  await expect(page.getByRole("heading", { name: "You're invited", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: INVITED_HEADING, exact: true })).toBeVisible();
   expect(await unnamedLandmarkElementFindings(page)).toEqual([]);
 });
 
@@ -68,13 +82,13 @@ test("a held preview offers no Join until the room is available", async ({ mount
   try {
     await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
     await requested.promise;
-    await expect(page.getByLabel("Loading your invite", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
+    await expect(page.getByLabel(INVITE_LOADING_NAME, { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true })).toHaveCount(0);
     expect(confirms).toHaveLength(0);
     release.resolve();
-    await expect(page.getByRole("heading", { name: "You're invited", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: INVITED_HEADING, exact: true })).toBeVisible();
     await expect(page.getByText(PENDING_ROOM.roomName, { exact: false })).toBeVisible();
-    await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true })).toBeEnabled();
   } finally {
     release.resolve();
     await Promise.all(deliveries);
@@ -89,25 +103,25 @@ test("a failed preview offers Retry, and the retried read opens the room", async
   await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
   const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
-  await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true })).toHaveCount(0);
   failing = false;
   await retry.click();
-  await expect(page.getByRole("heading", { name: "You're invited", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: INVITED_HEADING, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true })).toBeEnabled();
 });
 
 test("an unavailable pending join exposes no persona or confirmation", async ({ mount, page }) => {
   const confirms = await captureConfirms(page, (route) => route.fulfill({ status: 404, json: UNAVAILABLE_RESPONSE }));
   await page.route(PENDING_PREVIEW_PATH, (route) => route.fulfill({ status: 404, json: UNAVAILABLE_RESPONSE }));
   await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
-  await expect(page.getByRole("heading", { name: "This invite isn't available", exact: true })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: INVITE_UNAVAILABLE_TITLE, exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: JOINER_PERSONA_NAME_FIELD, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: JOIN_DESTINATION_LABEL, exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Back to sign in", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: `Continue with ${PENDING_AUTH_CONFIG.oidcProviderName}`, exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: BACK_TO_SIGN_IN_NAME, exact: true }).click();
+  await expect(page.getByRole("heading", { name: SIGN_IN_NAME, exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: continueWithName(PENDING_AUTH_CONFIG.oidcProviderName), exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true })).toHaveCount(0);
   expect(confirms).toHaveLength(0);
 });
 
@@ -115,13 +129,13 @@ test("an unnamed persona focuses its error without a request, then submits only 
   await previewRoom(page);
   const confirms = await captureConfirms(page, (route) => route.fulfill({ status: 200, json: JOINED_RESPONSE }));
   await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
-  const name = page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true });
-  const submit = page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true });
+  const name = page.getByRole("textbox", { name: JOINER_PERSONA_NAME_FIELD, exact: true });
+  const submit = page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true });
   await name.fill("   ");
   await submit.click();
   await expect(name).toHaveAttribute("aria-invalid", "true");
   await expect(name).toBeFocused();
-  await expect(page.getByText("Give your persona a name.", { exact: true })).toBeVisible();
+  await expect(page.getByText(JOINER_PERSONA_NAME_REQUIRED, { exact: true })).toBeVisible();
   expect(confirms).toHaveLength(0);
 
   await name.fill(`  ${JOIN_PERSONA.name}  `);
@@ -156,10 +170,10 @@ test("a held confirm cannot submit twice and a non-signed-in result waits for ap
   });
   try {
     await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
-    await page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true }).fill(JOIN_PERSONA.name);
-    await page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true }).click();
+    await page.getByRole("textbox", { name: JOINER_PERSONA_NAME_FIELD, exact: true }).fill(JOIN_PERSONA.name);
+    await page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true }).click();
     await requested.promise;
-    const joining = page.getByRole("button", { name: "Joining…", exact: true });
+    const joining = page.getByRole("button", { name: pendingJoinConfirmLabel(true), exact: true });
     await expect(joining).toBeDisabled();
     await joining.evaluate((button) => {
       const form = button.closest("form");
@@ -171,8 +185,8 @@ test("a held confirm cannot submit twice and a non-signed-in result waits for ap
     });
     await expect(page.getByRole("heading", { name: JOIN_DESTINATION_LABEL, exact: true })).toHaveCount(0);
     release.resolve();
-    await expect(page.getByRole("heading", { name: "Waiting for approval", exact: true })).toBeVisible();
-    await expect(page.getByText("An admin must approve it before you can sign in.", { exact: false })).toBeVisible();
+    await expect(page.getByRole("heading", { name: PENDING_JOIN_APPROVAL_TITLE, exact: true })).toBeVisible();
+    await expect(page.getByText(PENDING_JOIN_APPROVAL_NOTE, { exact: false })).toBeVisible();
     await expect(page.getByRole("heading", { name: JOIN_DESTINATION_LABEL, exact: true })).toHaveCount(0);
     expect(confirms).toHaveLength(1);
   } finally {
@@ -185,10 +199,10 @@ test("a refused confirm stays unsigned and renders the server refusal inline", a
   await previewRoom(page);
   const confirms = await captureConfirms(page, (route) => route.fulfill({ status: 409, json: REFUSED_RESPONSE }));
   await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
-  await page.getByRole("textbox", { name: JOIN_NAME_LABEL, exact: true }).fill(JOIN_PERSONA.name);
-  await page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("An account already exists for this identity.");
+  await page.getByRole("textbox", { name: JOINER_PERSONA_NAME_FIELD, exact: true }).fill(JOIN_PERSONA.name);
+  await page.getByRole("button", { name: JOIN_CREATE_ACCOUNT_NAME, exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(pendingJoinRefusalCopy(ACCOUNT_EXISTS_CODE, PENDING_AUTH_CONFIG.oidcProviderName));
   await expect(page.getByRole("heading", { name: JOIN_DESTINATION_LABEL, exact: true })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Waiting for approval", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: PENDING_JOIN_APPROVAL_TITLE, exact: true })).toHaveCount(0);
   expect(confirms).toHaveLength(1);
 });

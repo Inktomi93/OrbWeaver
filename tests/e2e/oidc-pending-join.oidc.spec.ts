@@ -2,7 +2,7 @@
 // leaving it retires the invite and drops only the pendingJoin param. The issuer and code grant are real.
 import { randomBytes } from "node:crypto";
 import { expect, test } from "@playwright/test";
-import { PENDING_JOIN_NOT_NOW_NAME } from "#client/features/auth/lib/pending-join-names.ts";
+import { continueWithName, PENDING_JOIN_NOT_NOW_NAME } from "#client/features/auth/lib/pending-join-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { E2E_SSO_GROUPS, OIDC_CLIENT, oidcIssuerTls } from "./support/modes.ts";
 import type { OidcIssuer } from "./support/oidc-issuer.ts";
@@ -15,7 +15,7 @@ const JOINER_SUFFIX_BYTES = 4;
 // The extra query bytes and hash the dismissal must keep, around two pendingJoin params it must drop.
 const NOISY_PENDING_LANDING = "/login?space=%20&pendingJoin=1&plus=+&pendingJoin=1#turn-4";
 const NOISY_AFTER_LEAVING = "/login?space=%20&plus=+#turn-4";
-const CONTINUE_WITH_IDP = `Continue with ${OIDC_CLIENT.providerName}`;
+const CONTINUE_WITH_IDP = continueWithName(OIDC_CLIENT.providerName);
 
 // A loopback request with no relay tell resolves as the box owner; the empty `forwarded` header makes this
 // browser the signed-out visitor it stands for. The issuer's self-signed certificate is trusted only by the

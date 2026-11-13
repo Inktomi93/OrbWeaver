@@ -8,8 +8,6 @@ import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { ACCOUNT_EXISTS_CODE, JOIN_UNAVAILABLE_CODE } from "#contracts/chat/roster.ts";
 
 export const JOIN_DESTINATION_LABEL = "Signed-in destination";
-export const JOIN_CONFIRM_LABEL = "Create account and join";
-export const JOIN_NAME_LABEL = "Your name in the story";
 export const PENDING_PREVIEW_PATH = "**/api/auth/oidc/pending/preview";
 export const PENDING_CONFIRM_PATH = "**/api/auth/oidc/pending/confirm";
 
@@ -43,4 +41,5 @@ export const JOIN_PERSONA = joinerPersonaSchema.parse({ name: "Mira", descriptio
 export const JOINED_RESPONSE = pendingJoinConfirmResultSchema.parse({ signedIn: true, chatId: PENDING_ROOM.chatId });
 export const APPROVAL_RESPONSE = pendingJoinConfirmResultSchema.parse({ signedIn: false, chatId: PENDING_ROOM.chatId });
 export const UNAVAILABLE_RESPONSE = authErrorResponseSchema.parse({ error: JOIN_UNAVAILABLE_CODE });
+export { ACCOUNT_EXISTS_CODE } from "#contracts/chat/roster.ts";
 export const REFUSED_RESPONSE = authErrorResponseSchema.parse({ error: ACCOUNT_EXISTS_CODE });
