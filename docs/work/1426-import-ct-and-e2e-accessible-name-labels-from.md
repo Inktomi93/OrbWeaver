@@ -4,7 +4,7 @@ status: doing
 updated: 2026-11-13
 priority: P1
 area: testing
-lane: wt/agent-a0b4f6a63f6d4244d
+lane: wt/agent-ac16aa99ee595b9f9
 plan: test-foundation
 ---
 

@@ -19,7 +19,7 @@ A wrong label ships with every test green.
 
 ## Done when
 
-Each listed entry is asserted against its literal and goes red on a swap, the pending verbs read one vocabulary, Revoke and Reset each have one home, and the rpg specs read the production tab label.
+Each listed entry is pinned by selection: the case shows the right constant renders and the other does not, and it goes red on a swap. No case restates a production string as a literal. The pending verbs read one vocabulary, Revoke and Reset each have one home, and the rpg specs read the production tab label.
 
 ## Evidence
 
