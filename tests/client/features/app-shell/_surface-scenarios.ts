@@ -6,6 +6,7 @@ import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { backgroundStateLabel } from "#client/features/credentials/lib/connections-copy.ts";
 import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
 import {
   CORPUS_MODEL_ROUTES_NAME,
@@ -78,7 +79,8 @@ const GROUP_WITNESSES = {
     page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }),
   ],
   connections: (page): Witnesses => [
-    page.locator('[data-slot="config-content"]').getByRole("switch").first(),
+    // The row shows the background state; its switch lives in the editor the row opens.
+    page.locator('[data-slot="config-content"]').getByText(backgroundStateLabel(true), { exact: true }).first(),
     page.getByRole("combobox", { name: "Chat connection", exact: true }),
     page.getByText("No keys yet", { exact: true }),
     page.getByText("A key is saved when you add a connection that needs one.", { exact: true }),
