@@ -68,7 +68,7 @@ export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<Oi
     requireApproval: settings.OIDC_REQUIRE_APPROVAL,
     store,
     getConfig,
-    ...(settings.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier(keys.jwksFor, deps.logger).verify, clientId } } : {}),
+    ...(settings.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { ...createBackchannelLogoutVerifier(keys.jwksFor, deps.logger, deps.now), clientId } } : {}),
     signup: {
       invites: deps.built.signupInvites,
       pending: deps.built.sessions,

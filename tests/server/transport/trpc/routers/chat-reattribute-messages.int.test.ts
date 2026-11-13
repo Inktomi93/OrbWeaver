@@ -6,7 +6,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { REATTRIBUTE_MESSAGES_MAX, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId } from "@orb/kit/ids";
@@ -335,7 +335,7 @@ test("a re-voice of a row under a member's floor reaches the host and never the 
   const address = new URL("http://localhost/api/trpc/stream.connect");
   address.searchParams.set("input", JSON.stringify({ socketId }));
   const stop = new AbortController();
-  const response = await h.root.http.request(address, { headers: { cookie, accept: "text/event-stream" }, signal: stop.signal });
+  const response = await h.root.http.request(address, { headers: { cookie, accept: "text/event-stream", [CSRF_HEADER]: "1" }, signal: stop.signal });
   const reader = response.body?.getReader();
   if (reader === undefined) {
     throw new Error("the authenticated subscription omitted its stream");

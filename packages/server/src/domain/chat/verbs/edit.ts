@@ -124,7 +124,7 @@ import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { projectViewReturnForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
+import { hostConsentOf, humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import {
@@ -256,7 +256,6 @@ async function applyRunOnEditRegex(
     readonly chatId: ChatId;
     readonly slot: MessageView;
     readonly participants: Awaited<ReturnType<typeof loadParticipants>>;
-    readonly hostUserId: UserId | null;
     readonly anchorPersonaId: PersonaId | null;
     readonly editorUserId: UserId;
     readonly editorPersonaId: PersonaId | null;
@@ -269,21 +268,22 @@ async function applyRunOnEditRegex(
   },
 ): Promise<string> {
   const placement = editPlacementFor(args.slot.role);
-  if (placement === null || args.hostUserId === null) {
+  if (placement === null) {
     return args.content;
   }
-  const { chatId, hostUserId } = args;
+  // A hostless room, or a disabled host standing as a departed one: a member's edit runs none of that host's
+  // scripts, and the gather below never embeds on that host's encoder.
+  const consent = await hostConsentOf(ctx, args.participants);
+  if (consent.kind !== "consents") {
+    return args.content;
+  }
+  const { chatId } = args;
   // The consent set for the persona read — the editor is a member of this room, so their own persona (and a
-  // member-owned anchor) resolve exactly as they do on a turn. `presentAndEnabledHumanUserIdsOf`, not the
-  // presence-only `presentHumanUserIdsOf`: a runOnEdit re-apply must agree with the live turn
+  // member-owned anchor) resolve exactly as they do on a turn. The present-and-enabled set, not the
+  // presence-only one: a runOnEdit re-apply must agree with the live turn
   // path on the enabled axis too, or a disabled member's persona could re-resolve on every future edit even
   // after generation started refusing it (the same silently-dead-pin bug class, edit-triggered).
-  const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, args.participants);
-  // A disabled host stands as a departed one: a member's edit runs none of that host's scripts, and the gather
-  // below never embeds on that host's encoder.
-  if (!presentHumanUserIds.includes(hostUserId)) {
-    return args.content;
-  }
+  const { hostUserId, consentSet: presentHumanUserIds } = consent;
   const model: TurnMacroContextArgs["model"] = args.slot.model ?? "";
   const characterIds = args.participants.flatMap((r) => {
     const actor = classifyParticipant(r);
@@ -584,7 +584,6 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ClaimingVerb<"edit
       chatId,
       slot,
       participants,
-      hostUserId,
       anchorPersonaId: membership.chat.anchorPersonaId,
       editorUserId: principal.userId,
       editorPersonaId: membership.activePersonaId,

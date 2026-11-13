@@ -7,7 +7,6 @@ import { Http2ServerRequest } from "node:http2";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { parseIp } from "@orb/kit/ip";
 import type { Context, MiddlewareHandler } from "hono";
-import type { Env } from "#foundation/env/record";
 import type { PhysicalPeerRead } from "./contract/ingress.ts";
 import { isInRanges, isPrivateOrLoopback } from "./ip-ranges.ts";
 
@@ -45,12 +44,6 @@ export function parseAllowlist(raw: string | undefined): readonly string[] {
     .split(",")
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
-}
-
-/** The deployment's `FORWARD_AUTH_TRUSTED_PROXIES`. The app computes it once and hands the same list to every
- *  forwarded-header read: `X-Forwarded-For` here, `X-Forwarded-Host` and `X-Forwarded-Proto` in `infra/auth`. */
-export function trustedProxiesOf(record: Pick<Env, "FORWARD_AUTH_TRUSTED_PROXIES">): readonly string[] {
-  return parseAllowlist(record.FORWARD_AUTH_TRUSTED_PROXIES);
 }
 
 /** A hop whose forwarded headers are believed: loopback/private, or inside `trustedProxies`. The ONE predicate

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-11-11
+updated: 2026-11-12
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -107,14 +107,18 @@ Code comments cite the numbered invariants below as "invariant N":
    (`packages/server/src/entry/app.ts`), on every credential path. The guard refuses any POST to
    `/api/trpc/*` whose content type does not select tRPC's JSON handler (415). `application/json` is not
    CORS-simple and the app mounts no CORS middleware, so a cross-origin page cannot send it without a
-   preflight the app never answers. The guard is required, not defense in depth: `@trpc/server`'s
+   preflight the app never answers. A proxy in front of the app must not answer one either
+   (`docs/law/container-deployment-security.md`, "A proxy in front of the app"). The guard is required, not defense in depth: `@trpc/server`'s
    `getContentTypeHandler` also matches `multipart/form-data` and `application/octet-stream` as mutations,
    and `multipart/form-data` is CORS-simple, so without the guard a plain cross-origin `<form>` reaches the
    mount on any ambient credential. `application/json` (with or without `; charset=utf-8`) runs on every
    path. tRPC's own gate also refuses a cookie mutation without `x-orb-csrf` (403); the fallback and proxy
    paths with `application/json` and no `x-orb-csrf` still run (200). The un-cookied loopback dev tooling
-   relies on the fallback path. GET is untouched: tRPC's method map admits GET for queries and
-   subscriptions only.
+   relies on the fallback path. tRPC's method map also admits GET for queries and subscriptions, and a GET
+   carries no content type. A query must not write. A subscription can write: `stream.connect` marks its
+   user online and runs the deferred-turn drain. So the mount refuses a subscription outside POST that lacks
+   `x-orb-csrf`, on every credential path (`refuseHeaderlessGetSubscription` in
+   `packages/server/src/entry/app.ts`). The client opens every subscription as a JSON POST with the header.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The
     production census is two: the `oidc` callback (`packages/server/src/entry/http/auth-routes.ts`: verified claims through

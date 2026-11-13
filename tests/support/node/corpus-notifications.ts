@@ -187,7 +187,7 @@ async function openStream(
   };
   const received = Promise.withResolvers<IncomingMessage>();
   const requestClosed = Promise.withResolvers<void>();
-  const request = nodeRequest(address, { headers: { cookie: auth.cookie, accept: "text/event-stream" } }, received.resolve);
+  const request = nodeRequest(address, { headers: { cookie: auth.cookie, accept: "text/event-stream", [CSRF_HEADER]: "1" } }, received.resolve);
   request.once("error", received.reject);
   request.once("close", requestClosed.resolve);
   request.end();

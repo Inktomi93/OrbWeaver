@@ -153,7 +153,7 @@ export interface SecurityHeadersOptions {
    * Wired at `entry/app.ts` as `() => !settings.getEffectiveConfig().forbidExternalMedia`.
    */
   readonly allowExternalMedia: () => boolean;
-  /** The deployment's trusted hops (`trustedProxiesOf`), whose `X-Forwarded-Proto: https` makes an origin trustworthy. */
+  /** The deployment's trusted hops (`FORWARD_AUTH_TRUSTED_PROXIES`), whose `X-Forwarded-Proto: https` makes an origin trustworthy. */
   readonly trustedProxies: readonly string[];
 }
 

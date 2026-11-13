@@ -142,6 +142,8 @@ The port is published on `127.0.0.1` only. To reach the app from your phone or a
    this machine, or join it to this compose network and target `orbweaver:8788` (the stanza at the bottom of
    `docker-compose.yaml`). The proxy must pass `X-Forwarded-Proto/Host/For` and must not buffer SSE. It must
    also pass the browser's `Host` through: Caddy does by default; in nginx set `proxy_set_header Host $host`.
+   It must not add CORS headers or answer `OPTIONS` preflights for the app
+   (`docs/law/container-deployment-security.md` says why).
    The app sends no `Strict-Transport-Security` header, because it cannot know whether the same name is also
    reached over plain http. Once every visit to that name goes through HTTPS, set it at the proxy. In Caddy:
    `header Strict-Transport-Security "max-age=31536000"`.

@@ -167,6 +167,7 @@ import { cueReplayFor } from "../substrate/cue-replay.ts";
 import { scrubChatEventReplayForMember, stripMemberCardForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import {
+  hostConsentOf,
   humanSeatPersonasOf,
   lorePersonaIdsOf,
   presentAndEnabledHumanUserIdsOf,
@@ -456,16 +457,16 @@ async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly C
  *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
  *  the turn wouldn't. */
 async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: ChatId, opts: PreviewInputsOpts): Promise<PreviewInputs> {
-  const participants = await loadParticipants(ctx.db, chatId);
-  const hostUserId = hostUserIdOf(participants);
-  if (hostUserId === null) {
-    throw new ChatNotFoundError(chatId);
-  }
   // A member's fit read gathers memory and databank retrieval on the host's encoder, so a disabled host refuses
   // exactly as a departed one does, the rule `loadRoom` applies to a turn.
-  if (!(await presentAndEnabledHumanUserIdsOf(ctx, participants)).includes(hostUserId)) {
+  const consent = await hostConsentOf(ctx, await loadParticipants(ctx.db, chatId));
+  if (consent.kind === "hostless") {
+    throw new ChatNotFoundError(chatId);
+  }
+  if (consent.kind === "withheld") {
     throw new ChatHostWithoutConsentError(chatId);
   }
+  const { hostUserId } = consent;
   const connection = await deps.resolveConnection({ funderUserId: hostUserId, chatId });
   const room = await resolveRoomInputs(ctx, deps, chatId, { ...opts, model: connection.model });
   return {

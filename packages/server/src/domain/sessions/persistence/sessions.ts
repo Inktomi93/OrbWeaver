@@ -171,8 +171,8 @@ export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number
 
 /** A5 — revoke every live session belonging to the user(s) bound to a stable external subject (`sub`). One
  *  atomic UPDATE over a `userId IN (SELECT id FROM users WHERE external_id = sub)` subquery + the
- *  `revokedAt IS NULL` guard, so a re-delivered back-channel logout token just re-revokes nothing (idempotent
- *  — no Redis replay cache needed). Returns the revoked rows so only real revocations are logged/audited —
+ *  `revokedAt IS NULL` guard, so an already-revoked row is never revoked twice. The token replay refusal lives in
+ *  the back-channel verifier (`packages/server/src/infra/auth/backchannel.ts`), not here. Returns the revoked rows so only real revocations are logged/audited —
  *  `userId` included because one subject can be bound to more than one row, and the entry tier evicts those
  *  users' live sockets (W7a): a revoked cookie the SSE generator already froze its Principal from would
  *  otherwise keep streaming until the socket died of natural causes. */

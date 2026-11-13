@@ -99,7 +99,7 @@ interface ChatLifecycleDeps {
   readonly activeTurns: ActiveTurns;
   /** The husk→real transition (R0) — every write here calls it BEFORE writing. */
   readonly claimChat: ClaimChatOp;
-  /** The room-work barrier the admitted verbs hold for their whole run; `reapHusk` deletes only an idle room. */
+  /** The room-work barrier the admitted verbs hold for their whole run; both reap arms delete only an idle room. */
   readonly admission: HandoffBarrier;
 }
 
@@ -314,7 +314,8 @@ async function deleteQualifiedRoom(ctx: ChatContext, chatId: ChatId, predicate: 
   }
 }
 
-// Holds the room closed only for the delete, so an admission meets a closed room for one batch, never a turn.
+// The one delete both reap arms take. It holds the room closed only for the delete, so an admission meets a closed
+// room for one batch, never a turn, and a room with admitted work in it is left for a later reap.
 async function deleteIdleRoom(
   ctx: ChatContext,
   admission: HandoffBarrier,
@@ -415,8 +416,12 @@ function createReapHusk(ctx: ChatContext, deps: Pick<ChatLifecycleDeps, "emitLiv
  *  Each eligible room is a separate atomic refund-and-delete unit: a declined room's required-id guard
  *  must not block another qualifying room. The same current predicate gates the cohort read, the first
  *  write and DELETE; snapshot ids only bound this invocation. Each actual removal fans before the next
- *  fallible unit, so a later database failure cannot silence a deletion already committed. */
-function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive): ChatService["reapTemporaryChats"] {
+ *  fallible unit, so a later database failure cannot silence a deletion already committed.
+ *
+ *  Each unit deletes through the husk reap's idle close: a room with a turn, send or picture in flight is skipped
+ *  this pass and swept on a later one, and a send arriving during a delete is refused as a closing room. */
+function createReapTemporaryChats(ctx: ChatContext, deps: Pick<ChatLifecycleDeps, "emitLive" | "admission">): ChatService["reapTemporaryChats"] {
+  const { emitLive, admission } = deps;
   return async ({ principal }: ReapTemporaryChatsParams): Promise<ReapResult> => {
     const ttlHours = await ctx.resolveTempChatTtlHours(principal.userId);
     const cutoff = ctx.now() - ttlHours * MS_PER_HOUR;
@@ -428,7 +433,7 @@ function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive)
     const cohort = await ctx.db.select({ id: chats.id }).from(chats).where(predicate).orderBy(chats.id);
     let reaped = 0;
     for (const { id } of cohort) {
-      if (await deleteQualifiedRoom(ctx, id, predicate, principal.userId)) {
+      if (await deleteIdleRoom(ctx, admission, { chatId: id, predicate, ownerId: principal.userId })) {
         reaped += 1;
         emitLive({ type: "chatDeleted", chatId: id });
       } else {
@@ -665,7 +670,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     setChatAnchorPersona: createSetChatAnchorPersona(ctx, emit, claimChat),
     delete: createDelete(ctx, emitLive, (chatId) => deps.activeTurns.abortAll(chatId)),
     reapHusk: createReapHusk(ctx, deps),
-    reapTemporaryChats: createReapTemporaryChats(ctx, emitLive),
+    reapTemporaryChats: createReapTemporaryChats(ctx, deps),
     setVariables: createSetVariables(ctx, emit, claimChat),
     setUserMacroValues: createSetUserMacroValues(ctx, emit, claimChat),
     getUserMacroPicks: createGetUserMacroPicks(ctx),

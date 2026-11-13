@@ -3,14 +3,14 @@
 // room-public events do NOT have a procedure of their own: a tab holds ONE `stream.connect` EventSource and
 // ATTACHES rooms to it, so this instrument does what a browser does — POST `stream.attach` for the `chat`
 // room, then open `stream.connect` and filter that room's frames. The browser opens it as a JSON POST
-// (`PostEventSource`); this instrument keeps the GET form, which the server still accepts.
+// (`PostEventSource`); this instrument keeps the GET form, which the server accepts only with the CSRF header.
 //
 // The tRPC wire (verified empirically): a GET subscription is `GET /api/trpc/stream.connect?input=<encodeURI…>`
 // (NON-batched — a batched subscription 400s "Cannot batch subscription calls") with
 // `Accept: text/event-stream`; a mutation is `POST /api/trpc/stream.attach?batch=1` with an index-keyed body.
-// Cookies flow same-origin; subscriptions are CSRF-exempt by design, but the ATTACH is an ordinary mutation,
-// so a cookie actor's `x-orb-csrf` header (already in `ActorClient.headers`) is what carries it through the
-// CSRF gate. Each SSE `data:` line is the yielded FRAME; the durable cursor rides `frame.seq` (the socket's
+// Cookies flow same-origin. The ATTACH is an ordinary mutation, so a cookie actor's `x-orb-csrf` header
+// (already in `ActorClient.headers`) carries it through the CSRF gate, and the GET connect sends the header
+// on every path because the mount refuses a header-less GET subscription (`packages/server/src/entry/app.ts`). Each SSE `data:` line is the yielded FRAME; the durable cursor rides `frame.seq` (the socket's
 // own `id:` line is a per-socket ORDINAL, deliberately not a cursor — spec §3.3).
 //
 // We drive the REAL `chat` ROOM SOURCE (`transport/trpc/stream/sources/chat.ts` — the same generator that
@@ -22,6 +22,7 @@
 // absence assertion (`not.toContain(<the hidden truth>)`) passed on a stream that delivered nothing. Values
 // that feed an assertion are read through `requireSatisfied`, which refuses every other verdict by name.
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { StreamFrameFor } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
@@ -110,7 +111,7 @@ export async function collectChatRoomFrames(args: {
   // leaves this default standing.
   let outcome: ChatRoomCollectionOutcome = "timed-out";
   try {
-    const res = await fetch(url, { headers: { ...headers, accept: "text/event-stream" }, signal: controller.signal });
+    const res = await fetch(url, { headers: { ...headers, accept: "text/event-stream", [CSRF_HEADER]: "1" }, signal: controller.signal });
     if (!res.ok || res.body === null) {
       throw new Error(`collectChatRoomFrames: connect failed (HTTP ${res.status})`);
     }

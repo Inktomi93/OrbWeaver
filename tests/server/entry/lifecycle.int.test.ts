@@ -17,6 +17,7 @@ import { freeLoopbackPort } from "@orb/testkit/node/helpers";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
+import type { BOOT_DISCLAIMER_TOPICS } from "#server/entry/boot/disclaimer.ts";
 import { SSRF_BLOCKED } from "#server/infra/network/contract/egress.ts";
 
 const SERVER_ENTRY = fileURLToPath(new URL("../../../packages/server/src/entry/index.ts", import.meta.url));
@@ -170,6 +171,30 @@ test("concurrent shutdown signals join the held native HTTP drain", { tags: "slo
   }
 });
 
+// An allowlist entry whose port no parser can read admits nothing; boot names it beside the entry that still applies. A
+// pasted URL's credentials never reach the log, in the warning or anywhere else.
+const UNREADABLE_ALLOWLIST_ENTRY = "proxy.lan:not-a-port";
+const ALLOWLIST_SECRET = "hunter2-secret";
+const CREDENTIALED_ALLOWLIST_ENTRY = `http://orb:${ALLOWLIST_SECRET}@proxy.lan:not-a-port`;
+const EXPOSURE_TOPIC = "exposure" satisfies (typeof BOOT_DISCLAIMER_TOPICS)[number];
+const allowlistWarningSchema = z.object({
+  bootDisclaimer: z.literal(true),
+  topic: z.literal(EXPOSURE_TOPIC),
+  entry: z.string(),
+  position: z.number(),
+});
+
+/** The boot disclaimer's allowlist warnings, as their structured fields on the server's JSON log lines. */
+function allowlistWarnings(output: string): readonly { readonly entry: string; readonly position: number }[] {
+  return output
+    .split("\n")
+    .filter((line) => line.startsWith("{"))
+    .flatMap((line) => {
+      const parsed = allowlistWarningSchema.safeParse(JSON.parse(line));
+      return parsed.success ? [{ entry: parsed.data.entry, position: parsed.data.position }] : [];
+    });
+}
+
 test("the booted server's egress firewall refuses a bare fetch to an unlisted loopback peer and still reaches an allowlisted one", {
   tags: "slow",
 }, async ({ importStagingDir }) => {
@@ -184,11 +209,17 @@ test("the booted server's egress firewall refuses a bare fetch to an unlisted lo
   });
   const server = spawnServer(FETCH_OBSERVER, importStagingDir, await freeLoopbackPort(), {
     ["EGRESS_FIREWALL"]: "true",
-    ["EGRESS_ALLOWLIST"]: new URL(admitted.origin).host,
+    ["EGRESS_ALLOWLIST"]: `${new URL(admitted.origin).host}, ${UNREADABLE_ALLOWLIST_ENTRY}, ${CREDENTIALED_ALLOWLIST_ENTRY}`,
   });
   await using resources = new AsyncDisposableStack();
   resources.defer(server.stop);
   expect(await Promise.race([server.listening.then(() => "listening"), server.exited.then(() => "exited")]), server.output()).toBe("listening");
+  // Boot names each dead entry once, by its structured fields, and never the admitted host.
+  expect(allowlistWarnings(server.output())).toEqual([
+    { entry: UNREADABLE_ALLOWLIST_ENTRY, position: 2 },
+    { entry: "http://proxy.lan:not-a-port", position: 3 },
+  ]);
+  expect(server.output()).not.toContain(ALLOWLIST_SECRET);
 
   const fetchInside = async (url: string): Promise<z.infer<typeof fetchReplySchema>> => {
     const reply = Promise.withResolvers<z.infer<typeof fetchReplySchema>>();

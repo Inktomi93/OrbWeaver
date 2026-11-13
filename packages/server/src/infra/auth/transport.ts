@@ -39,7 +39,7 @@ function resolveTransport(args: {
   return forwardedProto.split(",").every((value) => value.trim().toLowerCase() === HTTPS) ? "https" : "http";
 }
 
-/** The transport of a live request; `trustedProxies` is the deployment list `clientIp` reads too (`trustedProxiesOf`). */
+/** The transport of a live request; `trustedProxies` is the deployment list `clientIp` reads too (`FORWARD_AUTH_TRUSTED_PROXIES`). */
 export function requestTransport(c: Context, trustedProxies: readonly string[]): RequestTransport {
   return resolveTransport({ peer: peerIp(c), forwardedProto: c.req.raw.headers.get(X_FORWARDED_PROTO), trustedProxies });
 }

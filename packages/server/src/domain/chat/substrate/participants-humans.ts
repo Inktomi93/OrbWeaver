@@ -19,6 +19,8 @@
 // re-apply could still resolve — a DISABLED member's persona that a live turn had already started refusing.
 // {@link presentAndEnabledHumanUserIdsOf} is the fix: the ONE async narrowing every consumer that can reach
 // an injected `ctx.resolveUserEnabled` now calls, instead of re-deriving the enabled filter per call site.
+// {@link hostConsentOf} is the one answer to whether the room's host is in that set, for every path that spends
+// the host's account.
 
 import type { AnchorState } from "@orb/contracts/chat";
 import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
@@ -26,6 +28,7 @@ import type { ChatContext } from "../contract/context.ts";
 import type { HumanSeatPersona } from "../contract/foreign.ts";
 import { loadPersonaOwnerId } from "../persistence/identity.ts";
 import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
+import { hostUserIdOf } from "./participants-host.ts";
 
 /** The columns the human-seat lens reads — {@link classifyParticipant}'s own row shape, so the raw
  *  `chat_participants` row (`loadParticipants`) passes unchanged. */
@@ -62,6 +65,31 @@ export async function presentAndEnabledHumanUserIdsOf(
   const present = presentHumanUserIdsOf(participants);
   const enabled = await Promise.all(present.map((userId) => ctx.resolveUserEnabled(userId)));
   return present.filter((_userId, i) => isBackingUserEnabled("human", enabled[i] ?? false));
+}
+
+/** {@link hostConsentOf}'s answer. `consents` carries the consent set it read, so a caller that also gates personas
+ *  reads the room once. */
+type HostConsent =
+  | { readonly kind: "hostless" }
+  | { readonly kind: "withheld" }
+  | { readonly kind: "consents"; readonly hostUserId: UserId; readonly consentSet: readonly UserId[] };
+
+/** Does the room's host consent to work run on its account? `hostless` when the present roster seats no host;
+ *  `withheld` when the host is outside the consent set, so a disabled host stands exactly as a departed one. Pass
+ *  `frozenHostUserId` when a deferred turn already fixed its host: the room must still seat a host, and the frozen
+ *  one must consent. Each caller keeps its own refusal for each arm. */
+export async function hostConsentOf(
+  ctx: Pick<ChatContext, "resolveUserEnabled">,
+  participants: readonly (HumanSeat & Parameters<typeof hostUserIdOf>[0][number])[],
+  frozenHostUserId?: UserId,
+): Promise<HostConsent> {
+  const currentHostUserId = hostUserIdOf(participants);
+  if (currentHostUserId === null) {
+    return { kind: "hostless" };
+  }
+  const hostUserId = frozenHostUserId ?? currentHostUserId;
+  const consentSet = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+  return consentSet.includes(hostUserId) ? { kind: "consents", hostUserId, consentSet } : { kind: "withheld" };
 }
 
 /** The rows whose `ownerId` is in the consent set of the row's own room: the owner-side gate of the co-participant

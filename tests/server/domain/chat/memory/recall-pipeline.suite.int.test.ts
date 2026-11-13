@@ -3,6 +3,7 @@
 // scan runs the real cosine. Each turn's trace is read from the recall recorder the root composes.
 // @subject packages/server/src/domain/chat/memory/recall/recall.ts
 
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import { decodeStreamChunk, nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -270,7 +271,10 @@ async function openRoomStream(
   const address = new URL("http://localhost/api/trpc/stream.connect");
   address.searchParams.set("input", JSON.stringify({ socketId }));
   const stop = new AbortController();
-  const response = await h.root.http.request(address, { headers: { cookie: session.cookie, accept: "text/event-stream" }, signal: stop.signal });
+  const response = await h.root.http.request(address, {
+    headers: { cookie: session.cookie, accept: "text/event-stream", [CSRF_HEADER]: "1" },
+    signal: stop.signal,
+  });
   const reader = response.body?.getReader();
   if (reader === undefined) {
     throw new Error("the room stream omitted its body");
