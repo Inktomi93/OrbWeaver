@@ -6,7 +6,9 @@
 // uninstall deletes row-then-asset in one verb). `status`/`origin` DERIVE their CHECK from the ONE-home
 // contract tuples (`@orb/contracts/plugin` — no re-spell, the ASSET_KINDS precedent). `plugin_kv` is the
 // `storage.kv` plane: PK (plugin_id, key), a denormalized `owner_id` guard column (belt: WHERE both), the
-// key / value caps as CHECK-DDL read from the contract constants the UI relay's argument schema reads too. `plugin_assets` is the plugin ASSET register —
+// key / value caps as CHECK-DDL read from the contract constants the UI relay's argument schema reads too. The key
+// CHECK is a second line that stays as written (its length() stops at a NUL); the host's storage write is the limit.
+// `plugin_assets` is the plugin ASSET register —
 // the FK column that makes a `net.fetchAsset` cover or a bundle-shipped `ui/assets/` image
 // VISIBLE to the asset-GC ref registry; `bundle_path` distinguishes the two and resolves a UI node's path.
 
