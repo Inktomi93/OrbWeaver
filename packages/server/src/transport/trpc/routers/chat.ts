@@ -40,6 +40,7 @@ import {
   reattributeScopeSchema,
   regexTierKeySchema,
   roomOverridesSchema,
+  roomSendAvailabilitySchema,
   seatKnobsSchema,
   sendContentBlocksSchema,
   shapeTraceSchema,
@@ -53,7 +54,6 @@ import {
 } from "@orb/contracts/chat";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
-import { sendAvailabilitySchema } from "@orb/contracts/inference";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { pageDirectionShape, trackedEventIdShape } from "@orb/contracts/rpc";
 import { messageWindowCursorSchema, messageWindowTargetSchema } from "@orb/contracts/search";
@@ -591,10 +591,11 @@ export const chatRouter = t.router({
     .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.getChatLineage({ principal: ctx.auth, chatId: input.chatId })),
   // The honest-refusal pre-send gate: the deterministic serveability verdict for the chat's own
-  // resolved connection — the composer disables SEND + the guided fire actions when `!available`. Member-gated
-  // inside the verb; fires no turn/API call (a configured hosted connection reads available, never pre-flighted).
+  // resolved connection, or `host_unavailable` for a host outside the consent set — the composer disables SEND + the
+  // guided fire actions when `!available`. Member-gated inside the verb; fires no turn/API call (a configured hosted
+  // connection reads available, never pre-flighted).
   checkSendAvailability: authedProcedure
-    .output(sendAvailabilitySchema)
+    .output(roomSendAvailabilitySchema)
     .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId })),
   getNextTurnConnection: authedProcedure

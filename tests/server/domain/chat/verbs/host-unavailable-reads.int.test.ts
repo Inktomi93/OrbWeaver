@@ -1,0 +1,148 @@
+// A member's composer reads in a room whose host is disabled: the send-availability read answers unavailable with the
+// host-unavailable cause, and neither it nor the context-fit read dials the disabled host's endpoint. A stranger and an
+// unknown room read the same plain not found, with no cause. Re-enabling the host restores the endpoint's verdict.
+// @subject packages/server/src/domain/chat/verbs/read.ts
+
+import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
+import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node";
+import type { AuthModeRoot, SignedIn } from "@orb/testkit/node/auth";
+import { createAuthModeRoot, mintMember, signIn } from "@orb/testkit/node/auth";
+import { seedChat, seedChatInvite, seedInvitedChatParticipant, servePhysicalPeer } from "@orb/testkit/node/composed";
+import { z } from "zod";
+
+const ENGINE_PROVIDER = "vllm";
+const ENGINE_MODEL = "room-model";
+const AVAILABILITY_ROUTE = "/api/trpc/chat.checkSendAvailability";
+const CONTEXT_FIT_ROUTE = "/api/trpc/chat.previewContextFit";
+const answerSchema = z.union([
+  z.strictObject({ result: z.strictObject({ data: z.unknown() }) }),
+  z.strictObject({ error: z.looseObject({ message: z.string(), data: z.looseObject({ code: z.string(), reason: z.string().optional() }) }) }),
+]);
+
+// Well past the window in which availability reads share one endpoint verdict, so every read below asks afresh.
+const PAST_SHARED_VERDICT_MS = 60_000;
+
+type WireAnswer = z.infer<typeof answerSchema>;
+
+async function readOverWire(root: AuthModeRoot, who: SignedIn, route: string, chatId: ChatId): Promise<WireAnswer> {
+  root.timers.advance(PAST_SHARED_VERDICT_MS);
+  const response = await root.http.request(route, {
+    method: "POST",
+    headers: { ...who.headers, [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify({ chatId }),
+  });
+  return answerSchema.parse(await response.json());
+}
+
+interface DisabledHostRoom extends AsyncDisposable {
+  readonly root: AuthModeRoot;
+  readonly room: ChatId;
+  readonly asPlayer: SignedIn;
+  /** Every path the host's endpoint has been asked for. */
+  readonly dialled: readonly string[];
+  readonly setHostEnabled: (enabled: boolean) => Promise<unknown>;
+}
+
+/** A local-mode room hosted by a second account whose chat role is bound to a loopback engine, with a third seated. */
+async function disabledHostRoom(): Promise<DisabledHostRoom> {
+  const dialled: string[] = [];
+  const answer = (request: Request): Promise<Response> => {
+    dialled.push(new URL(request.url).pathname);
+    return Promise.resolve(Response.json({ object: "list", data: [{ id: ENGINE_MODEL, object: "model" }] }));
+  };
+  await using construction = new AsyncDisposableStack();
+  const engineOrigin = construction.use(await servePhysicalPeer(answer)).origin;
+  const root = construction.use(await createAuthModeRoot("local", { providerFetch: fetch }));
+  const admin = await root.principalFor(root.ownerId);
+  const host = await mintMember(root);
+  const player = await mintMember(root);
+  const hostPrincipal = await root.principalFor(host.userId);
+  const playerPrincipal = await root.principalFor(player.userId);
+  // A multi-user install admits no private endpoint until its admin names one.
+  await root.services.settings.updateAppSettings({ principal: admin, partial: { privateEndpointAllowlist: [new URL(engineOrigin).host] } });
+  const row = await root.services.connection.create({
+    principal: hostPrincipal,
+    providerId: ENGINE_PROVIDER,
+    credentialId: null,
+    baseUrl: `${engineOrigin}/v1`,
+    model: ENGINE_MODEL,
+    modelCheck: "listed",
+    allowBackground: true,
+  });
+  await root.services.connection.setBinding({ principal: hostPrincipal, task: "chat", connectionId: row.id });
+  const room = (await seedChat(root, { principal: hostPrincipal, characterIds: [] })).view.chat.id;
+  const invite = await seedChatInvite(root, { principal: hostPrincipal, chatId: room, input: { invitedHandle: player.handle } });
+  await seedInvitedChatParticipant(root, { principal: playerPrincipal, inviteId: invite.invite.id });
+  const asPlayer = await signIn(root, player);
+  const lifetime = construction.move();
+  return {
+    root,
+    room,
+    asPlayer,
+    dialled,
+    setHostEnabled: (enabled) => root.services.admin.setEnabled({ principal: admin, userId: host.userId, enabled }),
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
+  };
+}
+
+test("a member's send-availability read names the unavailable host without dialling its endpoint, and reads the endpoint again once re-enabled", async () => {
+  await using box = await disabledHostRoom();
+  const { root, room, asPlayer, dialled } = box;
+
+  // Positive control: an enabled host's endpoint answers the member's read.
+  const beforeRead = dialled.length;
+  expect(await readOverWire(root, asPlayer, AVAILABILITY_ROUTE, room)).toEqual({ result: { data: { available: true } } });
+  expect(dialled.length).toBeGreaterThan(beforeRead);
+
+  await box.setHostEnabled(false);
+  const beforeDisabled = dialled.length;
+  expect(await readOverWire(root, asPlayer, AVAILABILITY_ROUTE, room)).toEqual({
+    result: { data: { available: false, cause: TURN_HOST_UNAVAILABLE_OP_CODE } },
+  });
+  expect(dialled).toHaveLength(beforeDisabled);
+
+  await box.setHostEnabled(true);
+  const beforeResume = dialled.length;
+  expect(await readOverWire(root, asPlayer, AVAILABILITY_ROUTE, room)).toEqual({ result: { data: { available: true } } });
+  expect(dialled.length).toBeGreaterThan(beforeResume);
+});
+
+test("a stranger's send-availability read of a disabled host's room reads exactly as an unknown room does, with no cause", async () => {
+  await using box = await disabledHostRoom();
+  const { root, room, dialled } = box;
+  await box.setHostEnabled(false);
+  const asStranger = await signIn(root, await mintMember(root));
+  const unknown = root.idSource.typeId(ID_PREFIX.chat);
+
+  const beforeReads = dialled.length;
+  const stranger = await readOverWire(root, asStranger, AVAILABILITY_ROUTE, room);
+  const missing = await readOverWire(root, asStranger, AVAILABILITY_ROUTE, unknown);
+  if ("result" in stranger || "result" in missing) {
+    throw new Error(`a stranger's read answered ${JSON.stringify(stranger)} and an unknown room's ${JSON.stringify(missing)}`);
+  }
+  expect(stranger.error.data.code).toBe("NOT_FOUND");
+  expect(stranger.error.data.reason).toBeUndefined();
+  expect(stranger.error.data).toEqual({ ...missing.error.data });
+  expect(stranger.error.message.replace(room, unknown)).toBe(missing.error.message);
+  expect(dialled).toHaveLength(beforeReads);
+  // Positive control: the same room, read by its member, carries the cause.
+  expect(await readOverWire(root, box.asPlayer, AVAILABILITY_ROUTE, room)).toMatchObject({ result: { data: { cause: TURN_HOST_UNAVAILABLE_OP_CODE } } });
+});
+
+test("a member's context-fit read in a disabled host's room refuses before it dials the host's endpoint", async () => {
+  await using box = await disabledHostRoom();
+  const { root, room, asPlayer, dialled } = box;
+
+  // Positive control: an enabled host's fit read reaches the endpoint.
+  const beforeRead = dialled.length;
+  expect(await readOverWire(root, asPlayer, CONTEXT_FIT_ROUTE, room)).toMatchObject({ result: { data: { ceilingTokens: expect.any(Number) } } });
+  expect(dialled.length).toBeGreaterThan(beforeRead);
+
+  await box.setHostEnabled(false);
+  const beforeDisabled = dialled.length;
+  expect(await readOverWire(root, asPlayer, CONTEXT_FIT_ROUTE, room)).toMatchObject({ error: { data: { code: "NOT_FOUND" } } });
+  expect(dialled).toHaveLength(beforeDisabled);
+});

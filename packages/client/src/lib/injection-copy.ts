@@ -2,8 +2,10 @@
 // `isAssistantPrefill` (`@orb/kit/injection`) consumer editors (character-advanced-tab, room-overrides-
 // form, persona-editor) and had already drifted ("pick depth ≥ 1" vs "Use depth ≥ 1").
 
-import type { UnavailableCause } from "@orb/contracts/inference";
+import type { RoomUnavailableCause } from "@orb/contracts/chat";
+import { TURN_HOST_UNAVAILABLE_OP_CODE } from "@orb/contracts/chat";
 import type { ChatControlMode } from "./contribution-contracts.ts";
+import { HOST_UNAVAILABLE_COPY } from "./turn-refusal-copy.ts";
 
 export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill. Unsupported across providers. Use depth ≥ 1, or role system/user.";
 
@@ -188,7 +190,7 @@ export const ADD_CONNECTION_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Add connec
 
 /** A composer refusal reason: a server cause, or `no-chat-connection`, the host-side split of `no-connection`
  *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. */
-export type SendRefusalKey = UnavailableCause | "no-chat-connection" | "host-no-chat-connection";
+export type SendRefusalKey = RoomUnavailableCause | "no-chat-connection" | "host-no-chat-connection";
 
 const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
@@ -208,6 +210,9 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   unavailable: "That connection isn't available on this server.",
   // An in-process model (local-light) whose latest load failed; the next call retries the load.
   "model-load-failed": "Your connection's built-in model failed to load on this server. Send again to retry.",
+  // The room's host is outside its consent set. No unlock is named: a member is never told another account's state,
+  // and the words are the refused send's own.
+  [TURN_HOST_UNAVAILABLE_OP_CODE]: HOST_UNAVAILABLE_COPY,
 };
 
 /** The composer disabled-reason for a refusal key — the single home the Send button + the guided fire
