@@ -409,7 +409,8 @@ export interface RpgToolCall {
  *  EXPORTED because it is the ONE verdict on whether the model's args string is readable. rpg's member-facing
  *  projection asks it before it strips: the strip decodes first (`stripHiddenSpansInJsonText` in `@orb/kit/content`),
  *  because running it over the ENCODED string conceals from the tag to the end and leaves JSON that does not parse,
- *  and the projection's withhold reads this function's `null`, so the fold and the projection never answer "is this
+ *  and a tag whose opening bracket is JSON-escaped passes a strip over the raw text unchanged. The projection's
+ *  withhold reads this function's `null`, so the fold and the projection never answer "is this
  *  payload readable at all" differently. A literal `null` payload decodes to
  *  `null` and is therefore indistinguishable from unparseable: both are "nothing a reader can act on", which
  *  is the same verdict both consumers want. */
@@ -842,7 +843,8 @@ const SENT_VALUE_MARKER = " — sent ";
  *
  * WHY THE CALLER PROJECTS RATHER THAN THIS FUNCTION STRIPPING: the value is JSON-ENCODED here, so a tag's quotes
  * arrive as `\"`, which the hidden-span recognizer reads as a broken tag — running a strip over the ENCODED form
- * conceals from the tag to the end of the line instead of removing the tag. Only a caller that decodes first can
+ * conceals from the tag to the end of the line instead of removing the tag, and a tag whose opening bracket is
+ * JSON-escaped passes that strip unchanged. Only a caller that decodes first can
  * strip the value and keep the rest, and only rpg knows the belt.
  */
 export function projectIssueSentValue(issue: string, project: (sent: string) => string | null): string {
