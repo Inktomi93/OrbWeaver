@@ -15,6 +15,7 @@ const ALIAS = "orb/owned-root-alias";
 const SUITE = "tests/server/domain/probe/probe.int.test.ts";
 const TOOL_SUITE = "tests/tooling/snap/probe.test.ts";
 const SPEC = "tests/client/features/probe/probe.ct.tsx";
+const E2E_SPEC = "tests/e2e/probe.spec.ts";
 const TOOL_SOURCE = "tooling/src/snap/lib/probe.ts";
 const ADAPTER = "tooling/src/floor/host/platform.ts";
 const MINT = "tooling/src/snap/ops/session.ts";
@@ -109,7 +110,9 @@ test.for([
   ["another role", 'page.getByRole("status").first();', 0],
   ["a scoped alert read whole", 'list.getByRole("alert");\nlist.locator(\'[role="alert"]:not([data-before-retry])\');', 0],
 ] as const)("a first-alert read: %s", CONFIG_LOAD, async ([, source, expected], { repoRoot }) => {
-  expect(await count(repoRoot, SYNTAX, source, SPEC)).toBe(expected);
+  for (const path of [SPEC, E2E_SPEC]) {
+    expect(await count(repoRoot, SYNTAX, source, path), path).toBe(expected);
+  }
 });
 
 test.for([
