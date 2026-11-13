@@ -404,7 +404,7 @@ async function collectWorlds(fs: ImportFsPort, profileDir: ImportDirectory, stat
       state.unreadableWorlds.push(ent.name);
       continue;
     }
-    state.worlds.push({ book: book.value });
+    state.worlds.push({ book: book.value, sourceFile: fs.join(WORLDS_DIR, ent.name) });
   }
 }
 
