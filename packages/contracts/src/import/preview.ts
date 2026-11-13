@@ -2,7 +2,7 @@
 // it and caps each list; `total` stays exact when `items` is capped. The client renders names as plain text.
 // An entry's identity is its source: the profile directory it sits in plus its path inside that profile, so two
 // profiles of one upload that share a relative path are two entries. `mergeImportPreviews` is the one place that
-// keys on it.
+// keys on it. A skip at the upload's root, beside the profiles, has `profile: null`.
 
 import { z } from "zod";
 
@@ -15,6 +15,10 @@ export const IMPORT_PREVIEW_LIST_MAX = 500;
 export const IMPORT_PREVIEW_TEXT_MAX = 200;
 
 const previewText = z.string().max(IMPORT_PREVIEW_TEXT_MAX);
+
+/** Why a run writes nothing for an entry: the owner's library holds equal content, or an earlier entry of the same
+ *  upload does. The owning domain's read-only twin of each write answers it with the write's own equality rule. */
+export type ImportReuse = "library" | "upload";
 
 /** Where an entry sits in the upload: the profile directory's name and the entry's path inside that profile (its
  *  file, or its name where it has no file). A single picked profile is staged under one fixed directory name. */
@@ -32,6 +36,9 @@ const importPreviewItemSchema = z.strictObject({
   /** Something the owner already has (a character, book, preset, chat and so on); a run adds nothing for it.
    *  Absent otherwise. */
   inLibrary: z.literal(true).optional(),
+  /** Equal content to an earlier entry of this upload, usually another profile's copy: a run reuses that entry's
+   *  row and adds nothing for it. Absent otherwise, and never beside `inLibrary`. */
+  repeat: z.literal(true).optional(),
   /** A persona whose avatar file is missing or unreadable: it imports, without art. Absent otherwise. */
   withoutArt: z.literal(true).optional(),
 });

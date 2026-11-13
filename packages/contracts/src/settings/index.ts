@@ -21,6 +21,7 @@ import type { IpCertificateSetting, Principal } from "#identity";
 import { ipCertificateSettingSchema } from "#identity";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
+import type { ImportReuse } from "#import";
 import { attachmentQualitySchema, PROMPT_CACHE_DEPTH_CEIL } from "#inference";
 import { pluginSurfaceIdSchema } from "#plugin";
 import { legacyProseOverrides, proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
@@ -1132,11 +1133,12 @@ export type ResolveSeededPlateOp = (principal: Principal, slug: string) => Promi
  *  a raw SillyTavern theme that carries no `name`. */
 export type ImportThemeOp = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
 
-/** For each file, in order, whether the owner holds a theme {@link ImportThemeOp} would reuse for each theme in it.
- *  A read: it writes nothing, and it loads the owner's themes once for the whole list. A file that does not parse,
- *  or carries no theme, answers `false`. Once `signal` aborts it stops and returns the answers so far, which the
+/** For each file, in order, what {@link ImportThemeOp} would do with it: reuse the owner's theme for every theme in
+ *  it (`"library"`), reuse themes an earlier file of this list lands (`"upload"`), or write a new one (`null`). A
+ *  read: it writes nothing, and it loads the owner's themes once for the whole list. A file that does not parse, or
+ *  carries no theme, answers `null`. Once `signal` aborts it stops and returns the answers so far, which the
  *  aborted caller discards. */
-export type FindOwnedThemes = (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation) => Promise<readonly boolean[]>;
+export type FindOwnedThemes = (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation) => Promise<readonly (ImportReuse | null)[]>;
 
 /** The content hashes of the owner's background library, which a stored background image joins by its own hash. */
 export type OwnedBackgroundHashes = (ownerId: UserId) => Promise<ReadonlySet<string>>;

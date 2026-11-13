@@ -3,6 +3,7 @@
 // a taken name reuses the row; different content lands under the next free name; no owned row is edited.
 // Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null.
 
+import type { ImportReuse } from "@orb/contracts/import";
 import type { FindOwnedThemes, ImportedThemeLanding, ImportThemeOp, SettingsImportOutcome } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
@@ -117,14 +118,30 @@ export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp
   };
 }
 
-/** The read-only twin of {@link createImportTheme}'s reuse test, for a preview that must not write. */
+/** The read-only twin of {@link createImportTheme}'s reuse test, for a preview that must not write. It judges the
+ *  files in the order the import lands them, so a theme equal to an earlier file's answers `"upload"`. */
 export function createFindOwnedThemes(input: Pick<SettingsAssemblyContext, "db">): FindOwnedThemes {
   const db = databaseForOwner(input.db);
-  return async (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation): Promise<readonly boolean[]> => {
+  return async (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation): Promise<readonly (ImportReuse | null)[]> => {
     const owned = new Set(readableOwned(await listOwnedThemes(db, ownerId)).map((row) => themeContentKey(row)));
-    return await mapYielding(files, signal, (bytes) => {
+    // call-local: the content keys of the themes the files judged so far land. Ends if it outlives the call.
+    const landed = new Set<string>();
+    return await mapYielding(files, signal, (bytes): ImportReuse | null => {
       const parsed = parseThemeFile(bytes, UNNAMED_THEME);
-      return parsed.ok && parsed.value.themes.length > 0 && parsed.value.themes.every((theme) => owned.has(themeContentKey(withSafeCss(theme))));
+      if (!parsed.ok || parsed.value.themes.length === 0) {
+        return null;
+      }
+      const keys = parsed.value.themes.map((theme) => themeContentKey(withSafeCss(theme)));
+      let reuse: ImportReuse | null = null;
+      if (keys.every((key) => owned.has(key))) {
+        reuse = "library";
+      } else if (keys.every((key) => owned.has(key) || landed.has(key))) {
+        reuse = "upload";
+      }
+      for (const key of keys) {
+        landed.add(key);
+      }
+      return reuse;
     });
   };
 }

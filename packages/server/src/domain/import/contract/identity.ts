@@ -3,8 +3,9 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 
-/** The by-hash read the lookup is given: the owner's character carrying `importHash`, or null. */
-export type FindCharacterByHash = (importHash: string) => Promise<CharacterId | null>;
+/** The by-hash read the lookup is given: the row carrying `importHash`, or null. A row is the owner's character,
+ *  or whatever stands for one that a dry run has not written yet. */
+export type FindCharacterByHash<Row = CharacterId> = (importHash: string) => Promise<Row | null>;
 
 /** The three keys a card can be found under, in lookup order. */
 export interface CardIdentityHashes {

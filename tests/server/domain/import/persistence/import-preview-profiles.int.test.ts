@@ -1,18 +1,20 @@
 // An upload that holds several profile directories previews every profile's entries: a file two profiles keep at the
-// same relative path is two entries in the preview a person reads, and the numbers match what the run finds and writes.
+// same relative path is two entries in the preview a person reads, and what the preview says a run will write is what
+// the run writes, also when two profiles hold the same content.
 // @subject packages/server/src/entry/http/import-tree.ts
 // @subject packages/server/src/domain/import/loader/profile-directory.ts
 // @subject packages/server/src/domain/import/substrate/preview.ts
 // @subject packages/contracts/src/import/preview.ts
 
 import type { ImportPreview, ImportPreviewItem, ImportPreviewKind } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_KINDS, IMPORT_PREVIEW_TEXT_MAX, mergeImportPreviews, ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS, IMPORT_PREVIEW_TEXT_MAX, mergeImportPreviews, ST_SETTINGS_FILE, TREE_DRY_RUN_VALUE } from "@orb/contracts/import";
+import { workloads } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { forEachNonEmpty, nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { makeAssetBytes } from "@orb/testkit/node/composed";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Files } from "./_st-tree-door.ts";
 import { admit, cardPng, chatOf, dryRun, finish, finishRun, harness, inProfile, presetOf, settings, themeOf } from "./_st-tree-door.ts";
 
@@ -20,29 +22,44 @@ const ALICE = "alice";
 const BOB = "bob";
 const GROUP_LEAF = "room";
 
-// Personas merge by name and two same-named orphan directories share one placeholder, so only the other kinds write
-// what they list; every kind still lists and counts per profile.
-type WrittenKind = Exclude<ImportPreviewKind, "personas" | "orphans">;
-const WRITTEN_KINDS = IMPORT_PREVIEW_KINDS.filter((kind): kind is WrittenKind => kind !== "personas" && kind !== "orphans");
+const ORPHAN_DIR = "Wanderer";
+// The source a placeholder character is stamped with.
+const ORPHAN_SOURCE = `chats/${ORPHAN_DIR}`;
+
+/** The two files whose bytes a fixture mints, so two profiles can hold the very same ones. */
+interface Art {
+  readonly card: Uint8Array;
+  readonly background: Uint8Array;
+}
+
+function artFor(root: ServerTestHarness, who: string): Art {
+  return { card: cardPng(root, `${who} card`), background: new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))) };
+}
 
 /** One profile's files. Every profile lays the same relative path for every kind, with content of its own. */
-function profileFiles(root: ServerTestHarness, who: string, withOrphan: boolean): Files {
+function profileFiles(root: ServerTestHarness, who: string, withOrphan: boolean, art: Art = artFor(root, who)): Files {
   return {
     [ST_SETTINGS_FILE]: settings({ "me.png": `${who} persona` }),
-    "characters/Card.png": cardPng(root, `${who} card`),
+    "characters/Card.png": art.card,
     "chats/Card/solo.jsonl": chatOf(`${who} solo`),
     "worlds/Atlas.json": JSON.stringify({ entries: { "0": { uid: 0, key: [who], comment: who, content: `${who} lore.`, order: 100 } } }),
     "OpenAI Settings/Plain.json": presetOf(`You are ${who}.`),
     "themes/Plain.json": themeOf("Plain", `rgba(${who.length}0, 20, 40, 1)`),
-    "backgrounds/Plain.png": new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
+    "backgrounds/Plain.png": art.background,
     "groups/crew.json": JSON.stringify({ name: `${who} crew`, members: ["Card.png"], chats: [GROUP_LEAF] }),
     [`group chats/${GROUP_LEAF}.jsonl`]: chatOf(`${who} room`),
-    ...(withOrphan ? { "chats/Wanderer/orphan.jsonl": chatOf(`${who} orphan`) } : {}),
+    ...(withOrphan ? { [`chats/${ORPHAN_DIR}/orphan.jsonl`]: chatOf(`${who} orphan`) } : {}),
   };
 }
 
 function twoProfiles(root: ServerTestHarness, withOrphan: boolean): Files {
   return { ...inProfile(ALICE, profileFiles(root, ALICE, withOrphan)), ...inProfile(BOB, profileFiles(root, BOB, withOrphan)) };
+}
+
+/** Two profiles that hold the very same files, as SillyTavern leaves them when it copies its default content. */
+function twinProfiles(root: ServerTestHarness, withOrphan: boolean): Files {
+  const art = artFor(root, "twin");
+  return { ...inProfile(ALICE, profileFiles(root, "twin", withOrphan, art)), ...inProfile(BOB, profileFiles(root, "twin", withOrphan, art)) };
 }
 
 /** The preview a person reads: the client folds every upload's preview through the merge, a lone upload included. */
@@ -65,8 +82,10 @@ async function rowCount(root: ServerTestHarness, table: string, where = sql`1 = 
 }
 
 /** What the library holds of each kind the preview lists, read through its own tables and settings. */
-const WRITTEN: Readonly<Record<WrittenKind, (root: ServerTestHarness) => Promise<number>>> = {
-  characters: async (root) => await rowCount(root, "characters"),
+const WRITTEN: Readonly<Record<ImportPreviewKind, (root: ServerTestHarness) => Promise<number>>> = {
+  characters: async (root) => await rowCount(root, "characters", sql`imported_from IS NOT ${ORPHAN_SOURCE}`),
+  orphans: async (root) => await rowCount(root, "characters", sql`imported_from = ${ORPHAN_SOURCE}`),
+  personas: async (root) => await rowCount(root, "personas"),
   chats: async (root) => await rowCount(root, "chats"),
   groups: async (root) => await rowCount(root, "chats", sql`imported_from = ${`${GROUP_LEAF}.jsonl`}`),
   worlds: async (root) => await rowCount(root, "world_books"),
@@ -93,19 +112,60 @@ forEachNonEmpty(IMPORT_PREVIEW_KINDS, "preview kinds", (kind) => {
   });
 });
 
-test("every kind a preview lists is a library row after the same upload really imports", async () => {
+/** What a run adds for a kind: the entries the preview lists, less the ones it reuses. */
+function willWrite(shown: ImportPreview, kind: ImportPreviewKind): number {
+  const { total, items } = shown.kinds[kind];
+  return total - items.filter((item) => item.inLibrary === true || item.repeat === true).length;
+}
+
+const FIXTURES = [
+  { name: "different content at every path", build: twoProfiles },
+  { name: "the same content at every path", build: twinProfiles },
+] as const;
+
+for (const { name, build } of FIXTURES) {
+  test(`what the preview says a run will write is what it writes, for ${name}`, async () => {
+    await using root = await harness();
+    const files = build(root, true);
+    const shown = await shownFor(root, files);
+    const before = new Map<ImportPreviewKind, number>();
+    for (const kind of IMPORT_PREVIEW_KINDS) {
+      before.set(kind, await WRITTEN[kind](root));
+    }
+
+    await finish(root, await admit(root, files));
+
+    for (const kind of IMPORT_PREVIEW_KINDS) {
+      expect(await WRITTEN[kind](root), kind).toBe(present(before.get(kind)) + willWrite(shown, kind));
+    }
+  });
+}
+
+forEachNonEmpty(IMPORT_PREVIEW_KINDS, "preview kinds", (kind) => {
+  test(`two profiles that hold the same ${kind} entry show the second as a repeat of the first, under its own profile`, async () => {
+    await using root = await harness();
+
+    const shown = await shownFor(root, twinProfiles(root, true));
+
+    const { items } = shown.kinds[kind];
+    const inAlice = items.filter(({ source }) => source.profile === ALICE);
+    const inBob = items.filter(({ source }) => source.profile === BOB);
+    // Both profiles list every entry; only the second profile's copy is a repeat.
+    expect(items).toHaveLength(inAlice.length + inBob.length);
+    expect(inAlice.length).toBeGreaterThan(0);
+    expect(inBob).toHaveLength(inAlice.length);
+    expect(inAlice.filter((item) => item.repeat === true)).toEqual([]);
+    expect(nonEmpty(inBob).every((item) => item.repeat === true)).toBe(true);
+  });
+});
+
+test("two profiles that hold different content at a shared path repeat nothing but the one placeholder their orphan directories share", async () => {
   await using root = await harness();
-  const files = twoProfiles(root, false);
-  const shown = await shownFor(root, files);
-  const before = new Map<WrittenKind, number>();
-  for (const kind of WRITTEN_KINDS) {
-    before.set(kind, await WRITTEN[kind](root));
-  }
 
-  await finish(root, await admit(root, files));
+  const shown = await shownFor(root, twoProfiles(root, true));
 
-  for (const kind of WRITTEN_KINDS) {
-    expect(await WRITTEN[kind](root), kind).toBe(present(before.get(kind)) + shown.kinds[kind].total);
+  for (const kind of IMPORT_PREVIEW_KINDS) {
+    expect(shown.kinds[kind].items.filter((item) => item.repeat === true).length, kind).toBe(kind === "orphans" ? 1 : 0);
   }
 });
 
@@ -140,14 +200,14 @@ test("a single profile's preview still lists one entry per file, all under one p
 test("a refused card marks its own profile's source and no card of another profile", async () => {
   await using root = await harness();
   const files = {
-    ...inProfile(ALICE, { ...profileFiles(root, ALICE, false), "characters/broken.png": "not a card" }),
-    ...inProfile(BOB, profileFiles(root, BOB, false)),
+    ...inProfile(ALICE, profileFiles(root, ALICE, false)),
+    ...inProfile(BOB, { ...profileFiles(root, BOB, false), "characters/broken.png": "not a card" }),
   };
 
   const shown = await shownFor(root, files);
 
   expect(shown.skipped.items.filter(({ source }) => source.path === "broken.png")).toEqual([
-    { source: { profile: ALICE, path: "broken.png" }, reason: expect.any(String) },
+    { source: { profile: BOB, path: "broken.png" }, reason: expect.any(String) },
   ]);
   // The control: both profiles' `characters/Card.png` are listed, and neither is a skip.
   expect(shown.kinds.characters.items.map(({ source }) => source.profile).toSorted((a, b) => a.localeCompare(b))).toEqual([ALICE, BOB]);
@@ -194,4 +254,41 @@ test("a hostile profile directory name is clipped to the preview's text limit", 
   const profiles = shown.kinds.characters.items.map(({ source }) => source.profile);
   expect(profiles).toContain("p".repeat(IMPORT_PREVIEW_TEXT_MAX));
   expect(profiles).toContain(BOB);
+});
+
+test("a dry run stored with the older bare-string source reads as unreadable and leaves the jobs list answering", async () => {
+  await using root = await harness();
+  const files = inProfile(ALICE, profileFiles(root, ALICE, false));
+  const stale = await admit(root, files, [TREE_DRY_RUN_VALUE]);
+  await finish(root, stale);
+  const fresh = await admit(root, files, [TREE_DRY_RUN_VALUE]);
+  await finish(root, fresh);
+  const [stored] = await root.db.select({ result: workloads.result }).from(workloads).where(eq(workloads.id, stale));
+  const older: unknown = JSON.parse(JSON.stringify(present(stored).result), (key, value: unknown) =>
+    key === "source" && typeof value === "object" && value !== null && "path" in value ? value.path : value,
+  );
+  await root.db
+    .update(workloads)
+    .set({ result: sql`${JSON.stringify(older)}` })
+    .where(eq(workloads.id, stale));
+  const caller = await root.principalFor(root.ownerId);
+
+  const listed = await root.services.workloads.list({ caller, kind: "import-st" });
+
+  expect(listed.find((row) => row.id === stale)).toMatchObject({ poison: true, result: null });
+  expect(listed.find((row) => row.id === fresh)).toMatchObject({ poison: false });
+  await expect(root.services.workloads.get({ caller, id: stale })).resolves.toMatchObject({ poison: true, result: null });
+});
+
+test("two profile directories whose names share their first characters stay two profiles in the preview", async () => {
+  await using root = await harness();
+  const shared = "p".repeat(IMPORT_PREVIEW_TEXT_MAX);
+  const files = { ...inProfile(`${shared}1`, profileFiles(root, ALICE, false)), ...inProfile(`${shared}2`, profileFiles(root, BOB, false)) };
+
+  const shown = await shownFor(root, files);
+
+  const { total, items } = shown.kinds.characters;
+  expect(total).toBe(2);
+  expect(new Set(items.map(({ source }) => source.profile)).size).toBe(2);
+  expect(nonEmpty(items).every(({ source }) => source.profile.length <= IMPORT_PREVIEW_TEXT_MAX)).toBe(true);
 });

@@ -248,11 +248,17 @@ export function counted(count: number, [one, many]: readonly [string, string]): 
   return `${String(count)} ${count === 1 ? one : many}`;
 }
 
-/** One kind's summary line: its total, then the items already in the library and the personas that import without art. */
+/** One kind's summary line: its total, then the items already in the library, the items the same as another in the
+ *  upload (a run adds nothing for either) and the personas that import without art. */
 export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList): string {
   const owned = list.items.filter((item) => item.inLibrary === true).length;
+  const repeated = list.items.filter((item) => item.repeat === true).length;
   const bare = list.items.filter((item) => item.withoutArt === true).length;
-  const notes = [...(owned === 0 ? [] : [`${String(owned)} already in your library`]), ...(bare === 0 ? [] : [`${String(bare)} will import without art`])];
+  const notes = [
+    ...(owned === 0 ? [] : [`${String(owned)} already in your library`]),
+    ...(repeated === 0 ? [] : [`${String(repeated)} the same as another in this upload`]),
+    ...(bare === 0 ? [] : [`${String(bare)} will import without art`]),
+  ];
   return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
 }
 

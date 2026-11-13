@@ -1,13 +1,23 @@
 // The dry run's preview, built off the collect result. Every name is hostile file content: it is clipped here.
 // An entry or a skip is named by its source: the profile directory it sits in and its path inside that profile,
 // never the staging directory, so two profiles of one upload that share a relative path stay two entries and two
-// skips. A skip's reason is written here, one per kind of skip; the importer's own detail stays in the report and
-// the logs.
+// skips. Two directory names that clip alike are shown under distinct labels. A skip at the upload's root, beside the
+// profiles, has no profile. An entry a run writes nothing for says why (the owner holds it, or an earlier entry of the
+// upload lands it), so the entries without a flag are the ones a run writes. A skip's reason is written here, one per
+// kind of skip; the importer's own detail stays in the report and the logs.
 
-import type { ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "@orb/contracts/import";
+import type {
+  ImportKindCounts,
+  ImportPreview,
+  ImportPreviewItem,
+  ImportPreviewKind,
+  ImportPreviewList,
+  ImportPreviewSkip,
+  ImportReuse,
+} from "@orb/contracts/import";
 import { IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX } from "@orb/contracts/import";
-import type { CollectedChat, CollectedGroup } from "../contract/collection.ts";
-import type { CollectedProfile, ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
+import type { CollectedChat, CollectedGroup, CollectResult } from "../contract/collection.ts";
+import type { ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
 import type { GroupRefusal } from "./group.ts";
 import { partitionGroups } from "./group.ts";
 
@@ -15,6 +25,27 @@ const JSONL_EXT = /\.jsonl$/iu;
 
 function clip(text: string): string {
   return text.slice(0, IMPORT_PREVIEW_TEXT_MAX).toWellFormed();
+}
+
+/** One profile directory's result under the name the preview shows it by. */
+interface LabeledProfile {
+  readonly label: string;
+  readonly result: CollectResult;
+}
+
+/** The names the profiles are shown by: clipped, and distinct. Two directory names that clip alike would read as one
+ *  profile and merge their entries, so the later one takes the next free ordinal. */
+function labelProfiles(profiles: ProfileCollected["profiles"]): readonly LabeledProfile[] {
+  const taken = new Set<string>();
+  return profiles.map(({ name, result }) => {
+    let label = clip(name);
+    for (let ordinal = 2; taken.has(label); ordinal += 1) {
+      const suffix = ` (${String(ordinal)})`;
+      label = `${clip(name.slice(0, IMPORT_PREVIEW_TEXT_MAX - suffix.length))}${suffix}`;
+    }
+    taken.add(label);
+    return { label, result };
+  });
 }
 
 function item(profile: string, path: string, name: string): ImportPreviewItem {
@@ -26,8 +57,8 @@ function listOf(items: readonly ImportPreviewItem[]): ImportPreviewList {
 }
 
 /** Chat files repeat their names across characters and a card's name need not be unique, so a chat's source is its path. */
-function chatItems(profile: string, owner: string, chats: readonly CollectedChat[], held: ReadonlySet<CollectedChat>): ImportPreviewItem[] {
-  return chats.map((chat) => listed(chat, held, item(profile, chat.sourceFile, `${owner}: ${chat.importedFrom.replace(JSONL_EXT, "")}`)));
+function chatItems(profile: string, owner: string, chats: readonly CollectedChat[], reused: ReadonlyMap<CollectedChat, ImportReuse>): ImportPreviewItem[] {
+  return chats.map((chat) => listed(chat, reused, item(profile, chat.sourceFile, `${owner}: ${chat.importedFrom.replace(JSONL_EXT, "")}`)));
 }
 
 /** A skip at the upload's root, beside the profiles, has no profile. */
@@ -49,8 +80,8 @@ export function refusedGroups(collected: ProfileCollected): ReturnType<typeof pa
   ).refused;
 }
 
-function profileSkips({ name, result }: CollectedProfile, refused: ReadonlyMap<CollectedGroup, GroupRefusal>): ImportPreviewSkip[] {
-  const at = (path: string, reason: string): ImportPreviewSkip => skip(name, path, reason);
+function profileSkips({ label, result }: LabeledProfile, refused: ReadonlyMap<CollectedGroup, GroupRefusal>): ImportPreviewSkip[] {
+  const at = (path: string, reason: string): ImportPreviewSkip => skip(label, path, reason);
   const planeFiles = [
     { count: result.databankFileCount, plane: "user/files/", one: "Data Bank file", many: "Data Bank files" },
     { count: result.galleryImageCount, plane: "user/images/", one: "gallery image", many: "gallery images" },
@@ -83,20 +114,26 @@ function profileSkips({ name, result }: CollectedProfile, refused: ReadonlyMap<C
 function skippedItems(collected: ProfileCollected): ImportPreviewSkip[] {
   const refused = new Map(refusedGroups(collected).map(({ group, refusal }) => [group, refusal]));
   return [
-    ...collected.profiles.flatMap((profile) => profileSkips(profile, refused)),
+    ...labelProfiles(collected.profiles).flatMap((profile) => profileSkips(profile, refused)),
     ...collected.rootUnhandled.map((entry) => skip(null, entry, "SillyTavern data that does not import")),
   ];
 }
 
-/** The item for a collected entry, flagged when the owner already holds that very entry. */
-function listed<Entry>(entry: Entry, held: ReadonlySet<Entry>, base: ImportPreviewItem): ImportPreviewItem {
-  return held.has(entry) ? { ...base, inLibrary: true as const } : base;
+const REUSE_FLAGS = {
+  library: { inLibrary: true },
+  upload: { repeat: true },
+} as const satisfies Readonly<Record<ImportReuse, Partial<ImportPreviewItem>>>;
+
+/** The item for a collected entry, flagged with why a run writes nothing for that very entry, when it writes none. */
+function listed<Entry>(entry: Entry, reused: ReadonlyMap<Entry, ImportReuse>, base: ImportPreviewItem): ImportPreviewItem {
+  const why = reused.get(entry);
+  return why === undefined ? base : { ...base, ...REUSE_FLAGS[why] };
 }
 
 /** The items one profile directory holds. `importable` is judged over the whole upload, so a group's verdict does not
  *  depend on which profile the walk is in. */
 function profileKindItems(
-  { name, result }: CollectedProfile,
+  { label: name, result }: LabeledProfile,
   importable: ReadonlySet<CollectedGroup>,
   owned: ImportOwnership,
 ): Readonly<Record<ImportPreviewKind, readonly ImportPreviewItem[]>> {
@@ -130,7 +167,7 @@ function kindItems(collected: ProfileCollected, owned: ImportOwnership): Readonl
       collected.bundles.map((bundle) => bundle.filename),
     ).importable,
   );
-  const perProfile = collected.profiles.map((profile) => profileKindItems(profile, importable, owned));
+  const perProfile = labelProfiles(collected.profiles).map((profile) => profileKindItems(profile, importable, owned));
   const gather = (kind: ImportPreviewKind): readonly ImportPreviewItem[] => perProfile.flatMap((items) => items[kind]);
   return {
     characters: gather("characters"),
@@ -146,15 +183,15 @@ function kindItems(collected: ProfileCollected, owned: ImportOwnership): Readonl
 }
 
 const NOTHING_OWNED: ImportOwnership = {
-  characters: new Set(),
-  chats: new Set(),
-  personas: new Set(),
-  worlds: new Set(),
-  presets: new Set(),
-  themes: new Set(),
-  backgrounds: new Set(),
-  groups: new Set(),
-  orphans: new Set(),
+  characters: new Map(),
+  chats: new Map(),
+  personas: new Map(),
+  worlds: new Map(),
+  presets: new Map(),
+  themes: new Map(),
+  backgrounds: new Map(),
+  groups: new Map(),
+  orphans: new Map(),
 };
 
 /** How many items of each kind the folder holds: the numbers the preview lists carry and a real run reports. */
@@ -173,7 +210,8 @@ export function countImportKinds(collected: ProfileCollected): ImportKindCounts 
   };
 }
 
-/** `owned` holds, per kind, the collected entries the owner already has. */
+/** `owned` holds, per kind, the collected entries a run writes nothing for: the owner has them, or an earlier entry
+ *  of the upload lands them. */
 export function buildImportPreview(collected: ProfileCollected, owned: ImportOwnership): ImportPreview {
   const skipped = skippedItems(collected);
   const items = kindItems(collected, owned);

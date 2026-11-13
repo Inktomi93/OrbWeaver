@@ -157,14 +157,20 @@ function toRowBase(row: WorkloadDecodedRow): Omit<WorkloadRowAnyKind, "kind" | "
 // Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` when the KIND itself isn't in this build (a
 //  deploy-skew row that cannot be spelled at all). A known kind whose params blob fails its schema is NOT
 //  dropped — it surfaces as a POISON row (`params: null, poison: true`) so a broken row is visible and
-//  actionable instead of vanishing from `list`/`get`. The one place the JSON columns are narrowed; the
+//  actionable instead of vanishing from `list`/`get`. So does a row whose stored result no longer parses (a
+//  result an older build wrote): it reads as poison with `result: null`, because an unvalidated result is never
+//  published, and one stale row must not reject the whole list. The one place the JSON columns are narrowed; the
 //  per-kind validator is the OWNING domain's contribution schema — the queue spells no domain's vocabulary.
 function toView(contributions: WorkloadContributions, row: WorkloadDecodedRow): WorkloadRowAnyKind | null {
   if (!isKnownKind(row.kind)) {
     return null;
   }
   const base = toRowBase(row);
-  const result = workloadResultSchemaOf(row.kind).nullable().parse(row.result);
+  const parsedResult = workloadResultSchemaOf(row.kind).nullable().safeParse(row.result);
+  if (!parsedResult.success) {
+    return { ...base, kind: row.kind, params: null, result: null, poison: true };
+  }
+  const result = parsedResult.data;
   let params: Record<string, unknown>;
   // owned by the poison flag: the catch returns the row with poison true, and the Jobs list reads it (workload-row.tsx renders the Unreadable badge). Ends if no consumer reads poison.
   try {
