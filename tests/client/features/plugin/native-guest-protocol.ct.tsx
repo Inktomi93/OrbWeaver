@@ -25,6 +25,7 @@ import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-co
 import { PLUGIN_SURFACE_KICKER } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { BACKGROUND_JOB_LOGS } from "#client/lib/background-jobs.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { UI_GUEST_BUDGETS } from "#client/lib/plugin-ui-guest-protocol.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 /** The server refuses a plugin the owner does not have, so a request for any other id is a defect, not an answer. */
@@ -476,6 +477,71 @@ test("an event that rejects after a host call is read under the event's own dead
   await expect.poll(async () => (await readProtocolResults(page)).outbound).toContainEqual(expect.objectContaining(failed));
   await expect(page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+});
+
+// An event that waits on a host call past its CPU budget and then throws its own error, and one that spins. The error
+// builds its message in a getter, which the worker runs when it reads the error, with enough work that the engine polls
+// its interrupt during the read and well inside one event's budget.
+const SLOW_HOST_FAILURE_MESSAGE = "Native failure after a slow host call";
+const MESSAGE_WORK_ITERATIONS = 1_000_000;
+const UI_HOST_CALL_PATH = "plugin.uiHostCall";
+const SLOW_HOST_SOURCE = `const ui = orb.ui(1);
+ui.render("protocol", { kind: "stack", children: [
+  { kind: "text", value: "Slow host guest ready" },
+  { kind: "button", label: "Wait then fail", actionId: "wait" },
+  { kind: "button", label: "Spin", actionId: "spin" }
+] });
+ui.onEvent(async ({ event }) => {
+  if (event.actionId === "spin") { for (;;) {} }
+  await ui.host.storage.get("ledger");
+  throw new (class extends Error {
+    get message() { let n = 0; for (let i = 0; i < ${MESSAGE_WORK_ITERATIONS}; i++) { n += i; } return ${JSON.stringify(SLOW_HOST_FAILURE_MESSAGE)}; }
+  })();
+});`;
+
+// Wall time is the subject: the host call is held until the page's monotonic clock shows one event's CPU budget gone.
+test("an event that waits past its CPU budget on a host call and then throws reports its own error, and a spin reports the interrupt", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) =>
+      input.fn === "storage.get" && input.argsJson === '["ledger"]' ? { resultJson: '"Native ledger"' } : trpcError({ code: "NOT_FOUND" }),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  await page.route(
+    (url) => url.pathname.includes(UI_HOST_CALL_PATH),
+    async (route) => {
+      const arrivedAt = await page.evaluate(() => performance.now());
+      await page.waitForFunction(({ since, budgetMs }) => performance.now() - since > budgetMs, { since: arrivedAt, budgetMs: UI_GUEST_BUDGETS.eventCpuMs });
+      await route.fallback();
+    },
+  );
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: SLOW_HOST_SOURCE }));
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
+
+  await page.getByRole("button", { name: "Wait then fail", exact: true }).click();
+  await expect(retry).toBeVisible();
+  expect(trpc.count("plugin.uiHostCall")).toBe(1);
+  await expect.poll(() => trpc.count("plugin.reportUiCrash")).toBe(1);
+  expect(trpc.requireLastInput("plugin.reportUiCrash").reason).toContain(SLOW_HOST_FAILURE_MESSAGE);
+
+  // Control: guest code that keeps running past the budget is still stopped, and its report names the interrupt.
+  await retry.click();
+  await page.getByRole("button", { name: "Spin", exact: true }).click();
+  await expect.poll(() => trpc.count("plugin.reportUiCrash")).toBe(2);
+  const spin = trpc.requireLastInput("plugin.reportUiCrash").reason;
+  expect(spin).toContain("InternalError");
+  expect(spin).not.toContain(SLOW_HOST_FAILURE_MESSAGE);
 });
 
 test("a crash report that fails writes its log and raises no toast, because the person did not start it", async ({ corpus, corpusViewer, mount, page }) => {

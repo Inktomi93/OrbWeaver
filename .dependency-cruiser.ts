@@ -873,6 +873,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/contracts/src/chat/roster.ts":
       "JOIN_UNAVAILABLE_CODE and ACCOUNT_EXISTS_CODE: the refusal codes the pending-join story answers with, which no contracts door forwards",
   },
+  "tests/client/features/plugin/native-guest-protocol.ct.tsx": {
+    "packages/client/src/lib/plugin-ui-guest-protocol.ts":
+      "UI_GUEST_BUDGETS.eventCpuMs: a case holds a host call past one event's CPU budget, and the lib door forwards only the walls that sum it",
+  },
   "tests/client/features/character/lib/facet-fill.dom.test.ts": {
     "packages/client/src/features/character/lib/character-card-facets.ts": "facetFillState and CHARACTER_CARD_FACET_IDS: the feature-private facet model",
     "packages/client/src/features/character/lib/character-card-form-model.ts": "DEFAULT_CHARACTER_CARD_FORM: the empty form the facet model reads",
