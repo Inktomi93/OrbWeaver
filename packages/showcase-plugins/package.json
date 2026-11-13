@@ -6,7 +6,8 @@
   "sideEffects": false,
   "scripts": {
     "build": "node ../../tooling/src/plugin-author-showcase/cli.ts build",
-    "check:artifacts": "node ../../tooling/src/plugin-author-showcase/cli.ts check"
+    "check:artifacts": "node ../../tooling/src/plugin-author-showcase/cli.ts check",
+    "check:versions": "node ../../tooling/src/plugin-author-showcase/cli.ts versions"
   },
   "exports": {
     ".": "./src/index.ts"
