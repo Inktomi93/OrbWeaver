@@ -10,7 +10,7 @@
 // @subject packages/server/src/domain/chat/substrate/backfill.ts
 // @subject packages/server/src/domain/chat/workload-contributions.ts
 
-import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
+import { CADENCE_INTERVAL_MS, WORKLOAD_RUN_ACCOUNT_DISABLED, WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL } from "@orb/contracts/workloads";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { tickWorkloadSchedules } from "@orb/server/domain/workloads";
@@ -123,13 +123,48 @@ test("a run queued for a member who is then disabled fails without a provider re
   await root.services.admin.setEnabled({ principal: admin, userId: member.userId, enabled: false });
   const fundersBefore = wire.funders.length;
   await executeAdmitted(root, queued.id);
-  expect(await root.services.workloads.get({ caller: admin, id: queued.id })).toMatchObject({ status: "failed" });
+  expect(await root.services.workloads.get({ caller: admin, id: queued.id })).toMatchObject({
+    status: "failed",
+    error: WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
+  });
   expect(wire.funders).toHaveLength(fundersBefore);
 
   await root.services.admin.setEnabled({ principal: admin, userId: member.userId, enabled: true });
   const resumed = await root.services.workloads.start({ caller: member, ownerId: member.userId, mode: "singular", input: DISTILL });
   await executeAdmitted(root, resumed.id);
   expect(await root.services.workloads.get({ caller: admin, id: resumed.id })).toMatchObject({ status: "succeeded" });
+  expect(new Set(wire.funders.slice(fundersBefore))).toEqual(new Set([member.userId]));
+});
+
+test("a retry and its estimate for a disabled member's run are refused as a disabled account, and a retry after re-enable runs on their own connection", async () => {
+  const wire = physicalWire();
+  await using root = await createServerHarness({ providerFetch: wire.execute, secretBoxKey: SECRET_BOX_TEST_KEY });
+  const admin = await root.principalFor(root.ownerId);
+  const member = await root.principalFor((await root.actor()).id);
+  await fundedOwner(root, member);
+  await card(root, member);
+  await root.settleBackground();
+  const original = await root.services.workloads.start({ caller: member, ownerId: member.userId, mode: "singular", input: DISTILL });
+  await executeAdmitted(root, original.id);
+  expect(await root.services.workloads.get({ caller: admin, id: original.id })).toMatchObject({ status: "succeeded" });
+  const memberRuns = (): ReturnType<typeof root.services.workloads.list> =>
+    root.services.workloads.list({ caller: admin, ownerId: member.userId, kind: "distill-characters" });
+  const enabledEstimate = await root.services.workloads.estimateRetryModelCalls({ caller: admin, id: original.id });
+
+  await root.services.admin.setEnabled({ principal: admin, userId: member.userId, enabled: false });
+  const fundersBefore = wire.funders.length;
+  await expect(root.services.workloads.retry({ caller: admin, id: original.id })).rejects.toMatchObject({ code: WORKLOAD_RUN_ACCOUNT_DISABLED });
+  await expect(root.services.workloads.estimateRetryModelCalls({ caller: admin, id: original.id })).rejects.toMatchObject({
+    code: WORKLOAD_RUN_ACCOUNT_DISABLED,
+  });
+  expect(await memberRuns()).toHaveLength(1);
+  expect(wire.funders).toHaveLength(fundersBefore);
+
+  await root.services.admin.setEnabled({ principal: admin, userId: member.userId, enabled: true });
+  expect(await root.services.workloads.estimateRetryModelCalls({ caller: admin, id: original.id })).toEqual(enabledEstimate);
+  const retried = await root.services.workloads.retry({ caller: admin, id: original.id });
+  await executeAdmitted(root, retried.id);
+  expect(await root.services.workloads.get({ caller: admin, id: retried.id })).toMatchObject({ status: "succeeded", ownerId: member.userId });
   expect(new Set(wire.funders.slice(fundersBefore))).toEqual(new Set([member.userId]));
 });
 
