@@ -152,6 +152,12 @@ export const CHARACTER_DESCRIPTION_FACET_NAME = "Description";
 /** The Creator notes facet's field. */
 export const CHARACTER_CREATOR_NOTES_FACET_NAME = "Creator notes";
 
+/** The Provenance facet's creator field, and the detail panel's readout of it. */
+export const CHARACTER_CREATOR_FIELD_NAME = "Creator";
+
+/** The Provenance facet's card version field, and the detail panel's readout of it. */
+export const CHARACTER_CARD_VERSION_FIELD_NAME = "Card version";
+
 /** The failure an editor save raises, from the form submit and the save mutation alike. */
 export const CHARACTER_SAVE_FAILURE = "Couldn't save the character.";
 
