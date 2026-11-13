@@ -39,7 +39,7 @@ export function FullDialogStory(): ReactElement {
             ))}
           </Stack>
           <DialogFooter>
-            <Button className="min-inline-(--width-popup-floor)">Fetch and add</Button>
+            <Button className="min-inline-(--width-popup-floor)">Carry it over</Button>
           </DialogFooter>
         </DialogPopup>
       </Dialog>

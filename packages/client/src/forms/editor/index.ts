@@ -3,6 +3,7 @@
 export type { AutosaveSession } from "./autosave-contract.ts";
 export type { AutosaveStatusProps } from "./autosave-status.tsx";
 export { AutosaveStatus } from "./autosave-status.tsx";
+export { AUTOSAVE_SAVED_TEXT } from "./autosave-status-names.ts";
 export { touchedFieldError } from "./bound-fields/field-error.ts";
 export { CappedFieldCounter } from "./capped-field.tsx";
 

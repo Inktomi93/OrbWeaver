@@ -42,7 +42,14 @@ import { createCollectionSurface, QueryErrorState, SkeletonRows, useSuspenseQuer
 import { ESTIMATED_ROW_PX, groupOrdinalQualifiers, testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
-import { CORPUS_DISTILLED_CATALOG_NAME, CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
+import {
+  CORPUS_DISTILLED_CATALOG_NAME,
+  CORPUS_NOT_DISTILLED_TEXT,
+  CORPUS_PARAM_NAMES,
+  CORPUS_READ_LABELS,
+  CORPUS_SORTING_DOOR_NAME,
+  corpusFacetOptionLabel,
+} from "../lib/corpus-control-names.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
@@ -95,7 +102,7 @@ export function CorpusBrowseView(): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your catalog filters" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.catalogFilters} onRetry={retry} />}
       resetKeys={[]}
     >
       <CorpusBrowseBody />
@@ -130,11 +137,17 @@ function CorpusBrowseBody(): ReactElement {
   return (
     <Stack minHeight="shrinks" grow={true} data-testid={testId("corpusBrowseView")} gap="block">
       <Row align="center" gap="field" wrap={true}>
-        <ParamSelect label="Genre" value={genre} items={genreItems} onValueChange={setGenre} unavailableNote={noChoice(genreItems)} />
+        <ParamSelect label={CORPUS_PARAM_NAMES.genre} value={genre} items={genreItems} onValueChange={setGenre} unavailableNote={noChoice(genreItems)} />
         <ParamSelect label="Tone" value={tone} items={toneItems} onValueChange={setTone} unavailableNote={noChoice(toneItems)} />
-        <ParamSelect label="Setting" value={setting} items={settingItems} onValueChange={setSetting} unavailableNote={noChoice(settingItems)} />
+        <ParamSelect
+          label={CORPUS_PARAM_NAMES.setting}
+          value={setting}
+          items={settingItems}
+          onValueChange={setSetting}
+          unavailableNote={noChoice(settingItems)}
+        />
         <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} unavailableNote={noChoice(tagItems)} />
-        <ParamSelect label="Sort" value={sort} items={SORT_ITEMS} onValueChange={setSort} />
+        <ParamSelect label={CORPUS_PARAM_NAMES.sort} value={sort} items={SORT_ITEMS} onValueChange={setSort} />
       </Row>
       {anyFacetEmpty ? (
         <Text id={noChoiceNoteId} voice="gloss">
@@ -206,7 +219,7 @@ function BrowseRows({
 
 function BrowseCharacterRow({ row, titleQualifier }: { readonly row: BrowseRow; readonly titleQualifier: string | undefined }): ReactElement {
   const facet = characterFacetLine(row.genre, row.tone, row.setting);
-  const subtitle = row.elevatorPitch ?? (facet === "" ? "Not distilled" : facet);
+  const subtitle = row.elevatorPitch ?? (facet === "" ? CORPUS_NOT_DISTILLED_TEXT : facet);
   return (
     <ListRow
       clickable={true}
@@ -221,5 +234,5 @@ function BrowseCharacterRow({ row, titleQualifier }: { readonly row: BrowseRow; 
 }
 
 function toSelectItems(allLabel: string, values: readonly { readonly value: string; readonly count: number }[]): SelectItems {
-  return [{ value: ANY_VALUE, label: allLabel }, ...values.map((v) => ({ value: v.value, label: `${v.value} (${v.count})` }))];
+  return [{ value: ANY_VALUE, label: allLabel }, ...values.map((v) => ({ value: v.value, label: corpusFacetOptionLabel(v.value, v.count) }))];
 }

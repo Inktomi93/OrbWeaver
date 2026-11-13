@@ -23,6 +23,13 @@ interface LiteralRewrite {
   readonly from: string;
   /** Paths relative to the target directory; the rewrite is a decision per file, never a sweep. */
   readonly files: readonly string[];
+  /** Further names the expression needs in scope, each with its module, as `queryFailedLabel(CORPUS_READ_LABELS.search)` does. */
+  readonly also?: readonly ExtraBinding[];
+}
+
+interface ExtraBinding {
+  readonly binding: string;
+  readonly from: string;
 }
 
 // A string in a type position or a module specifier stays text; a property key is a name, not a value.
@@ -63,7 +70,48 @@ function parseRewrite(entry: unknown, planFile: string, index: number): LiteralR
     }
     return file;
   });
-  return { ...(literal === undefined ? {} : { literal }), ...(pattern === undefined ? {} : { pattern }), expression, binding, from, files: listed };
+  return {
+    ...(literal === undefined ? {} : { literal }),
+    ...(pattern === undefined ? {} : { pattern }),
+    expression,
+    binding,
+    from,
+    files: listed,
+    also: parseAlso((entry as Record<string, unknown>)["also"], planFile, index),
+  };
+}
+
+function parseAlso(also: unknown, planFile: string, index: number): readonly ExtraBinding[] {
+  if (also === undefined) {
+    return [];
+  }
+  if (!Array.isArray(also)) {
+    throw new Error(`${planFile}: rewrite ${index} has an also that is not a list`);
+  }
+  return also.map((extra: unknown) => {
+    if (extra === null || typeof extra !== "object") {
+      throw new Error(`${planFile}: rewrite ${index} lists an also entry that is not an object`);
+    }
+    const binding = stringField(extra, "binding");
+    const from = stringField(extra, "from");
+    if (binding === undefined || from === undefined) {
+      throw new Error(`${planFile}: rewrite ${index} lists an also entry without binding and from`);
+    }
+    return { binding, from };
+  });
+}
+
+// The rewrite's own binding, then each extra name its expression reads. One name is one import: the same binding
+// asked for from two modules is a plan error, not a choice the codemod makes.
+function need(needed: Map<string, LiteralRewrite>, rewrite: LiteralRewrite): void {
+  const wanted = [rewrite, ...(rewrite.also ?? []).map((extra) => ({ ...rewrite, binding: extra.binding, from: extra.from }))];
+  for (const entry of wanted) {
+    const earlier = needed.get(entry.binding);
+    if (earlier !== undefined && earlier.from !== entry.from) {
+      throw new Error(`${entry.expression}: ${entry.binding} is imported from both ${earlier.from} and ${entry.from}`);
+    }
+    needed.set(entry.binding, entry);
+  }
 }
 
 function readPlan(targetDir: string, planFile: string): readonly LiteralRewrite[] {
@@ -104,7 +152,7 @@ function literalEdits(rootNode: SgNode<TS>, rewrites: readonly LiteralRewrite[],
       // A JSX attribute value takes an expression only inside braces.
       const braced = node.parent()?.kind() === "jsx_attribute";
       edits.push(node.replace(braced ? `{${rewrite.expression}}` : rewrite.expression));
-      needed.set(rewrite.binding, rewrite);
+      need(needed, rewrite);
     }
   }
 }
@@ -116,7 +164,7 @@ function jsxTextEdits(rootNode: SgNode<TS>, rewrites: readonly LiteralRewrite[],
     if (rewrite !== undefined && rewrite.literal !== undefined) {
       const at = raw.indexOf(rewrite.literal);
       edits.push(node.replace(`${raw.slice(0, at)}{${rewrite.expression}}${raw.slice(at + rewrite.literal.length)}`));
-      needed.set(rewrite.binding, rewrite);
+      need(needed, rewrite);
     }
   }
 }
@@ -128,7 +176,7 @@ function patternEdits(rootNode: SgNode<TS>, rewrites: readonly LiteralRewrite[],
     }
     for (const node of rootNode.findAll({ rule: { pattern: rewrite.pattern } })) {
       edits.push(node.replace(withCaptures(rewrite.expression, node)));
-      needed.set(rewrite.binding, rewrite);
+      need(needed, rewrite);
     }
   }
 }

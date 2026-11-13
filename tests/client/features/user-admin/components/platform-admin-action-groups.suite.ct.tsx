@@ -6,6 +6,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { ADMIN_SAVE_LABEL, ADMIN_SAVING_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
+import { ADMIN_PROMPT_CACHE_DEPTH_NAME, ADMIN_RESET_DEFAULTS_NAME, adminResetSectionName } from "#client/features/user-admin/lib/user-admin-names.ts";
 import type { AdminActionGroupsStory } from "./_admin-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-action-groups-stories/AdminActionGroupsStory";
@@ -34,10 +35,10 @@ for (const regime of REGIMES) {
       try {
         await mount<typeof AdminActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
         const save = page.getByRole("button", { name: adminSaveName(ADMIN_SAVE_LABEL, SYSTEM_TUNING_SUBCATEGORY.label), exact: true });
-        const reset = page.getByRole("button", { name: "Reset to defaults: System tuning", exact: true });
+        const reset = page.getByRole("button", { name: adminResetSectionName(SYSTEM_TUNING_SUBCATEGORY.label), exact: true });
         await expect(save).toBeDisabled();
         await expect(reset).toBeVisible();
-        const field = page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)", exact: true });
+        const field = page.getByRole("textbox", { name: ADMIN_PROMPT_CACHE_DEPTH_NAME, exact: true });
         await field.fill("3");
         await field.press("Tab");
         await expect(save).toBeEnabled();
@@ -61,7 +62,7 @@ for (const regime of REGIMES) {
         expect((await caller.settings.getAppSettingsWithOverrides()).overrides.promptCacheMinDepth).toBe(3);
         expect(routes.inputs("settings.updateAppSettings")).toEqual([{ partial: { promptCacheMinDepth: 3 } }]);
         await reset.click();
-        await page.getByRole("alertdialog").getByRole("button", { name: "Reset to defaults", exact: true }).click();
+        await page.getByRole("alertdialog").getByRole("button", { name: ADMIN_RESET_DEFAULTS_NAME, exact: true }).click();
         await expect(reset).toHaveCount(0);
         await expect(save).toBeDisabled();
         const cleared = await caller.settings.getAppSettingsWithOverrides();

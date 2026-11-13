@@ -13,6 +13,13 @@ import {
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
 import type { ConsoleMessage } from "@playwright/test";
+import {
+  REFINERY_PICK_TEST_CARD_NAME,
+  REFINERY_SCHEMA_DESCRIBE_NAME,
+  REFINERY_SCHEMA_JSON_NAME,
+  REFINERY_TEST_ON_CARD_NAME,
+  REFINERY_TEST_RUNNING_NAME,
+} from "#client/features/refinery/lib/refinery-names.ts";
 import type { SchemaPreviewStory } from "./_payload-stories.tsx";
 
 test.use({ trace: "on" });
@@ -92,9 +99,9 @@ test("schema preview retains settled expansion through rerenders and failures, t
   await corpusMedia();
   await mount<typeof SchemaPreviewStory>("tests/client/features/refinery/components/_payload-stories/SchemaPreviewStory", {});
   const { $schema: _dialect, ...draftSchema } = projectJsonSchema(refineryScorePayloadSchema);
-  await page.getByRole("textbox", { name: "Schema (JSON: the full vocabulary)", exact: true }).fill(JSON.stringify(draftSchema));
+  await page.getByRole("textbox", { name: REFINERY_SCHEMA_JSON_NAME, exact: true }).fill(JSON.stringify(draftSchema));
   const mediaResponses = pictured.map(({ path }) => page.waitForResponse((response) => new URL(response.url()).pathname === path));
-  await page.getByRole("button", { name: "Pick a card to test on", exact: true }).click();
+  await page.getByRole("button", { name: REFINERY_PICK_TEST_CARD_NAME, exact: true }).click();
   expect((await Promise.all(mediaResponses)).map((response) => response.status())).toEqual(pictured.map(() => 200));
   for (const response of await Promise.all(mediaResponses)) {
     expect(response.headers()["cache-control"]).toBe("private, immutable");
@@ -154,17 +161,18 @@ test("schema preview retains settled expansion through rerenders and failures, t
   });
   expect((await foreignPolicy).text()).toContain("Content Security Policy");
   await page.getByRole("option", { name: character.name, exact: true }).click();
-  await page.getByRole("button", { name: "Test on this card", exact: true }).click();
+  await page.getByRole("button", { name: REFINERY_TEST_ON_CARD_NAME, exact: true }).click();
   const assay = page.getByRole("button", { name: "description (7)", exact: true });
   await assay.click();
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
 
-  await page.getByRole("textbox", { name: "Describe the structure", exact: true }).fill("Explain the score without changing the schema.");
+  await page.getByRole("textbox", { name: REFINERY_SCHEMA_DESCRIBE_NAME, exact: true }).fill("Explain the score without changing the schema.");
   await expect(assay).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("button", { name: "Test on this card", exact: true }).click();
+  await page.getByRole("button", { name: REFINERY_TEST_ON_CARD_NAME, exact: true }).click();
   await failed.requested;
-  await expect(page.getByRole("button", { name: "Running…", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: REFINERY_TEST_RUNNING_NAME, exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: REFINERY_TEST_ON_CARD_NAME, exact: true })).toHaveCount(0);
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
   await assay.scrollIntoViewIfNeeded();
@@ -173,13 +181,13 @@ test("schema preview retains settled expansion through rerenders and failures, t
   await testInfo.attach("settled-preview-during-pending", { path: pendingScreenshot });
 
   failed.fail();
-  await expect(page.getByRole("button", { name: "Test on this card", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: REFINERY_TEST_ON_CARD_NAME, exact: true })).toBeEnabled();
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
   const failedScreenshot = testInfo.outputPath("preview-after-error.png");
   await page.screenshot({ path: failedScreenshot });
   await testInfo.attach("settled-preview-after-error", { path: failedScreenshot });
-  await page.getByRole("button", { name: "Test on this card", exact: true }).click();
+  await page.getByRole("button", { name: REFINERY_TEST_ON_CARD_NAME, exact: true }).click();
   await replaced.requested;
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   replies.set("refinery_schema_preview", JSON.stringify(second));

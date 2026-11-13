@@ -8,6 +8,7 @@ import type { ReactElement } from "react";
 import { QueryErrorState, useTRPC } from "#data";
 import { useInboxCollection } from "../hooks/use-inbox.ts";
 import { usePageFocus } from "../hooks/use-page-focus.ts";
+import { dismissedToggleLabel, LOAD_MORE_DISMISSED_LABEL, LOAD_MORE_LABEL } from "../lib/notifications-copy.ts";
 import { DismissedInboxRow } from "./notification-inbox-row.tsx";
 
 interface InboxLoadMoreProps {
@@ -17,12 +18,12 @@ interface InboxLoadMoreProps {
   readonly failed: boolean;
   readonly onLoadMore: () => void;
   /** The control's name. Two of these share the popup, and a screen reader's list cannot tell them apart otherwise.
-   *  @defaultValue "Load more" */
+   *  @defaultValue {@link LOAD_MORE_LABEL} */
   readonly label?: string;
 }
 
 /** The next page is a press: the inbox is a plain list inside a popover, with no end-of-list callback. */
-export function InboxLoadMore({ hasNextPage, isFetchingNextPage, failed, onLoadMore, label = "Load more" }: InboxLoadMoreProps): ReactElement | null {
+export function InboxLoadMore({ hasNextPage, isFetchingNextPage, failed, onLoadMore, label = LOAD_MORE_LABEL }: InboxLoadMoreProps): ReactElement | null {
   if (!hasNextPage) {
     return null;
   }
@@ -71,7 +72,7 @@ export function DismissedRows(): ReactElement {
         <DismissedInboxRow key={item.id} item={item} ref={pageFocus.rowRef(index)} />
       ))}
       <InboxLoadMore
-        label="Load more dismissed"
+        label={LOAD_MORE_DISMISSED_LABEL}
         hasNextPage={dismissed.hasNextPage}
         isFetchingNextPage={dismissed.isFetchingNextPage}
         failed={dismissed.loadMoreFailed}
@@ -86,7 +87,7 @@ export function DismissedToggle({ open, onToggle }: { readonly open: boolean; re
   return (
     <Row justify="center">
       <Button variant="ghost" size="sm" aria-controls={open ? DISMISSED_ROWS_ID : undefined} aria-expanded={open} onClick={onToggle}>
-        {open ? "Hide dismissed" : "Show dismissed"}
+        {dismissedToggleLabel(open)}
       </Button>
     </Row>
   );

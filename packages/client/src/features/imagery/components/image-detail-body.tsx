@@ -24,7 +24,7 @@ import { useInvalidation, useTRPC } from "#data";
 import type { ImageSubject } from "#state";
 import { openImageEdit, useDetailSubject } from "#state";
 import { useSetChatBackground } from "../hooks/use-imagery-mutations.ts";
-import { IMAGE_EDIT_NAME } from "../lib/imagine-names.ts";
+import { IMAGE_DETAIL_EMPTY_TEXT, IMAGE_EDIT_NAME } from "../lib/imagine-names.ts";
 import { ProvenanceStrip } from "./provenance-strip.tsx";
 
 export function ImageDetailBody(): ReactElement {
@@ -32,7 +32,7 @@ export function ImageDetailBody(): ReactElement {
   if (subject === undefined) {
     return (
       <Stack gap="block" padding="block">
-        <Text voice="gloss">No image selected.</Text>
+        <Text voice="gloss">{IMAGE_DETAIL_EMPTY_TEXT}</Text>
       </Stack>
     );
   }

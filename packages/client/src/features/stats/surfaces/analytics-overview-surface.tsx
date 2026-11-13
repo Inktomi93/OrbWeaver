@@ -33,6 +33,7 @@ import { AccountingCoverageNotice } from "../components/accounting-coverage-noti
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
 import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats.ts";
 import { APPROX_DATES_NOTE } from "../lib/analytics-copy.ts";
+import { ANALYTICS_ALL_TIME_HEADING } from "../lib/analytics-names.ts";
 import {
   formatAccountingLabel,
   formatCompact,
@@ -139,7 +140,7 @@ function OverviewBody(): ReactElement {
         <RecomputeButton />
       </Row>
 
-      <Section heading="All-time totals">
+      <Section heading={ANALYTICS_ALL_TIME_HEADING}>
         <Stack gap="block">
           {/* A real grid, not flex-wrap: intrinsic-width figures in a `flex-wrap` leave uneven voids and arbitrary wraps. `cols="cell"` tiles even 1fr tracks at a
               fixed column-min, so the column-gap is uniform at every width. */}

@@ -7,6 +7,7 @@ import { expect } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { COMMAND_CHIP_NAME_LEAD } from "#client/features/app-shell/lib/app-shell-names.ts";
 
 type ServedPath = Parameters<typeof serveCorpusProcedures>[1][number];
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -46,7 +47,7 @@ export function namedGroupRoom<const TRow extends { readonly title: string | nul
 export const SHELL_STORIES = "tests/client/features/app-shell/surfaces/_app-shell-stories";
 
 /** The ⌘K chip's accessible name leads with the word and carries the platform shortcut after it. */
-export const JUMP_CHIP = /^Jump, the command menu \(/u;
+export const JUMP_CHIP = new RegExp(`^${RegExp.escape(COMMAND_CHIP_NAME_LEAD)} \\(`, "u");
 
 export const PHONE = { width: 390, height: 844 } as const;
 

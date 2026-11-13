@@ -14,7 +14,8 @@ import {
   createCorpusHarness,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
-import { CORPUS_SEARCH_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { CORPUS_READ_LABELS, CORPUS_SEARCH_DISCLOSURE_NAME, CORPUS_SEARCH_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
 import type { CorpusSearchControlsStory } from "./_search-controls-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_search-controls-stories/CorpusSearchControlsStory";
@@ -101,7 +102,7 @@ test("switching rerank on makes the next search carry rerank and shows it was re
   await expect(rerankSwitch).toBeEnabled();
   await rerankSwitch.click();
   await expect.poll(() => asked).toContain(true);
-  await component.getByText("How search works").click();
+  await component.getByText(CORPUS_SEARCH_DISCLOSURE_NAME).click();
   await expect(component.getByText(/Rerank: requested/u)).toBeVisible();
 });
 
@@ -151,7 +152,7 @@ test("typing with rerank on settles to one reranked search, not one per keystrok
   const text = "orbital ledger";
   await component.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true }).pressSequentially(text, { delay: 40 });
   await expect.poll(() => sent.map((search) => search.query)).toContain(text);
-  await expect(component.getByText("How search works")).toBeVisible();
+  await expect(component.getByText(CORPUS_SEARCH_DISCLOSURE_NAME)).toBeVisible();
   const queries = sent.map((search) => search.query);
   // The full query is the last search sent: a stale keystroke query that fires after it fails here.
   expect(queries.slice(queries.indexOf(text))).toEqual([text]);
@@ -169,11 +170,11 @@ test("a failed search gives way to the next query's results without a Retry", as
     ...serveCorpusProcedures(caller, ["search.search"], (input) => (input.query === "orbital" ? trpcError({ code: "BAD_REQUEST" }) : undefined)),
   });
   const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "orbital", targetId: "characters" });
-  await expect(component.getByText("Couldn't load the search.", { exact: true })).toBeVisible();
+  await expect(component.getByText(queryFailedLabel(CORPUS_READ_LABELS.search), { exact: true })).toBeVisible();
   await component.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true }).press("End");
   await component.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true }).pressSequentially(" ledger");
-  await expect(component.getByText("How search works")).toBeVisible();
-  await expect(component.getByText("Couldn't load the search.", { exact: true })).toHaveCount(0);
+  await expect(component.getByText(CORPUS_SEARCH_DISCLOSURE_NAME)).toBeVisible();
+  await expect(component.getByText(queryFailedLabel(CORPUS_READ_LABELS.search), { exact: true })).toHaveCount(0);
 });
 
 test("a revisited query that failed reads again instead of re-throwing its cached error", async ({ mount, page, corpus }) => {
@@ -190,14 +191,14 @@ test("a revisited query that failed reads again instead of re-throwing its cache
   });
   const component = await mount<typeof CorpusSearchControlsStory>(STORY, { query: "orb", targetId: "characters" });
   const field = component.getByRole("combobox", { name: CORPUS_SEARCH_NAME, exact: true });
-  await expect(component.getByText("Couldn't load the search.", { exact: true })).toBeVisible();
+  await expect(component.getByText(queryFailedLabel(CORPUS_READ_LABELS.search), { exact: true })).toBeVisible();
   await field.press("End");
   await field.pressSequentially("ital");
-  await expect(component.getByText("How search works")).toBeVisible();
+  await expect(component.getByText(CORPUS_SEARCH_DISCLOSURE_NAME)).toBeVisible();
   await field.fill("orb");
   await expect.poll(() => asked.filter((query) => query === "orb").length).toBe(2);
-  await expect(component.getByText("Couldn't load the search.", { exact: true })).toHaveCount(0);
-  await expect(component.getByText("How search works")).toBeVisible();
+  await expect(component.getByText(queryFailedLabel(CORPUS_READ_LABELS.search), { exact: true })).toHaveCount(0);
+  await expect(component.getByText(CORPUS_SEARCH_DISCLOSURE_NAME)).toBeVisible();
 });
 
 test("a stored rerank ask waits for the Rerank model read instead of searching twice", async ({ mount, page, corpus }) => {
@@ -218,6 +219,6 @@ test("a stored rerank ask waits for the Rerank model read instead of searching t
   await held.requested;
   expect(sent).toEqual([]);
   held.release();
-  await expect(component.getByText("How search works")).toBeVisible();
+  await expect(component.getByText(CORPUS_SEARCH_DISCLOSURE_NAME)).toBeVisible();
   expect(sent).toEqual([{ query: "orbital ledger", rerank: true }]);
 });

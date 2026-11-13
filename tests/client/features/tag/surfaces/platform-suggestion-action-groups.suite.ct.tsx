@@ -8,13 +8,14 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { TAG_REJECT_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import type { SuggestionActionGroupsStory } from "./_suggestion-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/tag/surfaces/_suggestion-action-groups-stories/SuggestionActionGroupsStory";
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 const REVIEW_WRITES = {
   apply: { label: "Apply", chosen: "tag.attachTag", other: "tag.detachTag" },
-  reject: { label: "Reject", chosen: "tag.detachTag", other: "tag.attachTag" },
+  reject: { label: TAG_REJECT_NAME, chosen: "tag.detachTag", other: "tag.attachTag" },
 } as const;
 
 async function tagChangeFrame(events: ReturnType<Root["app"]["liveBuses"]["user"]["subscribeUserEvents"]>): Promise<readonly StreamFrame[]> {
@@ -103,7 +104,7 @@ for (const regime of REGIMES) {
         const mounted = await mount<typeof SuggestionActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
         const row = page.getByRole("group", { name: `Suggested ${tag.name} for ${firstName}`, exact: true });
         const apply = row.getByRole("button", { name: "Apply", exact: true });
-        const reject = row.getByRole("button", { name: "Reject", exact: true });
+        const reject = row.getByRole("button", { name: TAG_REJECT_NAME, exact: true });
         await apply.focus();
         await page.keyboard.press("Tab");
         await expect(reject).toBeFocused();

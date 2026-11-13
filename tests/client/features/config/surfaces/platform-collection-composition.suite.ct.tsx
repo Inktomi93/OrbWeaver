@@ -13,7 +13,13 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CONFIG_MORE_LIBRARY_ACTIONS_NAME, collectionEmptyTitle } from "#client/features/config/lib/config-control-names.ts";
-import { REGEX_GROUP_LABEL, REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import {
+  REGEX_GROUP_LABEL,
+  REGEX_IMPORT_SCRIPT_NAME,
+  REGEX_NEW_SCRIPT_NAME,
+  REGEX_SCRIPT_NAME_FIELD_NAME,
+  REGEX_SELECT_SCRIPTS_NAME,
+} from "#client/features/regex/lib/regex-names.ts";
 import { ROSTER_GROUP_LABEL } from "#client/features/roster-preset/lib/roster-names.ts";
 import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -288,7 +294,7 @@ for (const regime of REGIMES) {
       await filter.fill("Observatory");
       await expect(title).toBeVisible();
       await filter.clear();
-      const bulk = content.getByRole("button", { name: "Select scripts", exact: true });
+      const bulk = content.getByRole("button", { name: REGEX_SELECT_SCRIPTS_NAME, exact: true });
       await bulk.click();
       await expect(bulk).toHaveAttribute("aria-pressed", "true");
       await expect(content.getByRole("checkbox").first()).toBeVisible();
@@ -299,7 +305,7 @@ for (const regime of REGIMES) {
       await content.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       expect(await caller.regex.countScripts()).toBe(before);
       await content.getByRole("button", { name: CONFIG_MORE_LIBRARY_ACTIONS_NAME, exact: true }).click();
-      await expect(page.getByRole("menuitem", { name: "Import a regex script", exact: true })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: REGEX_IMPORT_SCRIPT_NAME, exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await page.screenshot({ path: test.info().outputPath("collection-controls.png") });
     });

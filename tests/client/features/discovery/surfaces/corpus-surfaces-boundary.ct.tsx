@@ -8,6 +8,8 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { heldThenFailing, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { CORPUS_READ_LABELS } from "#client/features/discovery/lib/corpus-control-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CorpusDestinationStory } from "./_corpus-destination-stories.tsx";
 
@@ -34,10 +36,10 @@ test("a held never-played read shows the loading skeleton on its own, a failed o
   await read.hold.requested;
   await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
   read.hold.fail();
-  await expect(page.getByText("Couldn't load your never-played characters.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.neverPlayedCharacters), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load your never-played characters.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.neverPlayedCharacters), { exact: true })).toHaveCount(0);
 });
 
 test("a failed model-usage read says so in its own block and Retry clears it", async ({ mount, page }) => {
@@ -49,10 +51,10 @@ test("a failed model-usage read says so in its own block and Retry clears it", a
   await mount<typeof ShellAmbientStory>(SHELL_STORY, {});
   await read.hold.requested;
   read.hold.fail();
-  await expect(page.getByText("Couldn't load your model usage.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.modelUsage), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load your model usage.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.modelUsage), { exact: true })).toHaveCount(0);
 });
 
 test("a failed keywords read says so in the explorer and Retry clears it", async ({ mount, page }) => {
@@ -64,10 +66,10 @@ test("a failed keywords read says so in the explorer and Retry clears it", async
   await mount<typeof ShellAmbientStory>(SHELL_STORY, {});
   await read.hold.requested;
   read.hold.fail();
-  await expect(page.getByText("Couldn't load your top keywords.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.topKeywords), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load your top keywords.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.topKeywords), { exact: true })).toHaveCount(0);
 });
 
 test("a failed story-theme drift read says so in its own block and Retry clears it", async ({ mount, page }) => {
@@ -79,10 +81,10 @@ test("a failed story-theme drift read says so in its own block and Retry clears 
   await mount<typeof ShellAmbientStory>(SHELL_STORY, {});
   await read.hold.requested;
   read.hold.fail();
-  await expect(page.getByText("Couldn't load story-theme drift.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.storyThemeDrift), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load story-theme drift.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.storyThemeDrift), { exact: true })).toHaveCount(0);
 });
 
 test("the dossier's similar-art strip holds, fails and retries on its own", async ({ mount, page }) => {
@@ -108,10 +110,10 @@ test("the dossier's similar-art strip holds, fails and retries on its own", asyn
   await read.hold.requested;
   await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
   read.hold.fail();
-  await expect(page.getByText("Couldn't load the similar art.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.similarArt), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load the similar art.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.similarArt), { exact: true })).toHaveCount(0);
 });
 
 test("a held pair comparison shows the loading skeleton, a failed one the error block, and Retry shows the result", async ({ mount, page }) => {
@@ -136,8 +138,8 @@ test("a held pair comparison shows the loading skeleton, a failed one the error 
   await read.hold.requested;
   await expect(page.locator('[aria-busy="true"]').first()).toBeVisible();
   read.hold.fail();
-  await expect(page.getByText("Couldn't load that comparison.", { exact: true })).toBeVisible();
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.comparison), { exact: true })).toBeVisible();
   read.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  await expect(page.getByText("Couldn't load that comparison.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(queryFailedLabel(CORPUS_READ_LABELS.comparison), { exact: true })).toHaveCount(0);
 });

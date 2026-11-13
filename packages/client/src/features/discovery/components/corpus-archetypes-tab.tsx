@@ -18,7 +18,7 @@ import type { CorpusDestination } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { corpusFamilyAnalysisLabel, resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
-import { CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
+import { CORPUS_PARAM_NAMES, CORPUS_READ_LABELS, CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { facetLabel } from "../lib/corpus-vocabulary.ts";
@@ -61,7 +61,7 @@ export function CorpusArchetypesTab(): ReactElement {
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="archetypes" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.archetypes} onRetry={retry} />}
     >
       <ArchetypesBody />
     </QueryBoundary>
@@ -91,7 +91,7 @@ function ArchetypesBody(): ReactElement {
 
   return (
     <Stack className="relative" minHeight="shrinks" gap="section">
-      <ParamSelect label="Clusters" value={k} items={K_ITEMS} onValueChange={setK} />
+      <ParamSelect label={CORPUS_PARAM_NAMES.clusters} value={k} items={K_ITEMS} onValueChange={setK} />
 
       {/* ART FIRST, AND THAT IS THE DOOR'S DOING (side-eye corpus re-pass A7). This tab is the destination of
           the CONTENT family map's "All families →", the surface's one drill-out — and it landed the reader at
@@ -103,7 +103,7 @@ function ArchetypesBody(): ReactElement {
         <QueryBoundary
           resetKeys={[kArg]}
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="the art archetypes" onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.artArchetypes} onRetry={retry} />}
         >
           <ArtClusters kArg={kArg} />
         </QueryBoundary>
@@ -113,7 +113,7 @@ function ArchetypesBody(): ReactElement {
         <QueryBoundary
           resetKeys={[kArg]}
           fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="the writing archetypes" onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label={CORPUS_READ_LABELS.writingArchetypes} onRetry={retry} />}
         >
           <WritingClusters kArg={kArg} />
         </QueryBoundary>

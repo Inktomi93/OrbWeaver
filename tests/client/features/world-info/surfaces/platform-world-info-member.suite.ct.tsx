@@ -6,7 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { test as corpusTest, expect } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
-import { WORLD_INFO_ENTRY_TITLE_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import { WORLD_INFO_ATTACHED_BY_PERSONAS_LEAD, WORLD_INFO_ENTRY_TITLE_NAME } from "#client/features/world-info/lib/world-info-names.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
 const STORY = "tests/client/features/world-info/surfaces/_member-stories/WorldInfoMemberStory";
@@ -50,7 +50,7 @@ for (const attached of [true, false]) {
     await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
     const component = await mount<typeof WorldInfoMemberStory>(STORY, { bookId, context: true });
     await expect(component.getByRole("switch", { name: itemSwitchName(ITEM_ATTACH_SETTING, personas[0]?.name ?? ""), exact: true })).toBeVisible();
-    await expect(component.getByRole("heading", { name: `Attached by personas · ${targets.personaIds.length}`, exact: true })).toBeVisible();
+    await expect(component.getByRole("heading", { name: `${WORLD_INFO_ATTACHED_BY_PERSONAS_LEAD} · ${targets.personaIds.length}`, exact: true })).toBeVisible();
     await expect(component.getByRole("switch")).toHaveCount(personas.length + 1);
   });
 }

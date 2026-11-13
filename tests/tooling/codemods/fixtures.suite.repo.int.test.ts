@@ -14,6 +14,8 @@ const CODEMODS = join(ROOT, "tooling/src/codemods");
 const CODEMOD_BIN = join(ROOT, "node_modules/.bin/codemod");
 const FIXTURE_PREFIX = "tests";
 const CROSS_FILE = "tests-crossfile";
+// A refusal case has an `input/` the codemod must fail on and an `error.txt` holding a fragment of its message.
+const REFUSALS = "tests-refusals";
 // `plugin-node-sources/tests-schemas/` proves the second script of that codemod, not its transform.
 const SCRIPT_BY_FIXTURES: Readonly<Record<string, string>> = { "tests-schemas": "scripts/node-schemas.ts" };
 const TRANSFORM = "scripts/codemod.ts";
@@ -30,7 +32,7 @@ const suites = readdirSync(CODEMODS, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .flatMap((codemod) =>
     readdirSync(join(CODEMODS, codemod.name))
-      .filter((name) => name.startsWith(FIXTURE_PREFIX) && name !== CROSS_FILE)
+      .filter((name) => name.startsWith(FIXTURE_PREFIX) && name !== CROSS_FILE && name !== REFUSALS)
       .map((fixtures) => ({ name: `${codemod.name}/${fixtures}`, dir: join(CODEMODS, codemod.name), fixtures })),
   )
   .sort((a, b) => a.name.localeCompare(b.name));
@@ -41,6 +43,15 @@ const crossFileCases = readdirSync(CODEMODS, { withFileTypes: true })
     const cases = join(CODEMODS, codemod.name, CROSS_FILE);
     const names = readdirSync(join(CODEMODS, codemod.name)).includes(CROSS_FILE) ? readdirSync(cases) : [];
     return names.map((name) => ({ name: `${codemod.name}/${CROSS_FILE}/${name}`, dir: join(CODEMODS, codemod.name), fixture: join(cases, name) }));
+  })
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const refusalCases = readdirSync(CODEMODS, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .flatMap((codemod) => {
+    const cases = join(CODEMODS, codemod.name, REFUSALS);
+    const names = readdirSync(join(CODEMODS, codemod.name)).includes(REFUSALS) ? readdirSync(cases) : [];
+    return names.map((name) => ({ name: `${codemod.name}/${REFUSALS}/${name}`, dir: join(CODEMODS, codemod.name), fixture: join(cases, name) }));
   })
   .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -73,6 +84,22 @@ forEachNonEmpty(crossFileCases, "codemod cross-file cases", ({ name, dir, fixtur
       const run = spawnSync(CODEMOD_BIN, [...args, "--allow-fs", "--no-interactive", "--allow-dirty", join(dir, TRANSFORM)], { cwd: ROOT, encoding: "utf8" });
       expect(run.status, `${run.stdout}${run.stderr}`).toBe(0);
       expect(contents(work)).toStrictEqual(contents(join(fixture, "expected")));
+    } finally {
+      rmSync(work, { recursive: true, force: true });
+    }
+  });
+});
+
+forEachNonEmpty(refusalCases, "codemod refusal cases", ({ name, dir, fixture }) => {
+  test(`codemod refuses its input with the named reason: ${name}`, { timeout: 60_000 }, () => {
+    const work = mkdtempSync(join(tmpdir(), "codemod-refusal-"));
+    try {
+      cpSync(join(fixture, "input"), work, { recursive: true });
+      const args = ["--disable-analytics", "jssg", "run", "--language", languageOf(work), "--target", work, "--allow-fs", "--no-interactive", "--allow-dirty"];
+      const run = spawnSync(CODEMOD_BIN, [...args, join(dir, TRANSFORM)], { cwd: ROOT, encoding: "utf8" });
+      expect(run.status, `${run.stdout}${run.stderr}`).not.toBe(0);
+      expect(`${run.stdout}${run.stderr}`).toContain(readFileSync(join(fixture, "error.txt"), "utf8").trim());
+      expect(contents(work)).toStrictEqual(contents(join(fixture, "input")));
     } finally {
       rmSync(work, { recursive: true, force: true });
     }

@@ -23,6 +23,7 @@ import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { AUTOSAVE_SAVED_TEXT } from "#forms/editor";
 import {
   selectConfigSub,
   useAggregateSaveStatus,
@@ -31,6 +32,7 @@ import {
   useErroredSaveSections,
   useUnsavedSaveSections,
 } from "#state";
+import { CONFIG_NOT_SAVED_LABEL, configSectionsNeedFixText, configSectionsWaitingText } from "../lib/config-control-names.ts";
 
 /** Can a failing section's jump actually LAND? Every reporter used to be a registered section contribution,
  *  so the locator always resolved; a `surface`-mode group can report too (Connections → Model roles), and
@@ -108,11 +110,11 @@ function ErroredArm({ sections, ...locate }: LocateArmProps): ReactElement {
  *  "Not saved" is the SAME two words the section-level status uses, so a reader meeting this at the pane
  *  footer and then at the section's own header is told one thing once. The count is what the aggregate adds. */
 function BlockedArm({ sections, ...locate }: LocateArmProps): ReactElement {
-  const count = sections === 1 ? "A section needs a fix" : `${sections} sections need a fix`;
+  const count = configSectionsNeedFixText(sections);
   return (
     <LocateRow role="status" {...locate}>
       <Text tone="destructive" voice="label">
-        Not saved
+        {CONFIG_NOT_SAVED_LABEL}
       </Text>
       <Text voice="label">{`${count}${locate.canJumpToSection(locate.sectionId) ? "" : "."}`}</Text>
     </LocateRow>
@@ -122,10 +124,10 @@ function BlockedArm({ sections, ...locate }: LocateArmProps): ReactElement {
 /** A VALID draft waiting on its section's own Save button. Nothing needs a fix, so the label is not
  *  destructive and the copy says whose move it is; the jump lands on the section holding the Save button. */
 function UnsavedArm({ sections, ...locate }: LocateArmProps): ReactElement {
-  const count = sections === 1 ? "A section has changes waiting for Save" : `${sections} sections have changes waiting for Save`;
+  const count = configSectionsWaitingText(sections);
   return (
     <LocateRow role="status" {...locate}>
-      <Text voice="label">Not saved</Text>
+      <Text voice="label">{CONFIG_NOT_SAVED_LABEL}</Text>
       <Text voice="label">{`${count}${locate.canJumpToSection(locate.sectionId) ? "" : "."}`}</Text>
     </LocateRow>
   );
@@ -156,7 +158,7 @@ export function ConfigSaveFooter(): ReactElement | null {
     return (
       <Row aria-live="polite" align="center" data-slot="config-save-footer" gap="field" role="status">
         <Text tone="destructive" voice="label">
-          Not saved
+          {CONFIG_NOT_SAVED_LABEL}
         </Text>
         <Text voice="label">Your settings couldn't be read.</Text>
       </Row>
@@ -175,9 +177,10 @@ export function ConfigSaveFooter(): ReactElement | null {
   // a SaaS promise this box does not make: orbweaver is a self-hosted single-user instance, and the
   // settings blob is saved to the box you are already looking at. Nothing was "synced", and no other
   // device exists to sync to. The word "Saved" is the whole true statement.
+  const settled = aggregate === "saving" ? "Saving…" : AUTOSAVE_SAVED_TEXT;
   return (
     <Row gap="field" align="center" data-slot="config-save-footer" role="status" aria-live="polite">
-      <Text voice="label">{aggregate === "saving" ? "Saving…" : "Saved"}</Text>
+      <Text voice="label">{settled}</Text>
     </Row>
   );
 }

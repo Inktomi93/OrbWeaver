@@ -22,6 +22,8 @@
 // bare "themes" — the discovery domain's distillation output shares a word with the app's colour themes and
 // the owner has already been caught out by it once. The spelling is law on this surface, not preference.
 
+import { CORPUS_NONE_FOUND_TEXT, CORPUS_STAGE_LABELS } from "./corpus-control-names.ts";
+
 /** Exactly the fields the four suspended discovery reads contribute — no query shapes leak in here. */
 export interface CorpusAnalysisInput {
   readonly characters: number;
@@ -212,7 +214,7 @@ function passDatum(everRan: CorpusPassRan, found: number, foundLabel: string): s
     // "none found" is a MEASUREMENT and this row has none: with the queue unreachable we cannot tell a pass
     // that ran and clustered nothing from one that never started, and the rail's whole contract is that
     // those two get different words.
-    return everRan === "unknown" ? "unknown" : "none found";
+    return everRan === "unknown" ? "unknown" : CORPUS_NONE_FOUND_TEXT;
   }
   return foundLabel;
 }
@@ -334,7 +336,7 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
   const stages: readonly CorpusReadinessStage[] = [
     {
       id: "families",
-      label: "Visual families",
+      label: CORPUS_STAGE_LABELS.families,
       // NOT the mockup's "8 of 10 clustered" (§L.8 deviation, receipted): that parses as "8 of 10
       // characters are clustered", which is false — all ten are, into eight families. The two numbers are
       // different units and the copy has to say so.
@@ -351,7 +353,7 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
     },
     {
       id: "distilled",
-      label: "Distilled: genre, tone, pitch",
+      label: CORPUS_STAGE_LABELS.distilled,
       datum: `${formatCount(input.distilled)} of ${formatCount(input.characters)}`,
       done: input.distilled > 0,
     },
@@ -361,7 +363,7 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
       // marked the keyword pass DONE on the theme pass's evidence — while `topKeywords` was empty, the
       // dossier printed "No keyword profile computed yet.", and the rail is the surface's ONE designated home
       // for what has not run. Two passes, two rows.
-      label: "Story themes",
+      label: CORPUS_STAGE_LABELS.storyThemes,
       // THE THREE-STATE DOCTRINE, FINALLY APPLIED TO THIS ROW (side-eye populated arm, P1-3). It read
       // `storyThemes === 0 ? "not run"`, which is the #164 incident this module was rebuilt to prevent,
       // surviving in the one row that never got an `everRan` input: on the audited library the pass HAD
@@ -372,13 +374,13 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
     },
     {
       id: "keywords",
-      label: "Keywords",
+      label: CORPUS_STAGE_LABELS.keywords,
       datum: keywordsDatum(passRan(input.keywordsEverRan, input.queueRead), input.keywords),
       done: typeof input.keywords === "number" && input.keywords > 0,
     },
     {
       id: "duplicates",
-      label: "Near-duplicates",
+      label: CORPUS_STAGE_LABELS.duplicates,
       // None found is a result only after the pass ran (#164). A zero from an un-run pass means not run;
       // those states require different actions.
       datum: duplicatesDatum(passRan(input.duplicatesEverRan, input.queueRead), nearDuplicates, input.identicalCharacterPairs),

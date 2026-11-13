@@ -10,6 +10,7 @@ import type { ReactElement } from "react";
 import { useDatabankBankHealth } from "../hooks/use-databank-census.ts";
 import { useOwnerSweep } from "../hooks/use-owner-sweep.tsx";
 import { staleExtractionLine } from "../lib/databank-model.ts";
+import { DATABANK_REREAD_NAME } from "../lib/databank-names.ts";
 
 export function ReExtractBanner(): ReactElement | null {
   const stale = useDatabankBankHealth().data?.staleExtraction ?? 0;
@@ -25,7 +26,7 @@ export function ReExtractBanner(): ReactElement | null {
         </Text>
         <Button className="shrink-0" disabled={sweep.pending} variant="outline" onClick={(): void => sweep.ask("re-extract")} size="sm" type="button">
           <Icon icon={RefreshCw} size="sm" />
-          Re-read
+          {DATABANK_REREAD_NAME}
         </Button>
       </Row>
       {sweep.confirm}

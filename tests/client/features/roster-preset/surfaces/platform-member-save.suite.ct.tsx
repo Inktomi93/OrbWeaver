@@ -7,6 +7,7 @@ import { holdServed, routeOrbSocket, routeTrpc, SECTION_PROCEDURES, serveCorpusP
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { ROSTER_DESCRIPTION_FIELD_NAME, ROSTER_NAME_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RosterMemberSaveStory } from "./_member-save-stories.tsx";
 
@@ -122,8 +123,8 @@ test("a successful own save acknowledges the saved baseline and preserves every 
   const editor = page.locator('[data-slot="roster-member-editor"]');
   const save = editor.getByRole("button", { name: DIALOG_VERBS.save, exact: true });
   await expect(save).toBeDisabled();
-  await editor.getByRole("textbox", { name: "Name", exact: true }).fill(` ${SAVED_NAME} `);
-  await editor.getByRole("textbox", { name: "Description", exact: true }).fill("The saved description.");
+  await editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true }).fill(` ${SAVED_NAME} `);
+  await editor.getByRole("textbox", { name: ROSTER_DESCRIPTION_FIELD_NAME, exact: true }).fill("The saved description.");
   await expect(save).toBeEnabled();
   await wire.listening;
   await save.click();
@@ -152,8 +153,8 @@ test("typing during an own save remains dirty against the acknowledged result wi
   const wire = await routeMember(page, caller, root, { resources, delayed: true });
   const component = await mount<typeof RosterMemberSaveStory>(STORY, { presetId: roster.id });
   const editor = page.locator('[data-slot="roster-member-editor"]');
-  const name = editor.getByRole("textbox", { name: "Name", exact: true });
-  const description = editor.getByRole("textbox", { name: "Description", exact: true });
+  const name = editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true });
+  const description = editor.getByRole("textbox", { name: ROSTER_DESCRIPTION_FIELD_NAME, exact: true });
   const save = editor.getByRole("button", { name: DIALOG_VERBS.save, exact: true });
   await name.fill(SAVED_NAME);
   await wire.listening;
@@ -185,7 +186,7 @@ test("a real external writer remains a conflict and abandoning the draft reopens
   const wire = await routeMember(page, caller, root, { resources });
   const component = await mount<typeof RosterMemberSaveStory>(STORY, { presetId: roster.id });
   const editor = page.locator('[data-slot="roster-member-editor"]');
-  await editor.getByRole("textbox", { name: "Name", exact: true }).fill("Local unsaved roster");
+  await editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true }).fill("Local unsaved roster");
   await wire.listening;
   const externalName = "Roster saved in another window";
   await caller.rosterPreset.update({ presetId: roster.id, input: { ...input, name: externalName, description: "The external description." } });
@@ -193,13 +194,13 @@ test("a real external writer remains a conflict and abandoning the draft reopens
   const conflict = editor.locator('[data-slot="roster-editor-conflict"]');
   await expect(conflict).toContainText("changed elsewhere");
   await expect(conflict).toContainText(externalName);
-  await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Local unsaved roster");
+  await expect(editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true })).toHaveValue("Local unsaved roster");
   await expect(editor.getByRole("button", { name: DIALOG_VERBS.save, exact: true })).toBeEnabled();
   await editor.getByRole("button", { name: "Back to Rosters", exact: true }).click();
   await expect(editor).toHaveCount(0);
   await page.getByRole("button", { name: externalName, exact: true }).click();
-  await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(externalName);
-  await expect(editor.getByRole("textbox", { name: "Description", exact: true })).toHaveValue("The external description.");
+  await expect(editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true })).toHaveValue(externalName);
+  await expect(editor.getByRole("textbox", { name: ROSTER_DESCRIPTION_FIELD_NAME, exact: true })).toHaveValue("The external description.");
   await expect(editor.getByRole("button", { name: DIALOG_VERBS.save, exact: true })).toBeDisabled();
   await expect(editor.locator('[data-slot="roster-editor-conflict"]')).toHaveCount(0);
   expect(wire.calls.count("rosterPreset.update")).toBe(0);

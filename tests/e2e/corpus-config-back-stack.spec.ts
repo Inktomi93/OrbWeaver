@@ -2,6 +2,7 @@
 // and at each rung the topbar's Back is named for where that press goes: the book, the library, then Settings.
 import type { WorldBookId } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
+import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
 import { WORLD_INFO_GROUP_LABEL, WORLD_INFO_NEW_ENTRY_NAME } from "#client/features/world-info/lib/world-info-names.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { ownerActor } from "./support/actors.ts";
@@ -11,6 +12,8 @@ import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 
 const SHELL_BACK = sectionBackName(SECTION_LABELS.settings);
 const LIBRARY_BACK = sectionBackName(WORLD_INFO_GROUP_LABEL);
+// The group's band name carries more than the label, so the band is found by the label inside it.
+const WORLD_INFO_BAND = new RegExp(RegExp.escape(WORLD_INFO_GROUP_LABEL), "u");
 const CONTROL_ROW = '[data-slot="collection-control-row"]';
 const BOOK_EDITOR = '[data-slot="world-info-member-editor"]';
 const CONFIG_LIST = '[data-slot="config-list"]';
@@ -41,12 +44,12 @@ test.describe("committed corpus settings back stack", () => {
     await expect(page.getByRole("button", { name: SHELL_BACK })).toHaveCount(0);
 
     // Rung 1: a band tap makes CONTENT the screen.
-    await page.getByRole("button", { name: /World Info/u }).click();
+    await page.getByRole("button", { name: WORLD_INFO_BAND }).click();
     await expect(page.locator(CONTROL_ROW)).toBeVisible();
     await expect(page.getByRole("button", { name: SHELL_BACK })).toBeVisible();
 
     // Rung 2: a row drills into the member.
-    await page.getByRole("textbox", { name: "Filter world info", exact: true }).fill(book.name);
+    await page.getByRole("textbox", { name: collectionFilterName(WORLD_INFO_GROUP_LABEL), exact: true }).fill(book.name);
     await page.getByRole("button", { name: book.name, exact: true }).click();
     await expect(page.locator(BOOK_EDITOR)).toBeVisible();
     await expect(page.getByRole("main").getByRole("heading", { name: book.name })).toHaveCount(1);
@@ -74,6 +77,6 @@ test.describe("committed corpus settings back stack", () => {
     // Back pops the group; the list is the screen again and the way back is gone with its reason.
     await page.getByRole("button", { name: SHELL_BACK }).click();
     await expect(page.getByRole("button", { name: SHELL_BACK })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /World Info/u })).toBeVisible();
+    await expect(page.getByRole("button", { name: WORLD_INFO_BAND })).toBeVisible();
   });
 });

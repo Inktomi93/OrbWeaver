@@ -11,7 +11,12 @@ import {
   REFINERY_COMPARE_NAME,
   REFINERY_EDIT_SCOPE_NAME,
   REFINERY_HIDE_COMPARE_NAME,
+  REFINERY_SCOPE_NAME,
+  REFINERY_USE_FOR_APPLY_VERB,
+  REFINERY_USE_LATEST_VERB,
   REFINERY_VERSION_DIFF_HEADING,
+  REFINERY_VIEW_RUN_VERB,
+  refineryOpenCardName,
   refineryRestoreVersionName,
 } from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
@@ -83,14 +88,14 @@ for (const regime of REGIMES) {
       await using root = await createServerHarness({ startJobs: false });
       const { session } = await seedSession(root, page);
       await mount<typeof RefineryRemainingActionsStory>(STORY, { sessionId: session.id, plane: "runs", width: regime.width, appearance: regime.appearance });
-      const view = page.getByRole("button", { name: /^View /u });
-      const useForApply = page.getByRole("button", { name: /^Use for apply: /u });
+      const view = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_VIEW_RUN_VERB)} `, "u") });
+      const useForApply = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_USE_FOR_APPLY_VERB)}: `, "u") });
       await expectContained(view.locator(".."), [view, useForApply]);
       await view.focus();
       await page.keyboard.press("Tab");
       await expect(useForApply).toBeFocused();
       await page.keyboard.press("Enter");
-      const latest = page.getByRole("button", { name: /^Use latest instead: /u });
+      const latest = page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_USE_LATEST_VERB)}: `, "u") });
       await expect(latest).toBeFocused();
       await expectContained(view.locator(".."), [view, latest]);
       await page.keyboard.press("Enter");
@@ -129,14 +134,14 @@ for (const regime of REGIMES) {
       await using root = await createServerHarness({ startJobs: false });
       const { session, caller } = await seedSession(root, page);
       await mount<typeof RefineryRemainingActionsStory>(STORY, { sessionId: session.id, plane: "content", width: regime.width, appearance: regime.appearance });
-      const open = page.getByRole("button", { name: `Open card ${CARD_NAME} in the Characters section`, exact: true });
+      const open = page.getByRole("button", { name: refineryOpenCardName(CARD_NAME), exact: true });
       const scope = page.getByRole("button", { name: REFINERY_EDIT_SCOPE_NAME, exact: true });
       await expectContained(open.locator(".."), [open, scope]);
       await open.focus();
       await page.keyboard.press("Tab");
       await expect(scope).toBeFocused();
       await page.keyboard.press("Enter");
-      const dialog = page.getByRole("dialog", { name: "Scope", exact: true });
+      const dialog = page.getByRole("dialog", { name: REFINERY_SCOPE_NAME, exact: true });
       await expect(dialog.getByRole("checkbox", { name: "Description", exact: true })).toBeChecked();
       await page.keyboard.press("Escape");
       await expect(dialog).toBeHidden();
@@ -185,9 +190,9 @@ test("two runs of one stage in one round carry distinct names, oldest first", as
   });
   const names = (pattern: RegExp): Promise<(string | null)[]> =>
     page.getByRole("button", { name: pattern }).evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
-  await expect(page.getByRole("button", { name: /^View /u })).toHaveCount(2);
-  const views = await names(/^View /u);
-  const applies = await names(/^Use for apply: /u);
+  await expect(page.getByRole("button", { name: new RegExp(`^${RegExp.escape(REFINERY_VIEW_RUN_VERB)} `, "u") })).toHaveCount(2);
+  const views = await names(new RegExp(`^${RegExp.escape(REFINERY_VIEW_RUN_VERB)} `, "u"));
+  const applies = await names(new RegExp(`^${RegExp.escape(REFINERY_USE_FOR_APPLY_VERB)}: `, "u"));
   expect(new Set(views).size).toBe(2);
   expect(new Set(applies).size).toBe(2);
   // The ledger lists newest first; the qualifier counts from the oldest, so a later run never renames an earlier one.

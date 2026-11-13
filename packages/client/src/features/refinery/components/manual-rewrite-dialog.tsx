@@ -15,7 +15,7 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { ManualTarget } from "../lib/manual-targets.ts";
-import { REFINERY_HAND_EDIT_EMPTY_SCOPE } from "../lib/refinery-names.ts";
+import { REFINERY_HAND_EDIT_EMPTY_SCOPE, refineryEmptySlotLabel } from "../lib/refinery-names.ts";
 import { slotLabelOf } from "../lib/render-plan.ts";
 
 export interface ManualRewriteDialogProps {
@@ -101,7 +101,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
             <Stack gap="tight" key={keyOf(target)}>
               <Row align="center" gap="row">
                 <Text voice="label">{slotLabelOf(target.field, target.greetingIndex)}</Text>
-                <Field label={`Empty ${slotLabelOf(target.field, target.greetingIndex)}`} orientation="inline">
+                <Field label={refineryEmptySlotLabel(slotLabelOf(target.field, target.greetingIndex))} orientation="inline">
                   <Checkbox checked={draft.cleared} onCheckedChange={(cleared: boolean): void => patch(target, { cleared })} />
                 </Field>
               </Row>

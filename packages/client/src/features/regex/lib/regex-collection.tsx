@@ -20,7 +20,7 @@ import {
   useRegexMemberTitle,
 } from "../hooks/use-regex-collection.ts";
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
-import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "./regex-names.ts";
+import { REGEX_IMPORT_SCRIPT_NAME, REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME, REGEX_SELECT_SCRIPTS_NAME } from "./regex-names.ts";
 
 export const regexCollection: CollectionContribution = {
   emptyText: "A script finds a pattern in text and replaces it, in messages or in the prompt.",
@@ -35,8 +35,8 @@ export const regexCollection: CollectionContribution = {
     askName: { fieldLabel: REGEX_SCRIPT_NAME_FIELD_NAME, maxLength: REGEX_SCRIPT_NAME_MAX },
   },
   // D121-D: the host renders this door; production LIFECYCLE_DOORS records regex's standalone import.
-  importFile: { label: "Import a regex script", accept: "application/json", useRun: useImportRegexMember },
-  bulkSelect: { label: "Select scripts", useMode: useRegexBulkMode },
+  importFile: { label: REGEX_IMPORT_SCRIPT_NAME, accept: "application/json", useRun: useImportRegexMember },
+  bulkSelect: { label: REGEX_SELECT_SCRIPTS_NAME, useMode: useRegexBulkMode },
   list: (view) => <RegexCollectionRows view={view} />,
   // The WHOLE view: the editor draws the drill row out of `library` too (#1747, §3.4).
   detail: (view) => <RegexMemberSurface view={view} />,
