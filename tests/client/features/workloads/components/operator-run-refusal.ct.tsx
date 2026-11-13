@@ -1,11 +1,13 @@
 // A stored operator-tree run whose account is not the box owner says why it cannot run: on the holder's schedule row,
-// and in the toast the box owner reads when Retry on a member's row is refused.
+// and in the toast the box owner reads when Retry on a member's row is refused. A member's own save of such a schedule
+// is refused as owner-only, and the toast says so before any write.
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
+import { WORKLOAD_OWNER_ONLY_REFUSAL, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { noticeToast, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, plantMemberOperatorRun, plantMemberOperatorSchedule } from "@orb/testkit/node/composed";
+import { MODEL_RUN_ESTIMATE_FAILED } from "#client/components/model-run-confirm-copy.ts";
 import { SCHEDULE_PAUSED_LABEL, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
@@ -70,6 +72,27 @@ test("the box owner's save on a member's operator-tree schedule toasts the refus
   await page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: member.handle }), exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: /^Save/u }).click();
   await expect(noticeToast(page, { title: WORKLOAD_RUN_ACCOUNT_REFUSAL })).toBeVisible();
+});
+
+test("a member's save of their own stored operator-tree schedule toasts the owner-only refusal and writes nothing", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const member = await root.actor();
+  const planted = await plantMemberOperatorSchedule(root, { boxOwnerId: root.ownerId, memberId: member.id });
+  const caller = await root.internalCallerFor(member.id);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
+  // The save counts the run before it writes, and the count judges the same authority `updateSchedule` does, so this refusal
+  // is the one a member's retune meets. `updateSchedule` is served so a write that slipped past it would land and show.
+  const calls = await routeTrpc(page, serveCorpusProcedures(caller, [...SCHEDULE_READS, "workloads.estimateModelCalls", "workloads.updateSchedule"]));
+  await mount<typeof ScheduleDialogDismissalStory>(SCHEDULES_STORY, { width: 900 });
+
+  const schedule = (await caller.workloads.listSchedules({})).find((row) => row.id === planted);
+  if (schedule === undefined) {
+    throw new Error("The member must hold the planted schedule");
+  }
+  await page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: null }), exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Save/u }).click();
+  await expect(noticeToast(page, { title: MODEL_RUN_ESTIMATE_FAILED, description: WORKLOAD_OWNER_ONLY_REFUSAL })).toBeVisible();
+  expect(calls.count("workloads.updateSchedule")).toBe(0);
 });
 
 test("the box owner's Retry on a member's operator-tree run toasts the refusal it meets", async ({ mount, page }) => {

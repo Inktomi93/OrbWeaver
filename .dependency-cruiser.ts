@@ -517,6 +517,8 @@ const TEST_CONSTANT_HOMES = {
     "ROUTE_PENDING_NAME: the router's pending mark, which a slow-guard case reads to prove the window is open",
   "packages/client/src/components/shared-control-names.ts":
     "TAG_NAME_FIELD_NAME and its siblings: the names of controls a shared component mounts for several features",
+  "packages/client/src/components/model-run-confirm-copy.ts":
+    "MODEL_RUN_ESTIMATE_FAILED: the notice title a paid run raises when its call count cannot be read, which the schedule save case reads",
   "packages/client/src/features/chat/lib/transcript-copy.ts":
     "CHAT_PRINT_COVERAGE and the history pager's status line: the transcript copy a print or pager case reads",
   "packages/client/src/features/chat/lib/chat-surface-names.ts":

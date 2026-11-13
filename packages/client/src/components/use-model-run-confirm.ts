@@ -11,6 +11,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { readFresh, useTRPC } from "#data";
 import { notify, trpcErrorReason } from "#lib";
+import { MODEL_RUN_ESTIMATE_FAILED } from "./model-run-confirm-copy.ts";
 import type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 
 // A run is counted by the scope it would start under, or, for a retry, by the row it would clone: a retry re-runs
@@ -19,7 +20,6 @@ type EstimateRequest =
   | inferInput<Trpc["workloads"]["estimateModelCalls"]>
   | { readonly retryOf: inferInput<Trpc["workloads"]["estimateRetryModelCalls"]>["id"] };
 
-const ESTIMATE_FAILED = "Couldn't count this run's model calls, so it didn't start.";
 type PendingRun = NonNullable<ModelRunConfirmDialogProps["pending"]>;
 
 export function useModelRunConfirm(): {
@@ -44,7 +44,7 @@ export function useModelRunConfirm(): {
       notify.error(
         trpcErrorReason(err) === WORKLOAD_RUN_ACCOUNT_NOT_OWNER
           ? { title: WORKLOAD_RUN_ACCOUNT_REFUSAL }
-          : { title: ESTIMATE_FAILED, description: errorMessage(err) },
+          : { title: MODEL_RUN_ESTIMATE_FAILED, description: errorMessage(err) },
       );
       return null;
     });
