@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-08
+updated: 2026-11-13
 priority: P3
 area: tests
 plan: test-foundation
@@ -19,7 +19,7 @@ Three copies of one test-control name drift apart.
 
 ## Done when
 
-The story file exports the name and the suite imports it.
+The story name has one home that both the story file and the suite import, and `pnpm depcruise` is clean. A separate names module beside the story is refused by the dependency rule `browser-mounts-closed-imports`, so the home is the story file itself or a module that rule allows.
 
 ## Evidence
 
