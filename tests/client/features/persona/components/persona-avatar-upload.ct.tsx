@@ -7,7 +7,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { dragFileOver, dropOn, pageCanHover, readRefusalLine, watchToastMounts } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { personaDetailsToggleName } from "#client/features/persona/lib/persona-copy.ts";
+import { personaDetailsToggleName, personaEditName } from "#client/features/persona/lib/persona-copy.ts";
 import { AVATAR_CONTROL_NAME } from "#client/lib/avatar-upload-copy.ts";
 import type { AvatarSurface } from "../../../components/_avatar-upload-cases.ts";
 import { AVATAR_AFFORDANCE_CASES, AVATAR_CASES, AVATAR_LAYOUT_CASES, AVATAR_TOUCH_CASES } from "../../../components/_avatar-upload-cases.ts";
@@ -49,7 +49,7 @@ const SURFACE: AvatarSurface = {
     const show = page.getByRole("button", { name: personaDetailsToggleName(persona.name, false), exact: true });
     await show.focus();
     await page.keyboard.press("Enter");
-    const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
+    const editor = page.getByRole("group", { name: personaEditName(persona.name), exact: true });
     return {
       control: editor.getByRole("button", { name: AVATAR_CONTROL_NAME, exact: true }),
       identity: editor.locator('[data-slot="persona-editor-identity"]'),

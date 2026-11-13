@@ -16,6 +16,7 @@ import type { Locator } from "@playwright/test";
 import {
   npcMoodName,
   RPG_ABILITY_CHECK_NAME,
+  RPG_HIDE_KNOWN_CHARACTERS_NAME,
   RPG_SCORE_UNSET_HINT,
   RPG_SHOW_KNOWN_CHARACTERS_NAME,
   RPG_STATUS_LINE_LABEL,
@@ -169,6 +170,8 @@ test("the Scene character card reads an unset inherited-name tracker as unset, t
   await routeTrpc(page, (await room.reads()).routes);
   const unset = await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.scene" });
   await page.getByRole("button", { name: RPG_SHOW_KNOWN_CHARACTERS_NAME, exact: true }).click();
+  // Open, the disclosure offers the other state's name.
+  await expect(page.getByRole("button", { name: RPG_HIDE_KNOWN_CHARACTERS_NAME, exact: true })).toBeVisible();
   await expect(npcValue).toHaveText(NO_VALUE);
   // The mood slot beside it has no value either, and its accessible name says so in words.
   await expect(page.getByRole("button", { name: npcMoodName(NPC_NAME, NO_VALUE_NAME), exact: true })).toBeVisible();

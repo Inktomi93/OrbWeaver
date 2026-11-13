@@ -202,14 +202,17 @@ test("native chat row menu names its star toggle for the action a click takes", 
 test("native library starred shelf opens the character editor by keyboard even when the character has a room", async ({ page, corpus, mount }) => {
   await using root = await createFirstBootHarness();
   const subjects = await librarySubjects(root);
-  const count = await subjects.caller.character.count({ starred: true, archived: false });
+  const starredTotal = await subjects.caller.character.count({ starred: true, archived: false });
   await routeAuthConfig(page, corpus.auth.signedInConfig);
   await routeLibrary(page, subjects);
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
   await mount<typeof ShellAmbientStory>(STORY, {});
   const face = page
-    .getByRole("list", { name: characterStarredShelfName(count), exact: true })
+    .getByRole("list", { name: characterStarredShelfName(starredTotal), exact: true })
     .getByRole("button", { name: characterFaceName(subjects.starred.name, null, true, false), exact: true });
+  // The seed stars one character; the shelf count and the starred tail are pinned by the literal the reader hears.
+  await expect(page.getByRole("list", { name: "Starred · 1", exact: true })).toBeVisible();
+  await expect(face).toHaveAccessibleName(`${subjects.starred.name}, starred`);
   await expect(face).toHaveAccessibleDescription("");
   await face.focus();
   await page.keyboard.press("Enter");

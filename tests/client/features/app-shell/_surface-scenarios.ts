@@ -94,7 +94,7 @@ const GROUP_WITNESSES = {
   "chat-behavior": (page): Witnesses => [page.getByRole("switch", { name: configSettingLabel(CHAT_MESSAGE_HANDLING_SUBCATEGORY, "enterSends"), exact: true })],
   workloads: (page): Witnesses => [
     page.getByRole("tablist", { name: WORKLOAD_FILTER_TABS_NAME, exact: true }),
-    page.getByRole("button", { name: SCHEDULE_NEW_NAME }).first(),
+    page.getByRole("button", { name: new RegExp(`^${RegExp.escape(SCHEDULE_NEW_NAME)}`, "u") }).first(),
   ],
   backup: (page): Witnesses => [
     page.getByRole("group", { name: EXPORT_INCLUDE_LEGEND, exact: true }).getByRole("checkbox").first(),

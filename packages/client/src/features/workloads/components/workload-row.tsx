@@ -36,9 +36,12 @@ import {
   cancelWorkloadName,
   retryWorkloadName,
   WORKLOAD_BULK_BADGE,
+  WORKLOAD_CANCEL_CONFIRM_NAME,
   WORKLOAD_CANCEL_TITLE,
   WORKLOAD_KEEP_RUNNING_NAME,
   WORKLOAD_SCHEDULED_BADGE,
+  WORKLOAD_UNREADABLE_BADGE,
+  WORKLOAD_WAITING_BADGE,
   workloadOwnerPart,
 } from "../lib/workloads-names.ts";
 import { workloadResultSummary } from "../lib/workloads-result-copy.ts";
@@ -121,7 +124,7 @@ function WorkloadRowBody({
             {workload.mode === "bulk" ? <Badge>{WORKLOAD_BULK_BADGE}</Badge> : null}
             {workload.poison ? (
               <Badge tone="destructive" variant="solid">
-                Unreadable
+                {WORKLOAD_UNREADABLE_BADGE}
               </Badge>
             ) : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
@@ -149,7 +152,7 @@ function WorkloadRowBody({
 
       <ConfirmDialog
         cancelLabel={WORKLOAD_KEEP_RUNNING_NAME}
-        confirmLabel="Cancel job"
+        confirmLabel={WORKLOAD_CANCEL_CONFIRM_NAME}
         description={`Stops the ${kindLabel} run. Progress so far may be kept where the pass is resumable; you can start it again any time.`}
         onConfirm={onCancel}
         onOpenChange={setConfirmCancel}
@@ -195,7 +198,7 @@ function QueueStateBadges({ deferred, waiting }: { readonly deferred: boolean; r
   return (
     <>
       {deferred ? <Badge>{WORKLOAD_SCHEDULED_BADGE}</Badge> : null}
-      {waiting ? <Badge>Waiting</Badge> : null}
+      {waiting ? <Badge>{WORKLOAD_WAITING_BADGE}</Badge> : null}
     </>
   );
 }

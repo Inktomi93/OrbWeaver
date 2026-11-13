@@ -15,7 +15,7 @@ export function FormDialogCreateStory(): ReactElement {
         description="Runs the chosen job on the cadence below."
         onOpenChange={setOpen}
         open={open}
-        submit={{ label: "Create schedule", onSubmit: (): void => setOpen(false) }}
+        submit={{ label: "Create witness", onSubmit: (): void => setOpen(false) }}
         title={STORY_CREATE_TITLE}
       >
         {["Kind", "Cadence", "Owner", "Window", "Retries", "Notes"].map((name) => (

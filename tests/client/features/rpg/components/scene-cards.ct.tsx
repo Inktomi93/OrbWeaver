@@ -377,6 +377,8 @@ test.describe("at phone width with a coarse pointer", () => {
     await expect(chip).toHaveAttribute("datetime", new Date(origin.createdAt).toISOString());
     // The row's name carries the stamp, so two cards from one earlier day differ to a screen reader too.
     await expect(row).toHaveAccessibleName(openCardName(CARD_TITLE, stamp, null));
+    // A card with no note ends its name at the stamp: the literal pins the builder's no-note arm.
+    await expect(row).toHaveAccessibleName(`Open card: ${CARD_TITLE}, ${stamp}`);
 
     expect(await page.evaluate((pointerCoarse) => matchMedia(pointerCoarse).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     const touchTarget = await page.evaluate((sizeTouchTarget) => {

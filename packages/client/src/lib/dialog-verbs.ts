@@ -15,3 +15,9 @@ export const DIALOG_VERBS = {
   retry: "Retry",
   save: "Save",
 } as const;
+
+/** What a dialog's commit says while its write is in flight. */
+export const DIALOG_PENDING_VERBS = {
+  creating: "Creating…",
+  saving: "Saving…",
+} as const;

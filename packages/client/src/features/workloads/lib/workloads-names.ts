@@ -19,8 +19,15 @@ export const WORKLOAD_BULK_BADGE = "Bulk";
 /** The badge on a run queued for a later time. */
 export const WORKLOAD_SCHEDULED_BADGE = "Scheduled";
 
-/** The cancel confirmation's title and its keep button. */
+/** The badge on a run held behind another. */
+export const WORKLOAD_WAITING_BADGE = "Waiting";
+
+/** The badge on a run whose saved settings this version cannot read. */
+export const WORKLOAD_UNREADABLE_BADGE = "Unreadable";
+
+/** The cancel confirmation's title, its confirm and its keep button. */
 export const WORKLOAD_CANCEL_TITLE = "Cancel this job?";
+export const WORKLOAD_CANCEL_CONFIRM_NAME = "Cancel job";
 export const WORKLOAD_KEEP_RUNNING_NAME = "Keep running";
 
 /** A run row's cancel button, named for the job it stops. */
@@ -49,6 +56,10 @@ export const SCHEDULE_SAVE_NAME = "Save schedule";
 
 /** What the create dialog says when the create is refused. */
 export const SCHEDULE_CREATE_FAILED = "Couldn't create the schedule. Try again.";
+
+/** The edit dialog's title, and what it says when the update is refused. */
+export const SCHEDULE_EDIT_TITLE = "Edit schedule";
+export const SCHEDULE_UPDATE_FAILED = "Couldn't update the schedule. Try again.";
 
 /** The schedule dialogs' cadence picker. */
 export const SCHEDULE_CADENCE_FIELD_NAME = "Runs";

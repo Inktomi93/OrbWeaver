@@ -110,5 +110,5 @@ export function createTagName(tag: string): string {
   return `Create "${tag}"`;
 }
 
-/** The character search box, in the character library and in a world book's character attachments. */
+/** The character search box: the character library, a world book's character attachments and the Insights leaderboard. */
 export const CHARACTER_SEARCH_NAME = "Search characters";
