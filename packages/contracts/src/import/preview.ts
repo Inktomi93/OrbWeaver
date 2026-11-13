@@ -22,9 +22,9 @@ export type ImportPreviewKind = (typeof IMPORT_PREVIEW_KINDS)[number];
 
 /** The most entries one preview list holds, so a stored run and its bus frame stay small. */
 export const IMPORT_PREVIEW_LIST_MAX = 500;
-/** The most unlisted entries of one kind per upload whose source digest a preview sends, so a merge can count an entry
- *  that several uploads of a split folder hold once. Entries past it are counted but cannot be matched. */
-export const IMPORT_PREVIEW_TAIL_MAX = 5000;
+// The most unlisted entries of one kind per upload whose source digest a preview sends, so a merge can count an entry
+// that several uploads of a split folder hold once. Entries past it are counted but cannot be matched.
+const IMPORT_PREVIEW_TAIL_MAX = 5000;
 /** The longest name, source or reason a preview holds. */
 export const IMPORT_PREVIEW_TEXT_MAX = 200;
 
