@@ -133,7 +133,7 @@ export function noteUrlSecrets(url: string): void {
   }
   for (const [name, value] of [...parsed.searchParams, ...new URLSearchParams(parsed.hash.slice(1))]) {
     if (sensitiveUrlPairName(name)) {
-      privateText(value).reveal();
+      privateText(value, URL_ONLY_SENSITIVE_NAMES.has(name.toLowerCase()) ? "urlWord" : "secret").reveal();
     }
   }
 }
