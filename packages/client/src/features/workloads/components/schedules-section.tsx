@@ -33,8 +33,9 @@ import { useState } from "react";
 import { DestructiveAction, QueryBoundary, useFirstBootRows } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { testId, timeLib } from "#lib";
+import { DIALOG_VERBS, testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
+import { OTHERS_CONTROLS_HIDDEN_TEXT } from "../lib/workloads-failure-copy.ts";
 import { UNRESOLVED_OWNER_HANDLE, viewerActsOnRow, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
 import {
   SCHEDULE_PAUSED_LABEL,
@@ -106,6 +107,22 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
             </Button>
           )}
         </Row>
+        {!viewerIsOwner && usersQuery.isError ? (
+          <Row align="center" gap="row" wrap={true}>
+            <Text role="status" ink="muted" voice="label">
+              {OTHERS_CONTROLS_HIDDEN_TEXT}
+            </Text>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(): void => {
+                usersQuery.refetch().catch(globalThis.reportError);
+              }}
+            >
+              {DIALOG_VERBS.retry}
+            </Button>
+          </Row>
+        ) : null}
         {schedules.length === 0 ? (
           <EmptyState
             title="No schedules yet. Recurring jobs you set up appear here."

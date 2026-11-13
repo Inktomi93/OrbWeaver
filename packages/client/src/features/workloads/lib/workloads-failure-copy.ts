@@ -4,6 +4,10 @@
 
 import { groupThousands } from "@orb/kit/strings";
 
+/** What a delegated admin reads when the account list fails: without it no row can be told from the box owner's, so
+ *  the controls on other people's rows stay hidden. */
+export const OTHERS_CONTROLS_HIDDEN_TEXT = "Couldn't load the account list, so the controls on other people's rows are hidden.";
+
 /** A failure class → user-actionable copy; each entry pairs a lowercase substring matcher with its copy. */
 interface FailureClass {
   readonly match: readonly string[];
