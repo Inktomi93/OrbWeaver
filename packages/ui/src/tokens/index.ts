@@ -235,7 +235,7 @@ export const TOKENS = {
   "reading.tide-share-phone": { cssVar: "--reading-tide-share-phone", value: "90%" },
   "fade.edge-stop": { cssVar: "--fade-edge-stop", value: "10%" },
   "opacity.receded": { cssVar: "--opacity-receded", value: "60%" },
-  "opacity.muted-seat": { cssVar: "--opacity-muted-seat", value: "77%" },
+  "opacity.muted-seat": { cssVar: "--opacity-muted-seat", value: "84%" },
   "opacity.faint": { cssVar: "--opacity-faint", value: "40%" },
   "opacity.disabled": { cssVar: "--opacity-disabled", value: "50%" },
   "opacity.dragging": { cssVar: "--opacity-dragging", value: "50%" },
