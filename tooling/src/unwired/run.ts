@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
+import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
@@ -18,7 +19,6 @@ import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
-import { TEST_WORLDS } from "./worlds.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;

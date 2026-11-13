@@ -38,6 +38,7 @@ import type { ActiveWorkloadRow, WorkloadContributions } from "../contract/contr
 import type { ListWorkloadsParams } from "../contract/params.ts";
 import type {
   AuthorizeWorkloadRead,
+  WorkloadBootOrphanRow,
   WorkloadClaim,
   WorkloadDecodedRow,
   WorkloadInFlightRow,
@@ -582,7 +583,7 @@ export function scanRunnableWorkloads(input: QueueScanInput): Promise<WorkloadRu
 
 /** EVERY in-flight row, projected for the BOOT reclaim: id + kind + the respawn count + the lease
  *  column as it stands before the disposition (the reap sentence's observed lease age — `markTerminal`
- *  overwrites it).
+ *  overwrites it) + the status, which tells a row its owner was cancelling from one still running.
  *
  *  NO LEASE PREDICATE, deliberately — this is the one query where the heartbeat is not evidence. At boot,
  *  single replica means no worker survived, so an in-flight row is orphaned regardless of how fresh its
@@ -591,9 +592,9 @@ export function scanRunnableWorkloads(input: QueueScanInput): Promise<WorkloadRu
  *  active slot forever. Unlike `findStaleInFlight` it does NOT build views either: the boot reclaim must
  *  also dispose of poison rows and rows of a kind this build no longer ships, and it needs no params to
  *  decide their disposition. */
-export async function findInFlightForBootReclaim(db: Db): Promise<WorkloadInFlightRow[]> {
+export async function findInFlightForBootReclaim(db: Db): Promise<WorkloadBootOrphanRow[]> {
   return await db
-    .select({ id: workloads.id, kind: workloads.kind, respawns: workloads.respawns, updatedAt: workloads.updatedAt })
+    .select({ id: workloads.id, kind: workloads.kind, status: workloads.status, respawns: workloads.respawns, updatedAt: workloads.updatedAt })
     .from(workloads)
     .where(inArray(workloads.status, [...IN_FLIGHT_STATUSES]));
 }
@@ -609,9 +610,10 @@ export async function findActiveForBootSweep(db: Db): Promise<ActiveWorkloadRow[
   return rows.map((row) => ({ kind: row.kind, params: JSON.parse(row.params) }));
 }
 
-/** Put an orphaned in-flight row BACK IN THE QUEUE — the resumable disposition of the boot reclaim.
- *  Status-guarded exactly like `markTerminal`, so a returning zombie is never re-queued out from under its
- *  own runner. `respawns` increments (the loop bound's counter); `error` is CLEARED because the row is no
+/** Put an orphaned RUNNING row BACK IN THE QUEUE — the resumable disposition of the boot reclaim.
+ *  Status-guarded on `running` alone, so a returning zombie is never re-queued out from under its own runner
+ *  and a `cancelling` row is never re-queued at all: its owner asked for it to stop, and running it again
+ *  would undo that cancel. `respawns` increments (the loop bound's counter); `error` is CLEARED because the row is no
  *  longer in a failure state, and `progress` is KEPT (a re-run's UI should not lose the last known position).
  *  No unique-index risk: `queued` and `running` are both in `ACTIVE_WORKLOAD_STATUSES`, so the row never
  *  leaves and never re-enters its single-active slot. */
@@ -620,7 +622,7 @@ export async function requeueInFlight(db: Db, args: { id: WorkloadId; now: numbe
   const moved = await db
     .update(workloads)
     .set({ status: "queued", error: null, respawns: sql`${workloads.respawns} + 1`, updatedAt: args.now })
-    .where(and(eq(workloads.id, args.id), inArray(workloads.status, [...IN_FLIGHT_STATUSES])))
+    .where(and(eq(workloads.id, args.id), eq(workloads.status, "running")))
     .returning({ id: workloads.id });
   return moved.length > 0;
 }

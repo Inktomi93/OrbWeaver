@@ -1,6 +1,13 @@
+import {
+  WORKLOAD_RUN_ACCOUNT_DISABLED,
+  WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL,
+  WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
+  WORKLOAD_RUN_ACCOUNT_REFUSAL,
+} from "@orb/contracts/workloads";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { trpcErrorReason } from "#lib";
 
 // The Workloads pane's mutations, one createEntityMutation per verb. None are busDriven: the workload
 // verbs emit on the workloads progress bus (the `workloads` ROOM on the tab's one socket), not either mapped invalidation
@@ -34,14 +41,22 @@ export const useCreateSchedule = createEntityMutation<inferInput<Trpc["workloads
   errorToast: "Couldn't create the schedule.",
 });
 
-/** Retune a schedule in place (kind/params/cadence/mode). `enabled` is not here — that stays `setScheduleEnabled`. */
+// A schedule keeps its owner, so a retune is judged against that account whoever saves it. The server codes those
+// refusals, and each code's sentence is the contract's own.
+const RUN_ACCOUNT_REFUSALS: ReadonlyMap<string, string> = new Map([
+  [WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL],
+  [WORKLOAD_RUN_ACCOUNT_DISABLED, WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL],
+]);
+
+/** Retune a schedule in place (kind/params/cadence/mode). `enabled` is not here — that stays `setScheduleEnabled`.
+ *  A refused run account toasts its reason, so the owner sees why a member's schedule cannot take the job. */
 export const useUpdateSchedule = createEntityMutation<inferInput<Trpc["workloads"]["updateSchedule"]>, unknown>({
   options: (trpc) => trpc.workloads.updateSchedule.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
-  errorToast: "Couldn't update the schedule.",
+  errorToast: (error) => RUN_ACCOUNT_REFUSALS.get(trpcErrorReason(error)) ?? "Couldn't update the schedule.",
 });
 
-/** Pause/resume a schedule. */
+/** Pause/resume a schedule. The server judges no run account here, so it has no coded refusal to name. */
 export const useSetScheduleEnabled = createEntityMutation<inferInput<Trpc["workloads"]["setScheduleEnabled"]>, unknown>({
   options: (trpc) => trpc.workloads.setScheduleEnabled.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],

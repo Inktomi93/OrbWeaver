@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join, relative } from "node:path";
+import { relative } from "node:path";
 import { env } from "node:process";
 import { fileURLToPath } from "node:url";
 import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
@@ -24,6 +24,7 @@ import {
   productionModules,
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
+import { TEST_WORLDS, worldSpecs } from "@orb/tooling/floor/testing/test-worlds";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
 import { MEDIA_QUERIES, TOKENS, TONES } from "@orb/ui/tokens";
 import pluginQuery from "@tanstack/eslint-plugin-query";
@@ -44,7 +45,6 @@ import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
 import { __unstable__loadDesignSystem } from "tailwindcss";
-import ts from "typescript";
 import type { FlatConfig } from "typescript-eslint";
 import tseslint from "typescript-eslint";
 import biomeConfig from "./biome.json" with { type: "json" };
@@ -571,23 +571,18 @@ const FIRST_ALERT_RESTRICTION = {
     "A first-alert read accepts any toast, including the generic one. Read the notice with noticeToast from @orb/testkit/ct, over the copy production computes for it.",
 };
 
-// The test worlds, each one typed program. A file two worlds name takes the earlier world's project, the one a list
-// of all three gave it.
-const TEST_WORLDS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
+// `TEST_WORLDS` are the test worlds, each one typed program. A file two worlds name takes the earlier world's project,
+// the one a list of all three gave it.
 const TEST_TYPED_SOURCE = ["tests/**/*.{ts,tsx,mts,cts}", "scripts/**/*.tsx", "playwright/**/*.{ts,tsx}"];
 
 // A tsconfig `include` or `exclude` spec as globs: a spec whose last segment has no wildcard names a file or a directory.
 const worldGlobs = (specs: readonly string[]): string[] =>
   specs.flatMap((spec) => (spec.split("/").at(-1)?.includes("*") === true ? [spec] : [spec, `${spec}/**`]));
 
-// A world's parser block, matched from its tsconfig's own `include` and `exclude`, so a part that lints one world's
-// files builds that world's program alone. A project list would build each earlier program to look for the file.
+// A world's parser block, matched from the `include` and `exclude` its tsconfig resolves to, so a part that lints one
+// world's files builds that world's program alone. A project list would build each earlier program to look for the file.
 function testWorldParser(world: string): FlatConfig.Config {
-  const read = ts.readConfigFile(join(ROOT, world), ts.sys.readFile);
-  if (read.error !== undefined) {
-    throw new Error(`${world}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
-  }
-  const { include, exclude = [] } = read.config as { readonly include: readonly string[]; readonly exclude?: readonly string[] };
+  const { include, exclude } = worldSpecs(ROOT, world);
   return {
     files: TEST_TYPED_SOURCE.flatMap((scope) => worldGlobs(include).map((spec) => [scope, spec])),
     // Playwright's declaration files are linted without a program.
@@ -681,7 +676,8 @@ const NUL_FREE_TEXT_MESSAGE =
 const PLAIN_TEXT_COLUMN_SYNTAX = [
   { selector: "CallExpression[callee.name='text'][arguments.length=1]", message: NUL_FREE_TEXT_MESSAGE },
   {
-    selector: "CallExpression[callee.name='text'][arguments.length>1]:not(:has(Property[key.name=/^(mode|enum)$/]))",
+    // A `mode` exempts the column only when it is "json": `mode: "text"` is the plain column spelled out.
+    selector: "CallExpression[callee.name='text'][arguments.length>1]:not(:has(Property:matches([key.name='mode'][value.value='json'], [key.name='enum'])))",
     message: NUL_FREE_TEXT_MESSAGE,
   },
   {

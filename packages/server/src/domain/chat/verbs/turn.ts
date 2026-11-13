@@ -11,6 +11,7 @@
 // follow-ups inherit it. A turn with no viewer reads its caller's ruled zone (an automation rule's own clock)
 // or UTC; a deferred drain reads the zone its sender reported at defer time. The server's zone is no user's.
 
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import type {
   AssembleContext,
   ChatMetadata,
@@ -52,6 +53,7 @@ import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contr
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { Resolved, WireTool } from "@orb/inference";
 import { ProviderError, resolveSideGenSampling } from "@orb/inference";
+import { tokenizeContent } from "@orb/kit/content";
 import { DomainError, DomainInternalFaultError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
@@ -1483,6 +1485,16 @@ async function placeBlockPictures(
   return body;
 }
 
+/** A user body may show at most {@link ASSET_LIST_LIMIT_MAX} pictures, however each one was written: attached,
+ *  sent as a block or typed as a ref into the text. It counts every occurrence in the final body, because each
+ *  one is a part on the model wire, and it runs before the ownership read so that read stays bounded too. */
+function assertPictureCountWithinLimit(chatId: ChatId, body: string): void {
+  const pictures = tokenizeContent(body, { committed: true }).filter((span) => span.kind === "image" && span.ref.kind === "asset").length;
+  if (pictures > ASSET_LIST_LIMIT_MAX) {
+    throw new ChatOperationError(CHAT_OP_CODES.tooManyPictures, `chat ${chatId}: ${pictures} pictures in one message, the limit is ${ASSET_LIST_LIMIT_MAX}`);
+  }
+}
+
 /** Trust boundary: every claimed attachment id must be owned by the actor. A foreign/gone id is absent from
  *  the owned subset → a leak-free `attachment_not_owned` refusal. No-op for an attachment-free send. */
 async function assertAttachmentsOwned(
@@ -1810,6 +1822,7 @@ async function commitUserTurn(
       ? transformed
       : await placeBlockPictures(ctx, { chatId, blocks, text: transformed, personaId: stampedPersonaId, assembleContext: built.assembleContext });
   const body = composeBodyWithAttachments(composed, attachments);
+  assertPictureCountWithinLimit(chatId, body);
   // A picture typed into the text rather than attached is placed only when the sender owns it, like an edit.
   const typed = await ownedCitedAssetIds(ctx, principal.userId, body, attachments);
   // The first user message claims the room (D166). After every refusal above, because the claim is one-way and

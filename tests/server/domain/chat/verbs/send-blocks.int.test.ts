@@ -551,6 +551,45 @@ test("a repeated picture places once per occurrence with one link", async () => 
 
 const IMAGE_BLOCK = (assetId: AssetId, alt = ALT): SendContentBlock => ({ kind: "media", media: "image", src: { kind: "asset", assetId }, alt });
 
+/** `count` picture refs typed into text, under an alt no block uses. */
+const typedRefs = (assetId: AssetId, count: number): string => Array.from({ length: count }, () => `![typed](asset:${assetId})`).join(" ");
+
+test.for([
+  { name: "plain text", refs: SEND_BLOCK_LIMITS.blocks + 1, input: (typed: string) => ({ content: typed }) },
+  { name: "a markdown block", refs: SEND_BLOCK_LIMITS.blocks + 1, input: (typed: string) => ({ content: "", blocks: [MARKDOWN(typed)] }) },
+  {
+    name: "text beside an attachment",
+    refs: SEND_BLOCK_LIMITS.blocks,
+    input: (typed: string, assetId: AssetId) => ({ content: typed, attachmentAssetIds: [assetId] }),
+  },
+])("picture refs typed into $name past the send limit refuse before anything commits", async ({ refs, input }) => {
+  await using box = await openBox();
+  const assetId = await storePicture(box, box.host);
+  const typed = typedRefs(assetId, refs);
+
+  await expect(box.caller.chat.send({ chatId: box.chatId, timeZone: UTC_TIME_ZONE, ...input(typed, assetId) })).rejects.toMatchObject({
+    cause: { code: CHAT_OP_CODES.tooManyPictures },
+  });
+
+  expect(await userBodies(box)).toEqual([]);
+});
+
+test("a send at the limit that mixes picture blocks and typed refs commits and sends every picture", async () => {
+  await using box = await openBox();
+  const assetId = await storePicture(box, box.host);
+  const url = await wireUrl(box, assetId);
+  const blocks = [IMAGE_BLOCK(assetId), MARKDOWN(typedRefs(assetId, SEND_BLOCK_LIMITS.blocks - 2)), IMAGE_BLOCK(assetId)];
+
+  const body = await sendBlocks(box, blocks);
+
+  expect(
+    userParts(body)
+      .flat()
+      .filter((part) => imageUrlOf(part) === url),
+  ).toHaveLength(SEND_BLOCK_LIMITS.blocks);
+  expect(await userBodies(box)).toHaveLength(1);
+});
+
 const REFUSED_INPUTS: readonly { readonly name: string; readonly input: (assetId: AssetId) => Record<string, unknown> }[] = [
   { name: "an unknown block kind", input: () => ({ blocks: [{ kind: "sticker", id: "x" }] }) },
   { name: "a client-stamped html card", input: () => ({ blocks: [{ kind: "html-card", html: "<b>x</b>", trust: "tierA" }] }) },

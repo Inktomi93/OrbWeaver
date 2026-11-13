@@ -26,9 +26,12 @@ export interface ApplyRowProps {
   /** The session's rewrite already landed on the live card — Apply is locked until a stage run re-opens it.
    *  Save as copy stays available: a copy is a branch, not the commit. */
   readonly completed: boolean;
+  /** The apply outcome is on screen above this row. Its exit is then the result's one primary control, so Apply
+   *  takes the outline beside Save as copy: still pressable, never a second focal action. */
+  readonly outcomeShown: boolean;
 }
 
-export function ApplyRow({ keptAccepts, armedRewrite, acts, completed }: ApplyRowProps): ReactElement {
+export function ApplyRow({ keptAccepts, armedRewrite, acts, completed, outcomeShown }: ApplyRowProps): ReactElement {
   const appliedNoteId = useId();
   const unsendable = acts.pending || keptAccepts.length === 0;
   return (
@@ -44,6 +47,7 @@ export function ApplyRow({ keptAccepts, armedRewrite, acts, completed }: ApplyRo
       </Button>
       <Button
         {...(completed ? { "aria-describedby": appliedNoteId } : {})}
+        {...(outcomeShown ? { variant: "outline" as const } : {})}
         disabled={completed || unsendable}
         onClick={(): void => acts.run("apply", keptAccepts)}
         size="sm"

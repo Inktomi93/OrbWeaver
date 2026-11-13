@@ -95,7 +95,7 @@ function kindItems(collected: ProfileCollected, owned: ImportOwnership): Readonl
       const base = item(persona.parsed.avatarFile, persona.parsed.name);
       return listed(persona, owned.personas, persona.avatarBytes === undefined ? { ...base, withoutArt: true as const } : base);
     }),
-    worlds: collected.worlds.map((world) => listed(world, owned.worlds, item(world.book.name, world.book.name))),
+    worlds: collected.worlds.map((world) => listed(world, owned.worlds, item(world.sourceFile, world.book.name))),
     presets: collected.presets.map((preset) => listed(preset, owned.presets, item(preset.sourceFile, preset.parsed.name))),
     themes: collected.themes.map((theme) => listed(theme, owned.themes, item(theme.sourceFile, theme.parsed.name))),
     backgrounds: collected.backgrounds.map((background) => listed(background, owned.backgrounds, item(background.filename, background.name))),

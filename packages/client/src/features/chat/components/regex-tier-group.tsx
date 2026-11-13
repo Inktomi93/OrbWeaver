@@ -65,6 +65,7 @@ export interface RegexTierGroupProps {
 export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, ownedScriptIds, effectiveCount }: RegexTierGroupProps): ReactElement {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isRoomTier = tier.scope === "chat";
+  const kicker = regexTierKicker(tier.scope, labels);
   const qualifiers = rowQualifiers(
     rows.map((row) => ({ name: regexScriptTitle(row.script), at: row.script.updatedAt })),
     timeLib.formatRelative,
@@ -83,6 +84,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
         chatId={chatId}
         effectiveCount={effectiveCount}
         isHost={isHost}
+        list={kicker}
         notYours={isRoomTier && !ownedScriptIds.has(row.script.id)}
         qualifier={qualifiers[index]}
         row={row}
@@ -92,11 +94,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
   };
 
   return (
-    <Section
-      data-slot="regex-tier"
-      data-tier={tier.scope}
-      kicker={<TierKicker allowed={tier.allowed} count={regexTierInForceCount(rows)} label={regexTierKicker(tier.scope, labels)} />}
-    >
+    <Section data-slot="regex-tier" data-tier={tier.scope} kicker={<TierKicker allowed={tier.allowed} count={regexTierInForceCount(rows)} label={kicker} />}>
       {isHost ? <Text voice="gloss">{regexTierProvenance(tier.scope, labels)}</Text> : null}
       {rows.length === 0 ? (
         // Never render nothing — an empty tier is a normal state (a room with no preset, a card with no

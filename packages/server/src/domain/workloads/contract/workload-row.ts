@@ -51,6 +51,11 @@ export interface WorkloadInFlightRow {
 
 type StoredWorkloadRow = typeof workloads.$inferSelect;
 
+/** One orphan as the BOOT reclaim reads it: the disposition columns plus the status the dead process left.
+ *  Boot-only, because the status decides a disposition there alone: a `cancelling` row carries a cancel its
+ *  owner already raised, so boot finishes that cancel, while the stale sweep stamps every row it finds the same. */
+export interface WorkloadBootOrphanRow extends WorkloadInFlightRow, Pick<StoredWorkloadRow, "status"> {}
+
 /** What a succeeded run stores: some kind's terminal result. */
 export type StoredWorkloadResult = NonNullable<StoredWorkloadRow["result"]>;
 type WorkloadJsonField = keyof Pick<StoredWorkloadRow, "params" | "result" | "progress" | "dependsOn">;

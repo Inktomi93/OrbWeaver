@@ -23,6 +23,11 @@
 // contribution declares. A kind absent from the registry (deploy skew) takes the conservative arm — nothing
 // in this build can say whether re-running it is safe, so it is reaped exactly as before.
 //
+// A CANCEL OUTRANKS BOTH. A row the dead process left `cancelling` carries a cancel its owner raised and no
+// runner lived to finish. Boot finishes it: the row ends `cancelled`, whatever its kind's resume policy and
+// respawn count say, because re-queueing would run a job its owner stopped and reaping would record a death
+// where there was a request. It is the same terminal and the same event the runner writes for a cancel.
+//
 // A RE-QUEUE IS NOT A REAP and carries no reason — the row stays alive and its `error` is cleared. The two
 // arms that DO terminal a row are reaps, and they take their sentence from the shared `reap-record` dispatch
 // the steady-state reaper uses: `worker_restart` for an orphan this build cannot re-queue, and
@@ -38,10 +43,10 @@ import type { BootReclaimArgs, BootReclaimReport, WorkloadReapReason } from "../
 import { findActiveForBootSweep, findInFlightForBootReclaim, markTerminal, requeueInFlight } from "../persistence/queries.ts";
 import { MAX_BOOT_RESPAWNS, reapedMessage } from "./reap-record.ts";
 
-/** The three things that can happen to one orphan. `unmoved` is the status-guard losing: the row left the
+/** The four things that can happen to one orphan. `unmoved` is the status-guard losing: the row left the
  *  in-flight states between the enumeration and the write (it cannot happen at boot — nothing else is
  *  running yet — but the guard is what makes that true rather than assumed). */
-const DISPOSITIONS = ["requeued", "reaped", "unmoved"] as const;
+const DISPOSITIONS = ["requeued", "reaped", "cancelled", "unmoved"] as const;
 type Disposition = (typeof DISPOSITIONS)[number];
 
 /** Stamp one orphan terminal + emit, exactly as the steady-state reaper does — same status, same shared
@@ -61,6 +66,19 @@ async function reapOrphan(
   return "reaped";
 }
 
+/** Finish the cancel one orphan's owner raised before the process died + emit, exactly as the runner does. */
+async function cancelOrphan(
+  db: Db,
+  args: { id: WorkloadId; kind: WorkloadKind; now: number },
+  emitEvent: WorkloadProgressBus["emitWorkloadEvent"],
+): Promise<Disposition> {
+  if (!(await markTerminal(db, { id: args.id, status: "cancelled", now: args.now }))) {
+    return "unmoved";
+  }
+  emitEvent({ type: "cancelled", workloadId: args.id, kind: args.kind, at: args.now });
+  return "cancelled";
+}
+
 /** Put one orphan back in the queue + emit the status transition (the `status` arm of `WorkloadEvent`, whose
  *  first producer this is — a reconnecting client within the replay TTL sees the row go back to `queued`
  *  rather than silently changing under it). */
@@ -77,7 +95,8 @@ async function requeueOrphan(
 }
 
 /**
- * Dispose of every orphaned in-flight row at boot: re-queue the resumable ones (bounded), reap the rest.
+ * Dispose of every orphaned in-flight row at boot: finish a raised cancel, re-queue the resumable running
+ * rows (bounded), reap the rest.
  * There is no lease threshold — see `findInFlightForBootReclaim` for why the heartbeat is not evidence here.
  */
 export async function reclaimInFlightOnBoot(args: BootReclaimArgs): Promise<BootReclaimReport> {
@@ -85,6 +104,9 @@ export async function reclaimInFlightOnBoot(args: BootReclaimArgs): Promise<Boot
   const orphans = await findInFlightForBootReclaim(args.db);
   const dispositions = await Promise.all(
     orphans.map(async (row): Promise<Disposition> => {
+      if (row.status === "cancelling") {
+        return await cancelOrphan(args.db, { id: row.id, kind: row.kind, now: args.now }, emitEvent);
+      }
       const reap = { id: row.id, kind: row.kind, now: args.now, leaseAgeMs: args.now - row.updatedAt } as const;
       // `Object.hasOwn`, not a truthiness read: the registry is a mapped type over the kind tuple, so tsc
       // believes every lookup hits — only a deploy-skew row (a kind this build dropped) can miss, and it
@@ -104,8 +126,9 @@ export async function reclaimInFlightOnBoot(args: BootReclaimArgs): Promise<Boot
   const report: BootReclaimReport = {
     requeued: dispositions.filter((disposition) => disposition === "requeued").length,
     reaped: dispositions.filter((disposition) => disposition === "reaped").length,
+    cancelled: dispositions.filter((disposition) => disposition === "cancelled").length,
   };
-  getLog(args.logger).info(report, "workloads: boot reclaim of orphaned in-flight rows (resumable kinds re-queued, the rest reaped)");
+  getLog(args.logger).info(report, "workloads: boot reclaim of orphaned in-flight rows (raised cancels finished, resumable kinds re-queued, the rest reaped)");
   await sweepAbandoned(args);
   return report;
 }

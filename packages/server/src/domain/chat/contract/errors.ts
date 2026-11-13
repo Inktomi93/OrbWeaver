@@ -107,6 +107,9 @@ export const CHAT_OP_CODES = {
   /** A structured send's picture would not reach the transcript or the model exactly as authored: a transform
    *  removed or repeated it, or the final body swallows it. Refused before the row commits. */
   blockPictureLost: "block_picture_lost",
+  /** A user message's final body shows more pictures than one message may carry, counting attachments, picture
+   *  blocks and refs typed into the text together. Refused before the row commits. */
+  tooManyPictures: "too_many_pictures",
   /** `setGroupConfig` tried to flip a GAME chat OFF narrator+merged (to `per-speaker`) while an AGENT holds the
    *  GM seat (D60 AP4a — the F5 SEAL). narrator+merged keeps the GM tool loop on
    *  the narrator turn; `per-speaker` would let a player-CHARACTER turn carry GM-authority tools at an agent-GM
