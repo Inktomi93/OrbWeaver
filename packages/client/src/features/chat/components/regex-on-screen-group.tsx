@@ -33,7 +33,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RowActionsMenu } from "#components";
 import { DISPLAY_PLACEMENT, useDisplayScripts, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { regexScriptTitle } from "#lib";
+import { regexScriptTitle, rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
 import { REGEX_ON_SCREEN_LIST, regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
@@ -59,6 +59,12 @@ export function RegexOnScreenGroup({ chatId, isHost }: RegexOnScreenGroupProps):
   // off here would VANISH and the only way back would be the library. The off rows carry the `OFF` mark and
   // no rank claim — the canvas draws exactly that arm.
   const rows = [...inForce, ...owned.filter((script) => !script.enabled && script.placement.includes(DISPLAY_PLACEMENT))];
+  // Two scripts can share a title, and a row's switch and menu then announce one name for two rows: the qualifier is resolved with the whole roster in hand.
+  const qualifiers = rowQualifiers(
+    rows.map((script) => ({ name: regexScriptTitle(script), at: script.updatedAt })),
+    timeLib.formatRelative,
+    timeLib.formatDateTime,
+  );
   return (
     <Section data-slot="regex-on-screen" kicker={REGEX_ON_SCREEN_LIST}>
       <Text voice="gloss">
@@ -68,9 +74,9 @@ export function RegexOnScreenGroup({ chatId, isHost }: RegexOnScreenGroupProps):
         <Text voice="gloss">No display scripts are running on your transcript here.</Text>
       ) : (
         <Stack gap="tight" role="list">
-          {rows.map((script) => (
+          {rows.map((script, index) => (
             <Stack key={script.id} role="listitem">
-              <DisplayScriptRow isYours={ownedIds.has(script.id)} script={script} />
+              <DisplayScriptRow isYours={ownedIds.has(script.id)} qualifier={qualifiers[index]} script={script} />
             </Stack>
           ))}
         </Stack>
@@ -81,11 +87,21 @@ export function RegexOnScreenGroup({ chatId, isHost }: RegexOnScreenGroupProps):
 }
 
 /** One display-leg row: name · pattern · provenance, and — for the viewer's own — the library switch. */
-function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; readonly script: RegexScriptRow }): ReactElement {
+function DisplayScriptRow({
+  isYours,
+  qualifier,
+  script,
+}: {
+  readonly isYours: boolean;
+  /** The disambiguator the row's switch and menu carry beside its name (`rowQualifiers`). */
+  readonly qualifier: string | undefined;
+  readonly script: RegexScriptRow;
+}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRegexScriptEnabled({ trpc, invalidation });
   const name = regexScriptTitle(script);
+  const subject = rowActionSubject(name, qualifier);
   return (
     <ListRow
       markers={script.enabled ? null : <InlineToken>Off</InlineToken>}
@@ -96,14 +112,14 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
                 {/* The same "everywhere" setting as a tier row's switch, because it is the same flag on the same
                     library row; the list word keeps the two switches of a script drawn in both places apart. */}
                 <Switch
-                  aria-label={regexScriptEverywhereSwitchName(name, REGEX_ON_SCREEN_LIST)}
+                  aria-label={regexScriptEverywhereSwitchName(subject, REGEX_ON_SCREEN_LIST)}
                   checked={script.enabled}
                   onCheckedChange={(next): void => {
                     setEnabled.mutate({ scriptId: script.id, input: { enabled: next } });
                   }}
                   tone="quiet"
                 />
-                <RowActionsMenu label={`More for ${name}: Open in library`}>
+                <RowActionsMenu label={`More for ${subject}: Open in library`}>
                   <MenuItem
                     onClick={(): void => {
                       openConfigTo(REGEX_COLLECTION);

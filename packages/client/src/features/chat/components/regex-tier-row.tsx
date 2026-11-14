@@ -107,7 +107,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, list, isHost, notYour
             actions: (
               <>
                 {notYours ? null : (
-                  <Switch aria-label={regexScriptEverywhereSwitchName(name, list)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />
+                  <Switch aria-label={regexScriptEverywhereSwitchName(subject, list)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />
                 )}
                 {menu}
               </>
