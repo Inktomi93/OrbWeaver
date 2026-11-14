@@ -2594,9 +2594,10 @@ export default [
     files: ["tests/**/*.{ts,tsx}"],
     plugins: { orb: localPlugin },
     rules: {
-      "orb/ct-negative-only-case": ["error", { absence: false }],
+      "orb/ct-negative-only-case": ["error", { absence: false, literal: true }],
       "orb/no-bare-throw-assertion": "error",
       "orb/no-filtered-case-table": "error",
+      "orb/no-subject-derived-expected": "error",
       "orb/no-tail-recorder-read": "error",
       "orb/owned-root-alias": "error",
     },
@@ -2604,7 +2605,7 @@ export default [
   {
     files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"],
     plugins: { orb: localPlugin },
-    rules: { "orb/ct-negative-only-case": ["error", { absence: true }] },
+    rules: { "orb/ct-negative-only-case": ["error", { absence: true, literal: true }] },
   },
   {
     // Spine-Testing §9 governs product tests; a tooling suite's literal is its tool's input.
@@ -2719,6 +2720,7 @@ export default [
         LOAD_EMULATION_CAST_RESTRICTION,
         ...OWNED_DB_RESTRICTIONS,
         ...EMPTY_POPULATION_RESTRICTIONS,
+        ...TEST_DETERMINISM_SYNTAX,
       ),
     },
   },

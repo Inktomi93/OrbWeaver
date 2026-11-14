@@ -37,6 +37,7 @@ for (const form of FILE_FORMS) {
       if (backup === undefined) {
         throw new Error("file backup missing");
       }
+      expect(backup.startsWith(backups)).toBe(true);
       const snapshot = await createDb(pathToFileURL(backup).href);
       try {
         expect(await snapshot.get(sql`PRAGMA user_version`)).toEqual({ ["user_version"]: VERSION });

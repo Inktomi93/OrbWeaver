@@ -102,6 +102,18 @@ test.for(CLOCK_BLOCKS)("%s refuses every ambient clock read and passes injected 
   }
 });
 
+test("a tooling test refuses every ambient clock read and passes injected time and durations", async () => {
+  const path = "tests/tooling/floor/probe.int.test.ts";
+  for (const source of [...AMBIENT_CLOCK, "Math.random();"]) {
+    const found = await findings(path, source);
+    expect(found, source).toHaveLength(1);
+    expect(found[0]?.message, source).toContain("Spine-Testing §3");
+  }
+  for (const source of INJECTED_TIME) {
+    expect(await findings(path, source), source).toEqual([]);
+  }
+});
+
 test.for(CLOCK_HOMES)("%s constructs the clock it injects", async (path) => {
   expect(await findings(path, "const now = (): number => Date.now();")).toEqual([]);
 });

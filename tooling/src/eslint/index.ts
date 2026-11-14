@@ -47,6 +47,7 @@ import {
   noSpreadCorpusCaptureRule,
   noUnseededTypeIdRule,
 } from "./test-derivation.ts";
+import { noSubjectDerivedExpectedRule } from "./test-expected.ts";
 import type { ExportedLabel } from "./test-labels.ts";
 import { handCopiedLabelRule } from "./test-labels.ts";
 import { ownedRootAliasRule } from "./test-owners.ts";
@@ -336,6 +337,7 @@ export function createOrbPlugin(options: {
       "no-bare-throw-assertion": noBareThrowAssertionRule,
       "no-unseeded-type-id": noUnseededTypeIdRule,
       "no-filtered-case-table": noFilteredCaseTableRule,
+      "no-subject-derived-expected": noSubjectDerivedExpectedRule,
       "no-spread-corpus-capture": noSpreadCorpusCaptureRule,
       "no-tail-recorder-read": noTailRecorderReadRule,
       "owned-root-alias": ownedRootAliasRule,

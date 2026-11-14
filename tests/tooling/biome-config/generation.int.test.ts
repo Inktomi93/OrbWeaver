@@ -7,7 +7,7 @@ import { z } from "zod";
 
 test("the checked-in native configuration matches deterministic generation", ({ repoRoot }) => {
   const rendered = renderBiomeConfig();
-  expect(readFileSync(join(repoRoot, "biome.json"), "utf8")).toBe(rendered);
+  expect(rendered).toBe(readFileSync(join(repoRoot, "biome.json"), "utf8"));
   expect(renderBiomeConfig()).toBe(rendered);
 });
 
