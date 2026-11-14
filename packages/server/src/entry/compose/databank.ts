@@ -21,7 +21,7 @@ import type { SettingsService } from "#domain/settings";
 import { createGetDatabankSettings } from "#domain/settings";
 import type { WorkloadService } from "#domain/workloads";
 import type { AuditWiring, Logger } from "#foundation/observability";
-import { EXTRACTOR_VERSION } from "#infra/extraction";
+import { EXTRACTOR_VERSIONS } from "#infra/extraction";
 import type { ScopedEgress } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
@@ -102,7 +102,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     countChunks: embeddings.countDocumentChunks,
     chunkCountsByOwner: embeddings.countDocumentChunksByOwner,
     extractText,
-    extractorVersion: EXTRACTOR_VERSION,
+    extractorVersions: EXTRACTOR_VERSIONS,
     // The DB7 scrapeWeb port: infra/network's `fetchWebDocument` (the ANY_HOST arbitrary-URL class — no host
     // pin, but https + private-range denial run per hop; throws on refusal/non-2xx/cap, the verb maps it).
     fetchUrl: deps.fetchWebDocument,

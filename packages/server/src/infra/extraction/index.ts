@@ -22,9 +22,9 @@ import type { RawExtraction } from "./contract.ts";
 import { ExpansionBudgetError } from "./contract.ts";
 import { LOADERS } from "./formats.ts";
 import { normalizeText } from "./normalize.ts";
-import { EXTRACTOR_VERSION } from "./version.ts";
+import { EXTRACTOR_VERSIONS } from "./version.ts";
 
-export { EXTRACTOR_VERSION } from "./version.ts";
+export { EXTRACTOR_VERSIONS } from "./version.ts";
 
 /** Resolve the declared mime to a `DocFormat`. An unregistered mime throws `UnsupportedDocTypeError` before
  *  any loader runs. */
@@ -36,14 +36,14 @@ function formatFor(mime: string): DocFormat {
   return format;
 }
 
-/** Normalize the loader's raw text (§2) and stamp the meta — the ONE place `EXTRACTOR_VERSION` + `charCount`
- *  are applied, so every format returns an identically-shaped `ExtractionResult`. */
+/** Normalize the loader's raw text (§2) and stamp the meta — the ONE place the format's `EXTRACTOR_VERSIONS` entry +
+ *  `charCount` are applied, so every format returns an identically-shaped `ExtractionResult`. */
 function toResult(
   meta: Pick<Extract<ExtractionMeta, { readonly format: "pdf" }>, "format" | "pageCount"> | Pick<Exclude<ExtractionMeta, { readonly format: "pdf" }>, "format">,
   raw: RawExtraction,
 ): ExtractionResult {
   const text = normalizeText(raw.text);
-  const fields = { extractorVersion: EXTRACTOR_VERSION, charCount: text.length };
+  const fields = { extractorVersion: EXTRACTOR_VERSIONS[meta.format], charCount: text.length };
   const title = raw.title === undefined ? {} : { title: raw.title };
   return {
     text,
