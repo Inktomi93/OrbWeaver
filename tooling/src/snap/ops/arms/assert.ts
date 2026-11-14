@@ -14,7 +14,7 @@ import type { SnapArmState } from "../../contract/run-facts.ts";
 import type { Assertion, AssertionOutcome } from "../../contract/types.ts";
 import { HTTP_URL_RE } from "../../lib/out-names.ts";
 import { overflowAssertionLine } from "../../lib/overflow-line.ts";
-import { scrubPrivateText } from "../../lib/private-values.ts";
+import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { probeOverflow } from "../overflow.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -136,7 +136,7 @@ async function runAssertions(page: Page, assertions: readonly Assertion[], inclu
     try {
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {
-      outcomes.push({ line: scrubPrivateText(`ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`), failed: true, refused: false });
+      outcomes.push({ line: scrubPlaywrightText(`ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`), failed: true, refused: false });
     }
   }
   return outcomes;

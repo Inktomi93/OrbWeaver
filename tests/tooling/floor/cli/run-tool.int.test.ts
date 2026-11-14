@@ -1,12 +1,13 @@
 // The exit-honesty runner's behavioral pins — each arm spawns a REAL node child over a scratch main:
 // the crash-collision control (bare node crash exits 1 — the verdict collision runTool exists to kill),
-// crash→toolError(2), UsageError→misuse(3), verdict passthrough, and never-downgrade (a set verdict
-// survives a later crash as 2, not 1).
+// crash→toolError(2), UsageError→misuse(3), verdict passthrough, never-downgrade (a set verdict
+// survives a later crash as 2, not 1), and the crash scrub hook on every crash path.
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
+import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
 
 const RUN_TOOL_URL = pathToFileURL(new URL("../../../../tooling/src/floor/cli/run-tool.ts", import.meta.url).pathname).href;
 
@@ -64,6 +65,44 @@ test("a returned verdict passes through and a report far larger than a pipe buff
 test("NEVER-DOWNGRADE: a violations verdict already set survives a late crash as toolError, not clean", async ({ plantedTree }) => {
   const res = await runScratch(plantedTree, script('await runTool(() => { process.exitCode = 1; throw new Error("epilogue blew up"); });'));
   expect(res.code).toBe(EXIT.toolError);
+});
+
+// The crash scrub snap passes (`tooling/src/snap/cli.ts`), over the real runner and the real value scrub: the run notes a
+// base URL token as a navigation does, then throws an error quoting that URL down each crash path.
+const PRIVATE_VALUES_URL = pathToFileURL(new URL("../../../../tooling/src/snap/lib/private-values.ts", import.meta.url).pathname).href;
+const DISK_SAFE_ARGV_URL = pathToFileURL(new URL("../../../../tooling/src/snap/lib/disk-safe-argv.ts", import.meta.url).pathname).href;
+const CANARY = "plant-crash-token-7f3a91";
+const CANARY_URL = `http://127.0.0.1:1/?token=${CANARY}`;
+const PAGE_ERROR = `new Error(${JSON.stringify(`page.goto: net::ERR_CONNECTION_REFUSED at ${CANARY_URL}`)})`;
+const CRASHES = {
+  uncaught: `setImmediate(() => { throw ${PAGE_ERROR}; }); await new Promise((r) => setTimeout(r, 50)); return 0;`,
+  "unhandled rejection": `void Promise.reject(${PAGE_ERROR}); await new Promise((r) => setTimeout(r, 50)); return 0;`,
+  "awaited throw": `throw ${PAGE_ERROR};`,
+} as const;
+
+function crashScript(body: string, options: string): string {
+  return script(
+    [
+      `import { scrubPlaywrightText } from ${JSON.stringify(PRIVATE_VALUES_URL)};`,
+      `import { noteUrlSecrets } from ${JSON.stringify(DISK_SAFE_ARGV_URL)};`,
+      `await runTool(async () => { noteUrlSecrets(${JSON.stringify(CANARY_URL)}); ${body} }${options});`,
+    ].join("\n"),
+  );
+}
+
+test.for(Object.entries(CRASHES))("an %s under runTool with snap's scrub prints the noted token masked", async ([_kind, body], { plantedTree }) => {
+  const res = await runScratch(plantedTree, crashScript(body, ", { scrubCrashText: scrubPlaywrightText }"));
+  expect(res.code).toBe(EXIT.toolError);
+  expect(res.stderr).toContain(`token=${PRIVATE_MASK}`);
+  expect(res.stderr).not.toContain(CANARY);
+});
+
+// The positive control for the plant, and the default every other tool keeps: no hook prints the raw stack.
+test("a crash under runTool with no scrub prints the raw stack it carried", async ({ plantedTree }) => {
+  const res = await runScratch(plantedTree, crashScript(CRASHES.uncaught, ""));
+  expect(res.code).toBe(EXIT.toolError);
+  expect(res.stderr).toContain(CANARY);
+  expect(res.stderr).toMatch(/^ {4}at /mu);
 });
 
 test("a local fake runTool retains the crash/verdict collision instead of canonical exit honesty", async ({ plantedTree }) => {
