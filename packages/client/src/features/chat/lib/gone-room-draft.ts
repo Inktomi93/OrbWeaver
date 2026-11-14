@@ -30,18 +30,41 @@ function releaseGoneRoomWork(chatId: ChatId): void {
   });
 }
 
-/** Release the gone room's unsent work, then return the reader to the chat list. A deleted chat the reader is not in is no leave: it has no notice to give. */
+// Chats whose delete the reader sent and has not yet heard answered. The bus's `chatDeleted` can reach `leaveGoneRoom` before the
+// request's own success does, and a marked id is that same delete, not another session's. A mark lasts only as long as its request.
+const selfDeleting = new Set<ChatId>();
+
+/** Release the gone room's unsent work, then return the reader to the chat list. A deleted chat the reader is not in is no leave: it has no notice to give. A chat the reader is deleting themselves has no notice either. */
 export function leaveGoneRoom(chatId: ChatId): void {
+  if (selfDeleting.has(chatId)) {
+    forgetDeletedChat(chatId);
+    return;
+  }
   if (activeChatId() === chatId) {
     releaseGoneRoomWork(chatId);
   }
   chatDeletedFromList(chatId);
 }
 
-/** A chat the reader just deleted, from its list row or its own room: the delete was confirmed on screen, so its draft entry and staged
- *  files leave with it and nothing is offered back. Then the reader returns to the chat list if the chat was open. */
-export function forgetDeletedChat(chatId: ChatId): void {
+// A chat the reader just deleted, from its list row or its own room: the delete was confirmed on screen, so its draft entry and staged
+// files leave with it and nothing is offered back. Then the reader returns to the chat list if the chat was open.
+function forgetDeletedChat(chatId: ChatId): void {
   takePendingAttachments(chatId);
   clearComposerDraft(chatId);
   chatDeletedFromList(chatId);
+}
+
+/** Send the reader's confirmed delete of `chatId`. The chat is marked before the request leaves, so the bus's own deleted event cannot
+ *  be taken for another session's; the mark is dropped once the request settles, so a failed delete leaves a later delete by someone
+ *  else to raise its notice. The mutation's own error notice owns a failure. */
+export function deleteOwnChat(chatId: ChatId, remove: () => Promise<unknown>): void {
+  selfDeleting.add(chatId);
+  remove()
+    .then(
+      (): void => forgetDeletedChat(chatId),
+      () => undefined,
+    )
+    .finally((): void => {
+      selfDeleting.delete(chatId);
+    });
 }

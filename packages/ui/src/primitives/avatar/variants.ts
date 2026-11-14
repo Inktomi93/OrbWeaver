@@ -2,7 +2,7 @@ import { CARD_CORNERS, PASS_THROUGH, PLACED, tv, WIDTH } from "#lib";
 import type { Tone } from "#tokens";
 
 // THE PLACEHOLDER'S ONE RECIPE, for the avatar's fallback and for the art panes that stand in for a missing picture
-// (`monogramVariants`). The box is a size container, so the initials follow the box they stand in (`text.art-initial`,
+// (`avatarMonogramVariants`). The box is a size container, so the initials follow the box they stand in (`text.art-initial`,
 // a share of its shorter axis) from a chip to a card portrait. The initials are a pseudo-element painted from `data-initials`,
 // never a text node: axe's label-in-name rule reads visible text without honouring aria-hidden. The `depth` pigment under
 // them moves away from the ink and dissolves toward the edge, so the box's own fill is what meets its border.
@@ -87,11 +87,15 @@ export const avatarVariants = tv({
   },
 });
 
+// The solid head of a feathered band spans three fifths of it: a little past where the feather starts to dissolve (`--art-feather-start`
+// on `.orb-art-band[data-art-image="false"]`, 55%), so the initials sit wholly on the pane's own fill.
+const BAND_HEAD = "block-3/5";
+
 /** The initials of an art pane with no picture, over the pane's own fill. `pane` fills the box; `bandHead` is the solid head of a feathered band. */
-export const monogramVariants = tv({
+export const avatarMonogramVariants = tv({
   base: MONOGRAM,
   variants: {
-    seat: { pane: PLACED.fill, bandHead: `${PLACED.topBand} block-3/5` },
+    seat: { pane: PLACED.fill, bandHead: `${PLACED.topBand} ${BAND_HEAD}` },
   },
 });
 

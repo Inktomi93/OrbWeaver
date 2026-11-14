@@ -28,7 +28,7 @@ import { RowActionsMenu } from "#components";
 import { deleteConfirmTitle, ROW_RENAME_NAME, rowStarToggleName } from "#lib";
 import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { CHAT_EXPORT_TRANSCRIPT_NAME, chatArchiveToggleName, chatRowActionsName } from "../lib/chat-surface-names.ts";
-import { forgetDeletedChat } from "../lib/gone-room-draft.ts";
+import { deleteOwnChat } from "../lib/gone-room-draft.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 /** The host-gated transcript download route (`GET /api/export/chat/:chatId`), one home for both formats. */
@@ -64,10 +64,7 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
   };
   const confirmDelete = (): void => {
     // `actions.remove` is `useDeleteChat`'s mutateAsync (hooks/use-chat-row-mutations.ts), whose errorToast "Couldn't delete the chat." is the surface; the user stays on the chat. Ends if useDeleteChat drops errorToast or `remove` stops being that mutateAsync.
-    actions.remove({ chatId }).then(
-      (): void => forgetDeletedChat(chatId),
-      () => undefined, // The mutation's errorToast owns failure; stay on the chat.
-    );
+    deleteOwnChat(chatId, () => actions.remove({ chatId }));
   };
 
   return (

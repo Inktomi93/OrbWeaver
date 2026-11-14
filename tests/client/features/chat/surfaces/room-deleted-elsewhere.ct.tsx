@@ -90,6 +90,8 @@ interface ShellServing {
   readonly getChat?: (chatId: ChatId) => ReturnType<typeof trpcHold<"chat.getChat">> | ReturnType<typeof trpcError> | null;
   /** Refuses a send in place of the server when it returns a refusal. */
   readonly send?: (chatId: ChatId) => ReturnType<typeof trpcError> | null;
+  /** Refuses a delete in place of the server when it returns a refusal. */
+  readonly remove?: (chatId: ChatId) => ReturnType<typeof trpcError> | null;
 }
 
 /** The production shell's reads and the send answered by the root's owner, and the section it opens on. */
@@ -103,11 +105,13 @@ async function serveShell(
   const served = serveCorpusProcedures(caller, SERVED, serving.intercept);
   const serveGetChat = served["chat.getChat"];
   const serveSend = served["chat.send"];
+  const serveDelete = served["chat.delete"];
   const rpc = await routeTrpc(page, {
     ...createShellAmbientReads(corpus, root.ownerId),
     ...served,
     "chat.getChat": (input) => serving.getChat?.(input.chatId) ?? (typeof serveGetChat === "function" ? serveGetChat(input) : serveGetChat),
     "chat.send": (input) => serving.send?.(input.chatId) ?? (typeof serveSend === "function" ? serveSend(input) : serveSend),
+    "chat.delete": (input) => serving.remove?.(input.chatId) ?? (typeof serveDelete === "function" ? serveDelete(input) : serveDelete),
     // The page's rooms attach to the scripted socket; the attach itself is the transport's, answered void as the server does.
     "stream.attach": ({ ref }) => (ref.channel === "user" || ref.channel === "chat" ? null : trpcError({ code: "NOT_FOUND" })),
     "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "chat" ? null : trpcError({ code: "NOT_FOUND" })),
@@ -425,6 +429,56 @@ test("a chat the reader deletes from its list row while in another room takes it
   await absenceWindow(page, NOTICE_BEAT_MS);
   await expect(noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title })).toHaveCount(0);
   await expect(openRoom(page, opened)).toBeVisible();
+});
+
+/** Delete the open room from Chat options and confirm. */
+async function deleteFromChatOptions(page: Page): Promise<void> {
+  await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
+  await page.getByRole("menuitem", { name: CHAT_DELETE_NAME, exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
+}
+
+// With the bus attached, as the app root wires it, the room's own deleted event can land before the delete's answer does.
+for (const door of ["Chat options", "its list row"] as const) {
+  test(`a reader who deletes their own open room from ${door} with the bus attached takes the draft with it and raises no notice`, async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await using root = await createCorpusHarness();
+    await using cleanup = new AsyncDisposableStack();
+    const toastTitlesSeen = await recordToastTitles(page);
+    const { room } = await openRoomToBeDeleted({ page, mountRoom: () => mount<typeof ShellBusStory>(BUS_STORY, {}), root, corpus, cleanup });
+    await page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(DRAFT);
+    await expect.poll(async () => (await storedDrafts(page))[room.id]).toBe(DRAFT);
+    await (door === "Chat options" ? deleteFromChatOptions(page) : deleteFromListRow(page, room));
+    await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
+    await expect.poll(async () => Object.keys(await storedDrafts(page))).not.toContain(room.id);
+    await absenceWindow(page, NOTICE_BEAT_MS);
+    expect(await toastTitlesSeen()).not.toContain(CHAT_GONE_DRAFT_NOTICE.title);
+  });
+}
+
+test("a delete the reader sent that failed leaves a later delete by someone else to raise the notice", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  let refuse = true;
+  const { caller } = await serveShell(root, corpus, page, { section: "chats", remove: () => (refuse ? trpcError() : null) });
+  const [room] = await ownerRooms(caller);
+  await seedActiveChat(page, room.id);
+  const forwarded = await forwardRoomDeletion({ page, root, chatId: room.id, cleanup, deliver: ["chatDeleted", "chatsChanged"] });
+  await mount<typeof ShellBusStory>(BUS_STORY, {});
+  await expect(openRoom(page, room)).toBeVisible();
+  await forwarded.listening;
+  await expect.poll(forwarded.roomAttached).toBe(true);
+  await page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill(DRAFT);
+  await expect.poll(async () => (await storedDrafts(page))[room.id]).toBe(DRAFT);
+  await deleteFromChatOptions(page);
+  // The refused delete leaves the reader in the room with the draft.
+  await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toHaveValue(DRAFT);
+  refuse = false;
+  await caller.chat.delete({ chatId: room.id });
+  await expect(noticeToast(page, { title: CHAT_GONE_DRAFT_NOTICE.title, description: goneDraftDescription({ hasText: true, files: 0 }) })).toHaveCount(1);
 });
 
 test("a room another session deletes while its composer is empty leaves no draft notice", async ({ corpus, mount, page }) => {
