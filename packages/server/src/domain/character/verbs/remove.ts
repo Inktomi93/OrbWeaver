@@ -16,7 +16,7 @@ export function createRemove(ctx: CharacterContext): CharacterService["remove"] 
     const { avatarAssetId, handle } = row;
     const at = ctx.now();
 
-    const deleted = await deleteOwnedCharacter(ctx.db, characterId, ownerId, ctx.bumpStatsCanonVersion);
+    const deleted = await deleteOwnedCharacter(ctx.db, characterId, ownerId, ctx.retireCharacterCensus);
     if (!deleted) {
       throw new CharacterNotFoundError(characterId);
     }

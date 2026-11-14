@@ -16,11 +16,11 @@
 // is an idempotency key.
 
 import type { CardWriteBasis } from "@orb/contracts/character";
-import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion, RetireCharacterCensus } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { batchLed, batchMany, isConstraintViolation } from "@orb/db/query";
+import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
@@ -319,21 +319,26 @@ export async function restoreCardInPlace(
 }
 
 /** Hard-delete an owned character (cascades snapshots / personas / downstream FKs). Returns `true` when a
- *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards. */
+ *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards.
+ *
+ *  THE CENSUS OP RIDES AHEAD OF THE DELETE: it decides inside its own statement whether the character was counted
+ *  (held a seat in a started room), and the cascade removes the seats that answer. So the delete's rows are the
+ *  batch's last result, not its first. */
 export async function deleteOwnedCharacter(
   db: Db,
   characterId: CharacterId,
   ownerId: UserId,
-  bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>,
+  retireCharacterCensus: RetireCharacterCensus<BatchStmt[], Db>,
 ): Promise<boolean> {
   const deletion = db
     .delete(characters)
     .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
     .returning({ id: characters.id });
   const statements: BatchStmt[] = [];
-  bumpCanonVersion(statements, db, ownerId);
-  const [deleted] = await db.batch(batchLed(deletion, statements));
-  return deleted.length > 0;
+  retireCharacterCensus(statements, db, { ownerId, characterId });
+  const results = await db.batch(batchMany([...statements, deletion]));
+  const deleted = results[statements.length];
+  return Array.isArray(deleted) && deleted.length > 0;
 }
 
 /** Archive / un-archive many owned characters in one statement. Returns the ids actually flipped.

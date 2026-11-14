@@ -354,6 +354,11 @@ export type SettleRetainedChatRebase<Batch, Database> = (
  *  exact incremental rollup delta exists; the next reconcile must still detect the mutation. */
 export type BumpStatsCanonVersion<Batch, Db> = (batch: Batch, db: Db, ownerId: UserId) => void;
 
+/** Take a character out of the owner's character count as the same batch deletes it. Stats decides inside the
+ *  statement whether the character was counted (a seat in a started room), so the op goes BEFORE the delete,
+ *  whose cascade removes the seats it reads. It carries the canon-version fence. */
+export type RetireCharacterCensus<Batch, Db> = (batch: Batch, db: Db, character: { readonly ownerId: UserId; readonly characterId: CharacterId }) => void;
+
 // The narrowed, already-aggregated economics results stats hands to a consumer (discovery's insights)
 // through an injected op — the raw `message_variants` economics row is unspellable outside stats, so a
 // consumer never re-sums a column itself.

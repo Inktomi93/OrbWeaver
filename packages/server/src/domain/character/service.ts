@@ -45,6 +45,7 @@ export function createCharacterService(input: CharacterAssemblyInput): Character
     ...input,
     db: databaseForOwner(input.db),
     bumpStatsCanonVersion: (batch, _db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), input.db, ownerId),
+    retireCharacterCensus: (batch, _db, character) => input.retireCharacterCensus(batchHandle(batch), input.db, character),
   };
   return {
     create: createCreate(ctx),

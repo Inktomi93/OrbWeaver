@@ -18,7 +18,7 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
           if (row === undefined) {
             return null;
           }
-          const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId, ctx.bumpStatsCanonVersion);
+          const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId, ctx.retireCharacterCensus);
           return ok ? row : null;
         }),
       )
