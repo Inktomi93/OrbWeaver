@@ -177,20 +177,43 @@ export function imageGenerationSpendDelta(args: {
 
 /** What a `spend_ledger` row records: priced model spend that leaves no canon row of its own. A consumer that
  *  handles each kind maps over this tuple, so a new kind fails `tsc` where it is missing. */
-export const SPEND_LEDGER_KINDS = ["compaction", "image-extraction", "image-caption"] as const;
+export const SPEND_LEDGER_KINDS = ["compaction", "image-extraction", "image-caption", "retired-canon"] as const;
 export type SpendLedgerKind = (typeof SPEND_LEDGER_KINDS)[number];
+
+/** The kind a canon retirement writes. Its spend is already on the live rollups, so it never rides a live delta. */
+export const RETIRED_CANON_KIND = "retired-canon" satisfies SpendLedgerKind;
 
 /** One ledger entry as its writer states it. `now` is the spend's clock, stamped on the row and the delta alike. */
 export interface LedgerSpend {
-  readonly kind: SpendLedgerKind;
+  readonly kind: Exclude<SpendLedgerKind, typeof RETIRED_CANON_KIND>;
   readonly ownerId: UserId;
   readonly costUsd: number;
   readonly now: number;
 }
 
-/** The spend ledger as one owner's portable file: every entry, without its box-local id or owner. */
+/** One paid sample of canon that left its owner's stats scope, as the retirement records it and the rebuild folds it. */
+export interface RetiredSpend {
+  readonly ownerId: UserId;
+  readonly costUsd: number;
+  readonly model: ModelId | null;
+  readonly provider: ProviderId | null;
+  readonly notional: boolean;
+  readonly now: number;
+}
+
+/** The spend ledger as one owner's portable file: every entry, without its box-local id or owner. A file written before
+ *  retired canon existed carries no model, provider or notional flag, which read as none. */
 export const portableSpendLedgerSchema = z.strictObject({
-  entries: z.array(z.strictObject({ kind: z.enum(SPEND_LEDGER_KINDS), costUsd: z.number().positive(), createdAt: z.int().nonnegative() })),
+  entries: z.array(
+    z.strictObject({
+      kind: z.enum(SPEND_LEDGER_KINDS),
+      costUsd: z.number().nonnegative(),
+      createdAt: z.int().nonnegative(),
+      model: modelIdSchema.nullable().optional(),
+      provider: providerIdSchema.nullable().optional(),
+      notional: z.boolean().optional(),
+    }),
+  ),
 });
 export type PortableSpendLedger = z.infer<typeof portableSpendLedgerSchema>;
 
@@ -211,6 +234,26 @@ export function ledgerSpendDelta(args: Pick<LedgerSpend, "ownerId" | "costUsd" |
     costSamples: 1,
     lastAt: args.now,
     now: args.now,
+  };
+}
+
+/** One retired paid sample: the cost on the owner, timeline and model grains it was paid on, never a character or a turn.
+ *  @remarks The rebuild folds a `retired-canon` ledger row with this builder, and a retirement keeps exactly these
+ *  fields on the live rollups while it subtracts the rest of the canon, so the two writers agree on the kept spend. */
+export function retiredCanonSpendDelta(spend: RetiredSpend): SpendDelta {
+  const notional = spend.notional ? 1 : 0;
+  return {
+    ownerId: spend.ownerId,
+    characterId: null,
+    bucketStart: statsBucketStart(spend.now),
+    model: spend.model,
+    provider: spend.model === null ? null : spend.provider,
+    costUsd: spend.costUsd,
+    costSamples: 1,
+    ...(notional > 0 ? { notionalCostSamples: notional } : {}),
+    ...(spend.model === null ? {} : { modelCostUsd: spend.costUsd, modelCostSamples: 1, ...(notional > 0 ? { modelNotionalCostSamples: notional } : {}) }),
+    lastAt: spend.now,
+    now: spend.now,
   };
 }
 
@@ -381,10 +424,49 @@ export type SettleRetainedChatRebase<Batch, Database> = (
  *  exact incremental rollup delta exists; the next reconcile must still detect the mutation. */
 export type BumpStatsCanonVersion<Batch, Db> = (batch: Batch, db: Db, ownerId: UserId) => void;
 
-/** Take a character out of the owner's character count as the same batch deletes it. Stats decides inside the
- *  statement whether the character was counted (a seat in a started room), so the op goes BEFORE the delete,
- *  whose cascade removes the seats it reads. It carries the canon-version fence. */
-export type RetireCharacterCensus<Batch, Db> = (batch: Batch, db: Db, character: { readonly ownerId: UserId; readonly characterId: CharacterId }) => void;
+/** What a delete takes out of owners' stats scope: a room, from every owner it counts for, or a character, with every
+ *  started room it was its owner's last seat in. */
+export type CanonRetirementScope =
+  | { readonly kind: "room"; readonly chatId: ChatId }
+  | { readonly kind: "character"; readonly ownerId: UserId; readonly characterId: CharacterId };
+
+/** The statements a delete places around itself so the live rollups equal a rebuild over the canon it leaves. Counts
+ *  and activity leave with the canon; paid spend stays and moves into the owner-stamped ledger. `beforeDelete` goes
+ *  ahead of the delete, because its census reads the seats the cascade removes, and opens with a guard that rolls
+ *  the batch back when a live write moved the canon it read; `afterDelete` re-derives the extrema from what is left.
+ *  `refused` tells that guard's rollback apart from any other failure of the batch. */
+export interface CanonRetirement<Batch, Db> {
+  readonly beforeDelete: (batch: Batch, db: Db) => void;
+  readonly afterDelete: (batch: Batch, db: Db) => void;
+  readonly refused: (error: unknown) => Promise<boolean>;
+}
+
+/** How many times a delete prepares its retirement again after a live write moved the canon it read, before it
+ *  refuses with retry later. */
+export const CANON_RETIREMENT_ATTEMPTS = 3;
+
+/** How many times a rebuild folds an owner again after a live write moved the canon it folded, before it refuses
+ *  with retry later and leaves the live rollups as they are. */
+export const STATS_REBUILD_ATTEMPTS = 5;
+
+/** Read the canon a delete will take out of scope, through the delete's own connection, and plan its retirement. The
+ *  caller has already authorized the delete; a refused plan is prepared again against the canon that moved. */
+export type PrepareCanonRetirement<Batch, Db> = (db: Db, scope: CanonRetirementScope) => Promise<CanonRetirement<Batch, Db>>;
+
+/** The statements a seat places around itself when it brings a started room back into its owner's stats scope, the
+ *  inverse of a character delete's retirement: the counts the rebuild folds for the room return, and the retired
+ *  ledger rows of its paid samples leave, since the spend they carried is still shown and the canon holds it again.
+ *  `beforeSeat` opens with the same guard; `afterSeat` re-derives the owner's extrema with the seat in place. A seat
+ *  in a room its owner already counts gets no statements and no guard. */
+export interface CanonAdmission<Batch, Db> {
+  readonly beforeSeat: (batch: Batch, db: Db) => void;
+  readonly afterSeat: (batch: Batch, db: Db) => void;
+  readonly refused: (error: unknown) => Promise<boolean>;
+}
+
+/** Read the room a seat is about to bring into `ownerId`'s scope and plan its admission. The caller has already
+ *  authorized the seat; a refused plan is prepared again. */
+export type PrepareCanonAdmission<Batch, Db> = (db: Db, room: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<CanonAdmission<Batch, Db>>;
 
 /** Move the owner's character count by one when a room re-points a seat onto or off `character`: `+1` when it
  *  now holds a seat in `chatId`, `-1` when it no longer does. Stats applies it only when the character holds

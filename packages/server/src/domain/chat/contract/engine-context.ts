@@ -95,7 +95,8 @@ export type ResolveImageUrlOp = (params: {
 // Null drops only the refused picture, never the model's prose or a dangling canon asset reference.
 type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
 
-export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope"> {
+export interface EngineContext
+  extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "settleRetainedChatRebase" | "resolveRetainedChatAccountingScope"> {
   readonly logger: Logger;
   /** The root's trace ring the engine's detached post-turn roots seal into. */
   readonly traces: TraceRing;
