@@ -1,4 +1,4 @@
-import { tv } from "#lib";
+import { CONTROL_WRAP, tv } from "#lib";
 
 // Pressed state lives on the child <Toggle>s themselves — don't add a pressed variant here.
 export const toggleGroupVariants = tv({
@@ -11,7 +11,7 @@ export const toggleGroupVariants = tv({
     fill: {
       true: `
         grid auto-cols-fr grid-flow-col inline-full
-        *:data-[slot=toggle]:text-center *:data-[slot=toggle]:wrap-anywhere *:data-[slot=toggle]:whitespace-normal *:data-[slot=toggle]:min-inline-0
+        *:data-[slot=toggle]:text-center ${CONTROL_WRAP.cell}
       `,
       false: "",
     },

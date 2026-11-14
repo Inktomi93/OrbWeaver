@@ -90,7 +90,7 @@ export function TruncatingSpansStory(): ReactElement {
     <CtIsolation subject="Text" isolates="A truncating span's clip in a block parent and in a flex parent, without a feature around it">
       <Stack data-probe="column" gap="row">
         <Text as="p" data-probe="inline-host">
-          <Text as="span" data-probe="inline-span" truncate={true}>
+          <Text as="span" data-probe="inline-span" truncate="inline">
             {LONG_LINE}
           </Text>
         </Text>
