@@ -33,6 +33,7 @@ import { scanGhostContent } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { holdTornMacro } from "@orb/kit/macro";
+import type { MessageKind } from "@orb/kit/message-author";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
@@ -42,15 +43,16 @@ import { TypingDots, useSmoothText } from "@orb/ui/stream";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useDisplayText } from "#data";
 import type { MessageRenderContext } from "#lib";
 import { useArtViewer } from "../hooks/art-viewer-context.tsx";
 import { useArtControl } from "../hooks/use-art-control.ts";
+import { useDisplayText } from "../hooks/use-display-text.ts";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostProviderWaiting, useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import { CHAT_PROVIDER_WAITING_NOTE } from "../lib/chat-surface-names.ts";
+import { bodyDisplayRow, ghostStamps, reasoningDisplayRow } from "../lib/display-row.ts";
 import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
@@ -219,6 +221,10 @@ export interface GhostMessageRowProps {
   readonly speakerCharacterId: CharacterId | null;
   /** The room's macro-name context, so the streamed text and reasoning resolve `{{char}}`/`{{user}}` exactly as the settled row. */
   readonly renderContext: MessageRenderContext;
+  /** The kind this turn's reply will be born with, a display-pass author stamp. */
+  readonly messageKind: MessageKind;
+  /** The ghost's display depth (`displayDepthsOf`). */
+  readonly displayDepth: number | undefined;
   readonly avatarSize?: "sm" | "md" | "lg" | undefined;
   readonly avatarShape?: "round" | "square" | "rounded" | undefined;
   readonly avatarAspect?: "square" | "portrait" | undefined;
@@ -259,6 +265,8 @@ export function GhostMessageRow({
   attribution,
   speakerCharacterId,
   renderContext,
+  messageKind,
+  displayDepth,
   avatarSize = "lg",
   avatarShape = "round",
   avatarAspect = "square",
@@ -282,10 +290,12 @@ export function GhostMessageRow({
   const text = holdTornMacro(useGhostText(chatId));
   const rawReasoning = holdTornMacro(useGhostReasoning(chatId));
   // Live: never held; while a token's scripts run, the previous token's answer stays on screen.
-  const reasoning = useDisplayText(rawReasoning, renderContext, { characterId: speakerCharacterId, personaId: null, live: true }).text;
+  // The stamps of the reply this turn commits as, so its scripts are the ones the settled row draws.
+  const stamps = ghostStamps(messageKind, speakerCharacterId);
+  const reasoning = useDisplayText(rawReasoning, renderContext, { ...reasoningDisplayRow(stamps, displayDepth), live: true }).text;
   const thinking = useGhostThinking(chatId);
   const providerWaiting = useGhostProviderWaiting(chatId);
-  const displayed = useDisplayText(text, renderContext, { characterId: speakerCharacterId, personaId: null, live: true }).text;
+  const displayed = useDisplayText(text, renderContext, { ...bodyDisplayRow(stamps, displayDepth), live: true }).text;
   const paced = useSmoothText(displayed, {
     enabled: streaming && smoothStream,
     cps: smoothStreamCps,

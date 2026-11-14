@@ -4,6 +4,7 @@
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { DisplayCall } from "./message-render.ts";
 
 /** How long one script may run on one row. The main thread measures it from the moment it receives that
  *  script's start notice, so Worker start-up and queue wait never count, and main-thread jank can only
@@ -26,6 +27,8 @@ export interface DisplayPassRun {
   readonly text: string;
   readonly scripts: readonly RegexScriptRow[];
   readonly macroCtx: ProcessMacroOptions;
+  /** The executor's display call; `scripts` already passed its gate, and the executor reads it again. */
+  readonly call: DisplayCall;
   /** What is left of the row's budget; a rerun after a stop gets less than a first run. */
   readonly budgetMs: number;
 }

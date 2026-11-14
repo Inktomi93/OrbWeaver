@@ -256,7 +256,7 @@ function pump(): void {
       return;
     }
     active = { job, scripts, index: -1 };
-    const run: DisplayPassRun = { kind: "run", jobId: job.id, text: job.pass.text, scripts, macroCtx: job.pass.macroCtx, budgetMs };
+    const run: DisplayPassRun = { kind: "run", jobId: job.id, text: job.pass.text, scripts, macroCtx: job.pass.macroCtx, call: job.pass.call, budgetMs };
     worker.postMessage(run);
     // The first start notice re-arms this with the script deadline; a Worker that never sends one cannot run.
     armTimer(WORKER_START_LIMIT_MS, giveUp);

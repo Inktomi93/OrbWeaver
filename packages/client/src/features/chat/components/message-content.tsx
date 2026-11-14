@@ -6,7 +6,6 @@
 // so a <speaker> NAME position never sees an unresolved {{char}}/{{user}}.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
@@ -14,8 +13,9 @@ import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, RefCallback } from "react";
 import type { PluginDisplayRow } from "#data";
-import { useDisplayText, usePluginDisplayText } from "#data";
-import type { MessageRenderContext, RowRenderPolicy } from "#lib";
+import { usePluginDisplayText } from "#data";
+import type { DisplayRowCall, MessageRenderContext, RowRenderPolicy } from "#lib";
+import { useDisplayText } from "../hooks/use-display-text.ts";
 import { toContentBlocks } from "../lib/content-blocks.ts";
 import { colorForCharacter } from "../lib/speaker-color.ts";
 import type { CardOrigin } from "./card-block.tsx";
@@ -100,10 +100,9 @@ export interface MessageContentProps {
   readonly render: RowRenderPolicy;
   /** Absent means no roster/persona threaded yet, so content renders unchanged. */
   readonly renderContext?: MessageRenderContext | undefined;
-  /** Retargets `{{char}}` to this character; ignored when renderContext is absent. */
-  readonly rowCharacterId?: CharacterId | null | undefined;
-  /** Retargets `{{user}}`/`{{persona}}` to this persona; ignored when renderContext is absent. */
-  readonly rowPersonaId?: PersonaId | null | undefined;
+  /** The row this body belongs to, read off its own data: the display call's target, author stamps and depth. The
+   *  stamps also retarget `{{char}}`, `{{user}}` and `{{persona}}`. Ignored when renderContext is absent. */
+  readonly display: DisplayRowCall;
   /** NAME -\> that character's tint (`speakerThemesByName`); absent ⇒ every span uses the hash fallback.
    *  Its KEYS are also the present character-name set the plain-label span grammar keys on. */
   readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
@@ -128,19 +127,14 @@ export function MessageContent({
   content,
   render,
   renderContext,
-  rowCharacterId,
-  rowPersonaId,
+  display,
   speakerThemes,
   narratorVoiced = false,
   cardOrigin,
   pluginDisplayRow,
   displayOrder,
 }: MessageContentProps): ReactElement {
-  const {
-    text: displayed,
-    pending,
-    observeBody,
-  } = useDisplayText(content, renderContext, { characterId: rowCharacterId, personaId: rowPersonaId, order: displayOrder });
+  const { text: displayed, pending, observeBody } = useDisplayText(content, renderContext, { ...display, order: displayOrder });
   // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
   // produced. Inert without a row or without a registered transform — same string in, same string out.
   const resolvedContent = usePluginDisplayText(displayed, pluginDisplayRow);

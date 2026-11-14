@@ -33,7 +33,7 @@ async function run(job: DisplayPassRun): Promise<void> {
     }
     reply({ kind: "start", jobId: job.jobId, index });
     const started = performance.now();
-    const next = applyDisplayScript(text, script, job.macroCtx);
+    const next = applyDisplayScript(text, script, job.macroCtx, job.call);
     const took = performance.now() - started;
     timings.push(took);
     spent += took;

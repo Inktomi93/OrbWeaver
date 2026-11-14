@@ -210,7 +210,9 @@ const SUBPATH_LEAF_IMPORTERS = [
   "packages/ui/src/primitives/icons/orb-web.ts",
   // The lib barrel deliberately omits the display pipeline that runs scripts on the calling thread; only the
   // Worker-backed display hook reads it.
-  "packages/client/src/data/use-display-text.ts",
+  "packages/client/src/features/chat/hooks/use-display-text.ts",
+  // The display row's call shape, a type of the same pipeline the lib barrel omits.
+  "packages/client/src/features/chat/lib/display-row.ts",
   // The lib barrel deliberately omits these development-only leaves.
   "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
   "packages/client/src/features/chat/components/message-row.tsx",
@@ -1724,7 +1726,7 @@ const CLIENT_BOUNDARIES = [
     comment:
       "message-render.ts can run display regex scripts on the calling thread; a browser surface reads the pipeline through useDisplayText, which runs them in the display-pass Worker.",
     severity: "error",
-    from: { path: CLIENT, pathNot: [`${CLIENT}lib/`, `${CLIENT}data/use-display-text\\.ts$`] },
+    from: { path: CLIENT, pathNot: [`${CLIENT}lib/`, `${CLIENT}features/chat/hooks/use-display-text\\.ts$`] },
     to: { path: `${CLIENT}lib/message-render\\.ts$`, dependencyTypesNot: ["type-only"] },
   },
 ] satisfies IForbiddenRuleType[];

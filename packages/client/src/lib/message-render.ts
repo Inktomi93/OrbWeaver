@@ -2,8 +2,8 @@
 //   1. resolveRowMacros    — {{user}}/{{char}}/{{persona}} → live values, via the shared atom also
 //                            called by server assemble; the row's own characterId/personaId stamps
 //                            drive the subject.
-//   2. executeRegexScripts (placement: "DISPLAY") — the viewer's display scripts, ephemeral,
-//                            never canon/shared-prompt.
+//   2. executeRegexScripts (the display pass) — the viewer's display scripts over the row's target, author
+//                            stamps, depth and room; ephemeral, never canon or the shared prompt.
 //   3. fixMarkdown          — LLM artifact repair.
 //
 // Output is a string for the @orb/ui/markdown renderer (never HTML) — not for composer/edit
@@ -15,7 +15,7 @@
 // (`display-pass.worker.ts`), which the main thread can terminate on a deadline (`display-pass-runner.ts`).
 // This module holds the pure pieces both sides call: steps 1 and 3 run on the main thread around the Worker,
 // and `applyDisplayScript` is the kit executor call the Worker makes, one script at a time. A browser surface
-// reads the whole pipeline through `useDisplayText` (`#data`); `renderMessageForDisplay` runs every step on
+// reads the whole pipeline through `useDisplayText` (`features/chat/hooks/use-display-text.ts`); `renderMessageForDisplay` runs every step on
 // the calling thread and is therefore for Node callers and for a context with no scripts only, which is why
 // the `#lib` barrel does not export it.
 
@@ -24,7 +24,9 @@ import { fixMarkdown } from "@orb/kit/fix-markdown";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { MacroEnv, ProcessMacroOptions, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
-import { executeRegexScripts } from "@orb/kit/regex";
+import type { RoomStanding } from "@orb/kit/message-author";
+import type { RegexPass, RegexPassCall, RegexRowStamps } from "@orb/kit/regex";
+import { executeRegexScripts, regexSkipReason } from "@orb/kit/regex";
 
 export interface MessageRenderContext {
   /** The per-chat name producer — every id the chat references, id→name. Names only; an empty Map is
@@ -41,9 +43,11 @@ export interface MessageRenderContext {
   /** The full character names in roster order — drives \{\{group\}\} and a human-authored/narrator row's
    *  \{\{char\}\} (joined characters in multi, the one character in solo). */
   readonly characterNames?: readonly string[];
-  /** The viewer's display-tier regex scripts in run order (per-user, client-side, ephemeral). The row identity
-   *  rides along so a script the deadline stops can be named and kept stopped. */
+  /** The viewer's display scripts in run order, already narrowed to enabled scripts whose passes include the
+   *  display pass. The row identity rides along so a script the deadline stops can be named and kept stopped. */
   readonly displayScripts?: readonly RegexScriptRow[];
+  /** The room's present human seats, which a display script scoped by its author's standing reads. */
+  readonly room: RoomStanding;
   /** Frozen clock for \{\{time\}\}/\{\{date\}\}; omit = live clock inside kit. */
   readonly nowMs?: number;
   /** The chat's variable bag for \{\{getvar\}\}/\{\{if\}\}. Omit = empty. */
@@ -53,16 +57,30 @@ export interface MessageRenderContext {
   readonly autoFixMarkdown?: boolean;
 }
 
+/** The executor's display call over one row's text: its target (the body's, or `REASONING`), the row's own author
+ *  stamps, its depth among the rows the count admits, and the room. */
+export type DisplayCall = Extract<RegexPassCall, { readonly row: RegexRowStamps }> & { readonly pass: typeof DISPLAY_PASS };
+
+/** What a caller says about the row it renders. Every part is required, so no call site can run an author- or
+ *  depth-scoped script on every row; the room comes from the render context. */
+export type DisplayRowCall = Pick<DisplayCall, "target" | "row" | "depth">;
+
 /** Step 2's whole input, as plain data: it crosses to the Worker by structured clone. */
 export interface DisplayPass {
   /** The row text after step 1. */
   readonly text: string;
+  /** The scripts that run on this call, in order: the context's set through the executor's own gate. */
   readonly scripts: readonly RegexScriptRow[];
+  /** Each running script's index in the context's set. The output depends on the call only through which scripts
+   *  run, so this, not the call, is what a cache key needs: a depth shift that changes no script's verdict keeps
+   *  the cached answer. */
+  readonly running: readonly number[];
   /** The macro context for the scripts' find and replace templates. */
   readonly macroCtx: ProcessMacroOptions;
+  readonly call: DisplayCall;
 }
 
-const NO_SCRIPTS: readonly RegexScriptRow[] = [];
+const DISPLAY_PASS = "display" satisfies RegexPass;
 
 /** The `{{char}}` subject for the secondary display-tier regex ProcessMacroOptions — mirrors the
  *  primary atom: a voiced row resolves its own character (or speakerCharName), a human-authored /
@@ -78,10 +96,9 @@ function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null
   return characterNames?.[0] ?? ctx.speakerCharName ?? "";
 }
 
-/** Step 1, and the plain-data input of step 2. */
-export function prepareDisplayPass(text: string, ctx: MessageRenderContext, rowCharacterId?: CharacterId | null, rowPersonaId?: PersonaId | null): DisplayPass {
-  const characterId = rowCharacterId ?? null;
-  const personaId = rowPersonaId ?? null;
+/** Step 1, and the plain-data input of step 2. The row's own stamps are the macro subjects too. */
+export function prepareDisplayPass(text: string, ctx: MessageRenderContext, display: DisplayRowCall): DisplayPass {
+  const { characterId, personaId } = display.row;
 
   const substituted = resolveRowMacros(
     text,
@@ -106,15 +123,24 @@ export function prepareDisplayPass(text: string, ctx: MessageRenderContext, rowC
     ...(ctx.characterNames === undefined ? {} : { characterNames: ctx.characterNames }),
     ...(ctx.nowMs === undefined ? {} : { nowMs: ctx.nowMs }),
   };
-  return { text: substituted, scripts: ctx.displayScripts ?? NO_SCRIPTS, macroCtx };
+  const call: DisplayCall = { pass: DISPLAY_PASS, ...display, room: ctx.room };
+  const scripts: RegexScriptRow[] = [];
+  const running: number[] = [];
+  for (const [index, script] of (ctx.displayScripts ?? []).entries()) {
+    if (regexSkipReason(script, call) === null) {
+      scripts.push(script);
+      running.push(index);
+    }
+  }
+  return { text: substituted, scripts, running, macroCtx, call };
 }
 
 /** One script of step 2 through the kit executor. The executor is a fold over its script list, so a call per
  *  script gives the same text as one call over the whole list; the Worker calls it per script so the main
  *  thread learns which script is running. A script that fails to compile or throws is skipped silently: a
  *  viewer's broken script is never worth breaking the room render. */
-export function applyDisplayScript(text: string, script: RegexScriptRow, macroCtx: ProcessMacroOptions): string {
-  return executeRegexScripts({ text, scripts: [script], placement: "DISPLAY", ctx: macroCtx });
+export function applyDisplayScript(text: string, script: RegexScriptRow, macroCtx: ProcessMacroOptions, call: DisplayCall): string {
+  return executeRegexScripts({ text, scripts: [script], call, ctx: macroCtx });
 }
 
 /** Step 3. */
@@ -124,10 +150,10 @@ export function finishDisplayPass(text: string, ctx: MessageRenderContext): stri
 
 /** All three steps on the calling thread. In the browser this is only correct for a context with no display
  *  scripts; `useDisplayText` is the browser door. */
-export function renderMessageForDisplay(text: string, ctx: MessageRenderContext, rowCharacterId?: CharacterId | null, rowPersonaId?: PersonaId | null): string {
-  const pass = prepareDisplayPass(text, ctx, rowCharacterId, rowPersonaId);
+export function renderMessageForDisplay(text: string, ctx: MessageRenderContext, display: DisplayRowCall): string {
+  const pass = prepareDisplayPass(text, ctx, display);
   return finishDisplayPass(
-    pass.scripts.reduce((running, script) => applyDisplayScript(running, script, pass.macroCtx), pass.text),
+    pass.scripts.reduce((running, script) => applyDisplayScript(running, script, pass.macroCtx, pass.call), pass.text),
     ctx,
   );
 }

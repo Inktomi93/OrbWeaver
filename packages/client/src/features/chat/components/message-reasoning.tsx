@@ -11,10 +11,12 @@ import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import { useDisplayText, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import type { MessageRenderContext } from "#lib";
 import { cancelEditingReasoning, setReasoningEditDraft, startEditingReasoning, useIsEditingReasoning, useReasoningEditDraftText } from "#state";
+import { useDisplayText } from "../hooks/use-display-text.ts";
 import { useClearReasoningMutation, useEditReasoningMutation } from "../hooks/use-message-mutations.ts";
+import { reasoningDisplayRow } from "../lib/display-row.ts";
 import {
   MESSAGE_REASONING_CANCEL_NAME,
   MESSAGE_REASONING_CLEAR_CONFIRM,
@@ -110,18 +112,16 @@ export interface MessageReasoningProps {
    *  ghost's live trace gets, so `{{char}}`/`{{user}}` read identically before and after commit; the editor
    *  works on the stored bytes. */
   readonly renderContext: MessageRenderContext;
+  /** The row's display depth (`displayDepthsOf`); the block is the row's `REASONING` target at that depth. */
+  readonly displayDepth: number | undefined;
   readonly showIcon: boolean;
   /** The viewer is the message's author or the room host. */
   readonly canEdit: boolean;
 }
 
-export function MessageReasoning({ message, renderContext, showIcon, canEdit }: MessageReasoningProps): ReactElement {
+export function MessageReasoning({ message, renderContext, displayDepth, showIcon, canEdit }: MessageReasoningProps): ReactElement {
   // The block opens collapsed, so it is not held while its scripts run.
-  const display = useDisplayText(message.reasoning ?? "", renderContext, {
-    characterId: message.characterId,
-    personaId: message.personaId,
-    order: message.seq,
-  });
+  const display = useDisplayText(message.reasoning ?? "", renderContext, { ...reasoningDisplayRow(message, displayDepth), order: message.seq });
   const displayText = display.text;
   const trpc = useTRPC();
   const invalidation = useInvalidation();

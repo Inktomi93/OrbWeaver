@@ -19,14 +19,14 @@
 // live ghost row is never held: it shows the previous token's answer while the next computes.
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+
 import { keepPreviousData, queryOptions, skipToken, useQuery } from "@tanstack/react-query";
 import type { RefCallback } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { DISPLAY_ROW_BUDGET_MS } from "#src/lib/display-pass-protocol.ts";
 import type { DisplayPassRequest, StoppedDisplayScript } from "#src/lib/display-pass-runner.ts";
 import { runDisplayPass, stoppedDisplayScripts } from "#src/lib/display-pass-runner.ts";
-import type { DisplayPass, MessageRenderContext } from "#src/lib/message-render.ts";
+import type { DisplayPass, DisplayRowCall, MessageRenderContext } from "#src/lib/message-render.ts";
 import { finishDisplayPass, prepareDisplayPass, renderMessageForDisplay } from "#src/lib/message-render.ts";
 
 /** The longest a settled row's body stays hidden while its pass waits in the queue: one row's budget, so a row
@@ -34,6 +34,7 @@ import { finishDisplayPass, prepareDisplayPass, renderMessageForDisplay } from "
 const DISPLAY_HOLD_MAX_MS = DISPLAY_ROW_BUDGET_MS;
 
 const DISPLAY_PASS_KEY = "display-pass";
+const NO_SCRIPTS: readonly RegexScriptRow[] = [];
 /** Interned script sets kept before the table starts over; a session edits its scripts a handful of times. */
 const MAX_INTERNED_SETS = 64;
 
@@ -60,9 +61,8 @@ function scriptSetId(scripts: readonly RegexScriptRow[]): number {
   return id;
 }
 
-export interface DisplayRow {
-  readonly characterId?: CharacterId | null | undefined;
-  readonly personaId?: PersonaId | null | undefined;
+/** The row a text belongs to: the display call's target, author stamps and depth, read off the row's own data. */
+export interface DisplayRow extends DisplayRowCall {
   /** The streaming ghost: never held, and shows the previous answer while the next computes. */
   readonly live?: boolean | undefined;
   /** Queue order among waiting rows: a higher value runs first. The row's sequence number, so the newest leads. */
@@ -122,17 +122,26 @@ function bodyObserver(slot: DisplayQueueSlot): RefCallback<HTMLElement> {
   };
 }
 
+/** The pass the Worker runs for this row, or null when no script admits it, which needs no Worker. */
+function workerPass(text: string, ctx: MessageRenderContext | undefined, row: DisplayRow): DisplayPass | null {
+  if (ctx === undefined || (ctx.displayScripts?.length ?? 0) === 0) {
+    return null;
+  }
+  const pass = prepareDisplayPass(text, ctx, row);
+  return pass.scripts.length > 0 ? pass : null;
+}
+
 /** The text a row shows for `text` under `ctx`. Absent `ctx` means no roster is threaded yet: the text as is. */
 export function useDisplayText(text: string, ctx: MessageRenderContext | undefined, row: DisplayRow): DisplayText {
-  const scripted = ctx !== undefined && (ctx.displayScripts?.length ?? 0) > 0;
-  const pass = scripted ? prepareDisplayPass(text, ctx, row.characterId, row.personaId) : null;
+  const set = ctx?.displayScripts ?? NO_SCRIPTS;
+  const pass = workerPass(text, ctx, row);
   const live = row.live === true;
   const [created] = useState(() => queueSlot(live, row.order));
   // The slot is not in the key: rows whose pass is equal share one answer whichever asked first.
   const slot: DisplayQueueSlot = created;
   const query = useQuery(
     queryOptions({
-      queryKey: pass === null ? [DISPLAY_PASS_KEY] : [DISPLAY_PASS_KEY, scriptSetId(pass.scripts), pass.text, pass.macroCtx],
+      queryKey: pass === null ? [DISPLAY_PASS_KEY] : [DISPLAY_PASS_KEY, scriptSetId(set), pass.running, pass.text, pass.macroCtx],
       queryFn: pass === null ? skipToken : ({ signal }): Promise<string> => runDisplayPass(pass, { signal, priority: slot.priority }),
       // Local work: it must run offline, and a script that failed once fails the same way again.
       networkMode: "always",
@@ -170,7 +179,7 @@ function displayedAnswer(input: {
     return { landed: true, text };
   }
   if (pass === null) {
-    return { landed: true, text: renderMessageForDisplay(text, ctx, row.characterId, row.personaId) };
+    return { landed: true, text: renderMessageForDisplay(text, ctx, row) };
   }
   return scripted === undefined ? { landed: false, text: finishDisplayPass(pass.text, ctx) } : { landed: true, text: finishDisplayPass(scripted, ctx) };
 }
