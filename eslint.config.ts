@@ -2752,7 +2752,7 @@ export default [
     rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SUBJECT_TEST_SYNTAX) },
   },
   {
-    files: ["tests/e2e/*.spec.ts"],
+    files: ["tests/e2e/**/*.spec.ts"],
     rules: {
       "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, FIRST_ALERT_RESTRICTION, {
         selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",
