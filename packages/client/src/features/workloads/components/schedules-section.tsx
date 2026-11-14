@@ -184,7 +184,7 @@ function ScheduleRow({
   readonly onEdit: () => void;
   readonly onDelete: () => void;
 }): ReactElement {
-  const identity = { kind: schedule.kind, cadence: schedule.cadence, ownerHandle };
+  const identity = { kind: schedule.kind, cadence: schedule.cadence, ownerHandle, mode: schedule.mode };
   const name = scheduleName(identity);
   // ONE CADENCE VOCABULARY (side-eye 2026-08-08 P3). `formatRelative` flips to an absolute date past its
   // horizon, so two adjacent rows read "Next in 6d" and "Next Sep 7, 2026" — the same field in two

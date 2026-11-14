@@ -9,7 +9,7 @@ import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
 /** The schedule this case adds; the corpus may hold another of its kind, so the first match is the one asked about. */
-const ADDED = { kind: "reconcile-stats", cadence: "daily", ownerHandle: null } as const satisfies ScheduleIdentity;
+const ADDED = { kind: "reconcile-stats", cadence: "daily", ownerHandle: null, mode: "singular" } as const satisfies ScheduleIdentity;
 
 const STORY = "tests/client/features/workloads/components/_schedule-dialog-dismissal-stories/ScheduleDialogDismissalStory";
 const READS = ["sessions.me", "workloads.listSchedules", "admin.listUsers", "settings.getUserSettings", "connection.listBindings", "connection.list"] as const;

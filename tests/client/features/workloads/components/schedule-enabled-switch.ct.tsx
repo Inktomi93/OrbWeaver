@@ -48,7 +48,10 @@ test("two schedules in opposite states are found by their stable names, and a fl
   await mount<typeof ScheduleDialogDismissalStory>(STORY, { width: 900 });
 
   const onSwitch = page.getByRole("switch", { name: scheduleEnabledSwitchName({ ...corpusSchedule, ownerHandle: null }), exact: true });
-  const offSwitch = page.getByRole("switch", { name: scheduleEnabledSwitchName({ kind: ADDED_KIND, cadence: "daily", ownerHandle: null }), exact: true });
+  const offSwitch = page.getByRole("switch", {
+    name: scheduleEnabledSwitchName({ kind: ADDED_KIND, cadence: "daily", ownerHandle: null, mode: "singular" }),
+    exact: true,
+  });
   await expect(onSwitch).toHaveAttribute("aria-checked", "true");
   await expect(offSwitch).toHaveAttribute("aria-checked", "false");
   await offSwitch.click();
@@ -64,8 +67,8 @@ test("a daily and a weekly schedule of one kind each have their own title, switc
   await routeTrpc(page, serveCorpusProcedures(caller, READS));
   await mount<typeof ScheduleDialogDismissalStory>(STORY, { width: 900 });
 
-  const daily: ScheduleIdentity = { kind: ADDED_KIND, cadence: "daily", ownerHandle: null };
-  const weekly: ScheduleIdentity = { kind: ADDED_KIND, cadence: "weekly", ownerHandle: null };
+  const daily: ScheduleIdentity = { kind: ADDED_KIND, cadence: "daily", ownerHandle: null, mode: "singular" };
+  const weekly: ScheduleIdentity = { kind: ADDED_KIND, cadence: "weekly", ownerHandle: null, mode: "singular" };
   const dailySwitch = page.getByRole("switch", { name: scheduleEnabledSwitchName(daily), exact: true });
   const weeklySwitch = page.getByRole("switch", { name: scheduleEnabledSwitchName(weekly), exact: true });
   await expect(dailySwitch).toHaveAttribute("aria-checked", "false");
@@ -85,6 +88,31 @@ test("a daily and a weekly schedule of one kind each have their own title, switc
   await expect(editDialog.getByRole("combobox", { name: SCHEDULE_CADENCE_FIELD_NAME, exact: true })).toHaveText(SCHEDULE_CADENCE_LABELS.weekly);
 });
 
+test("a singular and a bulk schedule of one kind, cadence and owner each have their own switch, Edit and Delete name", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.workloads.createSchedule({ input: { kind: ADDED_KIND, params: {} }, mode: "singular", cadence: "daily", enabled: false });
+  await caller.workloads.createSchedule({ input: { kind: ADDED_KIND, params: {} }, mode: "bulk", cadence: "daily", enabled: true });
+  await routeTrpc(page, serveCorpusProcedures(caller, READS));
+  await mount<typeof ScheduleDialogDismissalStory>(STORY, { width: 900 });
+
+  const singular: ScheduleIdentity = { kind: ADDED_KIND, cadence: "daily", ownerHandle: null, mode: "singular" };
+  const bulk: ScheduleIdentity = { ...singular, mode: "bulk" };
+  expect(scheduleName(singular)).not.toBe(scheduleName(bulk));
+  const singularSwitch = page.getByRole("switch", { name: scheduleEnabledSwitchName(singular), exact: true });
+  const bulkSwitch = page.getByRole("switch", { name: scheduleEnabledSwitchName(bulk), exact: true });
+  await expect(singularSwitch).toHaveAttribute("aria-checked", "false");
+  await expect(bulkSwitch).toHaveAttribute("aria-checked", "true");
+  for (const schedule of [singular, bulk]) {
+    await expect(page.getByRole("button", { name: scheduleEditName(schedule), exact: true })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: scheduleDeleteName(schedule), exact: true })).toHaveCount(1);
+  }
+
+  await singularSwitch.click();
+  await expect(singularSwitch).toHaveAttribute("aria-checked", "true");
+  await expect(bulkSwitch).toHaveAttribute("aria-checked", "true");
+});
+
 test("another user's schedule of the same kind and cadence is told apart by its owner's handle", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const member = await root.actor();
@@ -95,7 +123,7 @@ test("another user's schedule of the same kind and cadence is told apart by its 
   await routeTrpc(page, serveCorpusProcedures(ownerCaller, READS));
   await mount<typeof ScheduleDialogDismissalStory>(STORY, { width: 900 });
 
-  const own: ScheduleIdentity = { kind: ADDED_KIND, cadence: "daily", ownerHandle: null };
+  const own: ScheduleIdentity = { kind: ADDED_KIND, cadence: "daily", ownerHandle: null, mode: "singular" };
   const foreign: ScheduleIdentity = { ...own, ownerHandle: member.handle };
   await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(own), exact: true })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(foreign), exact: true })).toHaveAttribute("aria-checked", "false");
@@ -121,7 +149,7 @@ test("another user's schedule is never named as the viewer's own while the owner
   await mount<typeof ScheduleDialogDismissalStory>(STORY, { width: 900 });
   await users.requested;
 
-  const own: ScheduleIdentity = { kind: ADDED_KIND, cadence: "daily", ownerHandle: null };
+  const own: ScheduleIdentity = { kind: ADDED_KIND, cadence: "daily", ownerHandle: null, mode: "singular" };
   const pending: ScheduleIdentity = { ...own, ownerHandle: UNRESOLVED_OWNER_HANDLE };
   await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(own), exact: true })).toHaveCount(1);
   await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(own), exact: true })).toHaveAttribute("aria-checked", "true");

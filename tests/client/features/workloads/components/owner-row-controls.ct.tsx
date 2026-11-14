@@ -112,7 +112,7 @@ test("a delegated admin is offered the switch, Edit and Delete on a member's sch
   await routeOrbSocket(page);
   await mount<typeof WorkloadActionGroupsStory>(STORY, { sectionId: "workloads-schedules", width: 960, appearance: appearanceSettingsSchema.parse({}) });
 
-  const ofMember: ScheduleIdentity = { kind: STATS.kind, cadence: "daily", ownerHandle: memberHandle };
+  const ofMember: ScheduleIdentity = { kind: STATS.kind, cadence: "daily", ownerHandle: memberHandle, mode: "singular" };
   const ofOwner: ScheduleIdentity = { ...ofMember, ownerHandle };
   await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(ofMember), exact: true })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("button", { name: scheduleEditName(ofMember), exact: true })).toHaveCount(1);
@@ -161,7 +161,7 @@ test("with the account list failing a delegated admin reads why no schedule offe
 
   served.recover();
   await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
-  const ofMember: ScheduleIdentity = { kind: STATS.kind, cadence: "daily", ownerHandle: memberHandle };
+  const ofMember: ScheduleIdentity = { kind: STATS.kind, cadence: "daily", ownerHandle: memberHandle, mode: "singular" };
   await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName(ofMember), exact: true })).toHaveCount(1);
   await expect(page.getByRole("switch", { name: scheduleEnabledSwitchName({ ...ofMember, ownerHandle }), exact: true })).toHaveCount(0);
   await expect(page.getByText(OTHERS_CONTROLS_HIDDEN_TEXT, { exact: true })).toHaveCount(0);

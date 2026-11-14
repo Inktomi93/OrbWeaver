@@ -49,8 +49,11 @@ const ROOT_OPTIONS = {
   physicalPeer: () => "127.0.0.1",
   startJobs: false,
 } as const;
-/** A singular and a bulk schedule of one kind and cadence: the row controls' geometry, not their names, is the subject. */
-const SINGULAR_AND_BULK_SCHEDULE = { kind: "import-token-usage-backfill", cadence: "daily", ownerHandle: null } as const satisfies ScheduleIdentity;
+/** A singular and a bulk schedule of one kind and cadence: the row controls' geometry is the subject. */
+const SINGULAR_AND_BULK_SCHEDULE = { kind: "import-token-usage-backfill", cadence: "daily", ownerHandle: null } as const satisfies Omit<
+  ScheduleIdentity,
+  "mode"
+>;
 const nameMaximum = createPersonaSchema.shape.name.maxLength;
 if (nameMaximum === null) {
   throw new Error("The collision case requires a bounded persona name");
@@ -269,11 +272,11 @@ for (const regime of REGIMES) {
       expect((await settledBox(page.getByRole("group", { name: "Workload action host", exact: true }))).width).toBe(regime.width);
       const rows = page.locator('[data-slot="list-row-root"]');
       await expect(rows).toHaveCount(2);
-      for (const row of await rows.all()) {
-        const toggle = row.getByRole("switch");
-        // Both rows share one kind, cadence and owner, so they share one name; the row scopes each lookup.
-        const edit = row.getByRole("button", { name: scheduleEditName(SINGULAR_AND_BULK_SCHEDULE), exact: true });
-        const remove = row.getByRole("button", { name: scheduleDeleteName(SINGULAR_AND_BULK_SCHEDULE), exact: true });
+      for (const mode of ["singular", "bulk"] as const) {
+        const identity: ScheduleIdentity = { ...SINGULAR_AND_BULK_SCHEDULE, mode };
+        const edit = page.getByRole("button", { name: scheduleEditName(identity), exact: true });
+        const remove = page.getByRole("button", { name: scheduleDeleteName(identity), exact: true });
+        const toggle = rows.filter({ has: edit }).getByRole("switch");
         await measureActions(edit.locator(".."), [edit, remove], testInfo, "schedule-row-actions");
         expect(
           (await actionGroupGeometry(page.getByRole("group", { name: "Workload action host", exact: true }), [toggle])).inlineOverflow,
