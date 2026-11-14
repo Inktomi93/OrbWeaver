@@ -116,7 +116,7 @@ test.each([
 // Playwright's `trimStringWithEllipsis` (playwright-core `coreBundle.js`), the external edge these lines come from: a text
 // over its cap keeps cap - 1 code points and an ellipsis, so a long value survives only as its prefix.
 function playwrightCut(text: string, cap: number): string {
-  const points = [...text];
+  const points = Array.from(text);
   return points.length <= cap ? text : `${points.slice(0, cap - 1).join("")}…`;
 }
 

@@ -9,7 +9,6 @@ import { EXIT } from "../../../floor/cli/exit-contract.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { MapAtlasEvidence, MapEntry, MapShellEvidence, RawMapBridgeEvidence, RawMapEntry } from "../../contract/map.ts";
 import type { CaptureOutcome } from "../../contract/types.ts";
-import { diskSafeUrl } from "../../lib/disk-safe-argv.ts";
 import { buildSurfaceMapScript, READ_MAP_BRIDGE_SCRIPT } from "../../lib/map-browser.ts";
 import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
@@ -81,18 +80,6 @@ async function captureSurfaceMap(
   }
 }
 
-// The page's own `location.href`, which keeps any token the route or base carried: masked by pair name, then by value.
-function diskSafePageUrl(url: string): string {
-  return diskSafeUrl(scrubPrivateText(url));
-}
-
-function diskSafeAtlas(atlas: MapAtlasEvidence): MapAtlasEvidence {
-  if (atlas.status === "unavailable") {
-    return { ...atlas, url: diskSafePageUrl(atlas.url), reason: scrubPrivateText(atlas.reason) };
-  }
-  return { ...atlas, url: diskSafePageUrl(atlas.url), place: { ...atlas.place, url: diskSafePageUrl(atlas.place.url) } };
-}
-
 async function captureMapBridge(page: Page): Promise<{
   readonly atlas: MapAtlasEvidence | null;
   readonly shell: MapShellEvidence | null;
@@ -113,7 +100,7 @@ async function captureMapBridge(page: Page): Promise<{
   let shellError: string | null = null;
   // the capabilities shape failure becomes atlasError, which printAtlas in lib/map-report.ts prints as MAP INSTRUMENT ERROR. Ends if printAtlas stops printing its error argument.
   try {
-    atlas = diskSafeAtlas(mapAtlasEvidence(raw.atlas));
+    atlas = mapAtlasEvidence(raw.atlas);
   } catch (error) {
     atlasError = scrubPrivateText(errorMessage(error));
   }

@@ -141,7 +141,7 @@ function notedPrefixLength(window: string): number {
 // ends there. A cut keeps exactly `cap - 1` code points after its opener, so ordinary text that ends in an ellipsis is
 // never judged.
 function cutPrefixAt(text: string, end: number): number {
-  const points = [...text.slice(0, end)];
+  const points = Array.from(text.slice(0, end));
   let longest = 0;
   for (const { cap, opens } of PLAYWRIGHT_CUTS) {
     const keep = cap - TRUNCATION_MARK.length;
