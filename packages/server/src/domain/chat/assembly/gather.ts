@@ -16,7 +16,7 @@
 // memoryConfig (settings/preset/persona reads chat must not perform).
 
 import type { AssembleContext, ChatInjection, MacroSlice, MemoryRecallSlice, MessageView } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ConsentingHostId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "@orb/kit/recall";
 import { humanizeDuration } from "@orb/kit/time";
@@ -69,7 +69,7 @@ async function gatherDatabank(
   ctx: ChatContext,
   args: {
     readonly chatId: ChatId;
-    readonly hostUserId: UserId;
+    readonly hostUserId: ConsentingHostId;
     readonly pendingUserText: string | undefined;
     readonly eligibleContent: readonly string[];
     /** The host's databank settings (DB6), from ForeignInputs — retrieval params + the slot budget. */

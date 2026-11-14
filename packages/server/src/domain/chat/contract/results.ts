@@ -45,7 +45,7 @@ import type {
   ToolCallInput,
   WireTool,
 } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
@@ -352,9 +352,9 @@ export interface TurnPrep {
   /** The initiator who owns attribution and abort. The caller (`Principal.userId`) need not be the initiator. */
   readonly triggeredBy: UserId;
   /** The frozen room host whose connection funds every inference call belonging to this turn. */
-  readonly funderUserId: UserId;
+  readonly funderUserId: ConsentingHostId;
   /** The same frozen host as the assembly and tool principal. */
-  readonly runAsUserId: UserId;
+  readonly runAsUserId: ConsentingHostId;
   /** The turn's origin (the cascade guard's non-human-initiator seam). Absent ⇒
    *  a human turn (`'human'`/depth 0 — the DB column defaults), so every human/character/agent verb stays
    *  byte-identical. An automation `requestTurn` threads `'automation'` + `parentDepth + 1`; the engine
