@@ -16,7 +16,7 @@ import { sha256Hex } from "#primitives/content-hash";
 import type { CollectedCard, CollectedChat } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
 import { currentCardIdentity, findImportedCharacter, importFileHash } from "../substrate/card.ts";
-import { partitionGroups, resolveMembers } from "../substrate/group.ts";
+import { partitionGroups, resolveMembers, seatsOf } from "../substrate/group.ts";
 import { orphanImportHash } from "../substrate/handle.ts";
 import { presetBytes, themeBytes } from "../substrate/landing-bytes.ts";
 
@@ -73,11 +73,11 @@ async function judgeChats(
   }
 }
 
-/** What the card pass learned: the answer for each card, the row each card filename resolves to (the group wave's
- *  member key, the last card under a filename winning as it does in the run), and the owned character behind a row. */
+/** What the card pass learned: the answer for each card, the row each card resolves to (which a group of its profile
+ *  seats by filename), and the owned character behind a row. */
 interface CardPass {
   readonly characters: Map<CollectedCard, ImportAnswer>;
-  readonly rowByFilename: Map<string, RowKey>;
+  readonly rowByCard: Map<CollectedCard, RowKey>;
   readonly ownedByRow: Map<RowKey, CharacterId>;
 }
 
@@ -88,7 +88,7 @@ interface CardPass {
 async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected, chats: ChatJudge): Promise<CardPass> {
   const ownerId = deps.principal.userId;
   const { characterOps, exportCurrentCard } = deps.contextFor(deps.principal, deps.storeAvatar);
-  const pass: CardPass = { characters: new Map(), rowByFilename: new Map(), ownedByRow: new Map() };
+  const pass: CardPass = { characters: new Map(), rowByCard: new Map(), ownedByRow: new Map() };
   // call-local: the row each landed card identity lands under, so a later equal card finds it. Ends if it outlives the pass.
   const landed = new Map<string, RowKey>();
   for (const bundle of collected.bundles) {
@@ -115,7 +115,7 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
       landed.set(bundle.contentHash, row);
       pass.characters.set(bundle, { reuse: null, keys });
     }
-    pass.rowByFilename.set(bundle.filename, row);
+    pass.rowByCard.set(bundle, row);
     await judgeChats(deps, chats, { key: row, characterId: pass.ownedByRow.get(row) ?? null }, bundle.chats);
     // These reads resolve on microtasks, so a large folder would otherwise hold the event loop for the whole pass.
     await yieldToEventLoop();
@@ -150,10 +150,10 @@ async function passOrphans(deps: ProfileDirImportDeps, collected: ProfileCollect
   return orphans;
 }
 
-/** A group's founding character is its first member the import set carries; a member that is not yet in
- *  the library stands in as the row the upload creates for it, so a held member after it never becomes the founder. */
-function groupFounder(group: ProfileCollected["groups"][number], rowByFilename: ReadonlyMap<string, RowKey>): RowKey | null {
-  return resolveMembers(group, rowByFilename).seated[0]?.characterId ?? null;
+/** A group's founding character is its first member its profile carries; a member that is not yet in the library
+ *  stands in as the row the upload creates for it, so a held member after it never becomes the founder. */
+function groupFounder(group: ProfileCollected["groups"][number], seats: ReadonlyMap<string, RowKey>): RowKey | null {
+  return resolveMembers(group, seats).seated[0]?.characterId ?? null;
 }
 
 /** A group is reused when every transcript it brings is: the write counts a room only when it adds one. A group the
@@ -162,15 +162,17 @@ function groupFounder(group: ProfileCollected["groups"][number], rowByFilename: 
  *  group holding one cannot be compared. */
 async function passGroups(deps: ProfileDirImportDeps, collected: ProfileCollected, cards: CardPass, chats: ChatJudge): Promise<ImportOwnership["groups"]> {
   const groups = new Map<ProfileCollected["groups"][number], ImportAnswer>();
-  const { importable } = partitionGroups(
-    collected.groups,
-    collected.bundles.map((bundle) => bundle.filename),
+  const seatsByGroup = new Map(
+    collected.profiles.flatMap(({ result }) => {
+      const seats = seatsOf(result.bundles, cards.rowByCard);
+      return result.groups.map((group) => [group, seats] as const);
+    }),
   );
-  for (const group of importable) {
+  for (const group of partitionGroups(collected.profiles).importable) {
     if (deps.signal.aborted) {
       break;
     }
-    const founder = groupFounder(group, cards.rowByFilename);
+    const founder = groupFounder(group, seatsByGroup.get(group) ?? new Map());
     if (founder !== null) {
       await judgeChats(deps, chats, { key: founder, characterId: cards.ownedByRow.get(founder) ?? null }, group.chats);
     }

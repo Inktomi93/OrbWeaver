@@ -26,6 +26,7 @@ import type { CollectedProfile, ProfileCollected, ProfileCollectRecords, Profile
 import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnresolvedPinnedPersona, ImportWorldNote } from "../contract/results.ts";
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
+import { seatsOf } from "../substrate/group.ts";
 import { buildImportPreview, countImportKinds, refusedGroups } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 import { findOwnership } from "./profile-ownership.ts";
@@ -531,7 +532,7 @@ async function attachWorldLinksFor(args: {
 async function attachCollectedWorldLinks(
   deps: ProfileDirImportDeps,
   collected: ProfileCollected,
-  characterIdByCardFilename: ReadonlyMap<string, CharacterId>,
+  characterIdByCard: ReadonlyMap<CollectedCard, CharacterId>,
   landed: ReadonlyMap<string, WorldBookId>,
 ): Promise<{ readonly attached: number; readonly missing: { character: string; book: string }[]; readonly skippedReason: string | null }> {
   const attach = deps.attachBooksByName;
@@ -547,7 +548,7 @@ async function attachCollectedWorldLinks(
       continue;
     }
     anyLinks = true;
-    const characterId = characterIdByCardFilename.get(bundle.filename);
+    const characterId = characterIdByCard.get(bundle);
     if (attach === undefined || characterId === undefined) {
       continue;
     }
@@ -701,10 +702,9 @@ async function importCollectedBundles(
 ): Promise<{
   readonly changed: number;
   readonly skippedCards: ImportSkippedCard[];
-  /** Card FILENAME → the character it resolved to (created OR matched). The ST group wave's ONLY member key —
-   *  see `verbs/import-group-chats.ts` for why a handle or a display name cannot substitute. */
-  readonly characterIdByCardFilename: Map<string, CharacterId>;
-  readonly characterNameByCardFilename: Map<string, string>;
+  /** Each imported card → the character it resolved to (created OR matched). Keyed by the card itself, not its
+   *  filename: two profiles can keep different cards under one filename. */
+  readonly characterIdByCard: Map<CollectedCard, CharacterId>;
   /** §5.7 — the solo wave's half of the unresolved chat-bound persona picks. */
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
   /** The solo wave's half of the dedup-skip HEAL count. */
@@ -721,8 +721,7 @@ async function importCollectedBundles(
   let chatsPersonaHealed = 0;
   const memoryChatIds: ChatId[] = [];
   const skippedCards: ImportSkippedCard[] = [];
-  const characterIdByCardFilename = new Map<string, CharacterId>();
-  const characterNameByCardFilename = new Map<string, string>();
+  const characterIdByCard = new Map<CollectedCard, CharacterId>();
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
   let cardScriptsLifted = 0;
   const skippedCardTags: ImportSkippedCardTag[] = [];
@@ -742,8 +741,7 @@ async function importCollectedBundles(
       unresolvedPins.push(...result.unresolvedPins);
       cardScriptsLifted += result.scriptsLifted;
       cardScriptsReused += result.scriptsReused;
-      characterIdByCardFilename.set(bundle.filename, result.characterId);
-      characterNameByCardFilename.set(bundle.filename, bundle.cardName);
+      characterIdByCard.set(bundle, result.characterId);
       const tagNames = tagsByEntityKey.get(bundle.filename);
       if (tagNames !== undefined && tagNames.length > 0) {
         skippedCardTags.push(...(await attachBundleTags(deps, bundle, result.characterId, tagNames)));
@@ -755,8 +753,7 @@ async function importCollectedBundles(
   return {
     changed,
     skippedCards,
-    characterIdByCardFilename,
-    characterNameByCardFilename,
+    characterIdByCard,
     unresolvedPins,
     chatsPersonaHealed,
     memoryChatIds,
@@ -902,7 +899,7 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   // `charLore` names per-character EXTRA books (`auxiliary`). A name the worlds wave landed binds the row it
   // landed or was reused as (an import is additive, so changed lore sits beside the stale book under a
   // numbered name); any other name resolves by exact name. A dangling name is a report row, never a near-match.
-  const worldLinks = await attachCollectedWorldLinks(deps, collected, bundleResult.characterIdByCardFilename, worldResult.landed);
+  const worldLinks = await attachCollectedWorldLinks(deps, collected, bundleResult.characterIdByCard, worldResult.landed);
 
   // The ORPHAN wave — transcripts whose card is absent get a minted placeholder (evidence-only, tagged
   // `orphan import`) and then ride the ORDINARY chats verb. Runs after the card wave so a same-slug card
@@ -911,12 +908,17 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   changed += orphanResult.changed;
 
   // ST GROUPS strictly AFTER the character wave: a group's members are card FILENAMES, and the filename →
-  // characterId map only exists once every card has been imported (or matched). A member card that is not in
-  // the import set is skipped WITH a report note — the room still forms around the members that resolved.
+  // characterId map only exists once every card has been imported (or matched). Each profile's groups seat from its
+  // own cards. A member card its profile does not carry is skipped WITH a report note — the room still forms around
+  // the members that resolved.
   const groupResult = await service.importGroupChats({
-    groups: deps.signal.aborted ? [] : collected.groups,
-    characterIdByCardFilename: bundleResult.characterIdByCardFilename,
-    characterNameByCardFilename: bundleResult.characterNameByCardFilename,
+    profiles: deps.signal.aborted
+      ? []
+      : collected.profiles.map(({ result }) => ({
+          groups: result.groups,
+          characterIdByCardFilename: seatsOf(result.bundles, bundleResult.characterIdByCard),
+          characterNameByCardFilename: new Map(result.bundles.map((bundle) => [bundle.filename, bundle.cardName])),
+        })),
   });
   changed += groupResult.groupChatsImported;
 
