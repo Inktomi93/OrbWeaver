@@ -9,7 +9,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AssetsAssemblyContext, AssetsService } from "#domain/assets";
-import { createBackgroundStore } from "#domain/assets";
+import { createAdmitsAvatar, createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createCompareAndSetImportedTokenUsage, createFindImportedChatHashes, createListImportedTokenUsageCandidates } from "#domain/chat";
 import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
@@ -193,6 +193,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
             backgroundHashes: createOwnedBackgroundHashes(deps.settingsCtx),
             findPersonas: createFindOwnedPersonas({ db }),
             findChatHashes: createFindImportedChatHashes({ db }),
+            admitsAvatar: createAdmitsAvatar(),
           },
           importPresetScripts: deps.importPresetScripts,
           importGlobalScripts: deps.importGlobalScripts,

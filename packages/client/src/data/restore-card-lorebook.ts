@@ -13,9 +13,9 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CardLorebookRestoreResult } from "@orb/contracts/import";
 import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { throwHttpError } from "./http-error.ts";
 
-const RESTORE_FIELD = "file";
 const BAD_REQUEST = 400;
 
 /** POST one card file's bytes to the #1598 restore route and return the server's verdict (`replaced:false` means
@@ -24,7 +24,7 @@ const BAD_REQUEST = 400;
  *  thrown — only a whole-request rejection (a status the route never uses for its own refusal) throws. */
 export async function restoreCardLorebook(file: File): Promise<CardLorebookRestoreResult> {
   const form = new FormData();
-  form.append(RESTORE_FIELD, file);
+  form.append(UPLOAD_FILE_FIELD, file);
   const response = await fetch(PORTABILITY_ROUTES.restoreCardLorebook, {
     method: "POST",
     body: form,

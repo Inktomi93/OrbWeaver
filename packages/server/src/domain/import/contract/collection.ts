@@ -1,5 +1,6 @@
 // Parsed profile interchange and collected file bundles; no driver dependencies or write authority.
 
+import type { PersonaImportName } from "@orb/contracts/persona";
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
@@ -10,7 +11,7 @@ import type { ParsedStTheme } from "#primitives/serde/theme";
 
 /** name is the key an imported chat's user_name maps against (case-insensitively) to attribute messages. */
 export interface ParsedPersona {
-  readonly name: string;
+  readonly name: PersonaImportName;
   readonly description: string;
   readonly avatarFile: string;
   readonly isDefault: boolean;

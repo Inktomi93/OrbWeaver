@@ -139,6 +139,9 @@ async function previewMergeAndRun(
   plan: TreeImportPlan,
 ): Promise<{ readonly previews: readonly ImportPreview[]; readonly merged: ImportPreview; readonly before: Library; readonly after: Library }> {
   const { previews, merged } = await previewPlan(root, plan);
+  // The first authed request seeds the default background plates in the background (not gated by `SEED_CONTENT`), so
+  // they land before the count the run is measured against, never inside it.
+  await root.settleBackground();
   const before = await libraryHolds(root);
   await sendPlan(root, plan, false, () => Promise.resolve());
   return { previews, merged, before, after: await libraryHolds(root) };

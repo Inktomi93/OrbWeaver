@@ -13,8 +13,11 @@
 // The READ path is poison-VISIBLE where the dispatch path is poison-refusing: `readRow` surfaces an
 // unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
 // of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s. A stored result that no
-// longer parses is left out of the view and logged with its row id, never its content; the row keeps its params.
-// The runner refuses to store such a result, so a row read this way was written by another build.
+// longer parses makes its row poison too, is left out of the view and is logged once with its row id, never its
+// content. The runner refuses to store such a result, so a row read this way was written by another build.
+//
+// A TRANSIENT row (`workloads.transient`, stamped at enqueue from the contribution's `transientFor`) is never listed,
+// only read by id, and is deleted once terminal: when the owner's next row of the kind ends, and at boot.
 
 import type {
   CancelWorkloadResult,
@@ -31,7 +34,7 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, getTableColumns, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { Logger } from "#foundation/observability";
@@ -116,7 +119,7 @@ const QUEUE_SCAN_PAGE_SIZE = 10;
 // also the transport `.max()` trust boundary, so the wire refusal and this hard cap never drift.
 
 type WorkloadInsert = Readonly<
-  Pick<WorkloadSelectRow, "id" | "kind" | "mode" | "admissionKey" | "lane" | "params" | "ownerId" | "funderUserId" | "scheduledAt" | "createdAt">
+  Pick<WorkloadSelectRow, "id" | "kind" | "mode" | "admissionKey" | "lane" | "transient" | "params" | "ownerId" | "funderUserId" | "scheduledAt" | "createdAt">
 > & {
   readonly dependsOn: readonly NonNullable<WorkloadSelectRow["dependsOn"]>[number][] | null;
 };
@@ -167,9 +170,10 @@ interface RowRead {
 //  deploy-skew row that cannot be spelled at all). A known kind whose params blob fails its schema is NOT
 //  dropped — it surfaces as a POISON row (`params: null, poison: true`) so a broken row is visible and
 //  actionable instead of vanishing from `list`/`get`. A stored result that no longer parses (one an older build
-//  wrote) is never published: the row reads with `result: null`, keeps whatever params it has, and says so in
-//  `resultUnreadable`, so one stale row neither rejects the whole list nor loses its settings. The one place the
-//  JSON columns are narrowed; the per-kind validator is the OWNING domain's contribution schema — the queue
+//  wrote) makes the row poison too, with `result: null`: the result is never published, the owner sees the row as
+//  unreadable rather than as a run that succeeded with nothing to show, and one stale row never rejects the whole
+//  list. Retry clones the raw params blob (`loadRawWorkloadParams`), so a poison row loses no settings. The one place
+//  the JSON columns are narrowed; the per-kind validator is the OWNING domain's contribution schema — the queue
 //  spells no domain's vocabulary.
 function readRow(contributions: WorkloadContributions, row: WorkloadDecodedRow): RowRead | null {
   if (!isKnownKind(row.kind)) {
@@ -186,6 +190,9 @@ function readRow(contributions: WorkloadContributions, row: WorkloadDecodedRow):
   } catch {
     return { view: { ...base, kind: row.kind, params: null, result, poison: true }, resultUnreadable };
   }
+  if (resultUnreadable) {
+    return { view: { ...base, kind: row.kind, params: null, result: null, poison: true }, resultUnreadable };
+  }
   // TS can't correlate the widened `row.kind` union with the per-kind params/result — sanctioned cast.
   return {
     view: { ...base, kind: row.kind, params, result, poison: false } as WorkloadRunnableRow,
@@ -193,11 +200,13 @@ function readRow(contributions: WorkloadContributions, row: WorkloadDecodedRow):
   };
 }
 
-/** {@link readRow} for a list or a get, which says once per read that a row's result was left out. The line names
- *  the row and its kind and never the result: a result can carry the owner's file names. */
+/** {@link readRow} for a list or a get, which says once per row per composed root that a row's result was left out,
+ *  so a polled list does not repeat it. The line names the row and its kind and never the result: a result can carry
+ *  the owner's file names. */
 function viewOf(reads: WorkloadReads, row: WorkloadDecodedRow): WorkloadRowAnyKind | null {
   const read = readRow(reads.contributions, row);
-  if (read?.resultUnreadable === true) {
+  if (read?.resultUnreadable === true && !reads.reportedUnreadable.has(row.id)) {
+    reads.reportedUnreadable.add(row.id);
     getLog(reads.logger).warn({ workloadId: row.id, kind: row.kind }, "workloads: a stored result no longer parses and is not shown");
   }
   return read?.view ?? null;
@@ -231,6 +240,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
     mode: row.mode,
     admissionKey: row.admissionKey,
     lane: row.lane,
+    transient: row.transient,
     params: row.params,
     ownerId: row.ownerId,
     funderUserId: row.funderUserId,
@@ -439,7 +449,8 @@ export async function loadRawWorkloadParams(db: Db, id: WorkloadId): Promise<Rec
  *  page: it decides which rows the operator sees at all, differently on each poll. The id tiebreak is the
  *  same one the queue scan below already carries (TypeIDs are uuidv7-backed, so it stays newest-first). */
 export async function listWorkloads(db: Db, reads: WorkloadReads, params: WorkloadListFilter): Promise<WorkloadRowAnyKind[]> {
-  const filters: SQL[] = [];
+  // A transient row is its owner's to `get` by id, never to list; filtered in SQL so the LIMIT counts listed rows.
+  const filters: SQL[] = [eq(workloads.transient, false)];
   if (params.kind !== undefined) {
     filters.push(eq(workloads.kind, params.kind));
   }
@@ -626,6 +637,49 @@ export async function findActiveForBootSweep(db: Db): Promise<ActiveWorkloadRow[
     .from(workloads)
     .where(inArray(workloads.status, [...ACTIVE_WORKLOAD_STATUSES]));
   return rows.map((row) => ({ kind: row.kind, params: JSON.parse(row.params) }));
+}
+
+/** Delete the TERMINAL transient rows: when `scope` names them, one owner's of one kind other than the row that just
+ *  ended; else (the boot sweep) every one but each owner's newest of each kind, which an open review may not have read
+ *  yet and the owner's next transient row of the kind deletes when it ends. A transient row still queued or running is
+ *  never deleted: its run owns it, and it ends through its own verbs. Returns how many went. */
+// THE ENGINE PLANE (D20 un-principal) — the scope is the owner of a row the runner itself claimed, or none at boot. Ends if a door passes a caller-authored owner here.
+export async function deleteTerminalTransientWorkloads(
+  db: Db,
+  scope?: { readonly kind: WorkloadKind; readonly ownerId: UserId | null; readonly exceptId: WorkloadId },
+): Promise<number> {
+  const filters: SQL[] = [eq(workloads.transient, true), inArray(workloads.status, [...TERMINAL_STATUSES])];
+  if (scope === undefined) {
+    const later = alias(workloads, "later_transient");
+    filters.push(
+      exists(
+        db
+          .select({ id: later.id })
+          .from(later)
+          .where(
+            and(
+              eq(later.transient, true),
+              inArray(later.status, [...TERMINAL_STATUSES]),
+              eq(later.kind, workloads.kind),
+              // SQLite's IS is equality that holds for two nulls, so a system row's newest is kept too.
+              sql`${later.ownerId} IS ${workloads.ownerId}`,
+              or(gt(later.createdAt, workloads.createdAt), and(eq(later.createdAt, workloads.createdAt), gt(later.id, workloads.id))),
+            ),
+          ),
+      ),
+    );
+  } else {
+    filters.push(
+      eq(workloads.kind, scope.kind),
+      scope.ownerId === null ? isNull(workloads.ownerId) : eq(workloads.ownerId, scope.ownerId),
+      ne(workloads.id, scope.exceptId),
+    );
+  }
+  const deleted = await db
+    .delete(workloads)
+    .where(and(...filters))
+    .returning({ id: workloads.id });
+  return deleted.length;
 }
 
 /** Put an orphaned RUNNING row BACK IN THE QUEUE — the resumable disposition of the boot reclaim.

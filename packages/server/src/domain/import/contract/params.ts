@@ -82,13 +82,19 @@ export interface ImportChatsInput {
   readonly chats: CollectedChat[];
 }
 
-/** The ST group wave's input. Both maps are keyed by CARD FILENAME — the collect-time key ST itself uses for a
- *  group's `members[]` and for each transcript line's `original_avatar`, and the only key that survives handle
- *  collision-suffixing. The driver builds them after the character wave (the only point the mapping exists):
- *  every card this run imported, plus any member card already in the library. */
-export interface ImportGroupsInput {
+/** One profile directory's groups and the cards they may seat. Both maps are keyed by CARD FILENAME — the
+ *  collect-time key ST itself uses for a group's `members[]` and for each transcript line's `original_avatar`, and
+ *  the only key that survives handle collision-suffixing. They hold only this profile's cards: a filename another
+ *  profile also uses names a different card there. The driver builds them after the character wave (the only point
+ *  the mapping exists), from the cards this run imported or matched. */
+export interface ImportProfileGroups {
   readonly groups: readonly CollectedGroup[];
   readonly characterIdByCardFilename: ReadonlyMap<string, CharacterId>;
   /** Card filename → the card's display NAME, for the roster-scoped name fallback on older exports. */
   readonly characterNameByCardFilename: ReadonlyMap<string, string>;
+}
+
+/** The ST group wave's input, one entry per profile directory. */
+export interface ImportGroupsInput {
+  readonly profiles: readonly ImportProfileGroups[];
 }

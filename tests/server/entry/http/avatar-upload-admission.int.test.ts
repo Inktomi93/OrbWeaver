@@ -5,6 +5,7 @@
 import type { AssetKind } from "@orb/contracts/assets";
 import { ASSET_UPLOAD_REFUSAL_CODES, assetUploadRefusalSchema, storedAssetSchema } from "@orb/contracts/assets";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
 import type { NativeServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -24,7 +25,7 @@ async function ownerRoot(): Promise<NativeServerTestHarness> {
 
 async function upload(root: NativeServerTestHarness, file: File): Promise<Response> {
   const form = new FormData();
-  form.set("file", file);
+  form.set(UPLOAD_FILE_FIELD, file);
   form.set("kind", AVATAR);
   return await root.http.request(UPLOAD_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: form });
 }
