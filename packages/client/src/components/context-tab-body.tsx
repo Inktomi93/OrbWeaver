@@ -1,7 +1,8 @@
 // A tier 2 composite (`components/`): the one column a CONTEXT pane's body lays its content in (UI-Density-Law §3.1). It renders no
 // Surface, so the density tier is the host's; the body owns its reads, its gone state and its boundary. Every body a CONTEXT registration
-// declares draws it at its root, so its loading and failure states take the same inset as its settled state. The `context-tab` cohort of
-// `pnpm ui-facts` lists each registered body with the kind it draws, and a hand-built root is its defect.
+// declares draws it at its root on every branch it returns, with any boundary inside it, so its loading, failure and gone states take the
+// inset its settled state does. The `context-tab` cohort of `pnpm ui-facts` lists each registered body with the kinds its branches draw,
+// and a branch with any other root is hand-built, its defect.
 //
 // Two kinds leave the pane's scroll to the body, each for a proven reason. `fill` is a column sized to the pane, for a body that holds its own
 // scroll area (the room's Members list, the character's Chats projection) or a chart that takes the pane's height (the Corpus map). `scroll`

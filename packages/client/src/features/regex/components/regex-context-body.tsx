@@ -52,12 +52,14 @@ export function RegexContextBody({ memberId }: { readonly memberId: string }): R
   if (script === undefined) {
     // action={null}: the regex CONTEXT pane's GONE arm — the script was deleted while its context was open. The next step is picking another row in the sibling roster, which is on screen; the member-editor twin, same species. Ends if the context pane can be shown without its sibling roster.
     return (
-      <EmptyState
-        action={null}
-        description="This script was deleted. Pick another from the list."
-        icon={<Icon icon={Code} size="lg" />}
-        title="Script not found"
-      />
+      <ContextTabBody>
+        <EmptyState
+          action={null}
+          description="This script was deleted. Pick another from the list."
+          icon={<Icon icon={Code} size="lg" />}
+          title="Script not found"
+        />
+      </ContextTabBody>
     );
   }
   return <RegexScopePanel globals={globals} isGlobal={globals.some((row) => row.id === script.id)} script={script} />;

@@ -176,6 +176,26 @@ test("a feature builds no dialog footer or exit of its own; an empty state's act
   expect(await findings("orb/dialog-via-composite", footer, "packages/client/src/components/commit-row.tsx")).toEqual([]);
 });
 
+// Each way a feature can bind a dialog footer or close part under a name the JSX selectors do not read.
+const REBOUND_DIALOG_PARTS = [
+  ["a renamed footer import", 'import { DialogFooter as Foot } from "@orb/ui/dialog";\nexport const A = () => <Foot />;'],
+  ["a renamed close import", 'import { DialogClose as Shut } from "@orb/ui/dialog";\nexport const A = () => <Shut />;'],
+  ["a namespace import", 'import * as Parts from "@orb/ui/dialog";\nexport const A = () => <Parts.DialogFooter />;'],
+  ["a re-export of the footer", 'export { DialogFooter as Foot } from "@orb/ui/dialog";'],
+  ["a re-export of the close part", 'import { DialogClose } from "@orb/ui/dialog";\nexport { DialogClose as Shut };'],
+  ["the close part held in a local", 'import { DialogClose } from "@orb/ui/dialog";\nconst Shut = DialogClose;\nexport const A = () => <Shut />;'],
+] as const;
+
+test.for(REBOUND_DIALOG_PARTS)("a feature cannot rebind a dialog part: %s", async ([, source]) => {
+  expect(await findings("orb/dialog-via-composite", source)).toHaveLength(1);
+});
+
+test("an empty state's action may still close its dialog through the imported close part", async () => {
+  const source =
+    'import { DialogClose } from "@orb/ui/dialog";\nexport const A = () => <EmptyState title="None" action={<DialogClose render={<Button>Close</Button>} />} />;';
+  expect(await findings("orb/dialog-via-composite", source)).toEqual([]);
+});
+
 const DIALOG_FAILURE = "orb/dialog-failure-via-owner";
 
 // The shapes of the hand-spelled failure lines `DialogFailure` replaced, each reduced to the dialog and the local components between

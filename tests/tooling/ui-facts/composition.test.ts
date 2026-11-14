@@ -913,3 +913,114 @@ test("every body a CONTEXT registration declares is a member with the root it dr
   const defects = facts.comparisons.find((entry) => entry.cohort === "context-tab" && entry.column === "root")?.defects ?? [];
   expect(defects.map((defect) => defect.at)).toEqual([`${section}:8`, `${section}:12`]);
 });
+
+test("a CONTEXT tab with a constant id is a member, and its root is the owner on every branch the body returns", ({ scratch }) => {
+  const root = plantDir(scratch, "context-roots");
+  plant(root, {
+    "lib/tab-ids.ts": 'export const SPLIT_TAB_ID = "split";',
+    "components/nested-tab.tsx": [
+      'import { Stack } from "@orb/ui/layout";',
+      'import { ContextTabBody } from "#components";',
+      'export const NestedTab = () => <Stack scroll="y"><ContextTabBody>a</ContextTabBody></Stack>;',
+    ].join("\n"),
+    "components/split-tab.tsx": [
+      'import { Stack } from "@orb/ui/layout";',
+      'import { ContextTabBody } from "#components";',
+      "export function SplitTab({ open }) {",
+      "  if (open) {",
+      "    return <ContextTabBody>b</ContextTabBody>;",
+      "  }",
+      "  return <Stack>c</Stack>;",
+      "}",
+    ].join("\n"),
+    "components/both-tab.tsx": [
+      'import { ContextTabBody } from "#components";',
+      "function Resting() {",
+      "  return <ContextTabBody>d</ContextTabBody>;",
+      "}",
+      "export function BothTab({ open, gone }) {",
+      "  if (gone) {",
+      "    return null;",
+      "  }",
+      '  return open ? <ContextTabBody kind="scroll">e</ContextTabBody> : <Resting />;',
+      "}",
+    ].join("\n"),
+    "lib/probe-section.tsx": [
+      'import { NestedTab } from "../components/nested-tab.tsx";',
+      'import { SplitTab } from "../components/split-tab.tsx";',
+      'import { BothTab } from "../components/both-tab.tsx";',
+      'import { SPLIT_TAB_ID } from "./tab-ids.ts";',
+      'const NESTED_TAB_ID = "nested";',
+      "export const tabs = {",
+      "  context: defineContextTabs<ProbeState>({",
+      "    tabs: [",
+      '      { id: NESTED_TAB_ID, label: "Nested", body: () => <NestedTab /> },',
+      '      { id: SPLIT_TAB_ID, label: "Split", body: (state) => <SplitTab open={state.open} /> },',
+      '      { id: "both", label: "Both", body: (state) => <BothTab open={state.open} gone={state.gone} /> },',
+      "    ],",
+      "  }),",
+      "};",
+    ].join("\n"),
+  });
+  const members = analyse(root, [], null).cohorts.find((entry) => entry.name === "context-tab")?.members ?? [];
+  expect(members.map((member) => [member.label, member.cells["root"]?.value])).toEqual([
+    ["nested", "hand-built"],
+    ["split", "hand-built"],
+    ["both", "ContextTabBody scroll+sections"],
+  ]);
+});
+
+test("a body's root reads through a box-less surface, a curried factory and a dialog beside it, and a delegated member body", ({ scratch }) => {
+  const root = plantDir(scratch, "context-root-shapes");
+  plant(root, {
+    "components/with-dialog-tab.tsx": [
+      'import { ContextTabBody } from "#components";',
+      'export const WithDialogTab = () => <><ContextTabBody kind="fill">a</ContextTabBody><ConfirmDialog /></>;',
+    ].join("\n"),
+    "components/only-dialog-tab.tsx": "export const OnlyDialogTab = () => <><ConfirmDialog /></>;",
+    "components/gone-tab.tsx": [
+      'import { EmptyState } from "@orb/ui/empty-state";',
+      'import { ContextTabBody } from "#components";',
+      "export function GoneTab({ gone }) {",
+      "  if (gone) {",
+      '    return <EmptyState title="Gone" />;',
+      "  }",
+      "  return <ContextTabBody>b</ContextTabBody>;",
+      "}",
+    ].join("\n"),
+    "components/applies-tab.tsx": [
+      'import { ContextTabBody } from "#components";',
+      'export const AppliesTab = ({ state }) => (state.member === null ? <ContextTabBody kind="blocks">c</ContextTabBody> : <>{state.member.body()}</>);',
+    ].join("\n"),
+    "lib/probe-section.tsx": [
+      'import { Surface } from "@orb/ui/layout";',
+      'import { ContextTabBody } from "#components";',
+      'import { AppliesTab } from "../components/applies-tab.tsx";',
+      'import { GoneTab } from "../components/gone-tab.tsx";',
+      'import { OnlyDialogTab } from "../components/only-dialog-tab.tsx";',
+      'import { WithDialogTab } from "../components/with-dialog-tab.tsx";',
+      "export function makeTabs() {",
+      '  const surfaced = (label) => (state) => (state.on ? <Surface tier="instrument"><ContextTabBody>{label}</ContextTabBody></Surface> : null);',
+      "  return defineContextTabs<ProbeState>({",
+      "    tabs: [",
+      '      { id: "with-dialog", label: "A", body: () => <WithDialogTab /> },',
+      '      { id: "only-dialog", label: "B", body: () => <OnlyDialogTab /> },',
+      '      { id: "gone", label: "C", body: (state) => <GoneTab gone={state.gone} /> },',
+      '      { id: "applies", label: "D", body: (state) => <AppliesTab state={state} /> },',
+      '      { id: "surfaced", label: "E", body: surfaced("E") },',
+      '      { id: "called", label: "F", body: (state) => surfaced("F")(state) },',
+      "    ],",
+      "  });",
+      "}",
+    ].join("\n"),
+  });
+  const members = analyse(root, [], null).cohorts.find((entry) => entry.name === "context-tab")?.members ?? [];
+  expect(members.map((member) => [member.label, member.cells["root"]?.value])).toEqual([
+    ["with-dialog", "ContextTabBody fill"],
+    ["only-dialog", "hand-built"],
+    ["gone", "hand-built"],
+    ["applies", "ContextTabBody blocks+member body"],
+    ["surfaced", "ContextTabBody sections"],
+    ["called", "ContextTabBody sections"],
+  ]);
+});

@@ -9,7 +9,8 @@ import { seedShellState, setPlatformTextSize, sidewaysReach } from "@orb/testkit
 import { ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
+import { CHARACTER_OVERVIEW_TAB_LABEL } from "#client/features/character/lib/character-names.ts";
 import type { AppShellCharacterStory, AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -37,22 +38,39 @@ const CONTROL_ROLES = ["grid", "listbox", "textbox"] as const;
 interface Scrollers {
   readonly block: readonly string[];
   readonly inline: readonly string[];
+  /** Block scrollers in the panel that the pane does not own: a body that caps itself instead of letting the pane scroll it whole. */
+  readonly capped: readonly string[];
 }
 
 // The boxes in the open panel that scroll now, on each axis: an overflow that clips and content past the box. A box that could scroll but
-// whose content fits moves nothing, so it is no second owner.
+// whose content fits moves nothing, so it is no second owner. A body that owns its scroll (`fill`, `scroll`) takes the pane's room, so its
+// scroller is capped when it ends short of that room, or when the pane scrolls too: where the pane's chrome leaves the panel less room than
+// a cap, the panel runs past the bracket and a box above it scrolls.
 function scrollersIn(panel: Locator): Promise<Scrollers> {
   return panel.evaluate(
-    (root, controls) => {
+    (root, { controls, pane }) => {
       const describe = (el: Element): string => `${el.tagName.toLowerCase()}[${el.getAttribute("data-slot") ?? el.getAttribute("data-testid") ?? ""}]`;
       const scrolls = (value: string): boolean => value === "auto" || value === "scroll";
+      const scrollsNow = (el: Element): boolean => scrolls(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1;
       const boxes = [root, ...root.querySelectorAll("*")].filter((el) => !controls.includes(el.getAttribute("role") ?? ""));
+      const block = boxes.filter(scrollsNow);
+      // The panel sizes to its content up to the room the pane gives it, so a capped body shrinks the panel with it: the edge is the room.
+      const room = root.parentElement ?? root;
+      const frame = getComputedStyle(room);
+      const roomEnd = room.getBoundingClientRect().bottom - Number.parseFloat(frame.borderBottomWidth) - Number.parseFloat(frame.paddingBottom);
+      const outer: Element[] = [];
+      for (let up = root.parentElement; up !== null && !up.matches(pane); up = up.parentElement) {
+        if (scrollsNow(up)) {
+          outer.push(up);
+        }
+      }
       return {
-        block: boxes.filter((el) => scrolls(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1).map(describe),
+        block: block.map(describe),
         inline: boxes.filter((el) => scrolls(getComputedStyle(el).overflowX) && el.scrollWidth > el.clientWidth + 1).map(describe),
+        capped: block.filter((el) => outer.length > 0 || (el !== root && el.getBoundingClientRect().bottom < roomEnd - 1)).map(describe),
       };
     },
-    [...CONTROL_ROLES],
+    { controls: [...CONTROL_ROLES], pane: CONTEXT },
   );
 }
 
@@ -78,6 +96,7 @@ async function everyTabScrollsInOneBox(page: Page): Promise<number> {
     const found = await scrollersIn(panel);
     expect(found.block.length, `${label} scrolls in ${found.block.join(", ")}`).toBeLessThanOrEqual(1);
     expect(found.inline, `${label} scrolls sideways`).toEqual([]);
+    expect(found.capped, `${label} scrolls in a box the pane does not own`).toEqual([]);
     // A box past the pane's inline edge is cut off even where the pane clips it rather than scrolling.
     const reach = await panel.evaluate(sidewaysReach);
     expect(reach.wideners, `${label} runs past the pane's edge`).toEqual([]);
@@ -112,6 +131,8 @@ async function openPane(page: Page): Promise<void> {
     await page.getByRole("menu").getByRole("menuitem", { name, exact: true }).click();
   }
   await expect(pane).not.toHaveAttribute("data-panel-mode", "collapsed");
+  // A sheet slides in; a measure or a press before it settles reads a box that is still moving.
+  await expect.poll(async () => await pane.evaluate((node) => node.getAnimations().length)).toBe(0);
 }
 
 for (const regime of REGIMES) {
@@ -148,3 +169,71 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+// How far the body's first painted box stands in from the panel's content edge: down the first-child chain past every box flush with that
+// edge, to the first box inset from it. A state drawn outside the CONTEXT column stands flush, so it reads short of the settled body.
+function bodyInset(panel: Locator): Promise<number> {
+  return panel.evaluate((root) => {
+    const own = getComputedStyle(root);
+    const contentStart = root.getBoundingClientRect().left + Number.parseFloat(own.borderLeftWidth) + Number.parseFloat(own.paddingLeft);
+    for (let box = root.firstElementChild; box !== null; box = box.firstElementChild) {
+      const inset = box.getBoundingClientRect().left - contentStart;
+      if (inset > 0.5) {
+        return inset;
+      }
+    }
+    return 0;
+  });
+}
+
+const QUERY_ERROR = '[data-slot="query-error"]';
+
+test("the character Overview tab keeps the CONTEXT column's inset while its read is pending and when it fails", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [character] = (await caller.character.list({})).items;
+  if (character === undefined) {
+    throw new Error("The corpus has no character");
+  }
+  await routeShell(page, corpus, caller, SERVED);
+  // The card's own chats read for this character: no other open surface asks for it, so holding it holds only the card.
+  const held: Route[] = [];
+  let answer: "hold" | "fail" | "serve" = "hold";
+  await page.route(
+    (url) => url.pathname.includes("chat.listChats"),
+    async (route) => {
+      // A batch carries its inputs in the body, so the character's own read is told apart there.
+      const ours = decodeURIComponent(`${route.request().url()}${route.request().postData() ?? ""}`).includes(character.id);
+      if (!ours || answer === "serve") {
+        await route.fallback();
+      } else if (answer === "fail") {
+        await route.abort("aborted");
+      } else {
+        held.push(route);
+      }
+    },
+  );
+  await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "collapsed", context: "docked" } } });
+  await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
+  const tab = page.locator(CONTEXT).getByRole("tab", { name: CHARACTER_OVERVIEW_TAB_LABEL, exact: true });
+  await tab.dispatchEvent("click");
+  const panel = page.locator(CONTEXT).locator(`[role="region"][aria-labelledby="${await tab.getAttribute("id")}"]`);
+  await expect.poll(() => held.length).toBeGreaterThan(0);
+  const pending = await bodyInset(panel);
+
+  answer = "fail";
+  for (const route of held.splice(0)) {
+    await route.abort("aborted");
+  }
+  const failure = panel.locator(QUERY_ERROR);
+  await expect(failure).toBeVisible();
+  const failed = await bodyInset(panel);
+
+  answer = "serve";
+  await failure.getByRole("button").click();
+  await expect(failure).toHaveCount(0);
+  await expect(panel.locator('[data-slot="overview-row"]').first()).toBeVisible();
+  const settled = await bodyInset(panel);
+  expect(settled, "the settled Overview stands inside the column's inset").toBeGreaterThan(0);
+  expect({ pending, failed }).toEqual({ pending: settled, failed: settled });
+});

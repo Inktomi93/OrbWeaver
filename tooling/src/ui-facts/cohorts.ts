@@ -1,12 +1,14 @@
 // The composition cohorts (area C): which template, row composite, dialog anatomy, dismiss path and confirm each section uses.
 
+import { posix } from "node:path";
 import ts from "typescript";
-import type { Elem, FileFacts, Rendered } from "../eslint/index.ts";
+import type { Elem, FileFacts, Rendered, Source } from "../eslint/index.ts";
 import {
   attrString,
   buttonWithText,
   childrenText,
   componentsIn,
+  constInitializer,
   DESTRUCTIVE_EXEMPT,
   firstLine,
   hasAny,
@@ -14,6 +16,7 @@ import {
   listSlotSurfaces,
   mounted,
   SLOT_HOPS,
+  unwrap,
   visit,
 } from "../eslint/index.ts";
 import type { Cell, Cohort, Member } from "../floor/verdict/cohort-compare.ts";
@@ -433,9 +436,6 @@ function propertyOf(object: ts.ObjectLiteralExpression, name: string): ts.Expres
   return undefined;
 }
 
-const literalOf = (expression: ts.Expression | undefined): string | undefined =>
-  expression !== undefined && ts.isStringLiteralLike(expression) ? expression.text : undefined;
-
 // The type a declaration or a function's return is annotated with, when it carries one.
 const declaredType = (node: ts.Node): ts.TypeNode | undefined =>
   ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node) ? node.type : undefined;
@@ -454,8 +454,43 @@ function isTabDefinition(object: ts.ObjectLiteralExpression): boolean {
   return false;
 }
 
+/** The files of the checkout by repo path, `.ts` and `.tsx`, for reading a constant another module declares. */
+type SourcesByPath = ReadonlyMap<string, ts.SourceFile>;
+
+// A string a `const` holds, here or in the module a relative import names; the label falls back to the expression's text.
+function idText(sf: ts.SourceFile, path: string, expression: ts.Expression, sources: SourcesByPath): string {
+  const node = unwrap(expression);
+  if (ts.isStringLiteralLike(node)) {
+    return node.text;
+  }
+  if (!ts.isIdentifier(node)) {
+    return node.getText(sf);
+  }
+  const local = constInitializer(sf, node.text);
+  if (local !== null && ts.isStringLiteralLike(local)) {
+    return local.text;
+  }
+  const specifier = sf.statements.find(
+    (statement): statement is ts.ImportDeclaration =>
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      statement.moduleSpecifier.text.startsWith(".") &&
+      statement.importClause?.namedBindings !== undefined &&
+      ts.isNamedImports(statement.importClause.namedBindings) &&
+      statement.importClause.namedBindings.elements.some((element) => element.name.text === node.text),
+  );
+  const target =
+    specifier === undefined ? undefined : sources.get(posix.normalize(posix.join(posix.dirname(path), (specifier.moduleSpecifier as ts.StringLiteral).text)));
+  const imported = target === undefined ? null : constInitializer(target, node.text);
+  return imported !== null && ts.isStringLiteralLike(imported) ? imported.text : node.text;
+}
+
 /** Every body a file registers: a tab's `body`, a `single` context's `body` and a collection's `body` context's `render`. */
-function contextBodiesIn(sf: ts.SourceFile): readonly ContextBody[] {
+function contextBodiesIn(facts: FileFacts, sources: SourcesByPath): readonly ContextBody[] {
+  const sf = facts.source.sf;
+  if (sf === null) {
+    return [];
+  }
   const found: ContextBody[] = [];
   const line = (node: ts.Node): number => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
   visit(sf, (node) => {
@@ -463,12 +498,13 @@ function contextBodiesIn(sf: ts.SourceFile): readonly ContextBody[] {
       return;
     }
     const body = propertyOf(node, "body");
-    const id = literalOf(propertyOf(node, "id"));
+    const id = propertyOf(node, "id");
     if (body !== undefined && id !== undefined && isTabDefinition(node)) {
-      found.push({ label: id, line: line(node), draw: body });
+      found.push({ label: idText(sf, facts.source.path, id, sources), line: line(node), draw: body });
       return;
     }
-    const kind = literalOf(propertyOf(node, "kind"));
+    const kindValue = propertyOf(node, "kind");
+    const kind = kindValue !== undefined && ts.isStringLiteralLike(kindValue) ? kindValue.text : undefined;
     const slot = kind === undefined ? undefined : BODY_CONTEXTS.get(kind);
     const draw = slot === undefined ? undefined : propertyOf(node, slot);
     if (kind !== undefined && draw !== undefined && ts.isPropertyAssignment(node.parent) && node.parent.name.getText() === "context") {
@@ -476,6 +512,165 @@ function contextBodiesIn(sf: ts.SourceFile): readonly ContextBody[] {
     }
   });
   return found;
+}
+
+// What an expression renders on each of its branches: both arms of `?:`, what `&&` renders when it renders, either side of `||` and `??`.
+// `null`, `undefined` and `false` render nothing, so they draw no root.
+function renderedBy(expression: ts.Expression): readonly ts.Expression[] {
+  const node = unwrap(expression);
+  if (ts.isConditionalExpression(node)) {
+    return [...renderedBy(node.whenTrue), ...renderedBy(node.whenFalse)];
+  }
+  if (ts.isBinaryExpression(node)) {
+    const operator = node.operatorToken.kind;
+    if (operator === ts.SyntaxKind.AmpersandAmpersandToken) {
+      return renderedBy(node.right);
+    }
+    if (operator === ts.SyntaxKind.BarBarToken || operator === ts.SyntaxKind.QuestionQuestionToken) {
+      return [...renderedBy(node.left), ...renderedBy(node.right)];
+    }
+  }
+  const nothing = node.kind === ts.SyntaxKind.NullKeyword || node.kind === ts.SyntaxKind.FalseKeyword || (ts.isIdentifier(node) && node.text === "undefined");
+  return nothing ? [] : [node];
+}
+
+// A component wrapped in `memo(Fn)` or `forwardRef(fn)` renders what its function does.
+const COMPONENT_WRAPPERS: ReadonlySet<string> = new Set(["memo", "forwardRef"]);
+// The registration slots that draw a body; a call through one renders a body the census lists as its own member.
+const DRAW_SLOTS: ReadonlySet<string> = new Set(["body", ...BODY_CONTEXTS.values()]);
+// `Surface` declares a tier on a `display: contents` box, so it draws no box of its own and its children are the roots.
+const BOXLESS_TAGS: ReadonlySet<string> = new Set(["Surface"]);
+// How many component and factory steps the root walk follows from a registration before it reads a root as unread.
+const ROOT_HOPS = 6;
+// What a branch can root in besides an owner kind: a dialog, which portals out of the pane, and a body another registration draws.
+const DIALOG_ROOT = "dialog";
+const DELEGATED_ROOT = "member body";
+
+/** The roots a component or a draw returns: an arrow's expression body, or each `return` of its own body (a nested function's are its own). */
+function branchesOf(node: ts.Node): readonly ts.Expression[] {
+  if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && COMPONENT_WRAPPERS.has(node.expression.text)) {
+    const [inner] = node.arguments;
+    return inner === undefined ? [] : branchesOf(inner);
+  }
+  if (!(ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node))) {
+    return ts.isExpression(node) ? renderedBy(node) : [];
+  }
+  const body = node.body;
+  if (body === undefined) {
+    return [];
+  }
+  if (!ts.isBlock(body)) {
+    return renderedBy(body);
+  }
+  const returned: ts.Expression[] = [];
+  const walk = (inner: ts.Node): void => {
+    if (ts.isFunctionLike(inner)) {
+      return;
+    }
+    if (ts.isReturnStatement(inner) && inner.expression !== undefined) {
+      returned.push(...renderedBy(inner.expression));
+    }
+    ts.forEachChild(inner, walk);
+  };
+  ts.forEachChild(body, walk);
+  return returned;
+}
+
+// A declaration in the file by name, at any depth, component or factory: the function, or the initializer a `const` holds.
+function declarationIn(sf: ts.SourceFile, name: string): ts.Node | undefined {
+  let found: ts.Node | undefined;
+  visit(sf, (node) => {
+    if (found !== undefined) {
+      return;
+    }
+    if (ts.isFunctionDeclaration(node) && node.name?.text === name) {
+      found = node;
+    } else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer !== undefined) {
+      found = unwrap(node.initializer);
+    }
+  });
+  return found;
+}
+
+/** The root each branch of a draw stands on: an owner kind, a dialog, a body another registration draws, or {@link HAND_BUILT_ROOT}. */
+function rootKinds(facts: FileFacts, draw: ts.Node, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  const branches = branchesOf(draw);
+  if (branches.length === 0 || hops > ROOT_HOPS) {
+    return [HAND_BUILT_ROOT];
+  }
+  return branches.flatMap((branch) => branchKind(facts, branch, byPath, hops));
+}
+
+function branchKind(facts: FileFacts, root: ts.Expression, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  if (ts.isArrowFunction(root) || ts.isFunctionExpression(root)) {
+    // A curried factory, as the rpg tabs' `gameTab(label, render)` is, hands back the draw itself.
+    return rootKinds(facts, root, byPath, hops + 1);
+  }
+  if (ts.isCallExpression(root)) {
+    return callKinds(facts, root, byPath, hops);
+  }
+  if (ts.isJsxFragment(root)) {
+    return childKinds(facts, root.children, byPath, hops);
+  }
+  const elem = facts.elems.find((candidate) => candidate.element === root);
+  if (elem === undefined) {
+    return [HAND_BUILT_ROOT];
+  }
+  return elemKinds(facts, elem, byPath, hops);
+}
+
+// A call at a branch's root: a factory declared in the file roots where its returns do, and a registration's own draw slot is delegated.
+function callKinds(facts: FileFacts, call: ts.CallExpression, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  if (ts.isPropertyAccessExpression(call.expression) && DRAW_SLOTS.has(call.expression.name.text)) {
+    return [DELEGATED_ROOT];
+  }
+  if (ts.isCallExpression(call.expression)) {
+    // `gameTab(label, render)(state)` calls the draw a curried factory hands back.
+    return callKinds(facts, call.expression, byPath, hops + 1);
+  }
+  const sf = facts.source.sf;
+  const factory = sf !== null && ts.isIdentifier(call.expression) ? declarationIn(sf, call.expression.text) : undefined;
+  return factory === undefined ? [HAND_BUILT_ROOT] : rootKinds(facts, factory, byPath, hops + 1);
+}
+
+function elemKinds(facts: FileFacts, elem: Elem, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  if (elem.tag === CONTEXT_TAB_BODY) {
+    return [attrString(elem.attrs.get("kind")) ?? "sections"];
+  }
+  if (DIALOG_TAGS.has(elem.tag)) {
+    return [DIALOG_ROOT];
+  }
+  if (elem.kind === "ui" && BOXLESS_TAGS.has(elem.tag) && ts.isJsxElement(elem.element)) {
+    return childKinds(facts, elem.element.children, byPath, hops);
+  }
+  return componentKinds(facts, elem, byPath, hops + 1);
+}
+
+// The roots of a box-less parent's children: a dialog beside the body portals out of the pane, so it is no root; nothing else is the body.
+function childKinds(facts: FileFacts, children: ts.NodeArray<ts.JsxChild>, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  const kinds = children.flatMap((child): readonly string[] => {
+    if (ts.isJsxText(child)) {
+      return child.containsOnlyTriviaWhiteSpaces ? [] : [HAND_BUILT_ROOT];
+    }
+    if (ts.isJsxExpression(child)) {
+      return child.expression === undefined ? [] : renderedBy(child.expression).flatMap((branch) => branchKind(facts, branch, byPath, hops));
+    }
+    return ts.isJsxFragment(child) ? childKinds(facts, child.children, byPath, hops) : branchKind(facts, child, byPath, hops);
+  });
+  const drawn = kinds.filter((kind) => kind !== DIALOG_ROOT);
+  return drawn.length === 0 ? [HAND_BUILT_ROOT] : drawn;
+}
+
+// A component at a branch's root roots where its own returns do: a same-file one, or one a relative import or `#components` mounts.
+function componentKinds(facts: FileFacts, elem: Elem, byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  const local = elem.imported === null && facts.source.sf !== null ? declarationIn(facts.source.sf, elem.tag) : undefined;
+  if (local !== undefined) {
+    return rootKinds(facts, local, byPath, hops);
+  }
+  const [next] = mounted(facts, [elem], byPath);
+  const sf = next?.facts.source.sf ?? null;
+  const declared = sf === null ? undefined : declarationIn(sf, elem.imported?.name ?? elem.tag);
+  return next === undefined || declared === undefined ? [HAND_BUILT_ROOT] : rootKinds(next.facts, declared, byPath, hops);
 }
 
 /** The elements a body draws: its own, and those of a same-file factory it calls, as the rpg tabs' shared wrapper is. */
@@ -500,12 +695,14 @@ function bodyElems(facts: FileFacts, draw: ts.Expression): readonly Elem[] {
 }
 
 function contextBodyMember(facts: FileFacts, body: ContextBody, byPath: ReadonlyMap<string, FileFacts>): Member {
-  const tree = { facts, elems: bodyElems(facts, body.draw) };
-  const owner = renderedTag(tree, CONTEXT_TAB_BODY, byPath, 0);
+  // The owner stands at the root of every branch the body returns, through the components it mounts there; one branch without it is hand-built.
+  const kinds = new Set(rootKinds(facts, body.draw, byPath, 0));
+  // A branch that is only a dialog draws no body in the pane.
+  const root = kinds.has(HAND_BUILT_ROOT) || kinds.has(DIALOG_ROOT) ? HAND_BUILT_ROOT : `${CONTEXT_TAB_BODY} ${[...kinds].sort().join("+")}`;
   // The columns the body's own component answers are read on the first component the registration mounts.
-  const drawn = mounted(facts, tree.elems, byPath)[0]?.facts ?? facts;
+  const drawn = mounted(facts, bodyElems(facts, body.draw), byPath)[0]?.facts ?? facts;
   return member(facts, body.label, {
-    root: cell(owner === null ? HAND_BUILT_ROOT : `${CONTEXT_TAB_BODY} ${attrString(owner.attrs.get("kind")) ?? "sections"}`, body.line),
+    root: cell(root, body.line),
     ...contextTabCells(drawn, byPath),
   });
 }
@@ -548,10 +745,11 @@ function rowMenu(facts: FileFacts, elem: Elem): Member {
   });
 }
 
-/** Every composition cohort over the client's TSX files. */
-export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
+/** Every composition cohort over the client's TSX files; `sources` holds every scanned file, so a constant another module declares is read. */
+export function buildCohorts(all: readonly FileFacts[], sources: readonly Source[]): readonly Cohort[] {
   const client = all.filter((facts) => facts.source.layer === "client");
   const byPath = new Map(client.map((facts) => [facts.source.path, facts]));
+  const sourcesByPath: SourcesByPath = new Map(sources.flatMap((source) => (source.sf === null ? [] : [[source.path, source.sf] as const])));
   const feature = client.filter(inFeature);
   const slotted = listSlotSurfaces(all);
   const lists = feature.filter((facts) => slotted.has(facts.source.path));
@@ -666,9 +864,7 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
         },
         empty: { [EMPTY_IN_CHILD]: "the empty state is designed in the component the tab body mounts (client-architecture-state-and-gates.md §11)" },
       },
-      members: client.flatMap((facts) =>
-        facts.source.sf === null ? [] : contextBodiesIn(facts.source.sf).map((body) => contextBodyMember(facts, body, byPath)),
-      ),
+      members: client.flatMap((facts) => contextBodiesIn(facts, sourcesByPath).map((body) => contextBodyMember(facts, body, byPath))),
     },
     {
       name: "editor",
