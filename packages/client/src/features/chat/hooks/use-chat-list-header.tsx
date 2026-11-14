@@ -38,9 +38,9 @@ import { BAND_NEW_LABEL } from "#lib";
 import { openNewChatPicker } from "#state";
 import { ChatImportDialog } from "../components/chat-import-dialog.tsx";
 import { useChatCensus } from "../hooks/use-chat-census.ts";
+import { CHAT_IMPORT_NAME } from "../lib/chat-surface-names.ts";
 import { CHATS_SECTION_LABEL } from "../lib/chats-section-label.ts";
 
-const IMPORT_CHAT_LABEL = "Import a chat transcript";
 const NEW_CHAT_LABEL = "New chat";
 
 export function useChatListHeader(): ListPaneHeaderView {
@@ -56,15 +56,15 @@ export function useChatListHeader(): ListPaneHeaderView {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button aria-label={IMPORT_CHAT_LABEL} variant="ghost" onClick={(): void => setImportOpen(true)} size="sm" square={true}>
+                <Button aria-label={CHAT_IMPORT_NAME} variant="ghost" onClick={(): void => setImportOpen(true)} size="sm" square={true}>
                   <Icon icon={Upload} size="sm" />
                 </Button>
               }
             />
-            <TooltipPopup side="bottom">{IMPORT_CHAT_LABEL}</TooltipPopup>
+            <TooltipPopup side="bottom">{CHAT_IMPORT_NAME}</TooltipPopup>
           </Tooltip>
         ),
-        menu: [{ id: "chat-import", label: IMPORT_CHAT_LABEL, icon: Upload, onSelect: (): void => setImportOpen(true) }],
+        menu: [{ id: "chat-import", label: CHAT_IMPORT_NAME, icon: Upload, onSelect: (): void => setImportOpen(true) }],
       },
       {
         id: "chat-new",

@@ -45,7 +45,9 @@ import {
   createCorpusProviderExecution,
   exportLibrary,
   makeAssetBytes,
+  readLibraryExport,
   restoreBundle,
+  restoreBundleTally,
   seedCorpusConnections,
   signedInBox,
 } from "@orb/testkit/node/composed";
@@ -224,10 +226,13 @@ test("a whole-library backup restored onto its own library adds no row, once or 
   await livedInLibrary(root, wire.pictures);
   const before = await rowCounts(root);
   const bundle = await exportLibrary(root);
+  const { files } = await readLibraryExport(root);
+  // Every file is one the library holds, and the summary says so instead of counting it imported.
+  const held = { status: "succeeded", imported: 0, inLibrary: files.size, skipped: 0, failed: 0 };
 
-  const first = await exporterCalls(root, async () => expect(await restoreBundle(root, bundle)).toMatchObject({ status: "succeeded", failed: 0 }));
+  const first = await exporterCalls(root, async () => expect(await restoreBundleTally(root, bundle)).toEqual(held));
   expect(await rowCounts(root)).toEqual(before);
-  const second = await exporterCalls(root, async () => expect(await restoreBundle(root, bundle)).toMatchObject({ status: "succeeded", failed: 0 }));
+  const second = await exporterCalls(root, async () => expect(await restoreBundleTally(root, bundle)).toEqual(held));
   expect(await rowCounts(root)).toEqual(before);
   // The seeded starter cards were imported, so their stored keys match; only the rows the app wrote are exported.
   expect({ first, second }).toEqual({ first: { cards: AUTHORED_CHARACTERS, rooms: 1 }, second: { cards: AUTHORED_CHARACTERS, rooms: 1 } });
@@ -238,11 +243,13 @@ test("a character edited after the backup keeps the edit, and the backup's versi
   await using root = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR), providerFetch: wire.execute });
   const wardenId = await livedInLibrary(root, wire.pictures);
   const bundle = await exportLibrary(root);
+  const { files } = await readLibraryExport(root);
   const edited = "A warden who has seen the bridge fall.";
   await root.services.character.update({ principal: await root.principalFor(root.ownerId), characterId: wardenId, input: { description: edited } });
   const before = await rowCounts(root);
 
-  expect(await restoreBundle(root, bundle)).toMatchObject({ status: "succeeded", failed: 0 });
+  // The edited card and the room it seats are the two files that write; every other file is already held.
+  expect(await restoreBundleTally(root, bundle)).toEqual({ status: "succeeded", imported: 2, inLibrary: files.size - 2, skipped: 0, failed: 0 });
   expect(await wardensByHandle(root)).toEqual([
     { handle: WARDEN, description: edited },
     { handle: `${WARDEN}-2`, description: WARDEN_DESCRIPTION },
@@ -283,9 +290,16 @@ test("a lived-in library restored into an empty one reproduces every row", { tag
   await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR), providerFetch: wire.execute });
   await livedInLibrary(source, wire.pictures);
   const bundle = await exportLibrary(source);
+  const { files } = await readLibraryExport(source);
 
   await using target = await signedInBox();
-  expect(await restoreBundle(target, bundle)).toMatchObject({ status: "succeeded", failed: 0 });
+  // A new box already holds the starter content the source began with, so those files count as held and the rest write.
+  const first = await restoreBundleTally(target, bundle);
+  expect(first).toMatchObject({ status: "succeeded", skipped: 0, failed: 0 });
+  expect((first.imported ?? 0) + (first.inLibrary ?? 0)).toBe(files.size);
+  expect(first.imported).toBeGreaterThanOrEqual(AUTHORED_CHARACTERS);
+  // Once restored, the target holds every file of the backup.
+  expect(await restoreBundleTally(target, bundle)).toEqual({ status: "succeeded", imported: 0, inLibrary: files.size, skipped: 0, failed: 0 });
   const held = await rowCounts(source);
   // A restored card keeps its whole PNG as its avatar, so each character the source wrote adds that one blob.
   expect(await rowCounts(target)).toEqual({ ...held, assets: held.assets + AUTHORED_CHARACTERS });

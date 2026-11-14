@@ -159,11 +159,15 @@ test("the actual staged bundle isolates malformed cards, counts unsupported file
       box,
       await uploadedWorkload(await root.http.request(PORTABILITY_ROUTES.importBundle, { method: "POST", headers: box.headers, body: Uint8Array.from(bundle) })),
     );
-  const outcome = { status: "succeeded", result: { imported: 1, failed: 1, skipped: 1, notes: [], memoryScope: null } };
+  const outcome = (imported: number, inLibrary: number): object => ({
+    status: "succeeded",
+    result: { imported, inLibrary, failed: 1, skipped: 1, notes: [], memoryScope: null },
+  });
   const sourceCards = await root.app.services.character.count({ principal: source });
   const targetCards = await root.app.services.character.count({ principal: target });
-  expect(await run()).toMatchObject(outcome);
-  expect(await run()).toMatchObject(outcome);
+  expect(await run()).toMatchObject(outcome(1, 0));
+  // The second run finds the card already held and says so instead of counting it imported.
+  expect(await run()).toMatchObject(outcome(0, 1));
   expect(await root.app.services.character.count({ principal: source })).toBe(sourceCards);
   expect(await root.app.services.character.count({ principal: target })).toBe(targetCards + 1);
 });

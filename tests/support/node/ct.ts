@@ -12,6 +12,7 @@ export { createShellAmbientReads } from "./ct-shell-reads.ts";
 export { HOST_BAND, openContextSections } from "./open-context-sections.ts";
 export { routeAuthConfig } from "./route-auth-config.ts";
 export { routeOrbSocket } from "./route-orb-socket.ts";
+export { routeToServer } from "./route-to-server.ts";
 export type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "./route-trpc.ts";
 export { defineTrpcRoutes, malformedOrForwardTrpcWire, routeTrpc, trpcError, trpcHold } from "./route-trpc.ts";
 export { SECTION_LABELS } from "./section-labels.ts";
