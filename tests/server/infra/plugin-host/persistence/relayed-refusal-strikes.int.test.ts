@@ -13,7 +13,9 @@
 // `refusedInPlaceOf` does the same for a frame the broker routes to the app, its answer's refusal from `answer` in
 // `packages/server/src/infra/plugin-host/broker-entry.ts`: the broker sends that one frame when its own hop is full, and
 // the watchdog passes it on when its hop to the app is. No edge fills the broker's own hop, so that branch is the same
-// frame reached through the watchdog's.
+// frame reached through the watchdog's. Two refusals the broker raises itself are reached with no edge at all: an answer
+// larger than any frame, which `offer` refuses down the same branch as a full hop, and a synchronous call the app never
+// answers, which the broker times out.
 // @subject packages/server/src/infra/plugin-host/worker-runtime.ts
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 // @subject packages/server/src/infra/plugin-host/port.ts
@@ -29,7 +31,12 @@ import { createServerHarness, makePluginBundle, seedInstalledPlugin, seedPluginG
 import { capturePluginRows } from "@orb/testkit/node/rows";
 import { afterAll, beforeAll } from "vitest";
 import { HOST_FN_DEADLINE_MS, PLUGIN_RESIDENT_LIMITS, settlementWallMs } from "#server/infra/plugin-host/budgets.ts";
-import { PLUGIN_CHANNEL_FULL, PLUGIN_HOST_UNAVAILABLE } from "#server/infra/plugin-host/process-protocol.ts";
+import {
+  PLUGIN_BROKER_MESSAGE_MAX_BYTES,
+  PLUGIN_BROKER_SYNC_TIMEOUT_MS,
+  PLUGIN_CHANNEL_FULL,
+  PLUGIN_HOST_UNAVAILABLE,
+} from "#server/infra/plugin-host/process-protocol.ts";
 import { createPluginProcessEdge, frameField, hasOperation, PLUGIN_PROCESS_OPERATIONS, refusedInPlaceOf, responseResult } from "../process-runtime.fixtures.ts";
 
 const ENABLED = "enabled" satisfies PluginStatus;
@@ -41,6 +48,7 @@ const READ_THEN = "read_then";
 const SET_MODE = "set_mode";
 const HANG = "hang";
 const DRAW_THEN = "draw_then";
+const OVERSIZED = "oversized";
 const CRASH = "crash";
 const CRASH_MESSAGE = "the guest's own failure";
 const CALLER_KEY = "k";
@@ -58,6 +66,7 @@ const CALLER_SOURCE = `const h = orb.host(1);
 ${COMMON_COMMANDS}
 h.ui.registerCommand({ name: ${JSON.stringify(READ)}, describe: "Read", onRun: async () => { await h.storage.get(${JSON.stringify(CALLER_KEY)}); } });
 h.ui.registerCommand({ name: ${JSON.stringify(DRAW)}, describe: "Draw", onRun: () => { h.random.next(); } });
+h.ui.registerCommand({ name: ${JSON.stringify(OVERSIZED)}, describe: "Answer past the frame cap", onRun: () => "x".repeat(${String(PLUGIN_BROKER_MESSAGE_MAX_BYTES + 1)}) });
 h.ui.registerCommand({ name: ${JSON.stringify(READ_THEN)}, describe: "Read, then throw or never settle", onRun: async ({ args }) => {
   await h.storage.get(${JSON.stringify(CALLER_KEY)}).catch(() => undefined);
   if (JSON.parse(args).stall === true) { await new Promise(() => {}); }
@@ -252,6 +261,40 @@ test("a command that met a refused call and then ran past its CPU window strikes
   await expect(ranAway).resolves.toBeInstanceOf(Error);
   await expect.poll(async () => (await caller.view()).crashes).toBe(1);
   expect((await caller.view()).status).toBe(ENABLED);
+});
+
+// The broker refuses an answer larger than any frame may be in `offer`, the same branch its own full hop takes, and
+// sends the channel-full refusal in its place; no edge touches the frame.
+test("an answer the broker refuses for its size fails as that refusal, not the plugin's crash, and its own throw still counts", async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  const refused = await settle(caller.run(OVERSIZED));
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+  // The command failed as the channel-full refusal itself, the host-unavailable text the parent passes on unwrapped.
+  expect(refused).toMatchObject({ message: PLUGIN_CHANNEL_FULL });
+
+  await expectOwnThrowCounts(caller);
+});
+
+// The broker answers a synchronous call the app has not answered within its own timeout, a timer in the broker process
+// that no test clock reaches, so the case waits it out: the edge holds the app's copy of the call and never lets it land.
+test("a synchronous call the broker timed out is not the plugin's crash when left uncaught, and its own throw still counts", {
+  tags: ["slow"],
+  timeout: 2 * PLUGIN_BROKER_SYNC_TIMEOUT_MS + CALLER_WALL_STARTS * HOST_FN_DEADLINE_MS,
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  {
+    using held = edge.holdNext(drawn);
+    const failed = settle(caller.run(DRAW));
+    await held.reached;
+    expect(await failed).toBeInstanceOf(Error);
+  }
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  await expectOwnThrowCounts(caller);
 });
 
 // The sleeper has never run a command since its install, so it is asleep, unstruck and in the throw mode; each Worker
