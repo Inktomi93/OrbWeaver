@@ -18,7 +18,8 @@
 //   • the room background and inline images — by the content hash each carries, onto the owner's own copy of
 //     those bytes, since a target that already held them keeps its own asset row.
 //   • the memory strikes — span positions through the same remap, the scoped character by the seat map; a strike
-//     with an endpoint or a character that did not land is dropped, and a scoped one never widens to shared.
+//     with an endpoint that did not land is dropped. A strike names a span in every bucket and its character only
+//     records which copy was struck, so one whose character did not resolve restores as a shared strike.
 //   • the rpg campaign — the carried POSITIONS (`messages[i].variants[j]`) remapped through the
 //     `ImportedChatRemap` the chat write op returns. This is the load-bearing step: get it wrong and every
 //     snapshot, journal entry and tool-call record anchors to the wrong turn (or to nothing).
@@ -352,8 +353,8 @@ function remapRpg(game: PortableRpgGame, remap: Extract<ImportedChatRemap, { kin
   };
 }
 
-/** The carried strikes on this box's ids. A position the remap could not pair, or a scoped handle no seat
- *  resolved, drops that strike: landing it on the shared bucket would strike an item the host never struck. */
+/** The carried strikes on this box's ids. A position the remap could not pair drops that strike; a scoped handle
+ *  no seat resolved keeps it as a shared strike. */
 function remapMemoryStrikes(
   strikes: NonNullable<PortableChat["memoryStrikes"]>,
   remap: Extract<ImportedChatRemap, { kind: "aligned" }>,
