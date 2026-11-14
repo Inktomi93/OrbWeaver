@@ -20,6 +20,7 @@
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 // @subject packages/server/src/infra/plugin-host/port.ts
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { isDeepStrictEqual } from "node:util";
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability, PluginManifest, PluginStatus } from "@orb/contracts/plugin";
@@ -48,6 +49,9 @@ const READ_THEN = "read_then";
 const SET_MODE = "set_mode";
 const HANG = "hang";
 const DRAW_THEN = "draw_then";
+const DRAW_ON = "draw_on";
+// How late the app answers a synchronous draw: past the guest's whole CPU window, which reads real monotonic time.
+const LATE_ANSWER_MS = 2 * PLUGIN_RESIDENT_LIMITS.cpuDeadlineMs;
 const OVERSIZED = "oversized";
 const CRASH = "crash";
 const CRASH_MESSAGE = "the guest's own failure";
@@ -78,6 +82,12 @@ h.ui.registerCommand({ name: ${JSON.stringify(DRAW_THEN)}, describe: "Draw, then
   try { h.random.next(); } catch (refused) {}
   if (JSON.parse(args).loop === true) { for (;;) {} }
   throw new Error(${JSON.stringify(CRASH_MESSAGE)});
+} });
+h.ui.registerCommand({ name: ${JSON.stringify(DRAW_ON)}, describe: "Draw, then go on with a host call or run away", onRun: ({ args }) => {
+  let drew = "refused";
+  try { h.random.next(); drew = "drew"; } catch (refused) {}
+  h.log.info(drew);
+  if (JSON.parse(args).loop === true) { for (;;) {} }
 } });`;
 // main.js reads its mode, then its own storage; a refused read it rethrows uncaught, or in the stall mode never settles,
 // so a rebuild whose read is refused fails at once or at its wall. A command sets the mode for the next rebuild.
@@ -295,6 +305,49 @@ test("a synchronous call the broker timed out is not the plugin's crash when lef
   expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
 
   await expectOwnThrowCounts(caller);
+});
+
+// The guest blocks in the draw for the whole broker timeout, longer than its CPU window, and then makes another host
+// call. The wait is the host's, so the call is served and the command answers.
+test("a guest that catches a synchronous call the broker timed out and goes on is served, and not struck", {
+  tags: ["slow"],
+  timeout: 2 * PLUGIN_BROKER_SYNC_TIMEOUT_MS + CALLER_WALL_STARTS * HOST_FN_DEADLINE_MS,
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  {
+    using held = edge.holdNext(drawn);
+    const answered = settle(caller.run(DRAW_ON, JSON.stringify({ loop: false })));
+    await held.reached;
+    expect(await answered).toBeNull();
+  }
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+});
+
+// The app answers the draw only after the guest's whole CPU window has passed on the real clock the window reads, so the
+// case waits that long: the wait charges the guest nothing, while a guest that then runs away still meets its window.
+test("a synchronous call answered after the guest's CPU window charges the guest nothing, and a runaway after it still strikes", {
+  tags: ["slow"],
+  timeout: 2 * (LATE_ANSWER_MS + HOST_FN_DEADLINE_MS) + CALLER_WALL_STARTS * HOST_FN_DEADLINE_MS,
+}, async () => {
+  await caller.run(NOTE);
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+  const answerLate = async (loop: boolean): Promise<unknown> => {
+    using held = edge.holdNext(drawn);
+    const settled = settle(caller.run(DRAW_ON, JSON.stringify({ loop })));
+    await held.reached;
+    await sleep(LATE_ANSWER_MS);
+    held.release();
+    return await settled;
+  };
+
+  expect(await answerLate(false)).toBeNull();
+  expect(await caller.view()).toEqual({ status: ENABLED, crashes: 0 });
+
+  expect(await answerLate(true)).toBeInstanceOf(Error);
+  await expect.poll(async () => (await caller.view()).crashes).toBe(1);
+  expect((await caller.view()).status).toBe(ENABLED);
 });
 
 // The sleeper has never run a command since its install, so it is asleep, unstruck and in the throw mode; each Worker

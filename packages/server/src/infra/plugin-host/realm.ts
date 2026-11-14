@@ -20,6 +20,7 @@ import type { RandomSource } from "@orb/kit/macro";
 import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
+import { withoutCpuCharge } from "./cpu-guard.ts";
 import type { GuestMarshal } from "./marshal.ts";
 import { GuestCallFailure } from "./marshal.ts";
 import type { MembraneRuntime } from "./membrane.ts";
@@ -176,18 +177,19 @@ function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHos
   // and holds through a mid-build throw. `setProp` DUPs the value into the target, so a handle freed at scope
   // exit rather than immediately after its `setProp` is refcount-identical. Scope-exit order is
   // REVERSE-declaration = inner-fn-before-its-object, exactly the order the hand-written disposals used.
+  // In a broker's Worker each seam blocks on the parent's answer, so the wait is left out of the guest's CPU charge.
   using clock = ctx.newObject();
-  using nowFn = marshal.newHostFunction("nowEpochMs", () => ctx.newNumber(seams.nowEpochMs()));
+  using nowFn = marshal.newHostFunction("nowEpochMs", () => ctx.newNumber(withoutCpuCharge(ctx, () => seams.nowEpochMs())));
   marshal.setHostProp(clock, "nowEpochMs", nowFn);
   marshal.setHostProp(surface, "clock", clock);
 
   using random = ctx.newObject();
-  using nextFn = marshal.newHostFunction("next", () => ctx.newNumber(seams.nextRandom()));
+  using nextFn = marshal.newHostFunction("next", () => ctx.newNumber(withoutCpuCharge(ctx, () => seams.nextRandom())));
   marshal.setHostProp(random, "next", nextFn);
   marshal.setHostProp(surface, "random", random);
 
   using ids = ctx.newObject();
-  using mintFn = marshal.newHostFunction("mint", () => marshal.newHostString(seams.mintId()));
+  using mintFn = marshal.newHostFunction("mint", () => marshal.newHostString(withoutCpuCharge(ctx, () => seams.mintId())));
   marshal.setHostProp(ids, "mint", mintFn);
   marshal.setHostProp(surface, "ids", ids);
 

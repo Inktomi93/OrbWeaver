@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-11
+updated: 2026-11-14
 ---
 
 # A host call past the CPU window ends the guest
@@ -14,7 +14,7 @@ A plugin guest gets a CPU budget per invocation, and its continuations run in jo
 
 **Two bounds, kept apart.**
 
-- **The CPU account bounds work.** An invocation holds one account, the per-instance budget. Each span of guest execution inside it opens a window at the account's remainder and is charged the time it ran: the synchronous run, every settlement and pump while the invocation awaits, and the read of its result. The await between spans charges nothing.
+- **The CPU account bounds work.** An invocation holds one account, the per-instance budget. Each span of guest execution inside it opens a window at the account's remainder and is charged the time it ran: the synchronous run, every settlement and pump while the invocation awaits, and the read of its result. The await between spans charges nothing. Neither does a synchronous host call's block on its parent inside a span (the clock, random and id seams in a broker's Worker): the window's deadline moves forward by the wait and the span's close leaves it out, because the guest runs no bytecode while the thread blocks and a slow app is the host's cause. How long a span may hold its Worker, waits included, stays D347's bound.
 - **Work outside an invocation spends one account per instance**, refilled only when an invocation opens. When it is spent, the host stops pumping the job queue and the entry check refuses any host call.
 - **No settlement runs on a spent account.** While the account a settlement would spend is spent, the invocation's or the outside one, the host holds it host-side, its result already capped as JSON text. After the next invocation answers, held settlements run oldest first on the refilled outside account until its window passes. Unsettled guest promises, held ones included, count against `HOST_CALLS_IN_FLIGHT_MAX`.
 - **The settlement wall ends an invocation** `cpuDeadlineMs + settleGraceMs` after its synchronous run, awaiting included. Every guest invocation races it; activation races it twice, in `evalGuest` and `settleActivationJobs`. It is a timer in the Worker, which runs only between spans and after the queued port messages drain, so it fires once a spent account stops the settlements; a span it cannot reach is D347's. Each wall a command waits out counts toward the parent's backstop for it (D347).
@@ -27,11 +27,11 @@ A plugin guest gets a CPU budget per invocation, and its continuations run in jo
 
 **Homes.**
 
-- `openCpuInvocation`, `openCpuWindow`, `withinCpuWindow`, `settleInCpuWindow`, `releaseParkedSettlements`, `pumpGuestJobs` and `cpuWindowPassed` in `packages/server/src/infra/plugin-host/cpu-guard.ts`.
+- `openCpuInvocation`, `openCpuWindow`, `withinCpuWindow`, `withoutCpuCharge`, `settleInCpuWindow`, `releaseParkedSettlements`, `pumpGuestJobs` and `cpuWindowPassed` in `packages/server/src/infra/plugin-host/cpu-guard.ts`.
 - `runToSettlement`, `raceSettlement` and `settleActivationJobs` in `packages/server/src/infra/plugin-host/sandbox.ts`; the limits each runs under and `settlementWallMs` in `packages/server/src/infra/plugin-host/budgets.ts`.
 - `newHostFunction`, `newHostError`, `settlementOf`, `stopPastWindow`, `readGuestProp` and `setHostProp` in `packages/server/src/infra/plugin-host/marshal.ts`.
 - `handleSafeToDump` and `attachAsync` in `packages/server/src/infra/plugin-host/membrane.ts`; `logText`, `buildHostSurface` and `orb.host` in `packages/server/src/infra/plugin-host/realm.ts`.
-- Tests: `tests/server/infra/plugin-host/membrane.int.test.ts` and `tests/server/infra/plugin-host/cpu-guard.test.ts`.
+- Tests: `tests/server/infra/plugin-host/membrane.int.test.ts` and `tests/server/infra/plugin-host/cpu-guard.test.ts`; the synchronous wait, `tests/server/infra/plugin-host/persistence/relayed-refusal-strikes.int.test.ts`.
 
 ## Consequences
 
