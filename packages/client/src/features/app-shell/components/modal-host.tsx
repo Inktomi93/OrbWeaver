@@ -3,15 +3,10 @@
 // bottom <Drawer> sheet. A DECLARED-PLANNED modal (`body: { planned }`) renders its title as a
 // placeholder. Controlled by the store: closing calls `closeModal`.
 
-import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
-import { DialogHeader } from "@orb/ui/dialog";
-import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
-import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
-import { FlowDialog } from "#components";
-import { DIALOG_VERBS } from "#lib";
+import { FlowDialog, SheetDialog } from "#components";
 import type { ModalDefinition, ModalSlotId } from "#state";
 import { useModalRegistry } from "#state";
 import { SectionPlaceholder } from "./section-placeholder.tsx";
@@ -97,45 +92,12 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
   };
   const resolveDrawerFinalFocus = (): boolean => closeRequestedRef.current;
 
-  // THE KEYBOARD-AWARE PROVIDER IS MOUNTED HERE, AND THIS IS ITS ONLY REACHABLE HOME (#1868).
-  // `DrawerModal` IS the phone's modal presentation (the `coarse` arm of ModalHost above), and a modal
-  // body is arbitrary — the settings panes it hosts are full of form fields. Until this wrap, Base UI's
-  // `Drawer.VirtualKeyboardProvider` was sealed and exported by @orb/ui and mounted NOWHERE: wired, never
-  // called. The cost of that was paid on iOS, where `interactive-widget=resizes-content` (index.html) is
-  // inert — WebKit has never implemented it — so the keyboard covers the sheet's own fields and the
-  // layout viewport does not shrink to say so. The provider watches `visualViewport` and scrolls the
-  // body to keep the focused field clear, which is the only working keyboard story available to us on
-  // that platform.
-  //
-  // IT REQUIRES `<Drawer.Viewport>` as its measurement and containment root, which `DrawerPopup` already
-  // renders (drawer.tsx) — that is why this is a wrap and not a rebuild, and why the provider must sit
-  // OUTSIDE `DrawerPopup` (it reads the viewport out of the Drawer store, so it has to be an ancestor of
-  // the portal, not a child of the popup).
-  //
-  // IF A FUTURE BODY PINS AN INPUT TO THE SHEET'S FOOT, it reads `var(--drawer-keyboard-inset, 0px)` —
-  // WITH the `0px` fallback, always. The provider only sets that variable while the keyboard is aligned,
-  // so a bare `var(--drawer-keyboard-inset)` is invalid before the first alignment and after cleanup
-  // (https://base-ui.com/react/components/drawer). No body does today; this is the standing contract for the
-  // first one that tries.
+  // A modal body is arbitrary (the settings panes are full of form fields), so the phone's modal presentation is the sheet composite,
+  // which carries the keyboard-aware wrap.
   return (
-    <Drawer open={true} onOpenChange={onDrawerOpenChange} modal="trap-focus">
-      <DrawerVirtualKeyboardProvider>
-        <DrawerPopup container={container} finalFocus={resolveDrawerFinalFocus}>
-          {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
-          <DialogHeader sticky={true}>
-            <DrawerTitle>{def.title}</DrawerTitle>
-            <DrawerClose
-              render={
-                <Button variant="ghost" square={true} aria-label={DIALOG_VERBS.close}>
-                  <Icon icon={X} size="sm" />
-                </Button>
-              }
-            />
-          </DialogHeader>
-          {body}
-        </DrawerPopup>
-      </DrawerVirtualKeyboardProvider>
-    </Drawer>
+    <SheetDialog open={true} onOpenChange={onDrawerOpenChange} modal="trap-focus" title={def.title} container={container} finalFocus={resolveDrawerFinalFocus}>
+      {body}
+    </SheetDialog>
   );
 }
 

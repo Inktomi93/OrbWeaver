@@ -2,14 +2,12 @@
 // One published host answer controls both the room geometry and the sheet menu without duplicate state reads.
 
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
-import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
-import { Icon, PanelBottomOpen, X } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Icon, PanelBottomOpen } from "@orb/ui/icons";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { DIALOG_VERBS, publishFlankHost, SIDECAR_PANELS_LABEL, setFlankSheetOpen, useFlankHost, useFlankSheetOpen } from "#lib";
+import { SheetDialog } from "#components";
+import { publishFlankHost, SIDECAR_PANELS_LABEL, setFlankSheetOpen, useFlankHost, useFlankSheetOpen } from "#lib";
 import { usePluginFlankCollapsed } from "../hooks/use-plugin-chat-visibility.ts";
 import { useFlankInSheet, useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
 import { PluginAnchoredSurfaceList } from "./plugin-anchored-surfaces.tsx";
@@ -42,27 +40,9 @@ function FlankSheet({ children }: { readonly children: ReactNode }): ReactElemen
   // Leaving the room, or losing the last panel, must not leave the next room's sheet open.
   useEffect(() => (): void => setFlankSheetOpen(false), []);
   return (
-    <Drawer onOpenChange={setFlankSheetOpen} open={open}>
-      {/* A panel may hold a text field, and on iOS the keyboard covers a sheet's fields unless the provider
-          scrolls the focused one clear (the modal host's phone sheet takes the same wrap). */}
-      <DrawerVirtualKeyboardProvider>
-        <DrawerPopup>
-          <Stack gap="block">
-            <Row align="center" justify="between">
-              <DrawerTitle>{SIDECAR_PANELS_LABEL}</DrawerTitle>
-              <DrawerClose
-                render={
-                  <Button aria-label={DIALOG_VERBS.close} variant="ghost" square={true} type="button">
-                    <Icon icon={X} size="sm" />
-                  </Button>
-                }
-              />
-            </Row>
-            {children}
-          </Stack>
-        </DrawerPopup>
-      </DrawerVirtualKeyboardProvider>
-    </Drawer>
+    <SheetDialog open={open} onOpenChange={setFlankSheetOpen} title={SIDECAR_PANELS_LABEL}>
+      {children}
+    </SheetDialog>
   );
 }
 

@@ -2085,6 +2085,12 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: homes("packages/client/src/components/content-dialog.tsx", "packages/client/src/components/form-dialog.tsx"),
       rules: { "orb/dialog-via-composite": "error" },
     },
+    {
+      files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
+      // The composite that wraps the drawer primitive.
+      ignores: homes("packages/client/src/components/sheet-dialog.tsx"),
+      rules: { "orb/sheet-via-composite": "error" },
+    },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/no-query-state-ladder": "error" } },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],

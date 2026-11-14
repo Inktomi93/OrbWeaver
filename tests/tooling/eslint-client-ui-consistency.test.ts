@@ -164,6 +164,13 @@ test("a component-tier composer cannot reach the raw dialog either; the composit
   expect(await findings("orb/dialog-via-composite", raw, "packages/client/src/components/content-dialog.tsx")).toEqual([]);
 });
 
+test("a feature or a component-tier composer cannot reach the drawer primitive; the sheet composite can", async () => {
+  const raw = 'import { Drawer, DrawerPopup } from "@orb/ui/drawer";';
+  expect(await findings("orb/sheet-via-composite", raw)).toHaveLength(1);
+  expect(await findings("orb/sheet-via-composite", raw, "packages/client/src/components/relation-manager-section.tsx")).toHaveLength(1);
+  expect(await findings("orb/sheet-via-composite", raw, "packages/client/src/components/sheet-dialog.tsx")).toEqual([]);
+});
+
 const REQUIRED_DIALOG = 'import { RequiredFormDialog } from "#components";';
 
 test("the forced dialog is the first-run ask's alone", async () => {

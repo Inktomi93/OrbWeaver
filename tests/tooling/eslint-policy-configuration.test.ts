@@ -94,6 +94,13 @@ test.for([
     good: `import { ConfirmDialog } from "#components";`,
   },
   {
+    id: "sheet-via-composite",
+    inside: "packages/client/src/features/plugin/components/sheet-probe.tsx",
+    outside: "packages/client/src/components/sheet-dialog.tsx",
+    bad: `import { Drawer } from "@orb/ui/drawer";`,
+    good: `import { SheetDialog } from "#components";`,
+  },
+  {
     id: "config-host-no-feature-import",
     inside: "packages/client/src/features/config/surfaces/config-content-surface.tsx",
     outside: "packages/client/src/features/config/surfaces/other.tsx",
