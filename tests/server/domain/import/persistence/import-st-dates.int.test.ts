@@ -60,6 +60,12 @@ const SEND_DATE_FORMS = [
   { form: "humanised, one-digit day and hour, am", sendDate: "July 9, 2025 6:05am", at: Date.UTC(2025, 6, 9, 6, 5) },
   { form: "humanised, two-digit day and hour, pm", sendDate: "July 19, 2025 11:30pm", at: Date.UTC(2025, 6, 19, 23, 30) },
   { form: "humanised midnight as 12am", sendDate: "December 31, 2024 12:00am", at: Date.UTC(2024, 11, 31, 0, 0) },
+  { form: "humanised noon as 12pm", sendDate: "December 31, 2024 12:15pm", at: Date.UTC(2024, 11, 31, 12, 15) },
+  // The night US clocks spring forward (2am local on 9 March 2025): read in a US host zone, the hour before and the
+  // hour after would sit at different offsets and 2:30 would not exist; read as UTC, all three are plain hours.
+  { form: "humanised, the hour before a daylight-saving change", sendDate: "March 9, 2025 1:30am", at: Date.UTC(2025, 2, 9, 1, 30) },
+  { form: "humanised, inside a host zone's skipped hour", sendDate: "March 9, 2025 2:30am", at: Date.UTC(2025, 2, 9, 2, 30) },
+  { form: "humanised, the hour after a daylight-saving change", sendDate: "March 9, 2025 3:30am", at: Date.UTC(2025, 2, 9, 3, 30) },
   { form: "the @ form with milliseconds", sendDate: "2024-7-12@01h31m37s123ms", at: Date.UTC(2024, 6, 12, 1, 31, 37) },
   { form: "an epoch-milliseconds number", sendDate: 1_752_948_001_000, at: 1_752_948_001_000 },
   { form: "ISO with a non-UTC offset", sendDate: "2025-07-19T12:00:01+02:00", at: Date.UTC(2025, 6, 19, 10, 0, 1) },

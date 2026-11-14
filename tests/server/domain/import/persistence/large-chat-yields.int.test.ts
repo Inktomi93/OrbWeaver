@@ -9,7 +9,7 @@ import { messages, messageVariants } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
-import { count } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { LANDING_STAGE_ROWS } from "#server/domain/chat/persistence/import-landing.ts";
 
 const HANDLE = "long-keeper";
@@ -41,9 +41,12 @@ function largeTranscript(fileBytes: number, fields: (turn: number) => string): {
 }
 
 // The driver runs a statement as it is called, so a read made on a turn sees exactly the stages committed before it.
+// On a fresh database that only inserts, a table's largest rowid is its row count, read by one seek rather than a scan,
+// so the watcher costs the same on every turn however many rows have landed.
+const LAST_ROWID = sql<number | null>`max(rowid)`;
 async function landedRows(root: ServerTestHarness): Promise<number> {
-  const [slots] = await root.db.select({ n: count() }).from(messages);
-  const [variants] = await root.db.select({ n: count() }).from(messageVariants);
+  const [slots] = await root.db.select({ n: LAST_ROWID }).from(messages);
+  const [variants] = await root.db.select({ n: LAST_ROWID }).from(messageVariants);
   return (slots?.n ?? 0) + (variants?.n ?? 0);
 }
 
