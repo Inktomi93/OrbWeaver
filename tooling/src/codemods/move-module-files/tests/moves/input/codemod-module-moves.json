@@ -1,0 +1,6 @@
+{
+  "moves": {
+    "packages/p/src/domain/d/substrate/io.ts": "packages/p/src/domain/d/persistence/io.ts",
+    "packages/p/src/domain/d/substrate/loop.ts": "packages/p/src/domain/d/engine/loop.ts"
+  }
+}
