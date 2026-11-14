@@ -100,7 +100,7 @@ import {
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurns, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import { loadTailIsUserMessage } from "../persistence/message-window.ts";
-import { classifyParticipant, isArbiterEligible } from "../persistence/participant.ts";
+import { isArbiterEligible } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentRole } from "../persistence/participants-read.ts";
 import {
   loadCanonHistory,
@@ -123,6 +123,7 @@ import { refuseClosedAdmission } from "../substrate/handoff-barrier.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { createViewerTextScrub, projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostConsentOf, humanSeatPersonasOf, lorePersonaIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";

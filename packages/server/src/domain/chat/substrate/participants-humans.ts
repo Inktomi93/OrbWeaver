@@ -27,7 +27,7 @@ import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import type { HumanSeatPersona } from "../contract/foreign.ts";
 import { loadPersonaOwnerId } from "../persistence/identity.ts";
-import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
+import { classifyParticipant, isBackingUserEnabled } from "./participant-actor.ts";
 import { hostUserIdOf } from "./participants-host.ts";
 
 /** The columns the human-seat lens reads — {@link classifyParticipant}'s own row shape, so the raw

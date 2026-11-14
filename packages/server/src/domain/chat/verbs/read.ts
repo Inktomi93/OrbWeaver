@@ -120,7 +120,6 @@ import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
 import { loadMessagePositions, positionCanonPage } from "../persistence/message-positions.ts";
 import { loadPageCursors } from "../persistence/page-cursors.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
 import type { ChatEventLogRow } from "../persistence/queries.ts";
 import {
@@ -167,6 +166,7 @@ import { toChatDetail } from "../substrate/chat-detail.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
 import { scrubChatEventReplayForMember, stripMemberCardForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import {
   hostConsentOf,

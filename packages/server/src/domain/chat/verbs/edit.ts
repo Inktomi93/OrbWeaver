@@ -101,7 +101,6 @@ import {
   loadGenerationObservationsForRemoval,
 } from "../persistence/generation-observation.ts";
 import { loadMessageAssetLinks } from "../persistence/message-asset-links.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { isCharacterSeated, loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadAuthoredUserMessageIds,
@@ -123,6 +122,7 @@ import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substra
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { projectViewReturnForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { hostConsentOf, humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";

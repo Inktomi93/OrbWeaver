@@ -42,10 +42,10 @@ import {
 import { collectSegments, storeSegments } from "../memory/generate/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
 import { loadBackfillChatIds } from "../persistence/backfill-scope.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { digestsDerivable } from "./digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
+import { classifyParticipant } from "./participant-actor.ts";
 import { hostUserIdOf } from "./participants-host.ts";
 import { hostConsentOf } from "./participants-humans.ts";
 

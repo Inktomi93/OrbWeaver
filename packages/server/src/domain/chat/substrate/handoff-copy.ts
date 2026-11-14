@@ -25,7 +25,7 @@ import { statementForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext, HandoffCopyPlan } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
+import { classifyParticipant } from "./participant-actor.ts";
 
 /** The present character seats the DEPARTING host owns — the copy candidates for an accepted offer.
  *

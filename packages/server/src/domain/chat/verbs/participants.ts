@@ -80,7 +80,6 @@ import { clearHandoffResumptionStatement, insertHandoffResumptionStatement } fro
 import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
-  classifyParticipant,
   insertParticipants,
   markParticipantLeftStatement,
   markUserLeft,
@@ -94,6 +93,7 @@ import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { viewerHoldsHost } from "../substrate/member-visibility.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { regexAllowOf } from "../substrate/regex-tier.ts";

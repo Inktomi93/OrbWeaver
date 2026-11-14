@@ -675,7 +675,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   /** The disabled-account containment gate (owner-ruled): whether a human's backing `users` row
    *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
    *  an admin disable propagates the very next round. Chat never reads `users` itself — see
-   *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
+   *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`substrate/participant-actor.ts`) at the ONE
    *  consumer that already gates a human's identity on presence (`presentHumanUserIdsOf`,
    *  `substrate/participants-humans.ts`) — a disabled human's PERSONA drops from the room's foreign-input consent
    *  set the same way a departed member's already does. */

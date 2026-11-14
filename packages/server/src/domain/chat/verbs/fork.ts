@@ -51,7 +51,6 @@ import { requireParticipant } from "../guard.ts";
 import { carriesAssetBackground, guardedChatId } from "../persistence/background-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadMessageAssetLinks } from "../persistence/message-asset-links.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadChatInjections,
@@ -67,6 +66,7 @@ import { permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { resolveAnchor } from "../substrate/participants-humans.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
