@@ -22,7 +22,7 @@ import type {
 } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { chatDeletedFromList, chatSectionSelection, openNewChatPicker, selectChatFromList } from "#state";
+import { chatSectionSelection, openNewChatPicker, selectChatFromList } from "#state";
 import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
 import { ChatContent } from "../components/chat-content.tsx";
@@ -33,7 +33,7 @@ import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextResetKeys, useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { useChatListHeader } from "../hooks/use-chat-list-header.tsx";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
-import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "./chat-context-tab-labels.ts";
+import { CHAT_CONTEXT_EMPTY, CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "./chat-context-tab-labels.ts";
 import { CHATS_SECTION_LABEL } from "./chats-section-label.ts";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
 import { membersTabJustified, resolveIsGroupChat } from "./roster.ts";
@@ -132,7 +132,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     },
     list: () => (
       <ChatListAnchor>
-        <ChatListSurface onDeletedChat={chatDeletedFromList} onNewChat={openNewChatPicker} onSelect={selectChatFromList} />
+        <ChatListSurface onNewChat={openNewChatPicker} onSelect={selectChatFromList} />
       </ChatListAnchor>
     ),
     // The LIST chrome-band content (§4 N2): "CHATS" title + count + the ONE primary New action.
@@ -166,10 +166,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       regions: contextRegions,
       // The no-selection ARM (side-eye F-12) — this pane shared one voiceless
       // "Select something to see its details here." with two other sections.
-      empty: {
-        title: "No chat open",
-        description: "Open a thread and this pane carries its characters, its memory, and the knobs that apply to it.",
-      },
+      empty: CHAT_CONTEXT_EMPTY,
     }),
   };
 }

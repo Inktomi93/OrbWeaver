@@ -56,6 +56,7 @@ import {
   CHAT_SETTINGS_DOOR_NAME,
 } from "../lib/chat-options-names.ts";
 import { characterGalleryName } from "../lib/chat-surface-names.ts";
+import { forgetDeletedChat } from "../lib/gone-room-draft.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 interface GameModeActions {
@@ -238,7 +239,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
     setRenameOpen(false);
   };
   const confirmDelete = (): void => {
-    deleteChat.mutate({ chatId }, { onSuccess: goToLanding });
+    deleteChat.mutate({ chatId }, { onSuccess: (): void => forgetDeletedChat(chatId) });
   };
   // The confirm holds open while the leave runs and stays open with the reason if the server refuses it.
   const confirmLeave = (): Promise<void> => selfLeave.mutateAsync({ chatId }).then(goToLanding);

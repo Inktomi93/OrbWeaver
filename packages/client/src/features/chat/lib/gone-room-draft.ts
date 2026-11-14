@@ -3,7 +3,8 @@
 // the draft store (a draft under a room that no longer exists can never be sent, so it would only be an orphan) and a notice says
 // the chat is gone and what became of the work. Only the text is offered back, to copy; a staged file is lost with the composer
 // and the notice says so. The text is held by the notice alone, so it stays until the reader dismisses it, and where the browser
-// cannot copy (a page on plain http) the text itself is shown to select by hand.
+// cannot copy (a page on plain http) the text itself is shown to select by hand. A chat the reader deletes themselves releases the same
+// entries without the notice: they confirmed the delete.
 
 import type { ChatId } from "@orb/kit/ids";
 import { copyHeldText, notify } from "#lib";
@@ -34,5 +35,13 @@ export function leaveGoneRoom(chatId: ChatId): void {
   if (activeChatId() === chatId) {
     releaseGoneRoomWork(chatId);
   }
+  chatDeletedFromList(chatId);
+}
+
+/** A chat the reader just deleted, from its list row or its own room: the delete was confirmed on screen, so its draft entry and staged
+ *  files leave with it and nothing is offered back. Then the reader returns to the chat list if the chat was open. */
+export function forgetDeletedChat(chatId: ChatId): void {
+  takePendingAttachments(chatId);
+  clearComposerDraft(chatId);
   chatDeletedFromList(chatId);
 }

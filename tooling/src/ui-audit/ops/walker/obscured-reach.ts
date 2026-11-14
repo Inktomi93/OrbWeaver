@@ -19,6 +19,7 @@
 // nowhere it stands and everywhere it can be scrolled to — `recenterObscuredCandidate` is what makes that
 // a measurement rather than a lottery any page can draw (measured at 1400x1000: y=999.4 hits, y=999.5 is
 // null).
+import { OVERLAY_RELATION_ATTRIBUTE } from "@orb/ui/lib";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
@@ -31,6 +32,22 @@ export const WALKER_OBSCURED_REACH = `
   var obscuredRevealScrolls = 0;
   var obscuredUnaskable = 0;
   var obscuredUnaskableSubjects = [];
+  var obscuredDeclared = 0;
+  var OVERLAY_RELATION = ${JSON.stringify(OVERLAY_RELATION_ATTRIBUTE)};
+  // A DESIGNED OVERLAY IS NOT A COLLISION. @orb/ui's declaresOverlay names the design on BOTH boxes: the box holding
+  // the controls that lie over (a hovered row's floated actions) and the box holding the content they lie over (the
+  // row's body) carry one relation, and one box's parent holds the other. A subject in one box covered by a control in
+  // the other, under the same relation, is the declared design, counted as excluded(declaredOverlay) and never judged.
+  // It is not a waiver: a control over another control of its OWN box, or over a box that declares nothing, or under a
+  // different relation, stays a finding. The pairing is the one tests/support/browser/enlarged-text-geometry.ts reads.
+  function declaredOverlay(subject, winner) {
+    var content = subject.closest("[" + OVERLAY_RELATION + "]");
+    var controls = winner.closest("[" + OVERLAY_RELATION + "]");
+    if (content === null || controls === null || content.contains(controls) || controls.contains(content)) return false;
+    var home = content.parentElement;
+    if (home === null || !home.contains(controls)) return false;
+    return content.getAttribute(OVERLAY_RELATION) === controls.getAttribute(OVERLAY_RELATION);
+  }
   // A hairline intersection is antialiasing, not a collision; a quarter of the box is a mis-tap.
   var OBSCURED_MIN_COVERED = 0.25;
   var OBSCURED_MIN_OVERLAP_PX = 4;
@@ -262,6 +279,10 @@ export const WALKER_OBSCURED_REACH = `
       obProbe = "ink-end";
     }
     if (obCollision === null) continue;
+    if (declaredOverlay(obel, obCollision.hit)) {
+      obscuredDeclared += 1;
+      continue;
+    }
     obscuredTargets.push({
       authoredTarget: authoredTargetClaim(obel),
       authoredHome: authoredTargetHome(obel),
@@ -292,7 +313,8 @@ export const WALKER_OBSCURED_REACH = `
     subjects: obscuredUnaskableSubjects,
   };
   relationalAccounting["obscured-target"].candidates = obscuredCandidates;
-  relationalAccounting["obscured-target"].judged = obscuredCandidates - obscuredUnaskable;
+  relationalAccounting["obscured-target"].judged = obscuredCandidates - obscuredUnaskable - obscuredDeclared;
   relationalAccounting["obscured-target"].withheld = { unaskable: obscuredUnaskable };
+  relationalAccounting["obscured-target"].excluded = obscuredDeclared === 0 ? {} : { declaredOverlay: obscuredDeclared };
 
 `;

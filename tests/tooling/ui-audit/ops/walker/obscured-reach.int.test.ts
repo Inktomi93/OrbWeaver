@@ -254,3 +254,69 @@ auditRuleTest(
     return report;
   },
 );
+
+// ── A DESIGNED OVERLAY IS NOT A COLLISION ─────────────────────────────────────
+// @orb/ui's `declaresOverlay` names a designed overlay on both boxes: a hovered chat row's floated actions lie over the end of the
+// row's body text. The census reads the declaration and counts the subject as excluded(declaredOverlay), so it never reads as a
+// mis-tap. The four documents below change only what the declaration names: the same geometry, the same ink under the same button.
+const OVERLAY = "row-actions-over-body";
+const OTHER_OVERLAY = "message-controls-over-art";
+
+const overlayRow = (
+  bodyDeclares: string,
+  controlsDeclare: string,
+  controlsLiveInBody = false,
+): string => `<div data-slot="overlay-row" style="position:relative;width:300px;height:32px;background:#000">
+  <div data-slot="overlay-body" ${bodyDeclares} style="width:300px;height:32px">
+    <span data-slot="overlay-title" style="font-size:16px;white-space:nowrap;color:#fff">Characters 326</span>${
+      controlsLiveInBody
+        ? `<button data-slot="overlay-action" type="button" style="position:absolute;top:2px;left:90px;width:80px;height:28px;background:#333;color:#fff;border:0">Go</button>`
+        : ""
+    }
+  </div>${
+    controlsLiveInBody
+      ? ""
+      : `
+  <div data-slot="overlay-controls" ${controlsDeclare} style="position:absolute;top:2px;left:90px">
+    <button data-slot="overlay-action" type="button" style="width:80px;height:28px;background:#333;color:#fff;border:0">Go</button>
+  </div>`
+  }
+</div>`;
+const declare = (relation: string): string => `data-overlay-relation="${relation}"`;
+
+auditRuleTest(
+  [
+    {
+      rule: "obscured-target",
+      kind: "silent",
+      reason: "the body and the controls over it name one relation, so the title under the button is the declared design",
+      disposition: { kind: "excluded", reason: "declaredOverlay" },
+    },
+  ],
+  "text under a control that its own box declares as a designed overlay is excluded, not found",
+  async ({ runSnap, scratch }) => {
+    const report = await auditBand(scratch, runSnap, "overlay-declared", overlayRow(declare(OVERLAY), declare(OVERLAY)));
+    expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toEqual([]);
+    expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ affected: 0, withheld: { unaskable: 0 } });
+    return report;
+  },
+);
+
+const UNDECLARED_ARMS = [
+  { name: "declare different relations", body: declare(OVERLAY), controls: declare(OTHER_OVERLAY), inBody: false },
+  { name: "leave the controls box undeclared", body: declare(OVERLAY), controls: "", inBody: false },
+  { name: "put the control in the declaring body itself", body: declare(OVERLAY), controls: "", inBody: true },
+] as const;
+
+for (const { name, body, controls, inBody } of UNDECLARED_ARMS) {
+  auditRuleTest(
+    [{ rule: "obscured-target", kind: "fires", reason: `the same title under the same button still fails when the boxes ${name}` }],
+    `text under a control still fails obscured-target when the boxes ${name}`,
+    async ({ runSnap, scratch }) => {
+      const report = await auditBand(scratch, runSnap, `overlay-${name.replaceAll(" ", "-")}`, overlayRow(body, controls, inBody));
+      expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toEqual([
+        expect.objectContaining({ selector: expect.stringContaining("overlay-title"), value: expect.stringContaining("overlay-action") }),
+      ]);
+    },
+  );
+}
