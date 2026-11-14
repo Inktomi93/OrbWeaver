@@ -50,6 +50,20 @@ export function MenuOverTargetStory({ withSecondRow = false }: { readonly withSe
   );
 }
 
+/** A control whose name drops the words it shows, so it fails the house Label-in-Name check as well as the vendor rule. */
+export function DroppedWordsStory(): ReactElement {
+  return (
+    <CtIsolation subject="Dropped shown words" isolates="What the label-content-name-mismatch rule reports for a control whose name lacks its shown words">
+      <main>
+        <h1>Dropped shown words</h1>
+        <button aria-label="Save" type="button">
+          Discard the draft
+        </button>
+      </main>
+    </CtIsolation>
+  );
+}
+
 /** A closed select whose trigger can be laid over the planted target, and a plain button that can too. */
 export function ClosedCoverStory(): ReactElement {
   return (
