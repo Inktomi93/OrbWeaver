@@ -217,6 +217,13 @@ test("a disabled owner's character, persona and attachment art stops serving to 
   const attachment = await store(room.root, room.host, "attachment");
   await say(room, room.host, "", [attachment.assetId]);
   const viewer = await admit(room, "floor-watcher", "full");
+  const outsiderLogin = await signedInMember(room.root, castId<Handle>("floor-outsider"));
+  const outsider = { principal: await room.root.principalFor(outsiderLogin.id), cookie: outsiderLogin.cookie };
+  const ownCharacter = await room.root.services.character.create({
+    principal: outsider.principal,
+    input: createCharacterSchema.parse({ handle: "outsider-keeper", name: "Elsewhere", description: "A keeper of another room." }),
+  });
+  await room.root.services.chat.startChat({ principal: outsider.principal, characterIds: [ownCharacter.id], opening: "none" });
 
   const art = async (): Promise<readonly unknown[]> => [
     await served(room, viewer, room.characterAvatar.hash),
@@ -226,17 +233,13 @@ test("a disabled owner's character, persona and attachment art stops serving to 
   ];
   const allServed = [SERVES, SERVES, visible(attachment), SERVES];
   expect(await art()).toEqual(allServed);
+  // A seated character's and a worn persona's art serve to the room they sit in, never past it: while the room's
+  // viewer reads both above, an account seated only in a room of its own reads them as missing.
+  expect([await served(room, outsider, room.characterAvatar.hash), await served(room, outsider, seated.avatar.hash)]).toEqual([REFUSES, REFUSES]);
 
   await setEnabled(room, room.host.userId, false);
   expect(await art()).toEqual([REFUSES, REFUSES, WITHHELD, SERVES]);
-  // The pin's face serves to the room, never past it: an account seated only in a room of its own reads it as missing.
-  const outsiderLogin = await signedInMember(room.root, castId<Handle>("floor-outsider"));
-  const outsider = { principal: await room.root.principalFor(outsiderLogin.id), cookie: outsiderLogin.cookie };
-  const ownCharacter = await room.root.services.character.create({
-    principal: outsider.principal,
-    input: createCharacterSchema.parse({ handle: "outsider-keeper", name: "Elsewhere", description: "A keeper of another room." }),
-  });
-  await room.root.services.chat.startChat({ principal: outsider.principal, characterIds: [ownCharacter.id], opening: "none" });
+  // The pin's face serves to the room, never past it: the same outsider reads it as missing while the viewer reads it.
   expect(await served(room, outsider, pinned.avatar.hash)).toEqual(REFUSES);
 
   await setEnabled(room, room.host.userId, true);
