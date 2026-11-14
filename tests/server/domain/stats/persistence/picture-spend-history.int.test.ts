@@ -86,6 +86,21 @@ test("a captioned picture and a preview keep their spend and image averages thro
   expect(await rebuilt(root, room.host)).toEqual(live);
 });
 
+test("one image call that returns two pictures shows two generations and one call's wall time on the live path and after a rebuild", async () => {
+  const clock = createFrozenClock();
+  using wire = physicalExecution([CAPTION], () => clock.advance(IMAGE_CALL_MS));
+  await using root = await createServerHarness({ startJobs: false, clock, providerFetch: wire.execute, secretBoxKey: SECRET_BOX_KEY });
+  const room = await policyRoom(root);
+  wire.images.push(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+
+  const picture = await root.services.imagery.generatePicture({ caller: room.host, mode: CAPTION_MODE, subjectCharacterId: room.character.id, n: 2 });
+  expect(picture.images).toHaveLength(2);
+
+  const live = await shown(root, room.host);
+  expect(live.imageModel).toMatchObject({ generations: 2, totalGenTimeMs: IMAGE_CALL_MS });
+  expect(await rebuilt(root, room.host)).toEqual(live);
+});
+
 test("the spend ledger travels only in the whole-library bundle, and a restore adds only the entries a library lacks", async () => {
   using wire = physicalExecution([SUMMARY, CAPTION]);
   await using source = await signedInBox({ providerFetch: wire.execute, secretBoxKey: SECRET_BOX_KEY });
@@ -148,8 +163,8 @@ test("an owner whose only activity is an unpriced picture is healed when the tim
   expect(live.imageModel).toMatchObject({ generations: 1, costUsd: null });
 
   await root.db.delete(dailyStats).where(eq(dailyStats.ownerId, painter.userId));
-  expect(await reconcileOwnersMissingTimeline(bootGrantFor(root.db), root.clock.now, root.idSource)).toBe(1);
+  expect(await reconcileOwnersMissingTimeline(bootGrantFor(root.db), root.clock.now, root.idSource, new AbortController().signal)).toBe(1);
   expect(await root.db.select().from(dailyStats).where(eq(dailyStats.ownerId, painter.userId))).not.toHaveLength(0);
   // The heal is idempotent: a timeline in place keeps the owner out of the next boot's sweep.
-  expect(await reconcileOwnersMissingTimeline(bootGrantFor(root.db), root.clock.now, root.idSource)).toBe(0);
+  expect(await reconcileOwnersMissingTimeline(bootGrantFor(root.db), root.clock.now, root.idSource, new AbortController().signal)).toBe(0);
 });

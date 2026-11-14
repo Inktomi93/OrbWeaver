@@ -16,11 +16,13 @@
 // is an idempotency key.
 
 import type { CardWriteBasis } from "@orb/contracts/character";
-import type { BumpStatsCanonVersion, RetireCharacterCensus } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion, PrepareCanonRetirement } from "@orb/contracts/stats";
+import { CANON_RETIREMENT_ATTEMPTS } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characters } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
+import { DomainUnavailableError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, inArray, isNull, notExists, sql } from "drizzle-orm";
@@ -306,27 +308,43 @@ export async function restoreCardInPlace(
   }
 }
 
+// A writer that outpaces every retirement attempt gets a retry-later answer, never a delete planned from older canon.
+const CHARACTER_DELETE_STARVED = "the character's rooms kept changing while it was deleted; try again shortly";
+
 /** Hard-delete an owned character (cascades snapshots / personas / downstream FKs). Returns `true` when a
  *  row was actually deleted (owned/found). The caller best-effort reaps the avatar asset afterwards.
  *
- *  THE CENSUS OP RIDES AHEAD OF THE DELETE: it decides inside its own statement whether the character was counted
- *  (held a seat in a started room), and the cascade removes the seats that answer. So the delete's rows are the
- *  batch's last result, not its first. */
+ *  THE STATS RETIREMENT SURROUNDS THE DELETE in one batch: its census decides inside its own statement whether the
+ *  character was counted (held a seat in a started room), and the cascade removes the seats that answer, so it rides
+ *  ahead; the extrema it re-derives read the canon the delete leaves, so that part rides after. */
 export async function deleteOwnedCharacter(
   db: Db,
   characterId: CharacterId,
   ownerId: UserId,
-  retireCharacterCensus: RetireCharacterCensus<BatchStmt[], Db>,
+  prepareCanonRetirement: PrepareCanonRetirement<BatchStmt[], Db>,
 ): Promise<boolean> {
-  const deletion = db
-    .delete(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-    .returning({ id: characters.id });
-  const statements: BatchStmt[] = [];
-  retireCharacterCensus(statements, db, { ownerId, characterId });
-  const results = await db.batch(batchMany([...statements, deletion]));
-  const deleted = results[statements.length];
-  return Array.isArray(deleted) && deleted.length > 0;
+  for (let attempt = 0; attempt < CANON_RETIREMENT_ATTEMPTS; attempt++) {
+    const retirement = await prepareCanonRetirement(db, { kind: "character", ownerId, characterId });
+    const statements: BatchStmt[] = [];
+    retirement.beforeDelete(statements, db);
+    const deleteIndex = statements.length;
+    statements.push(
+      db
+        .delete(characters)
+        .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+        .returning({ id: characters.id }),
+    );
+    retirement.afterDelete(statements, db);
+    try {
+      const deleted = (await db.batch(batchMany(statements)))[deleteIndex];
+      return Array.isArray(deleted) && deleted.length > 0;
+    } catch (error) {
+      if (!(await retirement.refused(error))) {
+        throw error;
+      }
+    }
+  }
+  throw new DomainUnavailableError(CHARACTER_DELETE_STARVED);
 }
 
 /** Archive / un-archive many owned characters in one statement. Returns the ids actually flipped.

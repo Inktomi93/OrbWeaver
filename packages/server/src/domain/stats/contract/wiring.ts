@@ -1,8 +1,8 @@
 import type {
   ApplyStatsDelta,
   BumpStatsCanonVersion,
+  PrepareCanonRetirement,
   RecordLedgerSpend,
-  RetireCharacterCensus,
   SettleRetainedChatRebase,
   ShiftCharacterCensus,
 } from "@orb/contracts/stats";
@@ -13,7 +13,7 @@ export interface StatsBatchWiring {
   readonly applyCharacterStatsDelta: ApplyStatsDelta<BatchHandle, DatabaseHandle>;
   readonly settleRetainedChatRebase: SettleRetainedChatRebase<BatchHandle, DatabaseHandle>;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
-  readonly retireCharacterCensus: RetireCharacterCensus<BatchHandle, DatabaseHandle>;
+  readonly prepareCanonRetirement: PrepareCanonRetirement<BatchHandle, DatabaseHandle>;
   readonly shiftCharacterCensus: ShiftCharacterCensus<BatchHandle, DatabaseHandle>;
   readonly recordLedgerSpend: RecordLedgerSpend<BatchHandle, DatabaseHandle>;
 }
