@@ -175,7 +175,7 @@ function PipelineStageRow({ stage, index }: { readonly stage: RegexPipelineStage
     <Section
       data-slot="regex-pipeline-stage"
       kicker={
-        <Row align="center" gap="field">
+        <Row align="center" gap="field" wrap={true}>
           <span>{`${String(index + 1)} · ${regexScriptTitle({ name: stage.name })}`}</span>
           {stage.isSubject ? <SubjectMarker appended={stage.isAppended} /> : null}
         </Row>
@@ -208,7 +208,10 @@ function SubjectMarker({ appended }: { readonly appended: boolean }): ReactEleme
     // wearing the kicker's 0.08em micro tracking — measured 0.84px of air between letters of running prose
     // at 13px. Micro tracking is what makes a caps kicker readable and what makes a sentence look loose;
     // both halves of the kicker voice have to stand down together, which is one token step, not a re-skin.
-    <Badge tone={appended ? "neutral" : "info"} variant={appended ? "soft" : "solid"} sentenceCase={true} size="sm">
+    //
+    // THE CLAUSE WRAPS, so the kicker band never outgrows its stage. A one-line badge is wider than a phone's column at
+    // enlarged text, and the band's rule then sits past the stage's edge and the settings column scrolls sideways.
+    <Badge tone={appended ? "neutral" : "info"} variant={appended ? "soft" : "solid"} sentenceCase={true} size="sm" whitespace="normal" cap="fit">
       {appended ? "This script, wherever it’s attached" : "This script"}
     </Badge>
   );
