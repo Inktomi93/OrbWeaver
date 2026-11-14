@@ -4,13 +4,14 @@ import { Dialog, DialogClose, DialogPopup } from "#primitives/dialog";
 import { Icon, X } from "#primitives/icons";
 import type { MediaSource, MessageMediaProps } from "../message-media/index.ts";
 import { MessageMedia } from "../message-media/index.ts";
-import { LIGHTBOX_LABELS } from "./control-labels.ts";
+import type { LightboxMedia } from "./control-labels.ts";
+import { LIGHTBOX_LABELS, lightboxName } from "./control-labels.ts";
 
 export interface LightboxProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly src: MediaSource;
-  readonly media: "image" | "video";
+  readonly media: LightboxMedia;
   readonly alt: string;
   /** Intrinsic size, forwarded verbatim to `MessageMedia` (#654) — DERIVED from its prop rather than
    *  re-spelled, so the two can never drift. A caller that has dims for the inline image has them for the
@@ -32,7 +33,7 @@ export interface LightboxProps {
 export function Lightbox({ open, onOpenChange, src, media, alt, dims, allowExternal }: LightboxProps): ReactElement {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPopup className="bg-transparent p-block shadow-none max-inline-cq-48">
+      <DialogPopup aria-label={lightboxName(media, alt)} className="bg-transparent p-block shadow-none max-inline-cq-48">
         <div className="flex justify-end">
           <DialogClose render={<Button variant="solid" square={true} aria-label={LIGHTBOX_LABELS.close} />}>
             <Icon icon={X} size="sm" />
