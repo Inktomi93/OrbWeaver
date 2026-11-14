@@ -28,7 +28,6 @@ import {
   createListForChat,
   createListForPreset,
   createListGlobal,
-  createListRoomDisplayScripts,
   createListScriptUsage,
 } from "./verbs/attachments/index.ts";
 import {
@@ -78,7 +77,6 @@ export function createRegexService(input: DbAssemblyInput<RegexContext>): RegexS
     attachToChat: createAttachToChat(ctx),
     detachFromChat: createDetachFromChat(ctx),
     listForChat: createListForChat(ctx),
-    listRoomDisplayScripts: createListRoomDisplayScripts(ctx),
     applyScopeOrder: createApplyScopeOrder(ctx),
   };
 }

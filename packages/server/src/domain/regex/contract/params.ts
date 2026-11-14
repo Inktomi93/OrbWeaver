@@ -137,12 +137,6 @@ export interface ListForChatParams extends RegexActorParams {
   readonly chatId: ChatId;
 }
 
-/** The room's BROADCAST display set (D121-E host option). MEMBER-gated, not owner-gated: the point is
- *  that a NON-host viewer reads the HOST's scripts, which is exactly why the room must have opted in. */
-export interface ListRoomDisplayScriptsParams extends RegexActorParams {
-  readonly chatId: ChatId;
-}
-
 /** Rewrite the execution ORDER of one scope's attachments. Position 0 runs FIRST (the executor applies its
  *  input list in order). An omitted attachment keeps its position. Foreign/stale ids that match no junction row
  *  are dropped in the scope arms; the GLOBAL arm PRE-GATES ownership of every id (the tier has no scope row of

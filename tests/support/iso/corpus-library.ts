@@ -136,8 +136,8 @@ export interface CorpusRegexLibrary extends Omit<z.output<typeof regexLibrarySch
   readonly reads: {
     readonly before: CorpusRead<"regex.listForChat">;
     readonly after: CorpusRead<"regex.listForChat">;
-    readonly displayOff: CorpusRead<"regex.listRoomDisplayScripts">;
-    readonly displayOn: CorpusRead<"regex.listRoomDisplayScripts">;
+    readonly displayOff: CorpusRead<"regex.listDisplayScripts">;
+    readonly displayOn: CorpusRead<"regex.listDisplayScripts">;
     readonly list: CorpusRead<"regex.listScripts">;
     readonly usage: CorpusRead<"regex.listScriptUsage">;
     readonly global: CorpusRead<"regex.listGlobal">;

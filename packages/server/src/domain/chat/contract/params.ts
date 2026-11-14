@@ -28,7 +28,19 @@ import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { MessageWindowCursor, MessageWindowTarget } from "@orb/contracts/search";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { AssetId, CharacterId, ChatInjectionId, ChatInviteId, ChatTurnId, MessageId, MessageVariantId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  ChatInviteId,
+  ChatTurnId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  PresetId,
+  UserId,
+} from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
 // Every verb's *Params, declared once. Pure types (no z.object): the cross-boundary wire input schemas live
@@ -555,6 +567,12 @@ export interface SetRegexAllowParams extends ChatScopedParams {
 
 /** `listEffectiveRegex` — the host's read of what regex runs in this room, in run order, by tier. */
 export type ListEffectiveRegexParams = ChatScopedParams;
+
+/** `listDisplayScripts` — the display-pass set one viewer's transcript renders through; `chatId: null` is a
+ *  surface outside any room, where only the viewer's own globals apply. */
+export interface ListDisplayScriptsParams extends ChatActorParams {
+  readonly chatId: ChatId | null;
+}
 
 /** `setOfferChoices` — host-only write of the B1 offer-choices POSTURE (`chatMetadata.offerChoices`).
  *  `enabled` is what this ROOM is pinned to; there is no "clear back to inherit" arm, because the host's

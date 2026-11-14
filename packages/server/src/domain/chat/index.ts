@@ -129,8 +129,6 @@ export { createReseatPersonaSeatsStatement } from "./verbs/reseat-persona-seats-
 // name/avatar; wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). Standalone + principal-free.
 export { createResolveCanonWindow } from "./verbs/resolve-canon-window.ts";
 export { createResolveMediaRef } from "./verbs/resolve-media-ref.ts";
-// The D121-E room display policy regex consumes (`RegexContext.resolveRoomDisplayPolicy`): both halves are chat's data.
-export { createResolveRoomDisplayPolicy } from "./verbs/resolve-room-display-policy.ts";
 export { createChatRoomInputs } from "./verbs/resolve-room-inputs.ts";
 // The BORN-STATE corpus read op (the host populate round) — one character's card prose + the room's opening
 // line; wired into `RpgContext.resolveCardCorpus` at the composition root. Standalone + principal-free.

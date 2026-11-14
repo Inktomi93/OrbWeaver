@@ -77,8 +77,8 @@ interface RegexViews {
   readonly before: TrpcCapture<"regex.listForChat">;
   readonly ordered: TrpcCapture<"regex.applyScopeOrder">;
   readonly after: TrpcCapture<"regex.listForChat">;
-  readonly displayOff: TrpcCapture<"regex.listRoomDisplayScripts">;
-  readonly displayOn: TrpcCapture<"regex.listRoomDisplayScripts">;
+  readonly displayOff: TrpcCapture<"regex.listDisplayScripts">;
+  readonly displayOn: TrpcCapture<"regex.listDisplayScripts">;
   readonly exported: TrpcCapture<"regex.exportScript">;
   readonly imported: TrpcCapture<"regex.importScriptFile">;
   readonly repeated: TrpcCapture<"regex.importScriptFile">;
@@ -369,9 +369,9 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
     caller.regex.applyScopeOrder,
   );
   const after = await read<"regex.listForChat">({ chatId: library.room.chat.id }, caller.regex.listForChat);
-  const displayOff = await read<"regex.listRoomDisplayScripts">({ chatId: library.room.chat.id }, caller.regex.listRoomDisplayScripts);
+  const displayOff = await read<"regex.listDisplayScripts">({ chatId: library.room.chat.id }, caller.regex.listDisplayScripts);
   await caller.chat.setHostDisplayScripts({ chatId: library.room.chat.id, enabled: true });
-  const displayOn = await read<"regex.listRoomDisplayScripts">({ chatId: library.room.chat.id }, caller.regex.listRoomDisplayScripts);
+  const displayOn = await read<"regex.listDisplayScripts">({ chatId: library.room.chat.id }, caller.regex.listDisplayScripts);
   await caller.chat.setHostDisplayScripts({ chatId: library.room.chat.id, enabled: false });
   const exported = await read<"regex.exportScript">({ scriptId: first.id }, caller.regex.exportScript);
   const imported = await read<"regex.importScriptFile">({ fileText: exported.output.fileText }, other.regex.importScriptFile);

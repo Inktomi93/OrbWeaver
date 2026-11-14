@@ -258,11 +258,11 @@ function isStDialect(obj: Record<string, unknown>): obj is Record<string, unknow
 // imports, and the numbered migration rewrites stored rows by this same mapping
 // (`tests/contracts/regex/legacy-behavior-lift.contract.test.ts` pins each shape). Two readings, in order:
 //   • A `DISPLAY` or `PROMPT_HISTORY` member means the editor here wrote the row, since the old lift never did.
-//     Its members map one by one: a save-time member is the save pass on that target, `WORLD_INFO` is the prompt
-//     pass on world info (where it always ran), `PROMPT_HISTORY` is the prompt pass on user and AI rows with its
-//     depth, and `DISPLAY` is the display pass on every row's text, narrowed to the row's own save targets when it
-//     has some. That last row reads but no longer writes: a script is saved or ephemeral, so a file in that shape is
-//     refused, and a stored one is listed by the migration for its owner to split.
+//     With a save member (`USER_INPUT`, `AI_OUTPUT`, `REASONING`) the save reading wins: the save pass on those
+//     members alone, its other members dropped, since a script is saved or ephemeral and the save pass is the one
+//     that has been changing stored text. With none, `DISPLAY` is the display pass and `PROMPT_HISTORY` or
+//     `WORLD_INFO` the prompt pass, and a target is kept only where every kept pass reached it before, so the lift
+//     never widens a script's reach; `PROMPT_HISTORY` brings its depth.
 //   • Otherwise the flags are read at their word, with SillyTavern's meaning: `markdownOnly` is display,
 //     `promptOnly` is prompt, both is both, neither is save. An editor-written save-time script also carries
 //     `promptOnly: true` (the old derive set it whenever `DISPLAY` was absent), so it reads as prompt-only: owner
@@ -270,8 +270,6 @@ function isStDialect(obj: Record<string, unknown>): obj is Record<string, unknow
 const LEGACY_DISPLAY = "DISPLAY";
 const LEGACY_PROMPT_HISTORY = "PROMPT_HISTORY";
 const LEGACY_SAVE_TARGETS: readonly RegexTarget[] = ["USER_INPUT", "AI_OUTPUT", "REASONING"];
-const LEGACY_DISPLAY_TARGETS: readonly RegexTarget[] = ["USER_INPUT", "AI_OUTPUT", "REASONING"];
-const LEGACY_HISTORY_TARGETS: readonly RegexTarget[] = ["USER_INPUT", "AI_OUTPUT"];
 /** The old depth floor: 0 meant every message, which is -1 now that a continue's reply sits there. */
 const LEGACY_NO_FLOOR = 0;
 
@@ -290,22 +288,31 @@ function legacyDepth(historyDepth: unknown): RegexDepth | undefined {
   return floor === REGEX_DEPTH_FLOOR && ceiling === null ? undefined : { min: floor, max: ceiling };
 }
 
-/** An editor-written row: its members map one by one (the section header). */
+/** An editor-written row (the section header). The old history pass read user and AI rows, the old display pass
+ *  every row's text including reasoning, and world info was read only as the prompt was built. */
 function legacyNativeAxes(members: readonly string[], historyDepth: unknown): { targets: RegexTarget[]; passes: RegexPass[]; depth?: RegexDepth } {
   const save = LEGACY_SAVE_TARGETS.filter((target) => members.includes(target));
+  if (save.length > 0) {
+    return { targets: REGEX_TARGETS.filter((target) => save.includes(target)), passes: ["save"] };
+  }
   const worldInfo = members.includes("WORLD_INFO");
   const display = members.includes(LEGACY_DISPLAY);
   const history = members.includes(LEGACY_PROMPT_HISTORY);
-  const passes = REGEX_PASSES.filter((pass) => ({ save: save.length > 0, display, prompt: history || worldInfo })[pass]);
-  const targets = REGEX_TARGETS.filter(
-    (target) =>
-      save.includes(target) ||
-      (target === "WORLD_INFO" && worldInfo) ||
-      (display && save.length === 0 && LEGACY_DISPLAY_TARGETS.includes(target)) ||
-      (history && LEGACY_HISTORY_TARGETS.includes(target)),
-  );
+  const userAndAi = history || (display && !worldInfo);
+  const kept = (target: RegexTarget): boolean => {
+    switch (target) {
+      case "WORLD_INFO":
+        return worldInfo;
+      case "REASONING":
+        return display && !history && !worldInfo;
+      case "USER_INPUT":
+      case "AI_OUTPUT":
+        return userAndAi;
+    }
+  };
+  const passes = REGEX_PASSES.filter((pass) => ({ save: false, display: display && (history || !worldInfo), prompt: history || worldInfo })[pass]);
   const depth = history ? legacyDepth(historyDepth) : undefined;
-  return { targets, passes, ...(depth === undefined ? {} : { depth }) };
+  return { targets: REGEX_TARGETS.filter(kept), passes, ...(depth === undefined ? {} : { depth }) };
 }
 
 /** Lift one placement-set script onto the two axes. */

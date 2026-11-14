@@ -16,7 +16,6 @@ import type {
   RegexScriptRow,
   RegexScriptUsage,
   ReorderResult,
-  ResolveRoomDisplayPolicyOp,
 } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -45,7 +44,6 @@ import type {
   ListForChatParams,
   ListForPresetParams,
   ListGlobalParams,
-  ListRoomDisplayScriptsParams,
   ListScriptsParams,
   ListScriptUsageParams,
   RemoveScriptParams,
@@ -63,12 +61,6 @@ export interface RegexContext {
   readonly requireChatMember: RequireParticipantOp;
   /** The room's present host: the owner a chat-attached script must have for the room to apply it (D64). */
   readonly resolveChatHost: ResolveChatHostOp;
-  /** D121-E display-tier room OPTION (owner ruling): resolve WHOSE display scripts this room
-   *  broadcasts. Injected from chat because both halves are chat's data — the room's host seat and the
-   *  `chatMetadata.hostDisplayScripts` flag. Regex reads neither the roster nor chat metadata itself (the
-   *  same posture as the guards above). `enabled:false` ⇒ the per-user default, and `listRoomDisplayScripts`
-   *  returns nothing at all. */
-  readonly resolveRoomDisplayPolicy: ResolveRoomDisplayPolicyOp;
   /** The REVERSE-roster room filter (`listScriptUsage`) — chat's answer to "of these rooms, which may this
    *  caller see, and what are they called". Injected for the same reason the guards are: D18 rooms scope on
    *  `chat_participants`, and regex reads neither the roster nor `chats`. The TYPE is chat's (shared with
@@ -151,12 +143,6 @@ export interface RegexService {
   readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
   /** Member-read: the room's attached scripts the present host owns, the set a turn applies (D64). */
   readonly listForChat: (params: ListForChatParams) => Promise<RegexScriptRow[]>;
-
-  /** The room's BROADCAST display set (D121-E host option). Member-readable: any present member needs it to
-   *  render the transcript the way the host intends. Returns the HOST's enabled DISPLAY-placement scripts
-   *  when the room opted in, and `[]` otherwise — so the OFF arm is byte-identical to a room that never
-   *  heard of the option, and a member can never learn what scripts the host owns while it is off. */
-  readonly listRoomDisplayScripts: (params: ListRoomDisplayScriptsParams) => Promise<RegexScriptRow[]>;
 
   /** Rewrite one scope's execution order (position 0 runs first). Authority is that scope's own gate. */
   readonly applyScopeOrder: (params: ApplyScopeOrderParams) => Promise<ReorderResult>;

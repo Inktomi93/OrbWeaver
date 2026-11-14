@@ -21,10 +21,12 @@
 //   • PROBED via MEMBERSHIP (D18 — the chat scope has no ownerId to probe): attachToChat/detachFromChat are
 //     HOST-gated and listForChat is MEMBER-gated, all through chat's own injected guards. The scripts named
 //     in attach/detach must still be the caller's, so the room scope cannot launder a foreign script in.
-//   • MEMBER-gated by design (the D121-E host option): listRoomDisplayScripts returns the HOST's display
-//     scripts to a non-host member — that is the feature, and the room's opt-in flag is the gate. Off ⇒ [].
+//   • MEMBER-gated by design (the D121-E host option): listDisplayScripts (chat's verb) returns the room's
+//     resolved display tiers, which are the HOST's library, to a non-host member only when the host opted the
+//     room in; otherwise a member reads their own globals alone. A non-member is refused.
 //   • EXEMPT: none.
 
+import { regexDisplayEntrySchema, regexDisplayInputSchema } from "@orb/contracts/chat";
 import { portableTextFileSchema } from "@orb/contracts/portability";
 import {
   bulkResultSchema,
@@ -194,12 +196,12 @@ export const regexRouter = t.router({
     .input(regexChatInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listForChat({ principal: ctx.auth, chatId: input.chatId })),
 
-  // D121-E host option: the room's BROADCAST display set. MEMBER-gated (the verb's injected chat guard) —
-  // a non-member is refused, and a member of a room that never opted in gets `[]`.
-  listRoomDisplayScripts: authedProcedure
-    .output(z.array(regexScriptViewSchema))
-    .input(regexChatInputSchema)
-    .query(({ ctx, input }) => ctx.services.regex.listRoomDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
+  // The display-pass set one viewer's transcript renders through. Chat owns it: the room's tiers resolve through
+  // the same preamble the turn and the room's Regex section use. `chatId: null` is a surface outside any room.
+  listDisplayScripts: authedProcedure
+    .output(z.array(regexDisplayEntrySchema))
+    .input(regexDisplayInputSchema)
+    .query(({ ctx, input }) => ctx.services.chat.listDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
 
   applyScopeOrder: authedProcedure
     .output(reorderResultSchema)
