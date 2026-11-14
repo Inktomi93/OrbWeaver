@@ -25,6 +25,7 @@
     "./chart": "./src/charts/chart/index.ts",
     "./checkbox": "./src/primitives/checkbox/index.ts",
     "./code-editor": "./src/code-editor/index.ts",
+    "./code-editor/fallback": "./src/code-editor/fallback.tsx",
     "./collapsible": "./src/primitives/collapsible/index.ts",
     "./color-field": "./src/primitives/color-field/index.ts",
     "./combobox": "./src/primitives/combobox/index.ts",

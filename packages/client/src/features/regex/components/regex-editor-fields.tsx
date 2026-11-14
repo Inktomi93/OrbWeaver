@@ -21,6 +21,7 @@
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { HISTORY_DEPTH_PLACEMENT, SubstituteFindRegex, WHOLE_HISTORY_DEPTH } from "@orb/kit/regex";
+import { CodeEditorFallback } from "@orb/ui/code-editor/fallback";
 import { Field } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
@@ -161,7 +162,7 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
             name={field.name}
             description="A regular expression: bare (ooc:.*) or slash-delimited with flags (/ooc:.*/gi)."
           >
-            <Suspense fallback={null}>
+            <Suspense fallback={<CodeEditorFallback value={field.state.value} />}>
               <CodeEditor
                 ariaLabel={REGEX_FIND_PATTERN_NAME}
                 contentId={patternId}

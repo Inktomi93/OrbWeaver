@@ -15,7 +15,7 @@ import { SCHEDULE_CADENCE_LABELS, scheduleEditName } from "#client/features/work
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
-const CREATED_SCHEDULE = { kind: "reconcile-stats", cadence: "daily", ownerHandle: null } as const satisfies ScheduleIdentity;
+const CREATED_SCHEDULE = { kind: "reconcile-stats", cadence: "daily", ownerHandle: null, mode: "singular" } as const satisfies ScheduleIdentity;
 const STORY = "tests/client/features/workloads/components/_schedule-dialog-dismissal-stories/ScheduleDialogDismissalStory";
 const VIEWPORTS = [
   { label: "desktop", width: 1440, height: 900, hasTouch: false },

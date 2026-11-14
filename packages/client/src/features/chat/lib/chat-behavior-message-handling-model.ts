@@ -110,7 +110,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "temp-chat-ttl",
       key: "tempChatTtlHours",
-      label: "Delete temp chats after",
+      label: "Delete temp chats after (hours)",
       keywords: ["temporary", "temp", "ttl", "expire", "delete", "retention"],
       teach: {
         summary:

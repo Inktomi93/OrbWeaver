@@ -64,9 +64,16 @@ function summarize(parts: readonly (string | null)[]): string | null {
 
 type WorkloadResultRenderer<K extends WorkloadKind> = (result: WorkloadResultByKind[K]) => string | null;
 
-/** index — an embed pass: what it wrote, and what it skipped as already current. */
+/** An index pass leaves a row alone for several reasons (content unchanged, nothing to embed, no embedding connection, a disabled owner), and
+ *  the stored count does not say which, so the line claims none of them. */
+export const INDEX_SKIPPED_LABEL = "skipped";
+
+/** A databank pass skips a document for exactly one reason: its owner's account is disabled. */
+export const INGEST_SKIPPED_LABEL = "skipped (account disabled)";
+
+/** index — an embed pass: what it wrote, and what it skipped. */
 const indexSummary: WorkloadResultRenderer<"index"> = (result) =>
-  summarize([tally(result.embedded, "embedded"), tallyIfAny(result.skipped, "already up to date"), tallyIfAny(result.failedAssets?.length, "failed")]);
+  summarize([tally(result.embedded, "embedded"), tallyIfAny(result.skipped, INDEX_SKIPPED_LABEL), tallyIfAny(result.failedAssets?.length, "failed")]);
 
 /**
  * Why an analytics pass wrote nothing, in the user's terms — an exhaustive `Record` over the contract's own
@@ -150,6 +157,7 @@ const ingestSummary: WorkloadResultRenderer<"databank-ingest"> = (result) =>
     countIfAny(result.chunksNoop, "chunk unchanged", "chunks unchanged"),
     countIfAny(result.chunksPruned, "chunk pruned", "chunks pruned"),
     tallyIfAny(result.reExtracted, "re-extracted"),
+    tallyIfAny(result.skipped, INGEST_SKIPPED_LABEL),
     countIfAny(Array.isArray(result.failed) ? result.failed.length : null, "document failed", "documents failed"),
   ]);
 

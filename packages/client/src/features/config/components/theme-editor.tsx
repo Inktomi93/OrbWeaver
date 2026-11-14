@@ -20,6 +20,7 @@ import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { CodeEditorFallback } from "@orb/ui/code-editor/fallback";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import type { SelectItems } from "@orb/ui/select";
@@ -169,7 +170,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
           <Section heading={CONFIG_CUSTOM_CSS_NAME}>
             <boundForm.AppField name="css">
               {(field): ReactElement => (
-                <Suspense fallback={null}>
+                <Suspense fallback={<CodeEditorFallback value={field.state.value} />}>
                   <ThemeCssField value={field.state.value} onChange={(next): void => field.handleChange(next)} />
                 </Suspense>
               )}

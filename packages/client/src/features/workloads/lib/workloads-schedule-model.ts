@@ -10,6 +10,7 @@ import type { Trpc } from "#data";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 import type { WorkloadRunValues } from "./workloads-model.ts";
 import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KINDS, WORKLOAD_KIND_LABELS } from "./workloads-model.ts";
+import { WORKLOAD_BULK_BADGE } from "./workloads-names.ts";
 
 /** Whether a kind may be scheduled to recur in bulk. A schedule carries no `targetOwnerId`, so a bulk create-kind (bulkRequiresTarget) is not bulk-schedulable. */
 export function workloadKindBulkSchedulable(kind: string): boolean {
@@ -38,20 +39,22 @@ export const SCHEDULE_CADENCE_LABELS: Record<ScheduleCadence, string> = {
 /** What a disabled schedule's row says where its next run would read. */
 export const SCHEDULE_PAUSED_LABEL = "Paused";
 
-/** What names one schedule row: its kind and cadence, plus the owner's handle on a row that is not the viewer's. */
+/** What names one schedule row: its kind, cadence and mode, plus the owner's handle on a row that is not the viewer's. */
 export interface ScheduleIdentity {
   readonly kind: WorkloadKind;
   readonly cadence: ScheduleCadence;
   readonly ownerHandle: string | null;
+  readonly mode: WorkloadMode;
 }
 
 /**
- * The one name of a schedule row, read by its title, switch, Edit and Delete. A kind can recur at several cadences, and an
- * admin sees other users' rows, so kind alone names two rows alike. Two rows of one kind, cadence and owner still share it:
- * nothing else on the row tells them apart.
+ * The one name of a schedule row, read by its switch, Edit and Delete and its delete confirmation. A kind can recur at several
+ * cadences, an admin sees other users' rows, and the box owner can keep a singular and a bulk schedule of one kind and cadence,
+ * so kind alone names rows alike. The row's title shows the same words up to the mode, which its Bulk badge carries.
  */
 export function scheduleName(identity: ScheduleIdentity): string {
-  return `${WORKLOAD_KIND_LABELS[identity.kind]} · ${scheduleQualifier(identity)}`;
+  const name = `${WORKLOAD_KIND_LABELS[identity.kind]} · ${scheduleQualifier(identity)}`;
+  return identity.mode === "bulk" ? `${name} · ${WORKLOAD_BULK_BADGE}` : name;
 }
 
 /** The half of a schedule's name that tells two schedules of one kind apart: its cadence and, on another user's row, its owner. */
