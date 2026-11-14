@@ -419,6 +419,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/plugin/contract/errors.ts": "PluginNotFoundError: the refusal class plugin seed cases assert",
   "packages/server/src/domain/plugin/substrate/plugin-macros.ts": "pluginMacroName: the token rule for a plugin's registered macro",
   "packages/server/src/domain/plugin/substrate/snippet-gate.ts": "SNIPPET_CONCURRENCY_PER_USER: the admission ceiling a release case must exceed",
+  "packages/server/src/domain/plugin/substrate/surface-state.ts": "PLUGIN_SURFACE_STATE_MAX_KEYS: the key cap a refusal case must fill",
   "packages/server/src/domain/chat/substrate/reaction-note.ts":
     "reactionNote: the attribution note a reaction writes, which a frame override must collide with",
   "packages/server/src/domain/discovery/substrate/hub-math.ts":
