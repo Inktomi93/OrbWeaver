@@ -8,7 +8,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
 import { timeLib } from "#lib";
@@ -135,7 +135,7 @@ function CorpusThemeBody({ destination }: { readonly destination: Extract<Corpus
           Showing {detail.sources.length} source digests from this theme, up to {detail.sourceLimit}. Each is a generated summary.
         </Text>
         {detail.sources.length === 0 ? (
-          <Text>No source rows remain readable.</Text>
+          <MutedLine>No source rows remain readable.</MutedLine>
         ) : (
           detail.sources.map((source) => (
             <ListRow

@@ -11,6 +11,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
+import { MutedLine } from "#components";
 import type { ServableRole } from "../lib/connection-editor-model.ts";
 import { KIND_VERDICT_ITEMS, KIND_VERDICT_LABELS } from "../lib/connection-editor-model.ts";
 
@@ -74,7 +75,7 @@ export function CapabilityRail({ roles }: { readonly roles: readonly ServableRol
   return (
     <Stack data-slot="connection-capability-rail" gap="tight">
       {roles.length === 0 ? (
-        <Text voice="gloss">No role can use this connection as it is set up.</Text>
+        <MutedLine>No role can use this connection as it is set up.</MutedLine>
       ) : (
         <Row wrap={true} gap="field">
           {roles.map((role) => (
