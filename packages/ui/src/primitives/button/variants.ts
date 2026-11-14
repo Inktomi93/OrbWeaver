@@ -7,6 +7,7 @@ import {
   CONTROL_INSET,
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
+  CONTROL_WRAP,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FLOOR,
@@ -92,7 +93,7 @@ export const buttonVariants = tv({
     // follows the wrapped text, floored at the step's height (a compound below) so it never drops under the tap floor.
     // The tight inset keeps one line inside every step's height at a fine pointer, so a one-line wrap sits level with
     // its row; a larger inset outgrows the `chip` and `md` steps by a pixel or two.
-    wrap: { true: `py-tight wrap-anywhere whitespace-normal block-auto ${CAP.fit}`, false: "" },
+    wrap: { true: `py-tight block-auto ${CONTROL_WRAP.anywhere}`, false: "" },
     // MULTILINE, A LINE PER FACT: a block of lines in a start-aligned column. The height follows the lines, floored at the step's
     // height (a compound below), and the row inset replaces the step's, so the lines sit level with the list that holds them.
     stacked: { true: "flex-col items-start p-row block-auto", false: "" },

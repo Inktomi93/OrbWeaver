@@ -24,6 +24,7 @@ export type { PlatformTextSize } from "./platform-text-size.ts";
 export { expectShellRegime, PLATFORM_TEXT_SCALES, setPlatformTextSize, shellRegimeAt } from "./platform-text-size.ts";
 export { READ_RETRIES_MS } from "./read-retries.ts";
 export { beginReading, scrollIntoReadingMessage, tokenColor } from "./reading-position.ts";
+export { ringCuts } from "./ring-cuts.ts";
 export { enlargeUntilVisible, setRootFontScale } from "./root-property.ts";
 export { assertSurfaceReady, auditSurface } from "./settle-surface.ts";
 export {

@@ -1,6 +1,7 @@
 // @subject packages/client/src/components/list-pane-header.tsx
 // @subject packages/client/src/components/list-pane-header-host.tsx
 import { NEW_CHAT_DIALOG_TITLE } from "@orb/client/lib";
+import { PLATFORM_TEXT_SCALES, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { ListPaneHeaderStory } from "./_list-pane-header-stories.tsx";
@@ -110,4 +111,32 @@ test("in a constrained host the unscoped title keeps its width instead of yieldi
   await expect.poll(() => title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   const count = component.getByText("0 of 11", { exact: true });
   expect(await count.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
+const STORY = "tests/client/components/_list-pane-header-stories/ListPaneHeaderStory";
+const LONG_ENTITY = "A character whose name is longer than any band can seat";
+
+test.describe("a scoped band whose entity name is cut by its line", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  for (const scale of PLATFORM_TEXT_SCALES) {
+    test(`at ${String(scale * 100)}% text its whole text opens by a press, and a name that fits carries no control`, async ({ browserName, mount, page }) => {
+      test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+      await using _textSize = await setPlatformTextSize(page, scale);
+      const component = await mount<typeof ListPaneHeaderStory>(STORY, { accent: LONG_ENTITY, count: 8, title: "Chats", width: "100%" });
+      const whole = `Chats · ${LONG_ENTITY}`;
+      const control = component.getByRole("button", { name: whole, exact: true });
+      await expect(control).toBeVisible();
+      await control.click();
+      const reveal = page.getByRole("dialog", { name: whole, exact: true });
+      await expect(reveal).toBeVisible();
+      await expect(reveal).toContainText(whole);
+    });
+  }
+
+  test("a name the band seats whole carries no control", async ({ mount }) => {
+    const component = await mount<typeof ListPaneHeaderStory>(STORY, { accent: "Sola", count: 8, title: "Chats", width: "100%" });
+    await expect(component.getByRole("heading", { level: 2 })).toContainText("Chats · Sola");
+    await expect(component.getByRole("button")).toHaveCount(0);
+  });
 });
