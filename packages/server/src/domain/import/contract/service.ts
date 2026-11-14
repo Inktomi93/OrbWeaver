@@ -2,7 +2,7 @@
 // (verb interface) + the injected cross-feature op types the composition root wires at the root.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
-import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
+import type { BulkImportChatsOp, FindImportedChatHashes, ImportMemoryStrikesOp } from "@orb/contracts/chat";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonas } from "@orb/contracts/persona";
 import type { PortableFile } from "@orb/contracts/portability";
@@ -118,6 +118,9 @@ export interface ImportProfileDeps {
   /** The chat-anchored rpg campaign's write half. Every message/variant ref is remapped by the bundle verb
    *  through the `ImportedChatRemap` the chat write op returns, before this ever sees it. */
   readonly importRpgGame?: ImportRpgGame;
+  /** The room's memory strikes, re-linked through the same remap as the campaign. Absent ⇒ that plane does not
+   *  restore, and the outcome names the loss. */
+  readonly importMemoryStrikes?: ImportMemoryStrikesOp;
   readonly findOwnedAssetIdsByHash?: FindOwnedAssetIdsByHashOp;
   /** A chat bundle's lookup for a room the app wrote, which carries no stored key (D290): when the bundle's own key
    *  is not held under its primary (`heldChatHashes`), it compares with the current export of each candidate room

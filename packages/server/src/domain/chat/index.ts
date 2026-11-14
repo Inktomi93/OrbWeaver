@@ -36,6 +36,7 @@ export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
 export { createWiredChatGuards, requireWiredAuthorOrHost } from "./guard.ts";
 export { SUMMARIZE_TRANSCRIPT_MARKER } from "./memory/generate/substrate/prompts.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
+export { createImportMemoryStrikes } from "./memory/persistence/import-strikes.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";

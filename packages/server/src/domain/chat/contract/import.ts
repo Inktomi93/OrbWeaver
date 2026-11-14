@@ -13,7 +13,18 @@ import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type { AssetId, ChatId, ChatInjectionId, ChatParticipantId, ChatTurnId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  ChatId,
+  ChatInjectionId,
+  ChatMemoryStrikeId,
+  ChatParticipantId,
+  ChatTurnId,
+  MessageAssetId,
+  MessageId,
+  MessageVariantId,
+  UserId,
+} from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
 /** The DI bundle `createBulkImportChats` closes over (assembled at the entry composition root). All ids are
@@ -48,3 +59,9 @@ export interface ChatImportContext {
 export type ChatImportAssemblyContext = Omit<DbAssemblyInput<ChatImportContext>, "bumpStatsCanonVersion"> & {
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
 };
+
+/** What the restored-strike write (`createImportMemoryStrikes`) closes over. */
+export interface ImportMemoryStrikesContext {
+  readonly db: Db;
+  readonly newMemoryStrikeId: () => ChatMemoryStrikeId;
+}
