@@ -205,7 +205,7 @@ export const AUTOMATION_CHAT_MAX_FIRES_PER_HOUR = 120;
 
 /** The CEILING on the per-owner rate-cap belt.
  *
- *  A BELT NEEDS A TOP OR IT IS NOT A BELT. The per-RULE cap is 0..240 (`substrate/validate.ts`), and the
+ *  A BELT NEEDS A TOP OR IT IS NOT A BELT. The per-RULE cap is 0..240 (`persistence/validate.ts`), and the
  *  budget plane had no upper bound at all: the wire took `int().min(0)` and the verb took whatever arrived,
  *  so an owner could set a nine-digit ceiling and the loop-safety belt would bound nothing while still reading
  *  as configured. 3600 = one fire per second, the rate past which "cap" stops describing anything a runaway
@@ -335,7 +335,7 @@ export type AutomationActionType = (typeof AUTOMATION_ACTION_TYPES)[number];
 /** C5 — WHICH ARMS NEED A ROOM. The exhaustive `Record<AutomationActionType, AutomationArmScope>` the scope
  *  axis is decided by: a new arm fails `tsc` here until it declares, so "can this act happen with no chat?"
  *  can never be answered by omission. The domain's mint validation reads THIS and nothing else for the
- *  per-TYPE half of the question (`domain/automation/substrate/validate.ts`).
+ *  per-TYPE half of the question (`domain/automation/persistence/validate.ts`).
  *
  *  EVERY `chat-required` ROW IS A CODE FACT, not a judgment call — each names the thing that would be
  *  `undefined` without a chat:
@@ -419,7 +419,7 @@ const AUTOBG_INSTRUCTION_MAX = 512;
 /** The `run_tool` arm's tool-NAME cap. LENGTH only, deliberately: the authoritative name contract is the
  *  registry's own charset (`TOOL_NAME_RE`, `domain/tool-use/contract/params.ts` — the OpenAI-function ∩
  *  MCP-tool intersection), and a rule's name is checked against the LIVE REGISTRY at mint by the automation
- *  domain's `substrate/validate.ts`, which is a stronger test than any regex re-spelling here. Re-declaring it
+ *  domain's `persistence/validate.ts`, which is a stronger test than any regex re-spelling here. Re-declaring it
  *  in `contracts` would be a second home for one shape (§5.4) that could drift from the registry it describes;
  *  the cap is here only so an oversized string cannot be stored. 64 = the registry charset's own bound. */
 const TOOL_NAME_MAX = 64;
@@ -1195,7 +1195,7 @@ export interface ChatAutomationReads {
  *  dispatch consumes. The membrane host (`infra/plugin-host`, injected UP at compose — infra never imports a
  *  domain) builds ONE per plugin INSTANCE (aggregating the guest's `events.on(type,…)` calls) and registers it
  *  via `PluginSubscriberRegistry.register`; the watcher fan-out delivers matching, AUTHORIZED facts to
- *  `deliver`. The three delivery gates live in `substrate/plugin-subscribers`, ALL fail-closed (this delivers
+ *  `deliver`. The three delivery gates live in `engine/plugin-subscribers`, ALL fail-closed (this delivers
  *  to UNTRUSTED guests). */
 export interface PluginTriggerSubscriber {
   /** The INSTALLING user — the VISIBILITY principal. A fact delivers only for a chat/resource this user can

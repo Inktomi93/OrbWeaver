@@ -23,11 +23,10 @@
 // the host's account.
 
 import type { AnchorState } from "@orb/contracts/chat";
-import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import type { HumanSeatPersona } from "../contract/foreign.ts";
-import { loadPersonaOwnerId } from "../persistence/identity.ts";
-import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
+import { classifyParticipant, isBackingUserEnabled } from "./participant-actor.ts";
 import { hostUserIdOf } from "./participants-host.ts";
 
 /** The columns the human-seat lens reads — {@link classifyParticipant}'s own row shape, so the raw
@@ -126,7 +125,7 @@ export async function ownedByConsentingHuman(
 
 /** How the room's pin stands for `ChatDetailData.anchorState`. A pin nobody present and enabled owns is `held`:
  *  the card still means that persona. */
-async function resolveAnchorState(
+export async function resolveAnchorState(
   ctx: Pick<ChatContext, "resolveUserEnabled" | "verifyPersonaOwned">,
   participants: readonly HumanSeat[],
   anchorPersonaId: PersonaId | null,
@@ -135,27 +134,6 @@ async function resolveAnchorState(
     return "none";
   }
   return (await ownedByConsentingHuman(ctx, participants, anchorPersonaId)) ? "live" : "held";
-}
-
-/** The room's pin as `ChatDetailData` carries it: how it stands, and for a `held` pin the handle of the player
- *  whose persona it is. A live pin's player is on the roster already, so only a held one is looked up. */
-export interface ResolvedAnchor {
-  readonly state: AnchorState;
-  readonly ownerHandle: Handle | null;
-}
-
-export async function resolveAnchor(
-  ctx: Pick<ChatContext, "db" | "resolveUserEnabled" | "verifyPersonaOwned" | "resolveUserPublics">,
-  participants: readonly HumanSeat[],
-  anchorPersonaId: PersonaId | null,
-): Promise<ResolvedAnchor> {
-  const state = await resolveAnchorState(ctx, participants, anchorPersonaId);
-  if (state !== "held" || anchorPersonaId === null) {
-    return { state, ownerHandle: null };
-  }
-  const ownerId = await loadPersonaOwnerId(ctx.db, anchorPersonaId);
-  const publics = ownerId === null ? null : await ctx.resolveUserPublics(ownerId, anchorPersonaId);
-  return { state, ownerHandle: publics?.handle ?? null };
 }
 
 /** Does the room seat more than one present human? The multi-human names rule (`assembly/names`) reads this,

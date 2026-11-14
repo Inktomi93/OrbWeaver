@@ -2,7 +2,7 @@
 // demoted; a single-owner conflict and the owner-immutability guard are checked pre-write AND re-asserted
 // atomically in the UPDATE's WHERE to close the race.
 //
-// The grant and its audit row are ONE batch (`substrate/audited-write.ts`). An authority move whose
+// The grant and its audit row are ONE batch (`persistence/audited-write.ts`). An authority move whose
 // record can be lost is not audited: the injected `audit` is `logAudit` in production and SWALLOWS its
 // failure, so a degraded audit channel used to promote a user to `admin` and return the new view with no
 // forensic row. `identityChanged` still fans AFTER the commit — it is live-only and total (context header).
@@ -14,8 +14,8 @@ import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { SetRoleParams } from "../contract/params.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";
 import { isBootstrapOwnerRole, isBootstrapOwnerRoleCode, requireOwner } from "../guard.ts";
+import { commitAuditedWrite } from "../persistence/audited-write.ts";
 import { loadUser, toAdminUserData, userCols } from "../persistence/queries.ts";
-import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 const OWNER_ROLE = "owner";
 

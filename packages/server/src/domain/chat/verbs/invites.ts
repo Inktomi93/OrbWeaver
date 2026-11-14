@@ -30,6 +30,7 @@ import type {
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost } from "../guard.ts";
+import { resolveAnchor } from "../persistence/anchor.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import {
   acceptInviteByIdAtomic,
@@ -44,7 +45,6 @@ import {
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { resolveAnchor } from "../substrate/participants-humans.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */

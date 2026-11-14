@@ -1,0 +1,97 @@
+// domain/databank/persistence/scrape-canon — the shared §2 canon-write tail every scraper ends in:
+// importHash over the fetched bytes → dedup → CAS store → synchronous extraction →
+// documents row → enqueue ingest. Not under verbs/ because it is shared verb logic — a verb file
+// importing a sibling verb's value is dep-cruiser `domain-no-cross-verb` — and not substrate because it writes rows;
+// it is the helper three verbs (web/youtube/wiki) close over. Extracted ONCE because all three run the identical
+// pipeline and differ only in origin/mime/name/sourceUrl (a 3-consumer duplication that changes together). The
+// scrape-specific concern each verb owns itself is the FETCH (URL derivation + the leak-free `ScrapeFailedError`
+// collapse); this tail assumes the bytes are already in hand and never touches the fetch.
+
+import type { UserId } from "@orb/kit/ids";
+import { sha256Hex } from "#primitives/content-hash";
+import type { ScrapeName, ScrapeWrite } from "../contract/params.ts";
+import type { UploadResult } from "../contract/results.ts";
+import type { DatabankContext } from "../contract/service.ts";
+import { activeSpaceModel } from "../substrate/active-space.ts";
+import { queueIngest } from "../substrate/queue-ingest.ts";
+import { findByImportHash, requireOwnedMeta, toDocumentView } from "./queries.ts";
+import { attachIngestDestination, insertIngestDocument, requireIngestDestination } from "./scope.ts";
+
+const NAME_MAX = 500;
+
+/** Resolve the document name: an explicit literal, or the extracted `<title>` with a fallback. Capped to the
+ *  column bound; a whitespace/empty title degrades to the fallback (the scraped title is attacker-influenceable). */
+function resolveName(name: ScrapeName, title: string | undefined): string {
+  if ("literal" in name) {
+    return name.literal.slice(0, NAME_MAX);
+  }
+  const trimmed = title?.trim();
+  const raw = trimmed !== undefined && trimmed.length > 0 ? trimmed : name.titleFallback;
+  return raw.slice(0, NAME_MAX);
+}
+
+/** The §2 canon tail: dedup on `(ownerId, importHash)` → CAS store → extract → documents row → enqueue ingest.
+ *  A duplicate returns the existing document (ingest skipped). Extraction runs synchronously; its failure aborts
+ *  before any row exists (the upload precedent — `extractedText` is NOT NULL canon). */
+export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): Promise<UploadResult> {
+  const { destination } = write;
+  const principal = write.principal;
+  const ownerId: UserId = write.principal.userId;
+  const importHash = sha256Hex(write.bytes);
+
+  await requireIngestDestination(ctx, principal, destination);
+  const existing = await findByImportHash(ctx.db, ownerId, importHash);
+  if (existing !== undefined) {
+    await attachIngestDestination(ctx, principal, destination, importHash);
+    const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId) });
+    return { document: toDocumentView(existing, counts.get(existing.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
+  }
+
+  // The blob rides its STORAGE mime (defaulting to the canon mime); `documents.mime` below keeps the truth.
+  const stored = await ctx.assetsStore({
+    principal: write.principal,
+    bytes: write.bytes,
+    kind: "document",
+    mime: write.storeMime ?? write.mime,
+    enforceMagic: true,
+  });
+  const extracted = await ctx.extractText(write.bytes, write.mime);
+  const name = resolveName(write.name, extracted.meta.title);
+  const at = ctx.now();
+  const id = ctx.newDocumentId();
+  const created = await insertIngestDocument(ctx, principal, destination, {
+    id,
+    ownerId,
+    sourceAssetId: stored.assetId,
+    name,
+    mime: write.mime,
+    origin: write.origin,
+    sourceUrl: write.sourceUrl,
+    extractedText: extracted.text,
+    importHash,
+    byteSize: write.bytes.length,
+    extractorVersion: extracted.meta.extractorVersion,
+    createdAt: at,
+    updatedAt: at,
+  });
+
+  if (!created) {
+    const winner = await findByImportHash(ctx.db, ownerId, importHash);
+    if (winner === undefined) {
+      throw new Error("Atomic ingestion did not produce a document.");
+    }
+    const counts = await ctx.countChunks({ documentIds: [winner.id], model: await activeSpaceModel(ctx, ownerId) });
+    return { document: toDocumentView(winner, counts.get(winner.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
+  }
+
+  const queued = await queueIngest(ctx, { documentId: id, ownerId });
+  await ctx.audit({ actorUserId: ownerId, action: write.auditAction, entityType: "document", entityId: id, metadata: { url: write.sourceUrl, ...queued } }, at);
+  // The bank announces itself — ONCE, here, for all three scrapers (survey H3). The emit belongs on the
+  // shared canon tail for the same reason the tail exists: web/youtube/wiki differ only in the FETCH, and
+  // three copies of one line is three places for the next scraper to forget it. A refused/failed fetch never
+  // reaches this function, and the duplicate arm above returns before any write.
+  ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId: id });
+
+  const document = toDocumentView(await requireOwnedMeta(ctx.db, ownerId, id), 0);
+  return { document, outcome: "created", ingest: queued.ingest, ...(extracted.meta.charCount === 0 ? { warning: "empty-extraction" as const } : {}) };
+}

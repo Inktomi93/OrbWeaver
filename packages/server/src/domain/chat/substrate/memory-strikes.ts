@@ -36,10 +36,10 @@ import {
   resolveDigestSpans,
   restampMemoryStrikesStatement,
 } from "../memory/persistence/strikes.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadMaxMessageSeq } from "../persistence/queries.ts";
 import { loadPresentHostUserId } from "../persistence/reactions.ts";
+import { classifyParticipant } from "./participant-actor.ts";
 
 /** The bucket every speaker recalls, as the turn resolves it (`gatherMemory`): the room's synthetic group character,
  *  else its first seated character. Null in a room with no character seated. */

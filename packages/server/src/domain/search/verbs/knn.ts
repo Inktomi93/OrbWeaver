@@ -9,9 +9,9 @@ import type { KnnParams } from "../contract/params.ts";
 import type { SearchHit } from "../contract/results.ts";
 import type { SearchContext, SearchService } from "../contract/service.ts";
 import { nearestCharacters } from "../persistence/nearest.ts";
+import { withActiveQuerySpace } from "../persistence/space.ts";
 import { OWNER_OVERFETCH, RERANK_POOL_FACTOR } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf, rerankPoolByScores } from "../substrate/csls.ts";
-import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 export function createKnn(ctx: SearchContext): SearchService["knn"] {

@@ -274,7 +274,7 @@ review re-flags something already ruled.
   host, the plugin must still be installed and enabled, and its installer must still hold the membership the ask
   recorded. The installer need not host, and a demoted host counts as a member. An installer who leaves or is
   removed leaves no executable ask, even if invited back. A disabled author or installer stands as one who left.
-  The card names the installer in its own field, apart from the plugin's free-text name, and shows a turn's whole steer. `askActorStillStands` in `packages/server/src/domain/automation/substrate/authority.ts` holds both
+  The card names the installer in its own field, apart from the plugin's free-text name, and shows a turn's whole steer. `askActorStillStands` in `packages/server/src/domain/automation/persistence/authority.ts` holds both
   actor checks.
 
 ## 3. Construction

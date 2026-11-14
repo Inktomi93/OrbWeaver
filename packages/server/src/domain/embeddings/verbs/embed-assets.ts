@@ -6,7 +6,7 @@ import { GenerationSupersededError } from "#primitives/embedding-generation";
 import { AssetFileCorruptError, AssetFileMissingError } from "../contract/errors.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
-import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
+import { completeGenerationScope, resolveImageTargetGeneration } from "../persistence/generation.ts";
 
 const ASSET_OUTCOMES = ["written", "skipped", "failed"] as const;
 type AssetOutcome = (typeof ASSET_OUTCOMES)[number];

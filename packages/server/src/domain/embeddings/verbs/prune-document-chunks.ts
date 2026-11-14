@@ -9,8 +9,8 @@
 import type { PruneDocumentChunksParams, PruneDocumentChunksResult } from "@orb/contracts/embeddings";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { pruneDocumentChunks } from "../persistence/clear.ts";
+import { resolveTargetGeneration } from "../persistence/generation.ts";
 import { loadDocumentOwnerForPrune } from "../persistence/queries.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
 
 export function createPruneDocumentChunks(ctx: EmbeddingsContext): EmbeddingsService["pruneDocumentChunks"] {
   return async (params: PruneDocumentChunksParams): Promise<PruneDocumentChunksResult> => {

@@ -6,7 +6,7 @@
 //     later compose chunk supplies the runtime fn. Chat never imports preset/persona/settings — it receives the
 //     RESOLVED DATA shape (Tier-5-Entry.md invariant 1: entry owns no business logic; the resolution takes chat-supplied
 //     KEYS and returns DATA, so chat stays decoupled from those read APIs).
-//   • CHAT-INTERNAL (chat owns the data/subsystem) → gathered by `substrate/assemble-gather.gatherAssembleContext`
+//   • CHAT-INTERNAL (chat owns the data/subsystem) → gathered by `assembly/gather.gatherAssembleContext`
 //     using the `ChatContext` ops chat already holds (canon/injections/variables/metadata/memory/regex-tier).
 //
 // These are exported feature TYPES, so they live in `contract/` (the `types-in-contract` gate, §7.4) — NOT inline

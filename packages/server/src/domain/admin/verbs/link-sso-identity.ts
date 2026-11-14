@@ -18,7 +18,7 @@
 // identity write — it decides which IdP subject owns an account — and it used to run inside the sessions
 // capability with its audit tail on the best-effort `ctx.audit` (`logAudit`: suppress → count → drop), so a
 // degraded audit channel returned 200 for an account newly bound to an SSO identity with NO forensic row.
-// Now the UNEXECUTED claim rides `substrate/audited-write.ts` as statement 1 and the `changes()`-guarded
+// Now the UNEXECUTED claim rides `persistence/audited-write.ts` as statement 1 and the `changes()`-guarded
 // audit insert is statement 2, exactly like setRole: a failed audit rolls the bind back, and a claim that
 // bound nothing writes no row claiming it did.
 //
@@ -36,8 +36,8 @@ import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { LinkSsoIdentityParams } from "../contract/params.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";
 import { isBootstrapOwnerRole, requireAdmin } from "../guard.ts";
+import { commitAuditedWrite } from "../persistence/audited-write.ts";
 import { loadUser } from "../persistence/queries.ts";
-import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 /** Map a claim that bound nothing onto this verb's typed refusals. `already-linked` is NOT a refusal — the
  *  row already carries exactly this subject, so the caller proceeds to the same success view it would have

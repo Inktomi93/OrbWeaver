@@ -7,7 +7,7 @@
 // @subject packages/server/src/domain/discovery/workload-contributions.ts
 // @subject packages/server/src/domain/refinery/workload-contributions.ts
 // @subject packages/server/src/domain/chat/memory/generate/segments.ts
-// @subject packages/server/src/domain/chat/substrate/backfill.ts
+// @subject packages/server/src/domain/chat/memory/backfill/backfill.ts
 // @subject packages/server/src/domain/chat/workload-contributions.ts
 
 import { CADENCE_INTERVAL_MS, WORKLOAD_RUN_ACCOUNT_DISABLED, WORKLOAD_RUN_ACCOUNT_DISABLED_REFUSAL } from "@orb/contracts/workloads";

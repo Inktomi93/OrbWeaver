@@ -5,7 +5,7 @@
 //
 // A key wrapped in an array once crossed whole while a plain string was cut at its NUL, and main stored a NUL-bearing
 // key that way far past the cap; the membrane now refuses a non-string key at the door, so those rows expect its refusal.
-// @subject packages/server/src/domain/plugin/substrate/storage.ts
+// @subject packages/server/src/domain/plugin/persistence/storage.ts
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import { PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_KV_VALUE_MAX_BYTES } from "@orb/contracts/plugin";

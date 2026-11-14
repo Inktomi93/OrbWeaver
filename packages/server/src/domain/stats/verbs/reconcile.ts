@@ -19,7 +19,7 @@ import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { ReconcileInFlight } from "../contract/reconcile-in-flight.ts";
 import type { StatsContext, StatsService } from "../contract/service.ts";
-import { reconcileOwnerStats } from "../substrate/reconcile-owner.ts";
+import { reconcileOwnerStats } from "../persistence/reconcile-owner.ts";
 
 export function createReconcile(ctx: StatsContext, inFlight: ReconcileInFlight): Pick<StatsService, "reconcile"> {
   async function reconcile(ownerId: UserId): Promise<ReconcileStatsResult> {
