@@ -7,6 +7,7 @@ import type { ChatImportResult } from "@orb/contracts/import";
 import { chatImportResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -32,12 +33,16 @@ async function importChat(root: ServerTestHarness, filename: string, bytes: Uint
   return chatImportResultSchema.parse(await response.json());
 }
 
-test("a chat import names every room it accepts, written or held, from a transcript or from an untitled room's bundle", async () => {
-  await using root = await createServerHarness({
+function ownerRoot(): Promise<ServerTestHarness> {
+  return createServerHarness({
     env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner", ["SEED_CONTENT"]: "off" },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });
+}
+
+test("a chat import names every room it accepts, written or held, from a transcript or from an untitled room's bundle", async () => {
+  await using root = await ownerRoot();
   const principal = await root.principalFor(root.ownerId);
   const character = await root.services.character.create({
     principal,
@@ -59,4 +64,26 @@ test("a chat import names every room it accepts, written or held, from a transcr
   for (const entry of [...written.imported, ...held.imported, ...untitled.imported]) {
     expect(entry.title).toEqual(expect.any(String));
   }
+});
+
+test("a held transcript renamed since its import is named by the room's new title", async () => {
+  await using root = await ownerRoot();
+  const principal = await root.principalFor(root.ownerId);
+  await root.services.character.create({
+    principal,
+    input: createCharacterSchema.parse({ handle: "harbor-keeper", name: NAME, description: "Keeps the light." }),
+  });
+  const written = await importChat(root, "harbor-keeper/watch.jsonl", TRANSCRIPT);
+  const [room] = (await root.services.chat.listChats({ principal })).items;
+  if (room === undefined) {
+    throw new Error("the transcript landed no room");
+  }
+  await root.services.chat.updateTitle({ principal, chatId: room.id, title: "Lantern watch" });
+
+  const held = await importChat(root, "harbor-keeper/watch.jsonl", TRANSCRIPT);
+
+  // Positive control: the first import wrote the room under the title it computed, not the new one.
+  expect(written.imported).toMatchObject([{ created: true }]);
+  expect(present(written.imported[0]).title).not.toBe("Lantern watch");
+  expect(held.imported).toMatchObject([{ created: false, title: "Lantern watch" }]);
 });

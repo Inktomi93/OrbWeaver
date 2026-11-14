@@ -27,3 +27,34 @@ test("a re-run of an unchanged folder stores every entry as held and only the re
   expect(entries).toBeGreaterThan(0);
   expect(again).toMatchObject({ changed: 0, inLibrary: entries, skipped: 1 });
 });
+
+test("a re-run after the owner removed rows stores what the waves reused, counting a repeat of the upload as held", async () => {
+  await using root = await harness();
+  const principal = await root.principalFor(root.ownerId);
+  const { held, names } = bothKindFolders(root);
+  const book = held["worlds/Eldoria.json"];
+  if (book === undefined) {
+    throw new Error("the kind folder carries no world book");
+  }
+  // The same lore under a second file name: the world wave reuses the book the first file lands.
+  const folder = { ...held, "worlds/Eldoria2.json": book };
+
+  const first = await finishRun(root, await admit(root, folder));
+  const entries = IMPORT_PREVIEW_KINDS.reduce((sum, kind) => sum + (first.found?.[kind] ?? 0), 0);
+  expect(first).toMatchObject({ inLibrary: 1, skipped: 0 });
+
+  const books = await root.services.worldInfo.listBooks({ principal });
+  const presets = await root.services.preset.list({ userId: root.ownerId });
+  const [eldoria] = books.filter(({ name }) => names.held.worlds.includes(name));
+  const [preset] = presets.filter(({ name }) => names.held.presets.includes(name));
+  if (eldoria === undefined || preset === undefined) {
+    throw new Error(`the first run landed no held book or preset: ${JSON.stringify([books.map((b) => b.name), presets.map((p) => p.name)])}`);
+  }
+  await root.services.worldInfo.removeBook({ principal, bookId: eldoria.id });
+  await root.services.preset.remove({ userId: root.ownerId, id: preset.id });
+
+  const again = await finishRun(root, await admit(root, folder));
+
+  // The removed book and preset are written again; every other entry, and the repeat, is reused.
+  expect(again).toMatchObject({ changed: 2, inLibrary: entries - 2, skipped: 0 });
+});

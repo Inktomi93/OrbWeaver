@@ -229,24 +229,6 @@ export function countImportKinds(collected: ProfileCollected): ImportKindCounts 
   };
 }
 
-/** How many items of each kind a run writes nothing for, by `owned`'s verdicts: the library or an earlier entry of
- *  the upload holds them. */
-export function countHeldKinds(collected: ProfileCollected, owned: ImportOwnership): ImportKindCounts {
-  const items = kindItems(collected, owned);
-  const held = (kind: ImportPreviewKind): number => items[kind].filter((entry) => entry.inLibrary === true || entry.repeat === true).length;
-  return {
-    characters: held("characters"),
-    chats: held("chats"),
-    personas: held("personas"),
-    worlds: held("worlds"),
-    presets: held("presets"),
-    themes: held("themes"),
-    backgrounds: held("backgrounds"),
-    groups: held("groups"),
-    orphans: held("orphans"),
-  };
-}
-
 /** `owned` holds, per kind, the collected entries a run writes nothing for: the owner has them, or an earlier entry
  *  of the upload lands them. */
 export function buildImportPreview(collected: ProfileCollected, owned: ImportOwnership): ImportPreview {

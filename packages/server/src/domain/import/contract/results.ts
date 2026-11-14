@@ -53,6 +53,8 @@ export type RestoreCharacterBookResult = CardLorebookRestoreResult;
  *  nothing here. Always present (empty ⇒ every pick travelled), never a silent drop. */
 export interface ImportChatsResult {
   readonly chatsImported: number;
+  /** Inputs the write found already landed, by the library's import claims or an earlier input of the batch. */
+  readonly chatsReused: number;
   /** Per input, in order: the room it landed on or was held under, and the title the import computed for it. */
   readonly rooms: readonly { readonly chatId: ChatId; readonly title: string }[];
   readonly memoryChatIds: readonly ChatId[];
@@ -94,6 +96,9 @@ export interface ImportThemesResult {
 export interface ImportGroupsResult {
   readonly groupsImported: number;
   readonly groupChatsImported: number;
+  /** Groups whose every transcript the write found already landed, and the transcripts it found so. */
+  readonly groupsReused: number;
+  readonly groupChatsReused: number;
   readonly skippedGroups: readonly ImportSkippedGroup[];
   readonly skippedMembers: readonly ImportSkippedGroupMember[];
   readonly memoryChatIds: readonly ChatId[];
@@ -261,8 +266,8 @@ export interface ImportReport {
   readonly found: ImportKindCounts;
   /** The dry run's names per kind and its skips, or null on a real run. */
   readonly preview: ImportPreview | null;
-  /** A real run only, in {@link found}'s units: the entries it wrote nothing for because the library or an earlier
-   *  entry of the upload held them (`inLibrary`, merged personas aside), and the recorded skips it never attempted. */
+  /** A real run only, in {@link found}'s units: the entries its waves reused because the library or an earlier entry
+   *  of the upload held them (`inLibrary`, merged personas aside), and the recorded skips it never attempted. */
   readonly held?: { readonly inLibrary: number; readonly skipped: number };
   /** ST library tags that did not attach to their imported card (the attach is per-tag isolated). */
   readonly skippedCardTags: readonly ImportSkippedCardTag[];

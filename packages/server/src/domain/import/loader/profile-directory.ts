@@ -28,7 +28,7 @@ import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnres
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
 import { seatsOf } from "../substrate/group.ts";
-import { buildImportPreview, countHeldKinds, countImportKinds, refusedGroups } from "../substrate/preview.ts";
+import { buildImportPreview, countImportKinds, refusedGroups } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 import { findOwnership } from "./profile-ownership.ts";
 
@@ -319,6 +319,8 @@ async function landBackgroundsAndAppearance(
   collected: ProfileCollected,
 ): Promise<{
   readonly backgroundsImported: number;
+  /** Stored backgrounds the library already carried, or an earlier background of the upload added. */
+  readonly backgroundsReused: number;
   readonly appearanceKeysApplied: readonly string[];
   /** The store's own refusals PLUS the stored-but-unattached rows. */
   readonly skippedBackgrounds: readonly ImportSkippedCard[];
@@ -330,10 +332,16 @@ async function landBackgroundsAndAppearance(
       file,
       reason: "stored in your media library but NOT attached to the background picker — the appearance applier is not wired into this composition",
     }));
-    return { backgroundsImported: 0, appearanceKeysApplied: [], skippedBackgrounds: [...stored.skipped, ...unattached] };
+    return { backgroundsImported: 0, backgroundsReused: 0, appearanceKeysApplied: [], skippedBackgrounds: [...stored.skipped, ...unattached] };
   }
   const outcome = await apply(deps.principal.userId, { patch: collected.appearance, backgroundLibrary: stored.entries });
-  return { backgroundsImported: outcome.backgroundsAdded, appearanceKeysApplied: outcome.patchedKeys, skippedBackgrounds: stored.skipped };
+  return {
+    backgroundsImported: outcome.backgroundsAdded,
+    // The applier appends each stored entry whose image the library does not carry yet; every other one was held.
+    backgroundsReused: stored.entries.length - outcome.backgroundsAdded,
+    appearanceKeysApplied: outcome.patchedKeys,
+    skippedBackgrounds: stored.skipped,
+  };
 }
 
 /** The inert SillyTavern activation fields a book's entries carry, each with the count of entries carrying
@@ -355,8 +363,9 @@ function inertFieldCounts(book: CollectedWorld["book"]): ImportWorldNote["inertF
 async function importCollectedWorlds(
   deps: ProfileDirImportDeps,
   worlds: readonly CollectedWorld[],
-): Promise<{ readonly created: number; readonly notes: ImportWorldNote[]; readonly landed: ReadonlyMap<string, WorldBookId> }> {
+): Promise<{ readonly created: number; readonly reused: number; readonly notes: ImportWorldNote[]; readonly landed: ReadonlyMap<string, WorldBookId> }> {
   let created = 0;
+  let reused = 0;
   const notes: ImportWorldNote[] = [];
   const landed = new Map<string, WorldBookId>();
   const results = await deps.importStandaloneLorebooks({
@@ -373,6 +382,8 @@ async function importCollectedWorlds(
     }
     if (bookResult.created) {
       created += 1;
+    } else {
+      reused += 1;
     }
     // A multi-profile upload can carry one name twice; the first profile's book keeps it, as personas do.
     if (!landed.has(world.book.name)) {
@@ -386,7 +397,7 @@ async function importCollectedWorlds(
       inertFields: inertFieldCounts(world.book),
     });
   }
-  return { created, notes, landed };
+  return { created, reused, notes, landed };
 }
 
 /** Assemble the import report from the merged collect results + the run's counts + the per-card skips. The
@@ -568,6 +579,9 @@ async function importOrphanBundles(
   orphans: ProfileCollected["orphanBundles"],
 ): Promise<{
   readonly changed: number;
+  /** Placeholders that already existed or an earlier directory of the upload minted, and the transcripts held. */
+  readonly orphansReused: number;
+  readonly chatsReused: number;
   readonly orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[];
   readonly orphanSkipped: { dir: string; reason: string }[];
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
@@ -575,6 +589,8 @@ async function importOrphanBundles(
   readonly memoryChatIds: ChatId[];
 }> {
   let changed = 0;
+  let orphansReused = 0;
+  let chatsReused = 0;
   let chatsPersonaHealed = 0;
   const memoryChatIds: ChatId[] = [];
   const orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[] = [];
@@ -602,9 +618,12 @@ async function importOrphanBundles(
           source: "manual",
           status: "accepted",
         });
+      } else {
+        orphansReused += 1;
       }
       const chatResult = await service.importChats({ characterId: mint.characterId, chats: orphan.chats });
       changed += chatResult.chatsImported;
+      chatsReused += chatResult.chatsReused;
       chatsPersonaHealed += chatResult.chatsPersonaHealed;
       memoryChatIds.push(...chatResult.memoryChatIds);
       unresolvedPins.push(...chatResult.unresolvedPinnedPersonas);
@@ -614,7 +633,7 @@ async function importOrphanBundles(
       orphanSkipped.push({ dir: orphan.dirName, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed, memoryChatIds };
+  return { changed, orphansReused, chatsReused, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed, memoryChatIds };
 }
 
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
@@ -626,6 +645,9 @@ async function importOneBundle(
 ): Promise<{
   readonly changed: number;
   readonly characterId: CharacterId;
+  /** Whether the card reused a held character, and how many of its chats the write found already landed. */
+  readonly cardReused: boolean;
+  readonly chatsReused: number;
   readonly unresolvedPins: readonly ImportUnresolvedPinnedPersona[];
   /** Already-imported rooms of THIS card whose persona attribution this run back-filled (the dedup-skip HEAL). */
   readonly chatsPersonaHealed: number;
@@ -640,15 +662,17 @@ async function importOneBundle(
   if (cardResult.created) {
     changed += 1;
   }
+  const card = { characterId: cardResult.characterId, cardReused: !cardResult.created };
   const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused };
   if (bundle.chats.length === 0) {
-    return { changed, characterId: cardResult.characterId, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], ...scripts };
+    return { changed, ...card, chatsReused: 0, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], ...scripts };
   }
   const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
   changed += chatResult.chatsImported;
   return {
     changed,
-    characterId: cardResult.characterId,
+    ...card,
+    chatsReused: chatResult.chatsReused,
     unresolvedPins: chatResult.unresolvedPinnedPersonas,
     chatsPersonaHealed: chatResult.chatsPersonaHealed,
     memoryChatIds: chatResult.memoryChatIds,
@@ -695,6 +719,9 @@ async function importCollectedBundles(
   profiles: readonly CollectedProfile[],
 ): Promise<{
   readonly changed: number;
+  /** Cards that reused a held character, and their chats the write found already landed. */
+  readonly cardsReused: number;
+  readonly chatsReused: number;
   readonly skippedCards: ImportSkippedCard[];
   /** Each imported card → the character it resolved to (created OR matched). Keyed by the card itself, not its
    *  filename: two profiles can keep different cards under one filename. */
@@ -712,6 +739,8 @@ async function importCollectedBundles(
   readonly skippedCardTags: ImportSkippedCardTag[];
 }> {
   let changed = 0;
+  let cardsReused = 0;
+  let chatsReused = 0;
   let chatsPersonaHealed = 0;
   const memoryChatIds: ChatId[] = [];
   const skippedCards: ImportSkippedCard[] = [];
@@ -730,6 +759,8 @@ async function importCollectedBundles(
     try {
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
+      cardsReused += result.cardReused ? 1 : 0;
+      chatsReused += result.chatsReused;
       chatsPersonaHealed += result.chatsPersonaHealed;
       memoryChatIds.push(...result.memoryChatIds);
       unresolvedPins.push(...result.unresolvedPins);
@@ -746,6 +777,8 @@ async function importCollectedBundles(
   }
   return {
     changed,
+    cardsReused,
+    chatsReused,
     skippedCards,
     characterIdByCard,
     unresolvedPins,
@@ -818,10 +851,6 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store.
   const store: StoreAvatarAsset = (params) => deps.storeAvatar({ ...params, maxBytes: ASSET_UPLOAD_MAX_BYTES });
   const service = createImportService(contextFor(deps, store));
-  // What the library and the upload already hold, judged before any write by the rules the waves below write by, so
-  // the run reports its held entries in `found`'s units. Personas are counted by their own write instead: the judge
-  // reads a merged persona as held, and a merge has its own count.
-  const held = countHeldKinds(collected, await findOwnership(deps, collected));
 
   let changed = 0;
   let personasMergedKeys: readonly string[] = [];
@@ -930,7 +959,19 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
     await deps.enqueueImportIndex({ ownerId: deps.principal.userId });
   }
 
-  const heldEntries = IMPORT_PREVIEW_KINDS.reduce((sum, kind) => sum + (kind === "personas" ? personasReused : held[kind]), 0);
+  // What each wave reused, in `found`'s units: the run's own record of the entries it wrote nothing for.
+  const reused: ImportKindCounts = {
+    characters: bundleResult.cardsReused,
+    chats: bundleResult.chatsReused + orphanResult.chatsReused + groupResult.groupChatsReused,
+    personas: personasReused,
+    worlds: worldResult.reused,
+    presets: presetResult.presetsImported - presetResult.presetsCreated,
+    themes: themeResult.themesImported - themeResult.themesCreated,
+    backgrounds: appearanceWave.backgroundsReused,
+    groups: groupResult.groupsReused,
+    orphans: orphanResult.orphansReused,
+  };
+  const heldEntries = IMPORT_PREVIEW_KINDS.reduce((sum, kind) => sum + reused[kind], 0);
   return reportFrom({
     collected,
     scanned,

@@ -38,6 +38,7 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
 
     return {
       chatsImported: counts.chatsImported,
+      chatsReused: counts.chatsSkipped,
       rooms: counts.remaps.flatMap(({ chatId }, i) => {
         const chat = chats[i];
         return chat === undefined ? [] : [{ chatId, title: chat.title }];
