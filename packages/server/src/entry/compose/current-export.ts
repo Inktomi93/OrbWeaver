@@ -13,6 +13,8 @@ interface CurrentExportDeps {
   readonly resolveOwnerPrincipal: ImportDriverDeps["resolveOwnerPrincipal"];
 }
 
+type SeatCardCache = NonNullable<Parameters<ExportService["exportChatBundle"]>[0]["seatCardCache"]>;
+
 // An unreadable lore entry is written without its metadata in the backup and in this export alike, so the note
 // changes nothing the compare reads.
 const ignoreExportNote: PortableExportNotes = () => undefined;
@@ -30,15 +32,15 @@ export function createExportCurrentCard(deps: CurrentExportDeps): ExportCurrentC
 }
 
 export function createExportCurrentChats(deps: CurrentExportDeps): ExportCurrentChats {
-  return async ({ ownerId, characterId, createdAt }) => {
+  return async function* ({ ownerId, characterId, createdAt }) {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
-    const rooms: Awaited<ReturnType<ExportCurrentChats>>[number][] = [];
+    // The candidates share their seats, so each seat card is exported once per lookup, not once per room.
+    const seatCardCache: SeatCardCache = new Map();
     for (const chatId of await deps.exportService.listHostChatsCreatedAt({ principal, characterId, createdAt })) {
-      const file = await deps.exportService.exportChatBundle({ principal, chatId });
+      const file = await deps.exportService.exportChatBundle({ principal, chatId, seatCardCache });
       if (file !== null) {
-        rooms.push({ chatId, bytes: file.bytes });
+        yield { chatId, bytes: file.bytes };
       }
     }
-    return rooms;
   };
 }

@@ -67,8 +67,28 @@ const PLAIN_CHARACTERS = [
 const AUTHORED_CHARACTERS = 1 + PLAIN_CHARACTERS.length;
 const HTTP_OK = 200;
 
+const COUNTED_TABLES = [
+  "characters",
+  "characterTags",
+  "chats",
+  "messages",
+  "messageVariants",
+  "worldBooks",
+  "worldEntries",
+  "presets",
+  "personas",
+  "tags",
+  "assets",
+  "themes",
+  "regexScripts",
+  "documents",
+  "galleryItems",
+  "imageryGenerations",
+] as const;
+type RowCounts = Readonly<Record<(typeof COUNTED_TABLES)[number], number>>;
+
 /** The row count of every table a library backup writes into, box-wide: the box holds only its owner's library. */
-async function rowCounts(root: ServerTestHarness): Promise<Readonly<Record<string, number>>> {
+async function rowCounts(root: ServerTestHarness): Promise<RowCounts> {
   const rows = async (table: SQLiteTable): Promise<number> => (await root.db.select({ n: count() }).from(table).get())?.n ?? 0;
   return {
     characters: await rows(characters),
@@ -228,8 +248,8 @@ test("a character edited after the backup keeps the edit, and the backup's versi
     { handle: `${WARDEN}-2`, description: WARDEN_DESCRIPTION },
   ]);
   // The room's seat card changed with the edit, so the backup's room lands with the backup's card.
-  expect((await rowCounts(root)).characters).toBe((before.characters ?? 0) + 1);
-  expect((await rowCounts(root)).chats).toBe((before.chats ?? 0) + 1);
+  expect((await rowCounts(root)).characters).toBe(before.characters + 1);
+  expect((await rowCounts(root)).chats).toBe(before.chats + 1);
 });
 
 /** Restore one card file through the production character descriptor the bundle loader routes it to. */
@@ -268,7 +288,7 @@ test("a lived-in library restored into an empty one reproduces every row", { tag
   expect(await restoreBundle(target, bundle)).toMatchObject({ status: "succeeded", failed: 0 });
   const held = await rowCounts(source);
   // A restored card keeps its whole PNG as its avatar, so each character the source wrote adds that one blob.
-  expect(await rowCounts(target)).toEqual({ ...held, assets: (held.assets ?? 0) + AUTHORED_CHARACTERS });
+  expect(await rowCounts(target)).toEqual({ ...held, assets: held.assets + AUTHORED_CHARACTERS });
 });
 
 test("a room the backup carries is not matched to a different room of a deleted and re-created primary created at the same time", async () => {
@@ -294,7 +314,7 @@ test("a room the backup carries is not matched to a different room of a deleted 
 
   expect(await restoreBundle(root, bundle)).toMatchObject({ status: "succeeded", failed: 0 });
   const after = await rowCounts(root);
-  expect({ characters: after.characters, chats: after.chats }).toEqual({ characters: before.characters, chats: (before.chats ?? 0) + 1 });
+  expect({ characters: after.characters, chats: after.chats }).toEqual({ characters: before.characters, chats: before.chats + 1 });
   expect((await root.services.chat.listMessages({ principal: owner, chatId: other.chat.id })).messages.map((m) => m.content)).toEqual([
     "A different question.",
   ]);

@@ -53,8 +53,8 @@ export interface PortabilityDeps {
   readonly attachCardTag: AttachCardTagByNameOp;
   /** The lookup's last step for a card or room the app wrote, which carries no stored key (D290). */
   readonly exportCurrentCard: ExportCurrentCard;
-  readonly heldChatHashes: NonNullable<ImportProfileDeps["heldChatHashes"]>;
-  readonly exportCurrentChats: NonNullable<ImportProfileDeps["exportCurrentChats"]>;
+  readonly heldChatHashes: ImportProfileDeps["heldChatHashes"];
+  readonly exportCurrentChats: ImportProfileDeps["exportCurrentChats"];
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
   /** The seat oracle that keeps a re-uploaded card from replacing an edited primary book. */
   readonly hasPrimaryBook: ImportWorldInfoPort["hasPrimaryBook"];

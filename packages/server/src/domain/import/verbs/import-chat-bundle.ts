@@ -421,14 +421,15 @@ async function heldAsCurrentRoom(args: {
   readonly importHash: string;
 }): Promise<boolean> {
   const { profile, ownerId, primary, createdAt, importHash } = args;
-  if (profile.heldChatHashes === undefined || profile.exportCurrentChats === undefined) {
-    return false;
-  }
   if ((await profile.heldChatHashes({ ownerId, characterId: primary, hashes: [importHash] })).has(importHash)) {
     return false;
   }
-  const rooms = await profile.exportCurrentChats({ ownerId, characterId: primary, createdAt });
-  return rooms.some((room) => sha256Hex(room.bytes) === importHash);
+  for await (const room of profile.exportCurrentChats({ ownerId, characterId: primary, createdAt })) {
+    if (sha256Hex(room.bytes) === importHash) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** The write half, split out so the refusal ladder above reads as one screen of preconditions. */

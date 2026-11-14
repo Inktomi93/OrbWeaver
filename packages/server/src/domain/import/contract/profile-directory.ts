@@ -30,7 +30,7 @@ import type {
   CollectResult,
 } from "./collection.ts";
 import type { ImportReport } from "./results.ts";
-import type { AdoptDefaultPersona } from "./service.ts";
+import type { AdoptDefaultPersona, ImportProfileDeps } from "./service.ts";
 
 /** The settings-owned `appearance` landing op (`createApplyImportedAppearance`). */
 type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome>;
@@ -118,6 +118,9 @@ export interface ProfileDirImportDeps {
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
+  /** The chat-bundle lookup's ops (D290); the run's import context carries them like every other context. */
+  readonly heldChatHashes: ImportProfileDeps["heldChatHashes"];
+  readonly exportCurrentChats: ImportProfileDeps["exportCurrentChats"];
   readonly now: Clock;
   /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted uses the importing host's zone — a
    *  profile snapshot is imported on the box that produced it in the ordinary case, and ST built those

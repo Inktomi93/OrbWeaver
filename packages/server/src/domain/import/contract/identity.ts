@@ -16,12 +16,13 @@ export type ExportCurrentCard = (args: {
 }) => Promise<{ readonly characterId: CharacterId; readonly bytes: Uint8Array } | null>;
 
 /** The current export bytes of each room the owner hosts that seats `characterId` and was created at `createdAt`:
- *  the rooms a chat bundle written from this library can be, compared by content (D290). */
+ *  the rooms a chat bundle written from this library can be, compared by content (D290). Yielded one room at a
+ *  time, so a lookup that stops at its match exports no later candidate and holds one export at once. */
 export type ExportCurrentChats = (args: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly createdAt: number;
-}) => Promise<readonly { readonly chatId: ChatId; readonly bytes: Uint8Array }[]>;
+}) => AsyncIterable<{ readonly chatId: ChatId; readonly bytes: Uint8Array }>;
 
 /** The identity of the owned character a card's carried handle names, read off that row's current export, or null. */
 export type CurrentCardIdentity<Row = CharacterId> = () => Promise<{ readonly characterId: Row; readonly hashes: CardIdentityHashes } | null>;

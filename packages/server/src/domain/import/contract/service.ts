@@ -121,9 +121,9 @@ export interface ImportProfileDeps {
   readonly findOwnedAssetIdsByHash?: FindOwnedAssetIdsByHashOp;
   /** A chat bundle's lookup for a room the app wrote, which carries no stored key (D290): when the bundle's own key
    *  is not held under its primary (`heldChatHashes`), it compares with the current export of each candidate room
-   *  (`exportCurrentChats`). OPTIONAL on the R6 precedent: absent ⇒ only the stored key dedups. */
-  readonly heldChatHashes?: FindImportedChatHashes;
-  readonly exportCurrentChats?: ExportCurrentChats;
+   *  (`exportCurrentChats`). Required: an unwired lookup would twin every room the app wrote on a restore. */
+  readonly heldChatHashes: FindImportedChatHashes;
+  readonly exportCurrentChats: ExportCurrentChats;
   /** Preset-owned import write op — the ST preset wave hands it orb-native `orb.preset` BYTES, so the preset
    *  domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither. OPTIONAL on
    *  the `importLorebook` precedent: absent ⇒ the preset plane simply does not restore (the profile-import
