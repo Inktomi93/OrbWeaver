@@ -37,6 +37,6 @@ export type DetachHandoffBooks = (args: { readonly chatId: ChatId; readonly host
  *
  *  IDEMPOTENT ACROSS A RETRIED ACCEPT without a provenance column: a card copy that already carries junctions
  *  is left alone, and a chat-attached source book whose name `toOwnerId` already owns ON THIS CHAT resolves to
- *  that book instead of minting a second (the `(ownerId, name)` dedup key `importStandaloneLorebook` already
- *  uses). The returned attach is conflict-safe on the `(chatId, worldBookId)` PK. */
+ *  that book instead of minting a second (an `(ownerId, name)` dedup key). The returned attach is conflict-safe
+ *  on the `(chatId, worldBookId)` PK. */
 export type CopyHandoffBooks = (args: CopyHandoffBooksArgs) => Promise<readonly StatementToken[]>;

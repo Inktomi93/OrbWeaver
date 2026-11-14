@@ -35,7 +35,7 @@ export function createImportPersonas(ctx: ImportContext): ImportService["importP
       isDefault: pi.parsed.isDefault,
     }));
 
-    const result = await profile.bulkImportPersonas({ ownerId: ctx.ownerId, personas, collisions });
+    const result = await profile.bulkImportPersonas({ ownerId: ctx.ownerId, personas, collisions, dryRun: false });
 
     // The chat importers read `personaByUserName` (lowercased name → id) to attribute `user_name`s.
     for (const [key, personaId] of Object.entries(result.idByName)) {
@@ -48,6 +48,7 @@ export function createImportPersonas(ctx: ImportContext): ImportService["importP
 
     return {
       personasCreated: result.personasCreated,
+      personasReused: result.personasSkipped,
       mergedKeys: result.mergedKeys,
     };
   };

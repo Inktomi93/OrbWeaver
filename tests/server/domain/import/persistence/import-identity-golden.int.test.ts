@@ -1,6 +1,7 @@
 // A chat's import identity is the hash of its parsed content, and the bytes it hashes never change: every claim
-// already stored in an owner's library must still match a re-import of the same file (D290). The hashes below were
-// taken from the identity before it hashed in slices; the long transcript spans several slices.
+// already stored in an owner's library must still match a re-import of the same file (D290). The hashes below read
+// the zone-less dates as UTC, by rule, so they hold on a host in any time zone; the long transcript spans several
+// hashing slices.
 // @subject packages/server/src/primitives/serde/chat/index.ts
 // @subject packages/server/src/domain/chat/persistence/import-write.ts
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -11,8 +12,8 @@ import { createServerHarness } from "@orb/testkit/node/composed";
 const HANDLE = "lamp-keeper";
 const SENT = "2025-07-19@12h00m01s";
 const GOLDEN = {
-  short: { messages: 3, importHash: "bb6819e1580bc78bfa03debf5b0bfe24329234ce18408d4230d85a98e7d1e7f0" },
-  long: { messages: 6000, importHash: "aeec4a802de646047cd887353ffc4ffd3cad416a495ebaa1fd711f99a1ca9063" },
+  short: { messages: 3, importHash: "3dc9405982fae3bd4ccc904b6b384056e435fe35ad52e504cad0b53fd2bc64bf" },
+  long: { messages: 6000, importHash: "970e2c65368fae170c2ae247022f37c5e008f94645e5023888974430a9a78cc7" },
 } as const;
 
 // Accented and astral text and a second swipe, so the identity covers multi-byte encoding and variants.

@@ -8,6 +8,7 @@ import {
   jsonMemberSchema,
   jsonObjectOf,
   jsonObjectSchema,
+  nestsPastJsonMaxDepth,
   parseJsonText,
 } from "@orb/kit/json";
 import { present } from "@orb/testkit/iso";
@@ -57,6 +58,12 @@ test("the bounded check refuses past its depth with its code, before a deep valu
   expect(boundedJsonObjectSchema.parse(atBound)).toBe(atBound);
   expect(refusalOf({ value: nestedArrays(JSON_MAX_DEPTH) })).toBe(MAX_DEPTH);
   expect(refusalOf({ value: nestedArrays(100_000) })).toBe(MAX_DEPTH);
+});
+
+test("the depth check answers at its bound with no walk on the stack, however deep the decoded value nests", () => {
+  expect(nestsPastJsonMaxDepth({ big: Number.POSITIVE_INFINITY, value: nestedArrays(JSON_MAX_DEPTH - 1) })).toBe(false);
+  expect(nestsPastJsonMaxDepth({ value: nestedArrays(JSON_MAX_DEPTH) })).toBe(true);
+  expect(nestsPastJsonMaxDepth(present(parseJsonText(`${"[".repeat(1_000_000)}1${"]".repeat(1_000_000)}`)))).toBe(true);
 });
 
 test("the bounded check refuses a value no JSON text can hold with its code", () => {

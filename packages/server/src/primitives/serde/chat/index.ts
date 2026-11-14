@@ -7,10 +7,9 @@
 // External wire invariants:
 //   • the filename date wins over the header create_date (ST re-save rewrites the header to migration time).
 //   • buildVariants drops empty swipe slots + remaps the active index; `mes` is authoritative regardless.
-//   • dates emit in the legacy human form (minute precision); parseStDate reads it back. That form is a
-//     ZONE-LESS LOCAL WALL CLOCK in ST, so both halves take a `wallClockZone` (default "UTC" — see
-//     ST_DEFAULT_WALL_CLOCK_ZONE); the ST interchange DOORS pass `hostTimeZone()`. Absolute encodings
-//     (epoch / ISO) ignore it.
+//   • dates emit in the legacy human form (minute precision); parseStDate reads it back. A zone-less ST date
+//     is read and written as UTC (ST_WALL_CLOCK_ZONE), never in the host's zone (D290); a form that carries
+//     its zone, and an epoch, are instants as written.
 //   • ST's ONE `extra.token_count` is the row's own text count, not API usage: it routes to tokensOut on an
 //     assistant line and tokensIn on a user/system line (`tokenColumns`), and un-routes on build.
 //   • swipe arrays build only when >1 variant, matching the parser's real-swipe gate.
@@ -302,14 +301,14 @@ function parseNumericEpoch(s: string): number | null {
   return Number.isFinite(n) ? epochToMs(n) : null;
 }
 
-/** ST "2025-07-03\@14h56m48s" → ms, resolving the zone-less wall clock in `zone`, else null. */
-function parseAtDate(s: string, zone: string): number | null {
+/** ST "2025-07-03\@14h56m48s" → ms, the zone-less wall clock read as {@link ST_WALL_CLOCK_ZONE}, else null. */
+function parseAtDate(s: string): number | null {
   const at = ST_AT_DATE.exec(s);
   if (!at) {
     return null;
   }
   const [, y, mo, d, h, mi, se] = at;
-  return wallClockToMs({ year: Number(y), month: Number(mo), day: Number(d), hour: Number(h), minute: Number(mi), second: Number(se) }, zone);
+  return wallClockToMs({ year: Number(y), month: Number(mo), day: Number(d), hour: Number(h), minute: Number(mi), second: Number(se) }, ST_WALL_CLOCK_ZONE);
 }
 
 /** 12h → 24h given the am/pm marker (ST's human date uses 12h). */
@@ -336,53 +335,50 @@ const MONTH_PATTERNS: {
   dateOnly: new RegExp(`${name}\\s+(\\d{1,2}),?\\s+(\\d{4})`),
 }));
 
-/** Parse "<Month> D, YYYY H:MMam/pm" → ms (wall clock resolved in `zone`), else null. */
-function parseMonthWithTime(lower: string, pat: (typeof MONTH_PATTERNS)[number], zone: string): number | null {
+/** Parse "<Month> D, YYYY H:MMam/pm" → ms (the wall clock read as {@link ST_WALL_CLOCK_ZONE}), else null. */
+function parseMonthWithTime(lower: string, pat: (typeof MONTH_PATTERNS)[number]): number | null {
   const withTime = pat.withTime.exec(lower);
   if (!withTime) {
     return null;
   }
   const [, d, y, hh, mm, ap] = withTime;
-  return wallClockToMs({ year: Number(y), month: pat.mo, day: Number(d), hour: to24Hour(Number(hh), String(ap)), minute: Number(mm), second: 0 }, zone);
+  return wallClockToMs(
+    { year: Number(y), month: pat.mo, day: Number(d), hour: to24Hour(Number(hh), String(ap)), minute: Number(mm), second: 0 },
+    ST_WALL_CLOCK_ZONE,
+  );
 }
 
-/** Parse the date-only "<Month> D, YYYY" → ms (midnight of that wall-clock day in `zone`), else null. */
-function parseMonthDateOnly(lower: string, pat: (typeof MONTH_PATTERNS)[number], zone: string): number | null {
+/** Parse the date-only "<Month> D, YYYY" → ms (midnight of that wall-clock day, read as {@link ST_WALL_CLOCK_ZONE}), else null. */
+function parseMonthDateOnly(lower: string, pat: (typeof MONTH_PATTERNS)[number]): number | null {
   const dateOnly = pat.dateOnly.exec(lower);
   if (!dateOnly) {
     return null;
   }
   const [, d, y] = dateOnly;
-  return wallClockToMs({ year: Number(y), month: pat.mo, day: Number(d), hour: 0, minute: 0, second: 0 }, zone);
+  return wallClockToMs({ year: Number(y), month: pat.mo, day: Number(d), hour: 0, minute: 0, second: 0 }, ST_WALL_CLOCK_ZONE);
 }
 
 /** "August 27, 2025 6:36pm" (with or without the time) → ms, else null. Once a month NAME is found, this
  *  commits to the human form (the neo `break`): a parse miss returns null. */
-function parseHumanDate(lower: string, zone: string): number | null {
+function parseHumanDate(lower: string): number | null {
   for (const pat of MONTH_PATTERNS) {
     if (lower.includes(pat.name)) {
-      return parseMonthWithTime(lower, pat, zone) ?? parseMonthDateOnly(lower, pat, zone);
+      return parseMonthWithTime(lower, pat) ?? parseMonthDateOnly(lower, pat);
     }
   }
   return null;
 }
 
-/** The wall-clock zone this serde reads/writes ST's zone-less date forms in when a caller names none.
- *  `"UTC"` keeps the codec a PURE function of its arguments (no ambient zone read down here) and keeps every
- *  orb-authored fixture — the round-trip drift guard — byte-identical. The ST
- *  INTERCHANGE DOORS (the import collectors, the single-file import routes, the chat export) override it with
- *  {@link hostTimeZone}, because THOSE bytes were written by SillyTavern against a local clock. */
-export const ST_DEFAULT_WALL_CLOCK_ZONE = "UTC";
+/** The zone every zone-less SillyTavern date is read and written in, by rule (D290). A chat's import identity
+ *  hashes the instants this parse reads, so the zone is never the host's: the same file is the same chat on
+ *  every install. SillyTavern reads its own `@`-form back as UTC (`utils.js` `parseTimestamp` appends `Z`). */
+export const ST_WALL_CLOCK_ZONE = "UTC";
 
 // Parse ST's many date encodings → epoch ms. Numeric epoch (number OR ≥10-digit string) · ISO 8601 ·
 // ST "2025-07-03\@14h56m48s[989ms]" · "August 27, 2025 6:36pm".
-// Two CLASSES, not one. An epoch and an offset-bearing/naive ISO are ABSOLUTE — they resolve through the
-// shared `@orb/kit/time` parsers exactly as before, and `zone` cannot move them. ST's two human forms are a
-// zone-less LOCAL WALL CLOCK (SOURCE-PINNED: `RossAscends-mods.js humanizedDateTime` builds them from
-// `Date.getHours()`, and ST reads the meridiem form back through a NAIVE moment in its own
-// `parseTimestamp`), so they resolve in `zone`. Reading them as UTC shifts a local wall-clock timestamp
-// by the writing box's UTC offset, including its DST adjustment.
-function parseStDate(v: unknown, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): number | null {
+// An epoch and an ISO string are instants: an offset or `Z` is read as written, and a naive ISO string is read as
+// UTC by `@orb/kit/time`. ST's two human forms carry no zone and are read as {@link ST_WALL_CLOCK_ZONE}.
+function parseStDate(v: unknown): number | null {
   if (v === null || v === undefined || v === "") {
     return null;
   }
@@ -397,20 +393,19 @@ function parseStDate(v: unknown, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): num
     return null;
   }
   const iso = s.includes("T") ? isoToMs(s) : null;
-  return parseNumericEpoch(s) ?? iso ?? parseAtDate(s, zone) ?? parseHumanDate(s.toLowerCase(), zone);
+  return parseNumericEpoch(s) ?? iso ?? parseAtDate(s) ?? parseHumanDate(s.toLowerCase());
 }
 
 const NOON_HOUR = 12;
 
 // Format an epoch-ms instant as ST's human send_date string (MINUTE precision) e.g. "August 27, 2025 6:36pm".
-// The exact inverse of {@link parseStDate}'s human arm in the SAME `zone` — the two must agree or an
-// export→import round trip drifts by the offset, and ST itself would render an exported transcript shifted
-// (its reader resolves this form locally).
-function formatStDate(ms: number | null, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): string | null {
+// The exact inverse of {@link parseStDate}'s human arm, in the same {@link ST_WALL_CLOCK_ZONE}, so an export
+// re-imports as the same instants and the same identity.
+function formatStDate(ms: number | null): string | null {
   if (ms === null || !Number.isFinite(ms)) {
     return null;
   }
-  const wc = msToWallClock(ms, zone);
+  const wc = msToWallClock(ms, ST_WALL_CLOCK_ZONE);
   if (wc === null) {
     return null;
   }
@@ -423,9 +418,9 @@ function formatStDate(ms: number | null, zone: string = ST_DEFAULT_WALL_CLOCK_ZO
 
 /** ST encodes a chat's creation timestamp in its FILENAME — the most reliable ORIGINAL-creation signal
  *  (re-saving rewrites the header + every `send_date`; the filename token survives). Null when absent. */
-function parseFilenameDate(fileName: string, zone: string): number | null {
+function parseFilenameDate(fileName: string): number | null {
   const m = FILENAME_DATE.exec(fileName);
-  return m ? parseStDate(m[0], zone) : null;
+  return m ? parseStDate(m[0]) : null;
 }
 
 /** A `chat_metadata` numeric knob → a finite integer, else null. ST writes these as JSON numbers, but a
@@ -684,9 +679,8 @@ function buildVariants(args: {
   readonly activeSwipeId: number | null;
   /** The parent row's role — the token in/out axis is a per-ROW fact, so the pool inherits it. */
   readonly role: MessageRole;
-  readonly zone: string;
 }): { variants: ParsedVariant[]; activeVariantIdx: number | null } {
-  const { swipes, swipeInfo, activeSwipeId, role, zone } = args;
+  const { swipes, swipeInfo, activeSwipeId, role } = args;
   const info = Array.isArray(swipeInfo) ? swipeInfo : [];
   const kept = swipes.map((content, originIdx) => ({ content: str(content), originIdx, si: info[originIdx] })).filter((s) => s.content.trim().length > 0);
   if (kept.length < MIN_REAL_SWIPES) {
@@ -702,8 +696,8 @@ function buildVariants(args: {
       provider: ex.provider,
       ...tokenColumns(ex.tokenCount, role),
       reasoning: ex.reasoning,
-      genStarted: si ? parseStDate(si.gen_started, zone) : null,
-      genFinished: si ? parseStDate(si.gen_finished, zone) : null,
+      genStarted: si ? parseStDate(si.gen_started) : null,
+      genFinished: si ? parseStDate(si.gen_finished) : null,
       metadata: variantMetadata(s.si),
     };
   });
@@ -778,7 +772,7 @@ function resolvePrimary(args: {
 
 /** Parse ONE message line → a `ParsedChatMessage`, or null for a corrupt line (skipped, not fatal) or a
  *  no-text-no-media debris row (see `resolvePrimary`). */
-function parseMessageLine(line: string, zone: string): ParsedChatMessage | null {
+function parseMessageLine(line: string): ParsedChatMessage | null {
   const parsed = asTyped(parseJsonText(line), rawMessageSchema);
   if (parsed === null) {
     return null;
@@ -789,7 +783,7 @@ function parseMessageLine(line: string, zone: string): ParsedChatMessage | null 
   // swipe_id is a position in the ORIGINAL swipes array; buildVariants remaps it onto the drop-filtered pool.
   const sid = parsed.swipe_id;
   const rawActive = typeof sid === "number" && sid >= 0 && sid < swipes.length ? sid : null;
-  const { variants, activeVariantIdx: remappedActive } = buildVariants({ swipes, swipeInfo: parsed.swipe_info, activeSwipeId: rawActive, role, zone });
+  const { variants, activeVariantIdx: remappedActive } = buildVariants({ swipes, swipeInfo: parsed.swipe_info, activeSwipeId: rawActive, role });
   const primary = resolvePrimary({ mes: str(parsed.mes), variants, remappedActive, swipes, extra: parsed.extra });
   if (primary === null) {
     return null;
@@ -806,13 +800,13 @@ function parseMessageLine(line: string, zone: string): ParsedChatMessage | null 
     // Omitted (exactOptional) when the line carries none — a solo transcript declares no per-turn identity.
     ...(originalAvatar !== null ? { originalAvatar } : {}),
     content,
-    sendDate: parseStDate(parsed.send_date, zone),
+    sendDate: parseStDate(parsed.send_date),
     model: ex.model,
     provider: ex.provider,
     ...tokenColumns(ex.tokenCount, role),
     reasoning: ex.reasoning,
-    genStarted: parseStDate(parsed.gen_started, zone),
-    genFinished: parseStDate(parsed.gen_finished, zone),
+    genStarted: parseStDate(parsed.gen_started),
+    genFinished: parseStDate(parsed.gen_finished),
     ttftMs: ex.ttftMs,
     metadata: messageMetadata(parsed.extra),
     activeVariantIdx,
@@ -838,11 +832,7 @@ const PARSE_SLICE_VARIANTS = 4096;
  * header line itself is unparseable. Resilient: a corrupt message line is SKIPPED, never fatal. Async because it
  * yields to the event loop between slices of lines.
  */
-export async function parseChatJsonl(
-  text: string,
-  opts: { readonly fileName: string; readonly charDirName: string; readonly wallClockZone?: string },
-): Promise<ParsedChat | null> {
-  const zone = opts.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE;
+export async function parseChatJsonl(text: string, opts: { readonly fileName: string; readonly charDirName: string }): Promise<ParsedChat | null> {
   const lines = text.replace(BOM, "").trim().split("\n");
   const first = lines[0];
   if (first === undefined || first.length === 0) {
@@ -857,13 +847,13 @@ export async function parseChatJsonl(
   const rawCharName = str(header.character_name);
   const characterName = rawCharName.length === 0 || rawCharName === "unused" ? opts.charDirName : rawCharName;
 
-  const messages = await parseMessageLines(lines.slice(1), zone);
+  const messages = await parseMessageLines(lines.slice(1));
 
   return {
     characterName,
     userName: nullIfEmpty(str(header.user_name)),
     // Filename date FIRST (survives re-save/migration), then the header create_date, then null.
-    createDate: parseFilenameDate(opts.fileName, zone) ?? parseStDate(header.create_date, zone),
+    createDate: parseFilenameDate(opts.fileName) ?? parseStDate(header.create_date),
     parentRef: normalizeParentRef(str(meta?.["main_chat"])) ?? deriveParentFromFilename(opts.fileName),
     notePrompt: nullIfEmpty(str(meta?.["note_prompt"])),
     notePlacement: parseNotePlacement(meta),
@@ -876,7 +866,7 @@ export async function parseChatJsonl(
 }
 
 // The message lines in order, a slice of lines a turn of the loop; a corrupt or debris line is skipped.
-async function parseMessageLines(lines: readonly string[], zone: string): Promise<ParsedChatMessage[]> {
+async function parseMessageLines(lines: readonly string[]): Promise<ParsedChatMessage[]> {
   const messages: ParsedChatMessage[] = [];
   let sliceChars = 0;
   let sliceVariants = 0;
@@ -891,7 +881,7 @@ async function parseMessageLines(lines: readonly string[], zone: string): Promis
     if (t.length === 0) {
       continue;
     }
-    const message = parseMessageLine(t, zone);
+    const message = parseMessageLine(t);
     if (message !== null) {
       messages.push(message);
       sliceVariants += message.variants.length;
@@ -982,9 +972,8 @@ function buildSwipeFields(m: ParsedChatMessage): Record<string, unknown> {
   };
 }
 
-/** ONE serialized message line. `zone` resolves the wall-clock `send_date`; `chatCreateDate` is the fallback
- *  instant for a row that carries none. */
-function buildMessageLine(m: ParsedChatMessage, chatCreateDate: number | null, zone: string): Record<string, unknown> {
+/** ONE serialized message line. `chatCreateDate` is the fallback instant for a row that carries no `send_date`. */
+function buildMessageLine(m: ParsedChatMessage, chatCreateDate: number | null): Record<string, unknown> {
   return {
     // The PER-MESSAGE speaker (group fidelity) — the voicing character / authoring persona of THIS turn,
     // resolved by the caller (export); NOT the single header `characterName`.
@@ -996,7 +985,7 @@ function buildMessageLine(m: ParsedChatMessage, chatCreateDate: number | null, z
     // which is also what keeps the round-trip drift guard honest (parse reads back exactly what build wrote).
     ...(m.originalAvatar !== undefined && m.originalAvatar !== null ? { original_avatar: m.originalAvatar } : {}),
     mes: m.content,
-    send_date: formatStDate(m.sendDate ?? chatCreateDate, zone),
+    send_date: formatStDate(m.sendDate ?? chatCreateDate),
     extra: buildExtra(m),
     gen_started: m.genStarted,
     gen_finished: m.genFinished,
@@ -1022,15 +1011,11 @@ function notePlacementFields(placement: ParsedNotePlacement | null): Record<stri
   };
 }
 
-export function buildChatJsonl(chat: ParsedChat, opts: { readonly wallClockZone?: string } = {}): string {
-  // The same zone the parse half resolves in — an export door that emits UTC while the import door reads a
-  // local wall clock drifts a round trip by the offset, and ST (whose reader is naive/local) would render the
-  // exported transcript shifted. One value, both directions.
-  const zone = opts.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE;
+export function buildChatJsonl(chat: ParsedChat): string {
   const header = {
     user_name: chat.userName,
     character_name: chat.characterName,
-    create_date: formatStDate(chat.createDate, zone),
+    create_date: formatStDate(chat.createDate),
     chat_metadata: {
       ...(chat.parentRef !== null ? { main_chat: chat.parentRef } : {}),
       ...(chat.notePrompt !== null ? { note_prompt: chat.notePrompt } : {}),
@@ -1041,7 +1026,7 @@ export function buildChatJsonl(chat: ParsedChat, opts: { readonly wallClockZone?
       ...(chat.variables !== null ? { variables: chat.variables } : {}),
     },
   };
-  const lines = [JSON.stringify(header), ...chat.messages.map((m) => JSON.stringify(buildMessageLine(m, chat.createDate, zone)))];
+  const lines = [JSON.stringify(header), ...chat.messages.map((m) => JSON.stringify(buildMessageLine(m, chat.createDate)))];
   return `${lines.join("\n")}\n`;
 }
 

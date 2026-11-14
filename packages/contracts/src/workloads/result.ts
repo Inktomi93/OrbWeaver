@@ -41,6 +41,11 @@ export interface MaintenanceResult {
   readonly preview?: ImportPreview;
   /** import-st only: how many items of each kind the upload holds, counted the way the dry run's preview counts. */
   readonly found?: ImportKindCounts;
+  /** import-st real run only, in `found`'s units: the entries it wrote nothing for because the library or an earlier
+   *  entry of the upload held them. A merged persona is in `mergedKeys`, not here. */
+  readonly inLibrary?: number;
+  /** import-st real run only: the recorded skips the run never attempted. */
+  readonly skipped?: number;
 }
 
 /** A portability bundle import's per-entity tallies. `notes` is what a file that DID import still
@@ -118,11 +123,15 @@ export const maintenanceResultSchema = z
     mergedKeys: z.array(z.string()).readonly().optional(),
     preview: importPreviewSchema.optional(),
     found: importKindCountsSchema.optional(),
+    inLibrary: z.number().optional(),
+    skipped: z.number().optional(),
   })
-  .transform(({ failed, reportPath, memoryScope, mergedKeys, preview, found, ...view }) => ({
+  .transform(({ failed, reportPath, memoryScope, mergedKeys, preview, found, inLibrary, skipped, ...view }) => ({
     ...view,
     ...(preview !== undefined ? { preview } : {}),
     ...(found !== undefined ? { found } : {}),
+    ...(inLibrary !== undefined ? { inLibrary } : {}),
+    ...(skipped !== undefined ? { skipped } : {}),
     ...(mergedKeys !== undefined ? { mergedKeys } : {}),
     ...(failed !== undefined ? { failed } : {}),
     ...(reportPath !== undefined ? { reportPath } : {}),

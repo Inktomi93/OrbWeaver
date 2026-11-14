@@ -3,8 +3,8 @@
 export type {
   BulkImportPersonas,
   CapturePersonaRoomReachOp,
+  DryRunPersonaInput,
   ExportPersonaOp,
-  FindOwnedPersonas,
   ImportPersonaOp,
   JoinerPersonaStatementParams,
   ListPersonasOp,
