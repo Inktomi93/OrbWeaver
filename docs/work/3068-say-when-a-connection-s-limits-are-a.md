@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P1
 area: connection
+plan: cross-surface-consistency
 ---
 
 # Say when a connection's limits are a guess and ask for the real ones
