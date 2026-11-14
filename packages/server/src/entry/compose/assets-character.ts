@@ -22,7 +22,14 @@ import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AssetsAssemblyContext, AssetsService, BackgroundStoreDeps, MaterializeBackgroundDeps } from "#domain/assets";
-import { createAssetsService, createBackgroundStore, createMaterializeBackground, createSeedPlateStore } from "#domain/assets";
+import {
+  createAssetsService,
+  createBackgroundStore,
+  createLoadAssetRefHolders,
+  createLoadHashHolders,
+  createMaterializeBackground,
+  createSeedPlateStore,
+} from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder, GreetingCompletionDeps } from "#domain/character";
 import {
   createCharacterOwned,
@@ -32,13 +39,14 @@ import {
   createGreetingCompletion,
   createGreetingTemplate,
   createLinkCharacterAvatars,
+  createLoadCharacterAvatars,
   migrateSeededCardBackgrounds,
 } from "#domain/character";
 import { createLoadChatAssetRefs, createLoadCoParticipantOwner, migrateSeededRoomBackgrounds } from "#domain/chat";
 import type { ExportService } from "#domain/export";
 import { cardPngIdentity } from "#domain/import";
 import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps, PersonaService } from "#domain/persona";
-import { createDefaultPersonaSeeder, createFindSeededDefault } from "#domain/persona";
+import { createDefaultPersonaSeeder, createFindSeededDefault, createLoadPersonaAvatars } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { createReadOptionalPresetConfig } from "#domain/preset";
 import type { FieldIndexCache } from "#domain/search";
@@ -166,8 +174,15 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // own persistence factory, not re-implemented here.
     linkCharacterAvatars: createLinkCharacterAvatars({ db, now }),
     assertCharacterOwned: characterOwned,
-    loadCoParticipantOwner: createLoadCoParticipantOwner({ db, resolveUserEnabled: deps.resolveUserEnabled }),
-    loadChatAssetRefs: createLoadChatAssetRefs({ db, resolveUserEnabled: deps.resolveUserEnabled }),
+    // Chat's co-participant art gate reads only chat tables; each owner domain supplies its rows through its own op.
+    loadCoParticipantOwner: createLoadCoParticipantOwner({
+      db,
+      resolveUserEnabled: deps.resolveUserEnabled,
+      loadHashHolders: createLoadHashHolders(db),
+      loadCharacterAvatars: createLoadCharacterAvatars(db),
+      loadPersonaAvatars: createLoadPersonaAvatars(db),
+    }),
+    loadChatAssetRefs: createLoadChatAssetRefs({ db, resolveUserEnabled: deps.resolveUserEnabled, loadAssetRefHolders: createLoadAssetRefHolders(db) }),
   };
   const assets = createAssetsService(assetsCtx);
   // Now that `assets` exists, bind the real materializeBackground op (the holder above forwards to it). Full
