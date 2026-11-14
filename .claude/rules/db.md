@@ -17,6 +17,8 @@ Every schema change ships as a numbered migration. Never regenerate the baseline
 5. Preserve the numbered migration and review its SQL before commit.
 6. Land a migration's body in the same merge as its number. Boot compares recorded migration hashes, so a database that booted a placeholder body refuses the real one.
 7. Write no row-returning statement in a migration. The browser libSQL migrator rejects it, so every corpus CT fails.
+8. State every stamp column in a migration's `INSERT`. The stored wall-clock default is not a value to rely on.
+9. When a migration rebuilds a table for another reason, write its stamps as `integer(name).notNull()` in the schema, so that rebuild drops the stored default.
 
 `pnpm seed:demo --fresh` is the only wipe. Never open the live db with the `sqlite3` CLI while
 the server runs; it can checkpoint and delete the WAL out from under libSQL. Read live state
@@ -24,6 +26,12 @@ through the app or an immutable copy.
 
 ## Writes
 
+- A row stamp column is `stampColumn` from `packages/db/src/custom-types/index.ts`. The schema type requires the
+  stamp, so every insert states it from the injected clock (`tests/db/schema/stamp-columns-required.test-d.ts`).
+  The stored `(unixepoch() * 1000)` default is a backstop that nothing may rely on: it exists only so the DDL is
+  unchanged, and it goes when its table is next rebuilt for another reason. A raw SQL insert and an `INSERT ... SELECT`
+  state their stamps too. The `STAMP_DEFAULT_SYNTAX` entry of `no-restricted-syntax` in `eslint.config.ts` refuses
+  wall-clock SQL in a schema file (`tests/tooling/eslint-db-stamp-defaults.test.ts`).
 - `db.transaction` is banned. `batchMany` is the one atomic unit and bans a `SELECT` ahead of
   writes. Guard a race with a scalar subquery in the write statement, or accept the batch's own
   latency as the check window.

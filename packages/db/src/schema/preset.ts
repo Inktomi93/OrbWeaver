@@ -20,10 +20,9 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import type { UnreadableJsonText } from "@orb/kit/json";
-import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { index, integer, sqliteTable } from "drizzle-orm/sqlite-core";
-import { nulFreeText, storedJsonText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn, storedJsonText } from "../custom-types/index.ts";
 import { users } from "./users.ts";
 
 export const presets = sqliteTable(
@@ -54,8 +53,8 @@ export const presets = sqliteTable(
     forkedFrom: nulFreeText("forked_from")
       .$type<PresetId>()
       .references((): AnySQLiteColumn => presets.id, { onDelete: "set null" }),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   // The owner index serves the library list; the (owner, source) index serves the COW convergence lookup.
   // NOT unique: the owner may deliberately keep SEVERAL forks of the built-in (the update verb's

@@ -113,7 +113,9 @@ export function createPostNarratorMessage(input: ChatAssemblyContext, deps: Post
       };
       const assetRows = mediaRefs.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId: attemptMessageId, assetId }));
       const statements = insertCanonMessageStatements(ctx.db, params);
-      statements.unshift(retainedChatFenceStatement(ctx.db, sql`select ${chats.id} from ${chats} where ${chats.id} = ${chatId} and ${scope.predicate}`));
+      statements.unshift(
+        retainedChatFenceStatement(ctx.db, sql`select ${chats.id} from ${chats} where ${chats.id} = ${chatId} and ${scope.predicate}`, ctx.now()),
+      );
       appendStatsDeltas(
         ctx,
         statements,

@@ -2864,6 +2864,7 @@ async function restoreContinue(
     role,
     snapshot: snap,
     restored: { content, reasoning, undoContinuation: direction === "undo" },
+    now: ctx.now(),
   });
   try {
     await commitHostFencedWrite(ctx, chatId, plan.statements);

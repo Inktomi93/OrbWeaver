@@ -48,12 +48,13 @@ export function isRetainedParentFenceViolation(error: unknown): boolean {
   return violation?.kind === "not-null" && violation.statementIndex === 0;
 }
 
-/** First write: an admitted existing chat id survives unchanged; a declined selection rolls the batch back. */
-export function retainedChatFenceStatement(db: Db, selection: SQL): BatchStmt {
+/** First write: an admitted existing chat id survives unchanged; a declined selection rolls the batch back. The
+ *  stamps are the insert's required values only: the conflict arm keeps the existing row, so they are never stored. */
+export function retainedChatFenceStatement(db: Db, selection: SQL, now: number): BatchStmt {
   return batchStmt(
     db
       .insert(chats)
-      .values({ id: sql`(${selection})` })
+      .values({ id: sql`(${selection})`, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({ target: chats.id, set: { id: sql`excluded.id` } }),
   );
 }
@@ -654,9 +655,10 @@ export function prepareContinueRestore(
     readonly role: ParticipantRole;
     readonly snapshot: ContinueSnapshot;
     readonly restored: Parameters<typeof setVariantContentStatement>[2];
+    readonly now: number;
   },
 ): ContinueRestorePlan {
-  const { chatId, messageId, userId, role, snapshot, restored } = args;
+  const { chatId, messageId, userId, role, snapshot, restored, now } = args;
   const selection = sql`select ${messages.chatId} from ${messages}
     inner join ${messageVariants} on ${messageVariants.id} = ${messages.selectedVariantId}
     where ${messages.chatId} = ${chatId} and ${messages.id} = ${messageId}
@@ -672,7 +674,7 @@ export function prepareContinueRestore(
           and ${chatParticipants.leftSeq} is null and ${chatParticipants.role} = ${role})`;
   return {
     selection,
-    statements: [retainedChatFenceStatement(db, selection), setVariantContentStatement(db, snapshot.variantId, restored)],
+    statements: [retainedChatFenceStatement(db, selection, now), setVariantContentStatement(db, snapshot.variantId, restored)],
   };
 }
 

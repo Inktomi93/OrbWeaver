@@ -15,7 +15,7 @@ import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { users } from "./users.ts";
 
@@ -48,7 +48,7 @@ export const assets = sqliteTable(
     // Rows older than these columns are NULL for the same reason (no backfill: the fallback already handles them).
     width: integer("width"),
     height: integer("height"),
-    uploadedAt: integer("uploaded_at").notNull().default(sql`(unixepoch() * 1000)`),
+    uploadedAt: stampColumn("uploaded_at"),
   },
   (table) => [
     // D21 — within-user dedup: the SAME bytes can exist once per owner (was a bare global `hash` unique).

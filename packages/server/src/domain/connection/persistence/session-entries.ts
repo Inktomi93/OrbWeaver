@@ -26,6 +26,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AgentSdkSessionId, SessionEntryWriter } from "@orb/inference";
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, eq, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -35,7 +36,7 @@ const FOREIGN_SESSION_REFUSAL = "session entry write refused: the SDK session do
 // A second handle on the table for the subqueries, so their columns never resolve to the outer row.
 const lineage = alias(sessionEntries, "lineage");
 
-export function createSessionEntryWriter(handle: DatabaseHandle, newSessionEntryId: () => SessionEntryId): SessionEntryWriter {
+export function createSessionEntryWriter(handle: DatabaseHandle, newSessionEntryId: () => SessionEntryId, now: Clock): SessionEntryWriter {
   const db = databaseForOwner(handle);
   /** Demote the connection's current seat in `chatId`, unless `sdkSessionId` is already owned elsewhere. */
   function demoteSeat(chatId: SQL<ChatId | null>, connectionId: UserConnectionId, sdkSessionId: AgentSdkSessionId): BatchStmt {
@@ -86,6 +87,7 @@ export function createSessionEntryWriter(handle: DatabaseHandle, newSessionEntry
             seededThroughSeq: entry.seededThroughSeq,
             canonHash: entry.canonHash,
             isPrimary: true,
+            createdAt: now(),
           })
           .onConflictDoUpdate({
             target: sessionEntries.sdkSessionId,

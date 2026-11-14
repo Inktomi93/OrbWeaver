@@ -35,7 +35,7 @@ import type { CharacterId, ModelId, RefineryRunId, RefinerySchemaId, RefinerySes
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { nulFreeText } from "../custom-types/index.ts";
+import { nulFreeText, stampColumn } from "../custom-types/index.ts";
 import { checkList } from "../query/check-list.ts";
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
@@ -85,8 +85,8 @@ export const refinerySessions = sqliteTable(
     // only the crash backstop (`domain/refinery/persistence/round-claim.ts` owns the number + its reason).
     // NOT indexed: every read of it is by the sessions PK.
     inflightUntil: integer("inflight_until"),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // The per-character session listing + the characterId FK's cascade child scan (SQLite auto-indexes
@@ -143,7 +143,7 @@ export const refineryRuns = sqliteTable(
     // strip-and-itemize posture: an invented key must appear in the run
     // record instead of vanishing into a success). Always a list; `[]` = shape-clean.
     strippedKeys: text("stripped_keys", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // sessionId LEADS (FK-index test: the cascade child scan) and the composite serves the
@@ -183,8 +183,8 @@ export const refinerySchemas = sqliteTable(
     schema: text("schema", { mode: "json" }).$type<RefinerySchemaDocument["schema"]>().notNull(),
     // Bumped on every content update — the provenance pin the run embed records.
     version: integer("version").notNull().default(1),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+    createdAt: stampColumn("created_at"),
+    updatedAt: stampColumn("updated_at"),
   },
   (t) => [
     // The owner's library list + the FK's child scan (FK-index test).
