@@ -11,9 +11,7 @@ export const collapsibleVariants = tv({
     // `group` so the baked chevron can rotate off Base UI's `data-panel-open` on the trigger (the accordion
     // precedent). A consumer that renders its OWN chevron/icon in the trigger opts out via `chevron={false}`.
     root: "flex flex-col",
-    // `whitespace-normal`: a native button's user-agent style is `white-space: pre`, which keeps a label on one line and pushes
-    // the pane sideways at enlarged text; the label breaks between words instead, as a Button's does.
-    trigger: `group inline-flex cursor-pointer items-center gap-field whitespace-normal ${FIELD_LABEL} outline-none ${DISABLED_STATE} ${FOCUS_RING}
+    trigger: `group inline-flex cursor-pointer items-center gap-field ${FIELD_LABEL} outline-none ${DISABLED_STATE} ${FOCUS_RING}
     `,
     chevron: `shrink-0 text-muted-foreground ${OPEN_TURN}`,
     // `transition-all` was catching inherited non-compositor properties too (`scrollbarColor` —
