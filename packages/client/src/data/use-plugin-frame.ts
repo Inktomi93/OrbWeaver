@@ -58,7 +58,8 @@ async function mintPluginFrame(body: string): Promise<string | undefined> {
 async function revokePluginFrame(url: string): Promise<void> {
   // a failed DELETE strands only a server-side handle, which the frame-handle store expires on its own (`live()` drops an entry past `expiresAt`, `packages/server/src/entry/http/frame-handle-store.ts:116`, set from `FRAME_HANDLE_TTL_MS` at `plugin-frame.ts:209`). Ends if the store stops expiring unrevoked handles.
   try {
-    await fetch(url, { method: "DELETE", headers: { [CSRF_HEADER]: "1" } });
+    // keepalive: the cleanup often runs as the page navigates away, which cancels an ordinary request and logs an aborted DELETE.
+    await fetch(url, { method: "DELETE", headers: { [CSRF_HEADER]: "1" }, keepalive: true });
   } catch {
     // The server-side TTL still bounds the abandoned handle.
   }
