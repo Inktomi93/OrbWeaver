@@ -237,3 +237,7 @@ export type RequireParticipantOp = (principal: Principal, chatId: ChatId) => Pro
 
 /** The room-host gate, the host twin of {@link RequireParticipantOp}: resolves for the room's host, throws for anyone else. */
 export type RequireHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
+
+/** The room's present host, or `null` for a hostless room. A consumer domain that filters a room's attachments by
+ *  owner reads the host through this op, because it reads neither the roster nor `chats`. */
+export type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
