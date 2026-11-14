@@ -66,12 +66,14 @@ const SESSION_ID_MAX_LENGTH = 256;
 const openRouterSessionSchema = z.string().max(SESSION_ID_MAX_LENGTH);
 
 const reportedCount = z.number().int().nonnegative().nullish().catch(null);
-const nativeOpenAiUsageSchema = z.object({
-  prompt_tokens: reportedCount,
-  completion_tokens: reportedCount,
-  prompt_tokens_details: z.object({ cached_tokens: reportedCount, cache_write_tokens: reportedCount }).nullish().catch(null),
-  completion_tokens_details: z.object({ reasoning_tokens: reportedCount }).nullish().catch(null),
-});
+const nativeOpenAiUsageSchema = z
+  .object({
+    prompt_tokens: reportedCount,
+    completion_tokens: reportedCount,
+    prompt_tokens_details: z.object({ cached_tokens: reportedCount, cache_write_tokens: reportedCount }).strip().nullish().catch(null),
+    completion_tokens_details: z.object({ reasoning_tokens: reportedCount }).strip().nullish().catch(null),
+  })
+  .strip();
 
 function nativeOpenAiUsageOverlay(drain: StreamDrain, generation: GenerationCapability, providerId: string): Pick<ResultContext, "tokenUsage"> {
   if (providerId !== "openai" || generation.turns?.promptCacheFormat !== "openai-breakpoint") {
@@ -105,6 +107,7 @@ const openRouterRoutingSchema = z
     sort: z.enum(["price", "throughput", "latency"]),
     max_price: z.record(z.string(), z.union([z.number(), z.string()])),
   })
+  .strip()
   .partial();
 
 function requireGeneration(connection: Resolved, label: string): GenerationCapability {
@@ -271,11 +274,19 @@ function parallelToolCallsBody(turn: TurnKnobs): Record<string, unknown> {
  *  never sent. `response-healing` is the reason this door is worth opening: it is OpenRouter's server-side
  *  repair for the malformed JSON our non-streaming structured task otherwise has to re-ask for. */
 const openRouterPluginSchema = z.discriminatedUnion("id", [
-  z.object({ id: z.literal("web"), max_results: z.number().int().positive().optional(), search_prompt: z.string().optional(), engine: z.string().optional() }),
-  z.object({ id: z.literal("file-parser"), max_files: z.number().int().positive().optional(), pdf: z.object({ engine: z.string().optional() }).optional() }),
-  z.object({ id: z.literal("moderation") }),
-  z.object({ id: z.literal("response-healing") }),
-  z.object({ id: z.literal("auto-router"), allowed_models: z.array(z.string()).optional() }),
+  z
+    .object({ id: z.literal("web"), max_results: z.number().int().positive().optional(), search_prompt: z.string().optional(), engine: z.string().optional() })
+    .strip(),
+  z
+    .object({
+      id: z.literal("file-parser"),
+      max_files: z.number().int().positive().optional(),
+      pdf: z.object({ engine: z.string().optional() }).strip().optional(),
+    })
+    .strip(),
+  z.object({ id: z.literal("moderation") }).strip(),
+  z.object({ id: z.literal("response-healing") }).strip(),
+  z.object({ id: z.literal("auto-router"), allowed_models: z.array(z.string()).optional() }).strip(),
 ]);
 
 /** OR's request DEBUG block (`debug`, `index.d.ts:174-185`) — the audit's D3 door. `echo_upstream_body`
@@ -285,16 +296,18 @@ const openRouterPluginSchema = z.discriminatedUnion("id", [
  *  (`WIRE_CAPTURE_REPLY`, `backends/v4/fetch.ts` control 4b) is what surfaces it — the SDK's
  *  `includeRawChunks` is NOT involved, and deliberately not taken (that file's header records why).
  *  Streaming-only per the dist's own note; a non-streaming call simply gets nothing back. */
-const openRouterDebugSchema = z.object({ echo_upstream_body: z.boolean().optional() });
+const openRouterDebugSchema = z.object({ echo_upstream_body: z.boolean().optional() }).strip();
 
 /** OR's built-in web-search options (`web_search_options`, `index.d.ts:134-153`) — a sibling of the `web`
  *  plugin, not a duplicate of it: the plugin ADDS search to a model that has none, these options configure a
  *  model whose own search is native. */
-const openRouterWebSearchSchema = z.object({
-  max_results: z.number().int().positive().optional(),
-  search_prompt: z.string().optional(),
-  engine: z.string().optional(),
-});
+const openRouterWebSearchSchema = z
+  .object({
+    max_results: z.number().int().positive().optional(),
+    search_prompt: z.string().optional(),
+    engine: z.string().optional(),
+  })
+  .strip();
 
 /** THE PLUGIN MERGE (audit C3): the turn-owned context-compression entry FIRST, then the user's declared
  *  plugins. Order is the precedence, and compression leads on purpose — it is the one plugin whose value

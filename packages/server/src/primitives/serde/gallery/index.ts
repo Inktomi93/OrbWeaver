@@ -62,6 +62,7 @@ const wireItemSchema = z
     subjectCharacterHandle: z.string().trim().min(1).nullish().catch(null),
     createdAt: z.int().nonnegative().nullish().catch(null),
   })
+  .strip()
   .transform(
     (item): CanonicalGalleryItem => ({
       assetId: item.assetId,

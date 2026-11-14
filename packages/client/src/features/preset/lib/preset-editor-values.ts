@@ -6,8 +6,8 @@ import type { UserMacrosFormValues } from "#components";
 import { admitUserMacroValues, macroRowIdsMatch } from "#components";
 import { formValuesEqual } from "#forms";
 
-const variableRowIdsSchema = z.object({ id: z.uuid(), options: z.array(z.uuid()) });
-const metadataSchema = z.object({ variableRowIds: variableRowIdsSchema.array() });
+const variableRowIdsSchema = z.object({ id: z.uuid(), options: z.array(z.uuid()) }).strip();
+const metadataSchema = z.object({ variableRowIds: variableRowIdsSchema.array() }).strip();
 
 export interface PresetEditorValues extends PromptConfig {
   readonly macroRowIds: UserMacrosFormValues["macroRowIds"];

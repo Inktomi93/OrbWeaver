@@ -2003,10 +2003,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error", "orb/narrowed-json-brand": "error" } },
     { files: ["packages/server/src/**/*.{ts,tsx}"], rules: { "orb/viewer-visibility-parameter-checked": "error" } },
-    {
-      files: ["packages/contracts/src/**/*.{ts,tsx}", "packages/server/src/transport/**/*.{ts,tsx}"],
-      rules: { "orb/wire-object-declares-mode": "error" },
-    },
+    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/wire-object-declares-mode": "error" } },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/text-voice-only": "error" } },

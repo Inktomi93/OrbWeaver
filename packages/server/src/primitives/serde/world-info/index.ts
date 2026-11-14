@@ -21,23 +21,27 @@ const SCHEMA_VERSION = 1;
 
 // keys is always an array (empty, never omitted — the null-collapse to world_entries.keys is the writer's
 // job); metadata is narrowed here, so an entry with a refused known field refuses the file.
-const fileEntrySchema = z.object({
-  title: z.string(),
-  description: z.string().nullable(),
-  content: z.string(),
-  keys: z.array(z.string()).transform((keys): readonly string[] => keys),
-  enabled: z.boolean(),
-  priority: z.number(),
-  ignoreBudget: z.boolean(),
-  metadata: narrowedEntryMetadataSchema,
-});
+const fileEntrySchema = z
+  .object({
+    title: z.string(),
+    description: z.string().nullable(),
+    content: z.string(),
+    keys: z.array(z.string()).transform((keys): readonly string[] => keys),
+    enabled: z.boolean(),
+    priority: z.number(),
+    ignoreBudget: z.boolean(),
+    metadata: narrowedEntryMetadataSchema,
+  })
+  .strip();
 
 // The book's own top-level fields, beside the envelope and the entry array. Not .strict() — an unknown
 // top-level key from a newer writer rides through (forward-tolerant).
-const headerSchema = z.object({
-  name: z.string(),
-  description: z.string().nullable(),
-});
+const headerSchema = z
+  .object({
+    name: z.string(),
+    description: z.string().nullable(),
+  })
+  .strip();
 
 const worldBookSerde = defineJsonRowsSerde<BulkImportLorebookInput, BulkImportLorebookInput["entries"][number], z.infer<typeof headerSchema>>({
   schemaKind: WORLD_INFO_SCHEMA_KIND,

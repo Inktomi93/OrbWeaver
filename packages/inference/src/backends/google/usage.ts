@@ -5,18 +5,20 @@ import { modalitySchema } from "@orb/contracts/inference";
 import { z } from "zod";
 
 const count = z.number().int().nonnegative().optional().catch(undefined);
-const modalityCount = z.object({ modality: z.string(), tokenCount: z.number().int().nonnegative() });
-const rawUsageSchema = z.object({
-  promptTokenCount: count,
-  candidatesTokenCount: count,
-  thoughtsTokenCount: count,
-  totalTokenCount: count,
-  cachedContentTokenCount: count,
-  toolUsePromptTokenCount: count,
-  promptTokensDetails: z.array(modalityCount).optional().catch(undefined),
-  candidatesTokensDetails: z.array(modalityCount).optional().catch(undefined),
-});
-const responseIdentitySchema = z.object({ modelVersion: z.string().min(1).optional() });
+const modalityCount = z.object({ modality: z.string(), tokenCount: z.number().int().nonnegative() }).strip();
+const rawUsageSchema = z
+  .object({
+    promptTokenCount: count,
+    candidatesTokenCount: count,
+    thoughtsTokenCount: count,
+    totalTokenCount: count,
+    cachedContentTokenCount: count,
+    toolUsePromptTokenCount: count,
+    promptTokensDetails: z.array(modalityCount).optional().catch(undefined),
+    candidatesTokensDetails: z.array(modalityCount).optional().catch(undefined),
+  })
+  .strip();
+const responseIdentitySchema = z.object({ modelVersion: z.string().min(1).optional() }).strip();
 
 export function googleServedModelOf(body: unknown): string | null {
   const parsed = responseIdentitySchema.safeParse(body);

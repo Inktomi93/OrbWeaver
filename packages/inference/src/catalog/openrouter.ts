@@ -16,44 +16,37 @@ import { fetchJson } from "../backends/http/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../backends/http/sanitize.ts";
 import type { MirrorFetch } from "../contract/runtime.ts";
 
-const rowSchema = z
-  .object({
-    id: z.string(),
-    canonical_slug: z.string().optional(),
-    /** A floating alias (`~vendor/family-latest`) names what it currently redirects to. */
-    alias_target: z.object({ slug: z.string() }).loose().nullable().optional(),
-    name: z.string().optional(),
-    context_length: z.number().nullable().optional(),
-    pricing: z
-      .object({
-        prompt: z.string().optional(),
-        completion: z.string().optional(),
-        input_cache_read: z.string().optional(),
-        input_cache_write: z.string().optional(),
-      })
-      .loose()
-      .optional(),
-    architecture: z
-      .object({ input_modalities: z.array(z.string()).optional(), output_modalities: z.array(z.string()).optional() })
-      .loose()
-      .optional(),
-    supported_parameters: z.array(z.string()).optional(),
-    top_provider: z.object({ max_completion_tokens: z.number().nullable().optional(), is_moderated: z.boolean().optional() }).loose().optional(),
-    reasoning: z
-      .object({
-        mandatory: z.boolean().optional(),
-        default_enabled: z.boolean().optional(),
-        supported_efforts: z.array(z.string().nullable()).nullable().optional(),
-        default_effort: z.string().nullable().optional(),
-        supports_max_tokens: z.boolean().optional(),
-      })
-      .loose()
-      .nullable()
-      .optional(),
-  })
-  .loose();
+const rowSchema = z.looseObject({
+  id: z.string(),
+  canonical_slug: z.string().optional(),
+  /** A floating alias (`~vendor/family-latest`) names what it currently redirects to. */
+  alias_target: z.looseObject({ slug: z.string() }).nullable().optional(),
+  name: z.string().optional(),
+  context_length: z.number().nullable().optional(),
+  pricing: z
+    .looseObject({
+      prompt: z.string().optional(),
+      completion: z.string().optional(),
+      input_cache_read: z.string().optional(),
+      input_cache_write: z.string().optional(),
+    })
+    .optional(),
+  architecture: z.looseObject({ input_modalities: z.array(z.string()).optional(), output_modalities: z.array(z.string()).optional() }).optional(),
+  supported_parameters: z.array(z.string()).optional(),
+  top_provider: z.looseObject({ max_completion_tokens: z.number().nullable().optional(), is_moderated: z.boolean().optional() }).optional(),
+  reasoning: z
+    .looseObject({
+      mandatory: z.boolean().optional(),
+      default_enabled: z.boolean().optional(),
+      supported_efforts: z.array(z.string().nullable()).nullable().optional(),
+      default_effort: z.string().nullable().optional(),
+      supports_max_tokens: z.boolean().optional(),
+    })
+    .nullable()
+    .optional(),
+});
 
-const catalogSchema = z.object({ data: z.array(rowSchema) }).loose();
+const catalogSchema = z.looseObject({ data: z.array(rowSchema) });
 
 function toNumberOrNull(value: string | undefined): number | null {
   if (value === undefined || value.trim().length === 0) {

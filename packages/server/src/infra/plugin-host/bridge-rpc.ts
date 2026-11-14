@@ -87,19 +87,21 @@ const SUGGESTED_ACT_HOST_FUNCTION = {
 
 // The guest's turn hints. The direct `chat.requestTurn` and its posture-2 ask both parse with it. The steer
 // takes the cap the app's own steer input has, so an ask cannot carry more text than a member could type.
-const turnHintsSchema = z.object({
-  speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
-  guided: z.string().max(GUIDED_STEER_INPUT_MAX).exactOptional(),
-}) satisfies z.ZodType<Parameters<PluginBridge["chat"]["requestTurn"]>[2]>;
+const turnHintsSchema = z
+  .object({
+    speakerCharacterId: typeIdSchema(ID_PREFIX.character).exactOptional(),
+    guided: z.string().max(GUIDED_STEER_INPUT_MAX).exactOptional(),
+  })
+  .strip() satisfies z.ZodType<Parameters<PluginBridge["chat"]["requestTurn"]>[2]>;
 
 // An ask reaches a host's card and later a confirmed write, so each arm holds to the schema its direct op parses with.
 const suggestedActSchema = z.discriminatedUnion("kind", [
   turnHintsSchema.extend({ kind: z.literal("requestTurn"), automationDepth: z.int().nonnegative() }),
-  z.object({ kind: z.literal("worldInfoUpsert"), entry: pluginWorldEntryUpsertSchema }),
-  z.object({ kind: z.literal("generatePicture"), args: generateImageActionArgsSchema }),
+  z.object({ kind: z.literal("worldInfoUpsert"), entry: pluginWorldEntryUpsertSchema }).strip(),
+  z.object({ kind: z.literal("generatePicture"), args: generateImageActionArgsSchema }).strip(),
 ]) satisfies z.ZodType<PluginSuggestedAct>;
 
-const quickReplyChoicesSchema = z.array(z.object({ label: z.string(), sendText: z.string() })) satisfies z.ZodType<
+const quickReplyChoicesSchema = z.array(z.object({ label: z.string(), sendText: z.string() }).strip()) satisfies z.ZodType<
   Parameters<PluginBridge["surfaceQuickReply"]>[1]
 >;
 
