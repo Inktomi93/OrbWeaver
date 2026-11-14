@@ -32,6 +32,8 @@ export const portableImageryExecutionSchema = z.strictObject({
   identityHash: imageryImportSourceSchema.shape.identityHash,
   edited: z.boolean(),
   createdAt: z.int().nonnegative(),
+  /** The call's measured wall time. Absent on a file written before the time travelled, which restores as unknown. */
+  genTimeMs: z.int().nonnegative().nullable().default(null),
 });
 const portableImageryImageSchema = z.strictObject({
   sourceGenerationId: imageryImportSourceSchema.shape.sourceGenerationId,

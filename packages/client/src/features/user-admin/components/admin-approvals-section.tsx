@@ -11,7 +11,7 @@
 import { userRoleSatisfies } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -100,14 +100,14 @@ function ApprovalRow({ user }: { readonly user: AdminUser }): ReactElement {
       title={user.handle}
       subtitle={`Requested ${timeLib.formatRelative(user.createdAt)}`}
       actions={
-        <Row align="center" gap="row">
+        <>
           <Badge tone="warning" variant="solid">
             Pending
           </Badge>
           <Button size="sm" data-testid={testId("adminApproveButton")} disabled={setEnabled.isPending} onClick={approve}>
             Approve
           </Button>
-        </Row>
+        </>
       }
     />
   );

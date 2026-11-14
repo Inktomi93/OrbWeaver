@@ -176,7 +176,6 @@ export interface CharChatMeta {
   chats: number;
   forkedChats: number;
   firstChatAt: number | null;
-  maxChatUpdated: number | null;
 }
 export interface ChatMeta {
   chatByChar: Map<string, CharChatMeta>;

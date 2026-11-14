@@ -69,7 +69,7 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
   expect(checkout?.uses).toMatch(/^actions\/checkout@[a-f0-9]{40}$/u);
   // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(checkout?.with).toEqual({ ref: "${{ github.sha }}", "persist-credentials": false });
-  expect(setup?.uses).toBe("./.github/actions/setup");
+  expect(setup?.uses).toBe("$/.github/actions/setup");
   expect(setup?.with).toEqual({ browsers: "true" });
   expect(media?.run).toBe("bash scripts/ci/install-media.sh");
   expect(media?.["timeout-minutes"]).toBe(15);

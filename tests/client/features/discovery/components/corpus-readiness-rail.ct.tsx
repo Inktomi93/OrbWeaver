@@ -6,7 +6,7 @@ import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { absenceWindow, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { createCorpusHarness, seedTranscript } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
   CORPUS_BOX_OWNER_RUNS_PASS_TEXT,
@@ -15,7 +15,7 @@ import {
   CORPUS_STAGE_LABELS,
   CORPUS_TURN_ON_MEMORY_NAME,
 } from "#client/features/discovery/lib/corpus-control-names.ts";
-import { READINESS_PASSES } from "#client/features/discovery/lib/corpus-readiness-passes.ts";
+import { READINESS_PASSES, readinessEstimates } from "#client/features/discovery/lib/corpus-readiness-passes.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CorpusCoverageStory } from "../surfaces/_coverage-stories.tsx";
 
@@ -23,6 +23,8 @@ const STORY = "tests/client/features/discovery/surfaces/_coverage-stories/Corpus
 const MEMBER_HANDLE = "companion";
 // A start the Cancel wrongly fired reaches the queue within one round trip; this holds well past it.
 const ENQUEUE_WINDOW_MS = 500;
+// Enough imported rows to clear any memory verbatim window and fill whole digest blocks.
+const UNDIGESTED_ROWS = 80;
 
 test.use({ hasTouch: false, isMobile: false });
 
@@ -120,12 +122,24 @@ test("a pass that calls no model starts at once, and its row reads the queued ru
 test("a pass that calls the helper model confirms its estimated calls, then enqueues its chain", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
-  const estimate = await Promise.all([
-    owner.workloads.estimateModelCalls({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
-    owner.workloads.estimateModelCalls({ input: { kind: "compute-themes", params: {} }, mode: "singular" }),
-  ]);
+  // The corpus's chats are already digested; an imported history gives the backfill ahead of the themes run work to do.
+  const [card] = (await owner.character.list({})).items;
+  if (card === undefined) {
+    throw new Error("The corpus needs a character to seat in the imported room");
+  }
+  await seedTranscript(root, {
+    ownerId: root.ownerId,
+    characterHandles: [card.handle],
+    lines: Array.from({ length: UNDIGESTED_ROWS }, (_, index) => ({
+      ...(index % 2 === 0 ? { role: "assistant", speakerHandle: card.handle } : { role: "user" }),
+      content: `Undigested history ${index + 1}. The ferryman counts the lanterns on the far bank.`,
+    })),
+  });
+  const estimate = await Promise.all(readinessEstimates("storyThemes").map((request) => owner.workloads.estimateModelCalls(request)));
+  expect(estimate[0]?.calls).toBeGreaterThan(0);
   const calls = estimate.reduce((sum, answer) => sum + (answer.calls ?? 0), 0);
-  expect(calls).toBeGreaterThan(0);
+  // The backfill will add digests before the themes run clusters them, so the themes run is counted at its ceiling.
+  expect(estimate.map((answer) => answer.bound)).toEqual(["exact", "ceiling"]);
   const before = new Set((await owner.workloads.list({})).map((run) => run.id));
   await serveOverview(page, owner);
   await mount<typeof CorpusCoverageStory>(STORY, {});
@@ -134,7 +148,8 @@ test("a pass that calls the helper model confirms its estimated calls, then enqu
   await passLine(rail, CORPUS_STAGE_LABELS.storyThemes).getByRole("button", { name: READINESS_PASSES.storyThemes.runLabel, exact: true }).click();
 
   const dialog = page.getByRole("alertdialog", { name: READINESS_PASSES.storyThemes.confirmTitle, exact: true });
-  await expect(dialog).toContainText(`about ${calls} model calls`);
+  await expect(dialog).toContainText(`up to ${calls} model calls`);
+  await expect(dialog).not.toContainText("about");
   await dialog.getByRole("button", { name: READINESS_PASSES.storyThemes.runLabel, exact: true }).click();
   // The harness clock is frozen, so both rows share a createdAt; the chain is read off the ids instead.
   await expect
@@ -247,4 +262,22 @@ test("a paid door reads busy and cannot be pressed again while its spend is bein
   await expect(door).toBeEnabled();
   await absenceWindow(page, ENQUEUE_WINDOW_MS);
   expect(await queuedRuns()).toEqual(before);
+});
+
+test("a pass whose every run is counted exactly confirms its calls as an estimate, never as a ceiling", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const owner = await root.internalCallerFor(root.ownerId);
+  const [estimate] = await Promise.all(readinessEstimates("distilled").map((request) => owner.workloads.estimateModelCalls(request)));
+  expect(estimate).toMatchObject({ bound: "exact" });
+  const calls = estimate?.calls ?? 0;
+  expect(calls).toBeGreaterThan(0);
+  await serveOverview(page, owner);
+  await mount<typeof CorpusCoverageStory>(STORY, {});
+  const rail = await visibleRail(page);
+
+  await passLine(rail, CORPUS_STAGE_LABELS.distilled).getByRole("button", { name: READINESS_PASSES.distilled.runLabel, exact: true }).click();
+
+  const dialog = page.getByRole("alertdialog", { name: READINESS_PASSES.distilled.confirmTitle, exact: true });
+  await expect(dialog).toContainText(`about ${calls} model ${calls === 1 ? "call" : "calls"}`);
+  await expect(dialog).not.toContainText("up to");
 });

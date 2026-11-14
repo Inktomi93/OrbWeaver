@@ -18,6 +18,12 @@ import {
   tv,
 } from "#lib";
 
+// The chrome of a trigger that holds a wrapping value: the field box with its inline padding and the gap to the chevron held by the picker tokens,
+// so enlarged text on a phone grows the value and not the chrome. The step is a floor (the `LABEL_BOX` shape) and the block inset is the air the
+// step leaves around one line (the `select-air` tokens): a one-line value lands exactly on the step, and a wrapped value keeps that air against the
+// border instead of touching it.
+const WRAPPING_TRIGGER = [FIELD_CONTROL, "gap-(--spacing-picker-gap) px-(--spacing-picker-inset) block-fit"];
+
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
   slots: {
@@ -29,9 +35,10 @@ export const selectVariants = tv({
       FOCUS_RING,
       DISABLED_STATE,
     ],
-    // The selected-value text stays ONE line (the app-wide single-line trigger convention) — `min-w-0` lets the
-    // flex child shrink so `truncate` can ellipsize a long option label instead of wrapping to two lines.
-    value: "truncate text-start",
+    // The selected value is what the reader chose the control for, so it is never cut: a value past the trigger's room wraps between its
+    // words and the trigger grows from its step. `min-inline-0` lets the flex child shrink to the trigger's width, so only a word wider
+    // than the room breaks inside itself, at one of the word's hyphenation points.
+    value: "text-start wrap-break-word hyphens-auto whitespace-normal min-inline-0",
     icon: "flex shrink-0 text-muted-foreground",
     positioner: "z-(--z-popover) outline-none",
     // Never narrower than the anchor, and grows to fit the longest LABEL. Descriptions do not size it (see
@@ -71,7 +78,8 @@ export const selectVariants = tv({
       lg: { trigger: CONTROL_BLOCK.lg },
     },
     // THE TRIGGER'S LAYOUT, declared after `size` (the Input `layout` twin — same axis name; Input has no `hug`). `field` is the form
-    // control: the full FIELD_CONTROL chrome at the sealed control height. `hug` is that chrome at its value's width.
+    // control: the full FIELD_CONTROL chrome at the control step, growing from it when its value wraps. `hug` is that chrome at its
+    // value's width.
     // `inline` is the IDENTITY-LINE trigger — a name/datum that happens to open a menu, so it wears the text itself
     // (content width, text-height, no box) and the popup is the affordance.
     //
@@ -80,18 +88,9 @@ export const selectVariants = tv({
     // deterministically — the shipped site wrote `!h-auto !w-auto !px-field` to force the cascade. Same law
     // as Button `size`/TabsTab `layout`.
     layout: {
-      field: { trigger: FIELD_CONTROL },
+      field: { trigger: WRAPPING_TRIGGER },
       // The field chrome at the width of its value, for a sort or filter beside a search box that a full-width trigger would crush.
-      hug: { trigger: [FIELD_CONTROL, "inline-auto"] },
-      // `hug` for a picker whose value names the choice and must be read whole: a value past the trigger's room wraps inside it, and
-      // the trigger grows from its size step instead of cutting the value with an ellipsis. Only a word wider than the room breaks.
-      // The step is a floor (the `LABEL_BOX` shape) with no block inset: the field's line is taller than the label's, so even the tight
-      // inset would lift a one-line value past the step and out of level with its row. The line height gives a wrapped value its air.
-      // Its padding and the gap to the chevron are held by the picker tokens, so enlarged text on a phone grows the value and not the chrome.
-      hugWrap: {
-        trigger: [FIELD_CONTROL, "gap-(--spacing-picker-gap) px-(--spacing-picker-inset) py-0 block-fit inline-auto"],
-        value: "wrap-break-word whitespace-normal",
-      },
+      hug: { trigger: [WRAPPING_TRIGGER, "inline-auto"] },
       // Text-height at every pointer; the touch floor is the layout-neutral hit area `InlineAction` carries.
       inline: {
         trigger: [
@@ -104,12 +103,13 @@ export const selectVariants = tv({
     // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.
     strong: { true: { trigger: "font-semibold" } },
   },
-  // The wrapping arm's height is the size step's floor, so only a value on more than one line grows it.
+  // A form-control trigger's height is the size step's floor, so only a value on more than one line grows it, and its block inset is the air that
+  // step leaves around a line.
   compoundVariants: [
-    { layout: "hugWrap", size: "chip", class: { trigger: CONTROL_MIN_BLOCK.chip } },
-    { layout: "hugWrap", size: "sm", class: { trigger: CONTROL_MIN_BLOCK.sm } },
-    { layout: "hugWrap", size: "md", class: { trigger: CONTROL_MIN_BLOCK.md } },
-    { layout: "hugWrap", size: "lg", class: { trigger: CONTROL_MIN_BLOCK.lg } },
+    { layout: ["field", "hug"], size: "chip", class: { trigger: [CONTROL_MIN_BLOCK.chip, "py-(--spacing-select-air-chip)"] } },
+    { layout: ["field", "hug"], size: "sm", class: { trigger: [CONTROL_MIN_BLOCK.sm, "py-(--spacing-select-air-sm)"] } },
+    { layout: ["field", "hug"], size: "md", class: { trigger: [CONTROL_MIN_BLOCK.md, "py-(--spacing-select-air-md)"] } },
+    { layout: ["field", "hug"], size: "lg", class: { trigger: [CONTROL_MIN_BLOCK.lg, "py-(--spacing-select-air-lg)"] } },
   ],
   defaultVariants: { size: "sm", layout: "field" },
 });

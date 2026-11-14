@@ -51,6 +51,8 @@ jobs:
           platforms: &development-platforms linux/amd64
           load: true
           cache-from: type=registry,ref=${{ env.BUILD_CACHE }}
+          # The published stage always rebuilds, so its apt upgrade takes the OS fixes current at this build.
+          no-cache-filters: *development-target
           tags: |
             ${{ env.IMAGE }}:sha-${{ github.sha }}
           build-args: &development-build-args |

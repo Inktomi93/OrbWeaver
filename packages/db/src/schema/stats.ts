@@ -1,5 +1,6 @@
-// schema/stats — the four per-owner usage-economics rollups plus the canon-version fence that keeps a
-// concurrent rebuild from replacing a newer live delta (producer: domain/stats). ECONOMICS ONLY
+// schema/stats — the four per-owner usage-economics rollups, the canon-version fence that keeps a
+// concurrent rebuild from replacing a newer live delta, and the spend ledger for priced calls with no canon row
+// of their own (producer: domain/stats). ECONOMICS ONLY
 // (turn counts · words · tokens · cost · cache · timing) — ZERO vector columns (the
 // `stats-no-vector-tables` dep-cruiser rule; the type-enforced economics↔semantics line,
 // docs/law/Knowledge-Cluster.md invariant 5: discovery is semantics, stats is economics, they share no tables).
@@ -35,11 +36,13 @@
 // NOT per-character — character_stats omits them.
 
 import type { ProviderId } from "@orb/contracts/inference";
-import type { CharacterId, CharacterStatId, DailyStatId, ModelId, ModelStatId, UserId } from "@orb/kit/ids";
+import { SPEND_LEDGER_KINDS } from "@orb/contracts/stats";
+import type { CharacterId, CharacterStatId, DailyStatId, ModelId, ModelStatId, SpendLedgerId, UserId } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { nulFreeText } from "../custom-types/index.ts";
+import { checkList } from "../query/check-list.ts";
 
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
@@ -271,4 +274,30 @@ export const modelStats = sqliteTable(
     // owner × model × provider — the live-delta UPSERT conflict target; relies on `provider` NOT NULL.
     uniqueIndex("model_stats_owner_model_provider_unique").on(table.ownerId, table.model, table.provider),
   ],
+);
+
+// spend_ledger — one row per PRICED model call that leaves no canon row of its own: a compaction pass (its marker is
+// overwritten by the next pass) and an image prompt's extraction or caption (the prompt is never persisted). It is
+// the only canon the stats rebuild can re-derive that spend from (`rebuild-from-canon.ts`), and stats' own write op
+// (`domain/stats/write/ledger-spend.ts`) lands each row in the same batch as its live delta.
+// OWNER-STAMPED (D23): the funding principal is the owner, and no FK reaches it — the spend is that principal's money,
+// not a room's, so the row carries no `chat_id` and outlives the chat the way the live rollup does.
+// Append-only: money already paid stays paid, so no delete path touches a row.
+export const spendLedger = sqliteTable(
+  "spend_ledger",
+  {
+    id: nulFreeText("id").$type<SpendLedgerId>().primaryKey(),
+    // FK users RESTRICT — the same posture as the stats rollups this row feeds.
+    ownerId: nulFreeText("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    // CHECK-gated to the contracts tuple, so the row type and the SQL read the same closed set.
+    kind: text("kind", { enum: SPEND_LEDGER_KINDS }).notNull(),
+    // Fractional USD; only a reported, positive cost is a row (an unpriced call spends nothing to record).
+    costUsd: real("cost_usd").notNull(),
+    // The call's clock — the live delta's `now`, so the rebuild buckets the spend in the same timeline bucket.
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("spend_ledger_owner_idx").on(t.ownerId, t.createdAt), check("spend_ledger_kind_check", sql.raw(`kind in (${checkList(SPEND_LEDGER_KINDS)})`))],
 );

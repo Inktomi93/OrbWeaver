@@ -250,8 +250,8 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
       promptSource: resolved.source,
       mode: p.mode,
       model: outcome.model,
-      // The returned total sums the extraction/caption spend (metered by chat's shaper, a different model
-      // bucket) with the generation spend (recorded in stats by runGeneration).
+      // The returned total sums the extraction/caption spend (recorded in the spend ledger when that call returned)
+      // with the generation spend (recorded in stats by runGeneration).
       costUsd: sumCost(resolved.costUsd, outcome.costUsd),
       reused: false,
       // B3's drop warning + any runner edit-strip belt warning that flowed up (doc 03 §2).

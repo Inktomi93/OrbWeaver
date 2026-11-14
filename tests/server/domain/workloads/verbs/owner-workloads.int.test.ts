@@ -75,7 +75,7 @@ test("a delegated admin cannot retry the owner's run or ask its size, the owner 
   const ownerRows = async (): Promise<readonly string[]> => (await owner.workloads.list({})).filter((row) => row.ownerId === root.ownerId).map((row) => row.id);
   expect(await ownerRows()).toEqual([ownerRun.id]);
 
-  expect(await admin.workloads.estimateRetryModelCalls({ id: memberRun.id })).toEqual({ calls: null });
+  expect(await admin.workloads.estimateRetryModelCalls({ id: memberRun.id })).toEqual({ calls: null, bound: "exact" });
   const memberClone = await admin.workloads.retry({ id: memberRun.id });
   expect(await member.workloads.get({ id: memberClone.id })).toMatchObject({ ownerId: memberId, status: "queued" });
   const ownerClone = await owner.workloads.retry({ id: ownerRun.id });

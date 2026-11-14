@@ -267,7 +267,13 @@ function BlockView({
         {block.label !== undefined ? <h3 className={slots.blockLabel()}>{block.label}</h3> : null}
         <span className={slots.blockSpacer()} />
         {decision !== null ? (
-          <Badge data-slot="compare-block-state" size="compact" tone={DECISION_TONE[decision]} variant={STATUS_PILL_VARIANT[DECISION_TONE[decision]]}>
+          <Badge
+            data-slot="compare-block-state"
+            size="compact"
+            tone={DECISION_TONE[decision]}
+            variant={STATUS_PILL_VARIANT[DECISION_TONE[decision]]}
+            whitespace="normal"
+          >
             {stateChipText(decision)}
           </Badge>
         ) : null}

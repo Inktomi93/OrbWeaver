@@ -185,7 +185,7 @@ export {
   IMAGE_SIZE_LABELS,
   IMAGE_SIZE_MODE_DEFAULT,
 } from "./image-size-copy.ts";
-export type { SendRefusalKey } from "./injection-copy.ts";
+export type { SendRefusalCause, SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,
   ASSISTANT_PREFILL_WARNING,
@@ -212,6 +212,7 @@ export {
   REGENERATE_PLAIN_HELPER,
   RESPONSE_SPEAKER_CUE,
   ROOM_PICTURES_NOTE,
+  ROOM_READ_FAILED_CAUSE,
   STEER_CUE_CONTINUE,
   STEER_CUE_IMPERSONATE,
   STEER_CUE_RESPONSE,
@@ -304,6 +305,7 @@ export {
   duplicateActionName,
   groupOrdinalQualifiers,
   positionQualifier,
+  ROW_MORE_LEAD,
   renameActionName,
   rowActionSubject,
   rowActionsName,

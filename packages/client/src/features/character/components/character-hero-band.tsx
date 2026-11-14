@@ -23,6 +23,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import type { AvatarUploadParts } from "#components";
 import { QueryBoundary, useAvatarUpload } from "#components";
 import type { Trpc } from "#data";
@@ -92,6 +93,8 @@ export function CharacterHeroBand({
   // override), not the raw override column — see use-preview-render-policy.ts.
   const previewPolicy = usePreviewRenderPolicy(detail);
   const portrait = useHeroPortrait(detail, trpc);
+  // The greeting studio's generated text under review: while it is open, its Accept is the band's one primary control.
+  const [studioPreview, setStudioPreview] = useState<string | null>(null);
   return (
     <Stack gap="section" data-slot="character-hero">
       <Row align="start" gap="block" wrap={true}>
@@ -108,7 +111,7 @@ export function CharacterHeroBand({
               <OwnLookMark themeOverride={detail.themeOverride} />
             </Row>
           </Row>
-          <HeroActions spoilerBlur={spoilerBlur} onNewChat={onNewChat} onViewChats={onViewChats} chatCount={chatCount} />
+          <HeroActions spoilerBlur={spoilerBlur} onNewChat={onNewChat} onViewChats={onViewChats} chatCount={chatCount} previewOpen={studioPreview !== null} />
         </Stack>
       </Row>
       {portrait.failureLine}
@@ -137,6 +140,8 @@ export function CharacterHeroBand({
         spoilerBlur={spoilerBlur}
         activeIndex={activeGreetingIndex}
         onActiveIndexChange={onActiveGreetingIndexChange}
+        studioPreview={studioPreview}
+        onStudioPreviewChange={setStudioPreview}
       />
     </Stack>
   );
@@ -230,21 +235,24 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
   );
 }
 
-/** The "New chat" primary · the "N chats ›" jump · the spoiler eye (view state). */
+/** The "New chat" primary · the "N chats ›" jump · the spoiler eye (view state). While a greeting preview is open its
+ *  Accept finishes the step, so "New chat" takes the outline and the region keeps one primary control. */
 function HeroActions({
   spoilerBlur,
   onNewChat,
   onViewChats,
   chatCount,
+  previewOpen,
 }: {
   readonly spoilerBlur: boolean;
   readonly onNewChat: () => void;
   readonly onViewChats: () => void;
   readonly chatCount: number;
+  readonly previewOpen: boolean;
 }): ReactElement {
   return (
     <Row gap="row" align="center" wrap={true}>
-      <Button type="button" onClick={onNewChat}>
+      <Button type="button" variant={previewOpen ? "outline" : "solid"} onClick={onNewChat}>
         <Icon icon={MessagesSquare} size="sm" />
         {CHARACTER_NEW_CHAT_NAME}
       </Button>

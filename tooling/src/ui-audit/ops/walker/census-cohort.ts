@@ -137,14 +137,26 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     // member holds a three-card theme picker and the 34px one holds a button, so the markup is right and
     // the heights SHOULD differ. Half the findings on that surface were this shape.
     //
-    // The discriminator is the tallest CHILD: when a member's height is explained by what it contains,
-    // its box is doing its job. A defect is a member whose content is the same size as its siblings' and
-    // whose BOX still differs — the F1 case, where 16px and 32px rows hold identical content.
-    var tallestChild = 0;
+    // The discriminator is the CONTENT: when a member's height is explained by what it contains, its box
+    // is doing its job. A defect is a member whose content is the same size as its siblings' and whose BOX
+    // still differs — the F1 case, where 16px and 32px rows hold identical content.
+    //
+    // Content is the children's vertical EXTENT, first top to last bottom. A member that stacks its
+    // children (an open config group is its band plus its body) holds all of them, so its tallest child
+    // understates it; a member that lays them in a row spans its tallest child either way. A child with no
+    // box, or one taken out of flow, does not size the member and is not its content.
+    var contentTop = Infinity;
+    var contentBottom = -Infinity;
     for (var cc = 0; cc < cel.children.length; cc += 1) {
-      var childRect = cel.children[cc].getBoundingClientRect();
-      if (childRect.height > tallestChild) tallestChild = childRect.height;
+      var cohortChild = cel.children[cc];
+      var cohortChildPosition = getComputedStyle(cohortChild).position;
+      if (cohortChildPosition === "absolute" || cohortChildPosition === "fixed") continue;
+      var childRect = cohortChild.getBoundingClientRect();
+      if (childRect.width === 0 && childRect.height === 0) continue;
+      if (childRect.top < contentTop) contentTop = childRect.top;
+      if (childRect.bottom > contentBottom) contentBottom = childRect.bottom;
     }
+    var contentExtent = contentBottom > contentTop ? contentBottom - contentTop : 0;
     // AN INLINE TEXT RUN HAS NO BOX OF ITS OWN (#1703). \`getBoundingClientRect\` on a \`display: inline\`
     // element returns the UNION of its line boxes, so its "height" is a LINE-WRAP COUNT — a function of the
     // viewport, not of anything the author sized. Measured live: one \`span[data-slot=dialogue]\` cohort (the
@@ -163,7 +175,7 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       el: cel,
       rect: crect,
       height: Math.round(crect.height),
-      content: Math.round(tallestChild),
+      content: Math.round(contentExtent),
       animating: canim,
       inlineRun: cdisplay === "inline",
       textPrimitive: cel.getAttribute("data-slot") === TEXT_PRIMITIVE_SLOT,
