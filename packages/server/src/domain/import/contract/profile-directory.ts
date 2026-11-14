@@ -158,7 +158,8 @@ export interface ProfileCollectRecords
 }
 
 /** One profile directory of the upload with its own collect result. The merged lists on {@link ProfileCollected}
- *  hold the very same entries; the preview reads this side to name each entry by the profile it sits in. */
+ *  hold the very same entries; the preview reads this side to name each entry by the profile it sits in. A card's
+ *  library tags and extra books exist only on this side: a filename two profiles share does not share them. */
 export interface CollectedProfile {
   readonly name: string;
   readonly result: CollectResult;
@@ -176,11 +177,9 @@ export interface ProfileCollected
       | "backgrounds"
       | "appearance"
       | "groups"
-      | "tagsByEntityKey"
       | "orphanBundles"
       | "globalRegexScripts"
       | "malformedGlobalRegexScripts"
-      | "extraBooksByCardStem"
       | "databankFileCount"
       | "galleryImageCount"
     > {
