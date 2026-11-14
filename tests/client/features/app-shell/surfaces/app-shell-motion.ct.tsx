@@ -6,7 +6,15 @@ import { spawn } from "node:child_process";
 import { contextToggleLabel, SIDECAR_PANELS_NOUN, sectionBackName } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
-import { emulateMedia, LAYOUT_SUBPIXEL_PX, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
+import {
+  emulateMedia,
+  LAYOUT_SUBPIXEL_PX,
+  releaseEmulatedMedia,
+  resolvedLength,
+  seedShellState,
+  setPlatformTextSize,
+  shellTracks,
+} from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -58,6 +66,27 @@ const REAL_TRACK = 100;
 const CLS_BUDGET = 0.1;
 const SAMPLE_FRAMES = 60;
 
+// Playwright launches Chromium with `--hide-scrollbars`: its scrollbars take no layout space until a gutter rule reserves one.
+// Without the flag they are classic, as Windows and Linux desktops draw them, and the thread's port gives up their width.
+// The launch is a worker option, which a describe refuses, so the classic cases ride their own test type.
+const classicScrollbarTest = test.extend({
+  launchOptions: async ({ launchOptions }, provide) => {
+    await provide({ ...launchOptions, ignoreDefaultArgs: ["--hide-scrollbars"] });
+  },
+});
+const SCROLLBAR_REGIME_NAMES = ["default", "classic"] as const;
+type ScrollbarRegimeName = (typeof SCROLLBAR_REGIME_NAMES)[number];
+interface ScrollbarRegime {
+  /** Prefixed to each describe, so the default cases keep their names. */
+  readonly title: string;
+  /** Whether a scrollbar the thread shows takes layout space: the control that the launch took. */
+  readonly scrollbarTakesSpace: boolean;
+}
+const SCROLLBAR_REGIMES = {
+  default: { title: "", scrollbarTakesSpace: false },
+  classic: { title: "with classic scrollbars, ", scrollbarTakesSpace: true },
+} as const satisfies Record<ScrollbarRegimeName, ScrollbarRegime>;
+
 type Frame = Record<string, number>;
 interface Census {
   readonly rest: Frame;
@@ -65,12 +94,23 @@ interface Census {
   readonly end: Frame;
 }
 
+// A corpus room whose thread fits the WIDE_REM20 port at the engine's text size and outgrows it at twice that; the growth
+// case asserts both, so a corpus change that breaks the premise fails there, not silently.
+const SHORT_ROOM_TITLE = "Getting started with Assistant";
+
 let root: Awaited<ReturnType<typeof createCorpusHarness>>;
 let roomId: ChatId;
+let shortRoomId: ChatId;
 
 test.beforeAll(async () => {
   root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
-  roomId = namedGroupRoom((await (await root.internalCallerFor(root.ownerId)).chat.listChats({ limit: 100 })).items).id;
+  const rooms = (await (await root.internalCallerFor(root.ownerId)).chat.listChats({ limit: 100 })).items;
+  roomId = namedGroupRoom(rooms).id;
+  const short = rooms.find((room) => room.title === SHORT_ROOM_TITLE);
+  if (short === undefined) {
+    throw new Error(`The corpus has no room titled ${SHORT_ROOM_TITLE}`);
+  }
+  shortRoomId = short.id;
 });
 
 test.beforeEach(async ({ page }) => {
@@ -579,124 +619,6 @@ test.describe("a section swap", () => {
   });
 });
 
-test.describe("the doors in an open room", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.setViewportSize(WIDE);
-    await seedShellState(page, { activeSection: "chats" });
-  });
-
-  test("the LIST door holds every box it moves on the first painted frame and in its corridor, both ways, and releases its flip", async ({
-    corpus,
-    mount,
-    page,
-  }) => {
-    await routeMotion(page, corpus);
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
-    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
-    await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
-    // The composer's track is capped at the reading measure and the row's at the dial, so the two share a centre, not an edge.
-    const [rowCentre = Number.NaN, composerCentre = Number.NaN] = await page.evaluate(
-      (selectors) =>
-        selectors.map((selector) => {
-          const box = document.querySelector(selector)?.getBoundingClientRect();
-          return box === undefined ? Number.NaN : box.x + box.width / 2;
-        }),
-      [DOOR_BOXES.row, DOOR_BOXES.composer],
-    );
-    expect(Math.abs(rowCentre - composerCentre)).toBeLessThanOrEqual(1);
-    for (const leg of ["Hide list panel", "Show list panel"]) {
-      const census = await driveDoor(page, leg, ROOM_BOXES);
-      expect(flipFrame(census)).toBeGreaterThan(-1);
-      const verdict = doorVerdict(census, LIST_DOOR);
-      expect(verdict.travelled).toBeGreaterThan(0);
-      expect(verdict.cuts).toStrictEqual([]);
-      expect(verdict.strays).toStrictEqual([]);
-      // The END-pinned trail's honest distance is zero: its corridor is a point.
-      expect(Math.abs((census.end["trail"] ?? 0) - (census.rest["trail"] ?? 0))).toBeLessThanOrEqual(1);
-      await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-list-flip", /.*/u);
-    }
-  });
-
-  test("the CONTEXT door holds every box it moves, the list band's action included, both ways, and releases its flip", async ({ corpus, mount, page }) => {
-    await routeMotion(page, corpus);
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
-    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
-    await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
-    for (const leg of [contextToggleLabel(true), contextToggleLabel(false)]) {
-      const census = await driveDoor(page, leg, ROOM_BOXES);
-      expect(flipFrame(census)).toBeGreaterThan(-1);
-      const verdict = doorVerdict(census, CONTEXT_DOOR);
-      expect(verdict.travelled).toBeGreaterThan(0);
-      expect(verdict.cuts).toStrictEqual([]);
-      expect(verdict.strays).toStrictEqual([]);
-      await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-context-flip", /.*/u);
-    }
-  });
-
-  test("the centred carriers' counter is half of .shell-main's FLIP, the other way", async ({ corpus, mount, page }) => {
-    await routeMotion(page, corpus);
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
-    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
-    await waitForShellIdle(page);
-    for (const leg of ["Hide list panel", "Show list panel"]) {
-      await recordFlipKeyframes(page);
-      await page.getByRole("button", { name: leg, exact: true }).click();
-      await expect.poll(async () => Object.keys(await flipKeyframes(page))).toEqual(expect.arrayContaining(["shell-main-flip", "shell-centre-flip"]));
-      const { "shell-main-flip": main = Number.NaN, "shell-centre-flip": centre = Number.NaN } = await flipKeyframes(page);
-      expect(Math.abs(main)).toBeGreaterThan(REAL_TRACK);
-      expect(Math.abs(centre * -2 - main)).toBeLessThan(1);
-      await waitForShellIdle(page);
-    }
-  });
-
-  test("with motion off both doors arm no animation, hold the trail and the carriers in their corridors, and release the settle", async ({
-    corpus,
-    mount,
-    page,
-  }) => {
-    await emulateMedia(page, { motion: "reduce" });
-    await routeMotion(page, corpus);
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
-    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
-    await waitForShellIdle(page);
-    await recordAnimationStarts(page);
-    const grid = page.locator(".shell-grid");
-    for (const [leg, boxes] of [
-      ["Hide list panel", LIST_DOOR],
-      [contextToggleLabel(true), CONTEXT_DOOR],
-    ] as const) {
-      const census = await driveDoor(page, leg, ROOM_BOXES);
-      const verdict = doorVerdict(
-        census,
-        boxes.filter((box) => box !== "listPanel" && box !== "contextPanel"),
-      );
-      expect(verdict.strays).toStrictEqual([]);
-      await expect(grid).not.toHaveAttribute("data-list-settle", /.*/u);
-      await expect(grid).not.toHaveAttribute("data-context-settle", /.*/u);
-    }
-    expect(await animationStarts(page)).toStrictEqual([]);
-  });
-
-  test("a collapsing LIST pane keeps its squeezed width for the whole exit and re-enters at it", async ({ corpus, mount, page }) => {
-    await seedShellState(page, BOTH_DOCKED);
-    await routeMotion(page, corpus);
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
-    await waitForShellIdle(page);
-    expect((await readBoxes(page, SECTION_BOXES))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
-    for (const leg of ["Hide list panel", "Show list panel"]) {
-      const census = await driveDoor(page, leg, ROOM_BOXES);
-      const verdict = doorVerdict(census, ["listPanelWidth", ...LIST_DOOR]);
-      expect(verdict.cuts).toStrictEqual([]);
-      expect(verdict.strays).toStrictEqual([]);
-    }
-  });
-});
-
 const PHASE_TOLERANCE_MS = 1;
 const ENTRY_PLAYBACK_RATE = 0.001;
 
@@ -860,50 +782,6 @@ test.describe("a door cut short", () => {
     } finally {
       await cdp.send("Animation.setPlaybackRate", { playbackRate: 1 });
       await cdp.detach();
-    }
-  });
-});
-
-test.describe("the doors at rem 20", () => {
-  test("docking the list at 1280, where the reading cap binds while docked, holds the shell's boxes", async ({ corpus, mount, page }) => {
-    await page.setViewportSize(WIDE);
-    await seedShellState(page, { activeSection: "chats" });
-    await routeMotion(page, corpus, { fontScale: REM20 });
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
-    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
-    await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
-    const dockedWidth = await page.locator(DOOR_BOXES.composer).evaluate((element) => Math.round(element.getBoundingClientRect().width));
-    await driveDoor(page, "Hide list panel", ROOM_BOXES);
-    // The cap binds while docked, so the carrier grows once the track goes: the clamped regime this case is for.
-    expect(await page.locator(DOOR_BOXES.composer).evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBeGreaterThan(
-      dockedWidth + HOLD_SLACK,
-    );
-    const verdict = doorVerdict(await driveDoor(page, "Show list panel", ROOM_BOXES), ["main", "trail", "listPanel", ...CARRIERS]);
-    expect(verdict.travelled).toBeGreaterThan(0);
-    expect(verdict.cuts).toStrictEqual([]);
-    expect(verdict.strays).toStrictEqual([]);
-  });
-
-  test("at 1680 the context door holds its boxes and a collapsing list keeps its exit width", async ({ corpus, mount, page }) => {
-    await page.setViewportSize(WIDE_REM20);
-    await seedShellState(page, { activeSection: "chats" });
-    await routeMotion(page, corpus, { fontScale: REM20 });
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
-    await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
-    await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
-    for (const leg of [contextToggleLabel(true), contextToggleLabel(false), contextToggleLabel(true)]) {
-      const verdict = doorVerdict(await driveDoor(page, leg, ROOM_BOXES), CONTEXT_DOOR);
-      expect(verdict.cuts).toStrictEqual([]);
-      expect(verdict.strays).toStrictEqual([]);
-    }
-    await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
-    expect((await readBoxes(page, SECTION_BOXES))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
-    for (const leg of ["Hide list panel", "Show list panel"]) {
-      const verdict = doorVerdict(await driveDoor(page, leg, ROOM_BOXES), ["listPanelWidth"]);
-      expect(verdict.cuts).toStrictEqual([]);
-      expect(verdict.strays).toStrictEqual([]);
     }
   });
 });
@@ -1213,52 +1091,340 @@ function axisGap(tracks: Record<keyof typeof ROOM_TRACKS, TrackBox>): number {
   return Math.abs(centreOf(tracks.chat) - centreOf(tracks.composer));
 }
 
-test.describe("the room's one axis", () => {
-  for (const width of [1280, 1440]) {
-    for (const state of COLUMN_STATE_NAMES) {
-      test(`at ${String(width)} the rows and the composer share a middle with the column ${state}`, async ({ corpus, mount, page }) => {
-        await routeRoom(page, corpus, width, state);
-        await mountRoom(mount);
-        expect(axisGap(await restingTracks(page, state))).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
-      });
-    }
-  }
+/** A viewport height at WIDE_REM20's width whose port the short room's thread outgrows. */
+const SHORT_PORT_HEIGHT = 400;
+/** Frames a thread state must hold before the next step, so a step's settle is sampled, not only its first frame. */
+const THREAD_SETTLE_FRAMES = 10;
+/** A bound on the thread sampler, so it cannot outlive its case. */
+const THREAD_SAMPLE_LIMIT = 1200;
+const THREAD_SCROLLER = '[data-slot="message-list-scroll"]';
+const GUTTER_PROPERTY = "--orb-message-list-gutter";
 
-  test("the composer glides with the rows when the column leaves and joins, with no snap at either toggle", async ({ corpus, mount, page }) => {
-    await routeFlankRoom(page, corpus, "no-preference");
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await settleFlankRoom(page);
-    for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
-      const { before, after, centres } = await toggleGlideSampled(page, leg);
-      expect(axisGap(before), "before").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
-      expect(axisGap(after), "after").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
-      // Every point of the glide has the two tracks on one axis.
-      expect(centres.filter((point) => Math.abs(point.chat - point.composer) > LAYOUT_SUBPIXEL_PX)).toStrictEqual([]);
-      const travel = centreOf(after.composer) - centreOf(before.composer);
-      expect(Math.abs(travel), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(REAL_TRACK / 2);
-      const [first, middle, last] = centres;
-      // The composer starts where it stood, is still on its way at the middle of the glide, and ends where the room puts it.
-      const travelled = (centre: number | undefined): number => Math.abs((centre ?? Number.NaN) - centreOf(before.composer));
-      expect(travelled(first?.composer), "the glide's first instant").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
-      expect(travelled(middle?.composer), "the glide's middle moved").toBeGreaterThan(LAYOUT_SUBPIXEL_PX);
-      expect(travelled(middle?.composer), "the glide's middle has not arrived").toBeLessThan(Math.abs(travel) - LAYOUT_SUBPIXEL_PX);
-      expect(Math.abs((last?.composer ?? Number.NaN) - centreOf(after.composer)), "the glide's last instant").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
-    }
-  });
+const ThreadFrame = z.object({ chat: z.number(), composer: z.number(), gutter: z.number(), property: z.string(), overflows: z.boolean() });
+type ThreadFrame = z.infer<typeof ThreadFrame>;
 
-  test("with motion off the composer and the rows still move together, and no flip runs", async ({ corpus, mount, page }) => {
-    await routeFlankRoom(page, corpus, "reduce");
-    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-    await settleFlankRoom(page);
-    for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
-      const { before, after, frames } = await toggleRecorded(page, leg);
-      expect(axisGap(before), "before").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
-      expect(axisGap(after), "after").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
-      expect(frames.filter((frame) => Math.abs(frame.chat - frame.composer) > LAYOUT_SUBPIXEL_PX)).toStrictEqual([]);
-      expect(Math.abs(centreOf(after.composer) - centreOf(before.composer)), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(
-        REAL_TRACK / 2,
+/** Record the tracks' middles and the thread's scroller (the width it gives up, the property it publishes, whether its rows overflow) on every animation frame from now on, up to the bound. */
+function startThreadSampler(page: Page): Promise<void> {
+  return page.evaluate(
+    ({ selectors, scroller, property, limit }) => {
+      const frames: Record<string, number | string | boolean>[] = [];
+      Reflect.set(globalThis, "__threadFrames", frames);
+      const centre = (selector: string): number => {
+        const box = Array.from(document.querySelectorAll(selector)).at(-1)?.getBoundingClientRect();
+        return box === undefined ? Number.NaN : box.left + box.width / 2;
+      };
+      const tick = (): void => {
+        const el = document.querySelector<HTMLElement>(scroller);
+        if (el !== null) {
+          frames.push({
+            chat: centre(selectors.chat),
+            composer: centre(selectors.composer),
+            gutter: el.offsetWidth - el.clientWidth,
+            property: el.style.getPropertyValue(property),
+            overflows: el.scrollHeight > el.clientHeight,
+          });
+        }
+        if (frames.length < limit) {
+          requestAnimationFrame(tick);
+        }
+      };
+      requestAnimationFrame(tick);
+    },
+    { selectors: ROOM_TRACKS, scroller: THREAD_SCROLLER, property: GUTTER_PROPERTY, limit: THREAD_SAMPLE_LIMIT },
+  );
+}
+
+/** Wait until the sampled thread has held `overflows` for {@link THREAD_SETTLE_FRAMES} frames. */
+function waitForThreadOverflow(page: Page, overflows: boolean): Promise<unknown> {
+  return page.waitForFunction(
+    ({ want, settle }) => {
+      const frames: unknown = Reflect.get(globalThis, "__threadFrames");
+      if (!Array.isArray(frames) || frames.length < settle) {
+        return false;
+      }
+      return frames.slice(-settle).every((frame: unknown) => typeof frame === "object" && frame !== null && Reflect.get(frame, "overflows") === want);
+    },
+    { want: overflows, settle: THREAD_SETTLE_FRAMES },
+  );
+}
+
+async function readThreadFrames(page: Page): Promise<ThreadFrame[]> {
+  return z.array(ThreadFrame).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__threadFrames")));
+}
+
+/** The room's door and axis cases, under one scrollbar regime. */
+function roomMotionCases(it: typeof test, scrollbars: ScrollbarRegime): void {
+  it.describe(`${scrollbars.title}the doors in an open room`, () => {
+    it.beforeEach(async ({ page }) => {
+      await page.setViewportSize(WIDE);
+      await seedShellState(page, { activeSection: "chats" });
+    });
+
+    it("the LIST door holds every box it moves on the first painted frame and in its corridor, both ways, and releases its flip", async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await routeMotion(page, corpus);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+      await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+      await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+      // The composer's track is capped at the reading measure and the row's at the dial, so the two share a centre, not an edge.
+      const [rowCentre = Number.NaN, composerCentre = Number.NaN] = await page.evaluate(
+        (selectors) =>
+          selectors.map((selector) => {
+            const box = document.querySelector(selector)?.getBoundingClientRect();
+            return box === undefined ? Number.NaN : box.x + box.width / 2;
+          }),
+        [DOOR_BOXES.row, DOOR_BOXES.composer],
       );
-      expect(nonEmpty(frames).some((frame) => frame.flipping)).toBe(false);
-    }
+      expect(Math.abs(rowCentre - composerCentre)).toBeLessThanOrEqual(1);
+      for (const leg of ["Hide list panel", "Show list panel"]) {
+        const census = await driveDoor(page, leg, ROOM_BOXES);
+        expect(flipFrame(census)).toBeGreaterThan(-1);
+        const verdict = doorVerdict(census, LIST_DOOR);
+        expect(verdict.travelled).toBeGreaterThan(0);
+        expect(verdict.cuts).toStrictEqual([]);
+        expect(verdict.strays).toStrictEqual([]);
+        // The END-pinned trail's honest distance is zero: its corridor is a point.
+        expect(Math.abs((census.end["trail"] ?? 0) - (census.rest["trail"] ?? 0))).toBeLessThanOrEqual(1);
+        await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-list-flip", /.*/u);
+      }
+    });
+
+    it("the CONTEXT door holds every box it moves, the list band's action included, both ways, and releases its flip", async ({ corpus, mount, page }) => {
+      await routeMotion(page, corpus);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+      await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+      await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
+      for (const leg of [contextToggleLabel(true), contextToggleLabel(false)]) {
+        const census = await driveDoor(page, leg, ROOM_BOXES);
+        expect(flipFrame(census)).toBeGreaterThan(-1);
+        const verdict = doorVerdict(census, CONTEXT_DOOR);
+        expect(verdict.travelled).toBeGreaterThan(0);
+        expect(verdict.cuts).toStrictEqual([]);
+        expect(verdict.strays).toStrictEqual([]);
+        await expect(page.locator(".shell-grid")).not.toHaveAttribute("data-context-flip", /.*/u);
+      }
+    });
+
+    it("the centred carriers' counter is half of .shell-main's FLIP, the other way", async ({ corpus, mount, page }) => {
+      await routeMotion(page, corpus);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+      await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+      await waitForShellIdle(page);
+      for (const leg of ["Hide list panel", "Show list panel"]) {
+        await recordFlipKeyframes(page);
+        await page.getByRole("button", { name: leg, exact: true }).click();
+        await expect.poll(async () => Object.keys(await flipKeyframes(page))).toEqual(expect.arrayContaining(["shell-main-flip", "shell-centre-flip"]));
+        const { "shell-main-flip": main = Number.NaN, "shell-centre-flip": centre = Number.NaN } = await flipKeyframes(page);
+        expect(Math.abs(main)).toBeGreaterThan(REAL_TRACK);
+        expect(Math.abs(centre * -2 - main)).toBeLessThan(1);
+        await waitForShellIdle(page);
+      }
+    });
+
+    it("with motion off both doors arm no animation, hold the trail and the carriers in their corridors, and release the settle", async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await emulateMedia(page, { motion: "reduce" });
+      await routeMotion(page, corpus);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+      await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+      await waitForShellIdle(page);
+      await recordAnimationStarts(page);
+      const grid = page.locator(".shell-grid");
+      for (const [leg, boxes] of [
+        ["Hide list panel", LIST_DOOR],
+        [contextToggleLabel(true), CONTEXT_DOOR],
+      ] as const) {
+        const census = await driveDoor(page, leg, ROOM_BOXES);
+        const verdict = doorVerdict(
+          census,
+          boxes.filter((box) => box !== "listPanel" && box !== "contextPanel"),
+        );
+        expect(verdict.strays).toStrictEqual([]);
+        await expect(grid).not.toHaveAttribute("data-list-settle", /.*/u);
+        await expect(grid).not.toHaveAttribute("data-context-settle", /.*/u);
+      }
+      expect(await animationStarts(page)).toStrictEqual([]);
+    });
+
+    it("a collapsing LIST pane keeps its squeezed width for the whole exit and re-enters at it", async ({ corpus, mount, page }) => {
+      await seedShellState(page, BOTH_DOCKED);
+      await routeMotion(page, corpus);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
+      await waitForShellIdle(page);
+      expect((await readBoxes(page, SECTION_BOXES))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
+      for (const leg of ["Hide list panel", "Show list panel"]) {
+        const census = await driveDoor(page, leg, ROOM_BOXES);
+        const verdict = doorVerdict(census, ["listPanelWidth", ...LIST_DOOR]);
+        expect(verdict.cuts).toStrictEqual([]);
+        expect(verdict.strays).toStrictEqual([]);
+      }
+    });
   });
-});
+
+  it.describe(`${scrollbars.title}the doors at rem 20`, () => {
+    it("docking the list at 1280, where the reading cap binds while docked, holds the shell's boxes", async ({ corpus, mount, page }) => {
+      await page.setViewportSize(WIDE);
+      await seedShellState(page, { activeSection: "chats" });
+      await routeMotion(page, corpus, { fontScale: REM20 });
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+      await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+      await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
+      const dockedWidth = await page.locator(DOOR_BOXES.composer).evaluate((element) => Math.round(element.getBoundingClientRect().width));
+      await driveDoor(page, "Hide list panel", ROOM_BOXES);
+      // The cap binds while docked, so the carrier grows once the track goes: the clamped regime this case is for.
+      expect(await page.locator(DOOR_BOXES.composer).evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBeGreaterThan(
+        dockedWidth + HOLD_SLACK,
+      );
+      const verdict = doorVerdict(await driveDoor(page, "Show list panel", ROOM_BOXES), ["main", "trail", "listPanel", ...CARRIERS]);
+      expect(verdict.travelled).toBeGreaterThan(0);
+      expect(verdict.cuts).toStrictEqual([]);
+      expect(verdict.strays).toStrictEqual([]);
+    });
+
+    it("at 1680 the context door holds its boxes and a collapsing list keeps its exit width", async ({ corpus, mount, page }) => {
+      await page.setViewportSize(WIDE_REM20);
+      await seedShellState(page, { activeSection: "chats" });
+      await routeMotion(page, corpus, { fontScale: REM20 });
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await expect(page.locator(DOOR_BOXES.composer)).toBeVisible();
+      await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
+      await expect.poll(() => rootFontPx(page)).toBeCloseTo(UA_ROOT_PX * REM20, 0);
+      for (const leg of [contextToggleLabel(true), contextToggleLabel(false), contextToggleLabel(true)]) {
+        const verdict = doorVerdict(await driveDoor(page, leg, ROOM_BOXES), CONTEXT_DOOR);
+        expect(verdict.cuts).toStrictEqual([]);
+        expect(verdict.strays).toStrictEqual([]);
+      }
+      await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
+      expect((await readBoxes(page, SECTION_BOXES))["listPanelWidth"]).toBeLessThan((await resolvedLength(page, "var(--panel-w)")) - HOLD_SLACK);
+      for (const leg of ["Hide list panel", "Show list panel"]) {
+        const verdict = doorVerdict(await driveDoor(page, leg, ROOM_BOXES), ["listPanelWidth"]);
+        expect(verdict.cuts).toStrictEqual([]);
+        expect(verdict.strays).toStrictEqual([]);
+      }
+    });
+  });
+
+  it.describe(`${scrollbars.title}the room's one axis`, () => {
+    it(`the thread's port ${scrollbars.scrollbarTakesSpace ? "gives up the scrollbar's width on both edges" : "keeps the scroller's whole width"}`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await routeRoom(page, corpus, WIDE.width, "absent");
+      await mountRoom(mount);
+      await restingTracks(page, "absent");
+      const port = await page.locator('[data-slot="message-list-scroll"]').evaluate((scroller) => {
+        const box = scroller.getBoundingClientRect();
+        const rows = scroller.querySelector('[data-slot="message-list-viewport"]')?.getBoundingClientRect();
+        return {
+          gutter: box.width - scroller.clientWidth,
+          start: (rows?.left ?? Number.NaN) - box.left,
+          end: box.right - (rows?.right ?? Number.NaN),
+        };
+      });
+      expect(port.gutter > 0, "whether the thread's scrollbar takes space").toBe(scrollbars.scrollbarTakesSpace);
+      // The port gives up what the scrollbar takes, and in equal halves, so the rows centre where the composer does.
+      expect(port.start + port.end).toBeCloseTo(port.gutter, 0);
+      expect(Math.abs(port.start - port.end)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    });
+
+    it("a short thread that outgrows its port and shrinks back keeps the rows on the composer's axis on every frame and publishes the gutter it gives up", async ({
+      corpus,
+      mount,
+      page,
+    }) => {
+      await routeRoom(page, corpus, WIDE_REM20.width, "absent");
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: shortRoomId });
+      await restingTracks(page, "absent");
+      await startThreadSampler(page);
+      await waitForThreadOverflow(page, false);
+      const [short] = await readThreadFrames(page);
+      expect(short?.overflows, "the thread starts inside its port, so the growth below is its first overflow").toBe(false);
+      expect.soft((short?.gutter ?? 0) > 0, "the gutter is reserved before the thread first overflows").toBe(scrollbars.scrollbarTakesSpace);
+      {
+        // Twice the engine's text size grows the rows past the port and keeps the desktop shell at this width.
+        await using _text = await setPlatformTextSize(page, 2);
+        await waitForThreadOverflow(page, true);
+      }
+      await waitForThreadOverflow(page, false);
+      // The port shrinking under the rows is the other way into overflow, and a zoom's way of changing the scrollbar.
+      await page.setViewportSize({ width: WIDE_REM20.width, height: SHORT_PORT_HEIGHT });
+      await waitForThreadOverflow(page, true);
+      await page.setViewportSize(WIDE_REM20);
+      await waitForThreadOverflow(page, false);
+      const frames = await readThreadFrames(page);
+      expect(new Set(frames.map((frame) => frame.overflows)), "the frames cover the thread in and out of overflow").toStrictEqual(new Set([true, false]));
+      expect(
+        frames.filter((frame) => Math.abs(frame.chat - frame.composer) > LAYOUT_SUBPIXEL_PX),
+        "frames off the composer's axis",
+      ).toStrictEqual([]);
+      expect(
+        frames.filter((frame) => frame.property !== (frame.gutter > 0 ? `${String(frame.gutter)}px` : "")),
+        "frames whose published gutter is not the one the port gives up",
+      ).toStrictEqual([]);
+    });
+
+    for (const width of [1280, 1440]) {
+      for (const state of COLUMN_STATE_NAMES) {
+        it(`at ${String(width)} the rows and the composer share a middle with the column ${state}`, async ({ corpus, mount, page }) => {
+          await routeRoom(page, corpus, width, state);
+          await mountRoom(mount);
+          expect(axisGap(await restingTracks(page, state))).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+        });
+      }
+    }
+
+    it("the composer glides with the rows when the column leaves and joins, with no snap at either toggle", async ({ corpus, mount, page }) => {
+      await routeFlankRoom(page, corpus, "no-preference");
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await settleFlankRoom(page);
+      for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
+        const { before, after, centres } = await toggleGlideSampled(page, leg);
+        expect(axisGap(before), "before").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+        expect(axisGap(after), "after").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+        // Every point of the glide has the two tracks on one axis.
+        expect(centres.filter((point) => Math.abs(point.chat - point.composer) > LAYOUT_SUBPIXEL_PX)).toStrictEqual([]);
+        const travel = centreOf(after.composer) - centreOf(before.composer);
+        expect(Math.abs(travel), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(REAL_TRACK / 2);
+        const [first, middle, last] = centres;
+        // The composer starts where it stood, is still on its way at the middle of the glide, and ends where the room puts it.
+        const travelled = (centre: number | undefined): number => Math.abs((centre ?? Number.NaN) - centreOf(before.composer));
+        expect(travelled(first?.composer), "the glide's first instant").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+        expect(travelled(middle?.composer), "the glide's middle moved").toBeGreaterThan(LAYOUT_SUBPIXEL_PX);
+        expect(travelled(middle?.composer), "the glide's middle has not arrived").toBeLessThan(Math.abs(travel) - LAYOUT_SUBPIXEL_PX);
+        expect(Math.abs((last?.composer ?? Number.NaN) - centreOf(after.composer)), "the glide's last instant").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      }
+    });
+
+    it("with motion off the composer and the rows still move together, and no flip runs", async ({ corpus, mount, page }) => {
+      await routeFlankRoom(page, corpus, "reduce");
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+      await settleFlankRoom(page);
+      for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
+        const { before, after, frames } = await toggleRecorded(page, leg);
+        expect(axisGap(before), "before").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+        expect(axisGap(after), "after").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+        expect(frames.filter((frame) => Math.abs(frame.chat - frame.composer) > LAYOUT_SUBPIXEL_PX)).toStrictEqual([]);
+        expect(Math.abs(centreOf(after.composer) - centreOf(before.composer)), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(
+          REAL_TRACK / 2,
+        );
+        expect(nonEmpty(frames).some((frame) => frame.flipping)).toBe(false);
+      }
+    });
+  });
+}
+
+roomMotionCases(test, SCROLLBAR_REGIMES.default);
+roomMotionCases(classicScrollbarTest, SCROLLBAR_REGIMES.classic);

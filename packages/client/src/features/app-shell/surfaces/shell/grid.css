@@ -101,8 +101,8 @@
     --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track));
     /* The room surface pads its content box on both inline sides with the held block inset (`chat-room-surface`,
      * `paddingInline="block"`), and the centred carriers sit in that box: its width, not the content track's, is what
-     * their auto margins split. motion.css applies each carrier's own cap; app-shell-motion.ct.tsx holds the padding
-     * and this inset together. */
+     * their auto margins split. motion.css applies each carrier's own cap, and takes the transcript scroller's gutters off
+     * the rows' share, because only the scroller knows them; app-shell-motion.ct.tsx holds the padding and this inset together. */
     --shell-room-inset: var(--spacing-inset-block);
     --shell-room-track: calc(var(--shell-content-track) - 2 * var(--shell-room-inset));
     /* A child pinned to the list pane's end edge moves by the pane's own width change (the list track's), only
