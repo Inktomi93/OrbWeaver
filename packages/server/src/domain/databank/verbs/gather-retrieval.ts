@@ -7,13 +7,19 @@
 // chunk all return `null` — the same empty macro resolution as an op-absent deploy, so the assembled request
 // byte-equals the non-databank build. Scope resolves ONCE inside `search.documents` (the empty-allowlist
 // short-circuit does zero embed work on a bankless chat), so there is no pre-check here.
+//
+// D352: this verb is the one home that turns document names and chunks into slot text, and the slot is
+// macro-evaluated. A document the turn's host does not own (a member's global document, or any whose row is gone)
+// is rendered through `neutralizeMacros`, the plugin lore path's function, so its text reaches the prompt literally.
 
 import type { DocumentChunkHit } from "@orb/contracts/search";
 import type { DocumentId } from "@orb/kit/ids";
+import { neutralizeMacros } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { DatabankGatherParams } from "../contract/params.ts";
 import type { DatabankGatherResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
+import { filterOwnedDocumentIds } from "../persistence/queries.ts";
 
 /** Fit + render in ONE reading-order pass (§3 + §6). Renders per §3 — within a document chunks joined `\n`,
  *  documents separated `\n\n`, each block headed by `# {documentName}` — while charging each chunk's
@@ -55,7 +61,12 @@ export function createGatherRetrieval(ctx: DatabankContext): DatabankService["ga
     if (hits.length === 0) {
       return null;
     }
-    const text = fitAndRender(hits, params.tokenBudget);
+    // D352 (see the header): only the host's own documents keep macro power in the slot.
+    const hostOwned = new Set(await filterOwnedDocumentIds(ctx.db, params.hostUserId, [...new Set(hits.map((hit) => hit.documentId))]));
+    const rendered = hits.map((hit) =>
+      hostOwned.has(hit.documentId) ? hit : { ...hit, documentName: neutralizeMacros(hit.documentName), content: neutralizeMacros(hit.content) },
+    );
+    const text = fitAndRender(rendered, params.tokenBudget);
     if (text.length === 0) {
       return null; // the budget could not seat even the best chunk — a no-op, byte-identical to absent.
     }

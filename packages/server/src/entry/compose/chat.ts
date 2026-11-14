@@ -84,6 +84,7 @@ import {
   loadPresentHostUserId,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
+import { createDetachHandoffDocuments } from "#domain/databank";
 import { createResolveOwnedDistillates } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
 import { createHandoffRestampStatements, createMemoryEmbeddingOps } from "#domain/embeddings";
@@ -487,6 +488,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     countHandoffRegexScripts: createCountHandoffRegexScripts(input.db),
     detachHandoffBooks: createDetachHandoffBooks(input.db),
     detachHandoffRegexScripts: createDetachHandoffRegexScripts(input.db),
+    detachHandoffDocuments: createDetachHandoffDocuments(input.db),
     restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
     ...characterProjections,
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),

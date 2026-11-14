@@ -13,7 +13,7 @@
 // `search()` are both BUILT (databank graduated D91).
 
 import type { LoadAssetBytes, StoredAsset } from "@orb/contracts/assets";
-import type { RequireHostOp, RequireParticipantOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { RequireHostOp, RequireParticipantOp, ResolveChatHostOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type {
   ActiveChatDocumentView,
   BankHealthView,
@@ -37,7 +37,7 @@ import type {
   PurgeDocumentVectorsOp,
   StoreResult,
 } from "@orb/contracts/embeddings";
-import type { ExtractTextOp } from "@orb/contracts/extraction";
+import type { ExtractorVersions, ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal, ResolveUserEnabled } from "@orb/contracts/identity";
 import type { SearchDocumentsOp } from "@orb/contracts/search";
 import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
@@ -85,10 +85,6 @@ type EnqueueIngestOp = (args: { documentId: DocumentId; ownerId: UserId }) => Pr
 
 /** Enqueue a `databank-reindex` workload (the panel/verb-driven derived-layer maintenance). */
 type EnqueueReindexOp = (args: { ownerId: UserId; scope: ReindexScope; mode: ReindexMode }) => Promise<{ readonly workloadId: WorkloadId }>;
-
-/** The chat's PRESENT host (chat's own read), or `null` for a hostless room. Databank reads neither the roster
- *  nor `chats`, so the panel's host/member branch asks chat. */
-type ResolveChatHostOp = (chatId: ChatId) => Promise<UserId | null>;
 
 /** The active embed space tag the chunk-store arm tags rows with — PER OWNER (the owner's `embed` binding
  *  defines it and its width, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed
@@ -179,8 +175,9 @@ export interface DatabankContext {
    *  (verbs/list.ts states the declared limit and its escalation path). */
   readonly chunkCountsByOwner: CountDocumentChunksByOwnerOp;
   readonly extractText: ExtractTextOp;
-  /** The current `infra/extraction` EXTRACTOR_VERSION — the re-extract-on-upgrade selection predicate. */
-  readonly extractorVersion: string;
+  /** The current `infra/extraction` version of each format — the re-extract-on-upgrade selection predicate
+   *  compares a document's stamp with its own format's entry. */
+  readonly extractorVersions: ExtractorVersions;
   /** The web-document fetch (DB7 scrapeWeb) — the ANY_HOST safeFetch guard, allowlist + cap compose-bound.
    *  THROWS on any refusal or fetch failure; the verb collapses that to a leak-free `ScrapeFailedError` without
    *  branching on why it failed (it asks infra only whether the firewall already recorded the block, so one refusal
