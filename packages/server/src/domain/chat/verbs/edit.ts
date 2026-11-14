@@ -45,8 +45,8 @@ import { batchMany } from "@orb/db/query";
 import { assetIdsInContent, stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, RandomSource } from "@orb/kit/macro";
-import type { RegexPlacement } from "@orb/kit/regex";
-import { executeRegexScripts } from "@orb/kit/regex";
+import type { RegexTarget } from "@orb/kit/regex";
+import { executeRegexScripts, messageTargetOf } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
@@ -232,13 +232,10 @@ async function purifyEditedContent(
   return stripSelfSpeakerLabel(args.content, card?.name ?? "");
 }
 
-/** The receive-tier placement an edited slot's role re-runs: an assistant edit re-applies AI_OUTPUT, a user
- *  edit USER_INPUT. A system slot has no edit-tier leg. */
-function editPlacementFor(role: MessageView["role"]): RegexPlacement | null {
-  if (role === "assistant") {
-    return "AI_OUTPUT";
-  }
-  return role === "user" ? "USER_INPUT" : null;
+/** The target an edited slot's save pass re-runs, its role's (`messageTargetOf`). A system slot has none: no
+ *  save pass wrote it, so an edit re-applies nothing to it. */
+function editTargetFor(role: MessageView["role"]): RegexTarget | null {
+  return role === "system" ? null : messageTargetOf({ role });
 }
 
 /**
@@ -267,8 +264,8 @@ async function applyRunOnEditRegex(
     readonly timeZone: IanaTimeZone | undefined;
   },
 ): Promise<string> {
-  const placement = editPlacementFor(args.slot.role);
-  if (placement === null) {
+  const target = editTargetFor(args.slot.role);
+  if (target === null) {
     return args.content;
   }
   // A hostless room, or a disabled host standing as a departed one: a member's edit runs none of that host's
@@ -316,11 +313,12 @@ async function applyRunOnEditRegex(
   return executeRegexScripts({
     text: args.content,
     scripts,
-    placement,
+    // An edit is the save pass with `edit` set: only a script that asked to run on edits runs.
+    call: { pass: "save", target, edit: true },
     ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId, random: deps.prng }),
     applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
-      getLog(ctx.logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
+      getLog(ctx.logger).warn({ err, target, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
   });
 }
 

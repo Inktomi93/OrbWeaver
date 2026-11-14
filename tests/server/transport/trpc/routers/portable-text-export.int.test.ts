@@ -20,7 +20,7 @@ test("persona download wrapper retains native backup contents and cannot export 
 
 test("regex download wrapper round-trips the script's actual native format without widening export authority", async ({ ownerCaller, otherCaller }) => {
   const script = await ownerCaller.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "Owned script", findRegex: "needle", replaceString: "replacement", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "Owned script", findRegex: "needle", replaceString: "replacement", targets: [], passes: [] }),
   });
   await expect(otherCaller.regex.exportScript({ scriptId: script.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   const file = portableTextFileSchema.parse(await ownerCaller.regex.exportScript({ scriptId: script.id }));

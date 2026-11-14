@@ -22,7 +22,7 @@ function humanRow(authorUserId: UserId): RegexRowStamps {
 const CHARACTER_ROW: RegexRowStamps = { role: "assistant", kind: "standard", authorUserId: null, characterId: NARRATOR, personaId: null };
 
 function room(entries: readonly (readonly [UserId, ParticipantRole])[]): RoomStanding {
-  return { seatedRoles: new Map(entries) };
+  return { seatedRoles: Object.fromEntries(entries) };
 }
 
 function onDisplay(authors: RegexAuthorScope | undefined, row: RegexRowStamps, seats: RoomStanding): string {

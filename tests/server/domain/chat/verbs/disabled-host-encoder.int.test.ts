@@ -7,7 +7,6 @@ import type { Principal } from "@orb/contracts/identity";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
-import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -127,16 +126,15 @@ test("a member's context-fit read spends nothing on a disabled host's encoder, a
 test("a member's edit runs none of a disabled host's scripts and embeds nothing, and both return once re-enabled", async () => {
   await using room = await disabledHostRoom();
   const { root, host, member, chatId, embeds } = room;
-  const placement = ["USER_INPUT"] as const;
   const script = await seedRegexScript(root, {
     principal: host,
     input: createRegexScriptSchema.parse({
       name: "lamp to lantern",
       findRegex: "lamp",
       replaceString: "lantern",
-      placement,
+      targets: ["USER_INPUT"],
+      passes: ["save"],
       runOnEdit: true,
-      ...deriveRegexTierFlags(placement),
     }),
   });
   await seedGlobalRegexScript(root, { principal: host, scriptId: script.id });

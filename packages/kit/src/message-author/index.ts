@@ -37,15 +37,19 @@ export function participantOf(row: RowAttribution): ParticipantKind | null {
   return row.characterId === null ? null : "character";
 }
 
-/** The room's present human seats and the authority each holds, read when a pass runs. */
+/** The room's present human seats and the authority each holds, read when a pass runs. A plain record so the
+ *  serializable assembled context can carry it; a user with no entry holds no seat. */
 export interface RoomStanding {
-  readonly seatedRoles: ReadonlyMap<UserId, ParticipantRole>;
+  readonly seatedRoles: Readonly<Partial<Record<UserId, ParticipantRole>>>;
 }
+
+/** A room standing with no seat, for a build that knows none. */
+export const NO_SEATS: RoomStanding = { seatedRoles: {} };
 
 /**
  * The room standing of a row's author, against the room as it is now: a host handoff makes the former host's rows a
  * member's. Null for a row no seated human wrote: a character's row, and a row by a human who has left the room.
  */
 export function standingOf(row: Pick<RowAttribution, "authorUserId">, room: RoomStanding): ParticipantRole | null {
-  return row.authorUserId === null ? null : (room.seatedRoles.get(row.authorUserId) ?? null);
+  return row.authorUserId === null ? null : (room.seatedRoles[row.authorUserId] ?? null);
 }

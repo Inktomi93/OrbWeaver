@@ -49,6 +49,7 @@ import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, supportsM
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
+import { NO_SEATS } from "@orb/kit/message-author";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
@@ -474,9 +475,11 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
     applyReplace: args.applyRegexReplace,
     onScriptFailure: (scriptErr, script) =>
       getLog(args.logger).warn(
-        { err: scriptErr, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
+        { err: scriptErr, pass: "prompt", findRegex: script.findRegex },
         "chat: host-tier regex script failed on the prompt-history leg — evicted for this build (D53 watchdog)",
       ),
+    room: ctx.hostTierRegexRoom ?? NO_SEATS,
+    continuing: args.kind === "continue",
   };
 }
 
@@ -487,7 +490,7 @@ function applyReceiveTransforms(
   reduced: { content: string; reasoning: string | null },
   args: RunTurnPipelineArgs,
   // THE ROUND'S SHAPED CTX, not `args.assembleContext` — the identity a host regex script's `{{char}}`
-  // resolves against. `PROMPT_HISTORY` (see `promptHistoryEnv`) has always used the shaped ctx, so a script
+  // resolves against. The prompt pass (see `promptHistoryEnv`) has always used the shaped ctx, so a script
   // library that spelled `{{char}}` got the SPEAKING character on the prompt leg and the room's PRIMARY on
   // the reply leg: on a merged round voiced by Bran, one turn's `{{char}}` meant Bran going out and Aria
   // coming back. Both legs transform ONE round, the round's speaker is available to both, and the receive
@@ -528,11 +531,11 @@ function applyReceiveTransforms(
     content = executeRegexScripts({
       text: content,
       scripts,
-      placement: "AI_OUTPUT",
+      call: { pass: "save", target: "AI_OUTPUT", edit: false },
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
       onScriptFailure: (scriptErr, script) =>
-        getLog(args.logger).warn({ err: scriptErr, placement: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+        getLog(args.logger).warn({ err: scriptErr, target: "AI_OUTPUT", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
     });
   }
 
@@ -543,11 +546,11 @@ function applyReceiveTransforms(
     reasoning = executeRegexScripts({
       text: reasoning,
       scripts,
-      placement: "REASONING",
+      call: { pass: "save", target: "REASONING", edit: false },
       ctx: macroCtx,
       applyReplace: args.applyRegexReplace,
       onScriptFailure: (scriptErr, script) =>
-        getLog(args.logger).warn({ err: scriptErr, placement: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
+        getLog(args.logger).warn({ err: scriptErr, target: "REASONING", findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)"),
     });
   }
 
