@@ -205,6 +205,9 @@ export const CHAT_TRANSCRIPT_NAME = "Conversation messages";
 /** The Preview tab's diagnostics drawer: the build and shape traces under the budget instrument. */
 export const CHAT_PREVIEW_DIAGNOSTICS_LABEL = "Diagnostics";
 
+/** The notice a reader gets when their own delete of a chat fails; they stay on the chat. */
+export const CHAT_DELETE_FAILED_TITLE = "Couldn't delete the chat.";
+
 /** The notice a reader gets when the open room is deleted under unsent work: what happened, what became of it, and the copy that keeps the text.
  *  Only the text can be kept: the draft entry is text, and a staged file lives in the composer that goes with the room. */
 export const CHAT_GONE_DRAFT_NOTICE = {
