@@ -30,6 +30,10 @@ import { veiledFieldLine, veiledReasonLabel, veiledTruthLabel } from "../lib/rpg
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 
+// The first-open box before this device has measured the ledger: one standing lie's card and the closed hidden log, which measure 170 px on a
+// desktop pane, with room for a wrapped line. A ledger with more lies is taller and settles into the measured box from the second open.
+const RPG_VEILED_LEDGER_FIRST_OPEN_PX = 184;
+
 /** The gate's accessible subject: the character, plus the lie's place among theirs when they hold several, so
  *  every Reveal on the ledger has its own name without speaking the truth it hides. */
 function truthSubject(character: string, index: number, count: number): string {
@@ -162,11 +166,14 @@ export function RpgVeiledSection({ chatId }: RpgVeiledSectionProps): ReactElemen
     // RESERVED (#1098) — the purest case in the sweep, and the `rpg-hud-band` precedent: with
     // `fallback={null}` this section is literally ABSENT while the reveal read is in flight, so the
     // participants above it and everything below shift by the ledger's whole height when it lands. The
-    // remembered box holds that space open; nothing is painted into it, which is the point.
+    // remembered box holds that space open; nothing is painted into it, which is the point. Before this
+    // device has measured the ledger the declared estimate holds it, over-reserved on purpose: a box that
+    // shrinks when the read lands beats one that pushes the rows beneath it (the `rpg-hud-band` ruling).
     <QueryBoundary
       resetKeys={[chatId]}
       fallback={null}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the veiled ledger" onRetry={retry} />}
+      reserveBlock={RPG_VEILED_LEDGER_FIRST_OPEN_PX}
       reserveKey="rpg.veiledLedger"
     >
       <VeiledLedger chatId={chatId} />
