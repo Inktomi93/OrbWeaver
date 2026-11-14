@@ -1,6 +1,7 @@
 // The host's strike on a remembered item, through the composed root: a strike leaves the item out of the next turn's
 // prompt and restoring it brings it back; only the host strikes; a strike outlives the scene being summarized again;
-// a longer summary retelling a struck scene leaves with it; and a member's view stops at their history floor.
+// a longer summary retelling a struck scene leaves with it; a solo room's strike holds once a second character is
+// seated; a member's view stops at their history floor; and an empty view says why it is empty.
 // Digests come from the production memory build; only the provider edges are scripted (`recall-world.ts`).
 // @subject packages/server/src/domain/chat/verbs/memory-strikes.ts
 // @subject packages/server/src/domain/chat/memory/recall/recall.ts
