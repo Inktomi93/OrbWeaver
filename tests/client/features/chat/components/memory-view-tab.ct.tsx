@@ -29,8 +29,6 @@ import {
   MEMORY_TURN_ON_LABEL,
   MEMORY_VIEW_LOAD_SUBJECT,
   memoryRestoreName,
-  memoryScopedRemembersLabel,
-  memorySpeakersLabel,
   memoryStrikeName,
 } from "#client/features/chat/lib/memory-view-copy.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
@@ -44,6 +42,7 @@ const RETOLD = "It was told again.";
 const PROCEDURES = [
   "sessions.me",
   "settings.getUserSettings",
+  "chat.getChat",
   "connection.list",
   "connection.listBindings",
   "chat.strikeMemory",
@@ -141,21 +140,18 @@ async function editScene(h: ChatRoot, scene: number): Promise<void> {
 
 interface Served {
   readonly viewer: Caller;
-  /** What the client believes; a forced call is the client offering a host control the server refuses. */
-  readonly asHost: boolean;
   /** Fails or holds the view's own read. */
   readonly intercept?: () => ReturnType<typeof trpcError> | undefined;
 }
 
-/** Serve the tab's reads and writes as `viewer` and return the story's props. */
+/** Serve the tab's reads and writes as `viewer`; the story takes the host verdict from the viewer's own room read. */
 async function serveTab(h: ChatRoot, page: Page, served: Served): Promise<Parameters<typeof MemoryViewTabStory>[0]> {
   await routeAuthConfig(page, await (await h.root.http.request("/api/auth/config")).text());
   await routeTrpc(page, {
     ...serveCorpusProcedures(served.viewer, PROCEDURES),
     ...serveCorpusProcedures(served.viewer, ["chat.memoryView"], served.intercept),
   });
-  const { participants } = await h.caller.chat.getChat({ chatId: h.chatId });
-  return { chatId: h.chatId, isHost: served.asHost, participants };
+  return { chatId: h.chatId };
 }
 
 function rowsOf(page: Page): Locator {
@@ -176,7 +172,7 @@ test("each listed item shows its anchor, text, keywords and speakers, and says w
   // The control on the premise: the room holds both the group's shared summaries and a character's own.
   expect(view.items.some((item) => item.bucket === "shared")).toBe(true);
   const scoped = nonEmpty(view.items.filter((item) => item.bucket === "scoped"));
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller, asHost: true }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
 
   await expect(rowsOf(page)).toHaveCount(view.items.length);
   for (const item of view.items) {
@@ -185,14 +181,17 @@ test("each listed item shows its anchor, text, keywords and speakers, and says w
     for (const keyword of item.keywords) {
       await expect(row).toContainText(keyword);
     }
-    const speakers = item.speakers.map((id) => present(h.characters.find((character) => character.id === id)).name);
-    await expect(row).toContainText(memorySpeakersLabel(nonEmpty(speakers)));
+    for (const id of nonEmpty(item.speakers)) {
+      await expect(row).toContainText(present(h.characters.find((character) => character.id === id)).name);
+    }
   }
-  // A character's own summary names that character, from the roster, as the one who remembers it.
-  for (const item of scoped) {
-    const owner = present(h.characters.find((character) => character.id === item.key.scopedCharacterId));
-    await expect(rowFor(page, item).filter({ hasText: memoryScopedRemembersLabel(owner.name) })).toHaveCount(1);
+  // A character's own summary names that character from the roster: each name shows on every scoped row it owns or
+  // speaks in, and on no other scoped row.
+  for (const character of h.characters) {
+    const named = scoped.filter((item) => item.key.scopedCharacterId === character.id || item.speakers.includes(character.id));
+    await expect(page.locator('[data-memory-status="ready"] > [data-memory-bucket="scoped"]').filter({ hasText: character.name })).toHaveCount(named.length);
   }
+  expect(scoped.some((item) => !item.speakers.includes(item.key.scopedCharacterId))).toBe(true);
 });
 
 type OffStatus = Extract<MemoryView["status"], { readonly kind: "off" }>;
@@ -237,7 +236,7 @@ for (const [key, room] of Object.entries(EMPTY_ROOMS)) {
     const viewer = await room.prepare(h);
     const { status } = await viewer.chat.memoryView({ chatId: h.chatId });
     expect(status.kind === "off" ? status.reason : status.kind).toBe(key);
-    await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer, asHost: viewer === h.caller }));
+    await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer }));
     await expect(page.locator(`[data-memory-status="${key}"]`)).toBeVisible();
     await expect(page.locator("[data-memory-status]")).toHaveCount(1);
     await expect(page.getByRole("listitem")).toHaveCount(0);
@@ -250,7 +249,7 @@ test("the host strikes an item, the row shows it struck with a restore, and rest
   await using h = await memoryRoom();
   const item = sceneItem(await h.caller.chat.memoryView({ chatId: h.chatId }), 1);
   const scene = present(item.topicAnchor);
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller, asHost: true }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
   const row = rowFor(page, item);
 
   await row.getByRole("button", { name: memoryStrikeName(scene), exact: true }).click();
@@ -273,32 +272,40 @@ test("a member sees the struck item and every other item with no strike or resto
   const view = await h.caller.chat.memoryView({ chatId: h.chatId });
   await h.caller.chat.strikeMemory({ chatId: h.chatId, item: sceneItem(view, 1).key });
   const member = await h.root.internalCallerFor((await invite(h)).userId);
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: member, asHost: false }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: member }));
 
   await expect(rowsOf(page)).toHaveCount(view.items.length);
   await expect(rowFor(page, sceneItem(view, 1))).toHaveAttribute("data-memory-strike", "struck");
   await expect(page.getByRole("button")).toHaveCount(0);
 });
 
-test("a strike the server refuses as not the host reads inline on its row, with no toast beside it", async ({ mount, page }) => {
+test("a strike by a host who handed the room off reads the refusal inline with no toast, and the controls go", async ({ mount, page }) => {
   await using h = await memoryRoom();
   const item = sceneItem(await h.caller.chat.memoryView({ chatId: h.chatId }), 1);
-  const member = await h.root.internalCallerFor((await invite(h)).userId);
-  // The client believes it is the host (a handoff it has not heard yet), so it offers the control the server refuses.
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: member, asHost: true }));
-  const row = rowFor(page, item);
+  const scene = present(item.topicAnchor);
+  const member = await invite(h);
+  // The new host's own switch runs the room's memory, so the list stays after the handoff.
+  await (await h.root.internalCallerFor(member.userId)).settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
+  // Found by its text alone: the handoff moves which bucket the room shares, so the row's bucket can change under it.
+  const row = rowsOf(page).filter({ hasText: item.text });
+  await expect(row.getByRole("button", { name: memoryStrikeName(scene), exact: true })).toBeVisible();
+  // The handoff lands while the tab is open, with no bus to tell it.
+  await h.root.services.chat.nominateHostHandoff({ principal: h.owner, chatId: h.chatId, userId: member.userId });
+  await h.root.services.chat.acceptHostHandoff({ principal: member, chatId: h.chatId });
 
-  await row.getByRole("button", { name: memoryStrikeName(present(item.topicAnchor)), exact: true }).click();
+  await row.getByRole("button", { name: memoryStrikeName(scene), exact: true }).click();
   await expect(row.getByRole("alert")).toHaveAttribute("data-refusal", "not-host");
   await expect(page.getByRole("alert")).toHaveCount(1);
+  await expect(page.getByRole("button")).toHaveCount(0);
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
-  expect(sceneItem(await h.caller.chat.memoryView({ chatId: h.chatId }), 1).strike).toBeNull();
+  expect(nonEmpty((await h.caller.chat.memoryView({ chatId: h.chatId })).items).every((listed) => listed.strike === null)).toBe(true);
 });
 
 test("a strike on a scene summarized again since the list was read is refused as changed and the row shows the new summary", async ({ mount, page }) => {
   await using h = await memoryRoom();
   const before = sceneItem(await h.caller.chat.memoryView({ chatId: h.chatId }), 1);
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller, asHost: true }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
   await expect(rowFor(page, before)).toBeVisible();
   await editScene(h, 2);
   await h.rebuild();
@@ -325,7 +332,7 @@ test("a struck scene summarized again carries the changed mark, and the copies l
   const retelling = nonEmpty(listed.items.filter((item) => item.retellsStruck));
   // The control on the premise: the carried strike reads as changed.
   expect(carrier.strike?.changedSinceStrike).toBe(true);
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller, asHost: true }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
 
   const carried = rowFor(page, carrier);
   await expect(carried).toHaveAttribute("data-memory-strike", "struck");
@@ -352,7 +359,7 @@ async function unmatchedRoom(): Promise<ChatRoot & { readonly rebuild: () => Pro
 test("the host restores a strike that names nothing stored from the unmatched list", async ({ mount, page }) => {
   await using h = await unmatchedRoom();
   const strike = present((await h.caller.chat.memoryView({ chatId: h.chatId })).unmatchedStrikes[0]);
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller, asHost: true }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
   const unmatched = page.locator('[data-memory-unmatched="true"] > [role="listitem"]');
 
   await expect(unmatched).toHaveCount(1);
@@ -365,7 +372,7 @@ test("the host restores a strike that names nothing stored from the unmatched li
 test("a member sees the unmatched list without a restore", async ({ mount, page }) => {
   await using h = await unmatchedRoom();
   const member = await h.root.internalCallerFor((await invite(h)).userId);
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: member, asHost: false }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: member }));
 
   await expect(page.locator('[data-memory-unmatched="true"] > [role="listitem"]')).toHaveCount(1);
   await expect(page.getByRole("button")).toHaveCount(0);
@@ -376,7 +383,7 @@ test("the host's recall detail marks the struck scene's rows as struck", async (
   await h.caller.chat.strikeMemory({ chatId: h.chatId, item: sceneItem(await h.caller.chat.memoryView({ chatId: h.chatId }), 1).key });
   const recall = present((await h.caller.chat.previewAssembly({ chatId: h.chatId, timeZone: "UTC" })).trace.memoryRecall);
   const struck = nonEmpty(recall.candidates.filter((candidate) => candidate.verdict === "struck"));
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller, asHost: true }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
 
   await page.getByRole("button", { name: MEMORY_RECALL_DETAIL_HEADING, exact: true }).click();
   await expect(page.locator('[data-slot="memory-recall-candidate"][data-verdict="struck"]')).toHaveCount(struck.length);
@@ -388,7 +395,7 @@ test("a view that fails to load offers a retry that lists the items", async ({ m
   const view = await h.caller.chat.memoryView({ chatId: h.chatId });
   let failing = true;
   const intercept = (): ReturnType<typeof trpcError> | undefined => (failing ? trpcError() : undefined);
-  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller, asHost: true, intercept }));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller, intercept }));
 
   await expect(page.getByText(queryFailedLabel(MEMORY_VIEW_LOAD_SUBJECT), { exact: true })).toBeVisible();
   await expect(rowsOf(page)).toHaveCount(0);

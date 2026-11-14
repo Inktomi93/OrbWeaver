@@ -117,7 +117,15 @@ function MemoryViewBody({ chatId, isHost, participants }: MemoryViewTabProps): R
 
   const run = (at: string, write: () => Promise<unknown>): void => {
     setRefusal(null);
-    write().catch((error: unknown) => setRefusal({ at, kind: refusalKindOf(error) }));
+    write().catch((error: unknown) => {
+      const kind = refusalKindOf(error);
+      setRefusal({ at, kind });
+      // The controls follow the room read's host verdict; a host who lost the seat re-reads it so they go now, not
+      // when a missed handoff event would have moved them.
+      if (kind === "not-host") {
+        invalidation.invalidateFilters([trpc.chat.getChat.queryFilter({ chatId })]);
+      }
+    });
   };
   const controls: RowControls | null = isHost
     ? {
