@@ -10,6 +10,7 @@
 import {
   effectivePresetSchema,
   presetDetailSchema,
+  presetFilePreviewSchema,
   presetIdInputSchema,
   presetImportOutcomeSchema,
   presetSummarySchema,
@@ -26,6 +27,9 @@ import { authedProcedure, t } from "../trpc.ts";
  *  the schema's own per-field caps (100k-char section bodies × 500 sections is the real ceiling), and a bound
  *  the untrusted-input boundary needs so a hostile paste can't stream unbounded text at the parser. */
 const MAX_PRESET_FILE_CHARS = 8_000_000;
+// A file name is a picked file's own name, which every desktop file system caps at 255.
+const MAX_PRESET_FILE_NAME_CHARS = 255;
+const presetFileInputSchema = z.strictObject({ fileText: z.string().max(MAX_PRESET_FILE_CHARS), fileName: z.string().max(MAX_PRESET_FILE_NAME_CHARS) });
 
 export const presetRouter = t.router({
   create: authedProcedure
@@ -110,9 +114,14 @@ export const presetRouter = t.router({
     .query(({ ctx, input }) => ctx.services.preset.listUsage({ principal: ctx.auth, id: input.id })),
 
   // The single-preset import door (G6) — a batch of one through the ONE `ImportPresets` op the profile bundle uses,
-  // so the merge/collision semantics are the bundle's by construction. The file is UTF-8 JSON text.
+  // so the merge/collision semantics are the bundle's by construction. The file is UTF-8 JSON text. The preview is a
+  // mutation only because the file is too large for a query's URL; it writes nothing.
+  previewFile: authedProcedure
+    .output(presetFilePreviewSchema)
+    .input(presetFileInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.preset.previewFile({ userId: ctx.auth.userId, ...input })),
   importFile: authedProcedure
     .output(presetImportOutcomeSchema)
-    .input(z.strictObject({ fileText: z.string().max(MAX_PRESET_FILE_CHARS) }))
-    .mutation(({ ctx, input }) => ctx.services.preset.importFile({ userId: ctx.auth.userId, fileText: input.fileText })),
+    .input(presetFileInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.preset.importFile({ userId: ctx.auth.userId, ...input })),
 });

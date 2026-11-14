@@ -3,6 +3,7 @@
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { portableImportOutcomeSchema } from "#portability";
+import { importTextSchema } from "../import/preview.ts";
 
 /** ok:false + error for a malformed upload; created:false when the file content-matched an owned preset
  *  and that row was reused. `name` is the name the preset landed under; `renamedFrom` is the file's own
@@ -13,7 +14,35 @@ export const presetImportOutcomeSchema = z.discriminatedUnion("ok", [
     presetId: typeIdSchema(ID_PREFIX.preset).exactOptional(),
     name: z.string().exactOptional(),
     renamedFrom: z.string().nullable().exactOptional(),
+    /** The scripts a SillyTavern preset carried, attached to the preset: new library rows and equal ones reused. */
+    regexScripts: z.strictObject({ created: z.int().nonnegative(), reused: z.int().nonnegative() }).exactOptional(),
   }),
-  refused.omit({ notes: true }).extend({ presetId: z.never().exactOptional(), name: z.never().exactOptional(), renamedFrom: z.never().exactOptional() }),
+  refused.omit({ notes: true }).extend({
+    presetId: z.never().exactOptional(),
+    name: z.never().exactOptional(),
+    renamedFrom: z.never().exactOptional(),
+    regexScripts: z.never().exactOptional(),
+  }),
 ]);
 export type PresetImportOutcome = z.output<typeof presetImportOutcomeSchema>;
+
+/** The two formats the Presets page's import reads, told apart by the file's envelope. */
+const PRESET_FILE_FORMATS = ["orbweaver", "sillyTavern"] as const;
+
+/** What importing one preset file does, from the run's own parse and a dry run of its write. `name` is the name the
+ *  file asks for, clipped; `inLibrary` says the run reuses an equal preset the owner holds. `leftOut` names each
+ *  field with no seat, a refused regex script by its position, and `regexScripts` counts the scripts the run
+ *  attaches to the preset. */
+export const presetFilePreviewSchema = z.discriminatedUnion("ok", [
+  z.strictObject({
+    ok: z.literal(true),
+    format: z.enum(PRESET_FILE_FORMATS),
+    name: importTextSchema,
+    inLibrary: z.boolean(),
+    sectionCount: z.int().nonnegative(),
+    leftOut: z.array(z.strictObject({ field: importTextSchema, reason: z.string() })).readonly(),
+    regexScripts: z.int().nonnegative(),
+  }),
+  z.strictObject({ ok: z.literal(false), error: z.string() }),
+]);
+export type PresetFilePreview = z.output<typeof presetFilePreviewSchema>;

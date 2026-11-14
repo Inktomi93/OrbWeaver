@@ -3072,7 +3072,7 @@ export interface StDroppedField {
   reason: string;
 }
 
-export interface StImportResult {
+interface StImportResult {
   config: PromptConfig;
   dropped: StDroppedField[];
   /** How many sections the import produced (markers + literals). */
@@ -3734,7 +3734,12 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
 }
 
 export type { CopyPresetToUser, ExportPresets, ImportPresets, PresetReadable } from "./owner-ops.ts";
-export { type PresetImportOutcome, presetImportOutcomeSchema } from "./portability.ts";
+export {
+  type PresetFilePreview,
+  type PresetImportOutcome,
+  presetFilePreviewSchema,
+  presetImportOutcomeSchema,
+} from "./portability.ts";
 
 // Wire outputs validate already-produced configuration; storage parsing retains its lenient degradation.
 export const userIntentViewSchema = userIntentSchema.extend({

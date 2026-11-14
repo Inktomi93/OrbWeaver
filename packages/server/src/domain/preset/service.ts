@@ -31,6 +31,6 @@ export function createPresetService(input: DbAssemblyInput<PresetContext>): Pres
     ...createListUsage(ctx),
     // The single-preset import DOOR over the bundle's own import verb (factory injection — the verb-isolation
     // wiring point), so both doors run one implementation.
-    ...createImportFile({ importPresets: createImportPresets(input) }),
+    ...createImportFile({ importPresets: createImportPresets(input), importPresetScripts: input.importPresetScripts, emitUserEvent: input.emitUserEvent }),
   };
 }
