@@ -51,7 +51,7 @@ export const useDetachRegexGlobal = createEntityMutation<inferInput<Trpc["regex"
 // ── The BULK arm (REGX2) ──────────────────────────────────────────────────────────────────────────────
 // One mutation per batch verb, `busDriven` like every sibling: each server verb emits ONE `regexChanged`
 // for the whole batch, so a 20-script gesture repaints the library once instead of twenty times. Every one
-// answers `{affected}` — the count the server actually changed, which is what the toast says.
+// answers `{affected}`, the count the server actually changed, which is what the toast says.
 
 /** The batch verbs' shared answer, DERIVED from the wire rather than re-spelled. NOT exported (the house
  *  shape for a client-feature derived type): a consumer re-derives it from the same proc. */
@@ -71,7 +71,8 @@ export const useBulkSetRegexGlobal = createEntityMutation<inferInput<Trpc["regex
   errorToast: "Couldn't change those scripts' global scope.",
 });
 
-export const useBulkSetRegexAxes = createEntityMutation<inferInput<Trpc["regex"]["bulkSetAxes"]>, RegexBulkOutcome>({
+// The axes verb also answers which scripts a when-saved result cleared, so it carries its own answer.
+export const useBulkSetRegexAxes = createEntityMutation<inferInput<Trpc["regex"]["bulkSetAxes"]>, inferOutput<Trpc["regex"]["bulkSetAxes"]>>({
   options: (trpc) => trpc.regex.bulkSetAxes.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't change what those scripts change or when.",

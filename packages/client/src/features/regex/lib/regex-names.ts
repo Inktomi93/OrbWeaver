@@ -20,6 +20,8 @@ export const REGEX_GROUP_LABEL = "Regex scripts";
 /** The collection's file import and bulk select doors. */
 export const REGEX_IMPORT_SCRIPT_NAME = "Import a regex script";
 export const REGEX_SELECT_SCRIPTS_NAME = "Select scripts";
+/** The bulk bar's verb that opens the axes picker for the selection. */
+export const REGEX_BULK_AXES_NAME = "Change what they change and when";
 
 /** The collection's create verb and the inline create form it opens. */
 export const REGEX_NEW_SCRIPT_NAME = "New script";

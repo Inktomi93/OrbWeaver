@@ -23,6 +23,8 @@ const SERVED = [
   "rosterPreset.get",
   "automation.listRulePresets",
   "regex.listGlobal",
+  // A display or prompt script's editor lists the owner's personas among the authors it can scope to.
+  "persona.list",
 ] as const;
 const MEMBERS = [
   { group: "regex", editor: '[data-slot="regex-member-editor"]' },

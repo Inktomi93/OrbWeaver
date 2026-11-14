@@ -67,10 +67,11 @@ async function memberRoom(
   return { chatId, host, viewer };
 }
 
-/** Serve the tab as one caller. */
-async function serveAs(root: Harness, page: Page, caller: Caller): Promise<void> {
+/** Serve the tab as one caller, and say whether that caller hosts the room as the room's own read does. */
+async function serveAs(root: Harness, page: Page, caller: Caller, chatId: ChatId): Promise<{ readonly chatId: ChatId; readonly isHost: boolean }> {
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
   await routeTrpc(page, serveCorpusProcedures(caller, TAB_PROCEDURES));
+  return { chatId, isHost: (await caller.chat.getChat({ chatId })).viewerIsHost };
 }
 
 /** One roster row, by its script's title. */
@@ -100,8 +101,7 @@ test("the host's roster lists a display script attached to the room and not one 
   await host.regex.createScript({ input: displayScript("Loose tint") });
   await host.regex.attachToChat({ chatId, scriptId: attached.id });
   await corpusMedia();
-  await serveAs(root, page, host);
-  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+  await mount<typeof ChatContextTabStory>(TAB_STORY, await serveAs(root, page, host, chatId));
   await page.getByRole("button", { name: /^Regex/u }).click();
 
   // The server's read is the oracle for what runs; the roster must draw exactly it.
@@ -118,8 +118,7 @@ test("a member whose host is not sharing sees only their own Everywhere scripts"
   const own = await viewer.regex.createScript({ input: displayScript("My tint") });
   await viewer.regex.attachGlobal({ scriptId: own.id });
   await corpusMedia();
-  await serveAs(root, page, viewer);
-  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+  await mount<typeof ChatContextTabStory>(TAB_STORY, await serveAs(root, page, viewer, chatId));
   await page.getByRole("button", { name: /^Regex/u }).click();
 
   const served = await viewer.regex.listDisplayScripts({ chatId });
@@ -138,8 +137,7 @@ test("a member whose host shares sees the room's scripts first, and only their o
   const own = await viewer.regex.createScript({ input: displayScript("My tint") });
   await viewer.regex.attachGlobal({ scriptId: own.id });
   await corpusMedia();
-  await serveAs(root, page, viewer);
-  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+  await mount<typeof ChatContextTabStory>(TAB_STORY, await serveAs(root, page, viewer, chatId));
   await page.getByRole("button", { name: /^Regex/u }).click();
 
   const titles = (await viewer.regex.listDisplayScripts({ chatId })).map((entry) => entry.script.name);

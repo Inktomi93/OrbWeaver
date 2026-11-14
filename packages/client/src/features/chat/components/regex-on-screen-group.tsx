@@ -11,8 +11,8 @@
 //
 // ONLY YOUR OWN ROWS CARRY A SWITCH. A row from the room is the host's library row for a member: you cannot flip
 // someone else's library flag, and a control that looked operable and was not is the affordance lie the sibling
-// racks exist to correct. Your own switched-off globals stay listed with the `Off` mark, so a flip here is
-// round-trippable: the server's list holds only enabled scripts.
+// racks exist to correct. The server's list holds only enabled scripts, so your own switched-off display scripts
+// are appended with the `Off` mark, each at the place it would run from: a flip here is reversible here.
 //
 // A STOPPED SCRIPT IS MARKED, NOT HIDDEN. The display pass stops a script that overruns its time on this device for
 // the rest of the session; its row keeps its place and says so, because a script silently missing from a list
@@ -41,9 +41,6 @@ import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 /** The config group the script library lives in — the `⋯ → Open in library` destination (#1725). */
 const REGEX_COLLECTION = "regex";
 
-/** The display pass, as the library rows spell it. */
-const DISPLAY_PASS = "display";
-
 /** A row's source word for the viewer's own scripts. */
 const YOURS = "yours";
 
@@ -53,9 +50,9 @@ const STOPPED_REASON = "It took too long to run on this device and is stopped un
 
 const NO_STOPPED: ReadonlySet<RegexScriptId> = new Set<RegexScriptId>();
 
-// The scripts the display pass stopped this session. It returns none until the display pass's stopped-script store
-// is exported; the hookup is the one `stopped` line in `RegexOnScreenGroup`, which then calls that store's hook for
-// `chatId`, and this function goes.
+// The scripts the display pass stopped this session. It returns none until `#data`'s `useStoppedDisplayScripts`
+// lands; the hookup is the one `stopped` line in `RegexOnScreenGroup`, which becomes a set of that hook's ids, and
+// this function goes.
 function stoppedDisplayScripts(_chatId: ChatId): ReadonlySet<RegexScriptId> {
   return NO_STOPPED;
 }
@@ -66,29 +63,20 @@ export interface RegexOnScreenGroupProps {
   /** The room's tier names the host's section already resolved (the preset's name above all). A member passes an
    *  empty map; seat names come from the roster either way. */
   readonly labels: ReadonlyMap<RegexTierKey, string>;
+  /** The viewer's own switched-off display scripts, at the place each would run from once switched back on: the
+   *  host's from the room's tiers (`regexSwitchedOffDisplay`), a member's from their globals. */
+  readonly switchedOff: readonly RegexDisplayEntry[];
 }
 
-/** One roster row: a script that runs, or one of the viewer's own switched-off globals. */
-interface OnScreenRow {
-  readonly script: RegexScriptRow;
-  /** Where it runs from, or null for a switched-off script that runs nowhere until it is turned back on. */
-  readonly from: RegexDisplaySource | null;
-}
-
-export function RegexOnScreenGroup({ chatId, isHost, labels }: RegexOnScreenGroupProps): ReactElement {
+export function RegexOnScreenGroup({ chatId, isHost, labels, switchedOff }: RegexOnScreenGroupProps): ReactElement {
   const trpc = useTRPC();
   const entries = useDisplayEntries(chatId);
-  // The viewer's own globals: the source of their switched-off rows (the viewer tier is their globals).
-  const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
   const { data: owned } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const { data: chat } = useSuspenseQuery(roomRosterOptions(trpc, { chatId }));
   const stopped = stoppedDisplayScripts(chatId);
   const ownedIds = new Set(owned.map((script) => script.id));
-  const names = withSeatNames(labels, entries, chat.participants);
-  const rows: readonly OnScreenRow[] = [
-    ...entries,
-    ...globals.filter((script) => !script.enabled && script.passes.includes(DISPLAY_PASS)).map((script) => ({ script, from: null })),
-  ];
+  const rows: readonly RegexDisplayEntry[] = [...entries, ...switchedOff];
+  const names = withSeatNames(labels, rows, chat.participants);
   // Two scripts can share a title, and a row's switch and menu then announce one name for two rows: the qualifier is resolved with the whole roster in hand.
   const qualifiers = rowQualifiers(
     rows.map((row) => ({ name: regexScriptTitle(row.script), at: row.script.updatedAt })),
@@ -151,10 +139,7 @@ function withSeatNames(
 }
 
 /** Whose script a row is and where it runs from. A member reads the room's tiers as the host's. */
-function sourceWords(from: RegexDisplaySource | null, isHost: boolean, names: ReadonlyMap<RegexTierKey, string>): string {
-  if (from === null) {
-    return `${YOURS} · off`;
-  }
+function sourceWords(from: RegexDisplaySource, isHost: boolean, names: ReadonlyMap<RegexTierKey, string>): string {
   if (from === REGEX_VIEWER_SOURCE) {
     return `${YOURS} · Everywhere`;
   }

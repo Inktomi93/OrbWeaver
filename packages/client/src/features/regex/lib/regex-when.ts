@@ -3,7 +3,7 @@
 // text and an ephemeral pass beside it would rewrite the copy a second time.
 //
 // AN UNREAD TARGET IS KEPT. A stored script may hold a target none of its passes reads (a migrated save-time script
-// with world info among its targets). It stays selected and is shown as not applying, with the reason, so its owner
+// with world info among its targets, or a prompt-only script over reasoning). It stays selected and is shown as not applying, with the reason, so its owner
 // can fix it by changing when it runs; nothing clears it on open or on save. Which pass reads which target is the
 // kit's `regexPassReadsTarget`, read through `#lib`'s `regexPassesRead`.
 
@@ -29,8 +29,19 @@ const WHEN_DESCRIPTIONS: Record<RegexWhenChoice, string> = {
   displayAndPrompt: "The stored message keeps the original words. In SillyTavern: both boxes ticked.",
 };
 
-/** Why a target is not read at a time. World info is the one target the kit leaves unread on some pass. */
-export const REGEX_WORLD_INFO_PROMPT_ONLY = "World info is only read when the prompt is built. It is never saved or shown.";
+/** Why the passes that leave a target unread leave it so. Which pairs are unread is the kit's; a target every pass
+ *  reads has no reason. */
+const UNREAD_REASONS: Record<RegexTarget, string | null> = {
+  ["USER_INPUT"]: null,
+  ["AI_OUTPUT"]: null,
+  ["WORLD_INFO"]: "World info is only read when the prompt is built. It is never saved or shown.",
+  ["REASONING"]: "The model's earlier reasoning is sent back exactly as the provider signed it, so a script cannot change it in the prompt.",
+};
+
+/** The reasons the given targets go unread, one sentence per target. */
+export function regexUnreadReasons(targets: readonly RegexTarget[]): string {
+  return targets.flatMap((target) => UNREAD_REASONS[target] ?? []).join(" ");
+}
 
 /** The passes a choice stores. */
 export function regexWhenPasses(choice: RegexWhenChoice): RegexPass[] {
@@ -51,7 +62,7 @@ export function regexUnreadTargetsNote(targets: readonly RegexTarget[], passes: 
     return null;
   }
   const names = unread.map((target) => REGEX_TARGET_LABELS[target]).join(", ");
-  return `${names}: selected, but this script does not change it at this time. ${REGEX_WORLD_INFO_PROMPT_ONLY} Change when it runs to one that includes the prompt.`;
+  return `${names}: selected, but this script does not change it at this time. ${regexUnreadReasons(unread)} Change when it runs for it to apply.`;
 }
 
 /**
@@ -67,7 +78,7 @@ export function regexWhenItems(
     return {
       value: choice,
       label: REGEX_WHEN_CHOICE_NAMES[choice],
-      description: reachesNone ? REGEX_WORLD_INFO_PROMPT_ONLY : WHEN_DESCRIPTIONS[choice],
+      description: reachesNone ? regexUnreadReasons(targets) : WHEN_DESCRIPTIONS[choice],
       disabled: reachesNone,
     };
   });

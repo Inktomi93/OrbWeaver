@@ -31,7 +31,8 @@
 // A member gets the rows and NO controls — the §8.1 permission-OMIT at row level, the Lorebooks rack's
 // shape — plus one line saying whose regex this is. Nothing about the host's library leaks.
 
-import type { RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
+import type { RegexDisplayEntry, RegexTierGroupView, RegexTierKey } from "@orb/contracts/chat";
+import { REGEX_VIEWER_SOURCE } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, RegexScriptId } from "@orb/kit/ids";
 import { REGEX_PASSES, REGEX_TARGETS } from "@orb/kit/regex";
@@ -46,7 +47,16 @@ import type { ReactElement, ReactNode } from "react";
 import { roomRosterOptions, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { REGEX_PASS_GLYPHS, REGEX_PASS_LABELS, REGEX_TARGET_GLYPHS, REGEX_TARGET_LABELS } from "#lib";
 import { useSetRegexAllow } from "../hooks/use-chat-regex-mutations.ts";
-import { regexRowHomes, regexTierAllowedSwitchName, regexTierLabels, regexTierLever, regexTierLeverCount, regexTierRows } from "../lib/regex-section-model.ts";
+import {
+  REGEX_DISPLAY_PASS,
+  regexRowHomes,
+  regexSwitchedOffDisplay,
+  regexTierAllowedSwitchName,
+  regexTierLabels,
+  regexTierLever,
+  regexTierLeverCount,
+  regexTierRows,
+} from "../lib/regex-section-model.ts";
 import { RegexOnScreenGroup } from "./regex-on-screen-group.tsx";
 import { RegexTierGroup } from "./regex-tier-group.tsx";
 
@@ -157,7 +167,7 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
           tiers={view.tiers}
         />
       ))}
-      <RegexOnScreenGroup chatId={chatId} isHost={true} labels={labels} />
+      <RegexOnScreenGroup chatId={chatId} isHost={true} labels={labels} switchedOff={regexSwitchedOffDisplay(view)} />
     </Stack>
   );
 }
@@ -165,6 +175,11 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
 function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const { data: scripts } = useSuspenseQuery(trpc.regex.listForChat.queryOptions({ chatId }));
+  // A member's display scripts of their own are their globals, which run last for them.
+  const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
+  const switchedOff = globals
+    .filter((script) => !script.enabled && script.passes.includes(REGEX_DISPLAY_PASS))
+    .map((script): RegexDisplayEntry => ({ script, from: REGEX_VIEWER_SOURCE }));
   const tier = memberChatTier(scripts);
   return (
     <Stack data-slot="regex-section" gap="block">
@@ -182,7 +197,7 @@ function MemberRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement 
         tier={tier}
         tiers={[tier]}
       />
-      <RegexOnScreenGroup chatId={chatId} isHost={false} labels={new Map<RegexTierKey, string>()} />
+      <RegexOnScreenGroup chatId={chatId} isHost={false} labels={new Map<RegexTierKey, string>()} switchedOff={switchedOff} />
     </Stack>
   );
 }

@@ -9,7 +9,7 @@
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import type { RegexDepth, RegexPass, RegexTarget } from "@orb/kit/regex";
-import { REGEX_DEPTH_FLOOR, REGEX_DEPTH_MAX, SubstituteFindRegex } from "@orb/kit/regex";
+import { REGEX_DEPTH_FLOOR, REGEX_DEPTH_MAX, REGEX_TARGETS, SubstituteFindRegex } from "@orb/kit/regex";
 import { CodeEditorFallback } from "@orb/ui/code-editor/fallback";
 import { Field } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -34,7 +34,7 @@ import {
   REGEX_WHEN_FIELD_NAME,
 } from "../lib/regex-names.ts";
 import type { RegexWhenChoice } from "../lib/regex-when.ts";
-import { REGEX_WORLD_INFO_PROMPT_ONLY, regexUnreadTargetsNote, regexWhenIsEphemeral, regexWhenItems, regexWhenOf, regexWhenPasses } from "../lib/regex-when.ts";
+import { regexUnreadReasons, regexUnreadTargetsNote, regexWhenIsEphemeral, regexWhenItems, regexWhenOf, regexWhenPasses } from "../lib/regex-when.ts";
 import { RegexAuthorScopeFields } from "./regex-author-scope-fields.tsx";
 import { RegexPipelinePanel } from "./regex-pipeline-panel.tsx";
 import { RegexTestPanel } from "./regex-test-panel.tsx";
@@ -92,9 +92,9 @@ function targetItems(passes: readonly RegexPass[], selected: readonly RegexTarge
   }));
 }
 
-/** The unread note comes first: it is the one that asks for a fix. */
-function targetsDescription(passes: readonly RegexPass[], selected: readonly RegexTarget[], blocked: boolean): string {
-  return regexUnreadTargetsNote(selected, passes) ?? (blocked ? REGEX_WORLD_INFO_PROMPT_ONLY : "Which text this script rewrites.");
+/** The unread note comes first: it is the one that asks for a fix. Then the reasons for the texts that cannot be added. */
+function targetsDescription(passes: readonly RegexPass[], selected: readonly RegexTarget[], blocked: readonly RegexTarget[]): string {
+  return regexUnreadTargetsNote(selected, passes) ?? (blocked.length > 0 ? regexUnreadReasons(blocked) : "Which text this script rewrites.");
 }
 
 function TargetsField({ form, passes }: { readonly form: RegexEditorForm; readonly passes: readonly RegexPass[] }): ReactElement {
@@ -107,7 +107,7 @@ function TargetsField({ form, passes }: { readonly form: RegexEditorForm; readon
             description={targetsDescription(
               passes,
               field.state.value,
-              items.some((item) => item.disabled),
+              REGEX_TARGETS.filter((target) => items.some((item) => item.disabled && item.value === target)),
             )}
             items={items}
             label={REGEX_TARGETS_FIELD_NAME}

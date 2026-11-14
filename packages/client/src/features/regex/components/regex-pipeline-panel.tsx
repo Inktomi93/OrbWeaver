@@ -33,13 +33,13 @@ import { REGEX_PIPELINE_TEXT_NAME, REGEX_PIPELINE_WHEN_NAME, REGEX_TEXT_AFTER_EV
 import type { RegexPipelinePair, RegexPipelineStage } from "../lib/regex-pipeline.ts";
 import { regexPipelineCall, regexPipelinePair, runRegexPipeline } from "../lib/regex-pipeline.ts";
 import { REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview.ts";
-import { REGEX_WORLD_INFO_PROMPT_ONLY } from "../lib/regex-when.ts";
+import { regexUnreadReasons } from "../lib/regex-when.ts";
 
 const SAMPLE_ROWS = 3;
 const OUTPUT_ROWS = 4;
 const ONE_MATCH = 1;
 
-/** The text options. Each is offered: picking world info moves the time to the prompt. */
+/** The text options. Each is offered: picking one the time does not read moves the time to one that does. */
 const TEXT_ITEMS: readonly { readonly value: RegexTarget; readonly label: string }[] = REGEX_TARGETS.map((value) => ({
   value,
   label: REGEX_TARGET_LABELS[value],
@@ -52,7 +52,7 @@ function whenItems(
   return REGEX_PASSES.map((value) =>
     regexPassReadsTarget(value, target)
       ? { value, label: REGEX_PASS_LABELS[value], disabled: false }
-      : { value, label: REGEX_PASS_LABELS[value], disabled: true, description: REGEX_WORLD_INFO_PROMPT_ONLY },
+      : { value, label: REGEX_PASS_LABELS[value], disabled: true, description: regexUnreadReasons([target]) },
   );
 }
 

@@ -24,9 +24,17 @@
 //    half-applied.
 
 import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
-import type { UserId } from "@orb/kit/ids";
-import type { ParticipantRole, RoomStanding } from "@orb/kit/message-author";
-import type { RegexPass, RegexPassCall, RegexRowStamps, RegexScriptInput, RegexSkipReason, RegexTarget } from "@orb/kit/regex";
+import { NO_SEATS } from "@orb/kit/message-author";
+import type {
+  RegexPass,
+  RegexPassCall,
+  RegexPromptRowTarget,
+  RegexRowStamps,
+  RegexRowTarget,
+  RegexScriptInput,
+  RegexSkipReason,
+  RegexTarget,
+} from "@orb/kit/regex";
 import { regexSkipReason } from "@orb/kit/regex";
 import { runInstrumentedRegex } from "./regex-preview.ts";
 
@@ -54,33 +62,46 @@ export interface RegexPipelineRun {
   readonly subjectIsGlobal: boolean;
 }
 
-/** A library page has no room, so no seat holds a standing. */
-const NO_ROOM: RoomStanding = { seatedRoles: new Map<UserId, ParticipantRole>() };
-
 /** The sample as a row: a plain message whose role follows its target, written by nobody a scope could name. */
-function sampleRow(target: Exclude<RegexTarget, "WORLD_INFO">): RegexRowStamps {
+function sampleRow(target: RegexRowTarget): RegexRowStamps {
   return { role: target === "USER_INPUT" ? "user" : "assistant", kind: "standard", authorUserId: null, characterId: null, personaId: null };
 }
 
-/** One text at one time. World info is read only as the prompt is built, so it pairs with the prompt pass alone. */
+/** One text at one time, only as the kit reads them: world info only as the prompt is built, and reasoning never
+ *  there, since the model's earlier reasoning goes back exactly as the provider signed it. */
 export type RegexPipelinePair =
-  | { readonly pass: RegexPass; readonly target: Exclude<RegexTarget, "WORLD_INFO"> }
-  | { readonly pass: "prompt"; readonly target: "WORLD_INFO" };
+  | { readonly pass: "save"; readonly target: RegexRowTarget }
+  | { readonly pass: "display"; readonly target: RegexRowTarget }
+  | { readonly pass: "prompt"; readonly target: RegexPromptRowTarget | "WORLD_INFO" };
 
-/** The pair for a picked time and text: picking world info moves the time to the prompt, the one pass that reads it. */
+/** The pair for a picked time and text: picking a text the time does not read moves the time to one that reads it,
+ *  so the panel never shows a pair the kit leaves unread. */
 export function regexPipelinePair(pass: RegexPass, target: RegexTarget): RegexPipelinePair {
-  return target === "WORLD_INFO" ? { pass: "prompt", target } : { pass, target };
+  if (target === "WORLD_INFO") {
+    return { pass: "prompt", target };
+  }
+  if (pass === "save") {
+    return { pass, target };
+  }
+  if (target === "REASONING" || pass === "display") {
+    return { pass: "display", target };
+  }
+  return { pass, target };
 }
 
 /** The executor call for a pair. A save is a new message, never an edit; no call carries a depth. */
 export function regexPipelineCall(pair: RegexPipelinePair): RegexPassCall {
-  if (pair.target === "WORLD_INFO") {
-    return { pass: "prompt", target: pair.target, depth: undefined };
-  }
   if (pair.pass === "save") {
     return { pass: "save", target: pair.target, edit: false };
   }
-  return { pass: pair.pass, target: pair.target, row: sampleRow(pair.target), room: NO_ROOM, depth: undefined };
+  // A library page has no room, so no seat holds a standing.
+  if (pair.pass === "display") {
+    return { pass: "display", target: pair.target, row: sampleRow(pair.target), room: NO_SEATS, depth: undefined };
+  }
+  const { target } = pair;
+  return target === "WORLD_INFO"
+    ? { pass: "prompt", target, depth: undefined }
+    : { pass: "prompt", target, row: sampleRow(target), room: NO_SEATS, depth: undefined };
 }
 
 /** A script as the run reads it: without its author scope, which a loose sample cannot answer (the header). */

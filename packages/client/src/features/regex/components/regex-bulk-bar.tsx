@@ -39,6 +39,7 @@ import { useInvalidation } from "#data";
 import { notify, regexScriptTitle } from "#lib";
 import { exitRegexBulkMode } from "#state";
 import { useBulkRemoveRegexScripts, useBulkSetRegexAxes, useBulkSetRegexEnabled, useBulkSetRegexGlobal } from "../hooks/use-regex-library.ts";
+import { REGEX_BULK_AXES_NAME } from "../lib/regex-names.ts";
 import { RegexBulkAxesDialog } from "./regex-bulk-axes-dialog.tsx";
 
 /** The batch verbs' shared answer, re-derived from the same proc rather than imported (the house shape for
@@ -193,7 +194,7 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
         >
           <MenuItem onClick={(): void => setAxesOpen(true)}>
             <Icon icon={SlidersHorizontal} size="sm" />
-            Change what they change and when
+            {REGEX_BULK_AXES_NAME}
           </MenuItem>
           <MenuItem
             onClick={(): void => {

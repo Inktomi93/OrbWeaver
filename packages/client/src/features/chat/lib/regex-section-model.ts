@@ -23,9 +23,10 @@
 // sources (the wire's server-resolved preset name, the roster's seat names) and four readers (lever, kicker,
 // provenance, `+N` chip), and a per-reader join would be that decision spelled four times.
 
-import type { RegexTierGroupView, RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
+import type { EffectiveRegexView, RegexDisplayEntry, RegexTierGroupView, RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import { parseCharacterRegexTierKey } from "@orb/contracts/chat";
 import type { CharacterId, RegexScriptId } from "@orb/kit/ids";
+import type { RegexPass } from "@orb/kit/regex";
 import { itemSwitchName } from "#lib";
 
 /** WHERE each script draws — scriptId → the tier key whose group renders its row. The map is built once per
@@ -76,6 +77,26 @@ export function regexTierInForceCount(rows: readonly RegexTierRowView[]): number
  *  (`build.mjs`: `S.filter((s) => s.tier === t.id && s.on).length`, computed outside `tierOn`). */
 export function regexTierLeverCount(rows: readonly RegexTierRowView[]): number {
   return rows.filter((row) => row.script.enabled).length;
+}
+
+/** The display pass, as the library rows spell it. */
+export const REGEX_DISPLAY_PASS = "display" satisfies RegexPass;
+
+/**
+ * The host's switched-off display scripts that would draw on screen if switched back on, each at the tier that holds
+ * its rank, in run order.
+ *
+ * @remarks
+ * The display read lists only enabled scripts, so the `On screen` roster appends these to keep a flip there
+ * reversible. A rank is the test: the resolver ranks a disabled row like any other, so a row with no rank sits in a
+ * tier this room switched off and would stay off screen when enabled.
+ */
+export function regexSwitchedOffDisplay(view: EffectiveRegexView): readonly RegexDisplayEntry[] {
+  return view.tiers
+    .flatMap((tier) => tier.rows.flatMap((row) => (row.runsAt === null ? [] : [{ script: row.script, from: tier.scope, runsAt: row.runsAt }])))
+    .filter(({ script }) => !script.enabled && script.passes.includes(REGEX_DISPLAY_PASS))
+    .toSorted((a, b) => a.runsAt - b.runsAt)
+    .map(({ script, from }) => ({ script, from }));
 }
 
 /**
