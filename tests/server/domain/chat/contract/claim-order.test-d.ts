@@ -2,13 +2,13 @@
 // @subject packages/server/src/domain/chat/contract/room-write.ts
 // D166: a claim spends the admission a membership gate mints, and a covered room write spends the claim, so a claim
 // before the gate and a covered write before the claim fail to compile. `orb/room-token-mint` refuses the casts.
-import type { ClaimChatOp, GetMembership, RoomAdmission, RoomClaim } from "@orb/contracts/chat";
+import type { ClaimChatOp, GetMembership, HandoffRekeyActorsOp, RoomAdmission, RoomClaim } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 import type { ChatContext } from "#server/domain/chat/contract/context.ts";
 import type { ClaimExempt } from "#server/domain/chat/contract/room-write.ts";
 import type { requireParticipant } from "#server/domain/chat/guard.ts";
-import type { commitCanonAppend } from "#server/domain/chat/persistence/canon-write.ts";
+import type { commitCanonAppend, retryLostCanonHead } from "#server/domain/chat/persistence/canon-write.ts";
 import type { commitHostFencedWrite } from "#server/domain/chat/persistence/host-fenced-write.ts";
 import type { insertInvite } from "#server/domain/chat/persistence/invites.ts";
 import type { commitRetainedCanonStats } from "#server/domain/chat/persistence/retained-canon.ts";
@@ -21,6 +21,8 @@ declare const exempt: ClaimExempt;
 declare const claimChat: ClaimChatOp;
 declare const fenced: typeof commitHostFencedWrite;
 declare const append: typeof commitCanonAppend;
+declare const retry: typeof retryLostCanonHead;
+declare const rekey: HandoffRekeyActorsOp;
 declare const retained: typeof commitRetainedCanonStats;
 declare const invite: typeof insertInvite;
 declare const invitedRow: Parameters<typeof insertInvite>[2];
@@ -53,6 +55,9 @@ test("a covered room write takes the claim, so it cannot run before the claim", 
   await append(ctx.db, claim, () => ({ statements: [], result: null }));
   // @ts-expect-error The canon append door refuses a bare ChatId.
   await append(ctx.db, chatId, () => ({ statements: [], result: null }));
+  await retry(ctx.db, claim, () => Promise.resolve(null));
+  // @ts-expect-error The head retry refuses a bare ChatId.
+  await retry(ctx.db, chatId, () => Promise.resolve(null));
   await invite(ctx.db, claim, invitedRow);
   // @ts-expect-error The invite row carries no room of its own, so it lands only in the claimed one.
   await invite(ctx.db, claim, { ...invitedRow, chatId });
@@ -68,4 +73,11 @@ test("a shared door takes the claim or a listed exemption, nothing else", async 
   // @ts-expect-error A literal cannot stand in for an exemption.
   const forged: ClaimExempt = { chatId };
   expectTypeOf(forged).toEqualTypeOf(exempt);
+});
+
+test("the handoff re-key spends the accept gate's admission, never a bare room id", async () => {
+  await rekey(admission, []);
+  // @ts-expect-error rpg cannot mint an admission, so a bare ChatId cannot reach the re-key's claim.
+  await rekey(chatId, []);
+  expectTypeOf(rekey).parameter(0).toEqualTypeOf<RoomAdmission>();
 });

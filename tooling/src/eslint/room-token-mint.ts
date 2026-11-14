@@ -1,7 +1,9 @@
 // `orb/room-token-mint`: a room token proves the step that mints it ran (D166). A `RoomAdmission` proves a membership
 // gate loaded the caller's seat, a `RoomClaim` proves the room's claim settled, and a `ClaimExempt` proves a write needs
-// no claim of its own. The compiler refuses a literal, a spread and `satisfies` by the tokens' private members, so this
-// rule closes the two forgeries left: a mint called outside its listed sites, and a cast to a token type.
+// no claim of its own. The compiler refuses a literal, a spread and `satisfies` by the tokens' private members. This rule
+// refuses a mint called outside its listed sites, a cast to a token type, and a type predicate or assertion signature
+// that names one. `orb/principal-literal` refuses `Object.assign` and `orb/principal-brand-launder` refuses `as never`.
+// Still open: a generic helper that casts to its own type parameter (`value as T`) forges a token past every rule.
 
 import { relative } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
@@ -45,7 +47,7 @@ export const ROOM_TOKEN_MINT_SITES: Readonly<Record<"mintRoomAdmission" | "mintR
       path: "packages/server/src/domain/chat/engine/engine.ts",
       name: "fireRpgTurnCompleted",
       reason:
-        "a stand-in until the engine carries the turn verb's own token: a turn reaches onTurnCompleted only after its verb claimed the room (resolveTurnBase, commitUserTurn, forceCharacterTurn, resolveRequestTurn); remove this site when the engine takes the token",
+        "a stand-in until the engine carries the turn verb's own token: a turn reaches onTurnCompleted only after its verb claimed the room (resolveTurnBase, commitUserTurn, forceCharacterTurn, resolveRequestTurn, and the deferred drain, whose pending row exists only after commitUserTurn claimed); remove this site when the engine takes the token",
     },
   ],
   mintRoomClaim: [{ path: "packages/server/src/domain/chat/verbs/claim-chat.ts", name: "claim", reason: "the claim op, once the room's claim has settled" }],
@@ -54,7 +56,7 @@ export const ROOM_TOKEN_MINT_SITES: Readonly<Record<"mintRoomAdmission" | "mintR
       path: "packages/server/src/domain/chat/verbs/set-rpg-pointer.ts",
       name: "setRpgPointer",
       reason:
-        "the detach: D166 (`docs/adr/0166-a-chat-row-exists-from-the-creation-click.md`) claims on 'the first user message, generated turn, or explicit host write', and the detach is a server heal of a dangling pointer, not a host write",
+        "the host-pressed detach keeps the behaviour it had before the room tokens, which never claimed; whether it is an explicit host write that D166 (`docs/adr/0166-a-chat-row-exists-from-the-creation-click.md`) says claims is an open decision",
     },
     {
       path: "packages/server/src/domain/chat/verbs/turn.ts",
@@ -80,13 +82,17 @@ function namesToken(type: ts.Type): boolean {
   );
 }
 
+const predicateMessage =
+  "D166: a type predicate or assertion signature cannot prove a room token. Receive the token from its gate or the claim op, or mint at a site ROOM_TOKEN_MINT_SITES lists with its reason.";
+
 const castMessage =
   "D166: a cast cannot prove a room token. Receive the RoomAdmission from a membership gate, the RoomClaim from the claim op, or mint at a site ROOM_TOKEN_MINT_SITES lists with its reason.";
 
 const mintMessage = (mint: string): string =>
   `D166: only the sites ROOM_TOKEN_MINT_SITES lists for ${mint} may call it. Receive the token from the gate or the claim, or list the site with the reason it may mint.`;
 
-/** Refuses a room-token mint read outside its listed sites, and any cast to a room-token type, outside {@link ROOM_TOKEN_HOME}. */
+/** Refuses, outside {@link ROOM_TOKEN_HOME}, a room-token mint read outside its listed sites, a cast to a room-token type,
+ *  and a type predicate or assertion signature that names one. */
 export const roomTokenMintRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -118,6 +124,12 @@ export const roomTokenMintRule: OrbRule = {
     const cast = (node: TSESTree.TSAsExpression | TSESTree.TSTypeAssertion): void => {
       if (namesToken(checker.getTypeFromTypeNode(toTs.get(node.typeAnnotation) as ts.TypeNode))) {
         context.report({ node, message: castMessage });
+      }
+    };
+    visitors[AST_NODE_TYPES.TSTypePredicate] = (node: TSESTree.TSTypePredicate): void => {
+      // `asserts x` with no type narrows nothing to a token.
+      if (node.typeAnnotation !== null && namesToken(checker.getTypeFromTypeNode(toTs.get(node.typeAnnotation.typeAnnotation) as ts.TypeNode))) {
+        context.report({ node, message: predicateMessage });
       }
     };
     visitors[AST_NODE_TYPES.TSAsExpression] = cast;

@@ -29,7 +29,8 @@
 // refused for those reasons never claims. A refusal that is the write's own result may still follow the claim.
 // The types carry part of this (`orb/room-token-mint` confines the mints): the claim takes the `RoomAdmission` a
 // membership gate mints, and the shared room write doors take the `RoomClaim` it returns. They cannot see a refusal
-// placed between the gate and the claim, or a raw write that bypasses a door, so those stay this placement rule.
+// placed between the gate and the claim, a raw write that bypasses a door, or an rpg door that writes a room other than
+// the claim's (the rpg doors key on the game), so those stay this placement rule.
 //
 // The replay uses the CHAT ROW's `createdAt` as the creation delta's clock, not the claim instant: the stats
 // rebuild buckets `chatsCreated` by `chats.created_at` (`rebuild-from-canon.ts::loadChatMeta`), so claiming a
