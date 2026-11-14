@@ -1,4 +1,4 @@
-import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
+import { CAPTION, DISABLED_STATE, FOCUS_RING_INSET, PUSH, RECEDED, SELECTION_RAIL, TITLE_FLOOR, TITLE_STEP, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
@@ -104,7 +104,8 @@ export const listRowVariants = tv({
     `,
     // `shrink-0`: controls keep their intrinsic width and are never squeezed below the tap-target floor.
     // `max-inline-full`: a cluster wider than its row (a rem-sized control at enlarged text) takes the row's width and lets its own content wrap, instead of ending past the row.
-    actions: "flex shrink-0 items-center justify-end gap-field max-inline-full",
+    // `PUSH.inlineEnd` (`ms-auto`): once the cluster has dropped under the body to a line of its own it sits at the row's end edge, not at the start of the line.
+    actions: `flex shrink-0 items-center justify-end gap-field max-inline-full ${PUSH.inlineEnd}`,
   },
   variants: {
     // A row whose body runs to several lines keeps its leading mark at the first.
