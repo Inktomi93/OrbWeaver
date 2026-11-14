@@ -10,12 +10,12 @@
 // `PluginDistributionDeps` parameter rather than in the context every verb shares.
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
-import { databaseForOwner } from "@orb/db/wiring-owner";
 import { createActivate } from "./activation/activate.ts";
 import { createCrashPolicy } from "./activation/crash-policy.ts";
 import { createDeactivate } from "./activation/deactivate.ts";
 import { createStopRuntime } from "./activation/stop-runtime.ts";
 import { createConsentPrompt } from "./consent/consent-prompt.ts";
+import { createPluginContext } from "./context.ts";
 import type { PluginConsentPrompt, PluginInvocationWork, PluginLifecycleLanes } from "./contract/ops.ts";
 import type { OwnedPluginService, PluginContext, PluginDistributionDeps, PluginProviderLifecycle, PluginRegistry, PluginService } from "./contract/service.ts";
 import { createPluginInvocationWork } from "./substrate/invocation-work.ts";
@@ -63,7 +63,7 @@ export function createPluginService(
   distribution: PluginDistributionDeps,
   providers: PluginProviderLifecycle,
 ): OwnedPluginService {
-  const ctx: PluginContext = { ...input, db: databaseForOwner(input.db) };
+  const ctx: PluginContext = createPluginContext(input);
   // The ONE resident-instance registry (ASSUMES single-replica — the automation enabled-index precedent). Built
   // here so activate/deactivate + getLog share the same live map.
   const registry: PluginRegistry = new Map();
