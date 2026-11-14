@@ -92,7 +92,7 @@ for (const scale of ENLARGED_TEXT) {
     await expect(tab).toHaveAttribute("aria-selected", "true");
     await setRootFontScale(page, channelName("fontScale"), scale.factor);
 
-    const pane = context.getByRole("tabpanel");
+    const pane = context.getByRole("region", { name: CHARACTER_LOOK_TAB_LABEL, exact: true });
     const buttons = [CHARACTER_START_FROM_THEME_NAME, CHARACTER_RESET_LOOK_NAME, BACKGROUND_ADD_IN_SETTINGS_NAME].map((name) =>
       pane.getByRole("button", { name, exact: true }),
     );
