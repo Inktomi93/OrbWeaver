@@ -12,7 +12,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
-import { cardImportPartialLine, cardImportRefusalLine, DIALOG_VERBS, notify } from "#lib";
+import { cardImportPartialLine, cardImportRefusalLine, cardInLibraryNotice, cardsInLibraryNotice, DIALOG_VERBS, inLibraryClause, notify } from "#lib";
 import { selectCharacter } from "#state";
 import { CHARACTER_IMPORT_NAME } from "../lib/character-names.ts";
 
@@ -24,10 +24,21 @@ interface ImportNotice {
   readonly message: string;
 }
 
-/** Derive the toast from the REAL per-file outcome (never from the uploaded filenames) of a batch that landed a card. */
+/** Derive the toast from the REAL per-file outcome (never from the uploaded filenames) of a batch that landed a card. A
+ *  `created: false` card is one the library already held (D290), and the toast says so rather than "imported". */
 function importNotice({ imported, failed }: CardImportResult): ImportNotice {
   if (failed.length === 0) {
-    return { kind: "success", message: imported.length === 1 ? "Card imported." : `${imported.length} cards imported.` };
+    const landed = imported.filter((card) => card.created).length;
+    const held = imported.filter((card) => !card.created);
+    const [onlyHeld] = held;
+    if (landed === 0) {
+      return {
+        kind: "info",
+        message: held.length === 1 && onlyHeld !== undefined ? cardInLibraryNotice(onlyHeld.filename) : cardsInLibraryNotice(held.length),
+      };
+    }
+    const landedLine = landed === 1 ? "Card imported" : `${landed} cards imported`;
+    return { kind: "success", message: held.length === 0 ? `${landedLine}.` : `${landedLine}, ${inLibraryClause(held.length)}.` };
   }
   return {
     kind: "info",

@@ -132,8 +132,8 @@ test("every upload of a split native backup restores through the native importer
     if (workload.kind !== "import-bundle" || workload.poison || workload.result === null) {
       throw new Error("a declared native upload has no canonical bundle result");
     }
-    // Native dedupe counts as imported, so a restore of the exporter's own library imports every entry.
-    expect(workload.result).toMatchObject({ imported: upload.length, skipped: 0, failed: 0 });
+    // A restore of the exporter's own library finds every entry already held, and counts it so (D290).
+    expect(workload.result).toMatchObject({ imported: 0, inLibrary: upload.length, skipped: 0, failed: 0 });
   }
   expect(await root.services.workloads.list({ caller: principal, kind: "import-st" })).toEqual([]);
 });

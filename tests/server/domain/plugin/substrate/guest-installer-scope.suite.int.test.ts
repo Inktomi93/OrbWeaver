@@ -203,6 +203,13 @@ test("library ingests land in the installer's own library, stamped with the call
     throw new Error("the owner's own character did not export");
   }
   const card = jsonValueSchema.parse(JSON.parse(new TextDecoder().decode(exported.bytes)));
+  // The owner's unchanged card is already in the library: the ingest reuses that row and stamps nothing, because a
+  // stamp there would be an import updating an owned row (D290).
+  const reused = z.object({ characterId: typeIdSchema(ID_PREFIX.character) }).parse(reported(await run("ingestCharacter", { card })));
+  expect(reused.characterId).toBe(source);
+  expect((await o.root.services.character.get({ principal: o.owner, characterId: source })).importedFrom).toBeNull();
+  // The source moves on after its export, so the card is an older one and the ingest writes it beside the source.
+  await o.root.services.character.update({ principal: o.owner, characterId: source, input: { description: "A keeper, since edited." } });
 
   const document = z
     .object({ documentId: typeIdSchema(ID_PREFIX.document) })
@@ -225,6 +232,8 @@ test("a non-owner installer's character ingest runs under that installer's own p
     throw new Error("the stranger's own character did not export");
   }
   const card = jsonValueSchema.parse(JSON.parse(new TextDecoder().decode(exported.bytes)));
+  // The source moves on after its export, so the card is an older one and the ingest writes it beside the source (D290).
+  await o.root.services.character.update({ principal: o.stranger, characterId: source, input: { description: "A keeper, since edited." } });
   const create = vi.spyOn(o.root.services.character, "create");
   z.object({ characterId: typeIdSchema(ID_PREFIX.character) }).parse(reported(await run("ingestCharacter", { card })));
   expect(create).toHaveBeenCalledTimes(1);

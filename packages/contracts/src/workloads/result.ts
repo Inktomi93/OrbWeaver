@@ -48,7 +48,11 @@ export interface MaintenanceResult {
  *  descriptor-level report already carried, now surfaced on the BACKGROUND workload's own result so
  *  a run driven off-request is not silently cleaner than the same import run through the sync door. */
 export interface BundleImportWorkloadResult {
+  /** Files that wrote a row. */
   readonly imported: number;
+  /** Files the library already held: each reused its row and wrote none (D290). */
+  readonly inLibrary: number;
+  /** Files never attempted: routed to no entity, or past an abort. */
   readonly skipped: number;
   readonly failed: number;
   readonly notes: readonly string[];
@@ -127,6 +131,8 @@ export const maintenanceResultSchema = z
 
 export const bundleImportWorkloadResultSchema = z.strictObject({
   imported: z.number(),
+  // A row stored before the held count existed counted its held files as imported; it reads as holding none.
+  inLibrary: z.number().default(0),
   skipped: z.number(),
   failed: z.number(),
   notes: z.array(z.string()).readonly(),
