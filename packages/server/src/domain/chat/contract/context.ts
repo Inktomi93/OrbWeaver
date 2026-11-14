@@ -1,4 +1,5 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
+import type { LoadGlobalVariablesOp } from "@orb/contracts/automation";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
   AssembleContext,
@@ -636,6 +637,9 @@ export interface ChatContext extends EngineContext, ChatAccountingContext, ChatC
   /** The room host's app-tier prose overrides — read by assembly (the anchor identity lead-in), the smart
    *  arbiter, compaction and the memory build. Empty ⇒ the shipped defaults. */
   readonly resolveChatProse: ResolveChatProseOp;
+  /** The owner's per-user global plane (D46) as the turn's macro read cache. Injected because `global_variables`
+   *  is automation's table; its write half is {@link EngineContext.globalVariableWriteStatements}. */
+  readonly loadGlobalVariables: LoadGlobalVariablesOp;
   /** The room host's memory tuning with their own switch folded in (`mode: "off"` when they turned memory off,
    *  D293) — the merge the turn and the backfill read, so the memory view reports the switch the turn obeys. */
   readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;

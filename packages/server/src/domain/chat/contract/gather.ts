@@ -1,7 +1,7 @@
 // The turn gather's call shapes (`assembly/gather.ts`), homed in the contract so `ChatContext` can type the
 // bound op without importing `assembly/`.
 
-import type { ChatInjection, GuidedSteer, MacroFreezeRecord, MacroSlice } from "@orb/contracts/chat";
+import type { ChatInjection, GuidedSteer, MacroFreezeRecord, MacroSlice, TurnGlobalVariables } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
@@ -37,6 +37,8 @@ export interface GatherAssembleArgs {
   readonly triggerUserId?: UserId | null | undefined;
   /** The room seats more than one present human — carried onto the built ctx for SHAPE's name-stamp. */
   readonly multiHuman?: boolean | undefined;
+  /** The turn's per-user global plane; absent ⇒ none (a preview). */
+  readonly globalVariables?: TurnGlobalVariables | undefined;
   readonly pendingUserText?: string | undefined;
   readonly sendDraft?: string | undefined;
   /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and

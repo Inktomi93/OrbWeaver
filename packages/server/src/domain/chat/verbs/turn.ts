@@ -28,6 +28,7 @@ import type {
   RequestTurnParams,
   SmartPicker,
   SpeakerRef,
+  TurnGlobalVariables,
   TurnKind,
   UserMacroDraws,
 } from "@orb/contracts/chat";
@@ -97,6 +98,7 @@ import {
   insertMessageAssetStatements,
   isRetainedParentFenceViolation,
 } from "../persistence/canon-write.ts";
+import { loadGlobalPlaneGate } from "../persistence/global-plane-gate.ts";
 import { commitHostFencedWrite } from "../persistence/host-fenced-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurns, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
@@ -111,6 +113,7 @@ import {
   loadIsReplyToLatestUserMessage,
   loadMaxMessageSeq,
   loadMessageView,
+  loadPendingUserText,
   loadSlotTarget,
   loadStoredUserMacroValues,
 } from "../persistence/queries.ts";
@@ -694,6 +697,9 @@ async function buildTurnContext(
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
     readonly respondsToLatestUserTurn?: boolean | undefined;
+    /** The text of the user message a deferred drain answers, for the rpg gather only: the message is canon, so it
+     *  never rides the assembly's pending text. Absent ⇒ the gather reads the room's latest user message. */
+    readonly answeredUserText?: string | undefined;
     readonly guided?: GuidedSteer | undefined;
     /** The Ruling-B `{{char}}` for a HOST-authored / null-speaker context (Chat-Macro-Resolution.md ruling B):
      *  the JOINED CANDIDATE names (multi-character room, == `{{group}}`) / the single character (solo). Chat is the
@@ -764,7 +770,7 @@ async function buildTurnContext(
   const gatherArgs: GatherTurnContextArgs = {
     chatId: args.chatId,
     funderUserId: args.funderUserId,
-    pendingUserText: args.pendingUserText,
+    pendingUserText: args.pendingUserText ?? args.answeredUserText,
     respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
     steerIdentity: teachIdentity,
     // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
@@ -810,6 +816,7 @@ async function buildTurnContext(
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
   // one — either way `gatherMemory` stages `memoryRecall` here for the engine's per-speaker witnessed re-run.
   const sink: SendRegexSink = out ?? {};
+  const globalVariables = await stageTurnGlobalVariables(ctx, args);
   const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
@@ -821,6 +828,7 @@ async function buildTurnContext(
       // The pending row's author for the recall query. `none` ⇒ null (the union has no third arm).
       triggerUserId: args.trigger.kind === "human" ? args.trigger.userId : null,
       multiHuman: seatsMultipleHumans(args.presentHumanUserIds),
+      globalVariables,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
       choicePicks: "random",
@@ -859,6 +867,16 @@ async function buildTurnContext(
     cardKeepLastX: rpg?.cardKeepLastX,
     ...userMacroFields(userMacros),
   };
+}
+
+// The host's global plane (D46) loads only in a room no other human has ever held a seat in, here or in a room it was
+// copied from, and only when the room's pin is absent or the host's own: room text has no reliable author.
+async function stageTurnGlobalVariables(ctx: ChatContext, args: { readonly chatId: ChatId; readonly runAsUserId: UserId }): Promise<TurnGlobalVariables> {
+  const gate = await loadGlobalPlaneGate(ctx.db, args.chatId);
+  if (gate !== undefined && !gate.everShared && (gate.pinOwnerId === null || gate.pinOwnerId === args.runAsUserId)) {
+    return { mode: "staged", values: await ctx.loadGlobalVariables(args.runAsUserId), writes: [], heldReads: [] };
+  }
+  return { mode: "held", values: {}, writes: [], heldReads: [] };
 }
 
 /** Settles the game's reminder against the line the player's message became, and splits out the form an auto-mode beat
@@ -1386,6 +1404,8 @@ async function deferIfHostOffline(
     readonly triggeredBy: UserId;
     readonly runAsUserId: UserId;
     readonly chatId: ChatId;
+    /** The user message the owed reply answers, so the drain reads that send's own text. */
+    readonly messageId: MessageId;
     readonly timeZone: SendParams["timeZone"];
   },
 ): Promise<boolean> {
@@ -1398,6 +1418,7 @@ async function deferIfHostOffline(
     triggeredBy: args.triggeredBy,
     runAsUserId: args.runAsUserId,
     timeZone: args.timeZone ?? null,
+    messageId: args.messageId,
     createdAt: ctx.now(),
   });
   return true;
@@ -1890,6 +1911,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
         triggeredBy: identity.triggeredBy,
         runAsUserId: identity.runAsUserId,
         chatId,
+        messageId: userView.id,
         timeZone,
       })
     ) {
@@ -2912,12 +2934,22 @@ function drainDropReason(err: unknown): DeferredTurnDropReason | null {
 async function runDeferredRound(
   ctx: ChatContext,
   deps: TurnDeps,
-  row: { readonly chatId: ChatId; readonly triggeredBy: UserId; readonly runAsUserId: UserId; readonly timeZone: IanaTimeZone | null },
+  row: {
+    readonly chatId: ChatId;
+    readonly triggeredBy: UserId;
+    readonly runAsUserId: UserId;
+    readonly timeZone: IanaTimeZone | null;
+    readonly messageId: MessageId | null;
+  },
 ): Promise<TurnOutcome> {
   const chat = await loadChatRow(ctx.db, row.chatId);
   if (chat === undefined) {
     throw new ChatNotFoundError(row.chatId);
   }
+  // Two queued sends drain in turn after the room has moved past both, so each reply reads its own send's text. A send
+  // that was deleted (its id cleared by the FK) or hidden is off the wire: its turn answers no player message, so it
+  // is told about no roll and never borrows a later send's.
+  const answeredUserText = row.messageId === null ? null : await loadPendingUserText(ctx.db, row.chatId, row.messageId);
   const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // hostless/gone → chat-gone drop; frozen host disabled or left → consent drop
   const identity = { triggeredBy: row.triggeredBy, funderUserId: row.runAsUserId, runAsUserId: row.runAsUserId };
   const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId: row.chatId });
@@ -2939,7 +2971,8 @@ async function runDeferredRound(
     trigger: { kind: "none" },
     // A deferred drain is the FIRST AI response to the offline-host's committed user send (D58) —
     // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
-    respondsToLatestUserTurn: true,
+    respondsToLatestUserTurn: answeredUserText !== null,
+    ...(answeredUserText !== null ? { answeredUserText } : {}),
     // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
     candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
     chatMetadata: chat.metadata,
@@ -2998,6 +3031,7 @@ async function drainOne(
       triggeredBy: claimed.triggeredBy,
       runAsUserId: claimed.runAsUserId,
       timeZone: claimed.timeZone,
+      messageId: claimed.messageId,
       createdAt: claimed.createdAt,
     });
     getLog(ctx.logger).warn(

@@ -180,6 +180,10 @@ export const chats = sqliteTable(
       .$type<ChatId>()
       .references((): AnySQLiteColumn => chats.id, { onDelete: "set null" }),
     forkedAt: integer("forked_at"),
+    // Set when a human other than the host takes a seat, copied on fork and carried by export, never cleared; a
+    // bundle written before the flag existed imports as shared. Room text has no reliable author, so the host's global
+    // variable plane (D46) never loads in a room another account touched.
+    everShared: integer("ever_shared", { mode: "boolean" }).notNull().default(false),
     // Portable compaction checkpoint (D25 — STAYS): the summary text + the seq it covers through.
     compactSummary: nulFreeText("compact_summary"),
     compactedAtSeq: integer("compacted_at_seq"),

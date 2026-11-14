@@ -15,7 +15,7 @@ import { batchMany } from "@orb/db/query";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
-import { insertMemberAfterInviteClaimStatement } from "./participant.ts";
+import { insertMemberAfterInviteClaimStatement, markChatSharedAfterSeatStatement } from "./participant.ts";
 
 /** Lookup an invite by its peppered token hash. The validity gate is the verb's + {@link redeemInviteAtomic}. */
 export async function findInviteByTokenHash(db: Db, tokenHash: string): Promise<typeof chatInvites.$inferSelect | undefined> {
@@ -124,9 +124,8 @@ export async function redeemInviteAtomic(
     activePersonaId: params.activePersonaId,
     now: params.now,
   });
-  const results = await db.batch(batchMany([claimedStatement, seatedStatement]));
-  const claimed = results[0] as { id: ChatInviteId; chatId: ChatId }[];
-  const seated = results[1] as (typeof chatParticipants.$inferSelect)[];
+  const shared = markChatSharedAfterSeatStatement(db, { inviteId: candidate.id, userId: params.userId });
+  const [claimed, seated] = await db.batch([claimedStatement, seatedStatement, shared]);
   const invite = claimed.at(0);
   const participant = seated.at(0);
   if (invite === undefined || participant === undefined) {
@@ -181,9 +180,8 @@ export async function acceptInviteByIdAtomic(
     activePersonaId: params.activePersonaId,
     now: params.now,
   });
-  const results = await db.batch(batchMany([claimedStatement, seatedStatement]));
-  const claimed = results[0] as { id: ChatInviteId; chatId: ChatId }[];
-  const seated = results[1] as (typeof chatParticipants.$inferSelect)[];
+  const shared = markChatSharedAfterSeatStatement(db, { inviteId: candidate.id, userId: params.userId });
+  const [claimed, seated] = await db.batch([claimedStatement, seatedStatement, shared]);
   const invite = claimed.at(0);
   const participant = seated.at(0);
   if (invite === undefined || participant === undefined) {
@@ -277,7 +275,8 @@ export async function redeemSignupAtomic(
     activePersonaId: params.personaId,
     now: params.now,
   });
-  const results = await db.batch(batchMany([...params.leading, params.account, claim, params.persona, params.pointers, seat, params.audit]));
+  const shared = markChatSharedAfterSeatStatement(db, { inviteId: params.inviteId, userId: params.userId });
+  const results = await db.batch(batchMany([...params.leading, params.account, claim, params.persona, params.pointers, seat, params.audit, shared]));
   const [accounts, claims, personas, pointers, seats] = results.slice(params.leading.length) as readonly (readonly unknown[])[];
   return {
     accounts: accounts?.length ?? 0,

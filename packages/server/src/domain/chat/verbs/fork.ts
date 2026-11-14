@@ -779,6 +779,8 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           title: title ?? source.title,
           parentChatId: chatId,
           forkedAt: now,
+          // The copy carries the parent's injections and books, and the parent link can later be cleared.
+          everShared: source.everShared,
           // BORN CLAIMED (R0 §4.2): a fork arrives with the parent's canon already copied into it, so
           // there is no unstarted state for a husk to represent and the reaper must never see it.
           // `startChat` is the ONE mint that produces a husk. The fork's OWN creation stats fire here
