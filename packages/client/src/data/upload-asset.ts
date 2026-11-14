@@ -5,10 +5,10 @@
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { assetUploadRefusalSchema, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { throwHttpError } from "./http-error.ts";
 
 const UPLOAD_URL = "/api/assets/upload";
-const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
 const PAYLOAD_TOO_LARGE = 413;
 const UNSUPPORTED_MEDIA_TYPE = 415;
@@ -31,7 +31,7 @@ export class UploadRefusedError extends Error {
  *  try/catch + loading-state UI (the `FileDropzone` `loading`/`success` 8-state contract, `@orb/ui`). */
 export async function uploadAsset(file: File, kind: AssetKind): Promise<StoredAsset> {
   const form = new FormData();
-  form.set(UPLOAD_FIELD, file);
+  form.set(UPLOAD_FILE_FIELD, file);
   form.set(KIND_FIELD, kind);
   const response = await fetch(UPLOAD_URL, {
     method: "POST",

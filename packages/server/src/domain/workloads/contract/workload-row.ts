@@ -4,7 +4,8 @@
 //
 // The `poison` discriminant is the read path's HONESTY seam: a row whose stored params blob no longer parses
 // against its kind's contribution schema (a renamed field, an invalid branded TypeID) used to VANISH from
-// `list`/`get`. It now surfaces with `params: null, poison: true` — visibly broken and actionable — while
+// `list`/`get`. It now surfaces with `params: null, poison: true` — visibly broken and actionable — and so does a
+// row whose stored result no longer parses (with `result: null`, so the result is never published), while
 // the DISPATCH path takes the narrower `WorkloadRunnableRow`, so a poison row can never reach a run body.
 
 import type { WorkloadError, WorkloadKind } from "@orb/contracts/workloads";
@@ -78,10 +79,12 @@ export type WorkloadReadAccess = Pick<StoredWorkloadRow, "ownerId" | "mode" | "a
 /** The user-facing authority check runs on scalar row metadata before any private JSON is decoded. */
 export type AuthorizeWorkloadRead = (row: WorkloadReadAccess) => boolean;
 
-/** What a read surface needs to narrow a row: the registry that validates its params, and the log an operator reads. */
+/** What a read surface needs to narrow a row: the registry that validates its params, the log an operator reads, and
+ *  the rows whose unreadable result that log already names. One set per composed reader, so the line is written once. */
 export interface WorkloadReads {
   readonly contributions: WorkloadContributions;
   readonly logger: Logger;
+  readonly reportedUnreadable: Set<WorkloadId>;
 }
 
 /** Atomic claim output: null ownership is admitted only when the stored original admission was ownerless. */

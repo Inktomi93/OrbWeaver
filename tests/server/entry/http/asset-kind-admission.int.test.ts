@@ -12,6 +12,7 @@ import {
   storedAssetSchema,
 } from "@orb/contracts/assets";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { NativeServerTestHarness } from "@orb/testkit/node/composed";
@@ -54,7 +55,7 @@ async function ownerRoot(): Promise<NativeServerTestHarness> {
 async function upload(root: NativeServerTestHarness, kind: AssetKind, media: AssetMedia): Promise<Response> {
   const sample = SAMPLES[media];
   const form = new FormData();
-  form.set("file", new File([Uint8Array.from(sample.bytes)], sample.name, { type: sample.type }));
+  form.set(UPLOAD_FILE_FIELD, new File([Uint8Array.from(sample.bytes)], sample.name, { type: sample.type }));
   form.set("kind", kind);
   return await root.http.request(UPLOAD_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: form });
 }
@@ -100,7 +101,7 @@ test("the upload route stores a picture only under one bare type, never a type l
   const picture = SAMPLES.image;
   const send = async (type: string): Promise<{ readonly status: number; readonly reason: string | undefined }> => {
     const form = new FormData();
-    form.set("file", new File([Uint8Array.from(picture.bytes)], picture.name, { type }));
+    form.set(UPLOAD_FILE_FIELD, new File([Uint8Array.from(picture.bytes)], picture.name, { type }));
     form.set("kind", "attachment");
     const response = await root.http.request(UPLOAD_ROUTE, { method: "POST", headers: CSRF_HEADERS, body: form });
     if (response.status === OK) {

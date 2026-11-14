@@ -188,8 +188,9 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
 
   const after = await host.trpc.workloads.list.query({ kind: "import-st", limit: WORKLOAD_LIST_MAX_LIMIT });
   expect(after.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
+  // The preview's dry runs are transient rows no list shows, so the list holds the import's own runs alone.
   const created = after.filter((row) => !beforeIds.has(row.id));
-  expect(created).toHaveLength(plan.batches.length * 2);
+  expect(created).toHaveLength(plan.batches.length);
   const dryRuns: boolean[] = [];
   for (const row of created) {
     const workload = await host.trpc.workloads.get.query({ id: row.id });
@@ -201,7 +202,7 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     dryRuns.push(workload.result.dryRun);
     expect(workload.result.failed ?? 0).toBe(0);
   }
-  expect(dryRuns.filter(Boolean)).toHaveLength(plan.batches.length);
+  expect(dryRuns.filter(Boolean)).toEqual([]);
 
   for (const name of restoredNames) {
     const restored = (await host.trpc.character.list.query({ search: name })).items.filter((item) => item.name === name);

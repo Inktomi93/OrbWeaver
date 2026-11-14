@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { ImportPreview, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
 import {
+  cardImportResultSchema,
   encodePersonaCollisionChoices,
   importStartedSchema,
   PERSONA_COLLISION_FIELD,
@@ -14,6 +15,7 @@ import {
   TREE_FILE_FIELD,
 } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { MaintenanceResult } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -34,7 +36,9 @@ export type Files = Readonly<Record<string, Bytes>>;
 
 // The owner's default content seeds in the background after the first authed request. Settling it here keeps a
 // test's before/after row deltas from racing the seed.
-export async function harness(options: Pick<ServerHarnessOptions, "db" | "startJobs"> = {}): Promise<ServerTestHarness> {
+export async function harness(
+  options: Pick<ServerHarnessOptions, "db" | "startJobs" | "providerFetch" | "ownerId" | "clock" | "ids"> = {},
+): Promise<ServerTestHarness> {
   await using construction = new AsyncDisposableStack();
   const root = construction.use(
     await createServerHarness({
@@ -51,12 +55,32 @@ export async function harness(options: Pick<ServerHarnessOptions, "db" | "startJ
 }
 
 // SillyTavern wire text is snake_case by spec, so the fixtures are raw JSON text.
-function cardJson(name: string): string {
+export function cardJson(name: string): string {
   return `{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":${JSON.stringify(name)},"description":"${name.slice(0, 40)} keeps the light.","first_mes":"The lamp is lit."}}`;
 }
 
+/** A card PNG. Every call is the same picture: the id varies only the bytes the card chunk replaces, which are not art. */
 export function cardPng(root: ServerTestHarness, name: string): Uint8Array {
   return writeCardChunk(new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))), cardJson(name));
+}
+
+// One zero-length private ancillary chunk (`abCd`) ahead of IEND makes a different picture of the same pixels.
+const ABCD_CHUNK = Uint8Array.from([0x00, 0x00, 0x00, 0x00, 0x61, 0x62, 0x43, 0x64, 0x78, 0x06, 0xe9, 0xb3]);
+const IEND_CHUNK_BYTES = 12;
+
+/** The card {@link cardPng} writes, under other art. */
+export function cardPngUnderOtherArt(root: ServerTestHarness, name: string): Uint8Array {
+  const png = new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  return writeCardChunk(Uint8Array.from([...png.slice(0, -IEND_CHUNK_BYTES), ...ABCD_CHUNK, ...png.slice(-IEND_CHUNK_BYTES)]), cardJson(name));
+}
+
+/** One card file through the Characters dialog door. */
+export async function importThroughDialog(root: ServerTestHarness, filename: string, bytes: Bytes): Promise<void> {
+  const form = new FormData();
+  form.append(UPLOAD_FILE_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], filename));
+  const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: CSRF_HEADERS, body: form });
+  expect(response.status).toBe(200);
+  expect(cardImportResultSchema.parse(await response.json()).failed).toEqual([]);
 }
 
 export function settings(personas: Readonly<Record<string, string>>): string {

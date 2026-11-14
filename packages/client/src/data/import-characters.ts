@@ -8,9 +8,8 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { CardImportResult } from "@orb/contracts/import";
 import { cardImportResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { throwHttpError } from "./http-error.ts";
-
-const IMPORT_FIELD = "file";
 
 /** POST picked card `File`s to the import route and return the server's real per-file result. Throws on a
  *  non-OK response (a whole-batch rejection). Per-card failures ride back in the 200 body's `failed[]` — the
@@ -18,7 +17,7 @@ const IMPORT_FIELD = "file";
 export async function importCharacters(files: readonly File[]): Promise<CardImportResult> {
   const form = new FormData();
   for (const file of files) {
-    form.append(IMPORT_FIELD, file);
+    form.append(UPLOAD_FILE_FIELD, file);
   }
   const response = await fetch(PORTABILITY_ROUTES.importCards, {
     method: "POST",

@@ -18,30 +18,40 @@ import type { WorkloadService, WorkloadServiceContext } from "../contract/servic
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
 import { canCloneRow, mayActOnRow } from "../substrate/authorize.ts";
-import { activeConflictMessage, assertAdmissible, assertRunAuthority, resolveAdmissionKey, resolveLane, runAccount } from "../substrate/params.ts";
+import {
+  activeConflictMessage,
+  assertAdmissible,
+  assertRunAuthority,
+  resolveAdmissionKey,
+  resolveLane,
+  resolveTransient,
+  runAccount,
+} from "../substrate/params.ts";
 
 const ENTITY = "workload";
 
-/** The clone's params + admission key + lane. A HEALTHY row re-uses its parsed params and re-derives its key and
- *  lane from the kind's CURRENT contribution. A POISON row carries the RAW blob verbatim — its parsed view is
- *  `null`, and an admission key and a params-dependent lane are both params reads, so the clone locks under the
- *  shared `none` bucket and takes the kind's fixed lane. */
+/** The clone's params + admission key + lane + transient stamp. A HEALTHY row re-uses its parsed params and re-derives
+ *  its key, lane and stamp from the kind's CURRENT contribution. A POISON row carries the RAW blob verbatim — its parsed
+ *  view is `null`, and an admission key, a params-dependent lane and the stamp are all params reads, so the clone locks
+ *  under the shared `none` bucket, takes the kind's fixed lane and is a listed run its owner can see. */
 async function resolveCloneParams(
   ctx: WorkloadServiceContext,
   contributions: WorkloadContributions,
   original: WorkloadRowAnyKind,
-): Promise<{ params: Record<string, unknown>; admissionKey: string; lane: WorkloadLane }> {
+): Promise<{ params: Record<string, unknown>; admissionKey: string; lane: WorkloadLane; transient: boolean }> {
   if (original.poison) {
     return {
       params: (await loadRawWorkloadParams(ctx.db, original.id)) ?? {},
       admissionKey: DEFAULT_ADMISSION_KEY,
       lane: contributions[original.kind].lane,
+      transient: false,
     };
   }
   return {
     params: original.params,
     admissionKey: resolveAdmissionKey(contributions, original.kind, original.params),
     lane: resolveLane(contributions, original.kind, original.params),
+    transient: resolveTransient(contributions, original.kind, original.params),
   };
 }
 
@@ -57,7 +67,9 @@ async function assertCloneDependenciesAvailable(ctx: WorkloadServiceContext, ori
 export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, "retry"> {
   async function retry(params: RetryWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
-    const original = await loadWorkload(ctx.db, { contributions, logger: ctx.logger }, params.id, (access) => canCloneRow(ctx, params.caller, access));
+    const original = await loadWorkload(ctx.db, { contributions, logger: ctx.logger, reportedUnreadable: ctx.reportedUnreadable }, params.id, (access) =>
+      canCloneRow(ctx, params.caller, access),
+    );
     if (original === null || !(await mayActOnRow(ctx, params.caller, original))) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }
@@ -85,6 +97,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         mode: original.mode,
         admissionKey: clone.admissionKey,
         lane: clone.lane,
+        transient: clone.transient,
         params: clone.params,
         ownerId: original.ownerId,
         funderUserId: original.funderUserId,

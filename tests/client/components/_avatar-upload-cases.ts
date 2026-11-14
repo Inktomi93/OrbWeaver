@@ -12,7 +12,7 @@
 import type { StoredAsset } from "@orb/contracts/assets";
 import { assetUploadRefusalSchema, blobUrl, storedAssetSchema } from "@orb/contracts/assets";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import { DEFAULT_UPLOAD_CAPS, UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import { ID_PREFIX } from "@orb/kit/ids";
 
 import type { ServedHold } from "@orb/testkit/ct";
@@ -88,7 +88,7 @@ export interface AvatarSurface {
 /** Stores one real, distinct picture through the upload route the page uses. */
 async function storePicture(root: Root): Promise<StoredAsset> {
   const form = new FormData();
-  form.set("file", new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "stored.png", { type: "image/png" }));
+  form.set(UPLOAD_FILE_FIELD, new File([new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)))], "stored.png", { type: "image/png" }));
   form.set("kind", "avatar");
   const response = await root.http.request(UPLOAD_ROUTE, { method: "POST", headers: { [CSRF_HEADER]: "1" }, body: form });
   expect(response.status).toBe(200);
