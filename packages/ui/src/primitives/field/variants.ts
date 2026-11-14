@@ -54,8 +54,17 @@ export const fieldVariants = tv({
       vertical: {},
       horizontal: {
         // Stacks back to vertical below the md container breakpoint so a narrow pane doesn't starve the label block.
-        root: "flex-row items-start justify-between gap-row @max-cq-28:flex-col @max-cq-28:items-stretch @max-cq-28:justify-start",
-        controlCol: "inline-(--width-control-col) @max-cq-28:items-stretch @max-cq-28:inline-full",
+        //
+        // THE ROW ALSO WRAPS, because that step needs a size container and a popup cannot be one: it shrink-wraps its content, and
+        // inline-size containment would collapse it. Inside a popup no query matches, so the fixed control column (rem, so it grows with
+        // the text) outgrew the popup and the popup scrolled sideways. The label block's basis is the least width it keeps beside the
+        // control; a control column that cannot sit beside it drops to its own line, and never exceeds the row.
+        root: `
+          flex-row flex-wrap items-start justify-between gap-row
+          @max-cq-28:flex-col @max-cq-28:flex-nowrap @max-cq-28:items-stretch @max-cq-28:justify-start
+        `,
+        labelBlock: "grow basis-(--width-title-floor) @max-cq-28:grow-0 @max-cq-28:basis-auto",
+        controlCol: "inline-(--width-control-col) max-inline-full @max-cq-28:items-stretch @max-cq-28:inline-full",
       },
       // Reserve the hit surface in flow without enlarging the checkbox's painted mark.
       inline: {
@@ -123,7 +132,7 @@ export const fieldVariants = tv({
         // column, and an ungated `col-start-2` there does not stack — it MINTS AN IMPLICIT SECOND COLUMN
         // and the control sits beside the label again at phone width (measured: control top 1155 against
         // label bottom 1178, i.e. still side-by-side, in the narrow message-style story).
-        root: "@max-cq-32:flex-col @max-cq-32:items-stretch @cq-32:col-span-2 @cq-32:grid @cq-32:grid-cols-subgrid",
+        root: "@max-cq-32:flex-col @max-cq-32:flex-nowrap @max-cq-32:items-stretch @cq-32:col-span-2 @cq-32:grid @cq-32:grid-cols-subgrid",
         // `contents` DISSOLVES the label block so its two children become grid items of this subgrid: the
         // label lands in the label track and the DESCRIPTION gets its own full-width line beneath the
         // label/control pair. That placement is the E5 half of #932 — the registry gloss has to read as
@@ -131,7 +140,7 @@ export const fieldVariants = tv({
         // very row the track set exists to tighten. The three explicit placements below are what a
         // `contents` block costs: auto-placement would otherwise push the control onto a third row once
         // the full-span description has taken the second.
-        labelBlock: "@cq-32:contents",
+        labelBlock: "@max-cq-32:grow-0 @max-cq-32:basis-auto @cq-32:contents",
         label: "@cq-32:col-start-1 @cq-32:row-start-1",
         labelRow: "@cq-32:col-start-1 @cq-32:row-start-1",
         // The MEASURE moved to the base slot (#1653) — it is not re-spelled here, because half a migration
