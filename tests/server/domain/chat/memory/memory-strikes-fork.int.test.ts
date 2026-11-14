@@ -5,25 +5,13 @@
 // @subject packages/server/src/domain/chat/verbs/fork.ts
 // @subject packages/server/src/domain/chat/memory/strikes.ts
 
-import type { MemoryView } from "@orb/contracts/chat";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { readRoomCanon } from "@orb/testkit/node/composed";
 import { invitePerson } from "../persona-cache-physical.ts";
 import type { Arc } from "./recall-world.ts";
-import { BLOCK_SIZE, blockOf, probe, recallTurn, TURN_INTENT, world } from "./recall-world.ts";
-
-const BOTH = `Tell me about the scene. ${probe("bath")} ${probe("storm")}`;
-const RECALL_KNOBS = { minScore: 0.05, queryWindow: 1, keywordMatch: false } as const;
-
-function itemAt(view: MemoryView, tier: number, blockIdx: number): MemoryView["items"][number] {
-  return present(view.items.find((item) => item.key.tier === tier && item.key.blockIdx === blockIdx));
-}
-
-function sceneOf(view: MemoryView, arc: Arc): MemoryView["items"][number] {
-  return itemAt(view, 0, blockOf(arc));
-}
+import { BLOCK_SIZE, BOTH, blockOf, itemAt, RECALL_KNOBS, recallTurn, sceneOf, TURN_INTENT, world } from "./recall-world.ts";
 
 async function strikeScene(h: ChatRoot, arc: Arc): Promise<void> {
   await h.caller.chat.strikeMemory({ chatId: h.chatId, item: sceneOf(await h.caller.chat.memoryView({ chatId: h.chatId }), arc).key });

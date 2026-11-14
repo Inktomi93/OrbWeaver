@@ -5,44 +5,16 @@
 // @subject packages/server/src/domain/chat/memory/generate/digests.ts
 
 import type { MemoryView } from "@orb/contracts/chat";
-import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import type { ChatRoot } from "@orb/testkit/node/composed";
-import { readRoomCanon, SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/testkit/node/composed";
-import type { Arc } from "./recall-world.ts";
-import { blockOf, generatedText, probe, recallTurn, TURN_INTENT, world } from "./recall-world.ts";
+import { SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/testkit/node/composed";
+import { BOTH, blockOf, editScene, generatedText, itemAt, MERGED_FACTS, recallTurn, redigest, STORM_ARC, world } from "./recall-world.ts";
 
-const BOTH = `Tell me about the scene. ${probe("bath")} ${probe("storm")}`;
-const MERGED_FACTS = "The scenes merged into one arc.";
 // Each consolidation names what it covers, so the prompt shows which stored summary it carries.
-const STORM_ARC = "The storm arc was merged into one telling.";
 const BATH_ARC = "The bath arc was merged into one telling.";
 const EARLY_ARC = "The early story was merged into one telling.";
 
 function listed(view: MemoryView, tier: number, blockIdx: number): boolean {
   return view.items.some((item) => item.key.tier === tier && item.key.blockIdx === blockIdx);
-}
-
-function itemAt(view: MemoryView, tier: number, blockIdx: number): MemoryView["items"][number] {
-  return present(view.items.find((item) => item.key.tier === tier && item.key.blockIdx === blockIdx));
-}
-
-/** Rebuild the room's memory after a canon change: the live pass after a turn, then the corpus sweep. */
-async function redigest(w: Awaited<ReturnType<typeof world.build>>): Promise<void> {
-  const keeper = present(w.h.characters[0]);
-  const turn = await w.h.root.services.chat.forceCharacterTurn({ principal: w.h.owner, chatId: w.h.chatId, characterId: keeper.id, intent: TURN_INTENT });
-  expect(turn.aborted).toBe(false);
-  await w.h.root.settleBackground();
-  await w.sweep({ kind: "memory-backfill", params: {} });
-}
-
-/** Rewrite the first transcript line of `arc`'s scene, keeping the marker the scripted summarizer keys on. */
-async function editScene(h: ChatRoot, arc: Arc): Promise<void> {
-  const line = (await readRoomCanon(h.root, h.owner, h.chatId)).find((message) => message.content.includes(`line-${arc}.`));
-  if (line === undefined) {
-    throw new Error(`the room holds no ${arc} line`);
-  }
-  await h.root.services.chat.editMessage({ principal: h.owner, chatId: h.chatId, messageId: line.id, content: `line-${arc}. The ${arc} was told again.` });
 }
 
 test("an edited scene whose new summary comes back blank takes the longer summary built from it out of the view and the prompt", {

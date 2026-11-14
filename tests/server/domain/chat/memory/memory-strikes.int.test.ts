@@ -27,42 +27,26 @@ import {
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { wireOf } from "../scenario-physical.ts";
-import type { Arc, RecallRun } from "./recall-world.ts";
-import { BLOCK_SIZE, blockOf, embeddingFor, FAN_OUT, generatedText, probe, recallTurn, TURN_INTENT, verdicts, world } from "./recall-world.ts";
-
-/** Two scenes in one query, the storm scene weighted first; both clear the floor, so both are admitted unstruck. */
-const BOTH = `Tell me about the scene. ${probe("bath")} ${probe("storm")}`;
-const RECALL_KNOBS = { minScore: 0.05, queryWindow: 1, keywordMatch: false } as const;
-
-function itemAt(view: MemoryView, tier: number, blockIdx: number): MemoryItemView {
-  const item = view.items.find((candidate) => candidate.key.tier === tier && candidate.key.blockIdx === blockIdx);
-  if (item === undefined) {
-    throw new Error(`the memory view lists no item at tier ${tier}, block ${blockIdx}`);
-  }
-  return item;
-}
-
-function sceneOf(view: MemoryView, arc: Arc): MemoryItemView {
-  return itemAt(view, 0, blockOf(arc));
-}
-
-/** Rebuild the room's memory after a canon change: the live pass after a turn, then the corpus sweep. */
-async function redigest(w: Awaited<ReturnType<typeof world.build>>): Promise<void> {
-  const keeper = present(w.h.characters[0]);
-  const turn = await w.h.root.services.chat.forceCharacterTurn({ principal: w.h.owner, chatId: w.h.chatId, characterId: keeper.id, intent: TURN_INTENT });
-  expect(turn.aborted).toBe(false);
-  await w.h.root.settleBackground();
-  await w.sweep({ kind: "memory-backfill", params: {} });
-}
-
-/** Rewrite the first transcript line of `arc`'s scene, keeping the marker the scripted summarizer keys on. */
-async function editScene(h: ChatRoot, arc: Arc): Promise<void> {
-  const line = (await readRoomCanon(h.root, h.owner, h.chatId)).find((message) => message.content.includes(`line-${arc}.`));
-  if (line === undefined) {
-    throw new Error(`the room holds no ${arc} line`);
-  }
-  await h.root.services.chat.editMessage({ principal: h.owner, chatId: h.chatId, messageId: line.id, content: `line-${arc}. The ${arc} was told again.` });
-}
+import type { RecallRun } from "./recall-world.ts";
+import {
+  BLOCK_SIZE,
+  BOTH,
+  blockOf,
+  editScene,
+  embeddingFor,
+  FAN_OUT,
+  generatedText,
+  itemAt,
+  MERGED_FACTS,
+  RECALL_KNOBS,
+  recallTurn,
+  redigest,
+  STORM_ARC,
+  sceneOf,
+  TURN_INTENT,
+  verdicts,
+  world,
+} from "./recall-world.ts";
 
 test("a struck scene leaves the next prompt while the scene beside it stays, and restoring it brings it back", async () => {
   await using w = await world.build({ mode: "mixB", maxTier: 0 });
@@ -167,10 +151,6 @@ test("striking a scene leaves out the consolidation retelling it, and restoring 
   expect(verdicts(restored.trace, "covers-struck")).toEqual([]);
   expect(itemAt(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), 1, 0).retellsStruck).toBe(false);
 });
-
-/** The storm arc's consolidation, told apart from the other merged arcs so the prompt shows which one it carries. */
-const STORM_ARC = "The storm arc was merged into one telling.";
-const MERGED_FACTS = "The scenes merged into one arc.";
 
 test("a strike outlives its scene's summary being dropped: it waits listed, then holds on the summaries built again", {
   tags: ["slow"],

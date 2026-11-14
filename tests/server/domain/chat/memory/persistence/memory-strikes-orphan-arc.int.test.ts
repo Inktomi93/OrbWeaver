@@ -8,11 +8,7 @@ import { chatDigests } from "@orb/db";
 import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq } from "drizzle-orm";
-import { blockOf, generatedText, probe, recallTurn, verdicts, world } from "../recall-world.ts";
-
-const BOTH = `Tell me about the scene. ${probe("bath")} ${probe("storm")}`;
-const MERGED_FACTS = "The scenes merged into one arc.";
-const STORM_ARC = "The storm arc was merged into one telling.";
+import { BOTH, blockOf, generatedText, MERGED_FACTS, recallTurn, STORM_ARC, verdicts, world } from "../recall-world.ts";
 
 test("a longer summary over a struck scene stays out after the scene's own row is gone, and the view shows it struck", async () => {
   await using w = await world.build({
