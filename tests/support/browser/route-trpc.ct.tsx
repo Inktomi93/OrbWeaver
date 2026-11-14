@@ -280,7 +280,8 @@ test("routeAuthConfig serves a parsed config the client accepts, and a captured 
   await page.goto(ORIGIN);
   await routeAuthConfig(page, config);
   const served: unknown = await page.evaluate(async () => (await fetch("/api/auth/config")).json());
-  expect(authConfigSchema.parse(served)).toEqual(config);
+  expect(served).toEqual(config);
+  expect(authConfigSchema.safeParse(served).success).toBe(true);
   const captured = JSON.stringify({ ...config, mode: "oidc", localEnabled: false, oidcEnabled: true });
   await routeAuthConfig(page, captured);
   expect(await page.evaluate(async () => (await fetch("/api/auth/config")).text())).toBe(captured);

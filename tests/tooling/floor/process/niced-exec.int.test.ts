@@ -50,14 +50,9 @@ function pgrpOf(pid: number): number {
   return group;
 }
 
-async function waitGone(pid: number, budgetMs: number): Promise<boolean> {
-  // the SUBJECT is real wall-clock time — polling a real OS process's liveness after a real signal has no injectable clock.
-  const deadline = Date.now() + budgetMs;
-  // The same real-time polling loop described above.
-  while (pidAlive(pid) && Date.now() < deadline) {
-    await sleep(50);
-  }
-  return !pidAlive(pid);
+// The process table is the lifecycle signal: the poll ends when the pid is gone, and its timeout bounds a survivor.
+async function expectGone(pid: number, message: string): Promise<void> {
+  await expect.poll(() => pidAlive(pid), { message, timeout: scaledBudget(20_000), interval: 50 }).toBe(false);
 }
 
 test("under runTool, a full-priority child stays at the caller's priority while a niced child is lowered", () => {
@@ -128,8 +123,8 @@ test("a group SIGKILL of the launcher leaves no survivor — the verifier's repr
 
   process.kill(-launcherPid, "SIGKILL");
 
-  expect(await waitGone(launcherPid, scaledBudget(20_000)), "the launcher must die").toBe(true);
-  expect(await waitGone(childPid, scaledBudget(20_000)), "a group SIGKILL must take the real child too — no orphan").toBe(true);
+  await expectGone(launcherPid, "the launcher must die");
+  await expectGone(childPid, "a group SIGKILL must take the real child too — no orphan");
 });
 
 test("SIGTERM to the launcher's own pid (not a group signal) ends the child", async () => {
@@ -143,7 +138,7 @@ test("SIGTERM to the launcher's own pid (not a group signal) ends the child", as
 
     launcher.kill("SIGTERM");
 
-    expect(await waitGone(childPid, scaledBudget(20_000)), "SIGTERM to the launcher's pid must end its real child").toBe(true);
+    await expectGone(childPid, "SIGTERM to the launcher's pid must end its real child");
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
@@ -160,7 +155,7 @@ test("SIGHUP to the launcher's GROUP ends its real child, so a closed terminal n
   // delivery, not a single-pid signal, since the launcher no longer relays SIGHUP itself.
   process.kill(-launcherPid, "SIGHUP");
 
-  expect(await waitGone(childPid, scaledBudget(20_000)), "SIGHUP to the group must end the real child").toBe(true);
+  await expectGone(childPid, "SIGHUP to the group must end the real child");
 });
 
 test("a pty Ctrl-C reaches the real child exactly once, never twice", () => {
@@ -209,6 +204,8 @@ test("a supervised sync door reports a missing command exactly as the nice door 
   const missing = path.join(scratch, "absent-command");
   const plain = runNicedSync(missing, []);
   const supervised = runNicedSync(missing, [], { supervised: true });
+  // The control: the missing command does fail, so the agreement below is not two doors that both report success.
+  expect(plain.status).not.toBe(0);
   expect(supervised.status, supervised.stderr).toBe(plain.status);
   expect(supervised.signal).toBe(plain.signal);
 });
