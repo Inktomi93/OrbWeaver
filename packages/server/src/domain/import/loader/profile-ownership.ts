@@ -10,10 +10,11 @@
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { ImportAnswer } from "@orb/contracts/import";
 import { narrowPersonaMetadata } from "@orb/contracts/persona";
+import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { CharacterId } from "@orb/kit/ids";
 import { mapYielding } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
-import type { CollectedCard, CollectedChat } from "../contract/collection.ts";
+import type { CollectedCard, CollectedChat, CollectedPersona } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
 import { currentCardIdentity, findImportedCharacter, importFileHash } from "../substrate/card.ts";
 import { partitionGroups, resolveMembers, seatsOf } from "../substrate/group.ts";
@@ -81,6 +82,23 @@ interface CardPass {
   readonly ownedByRow: Map<RowKey, CharacterId>;
 }
 
+/** The owned match a card reuses. A card matched by its text alone reuses the row only by giving it its art, which the
+ *  write does once (`resolveExisting` in import-character.ts): an earlier card of this upload that took the art leaves
+ *  this one to land beside it. */
+function takeArtOnce<Match extends { readonly characterId: CharacterId; readonly match: string }>(
+  artTaken: Set<CharacterId>,
+  owned: Match | null,
+): Match | null {
+  if (owned?.match !== "text") {
+    return owned;
+  }
+  if (artTaken.has(owned.characterId)) {
+    return null;
+  }
+  artTaken.add(owned.characterId);
+  return owned;
+}
+
 /** A character is reused when an equal card landed (the one lookup order every door uses), in the library or earlier
  *  in this upload. A taken handle is not a match: different content under it lands beside the owned character with
  *  a suffixed handle (D290). A text-only match counts: whether that row may take the PNG's art is decided by the
@@ -91,15 +109,20 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
   const pass: CardPass = { characters: new Map(), rowByCard: new Map(), ownedByRow: new Map() };
   // call-local: the row each landed card identity lands under, so a later equal card finds it. Ends if it outlives the pass.
   const landed = new Map<string, RowKey>();
+  // call-local: the owned art-less rows an earlier card of this upload matched by its text alone. Ends if it outlives the pass.
+  const artTaken = new Set<CharacterId>();
   for (const bundle of collected.bundles) {
     if (deps.signal.aborted) {
       break;
     }
     const hashes = { importHash: bundle.contentHash, textHash: bundle.textHash, fileHash: importFileHash(bundle.cardBytes) };
-    const found = await findImportedCharacter(
-      async (importHash) => await characterOps.findByImportHash({ ownerId, importHash }),
-      hashes,
-      currentCardIdentity(exportCurrentCard, ownerId, bundle.carriedHandle),
+    const found = takeArtOnce(
+      artTaken,
+      await findImportedCharacter(
+        async (importHash) => await characterOps.findByImportHash({ ownerId, importHash }),
+        hashes,
+        currentCardIdentity(exportCurrentCard, ownerId, bundle.carriedHandle),
+      ),
     );
     const earlier = found === null ? await findImportedCharacter<RowKey>((importHash) => Promise.resolve(landed.get(importHash) ?? null), hashes) : null;
     const keys = [bundle.contentHash];
@@ -204,12 +227,27 @@ function answersOf<Item>(items: readonly Item[], answers: readonly ImportAnswer[
   return answered;
 }
 
-async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<ImportOwnership["personas"]> {
-  const personas = await mapYielding(collected.personas, deps.signal, ({ parsed, avatarBytes }) => ({
-    name: parsed.name,
-    description: parsed.description,
-    metadata: narrowPersonaMetadata(parsed.metadata),
-    artHash: avatarBytes === undefined ? null : sha256Hex(avatarBytes),
+/** The personas the run lands without art. The run offers each avatar to the store under the upload cap and lands the
+ *  persona art-less when the store refuses it (`toPersonaInput` in profile-directory.ts), so the store's own twin
+ *  decides here. */
+function personasWithoutArt(deps: ProfileDirImportDeps, collected: ProfileCollected): ReadonlySet<CollectedPersona> {
+  return new Set(
+    collected.personas.filter(
+      ({ avatarBytes }) => avatarBytes === undefined || !deps.ownership.admitsAvatar({ bytes: avatarBytes, maxBytes: ASSET_UPLOAD_MAX_BYTES }),
+    ),
+  );
+}
+
+async function passPersonas(
+  deps: ProfileDirImportDeps,
+  collected: ProfileCollected,
+  artless: ReadonlySet<CollectedPersona>,
+): Promise<ImportOwnership["personas"]> {
+  const personas = await mapYielding(collected.personas, deps.signal, (persona) => ({
+    name: persona.parsed.name,
+    description: persona.parsed.description,
+    metadata: narrowPersonaMetadata(persona.parsed.metadata),
+    artHash: persona.avatarBytes === undefined || artless.has(persona) ? null : sha256Hex(persona.avatarBytes),
   }));
   return answersOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas, collisions: deps.personaCollisions }));
 }
@@ -253,12 +291,14 @@ export async function findOwnership(deps: ProfileDirImportDeps, collected: Profi
   const cards = await passCards(deps, collected, chats);
   const orphans = await passOrphans(deps, collected, chats);
   const groups = await passGroups(deps, collected, cards, chats);
+  const artless = personasWithoutArt(deps, collected);
   return {
     characters: cards.characters,
     chats: chats.answers,
-    personas: await passPersonas(deps, collected),
+    personas: await passPersonas(deps, collected, artless),
     ...(await passLibrary(deps, collected)),
     groups,
     orphans,
+    personasWithoutArt: artless,
   };
 }

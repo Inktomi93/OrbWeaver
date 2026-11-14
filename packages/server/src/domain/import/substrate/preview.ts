@@ -174,7 +174,7 @@ function profileKindItems(
     ],
     personas: result.personas.map((persona) => {
       const base = item(profile, persona.parsed.avatarFile, persona.parsed.name);
-      return listed(persona, owned.personas, persona.avatarBytes === undefined ? { ...base, withoutArt: true as const } : base);
+      return listed(persona, owned.personas, owned.personasWithoutArt.has(persona) ? { ...base, withoutArt: true as const } : base);
     }),
     worlds: result.worlds.map((world) => listed(world, owned.worlds, item(profile, world.sourceFile, world.book.name))),
     presets: result.presets.map((preset) => listed(preset, owned.presets, item(profile, preset.sourceFile, preset.parsed.name))),
@@ -214,6 +214,7 @@ const NOTHING_OWNED: ImportOwnership = {
   backgrounds: new Map(),
   groups: new Map(),
   orphans: new Map(),
+  personasWithoutArt: new Set(),
 };
 
 /** How many items of each kind the folder holds: the numbers the preview lists carry and a real run reports. */

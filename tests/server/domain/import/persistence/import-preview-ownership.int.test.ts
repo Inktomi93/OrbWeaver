@@ -9,7 +9,22 @@ import type { ImportPreviewKind } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, ST_SETTINGS_FILE } from "@orb/contracts/import";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { admit, bothKindFolders, cardPng, chatOf, dryRun, finish, finishRun, harness, inProfile, namesakeFolder, settings } from "./_st-tree-door.ts";
+import {
+  admit,
+  bothKindFolders,
+  cardJson,
+  cardPng,
+  cardPngUnderOtherArt,
+  chatOf,
+  dryRun,
+  finish,
+  finishRun,
+  harness,
+  importThroughDialog,
+  inProfile,
+  namesakeFolder,
+  settings,
+} from "./_st-tree-door.ts";
 
 // Every kind whose ownership comes from an owner domain's read. Characters keep the one lookup every door uses.
 const OWNED_KINDS = IMPORT_PREVIEW_KINDS.filter((kind): kind is Exclude<ImportPreviewKind, "characters"> => kind !== "characters");
@@ -102,4 +117,27 @@ test("a group the run refuses is a skip, not a new room, and the preview counts 
   expect(preview.skipped.items.map((item) => item.source.path)).toEqual(expect.arrayContaining(["groups/roomless.json", "groups/memberless.json"]));
   expect(imported.found).toMatchObject({ groups: preview.kinds.groups.total, chats: preview.kinds.chats.total });
   expect(preview.kinds.chats.items.map((item) => item.name)).not.toContain("Memberless: ghost-room");
+});
+
+test("an owned art-less card takes the art of the first same-text PNG only, so the preview flags that one and the run lands the other", async () => {
+  await using root = await harness();
+  await importThroughDialog(root, "aria.json", cardJson("Aria"));
+  const files = {
+    [ST_SETTINGS_FILE]: settings({}),
+    "characters/Aria.png": cardPng(root, "Aria"),
+    "characters/Aria other.png": cardPngUnderOtherArt(root, "Aria"),
+  };
+  const ariaCount = async (): Promise<number> =>
+    (await (await root.internalCallerFor(root.ownerId)).character.list({})).items.filter((item) => item.name === "Aria").length;
+
+  const preview = await dryRun(root, files);
+
+  expect(preview.kinds.characters.items.map((item) => ({ source: item.source.path, inLibrary: item.inLibrary }))).toEqual([
+    { source: "Aria.png", inLibrary: true },
+    { source: "Aria other.png", inLibrary: undefined },
+  ]);
+  expect(preview.kinds.characters.counts).toMatchObject({ inLibrary: 1, writes: 1 });
+
+  await finish(root, await admit(root, files));
+  expect(await ariaCount()).toBe(2);
 });

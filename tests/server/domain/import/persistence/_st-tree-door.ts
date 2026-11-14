@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { ImportPreview, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
 import {
+  cardImportResultSchema,
   encodePersonaCollisionChoices,
   importStartedSchema,
   PERSONA_COLLISION_FIELD,
@@ -51,12 +52,35 @@ export async function harness(options: Pick<ServerHarnessOptions, "db" | "startJ
 }
 
 // SillyTavern wire text is snake_case by spec, so the fixtures are raw JSON text.
-function cardJson(name: string): string {
+export function cardJson(name: string): string {
   return `{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":${JSON.stringify(name)},"description":"${name.slice(0, 40)} keeps the light.","first_mes":"The lamp is lit."}}`;
 }
 
+/** A card PNG. Every call is the same picture: the id varies only the bytes the card chunk replaces, which are not art. */
 export function cardPng(root: ServerTestHarness, name: string): Uint8Array {
   return writeCardChunk(new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))), cardJson(name));
+}
+
+// One zero-length private ancillary chunk (`abCd`) ahead of IEND makes a different picture of the same pixels.
+const ABCD_CHUNK = Uint8Array.from([0x00, 0x00, 0x00, 0x00, 0x61, 0x62, 0x43, 0x64, 0x78, 0x06, 0xe9, 0xb3]);
+const IEND_CHUNK_BYTES = 12;
+
+/** The card {@link cardPng} writes, under other art. */
+export function cardPngUnderOtherArt(root: ServerTestHarness, name: string): Uint8Array {
+  const png = new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
+  return writeCardChunk(Uint8Array.from([...png.slice(0, -IEND_CHUNK_BYTES), ...ABCD_CHUNK, ...png.slice(-IEND_CHUNK_BYTES)]), cardJson(name));
+}
+
+// The Characters dialog's upload field. The route reads it from `UPLOAD_FIELD`, which `entry/http/upload.ts` does not export.
+const DIALOG_FIELD = "file";
+
+/** One card file through the Characters dialog door. */
+export async function importThroughDialog(root: ServerTestHarness, filename: string, bytes: Bytes): Promise<void> {
+  const form = new FormData();
+  form.append(DIALOG_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], filename));
+  const response = await root.http.request(PORTABILITY_ROUTES.importCards, { method: "POST", headers: CSRF_HEADERS, body: form });
+  expect(response.status).toBe(200);
+  expect(cardImportResultSchema.parse(await response.json()).failed).toEqual([]);
 }
 
 export function settings(personas: Readonly<Record<string, string>>): string {

@@ -10,6 +10,7 @@ export type { SeedAvatarOps } from "./contract/seed-art.ts";
 export type { AssetsAssemblyContext, AssetsService, AssetsWorkloadAssemblyDeps } from "./contract/service.ts";
 export { createAssetsService } from "./service.ts";
 export { readTornAsMiss } from "./substrate/torn-entry.ts";
+export { createAdmitsAvatar } from "./verbs/admits-avatar.ts";
 export { createAssetEmbeddingReads } from "./verbs/asset-embedding-reads.ts";
 export { createBackgroundStore } from "./verbs/background-store.ts";
 export { createChatAssetOps } from "./verbs/chat-asset-ops.ts";
