@@ -16,6 +16,7 @@ export { ContextTabBody } from "./context-tab-body.tsx";
 export { CountText } from "./count-text.tsx";
 export { DescribedMenuItem } from "./described-menu-item.tsx";
 export { DetailHeader } from "./detail-header.tsx";
+export { DialogFailure } from "./dialog-failure.tsx";
 export { EditableTagChip } from "./editable-tag-chip.tsx";
 export { EditorPage } from "./editor-page.tsx";
 export { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";

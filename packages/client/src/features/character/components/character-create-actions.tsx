@@ -21,7 +21,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ComponentProps, ReactElement } from "react";
 import { useId, useState } from "react";
-import { FormDialog } from "#components";
+import { DialogFailure, FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { BAND_NEW_LABEL, DIALOG_VERBS, useOpenRequests } from "#lib";
 import { selectCharacter } from "#state";
@@ -126,11 +126,7 @@ export function NewCharacterDialog({
         {/* The line sits under the field it is about: for a sighted reader "at the control" (WCAG 3.3.1) means
             adjacent, not somewhere in the dialog. It takes the body step, the dialog description's own, because
             a refusal that reads smaller than the text it qualifies is easy to miss. */}
-        {failure === null ? null : (
-          <Text tone="destructive" id={refusalId} role="alert">
-            {failure}
-          </Text>
-        )}
+        {failure === null ? null : <DialogFailure id={refusalId}>{failure}</DialogFailure>}
         <Text as="span" ink="muted" voice="label">
           Description
         </Text>

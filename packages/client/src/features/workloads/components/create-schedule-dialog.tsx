@@ -10,10 +10,10 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import type { SelectItems } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import {
+  DialogFailure,
   FormDialogPopup,
   FormDialogRoot,
   ModelRunConfirmDialog,
@@ -178,11 +178,7 @@ function ScheduleFormBody({
         </form.Subscribe>
       ) : null}
       {/* While the paid-run confirm is up it is the retry surface and says the failure itself; this line speaks once it is gone. */}
-      {hasError && paidRun.dialog.pending === null ? (
-        <Text role="alert" tone="destructive" voice="label">
-          {failedLine}
-        </Text>
-      ) : null}
+      {hasError && paidRun.dialog.pending === null ? <DialogFailure>{failedLine}</DialogFailure> : null}
       <ModelRunConfirmDialog {...paidRun.dialog} nested={true} />
     </FormDialogPopup>
   );

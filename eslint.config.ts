@@ -2087,6 +2087,10 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
+      rules: { "orb/dialog-failure-via-owner": "error" },
+    },
+    {
+      files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
       // The composite that wraps the drawer primitive.
       ignores: homes("packages/client/src/components/sheet-dialog.tsx"),
       rules: { "orb/sheet-via-composite": "error" },

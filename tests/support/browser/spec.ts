@@ -9,7 +9,7 @@ export { pageCanHover, readRefusalLine } from "./avatar-drive.ts";
 export type { LayoutBox } from "./box-of.ts";
 export { boxOf } from "./box-of.ts";
 export { expectCacheProse } from "./cache-prose.ts";
-export { computedStyle } from "./computed-style.ts";
+export { computedStyle, fontSizeAgainstStep } from "./computed-style.ts";
 export { formatDensityFindings } from "./density-census.ts";
 export type { DisclosureWalkHooks } from "./disclosure-walk.ts";
 export { usesProgrammaticScroll, walkDisclosures } from "./disclosure-walk.ts";

@@ -27,7 +27,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { DismissDialog, QueryBoundary } from "#components";
+import { DialogFailure, DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
@@ -175,11 +175,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
           );
         })}
       </Stack>
-      {failure === null ? null : (
-        <Text tone="destructive" role="alert" voice="label">
-          {failure}
-        </Text>
-      )}
+      {failure === null ? null : <DialogFailure>{failure}</DialogFailure>}
       <DialogFooter>
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={picked.length === 0 || attach.isPending} onClick={(): void => void commit().catch(globalThis.reportError)} type="button">

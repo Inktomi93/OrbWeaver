@@ -164,6 +164,17 @@ test("a component-tier composer cannot reach the raw dialog either; the composit
   expect(await findings("orb/dialog-via-composite", raw, "packages/client/src/components/content-dialog.tsx")).toEqual([]);
 });
 
+test("an alert line spelled inside a dialog or a modal's commit is a finding; the shared failure line and an alert outside a dialog pass", async () => {
+  const rule = "orb/dialog-failure-via-owner";
+  expect(await findings(rule, 'export const A = () => <PickerDialog><Stack><Text role="alert">Refused.</Text></Stack></PickerDialog>;')).toHaveLength(1);
+  expect(await findings(rule, 'export const A = () => <ConfirmDialog body={<Stack role="alert" />} />;')).toHaveLength(1);
+  expect(
+    await findings(rule, 'import type { ModalCommit } from "#state";\nexport const content: ModalCommit["content"] = <Text role="alert">Refused.</Text>;'),
+  ).toHaveLength(1);
+  expect(await findings(rule, "export const A = () => <FormDialog><DialogFailure>Refused.</DialogFailure></FormDialog>;")).toEqual([]);
+  expect(await findings(rule, 'export const A = () => <Text role="alert">Refused.</Text>;')).toEqual([]);
+});
+
 test("a feature or a component-tier composer cannot reach the drawer primitive; the sheet composite can", async () => {
   const raw = 'import { Drawer, DrawerPopup } from "@orb/ui/drawer";';
   expect(await findings("orb/sheet-via-composite", raw)).toHaveLength(1);

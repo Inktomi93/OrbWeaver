@@ -21,7 +21,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
 import type { StatusVocabulary } from "#components";
-import { DismissDialog, QueryBoundary, StatusChip } from "#components";
+import { DialogFailure, DismissDialog, QueryBoundary, StatusChip } from "#components";
 import type { Trpc } from "#data";
 import {
   fetchLiveShare,
@@ -206,11 +206,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                       />
                     )}
                   </form.AppField>
-                  {handleError === null ? null : (
-                    <Text tone="destructive" voice="label" role="alert">
-                      {handleError}
-                    </Text>
-                  )}
+                  {handleError === null ? null : <DialogFailure>{handleError}</DialogFailure>}
                 </Stack>
               ) : null
             }
@@ -274,11 +270,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                         {boundsNotice}
                       </Text>
                     )}
-                    {signupError === null ? null : (
-                      <Text tone="destructive" voice="label" role="alert">
-                        {signupError}
-                      </Text>
-                    )}
+                    {signupError === null ? null : <DialogFailure>{signupError}</DialogFailure>}
                   </Stack>
                 ) : null
               }

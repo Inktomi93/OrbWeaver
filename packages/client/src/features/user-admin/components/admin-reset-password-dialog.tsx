@@ -12,7 +12,7 @@ import { Input } from "@orb/ui/input";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialogPopup, FormDialogRoot } from "#components";
+import { DialogFailure, FormDialogPopup, FormDialogRoot } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useResetPassword } from "../hooks/use-admin-mutations.ts";
@@ -77,11 +77,7 @@ function ResetPasswordBody({ handle, userId, onDone }: { readonly handle: string
           Password must be at least {MIN_PASSWORD_LENGTH} characters.
         </Text>
       ) : null}
-      {!showTooShort && resetPassword.error !== null ? (
-        <Text role="alert" tone="destructive" voice="label">
-          Couldn't reset the password. Try again.
-        </Text>
-      ) : null}
+      {!showTooShort && resetPassword.error !== null ? <DialogFailure>Couldn't reset the password. Try again.</DialogFailure> : null}
     </FormDialogPopup>
   );
 }

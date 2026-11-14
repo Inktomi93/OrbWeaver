@@ -10,6 +10,7 @@ import { coercePluginCommandArgs } from "@orb/contracts/plugin";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useEffect, useRef, useState } from "react";
+import { DialogFailure } from "#components";
 import type { ModalCommit } from "#state";
 import { clearPluginCommandArgs, closeModal, usePluginCommandArgsSubject } from "#state";
 import type { LandingRefs } from "../components/plugin-command-args-body.tsx";
@@ -113,11 +114,9 @@ export function usePluginCommandArgsCommit(): ModalCommit {
           ))}
         </Stack>
         {errors.length === 0 ? null : (
-          <Stack gap="tight" role="alert">
+          <Stack gap="tight">
             {errors.map((message) => (
-              <Text tone="destructive" key={message} voice="label">
-                {message}
-              </Text>
+              <DialogFailure key={message}>{message}</DialogFailure>
             ))}
           </Stack>
         )}

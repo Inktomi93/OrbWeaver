@@ -30,10 +30,9 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { DismissDialog, QueryBoundary } from "#components";
+import { DialogFailure, DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { useAttachBookToChat } from "../hooks/use-chat-book-mutations.ts";
@@ -160,11 +159,7 @@ function PickerList({ attachedIds, failure, isOwned, onAttach }: PickerBodyProps
           title={book.name}
         />
       ))}
-      {failure === null ? null : (
-        <Text tone="destructive" role="alert" voice="label">
-          {failure}
-        </Text>
-      )}
+      {failure === null ? null : <DialogFailure>{failure}</DialogFailure>}
     </Stack>
   );
 }

@@ -16,11 +16,12 @@ import {
 } from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { NonEmptyLabel } from "#lib";
 import { DIALOG_VERBS, notify } from "#lib";
+import { DialogFailure } from "./dialog-failure.tsx";
 
 /** A confirm's close target. A ref lands on that element's first tabbable control. A function runs at close
  *  and returns `false` once it has placed focus itself, which is how a programmatic stop (tabindex -1) with
@@ -208,11 +209,7 @@ function ConfirmSurface({
           {/* THE FAILURE, IN THE DIALOG THAT CAUSED IT. `role="alert"` because it arrives after the press,
               so a reader who is not looking at this line still hears it; the confirm button below is the
               retry, which is why nothing here is a second control. */}
-          {failure === null ? null : (
-            <Text data-slot="confirm-dialog-failure" role="alert" tone="destructive">
-              {confirmFailureSentence(failure)}
-            </Text>
-          )}
+          {failure === null ? null : <DialogFailure>{confirmFailureSentence(failure)}</DialogFailure>}
           <AlertDialogActions>
             <AlertDialogClose render={<Button variant="ghost">{cancelLabel}</Button>} />
             {/* NOT an `AlertDialogClose` (#1563): the close is this component's to decide once the outcome

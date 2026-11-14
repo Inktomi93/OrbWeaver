@@ -10,7 +10,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 import { useId } from "react";
-import { PickerDialog, QueryBoundary } from "#components";
+import { DialogFailure, PickerDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { useSelectVariantMutation } from "../hooks/use-select-variant.ts";
@@ -99,7 +99,7 @@ function SavedRepliesBody({ message, onOpenChange }: Pick<SavedRepliesPickerProp
           );
         }}
       />
-      {selectVariant.error !== null ? <Text role="alert">Couldn't switch to that reply. Choose it again to retry.</Text> : null}
+      {selectVariant.error !== null ? <DialogFailure>Couldn't switch to that reply. Choose it again to retry.</DialogFailure> : null}
     </>
   );
 }

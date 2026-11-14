@@ -34,7 +34,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { CharacterPicker } from "#components";
+import { CharacterPicker, DialogFailure } from "#components";
 import { DocumentUploadRefusedError, roomRosterOptions, uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
 import { focusFirstInvalidFieldIn } from "#forms/editor";
 import type { ModalCommit } from "#state";
@@ -465,9 +465,9 @@ function useLinkArm({ onLanded, destination, active }: ArmProps & { readonly act
         <form.Subscribe selector={(state): ScraperKind => state.values.source}>
           {(source): ReactElement | null =>
             runnerFailed[source] ? (
-              <Text id={failureId} role="alert" tone="destructive" voice="gloss">
+              <DialogFailure id={failureId}>
                 {`${SCRAPE_FAILURE[source]} ${source === "youtube" ? "Check the address and the caption language, then try again." : "Check the address, then try again."}`}
-              </Text>
+              </DialogFailure>
             ) : null
           }
         </form.Subscribe>
