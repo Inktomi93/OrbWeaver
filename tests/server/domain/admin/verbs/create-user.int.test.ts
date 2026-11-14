@@ -93,7 +93,8 @@ test("a handle that only contains the seed key is minted", async ({ root }) => {
 // Who may mint each role, total over both axes by type: the mint gate's decision table.
 const MINTERS = ["owner", "delegated admin", "plain user"] as const;
 type Minter = (typeof MINTERS)[number];
-type MintOutcome = "minted" | "forbidden" | "cannot grant owner";
+const MINT_OUTCOMES = ["minted", "forbidden", "cannot grant owner"] as const;
+type MintOutcome = (typeof MINT_OUTCOMES)[number];
 const MINT_TABLE = {
   owner: { owner: "cannot grant owner", admin: "minted", user: "minted" },
   "delegated admin": { owner: "forbidden", admin: "forbidden", user: "minted" },
