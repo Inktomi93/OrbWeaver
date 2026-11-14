@@ -11,7 +11,7 @@ import { chatDigestSpeakers, chatDigests, chatMemoryStrikes, messages, messageVa
 import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
 import type { CharacterId, ChatDigestId, ChatId, ChatMemoryStrikeId, MessageId } from "@orb/kit/ids";
-import type { RecallStrike, StrikeCandidate } from "@orb/kit/recall";
+import type { RecallStrike, ResolvedStrike, StrikeCandidate } from "@orb/kit/recall";
 import { tier0RangeOf } from "@orb/kit/recall";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
@@ -45,6 +45,27 @@ export async function loadMemoryStrikes(db: Db, chatId: ChatId): Promise<StoredM
     .from(chatMemoryStrikes)
     .where(eq(chatMemoryStrikes.chatId, chatId))
     .orderBy(asc(chatMemoryStrikes.createdAt), asc(chatMemoryStrikes.id));
+}
+
+/** The room's strikes with each span resolved to the seqs of its endpoint messages, null when one is gone. */
+export async function loadResolvedStrikes(db: Db, chatId: ChatId): Promise<(StoredMemoryStrike & ResolvedStrike)[]> {
+  const strikes = await loadMemoryStrikes(db, chatId);
+  const endpointIds = [...new Set(strikes.flatMap((s) => [s.messageStartId, s.messageEndId]))];
+  const seqOf = new Map<MessageId, number>();
+  if (endpointIds.length > 0) {
+    const found = await db
+      .select({ id: messages.id, seq: messages.seq })
+      .from(messages)
+      .where(and(eq(messages.chatId, chatId), inArray(messages.id, endpointIds)));
+    for (const message of found) {
+      seqOf.set(message.id, message.seq);
+    }
+  }
+  return strikes.map((s) => {
+    const seqStart = seqOf.get(s.messageStartId);
+    const seqEnd = seqOf.get(s.messageEndId);
+    return { ...s, seqSpan: seqStart === undefined || seqEnd === undefined ? null : { seqStart, seqEnd } };
+  });
 }
 
 /** A stored digest with the parts the memory view lists. */

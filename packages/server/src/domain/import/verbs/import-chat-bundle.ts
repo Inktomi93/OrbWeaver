@@ -362,8 +362,9 @@ function remapMemoryStrikes(
   return strikes.flatMap((strike): ImportedMemoryStrike[] => {
     const messageStartId = remap.messageIds[strike.startMessageIndex] ?? null;
     const messageEndId = remap.messageIds[strike.endMessageIndex] ?? null;
-    const scopedCharacterId = strike.characterHandle === null ? null : characterIds.idByHandle.get(strike.characterHandle);
-    if (messageStartId === null || messageEndId === null || scopedCharacterId === undefined) {
+    // The character only records which copy was struck; an unresolved one keeps the span struck as a shared strike.
+    const scopedCharacterId = strike.characterHandle === null ? null : (characterIds.idByHandle.get(strike.characterHandle) ?? null);
+    if (messageStartId === null || messageEndId === null) {
       return [];
     }
     return [{ scopedCharacterId, tier: strike.tier, messageStartId, messageEndId, topicAnchor: strike.topicAnchor, createdAt: strike.createdAt }];

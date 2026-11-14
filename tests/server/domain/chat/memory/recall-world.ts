@@ -98,6 +98,8 @@ export interface World {
     readonly scout?: boolean;
     /** Serve the transport with its local sign-in, so a test can open the owner's event stream. */
     readonly signIn?: boolean;
+    /** A case's own reply for a model body, or undefined to keep the scripted one ({@link generatedText}). */
+    readonly replyFor?: (body: string) => string | undefined;
   }) => Promise<RecallWorld>;
 }
 
@@ -123,7 +125,7 @@ export const world: World = {
       embedding: embeddingFor,
       structuredReplies: CORPUS_STRUCTURED_REPLIES,
       images: [],
-      chatText: generatedText,
+      chatText: (body) => config.replyFor?.(body) ?? generatedText(body),
     });
     await using construction = new AsyncDisposableStack();
     const h = construction.use(

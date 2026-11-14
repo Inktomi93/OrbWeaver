@@ -4,8 +4,9 @@
 // THE HOST-SEAT CHECK IS THE ONLY GUARD ON THE CLAIMED-ROOM PATH. A re-import matches the room the file first
 // created through the importer's claim on its character, not through the host seat, so an ex-host who handed the
 // room off still reaches this op with that room's id. Only `holdsHostSeat` keeps them from writing strikes into the
-// new host's room. The endpoint and seat checks are second checks: the remap resolves both from the target room.
-// A strike failing any check is dropped, never written at a guess.
+// new host's room. The endpoint check is a second check: the remap resolves endpoints from the target room. A strike
+// whose endpoints are not this room's messages is dropped, never written at a guess; one whose character holds no
+// seat here is written as a shared strike, since the character only records which copy was struck.
 //
 // A strike names a span (`matchStrikes` in `packages/kit/src/recall/index.ts`), so a span the room already holds a
 // strike on, in any bucket, gets no second row, and a same-library restore never doubles one.
@@ -44,7 +45,7 @@ async function holdsHostSeat(db: Db, chatId: ChatId, userId: UserId): Promise<bo
   return rows.length > 0;
 }
 
-/** The strikes whose endpoints and scoped character belong to the room. */
+/** The strikes whose endpoints belong to the room, each scoped character kept only when it holds a seat here. */
 async function placeable(db: Db, chatId: ChatId, strikes: readonly ImportedMemoryStrike[]): Promise<ImportedMemoryStrike[]> {
   const endpointIds = [...new Set(strikes.flatMap((s) => [s.messageStartId, s.messageEndId]))];
   const [held, seated] = await Promise.all([
@@ -59,9 +60,10 @@ async function placeable(db: Db, chatId: ChatId, strikes: readonly ImportedMemor
   ]);
   const heldIds = new Set<MessageId>(held.map((row) => row.id));
   const seatedIds = new Set<CharacterId | null>(seated.map((row) => row.characterId));
-  return strikes.filter(
-    (s) => heldIds.has(s.messageStartId) && heldIds.has(s.messageEndId) && (s.scopedCharacterId === null || seatedIds.has(s.scopedCharacterId)),
-  );
+  // A strike whose character holds no seat here keeps its span as a shared strike: the character is only a record.
+  return strikes
+    .filter((s) => heldIds.has(s.messageStartId) && heldIds.has(s.messageEndId))
+    .map((s) => (s.scopedCharacterId === null || seatedIds.has(s.scopedCharacterId) ? s : { ...s, scopedCharacterId: null }));
 }
 
 export function createImportMemoryStrikes(input: DbAssemblyInput<ImportMemoryStrikesContext>): ImportMemoryStrikesOp {

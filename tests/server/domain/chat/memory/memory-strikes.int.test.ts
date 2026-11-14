@@ -21,6 +21,8 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
   readRoomCanon,
+  SUMMARIZE_TRANSCRIPT_MARKER,
+  seedCorpusConnections,
 } from "@orb/testkit/node/composed";
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
@@ -164,6 +166,47 @@ test("striking a scene leaves out the consolidation retelling it, and restoring 
   expect(verdicts(restored.trace, "struck")).toEqual([]);
   expect(verdicts(restored.trace, "covers-struck")).toEqual([]);
   expect(itemAt(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), 1, 0).retellsStruck).toBe(false);
+});
+
+/** The storm arc's consolidation, told apart from the other merged arcs so the prompt shows which one it carries. */
+const STORM_ARC = "The storm arc was merged into one telling.";
+const MERGED_FACTS = "The scenes merged into one arc.";
+
+test("a longer summary over a struck scene stays out after the scene's own summary is dropped, and the view shows it struck", async () => {
+  let blankStorm = false;
+  await using w = await world.build({
+    mode: "tiered",
+    maxTier: 1,
+    replyFor: (body) => {
+      const scripted = generatedText(body);
+      if (scripted.includes(MERGED_FACTS)) {
+        return body.includes("arc-storm.") ? scripted.replace(MERGED_FACTS, STORM_ARC) : undefined;
+      }
+      // A blank re-summary of the edited storm scene: the build drops that summary and keeps its parent.
+      return blankStorm && body.includes(SUMMARIZE_TRANSCRIPT_MARKER) && body.includes("line-storm.") ? "" : undefined;
+    },
+  });
+  const view = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
+  const arc = present(view.items.find((item) => item.key.tier === 1 && item.text.includes(STORM_ARC)));
+  const { strikeId } = await w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: sceneOf(view, "storm").key });
+
+  blankStorm = true;
+  await editScene(w.h, "storm");
+  await redigest(w);
+  const after = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
+  // The premise: the scene's own summary is gone and the longer one built from it is still stored.
+  expect(after.items.some((item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm"))).toBe(false);
+  expect(itemAt(after, 1, arc.key.blockIdx).text).toBe(arc.text);
+  const run = await recallTurn(w.h, BOTH);
+  expect(run.prompt).not.toContain(STORM_ARC);
+  expect(verdicts(run.trace, "covers-struck").map((candidate) => [candidate.tier, candidate.blockIdx])).toEqual([[1, arc.key.blockIdx]]);
+  // The view carries the strike on the longer summary it still leaves out, not as an unmatched strike.
+  expect(itemAt(after, 1, arc.key.blockIdx)).toMatchObject({ strike: { strikeId, changedSinceStrike: true } });
+  expect(after.unmatchedStrikes).toEqual([]);
+
+  // The control: restored, the longer summary reaches the prompt.
+  await w.h.caller.chat.restoreMemory({ chatId: w.h.chatId, strikeId });
+  expect((await recallTurn(w.h, BOTH)).prompt).toContain(STORM_ARC);
 });
 
 test("a member with a join floor is not shown a summary straddling the floor, and the host is", async () => {
@@ -339,6 +382,89 @@ test("a member who hosts another room cannot restore this room's strike by passi
   // The control: the same id under this room, by its host, lifts it.
   await w.h.caller.chat.restoreMemory({ chatId: w.h.chatId, strikeId });
   expect(sceneOf(await w.h.caller.chat.memoryView({ chatId: w.h.chatId }), "storm").strike).toBeNull();
+});
+
+/** The verdicts recall gave the storm scene's summaries on every turn recorded after `since`. */
+function stormVerdicts(h: ChatRoot, since: number): readonly string[] {
+  return h.root.app.recallRecorder
+    .recent({ chatId: h.chatId })
+    .filter((record) => record.seq > since)
+    .flatMap((record) => record.trace.candidates.filter((c) => c.tier === 0 && c.blockIdx === blockOf("storm")).map((c) => c.verdict));
+}
+
+test("a former host deleting the card a strike was made on leaves the strike standing for the new host", async () => {
+  await using w = await world.build({ mode: "mixA", maxTier: 0, scout: true });
+  const h = w.h;
+  await h.caller.settings.updateAppSettings({ partial: { memoryDefaults: RECALL_KNOBS } });
+  const keeper = present(h.characters[0]).id;
+  const keeperStorm = present(
+    (await h.caller.chat.memoryView({ chatId: h.chatId })).items.find(
+      (item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm") && item.key.scopedCharacterId === keeper,
+    ),
+  );
+  const { strikeId } = await h.caller.chat.strikeMemory({ chatId: h.chatId, item: keeperStorm.key });
+
+  // A default handoff copies no card: the former host's characters leave the room but stay in their library.
+  const member = await invitePerson(h);
+  await seedCorpusConnections(h.root, member);
+  await h.root.services.settings.updateUserSettingsSection({ principal: member, input: { section: "memory", patch: { enabled: true } } });
+  await h.root.services.chat.nominateHostHandoff({ principal: h.owner, chatId: h.chatId, userId: member.userId });
+  await h.root.services.chat.acceptHostHandoff({ principal: member, chatId: h.chatId });
+  const seat = async (handle: string, name: string): Promise<CharacterId> => {
+    const card = await h.root.services.character.create({
+      principal: member,
+      input: createCharacterSchema.parse({ handle, name, description: `The ${handle}.` }),
+    });
+    await h.root.services.chat.addCharacterToChat({ principal: member, chatId: h.chatId, characterId: card.id });
+    return card.id;
+  };
+  const rider = await seat("rider", "Rider");
+  await seat("scribe", "Scribe");
+  await h.root.services.chat.setGroupConfig({ principal: member, chatId: h.chatId, config: { output: "per-speaker", policy: "list", cardScope: "scoped" } });
+  const riderTurn = async (): Promise<void> => {
+    await h.root.services.chat.commitMessage({ principal: member, chatId: h.chatId, content: BOTH });
+    const turn = await h.root.services.chat.forceCharacterTurn({ principal: member, chatId: h.chatId, characterId: rider, intent: TURN_INTENT });
+    expect(turn.aborted).toBe(false);
+    await h.root.settleBackground();
+  };
+  // The new host's own memory of the room builds, and recall leaves its storm summary out.
+  await riderTurn();
+  await w.sweep({ kind: "memory-backfill", params: {} });
+  const built = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
+  await riderTurn();
+  expect(nonEmpty([...stormVerdicts(h, built)]).every((verdict) => verdict === "struck")).toBe(true);
+
+  // The former host, now a member, deletes the card the strike was made on.
+  await h.root.services.character.remove({ principal: h.owner, characterId: keeper });
+  const deleted = h.root.app.recallRecorder.recent({ chatId: h.chatId }).at(-1)?.seq ?? 0;
+  await riderTurn();
+  expect(nonEmpty([...stormVerdicts(h, deleted)]).every((verdict) => verdict === "struck")).toBe(true);
+  const view = await h.root.services.chat.memoryView({ principal: member, chatId: h.chatId });
+  expect(view.items.filter((item) => item.strike !== null)).toEqual([
+    expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: false } }),
+  ]);
+  expect(view.unmatchedStrikes).toEqual([]);
+});
+
+test("deleting both characters whose copies of a struck scene the host struck succeeds, and the one strike stands", async () => {
+  await using w = await world.build({ mode: "mixB", maxTier: 0, scout: true });
+  const [keeper, scout] = w.h.characters.map((character) => character.id);
+  const copies = (await w.h.caller.chat.memoryView({ chatId: w.h.chatId })).items.filter(
+    (item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm"),
+  );
+  const copyOf = (characterId: CharacterId | undefined): MemoryItemView => present(copies.find((item) => item.key.scopedCharacterId === characterId));
+  const { strikeId } = await w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: copyOf(keeper).key });
+  // The second character's copy is the same span: the room keeps one strike for it.
+  await expect(w.h.caller.chat.strikeMemory({ chatId: w.h.chatId, item: copyOf(scout).key })).resolves.toEqual({ strikeId });
+
+  for (const characterId of [keeper, scout]) {
+    await w.h.root.services.character.remove({ principal: w.h.owner, characterId: present(characterId) });
+  }
+  const view = await w.h.caller.chat.memoryView({ chatId: w.h.chatId });
+  expect(view.items.filter((item) => item.strike !== null)).toEqual([
+    expect.objectContaining({ bucket: "shared", strike: { strikeId, changedSinceStrike: false } }),
+  ]);
+  expect(view.unmatchedStrikes).toEqual([]);
 });
 
 test("a strike survives a host handoff: the new host sees and restores it, and the old host is refused", async () => {

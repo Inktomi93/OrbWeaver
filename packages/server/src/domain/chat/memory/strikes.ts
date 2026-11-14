@@ -3,8 +3,10 @@
 //
 // A STRIKE NAMES A SPAN OF THE STORY. Recall leaves out every bucket's summary of a struck span and every longer
 // summary retelling one (`matchStrikes` in `packages/kit/src/recall/index.ts`). So the view shows one struck entry per
-// span (the item the host struck, else the first listed copy) and marks the other copies `retellsStruck`; a strike
-// on an already struck span answers the standing strike; a restore lifts the span for every bucket.
+// span (the item the host struck, else the first listed copy, else the shortest summary still retelling it once the
+// scene's own summaries are gone) and marks every other item left out `retellsStruck`; a strike whose stored
+// character is null (the shared bucket, or a character since deleted) is carried by the shared copy. A strike on an
+// already struck span answers the standing strike; a restore lifts the span for every bucket.
 //
 // A MEMBER SEES ONLY WHAT THEIR FLOOR ALLOWS. An item is listed to a member with a D16 join floor only when the
 // whole span it covers sits at or above that floor (containment, not overlap: a summary that straddles the floor
@@ -24,6 +26,7 @@ import type { HandoffCardPair, MemoryItemKey, MemoryItemStrikeView, MemoryItemVi
 import { memoryOffReason, memoryViewStatus, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, ChatId, ChatMemoryStrikeId, UserId } from "@orb/kit/ids";
+import type { ResolvedStrike, StrikeMatch } from "@orb/kit/recall";
 import { matchStrikes } from "@orb/kit/recall";
 import type { ChatContext, MemoryStrikeOps } from "#src/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "#src/domain/chat/contract/errors.ts";
@@ -39,8 +42,8 @@ import {
   IMPORTED_STRIKE_HASH,
   insertMemoryStrike,
   loadDigestAt,
-  loadMemoryStrikes,
   loadRecentWindowStart,
+  loadResolvedStrikes,
   loadRoomDigests,
   loadSpeakersOf,
   resolveDigestSpans,
@@ -68,38 +71,81 @@ function spanKey(strike: Pick<StoredMemoryStrike, "tier" | "messageStartId" | "m
   return `${strike.tier}:${strike.messageStartId}:${strike.messageEndId}`;
 }
 
-// One listed entry carries each struck span: the copy in the bucket the host struck, else the first listed.
-function spanCarriers<R extends { readonly scopedCharacterId: CharacterId }>(
-  visible: readonly R[],
-  struck: ReadonlyMap<R, StoredMemoryStrike>,
-  sharedBucket: CharacterId | null,
-): Map<string, R> {
-  const carrier = new Map<string, R>();
+type Strike = StoredMemoryStrike & ResolvedStrike;
+interface Carried {
+  readonly strike: Strike;
+  readonly own: boolean;
+}
+interface CarrierRow {
+  readonly scopedCharacterId: CharacterId;
+  readonly tier: number;
+}
+
+// Per struck span, the listed summary of the scene itself: the copy in the bucket the host struck, else the first.
+function ownCarriers<R extends CarrierRow>(visible: readonly R[], struck: ReadonlyMap<R, Strike>, sharedBucket: CharacterId | null): Map<string, R> {
+  const own = new Map<string, R>();
   for (const d of visible) {
     const strike = struck.get(d);
     if (strike === undefined) {
       continue;
     }
-    const key = spanKey(strike);
     const struckBucket = strike.scopedCharacterId ?? sharedBucket;
-    const current = carrier.get(key);
+    const current = own.get(spanKey(strike));
     if (current === undefined || (current.scopedCharacterId !== struckBucket && d.scopedCharacterId === struckBucket)) {
-      carrier.set(key, d);
+      own.set(spanKey(strike), d);
     }
   }
-  return carrier;
+  return own;
 }
 
-function strikeView(strike: StoredMemoryStrike, contentHash: string, isHost: boolean): MemoryItemStrikeView {
+// Per struck span with no listed summary of its own, the shortest listed summary still retelling it.
+function retellingCarriers<R extends CarrierRow>(visible: readonly R[], covers: ReadonlyMap<R, Strike>, own: ReadonlyMap<string, R>): Map<string, R> {
+  const retelling = new Map<string, R>();
+  for (const d of visible) {
+    const strike = covers.get(d);
+    if (strike === undefined || own.has(spanKey(strike))) {
+      continue;
+    }
+    const current = retelling.get(spanKey(strike));
+    if (current === undefined || d.tier < current.tier) {
+      retelling.set(spanKey(strike), d);
+    }
+  }
+  return retelling;
+}
+
+// One listed entry carries each struck span, so the host can see and restore every strike leaving something out:
+// the scene's own summary when one is listed, else, once the build dropped them, a longer summary retelling it.
+function spanCarriers<R extends CarrierRow>(visible: readonly R[], match: StrikeMatch<R, Strike>, sharedBucket: CharacterId | null): Map<R, Carried> {
+  const own = ownCarriers(visible, match.struck, sharedBucket);
+  const carried = new Map<R, Carried>();
+  for (const d of own.values()) {
+    const strike = match.struck.get(d);
+    if (strike !== undefined) {
+      carried.set(d, { strike, own: true });
+    }
+  }
+  for (const d of retellingCarriers(visible, match.coversStruck, own).values()) {
+    const strike = match.coversStruck.get(d);
+    if (strike !== undefined) {
+      carried.set(d, { strike, own: false });
+    }
+  }
+  return carried;
+}
+
+// A strike carried by a longer summary always reads as changed: the scene's own summary it was made on is gone.
+function strikeView(carried: Carried, contentHash: string, isHost: boolean): MemoryItemStrikeView {
+  const { strike } = carried;
   return {
     strikeId: isHost ? strike.id : null,
-    changedSinceStrike: strike.contentHash !== IMPORTED_STRIKE_HASH && strike.contentHash !== contentHash,
+    changedSinceStrike: !carried.own || (strike.contentHash !== IMPORTED_STRIKE_HASH && strike.contentHash !== contentHash),
   };
 }
 
-// One entry per struck span that names no stored item.
-function unmatchedSpans(strikes: readonly StoredMemoryStrike[], struck: ReadonlyMap<unknown, StoredMemoryStrike>, isHost: boolean): UnmatchedStrikeView[] {
-  const matched = new Set([...struck.values()].map(spanKey));
+// One entry per struck span that leaves nothing stored out.
+function unmatchedSpans(strikes: readonly Strike[], match: StrikeMatch<unknown, Strike>, isHost: boolean): UnmatchedStrikeView[] {
+  const matched = new Set([...match.struck.values(), ...match.coversStruck.values()].map(spanKey));
   const out = new Map<string, UnmatchedStrikeView>();
   for (const s of strikes) {
     const key = spanKey(s);
@@ -123,7 +169,7 @@ export async function buildMemoryView(ctx: ChatContext, args: Parameters<MemoryS
   }
   const [stored, strikes, sharedBucket, maxSeq, windowStart] = await Promise.all([
     loadRoomDigests(ctx.db, chatId),
-    loadMemoryStrikes(ctx.db, chatId),
+    loadResolvedStrikes(ctx.db, chatId),
     resolveSharedBucket(ctx, chatId, hostUserId),
     loadMaxMessageSeq(ctx.db, chatId),
     loadRecentWindowStart(ctx.db, chatId),
@@ -131,15 +177,14 @@ export async function buildMemoryView(ctx: ChatContext, args: Parameters<MemoryS
   const resolved = await resolveDigestSpans(ctx.db, chatId, stored, cfg.fanOut);
   const visible = floored ? resolved.filter((d) => d.seqSpan !== null && d.seqSpan.seqStart >= floor) : resolved;
   // Matched over every stored item, so a strike on a scene below the member's floor never reads as unmatched.
-  const match = matchStrikes(resolved, strikes, { fanOut: cfg.fanOut });
-  const carrier = spanCarriers(visible, match.struck, sharedBucket);
+  const match = matchStrikes(resolved, strikes);
+  const carrier = spanCarriers(visible, match, sharedBucket);
   const speakers = await loadSpeakersOf(
     ctx.db,
     visible.map((d) => d.id),
   );
   const items = visible.map((d): MemoryItemView => {
-    const strike = match.struck.get(d);
-    const carries = strike !== undefined && carrier.get(spanKey(strike)) === d;
+    const carried = carrier.get(d);
     return {
       key: { tier: d.tier, blockIdx: d.blockIdx, scopedCharacterId: d.scopedCharacterId, contentHash: d.contentHash },
       bucket: d.scopedCharacterId === sharedBucket ? "shared" : "scoped",
@@ -147,8 +192,8 @@ export async function buildMemoryView(ctx: ChatContext, args: Parameters<MemoryS
       text: d.text,
       keywords: [...d.keywords],
       speakers: speakers.get(d.id) ?? [],
-      strike: carries ? strikeView(strike, d.contentHash, isHost) : null,
-      retellsStruck: (strike !== undefined && !carries) || match.coversStruck.has(d),
+      strike: carried === undefined ? null : strikeView(carried, d.contentHash, isHost),
+      retellsStruck: carried === undefined && (match.struck.has(d) || match.coversStruck.has(d)),
     };
   });
   return {
@@ -160,7 +205,7 @@ export async function buildMemoryView(ctx: ChatContext, args: Parameters<MemoryS
       listedItems: items.length,
     }),
     items,
-    unmatchedStrikes: floored ? [] : unmatchedSpans(strikes, match.struck, isHost),
+    unmatchedStrikes: floored ? [] : unmatchedSpans(strikes, match, isHost),
     // A boundary below the member's floor means everything they may read was in the reply's window.
     recentWindowStartsAt: windowStart === null || windowStart.seq < floor ? null : windowStart.id,
   };

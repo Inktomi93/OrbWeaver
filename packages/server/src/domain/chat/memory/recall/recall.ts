@@ -26,7 +26,7 @@ import type { RecallMemoryArgs } from "#src/domain/chat/contract/memory.ts";
 import { resolveCfg } from "../constants.ts";
 import { spanWitnessed } from "../generate/substrate/witnessing.ts";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";
-import { loadMemoryStrikes, resolveDigestSpans } from "../persistence/strikes.ts";
+import { loadResolvedStrikes, resolveDigestSpans } from "../persistence/strikes.ts";
 import type { DigestRow, MemoryRecallResult, MemoryScope, TurnRetrievalWarningEpisode, WitnessInterval } from "../types.ts";
 import { buildRecallQuery } from "./query.ts";
 
@@ -210,12 +210,12 @@ async function dropStruck(
     readonly verdicts: Verdicts;
   },
 ): Promise<DigestRow[]> {
-  const strikes = await loadMemoryStrikes(ctx.db, env.scope.chatId);
+  const strikes = await loadResolvedStrikes(ctx.db, env.scope.chatId);
   if (strikes.length === 0) {
     return [...env.raw];
   }
   const resolved = await resolveDigestSpans(ctx.db, env.scope.chatId, env.raw, env.fanOut);
-  const match = matchStrikes(resolved, strikes, { fanOut: env.fanOut });
+  const match = matchStrikes(resolved, strikes);
   const mark = (d: DigestRow, verdict: MemoryRecallVerdict): void => {
     const entry = env.verdicts.get(blockKeyStr(rowKey(env.scope, d)));
     if (entry !== undefined) {

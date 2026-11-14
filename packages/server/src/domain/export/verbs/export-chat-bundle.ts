@@ -159,8 +159,9 @@ async function loadPersonaNames(ctx: ExportContext, ids: readonly PersonaId[]): 
   return new Map<PersonaId, string>(rows.map((r) => [r.id, r.name]));
 }
 
-/** The host's memory strikes as positions. A strike whose endpoint message is gone, or whose scoped character
- *  holds no seat, names nothing this bundle carries and is left out; a scoped strike never widens to shared. */
+/** The host's memory strikes as positions. A strike whose endpoint message is gone names nothing this bundle carries
+ *  and is left out. A strike names a span in every bucket and its character only records which copy was struck, so
+ *  a strike whose character holds no seat here (or was deleted) travels as a shared one rather than being lost. */
 async function loadMemoryStrikes(args: {
   readonly ctx: ExportContext;
   readonly chatId: ChatId;
@@ -175,8 +176,8 @@ async function loadMemoryStrikes(args: {
   const strikes = rows.flatMap((row): PortableMemoryStrike[] => {
     const startMessageIndex = args.messageIndexById.get(row.messageStartId);
     const endMessageIndex = args.messageIndexById.get(row.messageEndId);
-    const characterHandle = row.scopedCharacterId === null ? null : args.handleById.get(row.scopedCharacterId);
-    if (startMessageIndex === undefined || endMessageIndex === undefined || characterHandle === undefined) {
+    const characterHandle = row.scopedCharacterId === null ? null : (args.handleById.get(row.scopedCharacterId) ?? null);
+    if (startMessageIndex === undefined || endMessageIndex === undefined) {
       return [];
     }
     return [{ characterHandle, tier: row.tier, startMessageIndex, endMessageIndex, topicAnchor: row.topicAnchor, createdAt: row.createdAt }];
