@@ -24,7 +24,7 @@ Fix a server bug a scan exposes before judging fields. Judge fields in bulk afte
 | 1 | Judge every member the member scan reports | the unwired-member items the 1439 report boards, 0501, and the possibly dead guards the restoration lanes found |
 | 2 | Judge the first full run of each new scan | the [judgement items](#judgement-items) |
 | 3 | Adjudicate unused exports through the package doors | 0989 |
-| 4 | Hold the domain template with dependency rules | [1463](../../work/1463-chat-persistence-reads-the-assets-characters-and-personas.md) |
+| 4 | Hold the domain template with dependency rules | - |
 
 ## Rejected
 
