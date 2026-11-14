@@ -142,7 +142,6 @@ import {
   loadViewerLastTurnAt,
   loadViewerLastTurns,
 } from "../persistence/queries.ts";
-import { assemblyTimeZone, gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import type { fitHistory } from "../substrate/assembly-access.ts";
 import {
   buildAssemblyBudget,
@@ -162,6 +161,7 @@ import {
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
+import { assemblyTimeZone } from "../substrate/assembly-time-zone.ts";
 import { clampMemberCard, isBelowHistoryFloor, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { isCoveredByCompaction } from "../substrate/compaction-coverage.ts";
@@ -722,8 +722,7 @@ async function buildPreviewContext(
     // that resolved a different posture would be an honesty instrument telling a different story.
     knobs: resolveTeachingKnobs(inputs.metadata, inputs.foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR),
   });
-  const gathered = await gatherAssembleContext(
-    ctx,
+  const gathered = await ctx.gatherAssembleContext(
     {
       chatId,
       runAsUserId: inputs.hostUserId,

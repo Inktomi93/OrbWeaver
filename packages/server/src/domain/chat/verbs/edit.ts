@@ -117,7 +117,6 @@ import {
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats, prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variables.ts";
-import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
@@ -310,8 +309,7 @@ async function applyRunOnEditRegex(
   if (scripts.length === 0) {
     return args.content;
   }
-  const assembleContext = await gatherAssembleContext(
-    ctx,
+  const assembleContext = await ctx.gatherAssembleContext(
     { chatId, runAsUserId: hostUserId, model, characterIds, personaIds, timeZone: args.timeZone, prng: deps.prng, choicePicks: "stable" },
     foreign,
   );
@@ -458,8 +456,7 @@ async function freezeSelectedVariant(
     trigger: { kind: "human", userId: args.selectorUserId, personaId: args.selectorPersonaId },
     voice: "anchor",
   });
-  const assembleContext = await gatherAssembleContext(
-    ctx,
+  const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
       runAsUserId: hostUserId,

@@ -116,7 +116,6 @@ import {
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
 import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.ts";
-import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, renderHistoryMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { stampGameState, swapGameState } from "../substrate/game-state-injections.ts";
@@ -811,8 +810,7 @@ async function buildTurnContext(
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
   // one — either way `gatherMemory` stages `memoryRecall` here for the engine's per-speaker witnessed re-run.
   const sink: SendRegexSink = out ?? {};
-  const assembleContext = await gatherAssembleContext(
-    ctx,
+  const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
       runAsUserId: args.runAsUserId,

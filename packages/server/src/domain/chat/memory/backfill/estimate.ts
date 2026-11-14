@@ -1,21 +1,21 @@
-// domain/chat/substrate/backfill-estimate — how many Utility-model calls a memory backfill over a scope would make,
+// domain/chat/memory/backfill/estimate — how many Utility-model calls a memory backfill over a scope would make,
 // counted from canon and the stored digests WITHOUT the planner (it mints group characters and prunes, so it
 // cannot double as a read). It walks the planner's own block grid, witness narrowing and content hashes, so an
 // edited block counts and a block the character never witnessed does not.
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../contract/context.ts";
-import type { BlockSpan, ResolveBackfillMemoryConfig, ResolvedMemoryConfig } from "../contract/memory.ts";
-import { resolveCfg } from "../memory/constants.ts";
-import { blockHash, consolidationHash, sliceBlocks } from "../memory/generate/substrate/transcript.ts";
-import { spanWitnessed } from "../memory/generate/substrate/witnessing.ts";
-import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadWitnessHorizons } from "../memory/persistence/queries.ts";
-import { loadParticipants } from "../persistence/participants-read.ts";
+import type { ChatContext } from "../../contract/context.ts";
+import type { BlockSpan, ResolveBackfillMemoryConfig, ResolvedMemoryConfig } from "../../contract/memory.ts";
+import { loadParticipants } from "../../persistence/participants-read.ts";
+import { digestsDerivable } from "../../substrate/digests-derivable.ts";
+import { classifyParticipant } from "../../substrate/participant-actor.ts";
+import { hostUserIdOf } from "../../substrate/participants-host.ts";
+import { resolveCfg } from "../constants.ts";
+import { blockHash, consolidationHash, sliceBlocks } from "../generate/substrate/transcript.ts";
+import { spanWitnessed } from "../generate/substrate/witnessing.ts";
+import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadWitnessHorizons } from "../persistence/queries.ts";
 import { loadAllChatIds } from "./backfill.ts";
-import { digestsDerivable } from "./digests-derivable.ts";
-import { classifyParticipant } from "./participant-actor.ts";
-import { hostUserIdOf } from "./participants-host.ts";
 
 /** One child the next tier folds: its block index and the hash it will carry, `null` when it is rebuilt this pass. */
 interface TierChild {

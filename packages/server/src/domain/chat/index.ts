@@ -5,6 +5,7 @@
 export { createActiveTurns } from "./active-turns.ts";
 export { createTurnPersonaResolver } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
+export { createChatBoundBackfillOps } from "./context.ts";
 export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 export type {
   ChatServiceDeps,
@@ -91,7 +92,6 @@ export { createChatTeachingContributions } from "./teaching-contribution.ts";
 // op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
 export { applyStandaloneVariableOps } from "./verbs/apply-standalone-variable-ops.ts";
 export { createChatAutomationReads } from "./verbs/automation-reads.ts";
-export { createChatBoundBackfillOps } from "./verbs/bound-backfill.ts";
 export { createCapturePersonaSeatsForDelete } from "./verbs/capture-persona-seats-for-delete.ts";
 export { createGeneratePictureOp } from "./verbs/create-generate-picture.ts";
 export { buildChatToolOps } from "./verbs/create-tool-ops.ts";

@@ -1,6 +1,6 @@
-// domain/chat/substrate/backfill — the corpus-wide maintenance sweeps the workloads engine drives. Two
-// sweeps, both @public composition-root helpers, homed in `substrate/` because they coordinate the
-// `memory/` subsystem + `persistence/` reads.
+// domain/chat/memory/backfill/backfill — the corpus-wide maintenance sweeps the workloads engine drives. Two
+// sweeps, both @public composition-root helpers that `domain/chat/context.ts` binds, homed in `memory/` because
+// they drive the memory build over `persistence/` reads.
 //
 //   - `backfillMemory` — enumerate every chat, collect the segment build, then the digest build per scope
 //     bucket, mirroring the engine's post-turn enumeration but re-ordered into corpus-wide PHASES (the DAG is
@@ -27,9 +27,16 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#primitives/abort";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import type { ChatContext } from "../contract/context.ts";
-import type { MemoryBackfillSweepCounts, MemoryScope, ResolveBackfillMemoryConfig, Tier0Counts } from "../contract/memory.ts";
-import type { MemorySweepArgs } from "../contract/workloads.ts";
+import type { ChatContext } from "../../contract/context.ts";
+import type { MemoryBackfillSweepCounts, MemoryScope, ResolveBackfillMemoryConfig, Tier0Counts } from "../../contract/memory.ts";
+import type { MemorySweepArgs } from "../../contract/workloads.ts";
+import { loadBackfillChatIds } from "../../persistence/backfill-scope.ts";
+import { loadParticipants } from "../../persistence/participants-read.ts";
+import { digestsDerivable } from "../../substrate/digests-derivable.ts";
+import { resolveGroupBucketCharacterId } from "../../substrate/group-bucket.ts";
+import { classifyParticipant } from "../../substrate/participant-actor.ts";
+import { hostUserIdOf } from "../../substrate/participants-host.ts";
+import { hostConsentOf } from "../../substrate/participants-humans.ts";
 import {
   collectConsolidationTier,
   logBuild,
@@ -38,16 +45,9 @@ import {
   storeTier0,
   summarizeConsolidationBatch,
   summarizeDigestBatch,
-} from "../memory/generate/digests.ts";
-import { collectSegments, storeSegments } from "../memory/generate/segments.ts";
-import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
-import { loadBackfillChatIds } from "../persistence/backfill-scope.ts";
-import { loadParticipants } from "../persistence/participants-read.ts";
-import { digestsDerivable } from "./digests-derivable.ts";
-import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
-import { classifyParticipant } from "./participant-actor.ts";
-import { hostUserIdOf } from "./participants-host.ts";
-import { hostConsentOf } from "./participants-humans.ts";
+} from "../generate/digests.ts";
+import { collectSegments, storeSegments } from "../generate/segments.ts";
+import { loadWitnessHorizons } from "../persistence/queries.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
  *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. `importWindow`

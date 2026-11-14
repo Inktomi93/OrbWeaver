@@ -1,8 +1,10 @@
-// domain/chat/substrate/assemble-gather — the chat-internal gather (the impure shell before the pure
+// domain/chat/assembly/gather — the chat-internal gather (the impure shell before the pure
 // build core). The turn's assemble inputs split by ownership: this gathers the half chat owns and merges
-// it with the foreign DTO, then calls the pure `buildAssembleContext`. Homed in `substrate/` because it
-// coordinates three named subsystems (`assembly/`, `memory/`, the regex-tier substrate) + `persistence/`
-// reads — a verb or an `assembly/` file may not import `memory/` directly.
+// it with the foreign DTO, then calls the pure `buildAssembleContext`. It reads `persistence/` and the
+// substrate directly; the two `memory/` reads arrive as {@link GatherMemoryOps}, bound in
+// `domain/chat/context.ts`, because `domain-no-cross-subsystem` keeps `assembly/` from importing `memory/`. Verbs
+// reach it as `ctx.gatherAssembleContext`, because `domain-substrate-mediates-subsystems` keeps a flat verb
+// from importing `assembly/`.
 //
 // The chat-internal half (chat owns the data/subsystem, reads it itself via `ChatContext`): recent
 // messages/last-message family from committed canon; user injections from `chat_injections`; room
@@ -19,19 +21,20 @@ import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "@orb/kit/recall";
 import type { IanaTimeZone } from "@orb/kit/time";
-import { humanizeDuration, UTC_TIME_ZONE } from "@orb/kit/time";
-import { buildAssembleContext } from "../assembly/context.ts";
+import { humanizeDuration } from "@orb/kit/time";
 import type { ChoicePickMode, TurnMacroContextArgs } from "../contract/assembly-macros.ts";
 import type { ChatContext } from "../contract/context.ts";
 import type { ForeignInputs } from "../contract/foreign.ts";
 import type { MemoryRecallInputs, MsgRow, TurnRetrievalWarningEpisode } from "../contract/memory.ts";
-import { loadTranscriptNames } from "../memory/persistence/queries.ts";
-import { recallMemory } from "../memory/recall/recall.ts";
+import type { loadTranscriptNames } from "../memory/persistence/queries.ts";
+import type { recallMemory } from "../memory/recall/recall.ts";
 import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
-import { regexAllowOf, resolveHostTierRegexScripts } from "./regex-tier.ts";
-import { foldChain } from "./runtime-variables.ts";
-import { createTurnRetrievalWarningEpisode } from "./turn-retrieval-warning.ts";
-import { resolveChoiceVariables } from "./variables.ts";
+import { assemblyTimeZone } from "../substrate/assembly-time-zone.ts";
+import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
+import { foldChain } from "../substrate/runtime-variables.ts";
+import { createTurnRetrievalWarningEpisode } from "../substrate/turn-retrieval-warning.ts";
+import { resolveChoiceVariables } from "../substrate/variables.ts";
+import { buildAssembleContext } from "./context.ts";
 
 /** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user text
  *  here so the verb persists that. Threaded straight through to the pure core. */
@@ -43,6 +46,12 @@ interface SendRegexSink {
   /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6) — written by
    *  `gatherMemory` (NOT the pure core, which never touches it). `null` ⇒ no character to key on. */
   memoryRecall?: MemoryRecallInputs | null;
+}
+
+/** The `memory/` reads the gather needs: the recall itself and the speaker names its query labels rows with. */
+export interface GatherMemoryOps {
+  readonly recallMemory: typeof recallMemory;
+  readonly loadTranscriptNames: typeof loadTranscriptNames;
 }
 
 type GatherDatabankParams = Parameters<NonNullable<ChatContext["gatherDatabank"]>>[0];
@@ -57,12 +66,6 @@ const DATABANK_QUERY_MAX_CHARS = 1000;
  *  turn supplies it via `foreign.databankSlotTokenBudget`. Sized to seat the default retrieval (k=5 ×
  *  2500-char chunks ≈ 3.1k tokens) while capping a pathological huge-chunk config. */
 const DATABANK_SLOT_TOKEN_BUDGET = 4096;
-
-/** The zone a chat render's time macros read: the one its caller names, else UTC. The ONE home of the
- *  no-viewer clock; the server's own zone is no user's. */
-export function assemblyTimeZone(timeZone: IanaTimeZone | undefined): IanaTimeZone {
-  return timeZone ?? UTC_TIME_ZONE;
-}
 
 /** Build the retrieval query: the pending user text + the last 2 committed turns, most-recent-first, capped.
  *  The pending message is the strongest signal; the recent turns restore the context a bare "tell me more
@@ -146,8 +149,8 @@ function p6Fields(
 
 /** The recall query's speaker names: the room identity producer over the query window's own stamps, the same
  *  source the memory build labels its transcripts with, so a speaker who joined or left still resolves. */
-async function loadRecallNames(ctx: ChatContext, rows: readonly MsgRow[]): Promise<ReadonlyMap<CharacterId, string>> {
-  const { characterNamesById } = await loadTranscriptNames(ctx.db, rows);
+async function loadRecallNames(ctx: ChatContext, memoryOps: GatherMemoryOps, rows: readonly MsgRow[]): Promise<ReadonlyMap<CharacterId, string>> {
+  const { characterNamesById } = await memoryOps.loadTranscriptNames(ctx.db, rows);
   return new Map([...characterNamesById].map(([id, entry]) => [id, entry.name]));
 }
 
@@ -202,6 +205,7 @@ function toChatInjection(row: Awaited<ReturnType<typeof loadChatInjections>>[num
  *  `out` is supplied, stages the round-level recall inputs for the engine's per-speaker witnessed re-run (D6). */
 async function gatherMemory(
   ctx: ChatContext,
+  memoryOps: GatherMemoryOps,
   args: {
     readonly chatId: ChatId;
     readonly runAsUserId: UserId;
@@ -241,7 +245,7 @@ async function gatherMemory(
       ...(args.liveWindowCutoffSeq !== undefined ? { liveWindowCutoffSeq: args.liveWindowCutoffSeq } : {}),
     };
   }
-  return await recallMemory(ctx, {
+  return await memoryOps.recallMemory(ctx, {
     scope: {
       chatId: args.chatId,
       scopedCharacterId: sharedCharId,
@@ -294,7 +298,7 @@ function resolveLiveWindowCutoffSeq(canon: readonly MessageView[]): number | und
  * the post-USER_INPUT-regex text for the verb to persist.
  */
 export async function gatherAssembleContext(
-  ctx: ChatContext,
+  bound: { readonly ctx: ChatContext; readonly memoryOps: GatherMemoryOps },
   args: {
     readonly chatId: ChatId;
     readonly runAsUserId: UserId;
@@ -349,6 +353,7 @@ export async function gatherAssembleContext(
   foreign: ForeignInputs,
   out?: SendRegexSink,
 ): Promise<AssembleContext> {
+  const { ctx, memoryOps } = bound;
   const { chatId, runAsUserId, model, characterIds, personaIds } = args;
 
   const [chatRow, canon, injectionRows, storedVariables, variableDeltas] = await Promise.all([
@@ -400,13 +405,14 @@ export async function gatherAssembleContext(
   const [memory, databank] = await Promise.all([
     gatherMemory(
       ctx,
+      memoryOps,
       {
         chatId,
         runAsUserId,
         characterIds,
         foreign,
         recent: recallRecent,
-        names: await loadRecallNames(ctx, recallRecent),
+        names: await loadRecallNames(ctx, memoryOps, recallRecent),
         liveWindowCutoffSeq: resolveLiveWindowCutoffSeq(canon),
         warningEpisode,
       },

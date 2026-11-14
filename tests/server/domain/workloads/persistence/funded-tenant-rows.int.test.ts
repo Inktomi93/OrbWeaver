@@ -9,7 +9,7 @@
 // @subject packages/server/src/domain/discovery/workload-contributions.ts
 // @subject packages/server/src/domain/refinery/workload-contributions.ts
 // @subject packages/server/src/domain/chat/memory/generate/segments.ts
-// @subject packages/server/src/domain/chat/substrate/backfill.ts
+// @subject packages/server/src/domain/chat/memory/backfill/backfill.ts
 // @subject packages/server/src/domain/chat/workload-contributions.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";

@@ -311,7 +311,7 @@ export interface ParsedDigest {
   readonly keywords: string[];
 }
 
-// ── The corpus-sweep counts (`substrate/backfill.ts`) use `BackfillPassResult` and `MemoryBackfillResult` from
+// ── The corpus-sweep counts (`memory/backfill/backfill.ts`) use `BackfillPassResult` and `MemoryBackfillResult` from
 //    `@orb/contracts/chat` directly: the sweep's fold IS the workload's terminal RESULT — `workload-contributions.ts`
 //    returns the value the sweep produced straight through as the contract type, and it lands verbatim in the
 //    durable workload result JSON. One home for that shape (contracts, which cannot import a domain). ──
