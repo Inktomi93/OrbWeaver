@@ -15,7 +15,7 @@ test("bulk regex capture fans only confirmed owned scripts, once per room, and n
   ownerCaller,
   otherCaller,
 }): Promise<void> => {
-  const input = createRegexScriptSchema.parse({ name: "owned", findRegex: "x", replaceString: "y", placement: [] });
+  const input = createRegexScriptSchema.parse({ name: "owned", findRegex: "x", replaceString: "y", targets: [], passes: [] });
   const first = await ownerCaller.regex.createScript({ input });
   const second = await ownerCaller.regex.createScript({ input: { ...input, name: "second" } });
   const global = await ownerCaller.regex.createScript({ input: { ...input, name: "global" } });
@@ -86,12 +86,12 @@ test("global document reach credits a present member rather than only the host, 
 
 test("a failed regex reach capture is logged and cannot fault the confirmed delete", async ({ db, services, ownerCaller, app, harness }): Promise<void> => {
   const script = await ownerCaller.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "capture failure", findRegex: "x", replaceString: "y", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "capture failure", findRegex: "x", replaceString: "y", targets: [], passes: [] }),
   });
   const room = (await ownerCaller.chat.startChat({ characterIds: [] })).chat;
   await ownerCaller.regex.attachToChat({ chatId: room.id, scriptId: script.id });
   const control = await ownerCaller.regex.createScript({
-    input: createRegexScriptSchema.parse({ name: "successful capture", findRegex: "x", replaceString: "y", placement: [] }),
+    input: createRegexScriptSchema.parse({ name: "successful capture", findRegex: "x", replaceString: "y", targets: [], passes: [] }),
   });
   await ownerCaller.regex.attachToChat({ chatId: room.id, scriptId: control.id });
   const frames: Parameters<Parameters<ServicesResult["liveBuses"]["chat"]["subscribeAllChatEvents"]>[0]>[0][] = [];

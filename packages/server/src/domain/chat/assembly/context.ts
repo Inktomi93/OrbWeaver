@@ -28,6 +28,7 @@ import { composeRewriteSteer, GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroContext, MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
+import type { RoomStanding } from "@orb/kit/message-author";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -51,8 +52,8 @@ interface MatchedKey {
 }
 
 /** Logs a ReDoS-watchdog/bad-regex failure; the pass proceeds fail-open on the text as-is. */
-function onHostRegexFailure(placement: "WORLD_INFO" | "USER_INPUT", logger: Logger): (err: unknown, script: RegexScriptInput) => void {
-  return (err, script) => getLog(logger).warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
+function onHostRegexFailure(target: "WORLD_INFO" | "USER_INPUT", logger: Logger): (err: unknown, script: RegexScriptInput) => void {
+  return (err, script) => getLog(logger).warn({ err, target, findRegex: script.findRegex }, "chat: host-tier regex script failed (D53 watchdog)");
 }
 
 /** Logs a bad user-authored world-info REGEX KEY (a V3 `use_regex` entry); the matcher falls back to a
@@ -263,7 +264,9 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
   const afterRegex = executeRegexScripts({
     text: resolved,
     scripts: env.args.regexScripts,
-    placement: "WORLD_INFO",
+    // World info is read only as the prompt is built, so this is the prompt pass. An at-depth entry is placed
+    // in the history at its inject depth and is filtered by that depth; any other entry carries none.
+    call: { pass: "prompt", target: "WORLD_INFO", depth: entry.inject?.depth },
     ctx: env.regexCtx,
     applyReplace: env.args.applyReplace,
     onScriptFailure: onHostRegexFailure("WORLD_INFO", env.args.logger),
@@ -407,6 +410,8 @@ interface BuildAssembleContextInput {
   /** Effective host-tier regex set (global ∪ preset ∪ character ∪ room), resolved by the verb/root; applied
    *  at SEND (USER_INPUT) and copied onto the returned AssembleContext for RECEIVE. */
   readonly hostTierRegexScripts?: readonly RegexScriptRow[] | undefined;
+  /** The room's seat standings the host-tier scripts' author scopes read, copied onto the returned context. */
+  readonly hostTierRegexRoom?: RoomStanding | undefined;
   /** The per-turn user-macro RENDER registry (WAVE MU) — every section/WI/persona/note render resolves
    *  user macros against it; absent ⇒ the process `globalMacroRegistry` (byte-identical). NEVER placed on
    *  the returned serializable `AssembleContext` — it rides the build INPUT + `TurnPrep` only. */
@@ -862,7 +867,7 @@ async function runSendAuthorTransforms(
     text = executeRegexScripts({
       text,
       scripts: hostScripts,
-      placement: "USER_INPUT",
+      call: { pass: "save", target: "USER_INPUT", edit: false },
       ctx: sendMacroCtx,
       applyReplace: ctx.applyRegexReplace,
       onScriptFailure: onHostRegexFailure("USER_INPUT", ctx.logger),
@@ -1018,6 +1023,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     ...(authorsNote.authorsNoteSource !== undefined ? { authorsNoteSource: authorsNote.authorsNoteSource } : {}),
     // Carries the resolved host-tier regex set onto the immutable ctx so RECEIVE applies the same set SEND used.
     ...(input.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: input.hostTierRegexScripts } : {}),
+    ...(input.hostTierRegexRoom !== undefined ? { hostTierRegexRoom: input.hostTierRegexRoom } : {}),
     wiTrace: {
       // WORLD-INFO entries only — the kept candidates that carry a `worldEntry`, which is exactly
       // `activated`. It used to count every kept injection, and `chatInjections` holds all six candidate

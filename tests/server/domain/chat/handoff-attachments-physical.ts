@@ -51,7 +51,8 @@ export async function attachRoomAttachments(
       name: `${text.replace} script`,
       findRegex: `/${text.find}/g`,
       replaceString: text.replace,
-      placement: ["USER_INPUT"],
+      targets: ["USER_INPUT"],
+      passes: ["save"],
     }),
   });
   await h.root.services.regex.attachToChat({ principal: owner, chatId: h.chatId, scriptId: script.id });

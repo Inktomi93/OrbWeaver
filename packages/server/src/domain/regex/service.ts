@@ -32,8 +32,8 @@ import {
 } from "./verbs/attachments/index.ts";
 import {
   createBulkRemove,
+  createBulkSetAxes,
   createBulkSetEnabled,
-  createBulkSetPlacement,
   createCount,
   createCreate,
   createDuplicate,
@@ -61,7 +61,7 @@ export function createRegexService(input: DbAssemblyInput<RegexContext>): RegexS
     listScriptUsage: createListScriptUsage(ctx),
     bulkSetScriptsEnabled: createBulkSetEnabled(ctx),
     bulkSetScriptsGlobal: createBulkSetGlobal(ctx),
-    bulkSetScriptsPlacement: createBulkSetPlacement(ctx),
+    bulkSetScriptsAxes: createBulkSetAxes(ctx),
     bulkRemoveScripts: createBulkRemove(ctx),
     exportScript: ({ principal, scriptId }) => exportScript({ ownerId: principal.userId, scriptId }),
     importScriptFile: ({ principal, fileText }) => importScript({ ownerId: principal.userId, bytes: ENC.encode(fileText) }),

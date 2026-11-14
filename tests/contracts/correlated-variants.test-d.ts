@@ -9,7 +9,6 @@ import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { GenerateImageActionArgs, GeneratePictureParams, generatePictureRequestSchema } from "@orb/contracts/imagery";
 import type { CachePolicy, ConnectionBinding, TaskDef } from "@orb/contracts/inference";
 import type { InboxView } from "@orb/contracts/notifications";
-import type { RegexScriptBehavior } from "@orb/contracts/regex";
 import type { CorpusSourceOutcome } from "@orb/contracts/search";
 import type { StatsFreshness } from "@orb/contracts/stats";
 import type { ChatId, EmbedGenerationId, MessageId } from "@orb/kit/ids";
@@ -64,10 +63,8 @@ test("chat publication, posture, window and recall retain their existing discrim
   expectTypeOf<{ type: "memoryRecall"; chatId: ChatId; phase: "recalling"; count: number }>().not.toExtend<ChatBusEvent>();
 });
 
-test("freshness and free imagery close impossible states while foreign regex masks stay valid", () => {
+test("freshness and free imagery close impossible states", () => {
   expectTypeOf<{ hasData: true; computedAt: null }>().not.toExtend<StatsFreshness>();
-  type Regex = Pick<RegexScriptBehavior, Exclude<keyof RegexScriptBehavior, "markdownOnly" | "promptOnly">>;
-  expectTypeOf<Regex & { markdownOnly: true; promptOnly: true }>().toExtend<RegexScriptBehavior>();
   expectTypeOf<{ mode: "free" }>().not.toExtend<ReturnType<typeof generatePictureRequestSchema.parse>>();
   type Args = Pick<GenerateImageActionArgs, Exclude<keyof GenerateImageActionArgs, "mode" | "prompt">>;
   expectTypeOf<Args & { mode: "free" }>().not.toExtend<GenerateImageActionArgs>();

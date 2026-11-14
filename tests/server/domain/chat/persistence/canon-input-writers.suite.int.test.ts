@@ -306,7 +306,7 @@ test.for([
   if (scene.script) {
     const script = await h.root.services.regex.createScript({
       principal: h.owner,
-      input: createRegexScriptSchema.parse({ name: "Host input mask", findRegex: "badword", replaceString: "****", placement: ["USER_INPUT"] }),
+      input: createRegexScriptSchema.parse({ name: "Host input mask", findRegex: "badword", replaceString: "****", targets: ["USER_INPUT"], passes: ["save"] }),
     });
     await h.root.services.regex.attachGlobal({ principal: h.owner, scriptId: script.id });
   }

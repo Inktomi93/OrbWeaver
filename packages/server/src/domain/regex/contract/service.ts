@@ -9,6 +9,7 @@
 import type { RequireHostOp, RequireParticipantOp, ResolveChatHostOp, ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
 import type {
+  BulkAxesResult,
   BulkResult,
   CaptureRegexRoomReachOp,
   DetachResult,
@@ -29,9 +30,9 @@ import type {
   AttachToChatParams,
   AttachToPresetParams,
   BulkRemoveScriptsParams,
+  BulkSetScriptsAxesParams,
   BulkSetScriptsEnabledParams,
   BulkSetScriptsGlobalParams,
-  BulkSetScriptsPlacementParams,
   CreateScriptParams,
   DetachFromCharacterParams,
   DetachFromChatParams,
@@ -109,11 +110,9 @@ export interface RegexService {
   /** Attaching APPENDS the block at the end of the global tier in the caller's order — a bulk make-global
    *  never renumbers the run order the owner already authored in the context pane. */
   readonly bulkSetScriptsGlobal: (params: BulkSetScriptsGlobalParams) => Promise<BulkResult>;
-  /** REPLACE the placement set of every named owned script, re-deriving each row's tier flags + history-depth
-   *  scope from the new set (`@orb/kit/regex` — the SAME derivations the per-script editor uses). Per-row, in
-   *  one batch: each row keeps its own find/replace body and any authored depth scope, and no flag rides the
-   *  wire. D2 unblocked — the derivation now lives beside the executor masks it mirrors. */
-  readonly bulkSetScriptsPlacement: (params: BulkSetScriptsPlacementParams) => Promise<BulkResult>;
+  /** REPLACE both axes of every named owned script, per row in one batch. A row moved to the save pass loses its
+   *  depth and author scope, which apply only on display or in the prompt, and is named in `cleared`. */
+  readonly bulkSetScriptsAxes: (params: BulkSetScriptsAxesParams) => Promise<BulkAxesResult>;
   readonly bulkRemoveScripts: (params: BulkRemoveScriptsParams) => Promise<BulkResult>;
 
   /** The two SINGLE-ENTITY DOORS (REGX2 · D121-D `band=Import · kebab=Export`). Both are THIN ARMS over the

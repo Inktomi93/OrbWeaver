@@ -325,7 +325,7 @@ const ROLE_DATA_EXPORTS = [
   { path: "primitives/role-data/registry.ts", names: ["userRoleCodes", "participantRoleCodes"] },
   { path: "primitives/role-data/decode/index.ts", names: ["isUserRoleState", "isParticipantRoleState", "userRoleValue", "participantRoleValue"] },
   { path: "domain/admin/guard.ts", names: ["isBootstrapOwnerRole", "isBootstrapOwnerRoleCode", "can", "requireAdmin", "requireOwner", "isAdmin", "isOwner"] },
-  { path: "domain/chat/substrate/participants-host.ts", names: ["hostSeatOf", "hostUserIdOf"] },
+  { path: "domain/chat/substrate/participants-host.ts", names: ["hostSeatOf", "hostUserIdOf", "roomStandingOf"] },
   {
     path: "domain/chat/substrate/member-visibility.ts",
     names: [

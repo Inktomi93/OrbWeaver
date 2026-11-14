@@ -84,6 +84,7 @@ import { projectBodyForPreview } from "@orb/kit/content";
 import type { CharacterId, ChatId, ConsentingHostId, MessageId, ModelId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
 import { globalMacroRegistry, resolveRowMacros } from "@orb/kit/macro";
+import { NO_SEATS } from "@orb/kit/message-author";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { RegexPass } from "@orb/kit/regex";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -1278,9 +1279,12 @@ function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleCont
     applyReplace: ctx.applyRegexReplace,
     onScriptFailure: (err, script) =>
       getLog(ctx.logger).warn(
-        { err, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
+        { err, pass: "prompt", findRegex: script.findRegex },
         "chat: prompt-history regex script failed in a preview build (D53 watchdog)",
       ),
+    room: assembleContext.hostTierRegexRoom ?? NO_SEATS,
+    // A preview shows the next fresh turn, never a continue.
+    continuing: false,
   };
 }
 

@@ -6,7 +6,7 @@ import { authConfigShareSchema } from "@orb/contracts/identity";
 import { generateImageActionArgsSchema, generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { cachePolicySchema, connectionBindingSchema } from "@orb/contracts/inference";
 import { inboxViewSchema } from "@orb/contracts/notifications";
-import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
+import { regexScriptBehaviorSchema, regexScriptBehaviorWriteSchema } from "@orb/contracts/regex";
 import { statsFreshnessSchema } from "@orb/contracts/stats";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
@@ -155,16 +155,14 @@ test("binding actors require exactly their own identity and retain deleted conne
   expect(connectionBindingSchema.safeParse({ ...user, ruleId }).success).toBe(false);
 });
 
-test("foreign regex tier masks preserve inert contradictory provenance", () => {
-  const behavior = { findRegex: "x", replaceString: "y", placement: [] };
-  for (const flags of [
-    { markdownOnly: false, promptOnly: false },
-    { markdownOnly: true, promptOnly: false },
-    { markdownOnly: false, promptOnly: true },
-  ]) {
-    expect(regexScriptBehaviorSchema.safeParse({ ...behavior, ...flags }).success).toBe(true);
+// A refine on the parse-on-read schema would brick a stored row, so the pass pairing is refused at writes only.
+test("a stored regex behavior reads with any pass pairing while a write refuses the save pass beside an ephemeral one", () => {
+  const behavior = { findRegex: "x", replaceString: "y", targets: ["AI_OUTPUT"] };
+  for (const passes of [["save"], ["display"], ["prompt"], ["display", "prompt"]]) {
+    expect(regexScriptBehaviorWriteSchema.safeParse({ ...behavior, passes }).success, passes.join("+")).toBe(true);
   }
-  expect(regexScriptBehaviorSchema.safeParse({ ...behavior, markdownOnly: true, promptOnly: true }).success).toBe(true);
+  expect(regexScriptBehaviorSchema.safeParse({ ...behavior, passes: ["save", "display"] }).success).toBe(true);
+  expect(regexScriptBehaviorWriteSchema.safeParse({ ...behavior, passes: ["save", "display"] }).error?.issues.map(({ path }) => path)).toEqual([["passes"]]);
 });
 
 test("game posture distinguishes a paused game from an engaged game", () => {
