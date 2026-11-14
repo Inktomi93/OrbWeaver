@@ -27,16 +27,16 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#primitives/abort";
 import { GenerationSupersededError } from "#primitives/embedding-generation";
-import type { ChatContext } from "../../contract/context.ts";
-import type { MemoryBackfillSweepCounts, MemoryScope, ResolveBackfillMemoryConfig, Tier0Counts } from "../../contract/memory.ts";
-import type { MemorySweepArgs } from "../../contract/workloads.ts";
-import { loadBackfillChatIds } from "../../persistence/backfill-scope.ts";
-import { loadParticipants } from "../../persistence/participants-read.ts";
-import { digestsDerivable } from "../../substrate/digests-derivable.ts";
-import { resolveGroupBucketCharacterId } from "../../substrate/group-bucket.ts";
-import { classifyParticipant } from "../../substrate/participant-actor.ts";
-import { hostUserIdOf } from "../../substrate/participants-host.ts";
-import { hostConsentOf } from "../../substrate/participants-humans.ts";
+import type { ChatContext } from "#src/domain/chat/contract/context.ts";
+import type { MemoryBackfillSweepCounts, MemoryScope, ResolveBackfillMemoryConfig, Tier0Counts } from "#src/domain/chat/contract/memory.ts";
+import type { MemorySweepArgs } from "#src/domain/chat/contract/workloads.ts";
+import { loadBackfillChatIds } from "#src/domain/chat/persistence/backfill-scope.ts";
+import { loadParticipants } from "#src/domain/chat/persistence/participants-read.ts";
+import { digestsDerivable } from "#src/domain/chat/substrate/digests-derivable.ts";
+import { resolveGroupBucketCharacterId } from "#src/domain/chat/substrate/group-bucket.ts";
+import { classifyParticipant } from "#src/domain/chat/substrate/participant-actor.ts";
+import { hostUserIdOf } from "#src/domain/chat/substrate/participants-host.ts";
+import { hostConsentOf } from "#src/domain/chat/substrate/participants-humans.ts";
 import {
   collectConsolidationTier,
   logBuild,

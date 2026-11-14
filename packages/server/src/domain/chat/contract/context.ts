@@ -1,6 +1,7 @@
 import type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
 import type { CharacterCard, FindSyntheticGroupCharacterOp, MintSyntheticGroupCharacterOp } from "@orb/contracts/character";
 import type {
+  AssembleContext,
   ClaimChatOp,
   DurableChatBusEvent,
   ForkGameOp,
@@ -75,12 +76,12 @@ import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { TestKeyRegex } from "@orb/kit/world-info";
 import type { AuditWiring } from "#foundation/observability";
-import type { gatherAssembleContext } from "../assembly/gather.ts";
 import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
 import type { ApplyPromptTransformsOp, DelayOp, EmitDurableChatEventOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
-import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
+import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "./foreign.ts";
+import type { GatherAssembleArgs, SendRegexSink } from "./gather.ts";
 import type { ResolveChatUserMacroDefs } from "./macro-readers.ts";
 import type { MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { RpgTurnOps } from "./rpg-turn.ts";
@@ -564,14 +565,11 @@ type ResolvePromptVariablesOp = (chatId: ChatId) => Promise<readonly ChoiceBlock
  *  Empty is legal and means "nothing teaches this turn" (byte-identical). */
 export type ChatTeachingRegistry = readonly TeachingContribution[];
 
-/** The gather's per-call arguments: everything after the context it is bound to. */
-type GatherAssembleCall = Parameters<typeof gatherAssembleContext> extends [unknown, ...infer Rest] ? Rest : never;
-
 /** Ops `createChatContext` binds over the finished context; composition never supplies them. */
 export interface ChatContextBoundOps {
   /** The turn's chat-internal gather (`assembly/gather.ts`), bound to this context and the `memory/` reads it
    *  needs, so a verb reaches the subsystem without importing it. */
-  readonly gatherAssembleContext: (...args: GatherAssembleCall) => ReturnType<typeof gatherAssembleContext>;
+  readonly gatherAssembleContext: (args: GatherAssembleArgs, foreign: ForeignInputs, out?: SendRegexSink) => Promise<AssembleContext>;
 }
 
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +

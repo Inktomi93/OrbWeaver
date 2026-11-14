@@ -5,12 +5,12 @@
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../../contract/context.ts";
-import type { BlockSpan, ResolveBackfillMemoryConfig, ResolvedMemoryConfig } from "../../contract/memory.ts";
-import { loadParticipants } from "../../persistence/participants-read.ts";
-import { digestsDerivable } from "../../substrate/digests-derivable.ts";
-import { classifyParticipant } from "../../substrate/participant-actor.ts";
-import { hostUserIdOf } from "../../substrate/participants-host.ts";
+import type { ChatContext } from "#src/domain/chat/contract/context.ts";
+import type { BlockSpan, ResolveBackfillMemoryConfig, ResolvedMemoryConfig } from "#src/domain/chat/contract/memory.ts";
+import { loadParticipants } from "#src/domain/chat/persistence/participants-read.ts";
+import { digestsDerivable } from "#src/domain/chat/substrate/digests-derivable.ts";
+import { classifyParticipant } from "#src/domain/chat/substrate/participant-actor.ts";
+import { hostUserIdOf } from "#src/domain/chat/substrate/participants-host.ts";
 import { resolveCfg } from "../constants.ts";
 import { blockHash, consolidationHash, sliceBlocks } from "../generate/substrate/transcript.ts";
 import { spanWitnessed } from "../generate/substrate/witnessing.ts";
