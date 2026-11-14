@@ -21,10 +21,11 @@ const TEXT_200 = 2;
 const SLASHED_MODEL = "vendorlab/familytuned/instruct2025";
 // The dot lands at the head of a line only when the words before it fill the line to within the width of " ·", a window
 // a few pixels wide. Text scale moves every label's width continuously against the list's fixed line width, so a fine
-// sweep of it reaches that window.
+// sweep of it reaches that window. This label first wraps just under 2x text and the dot meets a line head across the
+// span below, so the sweep stays short enough to finish well inside the case's time budget.
 const LABEL = "lorem ipsum dolor sit amet consectetur";
-const SCALE_FROM = 1.5;
-const SCALE_TO = 2.5;
+const SCALE_FROM = 2.05;
+const SCALE_TO = 2.25;
 const SCALE_STEP = 0.005;
 const SEPARATOR_DOT = CONNECTION_LABEL_SEPARATOR.trim();
 
