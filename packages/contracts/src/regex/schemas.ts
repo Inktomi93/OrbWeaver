@@ -182,8 +182,8 @@ export const regexScriptViewSchema = regexScriptSchema.strict().safeExtend({
  *  writes `disabled` (`input[name="disabled"]`) and its executor skips on `!!regexScript.disabled`. Reading
  *  only `enabled` therefore made an ST card's switched-OFF script arrive switched ON — a find/replace the
  *  card's author had deliberately parked, silently rewriting canon on the first turn after import. Both
- *  keys are accepted, ours winning when present (so an orbweaver-exported card round-trips exactly), and
- *  `toRegexScriptCardWire` writes both back out so a foreign ST reading our card honours the state too. */
+ *  keys are accepted, SillyTavern's winning in its dialect (`liftStScriptWire`), and `toRegexScriptCardWire`
+ *  writes both back out so a foreign ST reading our card honours the state too. */
 const regexScriptCardFieldsSchema = regexScriptBehaviorFields.extend({
   id: z.string().min(MIN_CARD_ID_LENGTH).max(MAX_CARD_ID_LENGTH),
   name: z.string().max(REGEX_SCRIPT_NAME_MAX),
@@ -229,24 +229,30 @@ function stDepth(minDepth: unknown, maxDepth: unknown): RegexDepth | undefined {
 }
 
 /** Translate one SillyTavern-dialect script (numeric placement) onto the two axes. Its name, polarity and macro mode
- *  are SillyTavern's spellings too. Depth rides only beside an ephemeral pass, since SillyTavern's save calls pass
- *  none. */
+ *  are SillyTavern's spellings too, and each wins over this app's own beside it, so a file exported here and edited
+ *  there comes back as edited. Depth and an author scope ride only beside an ephemeral pass, since SillyTavern's save
+ *  calls pass neither; the author scope is this app's alone and is carried through. */
 function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unknown[]): Record<string, unknown> {
-  const { placement: _placement, markdownOnly, promptOnly, minDepth, maxDepth, scriptName, ...rest } = obj;
+  const { placement: _placement, markdownOnly, promptOnly, minDepth, maxDepth, scriptName, targets: _t, passes: _p, depth: _d, authors, ...rest } = obj;
   const passes = stPasses(markdownOnly === true, promptOnly === true);
-  const depth = runsEphemeral(passes) ? stDepth(minDepth, maxDepth) : undefined;
+  const ephemeral = runsEphemeral(passes);
+  const depth = ephemeral ? stDepth(minDepth, maxDepth) : undefined;
   const targets = REGEX_TARGETS.filter((target) => placement.some((member) => typeof member === "number" && ST_REGEX_TARGET_BY_NUMBER[member] === target));
   return {
     ...rest,
-    name: rest["name"] ?? scriptName,
+    name: typeof scriptName === "string" ? scriptName : rest["name"],
+    ...(typeof rest["disabled"] === "boolean" ? { enabled: !rest["disabled"] } : {}),
     targets,
     passes,
     ...(depth === undefined ? {} : { depth }),
+    ...(ephemeral && authors !== undefined ? { authors } : {}),
     ...(rest["substituteRegex"] === undefined ? {} : { substituteRegex: stSubstituteRegex(rest["substituteRegex"]) }),
   };
 }
 
-/** Whether a card-wire script is in SillyTavern's dialect: its placement holds numbers. */
+/** Whether a card-wire script is in SillyTavern's dialect: its placement holds numbers. A file exported here carries
+ *  both spellings, and SillyTavern's wins, so an edit made there comes back; its spelling holds every axis but the
+ *  author scope, which the lift carries through untouched. */
 function isStDialect(obj: Record<string, unknown>): obj is Record<string, unknown> & { readonly placement: readonly unknown[] } {
   const placement = obj["placement"];
   return Array.isArray(placement) && placement.some((member) => typeof member === "number");
@@ -427,10 +433,43 @@ export const regexScriptCardViewSchema = regexScriptBehaviorFields
   })
   .superRefine(behaviorCoheres) satisfies z.ZodType<RegexScriptCard>;
 
-/** Project a card script back onto the ST wire — `disabled` beside our `enabled`, so the card is readable
- *  by both engines with one meaning. The ONE emit-side home for the polarity (the parse side is above). */
-export function toRegexScriptCardWire(card: RegexScriptCard): RegexScriptCard & { readonly disabled: boolean } {
-  return { ...card, disabled: !card.enabled };
+/** A card script in SillyTavern's own spelling, written beside the two axes. */
+export interface StRegexScriptFields {
+  readonly scriptName: string;
+  readonly disabled: boolean;
+  readonly placement: readonly number[];
+  readonly markdownOnly: boolean;
+  readonly promptOnly: boolean;
+  readonly minDepth: number | null;
+  readonly maxDepth: number | null;
+}
+
+const ST_NUMBER_BY_TARGET = new Map(Object.entries(ST_REGEX_TARGET_BY_NUMBER).map(([number, target]) => [target, Number(number)]));
+
+/**
+ * A script's SillyTavern spelling: its numbered placement, its two switches and its depth pair, written beside the
+ * two axes on every file this app exports, so the file runs where its author meant in both apps. The ONE emit-side
+ * home for the polarity and the placement numbers (the parse side is above).
+ *
+ * @remarks An author scope has no SillyTavern spelling, so SillyTavern runs such a script on every row of its targets.
+ */
+export function stRegexScriptFields(
+  script: Pick<RegexScriptCard, "name" | "enabled" | "targets" | "passes"> & { readonly depth?: RegexDepth | undefined },
+): StRegexScriptFields {
+  return {
+    scriptName: script.name,
+    disabled: !script.enabled,
+    placement: script.targets.flatMap((target) => ST_NUMBER_BY_TARGET.get(target) ?? []),
+    markdownOnly: script.passes.includes("display"),
+    promptOnly: script.passes.includes("prompt"),
+    minDepth: script.depth === undefined || script.depth.min === REGEX_DEPTH_FLOOR ? null : script.depth.min,
+    maxDepth: script.depth?.max ?? null,
+  };
+}
+
+/** Project a card script onto the card wire in both dialects ({@link stRegexScriptFields}). */
+export function toRegexScriptCardWire(card: RegexScriptCard): RegexScriptCard & StRegexScriptFields {
+  return { ...card, ...stRegexScriptFields(card) };
 }
 
 // ── The CRUD wire inputs (the tRPC router + the domain verbs validate against exactly these) ──────────
@@ -561,7 +600,7 @@ export const regexScriptUsageSchema = z.strictObject({
  *  attachment carried: it is a property of the script itself (the `global_regex_scripts` PK-is-the-script
  *  junction), where character/preset/chat attachments point at rows the bundle does not guarantee. */
 export const portableRegexScriptSchema = z.preprocess(
-  liftPlacementSetBehavior,
+  normalizeCardScriptWire,
   regexScriptBehaviorFields
     .extend({
       name: z.string().max(REGEX_SCRIPT_NAME_MAX),
