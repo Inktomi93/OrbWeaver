@@ -18,6 +18,7 @@ import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import { magicBytes } from "@orb/testkit/node/helpers";
 import type { Files } from "./_st-tree-door.ts";
 import { admit, CHAT, cardPng, dryRun, finish, harness, post, settings, storedBlobs, tableContents, WORLD } from "./_st-tree-door.ts";
 
@@ -100,6 +101,35 @@ test("a persona with no avatar file is listed by its name as importing without a
   expect(preview.skipped.items.map((item) => item.source.path)).not.toContain("bob.png");
   const merged = mergeImportPreviews([preview, preview]);
   expect(merged.kinds.personas.items[0]).toMatchObject({ name: "Bob", withoutArt: true });
+});
+
+test("a persona whose avatar the store refuses previews as importing without art, lands without it, and then reads as held", async () => {
+  await using root = await harness();
+  const principal = await root.principalFor(root.ownerId);
+  const files = {
+    [ST_SETTINGS_FILE]: settings({ "bob.png": "Bob", "ann.png": "Ann" }),
+    "User Avatars/bob.png": "not a picture",
+    "User Avatars/ann.png": magicBytes("png"),
+  };
+
+  const preview = await dryRun(root, files);
+
+  expect(preview.kinds.personas.items.map((item) => ({ name: item.name, withoutArt: item.withoutArt }))).toEqual([
+    { name: "Bob", withoutArt: true },
+    { name: "Ann", withoutArt: undefined },
+  ]);
+  expect(preview.kinds.personas.counts.withoutArt).toBe(1);
+
+  await finish(root, await admit(root, files));
+  const landed = await root.services.persona.list({ principal });
+  expect(landed.filter((persona) => persona.name === "Bob").map((persona) => persona.avatarAssetId)).toEqual([null]);
+  expect(landed.filter((persona) => persona.name === "Ann").map((persona) => persona.avatarAssetId)).toEqual([expect.any(String)]);
+
+  const again = await dryRun(root, files);
+  expect(again.kinds.personas.items.map((item) => ({ name: item.name, inLibrary: item.inLibrary }))).toEqual([
+    { name: "Bob", inLibrary: true },
+    { name: "Ann", inLibrary: true },
+  ]);
 });
 
 test("a hostile folder's names are clipped, its lists capped with an exact total, and no server path or credential reaches the preview", async () => {

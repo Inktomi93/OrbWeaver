@@ -670,7 +670,8 @@ function workloadsFor(
     shutdown.throwIfAborted();
     signal.throwIfAborted();
     const completion = (async (): Promise<void> => {
-      const row = await loadWorkload(execution.db, { contributions: app.workloadContributions, logger: execution.logger }, id);
+      // A row that reads as poison is refused below, so a once-only log set of its own loses nothing.
+      const row = await loadWorkload(execution.db, { contributions: app.workloadContributions, logger: execution.logger, reportedUnreadable: new Set() }, id);
       if (row === null || row.poison) {
         throw new Error("The admitted workload has no runnable native row");
       }

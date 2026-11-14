@@ -19,7 +19,7 @@ import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import type { ImportTagPort } from "@orb/contracts/tag";
-import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_ROUTE, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_ROUTE, IMPORT_MAX_TOTAL_BYTES, UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import { DomainOperationError } from "@orb/kit/errors";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
@@ -46,7 +46,6 @@ const PAYLOAD_TOO_LARGE = 413;
 const UNSUPPORTED_MEDIA_TYPE = 415;
 const FALLBACK_MIME = "application/octet-stream";
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
-const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
 const NAME_FIELD = "name";
 
@@ -163,9 +162,9 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
       return c.body(null, UNAUTHORIZED);
     }
     const form = await c.req.formData();
-    const file = form.get(UPLOAD_FIELD);
+    const file = form.get(UPLOAD_FILE_FIELD);
     if (!(file instanceof File)) {
-      return c.json({ error: `missing "${UPLOAD_FIELD}" upload` }, BAD_REQUEST);
+      return c.json({ error: `missing "${UPLOAD_FILE_FIELD}" upload` }, BAD_REQUEST);
     }
     const kind = assetKindSchema.safeParse(form.get(KIND_FIELD));
     if (!kind.success) {
@@ -205,9 +204,9 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
       return c.body(null, UNAUTHORIZED);
     }
     const form = await c.req.formData();
-    const file = form.get(UPLOAD_FIELD);
+    const file = form.get(UPLOAD_FILE_FIELD);
     if (!(file instanceof File)) {
-      return c.json({ error: `missing "${UPLOAD_FIELD}" upload` }, BAD_REQUEST);
+      return c.json({ error: `missing "${UPLOAD_FILE_FIELD}" upload` }, BAD_REQUEST);
     }
     // The static bodyCap belt is the route ceiling; the admin override may only TIGHTEN below it, enforced
     // per-request against the effective cap (a File carries its byte size, so no full read is needed to reject).
@@ -250,9 +249,9 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
       return c.body(null, UNAUTHORIZED);
     }
     const form = await c.req.formData();
-    const file = form.get(UPLOAD_FIELD);
+    const file = form.get(UPLOAD_FILE_FIELD);
     if (!(file instanceof File)) {
-      return c.json(cardLorebookRestoreResultSchema.parse({ ok: false, error: `missing "${UPLOAD_FIELD}" card upload` }), BAD_REQUEST);
+      return c.json(cardLorebookRestoreResultSchema.parse({ ok: false, error: `missing "${UPLOAD_FILE_FIELD}" card upload` }), BAD_REQUEST);
     }
     const outcome = cardLorebookRestoreResultSchema.parse(
       await runCardLorebookRestore({
@@ -276,12 +275,12 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     const form = await c.req.formData();
     const files: ImportFile[] = await Promise.all(
       form
-        .getAll(UPLOAD_FIELD)
+        .getAll(UPLOAD_FILE_FIELD)
         .filter((entry): entry is File => entry instanceof File)
         .map(async (file) => ({ bytes: await fileBytes(file), filename: file.name })),
     );
     if (files.length === 0) {
-      return c.json({ error: `no "${UPLOAD_FIELD}" card uploads` }, BAD_REQUEST);
+      return c.json({ error: `no "${UPLOAD_FILE_FIELD}" card uploads` }, BAD_REQUEST);
     }
     const result: CardImportResult = await runProfileImport({
       principal,

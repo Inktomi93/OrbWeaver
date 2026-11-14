@@ -1,4 +1,4 @@
-import type { StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
+import type { AdmitsAvatar, StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportAnswer, ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
@@ -51,6 +51,8 @@ export interface ProfileOwnership {
   readonly backgroundHashes: OwnedBackgroundHashes;
   readonly findPersonas: FindOwnedPersonas;
   readonly findChatHashes: FindImportedChatHashes;
+  /** Whether the avatar store keeps a persona's art, so the dry run compares and flags a persona as the run lands it. */
+  readonly admitsAvatar: AdmitsAvatar;
 }
 
 /** The collected entries of one kind, each with the answer the dry run reached: the content keys it is compared by
@@ -69,6 +71,8 @@ export interface ImportOwnership {
   readonly backgrounds: Judged<CollectedBackground>;
   readonly groups: Judged<CollectedGroup>;
   readonly orphans: Judged<CollectResult["orphanBundles"][number]>;
+  /** The personas the run lands without art: their avatar file is missing, or the avatar store refuses it. */
+  readonly personasWithoutArt: ReadonlySet<CollectedPersona>;
 }
 
 export interface ProfileDirImportDeps {

@@ -138,9 +138,6 @@ export function createBulkImportPersonas(assembly: DbAssemblyInput<PersonaImport
 
     for (const pi of input) {
       const key = foldPersonaName(pi.name);
-      if (key.length === 0) {
-        continue;
-      }
       const identity = identityOf(pi, artHashes);
       const reused = reusedPersona(identity, candidates, owned, personaCollisionChoiceFor(collisions, key));
       const personaId = reused === null ? mint(identity, pi) : tally(counts, mergedKeys, key, reused);
