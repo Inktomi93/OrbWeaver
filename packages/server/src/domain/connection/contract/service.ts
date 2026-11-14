@@ -37,6 +37,7 @@ import type { AuditEntry } from "#foundation/observability";
 import type { ScopedEgress } from "#infra/network";
 import type {
   CatalogModelsParams,
+  ConnectionCapabilitiesParams,
   ConnectionDiagnosticParams,
   CreateConnectionParams,
   DraftCatalogModelsParams,
@@ -110,7 +111,7 @@ export interface ConnectionService {
   /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
   readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedConnectionView>;
   readonly resolveChatCacheContext: ResolveChatCapabilityOp;
-  readonly capabilities: (params: GetConnectionParams) => Promise<ConnectionCapabilityView>;
+  readonly capabilities: (params: ConnectionCapabilitiesParams) => Promise<ConnectionCapabilityView>;
   /** Each word's tokens on the targeted connection's server, cached per (server, model, word). */
   readonly tokenizeWords: (params: TokenizeWordsParams) => Promise<TokenizeResult>;
 

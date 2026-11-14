@@ -3,17 +3,15 @@
 import type { ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { WebSpinner } from "@orb/ui/spinner";
-import { useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
 import { DismissDialog, QueryBoundary, useSetBinding } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { readFresh, useSuspenseQuery } from "#data";
+import { useSuspenseQuery } from "#data";
 import { CHAT_ROLE_DOOR } from "#lib";
 import { openConfigTo } from "#state";
 import { ADD_DIALOG_COPY } from "../lib/add-connection-form-model.ts";
-import { guessedLimits } from "../lib/connection-capability-fact-model.ts";
 import { providerPickerItems } from "../lib/connections-model.ts";
 import type { AddConnectionFormBodyProps } from "./add-connection-form-body.tsx";
 import { AddConnectionFormBody } from "./add-connection-form-body.tsx";
@@ -49,7 +47,6 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
     setCloseTarget({ open, chat: open ? false : closeTarget.chat });
   }
   const setBinding = useSetBinding({ trpc, invalidation });
-  const queryClient = useQueryClient();
   // the binding's refusal string is returned to FirstModelSetup, whose `settled` writes it to `setChatState` (inline alert) while mounted or to `notify.error` after close, beside the mutation's own toast; ends if either path stops reaching that component.
   const bindChat = (chat: ConnectionView): Promise<string | null> =>
     setBinding.mutateAsync({ task: "chat", connectionId: chat.id }).then(() => null, errorMessage);
@@ -77,19 +74,10 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation, re
     }
     return null;
   };
-  // The saved row's capability is read before the form lets go, so a second press cannot add it twice. A read that
-  // fails still opens the limits step, whose own boundary states the failure with a retry.
-  const onSaved = async (created: ConnectionView, firstChatModel: boolean): Promise<void> => {
-    const next = followStep(created, firstChatModel);
-    const guessed = await readFresh(queryClient, trpc.connection.capabilities.queryOptions({ connectionId: created.id })).then(
-      (view) => guessedLimits(view.capability, created.declared, view.baseline).length > 0,
-      () => true,
-    );
-    if (guessed) {
-      setStep({ kind: "limits", created, next });
-    } else {
-      followOrClose(next);
-    }
+  // Every save moves to the limits step at once; the step reads the row's held limits itself and goes straight on when
+  // nothing is a guess. Nothing here awaits that read, so a late answer can never land a step on a closed dialog.
+  const onSaved = (created: ConnectionView, firstChatModel: boolean): void => {
+    setStep({ kind: "limits", created, next: followStep(created, firstChatModel) });
   };
   return (
     <DismissDialog
@@ -160,7 +148,7 @@ interface GateProps {
   readonly invalidation: Invalidation;
   readonly purpose: AddPurpose;
   /** Called once the row exists; `firstChatModel` = it is the first of the user's connections that can chat. */
-  readonly onSaved: (created: ConnectionView, firstChatModel: boolean) => Promise<void>;
+  readonly onSaved: (created: ConnectionView, firstChatModel: boolean) => void;
   /** Replaces the footer's Cancel close with a step back, where the form is a step inside a longer flow. */
   readonly onCancel: (() => void) | undefined;
 }
@@ -181,7 +169,7 @@ function AddConnectionGate({ trpc, invalidation, purpose, onSaved, onCancel }: G
       trpc={trpc}
       invalidation={invalidation}
       purpose={purpose}
-      onSaved={(created): Promise<void> => onSaved(created, !hadChatModel && created.tasks.includes("chat"))}
+      onSaved={(created): void => onSaved(created, !hadChatModel && created.tasks.includes("chat"))}
       onCancel={onCancel}
       credentials={credentials}
       keyStorage={storage.enabled}

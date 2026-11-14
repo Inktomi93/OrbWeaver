@@ -29,7 +29,15 @@ import { DestructiveAction } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
 import { boundRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
-import { ENDPOINT_QUIRKS_LABEL, FACT_RESET_VERB, factOverrideName, factResetName, factSaveName, factYourValueName } from "../lib/credentials-names.ts";
+import {
+  ENDPOINT_QUIRKS_LABEL,
+  FACT_COUNT_HINT,
+  FACT_RESET_VERB,
+  factOverrideName,
+  factResetName,
+  factSaveName,
+  factYourValueName,
+} from "../lib/credentials-names.ts";
 
 export interface FactRowListProps {
   readonly rows: readonly FactRow[];
@@ -207,7 +215,7 @@ function FactEditControl({
     <Field label={label}>
       <Input
         autoComplete="off"
-        inputMode={edit.kind === "number" ? "numeric" : "text"}
+        inputMode={edit.kind === "number" && edit.count !== true ? "numeric" : "text"}
         onChange={(event): void => onChange(event.target.value)}
         value={value}
       />
@@ -236,6 +244,9 @@ function FactSelect({
 function editHint(edit: FactRow["edit"]): string {
   if (edit.kind === "list") {
     return "Comma-separated, in the order the server sends them.";
+  }
+  if (edit.kind === "number" && edit.count === true) {
+    return FACT_COUNT_HINT;
   }
   if (edit.kind === "number") {
     return "A number. What you type here is what we believe about this server.";

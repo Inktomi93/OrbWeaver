@@ -39,15 +39,15 @@ const TOOL_CALL_CHOICES: readonly FactChoice[] = [
 const GENERATION_LEAVES: readonly FactLeaf[] = [
   {
     path: WINDOW_PATH,
-    name: "context window",
-    edit: { kind: "number" },
+    name: FACT_NAMES.contextWindow,
+    edit: { kind: "number", count: true },
     format: tokens,
     estimatedBy: "generation.context.windowEstimated",
   },
   {
     path: "generation.output.maxTokens.max",
     name: FACT_NAMES.maxOutput,
-    edit: { kind: "number" },
+    edit: { kind: "number", count: true },
     format: tokens,
     estimatedBy: "generation.output.maxTokensEstimated",
   },
@@ -194,12 +194,15 @@ export interface GuessedLimit {
   readonly row: FactRow;
 }
 
-/** The limits whose value is a floor guess: what the add dialog asks the user to correct, written through the same
- *  rows the Advanced tier overrides. A window the preset sets (`setElsewhere`) is never one of them. */
+/** The limits the add dialog asks for, written through the same rows the Advanced tier overrides: none unless the
+ *  context window is a floor guess, then the window and, when it is a guess too, the max output. Most servers state no
+ *  output cap, so a guessed max output alone is left to the preset's own hint and door. A window the preset sets
+ *  (`setElsewhere`) is never a guess. */
 export function guessedLimits(capability: Capability, declared: DeclaredCapability | null, baseline: Capability): readonly GuessedLimit[] {
   const rows = capabilityFactRows(capability, declared, baseline);
-  return LIMIT_KINDS.flatMap((kind) => {
+  const guessed = LIMIT_KINDS.flatMap((kind) => {
     const row = rows.find((candidate) => candidate.path === LIMIT_PATH[kind]);
     return row?.estimated === true ? [{ kind, row }] : [];
   });
+  return guessed.some((limit) => limit.kind === "window") ? guessed : [];
 }

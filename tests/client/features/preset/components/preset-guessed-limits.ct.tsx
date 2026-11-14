@@ -8,6 +8,7 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import { DEFAULT_MAX_OUTPUT_TOKENS, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import type { PresetId, UserConnectionId } from "@orb/kit/ids";
 import { groupThousands } from "@orb/kit/strings";
+import { windowInputRoom } from "@orb/kit/tokens";
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { absenceWindow, channelName, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -20,9 +21,11 @@ import {
   PRESET_MAX_CONTEXT_LABEL,
   PRESET_MAX_OUTPUT_LABEL,
   PRESET_SET_REAL_LIMITS_NAME,
+  PRESET_VERBATIM_TAIL_LABEL,
   presetBlankOutputNote,
   presetCappedByGuessNote,
   presetGuessedLimitsNotice,
+  presetMaxContextHint,
   presetMaxOutputHint,
 } from "#client/features/preset/lib/preset-names.ts";
 import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
@@ -48,6 +51,10 @@ const PROVIDER = "custom-openai";
 const BASE_URL = "http://127.0.0.1:8080/v1";
 // What a model with a one-million-token window states once its limits are known.
 const STATED = { window: 1_000_000, output: 32_768 } as const;
+// A stated max output below the app's own default, so a blank row sends the model's cap.
+const LOW_CAP = 1024;
+// A value for a field outside the two limits, typed into the deck.
+const EDITED_TAIL = 7;
 // What the imported SillyTavern preset asks for: both above the guess.
 const IMPORTED = { context: 128_000, output: 29_828 } as const;
 // Long enough for the editor's autosave to have written anything it would write.
@@ -56,8 +63,11 @@ const PHONE = { width: 390, height: 844 } as const;
 const FONT_SCALES = [2, 3] as const;
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
-/** A chat connection on the provider above, stating its limits or not, made every role's connection. */
-async function chatConnection(caller: Caller, stated: boolean): Promise<{ readonly id: UserConnectionId; readonly capability: GenerationCapability }> {
+/** A chat connection on the provider above, stating the given limits or none, made the chat role's connection. */
+async function chatConnection(
+  caller: Caller,
+  stated: { readonly window: number; readonly output: number } | null,
+): Promise<{ readonly id: UserConnectionId; readonly capability: GenerationCapability }> {
   const connection = await caller.connection.create({
     providerId: PROVIDER,
     credentialId: null,
@@ -67,7 +77,7 @@ async function chatConnection(caller: Caller, stated: boolean): Promise<{ readon
     declared: {
       kind: "generation",
       features: { detectServer: false },
-      ...(stated ? { generation: { context: { window: STATED.window }, output: { maxTokens: { min: 1, max: STATED.output } } } } : {}),
+      ...(stated === null ? {} : { generation: { context: { window: stated.window }, output: { maxTokens: { min: 1, max: stated.output } } } }),
     },
   });
   await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
@@ -111,7 +121,7 @@ function guessedNotice(capability: GenerationCapability): string {
 test("a guessed ceiling says it is a guess on both rows, and its one door asks for that connection's limit settings", async ({ mount, page }) => {
   await using root = await createServerHarness({ startJobs: false });
   const caller = await root.internalCallerFor(root.ownerId);
-  const { id, capability } = await chatConnection(caller, false);
+  const { id, capability } = await chatConnection(caller, null);
   expect(capability.context.windowEstimated).toBe(true);
   expect(capability.output.maxTokensEstimated).toBe(true);
   const preset = await caller.preset.create({ name: "Guessed limits", kind: "generation" });
@@ -119,8 +129,11 @@ test("a guessed ceiling says it is a guess on both rows, and its one door asks f
 
   await expect(page.getByText(guessedNotice(capability), { exact: true })).toBeVisible();
   await expect(hintOf(page, PRESET_MAX_OUTPUT_LABEL)).toHaveAccessibleDescription(presetMaxOutputHint(groupThousands(capability.output.maxTokens.max), true));
-  await expect(hintOf(page, PRESET_MAX_CONTEXT_LABEL)).toHaveAccessibleDescription(/./u);
-  await expect(hintOf(page, PRESET_MAX_CONTEXT_LABEL)).not.toHaveAccessibleDescription(/This model's window is/u);
+  const window = capability.context.window;
+  const reply = Math.min(DEFAULT_MAX_OUTPUT_TOKENS, capability.output.maxTokens.max);
+  await expect(hintOf(page, PRESET_MAX_CONTEXT_LABEL)).toHaveAccessibleDescription(
+    presetMaxContextHint(groupThousands(window), groupThousands(windowInputRoom(window, reply)), true),
+  );
   const door = page.getByRole("button", { name: PRESET_SET_REAL_LIMITS_NAME, exact: true });
   await expect(page.getByRole("status", { name: GUESSED_LIMITS_PROBE.editor })).toHaveText("");
   await door.click();
@@ -131,7 +144,7 @@ test("a guessed ceiling says it is a guess on both rows, and its one door asks f
 test("a stated ceiling keeps the model's own hint and draws no guess line or door", async ({ mount, page }) => {
   await using root = await createServerHarness({ startJobs: false });
   const caller = await root.internalCallerFor(root.ownerId);
-  const { capability } = await chatConnection(caller, true);
+  const { capability } = await chatConnection(caller, STATED);
   expect(capability.output.maxTokens.max).toBe(STATED.output);
   const preset = await caller.preset.create({ name: "Stated limits", kind: "generation" });
   await mountDeck(page, mount, preset.id, caller);
@@ -143,7 +156,7 @@ test("a stated ceiling keeps the model's own hint and draws no guess line or doo
 test("a blank Max output names the app default it sends, after the connection's own cap is raised past it", async ({ mount, page }) => {
   await using root = await createServerHarness({ startJobs: false });
   const caller = await root.internalCallerFor(root.ownerId);
-  const { capability } = await chatConnection(caller, true);
+  const { capability } = await chatConnection(caller, STATED);
   expect(capability.output.maxTokens.max).toBeGreaterThan(DEFAULT_MAX_OUTPUT_TOKENS);
   const preset = await caller.preset.create({ name: "Blank output", kind: "generation" });
   await mountDeck(page, mount, preset.id, caller);
@@ -156,10 +169,37 @@ test("a blank Max output names the app default it sends, after the connection's 
   );
 });
 
+test("a blank Max output under a model cap below the app default names the cap it sends", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { capability } = await chatConnection(caller, { window: STATED.window, output: LOW_CAP });
+  expect(capability.output.maxTokens.max).toBeLessThan(DEFAULT_MAX_OUTPUT_TOKENS);
+  const preset = await caller.preset.create({ name: "Low cap", kind: "generation" });
+  await mountDeck(page, mount, preset.id, caller);
+
+  await expect(page.getByText(presetBlankOutputNote(groupThousands(LOW_CAP), groupThousands(DEFAULT_MAX_OUTPUT_TOKENS)), { exact: true })).toBeVisible();
+});
+
+test("editing another field of an imported preset over the guess saves that field and leaves both stored limits as they were", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  await chatConnection(caller, null);
+  const presetId = await importedPreset(caller);
+  const calls = await mountDeck(page, mount, presetId, caller);
+  const tail = page.getByLabel(PRESET_VERBATIM_TAIL_LABEL, { exact: true });
+  await tail.fill(String(EDITED_TAIL));
+  // The number field commits its typed value when focus leaves it, as a person tabbing on does.
+  await tail.blur();
+  await expect.poll(() => calls.count("preset.update")).toBeGreaterThan(0);
+  await expect
+    .poll(async () => (await caller.preset.get({ id: presetId })).config.params)
+    .toMatchObject({ maxOutputTokens: IMPORTED.output, maxContextTokens: IMPORTED.context, compaction: { verbatimTail: EDITED_TAIL } });
+});
+
 test("an imported preset over a guessed ceiling keeps its stored values, and each row says the guess caps it", async ({ mount, page }) => {
   await using root = await createServerHarness({ startJobs: false });
   const caller = await root.internalCallerFor(root.ownerId);
-  const { capability } = await chatConnection(caller, false);
+  const { capability } = await chatConnection(caller, null);
   const presetId = await importedPreset(caller);
   const calls = await mountDeck(page, mount, presetId, caller);
 
@@ -182,7 +222,7 @@ test.describe("phone at enlarged text", () => {
     test(`at ${String(factor * 100)}% text the guess lines stay readable and the door stays pressable`, async ({ mount, page }) => {
       await using root = await createServerHarness({ startJobs: false });
       const caller = await root.internalCallerFor(root.ownerId);
-      const { capability } = await chatConnection(caller, false);
+      const { capability } = await chatConnection(caller, null);
       const presetId = await importedPreset(caller);
       await mountDeck(page, mount, presetId, caller);
       await setRootFontScale(page, channelName("fontScale"), factor);

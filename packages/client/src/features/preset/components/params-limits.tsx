@@ -23,6 +23,7 @@
 // gloss and the vertical `Summary instructions` textarea.
 
 import type { GenerationCapability, Verbosity } from "@orb/contracts/inference";
+import type { EffectiveProvenance } from "@orb/contracts/preset";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
   DEFAULT_COMPACTION_MODE,
@@ -47,7 +48,7 @@ import type { AppFormInstance } from "#forms/editor";
 import { CONNECTIONS_LIST_ADDRESS } from "#lib";
 import { openConfigTo, requestConnectionEditor } from "#state";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
-import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
+import type { EffectiveKnobRow, EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { SENT_WINDOW_PROVENANCE } from "../lib/effective-knobs.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import {
@@ -55,6 +56,7 @@ import {
   PRESET_MAX_CONTEXT_LABEL,
   PRESET_MAX_OUTPUT_LABEL,
   PRESET_SET_REAL_LIMITS_NAME,
+  PRESET_VERBATIM_TAIL_LABEL,
   presetBlankOutputNote,
   presetCappedByGuessNote,
   presetCappedOnConnectionNote,
@@ -142,7 +144,7 @@ function OutputCluster({
                 max={outputMax}
                 min={1}
                 name="params.maxOutputTokens"
-                note={maxOutputNote(limits.maxOutputTokens, outputMax, outputGuessed)}
+                note={maxOutputNote(limits.maxOutputTokens, outputMax, outputGuessed, effective?.knobs["maxOutputTokens"])}
                 step={1}
               />
               <KnobRow
@@ -254,12 +256,24 @@ function maxContextHint(
 /** Max output tokens' visible line: a blank row names what it sends (the shared default, held under the model's cap as
  *  the funnel holds it); a stored value over a guessed cap keeps its number and says the turn is capped at the guess.
  *  `undefined` leaves the row's own clamp line. */
-function maxOutputNote(stored: number | undefined, outputMax: number, guessed: boolean): string | undefined {
+function maxOutputNote(stored: number | undefined, outputMax: number, guessed: boolean, effective: EffectiveKnobRow | undefined): string | undefined {
   if (stored === undefined) {
-    return presetBlankOutputNote(groupThousands(Math.min(DEFAULT_MAX_OUTPUT_TOKENS, outputMax)), groupThousands(DEFAULT_MAX_OUTPUT_TOKENS));
+    // The note speaks only for the app's default. A quality dial or a model default sets a blank row's value too, and
+    // the row's own ghost line names that rung truly, so the note stays out of its way.
+    if (effective !== undefined && !BLANK_DEFAULT_RUNGS.has(effective.provenance)) {
+      return;
+    }
+    // The readout's floor rung reports the bare default; the turn materializes it and `resolveChat` then holds it
+    // under the model's cap, so the cap bounds what the row says it sends.
+    const sends = Math.min(typeof effective?.value === "number" ? effective.value : DEFAULT_MAX_OUTPUT_TOKENS, outputMax);
+    return presetBlankOutputNote(groupThousands(sends), groupThousands(DEFAULT_MAX_OUTPUT_TOKENS));
   }
   return guessed && stored > outputMax ? presetCappedByGuessNote(groupThousands(stored), groupThousands(outputMax)) : undefined;
 }
+
+/** The funnel rungs a blank Max output row lands on when only the app default stands: the default itself, or that
+ *  default held under the model's own cap. */
+const BLANK_DEFAULT_RUNGS: ReadonlySet<string> = new Set(["floor", "clamped"] satisfies readonly EffectiveProvenance[]);
 
 /** Max context tokens' visible line for a stored value past this connection's ceiling. */
 function maxContextNote(stored: number | undefined, contextMax: number, guessed: boolean): string | undefined {
@@ -330,7 +344,7 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
             {(field): ReactElement => (
               <field.NumberField
                 hint="How many of the newest messages stay word-for-word when Orbweaver summarizes. Everything older goes into the summary."
-                label="Messages kept word-for-word"
+                label={PRESET_VERBATIM_TAIL_LABEL}
                 max={100}
                 min={1}
                 placeholder={`${MANAGED_VERBATIM_TAIL} (engine default)`}

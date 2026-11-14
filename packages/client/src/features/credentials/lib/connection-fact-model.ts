@@ -44,10 +44,11 @@ import {
 } from "@orb/contracts/inference";
 import { isPrimitive } from "@orb/kit/guards";
 import { omitKey } from "@orb/kit/objects";
+import { parseCount } from "@orb/kit/strings";
 import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
 import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
 import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
-import { FACT_NAMES, factMaximumLabel, factMinimumLabel } from "./credentials-names.ts";
+import { FACT_COUNT_INVALID, FACT_NAMES, factMaximumLabel, factMinimumLabel } from "./credentials-names.ts";
 
 export type { BooleanLabels, FactChoice, FactLeaf, FactRow } from "./connection-fact-types.ts";
 
@@ -63,8 +64,17 @@ export function boundRefusal(edit: FactRow["edit"], raw: string): string | null 
   if (edit.kind !== "number" || raw.trim() === "") {
     return null;
   }
-  const below = edit.min !== undefined && Number(raw) < edit.min.value ? factMinimumLabel(edit.min.reads) : null;
-  return below ?? (edit.max !== undefined && Number(raw) > edit.max.value ? factMaximumLabel(edit.max.reads) : null);
+  const value = numberOf(edit, raw);
+  if (value === undefined) {
+    return FACT_COUNT_INVALID;
+  }
+  const below = edit.min !== undefined && value < edit.min.value ? factMinimumLabel(edit.min.reads) : null;
+  return below ?? (edit.max !== undefined && value > edit.max.value ? factMaximumLabel(edit.max.reads) : null);
+}
+
+/** A number fact's typed value: a count reads the forms people type, any other number reads as written. */
+function numberOf(edit: Extract<FactRow["edit"], { kind: "number" }>, raw: string): number | undefined {
+  return edit.count === true ? parseCount(raw) : Number(raw.trim());
 }
 
 /** The plain reading of a boolean fact, for a leaf that states no labels of its own. */
@@ -119,7 +129,7 @@ function erasePath(root: Record<string, unknown>, path: string): Record<string, 
 /** The raw value an Override control's text produces, by control kind. */
 export function parseFactValue(edit: FactRow["edit"], raw: string): unknown {
   if (edit.kind === "number") {
-    return Number(raw.trim());
+    return numberOf(edit, raw);
   }
   if (edit.kind === "boolean") {
     return raw === "true";

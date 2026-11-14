@@ -360,11 +360,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     embeddingExecution,
     modelTasks: (connection, options) => modelTasks(ctx, connection, options),
     capabilities: {
-      for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
+      for: async ({ connectionId, principal, cachedFacts }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal.userId);
         const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
         // The same discovered kind the resolve below reads, so the task it picks is one the row serves.
-        const kind = (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;
+        const kind = (await discoveredKind(ctx, connection, { cachedFacts })) ?? DEFAULT_MODEL_KIND;
         const facts = behaveAs(ctx, provider, connection);
         const tasks = connectionTasks(facts, kind);
         const task = tasks[0];
@@ -375,7 +375,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
             message: `connection "${connection.label}" (${provider.id}, ${kind}) serves no task`,
           });
         }
-        const outcome = await resolveTaskWithBaseline(ctx, { task, principal, connectionId });
+        const outcome = await resolveTaskWithBaseline(ctx, { task, principal, connectionId, ...(cachedFacts === true ? { cachedFacts } : {}) });
         const detected = behaveAs(ctx, provider, connection);
         return {
           capability: outcome.resolved.capability,

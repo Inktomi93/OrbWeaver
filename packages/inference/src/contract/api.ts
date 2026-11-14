@@ -61,8 +61,14 @@ export interface InferenceRuntime {
   readonly embeddingExecution: (connection: Pick<ResolveOutcome["resolved"], "wire" | "features">) => EmbeddingExecution;
   readonly capabilities: {
     /** provider row + declared overrides + catalog row → one descriptor, for a connection the principal owns
-     *  (the credential is resolved so an endpoint's own `/v1/models` window can be read). */
-    readonly for: (args: { readonly connectionId: UserConnection["id"]; readonly principal: Principal }) => Promise<CapabilityRead>;
+     *  (the credential is resolved so an endpoint's own `/v1/models` window can be read). `cachedFacts` folds only the
+     *  facts already held and dials nothing, so no per-model probe loads or wakes a local model: the add flow's read
+     *  right after a save. */
+    readonly for: (args: {
+      readonly connectionId: UserConnection["id"];
+      readonly principal: Principal;
+      readonly cachedFacts?: boolean | undefined;
+    }) => Promise<CapabilityRead>;
   };
   readonly funnel: {
     readonly chat: (intent: UserIntent, capability: GenerationCapability) => ResolvedChatKnobs;

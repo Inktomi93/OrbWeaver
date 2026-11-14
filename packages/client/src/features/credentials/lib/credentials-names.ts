@@ -144,7 +144,12 @@ export function removeKeyTitle(subject: string): string {
 export const ACCOUNT_BALANCE_READ_LABEL = "the balance";
 
 /** The connection facts a test reaches by name; each is the fact row's own name. */
-export const FACT_NAMES = { summarizeConcurrency: "utility calls at once", maxOutput: "max output" } as const;
+export const FACT_NAMES = { summarizeConcurrency: "utility calls at once", contextWindow: "context window", maxOutput: "max output" } as const;
+
+/** A count fact's line under its Override field. */
+export const FACT_COUNT_HINT = "A number of tokens, like 128000, 128k or 1m. What you type here is what we believe about this server.";
+/** A count fact's refusal for text that names no whole count above zero. */
+export const FACT_COUNT_INVALID = "Type a whole number above zero, like 128000, 128,000, 128k or 1m.";
 
 /** A fact row's controls, named for the fact: the override door, the typed value, its save and its reset. */
 export function factOverrideName(fact: string): string {
@@ -166,13 +171,21 @@ export function promptCacheRetentionName(connection: string): string {
   return `${PROMPT_CACHE_RETENTION_FIELD_LABEL} on ${connection}`;
 }
 
-/** The add dialog's limits step, shown when a new connection's limits are a guess: its title, what it says, the field
- *  for each guessed limit, and its two ways on. */
+/** The add dialog's limits step, shown when a new connection's context window is a guess: its title, what it says, the
+ *  field for each guessed limit (named as the Advanced rows name them), and its two ways on. */
 export const CONNECTION_LIMITS_TITLE = "How much can this model take?";
 export const CONNECTION_LIMITS_DESCRIPTION = "This server doesn't say, so these limits are a guess. A guess that is too low cuts your chats short.";
-export const CONNECTION_LIMITS_LEAD =
-  "Long chats lose their oldest messages once they pass the context window, and replies stop at the longest reply. Your provider lists both numbers on the model's page, in tokens (a token is about three quarters of a word). Leave a box empty to keep the guess. You can change these later under Advanced in this connection's settings.";
-export const CONNECTION_LIMIT_FIELD_NAMES = { window: "Context window, in tokens", output: "Longest reply, in tokens" } as const;
+/** What the limits mean and where to find them; `asksOutput` ⇒ the step also asks for the max output. */
+export function connectionLimitsLead(asksOutput: boolean): readonly string[] {
+  return [
+    asksOutput
+      ? "A chat that runs past the context window loses its oldest messages, and a reply stops at the max output."
+      : "A chat that runs past the context window loses its oldest messages.",
+    "A hosted provider lists these on the model's page. For a server you run yourself, use the context size you started it with.",
+    "Numbers are in tokens; a token is about three quarters of a word. Leave a box empty to keep the guess. You can change these later under Advanced in this connection's settings.",
+  ];
+}
+export const CONNECTION_LIMIT_FIELD_NAMES = { window: "Context window, in tokens", output: "Max output, in tokens" } as const;
 export const CONNECTION_LIMITS_SAVE_NAME = "Save these limits";
 export const CONNECTION_LIMITS_KEEP_NAME = "Keep the guess";
 /** What one limit field says about the value now in use; `guess` is that number as the field prints it. */
@@ -181,8 +194,6 @@ export function connectionLimitGuessLabel(guess: string): string {
 }
 /** What the limits step's read failure names as the thing that did not load. */
 export const CONNECTION_LIMITS_READ_LABEL = "this connection's limits";
-/** A typed limit that is not a whole number of tokens above zero. */
-export const CONNECTION_LIMIT_INVALID = "Type a whole number of tokens, or leave it empty.";
 /** The limits step's line for a save the server refused; `reason` is the server's own words. */
 export function connectionLimitsFailureLabel(reason: string): string {
   return `The limits weren't saved: ${reason}`;

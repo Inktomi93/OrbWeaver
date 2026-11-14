@@ -1,13 +1,16 @@
 // @subject packages/client/src/features/credentials/components/connection-limits-step.tsx
-// Adding a connection whose server reports no limits says so at that moment and takes the real numbers into the
-// connection's own declaration; one whose provider reports them goes straight on; a door outside the list lands on the
-// editor's Advanced tier, where the same limits are kept. Each limits row stays readable and pressable at enlarged text.
+// Adding a connection whose context window is a guess says so at that moment and takes the real numbers, typed as
+// people copy them, into the connection's own declaration, without dialing the server to learn them. A provider that
+// states its window goes straight on, and so does one whose only guess is the max output. A failed read or a refused
+// save still leaves a way on, a close while the read is out never leaves the next open on a stale step, and the
+// Advanced tier's override of the same limit reads and refuses them the same way.
 
+import { DIALOG_VERBS } from "@orb/client/lib";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { setRootFontScale } from "@orb/testkit/browser/spec";
-import type { TrpcRecorder } from "@orb/testkit/ct";
-import { channelName, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import type { ServedHold, TrpcRecorder } from "@orb/testkit/ct";
+import { channelName, holdServed, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -20,7 +23,12 @@ import {
   CONNECTION_LIMITS_KEEP_NAME,
   CONNECTION_LIMITS_SAVE_NAME,
   CONNECTION_LIMITS_TITLE,
+  FACT_COUNT_INVALID,
+  FACT_NAMES,
   FIRST_MODEL_FINISH_NAME,
+  factOverrideName,
+  factSaveName,
+  factYourValueName,
 } from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionLimitsStory } from "./_connection-limits-stories.tsx";
 
@@ -39,8 +47,6 @@ const READS = [
   "connection.catalogModels",
   "connection.create",
   "connection.get",
-  "connection.capabilities",
-  "connection.update",
   "connection.embedSpaceChangePreview",
   "search.spaceStatus",
 ] as const;
@@ -49,13 +55,19 @@ const PROXY_HOST = "llm.example.com";
 const PROXY_URL = `https://${PROXY_HOST}/v1`;
 const PROXY_PROVIDER = "custom-openai";
 const PROXY_MODEL = "vendor/long-context-model";
-// The OpenRouter catalog, which states a window and an output cap for every model it lists.
+// A model whose window the built-in table states and whose max output nothing states.
+const WINDOW_KNOWN_MODEL = "grok-4.7";
+// The OpenRouter catalog: one row states its window and output cap, the other only its output cap.
 const ROUTER_HOST = "openrouter.ai";
 const ROUTER_PROVIDER = "openrouter";
 const ROUTER_MODEL = { id: "anthropic/claude-haiku-5.5", name: "Anthropic: Claude Haiku 5.5" };
+const ROUTER_NO_WINDOW_MODEL = { id: "vendor/unlisted-window", name: "Vendor: Unlisted window" };
 const ROUTER_KEY = "synthetic-limits-key-never-returned";
-// The model's real limits, as its provider's page states them.
-const REAL = { window: 1_000_000, output: 32_768 } as const;
+// The model's real limits, as its provider's page states them, and the ways a newcomer copies them off it.
+const REAL = { window: 1_000_000, output: 32_000 } as const;
+const TYPED = { window: "1,000,000", output: "32k" } as const;
+const NONSENSE = "12 tokens";
+const ADVANCED_TYPED = { refused: "0", read: "128k", stored: 128_000 } as const;
 const PUBLIC_ADDRESS = "93.184.215.14";
 const HTTP_NOT_FOUND = 404;
 const WIDE = { width: 960, viewport: { width: 1440, height: 1000 } } as const;
@@ -63,56 +75,67 @@ const PHONE = { width: 390, height: 844 } as const;
 const ENLARGED_SCALES = [2, 3] as const;
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 
-/** The two external servers: the proxy's id-only model list, and OpenRouter's catalog with each model's limits. */
-const scriptedFetch: typeof fetch = (input, init) => {
+const routerRow = (model: { readonly id: string; readonly name: string }, window: number | undefined): object => ({
+  ...model,
+  ...(window === undefined ? {} : { ["context_length"]: window }),
+  ["top_provider"]: { ["max_completion_tokens"]: REAL.output },
+  pricing: { prompt: "0.000001", completion: "0.000005" },
+  architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["text"] },
+  ["supported_parameters"]: ["tools"],
+});
+
+/** The external servers the root reaches. */
+const scriptedServers: typeof fetch = (input, init) => {
   const request = new Request(input, init);
   const url = new URL(request.url);
   if (request.method === "GET" && url.hostname === PROXY_HOST && url.pathname === "/v1/models") {
-    return Promise.resolve(Response.json({ object: "list", data: [{ id: PROXY_MODEL, object: "model" }] }));
+    return Promise.resolve(Response.json({ object: "list", data: [PROXY_MODEL, WINDOW_KNOWN_MODEL].map((id) => ({ id, object: "model" })) }));
   }
   if (request.method === "GET" && url.hostname === ROUTER_HOST && url.pathname === "/api/v1/models") {
     return Promise.resolve(
-      Response.json({
-        data:
-          url.search === ""
-            ? [
-                {
-                  ...ROUTER_MODEL,
-                  ["context_length"]: REAL.window,
-                  ["top_provider"]: { ["max_completion_tokens"]: REAL.output },
-                  pricing: { prompt: "0.000001", completion: "0.000005" },
-                  architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["text"] },
-                  ["supported_parameters"]: ["tools"],
-                },
-              ]
-            : [],
-      }),
+      Response.json({ data: url.search === "" ? [routerRow(ROUTER_MODEL, REAL.window), routerRow(ROUTER_NO_WINDOW_MODEL, undefined)] : [] }),
     );
   }
   // Every other read (a server-identity probe, a native model-info route) answers as a server without that route.
   return Promise.resolve(new Response("{}", { status: HTTP_NOT_FOUND }));
 };
 
-const scriptedNetwork = {
-  fetch: scriptedFetch,
-  resolver: (hostname: string): Promise<string[]> =>
-    hostname === PROXY_HOST || hostname === ROUTER_HOST ? Promise.resolve([PUBLIC_ADDRESS]) : Promise.reject(new Error(`Unscripted address: ${hostname}`)),
-};
-
 async function freshRoot(): Promise<ServerTestHarness> {
-  return await createServerHarness({ startJobs: false, providerFetch: scriptedFetch, networkExecution: scriptedNetwork, secretBoxKey: Buffer.alloc(32, 23) });
+  return await createServerHarness({
+    startJobs: false,
+    providerFetch: scriptedServers,
+    networkExecution: {
+      fetch: scriptedServers,
+      resolver: (hostname: string): Promise<string[]> =>
+        hostname === PROXY_HOST || hostname === ROUTER_HOST ? Promise.resolve([PUBLIC_ADDRESS]) : Promise.reject(new Error(`Unscripted address: ${hostname}`)),
+    },
+    secretBoxKey: Buffer.alloc(32, 23),
+  });
+}
+
+/** Holds for the two procedures a case can stall or fail; absent ⇒ served at once. */
+interface Holds {
+  readonly capabilities?: ServedHold;
+  readonly update?: ServedHold;
 }
 
 async function mountList(
-  page: Page,
-  mount: PlaywrightTestArgs["mount"],
+  { page, mount }: { readonly page: Page; readonly mount: PlaywrightTestArgs["mount"] },
   caller: Caller,
   props: Parameters<typeof ConnectionLimitsStory>[0],
+  holds: Holds = {},
 ): Promise<TrpcRecorder> {
-  const calls = await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...READS]));
+  const { capabilities, update } = holds;
+  const calls = await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...READS]),
+    ...serveCorpusProcedures(caller, ["connection.capabilities"], capabilities === undefined ? undefined : () => capabilities),
+    ...serveCorpusProcedures(caller, ["connection.update"], update === undefined ? undefined : () => update),
+  });
   await mount<typeof ConnectionLimitsStory>(STORY, props);
   return calls;
 }
+
+const WIDE_PROPS = { width: WIDE.width, appearance: appearanceSettingsSchema.parse({}) } as const;
 
 /** Opens the add dialog and picks the provider whose id is `providerId`. */
 async function pickProvider(page: Page, caller: Caller, providerId: string): Promise<Locator> {
@@ -130,15 +153,30 @@ async function pickProvider(page: Page, caller: Caller, providerId: string): Pro
   return dialog;
 }
 
-/** Adds the proxy through Custom OpenAI-compatible with a typed model id, and returns the limits step it opens. */
-async function addProxy(page: Page, caller: Caller): Promise<Locator> {
+/** Adds the proxy through Custom OpenAI-compatible with a typed model id and presses Add. */
+async function saveProxy(page: Page, caller: Caller, model: string = PROXY_MODEL): Promise<void> {
   const dialog = await pickProvider(page, caller, PROXY_PROVIDER);
   await dialog.getByLabel("Server URL", { exact: true }).fill(PROXY_URL);
-  await dialog.getByLabel("Model", { exact: true }).fill(PROXY_MODEL);
+  await dialog.getByLabel("Model", { exact: true }).fill(model);
   await dialog.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true }).click();
-  const step = page.getByRole("dialog", { name: CONNECTION_LIMITS_TITLE, exact: true });
-  await expect(step).toBeVisible();
-  return step;
+}
+
+async function saveRouter(page: Page, caller: Caller, model: { readonly name: string }): Promise<void> {
+  const dialog = await pickProvider(page, caller, ROUTER_PROVIDER);
+  await dialog.getByLabel(API_KEY_FIELD_NAME, { exact: true }).fill(ROUTER_KEY);
+  await dialog
+    .getByRole("option", { name: new RegExp(model.name, "u") })
+    .first()
+    .click();
+  await dialog.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true }).click();
+}
+
+function limitsStep(page: Page): Locator {
+  return page.getByRole("dialog", { name: CONNECTION_LIMITS_TITLE, exact: true });
+}
+
+function finish(page: Page): Locator {
+  return page.getByRole("button", { name: FIRST_MODEL_FINISH_NAME, exact: true });
 }
 
 /** The connection the add dialog saved for `providerId`; a fresh root already holds its built-in embedder. */
@@ -152,62 +190,147 @@ async function addedConnection(caller: Caller, providerId: string): Promise<Awai
 
 test.use({ viewport: WIDE.viewport });
 
-test("a server that reports no limits asks for the real ones as it is added, and keeps them in the connection's own declaration", async ({ mount, page }) => {
+test("a server that states no window asks for the real limits as it is added, reads them as typed, and asks only for the facts already held", async ({
+  mount,
+  page,
+}) => {
   await using root = await freshRoot();
   const caller = await root.internalCallerFor(root.ownerId);
-  await mountList(page, mount, caller, { width: WIDE.width, appearance: appearanceSettingsSchema.parse({}) });
-  const step = await addProxy(page, caller);
-  const before = await caller.connection.capabilities({ connectionId: (await addedConnection(caller, PROXY_PROVIDER)).id });
-  if (before.capability.kind !== "generation") {
-    throw new Error("The proxy connection did not resolve a generation model");
-  }
-  expect(before.capability.generation.context.windowEstimated).toBe(true);
-  expect(before.capability.generation.output.maxTokensEstimated).toBe(true);
+  const calls = await mountList({ page, mount }, caller, WIDE_PROPS);
+  await saveProxy(page, caller);
+  const step = limitsStep(page);
+  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true })).toBeVisible();
+  // The step asks for the held facts; that such a read dials nothing is `tests/server/domain/connection/verbs/capabilities-cached-read.int.test.ts`.
+  expect(calls.inputs("connection.capabilities")).toContainEqual(expect.objectContaining({ cachedFacts: true }));
 
-  await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(String(REAL.window));
-  await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true }).fill(String(REAL.output));
+  await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(TYPED.window);
+  await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true }).fill(TYPED.output);
   await step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }).click();
   // The first chat model goes on to the first-model step, as an add without the limits step does.
-  await expect(page.getByRole("button", { name: FIRST_MODEL_FINISH_NAME, exact: true })).toBeVisible();
+  await expect(finish(page)).toBeVisible();
 
   const connection = await addedConnection(caller, PROXY_PROVIDER);
   expect(connection.declared?.generation).toMatchObject({ context: { window: REAL.window }, output: { maxTokens: { max: REAL.output } } });
-  const after = await caller.connection.capabilities({ connectionId: connection.id });
+  const after = await caller.connection.capabilities({ connectionId: connection.id, cachedFacts: true });
   expect(after.capability).toMatchObject({ generation: { context: { window: REAL.window }, output: { maxTokens: { max: REAL.output } } } });
   expect(after.capability.kind === "generation" ? after.capability.generation.context.windowEstimated : null).toBeUndefined();
+});
+
+test("text that names no whole count is refused with what to type, and Save waits for a number", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await mountList({ page, mount }, caller, WIDE_PROPS);
+  await saveProxy(page, caller);
+  const step = limitsStep(page);
+  const window = step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true });
+  const save = step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true });
+  await window.fill(NONSENSE);
+  await expect(step.getByText(FACT_COUNT_INVALID, { exact: true })).toBeVisible();
+  await expect(save).toBeDisabled();
+  await window.fill(TYPED.window);
+  await expect(step.getByText(FACT_COUNT_INVALID, { exact: true })).toHaveCount(0);
+  await expect(save).toBeEnabled();
 });
 
 test("keeping the guess writes nothing and goes on", async ({ mount, page }) => {
   await using root = await freshRoot();
   const caller = await root.internalCallerFor(root.ownerId);
-  const calls = await mountList(page, mount, caller, { width: WIDE.width, appearance: appearanceSettingsSchema.parse({}) });
-  const step = await addProxy(page, caller);
-  await step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }).click();
-  await expect(page.getByRole("button", { name: FIRST_MODEL_FINISH_NAME, exact: true })).toBeVisible();
+  const calls = await mountList({ page, mount }, caller, WIDE_PROPS);
+  await saveProxy(page, caller);
+  await limitsStep(page).getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }).click();
+  await expect(finish(page)).toBeVisible();
   expect(calls.count("connection.update")).toBe(0);
   expect((await addedConnection(caller, PROXY_PROVIDER)).declared?.generation).toBeUndefined();
 });
 
-test("a provider that reports its limits adds with no limits step", async ({ mount, page }) => {
+test("a refused save stays on the step with the reason inline, and the guess can still be kept", async ({ mount, page }) => {
   await using root = await freshRoot();
   const caller = await root.internalCallerFor(root.ownerId);
-  const calls = await mountList(page, mount, caller, { width: WIDE.width, appearance: appearanceSettingsSchema.parse({}) });
-  const dialog = await pickProvider(page, caller, ROUTER_PROVIDER);
-  await dialog.getByLabel(API_KEY_FIELD_NAME, { exact: true }).fill(ROUTER_KEY);
-  await dialog
-    .getByRole("option", { name: new RegExp(ROUTER_MODEL.name, "u") })
-    .first()
-    .click();
-  await dialog.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true }).click();
+  const update = holdServed();
+  await mountList({ page, mount }, caller, WIDE_PROPS, { update });
+  await saveProxy(page, caller);
+  const step = limitsStep(page);
+  await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(TYPED.window);
+  await step.getByRole("button", { name: CONNECTION_LIMITS_SAVE_NAME, exact: true }).click();
+  await update.requested;
+  update.fail();
+  await expect(step.getByRole("alert")).toBeVisible();
+  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true })).toHaveValue(TYPED.window);
+  expect((await addedConnection(caller, PROXY_PROVIDER)).declared?.generation).toBeUndefined();
+  await step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }).click();
+  await expect(finish(page)).toBeVisible();
+});
 
-  await expect(page.getByRole("button", { name: FIRST_MODEL_FINISH_NAME, exact: true })).toBeVisible();
-  await expect(page.getByRole("dialog", { name: CONNECTION_LIMITS_TITLE, exact: true })).toHaveCount(0);
+test("a failed limits read offers the same way on as keeping the guess", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const capabilities = holdServed();
+  await mountList({ page, mount }, caller, WIDE_PROPS, { capabilities });
+  await saveProxy(page, caller);
+  await capabilities.requested;
+  capabilities.fail();
+  const step = limitsStep(page);
+  await expect(step.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
+  await step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }).click();
+  await expect(finish(page)).toBeVisible();
+});
+
+test("closing the dialog while the limits read is out opens the next add on the form, not a stale step", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const capabilities = holdServed();
+  await mountList({ page, mount }, caller, WIDE_PROPS, { capabilities });
+  await saveProxy(page, caller);
+  await capabilities.requested;
+  // Positive control: the read is out, and the dialog already shows the step's own loading in place of the form.
+  await expect(limitsStep(page)).toBeVisible();
+  await expect(page.getByRole("combobox", { name: CONNECTION_PROVIDER_FIELD_NAME, exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  capabilities.release();
+
+  await page.getByRole("button", { name: ADD_CONNECTION_NAME, exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("combobox", { name: CONNECTION_PROVIDER_FIELD_NAME, exact: true })).toBeVisible();
+  await expect(limitsStep(page)).toHaveCount(0);
+});
+
+test("a provider that states its window adds with no limits step", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const calls = await mountList({ page, mount }, caller, WIDE_PROPS);
+  await saveRouter(page, caller, ROUTER_MODEL);
+  await expect(finish(page)).toBeVisible();
+  await expect(limitsStep(page)).toHaveCount(0);
   expect(calls.count("connection.capabilities")).toBeGreaterThan(0);
   const view = await caller.connection.capabilities({ connectionId: (await addedConnection(caller, ROUTER_PROVIDER)).id });
   expect(view.capability).toMatchObject({ generation: { context: { window: REAL.window }, output: { maxTokens: { max: REAL.output } } } });
 });
 
-test("a door outside the list opens that connection's editor with its Advanced tier expanded", async ({ mount, page }) => {
+test("a guessed window beside a stated max output asks only for the window", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await mountList({ page, mount }, caller, WIDE_PROPS);
+  await saveRouter(page, caller, ROUTER_NO_WINDOW_MODEL);
+  const step = limitsStep(page);
+  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true })).toBeVisible();
+  await expect(step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true })).toHaveCount(0);
+});
+
+test("a stated window beside a guessed max output adds with no limits step", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const calls = await mountList({ page, mount }, caller, WIDE_PROPS);
+  await saveProxy(page, caller, WINDOW_KNOWN_MODEL);
+  await expect(finish(page)).toBeVisible();
+  await expect(limitsStep(page)).toHaveCount(0);
+  expect(calls.count("connection.capabilities")).toBeGreaterThan(0);
+  const view = await caller.connection.capabilities({ connectionId: (await addedConnection(caller, PROXY_PROVIDER)).id, cachedFacts: true });
+  // The premise: the window is stated and only the max output is a guess.
+  expect(view.capability).toMatchObject({ generation: { output: { maxTokensEstimated: true } } });
+  expect(view.capability.kind === "generation" ? view.capability.generation.context.windowEstimated : null).toBeUndefined();
+});
+
+test("the Advanced override reads a window the way the step does and refuses zero", async ({ mount, page }) => {
   await using root = await freshRoot();
   const caller = await root.internalCallerFor(root.ownerId);
   const connection = await caller.connection.create({
@@ -217,12 +340,21 @@ test("a door outside the list opens that connection's editor with its Advanced t
     model: PROXY_MODEL,
     label: "Requested proxy",
   });
-  await mountList(page, mount, caller, { width: WIDE.width, appearance: appearanceSettingsSchema.parse({}), requested: connection.id });
-  const editor = page.locator('[data-slot="connection-editor"]');
-  await expect(editor).toBeVisible();
-  const advanced = editor.locator(`[data-slot="connection-editor-tier"][data-tier="${CONNECTION_EDITOR_TIER_TITLES.advanced}"]`);
-  await expect(advanced.locator('[data-fact="generation.context.window"]')).toBeVisible();
+  await mountList({ page, mount }, caller, { ...WIDE_PROPS, requested: connection.id });
+  const advanced = page.locator(`[data-slot="connection-editor-tier"][data-tier="${CONNECTION_EDITOR_TIER_TITLES.advanced}"]`);
+  const row = advanced.locator('[data-fact="generation.context.window"]');
   await expect(advanced.locator('[data-fact="generation.output.maxTokens.max"]')).toBeVisible();
+  await row.getByRole("button", { name: factOverrideName(FACT_NAMES.contextWindow), exact: true }).click();
+  const field = row.getByRole("textbox", { name: factYourValueName(FACT_NAMES.contextWindow), exact: true });
+  const save = row.getByRole("button", { name: factSaveName(FACT_NAMES.contextWindow), exact: true });
+  await field.fill(ADVANCED_TYPED.refused);
+  await expect(row.getByText(FACT_COUNT_INVALID, { exact: true })).toBeVisible();
+  await expect(save).toBeDisabled();
+  await field.fill(ADVANCED_TYPED.read);
+  await save.click();
+  await expect
+    .poll(async () => (await caller.connection.get({ connectionId: connection.id })).declared?.generation?.context?.window)
+    .toBe(ADVANCED_TYPED.stored);
 });
 
 test.describe("phone at enlarged text", () => {
@@ -231,9 +363,10 @@ test.describe("phone at enlarged text", () => {
     test(`at ${String(factor * 100)}% text every limits row and both ways on stay readable and pressable`, async ({ mount, page }) => {
       await using root = await freshRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      await mountList(page, mount, caller, { width: PHONE.width, appearance: appearanceSettingsSchema.parse({}) });
+      await mountList({ page, mount }, caller, { width: PHONE.width, appearance: appearanceSettingsSchema.parse({}) });
       await setRootFontScale(page, channelName("fontScale"), factor);
-      const step = await addProxy(page, caller);
+      await saveProxy(page, caller);
+      const step = limitsStep(page);
       for (const subject of [
         step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }),
         step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.output, { exact: true }),
@@ -244,8 +377,12 @@ test.describe("phone at enlarged text", () => {
         await expect(subject).toBeVisible();
         await expectWithinPhone(subject);
       }
+      await step.getByLabel(CONNECTION_LIMIT_FIELD_NAMES.window, { exact: true }).fill(NONSENSE);
+      const refusal = step.getByText(FACT_COUNT_INVALID, { exact: true });
+      await refusal.scrollIntoViewIfNeeded();
+      await expectWithinPhone(refusal);
       await step.getByRole("button", { name: CONNECTION_LIMITS_KEEP_NAME, exact: true }).click();
-      await expect(page.getByRole("button", { name: FIRST_MODEL_FINISH_NAME, exact: true })).toBeVisible();
+      await expect(finish(page)).toBeVisible();
     });
   }
 });

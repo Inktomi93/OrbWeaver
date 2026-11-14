@@ -185,6 +185,9 @@ export function sequenceAddName(noun: string): string {
   return `Add ${noun}`;
 }
 
+/** The Context cluster's count of the newest messages a summary leaves word for word. */
+export const PRESET_VERBATIM_TAIL_LABEL = "Messages kept word-for-word";
+
 /** The Output cluster's two token caps. */
 export const PRESET_MAX_OUTPUT_LABEL = "Max output tokens";
 export const PRESET_MAX_CONTEXT_LABEL = "Max context tokens";
@@ -195,7 +198,7 @@ export const PRESET_SET_REAL_LIMITS_NAME = "Set this model's real limits";
 /** The Output cluster's line when the chat connection's limits are a guess; each argument is the guessed number as the
  *  row prints it, or `null` when that limit is reported. */
 export function presetGuessedLimitsNotice(context: string | null, output: string | null): string {
-  const guesses = [context === null ? null : `${context} tokens of context`, output === null ? null : `${output} tokens per reply`].filter(
+  const guesses = [context === null ? null : `a context window of ${context} tokens`, output === null ? null : `a max output of ${output} tokens`].filter(
     (guess): guess is string => guess !== null,
   );
   return `This model's connection doesn't say how much it can take, so these limits are a guess: ${guesses.join(" and ")}. If the model takes more, set its real limits.`;
@@ -204,7 +207,7 @@ export function presetGuessedLimitsNotice(context: string | null, output: string
 /** Max output tokens' hint: what the knob does, then the ceiling, said as a guess when the connection reports none. */
 export function presetMaxOutputHint(ceiling: string, guessed: boolean): string {
   return guessed
-    ? `Caps the length of one reply. This model's connection doesn't report its longest reply, so the slider stops at a guess of ${ceiling} tokens; the model may take more.`
+    ? `Caps the length of one reply. This model's connection doesn't report its max output, so the slider stops at a guess of ${ceiling} tokens; the model may take more.`
     : `Caps the length of one reply. This model accepts up to ${ceiling} output tokens.`;
 }
 
@@ -212,7 +215,7 @@ export function presetMaxOutputHint(ceiling: string, guessed: boolean): string {
  *  reports none, and the room left for prompt and history. */
 export function presetMaxContextHint(window: string, room: string, guessed: boolean): string {
   const size = guessed
-    ? `This model's connection doesn't report its window, so we guess ${window} tokens; the model may take more.`
+    ? `This model's connection doesn't report its context window, so we guess ${window} tokens (the model may take more);`
     : `This model's window is ${window} tokens;`;
   return `Soft-caps the working set below the model window: older turns beyond this are trimmed. ${size} ${room} of them fit prompt and history after the reply and the safety margin.`;
 }

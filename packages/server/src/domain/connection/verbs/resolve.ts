@@ -68,7 +68,7 @@ export function createCapabilities(ctx: ConnectionContext): ConnectionService["c
     if ((await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId)) === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
-    const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal });
+    const read = await ctx.runtime.capabilities.for({ connectionId: params.connectionId, principal: params.principal, cachedFacts: params.cachedFacts });
     const cache = resolveCachePolicy({
       context: read.cacheContext,
       ...(read.capability.kind === "generation" ? { generation: read.capability.generation } : {}),

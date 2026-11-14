@@ -53,7 +53,10 @@ function normalizeParams(params: UserIntent): UserIntent {
     return params;
   }
   const hasCompaction =
-    compaction.mode !== undefined || compaction.thresholdPct !== undefined || (compaction.instructions !== undefined && compaction.instructions.trim() !== "");
+    compaction.mode !== undefined ||
+    compaction.thresholdPct !== undefined ||
+    compaction.verbatimTail !== undefined ||
+    (compaction.instructions !== undefined && compaction.instructions.trim() !== "");
   if (hasCompaction) {
     return params;
   }

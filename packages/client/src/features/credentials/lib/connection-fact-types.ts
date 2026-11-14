@@ -14,7 +14,8 @@
  *  the name — a component types its parameter as `FactRow["edit"]`, which is the same type by construction. */
 type FactEdit =
   | { readonly kind: "text" }
-  | { readonly kind: "number"; readonly min?: NumberBound; readonly max?: NumberBound }
+  /** `count` ⇒ a whole count above zero typed as people write it ("1,000,000", "128k"), read by `parseCount`. */
+  | { readonly kind: "number"; readonly min?: NumberBound; readonly max?: NumberBound; readonly count?: true }
   | { readonly kind: "boolean"; readonly labels?: BooleanLabels }
   | { readonly kind: "list" }
   | { readonly kind: "enum"; readonly options: readonly string[] }
