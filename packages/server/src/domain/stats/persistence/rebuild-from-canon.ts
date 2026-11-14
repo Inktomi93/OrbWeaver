@@ -28,6 +28,7 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchMany, chunkRows } from "@orb/db/query";
 import type { IdSource, ModelId, UserId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
+import { yieldToLoop } from "#primitives/abort";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import type { Accums, CanonMessage, CharChatMeta, ChatMeta, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
 import {
@@ -166,6 +167,9 @@ async function scanMessages(db: Db, ownerId: UserId, a: Accums): Promise<void> {
     if (rows.length < CHUNK) {
       break;
     }
+    // A local read settles as a microtask, so without this the whole library is one turn of the loop. A write that
+    // lands between pages moves the canon version, and `untilCanonStable` folds the owner again.
+    await yieldToLoop();
   }
 }
 
@@ -198,6 +202,7 @@ async function scanSwipes(db: Db, ownerId: UserId, a: Accums): Promise<void> {
     if (rows.length < CHUNK) {
       break;
     }
+    await yieldToLoop();
   }
 }
 
