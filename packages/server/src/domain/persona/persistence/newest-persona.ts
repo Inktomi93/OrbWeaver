@@ -23,7 +23,7 @@ export async function loadNewestPersonaId(db: Db, ownerId: UserId, excluding: Pe
 /** Of `ids`, the ones the owner still holds. */
 export async function loadHeldPersonaIds(db: Db, ownerId: UserId, ids: readonly PersonaId[]): Promise<ReadonlySet<PersonaId>> {
   if (ids.length === 0) {
-    return new Set();
+    return new Set<PersonaId>();
   }
   const rows = await db
     .select({ id: personas.id })

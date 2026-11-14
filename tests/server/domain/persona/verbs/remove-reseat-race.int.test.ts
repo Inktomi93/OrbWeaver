@@ -5,14 +5,12 @@
 // @subject packages/server/src/domain/chat/verbs/reseat-persona-seats-statement.ts
 
 import { createPersonaSchema } from "@orb/contracts/persona";
+import { isConstraintViolation } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
-
-// The switch's write meets the deleted row on the seat's foreign key once the delete has committed.
-const FOREIGN_KEY_REFUSAL = /FOREIGN KEY constraint failed/u;
 
 async function mint(root: ServerTestHarness, name: string): Promise<PersonaId> {
   const principal = await root.principalFor(root.ownerId);
@@ -30,9 +28,10 @@ async function yieldTurns(turns: number): Promise<void> {
   }
 }
 
-// A refused switch names the deleted persona: its own existence check missed it, or its write met the foreign key.
+// A refused switch names the deleted persona: its own existence check missed it, or, once the delete has committed,
+// its write met the deleted row on the seat's foreign key.
 function refusedForTheDelete(reason: unknown, doomed: PersonaId): boolean {
-  return (reason instanceof DomainNotFoundError && reason.message.includes(doomed)) || FOREIGN_KEY_REFUSAL.test(String(reason));
+  return (reason instanceof DomainNotFoundError && reason.message.includes(doomed)) || isConstraintViolation(reason)?.kind === "foreign-key";
 }
 
 interface Outcome {

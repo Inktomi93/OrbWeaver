@@ -11,7 +11,7 @@ import {
   GLOBAL_VARIABLE_TURN_WRITES_MAX,
   GLOBAL_VARIABLE_VALUE_MAX_BYTES,
 } from "@orb/contracts/automation";
-import type { ChatBusEvent, PlainChatWarningCode } from "@orb/contracts/chat";
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { globalVariables } from "@orb/db";
 import { makePromptConfig } from "@orb/testkit/iso";
@@ -36,11 +36,14 @@ async function planeRoom(content: string, replies: number): Promise<ChatRoot> {
   );
 }
 
-/** The room's warning codes, collected from the live chat bus for the life of the returned stack. */
-function warningsOf(h: ChatRoot): { readonly codes: PlainChatWarningCode[] } & Disposable {
-  const codes: PlainChatWarningCode[] = [];
-  const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }: { readonly event: ChatBusEvent }) => {
-    if (event.type === "warning" && event.chatId === h.chatId && "code" in event) {
+type PlainWarningCode = Exclude<Extract<ChatBusEvent, { readonly type: "warning" }>["code"], "settings_adjusted">;
+
+/** The room's plain warning codes, collected from the live chat bus until the returned handle is disposed. The
+ *  corpus provider's own `settings_adjusted` notices are not this file's subject. */
+function warningsOf(h: ChatRoot): { readonly codes: PlainWarningCode[] } & Disposable {
+  const codes: PlainWarningCode[] = [];
+  const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => {
+    if (event.type === "warning" && event.chatId === h.chatId && event.code !== "settings_adjusted") {
       codes.push(event.code);
     }
   });
@@ -121,17 +124,14 @@ test("a swipe after a setglobalvar leaves one row holding the swipe's value", as
 test("a write a key or value check refuses is dropped and named while the turn's other writes commit", async () => {
   const longKey = "k".repeat(GLOBAL_VARIABLE_KEY_MAX_CHARS + 1);
   const bigValue = "v".repeat(GLOBAL_VARIABLE_VALUE_MAX_BYTES + 1);
-  const keptValue = "v".repeat(GLOBAL_VARIABLE_VALUE_MAX_BYTES);
   // A preset section is stored as JSON text, which spells a NUL as an escape, so the NUL reaches the macro intact.
   await using h = await planeRoom(
-    [`{{setglobalvar::${longKey}::v}}`, `{{setglobalvar::big::${bigValue}}}`, "{{setglobalvar::nul::a\u0000b}}", `{{setglobalvar::kept::${keptValue}}}`].join(
-      "",
-    ),
+    [`{{setglobalvar::${longKey}::v}}`, `{{setglobalvar::big::${bigValue}}}`, "{{setglobalvar::nul::a\u0000b}}", "{{setglobalvar::kept::v}}"].join(""),
     1,
   );
   using warnings = warningsOf(h);
   await sentText(h, h.owner, "go");
-  expect(await ownerRows(h)).toEqual([{ key: "kept", value: keptValue }]);
+  expect(await ownerRows(h)).toEqual([{ key: "kept", value: "v" }]);
   expect(warnings.codes).toEqual(["global_variable_dropped"]);
 });
 
