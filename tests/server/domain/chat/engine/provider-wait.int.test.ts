@@ -49,6 +49,10 @@ test("a slow first token is named once and waited out, never ended early", async
       return await corpus.execute(request);
     },
   });
+  // Disposed before the root, so a failed assertion lets the held request finish and the root's disposal does not
+  // turn that failure into a case timeout.
+  using release = new DisposableStack();
+  release.defer(() => loaded.resolve());
   const seen: Observed[] = [];
   using subscription = new DisposableStack();
   subscription.defer(
