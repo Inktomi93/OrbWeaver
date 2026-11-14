@@ -71,6 +71,7 @@ export interface PortabilityDeps {
   readonly findPersonaByName: NonNullable<ImportProfileDeps["findPersonaByName"]>;
   readonly attachChatTagByName: NonNullable<ImportProfileDeps["attachChatTagByName"]>;
   readonly importRpgGame: NonNullable<ImportProfileDeps["importRpgGame"]>;
+  readonly importMemoryStrikes: NonNullable<ImportProfileDeps["importMemoryStrikes"]>;
   readonly findOwnedAssetIdsByHash: NonNullable<ImportProfileDeps["findOwnedAssetIdsByHash"]>;
   readonly enqueueImportIndex: ImportProfileDeps["enqueueImportIndex"];
   readonly resolveOwnerPrincipal: PortableExportDeps["resolveOwnerPrincipal"];
@@ -119,6 +120,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       findPersonaByName: deps.findPersonaByName,
       attachChatTagByName: deps.attachChatTagByName,
       importRpgGame: deps.importRpgGame,
+      importMemoryStrikes: deps.importMemoryStrikes,
       findOwnedAssetIdsByHash: deps.findOwnedAssetIdsByHash,
       heldChatHashes: deps.heldChatHashes,
       exportCurrentChats: deps.exportCurrentChats,

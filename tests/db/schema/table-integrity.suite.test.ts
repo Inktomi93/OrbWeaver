@@ -127,13 +127,18 @@ function softReferences(views: readonly TableView[]): readonly string[] {
   });
 }
 
-/** Each is a reviewed exception to D24: the referent is not an orbweaver row, so there is nothing to point a foreign key at. */
+/** Each is a reviewed exception to D24: the referent is not an orbweaver row, so there is nothing to point a foreign key
+ *  at, or the row must outlive its referent by design. */
 const SOFT_REFERENCES = {
   "audit_logs.entityId": "the append-only audit log must outlive a referent of unknown type, so the one polymorphic soft reference lives here",
   "automation_rules.creationRequestId": "an owner-local birth-request identity validated at the authored boundary; no request row exists",
   "automation_rules.rulePresetId": "a member of the closed RULE_PRESET_IDS code tuple, not a table row",
   "chat_generation_observations.generationId": "the upstream provider's opaque generation handle, not an orbweaver row",
   "chat_generation_observations.turnId": "the internally minted turn-grouping identity in the (chatId, turnId, ordinal) key; no turn row exists",
+  "chat_memory_strikes.messageEndId":
+    "a strike's span endpoint: the message may be deleted, and the strike must outlive it to read as unmatched until the host restores it",
+  "chat_memory_strikes.messageStartId":
+    "a strike's span endpoint: the message may be deleted, and the strike must outlive it to read as unmatched until the host restores it",
   "embedding_calls.invocationId": "groups the physical batches of one logical embedding invocation; no invocation row exists",
   "imagery_generations.callId": "groups the output rows of one physical generation call; a native call has no execution row",
   "message_variants.generationId": "the upstream OpenRouter generation handle a variant was billed under, an external provider id",

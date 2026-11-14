@@ -151,6 +151,10 @@ export const CHAT_OP_CODES = {
    *  canon untouched. Two codes rather than one because they tell a host two different stories about their
    *  own room, and "which thing moved" is exactly what makes a refusal actionable. */
   rewriteStale: "rewrite_stale",
+  /** `strikeMemory`'s content pin missed: the item the host read is gone, was summarized again, or no longer
+   *  resolves to the messages it covered. A strike names the item the host read, so it is refused rather than
+   *  landed on whatever now sits at that position; the view re-reads and the host decides again. */
+  memoryItemStale: "memory_item_stale",
   /** A registered D50 prompt transform DELIBERATELY aborted the generation — an
    *  automation `transform_draft` rule or a plugin returned `{abort}` instead of a draft. Deliberately NOT the
    *  D53 skip: a broken/slow transform is skipped silently and the turn proceeds, while this is a transform

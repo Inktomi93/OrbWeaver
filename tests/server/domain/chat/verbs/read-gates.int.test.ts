@@ -92,6 +92,9 @@ const READ_GATES = {
   saveCorrection: "elsewhere",
   listChatInjections: "elsewhere",
   deleteChatInjection: "elsewhere",
+  memoryView: "room-read",
+  strikeMemory: "elsewhere",
+  restoreMemory: "elsewhere",
   setVariables: "elsewhere",
   setUserMacroValues: "elsewhere",
   getUserMacroPicks: "elsewhere",
@@ -230,6 +233,7 @@ test("a non-participant gets a leak-free not-found on every room read, while the
     checkSendAvailability: (principal: Principal): Promise<unknown> => h.root.services.chat.checkSendAvailability({ principal, chatId: h.chatId }),
     getNextTurnConnection: (principal: Principal): Promise<unknown> => h.root.services.chat.getNextTurnConnection({ principal, chatId: h.chatId }),
     getMemberCard: (principal: Principal): Promise<unknown> => h.root.services.chat.getMemberCard({ principal, chatId: h.chatId, characterId }),
+    memoryView: (principal: Principal): Promise<unknown> => h.root.services.chat.memoryView({ principal, chatId: h.chatId }),
   };
   for (const [name, read] of Object.entries(reads)) {
     expect(await codeOf(read(h.owner)), name).toBe("resolved");

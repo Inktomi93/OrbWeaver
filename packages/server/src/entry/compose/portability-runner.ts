@@ -7,11 +7,17 @@ import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AssetsAssemblyContext, AssetsService } from "#domain/assets";
 import { createAdmitsAvatar, createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import { createCompareAndSetImportedTokenUsage, createFindImportedChatHashes, createListImportedTokenUsageCandidates } from "#domain/chat";
+import {
+  createCompareAndSetImportedTokenUsage,
+  createFindImportedChatHashes,
+  createImportMemoryStrikes,
+  createListImportedTokenUsageCandidates,
+} from "#domain/chat";
 import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
@@ -48,6 +54,7 @@ import type { Logger } from "#foundation/observability";
 import { createOperatorImportPort, createStagedImportPort, extractZip, readStagedManifest, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
 import { runProfileDirImport } from "../import/index.ts";
+import { minter } from "./minter.ts";
 import { buildPortabilityRegistry } from "./portability.ts";
 
 const DEFAULT_ST_PROFILE_DIR = ".st-data";
@@ -145,6 +152,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> => findPersonaByName(ownerId, name),
     attachChatTagByName: deps.attachChatTag,
     importRpgGame: deps.importRpgGame,
+    importMemoryStrikes: createImportMemoryStrikes({ db, newMemoryStrikeId: minter(ID_PREFIX.chatMemoryStrike, deps.idSource) }),
     findOwnedAssetIdsByHash: deps.assets.ownedAssetIdsByHash,
     resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
   };

@@ -160,8 +160,9 @@ export function formatMemory<K extends BlockKey>(
   return { text: parts.join("\n\n"), rendered };
 }
 
-/** A player's strike as recall matches it. `scopedCharacterId` null names the room's shared bucket, whichever
- *  character holds it this turn. The endpoints are the covered span's first and last message ids. */
+/** A player's strike as recall matches it. The endpoints are the covered span's first and last message ids.
+ *  `scopedCharacterId` records the bucket of the item the host struck (null: the room's shared bucket); it does not
+ *  limit what the strike leaves out. */
 export interface RecallStrike {
   readonly scopedCharacterId: CharacterId | null;
   readonly tier: number;
@@ -170,55 +171,72 @@ export interface RecallStrike {
   readonly contentHash: string;
 }
 
-/** A pooled digest as strike matching reads it: its grid position, bucket, staleness hash and resolved span
- *  endpoints. `span` is null when the span cannot be resolved from stored segments. */
+/** A covered span in message seqs, first and last inclusive. */
+interface SeqSpan {
+  readonly seqStart: number;
+  readonly seqEnd: number;
+}
+
+/** A pooled digest as strike matching reads it: its grid position, bucket, staleness hash and resolved span, as
+ *  endpoint ids and as seqs. Both are null when the span cannot be resolved from stored segments and messages. */
 export interface StrikeCandidate extends BridgeRow {
   readonly contentHash: string;
   readonly span: { readonly startId: MessageId; readonly endId: MessageId } | null;
+  readonly seqSpan: SeqSpan | null;
+}
+
+/** A strike with its endpoints resolved to seqs; `seqSpan` is null when an endpoint message is gone. */
+export interface ResolvedStrike extends RecallStrike {
+  readonly seqSpan: SeqSpan | null;
 }
 
 /** Which pooled digests a room's strikes leave out: each struck digest with the strike that names it, and each
- *  same-bucket consolidation whose tier-0 range covers a struck digest, because it retells the struck scene. */
+ *  longer summary retelling a struck span with the strike it retells. */
 export interface StrikeMatch<R, S> {
   readonly struck: ReadonlyMap<R, S>;
-  readonly coversStruck: ReadonlySet<R>;
+  readonly coversStruck: ReadonlyMap<R, S>;
 }
 
-/** Match strikes to pooled digests. A strike names a digest when bucket and tier agree and either its span
- *  endpoints are the digest's or its stored hash is the digest's current hash. Grid position alone never matches:
- *  a re-sliced block at the same position covers different messages. */
-export function matchStrikes<R extends StrikeCandidate, S extends RecallStrike>(
-  rows: readonly R[],
-  strikes: readonly S[],
-  grid: { readonly sharedBucket: CharacterId; readonly fanOut: number },
-): StrikeMatch<R, S> {
+/**
+ * Match strikes to pooled digests.
+ *
+ * @remarks
+ * A STRIKE NAMES A SPAN OF THE STORY, NOT ONE BUCKET'S COPY OF IT. Every bucket digests the same block grid (a scoped
+ * bucket only skips blocks its character did not witness), so the group summary and each character's own summary of
+ * one scene share tier and endpoints. A strike names every digest, in any bucket, whose tier and span endpoints are
+ * the strike's, or whose current hash is the strike's stored hash (the hash is bound to the struck item's bucket and
+ * position, so it only re-finds that item). Grid position alone never matches: a re-sliced block at the same
+ * position covers different messages.
+ *
+ * A HIGHER TIER WHOSE SPAN CONTAINS THE STRIKE'S OWN SPAN RETELLS IT, in any bucket, whether or not a summary of the
+ * struck scene is still pooled. The build can drop a scene's summary (a blank re-summary) and keep the longer summary
+ * built from it, so containment is tested against the strike's seqs, never against matched rows. A scoped longer
+ * summary over a block its character never witnessed is left out too: over-dropping a retelling is the safe side.
+ */
+export function matchStrikes<R extends StrikeCandidate, S extends ResolvedStrike>(rows: readonly R[], strikes: readonly S[]): StrikeMatch<R, S> {
   const struck = new Map<R, S>();
+  const coversStruck = new Map<R, S>();
   if (strikes.length === 0) {
-    return { struck, coversStruck: new Set() };
+    return { struck, coversStruck };
   }
   for (const row of rows) {
     const strike = strikes.find(
       (s) =>
-        (s.scopedCharacterId ?? grid.sharedBucket) === row.scopedCharacterId &&
-        s.tier === row.tier &&
-        (s.contentHash === row.contentHash || (row.span !== null && row.span.startId === s.messageStartId && row.span.endId === s.messageEndId)),
+        s.contentHash === row.contentHash ||
+        (s.tier === row.tier && row.span !== null && row.span.startId === s.messageStartId && row.span.endId === s.messageEndId),
     );
     if (strike !== undefined) {
       struck.set(row, strike);
     }
   }
-  const coversStruck = new Set<R>();
   for (const row of rows) {
-    if (struck.has(row)) {
+    const outer = row.seqSpan;
+    if (struck.has(row) || outer === null) {
       continue;
     }
-    const range = tier0RangeOf(grid.fanOut, row.tier, row.blockIdx);
-    for (const hit of struck.keys()) {
-      const inner = tier0RangeOf(grid.fanOut, hit.tier, hit.blockIdx);
-      if (hit.scopedCharacterId === row.scopedCharacterId && row.tier > hit.tier && range.startIdx <= inner.startIdx && inner.endIdx <= range.endIdx) {
-        coversStruck.add(row);
-        break;
-      }
+    const retold = strikes.find((s) => s.seqSpan !== null && row.tier > s.tier && outer.seqStart <= s.seqSpan.seqStart && s.seqSpan.seqEnd <= outer.seqEnd);
+    if (retold !== undefined) {
+      coversStruck.set(row, retold);
     }
   }
   return { struck, coversStruck };

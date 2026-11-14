@@ -37,6 +37,7 @@ export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
 export { createWiredChatGuards, requireWiredAuthorOrHost } from "./guard.ts";
 export { SUMMARIZE_TRANSCRIPT_MARKER } from "./memory/generate/substrate/prompts.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
+export { createImportMemoryStrikes } from "./memory/persistence/import-strikes.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
@@ -48,7 +49,7 @@ export {
 } from "./persistence/token-usage-backfill.ts";
 // The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
 // host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
-// `repairStaleJoinSeq`, `hasRedeemableInvite`, `reclaimChatLocksOnBoot`, `migrateHandoffOfferVocab` and
+// `repairStaleJoinSeq`, `hasRedeemableInvite`, `reclaimChatLocksOnBoot`, `sweepLandingChatsOnBoot`, `migrateHandoffOfferVocab` and
 // `migratePluginToolWireNames` serve `entry/boot` steps; chat owns their SQL because it owns those tables.
 // Each of those crosses every owner's rows, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export {
@@ -63,6 +64,7 @@ export {
   migrateSeededRoomBackgrounds,
   reclaimChatLocksOnBoot,
   repairStaleJoinSeq,
+  sweepLandingChatsOnBoot,
 } from "./persistence/wiring-reads.ts";
 export { createChatService, createVisibleExtractQuiet } from "./service.ts";
 // The ONE D16 per-bus-event visibility verdict (`substrate/auth/clamp`). Exported because the LIVE half of

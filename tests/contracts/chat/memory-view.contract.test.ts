@@ -1,16 +1,21 @@
-// The memory view's status follows the room's switches and the build's own aged-out rule, and the strike input refuses
-// a key whose hash is not a stored content hash.
-import { memoryViewStatus, strikeMemoryInputSchema } from "@orb/contracts/chat";
+// The memory view's status follows the room's switches, the build's own aged-out rule and the caller's floor, and the
+// strike input refuses a key whose hash is not a stored content hash.
+import { memoryOffReason, memoryViewStatus, strikeMemoryInputSchema } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
-const ROOM = { appModeOff: false, hostEnabled: true, maxSeq: 20, verbatimWindow: 8, blockSize: 8, storedItems: 0 } as const;
+const ROOM = { maxSeq: 20, verbatimWindow: 8, blockSize: 8, storedItems: 0, listedItems: 0 } as const;
 
-test("the app switch outranks the host's, and both outrank what is stored", () => {
-  expect(memoryViewStatus({ ...ROOM, appModeOff: true, hostEnabled: false, storedItems: 3 })).toEqual({ kind: "off", reason: "app-off" });
-  expect(memoryViewStatus({ ...ROOM, hostEnabled: false, storedItems: 3 })).toEqual({ kind: "off", reason: "host-off" });
-  expect(memoryViewStatus({ ...ROOM, storedItems: 3 })).toEqual({ kind: "ready" });
+test("the app switch outranks the host's", () => {
+  expect(memoryOffReason({ appModeOff: true, hostEnabled: false })).toBe("app-off");
+  expect(memoryOffReason({ appModeOff: false, hostEnabled: false })).toBe("host-off");
+  expect(memoryOffReason({ appModeOff: false, hostEnabled: true })).toBeNull();
+});
+
+test("a caller whose floor hides every stored summary is told so, not that memory is still pending", () => {
+  expect(memoryViewStatus({ ...ROOM, storedItems: 3, listedItems: 3 })).toEqual({ kind: "ready" });
+  expect(memoryViewStatus({ ...ROOM, storedItems: 3, listedItems: 0 })).toEqual({ kind: "before-your-history" });
 });
 
 test("a chat is too short until a whole block sits outside the protected window, then waits for its first summary", () => {
