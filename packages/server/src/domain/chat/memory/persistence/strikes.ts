@@ -232,3 +232,27 @@ export function restampMemoryStrikesStatement(db: Db, chatId: ChatId, sourceChar
       .where(and(eq(chatMemoryStrikes.chatId, chatId), eq(chatMemoryStrikes.scopedCharacterId, sourceCharacterId))),
   );
 }
+
+/** The room's shared-bucket strikes copied onto one character's scoped bucket, each under a fresh id.
+ *
+ *  A solo room's shared bucket IS its one character, so a strike stores no character there. Once a second
+ *  character is seated, the shared bucket becomes the room's group character, while the first character's
+ *  digests stay keyed to it and are read as its own scoped bucket. The copy keeps those digests struck; the
+ *  shared-bucket strike stays, for the group bucket's summary of the same span. */
+export async function copySharedStrikesStatements(
+  db: Db,
+  args: { readonly chatId: ChatId; readonly characterId: CharacterId; readonly newId: () => ChatMemoryStrikeId },
+): Promise<BatchStmt[]> {
+  const shared = await db
+    .select()
+    .from(chatMemoryStrikes)
+    .where(and(eq(chatMemoryStrikes.chatId, args.chatId), isNull(chatMemoryStrikes.scopedCharacterId)));
+  return shared.map((row) =>
+    batchStmt(
+      db
+        .insert(chatMemoryStrikes)
+        .values({ ...row, id: args.newId(), scopedCharacterId: args.characterId })
+        .onConflictDoNothing(),
+    ),
+  );
+}

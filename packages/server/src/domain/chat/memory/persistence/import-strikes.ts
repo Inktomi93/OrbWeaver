@@ -6,6 +6,11 @@
 //
 // A strike the room already holds stays as it is (`onConflictDoNothing` over both partial unique indexes), so a
 // same-library restore never doubles one.
+//
+// A REPEATED IMPORT RE-ADDS A RESTORED STRIKE, deliberately. Importing the same file again onto a room it already
+// wrote runs every overlay again (the tag overlay's retry semantics: an interrupted import completes on the next
+// run), so a strike the host restored after the first import comes back. A room the app wrote and has not changed
+// since is matched by its current export and runs no overlay.
 
 import type { ImportedMemoryStrike, ImportMemoryStrikesOp } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";

@@ -73,7 +73,7 @@ import type {
 import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHandoffAcceptance, requireHandoffNominee, requireHost, requireParticipant } from "../guard.ts";
-import { restampMemoryStrikesStatement } from "../memory/persistence/strikes.ts";
+import { copySharedStrikesStatements, restampMemoryStrikesStatement } from "../memory/persistence/strikes.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { isRetainedParentFenceViolation, restampChatCharacterStatement, retainedChatFenceStatement } from "../persistence/canon-write.ts";
 import { chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
@@ -716,6 +716,20 @@ async function seedJoinGreeting(
   return view;
 }
 
+/** The strike carry a solo room owes when it gains its second character: until the group character exists, the
+ *  shared bucket is the lone character (`gatherMemory`), so its shared-bucket strikes are copied onto that
+ *  character's scoped bucket in the seat's batch (`copySharedStrikesStatements` holds why). */
+async function soloStrikeCarry(
+  ctx: ChatContext,
+  args: { readonly chatId: ChatId; readonly hostUserId: UserId; readonly seated: readonly { readonly characterId: CharacterId }[] },
+): Promise<BatchStmt[]> {
+  const [sole, ...others] = args.seated;
+  if (sole === undefined || others.length > 0 || (await ctx.findSyntheticGroupCharacter({ ownerId: args.hostUserId, chatId: args.chatId })) !== null) {
+    return [];
+  }
+  return await copySharedStrikesStatements(ctx.db, { chatId: args.chatId, characterId: sole.characterId, newId: ctx.newMemoryStrikeId });
+}
+
 /** `addCharacterToChat` — host-only; the character participant-insert chokepoint. Stamps a fresh member
  *  row at the current canon head, emits chatUpdated, returns the resolved roster row. IDEMPOTENT: a character
  *  that already holds a PRESENT seat returns that seat's view unchanged — the character half of the roster has
@@ -735,10 +749,11 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     }
     // Present-seat floor: return the live seat instead of minting a duplicate row. `loadParticipants` is present-only
     // (`leftSeq IS NULL`), so a previously-left character re-adds a fresh row (era-per-row, F8) as before.
-    const existing = (await loadParticipants(ctx.db, chatId)).find((p) => {
+    const seatedCharacters = (await loadParticipants(ctx.db, chatId)).flatMap((p) => {
       const actor = classifyParticipant(p);
-      return actor?.kind === "character" && actor.characterId === characterId;
+      return actor?.kind === "character" ? [{ participant: p, characterId: actor.characterId }] : [];
     });
+    const existing = seatedCharacters.find((seat) => seat.characterId === characterId)?.participant;
     if (existing !== undefined) {
       return characterParticipantView(existing, card, ctx.resolveAssetHash);
     }
@@ -774,6 +789,7 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
         }),
       );
     }
+    versionStatements.push(...(await soloStrikeCarry(ctx, { chatId, hostUserId: principal.userId, seated: seatedCharacters })));
     await insertParticipants(
       ctx.db,
       [
