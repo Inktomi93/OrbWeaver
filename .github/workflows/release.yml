@@ -218,7 +218,8 @@ jobs:
     if: needs.image.result == 'success'
     needs: [release-please, image]
     runs-on: ubuntu-slim
-    timeout-minutes: 5
+    # Setup installs cold here (cache: "false"), and even a warm install takes over two minutes on this runner.
+    timeout-minutes: 15
     permissions:
       contents: write
     env:
