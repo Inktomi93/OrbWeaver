@@ -831,6 +831,9 @@ const BOM = /^\uFEFF/;
 // The parse costs time per line, and the file is as large as the upload cap allows. It hands the event loop back
 // after this many characters of lines, a few milliseconds of work, so a large file never holds the server.
 const PARSE_SLICE_CHARS = 262_144;
+// A swipe costs time by itself, not by its text: a line of short swipes parses about 9 µs a swipe, so a slice also
+// ends after this many variants.
+const PARSE_SLICE_VARIANTS = 4096;
 
 /**
  * Parse one ST chat `.jsonl` → a `ParsedChat`. `fileName` (the Branch-prefix + filename-date hint) and
@@ -857,23 +860,7 @@ export async function parseChatJsonl(
   const rawCharName = str(header.character_name);
   const characterName = rawCharName.length === 0 || rawCharName === "unused" ? opts.charDirName : rawCharName;
 
-  const messages: ParsedChatMessage[] = [];
-  let sliceChars = 0;
-  for (const line of lines.slice(1)) {
-    sliceChars += line.length;
-    if (sliceChars >= PARSE_SLICE_CHARS) {
-      sliceChars = 0;
-      await yieldToEventLoop();
-    }
-    const t = line.trim();
-    if (t.length === 0) {
-      continue;
-    }
-    const message = parseMessageLine(t, zone);
-    if (message !== null) {
-      messages.push(message);
-    }
-  }
+  const messages = await parseMessageLines(lines.slice(1), zone);
 
   return {
     characterName,
@@ -889,6 +876,31 @@ export async function parseChatJsonl(
     bucket: classifyChat(messages),
     messages,
   };
+}
+
+// The message lines in order, a slice of lines a turn of the loop; a corrupt or debris line is skipped.
+async function parseMessageLines(lines: readonly string[], zone: string): Promise<ParsedChatMessage[]> {
+  const messages: ParsedChatMessage[] = [];
+  let sliceChars = 0;
+  let sliceVariants = 0;
+  for (const line of lines) {
+    sliceChars += line.length;
+    if (sliceChars >= PARSE_SLICE_CHARS || sliceVariants >= PARSE_SLICE_VARIANTS) {
+      sliceChars = 0;
+      sliceVariants = 0;
+      await yieldToEventLoop();
+    }
+    const t = line.trim();
+    if (t.length === 0) {
+      continue;
+    }
+    const message = parseMessageLine(t, zone);
+    if (message !== null) {
+      messages.push(message);
+      sliceVariants += message.variants.length;
+    }
+  }
+  return messages;
 }
 
 // ── build (ParsedChat → JSONL / TXT string) ──────────────────────────────────────────────────────────────

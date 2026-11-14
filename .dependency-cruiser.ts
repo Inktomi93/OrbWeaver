@@ -389,6 +389,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/transport/trpc/fault-copy.ts": "UNCLASSIFIED_FAULT_MESSAGE: the words the error formatter sends for every unclassified throw",
   "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
+  "packages/server/src/domain/chat/persistence/import-landing.ts":
+    "LANDING_STAGE_ROWS: the rows one import landing stage commits, which landing suites size a room of several stages by",
+  "packages/server/src/domain/stats/persistence/rebuild-from-canon.ts":
+    "CHUNK: the rows one rebuild page reads, which the rebuild yield suite sizes a library of several pages by",
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",

@@ -5,9 +5,10 @@
 // LOAD-BEARING: `updatedAt` is the ST max(send_dates) carried in from import (not `now`); `importHash` is the
 // per-chat provenance while `chat_import_claims` is the scoped atomic dedup oracle. db.transaction() is BANNED, and
 // one batch for a long room held the server for seconds, so a room lands in stages: the room marked landing with
-// its claim, the messages a stage at a time, then the roster with the cleared marker. Readers reach a room only
-// through its roster, so a reader sees all of a room or none of it. A failed import, and the boot sweep after a
-// kill, delete a room still marked landing (`import-landing.ts`).
+// its claim, the messages a stage at a time, then the roster with the cleared marker. A reader that needs the roster
+// sees all of a room or none of it; a read that enumerates rooms without it (by anchor persona, by character, by
+// owner) filters `landing_at`. A failed import, and the boot sweep after a kill, delete a room still marked landing
+// (`import-landing.ts`). Rule: Tier-1-DB §8.
 
 import type {
   BulkImportChatInput,
@@ -49,7 +50,7 @@ import type { ChatImportAssemblyContext, ChatImportContext } from "../contract/i
 import { parseChatMetadata } from "../contract/metadata.ts";
 import { importedObservationRows } from "../substrate/import-observations.ts";
 import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
-import { deleteLandingChat, LANDING_STAGE_CHARS, LANDING_STAGE_MESSAGES } from "./import-landing.ts";
+import { deleteLandingChat, LANDING_STAGE_CHARS, LANDING_STAGE_ROWS } from "./import-landing.ts";
 import { assertSeatableCharacters } from "./seat-characters.ts";
 
 // Budget a scope bind alongside each varying value, so the statement's fixed scope always fits too.
@@ -59,22 +60,27 @@ const IMPORT_INITIATOR = "import" satisfies TurnInitiator;
 
 type ImportMessage = BulkImportChatInput["messages"][number];
 
-/** A chat's messages cut into landing stages: each holds at most {@link LANDING_STAGE_MESSAGES} messages and, past its
- *  first message, at most {@link LANDING_STAGE_CHARS} characters of variant text. `start` is the first message's index. */
+/** A chat's messages cut into landing stages: past its first message, each holds at most {@link LANDING_STAGE_ROWS}
+ *  message and variant rows and at most {@link LANDING_STAGE_CHARS} characters of variant text. `start` is the first
+ *  message's index. */
 function* landingStages(all: readonly ImportMessage[]): Generator<{ readonly start: number; readonly stage: readonly ImportMessage[] }> {
   let stage: ImportMessage[] = [];
+  let rows = 0;
   let chars = 0;
   let start = 0;
   for (const [index, message] of all.entries()) {
-    const weight = message.variants.reduce((total, variant) => total + variant.content.length, 0);
-    if (stage.length > 0 && (stage.length >= LANDING_STAGE_MESSAGES || chars + weight > LANDING_STAGE_CHARS)) {
+    const rowWeight = 1 + message.variants.length;
+    const charWeight = message.variants.reduce((total, variant) => total + variant.content.length, 0);
+    if (stage.length > 0 && (rows + rowWeight > LANDING_STAGE_ROWS || chars + charWeight > LANDING_STAGE_CHARS)) {
       yield { start, stage };
       stage = [];
+      rows = 0;
       chars = 0;
       start = index;
     }
     stage.push(message);
-    chars += weight;
+    rows += rowWeight;
+    chars += charWeight;
   }
   if (stage.length > 0) {
     yield { start, stage };
@@ -640,8 +646,8 @@ function pendingObservationStmts(ctx: ChatImportContext, ownerId: UserId, ci: Bu
 }
 
 /** The last landing stage: the founding roster, the per-chat prose (`chat_injections`, the ONE per-chat prose
- *  door), the pending observations and the cleared landing marker, in one batch. Every reader reaches a room
- *  through its roster, so no reader sees the room before this batch, and every reader that does sees all of it. */
+ *  door), the pending observations and the cleared landing marker, in one batch. No reader sees the room before
+ *  this batch: the roster arrives here, and the reads that skip the roster filter the marker this batch clears. */
 function closingStmts(args: OneChatArgs, identity: ImportedChatIdentity): BatchStmt[] {
   const { ctx, chatId, ci, ownerId, characterId } = args;
   const { db } = ctx;

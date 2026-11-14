@@ -55,7 +55,8 @@ import { ownerChatIds, retainedCharacterSeatPredicate } from "./owner-chat-scope
 
 export type { ReconcileStatsResult } from "@orb/contracts/stats";
 
-const CHUNK = 5000; // rows per streaming page — bounds peak memory on large corpora
+/** Rows per streaming page; bounds peak memory on large corpora. */
+export const CHUNK = 5000;
 // Per-table column counts for the bound-variable chunker — must track the insert shapes below.
 const CHAR_COLS = 30;
 const DAILY_COLS = 22;

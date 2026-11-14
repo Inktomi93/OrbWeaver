@@ -8,10 +8,11 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { asc } from "drizzle-orm";
+import { CHUNK } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 
 const SENT = "2025-07-19@12h00m01s";
 // More than two streaming pages of messages, so a pass spans several turns of the loop.
-const LIBRARY_MESSAGES = 11_000;
+const LIBRARY_MESSAGES = 2 * CHUNK + 1000;
 const DELETED_MESSAGES = 1;
 
 function oneLineTranscript(handle: string, count: number): Uint8Array {
@@ -60,7 +61,7 @@ test("a rebuild over several pages of messages lets the loop turn between pages"
   pending = false;
 
   expect(await turns(root, root.ownerId)).toBe(LIBRARY_MESSAGES);
-  expect(turnsDuringRebuild).toBeGreaterThanOrEqual(Math.floor(LIBRARY_MESSAGES / 5000));
+  expect(turnsDuringRebuild).toBeGreaterThanOrEqual(Math.floor(LIBRARY_MESSAGES / CHUNK));
 });
 
 test("a message deleted from a page the rebuild already read is not counted by the rebuild", async () => {

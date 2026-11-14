@@ -1,27 +1,35 @@
 // An imported chat lands in stages and no reader sees it until the last stage: a failed stage and a second import of
-// the same file each leave either the whole room or none of it. The crash case is
-// `tests/server/entry/boot/persistence/import-landing-sweep.int.test.ts`.
+// the same file each leave either the whole room or none of it, and a read that enumerates rooms without the roster
+// leaves a landing room out. The crash case is `tests/server/entry/boot/persistence/import-landing-sweep.int.test.ts`.
 // @subject packages/server/src/domain/chat/persistence/import-write.ts
 // @subject packages/server/src/domain/chat/persistence/import-landing.ts
+// @subject packages/server/src/domain/chat/persistence/room-reach.ts
 import { performance } from "node:perf_hooks";
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { RoomEntityKind } from "@orb/contracts/chat";
+import { createPersonaSchema, updatePersonaSchema } from "@orb/contracts/persona";
 import { chatImportClaims, chats, messageAssets, messages } from "@orb/db";
 import { ASSET_SCHEME } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makeAssetBytes } from "@orb/testkit/node/composed";
-import { count, eq, isNotNull } from "drizzle-orm";
+import type { ServerTestHarness, TranscriptLine } from "@orb/testkit/node/composed";
+import { createServerHarness, makeAssetBytes, seedTranscript, transcriptFile } from "@orb/testkit/node/composed";
+import { duringChatLanding } from "@orb/testkit/node/rows";
+import { count, eq } from "drizzle-orm";
+import { LANDING_STAGE_ROWS } from "#server/domain/chat/persistence/import-landing.ts";
 
 const HANDLE = "stair-keeper";
 const SENT = "2025-07-19@12h00m01s";
 const FILENAME = `${HANDLE}/${HANDLE} - 2025-07-19@12h00m00s.jsonl`;
 const PNG = "image/png";
-// Several landing stages, so a reader started after the first finishes before the last; each case checks it did.
-const ROOM_MESSAGES = 5001;
+// A one-line message is two rows, the message and its variant, so this is ten landing stages: a reader started after
+// the first message stage finishes before the last.
+const ROOM_MESSAGES = 10 * (LANDING_STAGE_ROWS / 2) + 1;
 const MAX_GAP_MS = 200;
+const PERSONA = "Lantern Wanderer";
+const PERSONA_ENTITY = "persona" satisfies RoomEntityKind;
 
 function transcript(messageCount: number, lastLine = "the last lamp"): Uint8Array {
   const lines = [`{"character_name":"${HANDLE}","user_name":"Nate","create_date":"${SENT}"}`];
@@ -33,8 +41,13 @@ function transcript(messageCount: number, lastLine = "the last lamp"): Uint8Arra
   return new TextEncoder().encode(lines.join("\n"));
 }
 
+function transcriptLines(messageCount: number): TranscriptLine[] {
+  return Array.from({ length: messageCount }, (_, turn) => ({ role: turn % 2 === 0 ? "user" : "assistant", content: `line ${String(turn)}` }));
+}
+
 interface Box {
   readonly importFile: (bytes: Uint8Array) => Promise<unknown>;
+  readonly importBundle: (file: ReturnType<typeof transcriptFile>) => Promise<unknown>;
 }
 
 async function box(root: ServerTestHarness): Promise<Box> {
@@ -44,31 +57,15 @@ async function box(root: ServerTestHarness): Promise<Box> {
   if (descriptor === undefined) {
     throw new Error("the production chat import descriptor is missing");
   }
-  return { importFile: (bytes) => descriptor.importFile(root.ownerId, { filename: FILENAME, bytes }) };
-}
-
-async function landingRoom(root: ServerTestHarness): Promise<ChatId | null> {
-  const [row] = await root.db.select({ id: chats.id }).from(chats).where(isNotNull(chats.landingAt));
-  return row?.id ?? null;
-}
-
-/** Run `during` once the import has opened its room and before the room lands, polling a turn at a time. */
-async function duringLanding<T>(root: ServerTestHarness, landing: Promise<unknown>, during: (chatId: ChatId) => Promise<T>): Promise<T> {
-  const progress = { settled: false };
-  const markSettled = (): void => {
-    progress.settled = true;
+  return {
+    importFile: (bytes) => descriptor.importFile(root.ownerId, { filename: FILENAME, bytes }),
+    importBundle: (file) => descriptor.importFile(root.ownerId, file),
   };
-  landing.then(markSettled, markSettled);
-  for (;;) {
-    await new Promise((resolve) => setImmediate(resolve));
-    const chatId = await landingRoom(root);
-    if (chatId !== null) {
-      return await during(chatId);
-    }
-    if (progress.settled) {
-      throw new Error("the import settled without a landing stage the test could see");
-    }
-  }
+}
+
+async function landingRoom(root: ServerTestHarness): Promise<boolean> {
+  const rows = await root.db.select({ landingAt: chats.landingAt }).from(chats);
+  return rows.some((row) => row.landingAt !== null);
 }
 
 async function rowCounts(root: ServerTestHarness): Promise<{ readonly rooms: number; readonly messages: number; readonly claims: number }> {
@@ -85,6 +82,11 @@ async function settle(promise: Promise<unknown>): Promise<string> {
   } catch (error) {
     return error instanceof DomainNotFoundError ? "not-found" : `error: ${String(error)}`;
   }
+}
+
+async function turns(root: ServerTestHarness): Promise<number> {
+  const overview = await root.services.stats.overview(root.ownerId);
+  return (overview?.userTurns ?? 0) + (overview?.assistantTurns ?? 0);
 }
 
 /** The longest stretch `work` held the event loop, read from a chain of immediates. */
@@ -115,48 +117,56 @@ test("a room still landing is absent from the list, the room read, the export an
   const principal = await root.principalFor(root.ownerId);
   const reads = async (chatId: ChatId): Promise<Record<string, unknown>> => {
     await root.services.stats.reconcile(root.ownerId);
-    const overview = await root.services.stats.overview(root.ownerId);
     return {
       listed: (await root.services.chat.listChats({ principal })).items.length,
       searched: (await root.services.chat.listChats({ principal, search: HANDLE })).items.length,
       opened: await settle(root.services.chat.getChat({ principal, chatId })),
       exported: await settle(root.app.exportService.exportChatBundle({ principal, chatId })),
-      turns: (overview?.userTurns ?? 0) + (overview?.assistantTurns ?? 0),
+      turns: await turns(root),
     };
   };
 
   const landing = importFile(transcript(ROOM_MESSAGES));
-  const seen = await duringLanding(root, landing, async (chatId) => ({
-    chatId,
-    reads: await reads(chatId),
-    stillLanding: (await landingRoom(root)) === chatId,
-  }));
+  const seen = await duringChatLanding(root.db, landing, reads);
   expect(await landing).toMatchObject({ ok: true, created: true });
 
-  // The control: the reads ran while the room was landing, and the same reads see all of it once it has landed.
+  // The control: the reads ran after a message stage while the room was landing, and the same reads see all of it
+  // once it has landed.
   expect(seen.stillLanding).toBe(true);
   // The bundle export answers null for a room the caller does not host.
-  expect(seen.reads).toEqual({ listed: 0, searched: 0, opened: "not-found", exported: "null", turns: 0 });
+  expect(seen.result).toEqual({ listed: 0, searched: 0, opened: "not-found", exported: "null", turns: 0 });
   expect(await reads(seen.chatId)).toEqual({ listed: 1, searched: 1, opened: "value", exported: "value", turns: ROOM_MESSAGES });
-  expect(await landingRoom(root)).toBeNull();
+  expect(await landingRoom(root)).toBe(false);
 });
 
-test("a stage that fails removes every stage before it, and the same file then lands whole", async () => {
+test("an import applies no live stats delta: its turns reach the rollups only through a rebuild", async () => {
+  await using root = await createServerHarness();
+  const { importFile } = await box(root);
+
+  expect(await importFile(transcript(ROOM_MESSAGES))).toMatchObject({ ok: true, created: true });
+  const beforeRebuild = await turns(root);
+  await root.services.stats.reconcile(root.ownerId);
+
+  // The control: the room's turns are countable, so the zero before the rebuild is the import writing none.
+  expect({ beforeRebuild, afterRebuild: await turns(root) }).toEqual({ beforeRebuild: 0, afterRebuild: ROOM_MESSAGES });
+});
+
+test("a stage that fails removes every stage before it without holding the loop, and the same file then lands whole", async () => {
   await using root = await createServerHarness();
   const { importFile } = await box(root);
   const principal = await root.principalFor(root.ownerId);
   const stored = await root.services.assets.store({ principal, kind: "generated", mime: PNG, bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)) });
   const assetId: AssetId = stored.assetId;
-  // Only the last stage links the image, so a reap after the first stage finds it unreferenced and the last stage's
-  // link then names a missing asset.
-  const bytes = transcript(ROOM_MESSAGES, `the last lamp ![lamp](${ASSET_SCHEME}${assetId})`);
+  // Only the last stage links the image, so a reap after the first message stage finds it unreferenced and the last
+  // stage's link then names a missing asset.
+  const lastLine = `the last lamp ![lamp](${ASSET_SCHEME}${assetId})`;
 
-  const failing = importFile(bytes).then(
+  const failing = importFile(transcript(ROOM_MESSAGES, lastLine)).then(
     (outcome) => outcome,
     (error: unknown) => error,
   );
   const hold = await longestHold(async () => {
-    await duringLanding(root, failing, async () => {
+    await duringChatLanding(root.db, failing, async () => {
       await root.services.assets.reapIfOrphan([assetId]);
     });
     await failing;
@@ -168,8 +178,14 @@ test("a stage that fails removes every stage before it, and the same file then l
 
   // The control: with the image back, the same file lands every message and links it, so the failure above was the
   // reaped image and the cleanup freed the claim.
-  const restored = await root.services.assets.store({ principal, kind: "generated", mime: PNG, bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)) });
-  expect(await importFile(transcript(ROOM_MESSAGES, `the last lamp ![lamp](${ASSET_SCHEME}${restored.assetId})`))).toMatchObject({ ok: true, created: true });
+  const restored = await root.services.assets.store({
+    principal,
+    kind: "generated",
+    mime: PNG,
+    bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
+  });
+  const relanded = transcript(ROOM_MESSAGES, `the last lamp ![lamp](${ASSET_SCHEME}${restored.assetId})`);
+  expect(await importFile(relanded)).toMatchObject({ ok: true, created: true });
   const [linked] = await root.db.select({ n: count() }).from(messageAssets).where(eq(messageAssets.assetId, restored.assetId));
   expect({ ...(await rowCounts(root)), linked: linked?.n }).toEqual({ rooms: 1, messages: ROOM_MESSAGES, claims: 1, linked: 1 });
 });
@@ -180,11 +196,49 @@ test("a second import of the same file while the first is landing is skipped, an
   const bytes = transcript(ROOM_MESSAGES);
 
   const first = importFile(bytes);
-  const second = await duringLanding(root, first, async () => await importFile(bytes));
+  const second = await duringChatLanding(root.db, first, async () => await importFile(bytes));
 
-  expect(second).toMatchObject({ ok: true, created: false });
+  expect(second.result).toMatchObject({ ok: true, created: false });
   expect(await first).toMatchObject({ ok: true, created: true });
   expect(await rowCounts(root)).toEqual({ rooms: 1, messages: ROOM_MESSAGES, claims: 1 });
   // The control: once landed, the same file is a plain repeat of the landed room.
   expect(await importFile(bytes)).toMatchObject({ ok: true, created: false });
+});
+
+test("a persona edit refreshes the rooms the persona anchors, and skips one still landing", async () => {
+  await using root = await createServerHarness();
+  const { importBundle } = await box(root);
+  const principal = await root.principalFor(root.ownerId);
+  const persona = await root.services.persona.create({ principal, input: createPersonaSchema.parse({ name: PERSONA, description: "Walks the stair." }) });
+  const anchored = { anchorPersonaName: PERSONA };
+  const landed = await seedTranscript(root, { ownerId: root.ownerId, characterHandles: [HANDLE], lines: transcriptLines(2), chat: anchored });
+  const refreshed: ChatId[] = [];
+  const waiters = new Map<ChatId, () => void>();
+  const unsubscribe = root.app.liveBuses.chat.subscribeAllChatEvents((frame) => {
+    if (frame.event.type === "roomEntityChanged" && frame.event.entity === PERSONA_ENTITY) {
+      refreshed.push(frame.event.chatId);
+      waiters.get(frame.event.chatId)?.();
+    }
+  });
+  const renamed = async (name: string, waitFor: ChatId): Promise<readonly ChatId[]> => {
+    refreshed.length = 0;
+    const arrived = Promise.withResolvers<void>();
+    waiters.set(waitFor, arrived.resolve);
+    await root.services.persona.update({ principal, personaId: persona.id, input: updatePersonaSchema.parse({ name }) });
+    await arrived.promise;
+    return [...refreshed];
+  };
+
+  try {
+    const landing = importBundle(transcriptFile({ characterHandles: [HANDLE], lines: transcriptLines(ROOM_MESSAGES), chat: { ...anchored, title: "long" } }));
+    const seen = await duringChatLanding(root.db, landing, async () => await renamed(`${PERSONA} Vale`, landed.chatId));
+    expect(await landing).toMatchObject({ ok: true, created: true });
+
+    expect(seen.stillLanding).toBe(true);
+    expect(seen.result).toEqual([landed.chatId]);
+    // The control: once landed, the same edit refreshes the room it skipped.
+    expect(new Set(await renamed(PERSONA, seen.chatId))).toEqual(new Set([landed.chatId, seen.chatId]));
+  } finally {
+    unsubscribe();
+  }
 });

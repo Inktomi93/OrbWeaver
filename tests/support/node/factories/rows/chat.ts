@@ -23,7 +23,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { buildChatBundleFile, CHAT_BUNDLE_EXT } from "@orb/server/primitives/serde/chat-bundle";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../../iso/clock.ts";
 import type { ServerProducerRoot } from "../../server.ts";
 import type {
@@ -73,6 +73,40 @@ export async function captureChatReplayRows(db: Db, chatId: ChatId): Promise<Cap
     db.select().from(pendingTurns).where(eq(pendingTurns.chatId, chatId)).orderBy(pendingTurns.createdAt, pendingTurns.id),
   ]);
   return { events, locks, pending };
+}
+
+export interface DuringChatLanding<T> {
+  readonly chatId: ChatId;
+  readonly result: T;
+  /** The room was still landing once `during` settled, so every read inside it saw a partial room. */
+  readonly stillLanding: boolean;
+}
+
+async function landingRoomWithMessages(db: Db): Promise<ChatId | null> {
+  const [row] = await db.select({ id: chats.id }).from(chats).innerJoin(messages, eq(messages.chatId, chats.id)).where(isNotNull(chats.landingAt)).limit(1);
+  return row?.id ?? null;
+}
+
+/** Run `during` while an import is landing a room, once at least one of its message stages has committed. It polls a
+ *  turn of the loop at a time, because each stage starts on a fresh turn. */
+export async function duringChatLanding<T>(db: Db, landing: Promise<unknown>, during: (chatId: ChatId) => Promise<T>): Promise<DuringChatLanding<T>> {
+  const progress = { settled: false };
+  const markSettled = (): void => {
+    progress.settled = true;
+  };
+  landing.then(markSettled, markSettled);
+  for (;;) {
+    await new Promise((resolve) => setImmediate(resolve));
+    const chatId = await landingRoomWithMessages(db);
+    if (chatId !== null) {
+      const result = await during(chatId);
+      const [row] = await db.select({ landingAt: chats.landingAt }).from(chats).where(eq(chats.id, chatId));
+      return { chatId, result, stillLanding: row !== undefined && row.landingAt !== null };
+    }
+    if (progress.settled) {
+      throw new Error("the import settled before any message stage of a landing room was visible");
+    }
+  }
 }
 
 /** Capture newly written conversations by returned IDs; refusal and dedup do not invent a new room identity. */
