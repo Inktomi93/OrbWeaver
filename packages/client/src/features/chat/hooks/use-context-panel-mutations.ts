@@ -165,6 +165,14 @@ export const useSetChatInjection = createEntityMutation<SetChatInjectionVars, un
   errorToast: "Couldn't save the injection.",
 });
 
+/** `chat.saveCorrection` — keep the Rewrite dialog's correction as a chat injection. It lands in the same list
+ *  read, so it keeps that read's invalidation. */
+export const useSaveCorrection = createEntityMutation<inferInput<Trpc["chat"]["saveCorrection"]>, unknown>({
+  options: (trpc) => trpc.chat.saveCorrection.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.chat.listChatInjections.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't keep the correction for this chat.",
+});
+
 /** `chat.deleteChatInjection` — the host-only drop of one positional injection. */
 export const useDeleteChatInjection = createEntityMutation<inferInput<Trpc["chat"]["deleteChatInjection"]>, unknown>({
   options: (trpc) => trpc.chat.deleteChatInjection.mutationOptions(),

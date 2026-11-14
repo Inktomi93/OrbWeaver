@@ -104,6 +104,7 @@ import type {
   ReplayLiveTurnParams,
   RevertContinueParams,
   RevokeInviteParams,
+  SaveCorrectionParams,
   SelectVariantParams,
   SelfLeaveParams,
   SendParams,
@@ -270,6 +271,8 @@ export interface ChatService {
   // ── injections ────────────────────────────────────────────────────────────────
   /** Upsert a persisted positional injection (the `ChatInjection` wire shape). */
   readonly setChatInjection: (params: SetChatInjectionParams) => Promise<ChatInjectionView>;
+  /** Keep a player's correction as a chat injection at the Add placement; the same text again returns the kept row. */
+  readonly saveCorrection: (params: SaveCorrectionParams) => Promise<ChatInjectionView>;
   readonly listChatInjections: (params: ListChatInjectionsParams) => Promise<ChatInjectionView[]>;
   readonly deleteChatInjection: (params: DeleteChatInjectionParams) => Promise<void>;
 
