@@ -1,7 +1,7 @@
 // The active search space resolves an unrecorded owner's encoder through the owner's binding. A binding that cannot
 // resolve is the no-space refusal the retrieval degrade absorbs; any other failure of the lookup surfaces as itself and is
 // logged, never answered as that refusal.
-// @subject packages/server/src/domain/search/substrate/space.ts
+// @subject packages/server/src/domain/search/persistence/space.ts
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { connectionBindings } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";

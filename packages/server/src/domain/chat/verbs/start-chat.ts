@@ -48,13 +48,13 @@ import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contrac
 import type { StartChatParams } from "../contract/params.ts";
 import type { StartChatData, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
+import { resolveAnchor } from "../persistence/anchor.ts";
+import { buildGreetingSeed } from "../persistence/greeting-seed.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { buildInitialParticipantRows } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { assertSeatableCharacters } from "../persistence/seat-characters.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
-import { resolveAnchor } from "../substrate/participants-humans.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
@@ -205,7 +205,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
 
     const targets = greetTargets(policy, characterIds);
     const greetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets) : [];
-    // A founding room has no canon, so its greetings land at seq 1..N (`substrate/greeting-seed` — shared with
+    // A founding room has no canon, so its greetings land at seq 1..N (`persistence/greeting-seed` — shared with
     // the roster verb's F6 in-window join greeting, which appends at the live canon head instead).
     const seed = buildGreetingSeed(ctx, { chatId, now, startSeq: 0, greetings });
     const gameBirth = planGameBirth(ctx, chatId, startAsGame);

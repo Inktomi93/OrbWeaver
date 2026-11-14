@@ -6,7 +6,9 @@
 export type { AutomationOps } from "./contract/ops.ts";
 
 export type { AutomationService, AutomationWatcherEnv } from "./contract/service.ts";
-
+export { createEnabledRuleIndex } from "./engine/enabled-index.ts";
+export { createPluginSubscriberRegistry } from "./engine/plugin-subscribers.ts";
+export { createPluginSuggestionRaiser } from "./engine/plugin-suggestions.ts";
 export { createPromptTransformIndex } from "./engine/prompt-transforms.ts";
 // The plugin tool wire-name rewrite over the `run_tool` arm inside `automation_rules.actions` — a
 // boot step (`entry/boot/migrate-plugin-tool-wire-names`) runs it; automation owns it because it owns the table.
@@ -14,16 +16,13 @@ export { createPromptTransformIndex } from "./engine/prompt-transforms.ts";
 export { migratePluginToolWireNames } from "./persistence/migrate-plugin-tool-wire-names.ts";
 export { createRuleOwnedBy } from "./persistence/rule-owned.ts";
 export { createAutomationService } from "./service.ts";
-export { createEnabledRuleIndex } from "./substrate/enabled-index.ts";
-
-export { createPluginSubscriberRegistry } from "./substrate/plugin-subscribers.ts";
 // B10 — the saved-cast capture belt: roster-preset's compose seam injects this so a cast stores only
 // bags the catalogue itself validated (chat-scope only, full descriptor resolution). One home for the
 // knob law; the caller never re-derives it.
 export { resolveChatRulePresetKnobs } from "./substrate/presets.ts";
 // S4 — the in-RAM pending-ask store (RULED F1). Created ONCE at the composition root and injected on the
-// context, exactly like the enabled-rule index beside it.
-export { createPluginSuggestionRaiser, createSuggestionStore } from "./substrate/suggestions.ts";
+// context, exactly like the enabled-rule index.
+export { createSuggestionStore } from "./substrate/suggestions.ts";
 // S5 — the guidance-delivery teaching contribution (the D145 root slot's third occupant). Front-door ONLY:
 // `entry/compose` registers it onto `ChatContext.teaching`; the cruiser stanza forbids every other importer.
 export { createAutomationTeachingContributions } from "./teaching-contribution.ts";

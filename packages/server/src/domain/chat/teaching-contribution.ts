@@ -37,7 +37,7 @@ import { REACTION_ANONYMOUS_REACTOR, REACTION_WHOLE_MESSAGE_TARGET, reactionNote
 /** The rpg-gather contributor — the rpg gather's injections + tool names, projected onto the teaching contract.
  *
  *  THE `game-state` STAMP is applied HERE (`stampGameState` is its one home). It used to sit at the injections merge
- *  (`substrate/assemble-gather.ts`), which was correct while rpg was the only contributor and became wrong
+ *  (`assembly/gather.ts`), which was correct while rpg was the only contributor and became wrong
  *  the moment the merge went generic: a teaching contribution is not necessarily a game (C1's guidance line
  *  is authors-note register), so a merge-site stamp would mislabel every later contributor's budget
  *  accounting. The stamp's original reason is preserved exactly — the BUILD walk accounts the state block

@@ -1,7 +1,7 @@
 // A re-point whose new image encoder answers the width probe with no vector is refused, and the failure leaves one
 // warning record that names its lens and model: the probe's empty answer is logged where it is thrown, not again by
 // whoever catches it.
-// @subject packages/server/src/domain/embeddings/substrate/generation.ts
+// @subject packages/server/src/domain/embeddings/persistence/generation.ts
 // @subject packages/server/src/domain/embeddings/substrate/embed-failure.ts
 // @subject packages/server/src/domain/embeddings/verbs/sync-target-generations.ts
 

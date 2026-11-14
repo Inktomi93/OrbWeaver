@@ -53,8 +53,17 @@ import {
 } from "./budgets.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, LocalPluginHostSeams, PluginHostSeamDeps } from "./contract/port.ts";
 import { getPluginQuickJS } from "./module.ts";
+import { PLUGIN_INVOCATION_ENDED } from "./process-protocol.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
+
+// The failure an invocation the host ended at its settlement wall throws. Its name is the host's, never the guest's,
+// so the parent can strike it whatever refusal the command also met (D347).
+function invocationEnded(message: string): Error {
+  const ended = new Error(message);
+  ended.name = PLUGIN_INVOCATION_ENDED;
+  return ended;
+}
 
 /** Parse a `[level] message` ring line back into a structured log view; the stamp is the activation clock. */
 const LOG_LINE_RE = /^\[(info|warn|error)\]\s(.*)$/su;
@@ -246,7 +255,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
           const failedSandbox = sandbox;
           sandbox = undefined;
           await retireFailedActivation(failedSandbox, releaseAdmission);
-          return { ok: false, error: outcome.error.message, log: toLog(outcome.logs, at) };
+          return { ok: false, error: outcome.error.message, log: toLog(outcome.logs, at), ...(outcome.ended === true ? { ended: true } : {}) };
         }
         await sandbox.settleActivationJobs();
         // The collected tool + transform + event registrations — the domain hands each to its runtime
@@ -302,16 +311,19 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         // RESIDUE FIRST: whatever a floated continuation logged since the last pickup is retained BEFORE
         // this invocation runs, so it reads in push order ahead of this run's own lines instead of being lost.
         // Inside the serialized slot on purpose — the same ring the guest is about to push into.
-        retainLog(resident, resident.sandbox.drainLog(), seams.nowEpochMs());
+        // One clock read stamps both drains, taken before the guest runs, as activation does. A host call after the
+        // invocation ends can be refused, and that refusal would replace an ended outcome and its strike (D347).
+        const at = seams.nowEpochMs();
+        retainLog(resident, resident.sandbox.drainLog(), at);
         const chatHandle = resident.sandbox.setInvocationChat(chat ?? null);
         const outcome = await resident.sandbox.invokeHandler(handler, typeof argsJson === "string" ? argsJson : argsJson(chatHandle));
         // RETAIN this invocation's drained lines (both arms — a crashing handler's last words are the ones an
-        // operator most wants). The stamp is the injected clock at drain time, the same seam activation uses.
-        retainLog(resident, outcome.logs, seams.nowEpochMs());
+        // operator most wants).
+        retainLog(resident, outcome.logs, at);
         if (!outcome.ok) {
           // A handler throw/deadline is contained data; the domain's crash policy classifies it. Re-throw
           // so the registrar's run() catches it as `threw` (errors-as-data to the model).
-          throw new Error(outcome.error.message);
+          throw outcome.ended === true ? invocationEnded(outcome.error.message) : new Error(outcome.error.message);
         }
         return outcome.value;
       });

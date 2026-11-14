@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-11-12
+updated: 2026-11-14
 ---
 
 # A full plugin IPC queue refuses one frame, never the channel
@@ -27,7 +27,7 @@ The plugin host's processes talk over inherited IPC channels: app to watchdog, w
 - **Host control frames may use the headroom; plugin frames never do.** Control frames are refusals, runtime notices, cancels, disposes and readiness. A refused call owes one refusal frame, and at most `HOST_CALLS_IN_FLIGHT_MAX` calls per runtime are in flight, so every refusal fits. A control frame that does not fit means a broken channel, and the channel fails as before.
 - **The refusal is coded and retryable.** Its name is `PLUGIN_HOST_UNAVAILABLE`, its code `PLUGIN_CHANNEL_FULL_CODE` and its message `PLUGIN_CHANNEL_FULL`. The code crosses every hop to the guest beside the name, so a plugin tells a full channel from a lost host, which has no code, without reading the message.
 - **A host result is refused, never held.** A result too large for its runtime's share is replaced by the refusal at once, so no host memory stays pinned for a plugin that never takes it. The guest may retry.
-- **Strikes follow cause.** A refusal is a conflict and never a strike (D346). A guest that lets its invocation overrun its CPU window copying arguments out takes the strike for that overrun, as for any other runaway invocation. A bystander's frames use its own share, so its calls are never refused for another plugin's flood.
+- **Strikes follow cause.** A refusal is a conflict and never a strike (D346). A guest that leaves a refused call uncaught fails its command, and the command fails as that refusal: the app records a refusal it raises, and the Worker records one raised past the app and sends it on the command's answer. An answer the channel refuses is a refusal itself, so the record cannot be lost to a strike. A guest that lets its invocation overrun its CPU window copying arguments out takes the strike for that overrun, as for any other runaway invocation. A bystander's frames use its own share, so its calls are never refused for another plugin's flood.
 - **The guest's CPU window bounds a flood too.** To fill a runtime's share with megabyte arguments a guest must copy about that many bytes out in one invocation, which ends at its CPU window first (D346). The share is the backstop across invocations and runtimes.
 
 **Homes.**
@@ -36,7 +36,8 @@ The plugin host's processes talk over inherited IPC channels: app to watchdog, w
 - `PluginIpcSender`, `PluginIpcShares` and `relayFrame` in `packages/server/src/infra/plugin-host/process-channel.ts`; `PluginFrameRoute` in `packages/server/src/infra/plugin-host/contract/process-protocol.ts`.
 - `PLUGIN_CHANNEL_FULL`, `CodedHostUnavailableError`, `channelFullBridgeResult` and `channelFullResponse` in `packages/server/src/infra/plugin-host/process-protocol.ts`; `PLUGIN_CHANNEL_FULL_CODE` and `PLUGIN_HOST_REFUSAL_CODES` in `packages/contracts/src/plugin/errors.ts`, mirrored for authors in `packages/plugin-sdk/shared.d.ts`; the guest error's `code` in `packages/server/src/infra/plugin-host/marshal.ts`.
 - `offer`, `answer`, `forwardBridge` and the share holds in `packages/server/src/infra/plugin-host/broker-entry.ts`; the relays in `packages/server/src/infra/plugin-host/broker-watchdog.ts`; `command` and `sendBridgeResult` in `packages/server/src/infra/plugin-host/process-runtime.ts`.
-- Tests: `tests/server/infra/plugin-host/persistence/bridge-flood.int.test.ts`, `tests/server/infra/plugin-host/process-channel.test.ts` and `tests/server/infra/plugin-host/broker-share-release.int.test.ts`.
+- The refusal record: `hostRefusals` and `cleanupFailedActivation` in `packages/server/src/infra/plugin-host/process-runtime.ts`, `recordRefusal` in `packages/server/src/infra/plugin-host/worker-runtime.ts`, and `CommandResponse` in `packages/server/src/infra/plugin-host/contract/process-protocol.ts`.
+- Tests: `tests/server/infra/plugin-host/persistence/bridge-flood.int.test.ts`, `tests/server/infra/plugin-host/persistence/relayed-refusal-strikes.int.test.ts`, `tests/server/infra/plugin-host/process-channel.test.ts` and `tests/server/infra/plugin-host/broker-share-release.int.test.ts`.
 
 ## Consequences
 

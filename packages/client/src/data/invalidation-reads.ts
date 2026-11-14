@@ -104,7 +104,7 @@ export function promptPreviewReads(trpc: Trpc): readonly InvalidateQueryFilters[
 // consumer. It is a SEPARATE set rather than a line inside `chatCanonReads` because it is not canon and does
 // not ride the preview/fit family; it rides the CANON TERMINALS (this is where a turn's `{{setvar}}` delta
 // and every automation `set_variable`/analysis-score write land — `chat/engine/engine.ts`,
-// `chat/substrate/variable-ops.ts`) and, through `chatReads` below, every event that RE-FOLDS it: a swipe
+// `chat/verbs/apply-standalone-variable-ops.ts`) and, through `chatReads` below, every event that RE-FOLDS it: a swipe
 // selects a different lineage's fold and an edit/delete/reorder re-folds the remaining chain
 // (`chat/verbs/edit.ts` — three `runtimeVariablesUpdateStatement` call sites, one per family).
 //

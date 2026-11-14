@@ -3,7 +3,7 @@
 // live sessions.
 //
 // THE CREDENTIAL WRITE, ITS AUDIT ROW AND THE SESSION KICK ARE ONE BATCH (
-// `substrate/audited-write.ts`). They used to be three sequential awaits, and the middle one is a real DB
+// `persistence/audited-write.ts`). They used to be three sequential awaits, and the middle one is a real DB
 // write that can reject: a failed kick rejected the endpoint with the NEW password already committed and
 // every OLD session still live — precisely the state an urgent reset exists to end, reported to the admin as
 // a failure they would retry. (The audit tail failed the other way: `logAudit` swallows, so a degraded audit
@@ -26,8 +26,8 @@ import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { ResetPasswordParams } from "../contract/params.ts";
 import type { AdminContext, AdminService } from "../contract/service.ts";
 import { isBootstrapOwnerRole, isOwner, requireAdmin } from "../guard.ts";
+import { commitAuditedWrite } from "../persistence/audited-write.ts";
 import { loadUser } from "../persistence/queries.ts";
-import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 export function createResetPassword(ctx: AdminContext): AdminService["resetPassword"] {
   return async (params: ResetPasswordParams) => {

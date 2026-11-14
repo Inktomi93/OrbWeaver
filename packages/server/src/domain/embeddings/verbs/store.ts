@@ -35,6 +35,7 @@ import type {
   StoreParams,
 } from "../contract/params.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
+import { resolveTargetGeneration } from "../persistence/generation.ts";
 import {
   existingCaptionedRow,
   existingCharacterHash,
@@ -47,7 +48,6 @@ import {
   upsertImageEmbedding,
 } from "../persistence/queries.ts";
 import { embedFailure } from "../substrate/embed-failure.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
 
 function assertNever(value: never): never {

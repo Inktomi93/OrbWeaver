@@ -2,7 +2,7 @@
 // and a raw ZIP install stores its manifest exactly before a narrower grant flags the stored row for reconsent.
 // @subject packages/server/src/domain/notifications/verbs/standing.ts
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
-// @subject packages/server/src/domain/plugin/substrate/consent-prompt.ts
+// @subject packages/server/src/domain/plugin/consent/consent-prompt.ts
 // @subject tests/support/node/factories/plugin.ts
 
 import { MS_PER_SECOND } from "@orb/kit/time";

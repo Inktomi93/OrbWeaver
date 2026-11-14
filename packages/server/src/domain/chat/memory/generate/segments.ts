@@ -15,7 +15,7 @@
 // interleaved). `collectSegments` does the db reads + chunking + hash gate + shrink prune for ONE chat and
 // returns the pending chunk writes; `storeSegments` hands a batch to the embeddings op, which embeds every
 // chunk in ONE flood and then writes the rows. `generateSegments` = both, for the live post-turn path; the
-// backfill collects the WHOLE corpus first and stores once (`substrate/backfill.ts`).
+// backfill collects the WHOLE corpus first and stores once (`memory/backfill/backfill.ts`).
 //
 // SELF-HEAL on the content hash (a swipe/edit at the protected tip never touches a settled segment).
 // DETERMINISM (D46): blockIdx order; injected embed; no clock/random. NO ownerId (D20 — chat FK derives owner).

@@ -101,7 +101,6 @@ import {
   loadGenerationObservationsForRemoval,
 } from "../persistence/generation-observation.ts";
 import { loadMessageAssetLinks } from "../persistence/message-asset-links.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
 import { isCharacterSeated, loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadAuthoredUserMessageIds,
@@ -117,16 +116,17 @@ import {
   retainOpenGreetingWindow,
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats, prepareRetainedCanonStats } from "../persistence/retained-canon.ts";
-import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
+import { runtimeVariablesUpdateStatement } from "../persistence/runtime-variables.ts";
 import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assembly-access.ts";
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { projectViewReturnForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
+import { classifyParticipant } from "../substrate/participant-actor.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { hostConsentOf, humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
-import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
+import { foldChain } from "../substrate/runtime-variables.ts";
 import {
   appendStatsDeltas,
   canonMessageDelta,
@@ -309,8 +309,7 @@ async function applyRunOnEditRegex(
   if (scripts.length === 0) {
     return args.content;
   }
-  const assembleContext = await gatherAssembleContext(
-    ctx,
+  const assembleContext = await ctx.gatherAssembleContext(
     { chatId, runAsUserId: hostUserId, model, characterIds, personaIds, timeZone: args.timeZone, prng: deps.prng, choicePicks: "stable" },
     foreign,
   );
@@ -457,8 +456,7 @@ async function freezeSelectedVariant(
     trigger: { kind: "human", userId: args.selectorUserId, personaId: args.selectorPersonaId },
     voice: "anchor",
   });
-  const assembleContext = await gatherAssembleContext(
-    ctx,
+  const assembleContext = await ctx.gatherAssembleContext(
     {
       chatId: args.chatId,
       runAsUserId: hostUserId,

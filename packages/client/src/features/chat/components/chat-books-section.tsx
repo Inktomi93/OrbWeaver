@@ -4,7 +4,7 @@
 // could only ever carry the books someone else's code had put there.
 //
 // ATTACHMENT IS THE ROOM'S CONSENT, SO THE RACK SAYS SO. `domain/automation` refuses an
-// `insert_world_info_entry` rule at MINT (`substrate/validate.ts`) and again at FIRE
+// `insert_world_info_entry` rule at MINT (`persistence/validate.ts`) and again at FIRE
 // (`engine/arm-executors.ts:110` — "the attachment IS the room's consent") unless the target book is
 // attached to that chat. Attaching therefore grants this room's rules WRITE reach into the book, not just a
 // read of it, and the gloss states that in words before the host ever opens the picker. It is not the only
