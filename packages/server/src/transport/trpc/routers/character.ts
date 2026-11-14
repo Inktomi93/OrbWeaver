@@ -6,7 +6,7 @@
 import {
   characterAvatarNamesInputSchema,
   characterAvatarNamesResultSchema,
-  characterBulkTagResultSchema,
+  characterBulkResultSchema,
   characterCensusInputSchema,
   characterDetailSchema,
   characterListInputSchema,
@@ -120,7 +120,7 @@ export const characterRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.character.duplicate({ principal: ctx.auth, characterId: input.characterId })),
 
   bulkRemove: authedProcedure
-    .output(z.void())
+    .output(characterBulkResultSchema)
     .input(z.strictObject({ characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1) }))
     .mutation(({ ctx, input }) => ctx.services.character.bulkRemove({ principal: ctx.auth, characterIds: input.characterIds })),
 
@@ -142,7 +142,7 @@ export const characterRouter = t.router({
         characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1),
       }),
     )
-    .output(characterBulkTagResultSchema)
+    .output(characterBulkResultSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.character.bulkAddCardTag({
         principal: ctx.auth,
@@ -158,7 +158,7 @@ export const characterRouter = t.router({
         characterIds: z.array(typeIdSchema(ID_PREFIX.character)).min(1),
       }),
     )
-    .output(characterBulkTagResultSchema)
+    .output(characterBulkResultSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.character.bulkRemoveCardTag({
         principal: ctx.auth,

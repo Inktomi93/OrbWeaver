@@ -90,6 +90,7 @@ export function createChatService(
       newMessageAssetId: ctx.newMessageAssetId,
       newChatTurnId: ctx.newChatTurnId,
       applyStatsDelta: ctx.applyStatsDelta,
+      settleRetainedChatRebase: ctx.settleRetainedChatRebase,
       resolveRetainedChatAccountingScope: ctx.resolveRetainedChatAccountingScope,
       emitChatChanged: ctx.emitChatChanged,
       applyRegexReplace: ctx.applyRegexReplace,

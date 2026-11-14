@@ -15,9 +15,9 @@
 // their own id instead of an index zip). The verb used to rethrow the first rejection unchanged, which
 // laundered a partial success into one opaque failure for the whole batch — the caller could not tell which
 // characters had, in fact, kept the tag. It now RESOLVES with the honest per-item split
-// (`buildBulkTagResult`, `contracts/character`'s `CharacterBulkTagResult`) instead.
+// (`buildBulkTagResult`, `contracts/character`'s `CharacterBulkResult`) instead.
 
-import type { CharacterBulkTagResult } from "@orb/contracts/character";
+import type { CharacterBulkResult } from "@orb/contracts/character";
 import type { BulkAddCardTagParams } from "../contract/params.ts";
 import type { BulkTagOutcome } from "../contract/results.ts";
 import type { CharacterContext, CharacterService } from "../contract/service.ts";
@@ -25,7 +25,7 @@ import { loadOwnedCharacterRow } from "../persistence/queries.ts";
 import { buildBulkTagResult } from "../substrate/bulk-tag-result.ts";
 
 export function createBulkAddCardTag(ctx: CharacterContext): CharacterService["bulkAddCardTag"] {
-  return async ({ principal, tagName, characterIds }: BulkAddCardTagParams): Promise<CharacterBulkTagResult> => {
+  return async ({ principal, tagName, characterIds }: BulkAddCardTagParams): Promise<CharacterBulkResult> => {
     const ownerId = principal.userId;
     const name = tagName.trim();
     if (name === "") {

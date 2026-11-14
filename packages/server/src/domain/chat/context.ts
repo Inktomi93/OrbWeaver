@@ -4,6 +4,9 @@
 // gather in `assembly/` with its `memory/` reads, the `memory/backfill/` sweeps, and the memory view and strikes. Core-0 §4 wires a runtime
 // op at the composition root; `service.ts` injects `recallMemory` into the engine the same way.
 
+import type { CanonAdmission, CanonRetirement } from "@orb/contracts/stats";
+import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/query";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import { gatherAssembleContext } from "./assembly/gather.ts";
 import type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
@@ -32,6 +35,22 @@ export function createChatContext(input: ChatAssemblyContext): ChatContext {
     bumpStatsCanonVersion: (batch, _db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), input.db, ownerId),
     shiftCharacterCensus: (batch, _db, shift) => input.shiftCharacterCensus(batchHandle(batch), input.db, shift),
     recordLedgerSpend: (batch, _db, spend) => input.recordLedgerSpend(batchHandle(batch), input.db, spend),
+    prepareCanonRetirement: async (_db, scope): Promise<CanonRetirement<BatchStmt[], Db>> => {
+      const retirement = await input.prepareCanonRetirement(input.db, scope);
+      return {
+        beforeDelete: (batch) => retirement.beforeDelete(batchHandle(batch), input.db),
+        afterDelete: (batch) => retirement.afterDelete(batchHandle(batch), input.db),
+        refused: retirement.refused,
+      };
+    },
+    prepareCanonAdmission: async (_db, room): Promise<CanonAdmission<BatchStmt[], Db>> => {
+      const admission = await input.prepareCanonAdmission(input.db, room);
+      return {
+        beforeSeat: (batch) => admission.beforeSeat(batchHandle(batch), input.db),
+        afterSeat: (batch) => admission.afterSeat(batchHandle(batch), input.db),
+        refused: admission.refused,
+      };
+    },
     gatherAssembleContext: (...args) => gatherAssembleContext({ ctx, memoryOps: { recallMemory, loadTranscriptNames } }, ...args),
     memoryStrikes: {
       view: (args) => buildMemoryView(ctx, args),

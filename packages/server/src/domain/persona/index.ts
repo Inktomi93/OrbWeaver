@@ -13,6 +13,7 @@ export { createBulkImportPersonas, createFindOwnedPersonas } from "./persistence
 // in-memory `personaByUserName` map is not available to it).
 export { createFindOwnedPersonaByName } from "./persistence/owned-name.ts";
 export { createPersonaOwned } from "./persistence/ownership-ops.ts";
+export { createLoadPersonaAvatars } from "./persistence/room-avatars.ts";
 export { createDefaultPersonaSeeder } from "./seeder/default.ts";
 export { createPersonaService } from "./service.ts";
 export { createFindSeededDefault } from "./verbs/find-seeded-default.ts";
