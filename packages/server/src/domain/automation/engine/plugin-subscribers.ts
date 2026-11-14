@@ -1,8 +1,8 @@
-// domain/automation/substrate/plugin-subscribers — the plugin `events.on` fan-out (the
+// domain/automation/engine/plugin-subscribers — the plugin `events.on` fan-out (the
 //  01 §2 TriggerFact is the delivered shape). A plugin's `events.on` handler is a NON-RULE
 // consumer of the SAME resolved `TriggerFact` the rule dispatch consumes. The membrane host (infra/plugin-host,
 // injected UP at compose) registers a subscriber into this in-process registry; the watcher front door
-// (`substrate/handle-event`) fans every resolved fact to the matching, AUTHORIZED subscribers.
+// (`engine/handle-event`) fans every resolved fact to the matching, AUTHORIZED subscribers.
 //
 // THREE load-bearing gates, ALL fail-closed (this delivers to UNTRUSTED guests):
 //   (a) CASCADE-DEPTH — the SAME guard the rule dispatch runs (`AUTOMATION_DEPTH_HARD_CAP`, homed in @orb/contracts/chat):
@@ -155,7 +155,7 @@ async function resolveFactVisibility(deps: VisibilityDeps, installer: UserId, fa
     return { visible: true, readsHidden: visibility.readsHidden };
   }
   // The chat-less DOMAIN arm — OWNERSHIP of the row the fact names, resolved through the ONE home
-  // (`substrate/fact-scope.ts`) the owner-global RULE gate also reads, so the two consumers of that question
+  // (`engine/fact-scope.ts`) the owner-global RULE gate also reads, so the two consumers of that question
   // cannot answer it differently. `readsHidden: true` because a chat-less fact carries no canon body to
   // strip. A fact naming no owned row is fail-CLOSED inside `ownsFactSubject`.
   return { visible: await ownsFactSubject(deps.db, fact, installer), readsHidden: true };

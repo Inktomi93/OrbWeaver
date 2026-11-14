@@ -1,4 +1,4 @@
-// domain/automation/substrate/cel-env — build the LIVE CEL activation for a dispatch. Where the
+// domain/automation/engine/cel-env — build the LIVE CEL activation for a dispatch. Where the
 // dry-run runs over an empty/host-supplied env, this reads the REAL planes for a firing rule: the chat's
 // runtime fold cache (`vars`) + config-plane picks (`choice`) through the injected chat ops, the rule AUTHOR's
 // per-user globals (never the triggering member's namespace) and the narrow chat projection. The resolved

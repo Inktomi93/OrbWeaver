@@ -37,14 +37,14 @@ import type { AutomationFireId, ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ArmOutcome, ArmsResult, DispatchFrame, DispatchOptions, DispatchSummary, ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext } from "../contract/service.ts";
+import { holdsChatHostAuthority, holdsOwnerAuthority } from "../persistence/authority.ts";
 import { commitReservedFire, finalizeReservedFire, insertFire, releaseFireReservation, reserveFireBudget } from "../persistence/fires.ts";
 import { disableRule, recordRuleError, stampRuleFired } from "../persistence/rules.ts";
-import { holdsChatHostAuthority, holdsOwnerAuthority } from "../substrate/authority.ts";
-import { buildCelEnv } from "../substrate/cel-env.ts";
 import { evaluatePredicate, ruleClock } from "../substrate/dry-run.ts";
-import { ownsFactSubject } from "../substrate/fact-scope.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS, invitesOnRefusal, summarizeRateRefusal } from "../substrate/suggestions.ts";
 import { checkBudget } from "./budget-gate.ts";
+import { buildCelEnv } from "./cel-env.ts";
+import { ownsFactSubject } from "./fact-scope.ts";
 
 // The hard cascade-depth cap is homed ONCE in `@orb/contracts/chat` (turn-origin depth vocabulary, below both
 // chat + automation — chat's `requestTurn` write-side belt cannot import automation, so the shared home must
@@ -194,7 +194,7 @@ async function onRuleError(
 }
 
 /** The author still holds the STANDING AUTHORITY this rule's scope requires — re-proven per fire, never
- *  trusted from the mint. Both predicates live in `substrate/authority` (ONE home: the dispatch gate, the S4
+ *  trusted from the mint. Both predicates live in `persistence/authority` (ONE home: the dispatch gate, the S4
  *  confirm re-check and the handoff VOID sweep must never answer this differently).
  *
  *  The two scopes ask different questions because they HAVE different answers, not because the global lane is

@@ -588,6 +588,6 @@ export async function runRunAnalysis(deps: ArmExecutorDeps, action: RunAnalysisA
   return routed.suggested ? { ok: true, suggested: true } : { ok: true };
 }
 
-// The CONFIRM side of the `{via:"analysis"}` payload arm lives in `substrate/analysis-confirm.ts` — the
+// The CONFIRM side of the `{via:"analysis"}` payload arm lives in `persistence/analysis-confirm.ts` — the
 // verb-facing mediation surface (`domain-substrate-mediates-subsystems`: a verb reaches a named subsystem
 // only through substrate/, and the confirm verb is its one caller).

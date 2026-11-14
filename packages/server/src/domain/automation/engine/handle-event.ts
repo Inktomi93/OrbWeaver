@@ -1,5 +1,4 @@
-// domain/automation/substrate/handle-event — the watcher front door. SUBSTRATE mediates
-// the verbs↔subsystem seam (the engine is a named subsystem verbs can't reach directly). The watcher subsystem
+// domain/automation/engine/handle-event — the watcher front door, wired by the service root. The watcher subsystem
 // stays dumb and hands every bus event here; this does the cheap in-process pre-check (skip a chat with no
 // enabled rule / a domain event with no enabled domain rule — no DB touch), resolves the taxonomy fact ONCE,
 // loads the matched enabled rules (one indexed read), and runs the dispatch sequence. SELF-SAFE: the whole
@@ -21,12 +20,12 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ResolvedTrigger, RuleRow } from "../contract/ops.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
-import { runDispatch } from "../engine/dispatch.ts";
+import { askActorStillStands } from "../persistence/authority.ts";
 import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rules.ts";
-import { askActorStillStands } from "./authority.ts";
-import { resolveTrigger } from "./fact-resolver.ts";
+import { resolveTrigger } from "../substrate/fact-resolver.ts";
+import { automationChatLaneKey, automationDomainLaneKey } from "../substrate/serial-lanes.ts";
+import { runDispatch } from "./dispatch.ts";
 import { fanOutToPluginSubscribers } from "./plugin-subscribers.ts";
-import { automationChatLaneKey, automationDomainLaneKey } from "./serial-lanes.ts";
 
 type BusEvent = ChatBusEvent | DomainEvent;
 

@@ -1,4 +1,4 @@
-// domain/automation/substrate/authority — the ONE "does this user still hold host on this chat" predicate,
+// domain/automation/persistence/authority — the ONE "does this user still hold host on this chat" predicate,
 // and the ONE "does this ask's actor still stand" predicate the S4 confirm re-check and the void sweep share.
 //
 // Three planes ask the host question and must not answer it differently: the dispatch gate (a rule fires only
@@ -13,8 +13,8 @@
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AuthorityDeps, PendingSuggestion } from "../contract/ops.ts";
-import { loadMembershipInstance } from "../persistence/ask-standing.ts";
-import { loadCallerRole } from "../persistence/canon-reads.ts";
+import { loadMembershipInstance } from "./ask-standing.ts";
+import { loadCallerRole } from "./canon-reads.ts";
 
 /** C5 — the OWNER-GLOBAL twin of {@link holdsChatHostAuthority}: may this author's chat-less rules still act?
  *

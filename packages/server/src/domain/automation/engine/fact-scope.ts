@@ -1,7 +1,7 @@
-// domain/automation/substrate/fact-scope — the ONE reading of "which domain row does this CHAT-LESS fact
+// domain/automation/engine/fact-scope — the ONE reading of "which domain row does this CHAT-LESS fact
 // name?", and therefore the one home of the ownership question two independent consumers ask about it:
 //
-//   • the PLUGIN fan-out's visibility gate — may this installer SEE this fact? (`substrate/plugin-subscribers`)
+//   • the PLUGIN fan-out's visibility gate — may this installer SEE this fact? (`engine/plugin-subscribers`)
 //   • the OWNER-GLOBAL rule gate — may this author's chat-less rule ACT on this fact? (`engine/dispatch`)
 //
 // They are different questions with the same answer shape, and they MUST agree, which is why the mapping
@@ -13,7 +13,7 @@
 // authority is re-checked against that room's roster), so the gate arrives WITH the global lane.
 //
 // A CHAT-SCOPED fact returns `null` here and is NOT this module's business: its scope is a room, answered by
-// membership/host authority in `substrate/authority.ts`.
+// membership/host authority in `persistence/authority.ts`.
 
 import type { TriggerFact } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";

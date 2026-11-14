@@ -6,7 +6,7 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import { createSerialLanes } from "@orb/kit/serial-lanes";
 import type { AutomationContext, AutomationService, AutomationServiceDeps } from "./contract/service.ts";
 import { createArmExecutors } from "./engine/arm-executors.ts";
-import { createHandleEvent } from "./substrate/handle-event.ts";
+import { createHandleEvent } from "./engine/handle-event.ts";
 import { createConfirmSuggestion } from "./verbs/confirm-suggestion.ts";
 import { createCreateRule, createPlanRule } from "./verbs/create-rule.ts";
 import { createCreateRuleFromPreset } from "./verbs/create-rule-from-preset.ts";

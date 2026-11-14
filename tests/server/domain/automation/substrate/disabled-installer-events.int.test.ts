@@ -2,7 +2,7 @@
 // it; the next event reaches the guest once the member is re-enabled. The delivery rechecks the member's standing
 // after the fan-out admitted it, so a member disabled while the delivery is queued has no guest run either. A guest
 // already running when its member is disabled has every later host call on that member's account refused.
-// @subject packages/server/src/domain/automation/substrate/plugin-subscribers.ts
+// @subject packages/server/src/domain/automation/engine/plugin-subscribers.ts
 // @subject packages/server/src/domain/chat/verbs/plugin-authority.ts
 // @subject packages/server/src/domain/plugin/verbs/registrar-ops.ts
 // @subject packages/server/src/domain/plugin/substrate/bridge.ts

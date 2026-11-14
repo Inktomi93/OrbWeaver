@@ -18,7 +18,7 @@
 // types a TypeID from memory. Its three non-pickable states are SAID rather than rendered as an empty
 // dropdown: loading, a failed read (the shared boundary's skeleton and error), and — the honest one — a room with no world books attached, which no
 // picker can invent. The mint's own refusal stays reachable behind all of it: attachment is a LIVE fact
-// (`domain/automation/substrate/validate.ts`), so a book listed at render can stop qualifying before the
+// (`domain/automation/persistence/validate.ts`), so a book listed at render can stop qualifying before the
 // press, and that refusal rides `mintFailureToast`.
 
 import type {
@@ -173,7 +173,7 @@ function ChoiceKnobField({
 }
 
 /** The lorebook chooser — the ONE `entityRef` entity that ships (#630). Reads the books attached to THIS
- *  chat, which is the same set `substrate/validate.ts` will accept at mint, so a listed option is a book
+ *  chat, which is the same set `persistence/validate.ts` will accept at mint, so a listed option is a book
  *  the mint can take.
  *
  *  The read suspends under the knob's own `QueryBoundary`, so the row says loading or failed in place and
@@ -182,7 +182,7 @@ function ChoiceKnobField({
  *  THE EMPTY ARM NOW POINTS SOMEWHERE (#640). It used to prescribe nothing on purpose — no client affordance
  *  attached a book to a chat, so a "go attach one" line would have pointed at a door that was not there. The
  *  door exists now: the "This chat" tab's World books section (`features/chat/chat-books-section.tsx`), which
- *  is the SAME attachment `substrate/validate.ts` gates the mint on, so the sentence names the one place
+ *  is the SAME attachment `persistence/validate.ts` gates the mint on, so the sentence names the one place
  *  that makes this card completable. */
 function WorldInfoBookKnobField({ chatId, ...props }: KnobFieldProps): ReactElement {
   // The SPLIT is a hooks-rules fix, not decoration: the chat arm runs a suspending read, so the chat-less arm

@@ -1,4 +1,4 @@
-// domain/automation/substrate/notification-recipients — THE ONE resolution of a `NotificationRecipient`
+// domain/automation/persistence/notification-recipients — THE ONE resolution of a `NotificationRecipient`
 // selector into the concrete inbox rows a notice is written to. Both producers of the `automation-notice`
 // event resolve here: the `post_notification` ARM (`engine/arm-executors`, host = the rule author) and the
 // PLUGIN `notify` capability (wired at `entry/compose/automation-plugin`, host = the installer). They differ
@@ -16,7 +16,7 @@
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { NotificationRecipientQuery } from "../contract/ops.ts";
-import { loadPresentHumanMemberIds } from "../persistence/canon-reads.ts";
+import { loadPresentHumanMemberIds } from "./canon-reads.ts";
 
 /** Resolve a recipient selector into the users whose inbox receives the notice. The query shape (and WHY
  *  `actorUserId` is unbranded and nullable) is `contract/ops.ts::NotificationRecipientQuery`. */

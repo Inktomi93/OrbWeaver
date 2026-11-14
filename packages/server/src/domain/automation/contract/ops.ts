@@ -281,7 +281,7 @@ export interface AutomationOps {
      *  own PL-C invocation ceiling is not sufficient for this question).
      *
      *  TWO callers, one predicate, two meanings for `false` — this is the D146-d hinge:
-     *    • the MINT gate (`substrate/validate.ts`) ⇒ a typed refusal; the rule is never stored.
+     *    • the MINT gate (`persistence/validate.ts`) ⇒ a typed refusal; the rule is never stored.
      *    • the per-fire PAUSE gate (`engine/dispatch.ts::runGates`) ⇒ the rule pauses, spending nothing.
      *  Synchronous because the registry is an in-process Map — a per-fire gate must cost nothing. */
     readonly isToolDrivableBy: IsToolDrivableByOp;
@@ -319,7 +319,7 @@ export interface AutomationOps {
 /** The domain rows a CHAT-LESS `TriggerFact` can reference — one per domain-bus event. Homed HERE (the
  *  domain's type home) rather than beside the read it drives, because TWO independent consumers ask about it:
  *  the plugin fan-out's visibility gate and the owner-global rule gate, through the one mapping in
- *  `substrate/fact-scope.ts`.
+ *  `engine/fact-scope.ts`.
  *
  *  IT GREW TO FOUR WITH S7 AND THAT IS THE POINT. The visibility gate's chat-less arm was `character`/`asset`
  *  with a fail-CLOSED default, which was correct while the trigger tuple had two domain members. Widening the
@@ -331,7 +331,7 @@ export const DOMAIN_ROW_KINDS = ["character", "asset", "persona", "worldBook"] a
 export type DomainRowKind = (typeof DOMAIN_ROW_KINDS)[number];
 
 /** The domain row one chat-less fact references — the `(kind, id)` pair an ownership read takes
- *  (`substrate/fact-scope.ts` resolves it; both gates consume it). */
+ *  (`engine/fact-scope.ts` resolves it; both gates consume it). */
 export interface FactSubject {
   readonly kind: DomainRowKind;
   readonly id: string;
@@ -405,7 +405,7 @@ export interface PromptTransformIndex {
   readonly isStale: () => boolean;
 }
 
-/** C6 — the inputs a `NotificationRecipient` selector resolves against (`substrate/notification-recipients`).
+/** C6 — the inputs a `NotificationRecipient` selector resolves against (`persistence/notification-recipients`).
  *  Homed here rather than beside the resolver because it is the SHARED shape of two producers: the
  *  `post_notification` arm (host = the rule author, actor = the triggering fact's message author) and the
  *  plugin `notify` path wired at compose (host = the installer, actor = none).
@@ -563,7 +563,7 @@ interface PendingSuggestionBase {
   /** The identity a confirmed execution runs AS: the rule AUTHOR, or the plugin's INSTALLER. The confirmer is
    *  the AUTHORIZER only (§3-S4: ownership, funding and the variable namespace all key off this user, never
    *  off who clicked). It is also the user whose standing the confirm re-check and the void sweep re-prove,
-   *  per origin (`substrate/authority.ts::askActorStillStands`): a rule author must still host, a plugin
+   *  per origin (`persistence/authority.ts::askActorStillStands`): a rule author must still host, a plugin
    *  installer must still hold the membership the ask recorded, under the host it recorded. */
   readonly actorUserId: UserId;
   readonly expiresAt: number;
@@ -627,7 +627,7 @@ export type ApplyProseRewrite = (req: {
   readonly content: string;
 }) => Promise<void>;
 
-/** What the analysis CONFIRM executor (`substrate/analysis-confirm.ts`) needs — a subset of the verb's ctx
+/** What the analysis CONFIRM executor (`persistence/analysis-confirm.ts`) needs — a subset of the verb's ctx
  *  (db + the injected ops + the claim-time clock value + C3's confirm-only rewrite op). Homed here beside the
  *  payload union it executes: the deps name `AutomationOps`, and a home in `contract/analysis.ts` would make
  *  `analysis ⇄ ops` a cycle. */
@@ -677,7 +677,7 @@ export interface SuggestionStore {
 
 /** What the "does this user still hold host here" predicate needs — a SUBSET of the `AutomationContext`,
  *  so the dispatch passes its own ctx and a verb passes its own. The predicate itself is ONE home
- *  (`substrate/authority.ts`): the dispatch gate, the S4 confirm re-check and the host-handoff VOID sweep
+ *  (`persistence/authority.ts`): the dispatch gate, the S4 confirm re-check and the host-handoff VOID sweep
  *  must never answer it differently. */
 export interface AuthorityDeps {
   readonly db: Db;
