@@ -73,7 +73,7 @@ export { SkeletonRows } from "./skeleton-rows.tsx";
 export { completeReauth } from "./stale-session.ts";
 export { requireQueryBoundary, useSuspenseInfiniteQuery, useSuspenseQueries, useSuspenseQuery } from "./suspense-reads.ts";
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
-export { createTrpcClient, createTrpcProxy, roomRosterOptions, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
+export { createTrpcClient, createTrpcProxy, RIDES_ALONE, roomRosterOptions, roomTailOptions, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
 export { UploadRefusedError } from "./upload-asset.ts";
 export { DocumentUploadRefusedError, uploadDocument } from "./upload-document.ts";
 export { useCardFrameSrc } from "./use-card-frame.ts";

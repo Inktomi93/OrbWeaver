@@ -25,7 +25,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
 import type { Trpc } from "#data";
-import { forgetGoneRoom, roomRosterOptions, useTRPC } from "#data";
+import { forgetGoneRoom, roomRosterOptions, roomTailOptions, useTRPC } from "#data";
 import { trpcErrorCode } from "#lib";
 import { leaveGoneRoom } from "../lib/gone-room-draft.ts";
 
@@ -84,7 +84,7 @@ export function useRoomRead(chatId: ChatId): RoomRead {
   const roster = useQuery(roomRosterOptions(trpc, { chatId }));
   // Observed, never fetched here: the transcript owns this read and starts it in its own render, so the two reads leave as separate
   // requests and a slow transcript never holds the roster (and the composer) behind it.
-  const canon = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId }), enabled: false });
+  const canon = useQuery({ ...roomTailOptions(trpc, { chatId }), enabled: false });
   const read = roomReadOf(roster, settledNotFound(roster) || settledNotFound(canon));
   const gone = read.kind === "gone";
   useEffect(() => {

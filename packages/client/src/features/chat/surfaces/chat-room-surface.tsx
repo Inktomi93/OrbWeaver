@@ -20,7 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { Fragment, useDeferredValue, useId, useRef } from "react";
 import type { ChatBusDeps } from "#data";
-import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
+import { roomTailOptions, SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
@@ -392,7 +392,7 @@ function ComposerSlot({
   readonly mediaContributions: readonly ReactNode[];
 }): ReactElement {
   const trpc = useTRPC();
-  const { data: messagesPage } = useQuery(trpc.chat.listMessages.queryOptions({ chatId }));
+  const { data: messagesPage } = useQuery(roomTailOptions(trpc, { chatId }));
   // The raw tail IS the tail a reader means (D124: every canon row is a real message now).
   const tail = messagesPage?.messages.at(-1);
   const tailRole: MessageRole | null = tail?.role ?? null;
