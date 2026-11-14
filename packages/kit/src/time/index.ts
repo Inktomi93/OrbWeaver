@@ -104,18 +104,10 @@ export function isoToMs(value: string): number | null {
   return exactInstantMs(value) ?? naiveIsoMs(value);
 }
 
-// Numeric epochs and naive ISO have separate deterministic rules from ST humanized wall-clock forms. ST
-// writes those forms from local Date getters (RossAscends-mods.js humanizedDateTime) and reads meridiem
-// form through utils.js parseTimestamp without a Z. Treating them as UTC shifts instants by the writing
-// zone's offset, including DST.
-//
-// The boundary must name that zone explicitly. The parser takes a required zone; hostTimeZone is the one
-// sanctioned resolver for the source box, never an ambient parser read.
-
 /** The IANA zone name of the host process — the ONE sanctioned ambient-zone read (this module is the
- *  one home for raw `Intl`). For a foreign corpus whose wall-clock timestamps carry no zone,
- *  the importing box's zone is the only honest guess and is exactly what the writing app used when the
- *  corpus is imported where it was produced. Falls back to `"UTC"` on an ICU build that reports none. */
+ *  one home for raw `Intl`): the viewer's zone a displayed time renders in. Never an input to an identity;
+ *  a zone-less SillyTavern date is read as UTC by rule (D290). Falls back to `"UTC"` on an ICU build that
+ *  reports none. */
 export function hostTimeZone(): string {
   // This time seam owns zone resolution and memoized formatter construction; remove when time formatting moves off Intl or out of this module.
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -132,8 +124,8 @@ const END_OF_DAY_HOUR = 24;
  *  forward and a fall-back AMBIGUOUS one takes the earlier offset (`tests/kit/time/temporal-parse.test.ts` pins both edges).
  *
  *  `zone` must be an IANA name or a numeric `±HH:MM` offset; the luxon parser this replaced also took
- *  the non-IANA `UTC+2` spelling, which now reads null (no producer emits it — every live caller passes
- *  {@link hostTimeZone} or the serde's `"UTC"` default). Non-integer / non-finite parts read null too,
+ *  the non-IANA `UTC+2` spelling, which now reads null (no producer emits it — the chat serde passes
+ *  `"UTC"`). Non-integer / non-finite parts read null too,
  *  which is what this contract always PROMISED — luxon THREW on them. */
 export function wallClockToMs(
   parts: { readonly year: number; readonly month: number; readonly day: number; readonly hour: number; readonly minute: number; readonly second: number },

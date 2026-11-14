@@ -43,6 +43,7 @@ export function createImportWorkloadDrivers(deps: ImportDriverDeps): ImportWorkl
           failed: report.skippedCards.length,
           mergedKeys: report.personasMergedKeys,
           found: report.found,
+          ...report.held,
           memoryScope: await deps.settleMemory({ ownerId: args.ownerId, from, memoryChatIds: report.memoryChatIds }),
         };
         if (reportPath !== undefined) {

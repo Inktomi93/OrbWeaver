@@ -5,10 +5,9 @@ import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portabili
 import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "@orb/contracts/regex";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
-import type { ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { ImportStandaloneLorebooks, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { SchemaTableName } from "@orb/db/wiring";
 import type { Clock } from "@orb/kit/time";
-import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsAssemblyContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportAvatarStore, createImportGallery } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
@@ -30,6 +29,7 @@ import type { TagAssemblyContext } from "#domain/tag";
 import { createImportedCardTag, createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
+import { NEVER_ABORTED, soleResult } from "#primitives/abort";
 import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 import type { LifecycleDoors, NonPortableCanon } from "../contract/portability.ts";
 
@@ -40,7 +40,7 @@ export interface PortabilityDeps {
   readonly settingsCtx: SettingsAssemblyContext;
   readonly presetCtx: PresetAssemblyContext;
   readonly worldInfoExportCtx: WorldInfoExportAssemblyContext;
-  readonly importStandaloneLorebook: ImportStandaloneLorebook;
+  readonly importStandaloneLorebooks: ImportStandaloneLorebooks;
   readonly assetsCtx: AssetsAssemblyContext;
   readonly imagery: ImageryPortabilityService;
   readonly spend: SpendLedgerPortabilityService;
@@ -55,6 +55,7 @@ export interface PortabilityDeps {
   readonly exportCurrentCard: ExportCurrentCard;
   readonly heldChatHashes: ImportProfileDeps["heldChatHashes"];
   readonly exportCurrentChats: ImportProfileDeps["exportCurrentChats"];
+  readonly ownedChatTitle: ImportProfileDeps["ownedChatTitle"];
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
   /** The seat oracle that keeps a re-uploaded card from replacing an edited primary book. */
   readonly hasPrimaryBook: ImportWorldInfoPort["hasPrimaryBook"];
@@ -100,7 +101,6 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     document: createImportDocument(deps.databankCtx),
     persona: deps.persona,
     resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
-    wallClockZone: hostTimeZone,
     contextFor: (principal) => ({
       principal,
       characterOps: createCharacterImportOps(principal, deps.character),
@@ -124,14 +124,15 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       findOwnedAssetIdsByHash: deps.findOwnedAssetIdsByHash,
       heldChatHashes: deps.heldChatHashes,
       exportCurrentChats: deps.exportCurrentChats,
+      ownedChatTitle: deps.ownedChatTitle,
       adoptDefaultPersona: createAdoptImportedDefaultPersona(deps.settingsCtx),
     },
   });
   const importGallery = createImportGallery(deps.assetsCtx);
-  const importTheme = createImportTheme(deps.settingsCtx);
+  const importThemes = createImportTheme(deps.settingsCtx);
   const importUserSettings = createImportUserSettings(deps.settingsCtx);
-  const importPreset = createImportPresets(deps.presetCtx);
-  const importWorldBook = createImportWorldBook({ importStandalone: deps.importStandaloneLorebook });
+  const importPresets = createImportPresets(deps.presetCtx);
+  const importWorldBook = createImportWorldBook({ importStandalone: deps.importStandaloneLorebooks });
   return [
     { kind: "assets", dir: PORTABLE_DIRECTORIES.assets, ext: "", exportAll: createExportAssets(deps.assetsCtx), importFile: createImportAsset(deps.assetsCtx) },
     {
@@ -142,7 +143,13 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       importFile: (ownerId, file) => importGallery(ownerId, file),
     },
     { kind: "tag", dir: PORTABLE_DIRECTORIES.tag, ext: ".json", exportAll: exports.tag, importFile: imports.tag },
-    { kind: "theme", dir: PORTABLE_DIRECTORIES.theme, ext: ".json", exportAll: exports.theme, importFile: (ownerId, file) => importTheme(ownerId, file.bytes) },
+    {
+      kind: "theme",
+      dir: PORTABLE_DIRECTORIES.theme,
+      ext: ".json",
+      exportAll: exports.theme,
+      importFile: async (ownerId, file) => soleResult(await importThemes({ ownerId, files: [{ bytes: file.bytes }], dryRun: false, signal: NEVER_ABORTED })),
+    },
     {
       kind: "user-settings",
       dir: PORTABLE_DIRECTORIES["user-settings"],
@@ -155,7 +162,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
       dir: PORTABLE_DIRECTORIES.preset,
       ext: ".json",
       exportAll: exports.preset,
-      importFile: (ownerId, file) => importPreset({ ownerId, bytes: file.bytes }),
+      importFile: async (ownerId, file) => soleResult(await importPresets({ ownerId, files: [file.bytes], dryRun: false, signal: NEVER_ABORTED })),
     },
     {
       kind: "world-info",

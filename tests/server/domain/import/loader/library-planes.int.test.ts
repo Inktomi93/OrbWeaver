@@ -342,7 +342,7 @@ test("importing a campaign bundle again after the room lost a later message keep
   }
   const params = { principal: owner, chatId: room.id };
   // The unchanged file lands on its own identity: nothing is created and nothing is noted.
-  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false });
+  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false, label: ANCHORED_TITLE });
 
   const last = (await root.services.chat.listMessages(params)).messages.at(-1);
   if (last === undefined) {
@@ -352,7 +352,7 @@ test("importing a campaign bundle again after the room lost a later message keep
 
   // The slots no longer align with the file, so the campaign cannot be re-placed; the room still holds its game,
   // so that is not a loss and the import says nothing about one.
-  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false });
+  expect(await chat.importFile(root.ownerId, file)).toEqual({ ok: true, created: false, label: ANCHORED_TITLE });
   expect((await root.services.rpg.listJournal(params)).map((entry) => entry.title)).toEqual([ANCHORED_JOURNAL]);
 });
 

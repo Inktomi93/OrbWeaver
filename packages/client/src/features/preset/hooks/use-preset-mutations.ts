@@ -33,9 +33,9 @@ export const useRemovePreset = createEntityMutation<inferInput<Trpc["preset"]["r
   errorToast: "Couldn't delete the preset.",
 });
 
-/** Import ONE orb-native `orb.preset` file (G6) — the thin door over the bundle's own `ImportPreset` verb,
- *  so the collision rule is the bundle's: idempotent on `(ownerId, name)`, a same-named preset MERGED in
- *  place. Refetches the library list (a merge changes a row, a create adds one). It RESOLVES rather than
+/** Import ONE orb-native `orb.preset` file (G6) — the thin door over the bundle's own `ImportPresets` op,
+ *  so the collision rule is the bundle's: an equal preset is reused, a same-named different one lands beside it
+ *  under a free name. Refetches the library list (a create adds a row). It RESOLVES rather than
  *  throws for a malformed file (`{ok:false, error}` — the verb contains a bad file so a bundle can't abort),
  *  so the dialog reads the outcome; `errorToast` covers only a transport failure. */
 export const useImportPresetFile = createEntityMutation<inferInput<Trpc["preset"]["importFile"]>, inferOutput<Trpc["preset"]["importFile"]>>({

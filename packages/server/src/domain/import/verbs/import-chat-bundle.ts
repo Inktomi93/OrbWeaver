@@ -45,7 +45,7 @@ import type { RpgPortableGame } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { relinkContentAssets } from "@orb/kit/content";
 import { isPlainObject } from "@orb/kit/guards";
-import type { AssetId, CharacterHandle, CharacterId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PortableChat, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
 import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
@@ -457,7 +457,7 @@ export function createImportChatBundle(ctx: ImportContext): ImportService["impor
   };
 }
 
-/** Is the bundle a room the app wrote in this library and has not changed since (D290)? Such a room carries no
+/** The room the bundle is, when the app wrote it in this library and it has not changed since (D290), else null. Such a room carries no
  *  stored key, so when the bundle's own key is not held under its primary, the bundle is compared with the current
  *  export of each room the owner hosts that seats the primary and was created when the bundle says. A room changed
  *  since the export does not match, and the bundle lands beside it; no import updates an owned row. */
@@ -467,17 +467,17 @@ async function heldAsCurrentRoom(args: {
   readonly primary: CharacterId;
   readonly createdAt: number;
   readonly importHash: string;
-}): Promise<boolean> {
+}): Promise<ChatId | null> {
   const { profile, ownerId, primary, createdAt, importHash } = args;
   if ((await profile.heldChatHashes({ ownerId, characterId: primary, hashes: [importHash] })).has(importHash)) {
-    return false;
+    return null;
   }
   for await (const room of profile.exportCurrentChats({ ownerId, characterId: primary, createdAt })) {
     if (sha256Hex(room.bytes) === importHash) {
-      return true;
+      return room.chatId;
     }
   }
-  return false;
+  return null;
 }
 
 /** The write half, split out so the refusal ladder above reads as one screen of preconditions. */
@@ -491,8 +491,11 @@ async function writeBundle(args: {
 }): Promise<ImportChatFileOutcome> {
   const { ctx, profile, bundle, characterIds, filename, bytes } = args;
   const importHash = sha256Hex(bytes);
-  if (await heldAsCurrentRoom({ profile, ownerId: ctx.ownerId, primary: characterIds.primary, createdAt: bundle.createdAt, importHash })) {
-    return { ok: true, created: false, skippedOverlays: [], memoryChatIds: [] };
+  // A room is named by what the owner calls it now; one deleted since the lookup found it, by the bundle's own title.
+  const titleOf = async (chatId: ChatId): Promise<string> => (await profile.ownedChatTitle({ ownerId: ctx.ownerId, chatId })) ?? bundle.title;
+  const held = await heldAsCurrentRoom({ profile, ownerId: ctx.ownerId, primary: characterIds.primary, createdAt: bundle.createdAt, importHash });
+  if (held !== null) {
+    return { ok: true, created: false, title: await titleOf(held), skippedOverlays: [], memoryChatIds: [] };
   }
   const personaIdByName = await resolvePersonas(profile, ctx.ownerId, referencedPersonaNames(bundle));
   const result = await profile.bulkImportChats({
@@ -511,5 +514,5 @@ async function writeBundle(args: {
     return { ok: false, error: "chat import resolved no canonical identity for the bundle" };
   }
   const skippedOverlays = await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, remap, characterIds });
-  return { ok: true, created: result.chatsImported > 0, skippedOverlays, memoryChatIds: result.realConversationsWritten };
+  return { ok: true, created: result.chatsImported > 0, title: await titleOf(remap.chatId), skippedOverlays, memoryChatIds: result.realConversationsWritten };
 }

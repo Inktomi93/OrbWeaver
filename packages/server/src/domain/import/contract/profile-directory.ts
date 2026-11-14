@@ -2,19 +2,12 @@ import type { AdmitsAvatar, StoreAvatarAsset, StoredAsset, StoreParams } from "@
 import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportAnswer, ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
-import type { BulkImportPersonas, FindOwnedPersonas } from "@orb/contracts/persona";
-import type { FindOwnedPresets, ImportPreset } from "@orb/contracts/preset";
+import type { BulkImportPersonas } from "@orb/contracts/persona";
+import type { ImportPresets } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
-import type {
-  FindOwnedThemes,
-  ImportedAppearance,
-  ImportedAppearanceOutcome,
-  ImportThemeOp,
-  NewBackgroundEntryId,
-  OwnedBackgroundHashes,
-} from "@orb/contracts/settings";
+import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemes, NewBackgroundEntryId, OwnedBackgroundHashes } from "@orb/contracts/settings";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
-import type { AttachOwnedBooksByName, FindOwnedBooks, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { AttachOwnedBooksByName, ImportStandaloneLorebooks, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportContextWiring } from "./build-context.ts";
@@ -42,14 +35,10 @@ type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) =
  *  so the bytes are verified against the claim before they enter the CAS. */
 type ImportBackgroundStore = (params: Pick<StoreParams, "principal" | "bytes" | "mime" | "maxBytes">) => Promise<Pick<StoredAsset, "assetId" | "hash">>;
 
-/** What the owner already holds, asked of each owning domain without writing. A dry run's preview names an item
- *  the owner has through these reads, one per kind a character's own lookups do not cover. */
+/** What the owner already holds, asked of each owning domain without writing, for the kinds whose write has no dry
+ *  run of its own. Books, presets, themes and personas are judged by their batch write ops in dry-run mode. */
 export interface ProfileOwnership {
-  readonly findBooks: FindOwnedBooks;
-  readonly findPresets: FindOwnedPresets;
-  readonly findThemes: FindOwnedThemes;
   readonly backgroundHashes: OwnedBackgroundHashes;
-  readonly findPersonas: FindOwnedPersonas;
   readonly findChatHashes: FindImportedChatHashes;
   /** Whether the avatar store keeps a persona's art, so the dry run compares and flags a persona as the run lands it. */
   readonly admitsAvatar: AdmitsAvatar;
@@ -96,17 +85,16 @@ export interface ProfileDirImportDeps {
   /** The ST NAME-LINK attach (card `extensions.world` primary + charLore auxiliaries → the owner's books,
    *  by exact name). Optional on the same precedent; dangling names are REPORTED per character. */
   readonly attachBooksByName?: AttachOwnedBooksByName;
-  /** The UNATTACHED owner-library book write — the standalone `worlds/*.json` land through this (no character
-   *  attach). Imported BEFORE characters so a future name-link (`extensions.world`) can resolve them. */
-  readonly importStandaloneLorebook: ImportStandaloneLorebook;
-  /** The preset domain's own import op — the ST preset wave hands it orb-native `orb.preset` bytes. Optional
-   *  on the `importLorebook` precedent: absent ⇒ the preset plane does not restore and every collected preset
-   *  is reported skipped-with-reason, never silently dropped. */
-  readonly importPreset?: ImportPreset;
-  /** The settings domain's own idempotent theme-import op (`createImportTheme`) — the ST theme wave hands it
-   *  orb-native `orb.theme` bytes. Optional on the `importPreset` precedent: absent ⇒ the theme plane does
-   *  not restore and every converted theme is reported skipped-with-reason, never silently dropped. */
-  readonly importTheme?: ImportThemeOp;
+  /** The UNATTACHED owner-library book batch write — the standalone `worlds/*.json` land through this (no character
+   *  attach), and the dry run asks it in dry-run mode. Imported BEFORE characters so the name-link
+   *  (`extensions.world`) can resolve them. */
+  readonly importStandaloneLorebooks: ImportStandaloneLorebooks;
+  /** The preset domain's own batch import op — the ST preset wave hands it orb-native `orb.preset` bytes, and the
+   *  dry run asks it in dry-run mode. */
+  readonly importPresets: ImportPresets;
+  /** The settings domain's own batch theme-import op (`createImportTheme`) — the ST theme wave hands it orb-native
+   *  `orb.theme` bytes, and the dry run asks it in dry-run mode. */
+  readonly importThemes: ImportThemes;
   /** The settings-owned null-only default-persona crown (`createAdoptImportedDefaultPersona`). */
   readonly adoptDefaultPersona: AdoptDefaultPersona;
   /** The CAS store for the ST `backgrounds/` plane. Optional: absent ⇒ no background imports (and every
@@ -117,7 +105,7 @@ export interface ProfileDirImportDeps {
   readonly applyImportedAppearance?: ApplyImportedAppearance;
   /** Mints a `BackgroundLibraryEntry`'s stable per-row id (crypto uuid in prod; deterministic in tests). */
   readonly newBackgroundEntryId?: NewBackgroundEntryId;
-  /** The read-only twins of the write ops above, so a dry run can say what the owner already has. */
+  /** The reads a dry run asks for the kinds whose write has no dry-run mode. */
   readonly ownership: ProfileOwnership;
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
@@ -125,11 +113,8 @@ export interface ProfileDirImportDeps {
   /** The chat-bundle lookup's ops (D290); the run's import context carries them like every other context. */
   readonly heldChatHashes: ImportProfileDeps["heldChatHashes"];
   readonly exportCurrentChats: ImportProfileDeps["exportCurrentChats"];
+  readonly ownedChatTitle: ImportProfileDeps["ownedChatTitle"];
   readonly now: Clock;
-  /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted uses the importing host's zone — a
-   *  profile snapshot is imported on the box that produced it in the ordinary case, and ST built those
-   *  strings off that box's local `Date`. Explicit here so a test pins it instead of inheriting the host's. */
-  readonly stWallClockZone?: string;
   readonly dryRun: boolean;
   readonly signal: AbortSignal;
   /** The review's per-collision persona choices; an unlisted collision merges. */

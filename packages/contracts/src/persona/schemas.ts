@@ -110,7 +110,7 @@ export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true }).strip();
 
 /** A persona name an import carries: not blank once trimmed, so its folded name is never empty and the import write,
- *  its read-only twin and the collision review never meet a nameless persona. Minted by {@link isPersonaImportName}. */
+ *  its dry run and the collision review never meet a nameless persona. Minted by {@link isPersonaImportName}. */
 export type PersonaImportName = Branded<"PersonaImportName">;
 
 export function isPersonaImportName(raw: string): raw is PersonaImportName {

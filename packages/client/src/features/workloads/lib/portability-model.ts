@@ -101,8 +101,8 @@ function mergeScopes(a: ImportWindow | null, b: ImportWindow | null): ImportWind
 }
 
 /** Narrow an `unknown` workload-succeeded result into the bundle counts. An `import-st` run reports the
- *  maintenance-pass shape (`scanned`/`changed`/`failed`) instead of `imported`/`skipped`: its new canon is
- *  what landed and the rest of what it examined is what it already had or set aside. */
+ *  maintenance-pass shape (`changed`/`failed`) for `imported`, beside the same `inLibrary` and `skipped` a bundle
+ *  reports, so a held entry reads as held and never as skipped. */
 export function asBundleCounts(result: unknown): BundleCounts {
   const record = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
   const count = (value: unknown): number => (typeof value === "number" ? value : 0);
@@ -110,14 +110,12 @@ export function asBundleCounts(result: unknown): BundleCounts {
   const memoryScope = importWindowSchema.safeParse(record["memoryScope"]);
   const failed = count(record["failed"]);
   const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
-  // An `import-st` run and a bundle row stored before the held count existed carry none.
-  const inLibrary = count(record["inLibrary"]);
   const mergedKeys = Array.isArray(record["mergedKeys"]) ? record["mergedKeys"].filter((key): key is string => typeof key === "string") : [];
-  const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed - mergedKeys.length) : count(record["skipped"]);
   return {
     imported,
-    inLibrary,
-    skipped,
+    // A dry run and a bundle row stored before the held count existed carry neither count.
+    inLibrary: count(record["inLibrary"]),
+    skipped: count(record["skipped"]),
     mergedKeys,
     failed,
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
