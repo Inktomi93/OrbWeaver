@@ -21,6 +21,7 @@ export {
   createLoadOwnedCard,
   createStampRefinerySignals,
 } from "./persistence/refinery-ops.ts";
+export { createLoadCharacterAvatars } from "./persistence/room-avatars.ts";
 export { createLoadSeatCards } from "./persistence/seat-cards.ts";
 export { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./seeder/cards.ts";
 export { createDefaultCharacterSeeder } from "./seeder/seed.ts";
