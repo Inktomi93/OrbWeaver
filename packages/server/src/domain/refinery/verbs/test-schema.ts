@@ -4,7 +4,6 @@
 // runs the WHOLE document belt, and the card is untrusted content exactly as in every refinery run.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
 import type { StructuredOptions } from "@orb/contracts/role-clients";
 import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -13,6 +12,7 @@ import { traceStructuredRetry } from "#foundation/observability";
 import { RefineryRunFailedError } from "../contract/errors.ts";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { buildAnalyzePrompt, buildScorePrompt, customShapeTextOf } from "../substrate/refine-prompt.ts";
+import { parseSchemaDocument } from "../substrate/schema-library.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
 
 export function createTestSchema(ctx: RefineryContext): RefineryService["testSchema"] {
@@ -23,7 +23,7 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
     if (card === undefined) {
       throw new DomainNotFoundError("character", characterId);
     }
-    const doc = refinerySchemaDocumentSchema.parse({ name: "draft_preview", description: "", stage, schema });
+    const doc = parseSchemaDocument({ name: "draft_preview", description: "", stage, schema });
     // `projectJsonSchema` is what CLOSES the object tree (`additionalProperties:false`) for the wire — the
     // stored/draft schema is open by construction (see `stage-resolution.ts`). A raw send would ship
     // open on the hosted wire; this projection is the enforcement, not a formality.

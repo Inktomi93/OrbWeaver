@@ -3,13 +3,12 @@
 // CONTENT changes bump `version` — the pin the run log's embedded provenance records; a
 // description-only edit does not (prose is not provenance). Leak-free NOT_FOUND on foreign/absent ids.
 
-import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
 import type { refinerySchemas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefinerySchemaId, UserId } from "@orb/kit/ids";
 import type { RefineryContext, RefineryService } from "../contract/service.ts";
 import { loadOwnedSchemaRow, schemaSummaryOf, updateOwnedSchemaIfNameFree } from "../persistence/queries.ts";
-import { schemaNameTakenError, schemaStalePatchError } from "../substrate/schema-library.ts";
+import { parseSchemaDocument, schemaNameTakenError, schemaStalePatchError } from "../substrate/schema-library.ts";
 
 /** Three refusals share ONE empty result, so an owner-scoped re-read says which — in the order the user can
  *  act on: gone, then moved-under-us (stale: their patch is intact and they re-apply it), then name-taken.
@@ -38,7 +37,7 @@ export function createUpdateSchema(ctx: RefineryContext): RefineryService["updat
     if (row === undefined) {
       throw new DomainNotFoundError("refinery schema", schemaId);
     }
-    const doc = refinerySchemaDocumentSchema.parse({
+    const doc = parseSchemaDocument({
       name: patch.name ?? row.name,
       description: patch.description ?? row.description,
       stage: patch.stage ?? row.stage,

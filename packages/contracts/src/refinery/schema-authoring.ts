@@ -221,8 +221,11 @@ const rawSchemaNode = jsonObjectSchema;
  *  The ONE belt every write runs (and the client editor may run locally — same refusals, same paths). */
 export const refinerySchemaDocumentSchema = z
   .strictObject({
-    name: z.string().max(REFINERY_SCHEMA_NAME_MAX).regex(REFINERY_SCHEMA_NAME_PATTERN, "name must match ^[a-zA-Z_][a-zA-Z0-9_]*$"),
-    description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX),
+    name: z
+      .string()
+      .max(REFINERY_SCHEMA_NAME_MAX, `A name holds at most ${REFINERY_SCHEMA_NAME_MAX} characters.`)
+      .regex(REFINERY_SCHEMA_NAME_PATTERN, "A name starts with a letter or underscore and holds only letters, digits and underscores (no spaces)."),
+    description: z.string().max(REFINERY_SCHEMA_DESCRIPTION_MAX, `A description holds at most ${REFINERY_SCHEMA_DESCRIPTION_MAX} characters.`),
     stage: refinerySchemaStageSchema,
     schema: rawSchemaNode,
   })
