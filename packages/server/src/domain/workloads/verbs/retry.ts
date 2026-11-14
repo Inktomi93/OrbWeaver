@@ -57,7 +57,9 @@ async function assertCloneDependenciesAvailable(ctx: WorkloadServiceContext, ori
 export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, "retry"> {
   async function retry(params: RetryWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
-    const original = await loadWorkload(ctx.db, { contributions, logger: ctx.logger }, params.id, (access) => canCloneRow(ctx, params.caller, access));
+    const original = await loadWorkload(ctx.db, { contributions, logger: ctx.logger, reportedUnreadable: ctx.reportedUnreadable }, params.id, (access) =>
+      canCloneRow(ctx, params.caller, access),
+    );
     if (original === null || !(await mayActOnRow(ctx, params.caller, original))) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }

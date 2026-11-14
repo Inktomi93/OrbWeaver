@@ -1,5 +1,6 @@
-// verb: get — one typed row by id (throws `DomainNotFoundError` when absent OR poison — a kind this build
-// doesn't ship narrows to null in `readRow`, treated as not-found rather than 500ing).
+// verb: get — one typed row by id. A row whose params or stored result no longer parse returns as poison with
+// `params: null`, and a result that no longer parses reads as `null`; `DomainNotFoundError` means absent, or a kind this build doesn't ship (`readRow`
+// narrows it to null rather than 500ing).
 //
 // F3 AUTHZ: a non-admin caller may only see its OWN workload — a row it doesn't own collapses to the SAME
 // leak-free `DomainNotFoundError` as an absent one (never a FORBIDDEN existence oracle). A `null` (system)

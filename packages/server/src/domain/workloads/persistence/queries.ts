@@ -167,9 +167,10 @@ interface RowRead {
 //  deploy-skew row that cannot be spelled at all). A known kind whose params blob fails its schema is NOT
 //  dropped — it surfaces as a POISON row (`params: null, poison: true`) so a broken row is visible and
 //  actionable instead of vanishing from `list`/`get`. A stored result that no longer parses (one an older build
-//  wrote) is never published: the row reads with `result: null`, keeps whatever params it has, and says so in
-//  `resultUnreadable`, so one stale row neither rejects the whole list nor loses its settings. The one place the
-//  JSON columns are narrowed; the per-kind validator is the OWNING domain's contribution schema — the queue
+//  wrote) makes the row poison too, with `result: null`: the result is never published, the owner sees the row as
+//  unreadable rather than as a run that succeeded with nothing to show, and one stale row never rejects the whole
+//  list. Retry clones the raw params blob (`loadRawWorkloadParams`), so a poison row loses no settings. The one place
+//  the JSON columns are narrowed; the per-kind validator is the OWNING domain's contribution schema — the queue
 //  spells no domain's vocabulary.
 function readRow(contributions: WorkloadContributions, row: WorkloadDecodedRow): RowRead | null {
   if (!isKnownKind(row.kind)) {
@@ -186,6 +187,9 @@ function readRow(contributions: WorkloadContributions, row: WorkloadDecodedRow):
   } catch {
     return { view: { ...base, kind: row.kind, params: null, result, poison: true }, resultUnreadable };
   }
+  if (resultUnreadable) {
+    return { view: { ...base, kind: row.kind, params: null, result: null, poison: true }, resultUnreadable };
+  }
   // TS can't correlate the widened `row.kind` union with the per-kind params/result — sanctioned cast.
   return {
     view: { ...base, kind: row.kind, params, result, poison: false } as WorkloadRunnableRow,
@@ -193,11 +197,13 @@ function readRow(contributions: WorkloadContributions, row: WorkloadDecodedRow):
   };
 }
 
-/** {@link readRow} for a list or a get, which says once per read that a row's result was left out. The line names
- *  the row and its kind and never the result: a result can carry the owner's file names. */
+/** {@link readRow} for a list or a get, which says once per row per composed root that a row's result was left out,
+ *  so a polled list does not repeat it. The line names the row and its kind and never the result: a result can carry
+ *  the owner's file names. */
 function viewOf(reads: WorkloadReads, row: WorkloadDecodedRow): WorkloadRowAnyKind | null {
   const read = readRow(reads.contributions, row);
-  if (read?.resultUnreadable === true) {
+  if (read?.resultUnreadable === true && !reads.reportedUnreadable.has(row.id)) {
+    reads.reportedUnreadable.add(row.id);
     getLog(reads.logger).warn({ workloadId: row.id, kind: row.kind }, "workloads: a stored result no longer parses and is not shown");
   }
   return read?.view ?? null;

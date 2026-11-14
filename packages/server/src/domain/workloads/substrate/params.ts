@@ -52,8 +52,8 @@ function parseKindParams(contributions: WorkloadContributions, input: StartWorkl
 }
 
 /** What a verb's row read narrows against: the registry as of this call, and the domain's log. */
-export function workloadReads(ctx: Pick<WorkloadServiceContext, "getContributions" | "logger">): WorkloadReads {
-  return { contributions: ctx.getContributions(), logger: ctx.logger };
+export function workloadReads(ctx: Pick<WorkloadServiceContext, "getContributions" | "logger" | "reportedUnreadable">): WorkloadReads {
+  return { contributions: ctx.getContributions(), logger: ctx.logger, reportedUnreadable: ctx.reportedUnreadable };
 }
 
 /** The account a stored run answers to. A bulk row's owner is only the account it targets, which the box owner may
