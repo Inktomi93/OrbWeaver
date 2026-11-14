@@ -7,11 +7,13 @@
 
 import type { DocumentListCursor, DocumentView } from "@orb/contracts/databank";
 import { STALE_INGEST_MS } from "@orb/contracts/databank";
+import type { ExtractorVersions } from "@orb/contracts/extraction";
+import { docFormatForMime } from "@orb/contracts/extraction";
 import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, documents, globalDocuments } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt, lte, notInArray, or, sql } from "drizzle-orm";
 import { DatabankCharacterNotFoundError, DocumentNotFoundError } from "../contract/errors.ts";
 import type { DocumentListFilter, DocumentPhaseScope } from "../contract/params.ts";
 import type { DocumentAttachmentRows } from "../contract/views.ts";
@@ -220,15 +222,25 @@ export async function countOwnedDocuments(db: Db, ownerId: UserId, filter: Docum
   return rows.at(0)?.total ?? 0;
 }
 
-/** The owner's documents a `re-extract` sweep would rewrite: a stored source file and a version other than
- *  `currentVersion`. The SQL twin of the skip test in `maybeReExtract` (`ingest/index.ts`); the two must agree
- *  or the banner promises a sweep that changes nothing. */
-export async function countStaleExtractionDocuments(db: Db, ownerId: UserId, currentVersion: string): Promise<number> {
+/** Whether a stored stamp is older than the current version of the format the document's mime dispatches to. A
+ *  mime no loader reads is never stale: no sweep can re-read it. The one predicate the re-extract sweep
+ *  (`maybeReExtract`, `ingest/index.ts`) and the banner census below share, so the banner never promises a sweep
+ *  that changes nothing. */
+export function isExtractionStale(versions: ExtractorVersions, mime: string, stamp: string): boolean {
+  const format = docFormatForMime(mime);
+  return format !== undefined && versions[format] !== stamp;
+}
+
+/** The owner's documents a `re-extract` sweep would rewrite: a stored source file whose stamp is not its format's
+ *  current version. Grouped by (mime, stamp) so the format is resolved by {@link isExtractionStale} itself, never a
+ *  second SQL spelling of the mime table. */
+export async function countStaleExtractionDocuments(db: Db, ownerId: UserId, versions: ExtractorVersions): Promise<number> {
   const rows = await db
-    .select({ total: count() })
+    .select({ mime: documents.mime, stamp: documents.extractorVersion, total: count() })
     .from(documents)
-    .where(and(eq(documents.ownerId, ownerId), isNotNull(documents.sourceAssetId), ne(documents.extractorVersion, currentVersion)));
-  return rows.at(0)?.total ?? 0;
+    .where(and(eq(documents.ownerId, ownerId), isNotNull(documents.sourceAssetId)))
+    .groupBy(documents.mime, documents.extractorVersion);
+  return rows.reduce((stale, row) => (isExtractionStale(versions, row.mime, row.stamp) ? stale + row.total : stale), 0);
 }
 
 /** Every owned document id (the `{ownerId}` reindex + personal-search scope) — id-only, no canon read. */

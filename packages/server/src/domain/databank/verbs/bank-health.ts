@@ -48,7 +48,7 @@ export function createBankHealth(ctx: DatabankContext): DatabankService["bankHea
       countOf("ready"),
       countOf("stalled"),
       countOwnedDocuments(ctx.db, principal.userId, {}),
-      countStaleExtractionDocuments(ctx.db, principal.userId, ctx.extractorVersion),
+      countStaleExtractionDocuments(ctx.db, principal.userId, ctx.extractorVersions),
     ]);
     return { byPhase: { embedding, empty, indexing, ready, stalled }, chunks, passages: chunks, staleExtraction, total };
   };

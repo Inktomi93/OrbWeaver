@@ -21,7 +21,6 @@ import type { SettingsService } from "#domain/settings";
 import { createGetDatabankSettings } from "#domain/settings";
 import type { WorkloadService } from "#domain/workloads";
 import type { AuditWiring, Logger } from "#foundation/observability";
-import { EXTRACTOR_VERSION } from "#infra/extraction";
 import type { ScopedEgress } from "#infra/network";
 import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
@@ -49,6 +48,8 @@ export interface DatabankComposeDeps {
   readonly loadAssetBytes: DatabankAssemblyContext["loadAssetBytes"];
   readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks" | "countDocumentChunksByOwner">;
   readonly extractText: DatabankAssemblyContext["extractText"];
+  /** The table `extractText` stamps from; the banner and the re-extract sweep compare stamps against the same one. */
+  readonly extractorVersions: DatabankAssemblyContext["extractorVersions"];
   /** The per-FUNDER role-client binder: a bank's space is its OWNER's `embed` binding (vector tasks are
    *  owner-scoped, §7.5), read per call so a re-bound connection reaches the next ingest with no restart. */
   readonly roleClientsFor: LiveEmbedSpaceDeps["roleClientsFor"];
@@ -75,7 +76,7 @@ export interface DatabankComposeResult {
 }
 
 export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult {
-  const { db, now, audit, embeddings, extractText, search, workloads, loadUserSettings } = deps;
+  const { db, now, audit, embeddings, extractText, extractorVersions, search, workloads, loadUserSettings } = deps;
   const chatGuards = createWiredChatGuards({ db, can });
   const databankCtx: DatabankAssemblyContext = {
     logger: deps.logger,
@@ -102,7 +103,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     countChunks: embeddings.countDocumentChunks,
     chunkCountsByOwner: embeddings.countDocumentChunksByOwner,
     extractText,
-    extractorVersion: EXTRACTOR_VERSION,
+    extractorVersions,
     // The DB7 scrapeWeb port: infra/network's `fetchWebDocument` (the ANY_HOST arbitrary-URL class — no host
     // pin, but https + private-range denial run per hop; throws on refusal/non-2xx/cap, the verb maps it).
     fetchUrl: deps.fetchWebDocument,
