@@ -736,7 +736,7 @@ export function swipeVariantDelta(params: Parameters<typeof legacySwipeVariantDe
 /**
  * The chat-created contribution of a room's PRIMARY seat (`start-chat`/`fork`): the owner-grain +1 chats
  * and +1 daily chatsCreated that the room itself contributes, PLUS that seat's own census bump
- * ({@link seatChatDelta}'s payload), the fork lineage counters, and the firstAt/lastAt extrema candidates.
+ * ({@link seatChatDelta}'s payload), the fork lineage counters, and the firstAt extremum candidate.
  *
  * EVERY OTHER SEAT RIDES ONE {@link seatChatDelta} — the room counts ONCE for the owner and ONCE
  * PER SEAT for the census, which is exactly what the rebuild derives
@@ -762,8 +762,9 @@ export function chatCreatedDelta(params: {
 
 /**
  * The contribution of ONE character SEAT in a room: the per-character room census (+1 on the seat's
- * `chats` column, +1 its fork counter when the room is a fork) and that character's first/last-chat
- * extrema candidates, plus the `owner_stats.characters` bump when this is the character's first chat.
+ * `chats` column, +1 its fork counter when the room is a fork) and that character's first-chat extremum
+ * candidate, plus the `owner_stats.characters` bump when this is the character's first chat. A seat is not
+ * a turn, so it carries no last-activity candidate; the rebuild reads last activity from messages alone.
  *
  * It carries NO owner-grain `chats`/`chatsCreated`: the room is one room however many characters sit in it,
  * so only the primary seat's {@link chatCreatedDelta} counts it for the owner and the timeline bucket. Used for every
@@ -787,7 +788,6 @@ export function seatChatDelta(params: {
     ...(params.forked ? { characterForkedChats: 1 } : {}),
     ...(params.newCharacter ? { newCharacter: true } : {}),
     firstAt: params.now,
-    lastAt: params.now,
     now: params.now,
   };
 }
@@ -795,6 +795,7 @@ export function seatChatDelta(params: {
 /**
  * The net contribution of an in-place content edit: `words(new) − words(old)` on the role bucket + the
  * UTF-16 code-unit diff, bucketed on the slot's original creation time (the rebuild folds by `createdAt`, not the edit time).
+ * An edit is not a turn, so it carries no last-activity candidate.
  */
 export function editMessageDelta(params: {
   readonly ownerId: UserId;
@@ -818,7 +819,6 @@ export function editMessageDelta(params: {
     userWords: fields.words === "userWords" ? wordsDiff : 0,
     assistantWords: fields.words === "assistantWords" ? wordsDiff : 0,
     contentChars: charsDiff,
-    lastAt: params.now,
     now: params.now,
   };
 }

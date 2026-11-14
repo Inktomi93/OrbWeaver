@@ -54,6 +54,7 @@ export interface ImageryComposeDeps extends Pick<ImageryRoomAccessDeps, "resolve
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
   const { db, now, connection, executor, assets, character, roleClientsFor } = deps;
   const fetchImage = deps.fetchImageBytes;
+  const stats = createStatsBatchWiring(deps.idSource);
   const imagery = createImageryService({
     db,
     now,
@@ -80,7 +81,8 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     getCard: (caller, characterId) => character.get({ principal: caller, characterId }),
     ownsCharacter: deps.characterOwned,
     addToGallery: createImageryGalleryAdd((params) => assets.addToGallery(params)),
-    applyStatsDelta: createStatsBatchWiring(deps.idSource).applyStatsDelta,
+    applyStatsDelta: stats.applyStatsDelta,
+    recordLedgerSpend: stats.recordLedgerSpend,
   });
   for (const def of imageryToolDefinitions({ generatePicture: imagery.generatePicture })) {
     deps.toolUse.register(def);

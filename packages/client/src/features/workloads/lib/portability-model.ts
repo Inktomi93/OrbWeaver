@@ -7,7 +7,7 @@ import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
 import type { CardImportResult, ImportPreview, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, importPreviewSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
-import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 import { cardImportFailedDetail, cardImportRefusalLine } from "#lib";
@@ -40,11 +40,18 @@ export interface ImportSummary {
 // Blobs always travel so exported entities keep their media; never a user-facing checkbox.
 const ASSETS_KIND = "assets";
 
-/** The kinds the export checkboxes offer — every portable kind except the always-included `assets`. */
-export const EXPORTABLE_KINDS: readonly PortableKind[] = PORTABLE_KINDS.filter((kind) => kind !== ASSETS_KIND);
+type ExportableKind = Exclude<PortableKind, typeof ASSETS_KIND | (typeof WHOLE_LIBRARY_ONLY_KINDS)[number]>;
+
+function isExportable(kind: PortableKind): kind is ExportableKind {
+  return kind !== ASSETS_KIND && !(WHOLE_LIBRARY_ONLY_KINDS as readonly PortableKind[]).includes(kind);
+}
+
+/** The kinds the export checkboxes offer: every portable kind except the always-included `assets` and the kinds only the
+ *  whole-library export carries, which travel when every box is ticked and never on a partial pick. */
+export const EXPORTABLE_KINDS: readonly ExportableKind[] = PORTABLE_KINDS.filter(isExportable);
 
 /** The human label per portable kind (checkboxes + report copy). */
-export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
+export const PORTABLE_KIND_LABELS: Record<ExportableKind, string> = {
   character: "Characters",
   chat: "Chats",
   persona: "Personas",
@@ -56,7 +63,6 @@ export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
   "user-settings": "Settings",
   tag: "Tags",
   gallery: "Gallery",
-  assets: "Media",
   imagery: "Image generation history",
 };
 
@@ -65,7 +71,7 @@ export function buildLibraryExportHref(selected: ReadonlySet<PortableKind>): str
   if (selected.size >= EXPORTABLE_KINDS.length) {
     return PORTABILITY_ROUTES.exportLibrary;
   }
-  const picked = [...EXPORTABLE_KINDS.filter((kind) => selected.has(kind)), ASSETS_KIND];
+  const picked: PortableKind[] = [...EXPORTABLE_KINDS.filter((kind) => selected.has(kind)), ASSETS_KIND];
   return `${PORTABILITY_ROUTES.exportLibrary}?kinds=${picked.join(",")}`;
 }
 

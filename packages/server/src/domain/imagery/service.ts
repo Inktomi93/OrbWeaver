@@ -19,6 +19,7 @@ export function createImageryService(input: ImageryAssemblyInput): ImageryServic
     ...input,
     db: databaseForOwner(input.db),
     applyStatsDelta: (batch, _db, delta) => input.applyStatsDelta(batchHandle(batch), input.db, delta),
+    recordLedgerSpend: (batch, _db, spend) => input.recordLedgerSpend(batchHandle(batch), input.db, spend),
   };
   // Verb-to-verb deps are wired HERE (domain-no-cross-verb): captionAvatar → resolvePrompt → the two
   // prompt-consuming verbs. One resolvePrompt instance so extractPrompt + generatePicture share the dispatch.

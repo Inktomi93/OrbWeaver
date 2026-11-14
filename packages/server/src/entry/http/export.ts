@@ -21,7 +21,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry, PortableExportNote, PortableExportReport, PortableKind } from "@orb/contracts/portability";
-import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, PORTABLE_KINDS } from "@orb/contracts/portability";
+import { PORTABILITY_ROUTES, PORTABLE_EXPORT_REPORT_FILE, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/export";
@@ -56,6 +56,7 @@ const ORB_BUNDLE_MIME = "application/json; charset=utf-8";
 const CHAT_FORMATS: ReadonlySet<string> = new Set<ExportChatFormat>(["jsonl", "txt"]);
 const CARD_FORMATS: ReadonlySet<string> = new Set<ExportCardFormat>(["png", "json"]);
 const PORTABLE_KIND_VALUES: readonly string[] = PORTABLE_KINDS;
+const WHOLE_LIBRARY_ONLY_VALUES: readonly string[] = WHOLE_LIBRARY_ONLY_KINDS;
 
 export interface ExportDeps {
   readonly logger: Logger;
@@ -77,7 +78,8 @@ function parseKinds(raw: string | undefined): ParsedKinds {
   const requested = new Set<PortableKind>();
   for (const token of raw.split(",")) {
     const trimmed = token.trim();
-    if (!PORTABLE_KIND_VALUES.includes(trimmed)) {
+    // A whole-library-only kind is the owner's own record; a partial export never carries it.
+    if (!PORTABLE_KIND_VALUES.includes(trimmed) || WHOLE_LIBRARY_ONLY_VALUES.includes(trimmed)) {
       return { kinds: null, invalid: trimmed };
     }
     requested.add(trimmed as PortableKind);

@@ -9,7 +9,7 @@ import type { CallerInChatOp, ResolveRoomRunAsOp } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
 import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
 import type { BindingActor, GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
-import type { ApplyStatsDelta } from "@orb/contracts/stats";
+import type { ApplyStatsDelta, RecordLedgerSpend } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
@@ -170,6 +170,8 @@ export interface ImageryContext {
   /** stats' rollup upsert, pushed into the batch that writes the provenance rows: those rows are the canon the
    *  stats rebuild re-derives image spend from, so the two commit together or neither does. */
   readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;
+  /** stats' spend-ledger write: a prompt's extraction or caption spend, with its delta, in the caller's batch. */
+  readonly recordLedgerSpend: RecordLedgerSpend<BatchStmt[], Db>;
   /** Does `ownerId` own `characterId`? The auto-curation gate, read before any spend so a picture never
    *  targets a character its owner does not hold. Wired to the same owner-scoped `characters` read the
    *  gallery add verb gates on. */
@@ -180,8 +182,9 @@ export interface ImageryContext {
 }
 
 /** Assembly receives neither the query connection nor raw atomic callback operands. */
-export type ImageryAssemblyInput = Omit<DbAssemblyInput<ImageryContext>, "applyStatsDelta"> & {
+export type ImageryAssemblyInput = Omit<DbAssemblyInput<ImageryContext>, "applyStatsDelta" | "recordLedgerSpend"> & {
   readonly applyStatsDelta: ApplyStatsDelta<BatchHandle, DatabaseHandle>;
+  readonly recordLedgerSpend: RecordLedgerSpend<BatchHandle, DatabaseHandle>;
 };
 
 /** The imagery surface — the orchestrator + the standalone extraction preview. */

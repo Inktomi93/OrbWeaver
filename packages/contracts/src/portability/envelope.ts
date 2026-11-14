@@ -6,6 +6,7 @@ export const IMAGERY_SCHEMA_KIND = "orb.imagery";
 export const PERSONA_SCHEMA_KIND = "orb.persona";
 export const PRESET_SCHEMA_KIND = "orb.preset";
 export const REGEX_SCRIPT_SCHEMA_KIND = "orb.regex-script";
+export const SPEND_LEDGER_SCHEMA_KIND = "orb.spend-ledger";
 export const TAG_LIBRARY_SCHEMA_KIND = "orb.tag-library";
 export const THEME_SCHEMA_KIND = "orb.theme";
 export const USER_SETTINGS_SCHEMA_KIND = "orb.user-settings";
@@ -19,6 +20,7 @@ const PORTABLE_SCHEMA_KINDS = [
   PERSONA_SCHEMA_KIND,
   PRESET_SCHEMA_KIND,
   REGEX_SCRIPT_SCHEMA_KIND,
+  SPEND_LEDGER_SCHEMA_KIND,
   TAG_LIBRARY_SCHEMA_KIND,
   THEME_SCHEMA_KIND,
   USER_SETTINGS_SCHEMA_KIND,

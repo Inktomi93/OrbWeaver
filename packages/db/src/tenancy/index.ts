@@ -151,12 +151,12 @@ export const TABLE_SCOPING = {
     stamp: "D23 parentless per-user aggregate — monotonic rebuild ownership token",
     why: "D23 parentless per-user aggregate — monotonic rebuild ownership token.",
   },
-  compactionSpend: {
-    sqlName: "compaction_spend",
+  spendLedger: {
+    sqlName: "spend_ledger",
     scope: "ownerId",
     stamp:
-      "D23 owner unreachable by FK — the funding host's compaction spend, which outlives the chat it was spent in (no chat_id), so the stamp is the only owner the stats rebuild can fold it to",
-    why: "D23 owner stamp — the funding host's compaction spend ledger; no FK reaches the owner.",
+      "D23 owner unreachable by FK — the funding principal's priced calls with no canon row of their own (compaction, image prompt extraction and caption), which outlive the chat they were spent in (no chat_id), so the stamp is the only owner the stats rebuild can fold them to",
+    why: "D23 owner stamp — the funding principal's spend ledger; no FK reaches the owner.",
   },
   personas: { sqlName: "personas", scope: "ownerId", stamp: "D23 true producer", why: "D23 true producer — personas are single-owned." },
   rosterPresets: {

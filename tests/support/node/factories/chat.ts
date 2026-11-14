@@ -11,10 +11,10 @@ import type {
   chatLocks,
   chatParticipants,
   chats,
-  compactionSpend,
   messageAssets,
   messageReactions,
   pendingTurns,
+  spendLedger,
 } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
@@ -35,7 +35,7 @@ type ChatEventRow = typeof chatEvents.$inferSelect;
 type ChatLockRow = typeof chatLocks.$inferSelect;
 type PendingTurnRow = typeof pendingTurns.$inferSelect;
 export type ChatGenerationObservationRow = typeof chatGenerationObservations.$inferSelect;
-export type CompactionSpendRow = typeof compactionSpend.$inferSelect;
+export type CompactionSpendRow = typeof spendLedger.$inferSelect;
 export type ChatHandoffResumptionRow = typeof chatHandoffResumptions.$inferSelect;
 
 export interface CapturedChatReplayRows {

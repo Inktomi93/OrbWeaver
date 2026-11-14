@@ -69,7 +69,7 @@ test("native cancellation outputs distinguish queued, running and terminal work 
   expect(cancelled).toMatchObject({ id: future.id, status: "cancelled", ownerId: principal.userId });
   expect(await service.cancel({ caller: principal, id: future.id })).toEqual({ status: null });
   expect(await service.get({ caller: principal, id: future.id })).toEqual(cancelled);
-  expect(await service.estimateRetryModelCalls({ caller: principal, id: future.id })).toEqual({ calls: null });
+  expect(await service.estimateRetryModelCalls({ caller: principal, id: future.id })).toEqual({ calls: null, bound: "exact" });
   holding = true;
   const active = await seedWorkloadRows(root, {
     caller: principal,

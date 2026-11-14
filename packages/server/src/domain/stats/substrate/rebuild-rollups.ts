@@ -408,6 +408,7 @@ const SPEND_FOLD: Readonly<Record<SpendDeltaField, (g: SpendGrains, v: number) =
   },
   modelGenerations: (g, v) => addToModel(g.model, "generations", v),
   modelGenSamples: (g, v) => addToModel(g.model, "genSamples", v),
+  modelGenTimeMs: (g, v) => addToModel(g.model, "genTimeMs", v),
   modelCostUsd: (g, v) => addToModel(g.model, "costUsd", v),
   modelCostSamples: (g, v) => addToModel(g.model, "costSamples", v),
   modelNotionalCostSamples: (g, v) => addToModel(g.model, "notionalCostSamples", v),
@@ -474,15 +475,13 @@ export function foldSpend(d: StatsDelta, a: Accums): void {
   }
 }
 
-/** Owner extrema: earliest chat created, latest of (last message seen, last chat update). */
+/** Owner extrema: the earliest chat created. Last activity is folded from messages and spend alone: a write to
+ *  a room's row (a title, a seat, a compaction marker) is not activity, and the live write never credits one. */
 export function ownerExtrema(owner: OwnerAccum, meta: ChatMeta): void {
   let first: number | null = null;
   for (const m of meta.chatByChar.values()) {
     if (m.firstChatAt !== null && (first === null || m.firstChatAt < first)) {
       first = m.firstChatAt;
-    }
-    if (m.maxChatUpdated !== null && m.maxChatUpdated > owner.lastActivityAt) {
-      owner.lastActivityAt = m.maxChatUpdated;
     }
   }
   owner.firstChatAt = first;
@@ -503,7 +502,8 @@ function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: num
   return censusPopulation(charMap, meta).map((characterId) => {
     const c = charMap.get(characterId) ?? freshChar();
     const m = meta.chatByChar.get(characterId);
-    const lastActivityAt = Math.max(c.lastMsgAt, m?.maxChatUpdated ?? 0) || null;
+    // Only the character's own turns are its activity; a seat that never spoke has none.
+    const lastActivityAt = c.lastMsgAt || null;
     return {
       id: idSource.typeId(ID_PREFIX.characterStat),
       characterId: CHARACTER_ID.parse(characterId),

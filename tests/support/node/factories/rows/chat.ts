@@ -13,11 +13,11 @@ import {
   chatLocks,
   chatParticipants,
   chats,
-  compactionSpend,
   messageAssets,
   messageReactions,
   messages,
   pendingTurns,
+  spendLedger,
 } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
@@ -47,9 +47,13 @@ export async function captureChatHandoffResumption(db: Db, chatId: ChatId): Prom
   return await db.select().from(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)).get();
 }
 
-/** Compaction money is owner-grained and outlives rooms; capture the owner's ledger, not a guessed per-chat row. */
+/** Compaction money is owner-grained and outlives rooms; capture the owner's compaction ledger rows, not a guessed per-chat row. */
 export async function captureCompactionSpend(db: Db, ownerId: UserId): Promise<readonly CompactionSpendRow[]> {
-  return await db.select().from(compactionSpend).where(eq(compactionSpend.ownerId, ownerId)).orderBy(compactionSpend.createdAt, compactionSpend.id);
+  return await db
+    .select()
+    .from(spendLedger)
+    .where(and(eq(spendLedger.ownerId, ownerId), eq(spendLedger.kind, "compaction")))
+    .orderBy(spendLedger.createdAt, spendLedger.id);
 }
 
 /** Retained completed results are read by their real chat parent; successful canon transfer may leave none. */

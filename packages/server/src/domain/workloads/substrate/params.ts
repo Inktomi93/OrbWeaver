@@ -4,7 +4,16 @@
 // so this file only routes a blob to the right contribution and translates a parse failure into a domain
 // error.
 
-import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadParamsByKind } from "@orb/contracts/workloads";
+import type {
+  ModelCallEstimate,
+  PriorStageCount,
+  StartWorkloadInput,
+  WorkloadEstimateScope,
+  WorkloadKind,
+  WorkloadLane,
+  WorkloadMode,
+  WorkloadParamsByKind,
+} from "@orb/contracts/workloads";
 import {
   DEFAULT_ADMISSION_KEY,
   startWorkloadEnvelope,
@@ -158,15 +167,15 @@ export async function admissionRefusal<K extends WorkloadKind>(
 }
 
 /** The OWNING domain's count of the Utility-model calls a run would make (`WorkloadContribution.modelCalls`);
- *  `null` when the kind declares no estimator because it calls no generative model. */
+ *  `calls: null` when the kind declares no estimator because it calls no generative model. */
 export async function countModelCalls<K extends WorkloadKind>(
   contributions: WorkloadContributions,
   kind: K,
   params: WorkloadParamsByKind[K],
-  scope: WorkloadEstimateScope & { readonly funderUserId: UserId | null },
-): Promise<number | null> {
+  scope: WorkloadEstimateScope & { readonly funderUserId: UserId | null; readonly before: readonly PriorStageCount[] },
+): Promise<ModelCallEstimate> {
   const estimate = contributions[kind].modelCalls;
-  return estimate === undefined ? null : await estimate({ ...scope, params });
+  return estimate === undefined ? { calls: null, bound: "exact" } : await estimate({ ...scope, params });
 }
 
 /** Hand a row that ended before it ran back to its owning domain (`WorkloadContribution.releaseUnrun`). */

@@ -85,6 +85,13 @@
       "when": 1794511527315,
       "tag": "0011_asset-kind-per-use",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794632107061,
+      "tag": "0012_spend-ledger",
+      "breakpoints": true
     }
   ]
 }

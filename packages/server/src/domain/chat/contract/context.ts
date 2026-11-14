@@ -63,7 +63,6 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatTurnId,
-  CompactionSpendId,
   Handle,
   MessageId,
   MessageReactionId,
@@ -576,7 +575,6 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly newEventId: () => ChatEventId;
   readonly newInviteId: () => ChatInviteId;
   readonly newPendingTurnId: () => PendingTurnId;
-  readonly newCompactionSpendId: () => CompactionSpendId;
   /** Hashes an invite token before persistence — never stored raw. */
   readonly hashToken: HashTokenOp;
   /** D259 — whether this mode mints signup invites, and the mode every invite is stamped with. */
