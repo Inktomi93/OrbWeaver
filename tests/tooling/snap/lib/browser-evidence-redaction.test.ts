@@ -158,6 +158,17 @@ test("request-summary identities redact credentials, named secret path values, a
   expect(safe).toContain("ordinary=kept");
 });
 
+test.for([
+  "https://example.test/?join=invite-canary-request-31d0&ordinary=kept",
+  "https://example.test/auth/oidc/login?invite=invite-canary-request-31d0&ordinary=kept",
+  "https://example.test/api/x?jwt=invite-canary-request-31d0&ordinary=kept",
+  "https://example.test/join/invite-canary-request-31d0?ordinary=kept",
+])("a request-summary identity redacts the app's invite token in %s", (raw) => {
+  const safe = redactedRequestUrl(raw);
+  expect(safe).not.toContain("invite-canary-request-31d0");
+  expect(safe).toContain("ordinary=kept");
+});
+
 test("projection is deterministic, bounded, cyclic-safe, and hostile getters cannot echo thrown secrets", () => {
   const cycle: Record<string, unknown> = { ordinary: "kept" };
   cycle["self"] = cycle;

@@ -64,6 +64,12 @@ export const PLUGIN_QUIET_LLM_PER_HOUR = 30;
  *  starve the separate `net.fetch` browse budget. The fixed-window boundary can admit 240 across two hours. */
 export const PLUGIN_SEARCH_QUERY_PER_HOUR = 120;
 
+/** `pubsub.emit` calls per plugin per hour. An emit wakes each subscriber as a new invocation with a fresh CPU account,
+ *  and a plugin may subscribe to its own channel or to a sibling that answers it, so the emit is what buys a plugin
+ *  guest CPU on demand: a self-publishing plugin held a core without pause until this floor. One every 10 seconds
+ *  sustained, the `net.fetch` cadence, is above any announcement a person's play produces. */
+export const PLUGIN_PUBSUB_EMIT_PER_HOUR = 360;
+
 /** Sweep threshold — one entry per plugin that has ever used the capability in this process, each dead after
  *  its window. A bounded lazy sweep keeps a long-lived process from accumulating rows for uninstalled plugins
  *  (the notify-floor precedent; a timer would read the wall clock in a domain whose every other time read is

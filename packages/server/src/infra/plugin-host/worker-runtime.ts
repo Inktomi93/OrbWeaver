@@ -16,8 +16,6 @@ import { createLocalPluginHost } from "./port.ts";
 import {
   decodeProcessValue,
   fromRpcError,
-  PLUGIN_BROKER_SYNC_RESULT_BYTES,
-  PLUGIN_BROKER_SYNC_TIMEOUT_MS,
   PLUGIN_HOST_UNAVAILABLE,
   parseRpcError,
   rpcError,
@@ -25,6 +23,7 @@ import {
   SPAN_SEQUENCE_SLOT,
   SPAN_WINDOW_SLOT,
 } from "./process-protocol.ts";
+import { createSyncChannel } from "./sync-channel.ts";
 
 const INT32_MAX = 2_147_483_647;
 
@@ -39,6 +38,8 @@ interface InvokeCommandValue {
   readonly handler: PluginHandlerRef;
   readonly argsJson: string | { readonly builderId: string };
   readonly chat?: Parameters<ReturnType<typeof createLocalPluginHost>["invoke"]>[3];
+  /** How many cascade levels deep the invocation runs; every other command runs at 0. */
+  readonly cascadeDepth: number;
 }
 
 interface SnippetCommandValue {
@@ -117,6 +118,8 @@ interface AuthorityLease {
   tail: ReturnType<typeof setTimeout> | undefined;
   /** The first host refusal one of the command's own calls met while the command ran; its answer carries it. */
   refusal: RpcError | undefined;
+  /** How many cascade levels deep the command runs, which every call posted under its authority answers for. */
+  cascadeDepth: number;
 }
 const authorityLeases = new Map<string, AuthorityLease>();
 
@@ -125,7 +128,13 @@ function post(message: WorkerBrokerMessage): void {
 }
 
 function openLease(authorityId: string): AuthorityLease {
-  const lease = authorityLeases.getOrInsertComputed(authorityId, () => ({ pendingCalls: 0, commandDone: false, tail: undefined, refusal: undefined }));
+  const lease = authorityLeases.getOrInsertComputed(authorityId, () => ({
+    pendingCalls: 0,
+    commandDone: false,
+    tail: undefined,
+    refusal: undefined,
+    cascadeDepth: 0,
+  }));
   return lease;
 }
 
@@ -228,27 +237,20 @@ const syncReplySchema = z.discriminatedUnion("ok", [
 const syncNumberSchema = z.number();
 const syncStringSchema = z.string();
 
+const syncChannel = createSyncChannel();
+
 function callSync(operation: PluginSyncOperation, args: readonly unknown[]): unknown {
   const authorityId = commandAuthority.getStore();
   if (authorityId === undefined) {
     throw new Error("plugin broker worker: synchronous bridge call escaped its command authority");
   }
-  const controlBuffer = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 2);
-  const resultBuffer = new SharedArrayBuffer(PLUGIN_BROKER_SYNC_RESULT_BYTES);
-  const control = new Int32Array(controlBuffer);
-  post({ kind: "sync-bridge", authorityId, operation, args, control: controlBuffer, result: resultBuffer });
-  const wait = Atomics.wait(control, 0, 0, PLUGIN_BROKER_SYNC_TIMEOUT_MS);
-  if (wait === "timed-out") {
+  const answer = syncChannel.call(({ control, result }) => post({ kind: "sync-bridge", authorityId, operation, args, control, result }));
+  if (answer.kind === "timed-out") {
     const timedOut: RpcError = { name: PLUGIN_HOST_UNAVAILABLE, message: `plugin broker: synchronous ${operation} timed out` };
     recordRefusal(authorityId, timedOut);
     throw fromRpcError(timedOut, timedOut.message);
   }
-  const length = Atomics.load(control, 1);
-  if (length <= 0 || length > resultBuffer.byteLength) {
-    throw new Error(`plugin broker: invalid synchronous ${operation} response`);
-  }
-  const text = new TextDecoder().decode(new Uint8Array(resultBuffer, 0, length));
-  const response = syncReplySchema.parse(decodeProcessValue(JSON.parse(text)));
+  const response = syncReplySchema.parse(decodeProcessValue(JSON.parse(answer.text)));
   if (!response.ok) {
     const error = parseRpcError(response.error);
     recordRefusal(authorityId, error);
@@ -266,6 +268,13 @@ const host = createLocalPluginHost({
   netEgress: createRemoteNetEgress(callAsync),
   logLevel: identity.logLevel,
   spanReport,
+  currentCascadeDepth: () => {
+    const lease = authorityLeases.get(commandAuthority.getStore() ?? "");
+    if (lease === undefined) {
+      throw new Error("plugin broker worker: a host call escaped its command authority");
+    }
+    return lease.cascadeDepth;
+  },
 });
 
 let instance: PluginInstance | undefined;
@@ -324,7 +333,7 @@ port.on("message", (message: BrokerWorkerMessage) => {
     }
     return;
   }
-  openLease(message.authorityId);
+  openLease(message.authorityId).cascadeDepth = message.operation === "invoke" ? (message.value as InvokeCommandValue).cascadeDepth : 0;
   // a command rejection is posted to the broker as a response with the same command id and rpcError(error), which the parent rejects through handleResponse. Ends if the error response stops carrying the rejection.
   void commandAuthority
     .run(message.authorityId, () => run(message))

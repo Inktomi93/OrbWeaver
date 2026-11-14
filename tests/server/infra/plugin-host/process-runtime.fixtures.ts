@@ -72,13 +72,20 @@ interface OutboundRefusal {
   readonly refused: PromiseWithResolvers<unknown>;
 }
 
-// A routed frame the app sends, replaced by its route's refusal: what the watchdog passes on when the next hop is full.
-function routeRefusal(message: unknown): Extract<NonNullable<ReturnType<typeof parsePluginIpcMessage>>, { readonly kind: "frame" }> {
+// A routed frame, replaced by its route's refusal: what a hop passes on in its place when the next hop is full.
+function routeRefusal(message: unknown): { readonly kind: "frame"; readonly generation: string; readonly frame: string } {
   const envelope = parsePluginIpcMessage(message);
   if (envelope?.kind !== "frame" || envelope.route?.refusal === undefined) {
-    throw new Error("the refused outbound message carries no route refusal");
+    throw new Error("the refused message carries no route refusal");
   }
   return { kind: "frame", generation: envelope.generation, frame: envelope.route.refusal.frame };
+}
+
+/** The frame that reaches the app in place of a routed frame the broker sent it, when a hop on the way is full: the
+ *  route's own refusal, which the broker sends when its hop to the watchdog is full and the watchdog passes on when its
+ *  hop to the app is. Release a held inbound message with it. */
+export function refusedInPlaceOf(message: unknown): JsonValue {
+  return routeRefusal(message);
 }
 
 /** Return real children unchanged except for one explicitly held inbound message, and one outbound frame refused as a

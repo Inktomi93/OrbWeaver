@@ -4,6 +4,7 @@ status: open
 updated: 2026-11-14
 priority: P1
 area: ui
+plan: cross-surface-consistency
 ---
 
 # Link the preset limit sliders to the connection override when their ceiling is assumed
