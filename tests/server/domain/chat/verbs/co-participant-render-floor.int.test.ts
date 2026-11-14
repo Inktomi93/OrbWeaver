@@ -1,7 +1,9 @@
 // A member's render grant for another member's picture honors their own history floor and presence and the owner's
 // consent (present and enabled), read through the real doors: the tRPC ref resolve and the signed-in blob route's
 // original and every variant kind. A later quote never re-opens a pre-join picture; a disabled owner's art stops
-// like a departed owner's; the room pin's persona avatar keeps serving while the pin holds.
+// like a departed owner's; the room pin's persona avatar keeps serving while the pin holds. Art serves only while
+// the room references it: a picture the room never names, a character off the roster, a persona put down and a
+// link in another room grant nothing.
 // @subject packages/server/src/domain/chat/verbs/load-chat-asset-refs.ts
 // @subject packages/server/src/domain/chat/verbs/load-co-participant-owner.ts
 // @subject packages/server/src/domain/chat/persistence/co-participant-assets.ts
@@ -215,6 +217,13 @@ test("a disabled owner's character, persona and attachment art stops serving to 
   const attachment = await store(room.root, room.host, "attachment");
   await say(room, room.host, "", [attachment.assetId]);
   const viewer = await admit(room, "floor-watcher", "full");
+  const outsiderLogin = await signedInMember(room.root, castId<Handle>("floor-outsider"));
+  const outsider = { principal: await room.root.principalFor(outsiderLogin.id), cookie: outsiderLogin.cookie };
+  const ownCharacter = await room.root.services.character.create({
+    principal: outsider.principal,
+    input: createCharacterSchema.parse({ handle: "outsider-keeper", name: "Elsewhere", description: "A keeper of another room." }),
+  });
+  await room.root.services.chat.startChat({ principal: outsider.principal, characterIds: [ownCharacter.id], opening: "none" });
 
   const art = async (): Promise<readonly unknown[]> => [
     await served(room, viewer, room.characterAvatar.hash),
@@ -224,17 +233,13 @@ test("a disabled owner's character, persona and attachment art stops serving to 
   ];
   const allServed = [SERVES, SERVES, visible(attachment), SERVES];
   expect(await art()).toEqual(allServed);
+  // A seated character's and a worn persona's art serve to the room they sit in, never past it: while the room's
+  // viewer reads both above, an account seated only in a room of its own reads them as missing.
+  expect([await served(room, outsider, room.characterAvatar.hash), await served(room, outsider, seated.avatar.hash)]).toEqual([REFUSES, REFUSES]);
 
   await setEnabled(room, room.host.userId, false);
   expect(await art()).toEqual([REFUSES, REFUSES, WITHHELD, SERVES]);
-  // The pin's face serves to the room, never past it: an account seated only in a room of its own reads it as missing.
-  const outsiderLogin = await signedInMember(room.root, castId<Handle>("floor-outsider"));
-  const outsider = { principal: await room.root.principalFor(outsiderLogin.id), cookie: outsiderLogin.cookie };
-  const ownCharacter = await room.root.services.character.create({
-    principal: outsider.principal,
-    input: createCharacterSchema.parse({ handle: "outsider-keeper", name: "Elsewhere", description: "A keeper of another room." }),
-  });
-  await room.root.services.chat.startChat({ principal: outsider.principal, characterIds: [ownCharacter.id], opening: "none" });
+  // The pin's face serves to the room, never past it: the same outsider reads it as missing while the viewer reads it.
   expect(await served(room, outsider, pinned.avatar.hash)).toEqual(REFUSES);
 
   await setEnabled(room, room.host.userId, true);
@@ -309,6 +314,69 @@ test("a fork carries the held pin's face to a member seated only in the fork, an
   await room.root.services.chat.setChatAnchorPersona({ principal: room.host, chatId: fork, personaId: null });
   expect(await served(room, forkOnly, pinned.avatar.hash)).toEqual(REFUSES);
   expect(await served(room, stayer, pinned.avatar.hash)).toEqual(SERVES);
+});
+
+test("a co-member's picture the room never references reads as missing on every door, while their character, seated persona and pinned persona serve", async () => {
+  await using room = await openRoom();
+  const seated = await personaWithAvatar(room, room.host, "Worn");
+  const pinned = await personaWithAvatar(room, room.host, "Anchored");
+  await room.root.services.persona.setActivePersona({ principal: room.host, chatId: room.chatId, personaId: seated.personaId });
+  await room.root.services.chat.setChatAnchorPersona({ principal: room.host, chatId: room.chatId, personaId: pinned.personaId });
+  const unplaced = await store(room.root, room.host, "gallery");
+  const viewer = await admit(room, "floor-peer", "full");
+
+  expect([
+    await served(room, viewer, room.characterAvatar.hash),
+    await served(room, viewer, seated.avatar.hash),
+    await served(room, viewer, pinned.avatar.hash),
+  ]).toEqual([SERVES, SERVES, SERVES]);
+  expect(await renders(room, viewer, unplaced)).toEqual(WITHHELD);
+});
+
+test("a character that leaves the roster and a persona its player puts down stop serving their art, while the persona taken up serves", async () => {
+  await using room = await openRoom();
+  const guestAvatar = await store(room.root, room.host, "avatar");
+  const guest = await room.root.services.character.create({
+    principal: room.host,
+    input: createCharacterSchema.parse({ handle: "floor-guest", name: "Guest", description: "A guest who leaves.", avatarAssetId: guestAvatar.assetId }),
+  });
+  await room.root.services.chat.addCharacterToChat({ principal: room.host, chatId: room.chatId, characterId: guest.id });
+  const putDown = await personaWithAvatar(room, room.host, "Put down");
+  const takenUp = await personaWithAvatar(room, room.host, "Taken up");
+  await room.root.services.persona.setActivePersona({ principal: room.host, chatId: room.chatId, personaId: putDown.personaId });
+  const viewer = await admit(room, "floor-roster-watcher", "full");
+  expect([await served(room, viewer, guestAvatar.hash), await served(room, viewer, putDown.avatar.hash)]).toEqual([SERVES, SERVES]);
+
+  await room.root.services.chat.removeCharacterFromChat({ principal: room.host, chatId: room.chatId, characterId: guest.id });
+  await room.root.services.persona.setActivePersona({ principal: room.host, chatId: room.chatId, personaId: takenUp.personaId });
+
+  expect([
+    await served(room, viewer, guestAvatar.hash),
+    await served(room, viewer, putDown.avatar.hash),
+    await served(room, viewer, takenUp.avatar.hash),
+    await served(room, viewer, room.characterAvatar.hash),
+  ]).toEqual([REFUSES, REFUSES, SERVES, SERVES]);
+});
+
+test("a picture placed twice in one shared room resolves once there and resolves nothing in another room both members share", async () => {
+  await using room = await openRoom();
+  const viewer = await admit(room, "floor-two-rooms", "full");
+  const elsewhereCharacter = await room.root.services.character.create({
+    principal: room.host,
+    input: createCharacterSchema.parse({ handle: "floor-elsewhere", name: "Elsewhere", description: "A keeper of the second room." }),
+  });
+  const elsewhere = (await room.root.services.chat.startChat({ principal: room.host, characterIds: [elsewhereCharacter.id], opening: "none" })).chat.id;
+  const invite = await seedChatInvite(room.root, { principal: room.host, chatId: elsewhere, input: { invitedHandle: viewer.principal.handle } });
+  await seedInvitedChatParticipant(room.root, { principal: viewer.principal, inviteId: invite.invite.id });
+  const picture = await store(room.root, room.host, "attachment");
+  await say(room, room.host, "", [picture.assetId]);
+  await say(room, room.host, "Once more.", [picture.assetId]);
+
+  const caller = await room.root.internalCallerFor(viewer.principal.userId);
+  const refsIn = async (chatId: ChatId): Promise<AssetId[]> =>
+    (await caller.assets.resolveChatBlobRefs({ chatId, assetIds: [picture.assetId] })).map((ref) => ref.assetId);
+  expect(await refsIn(room.chatId)).toEqual([picture.assetId]);
+  expect(await refsIn(elsewhere)).toEqual([]);
 });
 
 test("a departed host's character art stops serving to the members still in the room, like a disabled host's", async () => {

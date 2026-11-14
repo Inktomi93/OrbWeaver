@@ -1,4 +1,5 @@
 import type { PortabilityRegistry, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
+import type { BundleImportWorkloadResult } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import type { ExtractOptions, StagedArchive, ZipSource } from "#infra/storage";
 
@@ -12,9 +13,10 @@ export type BundleImportFileOutcome =
 /** The per-bundle report the route returns (or the workload records). */
 export interface BundleImportReport {
   readonly outcomes: readonly BundleImportFileOutcome[];
-  readonly imported: number;
-  readonly skipped: number;
-  readonly failed: number;
+  readonly imported: BundleImportWorkloadResult["imported"];
+  readonly inLibrary: BundleImportWorkloadResult["inLibrary"];
+  readonly skipped: BundleImportWorkloadResult["skipped"];
+  readonly failed: BundleImportWorkloadResult["failed"];
 }
 
 export interface BundleImportDeps {

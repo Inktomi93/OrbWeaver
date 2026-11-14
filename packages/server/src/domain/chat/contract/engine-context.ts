@@ -106,7 +106,8 @@ export type GlobalVariableWriteStatementsOp = (
   readonly droppedCount: number;
 }>;
 
-export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "resolveRetainedChatAccountingScope"> {
+export interface EngineContext
+  extends Pick<ChatAccountingContext, "db" | "now" | "applyStatsDelta" | "settleRetainedChatRebase" | "resolveRetainedChatAccountingScope"> {
   readonly logger: Logger;
   /** The root's trace ring the engine's detached post-turn roots seal into. */
   readonly traces: TraceRing;

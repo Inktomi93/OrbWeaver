@@ -4,7 +4,7 @@
 import type { ReapAssetsOp } from "@orb/contracts/assets";
 import type {
   CharacterAvatarNames,
-  CharacterBulkTagResult,
+  CharacterBulkResult,
   CharacterDetail,
   CharacterRef,
   CreateCharacterOp,
@@ -23,7 +23,7 @@ import type { ListCharacterIds } from "@orb/contracts/embeddings";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { BumpStatsCanonVersion, RetireCharacterCensus } from "@orb/contracts/stats";
+import type { BumpStatsCanonVersion, PrepareCanonRetirement } from "@orb/contracts/stats";
 import type { AttachCardTagByNameOp, DetachCardTagOp } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -81,7 +81,7 @@ export interface CharacterContext {
   readonly logger: Logger;
   readonly db: Db;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
-  readonly retireCharacterCensus: RetireCharacterCensus<BatchStmt[], Db>;
+  readonly prepareCanonRetirement: PrepareCanonRetirement<BatchStmt[], Db>;
   readonly now: Clock;
   readonly newCharacterId: () => CharacterId;
   readonly newSnapshotId: () => CharacterSnapshotId;
@@ -106,9 +106,9 @@ export interface CharacterContext {
   readonly generateGreetingText: GenerateGreetingTextOp;
 }
 
-export type CharacterAssemblyInput = Omit<DbAssemblyInput<CharacterContext>, "bumpStatsCanonVersion" | "retireCharacterCensus"> & {
+export type CharacterAssemblyInput = Omit<DbAssemblyInput<CharacterContext>, "bumpStatsCanonVersion" | "prepareCanonRetirement"> & {
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
-  readonly retireCharacterCensus: RetireCharacterCensus<BatchHandle, DatabaseHandle>;
+  readonly prepareCanonRetirement: PrepareCanonRetirement<BatchHandle, DatabaseHandle>;
 };
 
 export interface CharacterService {
@@ -126,12 +126,12 @@ export interface CharacterService {
   readonly remove: (params: RemoveCharacterParams) => Promise<void>;
   readonly duplicate: DuplicateCharacterOp;
   /** Missing/foreign ids are skipped, not thrown. */
-  readonly bulkRemove: (params: BulkRemoveParams) => Promise<void>;
+  readonly bulkRemove: (params: BulkRemoveParams) => Promise<CharacterBulkResult>;
   readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
   /** Per-item outcome — the honest wire for a partial batch. */
-  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<CharacterBulkTagResult>;
+  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<CharacterBulkResult>;
   /** Per-item outcome — the honest wire for a partial batch. */
-  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<CharacterBulkTagResult>;
+  readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<CharacterBulkResult>;
 
   readonly snapshot: SnapshotCharacterOp;
   readonly listSnapshots: (params: ListSnapshotsParams) => Promise<SnapshotSummary[]>;

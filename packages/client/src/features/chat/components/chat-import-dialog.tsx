@@ -19,7 +19,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
-import { DIALOG_VERBS, notify } from "#lib";
+import { chatInLibraryNotice, chatsInLibraryNotice, DIALOG_VERBS, inLibraryClause, notify } from "#lib";
+import { CHAT_IMPORT_TITLE } from "../lib/chat-surface-names.ts";
 
 // Both chat formats the single-chat door accepts: the ST/share transcript and the R6 orb-native BUNDLE
 // (which carries the room whole — injections, room overrides, the tag overlay, the rpg campaign). `.json`
@@ -38,14 +39,25 @@ function failureMessage(failure: ChatImportResult["failed"][number]): string {
   return `${failure.filename}: ${failure.error}`;
 }
 
-/** Derive the toast from the real per-file outcome (the `importNotice` sibling the card import uses). */
+/** Derive the toast from the real per-file outcome (the `importNotice` sibling the card import uses). A file that
+ *  lands as `created: false` is a room the library already held (D290), and the toast says so rather than "imported". */
 function importNotice({ imported, failed }: ChatImportResult): ImportNotice {
   const [firstFailure] = failed;
   if (imported.length === 0) {
     return { kind: "error", message: firstFailure === undefined ? "Couldn't import the chat." : failureMessage(firstFailure) };
   }
   if (firstFailure === undefined) {
-    return { kind: "success", message: imported.length === 1 ? "Chat imported." : `${imported.length} chats imported.` };
+    const landed = imported.filter((chat) => chat.created).length;
+    const held = imported.filter((chat) => !chat.created);
+    const [onlyHeld] = held;
+    if (landed === 0) {
+      return {
+        kind: "info",
+        message: held.length === 1 && onlyHeld !== undefined ? chatInLibraryNotice(onlyHeld.filename) : chatsInLibraryNotice(held.length),
+      };
+    }
+    const landedLine = landed === 1 ? "Chat imported" : `${landed} chats imported`;
+    return { kind: "success", message: held.length === 0 ? `${landedLine}.` : `${landedLine}, ${inLibraryClause(held.length)}.` };
   }
   return {
     kind: "info",
@@ -121,7 +133,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
       dismissLabel={DIALOG_VERBS.cancel}
       onOpenChange={changeOpen}
       open={open}
-      title="Import chats"
+      title={CHAT_IMPORT_TITLE}
     >
       <FileDropzone accept={TRANSCRIPT_ACCEPT} subject="files" multiple={true} onFilesSelected={({ accepted }): void => onFiles(accepted)} />
       <ImportedChatsMemoryOffer

@@ -694,22 +694,21 @@ export const CHARACTER_STALE_BASIS_OP_CODE = "stale_basis" as const;
 // kept the write, and how many refused and why. `error.message` is wire-safe text, never a raw `Error`
 // serialized onto the wire.
 
-const characterBulkTagFailureSchema = z.strictObject({
+const characterBulkFailureSchema = z.strictObject({
   error: z.strictObject({
     message: z.string(),
   }),
 });
-export type CharacterBulkTagFailure = z.infer<typeof characterBulkTagFailureSchema>;
+export type CharacterBulkFailure = z.infer<typeof characterBulkFailureSchema>;
 
-/** The per-item batch result both bulk card-tag verbs return: `applied` names every character the write
- *  actually landed on; `failed` names every one it did not, and why. A character in neither array was
- *  skipped as a silent no-op exactly as before this row (unowned/missing, or the tag was already in the
- *  target state) — that degrade is unchanged, only the REJECTED half is now legible. */
-export const characterBulkTagResultSchema = z.strictObject({
+/** The per-item batch result the bulk card-tag verbs and the bulk remove return: `applied` names every character
+ *  the write actually landed on; `failed` names every one it did not, and why. A character in neither array was
+ *  skipped as a silent no-op (unowned or missing, or the tag was already in the target state). */
+export const characterBulkResultSchema = z.strictObject({
   applied: z.array(typeIdSchema(ID_PREFIX.character)),
-  failed: z.array(characterBulkTagFailureSchema),
+  failed: z.array(characterBulkFailureSchema),
 });
-export type CharacterBulkTagResult = z.infer<typeof characterBulkTagResultSchema>;
+export type CharacterBulkResult = z.infer<typeof characterBulkResultSchema>;
 
 /** The full owned-card detail. What create/get/update/duplicate/restore return. The card's face fields
  *  compose `#card-face` (D137(E)) at the SCHEMA level; this view CONFORMS to the nullable-description

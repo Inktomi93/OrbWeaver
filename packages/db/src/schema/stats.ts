@@ -284,7 +284,8 @@ export const modelStats = sqliteTable(
 // the delete that retires its canon (`domain/stats/persistence/retire-canon.ts`).
 // OWNER-STAMPED (D23): the funding principal is the owner, and no FK reaches it — the spend is that principal's money,
 // not a room's, so the row carries no `chat_id` and outlives the chat the way the live rollup does.
-// Append-only: money already paid stays paid, so no delete path touches a row.
+// Money already paid stays paid, so no verb deletes a row to lower spend. The one delete is a seat that brings a
+// retired room back into scope: canon carries that spend again, so one retired row per paid sample of the room leaves.
 export const spendLedger = sqliteTable(
   "spend_ledger",
   {

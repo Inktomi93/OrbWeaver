@@ -512,6 +512,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     bumpStatsCanonVersion: stats.bumpStatsCanonVersion,
     shiftCharacterCensus: stats.shiftCharacterCensus,
     recordLedgerSpend: stats.recordLedgerSpend,
+    prepareCanonRetirement: stats.prepareCanonRetirement,
+    prepareCanonAdmission: stats.prepareCanonAdmission,
     summarize: inferenceOps.summarize,
     resolveSpeakerReranker: inferenceOps.resolveSpeakerReranker,
     resolveSpeakerArbiter: inferenceOps.resolveSpeakerArbiter,
