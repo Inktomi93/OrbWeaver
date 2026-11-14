@@ -55,6 +55,7 @@ test.for([
   ["orb/sole-env-reader", "packages/server/src/foundation/env/probe.ts", "error"],
   ["orb/no-module-state", "packages/server/src/infra/plugin-host/module.ts", "off"],
   ["orb/no-module-state", "packages/server/src/infra/plugin-host/membrane.ts", "error"],
+  ["orb/no-module-state", "packages/inference/src/backends/local-light/probe.ts", "error"],
   ["orb/plugin-dump-guard", "packages/server/src/infra/plugin-host/membrane.ts", "error"],
   ["orb/plugin-dump-guard", "packages/server/src/infra/plugin-host/module.ts", "off"],
   ["orb/member-card-clamped-clamp", `${SUBSTRATE}/auth/probe.ts`, "off"],
@@ -163,6 +164,9 @@ test.for([
   ["no-restricted-imports", "packages/client/src/components/probe.tsx", "A paged suspending read", true],
   ["orb/no-hand-copied-label", "tests/contracts/inference/warnings.contract.test.ts", '"scope":"all"', false],
   ["orb/no-hand-copied-label", "tests/contracts/inference/probe.contract.test.ts", '"scope":"all"', true],
+  // The e2e spec restrictions reach a spec in a nested folder, not only one at the top of tests/e2e.
+  ["no-restricted-syntax", "tests/e2e/support/probe.spec.ts", "A hand-written role selector", true],
+  ["no-restricted-syntax", "tests/support/node/probe.ts", "A hand-written role selector", false],
 ] as const)("%s at %s carries %s: %s", async ([rule, path, option, carried]) => {
   const config = await resolvedConfig(eslint, join(ROOT, path));
   expect(JSON.stringify(config.rules[rule] ?? null).includes(option)).toBe(carried);

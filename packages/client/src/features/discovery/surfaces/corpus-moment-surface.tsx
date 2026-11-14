@@ -7,7 +7,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
 import { openChatMoment, resumeChat } from "#state";
@@ -115,7 +115,7 @@ function RelatedRooms({ chatId }: { readonly chatId: Moment["hit"]["source"]["ch
   const trpc = useTRPC();
   const { data: rooms } = useSuspenseQuery(trpc.discovery.similarChats.queryOptions({ chatId, limit: RELATED_LIMIT }));
   return rooms.length === 0 ? (
-    <Text voice="gloss">No related room in this preview.</Text>
+    <MutedLine>No related room in this preview.</MutedLine>
   ) : (
     <Stack gap="field">
       {rooms.map((room) => (
@@ -130,7 +130,7 @@ function AlternateTakes({ chatId }: { readonly chatId: Moment["hit"]["source"]["
   const trpc = useTRPC();
   const { data: takes } = useSuspenseQuery(trpc.discovery.swipeHotspots.queryOptions({ chatId, limit: RELATED_LIMIT }));
   return takes.length === 0 ? (
-    <Text voice="gloss">No alternate takes in this room.</Text>
+    <MutedLine>No alternate takes in this room.</MutedLine>
   ) : (
     <Stack gap="field">
       {takes.map((take) => (

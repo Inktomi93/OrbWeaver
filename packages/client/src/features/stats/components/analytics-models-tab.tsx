@@ -20,7 +20,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
@@ -81,7 +81,7 @@ function ModelsBody(): ReactElement {
 
       <Section heading="Breakdown">
         {models.length === 0 ? (
-          <Text voice="gloss">No model usage recorded yet.</Text>
+          <MutedLine>No model usage recorded yet.</MutedLine>
         ) : (
           /* `role="list"` needs `listitem` CHILDREN or every row is generic to AT and the list announces
              empty (side-eye ANALYTICS 2026-08-19, P2c — 50 rows, none of them a list item). The wrapper

@@ -23,7 +23,8 @@
 // the host's account.
 
 import type { AnchorState } from "@orb/contracts/chat";
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId, ConsentingHostId, PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
 import type { HumanSeatPersona } from "../contract/foreign.ts";
 import { classifyParticipant, isBackingUserEnabled } from "./participant-actor.ts";
@@ -71,12 +72,15 @@ export async function presentAndEnabledHumanUserIdsOf(
 type HostConsent =
   | { readonly kind: "hostless" }
   | { readonly kind: "withheld" }
-  | { readonly kind: "consents"; readonly hostUserId: UserId; readonly consentSet: readonly UserId[] };
+  | { readonly kind: "consents"; readonly hostUserId: ConsentingHostId; readonly consentSet: readonly UserId[] };
 
 /** Does the room's host consent to work run on its account? `hostless` when the present roster seats no host;
  *  `withheld` when the host is outside the consent set, so a disabled host stands exactly as a departed one. Pass
  *  `frozenHostUserId` when a deferred turn already fixed its host: the room must still seat a host, and the frozen
- *  one must consent. Each caller keeps its own refusal for each arm. */
+ *  one must consent. Each caller keeps its own refusal for each arm.
+ *
+ *  @remarks The one mint of {@link ConsentingHostId}: the `consents` arm is the only proof a host id may fund room
+ *  work. The consent set's other members are not the host, so they stay plain `UserId`. */
 export async function hostConsentOf(
   ctx: Pick<ChatContext, "resolveUserEnabled">,
   participants: readonly (HumanSeat & Parameters<typeof hostUserIdOf>[0][number])[],
@@ -88,7 +92,7 @@ export async function hostConsentOf(
   }
   const hostUserId = frozenHostUserId ?? currentHostUserId;
   const consentSet = await presentAndEnabledHumanUserIdsOf(ctx, participants);
-  return consentSet.includes(hostUserId) ? { kind: "consents", hostUserId, consentSet } : { kind: "withheld" };
+  return consentSet.includes(hostUserId) ? { kind: "consents", hostUserId: castId<ConsentingHostId>(hostUserId), consentSet } : { kind: "withheld" };
 }
 
 /** The rows whose `ownerId` is in the consent set of the row's own room: the owner-side gate of the co-participant

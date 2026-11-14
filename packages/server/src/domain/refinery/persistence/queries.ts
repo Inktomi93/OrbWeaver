@@ -171,7 +171,7 @@ export async function latestRunRowAtOrBefore(
 /** The verdict-core pluck for a CUSTOM analyze run: the well-known core (save belt) guarantees every
  *  custom analyze schema a `verdict` with the three spellings, so the roster badge survives any custom
  *  shape. Gated to custom-config rows — a corrupt FIXED payload must not half-parse into a badge. */
-const verdictCoreSchema = z.object({ verdict: refineryVerdictSchema });
+const verdictCoreSchema = z.object({ verdict: refineryVerdictSchema }).strip();
 
 /** The newest analyze VERDICT per session (the roster badge) — one query, grouped in JS (a per-owner
  *  roster is small; the newest-first scan takes the first verdict it sees per session). */

@@ -40,7 +40,7 @@ export const DB_SCHEMA_RESTRICTIONS = [
 ];
 
 const WIRE_OBJECT_MESSAGE =
-  "A wire object refuses an undeclared key: write `z.strictObject`. A schema that parses stored, imported, model or guest data writes `z.object(...).strip()` under a one-line reason, `z.looseObject` to keep unknown keys, or `z.object(...).catchall(schema)` to keep them typed (Spine-TypeScript-and-Patterns.md, type law 1).";
+  "A wire object refuses an undeclared key: write `z.strictObject`. A schema that parses stored, imported, model or guest data writes `z.object(...).strip()` to drop unknown keys, `z.looseObject` to keep them, or `z.object(...).catchall(schema)` to keep them typed (Spine-TypeScript-and-Patterns.md, type law 1).";
 // The mode check reads the `z` binding by name, so any other value spelling of zod would hide a call from it.
 const ZOD_SPELLING_MESSAGE = 'Reach zod only as `import { z } from "zod"` and `z.<builder>(...)`, so the wire-object mode check sees every object call.';
 const ZOD_SOURCE = String.raw`/^zod(\W.*)?$/`;

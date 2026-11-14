@@ -26,7 +26,7 @@ import { latestRunRowAtOrBefore } from "../persistence/queries.ts";
 import { buildPatch } from "../substrate/accept-belts.ts";
 
 const COPY_NAME_SUFFIX = " (refined)";
-const overallScoreCoreSchema = z.object({ overallScore: z.number() });
+const overallScoreCoreSchema = z.object({ overallScore: z.number() }).strip();
 
 export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyAsCopy"] {
   return async ({ principal, sessionId, accepts, name, rewriteRunId }) => {

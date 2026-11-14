@@ -12,7 +12,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { StageRow } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
-import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
+import { diskSafeUrl, routeArtifactSlug } from "../lib/disk-safe-argv.ts";
 import { registerSnapStageProvenance } from "../lib/run-provenance.ts";
 import { stageRowBaseUrl } from "../lib/stage-plan.ts";
 import { ensureStage } from "./stage.ts";
@@ -43,7 +43,7 @@ export function snapDestination(opts: Args): { readonly url: string; readonly na
     const target = fileTarget(opts.file);
     return { url: target.url, name: opts.out ?? target.slug };
   }
-  return { url: buildUrl(opts.base, opts.route), name: opts.out ?? routeSlug(opts.route) };
+  return { url: buildUrl(opts.base, opts.route), name: opts.out ?? routeArtifactSlug(opts.route) };
 }
 
 // `--file` is a static-mock mode: it cannot mean anything alongside a stack-serving mode (an isolated stage

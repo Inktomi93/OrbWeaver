@@ -41,7 +41,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { RULE_ROOM_WORLD_BOOKS_READ_LABEL } from "../lib/automation-names.ts";
 // the value shape is the CONTRACT's wire-input bag (`lib/rule-preset-knob-model.ts` states why).
@@ -234,10 +234,10 @@ function ChatWorldInfoBookKnobBody({ knob, chatId, value, onChange, showIssue }:
   if (items.length === 0) {
     return (
       <KnobRow knob={knob} issue={null}>
-        <Text voice="gloss">
+        <MutedLine>
           This room has no world books attached yet, so there is nothing for this rule to write into. Attach one under World books, higher up this tab, and it
           can be picked here.
-        </Text>
+        </MutedLine>
       </KnobRow>
     );
   }

@@ -31,32 +31,36 @@ const DEFAULT_N = 1;
 const PNG_MEDIA = "image/png";
 const DATA_URL_RE = /^data:(?<mime>[^;,]+);base64,(?<data>.*)$/su;
 const reportedCount = z.number().int().nonnegative().nullish().catch(null);
-const imageTokenDetailFieldsSchema = z.object({
-  text_tokens: reportedCount,
-  image_tokens: reportedCount,
-  audio_tokens: reportedCount,
-  video_tokens: reportedCount,
-  file_tokens: reportedCount,
-  cached_tokens: reportedCount,
-  cache_write_tokens: reportedCount,
-  reasoning_tokens: reportedCount,
-});
+const imageTokenDetailFieldsSchema = z
+  .object({
+    text_tokens: reportedCount,
+    image_tokens: reportedCount,
+    audio_tokens: reportedCount,
+    video_tokens: reportedCount,
+    file_tokens: reportedCount,
+    cached_tokens: reportedCount,
+    cache_write_tokens: reportedCount,
+    reasoning_tokens: reportedCount,
+  })
+  .strip();
 const imageTokenDetailSchema = imageTokenDetailFieldsSchema.nullish().catch(null);
-const imageResponseSchema = z.object({
-  usage: z
-    .looseObject({
-      input_tokens: reportedCount,
-      output_tokens: reportedCount,
-      prompt_tokens: reportedCount,
-      completion_tokens: reportedCount,
-      input_tokens_details: imageTokenDetailSchema,
-      output_tokens_details: imageTokenDetailSchema,
-      prompt_tokens_details: imageTokenDetailSchema,
-      completion_tokens_details: imageTokenDetailSchema,
-    })
-    .nullish()
-    .catch(null),
-});
+const imageResponseSchema = z
+  .object({
+    usage: z
+      .looseObject({
+        input_tokens: reportedCount,
+        output_tokens: reportedCount,
+        prompt_tokens: reportedCount,
+        completion_tokens: reportedCount,
+        input_tokens_details: imageTokenDetailSchema,
+        output_tokens_details: imageTokenDetailSchema,
+        prompt_tokens_details: imageTokenDetailSchema,
+        completion_tokens_details: imageTokenDetailSchema,
+      })
+      .nullish()
+      .catch(null),
+  })
+  .strip();
 const IMAGE_USAGE_MODALITIES = [
   ["text_tokens", "text"],
   ["image_tokens", "image"],

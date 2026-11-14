@@ -46,7 +46,6 @@ import {
   speakerKey,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
-import type { BindingActor } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
@@ -56,7 +55,7 @@ import type { Resolved, WireTool } from "@orb/inference";
 import { ProviderError, resolveSideGenSampling } from "@orb/inference";
 import { tokenizeContent } from "@orb/kit/content";
 import { DomainError, DomainInternalFaultError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, ConsentingHostId, MessageId, ModelId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
@@ -67,7 +66,7 @@ import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SmartArbitrationResult, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import type { TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
-import type { ChatContext, ChatRpgGatherResult } from "../contract/context.ts";
+import type { ChatContext, ChatRpgGatherResult, ChatServiceDeps } from "../contract/context.ts";
 import type { DelayOp, EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatHostWithoutConsentError, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ChatBehaviorInputs, ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
@@ -165,11 +164,7 @@ interface TurnDeps {
   readonly emit: EmitDurableChatEventOp;
   readonly prng: RandomSource;
   readonly delay: DelayOp;
-  readonly resolveConnection: (args: {
-    readonly funderUserId: UserId;
-    readonly chatId: ChatId;
-    readonly actor?: BindingActor | undefined;
-  }) => Promise<Resolved<"chat">>;
+  readonly resolveConnection: ChatServiceDeps["resolveConnection"];
   /** The foreign half of the assemble ctx (preset/persona/settings), resolved at the composition root. The
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -243,7 +238,7 @@ const nudgeOf = (
 /** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
  *  their display names, the seated-character ids (WI/memory), and the present personas. */
 interface Room {
-  readonly hostUserId: UserId;
+  readonly hostUserId: ConsentingHostId;
   readonly candidates: readonly ArbiterCandidate[];
   readonly speakerCandidates: readonly SpeakerCandidate[];
   /** Each seated character's "who is this" line (macros rendered, uncapped) — what both Smart pickers read. */
@@ -484,8 +479,8 @@ function sharedTurnPrepFields(env: {
   readonly built: BuiltTurnContext;
   /** The turn's resolved identity pair — taken WHOLE (never as two fields) so the call stays one line: the
    *  multi-line argument literal an unpacked signature forces is itself a duplicated block, which is this
-   *  same clone one level up. `resolveTurnIdentityVia`'s result and the deferred-drain `row` both satisfy it. */
-  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
+   *  same clone one level up. `resolveTurnIdentityVia`'s result and the deferred drain's consented triple both satisfy it. */
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: ConsentingHostId; readonly runAsUserId: ConsentingHostId };
   readonly connection: Resolved<"chat">;
   readonly intent: UserIntent | undefined;
   readonly toolRecurseLimit: number | undefined;
@@ -672,9 +667,9 @@ async function buildTurnContext(
   deps: TurnDeps,
   args: {
     readonly chatId: ChatId;
-    readonly runAsUserId: UserId;
+    readonly runAsUserId: ConsentingHostId;
     /** The turn's FUNDER (whose connection it runs on) — the rpg gather's delivery verdict reads it. */
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     readonly model: ModelId;
     readonly kind: TurnKind;
     readonly characterIds: readonly CharacterId[];
@@ -1000,7 +995,7 @@ async function arbitrate(
   args: {
     readonly chatId: ChatId;
     /** The round's trigger — whose `summarize` connection the smart arbiter spends (§8.5b). */
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     readonly group: GroupConfig;
     readonly candidates: readonly ArbiterCandidate[];
     readonly speakerCandidates: readonly SpeakerCandidate[];
@@ -2101,7 +2096,7 @@ function createAbort(ctx: ChatContext, deps: TurnDeps): ChatService["abort"] {
 /** The resolved single-turn substrate — assumes `requireParticipant`/`requireHost` already ran. */
 interface TurnBase {
   readonly room: Room;
-  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: ConsentingHostId; readonly runAsUserId: ConsentingHostId };
   readonly connection: Resolved<"chat">;
   readonly assembleContext: AssembleContext;
   readonly memoryConfig: MemoryConfig | null | undefined;
@@ -2733,7 +2728,7 @@ async function arbitrateGenerateSpeaker(
     readonly room: Room;
     readonly assembled: AssembleContext;
     readonly group: GroupConfig;
-    readonly funderUserId: UserId;
+    readonly funderUserId: ConsentingHostId;
     readonly signal: AbortSignal;
   },
 ): Promise<{ readonly speaker: CharacterId | null; readonly aborted: boolean }> {
@@ -2950,7 +2945,8 @@ async function runDeferredRound(
   // is told about no roll and never borrows a later send's.
   const answeredUserText = row.messageId === null ? null : await loadPendingUserText(ctx.db, row.chatId, row.messageId);
   const room = await loadRoom(ctx, row.chatId, chat.anchorPersonaId, row.runAsUserId); // hostless/gone → chat-gone drop; frozen host disabled or left → consent drop
-  const identity = { triggeredBy: row.triggeredBy, funderUserId: row.runAsUserId, runAsUserId: row.runAsUserId };
+  // The consent read proved the row's frozen host, so the triple funds that same id with its proof attached.
+  const identity = { triggeredBy: row.triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
   const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId: row.chatId });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
   const built = await buildTurnContext(ctx, deps, {
@@ -3159,7 +3155,7 @@ interface RequestTurnResolved {
   readonly chat: NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
   readonly room: Room;
   readonly connection: Resolved<"chat">;
-  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: UserId; readonly runAsUserId: UserId };
+  readonly identity: { readonly triggeredBy: UserId; readonly funderUserId: ConsentingHostId; readonly runAsUserId: ConsentingHostId };
 }
 
 /** requestTurn WALLS 1+2 + room/host/connection resolution. Throws the coded refusal on any wall breach; else

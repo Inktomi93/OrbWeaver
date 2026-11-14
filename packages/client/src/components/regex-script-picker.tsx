@@ -19,7 +19,6 @@
 import type { RegexPickerScope, RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -29,6 +28,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, ITEM_ATTACH_SETTING, itemSwitchName, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import { MutedLine } from "./muted-line.tsx";
 import { useAttachCharacter, useAttachChat, useAttachPreset, useDetachCharacter, useDetachChat, useDetachPreset } from "./regex-mutations.ts";
 import { RegexScopeOrder } from "./regex-scope-order.tsx";
 import { scopeOrderShowsGrips } from "./regex-scope-order-model.ts";
@@ -155,11 +155,7 @@ function PickerBody({
           <Input aria-label="Filter regex scripts" onValueChange={setFilter} placeholder="Filter regex scripts…" value={filter} />
         </Row>
       ) : null}
-      {nothingMatches ? (
-        <Text aria-live="polite" role="status" voice="gloss">
-          No scripts match that filter.
-        </Text>
-      ) : null}
+      {nothingMatches ? <MutedLine announce={true}>No scripts match that filter.</MutedLine> : null}
       {/* Nothing attached ⇒ NO split: two group headings over one undifferentiated library is noise, and
           the ordered slice would be empty. This is the pre-REGORDER rendering, unchanged. */}
       {library.data.length > 0 && attached.length === 0 ? looseRows : null}
@@ -211,19 +207,12 @@ function PickerBody({
  *  Regex", which is a navigation instruction printed next to a surface that can navigate. An empty state
  *  carries the thing it is telling you to do. */
 function EmptyLibrary({ onOpenLibrary }: { readonly onOpenLibrary: (() => void) | undefined }): ReactElement {
-  return (
-    <Stack gap="field" align="start">
-      <Text voice="gloss">
-        {onOpenLibrary === undefined
-          ? "You haven't written any regex scripts yet. Add one in Settings → Regex, then attach it here."
-          : "You haven't written any regex scripts yet. Write one in your library, then attach it here."}
-      </Text>
-      {onOpenLibrary === undefined ? null : (
-        <Button variant="outline" onClick={onOpenLibrary} size="sm" type="button">
-          Open your script library
-        </Button>
-      )}
-    </Stack>
+  return onOpenLibrary === undefined ? (
+    <MutedLine>You haven't written any regex scripts yet. Add one in Settings → Regex, then attach it here.</MutedLine>
+  ) : (
+    <MutedLine action={{ label: "Open your script library", onAction: onOpenLibrary }}>
+      You haven't written any regex scripts yet. Write one in your library, then attach it here.
+    </MutedLine>
   );
 }
 

@@ -147,7 +147,7 @@ function generatedUnion<const Schemas extends readonly z.ZodType[]>(schemas: Sch
 }
 
 function generatedObject<Shape extends z.ZodRawShape>(shape: Shape): z.ZodObject<Shape> {
-  return z.object(shape);
+  return z.object(shape).strip();
 }
 
 function liftString(node: Record<string, unknown>, path: string): RuntimeGeneratedSchema {

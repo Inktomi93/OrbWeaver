@@ -22,6 +22,7 @@ import { printVerdictReceipt } from "../../floor/verdict/evidence.ts";
 import type { SnapAppearanceContract, SnapAppearanceMatrix, SnapMatrixVariant } from "../contract/matrix.ts";
 import type { SnapDetailedResult, SnapRunReceipt } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
+import { diskSafeUrl, routeArtifactSlug } from "../lib/disk-safe-argv.ts";
 import type { AppearanceAggregate } from "../lib/matrix-appearance.ts";
 import { aggregateAppearance, reconcileAppearanceAggregate } from "../lib/matrix-appearance.ts";
 import { shouldProduceShot, variantOut } from "../lib/out-names.ts";
@@ -292,7 +293,7 @@ async function finishScenarioMatrix({ opts, baseName, discovery, matrix, cells }
 
 async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry, ThemeEntry] | null, host: ProbeSession | null): Promise<number> {
   const destination = snapDestination(opts);
-  const baseName = opts.out ?? (opts.scenario === null ? routeSlug(opts.route) : routeSlug(basename(opts.scenario, extname(opts.scenario))));
+  const baseName = opts.out ?? (opts.scenario === null ? routeArtifactSlug(opts.route) : routeSlug(basename(opts.scenario, extname(opts.scenario))));
   const discovery = await discoverMatrixInputs(opts, baseName, host);
   if (opts.motion) {
     return await runMotionMatrix(opts, baseName, discovery, host);
@@ -306,7 +307,7 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
     return instrumentRefusal("matrix discovery found no background-library asset to paint the `asset` Appearance arm with");
   }
   const matrix = planSnapAppearanceMatrix(discovery.contract, discovery.themes, preferredCustom, background);
-  print(`MATRIX PLAN  target=${destination.url} cells=${matrix.plan.cells.length} pairs-uncovered=${matrix.plan.receipt.uncoveredPairs.length}`);
+  print(`MATRIX PLAN  target=${diskSafeUrl(destination.url)} cells=${matrix.plan.cells.length} pairs-uncovered=${matrix.plan.receipt.uncoveredPairs.length}`);
   print(
     `MATRIX INPUT declared=${discovery.contract.declared} executable=${discovery.contract.executable} dependencies=${discovery.contract.dependencies} ` +
       `reached-rows=${discovery.reachedRows} reached-subjects=${discovery.reachedSubjects} themes=${discovery.themes.length}`,

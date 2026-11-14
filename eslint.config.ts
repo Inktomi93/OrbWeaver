@@ -1291,6 +1291,8 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
   {
     files: ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"],
     plugins: { drizzle },
+    // The plugin matches a receiver by its last member name, so `db` also covers `ctx.db`, `deps.db` and `this.db`;
+    // every database handle in these trees is named `db`, and an empty list would flag every Map and Set `delete`.
     rules: {
       "drizzle/enforce-delete-with-where": ["error", { drizzleObjectName: ["db"] }],
       "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db"] }],
@@ -2001,10 +2003,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error", "orb/narrowed-json-brand": "error" } },
     { files: ["packages/server/src/**/*.{ts,tsx}"], rules: { "orb/viewer-visibility-parameter-checked": "error" } },
-    {
-      files: ["packages/contracts/src/**/*.{ts,tsx}", "packages/server/src/transport/**/*.{ts,tsx}"],
-      rules: { "orb/wire-object-declares-mode": "error" },
-    },
+    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/wire-object-declares-mode": "error" } },
     { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/text-voice-only": "error" } },
@@ -2525,13 +2524,18 @@ export default [
     rules: { "orb/enforcement-claim-cites-checker": "error" },
   },
   {
+    files: ["packages/**/*.{ts,tsx}", "tooling/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/disable-directive-reason": "error" },
+  },
+  {
     files: rootSources("@server", "@inference"),
     ignores: ["packages/server/src/**/persistence/**"],
     plugins: { orb: localPlugin },
     rules: { "orb/assumes-single-replica": "error" },
   },
   {
-    files: rootSources("@server"),
+    files: rootSources("@server", "@inference"),
     ignores: MODULE_STATE_OWN_PROCESS,
     plugins: { orb: localPlugin },
     rules: { "orb/no-module-state": "error" },
@@ -2752,7 +2756,7 @@ export default [
     rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SUBJECT_TEST_SYNTAX) },
   },
   {
-    files: ["tests/e2e/*.spec.ts"],
+    files: ["tests/e2e/**/*.spec.ts"],
     rules: {
       "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, PAGE_SLEEP_RESTRICTION, FIRST_ALERT_RESTRICTION, {
         selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",

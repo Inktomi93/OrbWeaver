@@ -97,7 +97,7 @@ interface GroupShape {
 }
 
 // Only the two lists the plan reads, each optional like the server's parse; a non-object definition fails the parse and plans as an empty group.
-const GROUP_DEFINITION = z.object({ members: z.unknown().optional(), chats: z.unknown().optional() });
+const GROUP_DEFINITION = z.object({ members: z.unknown().optional(), chats: z.unknown().optional() }).strip();
 
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];

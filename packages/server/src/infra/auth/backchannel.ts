@@ -33,9 +33,9 @@ const PINNED_ALGS = ["RS256", "ES256"] as const;
 const MS_PER_SECOND = 1000;
 const REJECTED_EVENT = "oidc_backchannel_logout_rejected";
 
-const backchannelEventsSchema = z.object({ [OIDC_BACKCHANNEL_LOGOUT_EVENT]: z.object({}).loose() });
-const logoutTokenIdSchema = z.object({ jti: z.string(), exp: z.number() });
-const logoutSubjectSchema = z.object({ sub: z.string().optional(), sid: z.string().optional() });
+const backchannelEventsSchema = z.object({ [OIDC_BACKCHANNEL_LOGOUT_EVENT]: z.looseObject({}) }).strip();
+const logoutTokenIdSchema = z.object({ jti: z.string(), exp: z.number() }).strip();
+const logoutSubjectSchema = z.object({ sub: z.string().optional(), sid: z.string().optional() }).strip();
 
 interface ClaimRejection {
   readonly reason: "nonce" | "jti" | "event" | "subject";
