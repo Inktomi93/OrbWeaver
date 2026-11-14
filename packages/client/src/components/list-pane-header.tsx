@@ -16,6 +16,7 @@
 
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Row } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, Ref } from "react";
@@ -24,7 +25,8 @@ import { BAND_OVERFLOW_LABEL, LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
 import { OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 import { Tip } from "./tip.tsx";
-import { useCutParts } from "./use-is-cut.ts";
+import { TitleReveal } from "./title-reveal.tsx";
+import { useCutPart, useCutParts } from "./use-is-cut.ts";
 
 /** The primary's icon form: the same command its menu form runs, named by its label. */
 function CompactAction({ command, buttonRef }: { readonly command: OverflowMenuItem; readonly buttonRef: Ref<HTMLButtonElement> | undefined }): ReactElement {
@@ -48,6 +50,24 @@ function CutCensus({ children }: { readonly children: ReactNode }): ReactElement
   return (
     <Text as="span" data-slot="list-pane-census" ink="muted" voice="label" numeric={true} truncate={true} unpainted={cut} ref={part}>
       {children}
+    </Text>
+  );
+}
+
+/** The title text the band's line cuts: it holds the ref the title's reveal reads, so a cut makes the title its own control. */
+function PaneTitleText({ title, accent }: { readonly title: string; readonly accent: string | undefined }): ReactElement {
+  const part = useCutPart();
+  return (
+    <Text as="span" className={accent === undefined ? "shrink-0" : undefined} ref={part} truncate={true} voice="masthead">
+      {accent === undefined ? title : `${title} · `}
+      {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
+          owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
+          equal nouns. */}
+      {accent === undefined ? null : (
+        <Text as="span" ink="muted" voice="masthead">
+          {accent}
+        </Text>
+      )}
     </Text>
   );
 }
@@ -120,17 +140,15 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           {/* An unscoped title is a section's name and never shrinks: "Cha…" does not read as its pane, so the census
               beside it gives instead. A scoped title carries an entity's name, which is what gives, down to the title
               floor. */}
-          <Text as="span" className={accent === undefined ? "shrink-0" : undefined} truncate={true} voice="masthead">
-            {accent === undefined ? title : `${title} · `}
-            {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
-                owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
-                equal nouns. */}
-            {accent === undefined ? null : (
-              <Text as="span" ink="muted" voice="masthead">
-                {accent}
-              </Text>
-            )}
-          </Text>
+          {/* A scoped title the band cuts is the control that opens its whole text (the chrome-title ruling in
+              `docs/law/ui-platform-rulings.md`): the entity's name is the part that gives, and a phone has no hover. */}
+          {accent === undefined ? (
+            <PaneTitleText accent={accent} title={title} />
+          ) : (
+            <TitleReveal control={<InlineAction className="min-inline-0" step="label" type="button" />} whole={`${title} · ${accent}`}>
+              <PaneTitleText accent={accent} title={title} />
+            </TitleReveal>
+          )}
           {/* THE COUNT RIDES `label`, NOT `micro` (#1136): beside a 24px name a 10.5px datum is not quiet, it is
               unreadable; the step is a legibility call. It wears the title's family (an unlabelled mono figure
               beside a sans name reads as a stray datum) with tabular figures so it does not jitter. A scoped band's
