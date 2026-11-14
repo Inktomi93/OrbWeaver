@@ -389,6 +389,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/transport/trpc/fault-copy.ts": "UNCLASSIFIED_FAULT_MESSAGE: the words the error formatter sends for every unclassified throw",
   "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
+  "packages/server/src/domain/chat/persistence/import-landing.ts":
+    "LANDING_STAGE_ROWS: the rows one import landing stage commits, which landing suites size a room of several stages by",
+  "packages/server/src/domain/stats/persistence/rebuild-from-canon.ts":
+    "CHUNK: the rows one rebuild page reads, which the rebuild yield suite sizes a library of several pages by",
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
   "packages/server/src/domain/credentials/contract/errors.ts": "CREDENTIALS_OP_CODES: the refusal codes credentials suites assert",
   "packages/server/src/domain/settings/contract/errors.ts": "SETTINGS_OP_CODES: the refusal codes settings suites assert",
@@ -568,6 +572,8 @@ const TEST_CONSTANT_HOMES = {
     "CHAT_ATTACH_BOOK_NAME and its siblings: the This-chat tab's attach doors, pickers, empty states and refusals",
   "packages/client/src/features/chat/lib/chat-settings-names.ts":
     "CHAT_ADD_INJECTION_NAME and its siblings: the This-chat tab's injection, override, prose and group form names",
+  "packages/client/src/features/chat/lib/memory-view-copy.ts":
+    "memoryStrikeName and its siblings: the Memory tab's control names, who-remembers lines and status subjects",
   "packages/client/src/features/chat/lib/members-names.ts":
     "CHAT_INVITE_PEOPLE_NAME and its siblings: the Members panel, row menu, card viewer and join dialog names",
   "packages/client/src/features/chat/lib/command-palette-names.ts": "COMMAND_MODAL_TITLE and COMMAND_PALETTE_NAME: the command modal's title and input",
@@ -719,6 +725,26 @@ const SERVER_TEST_REACHES = {
     "domain/settings": "ensureSeedThemes and healLegacyBackgroundPins: cross-owner boot verbs",
     "domain/stats": "reconcileOwnersMissingTimeline: a cross-owner boot verb",
     "domain/workloads": "reclaimInFlightOnBoot: a cross-owner boot verb",
+  },
+  // A reader that skips a room an import is still landing is proven against a room of several landing stages, sized by
+  // the chat import's own stage bound.
+  "tests/server/entry/boot/persistence/import-landing-sweep.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits and one cleanup chunk deletes",
+  },
+  "tests/server/foundation/observability/debug/persistence/import-landing-list.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/world-info/persistence/import-landing-reach.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/stats/persistence/import-landing-reads.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/discovery/persistence/import-landing-reads.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
+  },
+  "tests/server/domain/import/persistence/import-stats-equal-rebuild.int.test.ts": {
+    "domain/chat": "LANDING_STAGE_ROWS: the rows one landing stage commits",
   },
   "tests/server/domain/sessions/persistence/users.int.test.ts": {
     "domain/admin": "ADMIN_OP_CODES: the refusals of the admin SSO link claim, which binds a sessions-owned row",
@@ -925,6 +951,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/contracts/src/chat/roster.ts":
       "JOIN_UNAVAILABLE_CODE and ACCOUNT_EXISTS_CODE: the refusal codes the pending-join story answers with, which no contracts door forwards",
   },
+  "tests/client/features/character/components/bulk-remove-refusal.ct.tsx": {
+    "packages/db/src/index.ts":
+      "characters: the table a storage trigger refuses one card's delete on, so the case runs the server's own per-card failure; no client door reaches the database",
+  },
   "tests/client/features/plugin/native-guest-protocol.ct.tsx": {
     "packages/client/src/lib/plugin-ui-guest-protocol.ts":
       "UI_GUEST_BUDGETS.eventCpuMs: a case holds a host call past one event's CPU budget, and the lib door forwards only the walls that sum it",
@@ -1081,6 +1111,10 @@ const PACKAGE_TEST_REACHES = {
   },
   "tests/client/features/chat/components/saved-replies-retry.ct.tsx": {
     "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_ACTIONS_MENU_NAME: the row menu trigger that opens the saved-replies door",
+  },
+  "tests/client/features/chat/components/_memory-view-stories.tsx": {
+    "packages/client/src/features/chat/components/memory-view-tab.tsx":
+      "MemoryViewTab: the Memory tab body, which only the chats section renders and no door forwards",
   },
   "tests/client/features/chat/components/_chat-forks-stories.tsx": {
     "packages/client/src/features/chat/components/settings-context-tab.tsx":

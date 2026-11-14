@@ -180,6 +180,12 @@ const PLAIN_CHAT_WARNING_CODES = [
   // without it a captioned-but-pictureless reply reads as the model babbling about an image nobody sent.
   // COUNT-FREE like every other plain code — one notice per turn, not one per lost picture.
   "reply_image_failed",
+  // The turn's text read or set a global variable in a room another human has held a seat in, so the reads gave
+  // nothing and the writes were dropped (the plane is `held`). The reply is unaffected.
+  "global_variables_held",
+  // A `{{setglobalvar}}` write this reply made was refused by a cap (key or value size, a NUL, the per-turn
+  // key count or the owner's key total) and not stored; the reply and the other writes committed.
+  "global_variable_dropped",
   HIDDEN_TAG_BROKEN_CODE,
 ] as const;
 export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
@@ -308,6 +314,10 @@ export const TURN_HOST_UNAVAILABLE_OP_CODE = "host_unavailable" as const;
  *  ACTIONABLE — the knob the user just moved names a value its preset no longer declares — so the pane
  *  renders it beside that control instead of letting it read as a server fault. */
 export const USER_MACRO_UNKNOWN_PICK_OP_CODE = "unknown_macro_pick" as const;
+
+/** The `DomainOperationError.code` a host-only chat verb refuses a member with; the server's `CHAT_OP_CODES.notHost`
+ *  derives this literal. A surface that offered a host control to a viewer who is no longer host keys on it. */
+export const CHAT_NOT_HOST_OP_CODE = "not_host" as const;
 
 // ── Turn origin — who/what started a turn + its cascade depth ──
 // TURN-PATH STATE, never a bus-event field: the D19/D50 allowlist forbids attribution on the public bus, so

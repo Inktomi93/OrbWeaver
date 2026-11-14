@@ -17,7 +17,7 @@ import type { RandomSource } from "@orb/kit/macro";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerArbiter, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
-import { isArbiterEligible } from "../persistence/participant.ts";
+import { isArbiterEligible } from "../substrate/participant-actor.ts";
 import { addressedGroups, MAX_SMART_RESPONDERS, selectSpeakers } from "./select-speakers.ts";
 
 /** Each candidate's "who is this" line in the prompt. */

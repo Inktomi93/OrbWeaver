@@ -8,7 +8,7 @@ import type { CharacterHandle, ChatId, Handle, IdSource, MessageVariantId, UserC
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { cardTokenSize } from "@orb/server/domain/character";
 import { cardContentHash } from "@orb/server/primitives/serde/card";
-import { and, eq } from "drizzle-orm";
+import { and, eq, getTableColumns, getTableName, sql } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 
@@ -120,6 +120,7 @@ function makeChat(overrides: Partial<ChatRow>, source: IdSource): ChatRow {
     anchorPersonaId: null,
     parentChatId: null,
     forkedAt: null,
+    everShared: false,
     compactSummary: null,
     compactedAtSeq: null,
     metadata: null,
@@ -129,16 +130,40 @@ function makeChat(overrides: Partial<ChatRow>, source: IdSource): ChatRow {
     standaloneVariableDeltas: null,
     importedFrom: null,
     importHash: null,
+    landingAt: null,
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }
 
-/** A bare room row, born started at the frozen clock; the caller inserts the seats its case needs. */
+/** A bare room row, born started at the frozen clock; the caller inserts the seats its case needs. It writes only
+ *  the columns the database has, so a migration case can seed a room into a chain cut before a later column, and it
+ *  refuses an override for a column that chain lacks rather than seed a room without it. */
 export async function seedChatRow(db: Db, overrides: Partial<ChatRow> = {}, source: IdSource = ids): Promise<ChatRow> {
   const row = makeChat(overrides, source);
-  await db.insert(chats).values(row);
+  const present = new Set((await db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info(${getTableName(chats)})`)).map((column) => column.name));
+  const columns = new Map(Object.entries(getTableColumns(chats)));
+  const dropped = Object.keys(overrides).filter((key) => {
+    const column = columns.get(key);
+    return column !== undefined && !present.has(column.name);
+  });
+  if (dropped.length > 0) {
+    throw new Error(`this database's chats table has no column for the override ${dropped.join(", ")}`);
+  }
+  const written = Object.entries(row).flatMap(([key, value]) => {
+    const column = columns.get(key);
+    return column !== undefined && present.has(column.name) ? [{ name: column.name, value: value === null ? null : column.mapToDriverValue(value) }] : [];
+  });
+  await db.run(
+    sql`INSERT INTO ${chats} (${sql.join(
+      written.map(({ name }) => sql.identifier(name)),
+      sql`, `,
+    )}) VALUES (${sql.join(
+      written.map(({ value }) => sql`${value}`),
+      sql`, `,
+    )})`,
+  );
   return row;
 }
 
@@ -192,7 +217,7 @@ export { seedAssetRows } from "./rows/asset.ts";
 export { seedAutomationRuleRows, seedAutomationTestFiresRows } from "./rows/automation.ts";
 export type { SeededCharacterRows } from "./rows/character.ts";
 export { seedCharacterRows } from "./rows/character.ts";
-export { seedChatInviteRows, seedChatRows, seedInvitedChatParticipantRows, seedTranscriptRows } from "./rows/chat.ts";
+export { duringChatLanding, seedChatInviteRows, seedChatRows, seedInvitedChatParticipantRows, seedTranscriptRows } from "./rows/chat.ts";
 export { seedCharacterDistillationsRows } from "./rows/discovery.ts";
 export { captureTurnRows, seedMessageRows } from "./rows/message.ts";
 export type { PeerLeaseRows } from "./rows/peer-replica.ts";

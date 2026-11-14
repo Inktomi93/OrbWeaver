@@ -11,6 +11,10 @@
 // the replacement FAILED → this file INVALIDATES the row it could not replace. The third used to have no
 // mechanism, so a proven-stale digest (its hash mismatch is what queued the rebuild) stayed live in recall
 // for as long as the summarizer kept returning nothing — see `storeTier0`/`storeConsolidationTier`.
+//
+// AN INVALIDATED DIGEST TAKES ITS STORED ANCESTORS WITH IT. A longer summary retells the digests it was built from,
+// and consolidation skips a group a dropped child leaves incomplete, so an ancestor left behind would keep telling
+// the scene as it read before the edit. `storedAncestors` names them; they drop in the same compare-and-swap.
 
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { RolePresetParams } from "@orb/contracts/preset";
@@ -353,7 +357,7 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
   const { chatId, scopedCharacterId, isGroup } = plan.scope;
   let written = 0;
   let skippedEmpty = 0;
-  const staleKeys: { tier: number; blockIdx: number; staleHash: string }[] = [];
+  const staleKeys: StaleDigestKey[] = [];
   for (let i = 0; i < plan.pending.length; i += 1) {
     const item = plan.pending[i];
     if (item === undefined) {
@@ -367,7 +371,10 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
       // sibling pass that healed this block meanwhile keeps its fresh digest.
       const staleHash = plan.existing.get(`0:${item.block.blockIdx}`);
       if (staleHash !== undefined) {
-        staleKeys.push({ tier: 0, blockIdx: item.block.blockIdx, staleHash });
+        staleKeys.push(
+          { tier: 0, blockIdx: item.block.blockIdx, staleHash },
+          ...storedAncestors(plan.existing, { tier: 0, blockIdx: item.block.blockIdx }, plan.cfg),
+        );
       }
       continue;
     }
@@ -391,14 +398,37 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
   return { written, skippedEmpty };
 }
 
+/** A stored digest a pass proved stale: its grid key and the hash the delete compares against. */
+interface StaleDigestKey {
+  readonly tier: number;
+  readonly blockIdx: number;
+  readonly staleHash: string;
+}
+
+/** The longer summaries stored above the digest at `from`, nearest tier first, each with its stored hash: the parent
+ *  at `floor(blockIdx / fanOut)` one tier up, and so on to `maxTier`, the same grouping `groupByParent` consolidates by.
+ *  A position with no stored row is absent. */
+function storedAncestors(
+  existing: ReadonlyMap<string, string>,
+  from: { readonly tier: number; readonly blockIdx: number },
+  cfg: Pick<ReturnType<typeof resolveCfg>, "fanOut" | "maxTier">,
+): StaleDigestKey[] {
+  const ancestors: StaleDigestKey[] = [];
+  let blockIdx = from.blockIdx;
+  for (let tier = from.tier + 1; tier <= cfg.maxTier; tier += 1) {
+    blockIdx = Math.floor(blockIdx / cfg.fanOut);
+    const staleHash = existing.get(`${tier}:${blockIdx}`);
+    if (staleHash !== undefined) {
+      ancestors.push({ tier, blockIdx, staleHash });
+    }
+  }
+  return ancestors;
+}
+
 /** Drop the KNOWN-stale digest rows a pass proved stale and then failed to replace — the third
  *  memory delete, beside the shrink reclaim and the content-hash self-heal. No-op on an empty set (the
  *  ordinary pass), so the build's no-op economy is untouched. */
-async function invalidateStale(
-  ctx: ChatContext,
-  scope: MemoryScope,
-  keys: readonly { readonly tier: number; readonly blockIdx: number; readonly staleHash: string }[],
-): Promise<void> {
+async function invalidateStale(ctx: ChatContext, scope: MemoryScope, keys: readonly StaleDigestKey[]): Promise<void> {
   if (keys.length === 0) {
     return;
   }
@@ -453,6 +483,9 @@ interface ConsPending {
  *  Non-exported — backfill derives it by inference (§7.4: no build-internal type in an export). */
 interface ConsolidationTierPlan {
   readonly embedSpace: MemoryEmbedSpace;
+  /** What the collect read as stored, so the store can name the ancestors of a parent it drops. */
+  readonly existing: ReadonlyMap<string, string>;
+  readonly cfg: ReturnType<typeof resolveCfg>;
   readonly parentTier: number;
   readonly pending: readonly ConsPending[];
   readonly speakerMap: ReadonlyMap<string, CharacterId[]>;
@@ -598,7 +631,7 @@ export async function collectConsolidationTier(
       },
     });
   }
-  return { embedSpace: args.embedSpace, parentTier, pending, speakerMap, skipped, signal };
+  return { embedSpace: args.embedSpace, existing, cfg, parentTier, pending, speakerMap, skipped, signal };
 }
 
 /** The consolidation summarize batch (per-item-isolated on failure) — same wire home as `summarizeDigestBatch`
@@ -621,7 +654,15 @@ export async function storeConsolidationTier(
 ): Promise<PassCounts> {
   let written = 0;
   let skippedEmpty = 0;
-  const staleKeys: { tier: number; blockIdx: number; staleHash: string }[] = [];
+  const staleKeys: StaleDigestKey[] = [];
+  const dropParent = (item: ConsPending): void => {
+    if (item.staleHash !== undefined) {
+      staleKeys.push(
+        { tier: plan.parentTier, blockIdx: item.parentBlockIdx, staleHash: item.staleHash },
+        ...storedAncestors(plan.existing, { tier: plan.parentTier, blockIdx: item.parentBlockIdx }, plan.cfg),
+      );
+    }
+  };
   for (let i = 0; i < plan.pending.length; i += 1) {
     const item = plan.pending[i];
     if (item === undefined) {
@@ -630,9 +671,7 @@ export async function storeConsolidationTier(
     const raw = texts[i];
     if (raw === null || raw === undefined || raw.trim().length === 0) {
       skippedEmpty += 1;
-      if (item.staleHash !== undefined) {
-        staleKeys.push({ tier: plan.parentTier, blockIdx: item.parentBlockIdx, staleHash: item.staleHash });
-      }
+      dropParent(item);
       continue;
     }
     const parsed = parseDigest(raw);
@@ -643,9 +682,7 @@ export async function storeConsolidationTier(
     // VISIBLY, never silently ship a bodyless arc as canon).
     if (parsed.facts.trim().length === 0) {
       skippedEmpty += 1;
-      if (item.staleHash !== undefined) {
-        staleKeys.push({ tier: plan.parentTier, blockIdx: item.parentBlockIdx, staleHash: item.staleHash });
-      }
+      dropParent(item);
       continue;
     }
     const receipt = await ctx.embeddingsStore({

@@ -7,9 +7,11 @@ import {
   chatGenerationObservations,
   chatParticipants,
   chats,
+  dailyStats,
   embeddingCalls,
   messages,
   messageVariants,
+  modelStats,
   ownerStats,
   spendLedger,
 } from "@orb/db";
@@ -24,6 +26,7 @@ import type { RetainedOwnersRead } from "../contract/retained-chat-accounting.ts
 import { RETAINED_CHAT_OWNERS_ALIAS } from "../contract/retained-chat-accounting.ts";
 import { retainedRebaseProjection } from "../substrate/retained-chat-accounting.ts";
 import { chatOwnerIds, ownerChatIds, retainedCharacterSeatPredicate, retainedChatOwners } from "./owner-chat-scope.ts";
+import { BUCKET_COLUMNS, emptied, MODEL_COLUMNS } from "./rollup-grains.ts";
 
 /** Compose-built private accounting scope; caller has already admitted the retained source operation. */
 export function createResolveRetainedChatAccountingScope(input: DatabaseHandle): ResolveRetainedChatAccountingScope<SQL> {
@@ -173,7 +176,9 @@ function ownerActivity(ownerId: UserId): SQL {
   )`;
 }
 
-/** Money and counters were already rebased; extrema must read the committed-in-batch retained relations. */
+/** Money and counters were already rebased; extrema must read the committed-in-batch retained relations. A timeline
+ *  bucket or model row the counters left all zero is deleted too: a rebuild writes a row only for a grain something
+ *  still lands on, so the live rollups must not show an empty one. */
 export const settleRetainedChatRebase: SettleRetainedChatRebase<BatchStmt[], Db> = (batch, db, scope): void => {
   for (const ownerId of scope.ownerIds) {
     batch.push(
@@ -186,6 +191,8 @@ export const settleRetainedChatRebase: SettleRetainedChatRebase<BatchStmt[], Db>
         where m.chat_id in (${ownerChatIds(ownerId)}))`,
         })
         .where(eq(ownerStats.ownerId, ownerId)),
+      db.delete(dailyStats).where(and(eq(dailyStats.ownerId, ownerId), ...emptied(dailyStats, BUCKET_COLUMNS))),
+      db.delete(modelStats).where(and(eq(modelStats.ownerId, ownerId), ...emptied(modelStats, MODEL_COLUMNS))),
     );
   }
   for (const characterId of scope.characterIds) {

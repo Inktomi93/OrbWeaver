@@ -26,12 +26,14 @@ A database handle crosses a domain boundary only as an owner-built statement, gu
 | `detachHandoffBooks`, `detachHandoffRegexScripts` | world-info, regex | chat's handoff swap | [D64](0064-handoff-and-fork-drop-prior-host-characters.md): the chat attachments the new host does not own leave with the role swap, after the copy re-points |
 | `rpgRestoreStatement` | rpg | chat's restore | The game state restores with the message it belongs to |
 | `NotificationsEmitOp` coStatements and `claimStatement` | chat | notifications' emit | A notification and the chat write it announces commit together, so no notice points at an unsaved row and none is lost |
+| `globalVariableWriteStatements` | automation | chat's committed turn | [D46](0046-scripting-variables-live-on-two-planes.md): a turn's `{{setglobalvar}}` writes land with the reply, so a failed or aborted turn stores none. The plane never stages in a room another human ever held a seat in, and a chat file without the shared flag imports as shared (`chats.everShared`) |
+| `reseatPersonaSeatsStatement` | chat | persona's delete | [D315](0315-persona-pointers-one-writer-pin-read-through-chat.md): the seats move off the persona in the batch that deletes it, so no seat switched onto it before the commit is left empty |
 
 The signup statements stay under D259. A new joint batch needs a new row here before its op lands. `pnpm unwired ports` reads the ruled ops from one tuple in `tooling/src/unwired/`, and a test holds that tuple equal to this table, so an op absent from the table reports as `db-handle-review`.
 
 ## Consequences
 
-Each listed op keeps its handle and its composed wiring; only its type home moves to contracts or the consumer's `contract/`. The census reaches zero unruled handle targets. A reviewer reads one table to know which cross-domain writes are atomic by design.
+A stats rebuild, and a batch that retires or admits canon, opens with a guard that rewrites the owner's canon-version row with the version it read, so an owner with no stats write gains a row at version 0. Every reader takes a missing row as version 0 and the next write moves either to 1, so the two states are the same. Each listed op keeps its handle and its composed wiring; only its type home moves to contracts or the consumer's `contract/`. The census reaches zero unruled handle targets. A reviewer reads one table to know which cross-domain writes are atomic by design.
 
 ## Alternatives rejected
 

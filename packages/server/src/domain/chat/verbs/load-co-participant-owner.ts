@@ -78,7 +78,8 @@ export function createLoadCoParticipantOwner(input: DbAssemblyInput<Ctx>): LoadC
       ownerIds: [...new Set([...ownerSeats.values()].flatMap((room) => [...room.keys()]))],
       assetIds: pins.flatMap((pin) => personaAvatars.get(pin.personaId) ?? []),
     });
-    // SECURITY: no early return on an empty holder set. A faster answer would tell the caller whether anyone they sit with holds these bytes.
+    // SECURITY: no early return on an empty holder set. An empty set runs the same reads below as any other, so a hash
+    // nobody holds and one held outside the caller's rooms answer alike; the timing note at the link read says what stays distinguishable.
     // The owner of the asset when it holds `hash` and that owner is present in the room the reference sits in.
     const candidateIn = (chatId: ChatId, assetId: AssetId | undefined): OwnerCandidate[] => {
       const ownerId = assetId === undefined ? undefined : holders.get(assetId);
@@ -110,6 +111,11 @@ export function createLoadCoParticipantOwner(input: DbAssemblyInput<Ctx>): LoadC
       return pinOwner;
     }
 
+    // SECURITY: this timing is partial, so never read it as a guarantee. "Nobody holds these bytes" and "a holder
+    // outside the caller's rooms holds them" both reach here with an empty holder set and answer in the same time. A
+    // holder seated in one of the caller's own rooms, with no reference the caller may see, reaches here with that
+    // holder's asset id and answers slightly later, because the link read then looks up that id. The door hides a holder
+    // outside the caller's rooms, never one the caller sits with.
     const links = await loadVisibleAssetLinksInCallerRooms(ctx.db, callerId, [...holders.keys()]);
     return firstConsentingOwner(
       ctx,

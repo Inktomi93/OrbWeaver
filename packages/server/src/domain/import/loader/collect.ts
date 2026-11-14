@@ -351,7 +351,7 @@ async function collectChatsForDir(args: {
       parsed,
       importedFrom: fileEnt.name,
       sourceFile: fs.join(CHATS_DIR, dirName, fileEnt.name),
-      importHash: chatContentHash(parsed),
+      importHash: await chatContentHash(parsed),
       fileHash: importFileHash(bytes),
     });
   }
@@ -556,7 +556,7 @@ async function collectGroupChats(args: {
       parsed,
       importedFrom: fileName,
       sourceFile: fs.join(GROUP_CHATS_DIR, fileName),
-      importHash: chatContentHash(parsed),
+      importHash: await chatContentHash(parsed),
       fileHash: importFileHash(bytes),
     });
   }

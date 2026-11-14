@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
-updated: 2026-11-13
+status: open
+updated: 2026-11-14
 priority: P3
 area: testing
-lane: wt/agent-a1b41287df1811879
 ---
 
 # Snap session calls with no route die on the load kill under 24 load
